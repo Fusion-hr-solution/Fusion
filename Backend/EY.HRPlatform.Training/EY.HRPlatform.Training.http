@@ -1,0 +1,6 @@
+@EY.HRPlatform.Training_HostAddress = http://localhost:5033
+
+GET {{EY.HRPlatform.Training_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

@@ -1,0 +1,16 @@
+<Solution>
+  <Folder Name="/Modules/">
+    <Project Path="EY.HRPlatform.Training/EY.HRPlatform.Training.csproj" Id="1511abe8-a925-4765-898b-3b189d6cc2c0" />
+  </Folder>
+  <Folder Name="/src/" />
+  <Folder Name="/src/Core/">
+    <Project Path="EY.HRPlatform.Identity/EY.HRPlatform.Identity.csproj" />
+  </Folder>
+  <Folder Name="/src/Gateway/">
+    <Project Path="EY.HRPlatform.Gateway/EY.HRPlatform.Gateway.csproj" />
+  </Folder>
+  <Folder Name="/src/Shared/">
+    <Project Path="EY.HRPlatform.SharedKernel/EY.HRPlatform.SharedKernel.csproj" />
+  </Folder>
+  <Folder Name="/tests/" />
+</Solution>
