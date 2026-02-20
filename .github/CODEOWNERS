@@ -1,0 +1,46 @@
+# =============================================================================
+# CODEOWNERS — Fusion (HR Platform)
+# =============================================================================
+# Each line maps a file/folder pattern to one or more owners.
+# Later rules take precedence. Owners are auto-requested for PR review.
+#
+# Replace placeholder handles below with real GitHub usernames or team slugs:
+#   @HzamiBaha/frontend-team, @HzamiBaha/backend-team, etc.
+# =============================================================================
+
+# ── Default owner (catch-all) ───────────────────────────────────────────────
+*                                       @HzamiBaha
+
+# ── CI / DevOps / repo config ──────────────────────────────────────────────
+/.github/                               @HzamiBaha
+*.yml                                   @HzamiBaha
+*.yaml                                  @HzamiBaha
+
+# ── Root config files ──────────────────────────────────────────────────────
+/package.json                           @HzamiBaha
+/pnpm-lock.yaml                        @HzamiBaha
+/README.md                              @HzamiBaha
+
+# ── Backend (all .NET services) ────────────────────────────────────────────
+/Backend/                               @HzamiBaha
+/Backend/EY.HRPlatform.Gateway/         @HzamiBaha
+/Backend/EY.HRPlatform.Identity/        @HzamiBaha
+/Backend/EY.HRPlatform.Training/        @HzamiBaha
+/Backend/EY.HRPlatform.SharedKernel/    @HzamiBaha
+
+# ── Frontend (monorepo) ───────────────────────────────────────────────────
+/Frontend/                              @HzamiBaha
+
+# ── Frontend apps ─────────────────────────────────────────────────────────
+/Frontend/apps/shell/                   @HzamiBaha
+/Frontend/apps/core/                    @HzamiBaha
+/Frontend/apps/recruitment/             @HzamiBaha
+/Frontend/apps/interview/               @HzamiBaha
+/Frontend/apps/onboarding/              @HzamiBaha
+/Frontend/apps/learning/                @HzamiBaha
+/Frontend/apps/performance/             @HzamiBaha
+
+# ── Frontend shared packages ─────────────────────────────────────────────
+/Frontend/packages/ui/                  @HzamiBaha
+/Frontend/packages/eslint-config/       @HzamiBaha
+/Frontend/packages/tsconfig/            @HzamiBaha
