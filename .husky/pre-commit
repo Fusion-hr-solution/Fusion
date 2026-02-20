@@ -1,0 +1,1 @@
+cd Frontend && pnpm lint && pnpm type-check
