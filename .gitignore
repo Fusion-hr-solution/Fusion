@@ -52,11 +52,11 @@ x86/
 build/
 bld/
 
-# NuGet
-**/[Pp]ackages/*
-!**/[Pp]ackages/build/
+# NuGet (scoped to Backend only)
+Backend/**/[Pp]ackages/*
+!Backend/**/[Pp]ackages/build/
 *.nupkg
-**/packages/repositories.config
+Backend/**/packages/repositories.config
 
 # ========================
 # Node.js / Frontend
