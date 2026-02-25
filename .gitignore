@@ -16,6 +16,8 @@ Thumbs.db
 *.user
 *.userosscache
 *.sln.docstates
+.vs/
+**/.vs/
 
 # ========================
 # .NET / Backend
@@ -34,7 +36,6 @@ Thumbs.db
 project.lock.json
 *.nuget.props
 *.nuget.targets
-launchSettings.json
 
 # User-specific files
 *.rsuser
