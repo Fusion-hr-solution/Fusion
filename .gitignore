@@ -36,6 +36,7 @@ Thumbs.db
 project.lock.json
 *.nuget.props
 *.nuget.targets
+**/appsettings.Development.json
 
 # User-specific files
 *.rsuser
