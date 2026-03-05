@@ -21,7 +21,6 @@ interface AppHeaderProps {
 
 export function AppHeader({ activeApp }: AppHeaderProps) {
   return (
-    <AuthProvider>
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto flex h-16 items-center px-4">
           <div className="mr-8">
@@ -51,6 +50,20 @@ export function AppHeader({ activeApp }: AppHeaderProps) {
           </div>
         </div>
       </header>
+  );
+}
+
+interface AuthLayoutProps {
+  activeApp?: string;
+  children: React.ReactNode;
+}
+
+/** Wraps children with AuthProvider + AppHeader — use in server-component layouts */
+export function AuthLayout({ activeApp, children }: AuthLayoutProps) {
+  return (
+    <AuthProvider>
+      <AppHeader activeApp={activeApp} />
+      <main>{children}</main>
     </AuthProvider>
   );
 }

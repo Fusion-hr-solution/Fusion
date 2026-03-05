@@ -27,4 +27,4 @@ export type { AuthContextValue } from "./auth-context";
 
 // Components
 export { AuthButtons } from "./components/auth-buttons";
-export { AppHeader } from "./components/app-header";
+export { AppHeader, AuthLayout } from "./components/app-header";

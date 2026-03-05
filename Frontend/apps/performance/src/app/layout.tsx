@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { AppHeader } from "@repo/auth";
+import { AuthLayout } from "@repo/auth";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -15,8 +15,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="min-h-screen antialiased">
-        <AppHeader activeApp="Performance" />
-        <main>{children}</main>
+        <AuthLayout activeApp="Performance">{children}</AuthLayout>
       </body>
     </html>
   );
