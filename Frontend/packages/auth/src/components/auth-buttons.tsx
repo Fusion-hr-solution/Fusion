@@ -3,7 +3,6 @@
 import React from "react";
 import { Button } from "@repo/ui";
 import { useAuth } from "../auth-context";
-import { clearAuth } from "../auth-service";
 
 export function AuthButtons() {
   const { isAuthenticated, user, logout, isLoading } = useAuth();
