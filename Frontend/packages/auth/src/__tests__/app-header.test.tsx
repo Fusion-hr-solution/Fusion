@@ -2,8 +2,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import React from "react";
 import { AppHeader } from "../components/app-header";
+import { AuthProvider } from "../auth-context";
 import * as authService from "../auth-service";
 import { makeStoredAuth } from "./helpers";
+
+function renderWithProvider(ui: React.ReactElement) {
+  return render(<AuthProvider>{ui}</AuthProvider>);
+}
 
 vi.mock("../auth-service", async () => {
   const actual = await vi.importActual<typeof authService>("../auth-service");
@@ -28,7 +33,7 @@ beforeEach(() => {
 
 describe("AppHeader – navigation", () => {
   it("renders all nav links", async () => {
-    render(<AppHeader />);
+    renderWithProvider(<AppHeader />);
 
     await waitFor(() =>
       expect(screen.getByText("Home")).toBeInTheDocument(),
@@ -42,7 +47,7 @@ describe("AppHeader – navigation", () => {
   });
 
   it("highlights the active nav item", async () => {
-    render(<AppHeader activeApp="Core" />);
+    renderWithProvider(<AppHeader activeApp="Core" />);
 
     await waitFor(() =>
       expect(screen.getByText("Core")).toBeInTheDocument(),
@@ -57,7 +62,7 @@ describe("AppHeader – navigation", () => {
   });
 
   it("renders the Frontend logo/title", async () => {
-    render(<AppHeader />);
+    renderWithProvider(<AppHeader />);
 
     await waitFor(() =>
       expect(screen.getByText("Frontend")).toBeInTheDocument(),
@@ -67,7 +72,7 @@ describe("AppHeader – navigation", () => {
 
 describe("AppHeader – auth integration", () => {
   it("shows Sign In / Sign Up when not authenticated", async () => {
-    render(<AppHeader />);
+    renderWithProvider(<AppHeader />);
 
     await waitFor(() =>
       expect(screen.getByText("Sign In")).toBeInTheDocument(),
@@ -78,7 +83,7 @@ describe("AppHeader – auth integration", () => {
   it("shows user name and Sign Out when authenticated", async () => {
     mockedService.loadAuth.mockReturnValue(makeStoredAuth());
 
-    render(<AppHeader activeApp="Home" />);
+    renderWithProvider(<AppHeader activeApp="Home" />);
 
     await waitFor(() =>
       expect(screen.getByText("John Doe")).toBeInTheDocument(),
@@ -89,7 +94,7 @@ describe("AppHeader – auth integration", () => {
 
 describe("AppHeader – nav link hrefs", () => {
   it("links to correct routes", async () => {
-    render(<AppHeader />);
+    renderWithProvider(<AppHeader />);
 
     await waitFor(() =>
       expect(screen.getByText("Home")).toBeInTheDocument(),
