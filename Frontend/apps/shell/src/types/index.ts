@@ -9,13 +9,3 @@ export interface NavItem {
   label: string;
   href: string;
 }
-
-export type {
-  LoginRequest,
-  RegisterRequest,
-  RefreshTokenRequest,
-  AuthResponse,
-  ApiResponse,
-  AuthUser,
-  AuthState,
-} from "./auth";
