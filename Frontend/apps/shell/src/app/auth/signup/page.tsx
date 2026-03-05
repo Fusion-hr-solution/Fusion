@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Button,
@@ -13,11 +13,18 @@ import {
   Input,
   Label,
 } from "@repo/ui";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@repo/auth";
 
 export default function SignUpPage() {
   const router = useRouter();
-  const { register, isLoading: authLoading } = useAuth();
+  const { register, isLoading: authLoading, isAuthenticated } = useAuth();
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      router.replace("/");
+    }
+  }, [authLoading, isAuthenticated, router]);
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");

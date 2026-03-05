@@ -2,13 +2,20 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 // Routes that don't require authentication
-const PUBLIC_PATHS = ["/auth/signin", "/auth/signup"];
+const AUTH_PATHS = ["/auth/signin", "/auth/signup"];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const authCookie = request.cookies.get("ey_hr_authenticated");
+  const isAuthenticated = !!authCookie?.value;
 
-  // Allow public routes
-  if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
+  // If authenticated and trying to access auth pages, redirect to home
+  if (isAuthenticated && AUTH_PATHS.some((p) => pathname.startsWith(p))) {
+    return NextResponse.redirect(new URL("/", request.url));
+  }
+
+  // Allow auth pages for unauthenticated users
+  if (AUTH_PATHS.some((p) => pathname.startsWith(p))) {
     return NextResponse.next();
   }
 
@@ -21,12 +28,8 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Check for auth token in localStorage is client-side only,
-  // so we use a lightweight cookie-based check via a custom cookie.
-  // The AuthProvider sets this cookie when the user logs in.
-  const authCookie = request.cookies.get("ey_hr_authenticated");
-
-  if (!authCookie?.value) {
+  // Redirect unauthenticated users to sign in
+  if (!isAuthenticated) {
     const signInUrl = new URL("/auth/signin", request.url);
     signInUrl.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(signInUrl);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Button,
@@ -13,16 +13,23 @@ import {
   Input,
   Label,
 } from "@repo/ui";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@repo/auth";
 
 export default function SignInPage() {
   const router = useRouter();
-  const { login, isLoading: authLoading } = useAuth();
+  const { login, isLoading: authLoading, isAuthenticated } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      router.replace("/");
+    }
+  }, [authLoading, isAuthenticated, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

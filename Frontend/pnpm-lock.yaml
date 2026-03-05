@@ -8,9 +8,6 @@ importers:
 
   .:
     devDependencies:
-      husky:
-        specifier: ^9.1.7
-        version: 9.1.7
       prettier:
         specifier: ^3.4.2
         version: 3.8.1
@@ -20,6 +17,9 @@ importers:
 
   apps/core:
     dependencies:
+      '@repo/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
       '@repo/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -69,6 +69,9 @@ importers:
 
   apps/interview:
     dependencies:
+      '@repo/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
       '@repo/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -118,6 +121,9 @@ importers:
 
   apps/learning:
     dependencies:
+      '@repo/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
       '@repo/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -167,6 +173,9 @@ importers:
 
   apps/onboarding:
     dependencies:
+      '@repo/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
       '@repo/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -216,6 +225,9 @@ importers:
 
   apps/performance:
     dependencies:
+      '@repo/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
       '@repo/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -265,6 +277,9 @@ importers:
 
   apps/recruitment:
     dependencies:
+      '@repo/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
       '@repo/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -314,6 +329,9 @@ importers:
 
   apps/shell:
     dependencies:
+      '@repo/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
       '@repo/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -357,6 +375,34 @@ importers:
       tailwindcss-animate:
         specifier: ^1.0.7
         version: 1.0.7(tailwindcss@3.4.19)
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+
+  packages/auth:
+    dependencies:
+      '@repo/ui':
+        specifier: workspace:*
+        version: link:../ui
+      react:
+        specifier: ^19.0.0
+        version: 19.2.4
+      react-dom:
+        specifier: ^19.0.0
+        version: 19.2.4(react@19.2.4)
+    devDependencies:
+      '@repo/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@repo/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@types/react':
+        specifier: ^19.0.0
+        version: 19.2.14
+      '@types/react-dom':
+        specifier: ^19.0.0
+        version: 19.2.3(@types/react@19.2.14)
       typescript:
         specifier: ^5.7.3
         version: 5.9.3
@@ -1649,11 +1695,6 @@ packages:
   hasown@2.0.2:
     resolution: {integrity: sha512-0hJU9SCPvmMzIBdZFqNPXWa6dqh7WdH0cII9y+CyS8rG3nL48Bclra9HmKhVVUHyPWNH5Y7xDwAB7bfgSjkUMQ==}
     engines: {node: '>= 0.4'}
-
-  husky@9.1.7:
-    resolution: {integrity: sha512-5gs5ytaNjBrh5Ow3zrvdUUY+0VxIuWVL4i9irt6friV+BqdCfmV11CQTWMiBYWHbXhco+J1kHfTOUkePhCDvMA==}
-    engines: {node: '>=18'}
-    hasBin: true
 
   ignore@5.3.2:
     resolution: {integrity: sha512-hsBTNUqQTDwkWtcdYI2i06Y/nUBEsNEDJKjWdigLvegy8kDuJAS8uRlpkkcQpyEXL0Z/pjDy5HBmMjRCJ2gq+g==}
@@ -3814,8 +3855,6 @@ snapshots:
   hasown@2.0.2:
     dependencies:
       function-bind: 1.1.2
-
-  husky@9.1.7: {}
 
   ignore@5.3.2: {}
 
