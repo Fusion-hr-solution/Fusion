@@ -1,0 +1,610 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { createApiClient } from "../client";
+import { ApiError } from "../types";
+
+// ── Test helpers ─────────────────────────────────────────────────────
+
+function jsonResponse(
+  body: unknown,
+  init?: {
+    status?: number;
+    statusText?: string;
+    headers?: Record<string, string>;
+  }
+): Response {
+  const status = init?.status ?? 200;
+  const headers = new Headers({
+    "Content-Type": "application/json",
+    ...init?.headers,
+  });
+
+  return new Response(JSON.stringify(body), {
+    status,
+    statusText: init?.statusText ?? "OK",
+    headers,
+  });
+}
+
+function emptyResponse(status = 204): Response {
+  return new Response(null, {
+    status,
+    statusText: status === 204 ? "No Content" : "",
+    headers: new Headers({ "Content-Length": "0" }),
+  });
+}
+
+// ── Setup ────────────────────────────────────────────────────────────
+
+let fetchSpy: ReturnType<typeof vi.fn>;
+
+beforeEach(() => {
+  fetchSpy = vi.fn();
+  vi.stubGlobal("fetch", fetchSpy);
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+// ── Tests ────────────────────────────────────────────────────────────
+
+describe("createApiClient", () => {
+  // ── Successful requests ────────────────────────────────────────
+
+  describe("successful requests", () => {
+    it("GET unwraps ApiResponse envelope and returns data", async () => {
+      const courses = [{ id: 1, title: "TypeScript" }];
+      fetchSpy.mockResolvedValueOnce(
+        jsonResponse({ data: courses, errors: [], isSuccess: true })
+      );
+
+      const api = createApiClient({ baseUrl: "/api" });
+      const result = await api.get("/training/courses");
+
+      expect(result).toEqual(courses);
+      expect(fetchSpy).toHaveBeenCalledOnce();
+
+      // Verify the actual fetch call
+      const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      expect(url).toBe("/api/training/courses");
+      expect(init.method).toBe("GET");
+      expect(init.body).toBeUndefined();
+    });
+
+    it("POST sends JSON body and returns unwrapped data", async () => {
+      const created = { id: 5, title: "New Course" };
+      fetchSpy.mockResolvedValueOnce(
+        jsonResponse({ data: created, errors: [], isSuccess: true })
+      );
+
+      const api = createApiClient({ baseUrl: "/api" });
+      const result = await api.post("/training/courses", {
+        title: "New Course",
+      });
+
+      expect(result).toEqual(created);
+
+      const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      expect(init.method).toBe("POST");
+      expect(init.body).toBe(JSON.stringify({ title: "New Course" }));
+
+      const headers = init.headers as Record<string, string>;
+      expect(headers["Content-Type"]).toBe("application/json");
+    });
+
+    it("PUT sends body with correct method", async () => {
+      fetchSpy.mockResolvedValueOnce(
+        jsonResponse({ data: null, errors: [], isSuccess: true })
+      );
+
+      const api = createApiClient();
+      await api.put("/items/1", { name: "Updated" });
+
+      const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      expect(init.method).toBe("PUT");
+    });
+
+    it("PATCH sends body with correct method", async () => {
+      fetchSpy.mockResolvedValueOnce(
+        jsonResponse({ data: null, errors: [], isSuccess: true })
+      );
+
+      const api = createApiClient();
+      await api.patch("/items/1", { name: "Patched" });
+
+      const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      expect(init.method).toBe("PATCH");
+    });
+
+    it("DELETE sends request with no body", async () => {
+      fetchSpy.mockResolvedValueOnce(emptyResponse(204));
+
+      const api = createApiClient();
+      const result = await api.delete("/items/1");
+
+      expect(result).toBeUndefined();
+
+      const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      expect(init.method).toBe("DELETE");
+      expect(init.body).toBeUndefined();
+    });
+  });
+
+  // ── Empty responses ────────────────────────────────────────────
+
+  describe("empty responses", () => {
+    it("returns undefined for 204 No Content", async () => {
+      fetchSpy.mockResolvedValueOnce(emptyResponse(204));
+
+      const api = createApiClient();
+      const result = await api.delete("/items/1");
+
+      expect(result).toBeUndefined();
+    });
+
+    it("returns undefined when Content-Length is 0", async () => {
+      fetchSpy.mockResolvedValueOnce(emptyResponse(200));
+
+      const api = createApiClient();
+      const result = await api.post("/logout");
+
+      expect(result).toBeUndefined();
+    });
+  });
+
+  // ── Authorization header ───────────────────────────────────────
+
+  describe("authorization header", () => {
+    it("attaches Bearer token from getToken callback", async () => {
+      fetchSpy.mockResolvedValueOnce(
+        jsonResponse({ data: {}, errors: [], isSuccess: true })
+      );
+
+      const api = createApiClient({
+        getToken: () => "my-jwt-token",
+      });
+      await api.get("/protected");
+
+      const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      const headers = init.headers as Record<string, string>;
+      expect(headers["Authorization"]).toBe("Bearer my-jwt-token");
+    });
+
+    it("omits Authorization when getToken returns null", async () => {
+      fetchSpy.mockResolvedValueOnce(
+        jsonResponse({ data: {}, errors: [], isSuccess: true })
+      );
+
+      const api = createApiClient({
+        getToken: () => null,
+      });
+      await api.get("/public");
+
+      const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      const headers = init.headers as Record<string, string>;
+      expect(headers["Authorization"]).toBeUndefined();
+    });
+
+    it("omits Authorization when no getToken is configured", async () => {
+      fetchSpy.mockResolvedValueOnce(
+        jsonResponse({ data: {}, errors: [], isSuccess: true })
+      );
+
+      const api = createApiClient(); // no getToken at all
+      await api.get("/public");
+
+      const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      const headers = init.headers as Record<string, string>;
+      expect(headers["Authorization"]).toBeUndefined();
+    });
+
+    it("skips auth when skipAuth option is set", async () => {
+      fetchSpy.mockResolvedValueOnce(
+        jsonResponse({ data: {}, errors: [], isSuccess: true })
+      );
+
+      const api = createApiClient({
+        getToken: () => "my-jwt-token",
+      });
+      await api.get("/public", { skipAuth: true });
+
+      const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      const headers = init.headers as Record<string, string>;
+      expect(headers["Authorization"]).toBeUndefined();
+    });
+
+    it("calls getToken on every request (no stale closure)", async () => {
+      // This test proves getToken is called at request time, not config time.
+      // If someone refactors to cache the token at createApiClient() time,
+      // this test fails — catching a real bug.
+      let callCount = 0;
+      const getToken = () => {
+        callCount++;
+        return `token-${callCount}`;
+      };
+
+      fetchSpy.mockImplementation(() =>
+        Promise.resolve(jsonResponse({ data: {}, errors: [], isSuccess: true }))
+      );
+      const api = createApiClient({ getToken });
+
+      await api.get("/first");
+      await api.get("/second");
+
+      const headers1 = (fetchSpy.mock.calls[0] as [string, RequestInit])[1]
+        .headers as Record<string, string>;
+      const headers2 = (fetchSpy.mock.calls[1] as [string, RequestInit])[1]
+        .headers as Record<string, string>;
+
+      expect(headers1["Authorization"]).toBe("Bearer token-1");
+      expect(headers2["Authorization"]).toBe("Bearer token-2");
+    });
+  });
+
+  // ── Error handling ─────────────────────────────────────────────
+
+  describe("error handling", () => {
+    it("throws ApiError on non-2xx response", async () => {
+      fetchSpy.mockResolvedValueOnce(
+        jsonResponse(
+          { data: null, errors: ["Unauthorized"], isSuccess: false },
+          { status: 401, statusText: "Unauthorized" }
+        )
+      );
+
+      const api = createApiClient();
+
+      const err = await api.get("/protected").catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(ApiError);
+
+      const apiErr = err as ApiError;
+      expect(apiErr.status).toBe(401);
+      expect(apiErr.statusText).toBe("Unauthorized");
+      expect(apiErr.errors).toEqual(["Unauthorized"]);
+      expect(apiErr.name).toBe("ApiError");
+      expect(apiErr.message).toBe("Unauthorized");
+    });
+
+    it("throws ApiError when isSuccess is false even on HTTP 200", async () => {
+      // The backend can return 200 with isSuccess: false for validation errors.
+      // Our client must treat this as a failure.
+      fetchSpy.mockResolvedValueOnce(
+        jsonResponse({
+          data: null,
+          errors: ["Validation failed"],
+          isSuccess: false,
+        })
+      );
+
+      const api = createApiClient();
+
+      const err = await api
+        .post("/items", { bad: "data" })
+        .catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(ApiError);
+
+      const apiErr = err as ApiError;
+      expect(apiErr.status).toBe(200);
+      expect(apiErr.errors).toEqual(["Validation failed"]);
+    });
+
+    it("falls back to statusText when errors array is empty", async () => {
+      fetchSpy.mockResolvedValueOnce(
+        jsonResponse(
+          { data: null, errors: [], isSuccess: false },
+          { status: 500, statusText: "Internal Server Error" }
+        )
+      );
+
+      const api = createApiClient();
+
+      const err = await api.get("/broken").catch((e: unknown) => e);
+      const apiErr = err as ApiError;
+      expect(apiErr.errors).toEqual(["Internal Server Error"]);
+      expect(apiErr.message).toBe("Internal Server Error");
+    });
+
+    it("throws ApiError on non-JSON response body", async () => {
+      // Happens when a proxy returns HTML error pages, nginx 502, etc.
+      fetchSpy.mockResolvedValueOnce(
+        new Response("<html>Bad Gateway</html>", {
+          status: 502,
+          statusText: "Bad Gateway",
+          headers: new Headers({ "Content-Type": "text/html" }),
+        })
+      );
+
+      const api = createApiClient();
+
+      const err = await api.get("/down").catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(ApiError);
+
+      const apiErr = err as ApiError;
+      expect(apiErr.status).toBe(502);
+      expect(apiErr.errors).toEqual(["Response is not valid JSON"]);
+    });
+
+    it("includes correlationId from response header in ApiError", async () => {
+      fetchSpy.mockResolvedValueOnce(
+        jsonResponse(
+          { data: null, errors: ["Server error"], isSuccess: false },
+          {
+            status: 500,
+            statusText: "Internal Server Error",
+            headers: { "X-Correlation-Id": "abc-123-def" },
+          }
+        )
+      );
+
+      const api = createApiClient();
+
+      const err = await api.get("/broken").catch((e: unknown) => e);
+      const apiErr = err as ApiError;
+      expect(apiErr.correlationId).toBe("abc-123-def");
+    });
+  });
+
+  // ── Headers ────────────────────────────────────────────────────
+
+  describe("headers", () => {
+    it("sends X-Correlation-Id on every request", async () => {
+      fetchSpy.mockResolvedValueOnce(
+        jsonResponse({ data: {}, errors: [], isSuccess: true })
+      );
+
+      const api = createApiClient();
+      await api.get("/test");
+
+      const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      const headers = init.headers as Record<string, string>;
+      expect(headers["X-Correlation-Id"]).toBeDefined();
+      expect(headers["X-Correlation-Id"]).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+      );
+    });
+
+    it("merges defaultHeaders from config", async () => {
+      fetchSpy.mockResolvedValueOnce(
+        jsonResponse({ data: {}, errors: [], isSuccess: true })
+      );
+
+      const api = createApiClient({
+        defaultHeaders: { "X-Custom": "value" },
+      });
+      await api.get("/test");
+
+      const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      const headers = init.headers as Record<string, string>;
+      expect(headers["X-Custom"]).toBe("value");
+    });
+
+    it("per-request headers override defaultHeaders", async () => {
+      // Spread order in client.ts: { ...config.defaultHeaders, ...options?.headers }
+      // Later spread wins — per-request should override config defaults
+      fetchSpy.mockResolvedValueOnce(
+        jsonResponse({ data: {}, errors: [], isSuccess: true })
+      );
+
+      const api = createApiClient({
+        defaultHeaders: { "X-Custom": "default" },
+      });
+      await api.get("/test", { headers: { "X-Custom": "override" } });
+
+      const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      const headers = init.headers as Record<string, string>;
+      expect(headers["X-Custom"]).toBe("override");
+    });
+
+    it("sets Accept: application/json on all requests", async () => {
+      fetchSpy.mockResolvedValueOnce(
+        jsonResponse({ data: {}, errors: [], isSuccess: true })
+      );
+
+      const api = createApiClient();
+      await api.get("/test");
+
+      const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      const headers = init.headers as Record<string, string>;
+      expect(headers["Accept"]).toBe("application/json");
+    });
+
+    it("does NOT set Content-Type on GET (no body)", async () => {
+      fetchSpy.mockResolvedValueOnce(
+        jsonResponse({ data: {}, errors: [], isSuccess: true })
+      );
+
+      const api = createApiClient();
+      await api.get("/test");
+
+      const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      const headers = init.headers as Record<string, string>;
+      expect(headers["Content-Type"]).toBeUndefined();
+    });
+
+    it("sets Content-Type: application/json on POST with body", async () => {
+      fetchSpy.mockResolvedValueOnce(
+        jsonResponse({ data: {}, errors: [], isSuccess: true })
+      );
+
+      const api = createApiClient();
+      await api.post("/test", { foo: "bar" });
+
+      const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      const headers = init.headers as Record<string, string>;
+      expect(headers["Content-Type"]).toBe("application/json");
+    });
+  });
+
+  // ── Configuration ──────────────────────────────────────────────
+
+  describe("configuration", () => {
+    it("uses /api as default baseUrl", async () => {
+      fetchSpy.mockResolvedValueOnce(
+        jsonResponse({ data: {}, errors: [], isSuccess: true })
+      );
+
+      const api = createApiClient(); // no config
+      await api.get("/test");
+
+      const [url] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      expect(url).toBe("/api/test");
+    });
+
+    it("uses custom baseUrl when provided", async () => {
+      fetchSpy.mockResolvedValueOnce(
+        jsonResponse({ data: {}, errors: [], isSuccess: true })
+      );
+
+      const api = createApiClient({ baseUrl: "http://localhost:5000/api" });
+      await api.get("/training/courses");
+
+      const [url] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      expect(url).toBe("http://localhost:5000/api/training/courses");
+    });
+
+    it("passes credentials option to fetch", async () => {
+      fetchSpy.mockResolvedValueOnce(
+        jsonResponse({ data: {}, errors: [], isSuccess: true })
+      );
+
+      const api = createApiClient();
+      await api.get("/test", { credentials: "include" });
+
+      const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      expect(init.credentials).toBe("include");
+    });
+
+    it("defaults credentials to same-origin", async () => {
+      fetchSpy.mockResolvedValueOnce(
+        jsonResponse({ data: {}, errors: [], isSuccess: true })
+      );
+
+      const api = createApiClient();
+      await api.get("/test");
+
+      const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      expect(init.credentials).toBe("same-origin");
+    });
+
+    it("passes abort signal to fetch", async () => {
+      const controller = new AbortController();
+      fetchSpy.mockResolvedValueOnce(
+        jsonResponse({ data: {}, errors: [], isSuccess: true })
+      );
+
+      const api = createApiClient();
+      await api.get("/test", { signal: controller.signal });
+
+      const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      expect(init.signal).toBe(controller.signal);
+    });
+  });
+
+  // ── Network & abort errors ─────────────────────────────────────
+
+  describe("network and abort errors", () => {
+    it("propagates TypeError on network failure (not wrapped in ApiError)", async () => {
+      const networkError = new TypeError("Failed to fetch");
+      fetchSpy.mockRejectedValueOnce(networkError);
+
+      const api = createApiClient();
+      const err = await api.get("/offline").catch((e: unknown) => e);
+
+      expect(err).toBe(networkError);
+      expect(err).toBeInstanceOf(TypeError);
+      expect(err).not.toBeInstanceOf(ApiError);
+    });
+
+    it("propagates AbortError when request is cancelled", async () => {
+      const controller = new AbortController();
+      const abortError = new DOMException(
+        "The operation was aborted.",
+        "AbortError"
+      );
+      fetchSpy.mockRejectedValueOnce(abortError);
+
+      const api = createApiClient();
+      const err = await api
+        .get("/slow", { signal: controller.signal })
+        .catch((e: unknown) => e);
+
+      expect(err).toBe(abortError);
+      expect(err).toBeInstanceOf(DOMException);
+      expect(err).not.toBeInstanceOf(ApiError);
+    });
+
+    it("propagates AbortError during json() parsing (not swallowed as invalid JSON)", async () => {
+      // Simulate: fetch resolves, but abort fires while reading the body
+      const abortError = new DOMException(
+        "The operation was aborted.",
+        "AbortError"
+      );
+      const fakeResponse = new Response("not used", {
+        status: 200,
+        statusText: "OK",
+      });
+      // Override json() to throw AbortError
+      vi.spyOn(fakeResponse, "json").mockRejectedValueOnce(abortError);
+      fetchSpy.mockResolvedValueOnce(fakeResponse);
+
+      const api = createApiClient();
+      const err = await api.get("/mid-abort").catch((e: unknown) => e);
+
+      expect(err).toBe(abortError);
+      expect(err).toBeInstanceOf(DOMException);
+      expect(err).not.toBeInstanceOf(ApiError);
+    });
+
+    it("propagates error when getToken throws", async () => {
+      const tokenError = new Error("Token storage unavailable");
+      const api = createApiClient({
+        getToken: () => {
+          throw tokenError;
+        },
+      });
+
+      const err = await api.get("/protected").catch((e: unknown) => e);
+      expect(err).toBe(tokenError);
+    });
+  });
+
+  // ── Correlation IDs ────────────────────────────────────────────
+
+  describe("correlation IDs", () => {
+    it("generates independent correlation IDs for concurrent requests", async () => {
+      fetchSpy.mockImplementation(() =>
+        Promise.resolve(jsonResponse({ data: {}, errors: [], isSuccess: true }))
+      );
+
+      const api = createApiClient();
+      await Promise.all([api.get("/a"), api.get("/b")]);
+
+      const id1 = (fetchSpy.mock.calls[0] as [string, RequestInit])[1]
+        .headers as Record<string, string>;
+      const id2 = (fetchSpy.mock.calls[1] as [string, RequestInit])[1]
+        .headers as Record<string, string>;
+
+      expect(id1["X-Correlation-Id"]).toBeDefined();
+      expect(id2["X-Correlation-Id"]).toBeDefined();
+      expect(id1["X-Correlation-Id"]).not.toBe(id2["X-Correlation-Id"]);
+    });
+  });
+
+  // ── POST with undefined body ───────────────────────────────────
+
+  describe("body handling", () => {
+    it("POST with undefined body sends no Content-Type and no body", async () => {
+      fetchSpy.mockResolvedValueOnce(
+        jsonResponse({ data: {}, errors: [], isSuccess: true })
+      );
+
+      const api = createApiClient();
+      await api.post("/action");
+
+      const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      const headers = init.headers as Record<string, string>;
+      expect(headers["Content-Type"]).toBeUndefined();
+      expect(init.body).toBeUndefined();
+    });
+  });
+});
