@@ -1,20 +1,47 @@
 # @repo/api
 
-Shared HTTP client for the EY HR Platform. All MFEs use this to talk to the backend gateway.
-
-Every request is proxied through the shell:
-
-```
-/performance/evaluations → shell (/api rewrite) → gateway:5000/api/performance/evaluations
-```
-
-Never hardcode `localhost`. Pass paths like `/performance/evaluations` — the client prefixes `/api`.
+Shared HTTP client for the EY HR Platform. Wraps `fetch`, adds auth headers, and unwraps the backend envelope automatically.
 
 ---
 
-## Setup
+## How requests reach the backend
 
-Create `src/lib/api.ts` in your MFE. One file, copy exactly:
+All API calls use relative URLs like `/api/...`. The **Shell** (`localhost:3000`) rewrites these to the gateway:
+
+```
+api.get("/performance/evaluations")
+  → fetch("/api/performance/evaluations")   (relative, hits shell origin :3000)
+  → Shell rewrite
+  → http://localhost:5000/api/performance/evaluations
+```
+
+---
+
+## Setup (do this once per MFE)
+
+### 1. Add the dependency
+
+In your MFE's `package.json`:
+
+```json
+"dependencies": {
+  "@repo/api": "workspace:*"
+}
+```
+
+Then add `"@repo/api"` to `transpilePackages` in your `next.config.ts`:
+
+```ts
+transpilePackages: ["@repo/ui",..., "@repo/api"],
+```
+
+### 2. Install
+
+```sh
+pnpm install
+```
+
+### 3. Create `src/lib/api.ts`
 
 ```ts
 import { createPlatformApiClient } from "@repo/api";
@@ -22,44 +49,75 @@ import { createPlatformApiClient } from "@repo/api";
 export const api = createPlatformApiClient();
 ```
 
-Do not call `createPlatformApiClient` anywhere else — only in `lib/api.ts`.
+This is the only place `createPlatformApiClient` is called in your MFE.
+
+### 4. Run through the Shell
+
+Start the shell alongside your MFE:
+
+```sh
+pnpm dev --filter=shell --filter=performance
+```
+
+Open `http://localhost:3000/performance` — API calls will work because the shell proxies `/api/*` to the gateway.
 
 ---
 
 ## Usage
 
-Always import `api` from your local `lib/api.ts`. Never import from `@repo/api` directly in components or services.
+The flow is: **service defines the function → component calls it**.
+
+Services wrap `api` calls and export typed functions. Components call those functions — they never touch `api` directly.
 
 ```ts
+// src/services/evaluations.ts
 import { api } from "@/lib/api";
+import type { Evaluation } from "@/types";
 
-// GET
-const evaluations = await api.get<Evaluation[]>("/performance/evaluations");
+export const getEvaluations = () =>
+  api.get<Evaluation[]>("/performance/evaluations");
 
-// POST
-const evaluation = await api.post<Evaluation>("/performance/evaluations", {
-  employeeId: 1,
-  rating: 4,
-});
+export const createEvaluation = (data: {
+  employeeId: number;
+  rating: number;
+}) => api.post<Evaluation>("/performance/evaluations", data);
 
-// PUT / PATCH / DELETE
-await api.put("/performance/evaluations/42", { rating: 5 });
-await api.patch("/performance/evaluations/42", { rating: 5 });
-await api.delete("/performance/evaluations/42"); // returns undefined
+export const updateEvaluation = (id: number, data: { rating: number }) =>
+  api.put<Evaluation>(`/performance/evaluations/${id}`, data);
+
+export const deleteEvaluation = (id: number) =>
+  api.delete(`/performance/evaluations/${id}`);
+```
+
+```ts
+// src/components/EvaluationList.tsx
+import { getEvaluations, createEvaluation } from "@/services/evaluations";
+
+const evaluations = await getEvaluations();
+const created = await createEvaluation({ employeeId: 1, rating: 4 });
 ```
 
 ### Cancellation
 
 ```ts
-const controller = new AbortController();
-await api.get("/performance/evaluations", { signal: controller.signal });
-controller.abort();
+// src/services/evaluations.ts
+export const getEvaluations = (signal?: AbortSignal) =>
+  api.get<Evaluation[]>("/performance/evaluations", { signal });
 ```
 
-### Skip auth (public endpoints)
+```ts
+// src/components/EvaluationList.tsx
+const controller = new AbortController();
+const evaluations = await getEvaluations(controller.signal);
+controller.abort(); // cancels the request
+```
+
+### Skip auth header (e.g. login endpoint)
 
 ```ts
-await api.get("/public/health", { skipAuth: true });
+// src/services/auth.ts
+export const login = (body: { email: string; password: string }) =>
+  api.post("/identity/auth/login", body, { skipAuth: true });
 ```
 
 ---
@@ -67,41 +125,39 @@ await api.get("/public/health", { skipAuth: true });
 ## Error handling
 
 ```ts
+// src/components/EvaluationList.tsx
 import { ApiError } from "@repo/api";
 
 try {
-  await api.post("/identity/auth/login", { email, password });
+  const data = await api.get("/performance/evaluations");
 } catch (err) {
   if (err instanceof ApiError) {
-    // err.status, err.statusText, err.errors[], err.correlationId
-  } else if (err instanceof TypeError) {
-    // offline / DNS failure — no response received
+    console.error(err.status, err.errors, err.correlationId);
   } else if (err instanceof DOMException) {
-    // request cancelled via AbortController
+    // request was cancelled via AbortController
+  } else if (err instanceof TypeError) {
+    // network failure — user is offline or DNS failed
   }
 }
 ```
 
-Always handle `TypeError`. If the user is offline, `ApiError` is never thrown.
+Always handle `TypeError`. When the user is offline the gateway never responds, so `ApiError` is never thrown.
 
 ---
 
-## Folder structure
+## Service layer
 
-Every MFE must follow this layout — no exceptions:
+Keep all API calls in `src/services/`. Components call services — never `api` directly.
 
 ```
 src/
   lib/
-    api.ts                  ← createPlatformApiClient() lives here, nowhere else
+    api.ts                    ← createPlatformApiClient() here only
   services/
-    evaluations.ts          ← one file per domain: typed wrappers around api calls
-    goals.ts
+    evaluations.ts            ← typed wrappers around api.get / api.post etc.
   components/
-    EvaluationList.tsx      ← imports from services, never from lib/api directly
+    EvaluationList.tsx        ← imports from services, not from lib/api
 ```
-
-**The rule:** components call services, services call `api`. This means when an endpoint path changes, you update one service file — nothing in your components breaks.
 
 ```ts
 // src/services/evaluations.ts
@@ -122,8 +178,8 @@ export const deleteEvaluation = (id: number) =>
 
 ```ts
 // src/components/EvaluationList.tsx
-import { getEvaluations } from "@/services/evaluations"; // ✓ correct
-import { api } from "@/lib/api"; // ✗ never do this in a component
+import { getEvaluations } from "@/services/evaluations"; // ✓
+import { api } from "@/lib/api"; // ✗ not in components
 ```
 
 ---
@@ -132,35 +188,25 @@ import { api } from "@/lib/api"; // ✗ never do this in a component
 
 ### `createPlatformApiClient(config?)`
 
-| Option     | Default                                | Description                             |
-| ---------- | -------------------------------------- | --------------------------------------- |
-| `baseUrl`  | `NEXT_PUBLIC_API_BASE_URL` or `"/api"` | Base URL for all requests               |
-| `getToken` | Reads `localStorage.access_token`      | Called per-request for the bearer token |
+| Option     | Default                                      | Description             |
+| ---------- | -------------------------------------------- | ----------------------- |
+| `baseUrl`  | `NEXT_PUBLIC_API_BASE_URL` \|\| `"/api"`     | Prepended to every path |
+| `getToken` | `() => localStorage.getItem("access_token")` | Called per-request      |
 
-### `createApiClient(config?)` — advanced
+### `RequestOptions` (last arg of any method)
 
-Use when you need a second client (different base URL, custom headers, SSR).
-
-| Option           | Default  | Description                       |
-| ---------------- | -------- | --------------------------------- |
-| `baseUrl`        | `"/api"` | Base URL for all requests         |
-| `getToken`       | —        | Bearer token callback             |
-| `defaultHeaders` | —        | Headers merged into every request |
-
-### `RequestOptions` — per-request overrides
-
-| Option        | Description                                       |
-| ------------- | ------------------------------------------------- |
-| `headers`     | Merged over `defaultHeaders`                      |
-| `credentials` | Fetch credentials mode (default: `"same-origin"`) |
-| `signal`      | `AbortSignal` for cancellation                    |
-| `skipAuth`    | Skip the `Authorization` header                   |
+| Option        | Description                                        |
+| ------------- | -------------------------------------------------- |
+| `headers`     | Merged over `defaultHeaders` for this request only |
+| `credentials` | Fetch credentials mode. Default: `"same-origin"`   |
+| `signal`      | `AbortSignal` for cancellation                     |
+| `skipAuth`    | Omit the `Authorization` header                    |
 
 ### `ApiError` properties
 
-| Property        | Type             | Description                       |
-| --------------- | ---------------- | --------------------------------- |
-| `status`        | `number`         | HTTP status code                  |
-| `statusText`    | `string`         | HTTP status text                  |
-| `errors`        | `string[]`       | Messages from the backend         |
-| `correlationId` | `string \| null` | Trace ID — include in bug reports |
+| Property        | Type             | Description                            |
+| --------------- | ---------------- | -------------------------------------- |
+| `status`        | `number`         | HTTP status code                       |
+| `statusText`    | `string`         | HTTP status text                       |
+| `errors`        | `string[]`       | Error messages from the backend        |
+| `correlationId` | `string \| null` | Trace ID — include this in bug reports |
