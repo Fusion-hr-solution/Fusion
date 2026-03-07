@@ -3,7 +3,11 @@ import { createApiClient } from "../client";
 import { ApiError } from "../types";
 
 // ── Test helpers ─────────────────────────────────────────────────────
+// These helpers build fake fetch() responses so we can test the client
+// without making real network requests.
 
+// Simulates a standard backend response with a JSON body.
+// The backend always wraps responses in { data, errors, isSuccess }.
 function jsonResponse(
   body: unknown,
   init?: {
@@ -25,6 +29,8 @@ function jsonResponse(
   });
 }
 
+// Simulates a response with no body (e.g. DELETE returning 204, or a logout endpoint).
+// Content-Length: 0 tells the client there's nothing to parse.
 function emptyResponse(status = 204): Response {
   return new Response(null, {
     status,
@@ -34,6 +40,8 @@ function emptyResponse(status = 204): Response {
 }
 
 // ── Setup ────────────────────────────────────────────────────────────
+// We replace the global fetch() with a spy before each test so we can
+// control what the "server" returns and assert what the client sent.
 
 let fetchSpy: ReturnType<typeof vi.fn>;
 
@@ -131,6 +139,9 @@ describe("createApiClient", () => {
   });
 
   // ── Empty responses ────────────────────────────────────────────
+  // The client must return undefined for empty bodies without crashing on JSON.parse.
+  // Critically, this early-return only applies to SUCCESSFUL empty responses —
+  // a 404 with an empty body must still throw ApiError, not silently return undefined.
 
   describe("empty responses", () => {
     it("returns undefined for 204 No Content", async () => {
@@ -171,6 +182,8 @@ describe("createApiClient", () => {
   });
 
   // ── Authorization header ───────────────────────────────────────
+  // getToken is called on every request (not cached at client creation time).
+  // This matters because tokens expire — stale closure bugs would send old tokens.
 
   describe("authorization header", () => {
     it("attaches Bearer token from getToken callback", async () => {
@@ -260,6 +273,10 @@ describe("createApiClient", () => {
   });
 
   // ── Error handling ─────────────────────────────────────────────
+  // All API failures must throw ApiError. The backend can signal failure two ways:
+  //   1. A non-2xx HTTP status (e.g. 401, 404, 500)
+  //   2. HTTP 200 with isSuccess: false (e.g. validation errors)
+  // Both must result in ApiError being thrown.
 
   describe("error handling", () => {
     it("throws ApiError on non-2xx response", async () => {
@@ -363,6 +380,8 @@ describe("createApiClient", () => {
   });
 
   // ── Headers ────────────────────────────────────────────────────
+  // Every request automatically gets Accept, X-Correlation-Id, and (if a body
+  // is present) Content-Type. Per-request headers override config defaults.
 
   describe("headers", () => {
     it("sends X-Correlation-Id on every request", async () => {
@@ -519,6 +538,11 @@ describe("createApiClient", () => {
   });
 
   // ── Network & abort errors ─────────────────────────────────────
+  // These errors must propagate as-is — NOT wrapped in ApiError.
+  // Callers distinguish them with instanceof:
+  //   TypeError    → offline / DNS failure (fetch never got a response)
+  //   DOMException → request was cancelled via AbortController
+  // Wrapping them in ApiError would make it impossible to tell the difference.
 
   describe("network and abort errors", () => {
     it("propagates TypeError on network failure (not wrapped in ApiError)", async () => {
@@ -587,6 +611,9 @@ describe("createApiClient", () => {
   });
 
   // ── Correlation IDs ────────────────────────────────────────────
+  // Each request gets a unique X-Correlation-Id UUID. The backend stamps this
+  // on its logs so you can trace a specific request end-to-end. Two concurrent
+  // requests must never share the same ID — that would make tracing useless.
 
   describe("correlation IDs", () => {
     it("generates independent correlation IDs for concurrent requests", async () => {
@@ -608,7 +635,10 @@ describe("createApiClient", () => {
     });
   });
 
-  // ── POST with undefined body ───────────────────────────────────
+  // ── Body handling ─────────────────────────────────────────────
+  // POST/PUT/PATCH with no body should behave like GET — no Content-Type header
+  // and no body in the fetch call. Sending Content-Type: application/json with
+  // no body confuses some servers.
 
   describe("body handling", () => {
     it("POST with undefined body sends no Content-Type and no body", async () => {
