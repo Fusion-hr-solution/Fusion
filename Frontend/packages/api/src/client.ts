@@ -48,7 +48,10 @@ export function createApiClient(config: ApiClientConfig = {}): ApiClient {
       signal: options?.signal,
     });
 
-    if (res.status === 204 || res.headers.get("Content-Length") === "0") {
+    if (
+      res.ok &&
+      (res.status === 204 || res.headers.get("Content-Length") === "0")
+    ) {
       return undefined as T;
     }
 

@@ -150,6 +150,24 @@ describe("createApiClient", () => {
 
       expect(result).toBeUndefined();
     });
+
+    it("throws ApiError on non-ok response with empty body (e.g. 404 with no body)", async () => {
+      // Simulates a gateway 404 that returns no body — must NOT silently return undefined
+      fetchSpy.mockResolvedValueOnce(
+        new Response(null, {
+          status: 404,
+          statusText: "Not Found",
+          headers: new Headers({ "Content-Length": "0" }),
+        })
+      );
+
+      const api = createApiClient();
+      const err = await api.get("/missing").catch((e: unknown) => e);
+
+      expect(err).toBeInstanceOf(ApiError);
+      const apiErr = err as ApiError;
+      expect(apiErr.status).toBe(404);
+    });
   });
 
   // ── Authorization header ───────────────────────────────────────
