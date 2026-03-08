@@ -1,5 +1,5 @@
 export { createApiClient } from "./client";
-export { createPlatformApiClient } from "./platform";
+export { createPlatformApiClient, isBrowser } from "./platform";
 export { ApiError } from "./types";
 export type {
   ApiClient,

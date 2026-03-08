@@ -8,6 +8,38 @@ import type {
 
 const DEFAULT_BASE_URL = "/api";
 
+/**
+ * Extracts a flat string[] of error messages from either:
+ *  - Platform envelope: { errors: string[] }
+ *  - ASP.NET ProblemDetails: { errors: Record<string, string[]>, title?: string }
+ *
+ * Falls back to statusText when nothing useful is found.
+ */
+function extractErrors(
+  json: Record<string, unknown>,
+  statusText: string
+): string[] {
+  const errors = json.errors;
+
+  // Platform envelope — errors is already string[]
+  if (Array.isArray(errors) && errors.length > 0) {
+    return errors as string[];
+  }
+
+  // ASP.NET ProblemDetails — errors is Record<string, string[]>
+  if (errors !== null && typeof errors === "object" && !Array.isArray(errors)) {
+    const messages = Object.values(errors as Record<string, string[]>).flat();
+    if (messages.length > 0) return messages;
+  }
+
+  // ProblemDetails with title but no errors map (e.g. 404 ProblemDetails)
+  if (typeof json.title === "string" && json.title.length > 0) {
+    return [json.title];
+  }
+
+  return [statusText];
+}
+
 export function createApiClient(config: ApiClientConfig = {}): ApiClient {
   const baseUrl = config.baseUrl ?? DEFAULT_BASE_URL;
 
@@ -80,7 +112,10 @@ export function createApiClient(config: ApiClientConfig = {}): ApiClient {
       throw new ApiError(
         res.status,
         res.statusText,
-        json.errors?.length ? json.errors : [res.statusText],
+        extractErrors(
+          json as unknown as Record<string, unknown>,
+          res.statusText
+        ),
         correlationId
       );
     }
