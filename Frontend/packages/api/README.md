@@ -19,7 +19,7 @@ In your MFE's `package.json`:
 In `next.config.ts`:
 
 ```ts
-transpilePackages: ["@repo/ui", "@repo/api"],
+transpilePackages: ["@repo/ui", /* …other packages… */ "@repo/api"],
 ```
 
 Run `pnpm install`.
