@@ -49,7 +49,11 @@ export function createApiClient(config: ApiClientConfig = {}): ApiClient {
     body?: unknown,
     options?: RequestOptions
   ): Promise<T> {
-    const url = `${baseUrl}${path}`;
+    const normalizedBase = baseUrl.endsWith("/")
+      ? baseUrl.slice(0, -1)
+      : baseUrl;
+    const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+    const url = `${normalizedBase}${normalizedPath}`;
 
     const headers: Record<string, string> = {
       Accept: "application/json",
@@ -64,7 +68,11 @@ export function createApiClient(config: ApiClientConfig = {}): ApiClient {
       }
     }
 
-    if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    if (
+      headers["X-Correlation-Id"] == null &&
+      typeof crypto !== "undefined" &&
+      crypto.randomUUID
+    ) {
       headers["X-Correlation-Id"] = crypto.randomUUID();
     }
 
@@ -80,14 +88,19 @@ export function createApiClient(config: ApiClientConfig = {}): ApiClient {
       signal: options?.signal,
     });
 
-    if (
-      res.ok &&
-      (res.status === 204 || res.headers.get("Content-Length") === "0")
-    ) {
-      return undefined as T;
-    }
-
     const correlationId = res.headers.get("X-Correlation-Id");
+
+    const isEmpty =
+      res.status === 204 || res.headers.get("Content-Length") === "0";
+    if (isEmpty) {
+      if (res.ok) return undefined as T;
+      throw new ApiError(
+        res.status,
+        res.statusText,
+        [res.statusText],
+        correlationId
+      );
+    }
 
     let json: ApiResponse<T>;
     try {

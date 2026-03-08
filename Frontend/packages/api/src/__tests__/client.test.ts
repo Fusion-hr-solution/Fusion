@@ -52,6 +52,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 // ── Tests ────────────────────────────────────────────────────────────
