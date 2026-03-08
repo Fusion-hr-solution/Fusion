@@ -1,25 +1,12 @@
 # @repo/api
 
-Shared HTTP client for the EY HR Platform. Wraps `fetch`, adds auth headers, and unwraps the backend envelope automatically.
+Shared HTTP client for the EY HR Platform. Wraps `fetch`, adds auth headers, unwraps the backend envelope, and parses errors automatically.
 
 ---
 
-## How requests reach the backend
+## Setup
 
-All API calls use relative URLs like `/api/...`. The **Shell** (`localhost:3000`) rewrites these to the gateway:
-
-```
-api.get("/performance/evaluations")
-  → fetch("/api/performance/evaluations")   (relative, hits shell origin :3000)
-  → Shell rewrite
-  → http://localhost:5000/api/performance/evaluations
-```
-
----
-
-## Setup (do this once per MFE)
-
-### 1. Add the dependency
+### 1. Add dependency + transpile
 
 In your MFE's `package.json`:
 
@@ -29,19 +16,15 @@ In your MFE's `package.json`:
 }
 ```
 
-Then add `"@repo/api"` to `transpilePackages` in your `next.config.ts`:
+In `next.config.ts`:
 
 ```ts
-transpilePackages: ["@repo/ui",..., "@repo/api"],
+transpilePackages: ["@repo/ui", "@repo/api"],
 ```
 
-### 2. Install
+Run `pnpm install`.
 
-```sh
-pnpm install
-```
-
-### 3. Create `src/lib/api.ts`
+### 2. Create `src/lib/api.ts`
 
 ```ts
 import { createPlatformApiClient } from "@repo/api";
@@ -49,138 +32,151 @@ import { createPlatformApiClient } from "@repo/api";
 export const api = createPlatformApiClient();
 ```
 
-This is the only place `createPlatformApiClient` is called in your MFE.
+This is the only place you call `createPlatformApiClient`. Everything else imports `api` from here.
 
-### 4. Run through the Shell
-
-Start the shell alongside your MFE:
+### 3. Run through the Shell
 
 ```sh
-pnpm dev --filter=shell --filter=performance
+pnpm dev --filter=shell --filter=<your-mfe>
 ```
 
-Open `http://localhost:3000/performance` — API calls will work because the shell proxies `/api/*` to the gateway.
+Open `http://localhost:3000/<your-mfe>`. The shell proxies `/api/*` to the gateway.
 
 ---
 
-## Usage
+## File structure
 
-The flow is: **service defines the function → component calls it**.
+```
+src/
+  lib/
+    api.ts                 ← single createPlatformApiClient() call
+  services/
+    courses.ts             ← typed API functions
+  components/
+    CourseList.tsx          ← imports from services, never from lib/api
+```
 
-Services wrap `api` calls and export typed functions. Components call those functions — they never touch `api` directly.
+Components never import `api` directly. They call service functions.
+
+---
+
+## Services
 
 ```ts
-// src/services/evaluations.ts
+// src/services/courses.ts
 import { api } from "@/lib/api";
-import type { Evaluation } from "@/types";
+import type { Course } from "@/types";
 
-export const getEvaluations = () =>
-  api.get<Evaluation[]>("/performance/evaluations");
+export const getCourses = (signal?: AbortSignal) =>
+  api.get<Course[]>("/training/courses", { signal });
 
-export const createEvaluation = (data: {
-  employeeId: number;
-  rating: number;
-}) => api.post<Evaluation>("/performance/evaluations", data);
+export const getCourse = (id: string) =>
+  api.get<Course>(`/training/courses/${id}`);
 
-export const updateEvaluation = (id: number, data: { rating: number }) =>
-  api.put<Evaluation>(`/performance/evaluations/${id}`, data);
+export const createCourse = (data: { title: string }) =>
+  api.post<Course>("/training/courses", data);
 
-export const deleteEvaluation = (id: number) =>
-  api.delete(`/performance/evaluations/${id}`);
+export const deleteCourse = (id: string) =>
+  api.delete(`/training/courses/${id}`);
 ```
 
-```ts
-// src/components/EvaluationList.tsx
-import { getEvaluations, createEvaluation } from "@/services/evaluations";
-
-const evaluations = await getEvaluations();
-const created = await createEvaluation({ employeeId: 1, rating: 4 });
-```
-
-### Cancellation
+### Skip auth (public endpoints)
 
 ```ts
-// src/services/evaluations.ts
-export const getEvaluations = (signal?: AbortSignal) =>
-  api.get<Evaluation[]>("/performance/evaluations", { signal });
-```
-
-```ts
-// src/components/EvaluationList.tsx
-const controller = new AbortController();
-const evaluations = await getEvaluations(controller.signal);
-controller.abort(); // cancels the request
-```
-
-### Skip auth header (e.g. login endpoint)
-
-```ts
-// src/services/auth.ts
 export const login = (body: { email: string; password: string }) =>
   api.post("/identity/auth/login", body, { skipAuth: true });
 ```
 
 ---
 
+## Client component (protected data)
+
+Auth tokens live in `localStorage` → fetch protected data in client components.
+
+```tsx
+"use client";
+
+import { useEffect, useState } from "react";
+import { getCourses } from "@/services/courses";
+import { ApiError } from "@repo/api";
+
+export default function CourseList() {
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    getCourses(controller.signal)
+      .then(setCourses)
+      .catch((err) => {
+        if (err instanceof ApiError) {
+          setError(`${err.status}: ${err.errors.join(", ")}`);
+        } else if (err instanceof TypeError) {
+          setError("Network error — are you online?");
+        }
+      })
+      .finally(() => setLoading(false));
+
+    return () => controller.abort();
+  }, []);
+
+  if (loading) return <p>Loading…</p>;
+  if (error) return <p className="text-red-500">{error}</p>;
+
+  return (
+    <ul>
+      {courses.map((c) => (
+        <li key={c.id}>{c.title}</li>
+      ))}
+    </ul>
+  );
+}
+```
+
+## Server component (public data only)
+
+For SSR, set `NEXT_PUBLIC_API_BASE_URL=http://localhost:5000/api` in `.env.local` so fetches reach the gateway directly (the shell proxy only works in the browser).
+
+```tsx
+// src/app/health/page.tsx  (no "use client")
+import { api } from "@/lib/api";
+
+export default async function HealthPage() {
+  const health = await api.get<{ status: string }>("/identity/auth/health", {
+    skipAuth: true,
+  });
+
+  return <p>Status: {health.status}</p>;
+}
+```
+
+`skipAuth: true` prevents the auth header from being sent. The singleton's `getToken` returns `null` on the server anyway, so no `localStorage` access occurs.
+
+> **Rule:** if you need auth, fetch in a client component.
+
+---
+
 ## Error handling
 
 ```ts
-// src/components/EvaluationList.tsx
 import { ApiError } from "@repo/api";
 
 try {
-  const data = await api.get("/performance/evaluations");
+  await api.get("/something");
 } catch (err) {
   if (err instanceof ApiError) {
-    console.error(err.status, err.errors, err.correlationId);
-  } else if (err instanceof DOMException) {
-    // request was cancelled via AbortController
+    // err.status, err.errors, err.correlationId
   } else if (err instanceof TypeError) {
-    // network failure — user is offline or DNS failed
+    // network failure
+  } else if (err instanceof DOMException) {
+    // request cancelled (AbortController)
   }
 }
 ```
 
-Always handle `TypeError`. When the user is offline the gateway never responds, so `ApiError` is never thrown.
-
----
-
-## Service layer
-
-Keep all API calls in `src/services/`. Components call services — never `api` directly.
-
-```
-src/
-  lib/
-    api.ts                    ← createPlatformApiClient() here only
-  services/
-    evaluations.ts            ← typed wrappers around api.get / api.post etc.
-  components/
-    EvaluationList.tsx        ← imports from services, not from lib/api
-```
-
-```ts
-// src/services/evaluations.ts
-import { api } from "@/lib/api";
-import type { Evaluation } from "@/types";
-
-export const getEvaluations = () =>
-  api.get<Evaluation[]>("/performance/evaluations");
-
-export const createEvaluation = (data: {
-  employeeId: number;
-  rating: number;
-}) => api.post<Evaluation>("/performance/evaluations", data);
-
-export const deleteEvaluation = (id: number) =>
-  api.delete(`/performance/evaluations/${id}`);
-```
-
-```ts
-// src/components/EvaluationList.tsx
-import { getEvaluations } from "@/services/evaluations"; // ✓
-import { api } from "@/lib/api"; // ✗ not in components
-```
+`ApiError.errors` contains the actual messages from the backend — both platform envelope errors and ASP.NET validation errors are flattened into `string[]`.
 
 ---
 
@@ -188,25 +184,25 @@ import { api } from "@/lib/api"; // ✗ not in components
 
 ### `createPlatformApiClient(config?)`
 
-| Option     | Default                                      | Description             |
-| ---------- | -------------------------------------------- | ----------------------- |
-| `baseUrl`  | `NEXT_PUBLIC_API_BASE_URL` \|\| `"/api"`     | Prepended to every path |
-| `getToken` | `() => localStorage.getItem("access_token")` | Called per-request      |
+| Option     | Default                                      | Description                                   |
+| ---------- | -------------------------------------------- | --------------------------------------------- |
+| `baseUrl`  | `NEXT_PUBLIC_API_BASE_URL` \|\| `"/api"`     | Prepended to every path. Set env var for SSR. |
+| `getToken` | `() => localStorage.getItem("access_token")` | Called per-request. Returns `null` on server. |
 
-### `RequestOptions` (last arg of any method)
+### `RequestOptions`
 
-| Option        | Description                                        |
-| ------------- | -------------------------------------------------- |
-| `headers`     | Merged over `defaultHeaders` for this request only |
-| `credentials` | Fetch credentials mode. Default: `"same-origin"`   |
-| `signal`      | `AbortSignal` for cancellation                     |
-| `skipAuth`    | Omit the `Authorization` header                    |
+| Option        | Description                                      |
+| ------------- | ------------------------------------------------ |
+| `headers`     | Merged over defaults for this request only       |
+| `credentials` | Fetch credentials mode. Default: `"same-origin"` |
+| `signal`      | `AbortSignal` for cancellation                   |
+| `skipAuth`    | Omit the `Authorization` header                  |
 
-### `ApiError` properties
+### `ApiError`
 
-| Property        | Type             | Description                            |
-| --------------- | ---------------- | -------------------------------------- |
-| `status`        | `number`         | HTTP status code                       |
-| `statusText`    | `string`         | HTTP status text                       |
-| `errors`        | `string[]`       | Error messages from the backend        |
-| `correlationId` | `string \| null` | Trace ID — include this in bug reports |
+| Property        | Type             | Description               |
+| --------------- | ---------------- | ------------------------- |
+| `status`        | `number`         | HTTP status code          |
+| `statusText`    | `string`         | HTTP status text          |
+| `errors`        | `string[]`       | Messages from the backend |
+| `correlationId` | `string \| null` | Trace ID for bug reports  |
