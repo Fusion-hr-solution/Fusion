@@ -377,6 +377,63 @@ describe("createApiClient", () => {
       const apiErr = err as ApiError;
       expect(apiErr.correlationId).toBe("abc-123-def");
     });
+
+    it("extracts errors from ASP.NET ProblemDetails validation format", async () => {
+      // ASP.NET model validation returns errors as Record<string, string[]>,
+      // not string[]. The client must flatten them into ApiError.errors.
+      fetchSpy.mockResolvedValueOnce(
+        jsonResponse(
+          {
+            type: "https://tools.ietf.org/html/rfc9110#section-15.5.1",
+            title: "One or more validation errors occurred.",
+            status: 400,
+            errors: {
+              Email: [
+                "The Email field is required.",
+                "The Email field is not a valid e-mail address.",
+              ],
+              Password: ["The Password field is required."],
+            },
+            traceId: "00-abc-def-00",
+          },
+          { status: 400, statusText: "Bad Request" }
+        )
+      );
+
+      const api = createApiClient();
+      const err = await api
+        .post("/identity/auth/login", { email: "", password: "" })
+        .catch((e: unknown) => e);
+
+      expect(err).toBeInstanceOf(ApiError);
+      const apiErr = err as ApiError;
+      expect(apiErr.status).toBe(400);
+      expect(apiErr.errors).toEqual([
+        "The Email field is required.",
+        "The Email field is not a valid e-mail address.",
+        "The Password field is required.",
+      ]);
+      expect(apiErr.message).toBe("The Email field is required.");
+    });
+
+    it("uses ProblemDetails title when errors map is empty", async () => {
+      fetchSpy.mockResolvedValueOnce(
+        jsonResponse(
+          {
+            type: "https://tools.ietf.org/html/rfc9110#section-15.5.4",
+            title: "Not Found",
+            status: 404,
+            errors: {},
+          },
+          { status: 404, statusText: "Not Found" }
+        )
+      );
+
+      const api = createApiClient();
+      const err = await api.get("/missing").catch((e: unknown) => e);
+      const apiErr = err as ApiError;
+      expect(apiErr.errors).toEqual(["Not Found"]);
+    });
   });
 
   // ── Headers ────────────────────────────────────────────────────
