@@ -1,5 +1,5 @@
 import { createApiClient } from "./client";
-import type { ApiClient } from "./types";
+import type { ApiClient, ApiError } from "./types";
 
 declare const process: { env?: Record<string, string | undefined> } | undefined;
 
@@ -38,6 +38,14 @@ export interface PlatformApiClientConfig {
    * provide a custom `getToken` that reads from the request context.
    */
   getToken?: () => string | null;
+  /**
+   * Called once when the server responds with 401 Unauthorized.
+   *
+   * Fires at most once per client instance to prevent redirect loops.
+   * The `ApiError` is still thrown after this callback runs — callers
+   * can catch and handle it normally.
+   */
+  onAuthError?: (error: ApiError) => void;
 }
 
 /**
@@ -67,5 +75,9 @@ export function createPlatformApiClient(
       return null;
     });
 
-  return createApiClient({ baseUrl, getToken });
+  return createApiClient({
+    baseUrl,
+    getToken,
+    onAuthError: config.onAuthError,
+  });
 }
