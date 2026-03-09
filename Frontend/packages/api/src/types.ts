@@ -2,6 +2,7 @@ export interface ApiClientConfig {
   baseUrl?: string; // Prefixed to every path, Default: "/api"
   getToken?: () => string | null; // Called per-request. Null = no auth header.
   defaultHeaders?: Record<string, string>; // Merged into every request.
+  onAuthError?: (error: ApiError) => void; // Called once on the first 401 response. The error is still thrown.
 }
 
 // Returned by createApiClient(). Reference this type when passing the client as a parameter or storing it in context.
@@ -42,4 +43,6 @@ export interface RequestOptions {
   credentials?: RequestCredentials; // Default: "same-origin".
   signal?: AbortSignal; // For cancellation via AbortController.
   skipAuth?: boolean; // Omit the Authorization header (e.g. login endpoint).
+  params?: Record<string, string | number | boolean | undefined | null>; // Appended as query string. undefined/null values are filtered out.
+  responseType?: "json" | "blob" | "text" | "arrayBuffer"; // Default: "json". Non-JSON types skip envelope unwrapping.
 }

@@ -42,6 +42,19 @@ function extractErrors(
 
 export function createApiClient(config: ApiClientConfig = {}): ApiClient {
   const baseUrl = config.baseUrl ?? DEFAULT_BASE_URL;
+  let authErrorFired = false;
+
+  function throwApiError(error: ApiError): never {
+    if (error.status === 401 && config.onAuthError && !authErrorFired) {
+      authErrorFired = true;
+      try {
+        config.onAuthError(error);
+      } catch {
+        // callback errors must not mask the original ApiError
+      }
+    }
+    throw error;
+  }
 
   async function request<T>(
     method: string,
@@ -53,7 +66,16 @@ export function createApiClient(config: ApiClientConfig = {}): ApiClient {
       ? baseUrl.slice(0, -1)
       : baseUrl;
     const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-    const url = `${normalizedBase}${normalizedPath}`;
+    let url = `${normalizedBase}${normalizedPath}`;
+
+    if (options?.params) {
+      const searchParams = new URLSearchParams();
+      for (const [key, value] of Object.entries(options.params)) {
+        if (value != null) searchParams.append(key, String(value));
+      }
+      const qs = searchParams.toString();
+      if (qs) url += `${url.includes("?") ? "&" : "?"}${qs}`;
+    }
 
     const headers: Record<string, string> = {
       Accept: "application/json",
@@ -76,29 +98,60 @@ export function createApiClient(config: ApiClientConfig = {}): ApiClient {
       headers["X-Correlation-Id"] = crypto.randomUUID();
     }
 
-    if (body !== undefined) {
+    const isFormData =
+      typeof FormData !== "undefined" && body instanceof FormData;
+
+    if (body !== undefined && !isFormData) {
       headers["Content-Type"] = "application/json";
     }
 
     const res = await fetch(url, {
       method,
       headers,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      body:
+        body !== undefined
+          ? isFormData
+            ? (body as FormData)
+            : JSON.stringify(body)
+          : undefined,
       credentials: options?.credentials ?? "same-origin",
       signal: options?.signal,
     });
 
     const correlationId = res.headers.get("X-Correlation-Id");
+    const rtype = options?.responseType ?? "json";
 
+    // ── Non-JSON response types (blob, text, arrayBuffer) ─────────
+    if (rtype !== "json") {
+      if (!res.ok) {
+        // Try to extract error details from a JSON body, fall back to statusText.
+        let errors: string[] = [res.statusText];
+        try {
+          const errJson = (await res.json()) as Record<string, unknown>;
+          errors = extractErrors(errJson, res.statusText);
+        } catch {
+          // body wasn't JSON — keep the default
+        }
+        throwApiError(
+          new ApiError(res.status, res.statusText, errors, correlationId)
+        );
+      }
+      const body = await res[rtype]();
+      return body as T;
+    }
+
+    // ── JSON envelope handling ────────────────────────────────────
     const isEmpty =
       res.status === 204 || res.headers.get("Content-Length") === "0";
     if (isEmpty) {
       if (res.ok) return undefined as T;
-      throw new ApiError(
-        res.status,
-        res.statusText,
-        [res.statusText],
-        correlationId
+      throwApiError(
+        new ApiError(
+          res.status,
+          res.statusText,
+          [res.statusText],
+          correlationId
+        )
       );
     }
 
@@ -113,23 +166,27 @@ export function createApiClient(config: ApiClientConfig = {}): ApiClient {
       ) {
         throw parseError;
       }
-      throw new ApiError(
-        res.status,
-        res.statusText,
-        ["Response is not valid JSON"],
-        correlationId
+      throwApiError(
+        new ApiError(
+          res.status,
+          res.statusText,
+          ["Response is not valid JSON"],
+          correlationId
+        )
       );
     }
 
     if (!res.ok || !json.isSuccess) {
-      throw new ApiError(
-        res.status,
-        res.statusText,
-        extractErrors(
-          json as unknown as Record<string, unknown>,
-          res.statusText
-        ),
-        correlationId
+      throwApiError(
+        new ApiError(
+          res.status,
+          res.statusText,
+          extractErrors(
+            json as unknown as Record<string, unknown>,
+            res.statusText
+          ),
+          correlationId
+        )
       );
     }
 
