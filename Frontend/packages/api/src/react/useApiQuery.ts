@@ -1,0 +1,71 @@
+import { useState, useEffect, useCallback, useRef } from "react";
+
+export interface UseApiQueryOptions {
+  enabled?: boolean;
+}
+
+export interface UseApiQueryResult<T> {
+  data: T | undefined;
+  error: Error | null;
+  isLoading: boolean;
+  refetch: () => void;
+}
+
+export function useApiQuery<T>(
+  queryFn: (signal: AbortSignal) => Promise<T>,
+  options?: UseApiQueryOptions
+): UseApiQueryResult<T> {
+  const [data, setData] = useState<T | undefined>(undefined);
+  const [error, setError] = useState<Error | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const controllerRef = useRef<AbortController | null>(null);
+  const queryFnRef = useRef(queryFn);
+  queryFnRef.current = queryFn;
+
+  const enabled = options?.enabled ?? true;
+
+  const execute = useCallback(() => {
+    // Abort any in-flight request
+    controllerRef.current?.abort();
+    const controller = new AbortController();
+    controllerRef.current = controller;
+
+    setIsLoading(true);
+    setError(null);
+
+    queryFnRef
+      .current(controller.signal)
+      .then((result) => {
+        if (!controller.signal.aborted) {
+          setData(result);
+          setIsLoading(false);
+        }
+      })
+      .catch((err: unknown) => {
+        if (
+          err instanceof DOMException &&
+          err.name === "AbortError"
+        ) {
+          return; // ignore aborted requests
+        }
+        if (!controller.signal.aborted) {
+          setError(err instanceof Error ? err : new Error(String(err)));
+          setIsLoading(false);
+        }
+      });
+  }, []);
+
+  useEffect(() => {
+    if (!enabled) return;
+    execute();
+    return () => {
+      controllerRef.current?.abort();
+    };
+  }, [enabled, execute]);
+
+  const refetch = useCallback(() => {
+    execute();
+  }, [execute]);
+
+  return { data, error, isLoading, refetch };
+}
