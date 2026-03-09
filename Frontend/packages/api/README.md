@@ -1,6 +1,6 @@
 # @repo/api
 
-Shared HTTP client for the EY HR Platform. Wraps `fetch`, adds auth headers, unwraps the backend envelope, and parses errors automatically.
+Shared HTTP client for the EY HR Platform. Wraps `fetch`, adds auth headers, unwraps the backend envelope, and parses errors automatically. Includes lightweight React hooks for client components.
 
 ---
 
@@ -29,7 +29,13 @@ Run `pnpm install`.
 ```ts
 import { createPlatformApiClient } from "@repo/api";
 
-export const api = createPlatformApiClient();
+export const api = createPlatformApiClient({
+  // Optional: redirect to login on 401
+  onAuthError: () => {
+    localStorage.removeItem("access_token");
+    window.location.href = "/login";
+  },
+});
 ```
 
 This is the only place you call `createPlatformApiClient`. Everything else imports `api` from here.
@@ -80,6 +86,26 @@ export const deleteCourse = (id: string) =>
   api.delete(`/training/courses/${id}`);
 ```
 
+### Query params
+
+Use `params` to append query string parameters. `undefined` and `null` values are filtered out automatically.
+
+```ts
+export const searchCourses = (filters: {
+  page: number;
+  search?: string;
+  category?: string;
+}) =>
+  api.get<Course[]>("/training/courses", {
+    params: {
+      page: filters.page,
+      search: filters.search,   // omitted from URL if undefined
+      category: filters.category,
+    },
+  });
+// → GET /api/training/courses?page=1&search=react
+```
+
 ### Skip auth (public endpoints)
 
 ```ts
@@ -87,11 +113,162 @@ export const login = (body: { email: string; password: string }) =>
   api.post("/identity/auth/login", body, { skipAuth: true });
 ```
 
+### File upload (FormData)
+
+Pass a `FormData` instance as the body. The client will **not** set `Content-Type` — the browser auto-sets `multipart/form-data` with the correct boundary.
+
+```ts
+export const uploadResume = (file: File) => {
+  const form = new FormData();
+  form.append("file", file);
+  return api.post<{ url: string }>("/recruitment/resumes", form);
+};
+```
+
+### File download (blob)
+
+Use `responseType: "blob"` to receive binary data without envelope unwrapping.
+
+```ts
+export const downloadReport = (id: string) =>
+  api.get<Blob>(`/reports/${id}/export`, { responseType: "blob" });
+```
+
+Then trigger a download in the browser:
+
+```ts
+const blob = await downloadReport("123");
+const url = URL.createObjectURL(blob);
+const a = document.createElement("a");
+a.href = url;
+a.download = "report.pdf";
+a.click();
+URL.revokeObjectURL(url);
+```
+
+Other `responseType` values: `"text"`, `"arrayBuffer"`.
+
 ---
 
-## Client component (protected data)
+## React hooks (`@repo/api/react`)
 
-Auth tokens live in `localStorage` → fetch protected data in client components.
+Lightweight hooks that eliminate `useState`/`useEffect` boilerplate for data fetching. Import from the `/react` subpath:
+
+```ts
+import { useApiQuery, useApiMutation } from "@repo/api/react";
+```
+
+### `useApiQuery` — fetch data on mount
+
+```tsx
+"use client";
+
+import { useApiQuery } from "@repo/api/react";
+import { getCourses } from "@/services/courses";
+
+export default function CourseList() {
+  const { data: courses, error, isLoading, refetch } = useApiQuery(
+    (signal) => getCourses(signal)
+  );
+
+  if (isLoading) return <p>Loading…</p>;
+  if (error) return <p className="text-red-500">{error.message}</p>;
+
+  return (
+    <>
+      <button onClick={refetch}>Refresh</button>
+      <ul>
+        {courses?.map((c) => (
+          <li key={c.id}>{c.title}</li>
+        ))}
+      </ul>
+    </>
+  );
+}
+```
+
+**Options:**
+
+| Option    | Type      | Default | Description                          |
+| --------- | --------- | ------- | ------------------------------------ |
+| `enabled` | `boolean` | `true`  | Set `false` to defer the fetch       |
+
+**Returns:**
+
+| Property    | Type                | Description                              |
+| ----------- | ------------------- | ---------------------------------------- |
+| `data`      | `T \| undefined`    | Resolved data                            |
+| `error`     | `Error \| null`     | Error (includes `ApiError`)              |
+| `isLoading` | `boolean`           | `true` while fetching                    |
+| `refetch`   | `() => void`        | Re-run the query (e.g. after a mutation) |
+
+Auto-aborts in-flight requests on unmount. Ignores stale responses.
+
+### `useApiMutation` — trigger on user action
+
+```tsx
+"use client";
+
+import { useApiMutation } from "@repo/api/react";
+import { createCourse } from "@/services/courses";
+
+export default function CreateCourseForm() {
+  const { mutate, isLoading, error } = useApiMutation(createCourse, {
+    onSuccess: (course) => console.log("Created:", course.id),
+    onError: (err) => console.error(err),
+  });
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        const title = new FormData(e.currentTarget).get("title") as string;
+        mutate({ title });
+      }}
+    >
+      <input name="title" required />
+      <button disabled={isLoading}>
+        {isLoading ? "Creating…" : "Create"}
+      </button>
+      {error && <p className="text-red-500">{error.message}</p>}
+    </form>
+  );
+}
+```
+
+**Options:**
+
+| Option      | Type                     | Description                  |
+| ----------- | ------------------------ | ---------------------------- |
+| `onSuccess` | `(data: TData) => void`  | Called after a successful mutation |
+| `onError`   | `(error: Error) => void` | Called on failure             |
+
+**Returns:**
+
+| Property       | Type                            | Description                       |
+| -------------- | ------------------------------- | --------------------------------- |
+| `mutate`       | `(args: TArgs) => void`        | Fire-and-forget                   |
+| `mutateAsync`  | `(args: TArgs) => Promise<T>`  | Returns promise for `await`       |
+| `data`         | `TData \| undefined`           | Last successful result            |
+| `error`        | `Error \| null`                 | Last error                        |
+| `isLoading`    | `boolean`                       | `true` while in flight            |
+| `reset`        | `() => void`                    | Clear data, error, loading        |
+
+### Future migration to TanStack Query
+
+The hook signatures are designed to be compatible with TanStack Query. When the time comes:
+
+1. Install `@tanstack/react-query`
+2. Replace `useApiQuery(fn)` with `useQuery({ queryKey: [...], queryFn: fn })`
+3. Replace `useApiMutation(fn)` with `useMutation({ mutationFn: fn })`
+
+Return shapes are nearly identical — minimal code changes required.
+
+---
+
+## Client component (protected data — manual approach)
+
+If you prefer manual control over the hooks, the pattern still works:
 
 ```tsx
 "use client";
@@ -184,19 +361,22 @@ try {
 
 ### `createPlatformApiClient(config?)`
 
-| Option     | Default                                      | Description                                   |
-| ---------- | -------------------------------------------- | --------------------------------------------- |
-| `baseUrl`  | `NEXT_PUBLIC_API_BASE_URL` \|\| `"/api"`     | Prepended to every path. Set env var for SSR. |
-| `getToken` | `() => localStorage.getItem("access_token")` | Called per-request. Returns `null` on server. |
+| Option        | Default                                      | Description                                   |
+| ------------- | -------------------------------------------- | --------------------------------------------- |
+| `baseUrl`     | `NEXT_PUBLIC_API_BASE_URL` \|\| `"/api"`     | Prepended to every path. Set env var for SSR. |
+| `getToken`    | `() => localStorage.getItem("access_token")` | Called per-request. Returns `null` on server. |
+| `onAuthError` | —                                            | Called on 401 before throwing. Use to redirect to login or clear tokens. |
 
 ### `RequestOptions`
 
-| Option        | Description                                      |
-| ------------- | ------------------------------------------------ |
-| `headers`     | Merged over defaults for this request only       |
-| `credentials` | Fetch credentials mode. Default: `"same-origin"` |
-| `signal`      | `AbortSignal` for cancellation                   |
-| `skipAuth`    | Omit the `Authorization` header                  |
+| Option         | Description                                              |
+| -------------- | -------------------------------------------------------- |
+| `headers`      | Merged over defaults for this request only               |
+| `credentials`  | Fetch credentials mode. Default: `"same-origin"`         |
+| `signal`       | `AbortSignal` for cancellation                           |
+| `skipAuth`     | Omit the `Authorization` header                          |
+| `params`       | Query string params. `undefined`/`null` values filtered. |
+| `responseType` | `"json"` (default), `"blob"`, `"text"`, `"arrayBuffer"` |
 
 ### `ApiError`
 
