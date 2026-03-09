@@ -42,4 +42,6 @@ export interface RequestOptions {
   credentials?: RequestCredentials; // Default: "same-origin".
   signal?: AbortSignal; // For cancellation via AbortController.
   skipAuth?: boolean; // Omit the Authorization header (e.g. login endpoint).
+  params?: Record<string, string | number | boolean | undefined | null>; // Appended as query string. undefined/null values are filtered out.
+  responseType?: "json" | "blob" | "text" | "arrayBuffer"; // Default: "json". Non-JSON types skip envelope unwrapping.
 }

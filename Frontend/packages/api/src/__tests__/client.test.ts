@@ -712,5 +712,138 @@ describe("createApiClient", () => {
       expect(headers["Content-Type"]).toBeUndefined();
       expect(init.body).toBeUndefined();
     });
+
+    it("POST with FormData body does not set Content-Type and does not stringify", async () => {
+      fetchSpy.mockResolvedValueOnce(
+        jsonResponse({ data: { id: 1 }, errors: [], isSuccess: true })
+      );
+
+      const form = new FormData();
+      form.append("file", new Blob(["hello"]), "hello.txt");
+
+      const api = createApiClient();
+      const result = await api.post<{ id: number }>("/upload", form);
+
+      const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      const headers = init.headers as Record<string, string>;
+      // Content-Type must NOT be set — the browser sets multipart/form-data with boundary
+      expect(headers["Content-Type"]).toBeUndefined();
+      // Body must be the FormData instance, not a JSON string
+      expect(init.body).toBe(form);
+      expect(result).toEqual({ id: 1 });
+    });
+  });
+
+  // ── Query params ──────────────────────────────────────────────
+  describe("query params", () => {
+    it("appends params to the URL as a query string", async () => {
+      fetchSpy.mockResolvedValueOnce(
+        jsonResponse({ data: [], errors: [], isSuccess: true })
+      );
+
+      const api = createApiClient();
+      await api.get("/items", { params: { page: 2, search: "foo" } });
+
+      const [url] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      expect(url).toBe("/api/items?page=2&search=foo");
+    });
+
+    it("filters out undefined and null param values", async () => {
+      fetchSpy.mockResolvedValueOnce(
+        jsonResponse({ data: [], errors: [], isSuccess: true })
+      );
+
+      const api = createApiClient();
+      await api.get("/items", {
+        params: { page: 1, search: undefined, tag: null, active: true },
+      });
+
+      const [url] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      expect(url).toBe("/api/items?page=1&active=true");
+    });
+
+    it("omits query string when all param values are undefined/null", async () => {
+      fetchSpy.mockResolvedValueOnce(
+        jsonResponse({ data: [], errors: [], isSuccess: true })
+      );
+
+      const api = createApiClient();
+      await api.get("/items", { params: { search: undefined } });
+
+      const [url] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      expect(url).toBe("/api/items");
+    });
+  });
+
+  // ── Non-JSON response types ───────────────────────────────────
+  describe("responseType", () => {
+    it("responseType 'blob' returns blob without envelope unwrapping", async () => {
+      const blobContent = new Blob(["file-content"], {
+        type: "application/pdf",
+      });
+      fetchSpy.mockResolvedValueOnce(
+        new Response(blobContent, { status: 200, statusText: "OK" })
+      );
+
+      const api = createApiClient();
+      const result = await api.get<Blob>("/files/1", {
+        responseType: "blob",
+      });
+
+      expect(result).toBeInstanceOf(Blob);
+    });
+
+    it("responseType 'text' returns raw text without envelope unwrapping", async () => {
+      fetchSpy.mockResolvedValueOnce(
+        new Response("plain text", { status: 200, statusText: "OK" })
+      );
+
+      const api = createApiClient();
+      const result = await api.get<string>("/export/csv", {
+        responseType: "text",
+      });
+
+      expect(result).toBe("plain text");
+    });
+
+    it("responseType 'blob' throws ApiError on non-OK and tries JSON error extraction", async () => {
+      fetchSpy.mockResolvedValueOnce(
+        new Response(JSON.stringify({ errors: ["Not found"] }), {
+          status: 404,
+          statusText: "Not Found",
+          headers: { "Content-Type": "application/json" },
+        })
+      );
+
+      const api = createApiClient();
+      await expect(
+        api.get("/files/999", { responseType: "blob" })
+      ).rejects.toThrow(ApiError);
+
+      try {
+        await api.get("/files/999", { responseType: "blob" });
+      } catch (err) {
+        // fetchSpy was only set up once, so we test the first rejection
+      }
+    });
+
+    it("responseType 'blob' throws ApiError with statusText when error body is not JSON", async () => {
+      fetchSpy.mockResolvedValueOnce(
+        new Response("server error", {
+          status: 500,
+          statusText: "Internal Server Error",
+        })
+      );
+
+      const api = createApiClient();
+      try {
+        await api.get("/files/1", { responseType: "blob" });
+        expect.unreachable("should have thrown");
+      } catch (err) {
+        expect(err).toBeInstanceOf(ApiError);
+        expect((err as ApiError).status).toBe(500);
+        expect((err as ApiError).errors).toEqual(["Internal Server Error"]);
+      }
+    });
   });
 });

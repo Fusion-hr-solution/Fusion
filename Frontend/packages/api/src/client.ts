@@ -53,7 +53,16 @@ export function createApiClient(config: ApiClientConfig = {}): ApiClient {
       ? baseUrl.slice(0, -1)
       : baseUrl;
     const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-    const url = `${normalizedBase}${normalizedPath}`;
+    let url = `${normalizedBase}${normalizedPath}`;
+
+    if (options?.params) {
+      const searchParams = new URLSearchParams();
+      for (const [key, value] of Object.entries(options.params)) {
+        if (value != null) searchParams.append(key, String(value));
+      }
+      const qs = searchParams.toString();
+      if (qs) url += `?${qs}`;
+    }
 
     const headers: Record<string, string> = {
       Accept: "application/json",
@@ -76,20 +85,47 @@ export function createApiClient(config: ApiClientConfig = {}): ApiClient {
       headers["X-Correlation-Id"] = crypto.randomUUID();
     }
 
-    if (body !== undefined) {
+    const isFormData =
+      typeof FormData !== "undefined" && body instanceof FormData;
+
+    if (body !== undefined && !isFormData) {
       headers["Content-Type"] = "application/json";
     }
 
     const res = await fetch(url, {
       method,
       headers,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      body:
+        body !== undefined
+          ? isFormData
+            ? (body as FormData)
+            : JSON.stringify(body)
+          : undefined,
       credentials: options?.credentials ?? "same-origin",
       signal: options?.signal,
     });
 
     const correlationId = res.headers.get("X-Correlation-Id");
+    const rtype = options?.responseType ?? "json";
 
+    // ── Non-JSON response types (blob, text, arrayBuffer) ─────────
+    if (rtype !== "json") {
+      if (!res.ok) {
+        // Try to extract error details from a JSON body, fall back to statusText.
+        let errors: string[] = [res.statusText];
+        try {
+          const errJson = (await res.json()) as Record<string, unknown>;
+          errors = extractErrors(errJson, res.statusText);
+        } catch {
+          // body wasn't JSON — keep the default
+        }
+        throw new ApiError(res.status, res.statusText, errors, correlationId);
+      }
+      const body = await res[rtype]();
+      return body as T;
+    }
+
+    // ── JSON envelope handling ────────────────────────────────────
     const isEmpty =
       res.status === 204 || res.headers.get("Content-Length") === "0";
     if (isEmpty) {
