@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  transpilePackages: ["@repo/ui", "@repo/api"],
+  transpilePackages: ["@repo/ui", "@repo/auth", "@repo/api"],
   async rewrites() {
     return [
       {

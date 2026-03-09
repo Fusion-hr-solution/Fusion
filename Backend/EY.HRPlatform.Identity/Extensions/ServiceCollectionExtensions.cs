@@ -14,10 +14,18 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddIdentityServices(
         this IServiceCollection services, IConfiguration configuration)
     {
+        var jwtSecret = configuration["Jwt:Secret"];
+        if (string.IsNullOrEmpty(jwtSecret))
+            throw new InvalidOperationException("Jwt:Secret is not configured. Set it via environment variable or appsettings.");
+
+        var connectionString = configuration.GetConnectionString("IdentityDb");
+        if (string.IsNullOrEmpty(connectionString))
+            throw new InvalidOperationException("ConnectionStrings:IdentityDb is not configured. Set it via environment variable or appsettings.");
+
         // 1. Register PostgreSQL database
         services.AddDbContext<AppIdentityDbContext>(options =>
             options.UseNpgsql(
-                configuration.GetConnectionString("IdentityDb"),
+                connectionString,
                 npgsql => npgsql.MigrationsHistoryTable(
                     "__EFMigrationsHistory", "identity")));
 
@@ -51,7 +59,7 @@ public static class ServiceCollectionExtensions
                     ValidIssuer = configuration["Jwt:Issuer"],
                     ValidAudience = configuration["Jwt:Audience"],
                     IssuerSigningKey = new SymmetricSecurityKey(
-                        Encoding.UTF8.GetBytes(configuration["Jwt:Secret"]!)),
+                        Encoding.UTF8.GetBytes(jwtSecret)),
                     ClockSkew = TimeSpan.Zero
                 };
             });
