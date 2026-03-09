@@ -38,6 +38,13 @@ export interface PlatformApiClientConfig {
    * provide a custom `getToken` that reads from the request context.
    */
   getToken?: () => string | null;
+  /**
+   * Called when the server responds with 401 Unauthorized.
+   *
+   * Use this to redirect to login, clear stale tokens, or show a toast.
+   * The `ApiError` is still thrown after this callback runs.
+   */
+  onAuthError?: (error: import("./types").ApiError) => void;
 }
 
 /**
@@ -67,5 +74,5 @@ export function createPlatformApiClient(
       return null;
     });
 
-  return createApiClient({ baseUrl, getToken });
+  return createApiClient({ baseUrl, getToken, onAuthError: config.onAuthError });
 }

@@ -846,4 +846,57 @@ describe("createApiClient", () => {
       }
     });
   });
+
+  // ── onAuthError callback ──────────────────────────────────────
+  describe("onAuthError", () => {
+    it("calls onAuthError on 401 before throwing ApiError", async () => {
+      fetchSpy.mockResolvedValueOnce(
+        jsonResponse(
+          { data: null, errors: ["Unauthorized"], isSuccess: false },
+          { status: 401, statusText: "Unauthorized" }
+        )
+      );
+
+      const onAuthError = vi.fn();
+      const api = createApiClient({ onAuthError });
+
+      await expect(api.get("/protected")).rejects.toThrow(ApiError);
+      expect(onAuthError).toHaveBeenCalledOnce();
+      expect(onAuthError.mock.calls[0]![0]).toBeInstanceOf(ApiError);
+      expect(onAuthError.mock.calls[0]![0].status).toBe(401);
+    });
+
+    it("does not call onAuthError on non-401 errors", async () => {
+      fetchSpy.mockResolvedValueOnce(
+        jsonResponse(
+          { data: null, errors: ["Forbidden"], isSuccess: false },
+          { status: 403, statusText: "Forbidden" }
+        )
+      );
+
+      const onAuthError = vi.fn();
+      const api = createApiClient({ onAuthError });
+
+      await expect(api.get("/admin")).rejects.toThrow(ApiError);
+      expect(onAuthError).not.toHaveBeenCalled();
+    });
+
+    it("calls onAuthError on 401 even for non-JSON responseType", async () => {
+      fetchSpy.mockResolvedValueOnce(
+        new Response(JSON.stringify({ errors: ["Token expired"] }), {
+          status: 401,
+          statusText: "Unauthorized",
+          headers: { "Content-Type": "application/json" },
+        })
+      );
+
+      const onAuthError = vi.fn();
+      const api = createApiClient({ onAuthError });
+
+      await expect(
+        api.get("/files/1", { responseType: "blob" })
+      ).rejects.toThrow(ApiError);
+      expect(onAuthError).toHaveBeenCalledOnce();
+    });
+  });
 });

@@ -2,6 +2,7 @@ export interface ApiClientConfig {
   baseUrl?: string; // Prefixed to every path, Default: "/api"
   getToken?: () => string | null; // Called per-request. Null = no auth header.
   defaultHeaders?: Record<string, string>; // Merged into every request.
+  onAuthError?: (error: ApiError) => void; // Called on 401 responses. The error is still thrown.
 }
 
 // Returned by createApiClient(). Reference this type when passing the client as a parameter or storing it in context.
