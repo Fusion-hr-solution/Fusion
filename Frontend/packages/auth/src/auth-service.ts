@@ -26,22 +26,35 @@ async function post<T>(
   body: unknown,
   accessToken?: string | null,
 ): Promise<ApiResponse<T>> {
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
+  try {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
 
-  if (accessToken) {
-    headers["Authorization"] = `Bearer ${accessToken}`;
+    if (accessToken) {
+      headers["Authorization"] = `Bearer ${accessToken}`;
+    }
+
+    const res = await fetch(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+      try {
+        const errorJson: ApiResponse<T> = await res.json();
+        return errorJson;
+      } catch {
+        return { isSuccess: false, data: null as T, errors: [`Request failed with status ${res.status}`] };
+      }
+    }
+
+    const json: ApiResponse<T> = await res.json();
+    return json;
+  } catch {
+    return { isSuccess: false, data: null as T, errors: ["Network error. Please check your connection and try again."] };
   }
-
-  const res = await fetch(url, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(body),
-  });
-
-  const json: ApiResponse<T> = await res.json();
-  return json;
 }
 
 // ── Public API ───────────────────────────────────────────────────────

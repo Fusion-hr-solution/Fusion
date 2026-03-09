@@ -1,4 +1,3 @@
-
 import { Button } from "@repo/ui";
 
 export default function NotFound() {

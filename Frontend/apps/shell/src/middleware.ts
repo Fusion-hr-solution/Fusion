@@ -7,7 +7,7 @@ const AUTH_PATHS = ["/auth/signin", "/auth/signup"];
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const authCookie = request.cookies.get("ey_hr_authenticated");
-  const isAuthenticated = !!authCookie?.value;
+  const isAuthenticated = authCookie?.value === "true";
 
   // If authenticated and trying to access auth pages, redirect to home
   if (isAuthenticated && AUTH_PATHS.some((p) => pathname.startsWith(p))) {
