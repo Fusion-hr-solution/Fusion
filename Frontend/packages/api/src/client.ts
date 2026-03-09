@@ -42,9 +42,11 @@ function extractErrors(
 
 export function createApiClient(config: ApiClientConfig = {}): ApiClient {
   const baseUrl = config.baseUrl ?? DEFAULT_BASE_URL;
+  let authErrorFired = false;
 
   function throwApiError(error: ApiError): never {
-    if (error.status === 401 && config.onAuthError) {
+    if (error.status === 401 && config.onAuthError && !authErrorFired) {
+      authErrorFired = true;
       config.onAuthError(error);
     }
     throw error;

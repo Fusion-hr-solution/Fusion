@@ -142,7 +142,7 @@ describe("useApiMutation", () => {
   });
 
   it("ignores stale mutation results when a newer call is in flight", async () => {
-    let resolvers: Array<(val: string) => void> = [];
+    const resolvers: Array<(val: string) => void> = [];
     const mutationFn = vi.fn(
       () =>
         new Promise<string>((resolve) => {

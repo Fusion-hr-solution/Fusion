@@ -822,7 +822,7 @@ describe("createApiClient", () => {
 
       try {
         await api.get("/files/999", { responseType: "blob" });
-      } catch (err) {
+      } catch {
         // fetchSpy was only set up once, so we test the first rejection
       }
     });
@@ -896,6 +896,28 @@ describe("createApiClient", () => {
       await expect(
         api.get("/files/1", { responseType: "blob" })
       ).rejects.toThrow(ApiError);
+      expect(onAuthError).toHaveBeenCalledOnce();
+    });
+
+    it("fires onAuthError at most once per client instance", async () => {
+      const make401 = () =>
+        jsonResponse(
+          { data: null, errors: ["Unauthorized"], isSuccess: false },
+          { status: 401, statusText: "Unauthorized" }
+        );
+
+      fetchSpy
+        .mockResolvedValueOnce(make401())
+        .mockResolvedValueOnce(make401())
+        .mockResolvedValueOnce(make401());
+
+      const onAuthError = vi.fn();
+      const api = createApiClient({ onAuthError });
+
+      await expect(api.get("/a")).rejects.toThrow(ApiError);
+      await expect(api.get("/b")).rejects.toThrow(ApiError);
+      await expect(api.get("/c")).rejects.toThrow(ApiError);
+
       expect(onAuthError).toHaveBeenCalledOnce();
     });
   });

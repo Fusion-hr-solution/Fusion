@@ -1,5 +1,5 @@
 import { createApiClient } from "./client";
-import type { ApiClient } from "./types";
+import type { ApiClient, ApiError } from "./types";
 
 declare const process: { env?: Record<string, string | undefined> } | undefined;
 
@@ -39,12 +39,13 @@ export interface PlatformApiClientConfig {
    */
   getToken?: () => string | null;
   /**
-   * Called when the server responds with 401 Unauthorized.
+   * Called once when the server responds with 401 Unauthorized.
    *
-   * Use this to redirect to login, clear stale tokens, or show a toast.
-   * The `ApiError` is still thrown after this callback runs.
+   * Fires at most once per client instance to prevent redirect loops.
+   * The `ApiError` is still thrown after this callback runs — callers
+   * can catch and handle it normally.
    */
-  onAuthError?: (error: import("./types").ApiError) => void;
+  onAuthError?: (error: ApiError) => void;
 }
 
 /**
@@ -74,5 +75,9 @@ export function createPlatformApiClient(
       return null;
     });
 
-  return createApiClient({ baseUrl, getToken, onAuthError: config.onAuthError });
+  return createApiClient({
+    baseUrl,
+    getToken,
+    onAuthError: config.onAuthError,
+  });
 }
