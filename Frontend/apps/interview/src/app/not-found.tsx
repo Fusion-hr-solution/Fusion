@@ -2,16 +2,15 @@ import { Button } from "@repo/ui";
 
 export default function NotFound() {
   return (
-    <div className="container mx-auto px-4 py-12">
-      <div className="flex flex-col items-center justify-center min-h-[50vh] text-center">
-        <h2 className="text-4xl font-bold tracking-tight mb-2">404</h2>
-        <p className="text-muted-foreground mb-6">
-          The page you&apos;re looking for doesn&apos;t exist in the Interview module.
-        </p>
-        <a href="/interview">
-          <Button>Back to Interviews</Button>
-        </a>
-      </div>
+    <div className="flex min-h-screen flex-col items-center justify-center text-center px-4">
+      <h2 className="text-4xl font-bold tracking-tight mb-2 text-zinc-900">404</h2>
+      <p className="text-zinc-500 mb-6">
+        The page you&apos;re looking for doesn&apos;t exist.
+      </p>
+      {/* basePath /interview is added automatically — just use "/" */}
+      <a href="/">
+        <Button>Back to Tests</Button>
+      </a>
     </div>
   );
 }

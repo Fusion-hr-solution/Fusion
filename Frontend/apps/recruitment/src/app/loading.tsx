@@ -1,18 +1,31 @@
 export default function Loading() {
   return (
-    <div className="container mx-auto px-4 py-12">
-      <div className="space-y-4 animate-pulse">
-        <div className="h-8 bg-muted rounded w-1/3" />
-        <div className="h-4 bg-muted rounded w-2/3" />
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mt-8">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-24 bg-muted rounded-lg" />
-          ))}
+    <div className="min-h-screen bg-white">
+      {/* Nav skeleton */}
+      <div className="h-16 border-b border-zinc-200 animate-pulse bg-white" />
+      <div className="flex">
+        {/* Sidebar skeleton */}
+        <div className="w-72 min-h-screen border-r border-zinc-200 p-6 space-y-4 animate-pulse">
+          <div className="h-8 bg-zinc-100 rounded w-3/4" />
+          <div className="h-10 bg-zinc-100 rounded" />
+          <div className="space-y-2 pt-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="h-5 bg-zinc-100 rounded w-full" />
+            ))}
+          </div>
         </div>
-        <div className="space-y-4 mt-8">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-40 bg-muted rounded-lg" />
-          ))}
+        {/* Main skeleton */}
+        <div className="flex-1 p-8 space-y-6 animate-pulse">
+          <div className="grid grid-cols-4 gap-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="h-24 bg-zinc-100 rounded-xl" />
+            ))}
+          </div>
+          <div className="grid grid-cols-3 gap-6">
+            {Array.from({ length: 9 }).map((_, i) => (
+              <div key={i} className="h-52 bg-zinc-100 rounded-xl" />
+            ))}
+          </div>
         </div>
       </div>
     </div>
