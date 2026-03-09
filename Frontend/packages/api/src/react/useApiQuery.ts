@@ -46,7 +46,7 @@ export function useApiQuery<T>(
           err instanceof DOMException &&
           err.name === "AbortError"
         ) {
-          return; // ignore aborted requests
+          return; // ignore aborted requests — cleanup handles isLoading
         }
         if (!controller.signal.aborted) {
           setError(err instanceof Error ? err : new Error(String(err)));
@@ -56,7 +56,11 @@ export function useApiQuery<T>(
   }, []);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled) {
+      controllerRef.current?.abort();
+      setIsLoading(false);
+      return;
+    }
     execute();
     return () => {
       controllerRef.current?.abort();

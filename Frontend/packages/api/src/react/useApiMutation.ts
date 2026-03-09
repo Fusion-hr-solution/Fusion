@@ -61,6 +61,7 @@ export function useApiMutation<TData, TArgs = void>(
   );
 
   const reset = useCallback(() => {
+    callIdRef.current++;
     setData(undefined);
     setError(null);
     setIsLoading(false);

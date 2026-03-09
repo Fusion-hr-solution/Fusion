@@ -773,6 +773,18 @@ describe("createApiClient", () => {
       const [url] = fetchSpy.mock.calls[0] as [string, RequestInit];
       expect(url).toBe("/api/items");
     });
+
+    it("uses & when path already contains a query string", async () => {
+      fetchSpy.mockResolvedValueOnce(
+        jsonResponse({ data: [], errors: [], isSuccess: true })
+      );
+
+      const api = createApiClient();
+      await api.get("/items?existing=1", { params: { added: 2 } });
+
+      const [url] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      expect(url).toBe("/api/items?existing=1&added=2");
+    });
   });
 
   // ── Non-JSON response types ───────────────────────────────────
@@ -918,6 +930,25 @@ describe("createApiClient", () => {
       await expect(api.get("/b")).rejects.toThrow(ApiError);
       await expect(api.get("/c")).rejects.toThrow(ApiError);
 
+      expect(onAuthError).toHaveBeenCalledOnce();
+    });
+
+    it("still throws the original ApiError even if onAuthError callback throws", async () => {
+      fetchSpy.mockResolvedValueOnce(
+        jsonResponse(
+          { data: null, errors: ["Unauthorized"], isSuccess: false },
+          { status: 401, statusText: "Unauthorized" }
+        )
+      );
+
+      const onAuthError = vi.fn(() => {
+        throw new Error("callback boom");
+      });
+      const api = createApiClient({ onAuthError });
+
+      const err = await api.get("/x").catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(ApiError);
+      expect((err as ApiError).status).toBe(401);
       expect(onAuthError).toHaveBeenCalledOnce();
     });
   });

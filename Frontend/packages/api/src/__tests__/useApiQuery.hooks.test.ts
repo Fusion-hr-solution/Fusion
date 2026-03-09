@@ -139,4 +139,21 @@ describe("useApiQuery", () => {
     // Error should not be set for abort
     expect(result.current.error).toBeNull();
   });
+
+  it("clears isLoading when enabled flips to false mid-flight", async () => {
+    const queryFn = vi.fn(
+      () => new Promise<string>(() => {}) // never resolves
+    );
+
+    const { result, rerender } = renderHook(
+      ({ enabled }) => useApiQuery(queryFn, { enabled }),
+      { initialProps: { enabled: true } }
+    );
+
+    await waitFor(() => expect(result.current.isLoading).toBe(true));
+
+    rerender({ enabled: false });
+
+    expect(result.current.isLoading).toBe(false);
+  });
 });

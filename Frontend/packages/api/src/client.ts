@@ -47,7 +47,11 @@ export function createApiClient(config: ApiClientConfig = {}): ApiClient {
   function throwApiError(error: ApiError): never {
     if (error.status === 401 && config.onAuthError && !authErrorFired) {
       authErrorFired = true;
-      config.onAuthError(error);
+      try {
+        config.onAuthError(error);
+      } catch {
+        // callback errors must not mask the original ApiError
+      }
     }
     throw error;
   }
@@ -70,7 +74,7 @@ export function createApiClient(config: ApiClientConfig = {}): ApiClient {
         if (value != null) searchParams.append(key, String(value));
       }
       const qs = searchParams.toString();
-      if (qs) url += `?${qs}`;
+      if (qs) url += `${url.includes("?") ? "&" : "?"}${qs}`;
     }
 
     const headers: Record<string, string> = {

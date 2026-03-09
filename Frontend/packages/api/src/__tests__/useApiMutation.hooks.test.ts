@@ -179,4 +179,41 @@ describe("useApiMutation", () => {
 
     expect(result.current.data).toBe("fresh");
   });
+
+  it("reset invalidates in-flight mutations so they do not update state", async () => {
+    let resolver: ((val: string) => void) | undefined;
+    const mutationFn = vi.fn(
+      () =>
+        new Promise<string>((resolve) => {
+          resolver = resolve;
+        })
+    );
+
+    const { result } = renderHook(() =>
+      useApiMutation<string, void>(mutationFn)
+    );
+
+    act(() => {
+      result.current.mutate(undefined as void);
+    });
+
+    expect(result.current.isLoading).toBe(true);
+
+    // Reset while mutation is in flight
+    act(() => {
+      result.current.reset();
+    });
+
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.data).toBeUndefined();
+
+    // Resolve the now-stale mutation
+    await act(async () => {
+      resolver!("stale-after-reset");
+    });
+
+    // State should remain clean
+    expect(result.current.data).toBeUndefined();
+    expect(result.current.isLoading).toBe(false);
+  });
 });
