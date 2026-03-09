@@ -10,10 +10,7 @@ import type {
 // ── API base URL ─────────────────────────────────────────────────────
 
 const API_BASE_URL =
-  typeof window !== "undefined" &&
-  (window as unknown as Record<string, unknown>).__NEXT_PUBLIC_API_URL
-    ? String((window as unknown as Record<string, unknown>).__NEXT_PUBLIC_API_URL)
-    : "http://localhost:5000";
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 const ENDPOINTS = {
   login: `${API_BASE_URL}/api/identity/auth/login`,
@@ -78,7 +75,7 @@ const STORAGE_KEY = "ey_hr_auth";
 export function persistAuth(auth: StoredAuth): void {
   if (typeof window !== "undefined") {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(auth));
-    document.cookie = `ey_hr_authenticated=true; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+    document.cookie = `ey_hr_authenticated=true; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax${window.location.protocol === "https:" ? "; Secure" : ""}`;
   }
 }
 
@@ -96,6 +93,6 @@ export function loadAuth(): StoredAuth | null {
 export function clearAuth(): void {
   if (typeof window !== "undefined") {
     localStorage.removeItem(STORAGE_KEY);
-    document.cookie = "ey_hr_authenticated=; path=/; max-age=0; SameSite=Lax";
+    document.cookie = `ey_hr_authenticated=; path=/; max-age=0; SameSite=Lax${window.location.protocol === "https:" ? "; Secure" : ""}`;
   }
 }

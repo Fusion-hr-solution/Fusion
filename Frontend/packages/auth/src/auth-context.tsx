@@ -46,6 +46,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(stored.user);
         setAccessToken(stored.accessToken);
         setRefreshToken(stored.refreshToken);
+        setIsLoading(false);
       } else if (stored.refreshToken) {
         apiRefresh({ refreshToken: stored.refreshToken })
           .then((res) => {
@@ -74,12 +75,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               clearAuth();
             }
           })
-          .catch(() => clearAuth());
+          .catch(() => clearAuth())
+          .finally(() => setIsLoading(false));
       } else {
         clearAuth();
+        setIsLoading(false);
       }
+    } else {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   }, []);
 
   const login = useCallback(

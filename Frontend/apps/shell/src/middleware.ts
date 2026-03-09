@@ -31,7 +31,7 @@ export function middleware(request: NextRequest) {
   // Redirect unauthenticated users to sign in
   if (!isAuthenticated) {
     const signInUrl = new URL("/auth/signin", request.url);
-    signInUrl.searchParams.set("callbackUrl", pathname);
+    signInUrl.searchParams.set("callbackUrl", `${pathname}${request.nextUrl.search}`);
     return NextResponse.redirect(signInUrl);
   }
 
