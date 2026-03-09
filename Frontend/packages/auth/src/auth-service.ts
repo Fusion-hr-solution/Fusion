@@ -10,7 +10,10 @@ import type {
 // ── API base URL ─────────────────────────────────────────────────────
 
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+  typeof window !== "undefined" &&
+  (window as unknown as Record<string, unknown>).__NEXT_PUBLIC_API_URL
+    ? String((window as unknown as Record<string, unknown>).__NEXT_PUBLIC_API_URL)
+    : "http://localhost:5000";
 
 const ENDPOINTS = {
   login: `${API_BASE_URL}/api/identity/auth/login`,
@@ -26,35 +29,22 @@ async function post<T>(
   body: unknown,
   accessToken?: string | null,
 ): Promise<ApiResponse<T>> {
-  try {
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-    };
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
 
-    if (accessToken) {
-      headers["Authorization"] = `Bearer ${accessToken}`;
-    }
-
-    const res = await fetch(url, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(body),
-    });
-
-    if (!res.ok) {
-      try {
-        const errorJson: ApiResponse<T> = await res.json();
-        return errorJson;
-      } catch {
-        return { isSuccess: false, data: null as T, errors: [`Request failed with status ${res.status}`] };
-      }
-    }
-
-    const json: ApiResponse<T> = await res.json();
-    return json;
-  } catch {
-    return { isSuccess: false, data: null as T, errors: ["Network error. Please check your connection and try again."] };
+  if (accessToken) {
+    headers["Authorization"] = `Bearer ${accessToken}`;
   }
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+  });
+
+  const json: ApiResponse<T> = await res.json();
+  return json;
 }
 
 // ── Public API ───────────────────────────────────────────────────────
@@ -88,7 +78,7 @@ const STORAGE_KEY = "ey_hr_auth";
 export function persistAuth(auth: StoredAuth): void {
   if (typeof window !== "undefined") {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(auth));
-    document.cookie = `ey_hr_authenticated=true; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax${window.location.protocol === "https:" ? "; Secure" : ""}`;
+    document.cookie = `ey_hr_authenticated=true; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
   }
 }
 
@@ -106,6 +96,6 @@ export function loadAuth(): StoredAuth | null {
 export function clearAuth(): void {
   if (typeof window !== "undefined") {
     localStorage.removeItem(STORAGE_KEY);
-    document.cookie = `ey_hr_authenticated=; path=/; max-age=0; SameSite=Lax${window.location.protocol === "https:" ? "; Secure" : ""}`;
+    document.cookie = "ey_hr_authenticated=; path=/; max-age=0; SameSite=Lax";
   }
 }

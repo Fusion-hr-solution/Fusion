@@ -156,6 +156,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setAccessToken(null);
     setRefreshToken(null);
     clearAuth();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessToken]);
 
   const value = useMemo<AuthContextValue>(

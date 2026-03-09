@@ -4,7 +4,6 @@ export type {
   RegisterRequest,
   RefreshTokenRequest,
   AuthResponse,
-  ApiResponse,
   AuthUser,
   AuthState,
   StoredAuth,

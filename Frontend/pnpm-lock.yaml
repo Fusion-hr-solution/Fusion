@@ -399,6 +399,9 @@ importers:
 
   packages/auth:
     dependencies:
+      '@repo/api':
+        specifier: workspace:*
+        version: link:../api
       '@repo/ui':
         specifier: workspace:*
         version: link:../ui

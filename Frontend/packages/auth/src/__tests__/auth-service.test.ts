@@ -33,6 +33,7 @@ describe("login", () => {
     const authRes = makeAuthResponse();
     const apiRes = makeSuccessResponse(authRes);
     fetchMock.mockResolvedValueOnce({
+      ok: true,
       json: () => Promise.resolve(apiRes),
     });
 
@@ -53,6 +54,7 @@ describe("login", () => {
   it("returns errors on failure", async () => {
     const apiRes = makeErrorResponse(["Invalid credentials"]);
     fetchMock.mockResolvedValueOnce({
+      ok: true,
       json: () => Promise.resolve(apiRes),
     });
 
@@ -67,6 +69,7 @@ describe("register", () => {
   it("sends POST to /api/identity/auth/register with full payload", async () => {
     const authRes = makeAuthResponse({ fullName: "Jane Smith" });
     fetchMock.mockResolvedValueOnce({
+      ok: true,
       json: () => Promise.resolve(makeSuccessResponse(authRes)),
     });
 
@@ -89,6 +92,7 @@ describe("register", () => {
 
   it("returns errors for duplicate email", async () => {
     fetchMock.mockResolvedValueOnce({
+      ok: true,
       json: () =>
         Promise.resolve(makeErrorResponse(["Email already registered"])),
     });
@@ -113,6 +117,7 @@ describe("refreshToken", () => {
       refreshToken: "new-refresh",
     });
     fetchMock.mockResolvedValueOnce({
+      ok: true,
       json: () => Promise.resolve(makeSuccessResponse(newAuth)),
     });
 
@@ -130,6 +135,7 @@ describe("refreshToken", () => {
 describe("logout", () => {
   it("sends POST with Authorization header", async () => {
     fetchMock.mockResolvedValueOnce({
+      ok: true,
       json: () => Promise.resolve({ data: null, errors: [], isSuccess: true }),
     });
 
