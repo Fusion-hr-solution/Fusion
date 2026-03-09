@@ -6,10 +6,12 @@ on:
     branches: [main, develop]
     paths:
       - "Frontend/**"
+      - ".github/workflows/frontend-ci.yml"
   pull_request:
     branches: [main, develop]
     paths:
       - "Frontend/**"
+      - ".github/workflows/frontend-ci.yml"
 
 env:
   TURBO_TELEMETRY_DISABLED: 1
