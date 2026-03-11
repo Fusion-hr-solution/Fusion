@@ -1,0 +1,13 @@
+{
+  "profiles": {
+    "EY.HRPlatform.CoreHR": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "launchUrl": "api/corehr/swagger",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:5300;http://localhost:5301"
+    }
+  }
+}

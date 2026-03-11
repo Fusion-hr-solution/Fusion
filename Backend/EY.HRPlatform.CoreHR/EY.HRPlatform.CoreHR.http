@@ -1,0 +1,6 @@
+@EY.HRPlatform.CoreHR_HostAddress = http://localhost:5301
+
+GET {{EY.HRPlatform.CoreHR_HostAddress}}/health
+Accept: application/json
+
+###
