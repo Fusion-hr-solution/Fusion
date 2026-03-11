@@ -1,14 +1,10 @@
 "use client";
 
 import type { TrainingCategory } from "@/types";
+import type { CategoryFilterProps } from "@/types/component-props";
 import { CATEGORY_CONFIG } from "@/data/categories";
 
 const ALL_CATEGORIES = Object.keys(CATEGORY_CONFIG) as TrainingCategory[];
-
-interface CategoryFilterProps {
-  selected: TrainingCategory | null;
-  onChange: (category: TrainingCategory | null) => void;
-}
 
 export function CategoryFilter({ selected, onChange }: CategoryFilterProps) {
   return (
@@ -17,8 +13,8 @@ export function CategoryFilter({ selected, onChange }: CategoryFilterProps) {
         onClick={() => onChange(null)}
         className={`rounded-full border px-4 py-1.5 text-[13px] font-medium transition-all ${
           selected === null
-            ? "border-[#2E2E38] bg-[#2E2E38] text-white"
-            : "border-border bg-white text-muted-foreground hover:border-[#2E2E38]/30 hover:text-foreground"
+            ? "ey-bg-dark border-transparent text-white"
+            : "border-border bg-white text-muted-foreground hover:border-[hsl(var(--ey-grey-500))]/30 hover:text-foreground"
         }`}
       >
         All
@@ -32,10 +28,9 @@ export function CategoryFilter({ selected, onChange }: CategoryFilterProps) {
             onClick={() => onChange(isActive ? null : cat)}
             className={`rounded-full border px-4 py-1.5 text-[13px] font-medium transition-all ${
               isActive
-                ? `border-transparent text-white`
-                : "border-border bg-white text-muted-foreground hover:border-[#2E2E38]/30 hover:text-foreground"
+                ? `border-transparent ${config.chipClass}`
+                : "border-border bg-white text-muted-foreground hover:border-[hsl(var(--ey-grey-500))]/30 hover:text-foreground"
             }`}
-            style={isActive ? { backgroundColor: config.color, color: cat === "leadership" ? "#2E2E38" : "#fff" } : undefined}
           >
             {config.label}
           </button>

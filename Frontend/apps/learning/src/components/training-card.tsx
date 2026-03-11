@@ -1,17 +1,9 @@
 "use client";
 
-import {
-  Card,
-  CardContent,
-} from "@repo/ui";
+import { Card, CardContent } from "@repo/ui";
 import { Clock, BookOpen, Users, Star } from "lucide-react";
-import type { Training } from "@/types";
+import type { TrainingCardProps } from "@/types/component-props";
 import { CATEGORY_CONFIG, LEVEL_CONFIG } from "@/data/categories";
-
-interface TrainingCardProps {
-  training: Training;
-  onSelect: (training: Training) => void;
-}
 
 export function TrainingCard({ training, onSelect }: TrainingCardProps) {
   const category = CATEGORY_CONFIG[training.category];
@@ -23,27 +15,24 @@ export function TrainingCard({ training, onSelect }: TrainingCardProps) {
       onClick={() => onSelect(training)}
     >
       {/* Category color strip */}
-      <div
-        className="h-1 w-full"
-        style={{ backgroundColor: category.color }}
-      />
+      <div className={`h-1 w-full ${category.stripClass}`} />
 
       <CardContent className="flex flex-1 flex-col gap-4 p-5">
         {/* Top — category + level */}
         <div className="flex items-center justify-between gap-2">
           <span
-            className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tracking-wide uppercase ${category.bgLight}`}
+            className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tracking-wide uppercase ${category.badgeClass}`}
           >
             {category.label}
           </span>
           <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span className={`h-1.5 w-1.5 rounded-full ${level.dotColor}`} />
+            <span className={`h-1.5 w-1.5 rounded-full ${level.dotClass}`} />
             {level.label}
           </span>
         </div>
 
         {/* Title */}
-        <h3 className="text-[15px] font-semibold leading-snug text-foreground line-clamp-2 group-hover:text-[#155CB4] transition-colors">
+        <h3 className="text-[15px] font-semibold leading-snug text-foreground line-clamp-2 group-hover:text-[hsl(var(--ey-blue-600))] transition-colors">
           {training.title}
         </h3>
 
@@ -67,7 +56,7 @@ export function TrainingCard({ training, onSelect }: TrainingCardProps) {
         {/* Bottom — instructor + stats */}
         <div className="flex items-center justify-between border-t border-border/50 pt-3">
           <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#2E2E38] text-[11px] font-semibold text-white">
+            <div className="flex h-7 w-7 items-center justify-center rounded-full ey-bg-dark text-[11px] font-semibold text-white">
               {training.instructor
                 .split(" ")
                 .map((n) => n[0])
@@ -79,7 +68,7 @@ export function TrainingCard({ training, onSelect }: TrainingCardProps) {
           </div>
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
             <span className="flex items-center gap-1">
-              <Star className="h-3 w-3 fill-[#FFE600] text-[#FFE600]" />
+              <Star className="h-3 w-3 ey-star" />
               {training.rating}
             </span>
             <span className="flex items-center gap-1">

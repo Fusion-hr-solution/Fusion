@@ -3,20 +3,18 @@
 import { useState, useMemo } from "react";
 import { Input } from "@repo/ui";
 import { Search } from "lucide-react";
-import type { Training, TrainingCategory } from "@/types";
+import type { TrainingCategory } from "@/types";
+import type { TrainingCatalogProps } from "@/types/component-props";
 import { TrainingCard } from "./training-card";
 import { TrainingDetailDialog } from "./training-detail-dialog";
 import { CategoryFilter } from "./category-filter";
-
-interface TrainingCatalogProps {
-  trainings: Training[];
-}
+import type { Training } from "@/types";
 
 export function TrainingCatalog({ trainings }: TrainingCatalogProps) {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<TrainingCategory | null>(null);
   const [selectedTraining, setSelectedTraining] = useState<Training | null>(
-    null,
+    null
   );
   const [dialogOpen, setDialogOpen] = useState(false);
 
@@ -33,7 +31,7 @@ export function TrainingCatalog({ trainings }: TrainingCatalogProps) {
         (t) =>
           t.title.toLowerCase().includes(q) ||
           t.description.toLowerCase().includes(q) ||
-          t.tags.some((tag) => tag.toLowerCase().includes(q)),
+          t.tags.some((tag) => tag.toLowerCase().includes(q))
       );
     }
 
@@ -50,11 +48,11 @@ export function TrainingCatalog({ trainings }: TrainingCatalogProps) {
       {/* Hero */}
       <section className="relative overflow-hidden border-b border-border/50 bg-white">
         {/* Decorative accent */}
-        <div className="absolute right-0 top-0 h-full w-1/3 bg-gradient-to-l from-[#FFE600]/5 to-transparent" />
+        <div className="absolute right-0 top-0 h-full w-1/3 bg-gradient-to-l from-[hsl(var(--ey-yellow))]/5 to-transparent" />
 
         <div className="relative mx-auto max-w-7xl px-6 py-12 lg:py-16">
           <div className="flex items-end gap-3 mb-1">
-            <div className="flex h-9 w-1 rounded-full bg-[#FFE600]" />
+            <div className="flex h-9 w-1 rounded-full ey-bg-accent" />
             <span className="text-[13px] font-semibold uppercase tracking-widest text-muted-foreground">
               EY Academy
             </span>
@@ -75,7 +73,7 @@ export function TrainingCatalog({ trainings }: TrainingCatalogProps) {
               placeholder="Search trainings by title, topic, or tag…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="h-11 rounded-lg border-border/60 bg-[hsl(var(--ey-grey-50))] pl-10 text-sm placeholder:text-muted-foreground/60 focus-visible:ring-[#FFE600]"
+              className="h-11 rounded-lg border-border/60 bg-[hsl(var(--ey-grey-50))] pl-10 text-sm placeholder:text-muted-foreground/60 focus-visible:ring-[hsl(var(--ey-yellow))]"
             />
           </div>
         </div>
@@ -117,7 +115,7 @@ export function TrainingCatalog({ trainings }: TrainingCatalogProps) {
                 setSearch("");
                 setCategory(null);
               }}
-              className="mt-2 text-sm font-medium text-[#155CB4] hover:underline"
+              className="mt-2 text-sm font-medium ey-text-link hover:underline"
             >
               Clear all filters
             </button>

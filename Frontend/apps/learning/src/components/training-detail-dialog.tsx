@@ -17,14 +17,8 @@ import {
   CalendarDays,
   ChevronRight,
 } from "lucide-react";
-import type { Training } from "@/types";
+import type { TrainingDetailDialogProps } from "@/types/component-props";
 import { CATEGORY_CONFIG, LEVEL_CONFIG } from "@/data/categories";
-
-interface TrainingDetailDialogProps {
-  training: Training | null;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}
 
 export function TrainingDetailDialog({
   training,
@@ -40,23 +34,20 @@ export function TrainingDetailDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto p-0 gap-0">
         {/* Header accent */}
-        <div
-          className="h-1.5 w-full shrink-0"
-          style={{ backgroundColor: category.color }}
-        />
+        <div className={`h-1.5 w-full shrink-0 ${category.stripClass}`} />
 
         <div className="p-6 pb-0">
           <DialogHeader className="space-y-3">
             {/* Category + Level row */}
             <div className="flex items-center gap-3">
               <span
-                className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tracking-wide uppercase ${category.bgLight}`}
+                className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tracking-wide uppercase ${category.badgeClass}`}
               >
                 {category.label}
               </span>
               <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <span
-                  className={`h-1.5 w-1.5 rounded-full ${level.dotColor}`}
+                  className={`h-1.5 w-1.5 rounded-full ${level.dotClass}`}
                 />
                 {level.label}
               </span>
@@ -96,7 +87,7 @@ export function TrainingDetailDialog({
             <span className="text-[11px] text-muted-foreground">Enrolled</span>
           </div>
           <div className="flex flex-col items-center gap-1">
-            <Star className="h-4 w-4 fill-[#FFE600] text-[#FFE600]" />
+            <Star className="h-4 w-4 ey-star" />
             <span className="text-sm font-semibold text-foreground">
               {training.rating}
             </span>
@@ -106,7 +97,7 @@ export function TrainingDetailDialog({
 
         {/* Instructor */}
         <div className="mx-6 mt-5 flex items-center gap-3 rounded-lg border border-border/60 p-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#2E2E38] text-sm font-semibold text-white">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full ey-bg-dark text-sm font-semibold text-white">
             {training.instructor
               .split(" ")
               .map((n) => n[0])
@@ -164,13 +155,14 @@ export function TrainingDetailDialog({
         <div className="mx-6 mt-5 mb-6 flex items-center justify-between">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <CalendarDays className="h-3.5 w-3.5" />
-            Updated {new Date(training.updatedAt).toLocaleDateString("en-US", {
+            Updated{" "}
+            {new Date(training.updatedAt).toLocaleDateString("en-US", {
               month: "short",
               day: "numeric",
               year: "numeric",
             })}
           </div>
-          <Button className="bg-[#2E2E38] hover:bg-[#1A1A24] text-white gap-2">
+          <Button className="ey-bg-dark hover:ey-bg-dark-deep text-white gap-2">
             Enroll Now
             <ChevronRight className="h-4 w-4" />
           </Button>
