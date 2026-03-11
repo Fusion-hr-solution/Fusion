@@ -184,7 +184,18 @@ export function StepBasicInfo() {
                     type="number"
                     min={1}
                     value={basicInfo.estimatedDuration}
-                    onChange={(e) => updateBasicInfo({ estimatedDuration: Number(e.target.value) })}
+                    onChange={(e) => {
+                      const { value } = e.target;
+                      if (value === "") {
+                        // Default to 0 when input is cleared to avoid persisting NaN
+                        updateBasicInfo({ estimatedDuration: 0 });
+                        return;
+                      }
+                      const parsed = Number(value);
+                      if (!Number.isNaN(parsed)) {
+                        updateBasicInfo({ estimatedDuration: parsed });
+                      }
+                    }}
                     className="w-24 rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-[13px] text-zinc-900 shadow-sm transition-all duration-150 hover:border-zinc-300 focus:border-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
                   />
                   <span className="text-[13px] text-zinc-500">min</span>
