@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   BookOpen,
   LayoutDashboard,
@@ -62,11 +63,9 @@ const ADMIN_NAV: NavSection = {
 /*  Sidebar component                                                  */
 /* ------------------------------------------------------------------ */
 
-interface LearningSidebarProps {
-  activePath?: string;
-}
-
-export function LearningSidebar({ activePath = "/" }: LearningSidebarProps) {
+export function LearningSidebar() {
+  const pathname = usePathname();
+  const activePath = pathname.replace(/^\/learning/, "") || "/";
   const [collapsed, setCollapsed] = useState(false);
 
   return (
