@@ -9,13 +9,11 @@ public class LogContextEnrichmentMiddleware(RequestDelegate next)
 
     public async Task InvokeAsync(HttpContext context)
     {
-        var correlationId = context.Request.Headers[CorrelationIdHeader].FirstOrDefault() ?? Guid.NewGuid().ToString();
+        var correlationId = context.Request.Headers[CorrelationIdHeader].FirstOrDefault();
         var userId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        var tenantId = context.User.FindFirst("tenant_id")?.Value;
 
         using (LogContext.PushProperty("CorrelationId", correlationId))
         using (LogContext.PushProperty("UserId", userId))
-        using (LogContext.PushProperty("TenantId", tenantId))
         {
             await next(context);
         }
