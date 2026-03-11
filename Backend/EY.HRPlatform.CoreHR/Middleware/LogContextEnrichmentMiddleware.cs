@@ -17,7 +17,6 @@ public class LogContextEnrichmentMiddleware(RequestDelegate next)
         using (LogContext.PushProperty("UserId", userId))
         using (LogContext.PushProperty("TenantId", tenantId))
         {
-            context.Response.Headers[CorrelationIdHeader] = correlationId;
             await next(context);
         }
     }

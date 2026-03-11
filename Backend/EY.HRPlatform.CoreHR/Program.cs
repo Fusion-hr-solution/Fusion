@@ -64,8 +64,8 @@ app.UseSerilogRequestLogging();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
-app.MapHealthChecks("/api/corehr/health/live", new HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();
-app.MapHealthChecks("/api/corehr/health/ready").AllowAnonymous();
-app.MapPrometheusScrapingEndpoint("/api/corehr/metrics").AllowAnonymous();
+app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();
+app.MapHealthChecks("/health/ready").AllowAnonymous();
+app.MapPrometheusScrapingEndpoint("/metrics").AllowAnonymous();
 
 app.Run();

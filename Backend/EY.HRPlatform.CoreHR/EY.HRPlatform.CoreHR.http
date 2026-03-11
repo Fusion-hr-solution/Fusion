@@ -1,18 +1,18 @@
 @EY.HRPlatform.CoreHR_HostAddress = http://localhost:5301
 
 ### Liveness probe
-GET {{EY.HRPlatform.CoreHR_HostAddress}}/api/corehr/health/live
+GET {{EY.HRPlatform.CoreHR_HostAddress}}/health/live
 Accept: application/json
 
 ###
 
 ### Readiness probe
-GET {{EY.HRPlatform.CoreHR_HostAddress}}/api/corehr/health/ready
+GET {{EY.HRPlatform.CoreHR_HostAddress}}/health/ready
 Accept: application/json
 
 ###
 
-### Prometheus metrics
-GET {{EY.HRPlatform.CoreHR_HostAddress}}/api/corehr/metrics
+### Prometheus metrics (internal only — not exposed via gateway)
+GET {{EY.HRPlatform.CoreHR_HostAddress}}/metrics
 
 ###
