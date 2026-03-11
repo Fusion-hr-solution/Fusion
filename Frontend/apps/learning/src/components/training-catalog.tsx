@@ -3,16 +3,40 @@
 import { useState, useMemo } from "react";
 import { Input } from "@repo/ui";
 import { Search } from "lucide-react";
-import type { TrainingCategory } from "@/types";
+import type { TrainingCategory, TrainingLevel, SortOption } from "@/types";
 import type { TrainingCatalogProps } from "@/types/component-props";
 import { TrainingCard } from "./training-card";
 import { TrainingDetailDialog } from "./training-detail-dialog";
 import { CategoryFilter } from "./category-filter";
+import { LevelFilter } from "./level-filter";
+import { SortSelect } from "./sort-select";
+import { ActiveFilters } from "./active-filters";
 import type { Training } from "@/types";
+
+function sortTrainings(trainings: Training[], sort: SortOption): Training[] {
+  return [...trainings].sort((a, b) => {
+    switch (sort) {
+      case "rating":
+        return b.rating - a.rating;
+      case "newest":
+        return (
+          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+        );
+      case "enrolled":
+        return b.enrolledCount - a.enrolledCount;
+      case "duration": {
+        const parseDuration = (d: string) => parseInt(d.replace(/\D/g, ""));
+        return parseDuration(a.duration) - parseDuration(b.duration);
+      }
+    }
+  });
+}
 
 export function TrainingCatalog({ trainings }: TrainingCatalogProps) {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<TrainingCategory | null>(null);
+  const [level, setLevel] = useState<TrainingLevel | null>(null);
+  const [sort, setSort] = useState<SortOption>("rating");
   const [selectedTraining, setSelectedTraining] = useState<Training | null>(
     null
   );
@@ -25,6 +49,10 @@ export function TrainingCatalog({ trainings }: TrainingCatalogProps) {
       result = result.filter((t) => t.category === category);
     }
 
+    if (level) {
+      result = result.filter((t) => t.level === level);
+    }
+
     if (search.trim()) {
       const q = search.toLowerCase();
       result = result.filter(
@@ -35,19 +63,24 @@ export function TrainingCatalog({ trainings }: TrainingCatalogProps) {
       );
     }
 
-    return result;
-  }, [trainings, category, search]);
+    return sortTrainings(result, sort);
+  }, [trainings, category, level, search, sort]);
 
   const handleSelect = (training: Training) => {
     setSelectedTraining(training);
     setDialogOpen(true);
   };
 
+  const clearAll = () => {
+    setSearch("");
+    setCategory(null);
+    setLevel(null);
+  };
+
   return (
     <>
       {/* Hero */}
       <section className="relative overflow-hidden border-b border-border/50 bg-white">
-        {/* Decorative accent */}
         <div className="absolute right-0 top-0 h-full w-1/3 bg-gradient-to-l from-[hsl(var(--ey-yellow))]/5 to-transparent" />
 
         <div className="relative mx-auto max-w-7xl px-6 py-12 lg:py-16">
@@ -84,7 +117,25 @@ export function TrainingCatalog({ trainings }: TrainingCatalogProps) {
         {/* Category chips */}
         <CategoryFilter selected={category} onChange={setCategory} />
 
-        {/* Results count */}
+        {/* Level filter */}
+        <div className="mt-3">
+          <LevelFilter selected={level} onChange={setLevel} />
+        </div>
+
+        {/* Active filters */}
+        <div className="mt-4">
+          <ActiveFilters
+            category={category}
+            level={level}
+            search={search}
+            onClearCategory={() => setCategory(null)}
+            onClearLevel={() => setLevel(null)}
+            onClearSearch={() => setSearch("")}
+            onClearAll={clearAll}
+          />
+        </div>
+
+        {/* Results count + sort */}
         <div className="mt-6 mb-5 flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
             <span className="font-semibold text-foreground">
@@ -92,6 +143,7 @@ export function TrainingCatalog({ trainings }: TrainingCatalogProps) {
             </span>{" "}
             {filtered.length === 1 ? "training" : "trainings"} available
           </p>
+          <SortSelect value={sort} onChange={setSort} />
         </div>
 
         {/* Grid */}
@@ -111,10 +163,7 @@ export function TrainingCatalog({ trainings }: TrainingCatalogProps) {
               No trainings match your filters.
             </p>
             <button
-              onClick={() => {
-                setSearch("");
-                setCategory(null);
-              }}
+              onClick={clearAll}
               className="mt-2 text-sm font-medium ey-text-link hover:underline"
             >
               Clear all filters

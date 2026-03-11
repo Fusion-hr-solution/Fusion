@@ -16,7 +16,8 @@ export default function Error({
           Something went wrong
         </h2>
         <p className="text-muted-foreground mb-6 max-w-md">
-          {error.message || "An unexpected error occurred in the Learning module."}
+          {error.message ||
+            "An unexpected error occurred in the Learning module."}
         </p>
         <Button onClick={reset}>Try Again</Button>
       </div>

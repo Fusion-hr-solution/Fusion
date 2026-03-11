@@ -6,7 +6,8 @@ export default function NotFound() {
       <div className="flex flex-col items-center justify-center min-h-[50vh] text-center">
         <h2 className="text-4xl font-bold tracking-tight mb-2">404</h2>
         <p className="text-muted-foreground mb-6">
-          The page you&apos;re looking for doesn&apos;t exist in the Learning module.
+          The page you&apos;re looking for doesn&apos;t exist in the Learning
+          module.
         </p>
         <a href="/learning">
           <Button>Back to Learning</Button>

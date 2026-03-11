@@ -10,7 +10,10 @@ import {
 } from "@repo/ui";
 import { type Course } from "@/types";
 
-const levelVariant: Record<Course["level"], "default" | "secondary" | "outline"> = {
+const levelVariant: Record<
+  Course["level"],
+  "default" | "secondary" | "outline"
+> = {
   beginner: "secondary",
   intermediate: "default",
   advanced: "outline",
@@ -34,7 +37,9 @@ export function CourseCard({ course }: CourseCardProps) {
           <Badge variant={levelVariant[course.level]}>
             {levelLabel[course.level]}
           </Badge>
-          <span className="text-xs text-muted-foreground">{course.duration}</span>
+          <span className="text-xs text-muted-foreground">
+            {course.duration}
+          </span>
         </div>
         <CardTitle className="text-lg">{course.title}</CardTitle>
         <CardDescription>{course.description}</CardDescription>
