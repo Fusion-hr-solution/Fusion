@@ -44,6 +44,8 @@ if (app.Environment.IsDevelopment())
     });
 }
 
+app.UseMiddleware<EY.HRPlatform.CoreHR.Middleware.GlobalExceptionHandlerMiddleware>();
+
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
