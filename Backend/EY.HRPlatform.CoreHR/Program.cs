@@ -1,8 +1,14 @@
 using System.Text;
+using EY.HRPlatform.CoreHR.Middleware;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
+using OpenTelemetry.Metrics;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Host.UseSerilog((ctx, cfg) => cfg.ReadFrom.Configuration(ctx.Configuration));
 
 var jwtSecret = builder.Configuration["Jwt:Secret"];
 if (string.IsNullOrEmpty(jwtSecret))
@@ -32,6 +38,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 builder.Services.AddHealthChecks();
 
+builder.Services.AddOpenTelemetry()
+    .WithMetrics(metrics =>
+    {
+        metrics.AddAspNetCoreInstrumentation();
+        metrics.AddPrometheusExporter();
+    });
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -44,9 +57,24 @@ if (app.Environment.IsDevelopment())
     });
 }
 
+app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
+app.UseSerilogRequestLogging(options =>
+{
+    options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
+    {
+        var correlationId = httpContext.Request.Headers["X-Correlation-Id"].FirstOrDefault()
+            ?? httpContext.TraceIdentifier;
+        diagnosticContext.Set("CorrelationId", correlationId);
+        diagnosticContext.Set("UserId", httpContext.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value);
+    };
+});
+
 app.UseAuthentication();
+app.UseMiddleware<LogContextEnrichmentMiddleware>(); // after auth (claims populated), before authz (enriches 401/403 logs too)
 app.UseAuthorization();
 app.MapControllers();
-app.MapHealthChecks("/api/corehr/health").AllowAnonymous();
+app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();
+app.MapHealthChecks("/health/ready").AllowAnonymous();
+app.MapPrometheusScrapingEndpoint("/metrics").AllowAnonymous();
 
 app.Run();
