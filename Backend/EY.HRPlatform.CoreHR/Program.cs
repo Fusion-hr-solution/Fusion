@@ -62,14 +62,16 @@ app.UseSerilogRequestLogging(options =>
 {
     options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
     {
-        diagnosticContext.Set("CorrelationId", httpContext.Request.Headers["X-Correlation-Id"].FirstOrDefault());
+        var correlationId = httpContext.Request.Headers["X-Correlation-Id"].FirstOrDefault()
+            ?? httpContext.TraceIdentifier;
+        diagnosticContext.Set("CorrelationId", correlationId);
         diagnosticContext.Set("UserId", httpContext.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value);
     };
 });
 
 app.UseAuthentication();
+app.UseMiddleware<LogContextEnrichmentMiddleware>(); // after auth (claims populated), before authz (enriches 401/403 logs too)
 app.UseAuthorization();
-app.UseMiddleware<LogContextEnrichmentMiddleware>(); // after auth — claims are populated
 app.MapControllers();
 app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();
 app.MapHealthChecks("/health/ready").AllowAnonymous();

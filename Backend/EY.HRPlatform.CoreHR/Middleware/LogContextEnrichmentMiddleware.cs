@@ -9,7 +9,8 @@ public class LogContextEnrichmentMiddleware(RequestDelegate next)
 
     public async Task InvokeAsync(HttpContext context)
     {
-        var correlationId = context.Request.Headers[CorrelationIdHeader].FirstOrDefault();
+        var correlationId = context.Request.Headers[CorrelationIdHeader].FirstOrDefault()
+            ?? context.TraceIdentifier;
         var userId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
         using (LogContext.PushProperty("CorrelationId", correlationId))

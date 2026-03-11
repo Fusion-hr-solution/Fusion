@@ -21,6 +21,9 @@ public class GlobalExceptionHandlerMiddleware(RequestDelegate next, ILogger<Glob
 
     private static async Task WriteErrorResponseAsync(HttpContext context)
     {
+        if (context.Response.HasStarted)
+            return;
+
         context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
         context.Response.ContentType = "application/json";
 
