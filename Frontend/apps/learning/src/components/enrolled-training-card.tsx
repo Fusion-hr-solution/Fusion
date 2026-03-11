@@ -3,7 +3,6 @@
 import { Card, CardContent } from "@repo/ui";
 import {
   Clock,
-  BookOpen,
   Star,
   CalendarDays,
   Play,
@@ -87,22 +86,16 @@ export function EnrolledTrainingCard({
               {training.title}
             </h3>
 
-            {/* Progress */}
-            <div className="flex items-center gap-3">
-              <div className="flex-1">
-                <TrainingProgressBar progress={training.progress} size="sm" />
-              </div>
-              <span className="text-[12px] font-semibold text-foreground tabular-nums">
-                {training.progress}%
-              </span>
-            </div>
+            {/* Enhanced progress visualization */}
+            <TrainingProgressBar
+              progress={training.progress}
+              currentChapter={training.currentChapter}
+              totalChapters={training.chaptersCount}
+              size="md"
+            />
 
             {/* Meta */}
             <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <BookOpen className="h-3.5 w-3.5" />
-                {training.currentChapter}/{training.chaptersCount} chapters
-              </span>
               <span className="flex items-center gap-1">
                 <Clock className="h-3.5 w-3.5" />
                 {training.duration}

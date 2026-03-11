@@ -23,6 +23,7 @@ export {
   DialogTitle,
   DialogDescription,
 } from "./components/dialog";
+export { Progress } from "./components/progress";
 
 // Utilities
 export { cn } from "./lib/utils";

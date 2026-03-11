@@ -70,7 +70,10 @@ export interface EnrolledTrainingCardProps {
 
 export interface TrainingProgressBarProps {
   progress: number;
+  currentChapter?: number;
+  totalChapters?: number;
   size?: "sm" | "md";
+  showLabel?: boolean;
 }
 
 export interface TrainingStatusTabsProps {
