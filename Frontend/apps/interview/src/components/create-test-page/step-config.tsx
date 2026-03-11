@@ -82,7 +82,11 @@ function NumberInput({ value, onChange, min, max, suffix }: {
         min={min}
         max={max}
         value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
+        onChange={(e) => {
+          const raw = e.target.value;
+          const nextValue = raw === "" ? (min ?? 0) : Number(raw);
+          onChange(nextValue);
+        }}
         className="w-20 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[13px] font-medium text-zinc-900 text-right focus:outline-none focus:ring-2 focus:ring-zinc-900/10 transition-all duration-150"
       />
       {suffix && <span className="text-[13px] text-zinc-500">{suffix}</span>}
