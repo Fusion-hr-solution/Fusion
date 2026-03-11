@@ -65,7 +65,7 @@ function FilterDropdown({
             onClick={() => { onChange(""); setOpen(false); }}
             className="flex w-full items-center px-3 py-2 text-[13px] text-zinc-500 hover:bg-zinc-50 transition-colors duration-150"
           >
-            All {label}s
+            All
           </button>
           <div className="border-t border-zinc-100" />
           {options.map((opt) => (
