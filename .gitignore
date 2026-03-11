@@ -89,3 +89,8 @@ coverage/
 *.tmp
 *.temp
 *.cache
+
+# ========================
+# Local Copilot Skills
+# ========================
+.github/skills/
