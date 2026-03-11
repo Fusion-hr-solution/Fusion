@@ -9,16 +9,11 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@repo/ui";
-import {
-  Clock,
-  BookOpen,
-  Users,
-  Star,
-  CalendarDays,
-  ChevronRight,
-} from "lucide-react";
+import { CalendarDays, ChevronRight } from "lucide-react";
 import type { TrainingDetailDialogProps } from "@/types/component-props";
 import { CATEGORY_CONFIG, LEVEL_CONFIG } from "@/data/categories";
+import { TrainingStatsStrip } from "./training-stats-strip";
+import { CourseOutline } from "./course-outline";
 
 export function TrainingDetailDialog({
   training,
@@ -64,36 +59,12 @@ export function TrainingDetailDialog({
         </div>
 
         {/* Stats strip */}
-        <div className="mx-6 mt-5 grid grid-cols-4 gap-3 rounded-lg bg-[hsl(var(--ey-grey-100))] p-4">
-          <div className="flex flex-col items-center gap-1">
-            <Clock className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-semibold text-foreground">
-              {training.duration}
-            </span>
-            <span className="text-[11px] text-muted-foreground">Duration</span>
-          </div>
-          <div className="flex flex-col items-center gap-1">
-            <BookOpen className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-semibold text-foreground">
-              {training.chaptersCount}
-            </span>
-            <span className="text-[11px] text-muted-foreground">Chapters</span>
-          </div>
-          <div className="flex flex-col items-center gap-1">
-            <Users className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-semibold text-foreground">
-              {training.enrolledCount.toLocaleString()}
-            </span>
-            <span className="text-[11px] text-muted-foreground">Enrolled</span>
-          </div>
-          <div className="flex flex-col items-center gap-1">
-            <Star className="h-4 w-4 ey-star" />
-            <span className="text-sm font-semibold text-foreground">
-              {training.rating}
-            </span>
-            <span className="text-[11px] text-muted-foreground">Rating</span>
-          </div>
-        </div>
+        <TrainingStatsStrip
+          duration={training.duration}
+          chaptersCount={training.chaptersCount}
+          enrolledCount={training.enrolledCount}
+          rating={training.rating}
+        />
 
         {/* Instructor */}
         <div className="mx-6 mt-5 flex items-center gap-3 rounded-lg border border-border/60 p-3">
@@ -114,29 +85,7 @@ export function TrainingDetailDialog({
         </div>
 
         {/* Chapters */}
-        <div className="mx-6 mt-5">
-          <h4 className="mb-3 text-sm font-semibold text-foreground">
-            Course Outline
-          </h4>
-          <div className="space-y-1">
-            {training.chapters.map((chapter, i) => (
-              <div
-                key={chapter.id}
-                className="flex items-center justify-between rounded-md px-3 py-2.5 text-sm transition-colors hover:bg-[hsl(var(--ey-grey-100))]"
-              >
-                <div className="flex items-center gap-3">
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[hsl(var(--ey-grey-200))] text-[11px] font-semibold text-muted-foreground">
-                    {i + 1}
-                  </span>
-                  <span className="text-foreground">{chapter.title}</span>
-                </div>
-                <span className="text-xs text-muted-foreground">
-                  {chapter.duration}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
+        <CourseOutline chapters={training.chapters} />
 
         {/* Tags */}
         <div className="mx-6 mt-5 flex flex-wrap gap-1.5">

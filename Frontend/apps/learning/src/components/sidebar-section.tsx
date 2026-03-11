@@ -1,11 +1,5 @@
 import Link from "next/link";
-import type { NavSection } from "@/types/sidebar";
-
-interface SidebarSectionProps {
-  section: NavSection;
-  activePath: string;
-  collapsed: boolean;
-}
+import type { SidebarSectionProps } from "@/types/sidebar";
 
 export function SidebarSection({
   section,

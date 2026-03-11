@@ -1,7 +1,4 @@
-interface StatRowProps {
-  label: string;
-  value: string;
-}
+import type { StatRowProps } from "@/types/component-props";
 
 export function StatRow({ label, value }: StatRowProps) {
   return (

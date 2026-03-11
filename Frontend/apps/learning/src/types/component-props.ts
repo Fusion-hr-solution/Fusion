@@ -19,3 +19,19 @@ export interface TrainingDetailDialogProps {
 export interface TrainingCatalogProps {
   trainings: Training[];
 }
+
+export interface StatRowProps {
+  label: string;
+  value: string;
+}
+
+export interface TrainingStatsStripProps {
+  duration: string;
+  chaptersCount: number;
+  enrolledCount: number;
+  rating: number;
+}
+
+export interface CourseOutlineProps {
+  chapters: { id: string; title: string; duration: string }[];
+}

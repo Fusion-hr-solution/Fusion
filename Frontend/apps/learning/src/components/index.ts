@@ -6,3 +6,5 @@ export { CategoryFilter } from "./category-filter";
 export { LearningSidebar } from "./learning-sidebar";
 export { SidebarSection } from "./sidebar-section";
 export { StatRow } from "./stat-row";
+export { TrainingStatsStrip } from "./training-stats-strip";
+export { CourseOutline } from "./course-outline";
