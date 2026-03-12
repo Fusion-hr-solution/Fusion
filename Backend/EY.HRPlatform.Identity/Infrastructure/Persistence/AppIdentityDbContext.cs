@@ -1,8 +1,8 @@
 ﻿using EY.HRPlatform.Identity.Domain.Entities;
+using EY.HRPlatform.SharedKernel.Persistence;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace EY.HRPlatform.Identity.Infrastructure.Persistence;
 
@@ -66,11 +66,3 @@ public class AppIdentityDbContext : IdentityDbContext<ApplicationUser, IdentityR
         });
     }
 }
-
-internal class UtcDateTimeConverter() : ValueConverter<DateTime, DateTime>(
-    v => v.Kind == DateTimeKind.Utc ? v : DateTime.SpecifyKind(v, DateTimeKind.Utc),
-    v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
-
-internal class UtcNullableDateTimeConverter() : ValueConverter<DateTime?, DateTime?>(
-    v => v.HasValue && v.Value.Kind != DateTimeKind.Utc ? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc) : v,
-    v => v.HasValue ? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc) : v);
