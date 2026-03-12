@@ -23,7 +23,7 @@ export function TrainingStatusTabs({
           <button
             key={tab.value}
             onClick={() => onChange(tab.value)}
-            className={`relative flex items-center gap-1.5 rounded-md px-3.5 py-2 text-[13px] font-medium transition-all ${
+            className={`relative flex items-center gap-1.5 rounded-md px-3.5 py-2 text-xs font-medium transition-all ${
               isActive
                 ? "ey-bg-dark text-white shadow-sm"
                 : "text-muted-foreground hover:bg-[hsl(var(--ey-grey-100))] hover:text-foreground"

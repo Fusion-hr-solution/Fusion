@@ -11,7 +11,7 @@ export function LevelFilter({ selected, onChange }: LevelFilterProps) {
     <div className="flex flex-wrap gap-2">
       <button
         onClick={() => onChange(null)}
-        className={`rounded-full border px-3 py-1 text-[12px] font-medium transition-all ${
+        className={`rounded-full border px-3 py-1 text-xs font-medium transition-all ${
           selected === null
             ? "ey-bg-dark border-transparent text-white"
             : "border-border bg-white text-muted-foreground hover:border-[hsl(var(--ey-grey-500))]/30 hover:text-foreground"
@@ -26,7 +26,7 @@ export function LevelFilter({ selected, onChange }: LevelFilterProps) {
           <button
             key={lvl}
             onClick={() => onChange(isActive ? null : lvl)}
-            className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-[12px] font-medium transition-all ${
+            className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-all ${
               isActive
                 ? "ey-bg-dark border-transparent text-white"
                 : "border-border bg-white text-muted-foreground hover:border-[hsl(var(--ey-grey-500))]/30 hover:text-foreground"

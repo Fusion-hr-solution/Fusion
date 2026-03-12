@@ -13,6 +13,10 @@ import { SortSelect } from "./sort-select";
 import { ActiveFilters } from "./active-filters";
 import type { Training } from "@/types";
 
+function parseDuration(d: string): number {
+  return parseInt(d.replace(/\D/g, ""));
+}
+
 function sortTrainings(trainings: Training[], sort: SortOption): Training[] {
   return [...trainings].sort((a, b) => {
     switch (sort) {
@@ -24,10 +28,8 @@ function sortTrainings(trainings: Training[], sort: SortOption): Training[] {
         );
       case "enrolled":
         return b.enrolledCount - a.enrolledCount;
-      case "duration": {
-        const parseDuration = (d: string) => parseInt(d.replace(/\D/g, ""));
+      case "duration":
         return parseDuration(a.duration) - parseDuration(b.duration);
-      }
     }
   });
 }
@@ -86,14 +88,14 @@ export function TrainingCatalog({ trainings }: TrainingCatalogProps) {
         <div className="relative mx-auto max-w-7xl px-6 py-12 lg:py-16">
           <div className="flex items-end gap-3 mb-1">
             <div className="flex h-9 w-1 rounded-full ey-bg-accent" />
-            <span className="text-[13px] font-semibold uppercase tracking-widest text-muted-foreground">
+            <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
               EY Academy
             </span>
           </div>
           <h1 className="mt-3 text-3xl font-bold tracking-tight text-foreground lg:text-4xl">
             Training Catalog
           </h1>
-          <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-muted-foreground">
+          <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
             Explore our curated library of professional development programs.
             Filter by category, search by topic, and start building the skills
             that matter.
