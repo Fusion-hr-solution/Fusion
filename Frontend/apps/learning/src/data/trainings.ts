@@ -13,7 +13,11 @@ export const MOCK_TRAININGS: Training[] = [
     chapters: [
       { id: "1-1", title: "The Digital Imperative", duration: "1h 30m" },
       { id: "1-2", title: "Building the Business Case", duration: "1h 30m" },
-      { id: "1-3", title: "Stakeholder Mapping & Alignment", duration: "1h 30m" },
+      {
+        id: "1-3",
+        title: "Stakeholder Mapping & Alignment",
+        duration: "1h 30m",
+      },
       { id: "1-4", title: "Agile Governance Models", duration: "1h 30m" },
       { id: "1-5", title: "Change Management Frameworks", duration: "1h 30m" },
       { id: "1-6", title: "Culture of Innovation", duration: "1h 30m" },
@@ -144,7 +148,11 @@ export const MOCK_TRAININGS: Training[] = [
       { id: "6-3", title: "DCF Valuation", duration: "1h 25m" },
       { id: "6-4", title: "Comparable Company Analysis", duration: "1h 25m" },
       { id: "6-5", title: "LBO Modeling", duration: "1h 25m" },
-      { id: "6-6", title: "Sensitivity & Scenario Analysis", duration: "1h 25m" },
+      {
+        id: "6-6",
+        title: "Sensitivity & Scenario Analysis",
+        duration: "1h 25m",
+      },
       { id: "6-7", title: "Case Study & Presentation", duration: "1h 30m" },
     ],
     instructor: "Anna Kowalski",
@@ -167,7 +175,11 @@ export const MOCK_TRAININGS: Training[] = [
     chapters: [
       { id: "7-1", title: "Threat Landscape Overview", duration: "1h 12m" },
       { id: "7-2", title: "Risk Assessment & Management", duration: "1h 12m" },
-      { id: "7-3", title: "Security Controls & Best Practices", duration: "1h 12m" },
+      {
+        id: "7-3",
+        title: "Security Controls & Best Practices",
+        duration: "1h 12m",
+      },
       { id: "7-4", title: "Incident Response", duration: "1h 12m" },
       { id: "7-5", title: "Building Security Culture", duration: "1h 12m" },
     ],
@@ -190,7 +202,11 @@ export const MOCK_TRAININGS: Training[] = [
     chaptersCount: 6,
     chapters: [
       { id: "8-1", title: "ESG Fundamentals & Drivers", duration: "1h 10m" },
-      { id: "8-2", title: "Reporting Frameworks Deep Dive", duration: "1h 10m" },
+      {
+        id: "8-2",
+        title: "Reporting Frameworks Deep Dive",
+        duration: "1h 10m",
+      },
       { id: "8-3", title: "Materiality Assessment", duration: "1h 10m" },
       { id: "8-4", title: "Carbon Accounting & TCFD", duration: "1h 10m" },
       { id: "8-5", title: "Data Collection & Assurance", duration: "1h 10m" },

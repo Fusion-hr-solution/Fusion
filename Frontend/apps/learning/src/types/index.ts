@@ -41,3 +41,16 @@ export interface Course {
   duration: string;
   progress: number;
 }
+
+export type TrainingStatus = "in-progress" | "completed" | "not-started";
+
+export type SortOption = "rating" | "newest" | "enrolled" | "duration";
+
+export interface EnrolledTraining extends Training {
+  status: TrainingStatus;
+  progress: number;
+  enrolledAt: string;
+  completedAt?: string;
+  currentChapter: number;
+  deadline?: string;
+}

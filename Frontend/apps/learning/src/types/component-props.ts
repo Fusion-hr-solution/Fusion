@@ -1,4 +1,11 @@
-import type { Training, TrainingCategory } from "./index";
+import type {
+  Training,
+  TrainingCategory,
+  TrainingLevel,
+  SortOption,
+  TrainingStatus,
+  EnrolledTraining,
+} from "./index";
 
 export interface CategoryFilterProps {
   selected: TrainingCategory | null;
@@ -34,4 +41,47 @@ export interface TrainingStatsStripProps {
 
 export interface CourseOutlineProps {
   chapters: { id: string; title: string; duration: string }[];
+}
+
+export interface LevelFilterProps {
+  selected: TrainingLevel | null;
+  onChange: (level: TrainingLevel | null) => void;
+}
+
+export interface SortSelectProps {
+  value: SortOption;
+  onChange: (sort: SortOption) => void;
+}
+
+export interface ActiveFiltersProps {
+  category: TrainingCategory | null;
+  level: TrainingLevel | null;
+  search: string;
+  onClearCategory: () => void;
+  onClearLevel: () => void;
+  onClearSearch: () => void;
+  onClearAll: () => void;
+}
+
+export interface EnrolledTrainingCardProps {
+  training: EnrolledTraining;
+  onContinue: (training: EnrolledTraining) => void;
+}
+
+export interface TrainingProgressBarProps {
+  progress: number;
+  currentChapter?: number;
+  totalChapters?: number;
+  size?: "sm" | "md";
+  showLabel?: boolean;
+}
+
+export interface TrainingStatusTabsProps {
+  activeTab: TrainingStatus | "all";
+  counts: Record<TrainingStatus | "all", number>;
+  onChange: (tab: TrainingStatus | "all") => void;
+}
+
+export interface MyTrainingsListProps {
+  trainings: EnrolledTraining[];
 }
