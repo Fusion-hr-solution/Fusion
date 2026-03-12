@@ -1,17 +1,9 @@
 export default function Loading() {
   return (
-    <div className="container mx-auto px-4 py-12">
-      <div className="space-y-4 animate-pulse">
-        <div className="h-8 bg-muted rounded w-1/3" />
-        <div className="h-4 bg-muted rounded w-2/3" />
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">
-          <div className="lg:col-span-2 space-y-4">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="h-40 bg-muted rounded-lg" />
-            ))}
-          </div>
-          <div className="h-72 bg-muted rounded-lg" />
-        </div>
+    <div className="flex h-screen w-full items-center justify-center bg-zinc-50">
+      <div className="flex flex-col items-center gap-3">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-200 border-t-zinc-900" />
+        <p className="text-sm text-zinc-500">Loading...</p>
       </div>
     </div>
   );
