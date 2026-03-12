@@ -6,7 +6,7 @@ Accept: application/json
 
 ###
 
-### Readiness probe
+### Readiness probe (includes DB connectivity)
 GET {{EY.HRPlatform.CoreHR_HostAddress}}/health/ready
 Accept: application/json
 
