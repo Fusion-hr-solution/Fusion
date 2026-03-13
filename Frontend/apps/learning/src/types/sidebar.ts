@@ -11,9 +11,3 @@ export interface NavSection {
   title: string;
   items: NavItem[];
 }
-
-export interface SidebarSectionProps {
-  section: NavSection;
-  activePath: string;
-  collapsed: boolean;
-}

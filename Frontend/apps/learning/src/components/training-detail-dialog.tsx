@@ -36,7 +36,7 @@ export function TrainingDetailDialog({
             {/* Category + Level row */}
             <div className="flex items-center gap-3">
               <span
-                className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tracking-wide uppercase ${category.badgeClass}`}
+                className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold tracking-wide uppercase ${category.badgeClass}`}
               >
                 {category.label}
               </span>
@@ -93,7 +93,7 @@ export function TrainingDetailDialog({
             <Badge
               key={tag}
               variant="secondary"
-              className="rounded-full text-[11px] font-normal"
+              className="rounded-full text-xs font-normal"
             >
               {tag}
             </Badge>
@@ -103,7 +103,7 @@ export function TrainingDetailDialog({
         {/* Footer */}
         <div className="mx-6 mt-5 mb-6 flex items-center justify-between">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <CalendarDays className="h-3.5 w-3.5" />
+            <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
             Updated{" "}
             {new Date(training.updatedAt).toLocaleDateString("en-US", {
               month: "short",
@@ -113,7 +113,7 @@ export function TrainingDetailDialog({
           </div>
           <Button className="ey-bg-dark hover:ey-bg-dark-deep text-white gap-2">
             Enroll Now
-            <ChevronRight className="h-4 w-4" />
+            <ChevronRight className="h-4 w-4" aria-hidden="true" />
           </Button>
         </div>
       </DialogContent>

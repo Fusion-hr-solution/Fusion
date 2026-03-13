@@ -60,7 +60,7 @@ export function MyTrainingsList({ trainings }: MyTrainingsListProps) {
           {/* Quick stats */}
           <div className="mt-6 flex flex-wrap gap-6">
             <div className="flex items-center gap-2.5 rounded-lg border border-border/60 bg-[hsl(var(--ey-grey-50))] px-4 py-2.5">
-              <BookOpen className="h-4 w-4 text-[hsl(var(--ey-blue-400))]" />
+              <BookOpen className="h-4 w-4 text-[hsl(var(--ey-blue-400))]" aria-hidden="true" />
               <div>
                 <p className="text-lg font-bold text-foreground leading-none">
                   {inProgress}
@@ -69,7 +69,7 @@ export function MyTrainingsList({ trainings }: MyTrainingsListProps) {
               </div>
             </div>
             <div className="flex items-center gap-2.5 rounded-lg border border-border/60 bg-[hsl(var(--ey-grey-50))] px-4 py-2.5">
-              <CheckCircle2 className="h-4 w-4 text-[hsl(var(--ey-green-500))]" />
+              <CheckCircle2 className="h-4 w-4 text-[hsl(var(--ey-green-500))]" aria-hidden="true" />
               <div>
                 <p className="text-lg font-bold text-foreground leading-none">
                   {completed}
@@ -78,7 +78,7 @@ export function MyTrainingsList({ trainings }: MyTrainingsListProps) {
               </div>
             </div>
             <div className="flex items-center gap-2.5 rounded-lg border border-border/60 bg-[hsl(var(--ey-grey-50))] px-4 py-2.5">
-              <Clock className="h-4 w-4 text-[hsl(var(--ey-orange-500))]" />
+              <Clock className="h-4 w-4 text-[hsl(var(--ey-orange-500))]" aria-hidden="true" />
               <div>
                 <p className="text-lg font-bold text-foreground leading-none">
                   {totalHours}h
@@ -87,7 +87,7 @@ export function MyTrainingsList({ trainings }: MyTrainingsListProps) {
               </div>
             </div>
             <div className="flex items-center gap-2.5 rounded-lg border border-border/60 bg-[hsl(var(--ey-grey-50))] px-4 py-2.5">
-              <GraduationCap className="h-4 w-4 ey-text-accent" />
+              <GraduationCap className="h-4 w-4 ey-text-accent" aria-hidden="true" />
               <div>
                 <p className="text-lg font-bold text-foreground leading-none">
                   {trainings.length}
@@ -118,7 +118,7 @@ export function MyTrainingsList({ trainings }: MyTrainingsListProps) {
             ))
           ) : (
             <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border/60 py-20">
-              <GraduationCap className="h-10 w-10 text-muted-foreground/40 mb-3" />
+              <GraduationCap className="h-10 w-10 text-muted-foreground/40 mb-3" aria-hidden="true" />
               <p className="text-sm font-medium text-muted-foreground">
                 No trainings in this category yet.
               </p>
