@@ -10,7 +10,7 @@ namespace EY.HRPlatform.CoreHR.Infrastructure.Persistence.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.Sql("CREATE SCHEMA IF NOT EXISTS corehr;");
+            migrationBuilder.EnsureSchema("corehr");
         }
 
         /// <inheritdoc />
