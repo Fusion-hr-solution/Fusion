@@ -8,6 +8,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
+import { ApiError } from "@repo/api";
 import type { AuthState, AuthUser, LoginRequest, RegisterRequest } from "./types";
 import {
   login as apiLogin,
@@ -49,31 +50,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(false);
       } else if (stored.refreshToken) {
         apiRefresh({ refreshToken: stored.refreshToken })
-          .then((res) => {
-            if (res.isSuccess && res.data) {
-              const d = res.data;
-              setUser({
+          .then((d) => {
+            setUser({
+              userId: d.userId,
+              email: d.email,
+              fullName: d.fullName,
+              roles: d.roles,
+            });
+            setAccessToken(d.accessToken);
+            setRefreshToken(d.refreshToken);
+            persistAuth({
+              accessToken: d.accessToken,
+              refreshToken: d.refreshToken,
+              accessTokenExpiration: d.accessTokenExpiration,
+              user: {
                 userId: d.userId,
                 email: d.email,
                 fullName: d.fullName,
                 roles: d.roles,
-              });
-              setAccessToken(d.accessToken);
-              setRefreshToken(d.refreshToken);
-              persistAuth({
-                accessToken: d.accessToken,
-                refreshToken: d.refreshToken,
-                accessTokenExpiration: d.accessTokenExpiration,
-                user: {
-                  userId: d.userId,
-                  email: d.email,
-                  fullName: d.fullName,
-                  roles: d.roles,
-                },
-              });
-            } else {
-              clearAuth();
-            }
+              },
+            });
           })
           .catch(() => clearAuth())
           .finally(() => setIsLoading(false));
@@ -88,9 +84,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(
     async (req: LoginRequest): Promise<string[] | null> => {
-      const res = await apiLogin(req);
-      if (res.isSuccess && res.data) {
-        const d = res.data;
+      try {
+        const d = await apiLogin(req);
         const authUser: AuthUser = {
           userId: d.userId,
           email: d.email,
@@ -107,19 +102,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           user: authUser,
         });
         return null;
+      } catch (err) {
+        if (err instanceof ApiError) {
+          return err.errors.length > 0 ? err.errors : ["Login failed. Please try again."];
+        }
+        return ["Login failed. Please try again."];
       }
-      return res.errors.length > 0
-        ? res.errors
-        : ["Login failed. Please try again."];
     },
     [],
   );
 
   const register = useCallback(
     async (req: RegisterRequest): Promise<string[] | null> => {
-      const res = await apiRegister(req);
-      if (res.isSuccess && res.data) {
-        const d = res.data;
+      try {
+        const d = await apiRegister(req);
         const authUser: AuthUser = {
           userId: d.userId,
           email: d.email,
@@ -136,10 +132,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           user: authUser,
         });
         return null;
+      } catch (err) {
+        if (err instanceof ApiError) {
+          return err.errors.length > 0 ? err.errors : ["Registration failed. Please try again."];
+        }
+        return ["Registration failed. Please try again."];
       }
-      return res.errors.length > 0
-        ? res.errors
-        : ["Registration failed. Please try again."];
     },
     [],
   );
