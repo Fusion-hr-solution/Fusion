@@ -95,3 +95,4 @@ coverage/
 # ========================
 .github/skills/
 PROJECT_SUMMARY.md
+*.postman_collection.json
