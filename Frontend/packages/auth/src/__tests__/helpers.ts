@@ -1,9 +1,10 @@
-import type { AuthResponse, ApiResponse, StoredAuth, AuthUser } from "../types";
+import { ApiError } from "@repo/api";
+import type { AuthResponse, StoredAuth, AuthUser } from "../types";
 
 // ── Factory helpers ──────────────────────────────────────────────────
 
 export function makeAuthResponse(
-  overrides: Partial<AuthResponse> = {},
+  overrides: Partial<AuthResponse> = {}
 ): AuthResponse {
   return {
     userId: "user-1",
@@ -12,21 +13,24 @@ export function makeAuthResponse(
     roles: ["Employee"],
     accessToken: "access-token-123",
     refreshToken: "refresh-token-456",
-    accessTokenExpiration: new Date(
-      Date.now() + 60 * 60 * 1000,
-    ).toISOString(),
+    accessTokenExpiration: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
     ...overrides,
   };
 }
 
-export function makeSuccessResponse<T>(data: T): ApiResponse<T> {
-  return { data, errors: [], isSuccess: true };
-}
+const STATUS_TEXT: Record<number, string> = {
+  400: "Bad Request",
+  401: "Unauthorized",
+  403: "Forbidden",
+  404: "Not Found",
+  500: "Internal Server Error",
+};
 
-export function makeErrorResponse<T>(
+export function makeApiError(
   errors: string[] = ["Something went wrong"],
-): ApiResponse<T> {
-  return { data: null, errors, isSuccess: false };
+  status = 400
+): ApiError {
+  return new ApiError(status, STATUS_TEXT[status] ?? "Error", errors, null);
 }
 
 export function makeAuthUser(overrides: Partial<AuthUser> = {}): AuthUser {
@@ -39,13 +43,13 @@ export function makeAuthUser(overrides: Partial<AuthUser> = {}): AuthUser {
   };
 }
 
-export function makeStoredAuth(overrides: Partial<StoredAuth> = {}): StoredAuth {
+export function makeStoredAuth(
+  overrides: Partial<StoredAuth> = {}
+): StoredAuth {
   return {
     accessToken: "access-token-123",
     refreshToken: "refresh-token-456",
-    accessTokenExpiration: new Date(
-      Date.now() + 60 * 60 * 1000,
-    ).toISOString(),
+    accessTokenExpiration: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
     user: makeAuthUser(),
     ...overrides,
   };

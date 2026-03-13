@@ -61,7 +61,13 @@ describe("createPlatformApiClient", () => {
     // Simulate browser environment
     vi.stubGlobal("window", {});
     vi.stubGlobal("document", {});
-    const storage: Record<string, string> = { access_token: "jwt-abc" };
+    const stored = JSON.stringify({
+      accessToken: "jwt-abc",
+      refreshToken: "rt",
+      accessTokenExpiration: "2099-01-01",
+      user: {},
+    });
+    const storage: Record<string, string> = { ey_hr_auth: stored };
     vi.stubGlobal("localStorage", {
       getItem: (key: string) => storage[key] ?? null,
     });

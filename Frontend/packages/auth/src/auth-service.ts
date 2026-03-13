@@ -1,74 +1,39 @@
+import { createPlatformApiClient } from "@repo/api";
 import type {
   LoginRequest,
   RegisterRequest,
   RefreshTokenRequest,
   AuthResponse,
-  ApiResponse,
   StoredAuth,
 } from "./types";
 
-// ── API base URL ─────────────────────────────────────────────────────
+// ── API client ────────────────────────────────────────────────────────
+const client = createPlatformApiClient();
 
-const API_BASE_URL =
-  typeof window !== "undefined" &&
-  (window as unknown as Record<string, unknown>).__NEXT_PUBLIC_API_URL
-    ? String((window as unknown as Record<string, unknown>).__NEXT_PUBLIC_API_URL)
-    : "http://localhost:5000";
-
-const ENDPOINTS = {
-  login: `${API_BASE_URL}/api/identity/auth/login`,
-  register: `${API_BASE_URL}/api/identity/auth/register`,
-  refresh: `${API_BASE_URL}/api/identity/auth/refresh`,
-  logout: `${API_BASE_URL}/api/identity/auth/logout`,
-} as const;
-
-// ── Helpers ──────────────────────────────────────────────────────────
-
-async function post<T>(
-  url: string,
-  body: unknown,
-  accessToken?: string | null,
-): Promise<ApiResponse<T>> {
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
-
-  if (accessToken) {
-    headers["Authorization"] = `Bearer ${accessToken}`;
-  }
-
-  const res = await fetch(url, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(body),
-  });
-
-  const json: ApiResponse<T> = await res.json();
-  return json;
-}
+const AUTH = "/identity/auth";
 
 // ── Public API ───────────────────────────────────────────────────────
+// Resolves with the unwrapped AuthResponse on success; throws ApiError on failure.
 
-export async function login(
-  request: LoginRequest,
-): Promise<ApiResponse<AuthResponse>> {
-  return post<AuthResponse>(ENDPOINTS.login, request);
+export async function login(request: LoginRequest): Promise<AuthResponse> {
+  return client.post<AuthResponse>(`${AUTH}/login`, request, { skipAuth: true });
 }
 
-export async function register(
-  request: RegisterRequest,
-): Promise<ApiResponse<AuthResponse>> {
-  return post<AuthResponse>(ENDPOINTS.register, request);
+export async function register(request: RegisterRequest): Promise<AuthResponse> {
+  return client.post<AuthResponse>(`${AUTH}/register`, request, { skipAuth: true });
 }
 
 export async function refreshToken(
   request: RefreshTokenRequest,
-): Promise<ApiResponse<AuthResponse>> {
-  return post<AuthResponse>(ENDPOINTS.refresh, request);
+): Promise<AuthResponse> {
+  return client.post<AuthResponse>(`${AUTH}/refresh`, request, { skipAuth: true });
 }
 
 export async function logout(accessToken: string): Promise<void> {
-  await post(ENDPOINTS.logout, {}, accessToken);
+  await client.post(`${AUTH}/logout`, {}, {
+    skipAuth: true,
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
 }
 
 // ── Token storage (localStorage + cookie) ────────────────────────────

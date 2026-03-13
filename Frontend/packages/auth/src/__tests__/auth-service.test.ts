@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { ApiError } from "@repo/api";
+import type { ApiClient } from "@repo/api";
 import {
   login,
   register,
@@ -8,20 +10,24 @@ import {
   loadAuth,
   clearAuth,
 } from "../auth-service";
-import {
-  makeAuthResponse,
-  makeSuccessResponse,
-  makeErrorResponse,
-  makeStoredAuth,
-} from "./helpers";
+import { makeAuthResponse, makeApiError, makeStoredAuth } from "./helpers";
 
-// ── Global fetch mock ────────────────────────────────────────────────
+// ── Mock the API client returned by createPlatformApiClient ──────────
 
-const fetchMock = vi.fn();
-globalThis.fetch = fetchMock;
+const { mockPost } = vi.hoisted(() => ({
+  mockPost: vi.fn(),
+}));
+
+vi.mock("@repo/api", async () => {
+  const actual = await vi.importActual<typeof import("@repo/api")>("@repo/api");
+  return {
+    ...actual,
+    createPlatformApiClient: () => ({ post: mockPost }) as unknown as ApiClient,
+  };
+});
 
 beforeEach(() => {
-  fetchMock.mockReset();
+  mockPost.mockReset();
 });
 
 // ═════════════════════════════════════════════════════════════════════
@@ -29,49 +35,39 @@ beforeEach(() => {
 // ═════════════════════════════════════════════════════════════════════
 
 describe("login", () => {
-  it("sends POST to /api/identity/auth/login and returns success", async () => {
+  it("calls POST /identity/auth/login and returns AuthResponse", async () => {
     const authRes = makeAuthResponse();
-    const apiRes = makeSuccessResponse(authRes);
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve(apiRes),
-    });
+    mockPost.mockResolvedValueOnce(authRes);
 
-    const result = await login({ email: "john@example.com", password: "P@ss1" });
-
-    expect(fetchMock).toHaveBeenCalledOnce();
-    const [url, opts] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toContain("/api/identity/auth/login");
-    expect(opts.method).toBe("POST");
-    expect(JSON.parse(opts.body as string)).toEqual({
+    const result = await login({
       email: "john@example.com",
       password: "P@ss1",
     });
-    expect(result.isSuccess).toBe(true);
-    expect(result.data?.accessToken).toBe("access-token-123");
+
+    expect(mockPost).toHaveBeenCalledWith(
+      "/identity/auth/login",
+      {
+        email: "john@example.com",
+        password: "P@ss1",
+      },
+      { skipAuth: true }
+    );
+    expect(result.accessToken).toBe("access-token-123");
   });
 
-  it("returns errors on failure", async () => {
-    const apiRes = makeErrorResponse(["Invalid credentials"]);
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve(apiRes),
-    });
+  it("throws ApiError on failure", async () => {
+    mockPost.mockRejectedValueOnce(makeApiError(["Invalid credentials"], 401));
 
-    const result = await login({ email: "bad@example.com", password: "wrong" });
-
-    expect(result.isSuccess).toBe(false);
-    expect(result.errors).toContain("Invalid credentials");
+    await expect(
+      login({ email: "bad@example.com", password: "wrong" })
+    ).rejects.toThrow(ApiError);
   });
 });
 
 describe("register", () => {
-  it("sends POST to /api/identity/auth/register with full payload", async () => {
+  it("calls POST /identity/auth/register and returns AuthResponse", async () => {
     const authRes = makeAuthResponse({ fullName: "Jane Smith" });
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve(makeSuccessResponse(authRes)),
-    });
+    mockPost.mockResolvedValueOnce(authRes);
 
     const result = await register({
       email: "jane@example.com",
@@ -81,70 +77,64 @@ describe("register", () => {
       hireDate: "2025-01-15",
     });
 
-    const [url, opts] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toContain("/api/identity/auth/register");
-    const body = JSON.parse(opts.body as string);
-    expect(body.firstName).toBe("Jane");
-    expect(body.lastName).toBe("Smith");
-    expect(result.isSuccess).toBe(true);
-    expect(result.data?.fullName).toBe("Jane Smith");
+    expect(mockPost).toHaveBeenCalledWith(
+      "/identity/auth/register",
+      {
+        email: "jane@example.com",
+        password: "Str0ng!",
+        firstName: "Jane",
+        lastName: "Smith",
+        hireDate: "2025-01-15",
+      },
+      { skipAuth: true }
+    );
+    expect(result.fullName).toBe("Jane Smith");
   });
 
-  it("returns errors for duplicate email", async () => {
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      json: () =>
-        Promise.resolve(makeErrorResponse(["Email already registered"])),
-    });
+  it("throws ApiError for duplicate email", async () => {
+    mockPost.mockRejectedValueOnce(makeApiError(["Email already registered"]));
 
-    const result = await register({
-      email: "dup@example.com",
-      password: "P@ss1",
-      firstName: "A",
-      lastName: "B",
-      hireDate: "2025-01-01",
-    });
-
-    expect(result.isSuccess).toBe(false);
-    expect(result.errors).toContain("Email already registered");
+    await expect(
+      register({
+        email: "dup@example.com",
+        password: "P@ss1",
+        firstName: "A",
+        lastName: "B",
+        hireDate: "2025-01-01",
+      })
+    ).rejects.toThrow(ApiError);
   });
 });
 
 describe("refreshToken", () => {
-  it("sends POST with refresh token and returns new tokens", async () => {
+  it("calls POST /identity/auth/refresh and returns new tokens", async () => {
     const newAuth = makeAuthResponse({
       accessToken: "new-access",
       refreshToken: "new-refresh",
     });
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve(makeSuccessResponse(newAuth)),
-    });
+    mockPost.mockResolvedValueOnce(newAuth);
 
     const result = await refreshToken({ refreshToken: "old-refresh" });
 
-    const [url, opts] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toContain("/api/identity/auth/refresh");
-    expect(JSON.parse(opts.body as string)).toEqual({
-      refreshToken: "old-refresh",
-    });
-    expect(result.data?.accessToken).toBe("new-access");
+    expect(mockPost).toHaveBeenCalledWith(
+      "/identity/auth/refresh",
+      { refreshToken: "old-refresh" },
+      { skipAuth: true }
+    );
+    expect(result.accessToken).toBe("new-access");
   });
 });
 
 describe("logout", () => {
-  it("sends POST with Authorization header", async () => {
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve({ data: null, errors: [], isSuccess: true }),
-    });
+  it("calls POST /identity/auth/logout with Authorization header", async () => {
+    mockPost.mockResolvedValueOnce(undefined);
 
     await logout("my-token");
 
-    const [url, opts] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toContain("/api/identity/auth/logout");
-    expect((opts.headers as Record<string, string>)["Authorization"]).toBe(
-      "Bearer my-token",
+    expect(mockPost).toHaveBeenCalledWith(
+      "/identity/auth/logout",
+      {},
+      { skipAuth: true, headers: { Authorization: "Bearer my-token" } }
     );
   });
 });

@@ -31,12 +31,6 @@ export interface AuthResponse {
   accessTokenExpiration: string; // ISO date string
 }
 
-export interface ApiResponse<T> {
-  data: T | null;
-  errors: string[];
-  isSuccess: boolean;
-}
-
 // ── Client-side auth state ───────────────────────────────────────────
 
 export interface AuthUser {
