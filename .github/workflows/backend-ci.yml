@@ -53,7 +53,7 @@ jobs:
         run: dotnet restore EY.HRPlatform.slnx
 
       - name: Build
-        run: dotnet build EY.HRPlatform.slnx --no-restore --configuration Release
+        run: dotnet build EY.HRPlatform.slnx --no-restore
 
       # CoreHR migration validation
       # Each step uses --no-build; the build output from the step above is reused.
