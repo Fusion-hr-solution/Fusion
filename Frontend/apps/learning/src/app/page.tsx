@@ -2,6 +2,8 @@ import { TrainingCatalog } from "@/components";
 import { MOCK_TRAININGS } from "@/data/trainings";
 import { getTrainings } from "@/services/learning-service";
 
+export const dynamic = "force-dynamic";
+
 export default async function LearningPage() {
   let trainings;
   
