@@ -4,12 +4,7 @@ import userEvent from "@testing-library/user-event";
 import React from "react";
 import { AuthProvider, useAuth } from "../auth-context";
 import * as authService from "../auth-service";
-import {
-  makeAuthResponse,
-  makeSuccessResponse,
-  makeErrorResponse,
-  makeStoredAuth,
-} from "./helpers";
+import { makeAuthResponse, makeApiError, makeStoredAuth } from "./helpers";
 
 // ── Spy on auth-service ──────────────────────────────────────────────
 
@@ -83,7 +78,7 @@ function renderWithProvider() {
   return render(
     <AuthProvider>
       <AuthConsumer />
-    </AuthProvider>,
+    </AuthProvider>
   );
 }
 
@@ -96,7 +91,7 @@ describe("AuthProvider – initial state", () => {
     renderWithProvider();
 
     await waitFor(() =>
-      expect(screen.getByTestId("loading").textContent).toBe("false"),
+      expect(screen.getByTestId("loading").textContent).toBe("false")
     );
     expect(screen.getByTestId("authenticated").textContent).toBe("false");
     expect(screen.getByTestId("user").textContent).toBe("none");
@@ -109,7 +104,7 @@ describe("AuthProvider – initial state", () => {
     renderWithProvider();
 
     await waitFor(() =>
-      expect(screen.getByTestId("loading").textContent).toBe("false"),
+      expect(screen.getByTestId("loading").textContent).toBe("false")
     );
     expect(screen.getByTestId("authenticated").textContent).toBe("true");
     expect(screen.getByTestId("user").textContent).toBe("John Doe");
@@ -126,14 +121,12 @@ describe("AuthProvider – initial state", () => {
       accessToken: "fresh-access",
       refreshToken: "fresh-refresh",
     });
-    mockedService.refreshToken.mockResolvedValue(
-      makeSuccessResponse(freshAuth),
-    );
+    mockedService.refreshToken.mockResolvedValue(freshAuth);
 
     renderWithProvider();
 
     await waitFor(() =>
-      expect(screen.getByTestId("token").textContent).toBe("fresh-access"),
+      expect(screen.getByTestId("token").textContent).toBe("fresh-access")
     );
     expect(mockedService.refreshToken).toHaveBeenCalledWith({
       refreshToken: expired.refreshToken,
@@ -146,14 +139,14 @@ describe("AuthProvider – initial state", () => {
       accessTokenExpiration: new Date(Date.now() - 1000).toISOString(),
     });
     mockedService.loadAuth.mockReturnValue(expired);
-    mockedService.refreshToken.mockResolvedValue(
-      makeErrorResponse(["Token expired"]),
+    mockedService.refreshToken.mockRejectedValue(
+      makeApiError(["Token expired"], 401)
     );
 
     renderWithProvider();
 
     await waitFor(() =>
-      expect(screen.getByTestId("loading").textContent).toBe("false"),
+      expect(screen.getByTestId("loading").textContent).toBe("false")
     );
     expect(mockedService.clearAuth).toHaveBeenCalled();
   });
@@ -163,17 +156,17 @@ describe("AuthProvider – login", () => {
   it("sets user on successful login", async () => {
     const user = userEvent.setup();
     const authRes = makeAuthResponse();
-    mockedService.login.mockResolvedValue(makeSuccessResponse(authRes));
+    mockedService.login.mockResolvedValue(authRes);
 
     renderWithProvider();
     await waitFor(() =>
-      expect(screen.getByTestId("loading").textContent).toBe("false"),
+      expect(screen.getByTestId("loading").textContent).toBe("false")
     );
 
     await user.click(screen.getByTestId("login-btn"));
 
     await waitFor(() =>
-      expect(screen.getByTestId("authenticated").textContent).toBe("true"),
+      expect(screen.getByTestId("authenticated").textContent).toBe("true")
     );
     expect(screen.getByTestId("user").textContent).toBe("John Doe");
     expect(mockedService.persistAuth).toHaveBeenCalled();
@@ -181,21 +174,21 @@ describe("AuthProvider – login", () => {
 
   it("returns errors on failed login", async () => {
     const user = userEvent.setup();
-    mockedService.login.mockResolvedValue(
-      makeErrorResponse(["Invalid credentials"]),
+    mockedService.login.mockRejectedValue(
+      makeApiError(["Invalid credentials"], 401)
     );
 
     renderWithProvider();
     await waitFor(() =>
-      expect(screen.getByTestId("loading").textContent).toBe("false"),
+      expect(screen.getByTestId("loading").textContent).toBe("false")
     );
 
     await user.click(screen.getByTestId("login-btn"));
 
     await waitFor(() =>
       expect(screen.getByTestId("errors").textContent).toBe(
-        "Invalid credentials",
-      ),
+        "Invalid credentials"
+      )
     );
     expect(screen.getByTestId("authenticated").textContent).toBe("false");
   });
@@ -205,38 +198,38 @@ describe("AuthProvider – register", () => {
   it("sets user on successful registration", async () => {
     const user = userEvent.setup();
     const authRes = makeAuthResponse({ fullName: "Jane Smith" });
-    mockedService.register.mockResolvedValue(makeSuccessResponse(authRes));
+    mockedService.register.mockResolvedValue(authRes);
 
     renderWithProvider();
     await waitFor(() =>
-      expect(screen.getByTestId("loading").textContent).toBe("false"),
+      expect(screen.getByTestId("loading").textContent).toBe("false")
     );
 
     await user.click(screen.getByTestId("register-btn"));
 
     await waitFor(() =>
-      expect(screen.getByTestId("user").textContent).toBe("Jane Smith"),
+      expect(screen.getByTestId("user").textContent).toBe("Jane Smith")
     );
     expect(screen.getByTestId("authenticated").textContent).toBe("true");
   });
 
   it("returns errors on failed registration", async () => {
     const user = userEvent.setup();
-    mockedService.register.mockResolvedValue(
-      makeErrorResponse(["Email already registered"]),
+    mockedService.register.mockRejectedValue(
+      makeApiError(["Email already registered"])
     );
 
     renderWithProvider();
     await waitFor(() =>
-      expect(screen.getByTestId("loading").textContent).toBe("false"),
+      expect(screen.getByTestId("loading").textContent).toBe("false")
     );
 
     await user.click(screen.getByTestId("register-btn"));
 
     await waitFor(() =>
       expect(screen.getByTestId("errors").textContent).toBe(
-        "Email already registered",
-      ),
+        "Email already registered"
+      )
     );
   });
 });
@@ -250,13 +243,13 @@ describe("AuthProvider – logout", () => {
 
     renderWithProvider();
     await waitFor(() =>
-      expect(screen.getByTestId("authenticated").textContent).toBe("true"),
+      expect(screen.getByTestId("authenticated").textContent).toBe("true")
     );
 
     await user.click(screen.getByTestId("logout-btn"));
 
     await waitFor(() =>
-      expect(screen.getByTestId("authenticated").textContent).toBe("false"),
+      expect(screen.getByTestId("authenticated").textContent).toBe("false")
     );
     expect(screen.getByTestId("user").textContent).toBe("none");
     expect(mockedService.logout).toHaveBeenCalledWith("access-token-123");
@@ -271,13 +264,13 @@ describe("AuthProvider – logout", () => {
 
     renderWithProvider();
     await waitFor(() =>
-      expect(screen.getByTestId("authenticated").textContent).toBe("true"),
+      expect(screen.getByTestId("authenticated").textContent).toBe("true")
     );
 
     await user.click(screen.getByTestId("logout-btn"));
 
     await waitFor(() =>
-      expect(screen.getByTestId("authenticated").textContent).toBe("false"),
+      expect(screen.getByTestId("authenticated").textContent).toBe("false")
     );
     expect(mockedService.clearAuth).toHaveBeenCalled();
   });
@@ -288,7 +281,7 @@ describe("useAuth – outside provider", () => {
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     expect(() => render(<AuthConsumer />)).toThrow(
-      "useAuth must be used within an AuthProvider",
+      "useAuth must be used within an AuthProvider"
     );
 
     spy.mockRestore();

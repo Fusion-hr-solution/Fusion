@@ -31,7 +31,8 @@ export interface PlatformApiClientConfig {
   /**
    * Token retrieval function.
    *
-   * Default: reads `access_token` from localStorage (browser-only).
+   * Default: reads `accessToken` from the `ey_hr_auth` localStorage entry
+   * persisted by `@repo/auth` (browser-only).
    * On the server the default returns `null` — requests proceed without auth.
    *
    * If you need authenticated SSR in the future (e.g. cookie-based auth),
@@ -69,7 +70,16 @@ export function createPlatformApiClient(
     config.getToken ??
     (() => {
       if (isBrowser()) {
-        return localStorage.getItem("access_token");
+        try {
+          const raw = localStorage.getItem("ey_hr_auth");
+          if (raw) {
+            const parsed = JSON.parse(raw) as { accessToken?: string };
+            return parsed.accessToken ?? null;
+          }
+        } catch {
+          // Corrupted storage — treat as unauthenticated
+        }
+        return null;
       }
       // Server-side: no token available — request proceeds without auth.
       return null;
