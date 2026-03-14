@@ -94,4 +94,5 @@ coverage/
 # Local Copilot Skills
 # ========================
 .github/skills/
+Frontend/.github/
 PROJECT_SUMMARY.md
