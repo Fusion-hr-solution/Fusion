@@ -10,7 +10,7 @@ export function TrainingProgressBar({
 }: TrainingProgressBarProps) {
   const clampedProgress = Math.min(100, Math.max(0, progress));
   const isCompleted = clampedProgress === 100;
-  const barHeight = size === "sm" ? "h-2" : "h-3.5";
+  const barHeight = size === "sm" ? "h-2" : "h-3";
 
   const indicatorColor = isCompleted
     ? "bg-[hsl(var(--ey-green-500))]"
@@ -31,8 +31,8 @@ export function TrainingProgressBar({
         <div className="relative flex-1">
           <Progress
             value={clampedProgress}
-            className={`${barHeight} bg-[hsl(var(--ey-grey-200))]`}
-            indicatorClassName={indicatorColor}
+            className={`${barHeight} rounded-full bg-[hsl(var(--ey-grey-200))]`}
+            indicatorClassName={`${indicatorColor} transition-all duration-500 ease-out`}
           />
 
           {/* Segmented chapter markers */}
@@ -62,10 +62,10 @@ export function TrainingProgressBar({
       {/* Chapter progress text */}
       {showChapters && (
         <p className="text-xs text-muted-foreground">
-          <span className={`font-semibold ${labelColor}`}>
+          <span className={`font-bold ${labelColor}`}>
             {currentChapter}
           </span>
-          <span className="mx-0.5">/</span>
+          <span className="mx-0.5 text-muted-foreground/50">/</span>
           <span>{totalChapters} chapters completed</span>
         </p>
       )}

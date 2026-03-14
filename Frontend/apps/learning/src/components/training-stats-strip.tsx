@@ -7,34 +7,29 @@ export function TrainingStatsStrip({
   enrolledCount,
   rating,
 }: TrainingStatsStripProps) {
+  const stats = [
+    { icon: Clock, value: duration, label: "Duration", className: "text-muted-foreground" },
+    { icon: BookOpen, value: String(chaptersCount), label: "Chapters", className: "text-muted-foreground" },
+    { icon: Users, value: enrolledCount.toLocaleString(), label: "Enrolled", className: "text-muted-foreground" },
+    { icon: Star, value: String(rating), label: "Rating", className: "ey-star" },
+  ];
+
   return (
-    <div className="mx-6 mt-5 grid grid-cols-4 gap-3 rounded-lg bg-[hsl(var(--ey-grey-100))] p-4">
-      <div className="flex flex-col items-center gap-1">
-        <Clock className="h-4 w-4 text-muted-foreground" />
-        <span className="text-sm font-semibold text-foreground">
-          {duration}
-        </span>
-        <span className="text-[11px] text-muted-foreground">Duration</span>
-      </div>
-      <div className="flex flex-col items-center gap-1">
-        <BookOpen className="h-4 w-4 text-muted-foreground" />
-        <span className="text-sm font-semibold text-foreground">
-          {chaptersCount}
-        </span>
-        <span className="text-[11px] text-muted-foreground">Chapters</span>
-      </div>
-      <div className="flex flex-col items-center gap-1">
-        <Users className="h-4 w-4 text-muted-foreground" />
-        <span className="text-sm font-semibold text-foreground">
-          {enrolledCount.toLocaleString()}
-        </span>
-        <span className="text-[11px] text-muted-foreground">Enrolled</span>
-      </div>
-      <div className="flex flex-col items-center gap-1">
-        <Star className="h-4 w-4 ey-star" />
-        <span className="text-sm font-semibold text-foreground">{rating}</span>
-        <span className="text-[11px] text-muted-foreground">Rating</span>
-      </div>
+    <div className="mx-6 mt-5 grid grid-cols-4 gap-2 rounded-xl bg-[hsl(var(--ey-grey-50))] border border-border/40 p-4">
+      {stats.map((stat) => {
+        const Icon = stat.icon;
+        return (
+          <div key={stat.label} className="flex flex-col items-center gap-1.5 text-center">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white shadow-sm">
+              <Icon className={`h-4 w-4 ${stat.className}`} aria-hidden="true" />
+            </div>
+            <span className="text-sm font-bold text-foreground tabular-nums">
+              {stat.value}
+            </span>
+            <span className="text-xs text-muted-foreground">{stat.label}</span>
+          </div>
+        );
+      })}
     </div>
   );
 }

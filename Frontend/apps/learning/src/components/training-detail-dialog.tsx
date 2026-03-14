@@ -9,7 +9,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@repo/ui";
-import { CalendarDays, ChevronRight } from "lucide-react";
+import { CalendarDays, ChevronRight, User } from "lucide-react";
 import type { TrainingDetailDialogProps } from "@/types/component-props";
 import { CATEGORY_CONFIG, LEVEL_CONFIG } from "@/data/categories";
 import { TrainingStatsStrip } from "./training-stats-strip";
@@ -28,15 +28,18 @@ export function TrainingDetailDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto p-0 gap-0">
-        {/* Header accent */}
-        <div className={`h-1.5 w-full shrink-0 ${category.stripClass}`} />
+        {/* Header accent — gradient band */}
+        <div className="relative shrink-0">
+          <div className={`h-2 w-full ey-animate-stripe ${category.stripClass}`} />
+          <div className={`absolute inset-x-0 bottom-0 h-1 ${category.stripClass} opacity-20 blur-sm`} />
+        </div>
 
         <div className="p-6 pb-0">
           <DialogHeader className="space-y-3">
             {/* Category + Level row */}
-            <div className="flex items-center gap-3">
+            <div className="ey-animate-fade-in flex items-center gap-3">
               <span
-                className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tracking-wide uppercase ${category.badgeClass}`}
+                className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold tracking-wide uppercase ${category.badgeClass}`}
               >
                 {category.label}
               </span>
@@ -48,11 +51,14 @@ export function TrainingDetailDialog({
               </span>
             </div>
 
-            <DialogTitle className="text-xl font-bold leading-tight text-foreground">
+            <DialogTitle className="ey-animate-fade-up text-xl font-bold leading-tight text-foreground">
               {training.title}
             </DialogTitle>
 
-            <DialogDescription className="text-sm leading-relaxed text-muted-foreground">
+            <DialogDescription
+              className="ey-animate-fade-up text-sm leading-relaxed text-muted-foreground"
+              style={{ animationDelay: "60ms" }}
+            >
               {training.description}
             </DialogDescription>
           </DialogHeader>
@@ -67,14 +73,14 @@ export function TrainingDetailDialog({
         />
 
         {/* Instructor */}
-        <div className="mx-6 mt-5 flex items-center gap-3 rounded-lg border border-border/60 p-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full ey-bg-dark text-sm font-semibold text-white">
+        <div className="mx-6 mt-5 flex items-center gap-3.5 rounded-xl border border-border/60 bg-[hsl(var(--ey-grey-50))] p-4 transition-colors hover:border-[hsl(var(--ey-yellow))]/30">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full ey-bg-dark text-sm font-semibold text-white ring-2 ring-[hsl(var(--ey-grey-200))]">
             {training.instructor
               .split(" ")
               .map((n) => n[0])
               .join("")}
           </div>
-          <div>
+          <div className="flex-1">
             <p className="text-sm font-semibold text-foreground">
               {training.instructor}
             </p>
@@ -82,6 +88,7 @@ export function TrainingDetailDialog({
               {training.instructorRole}
             </p>
           </div>
+          <User className="h-4 w-4 text-muted-foreground/40" aria-hidden="true" />
         </div>
 
         {/* Chapters */}
@@ -93,7 +100,7 @@ export function TrainingDetailDialog({
             <Badge
               key={tag}
               variant="secondary"
-              className="rounded-full text-[11px] font-normal"
+              className="rounded-full text-xs font-normal transition-colors hover:bg-[hsl(var(--ey-grey-200))]"
             >
               {tag}
             </Badge>
@@ -101,9 +108,9 @@ export function TrainingDetailDialog({
         </div>
 
         {/* Footer */}
-        <div className="mx-6 mt-5 mb-6 flex items-center justify-between">
+        <div className="mx-6 mt-6 mb-6 flex items-center justify-between border-t border-border/40 pt-5">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <CalendarDays className="h-3.5 w-3.5" />
+            <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
             Updated{" "}
             {new Date(training.updatedAt).toLocaleDateString("en-US", {
               month: "short",
@@ -111,9 +118,9 @@ export function TrainingDetailDialog({
               year: "numeric",
             })}
           </div>
-          <Button className="ey-bg-dark hover:ey-bg-dark-deep text-white gap-2">
+          <Button className="ey-bg-dark hover:ey-bg-dark-deep text-white gap-2 shadow-md transition-all hover:shadow-lg hover:gap-3">
             Enroll Now
-            <ChevronRight className="h-4 w-4" />
+            <ChevronRight className="h-4 w-4 transition-transform" aria-hidden="true" />
           </Button>
         </div>
       </DialogContent>

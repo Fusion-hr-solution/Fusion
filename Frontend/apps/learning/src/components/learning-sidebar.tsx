@@ -26,13 +26,13 @@ export function LearningSidebar() {
       {/* Collapse toggle */}
       <button
         onClick={() => setCollapsed((c) => !c)}
-        className="absolute -right-3 top-6 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-border/60 bg-white text-muted-foreground shadow-sm transition-colors hover:bg-[hsl(var(--ey-grey-100))] hover:text-foreground"
+        className="absolute -right-3 top-6 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-border/60 bg-white text-muted-foreground shadow-sm transition-all duration-200 hover:bg-[hsl(var(--ey-grey-100))] hover:text-foreground hover:shadow-md hover:scale-110"
         aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
       >
         {collapsed ? (
-          <ChevronRight className="h-3.5 w-3.5" />
+          <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
         ) : (
-          <ChevronLeft className="h-3.5 w-3.5" />
+          <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
         )}
       </button>
 
@@ -42,15 +42,15 @@ export function LearningSidebar() {
           collapsed ? "justify-center px-0" : ""
         }`}
       >
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ey-bg-dark">
-          <GraduationCap className="h-4 w-4 ey-text-accent" />
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ey-bg-dark shadow-sm">
+          <GraduationCap className="h-4 w-4 ey-text-accent" aria-hidden="true" />
         </div>
         {!collapsed && (
           <div className="overflow-hidden">
-            <p className="text-[13px] font-bold leading-none text-foreground">
+            <p className="text-sm font-bold leading-none text-foreground">
               EY Academy
             </p>
-            <p className="mt-0.5 text-[11px] text-muted-foreground">
+            <p className="mt-0.5 text-xs text-muted-foreground">
               Learning Platform
             </p>
           </div>
@@ -74,23 +74,26 @@ export function LearningSidebar() {
         />
       </nav>
 
-      {/* Bottom decoration */}
+      {/* Bottom quick stats */}
       <div
         className={`border-t border-border/40 px-5 py-3 ${collapsed ? "px-3" : ""}`}
       >
         <div
-          className={`rounded-md bg-[hsl(var(--ey-yellow))]/8 p-3 ${
+          className={`rounded-xl bg-[hsl(var(--ey-yellow))]/8 p-3 transition-all ${
             collapsed ? "flex items-center justify-center p-2" : ""
           }`}
         >
           {collapsed ? (
-            <BarChart3 className="h-4 w-4 text-[hsl(var(--ey-grey-500))]" />
+            <BarChart3 className="h-4 w-4 text-[hsl(var(--ey-grey-500))]" aria-hidden="true" />
           ) : (
             <>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Quick Stats
-              </p>
-              <div className="mt-2 space-y-1.5">
+              <div className="flex items-center gap-1.5">
+                <BarChart3 className="h-3 w-3 text-muted-foreground" aria-hidden="true" />
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Quick Stats
+                </p>
+              </div>
+              <div className="mt-2.5 space-y-2">
                 <StatRow label="Completed" value="12" />
                 <StatRow label="In Progress" value="3" />
                 <StatRow label="Certificates" value="8" />

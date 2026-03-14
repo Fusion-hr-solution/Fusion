@@ -1,24 +1,31 @@
+import { BookOpen } from "lucide-react";
 import type { CourseOutlineProps } from "@/types/component-props";
 
 export function CourseOutline({ chapters }: CourseOutlineProps) {
   return (
     <div className="mx-6 mt-5">
-      <h4 className="mb-3 text-sm font-semibold text-foreground">
-        Course Outline
-      </h4>
-      <div className="space-y-1">
+      <div className="flex items-center gap-2 mb-3">
+        <BookOpen className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+        <h4 className="text-sm font-semibold text-foreground">
+          Course Outline
+        </h4>
+        <span className="text-xs text-muted-foreground">
+          ({chapters.length} chapters)
+        </span>
+      </div>
+      <div className="space-y-0.5 rounded-xl border border-border/40 overflow-hidden">
         {chapters.map((chapter, i) => (
           <div
             key={chapter.id}
-            className="flex items-center justify-between rounded-md px-3 py-2.5 text-sm transition-colors hover:bg-[hsl(var(--ey-grey-100))]"
+            className="flex items-center justify-between px-4 py-3 text-sm transition-colors hover:bg-[hsl(var(--ey-grey-50))] group/chapter"
           >
             <div className="flex items-center gap-3">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[hsl(var(--ey-grey-200))] text-[11px] font-semibold text-muted-foreground">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[hsl(var(--ey-grey-100))] text-xs font-bold text-muted-foreground transition-colors group-hover/chapter:bg-[hsl(var(--ey-grey-200))]">
                 {i + 1}
               </span>
-              <span className="text-foreground">{chapter.title}</span>
+              <span className="text-foreground font-medium">{chapter.title}</span>
             </div>
-            <span className="text-xs text-muted-foreground">
+            <span className="text-xs text-muted-foreground tabular-nums">
               {chapter.duration}
             </span>
           </div>
