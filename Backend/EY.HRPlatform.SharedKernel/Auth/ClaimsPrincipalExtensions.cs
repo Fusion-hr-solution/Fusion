@@ -30,4 +30,18 @@ public static class ClaimsPrincipalExtensions
     {
         return principal.FindFirst("full_name")?.Value ?? "Unknown";
     }
+
+    /// <summary>
+    /// Extracts the tenant ID from the "tenant_id" claim if present.
+    /// </summary>
+    public static Guid? GetTenantId(this ClaimsPrincipal principal)
+    {
+        var claim = principal.FindFirst("tenant_id");
+        if (claim is null)
+            return null;
+
+        return Guid.TryParse(claim.Value, out var tenantId) && tenantId != Guid.Empty
+            ? tenantId
+            : null;
+    }
 }
