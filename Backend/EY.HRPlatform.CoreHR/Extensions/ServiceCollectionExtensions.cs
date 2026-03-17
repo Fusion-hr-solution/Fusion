@@ -1,4 +1,5 @@
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
+using EY.HRPlatform.CoreHR.Infrastructure.Persistence.Interceptors;
 using EY.HRPlatform.SharedKernel.Multitenancy;
 using Microsoft.EntityFrameworkCore;
 
@@ -13,6 +14,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<TenantContext>();
         services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<TenantContext>());
 
+        // Interceptor validates tenant context on SaveChanges
+        services.AddScoped<TenantSaveChangesInterceptor>();
+
         return services;
     }
 
@@ -24,10 +28,15 @@ public static class ServiceCollectionExtensions
         if (string.IsNullOrWhiteSpace(connectionString))
             throw new InvalidOperationException("ConnectionStrings:CoreHRDb is not configured. Set it via environment variable or appsettings.");
 
-        services.AddDbContext<CoreHRDbContext>(options =>
+        services.AddDbContext<CoreHRDbContext>((sp, options) =>
+        {
             options.UseNpgsql(
                 connectionString,
-                npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "corehr")));
+                npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "corehr"));
+
+            // Add tenant validation interceptor
+            options.AddInterceptors(sp.GetRequiredService<TenantSaveChangesInterceptor>());
+        });
 
         services.AddHealthChecks()
             .AddDbContextCheck<CoreHRDbContext>(
