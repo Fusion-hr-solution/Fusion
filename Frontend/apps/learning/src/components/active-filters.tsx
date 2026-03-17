@@ -25,33 +25,36 @@ export function ActiveFilters({
       {category && (
         <button
           onClick={onClearCategory}
+          aria-label={`Remove ${CATEGORY_CONFIG[category].label} filter`}
           className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors hover:opacity-80 ${CATEGORY_CONFIG[category].badgeClass}`}
         >
           {CATEGORY_CONFIG[category].label}
-          <X className="h-3 w-3" />
+          <X className="h-3 w-3" aria-hidden="true" />
         </button>
       )}
 
       {level && (
         <button
           onClick={onClearLevel}
+          aria-label={`Remove ${LEVEL_CONFIG[level].label} filter`}
           className="inline-flex items-center gap-1 rounded-full border border-border bg-white px-2.5 py-0.5 text-xs font-medium text-foreground transition-colors hover:bg-[hsl(var(--ey-grey-100))]"
         >
           <span
             className={`h-1.5 w-1.5 rounded-full ${LEVEL_CONFIG[level].dotClass}`}
           />
           {LEVEL_CONFIG[level].label}
-          <X className="h-3 w-3" />
+          <X className="h-3 w-3" aria-hidden="true" />
         </button>
       )}
 
       {search.trim() && (
         <button
           onClick={onClearSearch}
+          aria-label="Remove search filter"
           className="inline-flex items-center gap-1 rounded-full border border-border bg-white px-2.5 py-0.5 text-xs font-medium text-foreground transition-colors hover:bg-[hsl(var(--ey-grey-100))]"
         >
           &ldquo;{search}&rdquo;
-          <X className="h-3 w-3" />
+          <X className="h-3 w-3" aria-hidden="true" />
         </button>
       )}
 

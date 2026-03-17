@@ -12,7 +12,16 @@ export function TrainingCard({ training, onSelect }: TrainingCardProps) {
   return (
     <Card
       className="group relative flex flex-col overflow-hidden border border-border/60 bg-card transition-all duration-300 hover:shadow-lg hover:shadow-black/5 hover:-translate-y-0.5 cursor-pointer"
+      role="button"
+      tabIndex={0}
+      aria-label={`View details for ${training.title}`}
       onClick={() => onSelect(training)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect(training);
+        }
+      }}
     >
       {/* Category color strip */}
       <div className={`h-1 w-full ${category.stripClass}`} />
@@ -21,7 +30,7 @@ export function TrainingCard({ training, onSelect }: TrainingCardProps) {
         {/* Top — category + level */}
         <div className="flex items-center justify-between gap-2">
           <span
-            className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tracking-wide uppercase ${category.badgeClass}`}
+            className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold tracking-wide uppercase ${category.badgeClass}`}
           >
             {category.label}
           </span>
@@ -32,23 +41,23 @@ export function TrainingCard({ training, onSelect }: TrainingCardProps) {
         </div>
 
         {/* Title */}
-        <h3 className="text-[15px] font-semibold leading-snug text-foreground line-clamp-2 group-hover:text-[hsl(var(--ey-blue-600))] transition-colors">
+        <h3 className="text-sm font-semibold leading-snug text-foreground line-clamp-2 group-hover:text-[hsl(var(--ey-blue-600))] transition-colors">
           {training.title}
         </h3>
 
         {/* Description */}
-        <p className="text-[13px] leading-relaxed text-muted-foreground line-clamp-2 flex-1">
+        <p className="text-sm leading-relaxed text-muted-foreground line-clamp-2 flex-1">
           {training.description}
         </p>
 
         {/* Meta row */}
         <div className="flex items-center gap-4 text-xs text-muted-foreground">
           <span className="flex items-center gap-1">
-            <Clock className="h-3.5 w-3.5" />
+            <Clock className="h-3.5 w-3.5" aria-hidden="true" />
             {training.duration}
           </span>
           <span className="flex items-center gap-1">
-            <BookOpen className="h-3.5 w-3.5" />
+            <BookOpen className="h-3.5 w-3.5" aria-hidden="true" />
             {training.chaptersCount} chapters
           </span>
         </div>
@@ -56,7 +65,7 @@ export function TrainingCard({ training, onSelect }: TrainingCardProps) {
         {/* Bottom — instructor + stats */}
         <div className="flex items-center justify-between border-t border-border/50 pt-3">
           <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-full ey-bg-dark text-[11px] font-semibold text-white">
+            <div className="flex h-7 w-7 items-center justify-center rounded-full ey-bg-dark text-xs font-semibold text-white">
               {training.instructor
                 .split(" ")
                 .map((n) => n[0])
@@ -68,11 +77,11 @@ export function TrainingCard({ training, onSelect }: TrainingCardProps) {
           </div>
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
             <span className="flex items-center gap-1">
-              <Star className="h-3 w-3 ey-star" />
+              <Star className="h-3 w-3 ey-star" aria-hidden="true" />
               {training.rating}
             </span>
             <span className="flex items-center gap-1">
-              <Users className="h-3 w-3" />
+              <Users className="h-3 w-3" aria-hidden="true" />
               {training.enrolledCount.toLocaleString()}
             </span>
           </div>

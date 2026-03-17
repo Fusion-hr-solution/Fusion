@@ -13,7 +13,7 @@ export function CourseOutline({ chapters }: CourseOutlineProps) {
             className="flex items-center justify-between rounded-md px-3 py-2.5 text-sm transition-colors hover:bg-[hsl(var(--ey-grey-100))]"
           >
             <div className="flex items-center gap-3">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[hsl(var(--ey-grey-200))] text-[11px] font-semibold text-muted-foreground">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[hsl(var(--ey-grey-200))] text-xs font-semibold text-muted-foreground">
                 {i + 1}
               </span>
               <span className="text-foreground">{chapter.title}</span>

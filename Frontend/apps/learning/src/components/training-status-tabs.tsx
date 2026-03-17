@@ -1,14 +1,7 @@
 "use client";
 
 import type { TrainingStatusTabsProps } from "@/types/component-props";
-import type { TrainingStatus } from "@/types";
-
-const TABS: { value: TrainingStatus | "all"; label: string }[] = [
-  { value: "all", label: "All" },
-  { value: "in-progress", label: "In Progress" },
-  { value: "completed", label: "Completed" },
-  { value: "not-started", label: "Not Started" },
-];
+import { TABS } from "@/data/training-tabs";
 
 export function TrainingStatusTabs({
   activeTab,
@@ -31,7 +24,7 @@ export function TrainingStatusTabs({
           >
             {tab.label}
             <span
-              className={`flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold ${
+              className={`flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-bold ${
                 isActive
                   ? "ey-bg-accent text-[hsl(var(--ey-grey-500))]"
                   : "bg-[hsl(var(--ey-grey-200))] text-muted-foreground"

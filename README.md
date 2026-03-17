@@ -87,13 +87,25 @@ Full authentication and user management:
 
 ### Training Service (`:5201`)
 
-Training & course management (currently scaffolded with stub data):
+Full training catalog and learner progress management:
 
-| Endpoint                          | Auth          | Description                  |
-| --------------------------------- | ------------- | ---------------------------- |
-| `GET /api/training/courses`       | Authenticated | List all courses             |
-| `GET /api/training/courses/{id}`  | Authenticated | Get course by ID             |
-| `GET /api/training/courses/me`    | Authenticated | Get current user's enrollments |
+| Endpoint                                              | Auth          | Description                          |
+| ----------------------------------------------------- | ------------- | ------------------------------------ |
+| `GET  /api/training/catalog/categories`               | Authenticated | List all training categories         |
+| `GET  /api/training/catalog`                          | Authenticated | Browse catalog (filter by category/search) |
+| `GET  /api/training/catalog/{id}`                     | Authenticated | Get training details with chapters & exams |
+| `GET  /api/training/my-trainings`                     | Authenticated | Get all enrolled trainings for the current user |
+| `GET  /api/training/my-trainings/{trainingId}`        | Authenticated | Get progress for a specific enrollment |
+| `POST /api/training/my-trainings/enroll`              | Authenticated | Self-enroll in a training            |
+| `PUT  /api/training/my-trainings/{trainingId}/chapters/progress` | Authenticated | Update chapter completion progress |
+
+**Domain Entities:** `TrainingCategory`, `TrainingCourse`, `TrainingChapter`, `ChapterProgress`, `Exam`, `ExamQuestion`, `ExamOption`, `ExamAttempt`, `TrainingAssignment`, `TrainingProgress`, `Badge`, `EmployeeBadge`, `Certification`
+
+**Enums:** `TrainingStatus` (NotStarted, InProgress, Completed, Failed), `AssignmentType` (HrAssigned, SelfEnroll, AutoSkillMatch), `BadgeLevel` (Bronze, Silver, Gold), `ContentType` (Video, Pdf, Article)
+
+**Seed data:** 5 categories, 8 trainings, sample chapters and exams auto-seeded on startup.
+
+**DB schema:** `training` (separate from `identity` schema)
 
 ### SharedKernel
 
@@ -144,11 +156,11 @@ cd Backend
 # Restore and run all services (Gateway + Identity + Training)
 dotnet restore
 dotnet run --project EY.HRPlatform.Identity
-dotnet run --project EY.HRPlatform.Training
+dotnet run --project EY.HRPlatform.Training    # auto-migrates & seeds training data
 dotnet run --project EY.HRPlatform.Gateway
 ```
 
-> Make sure PostgreSQL is running and the connection string in `Backend/EY.HRPlatform.Identity/appsettings.json` is correct. The Identity service auto-migrates and seeds on startup.
+> Make sure PostgreSQL is running and the connection strings in `appsettings.Development.json` are correct. Both Identity and Training services auto-migrate and seed on startup.
 
 ### 2. Frontend
 

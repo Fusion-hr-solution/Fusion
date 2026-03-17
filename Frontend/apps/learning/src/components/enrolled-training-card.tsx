@@ -52,7 +52,7 @@ export function EnrolledTrainingCard({
               <span
                 className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${status.className}`}
               >
-                <StatusIcon className="h-3 w-3" />
+                <StatusIcon className="h-3 w-3" aria-hidden="true" />
                 {status.label}
               </span>
             </div>
@@ -73,16 +73,16 @@ export function EnrolledTrainingCard({
             {/* Meta */}
             <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
               <span className="flex items-center gap-1">
-                <Clock className="h-3.5 w-3.5" />
+                <Clock className="h-3.5 w-3.5" aria-hidden="true" />
                 {training.duration}
               </span>
               <span className="flex items-center gap-1">
-                <Star className="h-3 w-3 ey-star" />
+                <Star className="h-3 w-3 ey-star" aria-hidden="true" />
                 {training.rating}
               </span>
               {training.deadline && (
                 <span className="flex items-center gap-1">
-                  <CalendarDays className="h-3.5 w-3.5" />
+                  <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
                   Due{" "}
                   {formatLocalDate(training.deadline, {
                     month: "short",
@@ -94,7 +94,7 @@ export function EnrolledTrainingCard({
 
             {/* Instructor */}
             <div className="flex items-center gap-2">
-              <div className="flex h-6 w-6 items-center justify-center rounded-full ey-bg-dark text-[10px] font-semibold text-white">
+              <div className="flex h-6 w-6 items-center justify-center rounded-full ey-bg-dark text-xs font-semibold text-white">
                 {training.instructor
                   .split(" ")
                   .map((n) => n[0])

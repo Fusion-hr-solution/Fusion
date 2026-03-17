@@ -103,8 +103,9 @@ export function TrainingCatalog({ trainings }: TrainingCatalogProps) {
 
           {/* Search */}
           <div className="relative mt-6 max-w-lg">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
             <Input
+              aria-label="Search trainings"
               placeholder="Search trainings by title, topic, or tag…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}

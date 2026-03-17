@@ -1,14 +1,5 @@
 import { Play, CheckCircle2, CircleDashed } from "lucide-react";
-import type { TrainingStatus } from "@/types";
-import type { LucideIcon } from "lucide-react";
-
-export interface StatusConfigEntry {
-  icon: LucideIcon;
-  label: string;
-  className: string;
-  buttonLabel: string;
-  buttonClass: string;
-}
+import type { TrainingStatus, StatusConfigEntry } from "@/types";
 
 export const STATUS_CONFIG: Record<TrainingStatus, StatusConfigEntry> = {
   "in-progress": {

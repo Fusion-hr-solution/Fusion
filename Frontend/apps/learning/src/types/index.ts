@@ -1,3 +1,5 @@
+import type { LucideIcon } from "lucide-react";
+
 export type TrainingLevel = "beginner" | "intermediate" | "advanced";
 
 export type TrainingCategory =
@@ -45,6 +47,14 @@ export interface Course {
 export type TrainingStatus = "in-progress" | "completed" | "not-started";
 
 export type SortOption = "rating" | "newest" | "enrolled" | "duration";
+
+export interface StatusConfigEntry {
+  icon: LucideIcon;
+  label: string;
+  className: string;
+  buttonLabel: string;
+  buttonClass: string;
+}
 
 export interface EnrolledTraining extends Training {
   status: TrainingStatus;
