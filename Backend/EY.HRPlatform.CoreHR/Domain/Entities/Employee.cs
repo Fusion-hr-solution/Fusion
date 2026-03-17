@@ -1,0 +1,103 @@
+using EY.HRPlatform.CoreHR.Domain.Enums;
+using EY.HRPlatform.SharedKernel.Domain;
+
+namespace EY.HRPlatform.CoreHR.Domain.Entities;
+
+public class Employee : AggregateRoot
+{
+    private Employee() { }
+
+    public Guid TenantId { get; private set; }
+    public string FirstName { get; private set; } = string.Empty;
+    public string LastName { get; private set; } = string.Empty;
+    public string Email { get; private set; } = string.Empty;
+    public string? Department { get; private set; }
+    public string? JobTitle { get; private set; }
+    public DateTime HireDate { get; private set; }
+    public EmployeeStatus Status { get; private set; }
+    public Guid? ManagerId { get; private set; }
+    public Employee? Manager { get; private set; }
+
+    public string FullName => $"{FirstName} {LastName}";
+
+    public static Employee Create(
+        Guid tenantId,
+        string firstName,
+        string lastName,
+        string email,
+        DateTime hireDate,
+        string? department = null,
+        string? jobTitle = null)
+    {
+        if (tenantId == Guid.Empty)
+            throw new ArgumentException("TenantId cannot be empty.", nameof(tenantId));
+
+        if (string.IsNullOrWhiteSpace(firstName))
+            throw new ArgumentException("First name cannot be empty.", nameof(firstName));
+
+        if (string.IsNullOrWhiteSpace(lastName))
+            throw new ArgumentException("Last name cannot be empty.", nameof(lastName));
+
+        if (string.IsNullOrWhiteSpace(email))
+            throw new ArgumentException("Email cannot be empty.", nameof(email));
+
+        return new Employee
+        {
+            TenantId = tenantId,
+            FirstName = firstName.Trim(),
+            LastName = lastName.Trim(),
+            Email = email.Trim().ToLowerInvariant(),
+            HireDate = hireDate,
+            Department = department?.Trim(),
+            JobTitle = jobTitle?.Trim(),
+            Status = EmployeeStatus.Active
+        };
+    }
+
+    public void Activate()
+    {
+        if (Status == EmployeeStatus.Active)
+            throw new InvalidOperationException("Employee is already active.");
+
+        Status = EmployeeStatus.Active;
+    }
+
+    public void Deactivate()
+    {
+        if (Status == EmployeeStatus.Inactive)
+            throw new InvalidOperationException("Employee is already inactive.");
+
+        Status = EmployeeStatus.Inactive;
+    }
+
+    public void UpdateDetails(
+        string firstName,
+        string lastName,
+        string email,
+        string? department,
+        string? jobTitle)
+    {
+        if (string.IsNullOrWhiteSpace(firstName))
+            throw new ArgumentException("First name cannot be empty.", nameof(firstName));
+
+        if (string.IsNullOrWhiteSpace(lastName))
+            throw new ArgumentException("Last name cannot be empty.", nameof(lastName));
+
+        if (string.IsNullOrWhiteSpace(email))
+            throw new ArgumentException("Email cannot be empty.", nameof(email));
+
+        FirstName = firstName.Trim();
+        LastName = lastName.Trim();
+        Email = email.Trim().ToLowerInvariant();
+        Department = department?.Trim();
+        JobTitle = jobTitle?.Trim();
+    }
+
+    public void AssignManager(Guid? managerId)
+    {
+        if (managerId == Id)
+            throw new ArgumentException("Employee cannot be their own manager.", nameof(managerId));
+
+        ManagerId = managerId;
+    }
+}
