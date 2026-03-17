@@ -1,3 +1,6 @@
+# Project docs (local only)
+EY_ACADEMY_MODULE.md
+
 # Dependencies
 node_modules
 .pnpm-store
