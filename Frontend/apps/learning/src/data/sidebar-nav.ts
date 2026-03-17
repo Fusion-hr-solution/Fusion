@@ -14,6 +14,7 @@ import type { NavSection } from "@/types/sidebar";
 export const EMPLOYEE_NAV: NavSection = {
   title: "Learning",
   items: [
+    { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { label: "Catalog", href: "/", icon: BookOpen },
     {
       label: "My Trainings",

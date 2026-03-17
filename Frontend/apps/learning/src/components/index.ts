@@ -15,3 +15,5 @@ export { TrainingProgressBar } from "./training-progress-bar";
 export { TrainingStatusTabs } from "./training-status-tabs";
 export { EnrolledTrainingCard } from "./enrolled-training-card";
 export { MyTrainingsList } from "./my-trainings-list";
+export { Dashboard } from "./dashboard/dashboard";
+export { AdminDashboard } from "./admin/admin-dashboard";

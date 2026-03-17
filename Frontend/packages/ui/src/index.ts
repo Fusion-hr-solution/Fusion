@@ -24,6 +24,14 @@ export {
   DialogDescription,
 } from "./components/dialog";
 export { Progress } from "./components/progress";
+export {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+  TooltipProvider,
+} from "./components/tooltip";
+export { Avatar, AvatarImage, AvatarFallback } from "./components/avatar";
+export { Separator } from "./components/separator";
 
 // Utilities
 export { cn } from "./lib/utils";

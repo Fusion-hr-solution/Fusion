@@ -54,3 +54,26 @@ export interface EnrolledTraining extends Training {
   currentChapter: number;
   deadline?: string;
 }
+
+/* ── Admin / Employee Progress types ── */
+
+export interface EmployeeTrainingRecord {
+  trainingId: string;
+  trainingTitle: string;
+  category: TrainingCategory;
+  status: TrainingStatus;
+  progress: number;
+  enrolledAt: string;
+  completedAt?: string;
+  deadline?: string;
+}
+
+export interface Employee {
+  id: string;
+  name: string;
+  email: string;
+  department: string;
+  role: string;
+  avatar?: string;
+  trainings: EmployeeTrainingRecord[];
+}
