@@ -2,8 +2,6 @@ import { Dashboard } from "@/components/dashboard/dashboard";
 import { MOCK_TRAININGS } from "@/data/trainings";
 import { MOCK_ENROLLED_TRAININGS } from "@/data/enrolled-trainings";
 
-export const dynamic = "force-dynamic";
-
 export default function DashboardPage() {
   return (
     <Dashboard
