@@ -6,13 +6,13 @@ using Microsoft.EntityFrameworkCore;
 
 namespace EY.HRPlatform.Training.Features.Catalog.Queries;
 
-public class GetAllTrainingsQueryHandler : IQueryHandler<GetAllTrainingsQuery, Result<List<TrainingDto>>>
+public class GetAllTrainingsQueryHandler : IQueryHandler<GetAllTrainingsQuery, Result<PagedResponse<TrainingDto>>>
 {
     private readonly TrainingDbContext _db;
 
     public GetAllTrainingsQueryHandler(TrainingDbContext db) => _db = db;
 
-    public async Task<Result<List<TrainingDto>>> Handle(GetAllTrainingsQuery request, CancellationToken cancellationToken)
+    public async Task<Result<PagedResponse<TrainingDto>>> Handle(GetAllTrainingsQuery request, CancellationToken cancellationToken)
     {
         var query = _db.Trainings
             .AsNoTracking()
@@ -28,8 +28,15 @@ public class GetAllTrainingsQueryHandler : IQueryHandler<GetAllTrainingsQuery, R
                 t.Title.Contains(request.Search) ||
                 (t.Description != null && t.Description.Contains(request.Search)));
 
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var page = Math.Max(1, request.Page);
+        var pageSize = Math.Clamp(request.PageSize, 1, 100);
+
         var trainings = await query
             .OrderBy(t => t.Title)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .Select(t => new TrainingDto
             {
                 Id = t.Id,
@@ -46,6 +53,12 @@ public class GetAllTrainingsQueryHandler : IQueryHandler<GetAllTrainingsQuery, R
             })
             .ToListAsync(cancellationToken);
 
-        return Result.Success(trainings);
+        return Result.Success(new PagedResponse<TrainingDto>
+        {
+            Items = trainings,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        });
     }
 }

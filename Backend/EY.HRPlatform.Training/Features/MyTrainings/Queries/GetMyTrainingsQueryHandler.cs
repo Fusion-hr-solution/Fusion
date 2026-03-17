@@ -70,10 +70,9 @@ public class GetMyTrainingsQueryHandler : IQueryHandler<GetMyTrainingsQuery, Res
             };
         }).ToList();
 
-        if (!string.IsNullOrWhiteSpace(request.StatusFilter) &&
-            Enum.TryParse<TrainingStatus>(request.StatusFilter, true, out var statusFilter))
+        if (request.StatusFilter.HasValue)
         {
-            result = result.Where(t => t.Status == statusFilter.ToString()).ToList();
+            result = result.Where(t => t.Status == request.StatusFilter.Value.ToString()).ToList();
         }
 
         return Result.Success(result.OrderBy(t => t.Title).ToList());

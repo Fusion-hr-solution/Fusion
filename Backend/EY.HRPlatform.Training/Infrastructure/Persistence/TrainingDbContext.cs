@@ -64,6 +64,7 @@ public class TrainingDbContext : DbContext
             e.Property(t => t.Description).HasMaxLength(2000);
             e.Property(t => t.Duration).HasMaxLength(50);
             e.Property(t => t.BadgeLevel).HasConversion<string>().HasMaxLength(20);
+            e.HasQueryFilter(t => !t.IsDeleted);
             e.HasOne(t => t.Category)
                 .WithMany(c => c.Trainings)
                 .HasForeignKey(t => t.CategoryId)

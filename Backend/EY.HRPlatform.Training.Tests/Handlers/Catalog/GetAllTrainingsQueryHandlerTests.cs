@@ -21,7 +21,7 @@ public class GetAllTrainingsQueryHandlerTests
         // Assert
         Assert.True(result.IsSuccess);
         Assert.NotNull(result.Value);
-        Assert.Equal(2, result.Value.Count);
+        Assert.Equal(2, result.Value.Items.Count);
     }
 
     [Fact]
@@ -38,7 +38,7 @@ public class GetAllTrainingsQueryHandlerTests
         // Assert
         Assert.True(result.IsSuccess);
         Assert.NotNull(result.Value);
-        Assert.Empty(result.Value);
+        Assert.Empty(result.Value.Items);
     }
 
     [Fact]
@@ -64,8 +64,8 @@ public class GetAllTrainingsQueryHandlerTests
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Single(result.Value!);
-        Assert.Equal("C# Basics", result.Value![0].Title);
+        Assert.Single(result.Value!.Items);
+        Assert.Equal("C# Basics", result.Value!.Items[0].Title);
     }
 
     [Fact]
@@ -81,8 +81,8 @@ public class GetAllTrainingsQueryHandlerTests
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Single(result.Value!);
-        Assert.Contains("Advanced", result.Value![0].Title);
+        Assert.Single(result.Value!.Items);
+        Assert.Contains("Advanced", result.Value!.Items[0].Title);
     }
 
     [Fact]
@@ -98,7 +98,7 @@ public class GetAllTrainingsQueryHandlerTests
 
         // Assert
         Assert.True(result.IsSuccess);
-        var titles = result.Value!.Select(t => t.Title).ToList();
+        var titles = result.Value!.Items.Select(t => t.Title).ToList();
         Assert.Equal(titles.OrderBy(t => t).ToList(), titles);
     }
 
@@ -115,7 +115,7 @@ public class GetAllTrainingsQueryHandlerTests
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Single(result.Value!);
-        Assert.Equal(2, result.Value![0].ChapterCount);
+        Assert.Single(result.Value!.Items);
+        Assert.Equal(2, result.Value!.Items[0].ChapterCount);
     }
 }

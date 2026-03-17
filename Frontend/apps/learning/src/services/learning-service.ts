@@ -60,6 +60,13 @@ interface BackendApiResponse<T> {
   isSuccess: boolean;
 }
 
+interface BackendPagedResponse<T> {
+  items: T[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+}
+
 // --- Mapping helpers ---
 const CATEGORY_MAP: Record<string, TrainingCategory> = {
   "Technical Skills": "technical",
@@ -145,23 +152,29 @@ function mapBackendToEnrolledTraining(dto: BackendMyTrainingDto): EnrolledTraini
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "/api";
 
 async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...options?.headers,
-    },
-  });
-  
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+      },
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown network error";
+    throw new Error(`Network error: ${message}`);
+  }
+
   if (!res.ok) {
     throw new Error(`API Error: ${res.status} ${res.statusText}`);
   }
-  
+
   const json = (await res.json()) as BackendApiResponse<T>;
   if (!json.isSuccess) {
     throw new Error(json.errors.join(", ") || "Unknown API error");
   }
-  
+
   return json.data;
 }
 
@@ -180,16 +193,25 @@ export async function getCategories(): Promise<BackendTrainingCategoryDto[]> {
 export async function getTrainings(params?: {
   categoryId?: string;
   search?: string;
-}): Promise<Training[]> {
+  page?: number;
+  pageSize?: number;
+}): Promise<{ trainings: Training[]; totalCount: number; page: number; pageSize: number }> {
   const searchParams = new URLSearchParams();
   if (params?.categoryId) searchParams.set("categoryId", params.categoryId);
   if (params?.search) searchParams.set("search", params.search);
-  
+  if (params?.page) searchParams.set("page", params.page.toString());
+  if (params?.pageSize) searchParams.set("pageSize", params.pageSize.toString());
+
   const queryString = searchParams.toString();
   const path = `/training/catalog${queryString ? `?${queryString}` : ""}`;
-  
-  const data = await fetchApi<BackendTrainingDto[]>(path);
-  return data.map(mapBackendToTraining);
+
+  const data = await fetchApi<BackendPagedResponse<BackendTrainingDto>>(path);
+  return {
+    trainings: data.items.map(mapBackendToTraining),
+    totalCount: data.totalCount,
+    page: data.page,
+    pageSize: data.pageSize,
+  };
 }
 
 /**
@@ -247,7 +269,8 @@ export async function updateChapterProgress(
 export async function getCourses() {
   // Fallback to mock data if API fails
   try {
-    return await  getTrainings();
+    const result = await  getTrainings();
+    return result.trainings;
   } catch {
     console.warn("[learning-service] API failed, using mock data");
     return [];

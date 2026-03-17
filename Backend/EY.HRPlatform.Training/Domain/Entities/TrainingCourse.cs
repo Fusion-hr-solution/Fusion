@@ -12,6 +12,9 @@ public class TrainingCourse : AggregateRoot
     public BadgeLevel BadgeLevel { get; private set; }
     public string? Duration { get; private set; }
 
+    public bool IsDeleted { get; private set; } = false;
+    public DateTime? DeletedAt { get; private set; }
+
     public Guid CategoryId { get; private set; }
     public TrainingCategory Category { get; private set; } = null!;
 
@@ -67,4 +70,6 @@ public class TrainingCourse : AggregateRoot
     {
         _exams.Add(exam);
     }
+
+    public void Delete() => (IsDeleted, DeletedAt) = (true, DateTime.UtcNow);
 }

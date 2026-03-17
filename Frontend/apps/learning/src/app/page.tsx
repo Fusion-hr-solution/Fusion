@@ -8,7 +8,8 @@ export default async function LearningPage() {
   let trainings;
   
   try {
-    trainings = await getTrainings();
+    const result = await getTrainings();
+    trainings = result.trainings;
   } catch {
     // Fallback to mock data if API is unavailable
     console.warn("[LearningPage] Backend unavailable, using mock data");
