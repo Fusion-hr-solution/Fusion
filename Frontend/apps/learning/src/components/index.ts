@@ -17,3 +17,7 @@ export { EnrolledTrainingCard } from "./enrolled-training-card";
 export { MyTrainingsList } from "./my-trainings-list";
 export { Dashboard } from "./dashboard/dashboard";
 export { AdminDashboard } from "./admin/admin-dashboard";
+export { EmployeeRow } from "./admin/employee-row";
+export { CompletionFunnel } from "./admin/completion-funnel";
+export { CategoryPerformance } from "./admin/category-performance";
+export { TopTrainings } from "./admin/top-trainings";
