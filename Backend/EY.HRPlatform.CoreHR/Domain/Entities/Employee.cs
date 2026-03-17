@@ -41,6 +41,18 @@ public class Employee : AggregateRoot
         if (string.IsNullOrWhiteSpace(email))
             throw new ArgumentException("Email cannot be empty.", nameof(email));
 
+        if (hireDate == default)
+            throw new ArgumentException("HireDate must be a valid date.", nameof(hireDate));
+
+        hireDate = hireDate.Kind switch
+        {
+            DateTimeKind.Utc => hireDate,
+            DateTimeKind.Local => hireDate.ToUniversalTime(),
+            _ => throw new ArgumentException(
+                "HireDate must have DateTimeKind.Utc or DateTimeKind.Local; Unspecified is not allowed.",
+                nameof(hireDate))
+        };
+
         return new Employee
         {
             TenantId = tenantId,
@@ -95,6 +107,9 @@ public class Employee : AggregateRoot
 
     public void AssignManager(Guid? managerId)
     {
+        if (managerId == Guid.Empty)
+            managerId = null;
+
         if (managerId == Id)
             throw new ArgumentException("Employee cannot be their own manager.", nameof(managerId));
 
