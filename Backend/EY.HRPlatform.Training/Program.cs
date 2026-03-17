@@ -1,5 +1,6 @@
 using EY.HRPlatform.Training.Extensions;
 using EY.HRPlatform.Training.Infrastructure.Persistence;
+using EY.HRPlatform.Training.Middleware;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -30,6 +31,8 @@ if (app.Environment.IsDevelopment())
         c.RoutePrefix = "api/training/swagger";
     });
 }
+
+app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
 
 app.UseAuthentication();
 app.UseAuthorization();
