@@ -1,8 +1,8 @@
 ﻿using EY.HRPlatform.SharedKernel.Domain;
 
-namespace EY.HRPlatform.Interview.Tests.Domain.Entities;
+namespace EY.HRPlatform.Interview.Domain.Entities;
 
-public class InterviewTests : BaseEntity
+public class InterviewTest : BaseEntity
 {
     public string Title { get; set; } = string.Empty;
     public string Role { get; set; } = string.Empty;
@@ -11,15 +11,14 @@ public class InterviewTests : BaseEntity
     public string DifficultyLevel { get; set; } = "medium";
     public int EstimatedDurationMinutes { get; set; } = 60;
     public string? InternalNotes { get; set; }
-    public string Status { get; set; } = "Draft"; // Draft, Published, Archived
+    public string Status { get; set; } = "Draft";
     public bool IsActive { get; set; } = true;
-    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
     public InterviewTestConfig? Config { get; set; }
     public List<InterviewTestQuestion> Questions { get; set; } = new();
 }
 
-public class InterviewTestsConfig
+public class InterviewTestConfig
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid TestId { get; set; }
@@ -39,7 +38,7 @@ public class InterviewTestsConfig
     public InterviewTest? Test { get; set; }
 }
 
-public class InterviewTestsQuestion
+public class InterviewTestQuestion
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid TestId { get; set; }

@@ -1,10 +1,10 @@
-﻿using MediatR;
+﻿using EY.HRPlatform.Interview.Domain.Entities;
+using EY.HRPlatform.Interview.Infrastructure.Repositories;
+using EY.HRPlatform.Interview.Models;
+using EY.HRPlatform.Interview.Domain.Entities;
+using EY.HRPlatform.Interview.Infrastructure.Repositories;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using EY.HRPlatform.Interview.QuestionBank.Application.Commands;
-using EY.HRPlatform.Interview.QuestionBank.Application.Queries;
-using EY.HRPlatform.Interview.QuestionBank.Models.Requests;
-using EY.HRPlatform.Interview.QuestionBank.Models.Responses;
 
 namespace EY.HRPlatform.Interview.QuestionBank.Controllers;
 
@@ -13,11 +13,11 @@ namespace EY.HRPlatform.Interview.QuestionBank.Controllers;
 [Authorize]
 public class QuestionsController : ControllerBase
 {
-    private readonly IMediator _mediator;
+    private readonly IQuestionRepository _repository;
 
-    public QuestionsController(IMediator mediator)
+    public QuestionsController(IQuestionRepository repository)
     {
-        _mediator = mediator;
+        _repository = repository;
     }
 
     [HttpGet]
@@ -38,49 +38,126 @@ public class QuestionsController : ControllerBase
             ? difficulty.Split(',').Select(d => d.Trim()).ToArray()
             : null;
 
-        var query = new GetQuestionsQuery(page, pageSize, search, types, difficulties, sortBy);
-        var result = await _mediator.Send(query);
+        var (items, total) = await _repository.GetPaginatedAsync(page, pageSize, search, types, difficulties, sortBy);
 
-        return Ok(result);
+        var dtos = items.Select(MapToDto).ToList();
+
+        return Ok(new PaginatedResponse<QuestionDto>
+        {
+            Items = dtos,
+            Page = page,
+            PageSize = pageSize,
+            Total = total
+        });
     }
 
     [HttpGet("{id}")]
     [AllowAnonymous]
     public async Task<ActionResult<QuestionDto>> GetQuestion(Guid id)
     {
-        var query = new GetQuestionByIdQuery(id);
-        var result = await _mediator.Send(query);
+        var question = await _repository.GetByIdAsync(id);
 
-        if (result == null)
+        if (question == null)
             return NotFound(new { message = "Question not found" });
 
-        return Ok(result);
+        return Ok(MapToDto(question));
     }
 
     [HttpPost]
     public async Task<ActionResult<QuestionDto>> CreateQuestion(CreateQuestionRequest request)
     {
-        var command = new CreateQuestionCommand(request);
-        var result = await _mediator.Send(command);
+        var question = new Question
+        {
+            Title = request.Title,
+            Description = request.Description,
+            Type = request.Type,
+            Difficulty = request.Difficulty,
+            GradingMethod = request.GradingMethod,
+            Points = request.Points,
+            DurationMinutes = request.DurationMinutes,
+            Tags = request.Tags,
+            IsActive = true
+        };
 
-        return CreatedAtAction(nameof(GetQuestion), new { id = result.Id }, result);
+        if (request.Options?.Any() == true)
+        {
+            question.Options = request.Options
+                .Select(o => new QuestionOption
+                {
+                    Text = o.Text,
+                    IsCorrect = o.IsCorrect,
+                    SortOrder = o.SortOrder
+                })
+                .ToList();
+        }
+
+        var created = await _repository.AddAsync(question);
+        return CreatedAtAction(nameof(GetQuestion), new { id = created.Id }, MapToDto(created));
     }
 
     [HttpPut("{id}")]
     public async Task<ActionResult<QuestionDto>> UpdateQuestion(Guid id, CreateQuestionRequest request)
     {
-        var command = new UpdateQuestionCommand(id, request);
-        var result = await _mediator.Send(command);
+        var question = await _repository.GetByIdAsync(id);
+        if (question == null)
+            return NotFound(new { message = "Question not found" });
 
-        return Ok(result);
+        question.Title = request.Title;
+        question.Description = request.Description;
+        question.Type = request.Type;
+        question.Difficulty = request.Difficulty;
+        question.GradingMethod = request.GradingMethod;
+        question.Points = request.Points;
+        question.DurationMinutes = request.DurationMinutes;
+        question.Tags = request.Tags;
+
+        if (request.Options?.Any() == true)
+        {
+            question.Options = request.Options
+                .Select(o => new QuestionOption
+                {
+                    Text = o.Text,
+                    IsCorrect = o.IsCorrect,
+                    SortOrder = o.SortOrder
+                })
+                .ToList();
+        }
+
+        var updated = await _repository.UpdateAsync(question);
+        return Ok(MapToDto(updated));
     }
 
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteQuestion(Guid id)
     {
-        var command = new DeleteQuestionCommand(id);
-        await _mediator.Send(command);
-
+        await _repository.DeleteAsync(id);
         return NoContent();
+    }
+
+    private static QuestionDto MapToDto(Question question)
+    {
+        return new QuestionDto
+        {
+            Id = question.Id,
+            Title = question.Title,
+            Description = question.Description,
+            Type = question.Type,
+            Difficulty = question.Difficulty,
+            GradingMethod = question.GradingMethod,
+            Points = question.Points,
+            DurationMinutes = question.DurationMinutes,
+            Tags = question.Tags,
+            UsageCount = question.UsageCount,
+            IsActive = question.IsActive,
+            CreatedAt = question.CreatedAt,
+            UpdatedAt = question.UpdatedAt,
+            Options = question.Options?.Select(o => new QuestionOptionResponseDto
+            {
+                Id = o.Id,
+                Text = o.Text,
+                IsCorrect = o.IsCorrect,
+                SortOrder = o.SortOrder
+            }).OrderBy(o => o.SortOrder).ToList()
+        };
     }
 }

@@ -1,8 +1,8 @@
-﻿using EY.HRPlatform.Interview.QuestionBank.Domain.Entities;
-using EY.HRPlatform.Interview.Infrastructure.Persistence;
+﻿using EY.HRPlatform.Interview.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using EY.HRPlatform.Interview.Domain.Entities;
 
-namespace EY.HRPlatform.Interview.QuestionBank.Infrastructure.Repositories;
+namespace EY.HRPlatform.Interview.Infrastructure.Repositories;
 
 public class QuestionRepository : IQuestionRepository
 {
@@ -75,7 +75,6 @@ public class QuestionRepository : IQuestionRepository
 
     public async Task<Question> UpdateAsync(Question question)
     {
-        question.UpdatedAt = DateTime.UtcNow;
         _context.Questions.Update(question);
         await _context.SaveChangesAsync();
         return question;

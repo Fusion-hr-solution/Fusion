@@ -1,4 +1,4 @@
-﻿namespace EY.HRPlatform.Interview.Tests.Models.Requests;
+﻿namespace EY.HRPlatform.Interview.Models;
 
 public class CreateInterviewTestRequest
 {

@@ -1,4 +1,4 @@
-﻿namespace EY.HRPlatform.Interview.QuestionBank.Models.Responses;
+﻿namespace EY.HRPlatform.Interview.Models;
 
 public class QuestionDto
 {

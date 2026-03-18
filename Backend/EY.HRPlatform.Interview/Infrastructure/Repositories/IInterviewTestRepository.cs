@@ -1,6 +1,6 @@
-﻿using EY.HRPlatform.Interview.Tests.Domain.Entities;
+﻿using EY.HRPlatform.Interview.Domain.Entities;
 
-namespace EY.HRPlatform.Interview.Tests.Infrastructure.Repositories;
+namespace EY.HRPlatform.Interview.Infrastructure.Repositories;
 
 public interface IInterviewTestRepository
 {

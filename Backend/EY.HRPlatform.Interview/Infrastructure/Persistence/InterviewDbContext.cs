@@ -1,5 +1,4 @@
-﻿using EY.HRPlatform.Interview.QuestionBank.Domain.Entities;
-using EY.HRPlatform.Interview.Tests.Domain.Entities;
+﻿using EY.HRPlatform.Interview.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace EY.HRPlatform.Interview.Infrastructure.Persistence;

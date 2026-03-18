@@ -1,6 +1,6 @@
-﻿using EY.HRPlatform.Interview.QuestionBank.Domain.Entities;
+﻿using EY.HRPlatform.Interview.Domain.Entities;
 
-namespace EY.HRPlatform.Interview.QuestionBank.Infrastructure.Repositories;
+namespace EY.HRPlatform.Interview.Infrastructure.Repositories;
 
 public interface IQuestionRepository
 {

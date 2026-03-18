@@ -1,6 +1,8 @@
-﻿namespace EY.HRPlatform.Interview.QuestionBank.Models.Requests;
+﻿using EY.HRPlatform.SharedKernel.Domain;
 
-public class CreateQuestionRequest
+namespace EY.HRPlatform.Interview.Domain.Entities;
+
+public class Question : BaseEntity
 {
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
@@ -10,12 +12,18 @@ public class CreateQuestionRequest
     public int Points { get; set; } = 10;
     public int DurationMinutes { get; set; } = 5;
     public List<string> Tags { get; set; } = new();
-    public List<QuestionOptionDto>? Options { get; set; }
+    public int UsageCount { get; set; } = 0;
+    public bool IsActive { get; set; } = true;
+
+    public List<QuestionOption>? Options { get; set; }
 }
 
-public class QuestionOptionDto
+public class QuestionOption
 {
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid QuestionId { get; set; }
     public string Text { get; set; } = string.Empty;
     public bool IsCorrect { get; set; }
     public int SortOrder { get; set; }
+    public Question? Question { get; set; }
 }

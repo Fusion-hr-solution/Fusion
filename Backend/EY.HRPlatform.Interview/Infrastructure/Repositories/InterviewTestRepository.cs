@@ -1,8 +1,8 @@
-﻿using EY.HRPlatform.Interview.Tests.Domain.Entities;
-using EY.HRPlatform.Interview.Infrastructure.Persistence;
+﻿using EY.HRPlatform.Interview.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using EY.HRPlatform.Interview.Domain.Entities;
 
-namespace EY.HRPlatform.Interview.Tests.Infrastructure.Repositories;
+namespace EY.HRPlatform.Interview.Infrastructure.Repositories;
 
 public class InterviewTestRepository : IInterviewTestRepository
 {
