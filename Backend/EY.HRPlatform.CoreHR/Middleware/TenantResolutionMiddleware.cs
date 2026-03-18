@@ -1,5 +1,6 @@
 using EY.HRPlatform.SharedKernel.Auth;
 using EY.HRPlatform.SharedKernel.Multitenancy;
+using Microsoft.AspNetCore.Authorization;
 
 namespace EY.HRPlatform.CoreHR.Middleware;
 
@@ -23,9 +24,9 @@ public sealed class TenantResolutionMiddleware(RequestDelegate next, ILogger<Ten
         else if (RequiresTenantContext(context))
         {
             logger.LogWarning("Tenant context required but not provided for {Path}", context.Request.Path);
-            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            context.Response.StatusCode = StatusCodes.Status400BadRequest;
             context.Response.ContentType = "application/json";
-            await context.Response.WriteAsJsonAsync(new { error = "Tenant context required." });
+            await context.Response.WriteAsJsonAsync(new { errors = new[] { "Tenant context required." } });
             return;
         }
 
@@ -34,12 +35,15 @@ public sealed class TenantResolutionMiddleware(RequestDelegate next, ILogger<Ten
 
     private static Guid? ResolveTenantId(HttpContext context)
     {
-        // 1. Try JWT claim (preferred when Identity emits tenant_id)
-        var claimTenantId = context.User.GetTenantId();
-        if (claimTenantId.HasValue)
-            return claimTenantId;
+        var isAuthenticated = context.User.Identity?.IsAuthenticated == true;
 
-        // 2. Fallback to header (for cross-service calls or when Identity doesn't have tenant info)
+        // For authenticated users, only trust tenant from JWT claims (security: prevent privilege escalation)
+        if (isAuthenticated)
+        {
+            return context.User.GetTenantId();
+        }
+
+        // For unauthenticated requests (e.g., internal service-to-service calls), allow header-based resolution
         if (context.Request.Headers.TryGetValue(TenantHeader, out var headerValue))
         {
             var headerString = headerValue.FirstOrDefault();
@@ -52,18 +56,24 @@ public sealed class TenantResolutionMiddleware(RequestDelegate next, ILogger<Ten
 
     private static bool RequiresTenantContext(HttpContext context)
     {
-        // Only require tenant for authenticated requests to protected endpoints
+        // Only require tenant for authenticated requests
         if (context.User.Identity?.IsAuthenticated != true)
             return false;
 
-        var path = context.Request.Path;
-
-        // Health, metrics, and swagger are always tenant-optional
-        if (path.StartsWithSegments("/health") ||
-            path.StartsWithSegments("/metrics") ||
-            path.StartsWithSegments("/api/corehr/swagger"))
+        // Use endpoint metadata to determine if this is a protected endpoint
+        var endpoint = context.GetEndpoint();
+        if (endpoint is null)
             return false;
 
+        // If endpoint explicitly allows anonymous, don't require tenant
+        if (endpoint.Metadata.GetMetadata<IAllowAnonymous>() is not null)
+            return false;
+
+        // If no authorization metadata, treat as public endpoint
+        if (endpoint.Metadata.GetMetadata<IAuthorizeData>() is null)
+            return false;
+
+        // Authenticated request to a protected endpoint: require tenant context
         return true;
     }
 }

@@ -9,7 +9,7 @@ public sealed class TenantContext : ITenantContext
     private Guid? _tenantId;
 
     public Guid TenantId => _tenantId ?? throw new InvalidOperationException(
-        "Tenant context not resolved. Ensure TenantResolutionMiddleware is registered and the request includes tenant information.");
+        "Tenant context not resolved. Ensure tenant resolution middleware is registered and the request includes tenant information.");
 
     public bool IsResolved => _tenantId.HasValue;
 
