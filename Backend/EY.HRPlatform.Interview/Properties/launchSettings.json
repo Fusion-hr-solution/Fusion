@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "EY.HRPlatform.Interview": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:55499;http://localhost:55500"
+    }
+  }
+}
