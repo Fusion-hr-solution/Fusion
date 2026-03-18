@@ -54,6 +54,6 @@ public class CoreHRDbContext : DbContext
         // Global tenant filter: all Employee queries automatically scoped to current tenant.
         // When CurrentTenantId is Empty (design-time/no context), queries return no results.
         modelBuilder.Entity<Employee>()
-            .HasQueryFilter(e => e.TenantId == CurrentTenantId);
+            .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
     }
 }

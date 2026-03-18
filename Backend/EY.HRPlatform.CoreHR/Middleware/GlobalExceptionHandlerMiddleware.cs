@@ -18,7 +18,7 @@ public class GlobalExceptionHandlerMiddleware(RequestDelegate next, ILogger<Glob
         catch (TenantAccessDeniedException ex)
         {
             logger.LogWarning(ex, "Tenant access denied for {Method} {Path}", context.Request.Method, context.Request.Path);
-            await WriteErrorResponseAsync(context, HttpStatusCode.Forbidden, ex.Message);
+            await WriteErrorResponseAsync(context, HttpStatusCode.Forbidden, "Tenant access denied.");
         }
         catch (Exception ex)
         {

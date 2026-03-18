@@ -66,7 +66,7 @@ public sealed class TenantSaveChangesInterceptor(ITenantContext tenantContext) :
 
         if (entity.TenantId != tenantContext.TenantId)
             throw new TenantAccessDeniedException(
-                $"Cannot create entity for tenant {entity.TenantId} in context of tenant {tenantContext.TenantId}.");
+                "Cannot create entity for a different tenant than the current context.");
     }
 
     private void ValidateModifiedEntity(EntityEntry<ITenantEntity> entry)
@@ -82,7 +82,7 @@ public sealed class TenantSaveChangesInterceptor(ITenantContext tenantContext) :
 
         if (entry.Entity.TenantId != tenantContext.TenantId)
             throw new TenantAccessDeniedException(
-                $"Cannot modify entity belonging to tenant {entry.Entity.TenantId} in context of tenant {tenantContext.TenantId}.");
+                "Cannot modify entity belonging to a different tenant than the current context.");
     }
 
     private void ValidateDeletedEntity(EntityEntry<ITenantEntity> entry)
@@ -93,6 +93,6 @@ public sealed class TenantSaveChangesInterceptor(ITenantContext tenantContext) :
 
         if (entry.Entity.TenantId != tenantContext.TenantId)
             throw new TenantAccessDeniedException(
-                $"Cannot delete entity belonging to tenant {entry.Entity.TenantId} in context of tenant {tenantContext.TenantId}.");
+                "Cannot delete entity belonging to a different tenant than the current context.");
     }
 }
