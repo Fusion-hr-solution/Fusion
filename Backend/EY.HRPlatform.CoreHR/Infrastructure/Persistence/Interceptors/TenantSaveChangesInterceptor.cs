@@ -1,6 +1,7 @@
 using EY.HRPlatform.CoreHR.Domain.Entities;
 using EY.HRPlatform.SharedKernel.Multitenancy;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace EY.HRPlatform.CoreHR.Infrastructure.Persistence.Interceptors;
@@ -9,6 +10,7 @@ namespace EY.HRPlatform.CoreHR.Infrastructure.Persistence.Interceptors;
 /// Validates tenant context on SaveChanges operations:
 /// - New entities must have a valid TenantId that matches the current tenant
 /// - Existing entities cannot have their TenantId modified
+/// - All write operations (add/update/delete) require a resolved tenant context
 /// </summary>
 public sealed class TenantSaveChangesInterceptor(ITenantContext tenantContext) : SaveChangesInterceptor
 {
@@ -45,6 +47,10 @@ public sealed class TenantSaveChangesInterceptor(ITenantContext tenantContext) :
                 case EntityState.Modified:
                     ValidateModifiedEntity(entry);
                     break;
+
+                case EntityState.Deleted:
+                    ValidateDeletedEntity(entry);
+                    break;
             }
         }
     }
@@ -52,29 +58,42 @@ public sealed class TenantSaveChangesInterceptor(ITenantContext tenantContext) :
     private void ValidateNewEntity(Employee entity)
     {
         if (!tenantContext.IsResolved)
-            throw new InvalidOperationException(
+            throw new TenantAccessDeniedException(
                 "Cannot save Employee without resolved tenant context.");
 
         if (entity.TenantId == Guid.Empty)
-            throw new InvalidOperationException(
+            throw new TenantAccessDeniedException(
                 "TenantId must be set on new Employee entities.");
 
         if (entity.TenantId != tenantContext.TenantId)
-            throw new InvalidOperationException(
+            throw new TenantAccessDeniedException(
                 $"Cannot create Employee for tenant {entity.TenantId} in context of tenant {tenantContext.TenantId}.");
     }
 
-    private void ValidateModifiedEntity(Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry<Employee> entry)
+    private void ValidateModifiedEntity(EntityEntry<Employee> entry)
     {
-        var tenantIdProperty = entry.Property(e => e.TenantId);
+        if (!tenantContext.IsResolved)
+            throw new TenantAccessDeniedException(
+                "Cannot modify Employee without resolved tenant context.");
 
+        var tenantIdProperty = entry.Property(e => e.TenantId);
         if (tenantIdProperty.IsModified)
-            throw new InvalidOperationException(
+            throw new TenantAccessDeniedException(
                 "TenantId cannot be modified on existing Employee entities.");
 
-        // Ensure update is within current tenant context
-        if (tenantContext.IsResolved && entry.Entity.TenantId != tenantContext.TenantId)
-            throw new InvalidOperationException(
+        if (entry.Entity.TenantId != tenantContext.TenantId)
+            throw new TenantAccessDeniedException(
                 $"Cannot modify Employee belonging to tenant {entry.Entity.TenantId} in context of tenant {tenantContext.TenantId}.");
+    }
+
+    private void ValidateDeletedEntity(EntityEntry<Employee> entry)
+    {
+        if (!tenantContext.IsResolved)
+            throw new TenantAccessDeniedException(
+                "Cannot delete Employee without resolved tenant context.");
+
+        if (entry.Entity.TenantId != tenantContext.TenantId)
+            throw new TenantAccessDeniedException(
+                $"Cannot delete Employee belonging to tenant {entry.Entity.TenantId} in context of tenant {tenantContext.TenantId}.");
     }
 }

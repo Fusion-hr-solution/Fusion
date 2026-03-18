@@ -34,8 +34,14 @@ public static class ServiceCollectionExtensions
                 connectionString,
                 npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "corehr"));
 
-            // Add tenant validation interceptor
-            options.AddInterceptors(sp.GetRequiredService<TenantSaveChangesInterceptor>());
+            // Add tenant validation interceptor (requires AddMultitenancy() to be called first)
+            var tenantInterceptor = sp.GetService<TenantSaveChangesInterceptor>();
+            if (tenantInterceptor is null)
+            {
+                throw new InvalidOperationException(
+                    "TenantSaveChangesInterceptor is not registered. Ensure AddMultitenancy() is called before AddCoreHRPersistence().");
+            }
+            options.AddInterceptors(tenantInterceptor);
         });
 
         services.AddHealthChecks()
