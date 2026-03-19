@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { BookOpen, GraduationCap, Clock, CheckCircle2 } from "lucide-react";
+import { BookOpen, GraduationCap, Clock, CheckCircle2, TrendingUp } from "lucide-react";
 import type { TrainingStatus, EnrolledTraining } from "@/types";
 import type { MyTrainingsListProps } from "@/types/component-props";
 import { TrainingStatusTabs } from "./training-status-tabs";
@@ -38,63 +38,112 @@ export function MyTrainingsList({ trainings }: MyTrainingsListProps) {
     // TODO: navigate to training player
   };
 
+  const stats = [
+    {
+      icon: BookOpen,
+      value: inProgress,
+      label: "In Progress",
+      iconColor: "text-[hsl(var(--ey-blue-400))]",
+      bgAccent: "bg-[hsl(var(--ey-blue-400))]/5",
+    },
+    {
+      icon: CheckCircle2,
+      value: completed,
+      label: "Completed",
+      iconColor: "text-[hsl(var(--ey-green-500))]",
+      bgAccent: "bg-[hsl(var(--ey-green-500))]/5",
+    },
+    {
+      icon: Clock,
+      value: `${totalHours}h`,
+      label: "Total Hours",
+      iconColor: "text-[hsl(var(--ey-orange-500))]",
+      bgAccent: "bg-[hsl(var(--ey-orange-500))]/5",
+    },
+    {
+      icon: GraduationCap,
+      value: trainings.length,
+      label: "Enrolled",
+      iconColor: "ey-text-accent",
+      bgAccent: "bg-[hsl(var(--ey-yellow))]/5",
+    },
+  ];
+
   return (
     <>
       {/* Header */}
-      <section className="border-b border-border/50 bg-white">
-        <div className="mx-auto max-w-7xl px-6 py-10 lg:py-12">
-          <div className="flex items-end gap-3 mb-1">
+      <section className="relative overflow-hidden border-b border-border/50 bg-white">
+        <div className="ey-hero-pattern absolute inset-0 opacity-30" />
+        <div className="absolute right-0 top-0 h-full w-1/3 bg-gradient-to-l from-[hsl(var(--ey-yellow))]/5 to-transparent" />
+
+        <div className="relative mx-auto max-w-7xl px-6 py-10 lg:py-12">
+          <div className="ey-animate-fade-up flex items-end gap-3 mb-1">
             <div className="flex h-9 w-1 rounded-full ey-bg-accent" />
             <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
               My Learning
             </span>
           </div>
-          <h1 className="mt-3 text-3xl font-bold tracking-tight text-foreground lg:text-4xl">
-            My Trainings
-          </h1>
-          <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
-            Track your enrolled trainings, pick up where you left off, and
-            celebrate your completed courses.
-          </p>
+
+          <div className="flex items-start justify-between gap-6">
+            <div>
+              <h1
+                className="ey-animate-fade-up mt-3 text-3xl font-bold tracking-tight text-foreground lg:text-4xl"
+                style={{ animationDelay: "80ms" }}
+              >
+                My Trainings
+              </h1>
+              <p
+                className="ey-animate-fade-up mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground"
+                style={{ animationDelay: "160ms" }}
+              >
+                Track your enrolled trainings, pick up where you left off, and
+                celebrate your completed courses.
+              </p>
+            </div>
+
+            {/* Completion rate insight */}
+            {trainings.length > 0 && (
+              <div
+                className="ey-animate-fade-up hidden lg:flex items-center gap-3 rounded-xl border border-border/60 bg-[hsl(var(--ey-grey-50))] px-5 py-3.5 shadow-sm"
+                style={{ animationDelay: "240ms" }}
+              >
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[hsl(var(--ey-green-500))]/10">
+                  <TrendingUp className="h-5 w-5 text-[hsl(var(--ey-green-500))]" aria-hidden="true" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-foreground leading-none">
+                    {trainings.length > 0
+                      ? Math.round((completed / trainings.length) * 100)
+                      : 0}%
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Completion rate
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Quick stats */}
-          <div className="mt-6 flex flex-wrap gap-6">
-            <div className="flex items-center gap-2.5 rounded-lg border border-border/60 bg-[hsl(var(--ey-grey-50))] px-4 py-2.5">
-              <BookOpen className="h-4 w-4 text-[hsl(var(--ey-blue-400))]" aria-hidden="true" />
-              <div>
-                <p className="text-lg font-bold text-foreground leading-none">
-                  {inProgress}
-                </p>
-                <p className="text-xs text-muted-foreground">In Progress</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2.5 rounded-lg border border-border/60 bg-[hsl(var(--ey-grey-50))] px-4 py-2.5">
-              <CheckCircle2 className="h-4 w-4 text-[hsl(var(--ey-green-500))]" aria-hidden="true" />
-              <div>
-                <p className="text-lg font-bold text-foreground leading-none">
-                  {completed}
-                </p>
-                <p className="text-xs text-muted-foreground">Completed</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2.5 rounded-lg border border-border/60 bg-[hsl(var(--ey-grey-50))] px-4 py-2.5">
-              <Clock className="h-4 w-4 text-[hsl(var(--ey-orange-500))]" aria-hidden="true" />
-              <div>
-                <p className="text-lg font-bold text-foreground leading-none">
-                  {totalHours}h
-                </p>
-                <p className="text-xs text-muted-foreground">Total Hours</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2.5 rounded-lg border border-border/60 bg-[hsl(var(--ey-grey-50))] px-4 py-2.5">
-              <GraduationCap className="h-4 w-4 ey-text-accent" aria-hidden="true" />
-              <div>
-                <p className="text-lg font-bold text-foreground leading-none">
-                  {trainings.length}
-                </p>
-                <p className="text-xs text-muted-foreground">Enrolled</p>
-              </div>
-            </div>
+          <div className="mt-6 grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:gap-4">
+            {stats.map((stat, i) => {
+              const Icon = stat.icon;
+              return (
+                <div
+                  key={stat.label}
+                  className={`ey-animate-fade-up flex items-center gap-3 rounded-xl border border-border/60 ${stat.bgAccent} px-4 py-3 transition-all hover:shadow-sm`}
+                  style={{ animationDelay: `${200 + i * 60}ms` }}
+                >
+                  <Icon className={`h-5 w-5 ${stat.iconColor}`} aria-hidden="true" />
+                  <div>
+                    <p className="text-lg font-bold text-foreground leading-none">
+                      {stat.value}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{stat.label}</p>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>
@@ -107,7 +156,7 @@ export function MyTrainingsList({ trainings }: MyTrainingsListProps) {
           onChange={setActiveTab}
         />
 
-        <div className="mt-6 space-y-4">
+        <div className="mt-6 ey-stagger-list space-y-4">
           {filtered.length > 0 ? (
             filtered.map((training) => (
               <EnrolledTrainingCard
@@ -117,12 +166,14 @@ export function MyTrainingsList({ trainings }: MyTrainingsListProps) {
               />
             ))
           ) : (
-            <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border/60 py-20">
-              <GraduationCap className="h-10 w-10 text-muted-foreground/40 mb-3" aria-hidden="true" />
-              <p className="text-sm font-medium text-muted-foreground">
-                No trainings in this category yet.
+            <div className="ey-animate-scale-in flex flex-col items-center justify-center rounded-xl border border-dashed border-border/60 bg-white py-20">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[hsl(var(--ey-grey-100))] mb-4">
+                <GraduationCap className="h-6 w-6 text-muted-foreground/40" aria-hidden="true" />
+              </div>
+              <p className="text-sm font-semibold text-foreground">
+                No trainings in this category yet
               </p>
-              <p className="mt-1 text-xs text-muted-foreground/70">
+              <p className="mt-1 text-xs text-muted-foreground">
                 Browse the catalog to discover new trainings.
               </p>
             </div>

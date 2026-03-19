@@ -22,6 +22,7 @@ public class CatalogController : ControllerBase
 
     /// <summary>Get all training categories.</summary>
     [HttpGet("categories")]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(ApiResponse<List<TrainingCategoryDto>>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status500InternalServerError)]
     public async Task<IActionResult> GetCategories(CancellationToken cancellationToken)
@@ -41,6 +42,7 @@ public class CatalogController : ControllerBase
 
     /// <summary>Get all trainings, optionally filtered by category or search term.</summary>
     [HttpGet]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(ApiResponse<PagedResponse<TrainingDto>>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status500InternalServerError)]
     public async Task<IActionResult> GetAll(
@@ -66,6 +68,7 @@ public class CatalogController : ControllerBase
 
     /// <summary>Get detailed info for a single training by ID.</summary>
     [HttpGet("{id:guid}")]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(ApiResponse<TrainingDetailDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status500InternalServerError)]

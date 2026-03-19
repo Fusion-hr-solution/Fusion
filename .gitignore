@@ -1,4 +1,9 @@
 # ========================
+# Project docs (local only)
+# ========================
+EY_ACADEMY_MODULE.md
+
+# ========================
 # OS & Editor
 # ========================
 .DS_Store
@@ -94,5 +99,6 @@ coverage/
 # Local Copilot Skills
 # ========================
 .github/skills/
+Frontend/.github/
 PROJECT_SUMMARY.md
 *.postman_collection.json

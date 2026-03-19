@@ -1,6 +1,6 @@
 "use client";
 
-import { X } from "lucide-react";
+import { X, Filter } from "lucide-react";
 import type { ActiveFiltersProps } from "@/types/component-props";
 import { CATEGORY_CONFIG, LEVEL_CONFIG } from "@/data/categories";
 
@@ -17,8 +17,9 @@ export function ActiveFilters({
   if (!hasFilters) return null;
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+    <div className="ey-animate-fade-in flex flex-wrap items-center gap-2">
+      <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        <Filter className="h-3 w-3" aria-hidden="true" />
         Active:
       </span>
 
@@ -26,7 +27,7 @@ export function ActiveFilters({
         <button
           onClick={onClearCategory}
           aria-label={`Remove ${CATEGORY_CONFIG[category].label} filter`}
-          className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors hover:opacity-80 ${CATEGORY_CONFIG[category].badgeClass}`}
+          className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium transition-all hover:shadow-sm hover:opacity-80 ${CATEGORY_CONFIG[category].badgeClass}`}
         >
           {CATEGORY_CONFIG[category].label}
           <X className="h-3 w-3" aria-hidden="true" />
@@ -37,7 +38,7 @@ export function ActiveFilters({
         <button
           onClick={onClearLevel}
           aria-label={`Remove ${LEVEL_CONFIG[level].label} filter`}
-          className="inline-flex items-center gap-1 rounded-full border border-border bg-white px-2.5 py-0.5 text-xs font-medium text-foreground transition-colors hover:bg-[hsl(var(--ey-grey-100))]"
+          className="inline-flex items-center gap-1.5 rounded-full border border-border bg-white px-2.5 py-0.5 text-xs font-medium text-foreground transition-all hover:bg-[hsl(var(--ey-grey-100))] hover:shadow-sm"
         >
           <span
             className={`h-1.5 w-1.5 rounded-full ${LEVEL_CONFIG[level].dotClass}`}
@@ -51,7 +52,7 @@ export function ActiveFilters({
         <button
           onClick={onClearSearch}
           aria-label="Remove search filter"
-          className="inline-flex items-center gap-1 rounded-full border border-border bg-white px-2.5 py-0.5 text-xs font-medium text-foreground transition-colors hover:bg-[hsl(var(--ey-grey-100))]"
+          className="inline-flex items-center gap-1.5 rounded-full border border-border bg-white px-2.5 py-0.5 text-xs font-medium text-foreground transition-all hover:bg-[hsl(var(--ey-grey-100))] hover:shadow-sm"
         >
           &ldquo;{search}&rdquo;
           <X className="h-3 w-3" aria-hidden="true" />
@@ -60,7 +61,7 @@ export function ActiveFilters({
 
       <button
         onClick={onClearAll}
-        className="text-xs font-medium ey-text-link hover:underline"
+        className="text-xs font-semibold ey-text-link transition-colors hover:text-[hsl(var(--ey-blue-400))] hover:underline"
       >
         Clear all
       </button>

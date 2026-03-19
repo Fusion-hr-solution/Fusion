@@ -9,22 +9,22 @@ export function TrainingStatusTabs({
   onChange,
 }: TrainingStatusTabsProps) {
   return (
-    <div className="flex gap-1 rounded-lg border border-border/60 bg-white p-1">
+    <div className="inline-flex gap-1 rounded-xl border border-border/60 bg-white p-1 shadow-sm">
       {TABS.map((tab) => {
         const isActive = activeTab === tab.value;
         return (
           <button
             key={tab.value}
             onClick={() => onChange(tab.value)}
-            className={`relative flex items-center gap-1.5 rounded-md px-3.5 py-2 text-xs font-medium transition-all ${
+            className={`relative flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-medium transition-all duration-200 ${
               isActive
-                ? "ey-bg-dark text-white shadow-sm"
+                ? "ey-bg-dark text-white shadow-md"
                 : "text-muted-foreground hover:bg-[hsl(var(--ey-grey-100))] hover:text-foreground"
             }`}
           >
             {tab.label}
             <span
-              className={`flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-bold ${
+              className={`flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-bold transition-all ${
                 isActive
                   ? "ey-bg-accent text-[hsl(var(--ey-grey-500))]"
                   : "bg-[hsl(var(--ey-grey-200))] text-muted-foreground"

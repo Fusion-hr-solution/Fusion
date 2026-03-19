@@ -5,5 +5,4 @@ export {
   getMyTrainings,
   enrollInTraining,
   updateChapterProgress,
-  getCourses,
 } from "./learning-service";

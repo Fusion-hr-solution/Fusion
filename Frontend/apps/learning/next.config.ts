@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   basePath: "/learning",
-  transpilePackages: ["@repo/ui", "@repo/auth"],
+  transpilePackages: ["@repo/ui", "@repo/auth", "@repo/api"],
   allowedDevOrigins: ["http://localhost:3000"],
   async redirects() {
     return [

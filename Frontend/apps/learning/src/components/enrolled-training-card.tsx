@@ -1,7 +1,7 @@
 "use client";
 
 import { Card, CardContent } from "@repo/ui";
-import { Clock, Star, CalendarDays } from "lucide-react";
+import { Clock, Star, CalendarDays, ChevronRight } from "lucide-react";
 import type { EnrolledTrainingCardProps } from "@/types/component-props";
 import { CATEGORY_CONFIG, LEVEL_CONFIG } from "@/data/categories";
 import { STATUS_CONFIG } from "@/data/status-config";
@@ -28,9 +28,9 @@ export function EnrolledTrainingCard({
   const StatusIcon = status.icon;
 
   return (
-    <Card className="group overflow-hidden border border-border/60 bg-card transition-all duration-300 hover:shadow-lg hover:shadow-black/5">
-      {/* Category strip */}
-      <div className={`h-1 w-full ${category.stripClass}`} />
+    <Card className="group overflow-hidden border border-border/60 bg-card transition-all duration-300 hover:shadow-lg hover:shadow-black/5 hover:border-[hsl(var(--ey-grey-300))]">
+      {/* Category strip with animation */}
+      <div className={`h-1 w-full ey-animate-stripe ${category.stripClass}`} />
 
       <CardContent className="p-5">
         <div className="flex gap-5">
@@ -50,7 +50,7 @@ export function EnrolledTrainingCard({
                 {level.label}
               </span>
               <span
-                className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${status.className}`}
+                className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${status.className}`}
               >
                 <StatusIcon className="h-3 w-3" aria-hidden="true" />
                 {status.label}
@@ -58,7 +58,7 @@ export function EnrolledTrainingCard({
             </div>
 
             {/* Title */}
-            <h3 className="text-sm font-semibold leading-snug text-foreground line-clamp-1">
+            <h3 className="text-sm font-semibold leading-snug text-foreground line-clamp-1 group-hover:text-[hsl(var(--ey-blue-600))] transition-colors">
               {training.title}
             </h3>
 
@@ -71,17 +71,17 @@ export function EnrolledTrainingCard({
             />
 
             {/* Meta */}
-            <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1">
+            <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1.5 rounded-md bg-[hsl(var(--ey-grey-100))] px-2 py-1">
                 <Clock className="h-3.5 w-3.5" aria-hidden="true" />
                 {training.duration}
               </span>
-              <span className="flex items-center gap-1">
+              <span className="flex items-center gap-1.5 rounded-md bg-[hsl(var(--ey-grey-100))] px-2 py-1">
                 <Star className="h-3 w-3 ey-star" aria-hidden="true" />
                 {training.rating}
               </span>
               {training.deadline && (
-                <span className="flex items-center gap-1">
+                <span className="flex items-center gap-1.5 rounded-md bg-[hsl(var(--ey-grey-100))] px-2 py-1">
                   <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
                   Due{" "}
                   {formatLocalDate(training.deadline, {
@@ -94,7 +94,7 @@ export function EnrolledTrainingCard({
 
             {/* Instructor */}
             <div className="flex items-center gap-2">
-              <div className="flex h-6 w-6 items-center justify-center rounded-full ey-bg-dark text-xs font-semibold text-white">
+              <div className="flex h-6 w-6 items-center justify-center rounded-full ey-bg-dark text-xs font-semibold text-white ring-1 ring-[hsl(var(--ey-grey-200))]">
                 {training.instructor
                   .split(" ")
                   .map((n) => n[0])
@@ -107,7 +107,7 @@ export function EnrolledTrainingCard({
           </div>
 
           {/* Right action */}
-          <div className="flex flex-col items-end justify-between">
+          <div className="flex flex-col items-end justify-between gap-3">
             {training.completedAt && (
               <span className="text-xs text-muted-foreground">
                 {formatLocalDate(training.completedAt, {
@@ -119,9 +119,10 @@ export function EnrolledTrainingCard({
             )}
             <button
               onClick={() => onContinue(training)}
-              className={`rounded-md px-4 py-2 text-xs font-semibold transition-all ${status.buttonClass}`}
+              className={`group/btn flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-semibold transition-all shadow-sm hover:shadow-md ${status.buttonClass}`}
             >
               {status.buttonLabel}
+              <ChevronRight className="h-3.5 w-3.5 transition-transform group-hover/btn:translate-x-0.5" aria-hidden="true" />
             </button>
           </div>
         </div>

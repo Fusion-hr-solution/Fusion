@@ -1,3 +1,4 @@
+import { createPlatformApiClient } from "@repo/api";
 import type { EnrolledTraining, Training, TrainingCategory, TrainingLevel } from "@/types";
 
 // --- Backend DTOs (from .NET API) ---
@@ -54,12 +55,6 @@ interface BackendMyTrainingDto {
   dueDate: string | null;
 }
 
-interface BackendApiResponse<T> {
-  data: T;
-  errors: string[];
-  isSuccess: boolean;
-}
-
 interface BackendPagedResponse<T> {
   items: T[];
   totalCount: number;
@@ -74,7 +69,6 @@ const CATEGORY_MAP: Record<string, TrainingCategory> = {
   "Compliance & Regulatory": "compliance",
   "Soft Skills": "soft-skills",
   "Data & Analytics": "data-analytics",
-  // Fallback to the original name as-is if not found, or default
 };
 
 const LEVEL_MAP: Record<string, TrainingLevel> = {
@@ -111,7 +105,7 @@ function mapBackendToTraining(dto: BackendTrainingDto): Training {
     level: mapLevel(dto.badgeLevel),
     duration: dto.duration ?? "TBD",
     chaptersCount: dto.chapterCount,
-    chapters: [], // Will be populated by detail endpoint if needed
+    chapters: [],
     instructor: "EY Learning Team",
     instructorRole: "Training Department",
     enrolledCount: 0,
@@ -148,64 +142,32 @@ function mapBackendToEnrolledTraining(dto: BackendMyTrainingDto): EnrolledTraini
   };
 }
 
-// --- API client ---
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "/api";
-
-async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
-  let res: Response;
-  try {
-    res = await fetch(`${API_BASE}${path}`, {
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...options?.headers,
-      },
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown network error";
-    throw new Error(`Network error: ${message}`);
-  }
-
-  if (!res.ok) {
-    throw new Error(`API Error: ${res.status} ${res.statusText}`);
-  }
-
-  const json = (await res.json()) as BackendApiResponse<T>;
-  if (!json.isSuccess) {
-    throw new Error(json.errors.join(", ") || "Unknown API error");
-  }
-
-  return json.data;
-}
+// --- API client (uses shared @repo/api platform client) ---
+const client = createPlatformApiClient();
 
 // --- Exported service functions ---
 
-/**
- * Get all categories from the backend.
- */
 export async function getCategories(): Promise<BackendTrainingCategoryDto[]> {
-  return fetchApi<BackendTrainingCategoryDto[]>("/training/catalog/categories");
+  return client.get<BackendTrainingCategoryDto[]>("/training/catalog/categories", {
+    skipAuth: true,
+  });
 }
 
-/**
- * Get all trainings from the catalog, optionally filtered.
- */
 export async function getTrainings(params?: {
   categoryId?: string;
   search?: string;
   page?: number;
   pageSize?: number;
 }): Promise<{ trainings: Training[]; totalCount: number; page: number; pageSize: number }> {
-  const searchParams = new URLSearchParams();
-  if (params?.categoryId) searchParams.set("categoryId", params.categoryId);
-  if (params?.search) searchParams.set("search", params.search);
-  if (params?.page) searchParams.set("page", params.page.toString());
-  if (params?.pageSize) searchParams.set("pageSize", params.pageSize.toString());
-
-  const queryString = searchParams.toString();
-  const path = `/training/catalog${queryString ? `?${queryString}` : ""}`;
-
-  const data = await fetchApi<BackendPagedResponse<BackendTrainingDto>>(path);
+  const data = await client.get<BackendPagedResponse<BackendTrainingDto>>("/training/catalog", {
+    skipAuth: true,
+    params: {
+      categoryId: params?.categoryId,
+      search: params?.search,
+      page: params?.page,
+      pageSize: params?.pageSize,
+    },
+  });
   return {
     trainings: data.items.map(mapBackendToTraining),
     totalCount: data.totalCount,
@@ -214,65 +176,37 @@ export async function getTrainings(params?: {
   };
 }
 
-/**
- * Get a single training by ID with full details.
- */
 export async function getTrainingById(id: string): Promise<Training> {
-  const data = await fetchApi<BackendTrainingDetailDto>(`/training/catalog/${id}`);
+  const data = await client.get<BackendTrainingDetailDto>(`/training/catalog/${encodeURIComponent(id)}`, {
+    skipAuth: true,
+  });
   const training = mapBackendToTraining(data);
   training.chapters = data.chapters.map((c) => ({
     id: c.id,
     title: c.title,
-    duration: "~30 min", // Backend doesn't have chapter duration
+    duration: "~30 min",
   }));
   return training;
 }
 
-/**
- * Get all enrolled trainings for the current user.
- */
 export async function getMyTrainings(statusFilter?: string): Promise<EnrolledTraining[]> {
-  const path = statusFilter
-    ? `/training/my-trainings?status=${statusFilter}`
-    : "/training/my-trainings";
-  
-  const data = await fetchApi<BackendMyTrainingDto[]>(path);
+  const data = await client.get<BackendMyTrainingDto[]>("/training/my-trainings", {
+    params: statusFilter ? { status: statusFilter } : undefined,
+  });
   return data.map(mapBackendToEnrolledTraining);
 }
 
-/**
- * Enroll the current user in a training.
- */
 export async function enrollInTraining(trainingId: string): Promise<string> {
-  return fetchApi<string>("/training/my-trainings/enroll", {
-    method: "POST",
-    body: JSON.stringify({ trainingId }),
-  });
+  return client.post<string>("/training/my-trainings/enroll", { trainingId });
 }
 
-/**
- * Update chapter progress.
- */
 export async function updateChapterProgress(
   trainingId: string,
   chapterId: string,
   completed: boolean
 ): Promise<void> {
-  await fetchApi<null>(`/training/my-trainings/${trainingId}/chapters/progress`, {
-    method: "PUT",
-    body: JSON.stringify({ chapterId, completed }),
-  });
-}
-
-// --- Legacy mock function (for backwards compatibility during migration) ---
-/** @deprecated Use getTrainings() instead */
-export async function getCourses() {
-  // Fallback to mock data if API fails
-  try {
-    const result = await  getTrainings();
-    return result.trainings;
-  } catch {
-    console.warn("[learning-service] API failed, using mock data");
-    return [];
-  }
+  await client.put<null>(
+    `/training/my-trainings/${encodeURIComponent(trainingId)}/chapters/progress`,
+    { chapterId, completed },
+  );
 }
