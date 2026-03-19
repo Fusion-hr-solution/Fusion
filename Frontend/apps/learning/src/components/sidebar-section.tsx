@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { SidebarSectionProps } from "@/types/sidebar";
+import type { SidebarSectionProps } from "@/types/component-props";
 
 export function SidebarSection({
   section,

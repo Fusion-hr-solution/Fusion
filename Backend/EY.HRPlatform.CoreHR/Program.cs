@@ -2,6 +2,7 @@ using System.Text;
 using EY.HRPlatform.CoreHR.Extensions;
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
 using EY.HRPlatform.CoreHR.Middleware;
+using EY.HRPlatform.SharedKernel.Multitenancy;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
@@ -39,6 +40,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 builder.Services.AddAuthorization();
+builder.Services.AddMultitenancy();
 builder.Services.AddCoreHRPersistence(builder.Configuration);
 
 builder.Services.AddOpenTelemetry()
@@ -76,11 +78,15 @@ app.UseSerilogRequestLogging(options =>
             ?? httpContext.TraceIdentifier;
         diagnosticContext.Set("CorrelationId", correlationId);
         diagnosticContext.Set("UserId", httpContext.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value);
+
+        var tenantContext = httpContext.RequestServices.GetService<ITenantContext>();
+        diagnosticContext.Set("TenantId", tenantContext?.TenantIdOrDefault?.ToString());
     };
 });
 
 app.UseAuthentication();
-app.UseMiddleware<LogContextEnrichmentMiddleware>(); // after auth (claims populated), before authz (enriches 401/403 logs too)
+app.UseMiddleware<TenantResolutionMiddleware>(); // after auth (claims populated), resolves tenant from claim/header
+app.UseMiddleware<LogContextEnrichmentMiddleware>(); // enriches logs with correlation/user/tenant
 app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();

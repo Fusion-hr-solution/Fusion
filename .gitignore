@@ -101,3 +101,4 @@ coverage/
 .github/skills/
 Frontend/.github/
 PROJECT_SUMMARY.md
+*.postman_collection.json

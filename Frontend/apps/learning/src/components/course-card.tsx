@@ -8,34 +8,16 @@ import {
   CardFooter,
   Badge,
 } from "@repo/ui";
-import { type Course } from "@/types";
-
-const levelVariant: Record<
-  Course["level"],
-  "default" | "secondary" | "outline"
-> = {
-  beginner: "secondary",
-  intermediate: "default",
-  advanced: "outline",
-};
-
-const levelLabel: Record<Course["level"], string> = {
-  beginner: "Beginner",
-  intermediate: "Intermediate",
-  advanced: "Advanced",
-};
-
-interface CourseCardProps {
-  course: Course;
-}
+import type { CourseCardProps } from "@/types/component-props";
+import { LEVEL_VARIANT, LEVEL_LABEL } from "@/data/level-config";
 
 export function CourseCard({ course }: CourseCardProps) {
   return (
     <Card className="flex flex-col">
       <CardHeader>
         <div className="flex items-center justify-between mb-2">
-          <Badge variant={levelVariant[course.level]}>
-            {levelLabel[course.level]}
+          <Badge variant={LEVEL_VARIANT[course.level]}>
+            {LEVEL_LABEL[course.level]}
           </Badge>
           <span className="text-xs text-muted-foreground">
             {course.duration}

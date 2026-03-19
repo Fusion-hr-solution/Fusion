@@ -5,7 +5,9 @@ import type {
   SortOption,
   TrainingStatus,
   EnrolledTraining,
+  Course,
 } from "./index";
+import type { NavSection } from "./sidebar";
 
 export interface CategoryFilterProps {
   selected: TrainingCategory | null;
@@ -84,4 +86,14 @@ export interface TrainingStatusTabsProps {
 
 export interface MyTrainingsListProps {
   trainings: EnrolledTraining[];
+}
+
+export interface CourseCardProps {
+  course: Course;
+}
+
+export interface SidebarSectionProps {
+  section: NavSection;
+  activePath: string;
+  collapsed: boolean;
 }
