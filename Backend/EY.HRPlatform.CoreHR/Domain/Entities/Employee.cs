@@ -1,9 +1,10 @@
 using EY.HRPlatform.CoreHR.Domain.Enums;
 using EY.HRPlatform.SharedKernel.Domain;
+using EY.HRPlatform.SharedKernel.Multitenancy;
 
 namespace EY.HRPlatform.CoreHR.Domain.Entities;
 
-public class Employee : AggregateRoot
+public class Employee : AggregateRoot, ITenantEntity
 {
     private Employee() { }
 
