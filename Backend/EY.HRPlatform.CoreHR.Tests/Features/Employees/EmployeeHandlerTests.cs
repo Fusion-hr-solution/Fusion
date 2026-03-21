@@ -1,0 +1,311 @@
+using EY.HRPlatform.CoreHR.Domain.Entities;
+using EY.HRPlatform.CoreHR.Domain.Enums;
+using EY.HRPlatform.CoreHR.Exceptions;
+using EY.HRPlatform.CoreHR.Features.Employees.Commands.CreateEmployee;
+using EY.HRPlatform.CoreHR.Features.Employees.Commands.DeactivateEmployee;
+using EY.HRPlatform.CoreHR.Features.Employees.Commands.UpdateEmployee;
+using EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployeeById;
+using EY.HRPlatform.CoreHR.Tests.TestHelpers;
+using Microsoft.EntityFrameworkCore;
+
+namespace EY.HRPlatform.CoreHR.Tests.Features.Employees;
+
+public class EmployeeHandlerTests
+{
+    private static readonly Guid TenantId = Guid.NewGuid();
+
+    #region CreateEmployeeCommandHandler Tests
+
+    [Fact]
+    public async Task CreateEmployee_WithValidData_ReturnsCreatedEmployee()
+    {
+        // Arrange
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        await using var context = TestDbContextFactory.Create(tenantContext);
+
+        var handler = new CreateEmployeeCommandHandler(context, tenantContext);
+        var command = new CreateEmployeeCommand(
+            "John",
+            "Doe",
+            "john.doe@example.com",
+            DateTime.UtcNow.AddDays(-30),
+            "Engineering",
+            "Developer");
+
+        // Act
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.Equal("John", result.Value.FirstName);
+        Assert.Equal("Doe", result.Value.LastName);
+        Assert.Equal("john.doe@example.com", result.Value.Email);
+        Assert.Equal(TenantId, result.Value.TenantId);
+        Assert.Equal(EmployeeStatus.Active, result.Value.Status);
+
+        // Verify persisted
+        var saved = await context.Employees.IgnoreQueryFilters().FirstOrDefaultAsync();
+        Assert.NotNull(saved);
+        Assert.Equal(result.Value.Id, saved.Id);
+    }
+
+    [Fact]
+    public async Task CreateEmployee_WithDuplicateEmail_ThrowsDuplicateEntityException()
+    {
+        // Arrange
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+
+        var existing = Employee.Create(TenantId, "Jane", "Doe", "john.doe@example.com", DateTime.UtcNow);
+        seedContext.Employees.Add(existing);
+        await seedContext.SaveChangesAsync();
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = new CreateEmployeeCommandHandler(context, tenantContext);
+        var command = new CreateEmployeeCommand(
+            "John",
+            "Doe",
+            "john.doe@example.com", // Duplicate email
+            DateTime.UtcNow);
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<DuplicateEntityException>(
+            () => handler.Handle(command, CancellationToken.None));
+
+        Assert.Contains("email", exception.Message);
+    }
+
+    [Fact]
+    public async Task CreateEmployee_WithManager_AssignsManagerCorrectly()
+    {
+        // Arrange
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+
+        // Seed a manager
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+        var manager = Employee.Create(TenantId, "Manager", "Person", "manager@example.com", DateTime.UtcNow);
+        seedContext.Employees.Add(manager);
+        await seedContext.SaveChangesAsync();
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = new CreateEmployeeCommandHandler(context, tenantContext);
+        var command = new CreateEmployeeCommand(
+            "John",
+            "Doe",
+            "john.doe@example.com",
+            DateTime.UtcNow,
+            ManagerId: manager.Id);
+
+        // Act
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.Equal(manager.Id, result.Value.ManagerId);
+        Assert.NotNull(result.Value.Manager);
+        Assert.Equal("Manager", result.Value.Manager.FirstName);
+    }
+
+    [Fact]
+    public async Task CreateEmployee_WithNonExistentManager_ThrowsEntityNotFoundException()
+    {
+        // Arrange
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        await using var context = TestDbContextFactory.Create(tenantContext);
+
+        var handler = new CreateEmployeeCommandHandler(context, tenantContext);
+        var command = new CreateEmployeeCommand(
+            "John",
+            "Doe",
+            "john.doe@example.com",
+            DateTime.UtcNow,
+            ManagerId: Guid.NewGuid()); // Non-existent manager
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<EntityNotFoundException>(
+            () => handler.Handle(command, CancellationToken.None));
+
+        Assert.Contains("Manager", exception.Message);
+    }
+
+    #endregion
+
+    #region GetEmployeeByIdQueryHandler Tests
+
+    [Fact]
+    public async Task GetEmployeeById_WhenExists_ReturnsEmployee()
+    {
+        // Arrange
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+        var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", DateTime.UtcNow);
+        seedContext.Employees.Add(employee);
+        await seedContext.SaveChangesAsync();
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = new GetEmployeeByIdQueryHandler(context);
+        var query = new GetEmployeeByIdQuery(employee.Id);
+
+        // Act
+        var result = await handler.Handle(query, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.Equal(employee.Id, result.Value.Id);
+        Assert.Equal("John", result.Value.FirstName);
+    }
+
+    [Fact]
+    public async Task GetEmployeeById_WhenNotExists_ReturnsFailure()
+    {
+        // Arrange
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        await using var context = TestDbContextFactory.Create(tenantContext);
+
+        var handler = new GetEmployeeByIdQueryHandler(context);
+        var query = new GetEmployeeByIdQuery(Guid.NewGuid());
+
+        // Act
+        var result = await handler.Handle(query, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.IsFailure);
+        Assert.Contains("NotFound", result.Error.Code);
+    }
+
+    [Fact]
+    public async Task GetEmployeeById_FromDifferentTenant_ReturnsFailure()
+    {
+        // Arrange - employee in TenantA, query from TenantB
+        var dbName = Guid.NewGuid().ToString();
+        var tenantA = Guid.NewGuid();
+        var tenantB = Guid.NewGuid();
+
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+        var employee = Employee.Create(tenantA, "John", "Doe", "john@example.com", DateTime.UtcNow);
+        seedContext.Employees.Add(employee);
+        await seedContext.SaveChangesAsync();
+
+        var tenantContext = TestTenantContext.WithTenant(tenantB); // Different tenant
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = new GetEmployeeByIdQueryHandler(context);
+        var query = new GetEmployeeByIdQuery(employee.Id);
+
+        // Act
+        var result = await handler.Handle(query, CancellationToken.None);
+
+        // Assert - should not find due to tenant filter
+        Assert.True(result.IsFailure);
+    }
+
+    #endregion
+
+    #region UpdateEmployeeCommandHandler Tests
+
+    [Fact]
+    public async Task UpdateEmployee_WithValidData_UpdatesEmployee()
+    {
+        // Arrange
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+        var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", DateTime.UtcNow);
+        seedContext.Employees.Add(employee);
+        await seedContext.SaveChangesAsync();
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = new UpdateEmployeeCommandHandler(context);
+        var command = new UpdateEmployeeCommand(
+            employee.Id,
+            "Jane",
+            "Smith",
+            "jane.smith@example.com",
+            "HR",
+            "Manager",
+            null);
+
+        // Act
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.Equal("Jane", result.Value.FirstName);
+        Assert.Equal("Smith", result.Value.LastName);
+        Assert.Equal("jane.smith@example.com", result.Value.Email);
+        Assert.Equal("HR", result.Value.Department);
+    }
+
+    [Fact]
+    public async Task UpdateEmployee_WhenNotExists_ThrowsEntityNotFoundException()
+    {
+        // Arrange
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        await using var context = TestDbContextFactory.Create(tenantContext);
+
+        var handler = new UpdateEmployeeCommandHandler(context);
+        var command = new UpdateEmployeeCommand(
+            Guid.NewGuid(),
+            "Jane",
+            "Smith",
+            "jane@example.com",
+            null,
+            null,
+            null);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<EntityNotFoundException>(
+            () => handler.Handle(command, CancellationToken.None));
+    }
+
+    #endregion
+
+    #region DeactivateEmployeeCommandHandler Tests
+
+    [Fact]
+    public async Task DeactivateEmployee_WhenActive_DeactivatesSuccessfully()
+    {
+        // Arrange
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+        var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", DateTime.UtcNow);
+        seedContext.Employees.Add(employee);
+        await seedContext.SaveChangesAsync();
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = new DeactivateEmployeeCommandHandler(context);
+        var command = new DeactivateEmployeeCommand(employee.Id);
+
+        // Act
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+
+        var updated = await context.Employees.IgnoreQueryFilters().FirstAsync(e => e.Id == employee.Id);
+        Assert.Equal(EmployeeStatus.Inactive, updated.Status);
+    }
+
+    [Fact]
+    public async Task DeactivateEmployee_WhenNotExists_ThrowsEntityNotFoundException()
+    {
+        // Arrange
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        await using var context = TestDbContextFactory.Create(tenantContext);
+
+        var handler = new DeactivateEmployeeCommandHandler(context);
+        var command = new DeactivateEmployeeCommand(Guid.NewGuid());
+
+        // Act & Assert
+        await Assert.ThrowsAsync<EntityNotFoundException>(
+            () => handler.Handle(command, CancellationToken.None));
+    }
+
+    #endregion
+}
