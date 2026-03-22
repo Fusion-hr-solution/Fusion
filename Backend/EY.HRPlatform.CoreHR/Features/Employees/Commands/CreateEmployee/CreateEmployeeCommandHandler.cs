@@ -56,7 +56,15 @@ public sealed class CreateEmployeeCommandHandler(
         }
 
         dbContext.Employees.Add(employee);
-        await dbContext.SaveChangesAsync(cancellationToken);
+
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex))
+        {
+            throw new DuplicateEntityException("Employee", "email", normalizedEmail);
+        }
 
         // Load manager for response if assigned
         Employee? manager = null;
@@ -83,4 +91,12 @@ public sealed class CreateEmployeeCommandHandler(
         manager is not null ? new ManagerDto(manager.Id, manager.FirstName, manager.LastName, manager.Email) : null,
         employee.CreatedAt,
         employee.UpdatedAt);
+
+    private static bool IsUniqueConstraintViolation(DbUpdateException ex)
+    {
+        // PostgreSQL unique violation error code: 23505
+        return ex.InnerException?.Message.Contains("23505") == true
+            || ex.InnerException?.Message.Contains("unique constraint") == true
+            || ex.InnerException?.Message.Contains("duplicate key") == true;
+    }
 }
