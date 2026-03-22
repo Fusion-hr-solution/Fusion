@@ -90,7 +90,8 @@ public sealed class CreateEmployeeCommandHandler(
         employee.ManagerId,
         manager is not null ? new ManagerDto(manager.Id, manager.FirstName, manager.LastName, manager.Email) : null,
         employee.CreatedAt,
-        employee.UpdatedAt);
+        employee.UpdatedAt,
+        employee.Version);
 
     private static bool IsUniqueConstraintViolation(DbUpdateException ex)
     {

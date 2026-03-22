@@ -21,6 +21,12 @@ public sealed class UpdateEmployeeCommandHandler(
             throw new EntityNotFoundException("Employee", request.EmployeeId);
         }
 
+        // Verify expected version for optimistic concurrency
+        if (employee.Version != request.ExpectedVersion)
+        {
+            throw new ConcurrencyException("Employee", request.EmployeeId);
+        }
+
         var normalizedEmail = request.Email.Trim().ToLowerInvariant();
 
         // Check for duplicate email within tenant (excluding current employee)
@@ -62,6 +68,10 @@ public sealed class UpdateEmployeeCommandHandler(
         {
             await dbContext.SaveChangesAsync(cancellationToken);
         }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw new ConcurrencyException("Employee", request.EmployeeId);
+        }
         catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex))
         {
             throw new DuplicateEntityException("Employee", "email", normalizedEmail);
@@ -91,7 +101,8 @@ public sealed class UpdateEmployeeCommandHandler(
         employee.ManagerId,
         manager is not null ? new ManagerDto(manager.Id, manager.FirstName, manager.LastName, manager.Email) : null,
         employee.CreatedAt,
-        employee.UpdatedAt);
+        employee.UpdatedAt,
+        employee.Version);
 
     private static bool IsUniqueConstraintViolation(DbUpdateException ex)
     {

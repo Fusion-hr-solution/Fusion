@@ -39,5 +39,6 @@ public sealed class GetEmployeeByIdQueryHandler(
             ? new ManagerDto(employee.Manager.Id, employee.Manager.FirstName, employee.Manager.LastName, employee.Manager.Email)
             : null,
         employee.CreatedAt,
-        employee.UpdatedAt);
+        employee.UpdatedAt,
+        employee.Version);
 }

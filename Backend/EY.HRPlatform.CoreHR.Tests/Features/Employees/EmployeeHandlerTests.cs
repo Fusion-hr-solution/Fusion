@@ -217,11 +217,13 @@ public class EmployeeHandlerTests
         var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", DateTime.UtcNow);
         seedContext.Employees.Add(employee);
         await seedContext.SaveChangesAsync();
+        var version = employee.Version;
 
         await using var context = TestDbContextFactory.Create(tenantContext, dbName);
         var handler = new UpdateEmployeeCommandHandler(context);
         var command = new UpdateEmployeeCommand(
             employee.Id,
+            version,
             "Jane",
             "Smith",
             "jane.smith@example.com",
@@ -250,6 +252,7 @@ public class EmployeeHandlerTests
         var handler = new UpdateEmployeeCommandHandler(context);
         var command = new UpdateEmployeeCommand(
             Guid.NewGuid(),
+            0,
             "Jane",
             "Smith",
             "jane@example.com",
@@ -259,6 +262,37 @@ public class EmployeeHandlerTests
 
         // Act & Assert
         await Assert.ThrowsAsync<EntityNotFoundException>(
+            () => handler.Handle(command, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task UpdateEmployee_WithStaleVersion_ThrowsConcurrencyException()
+    {
+        // Arrange
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+        var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", DateTime.UtcNow);
+        seedContext.Employees.Add(employee);
+        await seedContext.SaveChangesAsync();
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = new UpdateEmployeeCommandHandler(context);
+
+        // Use a stale (incorrect) version - real version is 0, we pass 999
+        var command = new UpdateEmployeeCommand(
+            employee.Id,
+            999, // Stale version
+            "Jane",
+            "Smith",
+            "jane@example.com",
+            null,
+            null,
+            null);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<ConcurrencyException>(
             () => handler.Handle(command, CancellationToken.None));
     }
 
@@ -277,10 +311,11 @@ public class EmployeeHandlerTests
         var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", DateTime.UtcNow);
         seedContext.Employees.Add(employee);
         await seedContext.SaveChangesAsync();
+        var version = employee.Version;
 
         await using var context = TestDbContextFactory.Create(tenantContext, dbName);
         var handler = new DeactivateEmployeeCommandHandler(context);
-        var command = new DeactivateEmployeeCommand(employee.Id);
+        var command = new DeactivateEmployeeCommand(employee.Id, version);
 
         // Act
         var result = await handler.Handle(command, CancellationToken.None);
@@ -300,10 +335,33 @@ public class EmployeeHandlerTests
         await using var context = TestDbContextFactory.Create(tenantContext);
 
         var handler = new DeactivateEmployeeCommandHandler(context);
-        var command = new DeactivateEmployeeCommand(Guid.NewGuid());
+        var command = new DeactivateEmployeeCommand(Guid.NewGuid(), 0);
 
         // Act & Assert
         await Assert.ThrowsAsync<EntityNotFoundException>(
+            () => handler.Handle(command, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task DeactivateEmployee_WithStaleVersion_ThrowsConcurrencyException()
+    {
+        // Arrange
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+        var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", DateTime.UtcNow);
+        seedContext.Employees.Add(employee);
+        await seedContext.SaveChangesAsync();
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = new DeactivateEmployeeCommandHandler(context);
+
+        // Use a stale version
+        var command = new DeactivateEmployeeCommand(employee.Id, 999);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<ConcurrencyException>(
             () => handler.Handle(command, CancellationToken.None));
     }
 

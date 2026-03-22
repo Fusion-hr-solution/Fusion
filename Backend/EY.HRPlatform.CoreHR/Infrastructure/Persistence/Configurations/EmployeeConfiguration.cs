@@ -12,6 +12,10 @@ public class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
         builder.ToTable("Employees");
         builder.HasKey(e => e.Id);
 
+        // Map Version property to PostgreSQL xmin system column for optimistic concurrency.
+        // xmin is automatically updated by PostgreSQL on every row modification.
+        builder.Property(e => e.Version).IsRowVersion();
+
         builder.Property(e => e.TenantId).IsRequired();
 
         builder.Property(e => e.FirstName).HasMaxLength(100).IsRequired();

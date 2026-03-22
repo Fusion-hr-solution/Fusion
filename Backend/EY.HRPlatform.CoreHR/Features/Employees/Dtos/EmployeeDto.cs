@@ -18,7 +18,8 @@ public sealed record EmployeeDto(
     Guid? ManagerId,
     ManagerDto? Manager,
     DateTime CreatedAt,
-    DateTime? UpdatedAt)
+    DateTime? UpdatedAt,
+    uint Version)
 {
     public string FullName => $"{FirstName} {LastName}";
 }

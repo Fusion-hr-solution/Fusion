@@ -28,6 +28,12 @@ public class GlobalExceptionHandlerMiddleware(RequestDelegate next, ILogger<Glob
                 ex.EntityType, context.Request.Method, context.Request.Path);
             await WriteErrorResponseAsync(context, HttpStatusCode.Conflict, ex.Message);
         }
+        catch (ConcurrencyException ex)
+        {
+            logger.LogWarning(ex, "Concurrency conflict: {EntityType} {EntityId} for {Method} {Path}",
+                ex.EntityType, ex.EntityId, context.Request.Method, context.Request.Path);
+            await WriteErrorResponseAsync(context, HttpStatusCode.Conflict, ex.Message);
+        }
         catch (TenantAccessDeniedException ex)
         {
             logger.LogWarning(ex, "Tenant access denied for {Method} {Path}", context.Request.Method, context.Request.Path);

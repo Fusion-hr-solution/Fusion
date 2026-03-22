@@ -38,6 +38,8 @@ public class EmployeesController(ISender sender) : ControllerBase
 
         var result = await sender.Send(command, cancellationToken);
 
+        Response.Headers.ETag = $"\"{result.Value.Version}\"";
+
         return CreatedAtAction(
             nameof(GetById),
             new { id = result.Value.Id },
@@ -59,24 +61,37 @@ public class EmployeesController(ISender sender) : ControllerBase
             return NotFound(ApiResponse.Failure(result.Error.Message));
         }
 
+        Response.Headers.ETag = $"\"{result.Value.Version}\"";
+
         return Ok(ApiResponse<EmployeeDto>.Success(result.Value));
     }
 
     /// <summary>
     /// Update an existing employee's details.
+    /// Requires If-Match header with current version for optimistic concurrency.
     /// </summary>
     [HttpPut("{id:guid}")]
     [ProducesResponseType(typeof(ApiResponse<EmployeeDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status409Conflict)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status412PreconditionFailed)]
     public async Task<IActionResult> Update(
         Guid id,
         [FromBody] UpdateEmployeeRequest request,
+        [FromHeader(Name = "If-Match")] string? ifMatch,
         CancellationToken cancellationToken)
     {
+        if (!TryParseVersion(ifMatch, out var expectedVersion))
+        {
+            return StatusCode(
+                StatusCodes.Status412PreconditionFailed,
+                ApiResponse.Failure("If-Match header with valid version is required for updates."));
+        }
+
         var command = new UpdateEmployeeCommand(
             id,
+            expectedVersion,
             request.FirstName,
             request.LastName,
             request.Email,
@@ -86,19 +101,47 @@ public class EmployeesController(ISender sender) : ControllerBase
 
         var result = await sender.Send(command, cancellationToken);
 
+        Response.Headers.ETag = $"\"{result.Value.Version}\"";
+
         return Ok(ApiResponse<EmployeeDto>.Success(result.Value));
     }
 
     /// <summary>
     /// Deactivate an employee (soft delete).
+    /// Requires If-Match header with current version for optimistic concurrency.
     /// </summary>
     [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> Deactivate(Guid id, CancellationToken cancellationToken)
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status409Conflict)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status412PreconditionFailed)]
+    public async Task<IActionResult> Deactivate(
+        Guid id,
+        [FromHeader(Name = "If-Match")] string? ifMatch,
+        CancellationToken cancellationToken)
     {
-        await sender.Send(new DeactivateEmployeeCommand(id), cancellationToken);
+        if (!TryParseVersion(ifMatch, out var expectedVersion))
+        {
+            return StatusCode(
+                StatusCodes.Status412PreconditionFailed,
+                ApiResponse.Failure("If-Match header with valid version is required for deactivation."));
+        }
+
+        await sender.Send(new DeactivateEmployeeCommand(id, expectedVersion), cancellationToken);
 
         return NoContent();
+    }
+
+    private static bool TryParseVersion(string? ifMatch, out uint version)
+    {
+        version = 0;
+
+        if (string.IsNullOrWhiteSpace(ifMatch))
+            return false;
+
+        // Remove surrounding quotes if present: "123" -> 123
+        var trimmed = ifMatch.Trim().Trim('"');
+
+        return uint.TryParse(trimmed, out version);
     }
 }

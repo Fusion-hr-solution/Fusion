@@ -9,6 +9,11 @@ public class Employee : AggregateRoot, ITenantEntity
     private Employee() { }
 
     public Guid TenantId { get; private set; }
+
+    /// <summary>
+    /// Row version for optimistic concurrency control (mapped to PostgreSQL xmin).
+    /// </summary>
+    public uint Version { get; private set; }
     public string FirstName { get; private set; } = string.Empty;
     public string LastName { get; private set; } = string.Empty;
     public string Email { get; private set; } = string.Empty;

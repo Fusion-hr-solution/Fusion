@@ -19,8 +19,22 @@ public sealed class DeactivateEmployeeCommandHandler(
             throw new EntityNotFoundException("Employee", request.EmployeeId);
         }
 
+        // Verify expected version for optimistic concurrency
+        if (employee.Version != request.ExpectedVersion)
+        {
+            throw new ConcurrencyException("Employee", request.EmployeeId);
+        }
+
         employee.Deactivate();
-        await dbContext.SaveChangesAsync(cancellationToken);
+
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw new ConcurrencyException("Employee", request.EmployeeId);
+        }
 
         return Result.Success();
     }
