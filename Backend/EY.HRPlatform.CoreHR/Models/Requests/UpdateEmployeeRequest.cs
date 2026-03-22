@@ -4,11 +4,14 @@ namespace EY.HRPlatform.CoreHR.Models.Requests;
 
 /// <summary>
 /// Request body for updating an existing employee.
+/// Supports partial updates - only provided fields are updated.
+/// Null fields are ignored (existing values preserved).
+/// To clear ManagerId, send Guid.Empty.
 /// </summary>
 public sealed record UpdateEmployeeRequest(
-    [Required] string FirstName,
-    [Required] string LastName,
-    [Required, EmailAddress] string Email,
-    string? Department,
-    string? JobTitle,
+    [StringLength(100, MinimumLength = 1)] string? FirstName,
+    [StringLength(100, MinimumLength = 1)] string? LastName,
+    [EmailAddress] string? Email,
+    [StringLength(100)] string? Department,
+    [StringLength(100)] string? JobTitle,
     Guid? ManagerId);

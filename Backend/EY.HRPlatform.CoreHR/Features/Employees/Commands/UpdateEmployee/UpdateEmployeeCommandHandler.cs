@@ -27,9 +27,16 @@ public sealed class UpdateEmployeeCommandHandler(
             throw new ConcurrencyException("Employee", request.EmployeeId);
         }
 
-        var normalizedEmail = request.Email.Trim().ToLowerInvariant();
+        // Merge request values with existing (partial update support)
+        var firstName = request.FirstName ?? employee.FirstName;
+        var lastName = request.LastName ?? employee.LastName;
+        var email = request.Email ?? employee.Email;
+        var department = request.Department ?? employee.Department;
+        var jobTitle = request.JobTitle ?? employee.JobTitle;
 
-        // Check for duplicate email within tenant (excluding current employee)
+        var normalizedEmail = email.Trim().ToLowerInvariant();
+
+        // Check for duplicate email within tenant (only if email is changing)
         if (normalizedEmail != employee.Email)
         {
             var emailExists = await dbContext.Employees
@@ -41,7 +48,7 @@ public sealed class UpdateEmployeeCommandHandler(
             }
         }
 
-        // Validate manager exists and belongs to same tenant (if specified)
+        // Validate manager exists (only if manager is being changed)
         if (request.ManagerId.HasValue && request.ManagerId.Value != Guid.Empty)
         {
             var managerExists = await dbContext.Employees
@@ -54,15 +61,13 @@ public sealed class UpdateEmployeeCommandHandler(
         }
 
         // Update employee details
-        employee.UpdateDetails(
-            request.FirstName,
-            request.LastName,
-            request.Email,
-            request.Department,
-            request.JobTitle);
+        employee.UpdateDetails(firstName, lastName, email, department, jobTitle);
 
-        // Update manager assignment
-        employee.AssignManager(request.ManagerId);
+        // Update manager only if explicitly provided in request
+        if (request.ManagerId.HasValue)
+        {
+            employee.AssignManager(request.ManagerId.Value);
+        }
 
         try
         {

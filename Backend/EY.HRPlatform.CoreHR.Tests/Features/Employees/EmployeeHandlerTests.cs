@@ -296,6 +296,45 @@ public class EmployeeHandlerTests
             () => handler.Handle(command, CancellationToken.None));
     }
 
+    [Fact]
+    public async Task UpdateEmployee_PartialUpdate_OnlyChangesProvidedFields()
+    {
+        // Arrange
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+        var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", DateTime.UtcNow, "Engineering", "Developer");
+        seedContext.Employees.Add(employee);
+        await seedContext.SaveChangesAsync();
+        var version = employee.Version;
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = new UpdateEmployeeCommandHandler(context);
+
+        // Only update firstName, leave everything else null (unchanged)
+        var command = new UpdateEmployeeCommand(
+            employee.Id,
+            version,
+            "Jane",  // New first name
+            null,    // Keep existing last name
+            null,    // Keep existing email
+            null,    // Keep existing department
+            null,    // Keep existing job title
+            null);   // Keep existing manager
+
+        // Act
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.Equal("Jane", result.Value.FirstName);        // Changed
+        Assert.Equal("Doe", result.Value.LastName);          // Preserved
+        Assert.Equal("john@example.com", result.Value.Email); // Preserved
+        Assert.Equal("Engineering", result.Value.Department); // Preserved
+        Assert.Equal("Developer", result.Value.JobTitle);     // Preserved
+    }
+
     #endregion
 
     #region DeactivateEmployeeCommandHandler Tests
