@@ -7,7 +7,7 @@ import type {
   EnrolledTraining,
   Course,
 } from "./index";
-import type { NavSection } from "./sidebar";
+import type { NavSection } from "@repo/ui";
 
 export interface CategoryFilterProps {
   selected: TrainingCategory | null;
