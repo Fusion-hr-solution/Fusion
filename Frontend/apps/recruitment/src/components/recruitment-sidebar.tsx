@@ -31,6 +31,7 @@ export function RecruitmentSidebar() {
       brandIcon={Users}
       brandTitle="EY Recruitment"
       brandSubtitle="Talent Acquisition"
+      basePath="/recruitment"
       userPanel={(collapsed) => <SidebarUserPanel collapsed={collapsed} />}
     />
   );

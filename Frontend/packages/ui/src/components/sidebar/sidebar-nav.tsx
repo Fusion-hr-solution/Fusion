@@ -7,12 +7,14 @@ interface SidebarNavProps {
   section: NavSection;
   activePath: string;
   collapsed?: boolean;
+  basePath?: string;
 }
 
 export function SidebarNav({
   section,
   activePath,
   collapsed = false,
+  basePath = "",
 }: SidebarNavProps) {
   return (
     <div>
@@ -28,7 +30,7 @@ export function SidebarNav({
           return (
             <li key={item.href}>
               <a
-                href={item.href}
+                href={`${basePath}${item.href}`}
                 className={cn(
                   "relative flex items-center gap-3 rounded-lg px-2.5 py-2 text-sm font-medium transition-all duration-200",
                   collapsed && "justify-center px-2",

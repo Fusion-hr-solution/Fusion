@@ -26,6 +26,7 @@ export function CoreSidebar() {
       brandIcon={BrainCircuit}
       brandTitle="EY Core"
       brandSubtitle="Platform Admin"
+      basePath="/core"
       userPanel={(collapsed) => <SidebarUserPanel collapsed={collapsed} />}
     />
   );

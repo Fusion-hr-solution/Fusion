@@ -40,6 +40,7 @@ export function LearningSidebar() {
       brandIcon={GraduationCap}
       brandTitle="EY Academy"
       brandSubtitle="Learning Platform"
+      basePath="/learning"
       footer={<QuickStatsFooter />}
       userPanel={(collapsed) => <SidebarUserPanel collapsed={collapsed} />}
     />

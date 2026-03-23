@@ -7,6 +7,8 @@ import {
   Users,
   BarChart2,
   Settings,
+  Bell,
+  Search,
 } from "lucide-react";
 import { AppSidebar, type NavSection } from "@repo/ui";
 import { SidebarUserPanel } from "@repo/auth";
@@ -18,6 +20,8 @@ const INTERVIEW_NAV: NavSection = {
     { label: "Candidates", href: "/candidates", icon: Users },
     { label: "Reports", href: "/reports", icon: BarChart2 },
     { label: "Settings", href: "/settings", icon: Settings },
+    { label: "Notifications", href: "/notifications", icon: Bell, badge: "3" },
+    { label: "Search", href: "/search", icon: Search, badge: "⌘K" },
   ],
 };
 
@@ -33,6 +37,7 @@ export function InterviewSidebar() {
       brandIcon={Video}
       brandTitle="EY Interviews"
       brandSubtitle="Test Management"
+      basePath="/interview"
       userPanel={(collapsed) => <SidebarUserPanel collapsed={collapsed} />}
     />
   );

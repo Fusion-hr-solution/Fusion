@@ -14,6 +14,7 @@ export function AppSidebar({
   brandIcon: BrandIcon,
   brandTitle,
   brandSubtitle,
+  basePath,
   footer,
   userPanel,
   modules,
@@ -89,6 +90,7 @@ export function AppSidebar({
               section={section}
               activePath={activePath}
               collapsed={collapsed}
+              basePath={basePath}
             />
           </div>
         ))}

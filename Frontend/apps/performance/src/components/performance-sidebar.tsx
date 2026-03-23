@@ -31,6 +31,7 @@ export function PerformanceSidebar() {
       brandIcon={BarChart2}
       brandTitle="EY Performance"
       brandSubtitle="Reviews & Goals"
+      basePath="/performance"
       userPanel={(collapsed) => <SidebarUserPanel collapsed={collapsed} />}
     />
   );

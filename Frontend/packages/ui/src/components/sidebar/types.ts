@@ -31,6 +31,8 @@ export interface AppSidebarProps {
   brandTitle: string;
   /** Brand subtitle shown below the title */
   brandSubtitle?: string;
+  /** Next.js basePath for the module (e.g. "/learning"), prepended to nav hrefs */
+  basePath?: string;
   /** Optional custom footer rendered at the bottom of the sidebar */
   footer?: React.ReactNode;
   /** User panel at the very bottom, receives collapsed state */

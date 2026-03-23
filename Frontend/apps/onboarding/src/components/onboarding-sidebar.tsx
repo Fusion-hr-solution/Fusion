@@ -31,6 +31,7 @@ export function OnboardingSidebar() {
       brandIcon={Handshake}
       brandTitle="EY Onboarding"
       brandSubtitle="New Hire Journey"
+      basePath="/onboarding"
       userPanel={(collapsed) => <SidebarUserPanel collapsed={collapsed} />}
     />
   );
