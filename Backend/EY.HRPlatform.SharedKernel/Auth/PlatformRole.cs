@@ -1,4 +1,4 @@
-﻿namespace EY.HRPlatform.Identity.Domain.Enums;
+namespace EY.HRPlatform.SharedKernel.Auth;
 
 public static class PlatformRole
 {
