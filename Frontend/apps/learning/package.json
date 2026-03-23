@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start --port 3003",
     "lint": "next lint",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@repo/api": "workspace:*",

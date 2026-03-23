@@ -16,14 +16,19 @@ import {
   User,
   Play,
   CheckCircle2,
+  AlertTriangle,
+  Award,
+  Coins,
 } from "lucide-react";
 import type { TrainingDetailPageProps } from "@/types/component-props";
 import { CATEGORY_CONFIG, LEVEL_CONFIG } from "@/data/categories";
+import { BADGE_LEVEL_CONFIG } from "@/data/badge-config";
 import { ExamCard } from "./exam-card";
 
 export function TrainingDetailPage({ training }: TrainingDetailPageProps) {
   const category = CATEGORY_CONFIG[training.category];
   const level = LEVEL_CONFIG[training.level];
+  const badge = BADGE_LEVEL_CONFIG[training.badgeLevel];
 
   const stats = [
     {
@@ -41,11 +46,18 @@ export function TrainingDetailPage({ training }: TrainingDetailPageProps) {
       bgClass: "bg-[hsl(var(--ey-teal-500))]/10",
     },
     {
+      icon: Coins,
+      value: String(training.credits),
+      label: "Credits",
+      iconClass: "text-[hsl(var(--ey-orange-500))]",
+      bgClass: "bg-[hsl(var(--ey-orange-500))]/10",
+    },
+    {
       icon: Users,
       value: training.enrolledCount.toLocaleString(),
       label: "Enrolled",
-      iconClass: "text-[hsl(var(--ey-orange-500))]",
-      bgClass: "bg-[hsl(var(--ey-orange-500))]/10",
+      iconClass: "text-[hsl(var(--ey-green-500))]",
+      bgClass: "bg-[hsl(var(--ey-green-500))]/10",
     },
     {
       icon: Star,
@@ -83,9 +95,9 @@ export function TrainingDetailPage({ training }: TrainingDetailPageProps) {
             </Link>
           </nav>
 
-          {/* Category + Level */}
+          {/* Category + Level + Mandatory + Badge */}
           <div
-            className="ey-animate-fade-in flex items-center gap-3 mb-4"
+            className="ey-animate-fade-in flex items-center gap-3 mb-4 flex-wrap"
             style={{ animationDelay: "50ms" }}
           >
             <span
@@ -99,6 +111,16 @@ export function TrainingDetailPage({ training }: TrainingDetailPageProps) {
               />
               {level.label}
             </span>
+            <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${badge.className}`}>
+              <Award className="h-3 w-3" aria-hidden="true" />
+              {badge.label}
+            </span>
+            {training.isMandatory && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-[hsl(var(--ey-red-500))]/10 border border-[hsl(var(--ey-red-500))]/20 px-2.5 py-0.5 text-xs font-semibold text-[hsl(var(--ey-red-500))]">
+                <AlertTriangle className="h-3 w-3" aria-hidden="true" />
+                Mandatory
+              </span>
+            )}
           </div>
 
           {/* Title */}
@@ -132,7 +154,7 @@ export function TrainingDetailPage({ training }: TrainingDetailPageProps) {
           <div className="space-y-8">
             {/* Stats grid */}
             <div
-              className="ey-animate-fade-up grid grid-cols-2 gap-3 sm:grid-cols-4"
+              className="ey-animate-fade-up grid grid-cols-2 gap-3 sm:grid-cols-5"
               style={{ animationDelay: "200ms" }}
             >
               {stats.map((stat) => {

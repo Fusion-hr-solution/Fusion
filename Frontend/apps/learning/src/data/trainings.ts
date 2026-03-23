@@ -31,6 +31,9 @@ export const MOCK_TRAININGS: Training[] = [
     imageUrl: "/images/training-leadership.jpg",
     tags: ["strategy", "digital", "transformation"],
     updatedAt: "2026-02-15",
+    isMandatory: false,
+    badgeLevel: "gold",
+    credits: 30,
     exam: {
       questionsCount: 25,
       passingScore: 75,
@@ -62,6 +65,9 @@ export const MOCK_TRAININGS: Training[] = [
     imageUrl: "/images/training-data.jpg",
     tags: ["python", "analytics", "data"],
     updatedAt: "2026-03-01",
+    isMandatory: false,
+    badgeLevel: "bronze",
+    credits: 15,
     exam: {
       questionsCount: 30,
       passingScore: 70,
@@ -92,6 +98,9 @@ export const MOCK_TRAININGS: Training[] = [
     imageUrl: "/images/training-compliance.jpg",
     tags: ["compliance", "regulation", "aml"],
     updatedAt: "2026-01-20",
+    isMandatory: true,
+    badgeLevel: "silver",
+    credits: 20,
     exam: {
       questionsCount: 20,
       passingScore: 80,
@@ -121,6 +130,9 @@ export const MOCK_TRAININGS: Training[] = [
     imageUrl: "/images/training-communication.jpg",
     tags: ["communication", "presentation", "soft-skills"],
     updatedAt: "2026-02-28",
+    isMandatory: false,
+    badgeLevel: "bronze",
+    credits: 10,
   },
   {
     id: "5",
@@ -150,6 +162,9 @@ export const MOCK_TRAININGS: Training[] = [
     imageUrl: "/images/training-cloud.jpg",
     tags: ["azure", "cloud", "architecture"],
     updatedAt: "2026-03-05",
+    isMandatory: true,
+    badgeLevel: "gold",
+    credits: 40,
     exam: {
       questionsCount: 40,
       passingScore: 75,
@@ -186,6 +201,9 @@ export const MOCK_TRAININGS: Training[] = [
     imageUrl: "/images/training-finance.jpg",
     tags: ["finance", "modeling", "valuation"],
     updatedAt: "2026-02-10",
+    isMandatory: false,
+    badgeLevel: "silver",
+    credits: 25,
     exam: {
       questionsCount: 20,
       passingScore: 70,
@@ -220,6 +238,9 @@ export const MOCK_TRAININGS: Training[] = [
     imageUrl: "/images/training-security.jpg",
     tags: ["cybersecurity", "security", "risk"],
     updatedAt: "2026-01-30",
+    isMandatory: true,
+    badgeLevel: "bronze",
+    credits: 15,
     exam: {
       questionsCount: 15,
       passingScore: 80,
@@ -255,6 +276,9 @@ export const MOCK_TRAININGS: Training[] = [
     imageUrl: "/images/training-esg.jpg",
     tags: ["esg", "sustainability", "reporting"],
     updatedAt: "2026-03-08",
+    isMandatory: true,
+    badgeLevel: "silver",
+    credits: 20,
     exam: {
       questionsCount: 18,
       passingScore: 75,
@@ -285,5 +309,8 @@ export const MOCK_TRAININGS: Training[] = [
     imageUrl: "/images/training-coaching.jpg",
     tags: ["coaching", "mentoring", "management"],
     updatedAt: "2026-02-22",
+    isMandatory: false,
+    badgeLevel: "silver",
+    credits: 20,
   },
 ];

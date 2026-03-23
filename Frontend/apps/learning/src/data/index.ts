@@ -1,3 +1,4 @@
+export { BADGE_LEVEL_CONFIG } from "./badge-config";
 export { CATEGORY_CONFIG, LEVEL_CONFIG } from "./categories";
 export { MOCK_ENROLLED_TRAININGS } from "./enrolled-trainings";
 export { LEVEL_VARIANT, LEVEL_LABEL } from "./level-config";

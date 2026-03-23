@@ -1,5 +1,5 @@
 import { createPlatformApiClient } from "@repo/api";
-import type { EnrolledTraining, Training, TrainingCategory, TrainingLevel } from "@/types";
+import type { EnrolledTraining, Training, TrainingCategory, TrainingLevel, BadgeLevel } from "@/types";
 
 // --- Backend DTOs (from .NET API) ---
 interface BackendTrainingCategoryDto {
@@ -77,6 +77,16 @@ const LEVEL_MAP: Record<string, TrainingLevel> = {
   Gold: "advanced",
 };
 
+const BADGE_LEVEL_MAP: Record<string, BadgeLevel> = {
+  Bronze: "bronze",
+  Silver: "silver",
+  Gold: "gold",
+};
+
+function mapBadgeLevel(badgeLevel: string): BadgeLevel {
+  return BADGE_LEVEL_MAP[badgeLevel] ?? "bronze";
+}
+
 function mapCategory(categoryName: string): TrainingCategory {
   return CATEGORY_MAP[categoryName] ?? "technical";
 }
@@ -113,6 +123,9 @@ function mapBackendToTraining(dto: BackendTrainingDto): Training {
     imageUrl: `/images/training-${mapCategory(dto.categoryName)}.jpg`,
     tags: [dto.categoryName.toLowerCase()],
     updatedAt: dto.createdAt.split("T")[0] ?? dto.createdAt,
+    isMandatory: dto.isMandatory,
+    badgeLevel: mapBadgeLevel(dto.badgeLevel),
+    credits: dto.credits,
   };
 }
 
@@ -133,6 +146,9 @@ function mapBackendToEnrolledTraining(dto: BackendMyTrainingDto): EnrolledTraini
     imageUrl: `/images/training-${mapCategory(dto.categoryName)}.jpg`,
     tags: [dto.categoryName.toLowerCase()],
     updatedAt: dto.startedAt?.split("T")[0] ?? new Date().toISOString().split("T")[0]!,
+    isMandatory: dto.isMandatory,
+    badgeLevel: mapBadgeLevel(dto.badgeLevel),
+    credits: dto.credits,
     status: mapTrainingStatus(dto.status),
     progress: dto.progressPercentage,
     enrolledAt: dto.startedAt ?? new Date().toISOString(),

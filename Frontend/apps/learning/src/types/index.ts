@@ -23,6 +23,8 @@ export interface ExamInfo {
   maxAttempts: number;
 }
 
+export type BadgeLevel = "bronze" | "silver" | "gold";
+
 export interface Training {
   id: string;
   title: string;
@@ -40,6 +42,9 @@ export interface Training {
   tags: string[];
   updatedAt: string;
   exam?: ExamInfo;
+  isMandatory: boolean;
+  badgeLevel: BadgeLevel;
+  credits: number;
 }
 
 /** @deprecated Use Training instead */
