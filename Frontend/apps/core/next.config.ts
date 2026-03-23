@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   basePath: "/core",
   transpilePackages: ["@repo/ui", "@repo/auth"],
   allowedDevOrigins: ["http://localhost:3000"],
