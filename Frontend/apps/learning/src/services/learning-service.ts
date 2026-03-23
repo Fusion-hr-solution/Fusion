@@ -186,6 +186,16 @@ export async function getTrainingById(id: string): Promise<Training> {
     title: c.title,
     duration: "~30 min",
   }));
+  training.chaptersCount = data.chapters.length;
+  if (data.exams.length > 0) {
+    const exam = data.exams[0]!;
+    training.exam = {
+      questionsCount: exam.questionCount,
+      passingScore: exam.passingScore,
+      duration: "N/A",
+      maxAttempts: 3,
+    };
+  }
   return training;
 }
 
