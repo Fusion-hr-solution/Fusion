@@ -1,9 +1,11 @@
 # Docker Development Environment
 
+Simple Docker setup for local development.
+
 ## Quick Start
 
 ```bash
-# Copy environment template
+# Copy environment file
 cp .env.example .env
 
 # Start all services
@@ -13,39 +15,51 @@ docker-compose up -d
 docker-compose logs -f
 ```
 
+Access the app at **http://localhost:3000**
+
 ## Services
 
 | Service | URL | Description |
 |---------|-----|-------------|
-| Frontend Shell | http://localhost:3000 | Main app entry |
+| Frontend Shell | http://localhost:3000 | Main app |
 | Frontend Core | http://localhost:3002 | Core MFE |
 | Gateway | http://localhost:5000 | API Gateway |
-| Identity | http://localhost:5101 | Auth service |
-| Training | http://localhost:5201 | Training service |
-| CoreHR | http://localhost:5301 | CoreHR service |
+| Identity | http://localhost:5101 | Auth API |
+| Training | http://localhost:5201 | Training API |
+| CoreHR | http://localhost:5301 | CoreHR API |
 | PostgreSQL | localhost:5432 | Database |
 
-## Common Commands
+## Commands
 
 ```bash
-# Start
+# Start all services
 docker-compose up -d
 
-# Stop
+# Stop all services  
 docker-compose down
 
-# Rebuild single service
+# Rebuild specific service
 docker-compose build identity
 docker-compose up -d identity
 
 # View logs
 docker-compose logs -f gateway
 
-# Reset database
+# Reset everything
 docker-compose down -v
 docker-compose up -d
+```
 
-# Shell into container
+## Database Access
+
+```bash
+# Connect to PostgreSQL
+docker-compose exec postgres psql -U fusion
+
+# List databases
+docker-compose exec postgres psql -U fusion -l
+
+# Connect to specific database
 docker-compose exec postgres psql -U fusion -d fusion_identity
 ```
 
@@ -53,8 +67,12 @@ docker-compose exec postgres psql -U fusion -d fusion_identity
 
 **Services not starting?**
 - Check logs: `docker-compose logs <service>`
-- Ensure ports aren't in use
+- Ensure ports aren't in use locally
 
 **Database connection issues?**
-- Wait for postgres healthcheck
-- Check connection string in logs
+- PostgreSQL takes ~10s to initialize
+- Check connection strings in service logs
+
+**Frontend build failures?**
+- Clean rebuild: `docker-compose build --no-cache frontend-shell`
+- Check pnpm workspace dependencies
