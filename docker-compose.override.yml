@@ -1,11 +1,4 @@
-# Development overrides — extend docker-compose.yml
-# Use: docker-compose up (automatically loads both files)
-
 services:
-  postgres:
-    ports:
-      - "5432:5432"
-
   identity:
     ports:
       - "${IDENTITY_PORT:-5101}:5101"
