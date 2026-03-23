@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { AuthLayout } from "@repo/auth";
+import { AuthProvider } from "@repo/auth";
+import { OnboardingSidebar } from "@/components/onboarding-sidebar";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -15,7 +16,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="min-h-screen antialiased">
-        <AuthLayout activeApp="Onboarding">{children}</AuthLayout>
+        <AuthProvider>
+          <div className="flex h-screen overflow-hidden">
+            <OnboardingSidebar />
+            <main className="flex-1 overflow-y-auto">{children}</main>
+          </div>
+        </AuthProvider>
       </body>
     </html>
   );

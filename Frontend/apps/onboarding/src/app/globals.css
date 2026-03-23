@@ -24,6 +24,17 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 222.2 84% 4.9%;
     --radius: 0.5rem;
+
+    /* EY Brand Palette */
+    --ey-black: 240 14% 12%;
+    --ey-yellow: 54 100% 50%;
+    --ey-white: 0 0% 100%;
+    --ey-grey-50: 240 14% 98%;
+    --ey-grey-100: 240 14% 97%;
+    --ey-grey-200: 240 12% 93%;
+    --ey-grey-300: 240 4% 77%;
+    --ey-grey-400: 240 4% 48%;
+    --ey-grey-500: 240 10% 20%;
   }
 
   .dark {
@@ -55,5 +66,20 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@layer components {
+  .ey-bg-dark {
+    background-color: hsl(var(--ey-grey-500));
+  }
+  .ey-bg-dark-deep {
+    background-color: hsl(var(--ey-black));
+  }
+  .ey-text-accent {
+    color: hsl(var(--ey-yellow));
+  }
+  .ey-bg-accent {
+    background-color: hsl(var(--ey-yellow));
   }
 }

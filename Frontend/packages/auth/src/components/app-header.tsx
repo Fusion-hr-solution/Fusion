@@ -58,12 +58,11 @@ interface AuthLayoutProps {
   children: React.ReactNode;
 }
 
-/** Wraps children with AuthProvider + AppHeader — use in server-component layouts */
-export function AuthLayout({ activeApp, children }: AuthLayoutProps) {
+/** Wraps children with AuthProvider — use in server-component layouts */
+export function AuthLayout({ children }: AuthLayoutProps) {
   return (
     <AuthProvider>
-      <AppHeader activeApp={activeApp} />
-      <main>{children}</main>
+      {children}
     </AuthProvider>
   );
 }

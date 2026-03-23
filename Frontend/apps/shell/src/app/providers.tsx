@@ -1,9 +1,15 @@
 "use client";
 
-import { AuthLayout } from "@repo/auth";
+import { AuthProvider } from "@repo/auth";
+import { ShellSidebar } from "@/components/shell-sidebar";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <AuthLayout activeApp="Home">{children}</AuthLayout>
+    <AuthProvider>
+      <div className="flex h-screen overflow-hidden">
+        <ShellSidebar />
+        <main className="flex-1 overflow-y-auto">{children}</main>
+      </div>
+    </AuthProvider>
   );
 }
