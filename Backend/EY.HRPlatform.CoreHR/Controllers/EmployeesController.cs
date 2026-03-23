@@ -5,6 +5,7 @@ using EY.HRPlatform.CoreHR.Features.Employees.Dtos;
 using EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployeeById;
 using EY.HRPlatform.CoreHR.Models.Requests;
 using EY.HRPlatform.CoreHR.Models.Responses;
+using EY.HRPlatform.SharedKernel.Auth;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -13,7 +14,7 @@ namespace EY.HRPlatform.CoreHR.Controllers;
 
 [ApiController]
 [Route("api/corehr/employees")]
-[Authorize]
+[Authorize(Roles = $"{PlatformRole.Admin},{PlatformRole.HR}")]
 public class EmployeesController(ISender sender) : ControllerBase
 {
     /// <summary>
