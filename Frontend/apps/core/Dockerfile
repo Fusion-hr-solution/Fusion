@@ -34,7 +34,6 @@ RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
 COPY --from=build /app/apps/core/.next/standalone ./
 COPY --from=build /app/apps/core/.next/static ./apps/core/.next/static
-COPY --from=build /app/apps/core/public ./apps/core/public
 
 USER appuser
 
