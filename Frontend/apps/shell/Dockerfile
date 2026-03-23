@@ -7,6 +7,7 @@ FROM node:20-alpine AS deps
 RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
 WORKDIR /app
 
+# Copy workspace config and install all dependencies
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY packages/ ./packages/
 COPY apps/shell/package.json ./apps/shell/
@@ -17,9 +18,9 @@ FROM node:20-alpine AS build
 RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
 WORKDIR /app
 
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/packages ./packages
-COPY --from=deps /app/apps/shell/node_modules ./apps/shell/node_modules
+# Copy everything from deps stage
+COPY --from=deps /app .
+# Copy source code (overwrites any placeholder files)
 COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1
