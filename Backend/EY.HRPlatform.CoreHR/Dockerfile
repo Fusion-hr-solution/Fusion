@@ -6,7 +6,7 @@
 # ==============================================================================
 
 # Stage 1: Build
-FROM mcr.microsoft.com/dotnet/sdk:10.0-preview-alpine AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0-alpine AS build
 WORKDIR /src
 
 # Copy csproj files and restore (layer caching optimization)
@@ -20,7 +20,7 @@ WORKDIR /src/EY.HRPlatform.CoreHR
 RUN dotnet publish -c Release -o /app/publish --no-restore
 
 # Stage 2: Runtime
-FROM mcr.microsoft.com/dotnet/aspnet:10.0-preview-alpine AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine AS runtime
 WORKDIR /app
 
 # Create non-root user for security
