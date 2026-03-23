@@ -69,10 +69,11 @@ public class EmployeesControllerAuthorizationTests
         // Arrange
         var controllerType = typeof(EmployeesController);
         var method = controllerType.GetMethod(methodName);
+        Assert.NotNull(method);
 
         // Act
-        var methodAllowAnonymous = method?.GetCustomAttribute<AllowAnonymousAttribute>();
-        var methodAuthorize = method?.GetCustomAttribute<AuthorizeAttribute>();
+        var methodAllowAnonymous = method!.GetCustomAttribute<AllowAnonymousAttribute>();
+        var methodAuthorize = method.GetCustomAttribute<AuthorizeAttribute>();
 
         // Assert - no method should override with AllowAnonymous or its own Authorize
         Assert.Null(methodAllowAnonymous);
