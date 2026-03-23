@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { Input } from "@repo/ui";
 import { Search, Sparkles, BookOpen } from "lucide-react";
 import type { TrainingCategory, TrainingLevel, SortOption } from "@/types";
 import type { TrainingCatalogProps } from "@/types/component-props";
 import { TrainingCard } from "./training-card";
-import { TrainingDetailDialog } from "./training-detail-dialog";
 import { CategoryFilter } from "./category-filter";
 import { LevelFilter } from "./level-filter";
 import { SortSelect } from "./sort-select";
@@ -35,14 +35,11 @@ function sortTrainings(trainings: Training[], sort: SortOption): Training[] {
 }
 
 export function TrainingCatalog({ trainings }: TrainingCatalogProps) {
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<TrainingCategory | null>(null);
   const [level, setLevel] = useState<TrainingLevel | null>(null);
   const [sort, setSort] = useState<SortOption>("rating");
-  const [selectedTraining, setSelectedTraining] = useState<Training | null>(
-    null
-  );
-  const [dialogOpen, setDialogOpen] = useState(false);
 
   const filtered = useMemo(() => {
     let result = trainings;
@@ -69,8 +66,7 @@ export function TrainingCatalog({ trainings }: TrainingCatalogProps) {
   }, [trainings, category, level, search, sort]);
 
   const handleSelect = (training: Training) => {
-    setSelectedTraining(training);
-    setDialogOpen(true);
+    router.push(`/training/${training.id}`);
   };
 
   const clearAll = () => {
@@ -219,12 +215,6 @@ export function TrainingCatalog({ trainings }: TrainingCatalogProps) {
         )}
       </section>
 
-      {/* Detail dialog */}
-      <TrainingDetailDialog
-        training={selectedTraining}
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-      />
     </>
   );
 }

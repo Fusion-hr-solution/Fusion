@@ -26,3 +26,5 @@ export { EmployeeRow } from "./admin/employee-row";
 export { CompletionFunnel } from "./admin/completion-funnel";
 export { CategoryPerformance } from "./admin/category-performance";
 export { TopTrainings } from "./admin/top-trainings";
+export { TrainingDetailPage } from "./training-detail-page";
+export { ExamCard } from "./exam-card";

@@ -31,6 +31,12 @@ export const MOCK_TRAININGS: Training[] = [
     imageUrl: "/images/training-leadership.jpg",
     tags: ["strategy", "digital", "transformation"],
     updatedAt: "2026-02-15",
+    exam: {
+      questionsCount: 25,
+      passingScore: 75,
+      duration: "45 min",
+      maxAttempts: 3,
+    },
   },
   {
     id: "2",
@@ -56,6 +62,12 @@ export const MOCK_TRAININGS: Training[] = [
     imageUrl: "/images/training-data.jpg",
     tags: ["python", "analytics", "data"],
     updatedAt: "2026-03-01",
+    exam: {
+      questionsCount: 30,
+      passingScore: 70,
+      duration: "60 min",
+      maxAttempts: 2,
+    },
   },
   {
     id: "3",
@@ -80,6 +92,12 @@ export const MOCK_TRAININGS: Training[] = [
     imageUrl: "/images/training-compliance.jpg",
     tags: ["compliance", "regulation", "aml"],
     updatedAt: "2026-01-20",
+    exam: {
+      questionsCount: 20,
+      passingScore: 80,
+      duration: "30 min",
+      maxAttempts: 3,
+    },
   },
   {
     id: "4",
@@ -132,6 +150,12 @@ export const MOCK_TRAININGS: Training[] = [
     imageUrl: "/images/training-cloud.jpg",
     tags: ["azure", "cloud", "architecture"],
     updatedAt: "2026-03-05",
+    exam: {
+      questionsCount: 40,
+      passingScore: 75,
+      duration: "90 min",
+      maxAttempts: 2,
+    },
   },
   {
     id: "6",
@@ -162,6 +186,12 @@ export const MOCK_TRAININGS: Training[] = [
     imageUrl: "/images/training-finance.jpg",
     tags: ["finance", "modeling", "valuation"],
     updatedAt: "2026-02-10",
+    exam: {
+      questionsCount: 20,
+      passingScore: 70,
+      duration: "40 min",
+      maxAttempts: 3,
+    },
   },
   {
     id: "7",
@@ -190,6 +220,12 @@ export const MOCK_TRAININGS: Training[] = [
     imageUrl: "/images/training-security.jpg",
     tags: ["cybersecurity", "security", "risk"],
     updatedAt: "2026-01-30",
+    exam: {
+      questionsCount: 15,
+      passingScore: 80,
+      duration: "25 min",
+      maxAttempts: 3,
+    },
   },
   {
     id: "8",
@@ -219,6 +255,12 @@ export const MOCK_TRAININGS: Training[] = [
     imageUrl: "/images/training-esg.jpg",
     tags: ["esg", "sustainability", "reporting"],
     updatedAt: "2026-03-08",
+    exam: {
+      questionsCount: 18,
+      passingScore: 75,
+      duration: "35 min",
+      maxAttempts: 2,
+    },
   },
   {
     id: "9",

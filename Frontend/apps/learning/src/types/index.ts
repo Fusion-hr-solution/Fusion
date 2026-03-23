@@ -16,6 +16,13 @@ export interface TrainingChapter {
   duration: string;
 }
 
+export interface ExamInfo {
+  questionsCount: number;
+  passingScore: number;
+  duration: string;
+  maxAttempts: number;
+}
+
 export interface Training {
   id: string;
   title: string;
@@ -32,6 +39,7 @@ export interface Training {
   imageUrl: string;
   tags: string[];
   updatedAt: string;
+  exam?: ExamInfo;
 }
 
 /** @deprecated Use Training instead */
