@@ -9,6 +9,7 @@ import {
   Settings,
 } from "lucide-react";
 import { AppSidebar, type NavSection } from "@repo/ui";
+import { SidebarUserPanel } from "@repo/auth";
 
 const INTERVIEW_NAV: NavSection = {
   title: "Management",
@@ -32,6 +33,7 @@ export function InterviewSidebar() {
       brandIcon={Video}
       brandTitle="EY Interviews"
       brandSubtitle="Test Management"
+      userPanel={(collapsed) => <SidebarUserPanel collapsed={collapsed} />}
     />
   );
 }

@@ -33,6 +33,8 @@ export interface AppSidebarProps {
   brandSubtitle?: string;
   /** Optional custom footer rendered at the bottom of the sidebar */
   footer?: React.ReactNode;
+  /** User panel at the very bottom, receives collapsed state */
+  userPanel?: (collapsed: boolean) => React.ReactNode;
   /** List of available modules for the switcher (defaults to all platform modules) */
   modules?: SidebarModule[];
 }

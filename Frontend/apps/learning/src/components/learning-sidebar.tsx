@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { GraduationCap, BarChart3 } from "lucide-react";
 import { AppSidebar } from "@repo/ui";
+import { SidebarUserPanel } from "@repo/auth";
 import { EMPLOYEE_NAV, ADMIN_NAV } from "@/data/sidebar-nav";
 import { StatRow } from "./stat-row";
 
@@ -40,6 +41,7 @@ export function LearningSidebar() {
       brandTitle="EY Academy"
       brandSubtitle="Learning Platform"
       footer={<QuickStatsFooter />}
+      userPanel={(collapsed) => <SidebarUserPanel collapsed={collapsed} />}
     />
   );
 }

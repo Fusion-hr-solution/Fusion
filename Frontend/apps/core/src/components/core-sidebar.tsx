@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { BrainCircuit, LayoutDashboard, Settings, Shield } from "lucide-react";
 import { AppSidebar, type NavSection } from "@repo/ui";
+import { SidebarUserPanel } from "@repo/auth";
 
 const CORE_NAV: NavSection = {
   title: "Administration",
@@ -25,6 +26,7 @@ export function CoreSidebar() {
       brandIcon={BrainCircuit}
       brandTitle="EY Core"
       brandSubtitle="Platform Admin"
+      userPanel={(collapsed) => <SidebarUserPanel collapsed={collapsed} />}
     />
   );
 }

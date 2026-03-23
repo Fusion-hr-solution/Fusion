@@ -15,6 +15,7 @@ export function AppSidebar({
   brandTitle,
   brandSubtitle,
   footer,
+  userPanel,
   modules,
 }: AppSidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
@@ -102,6 +103,18 @@ export function AppSidebar({
           )}
         >
           {footer}
+        </div>
+      )}
+
+      {/* User panel */}
+      {userPanel && (
+        <div
+          className={cn(
+            "border-t border-[hsl(var(--ey-grey-200))]/40 px-3 py-3",
+            collapsed && "px-2"
+          )}
+        >
+          {userPanel(collapsed)}
         </div>
       )}
     </aside>

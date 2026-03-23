@@ -8,6 +8,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { AppSidebar, type NavSection } from "@repo/ui";
+import { SidebarUserPanel } from "@repo/auth";
 
 const PERFORMANCE_NAV: NavSection = {
   title: "Performance",
@@ -30,6 +31,7 @@ export function PerformanceSidebar() {
       brandIcon={BarChart2}
       brandTitle="EY Performance"
       brandSubtitle="Reviews & Goals"
+      userPanel={(collapsed) => <SidebarUserPanel collapsed={collapsed} />}
     />
   );
 }

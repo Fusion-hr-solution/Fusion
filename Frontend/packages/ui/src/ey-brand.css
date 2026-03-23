@@ -1,0 +1,31 @@
+/* ── EY Brand Palette — shared across all modules ─────────────────── */
+/* Import this file in each module's layout.tsx:                        */
+/*   import "@repo/ui/src/ey-brand.css";                               */
+
+:root {
+  --ey-black: 240 14% 12%;
+  --ey-yellow: 54 100% 50%;
+  --ey-white: 0 0% 100%;
+  --ey-grey-50: 240 14% 98%;
+  --ey-grey-100: 240 14% 97%;
+  --ey-grey-200: 240 12% 93%;
+  --ey-grey-300: 240 4% 77%;
+  --ey-grey-400: 240 4% 48%;
+  --ey-grey-500: 240 10% 20%;
+}
+
+.ey-bg-dark {
+  background-color: hsl(var(--ey-grey-500));
+}
+
+.ey-bg-dark-deep {
+  background-color: hsl(var(--ey-black));
+}
+
+.ey-text-accent {
+  color: hsl(var(--ey-yellow));
+}
+
+.ey-bg-accent {
+  background-color: hsl(var(--ey-yellow));
+}

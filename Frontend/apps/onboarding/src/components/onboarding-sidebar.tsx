@@ -8,6 +8,7 @@ import {
   CalendarDays,
 } from "lucide-react";
 import { AppSidebar, type NavSection } from "@repo/ui";
+import { SidebarUserPanel } from "@repo/auth";
 
 const ONBOARDING_NAV: NavSection = {
   title: "Onboarding",
@@ -30,6 +31,7 @@ export function OnboardingSidebar() {
       brandIcon={Handshake}
       brandTitle="EY Onboarding"
       brandSubtitle="New Hire Journey"
+      userPanel={(collapsed) => <SidebarUserPanel collapsed={collapsed} />}
     />
   );
 }

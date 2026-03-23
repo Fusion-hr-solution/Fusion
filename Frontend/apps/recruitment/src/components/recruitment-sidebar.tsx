@@ -8,6 +8,7 @@ import {
   UserPlus,
 } from "lucide-react";
 import { AppSidebar, type NavSection } from "@repo/ui";
+import { SidebarUserPanel } from "@repo/auth";
 
 const RECRUITMENT_NAV: NavSection = {
   title: "Recruitment",
@@ -30,6 +31,7 @@ export function RecruitmentSidebar() {
       brandIcon={Users}
       brandTitle="EY Recruitment"
       brandSubtitle="Talent Acquisition"
+      userPanel={(collapsed) => <SidebarUserPanel collapsed={collapsed} />}
     />
   );
 }

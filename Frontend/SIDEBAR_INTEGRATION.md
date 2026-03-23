@@ -19,45 +19,16 @@ Each module creates a thin **wrapper component** (e.g., `CoreSidebar`) that conf
 
 ## Step-by-Step Integration
 
-### 1. Add EY Brand CSS Variables
+### 1. Import EY Brand CSS
 
-In your module's `src/app/globals.css`, add the EY brand palette inside the `:root` block:
+The EY brand CSS variables and utility classes are centralized in `@repo/ui`. Import them in your module's `src/app/layout.tsx` **before** `globals.css`:
 
-```css
-:root {
-  /* ... existing shadcn/ui variables ... */
-
-  /* EY Brand Palette */
-  --ey-black: 240 14% 12%;
-  --ey-yellow: 54 100% 50%;
-  --ey-white: 0 0% 100%;
-  --ey-grey-50: 240 14% 98%;
-  --ey-grey-100: 240 14% 97%;
-  --ey-grey-200: 240 12% 93%;
-  --ey-grey-300: 240 4% 77%;
-  --ey-grey-400: 240 4% 48%;
-  --ey-grey-500: 240 10% 20%;
-}
+```tsx
+import "@repo/ui/src/ey-brand.css";
+import "./globals.css";
 ```
 
-Also add the utility classes at the bottom of the file:
-
-```css
-@layer components {
-  .ey-bg-dark {
-    background-color: hsl(var(--ey-grey-500));
-  }
-  .ey-bg-dark-deep {
-    background-color: hsl(var(--ey-black));
-  }
-  .ey-text-accent {
-    color: hsl(var(--ey-yellow));
-  }
-  .ey-bg-accent {
-    background-color: hsl(var(--ey-yellow));
-  }
-}
-```
+> **Do NOT** duplicate EY brand variables (`--ey-*`) in your module's `globals.css`. They are inherited from the shared stylesheet.
 
 ### 2. Create a Sidebar Wrapper Component
 
@@ -69,6 +40,7 @@ Create `src/components/<module>-sidebar.tsx`:
 import { usePathname } from "next/navigation";
 import { SomeIcon } from "lucide-react";
 import { AppSidebar, type NavSection } from "@repo/ui";
+import { SidebarUserPanel } from "@repo/auth";
 
 // Define your nav sections
 const MY_NAV: NavSection = {
@@ -93,6 +65,7 @@ export function MyModuleSidebar() {
       brandTitle="EY My Module"       // Title in sidebar header
       brandSubtitle="Optional Subtitle"
       footer={<OptionalFooter />}     // Optional JSX for sidebar footer
+      userPanel={(collapsed) => <SidebarUserPanel collapsed={collapsed} />}
     />
   );
 }
@@ -106,6 +79,7 @@ Replace `AuthLayout` with `AuthProvider` + your sidebar in `src/app/layout.tsx`:
 import type { Metadata } from "next";
 import { AuthProvider } from "@repo/auth";
 import { MyModuleSidebar } from "@/components/my-module-sidebar";
+import "@repo/ui/src/ey-brand.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -208,6 +182,7 @@ The sidebar will still show the brand header and module switcher.
 | `brandTitle` | `string` | Yes | Title text in the sidebar header |
 | `brandSubtitle` | `string` | No | Subtitle text below the title |
 | `footer` | `React.ReactNode` | No | Custom JSX rendered at the sidebar bottom |
+| `userPanel` | `(collapsed: boolean) => React.ReactNode` | No | Render prop for user info & logout (use `SidebarUserPanel` from `@repo/auth`) |
 | `modules` | `SidebarModule[]` | No | Override default module list in the switcher |
 
 ---
@@ -238,9 +213,30 @@ function QuickStatsFooter() {
 
 ---
 
+## User Panel (Name & Logout)
+
+The `SidebarUserPanel` component from `@repo/auth` displays the authenticated user's name, email, avatar, and a logout button. It adapts its layout based on the sidebar's collapsed/expanded state.
+
+```tsx
+import { SidebarUserPanel } from "@repo/auth";
+
+<AppSidebar
+  userPanel={(collapsed) => <SidebarUserPanel collapsed={collapsed} />}
+  ...
+/>
+```
+
+- **Expanded:** Shows avatar initial, full name, email, and a "Sign out" button.
+- **Collapsed:** Shows avatar initial and a small logout icon button.
+- **Unauthenticated:** Shows a "Sign in" link.
+
+> All 7 existing modules already include the `userPanel` prop.
+
+---
+
 ## Customizing the Module Switcher
 
-By default, the module switcher includes all 6 platform modules. To override:
+By default, the module switcher includes a **Home** link (to the shell) plus all 6 platform modules. To override:
 
 ```tsx
 import { type SidebarModule } from "@repo/ui";

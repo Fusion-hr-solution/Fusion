@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import * as Popover from "@radix-ui/react-popover";
 import {
   LayoutGrid,
+  LayoutDashboard,
   ChevronsUpDown,
   Search,
   Check,
@@ -18,6 +19,7 @@ import { cn } from "../../lib/utils";
 import type { SidebarModule } from "./types";
 
 const DEFAULT_MODULES: SidebarModule[] = [
+  { label: "Home", href: "/", icon: LayoutDashboard },
   { label: "Core", href: "/core", icon: BrainCircuit },
   { label: "Learning", href: "/learning", icon: BookOpen },
   { label: "Performance", href: "/performance", icon: BarChart2 },

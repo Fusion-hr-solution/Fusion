@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { AuthProvider } from "@repo/auth";
 import { InterviewSidebar } from "@/components/interview-sidebar";
+import "@repo/ui/src/ey-brand.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
