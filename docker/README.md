@@ -5,14 +5,18 @@ Docker setup for local development of the EY HR Platform.
 ## Quick Start
 
 ```bash
-# 1. Copy environment file
+# 1. Copy environment file and configure it
 cp .env.example .env
+# IMPORTANT: Edit .env and set JWT_SECRET to a strong random value
+# Linux/macOS: openssl rand -base64 48
+# Windows PowerShell: [Convert]::ToBase64String((1..48 | ForEach-Object { Get-Random -Minimum 0 -Maximum 256 }))
 
-# 2. Start all services
-docker-compose up -d
+# 2. Start all services (use 'docker compose' or 'docker-compose')
+docker compose up -d
+# Or: docker-compose up -d (if you have the legacy CLI installed)
 
 # 3. Wait for health checks (~30-60s on first run)
-docker-compose ps
+docker compose ps
 
 # 4. Access the app
 open http://localhost:3000
@@ -51,46 +55,48 @@ open http://localhost:3000
 
 ## Commands
 
+**Note:** Use `docker compose` (v2, recommended) or `docker-compose` (legacy) depending on your installation.
+
 ### Daily Use
 
 ```bash
 # Start all services
-docker-compose up -d
+docker compose up -d
 
 # Stop all services
-docker-compose down
+docker compose down
 
 # View all logs
-docker-compose logs -f
+docker compose logs -f
 
 # View specific service logs
-docker-compose logs -f gateway identity
+docker compose logs -f gateway identity
 ```
 
 ### Rebuilding
 
 ```bash
 # Rebuild single service
-docker-compose build identity
-docker-compose up -d identity
+docker compose build identity
+docker compose up -d identity
 
 # Rebuild without cache (clean build)
-docker-compose build --no-cache identity
+docker compose build --no-cache identity
 
 # Rebuild all services
-docker-compose build
-docker-compose up -d
+docker compose build
+docker compose up -d
 ```
 
 ### Reset
 
 ```bash
 # Stop and remove volumes (database data)
-docker-compose down -v
+docker compose down -v
 
 # Full reset (also removes images)
-docker-compose down -v --rmi local
-docker-compose up -d
+docker compose down -v --rmi local
+docker compose up -d
 ```
 
 ## Database
@@ -107,16 +113,16 @@ Three PostgreSQL databases are auto-created on first startup:
 
 ```bash
 # Connect to PostgreSQL
-docker-compose exec postgres psql -U fusion
+docker compose exec postgres psql -U fusion
 
 # List databases
-docker-compose exec postgres psql -U fusion -l
+docker compose exec postgres psql -U fusion -l
 
 # Connect to specific database
-docker-compose exec postgres psql -U fusion -d fusion_identity
+docker compose exec postgres psql -U fusion -d fusion_identity
 
 # Run SQL file
-docker-compose exec -T postgres psql -U fusion -d fusion_identity < script.sql
+docker compose exec -T postgres psql -U fusion -d fusion_identity < script.sql
 ```
 
 ## Environment Variables
@@ -126,10 +132,19 @@ Copy `.env.example` to `.env` and customize:
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `POSTGRES_USER` | `fusion` | PostgreSQL username |
-| `POSTGRES_PASSWORD` | `root` | PostgreSQL password |
-| `JWT_SECRET` | (generated) | JWT signing key (min 32 chars) |
+| `POSTGRES_PASSWORD` | `FusionDev123!` | PostgreSQL password |
+| `JWT_SECRET` | `CHANGE_ME` | JWT signing key (min 32 chars) - **must be set** |
 | `GATEWAY_PORT` | `5000` | Gateway host port |
 | `FRONTEND_SHELL_PORT` | `3000` | Frontend shell host port |
+
+**Important:** Generate a strong JWT secret before starting:
+```bash
+# Linux/macOS
+openssl rand -base64 48
+
+# Windows PowerShell
+[Convert]::ToBase64String((1..48 | ForEach-Object { Get-Random -Minimum 0 -Maximum 256 }))
+```
 
 ## Adding a New Service
 
@@ -138,7 +153,7 @@ Copy `.env.example` to `.env` and customize:
 1. Create `Backend/EY.HRPlatform.NewService/Dockerfile`:
 
 ```dockerfile
-FROM mcr.microsoft.com/dotnet/sdk:10.0-preview-alpine AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0-alpine AS build
 WORKDIR /src
 COPY ["EY.HRPlatform.NewService/EY.HRPlatform.NewService.csproj", "EY.HRPlatform.NewService/"]
 COPY ["EY.HRPlatform.SharedKernel/EY.HRPlatform.SharedKernel.csproj", "EY.HRPlatform.SharedKernel/"]
@@ -147,7 +162,7 @@ COPY . .
 WORKDIR /src/EY.HRPlatform.NewService
 RUN dotnet publish -c Release -o /app/publish --no-restore
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0-preview-alpine AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine AS runtime
 WORKDIR /app
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 USER appuser
