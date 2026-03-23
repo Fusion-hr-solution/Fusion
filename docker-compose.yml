@@ -27,7 +27,7 @@ services:
     container_name: fusion-gateway
     environment:
       ASPNETCORE_ENVIRONMENT: Docker
-      Jwt__Secret: ${JWT_SECRET:-YourSuperSecretKeyForDevelopmentOnly123!}
+      Jwt__Secret: ${JWT_SECRET:?JWT_SECRET must be set in .env file}
     ports:
       - "${GATEWAY_PORT:-5000}:5000"
     depends_on:
@@ -48,7 +48,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Docker
       ConnectionStrings__IdentityDb: Host=postgres;Database=fusion_identity;Username=${POSTGRES_USER:-fusion};Password=${POSTGRES_PASSWORD:-FusionDev123!}
-      Jwt__Secret: ${JWT_SECRET:-YourSuperSecretKeyForDevelopmentOnly123!}
+      Jwt__Secret: ${JWT_SECRET:?JWT_SECRET must be set in .env file}
     depends_on:
       postgres:
         condition: service_healthy
@@ -63,7 +63,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Docker
       ConnectionStrings__TrainingDb: Host=postgres;Database=fusion_training;Username=${POSTGRES_USER:-fusion};Password=${POSTGRES_PASSWORD:-FusionDev123!}
-      Jwt__Secret: ${JWT_SECRET:-YourSuperSecretKeyForDevelopmentOnly123!}
+      Jwt__Secret: ${JWT_SECRET:?JWT_SECRET must be set in .env file}
     depends_on:
       postgres:
         condition: service_healthy
@@ -78,7 +78,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Docker
       ConnectionStrings__CoreHRDb: Host=postgres;Database=fusion_corehr;Username=${POSTGRES_USER:-fusion};Password=${POSTGRES_PASSWORD:-FusionDev123!}
-      Jwt__Secret: ${JWT_SECRET:-YourSuperSecretKeyForDevelopmentOnly123!}
+      Jwt__Secret: ${JWT_SECRET:?JWT_SECRET must be set in .env file}
       Database__AutoMigrate: "true"
     depends_on:
       postgres:
