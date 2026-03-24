@@ -37,7 +37,7 @@ export const MOCK_TRAININGS: Training[] = [
     exam: {
       questionsCount: 25,
       passingScore: 75,
-      duration: "45 min",
+      timeLimit: "45 min",
       maxAttempts: 3,
     },
   },
@@ -71,7 +71,7 @@ export const MOCK_TRAININGS: Training[] = [
     exam: {
       questionsCount: 30,
       passingScore: 70,
-      duration: "60 min",
+      timeLimit: "60 min",
       maxAttempts: 2,
     },
   },
@@ -104,7 +104,7 @@ export const MOCK_TRAININGS: Training[] = [
     exam: {
       questionsCount: 20,
       passingScore: 80,
-      duration: "30 min",
+      timeLimit: "30 min",
       maxAttempts: 3,
     },
   },
@@ -168,7 +168,7 @@ export const MOCK_TRAININGS: Training[] = [
     exam: {
       questionsCount: 40,
       passingScore: 75,
-      duration: "90 min",
+      timeLimit: "90 min",
       maxAttempts: 2,
     },
   },
@@ -207,7 +207,7 @@ export const MOCK_TRAININGS: Training[] = [
     exam: {
       questionsCount: 20,
       passingScore: 70,
-      duration: "40 min",
+      timeLimit: "40 min",
       maxAttempts: 3,
     },
   },
@@ -244,7 +244,7 @@ export const MOCK_TRAININGS: Training[] = [
     exam: {
       questionsCount: 15,
       passingScore: 80,
-      duration: "25 min",
+      timeLimit: "25 min",
       maxAttempts: 3,
     },
   },
@@ -282,7 +282,7 @@ export const MOCK_TRAININGS: Training[] = [
     exam: {
       questionsCount: 18,
       passingScore: 75,
-      duration: "35 min",
+      timeLimit: "35 min",
       maxAttempts: 2,
     },
   },

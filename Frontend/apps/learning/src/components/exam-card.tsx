@@ -1,5 +1,3 @@
-"use client";
-
 import {
   GraduationCap,
   HelpCircle,
@@ -10,7 +8,7 @@ import {
 } from "lucide-react";
 import type { ExamCardProps } from "@/types/component-props";
 
-export function ExamCard({ exam, chaptersCount }: ExamCardProps) {
+export function ExamCard({ exam, chaptersCount, isEnrolled }: ExamCardProps) {
   const stats = [
     {
       icon: HelpCircle,
@@ -22,16 +20,12 @@ export function ExamCard({ exam, chaptersCount }: ExamCardProps) {
       value: `${exam.passingScore}%`,
       label: "Passing Score",
     },
-    {
-      icon: Clock,
-      value: exam.duration,
-      label: "Time Limit",
-    },
-    {
-      icon: RotateCcw,
-      value: `${exam.maxAttempts} attempts`,
-      label: "Max Attempts",
-    },
+    ...(exam.timeLimit
+      ? [{ icon: Clock, value: exam.timeLimit, label: "Time Limit" }]
+      : []),
+    ...(exam.maxAttempts
+      ? [{ icon: RotateCcw, value: `${exam.maxAttempts} attempts`, label: "Max Attempts" }]
+      : []),
   ];
 
   return (
@@ -78,20 +72,22 @@ export function ExamCard({ exam, chaptersCount }: ExamCardProps) {
         })}
       </div>
 
-      {/* Unlock callout */}
-      <div className="flex items-center gap-2.5 border-t border-border/40 bg-[hsl(var(--ey-grey-50))] px-6 py-3">
-        <Lock
-          className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
-          aria-hidden="true"
-        />
-        <p className="text-xs text-muted-foreground">
-          Complete all{" "}
-          <span className="font-semibold text-foreground">
-            {chaptersCount} chapters
-          </span>{" "}
-          to unlock the exam
-        </p>
-      </div>
+      {/* Unlock callout — shown only for enrolled users */}
+      {isEnrolled && (
+        <div className="flex items-center gap-2.5 border-t border-border/40 bg-[hsl(var(--ey-grey-50))] px-6 py-3">
+          <Lock
+            className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
+            aria-hidden="true"
+          />
+          <p className="text-xs text-muted-foreground">
+            Complete all{" "}
+            <span className="font-semibold text-foreground">
+              {chaptersCount} chapters
+            </span>{" "}
+            to unlock the exam
+          </p>
+        </div>
+      )}
     </div>
   );
 }

@@ -86,6 +86,7 @@ export interface TrainingDetailPageProps {
 export interface ExamCardProps {
   exam: ExamInfo;
   chaptersCount: number;
+  isEnrolled?: boolean;
 }
 
 export interface TrainingStatusTabsProps {

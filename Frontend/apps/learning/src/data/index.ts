@@ -7,3 +7,5 @@ export { SORT_OPTIONS } from "./sort-options";
 export { STATUS_CONFIG } from "./status-config";
 export { TABS } from "./training-tabs";
 export { MOCK_TRAININGS } from "./trainings";
+export { getTrainingDetailStats } from "./training-detail-stats";
+export type { TrainingStatItem } from "./training-detail-stats";

@@ -19,8 +19,8 @@ export interface TrainingChapter {
 export interface ExamInfo {
   questionsCount: number;
   passingScore: number;
-  duration: string;
-  maxAttempts: number;
+  timeLimit?: string;
+  maxAttempts?: number;
 }
 
 export type BadgeLevel = "bronze" | "silver" | "gold";

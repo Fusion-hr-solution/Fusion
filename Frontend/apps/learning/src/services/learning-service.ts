@@ -1,87 +1,13 @@
 import { createPlatformApiClient } from "@repo/api";
 import type { EnrolledTraining, Training, TrainingCategory, TrainingLevel, BadgeLevel } from "@/types";
-
-// --- Backend DTOs (from .NET API) ---
-interface BackendTrainingCategoryDto {
-  id: string;
-  name: string;
-  description: string | null;
-  trainingCount: number;
-}
-
-interface BackendChapterDto {
-  id: string;
-  title: string;
-  contentType: string;
-  contentUri: string | null;
-  orderIndex: number;
-}
-
-interface BackendTrainingDto {
-  id: string;
-  title: string;
-  description: string | null;
-  credits: number;
-  isMandatory: boolean;
-  badgeLevel: string;
-  duration: string | null;
-  categoryId: string;
-  categoryName: string;
-  chapterCount: number;
-  createdAt: string;
-}
-
-interface BackendTrainingDetailDto extends BackendTrainingDto {
-  chapters: BackendChapterDto[];
-  exams: { id: string; title: string; passingScore: number; questionCount: number }[];
-}
-
-interface BackendMyTrainingDto {
-  trainingId: string;
-  title: string;
-  description: string | null;
-  categoryName: string;
-  duration: string | null;
-  credits: number;
-  isMandatory: boolean;
-  badgeLevel: string;
-  status: string;
-  progressPercentage: number;
-  completedChapters: number;
-  totalChapters: number;
-  startedAt: string | null;
-  completedAt: string | null;
-  assignmentType: string;
-  dueDate: string | null;
-}
-
-interface BackendPagedResponse<T> {
-  items: T[];
-  totalCount: number;
-  page: number;
-  pageSize: number;
-}
-
-// --- Mapping helpers ---
-const CATEGORY_MAP: Record<string, TrainingCategory> = {
-  "Technical Skills": "technical",
-  "Leadership & Management": "leadership",
-  "Compliance & Regulatory": "compliance",
-  "Soft Skills": "soft-skills",
-  "Data & Analytics": "data-analytics",
-};
-
-const LEVEL_MAP: Record<string, TrainingLevel> = {
-  Bronze: "beginner",
-  Silver: "intermediate",
-  Gold: "advanced",
-};
-
-const BADGE_LEVEL_MAP: Record<string, BadgeLevel> = {
-  Bronze: "bronze",
-  Silver: "silver",
-  Gold: "gold",
-};
+import type {
+  BackendTrainingCategoryDto,
+  BackendTrainingDto,
+  BackendTrainingDetailDto,
+  BackendMyTrainingDto,
+  BackendPagedResponse,
+} from "@/types/backend-dtos";
+import { CATEGORY_MAP, LEVEL_MAP, BADGE_LEVEL_MAP } from "@/types/backend-dtos";
 
 function mapBadgeLevel(badgeLevel: string): BadgeLevel {
   return BADGE_LEVEL_MAP[badgeLevel] ?? "bronze";
@@ -208,8 +134,6 @@ export async function getTrainingById(id: string): Promise<Training> {
     training.exam = {
       questionsCount: exam.questionCount,
       passingScore: exam.passingScore,
-      duration: "N/A",
-      maxAttempts: 3,
     };
   }
   return training;

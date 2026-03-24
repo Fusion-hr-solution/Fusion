@@ -34,8 +34,8 @@ export default function TrainingDetailLoading() {
           {/* Left column */}
           <div className="space-y-8">
             {/* Stats grid */}
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              {Array.from({ length: 4 }).map((_, i) => (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+              {Array.from({ length: 5 }).map((_, i) => (
                 <div
                   key={i}
                   className="flex flex-col items-center gap-2 rounded-xl border border-border/50 bg-white p-4"

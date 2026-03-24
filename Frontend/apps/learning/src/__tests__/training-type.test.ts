@@ -59,7 +59,7 @@ describe("Training type contract", () => {
       exam: {
         questionsCount: 20,
         passingScore: 75,
-        duration: "30 min",
+        timeLimit: "30 min",
         maxAttempts: 3,
       },
     });
