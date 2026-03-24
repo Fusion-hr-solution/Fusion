@@ -9,6 +9,11 @@ public class Employee : AggregateRoot, ITenantEntity
     private Employee() { }
 
     public Guid TenantId { get; private set; }
+
+    /// <summary>
+    /// Row version for optimistic concurrency control (mapped to PostgreSQL xmin).
+    /// </summary>
+    public uint Version { get; private set; }
     public string FirstName { get; private set; } = string.Empty;
     public string LastName { get; private set; } = string.Empty;
     public string Email { get; private set; } = string.Empty;
@@ -73,6 +78,7 @@ public class Employee : AggregateRoot, ITenantEntity
             throw new InvalidOperationException("Employee is already active.");
 
         Status = EmployeeStatus.Active;
+        UpdatedAt = DateTime.UtcNow;
     }
 
     public void Deactivate()
@@ -81,6 +87,7 @@ public class Employee : AggregateRoot, ITenantEntity
             throw new InvalidOperationException("Employee is already inactive.");
 
         Status = EmployeeStatus.Inactive;
+        UpdatedAt = DateTime.UtcNow;
     }
 
     public void UpdateDetails(
@@ -104,6 +111,7 @@ public class Employee : AggregateRoot, ITenantEntity
         Email = email.Trim().ToLowerInvariant();
         Department = department?.Trim();
         JobTitle = jobTitle?.Trim();
+        UpdatedAt = DateTime.UtcNow;
     }
 
     public void AssignManager(Guid? managerId)
@@ -115,5 +123,6 @@ public class Employee : AggregateRoot, ITenantEntity
             throw new ArgumentException("Employee cannot be their own manager.", nameof(managerId));
 
         ManagerId = managerId;
+        UpdatedAt = DateTime.UtcNow;
     }
 }
