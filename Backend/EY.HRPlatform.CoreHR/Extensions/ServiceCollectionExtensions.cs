@@ -7,6 +7,14 @@ namespace EY.HRPlatform.CoreHR.Extensions;
 
 public static class ServiceCollectionExtensions
 {
+    public static IServiceCollection AddCoreHRApplication(this IServiceCollection services)
+    {
+        // Register MediatR - scans this assembly for all command/query handlers
+        services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<Program>());
+
+        return services;
+    }
+
     public static IServiceCollection AddMultitenancy(this IServiceCollection services)
     {
         // TenantContext is scoped - one instance per request
