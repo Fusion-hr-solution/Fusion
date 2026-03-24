@@ -16,6 +16,15 @@ export interface TrainingChapter {
   duration: string;
 }
 
+export interface ExamInfo {
+  questionsCount: number;
+  passingScore: number;
+  timeLimit?: string;
+  maxAttempts?: number;
+}
+
+export type BadgeLevel = "bronze" | "silver" | "gold";
+
 export interface Training {
   id: string;
   title: string;
@@ -32,6 +41,10 @@ export interface Training {
   imageUrl: string;
   tags: string[];
   updatedAt: string;
+  exam?: ExamInfo;
+  isMandatory: boolean;
+  badgeLevel: BadgeLevel;
+  credits: number;
 }
 
 /** @deprecated Use Training instead */

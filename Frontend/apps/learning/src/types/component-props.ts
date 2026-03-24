@@ -5,6 +5,7 @@ import type {
   SortOption,
   TrainingStatus,
   EnrolledTraining,
+  ExamInfo,
   Course,
 } from "./index";
 import type { NavSection } from "./sidebar";
@@ -76,6 +77,16 @@ export interface TrainingProgressBarProps {
   totalChapters?: number;
   size?: "sm" | "md";
   showLabel?: boolean;
+}
+
+export interface TrainingDetailPageProps {
+  training: Training;
+}
+
+export interface ExamCardProps {
+  exam: ExamInfo;
+  chaptersCount: number;
+  isEnrolled?: boolean;
 }
 
 export interface TrainingStatusTabsProps {
