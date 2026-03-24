@@ -1,13 +1,15 @@
 "use client";
 
 import { Card, CardContent } from "@repo/ui";
-import { Clock, BookOpen, Users, Star, ArrowUpRight } from "lucide-react";
+import { Clock, BookOpen, Users, Star, ArrowUpRight, AlertTriangle, Award } from "lucide-react";
 import type { TrainingCardProps } from "@/types/component-props";
 import { CATEGORY_CONFIG, LEVEL_CONFIG } from "@/data/categories";
+import { BADGE_LEVEL_CONFIG } from "@/data/badge-config";
 
 export function TrainingCard({ training, onSelect }: TrainingCardProps) {
   const category = CATEGORY_CONFIG[training.category];
   const level = LEVEL_CONFIG[training.level];
+  const badge = BADGE_LEVEL_CONFIG[training.badgeLevel];
 
   return (
     <Card
@@ -27,14 +29,22 @@ export function TrainingCard({ training, onSelect }: TrainingCardProps) {
       <div className={`h-1 w-full ey-animate-stripe ${category.stripClass}`} />
 
       <CardContent className="flex flex-1 flex-col gap-4 p-5">
-        {/* Top — category + level */}
+        {/* Top — category + level + mandatory */}
         <div className="flex items-center justify-between gap-2">
-          <span
-            className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold tracking-wide uppercase ${category.badgeClass}`}
-          >
-            {category.label}
-          </span>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <span
+              className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold tracking-wide uppercase shrink-0 ${category.badgeClass}`}
+            >
+              {category.label}
+            </span>
+            {training.isMandatory && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-[hsl(var(--ey-red-500))]/10 border border-[hsl(var(--ey-red-500))]/20 px-2 py-0.5 text-xs font-semibold text-[hsl(var(--ey-red-500))] shrink-0">
+                <AlertTriangle className="h-3 w-3" aria-hidden="true" />
+                Mandatory
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
             <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <span className={`h-1.5 w-1.5 rounded-full ${level.dotClass}`} />
               {level.label}
@@ -57,7 +67,7 @@ export function TrainingCard({ training, onSelect }: TrainingCardProps) {
         </p>
 
         {/* Meta row — pill style */}
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
           <span className="flex items-center gap-1.5 rounded-md bg-[hsl(var(--ey-grey-100))] px-2 py-1">
             <Clock className="h-3.5 w-3.5" aria-hidden="true" />
             {training.duration}
@@ -65,6 +75,13 @@ export function TrainingCard({ training, onSelect }: TrainingCardProps) {
           <span className="flex items-center gap-1.5 rounded-md bg-[hsl(var(--ey-grey-100))] px-2 py-1">
             <BookOpen className="h-3.5 w-3.5" aria-hidden="true" />
             {training.chaptersCount} chapters
+          </span>
+          <span className={`flex items-center gap-1.5 rounded-md border px-2 py-1 ${badge.className}`}>
+            <Award className="h-3.5 w-3.5" aria-hidden="true" />
+            {badge.label}
+          </span>
+          <span className="flex items-center gap-1.5 rounded-md bg-[hsl(var(--ey-grey-100))] px-2 py-1 font-semibold">
+            {training.credits} credits
           </span>
         </div>
 

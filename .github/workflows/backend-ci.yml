@@ -14,7 +14,7 @@ on:
 
 jobs:
   build-and-migrate:
-    name: Build · Restore · CoreHR Migrations
+    name: Build · Test · CoreHR Migrations
     runs-on: ubuntu-latest
 
     services:
@@ -54,6 +54,9 @@ jobs:
 
       - name: Build
         run: dotnet build EY.HRPlatform.slnx --no-restore
+
+      - name: Test
+        run: dotnet test EY.HRPlatform.slnx --no-build --verbosity normal
 
       # CoreHR migration validation
       # Each step uses --no-build; the build output from the step above is reused.
