@@ -23,9 +23,11 @@ public sealed class GetEmployeesQueryHandler(
             .AsQueryable();
 
         // Apply search filter (case-insensitive via ToLower)
+        // Note: Using ToLower() instead of EF.Functions.ILike() for in-memory test compatibility.
+        // PostgreSQL translates this to lower(col) which is acceptable for moderate table sizes.
         if (!string.IsNullOrWhiteSpace(request.Search))
         {
-            var searchTerm = request.Search.Trim().ToLower();
+            var searchTerm = request.Search.Trim().ToLowerInvariant();
             query = query.Where(e =>
                 e.FirstName.ToLower().Contains(searchTerm) ||
                 e.LastName.ToLower().Contains(searchTerm) ||
@@ -36,7 +38,7 @@ public sealed class GetEmployeesQueryHandler(
         // Apply department filter (case-insensitive)
         if (!string.IsNullOrWhiteSpace(request.Department))
         {
-            var department = request.Department.Trim().ToLower();
+            var department = request.Department.Trim().ToLowerInvariant();
             query = query.Where(e => e.Department != null &&
                 e.Department.ToLower() == department);
         }
