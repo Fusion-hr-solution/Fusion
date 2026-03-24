@@ -41,6 +41,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 builder.Services.AddMultitenancy();
+builder.Services.AddCoreHRApplication();
 builder.Services.AddCoreHRPersistence(builder.Configuration);
 
 builder.Services.AddOpenTelemetry()
