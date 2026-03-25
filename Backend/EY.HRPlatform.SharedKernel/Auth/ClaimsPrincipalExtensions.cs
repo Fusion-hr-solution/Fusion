@@ -1,7 +1,3 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
 using System.Security.Claims;
 
 namespace EY.HRPlatform.SharedKernel.Auth;
@@ -28,7 +24,7 @@ public static class ClaimsPrincipalExtensions
 
     public static string GetFullName(this ClaimsPrincipal principal)
     {
-        return principal.FindFirst("full_name")?.Value ?? "Unknown";
+        return principal.FindFirst(CustomClaimTypes.FullName)?.Value ?? "Unknown";
     }
 
     /// <summary>
@@ -36,7 +32,7 @@ public static class ClaimsPrincipalExtensions
     /// </summary>
     public static Guid? GetTenantId(this ClaimsPrincipal principal)
     {
-        var claim = principal.FindFirst("tenant_id");
+        var claim = principal.FindFirst(CustomClaimTypes.TenantId);
         if (claim is null)
             return null;
 

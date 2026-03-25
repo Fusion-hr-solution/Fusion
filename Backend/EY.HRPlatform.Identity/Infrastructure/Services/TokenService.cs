@@ -1,8 +1,9 @@
-﻿using System.IdentityModel.Tokens.Jwt;
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using EY.HRPlatform.Identity.Domain.Entities;
+using EY.HRPlatform.SharedKernel.Auth;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
 
@@ -35,9 +36,9 @@ public class TokenService : ITokenService
         {
             new(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new(ClaimTypes.Email, user.Email!),
-            new("full_name", user.FullName),
-            new("department", user.Department ?? string.Empty),
-            new("job_title", user.JobTitle ?? string.Empty),
+            new(CustomClaimTypes.FullName, user.FullName),
+            new(CustomClaimTypes.Department, user.Department ?? string.Empty),
+            new(CustomClaimTypes.JobTitle, user.JobTitle ?? string.Empty),
         };
 
         // Step 3: Add one role claim per role
