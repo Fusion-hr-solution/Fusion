@@ -27,3 +27,4 @@ export type { AuthContextValue } from "./auth-context";
 // Components
 export { AuthButtons } from "./components/auth-buttons";
 export { AppHeader, AuthLayout } from "./components/app-header";
+export { SidebarUserPanel } from "./components/sidebar-user-panel";
