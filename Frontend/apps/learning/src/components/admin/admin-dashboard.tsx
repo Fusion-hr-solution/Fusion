@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { TooltipProvider, Input } from "@repo/ui";
 import type { Employee, Training, TrainingCategory, TrainingStatus } from "@/types";
+import { PageHeader } from "../page-header";
 import { EmployeeRow } from "./employee-row";
 import { CompletionFunnel } from "./completion-funnel";
 import { CategoryPerformance } from "./category-performance";
@@ -120,32 +121,11 @@ export function AdminDashboard({ employees, trainings: _trainings }: AdminDashbo
 
   return (
     <TooltipProvider delayDuration={200}>
-      {/* ── Hero ── */}
-      <section className="relative overflow-hidden border-b border-border/50 bg-white">
-        <div className="ey-hero-pattern absolute inset-0 opacity-30" />
-        <div className="absolute left-0 bottom-0 h-1/2 w-1/3 bg-gradient-to-tr from-[hsl(var(--ey-black))]/3 to-transparent" />
-
-        <div className="relative px-8 py-10 lg:py-12">
-          <div className="ey-animate-fade-up flex items-end gap-3 mb-1">
-            <div className="flex h-9 w-1 rounded-full ey-bg-dark-deep" />
-            <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-              Administration
-            </span>
-          </div>
-
-          <h1
-            className="ey-animate-fade-up mt-3 text-3xl font-bold tracking-tight text-foreground lg:text-4xl"
-            style={{ animationDelay: "80ms" }}
-          >
-            Employee Training Overview
-          </h1>
-          <p
-            className="ey-animate-fade-up mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground"
-            style={{ animationDelay: "160ms" }}
-          >
-            Monitor team progress, identify gaps, and ensure compliance across
-            all training programs.
-          </p>
+      <PageHeader
+        moduleTitle="Administration"
+        title="Employee Training Overview"
+        description="Monitor team progress, identify gaps, and ensure compliance across all training programs."
+      >
 
           {/* ── KPI strip ── */}
           <div className="mt-8 grid grid-cols-2 gap-3 lg:grid-cols-5 lg:gap-4">
@@ -174,8 +154,7 @@ export function AdminDashboard({ employees, trainings: _trainings }: AdminDashbo
               );
             })}
           </div>
-        </div>
-      </section>
+      </PageHeader>
 
       {/* ── Main content ── */}
       <section className="px-8 py-8">

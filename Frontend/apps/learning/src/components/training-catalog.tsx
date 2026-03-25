@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@repo/ui";
 import { Search, BookOpen } from "lucide-react";
+import { PageHeader } from "./page-header";
 import type { TrainingCategory, TrainingLevel, SortOption } from "@/types";
 import type { TrainingCatalogProps } from "@/types/component-props";
 import { TrainingCard } from "./training-card";
@@ -77,55 +78,26 @@ export function TrainingCatalog({ trainings }: TrainingCatalogProps) {
 
   return (
     <>
-      {/* Hero */}
-      <section className="relative overflow-hidden border-b border-border/50 bg-white">
-        {/* Geometric background accents */}
-        <div className="absolute right-0 top-0 h-full w-2/5 bg-gradient-to-l from-[hsl(var(--ey-yellow))]/5 to-transparent" />
-        <div className="ey-hero-pattern absolute inset-0 opacity-40" />
-        <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full border-2 border-[hsl(var(--ey-yellow))]/10" />
-        <div className="absolute right-20 bottom-4 h-24 w-24 rounded-full border-2 border-[hsl(var(--ey-yellow))]/8" />
-
-        <div className="relative px-8 py-12 lg:py-16">
-          <div className="ey-animate-fade-up flex items-end gap-3 mb-1">
-            <div className="flex h-9 w-1 rounded-full ey-bg-accent" />
-            <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-              EY Academy
-            </span>
-          </div>
-
-          <div className="mt-3">
-              <h1
-                className="ey-animate-fade-up text-3xl font-bold tracking-tight text-foreground lg:text-4xl"
-                style={{ animationDelay: "80ms" }}
-              >
-                Training Catalog
-              </h1>
-              <p
-                className="ey-animate-fade-up mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground"
-                style={{ animationDelay: "160ms" }}
-              >
-                Explore our curated library of professional development programs.
-                Filter by category, search by topic, and start building the skills
-                that matter.
-              </p>
-          </div>
-
-          {/* Search */}
-          <div
-            className="ey-animate-fade-up relative mt-6 max-w-lg"
-            style={{ animationDelay: "200ms" }}
-          >
-            <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-            <Input
-              aria-label="Search trainings"
-              placeholder="Search trainings by title, topic, or tag..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="h-11 rounded-lg border-border/60 bg-[hsl(var(--ey-grey-50))] pl-10 text-sm shadow-sm placeholder:text-muted-foreground/60 focus-visible:ring-[hsl(var(--ey-yellow))] focus-visible:border-[hsl(var(--ey-yellow))]/40 transition-shadow focus-visible:shadow-[0_0_0_3px_hsl(var(--ey-yellow)/0.1)]"
-            />
-          </div>
+      <PageHeader
+        moduleTitle="Catalog"
+        title="Training Catalog"
+        description="Explore our curated library of professional development programs. Filter by category, search by topic, and start building the skills that matter."
+      >
+        {/* Search */}
+        <div
+          className="ey-animate-fade-up relative mt-6 max-w-lg"
+          style={{ animationDelay: "200ms" }}
+        >
+          <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+          <Input
+            aria-label="Search trainings"
+            placeholder="Search trainings by title, topic, or tag..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="h-11 rounded-lg border-border/60 bg-[hsl(var(--ey-grey-50))] pl-10 text-sm shadow-sm placeholder:text-muted-foreground/60 focus-visible:ring-[hsl(var(--ey-yellow))] focus-visible:border-[hsl(var(--ey-yellow))]/40 transition-shadow focus-visible:shadow-[0_0_0_3px_hsl(var(--ey-yellow)/0.1)]"
+          />
         </div>
-      </section>
+      </PageHeader>
 
       {/* Filters + Grid */}
       <section className="px-8 py-8">

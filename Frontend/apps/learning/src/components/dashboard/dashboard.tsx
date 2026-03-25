@@ -12,6 +12,7 @@ import {
   Zap,
 } from "lucide-react";
 import type { Training, EnrolledTraining, TrainingCategory } from "@/types";
+import { PageHeader } from "../page-header";
 import { ContinueCard } from "./continue-card";
 import { RecommendedCard } from "./recommended-card";
 import { ProgressRing } from "./progress-ring";
@@ -73,37 +74,11 @@ export function Dashboard({ trainings, enrolledTrainings }: DashboardProps) {
 
   return (
     <>
-      {/* ── Hero banner ── */}
-      <section className="relative overflow-hidden border-b border-border/50 bg-white">
-        <div className="ey-hero-pattern absolute inset-0 opacity-30" />
-        <div className="absolute right-0 top-0 h-full w-2/5 bg-gradient-to-l from-[hsl(var(--ey-yellow))]/5 to-transparent" />
-        <div className="absolute right-8 top-8 h-20 w-20 rounded-full bg-[hsl(var(--ey-yellow))]/8 blur-2xl" />
-
-        <div className="relative px-8 py-10 lg:py-12">
-          <div className="ey-animate-fade-up flex items-end gap-3 mb-1">
-            <div className="flex h-9 w-1 rounded-full ey-bg-accent" />
-            <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-              Learning Dashboard
-            </span>
-          </div>
-
-          <div>
-            <div>
-              <h1
-                className="ey-animate-fade-up mt-3 text-3xl font-bold tracking-tight text-foreground lg:text-4xl"
-                style={{ animationDelay: "80ms" }}
-              >
-                Welcome back
-              </h1>
-              <p
-                className="ey-animate-fade-up mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground"
-                style={{ animationDelay: "160ms" }}
-              >
-                Here&apos;s your learning journey at a glance. Keep pushing —
-                you&apos;re making great progress.
-              </p>
-            </div>
-          </div>
+      <PageHeader
+        moduleTitle="Learning Dashboard"
+        title="Welcome back"
+        description="Here's your learning journey at a glance. Keep pushing — you're making great progress."
+      >
 
           {/* ── KPI cards row ── */}
           <div className="mt-8 grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
@@ -131,8 +106,7 @@ export function Dashboard({ trainings, enrolledTrainings }: DashboardProps) {
               );
             })}
           </div>
-        </div>
-      </section>
+      </PageHeader>
 
       {/* ── Dashboard grid ── */}
       <section className="px-8 py-8">

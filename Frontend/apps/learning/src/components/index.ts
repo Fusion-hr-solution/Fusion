@@ -1,3 +1,4 @@
+export { PageHeader } from "./page-header";
 export { CourseCard } from "./course-card";
 export { TrainingCatalog } from "./training-catalog";
 export { TrainingCard } from "./training-card";

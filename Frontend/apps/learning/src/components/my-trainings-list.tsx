@@ -5,6 +5,7 @@ import { BookOpen, GraduationCap, Clock, CheckCircle2 } from "lucide-react";
 import type { TrainingStatus, EnrolledTraining } from "@/types";
 import type { MyTrainingsListProps } from "@/types/component-props";
 import { TrainingStatusTabs } from "./training-status-tabs";
+import { PageHeader } from "./page-header";
 import { EnrolledTrainingCard } from "./enrolled-training-card";
 
 export function MyTrainingsList({ trainings }: MyTrainingsListProps) {
@@ -71,60 +72,33 @@ export function MyTrainingsList({ trainings }: MyTrainingsListProps) {
 
   return (
     <>
-      {/* Header */}
-      <section className="relative overflow-hidden border-b border-border/50 bg-white">
-        <div className="ey-hero-pattern absolute inset-0 opacity-30" />
-        <div className="absolute right-0 top-0 h-full w-1/3 bg-gradient-to-l from-[hsl(var(--ey-yellow))]/5 to-transparent" />
-
-        <div className="relative px-8 py-10 lg:py-12">
-          <div className="ey-animate-fade-up flex items-end gap-3 mb-1">
-            <div className="flex h-9 w-1 rounded-full ey-bg-accent" />
-            <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-              My Learning
-            </span>
-          </div>
-
-          <div>
-            <div>
-              <h1
-                className="ey-animate-fade-up mt-3 text-3xl font-bold tracking-tight text-foreground lg:text-4xl"
-                style={{ animationDelay: "80ms" }}
+      <PageHeader
+        moduleTitle="My Learning"
+        title="My Trainings"
+        description="Track your enrolled trainings, pick up where you left off, and celebrate your completed courses."
+      >
+        {/* Quick stats */}
+        <div className="mt-6 grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:gap-4">
+          {stats.map((stat, i) => {
+            const Icon = stat.icon;
+            return (
+              <div
+                key={stat.label}
+                className={`ey-animate-fade-up flex items-center gap-3 rounded-xl border border-border/60 ${stat.bgAccent} px-4 py-3 transition-all hover:shadow-sm`}
+                style={{ animationDelay: `${200 + i * 60}ms` }}
               >
-                My Trainings
-              </h1>
-              <p
-                className="ey-animate-fade-up mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground"
-                style={{ animationDelay: "160ms" }}
-              >
-                Track your enrolled trainings, pick up where you left off, and
-                celebrate your completed courses.
-              </p>
-            </div>
-          </div>
-
-          {/* Quick stats */}
-          <div className="mt-6 grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:gap-4">
-            {stats.map((stat, i) => {
-              const Icon = stat.icon;
-              return (
-                <div
-                  key={stat.label}
-                  className={`ey-animate-fade-up flex items-center gap-3 rounded-xl border border-border/60 ${stat.bgAccent} px-4 py-3 transition-all hover:shadow-sm`}
-                  style={{ animationDelay: `${200 + i * 60}ms` }}
-                >
-                  <Icon className={`h-5 w-5 ${stat.iconColor}`} aria-hidden="true" />
-                  <div>
-                    <p className="text-lg font-bold text-foreground leading-none">
-                      {stat.value}
-                    </p>
-                    <p className="text-xs text-muted-foreground">{stat.label}</p>
-                  </div>
+                <Icon className={`h-5 w-5 ${stat.iconColor}`} aria-hidden="true" />
+                <div>
+                  <p className="text-lg font-bold text-foreground leading-none">
+                    {stat.value}
+                  </p>
+                  <p className="text-xs text-muted-foreground">{stat.label}</p>
                 </div>
-              );
-            })}
-          </div>
+              </div>
+            );
+          })}
         </div>
-      </section>
+      </PageHeader>
 
       {/* Content */}
       <section className="px-8 py-8">
