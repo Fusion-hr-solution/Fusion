@@ -9,7 +9,7 @@ import {
   ClipboardList,
   Settings,
 } from "lucide-react";
-import type { NavSection } from "@/types/sidebar";
+import type { NavSection } from "@repo/ui";
 
 export const EMPLOYEE_NAV: NavSection = {
   title: "Learning",

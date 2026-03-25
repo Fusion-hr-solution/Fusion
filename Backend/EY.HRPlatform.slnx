@@ -2,6 +2,7 @@
   <Folder Name="/Modules/">
     <Project Path="EY.HRPlatform.CoreHR/EY.HRPlatform.CoreHR.csproj" />
     <Project Path="EY.HRPlatform.Training/EY.HRPlatform.Training.csproj" Id="1511abe8-a925-4765-898b-3b189d6cc2c0" />
+    <Project Path="EY.HRPlatform.Interview/EY.HRPlatform.Interview.csproj" />
   </Folder>
   <Folder Name="/src/" />
   <Folder Name="/src/Core/">
@@ -16,5 +17,6 @@
   <Folder Name="/tests/">
     <Project Path="EY.HRPlatform.CoreHR.Tests/EY.HRPlatform.CoreHR.Tests.csproj" />
     <Project Path="EY.HRPlatform.Training.Tests/EY.HRPlatform.Training.Tests.csproj" />
+    <Project Path="EY.HRPlatform.Interview.Tests/EY.HRPlatform.Interview.Tests.csproj" />
   </Folder>
 </Solution>
