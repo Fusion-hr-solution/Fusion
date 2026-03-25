@@ -1,5 +1,9 @@
-namespace EY.HRPlatform.Training.Models.Responses;
+namespace EY.HRPlatform.SharedKernel.Api;
 
+/// <summary>
+/// Standard API response wrapper with typed data.
+/// Used across all modules for consistent API responses.
+/// </summary>
 public class ApiResponse<T>
 {
     public T? Data { get; set; }
@@ -10,6 +14,9 @@ public class ApiResponse<T>
     public static ApiResponse<T> Failure(params string[] errors) => new() { Errors = [.. errors] };
 }
 
+/// <summary>
+/// Standard API response wrapper without data (for void operations).
+/// </summary>
 public class ApiResponse
 {
     public List<string> Errors { get; set; } = [];

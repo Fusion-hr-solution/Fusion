@@ -1,3 +1,4 @@
+using EY.HRPlatform.SharedKernel.Api;
 using EY.HRPlatform.SharedKernel.Auth;
 using EY.HRPlatform.Training.Domain.Enums;
 using EY.HRPlatform.Training.Features.MyTrainings.Commands;

@@ -1,3 +1,4 @@
+using EY.HRPlatform.SharedKernel.Api;
 using EY.HRPlatform.Training.Features.Catalog.Queries;
 using EY.HRPlatform.Training.Models.Responses;
 using MediatR;

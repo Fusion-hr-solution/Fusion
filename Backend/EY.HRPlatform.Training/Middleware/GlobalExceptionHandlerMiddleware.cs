@@ -1,6 +1,6 @@
 using System.Net;
 using System.Text.Json;
-using EY.HRPlatform.Training.Models.Responses;
+using EY.HRPlatform.SharedKernel.Api;
 
 namespace EY.HRPlatform.Training.Middleware;
 
