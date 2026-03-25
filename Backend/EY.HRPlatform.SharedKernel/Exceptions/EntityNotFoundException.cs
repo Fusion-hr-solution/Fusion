@@ -1,4 +1,4 @@
-namespace EY.HRPlatform.CoreHR.Exceptions;
+namespace EY.HRPlatform.SharedKernel.Exceptions;
 
 /// <summary>
 /// Thrown when a requested entity is not found.

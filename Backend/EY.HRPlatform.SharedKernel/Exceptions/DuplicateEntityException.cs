@@ -1,4 +1,4 @@
-namespace EY.HRPlatform.CoreHR.Exceptions;
+namespace EY.HRPlatform.SharedKernel.Exceptions;
 
 /// <summary>
 /// Thrown when attempting to create or update an entity that would violate uniqueness constraints.

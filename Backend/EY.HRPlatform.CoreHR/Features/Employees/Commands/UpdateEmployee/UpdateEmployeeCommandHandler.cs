@@ -1,8 +1,8 @@
 using EY.HRPlatform.CoreHR.Domain.Entities;
-using EY.HRPlatform.CoreHR.Exceptions;
 using EY.HRPlatform.CoreHR.Features.Employees.Dtos;
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
 using EY.HRPlatform.SharedKernel.CQRS;
+using EY.HRPlatform.SharedKernel.Exceptions;
 using EY.HRPlatform.SharedKernel.Results;
 using Microsoft.EntityFrameworkCore;
 
