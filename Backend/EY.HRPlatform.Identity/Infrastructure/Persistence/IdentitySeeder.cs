@@ -1,5 +1,5 @@
 ﻿using EY.HRPlatform.Identity.Domain.Entities;
-using EY.HRPlatform.Identity.Domain.Enums;
+using EY.HRPlatform.SharedKernel.Auth;
 using Microsoft.AspNetCore.Identity;
 
 namespace EY.HRPlatform.Identity.Infrastructure.Persistence;

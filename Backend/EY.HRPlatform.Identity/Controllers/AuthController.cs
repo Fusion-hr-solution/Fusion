@@ -1,6 +1,6 @@
 ﻿using EY.HRPlatform.Identity.Domain.Entities;
-using EY.HRPlatform.Identity.Domain.Enums;
 using EY.HRPlatform.Identity.Infrastructure.Persistence;
+using EY.HRPlatform.SharedKernel.Auth;
 using EY.HRPlatform.Identity.Infrastructure.Services;
 using EY.HRPlatform.Identity.Models.Requests;
 using EY.HRPlatform.Identity.Models.Responses;

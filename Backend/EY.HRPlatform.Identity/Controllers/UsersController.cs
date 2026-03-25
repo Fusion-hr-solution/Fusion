@@ -1,6 +1,6 @@
 ﻿using EY.HRPlatform.Identity.Domain.Entities;
-using EY.HRPlatform.Identity.Domain.Enums;
 using EY.HRPlatform.Identity.Models.Responses;
+using EY.HRPlatform.SharedKernel.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
