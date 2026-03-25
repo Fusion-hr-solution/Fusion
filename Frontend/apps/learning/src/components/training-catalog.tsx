@@ -2,9 +2,10 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Input } from "@repo/ui";
-import { Search, BookOpen } from "lucide-react";
+import { BookOpen } from "lucide-react";
 import { PageHeader } from "./page-header";
+import { SearchInput } from "./search-input";
+import { EmptyState } from "./empty-state";
 import type { TrainingCategory, TrainingLevel, SortOption } from "@/types";
 import type { TrainingCatalogProps } from "@/types/component-props";
 import { TrainingCard } from "./training-card";
@@ -83,18 +84,15 @@ export function TrainingCatalog({ trainings }: TrainingCatalogProps) {
         title="Training Catalog"
         description="Explore our curated library of professional development programs. Filter by category, search by topic, and start building the skills that matter."
       >
-        {/* Search */}
         <div
-          className="ey-animate-fade-up relative mt-6 max-w-lg"
+          className="ey-animate-fade-up mt-6"
           style={{ animationDelay: "200ms" }}
         >
-          <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-          <Input
-            aria-label="Search trainings"
-            placeholder="Search trainings by title, topic, or tag..."
+          <SearchInput
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="h-11 rounded-lg border-border/60 bg-[hsl(var(--ey-grey-50))] pl-10 text-sm shadow-sm placeholder:text-muted-foreground/60 focus-visible:ring-[hsl(var(--ey-yellow))] focus-visible:border-[hsl(var(--ey-yellow))]/40 transition-shadow focus-visible:shadow-[0_0_0_3px_hsl(var(--ey-yellow)/0.1)]"
+            onChange={setSearch}
+            placeholder="Search trainings by title, topic, or tag..."
+            ariaLabel="Search trainings"
           />
         </div>
       </PageHeader>
@@ -147,23 +145,19 @@ export function TrainingCatalog({ trainings }: TrainingCatalogProps) {
             ))}
           </div>
         ) : (
-          <div className="ey-animate-scale-in flex flex-col items-center justify-center rounded-xl border border-dashed border-border/60 bg-white py-20">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[hsl(var(--ey-grey-100))] mb-4">
-              <BookOpen className="h-6 w-6 text-muted-foreground/50" aria-hidden="true" />
-            </div>
-            <p className="text-sm font-semibold text-foreground">
-              No trainings found
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Try adjusting your filters or search terms.
-            </p>
-            <button
-              onClick={clearAll}
-              className="mt-4 rounded-lg ey-bg-dark px-4 py-2 text-xs font-semibold text-white transition-all hover:ey-bg-dark-deep hover:shadow-md"
-            >
-              Clear all filters
-            </button>
-          </div>
+          <EmptyState
+            icon={BookOpen}
+            title="No trainings found"
+            subtitle="Try adjusting your filters or search terms."
+            action={
+              <button
+                onClick={clearAll}
+                className="mt-4 rounded-lg ey-bg-dark px-4 py-2 text-xs font-semibold text-white transition-all hover:ey-bg-dark-deep hover:shadow-md"
+              >
+                Clear all filters
+              </button>
+            }
+          />
         )}
       </section>
 

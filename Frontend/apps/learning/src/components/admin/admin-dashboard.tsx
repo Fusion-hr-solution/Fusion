@@ -6,12 +6,14 @@ import {
   CheckCircle2,
   AlertTriangle,
   TrendingUp,
-  Search,
   BookOpen,
 } from "lucide-react";
-import { TooltipProvider, Input } from "@repo/ui";
+import { TooltipProvider } from "@repo/ui";
 import type { Employee, Training, TrainingCategory, TrainingStatus } from "@/types";
 import { PageHeader } from "../page-header";
+import { KpiCard } from "../kpi-card";
+import { SearchInput } from "../search-input";
+import { EmptyState } from "../empty-state";
 import { EmployeeRow } from "./employee-row";
 import { CompletionFunnel } from "./completion-funnel";
 import { CategoryPerformance } from "./category-performance";
@@ -126,33 +128,16 @@ export function AdminDashboard({ employees, trainings: _trainings }: AdminDashbo
         title="Employee Training Overview"
         description="Monitor team progress, identify gaps, and ensure compliance across all training programs."
       >
-
-          {/* ── KPI strip ── */}
           <div className="mt-8 grid grid-cols-2 gap-3 lg:grid-cols-5 lg:gap-4">
             {[
-              { icon: Users, value: stats.totalEmployees, label: "Employees", accent: "bg-[hsl(var(--ey-grey-100))]", iconColor: "text-[hsl(var(--ey-grey-400))]" },
-              { icon: BookOpen, value: stats.totalEnrollments, label: "Enrollments", accent: "bg-[hsl(var(--ey-grey-100))]", iconColor: "text-[hsl(var(--ey-grey-400))]" },
-              { icon: CheckCircle2, value: stats.completed, label: "Completed", accent: "bg-[hsl(var(--ey-grey-100))]", iconColor: "text-[hsl(var(--ey-grey-400))]" },
-              { icon: TrendingUp, value: `${stats.avgCompletion}%`, label: "Avg. Progress", accent: "bg-[hsl(var(--ey-grey-100))]", iconColor: "text-[hsl(var(--ey-grey-400))]" },
-              { icon: AlertTriangle, value: stats.overdue, label: "Overdue", accent: stats.overdue > 0 ? "bg-[hsl(var(--ey-grey-100))]" : "bg-[hsl(var(--ey-grey-100))]", iconColor: stats.overdue > 0 ? "text-[hsl(var(--ey-grey-500))]" : "text-[hsl(var(--ey-grey-400))]" },
-            ].map((kpi, i) => {
-              const Icon = kpi.icon;
-              return (
-                <div
-                  key={kpi.label}
-                  className="ey-animate-fade-up group flex items-center gap-3 rounded-xl border border-border/60 bg-white px-4 py-3.5 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5"
-                  style={{ animationDelay: `${240 + i * 50}ms` }}
-                >
-                  <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${kpi.accent} transition-transform duration-300 group-hover:scale-105`}>
-                    <Icon className={`h-4.5 w-4.5 ${kpi.iconColor}`} aria-hidden="true" />
-                  </div>
-                  <div>
-                    <p className="text-lg font-bold text-foreground leading-none tabular-nums">{kpi.value}</p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">{kpi.label}</p>
-                  </div>
-                </div>
-              );
-            })}
+              { icon: Users, value: stats.totalEmployees, label: "Employees" },
+              { icon: BookOpen, value: stats.totalEnrollments, label: "Enrollments" },
+              { icon: CheckCircle2, value: stats.completed, label: "Completed" },
+              { icon: TrendingUp, value: `${stats.avgCompletion}%`, label: "Avg. Progress" },
+              { icon: AlertTriangle, value: stats.overdue, label: "Overdue" },
+            ].map((kpi, i) => (
+              <KpiCard key={kpi.label} icon={kpi.icon} value={kpi.value} label={kpi.label} index={i} />
+            ))}
           </div>
       </PageHeader>
 
@@ -167,12 +152,11 @@ export function AdminDashboard({ employees, trainings: _trainings }: AdminDashbo
               style={{ animationDelay: "60ms" }}
             >
               <div className="relative flex-1 max-w-sm">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Search employees..."
+                <SearchInput
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="pl-9 h-9 text-sm border-border/60 bg-white focus-visible:ring-[hsl(var(--ey-yellow))]/40"
+                  onChange={setSearch}
+                  placeholder="Search employees..."
+                  ariaLabel="Search employees"
                 />
               </div>
 
@@ -216,13 +200,11 @@ export function AdminDashboard({ employees, trainings: _trainings }: AdminDashbo
                   />
                 ))
               ) : (
-                <div className="ey-animate-scale-in flex flex-col items-center justify-center rounded-xl border border-dashed border-border/60 bg-white py-16">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[hsl(var(--ey-grey-100))] mb-3">
-                    <Users className="h-5 w-5 text-muted-foreground/40" aria-hidden="true" />
-                  </div>
-                  <p className="text-sm font-semibold text-foreground">No employees match your filters</p>
-                  <p className="mt-1 text-xs text-muted-foreground">Try adjusting your search or filter criteria.</p>
-                </div>
+                <EmptyState
+                  icon={Users}
+                  title="No employees match your filters"
+                  subtitle="Try adjusting your search or filter criteria."
+                />
               )}
             </div>
           </div>

@@ -6,6 +6,8 @@ import type { TrainingStatus, EnrolledTraining } from "@/types";
 import type { MyTrainingsListProps } from "@/types/component-props";
 import { TrainingStatusTabs } from "./training-status-tabs";
 import { PageHeader } from "./page-header";
+import { StatCard } from "./stat-card";
+import { EmptyState } from "./empty-state";
 import { EnrolledTrainingCard } from "./enrolled-training-card";
 
 export function MyTrainingsList({ trainings }: MyTrainingsListProps) {
@@ -40,34 +42,10 @@ export function MyTrainingsList({ trainings }: MyTrainingsListProps) {
   };
 
   const stats = [
-    {
-      icon: BookOpen,
-      value: inProgress,
-      label: "In Progress",
-      iconColor: "text-[hsl(var(--ey-grey-400))]",
-      bgAccent: "bg-[hsl(var(--ey-grey-100))]",
-    },
-    {
-      icon: CheckCircle2,
-      value: completed,
-      label: "Completed",
-      iconColor: "text-[hsl(var(--ey-grey-400))]",
-      bgAccent: "bg-[hsl(var(--ey-grey-100))]",
-    },
-    {
-      icon: Clock,
-      value: `${totalHours}h`,
-      label: "Total Hours",
-      iconColor: "text-[hsl(var(--ey-grey-400))]",
-      bgAccent: "bg-[hsl(var(--ey-grey-100))]",
-    },
-    {
-      icon: GraduationCap,
-      value: trainings.length,
-      label: "Enrolled",
-      iconColor: "text-[hsl(var(--ey-grey-400))]",
-      bgAccent: "bg-[hsl(var(--ey-grey-100))]",
-    },
+    { icon: BookOpen, value: inProgress, label: "In Progress" },
+    { icon: CheckCircle2, value: completed, label: "Completed" },
+    { icon: Clock, value: `${totalHours}h`, label: "Total Hours" },
+    { icon: GraduationCap, value: trainings.length, label: "Enrolled" },
   ];
 
   return (
@@ -77,26 +55,16 @@ export function MyTrainingsList({ trainings }: MyTrainingsListProps) {
         title="My Trainings"
         description="Track your enrolled trainings, pick up where you left off, and celebrate your completed courses."
       >
-        {/* Quick stats */}
         <div className="mt-6 grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:gap-4">
-          {stats.map((stat, i) => {
-            const Icon = stat.icon;
-            return (
-              <div
-                key={stat.label}
-                className={`ey-animate-fade-up flex items-center gap-3 rounded-xl border border-border/60 ${stat.bgAccent} px-4 py-3 transition-all hover:shadow-sm`}
-                style={{ animationDelay: `${200 + i * 60}ms` }}
-              >
-                <Icon className={`h-5 w-5 ${stat.iconColor}`} aria-hidden="true" />
-                <div>
-                  <p className="text-lg font-bold text-foreground leading-none">
-                    {stat.value}
-                  </p>
-                  <p className="text-xs text-muted-foreground">{stat.label}</p>
-                </div>
-              </div>
-            );
-          })}
+          {stats.map((stat, i) => (
+            <StatCard
+              key={stat.label}
+              icon={stat.icon}
+              value={stat.value}
+              label={stat.label}
+              index={i}
+            />
+          ))}
         </div>
       </PageHeader>
 
@@ -118,17 +86,11 @@ export function MyTrainingsList({ trainings }: MyTrainingsListProps) {
               />
             ))
           ) : (
-            <div className="ey-animate-scale-in flex flex-col items-center justify-center rounded-xl border border-dashed border-border/60 bg-white py-20">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[hsl(var(--ey-grey-100))] mb-4">
-                <GraduationCap className="h-6 w-6 text-muted-foreground/40" aria-hidden="true" />
-              </div>
-              <p className="text-sm font-semibold text-foreground">
-                No trainings in this category yet
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Browse the catalog to discover new trainings.
-              </p>
-            </div>
+            <EmptyState
+              icon={GraduationCap}
+              title="No trainings in this category yet"
+              subtitle="Browse the catalog to discover new trainings."
+            />
           )}
         </div>
       </section>
