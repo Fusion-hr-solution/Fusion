@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { BookOpen, GraduationCap, Clock, CheckCircle2, TrendingUp } from "lucide-react";
+import { BookOpen, GraduationCap, Clock, CheckCircle2 } from "lucide-react";
 import type { TrainingStatus, EnrolledTraining } from "@/types";
 import type { MyTrainingsListProps } from "@/types/component-props";
 import { TrainingStatusTabs } from "./training-status-tabs";
@@ -43,29 +43,29 @@ export function MyTrainingsList({ trainings }: MyTrainingsListProps) {
       icon: BookOpen,
       value: inProgress,
       label: "In Progress",
-      iconColor: "text-[hsl(var(--ey-blue-400))]",
-      bgAccent: "bg-[hsl(var(--ey-blue-400))]/5",
+      iconColor: "text-[hsl(var(--ey-grey-400))]",
+      bgAccent: "bg-[hsl(var(--ey-grey-100))]",
     },
     {
       icon: CheckCircle2,
       value: completed,
       label: "Completed",
-      iconColor: "text-[hsl(var(--ey-green-500))]",
-      bgAccent: "bg-[hsl(var(--ey-green-500))]/5",
+      iconColor: "text-[hsl(var(--ey-grey-400))]",
+      bgAccent: "bg-[hsl(var(--ey-grey-100))]",
     },
     {
       icon: Clock,
       value: `${totalHours}h`,
       label: "Total Hours",
-      iconColor: "text-[hsl(var(--ey-orange-500))]",
-      bgAccent: "bg-[hsl(var(--ey-orange-500))]/5",
+      iconColor: "text-[hsl(var(--ey-grey-400))]",
+      bgAccent: "bg-[hsl(var(--ey-grey-100))]",
     },
     {
       icon: GraduationCap,
       value: trainings.length,
       label: "Enrolled",
-      iconColor: "ey-text-accent",
-      bgAccent: "bg-[hsl(var(--ey-yellow))]/5",
+      iconColor: "text-[hsl(var(--ey-grey-400))]",
+      bgAccent: "bg-[hsl(var(--ey-grey-100))]",
     },
   ];
 
@@ -76,7 +76,7 @@ export function MyTrainingsList({ trainings }: MyTrainingsListProps) {
         <div className="ey-hero-pattern absolute inset-0 opacity-30" />
         <div className="absolute right-0 top-0 h-full w-1/3 bg-gradient-to-l from-[hsl(var(--ey-yellow))]/5 to-transparent" />
 
-        <div className="relative mx-auto max-w-7xl px-6 py-10 lg:py-12">
+        <div className="relative px-8 py-10 lg:py-12">
           <div className="ey-animate-fade-up flex items-end gap-3 mb-1">
             <div className="flex h-9 w-1 rounded-full ey-bg-accent" />
             <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
@@ -84,7 +84,7 @@ export function MyTrainingsList({ trainings }: MyTrainingsListProps) {
             </span>
           </div>
 
-          <div className="flex items-start justify-between gap-6">
+          <div>
             <div>
               <h1
                 className="ey-animate-fade-up mt-3 text-3xl font-bold tracking-tight text-foreground lg:text-4xl"
@@ -100,28 +100,6 @@ export function MyTrainingsList({ trainings }: MyTrainingsListProps) {
                 celebrate your completed courses.
               </p>
             </div>
-
-            {/* Completion rate insight */}
-            {trainings.length > 0 && (
-              <div
-                className="ey-animate-fade-up hidden lg:flex items-center gap-3 rounded-xl border border-border/60 bg-[hsl(var(--ey-grey-50))] px-5 py-3.5 shadow-sm"
-                style={{ animationDelay: "240ms" }}
-              >
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[hsl(var(--ey-green-500))]/10">
-                  <TrendingUp className="h-5 w-5 text-[hsl(var(--ey-green-500))]" aria-hidden="true" />
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-foreground leading-none">
-                    {trainings.length > 0
-                      ? Math.round((completed / trainings.length) * 100)
-                      : 0}%
-                  </p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    Completion rate
-                  </p>
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Quick stats */}
@@ -149,7 +127,7 @@ export function MyTrainingsList({ trainings }: MyTrainingsListProps) {
       </section>
 
       {/* Content */}
-      <section className="mx-auto max-w-7xl px-6 py-8">
+      <section className="px-8 py-8">
         <TrainingStatusTabs
           activeTab={activeTab}
           counts={counts}

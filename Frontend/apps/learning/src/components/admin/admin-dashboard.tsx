@@ -125,7 +125,7 @@ export function AdminDashboard({ employees, trainings: _trainings }: AdminDashbo
         <div className="ey-hero-pattern absolute inset-0 opacity-30" />
         <div className="absolute left-0 bottom-0 h-1/2 w-1/3 bg-gradient-to-tr from-[hsl(var(--ey-black))]/3 to-transparent" />
 
-        <div className="relative mx-auto max-w-7xl px-6 py-10 lg:py-12">
+        <div className="relative px-8 py-10 lg:py-12">
           <div className="ey-animate-fade-up flex items-end gap-3 mb-1">
             <div className="flex h-9 w-1 rounded-full ey-bg-dark-deep" />
             <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
@@ -150,11 +150,11 @@ export function AdminDashboard({ employees, trainings: _trainings }: AdminDashbo
           {/* ── KPI strip ── */}
           <div className="mt-8 grid grid-cols-2 gap-3 lg:grid-cols-5 lg:gap-4">
             {[
-              { icon: Users, value: stats.totalEmployees, label: "Employees", accent: "bg-[hsl(var(--ey-black))]/6", iconColor: "text-[hsl(var(--ey-grey-500))]" },
-              { icon: BookOpen, value: stats.totalEnrollments, label: "Enrollments", accent: "bg-[hsl(var(--ey-blue-400))]/8", iconColor: "text-[hsl(var(--ey-blue-400))]" },
-              { icon: CheckCircle2, value: stats.completed, label: "Completed", accent: "bg-[hsl(var(--ey-green-500))]/8", iconColor: "text-[hsl(var(--ey-green-500))]" },
-              { icon: TrendingUp, value: `${stats.avgCompletion}%`, label: "Avg. Progress", accent: "bg-[hsl(var(--ey-yellow))]/10", iconColor: "ey-text-accent" },
-              { icon: AlertTriangle, value: stats.overdue, label: "Overdue", accent: stats.overdue > 0 ? "bg-[hsl(var(--ey-red-500))]/8" : "bg-[hsl(var(--ey-grey-100))]", iconColor: stats.overdue > 0 ? "text-[hsl(var(--ey-red-500))]" : "text-[hsl(var(--ey-grey-400))]" },
+              { icon: Users, value: stats.totalEmployees, label: "Employees", accent: "bg-[hsl(var(--ey-grey-100))]", iconColor: "text-[hsl(var(--ey-grey-400))]" },
+              { icon: BookOpen, value: stats.totalEnrollments, label: "Enrollments", accent: "bg-[hsl(var(--ey-grey-100))]", iconColor: "text-[hsl(var(--ey-grey-400))]" },
+              { icon: CheckCircle2, value: stats.completed, label: "Completed", accent: "bg-[hsl(var(--ey-grey-100))]", iconColor: "text-[hsl(var(--ey-grey-400))]" },
+              { icon: TrendingUp, value: `${stats.avgCompletion}%`, label: "Avg. Progress", accent: "bg-[hsl(var(--ey-grey-100))]", iconColor: "text-[hsl(var(--ey-grey-400))]" },
+              { icon: AlertTriangle, value: stats.overdue, label: "Overdue", accent: stats.overdue > 0 ? "bg-[hsl(var(--ey-grey-100))]" : "bg-[hsl(var(--ey-grey-100))]", iconColor: stats.overdue > 0 ? "text-[hsl(var(--ey-grey-500))]" : "text-[hsl(var(--ey-grey-400))]" },
             ].map((kpi, i) => {
               const Icon = kpi.icon;
               return (
@@ -178,7 +178,7 @@ export function AdminDashboard({ employees, trainings: _trainings }: AdminDashbo
       </section>
 
       {/* ── Main content ── */}
-      <section className="mx-auto max-w-7xl px-6 py-8">
+      <section className="px-8 py-8">
         <div className="grid gap-6 lg:grid-cols-3">
           {/* ── LEFT (2/3): Employee table ── */}
           <div className="space-y-5 lg:col-span-2">

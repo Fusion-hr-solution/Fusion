@@ -7,7 +7,6 @@ import {
   Clock,
   CheckCircle2,
   TrendingUp,
-  Flame,
   ChevronRight,
   Target,
   Zap,
@@ -80,7 +79,7 @@ export function Dashboard({ trainings, enrolledTrainings }: DashboardProps) {
         <div className="absolute right-0 top-0 h-full w-2/5 bg-gradient-to-l from-[hsl(var(--ey-yellow))]/5 to-transparent" />
         <div className="absolute right-8 top-8 h-20 w-20 rounded-full bg-[hsl(var(--ey-yellow))]/8 blur-2xl" />
 
-        <div className="relative mx-auto max-w-7xl px-6 py-10 lg:py-12">
+        <div className="relative px-8 py-10 lg:py-12">
           <div className="ey-animate-fade-up flex items-end gap-3 mb-1">
             <div className="flex h-9 w-1 rounded-full ey-bg-accent" />
             <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
@@ -88,7 +87,7 @@ export function Dashboard({ trainings, enrolledTrainings }: DashboardProps) {
             </span>
           </div>
 
-          <div className="flex items-start justify-between gap-6">
+          <div>
             <div>
               <h1
                 className="ey-animate-fade-up mt-3 text-3xl font-bold tracking-tight text-foreground lg:text-4xl"
@@ -104,28 +103,15 @@ export function Dashboard({ trainings, enrolledTrainings }: DashboardProps) {
                 you&apos;re making great progress.
               </p>
             </div>
-
-            <div
-              className="ey-animate-fade-up hidden lg:flex items-center gap-3.5 rounded-xl border border-border/60 bg-[hsl(var(--ey-grey-50))] px-5 py-3.5 shadow-sm"
-              style={{ animationDelay: "240ms" }}
-            >
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[hsl(var(--ey-yellow))]/15">
-                <Flame className="h-5 w-5 ey-text-accent" aria-hidden="true" />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-foreground leading-none">7-day streak</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">Keep it up!</p>
-              </div>
-            </div>
           </div>
 
           {/* ── KPI cards row ── */}
           <div className="mt-8 grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
             {[
-              { icon: BookOpen, value: stats.inProgress.length, label: "In Progress", accent: "bg-[hsl(var(--ey-blue-400))]/8", iconColor: "text-[hsl(var(--ey-blue-400))]", ringColor: "ring-[hsl(var(--ey-blue-400))]/20" },
-              { icon: CheckCircle2, value: stats.completed.length, label: "Completed", accent: "bg-[hsl(var(--ey-green-500))]/8", iconColor: "text-[hsl(var(--ey-green-500))]", ringColor: "ring-[hsl(var(--ey-green-500))]/20" },
-              { icon: Clock, value: `${stats.completedHours}h`, label: "Hours Learned", accent: "bg-[hsl(var(--ey-orange-500))]/8", iconColor: "text-[hsl(var(--ey-orange-500))]", ringColor: "ring-[hsl(var(--ey-orange-500))]/20" },
-              { icon: TrendingUp, value: `${stats.completionRate}%`, label: "Completion Rate", accent: "bg-[hsl(var(--ey-yellow))]/10", iconColor: "ey-text-accent", ringColor: "ring-[hsl(var(--ey-yellow))]/30" },
+              { icon: BookOpen, value: stats.inProgress.length, label: "In Progress", accent: "bg-[hsl(var(--ey-grey-100))]", iconColor: "text-[hsl(var(--ey-grey-400))]" },
+              { icon: CheckCircle2, value: stats.completed.length, label: "Completed", accent: "bg-[hsl(var(--ey-grey-100))]", iconColor: "text-[hsl(var(--ey-grey-400))]" },
+              { icon: Clock, value: `${stats.completedHours}h`, label: "Hours Learned", accent: "bg-[hsl(var(--ey-grey-100))]", iconColor: "text-[hsl(var(--ey-grey-400))]" },
+              { icon: TrendingUp, value: `${stats.completionRate}%`, label: "Completion Rate", accent: "bg-[hsl(var(--ey-grey-100))]", iconColor: "text-[hsl(var(--ey-grey-400))]" },
             ].map((kpi, i) => {
               const Icon = kpi.icon;
               return (
@@ -134,7 +120,7 @@ export function Dashboard({ trainings, enrolledTrainings }: DashboardProps) {
                   className="ey-animate-fade-up group flex items-center gap-3.5 rounded-xl border border-border/60 bg-white px-4 py-4 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5"
                   style={{ animationDelay: `${280 + i * 60}ms` }}
                 >
-                  <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${kpi.accent} ring-1 ${kpi.ringColor} transition-transform duration-300 group-hover:scale-105`}>
+                  <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${kpi.accent} transition-transform duration-300 group-hover:scale-105`}>
                     <Icon className={`h-5 w-5 ${kpi.iconColor}`} aria-hidden="true" />
                   </div>
                   <div>
@@ -149,7 +135,7 @@ export function Dashboard({ trainings, enrolledTrainings }: DashboardProps) {
       </section>
 
       {/* ── Dashboard grid ── */}
-      <section className="mx-auto max-w-7xl px-6 py-8">
+      <section className="px-8 py-8">
         <div className="grid gap-6 lg:grid-cols-3">
           {/* ── LEFT COLUMN (2/3) ── */}
           <div className="space-y-6 lg:col-span-2">

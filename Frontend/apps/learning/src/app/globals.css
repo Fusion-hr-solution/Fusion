@@ -117,80 +117,46 @@
 
 /* ── EY brand utility classes ── */
 @layer components {
-  /* Category badges */
-  .ey-cat-leadership {
-    @apply bg-[hsl(var(--ey-yellow))]/10 text-[hsl(var(--ey-grey-500))] border-[hsl(var(--ey-yellow))]/30;
-  }
-  .ey-cat-technical {
-    @apply bg-[hsl(var(--ey-blue-400))]/10 text-[hsl(var(--ey-blue-600))] border-[hsl(var(--ey-blue-400))]/30;
-  }
-  .ey-cat-compliance {
-    @apply bg-[hsl(var(--ey-teal-500))]/10 text-[hsl(var(--ey-teal-500))] border-[hsl(var(--ey-teal-500))]/30;
-  }
-  .ey-cat-soft-skills {
-    @apply bg-purple-500/10 text-purple-600 border-purple-500/30;
-  }
-  .ey-cat-finance {
-    @apply bg-[hsl(var(--ey-orange-500))]/10 text-[hsl(var(--ey-orange-500))] border-[hsl(var(--ey-orange-500))]/30;
-  }
+  /* Category badges — neutral */
+  .ey-cat-leadership,
+  .ey-cat-technical,
+  .ey-cat-compliance,
+  .ey-cat-soft-skills,
+  .ey-cat-finance,
   .ey-cat-data-analytics {
-    @apply bg-[hsl(var(--ey-green-500))]/10 text-[hsl(var(--ey-green-500))] border-[hsl(var(--ey-green-500))]/30;
+    @apply bg-[hsl(var(--ey-grey-100))] text-[hsl(var(--ey-grey-500))] border-[hsl(var(--ey-grey-200))];
   }
 
-  /* Category active chip backgrounds */
-  .ey-chip-leadership {
-    background-color: hsl(var(--ey-yellow));
-    color: hsl(var(--ey-grey-500));
-  }
-  .ey-chip-technical {
-    background-color: hsl(var(--ey-blue-400));
-    color: #fff;
-  }
-  .ey-chip-compliance {
-    background-color: hsl(var(--ey-teal-500));
-    color: #fff;
-  }
-  .ey-chip-soft-skills {
-    @apply bg-purple-500 text-white;
-  }
-  .ey-chip-finance {
-    background-color: hsl(var(--ey-orange-500));
-    color: #fff;
-  }
+  /* Category active chip backgrounds — neutral */
+  .ey-chip-leadership,
+  .ey-chip-technical,
+  .ey-chip-compliance,
+  .ey-chip-soft-skills,
+  .ey-chip-finance,
   .ey-chip-data-analytics {
-    background-color: hsl(var(--ey-green-500));
+    background-color: hsl(var(--ey-grey-500));
     color: #fff;
   }
 
-  /* Category color strip */
-  .ey-strip-leadership {
-    background-color: hsl(var(--ey-yellow));
-  }
-  .ey-strip-technical {
-    background-color: hsl(var(--ey-blue-400));
-  }
-  .ey-strip-compliance {
-    background-color: hsl(var(--ey-teal-500));
-  }
-  .ey-strip-soft-skills {
-    @apply bg-purple-500;
-  }
-  .ey-strip-finance {
-    background-color: hsl(var(--ey-orange-500));
-  }
+  /* Category color strip — neutral */
+  .ey-strip-leadership,
+  .ey-strip-technical,
+  .ey-strip-compliance,
+  .ey-strip-soft-skills,
+  .ey-strip-finance,
   .ey-strip-data-analytics {
-    background-color: hsl(var(--ey-green-500));
+    background-color: hsl(var(--ey-grey-200));
   }
 
-  /* Level dots */
+  /* Level dots — neutral */
   .ey-dot-beginner {
-    background-color: hsl(var(--ey-green-500));
+    background-color: hsl(var(--ey-grey-300));
   }
   .ey-dot-intermediate {
-    background-color: hsl(var(--ey-orange-500));
+    background-color: hsl(var(--ey-grey-400));
   }
   .ey-dot-advanced {
-    background-color: hsl(var(--ey-red-500));
+    background-color: hsl(var(--ey-grey-500));
   }
 
   /* Shared brand utilities */

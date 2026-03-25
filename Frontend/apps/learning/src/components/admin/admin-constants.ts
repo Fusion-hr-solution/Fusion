@@ -32,12 +32,12 @@ export const STATUS_ICONS: Record<TrainingStatus, typeof Play> = {
 };
 
 export const AVATAR_COLORS = [
-  "bg-[hsl(var(--ey-blue-500))]",
-  "bg-[hsl(var(--ey-teal-500))]",
-  "bg-[hsl(var(--ey-orange-500))]",
-  "bg-purple-600",
-  "bg-[hsl(var(--ey-green-500))]",
-  "bg-[hsl(var(--ey-red-500))]",
-  "bg-[hsl(var(--ey-blue-600))]",
-  "bg-amber-600",
+  "bg-[hsl(var(--ey-grey-500))]",
+  "bg-[hsl(var(--ey-grey-400))]",
+  "bg-[hsl(var(--ey-grey-500))]",
+  "bg-[hsl(var(--ey-grey-400))]",
+  "bg-[hsl(var(--ey-grey-500))]",
+  "bg-[hsl(var(--ey-grey-400))]",
+  "bg-[hsl(var(--ey-grey-500))]",
+  "bg-[hsl(var(--ey-grey-400))]",
 ];
