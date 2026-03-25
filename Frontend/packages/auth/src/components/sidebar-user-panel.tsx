@@ -8,6 +8,7 @@ import {
   Settings,
   ChevronUp,
   ChevronDown,
+  Home,
 } from "lucide-react";
 import { useAuth } from "../auth-context";
 
@@ -40,6 +41,14 @@ export function SidebarUserPanel({ collapsed }: SidebarUserPanelProps) {
           >
             {initial}
           </div>
+          <a
+            href="/"
+            className="flex h-7 w-7 items-center justify-center rounded-md text-[hsl(var(--ey-grey-400))] hover:bg-[hsl(var(--ey-grey-100))] hover:text-[hsl(var(--ey-grey-500))] transition-colors"
+            title="Home"
+            aria-label="Home"
+          >
+            <Home className="h-3.5 w-3.5" />
+          </a>
           <button
             onClick={async () => {
               await logout();
@@ -79,6 +88,13 @@ export function SidebarUserPanel({ collapsed }: SidebarUserPanelProps) {
               >
                 <Settings className="h-4 w-4 text-[hsl(var(--ey-grey-400))]" />
                 Settings
+              </a>
+              <a
+                href="/"
+                className="flex items-center gap-3 px-3 py-2 text-sm text-[hsl(var(--ey-grey-500))] hover:bg-[hsl(var(--ey-grey-100))] transition-colors"
+              >
+                <Home className="h-4 w-4 text-[hsl(var(--ey-grey-400))]" />
+                Home
               </a>
               <button
                 onClick={async () => {
