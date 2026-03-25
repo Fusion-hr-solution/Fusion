@@ -11,5 +11,6 @@ public static class PlatformRole
     public const string Employee = "Employee";
     public const string Manager = "Manager";
 
-    public static readonly string[] All = [Admin, HR, Employee, Manager];
+    public static IReadOnlyList<string> All { get; } =
+        Array.AsReadOnly([Admin, HR, Employee, Manager]);
 }

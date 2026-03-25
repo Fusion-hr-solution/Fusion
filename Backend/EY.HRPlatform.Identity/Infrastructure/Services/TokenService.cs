@@ -30,6 +30,7 @@ public class TokenService : ITokenService
     {
         // Step 1: Get user's roles from the database
         var roles = await _userManager.GetRolesAsync(user);
+        var userClaims = await _userManager.GetClaimsAsync(user);
 
         // Step 2: Build the claims (data embedded inside the token)
         var claims = new List<Claim>
@@ -40,6 +41,16 @@ public class TokenService : ITokenService
             new(CustomClaimTypes.Department, user.Department ?? string.Empty),
             new(CustomClaimTypes.JobTitle, user.JobTitle ?? string.Empty),
         };
+
+        // Include tenant_id only when it exists as a validated user claim.
+        // This keeps token issuance tied to an identity-owned source, not request headers.
+        var tenantClaim = userClaims.FirstOrDefault(c => c.Type == CustomClaimTypes.TenantId);
+        if (tenantClaim is not null &&
+            Guid.TryParse(tenantClaim.Value, out var tenantId) &&
+            tenantId != Guid.Empty)
+        {
+            claims.Add(new Claim(CustomClaimTypes.TenantId, tenantId.ToString()));
+        }
 
         // Step 3: Add one role claim per role
         foreach (var role in roles)
