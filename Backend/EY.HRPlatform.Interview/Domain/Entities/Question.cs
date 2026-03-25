@@ -1,10 +1,10 @@
 using EY.HRPlatform.Interview.Domain.Enums;
+using EY.HRPlatform.SharedKernel.Domain;
 
 namespace EY.HRPlatform.Interview.Domain.Entities;
 
-public class Question
+public class Question : AggregateRoot
 {
-    public Guid Id { get; set; }
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public QuestionType Type { get; set; }
@@ -17,8 +17,17 @@ public class Question
     public string? Language { get; set; }
     public string? StarterCode { get; set; }
     public string? EvaluationCriteria { get; set; }
-    public DateTime CreatedAt { get; set; }
-    public DateTime UpdatedAt { get; set; }
-
+    public DateTime CreatedAt { get; protected set; }
+    public DateTime UpdatedAt { get; protected set; }
     public ICollection<QuestionOption> Options { get; set; } = new List<QuestionOption>();
+    public void SetCreatedAt(DateTime createdAt)
+    {
+        CreatedAt = createdAt;
+        UpdatedAt = createdAt;
+    }
+    public void SetUpdatedAt(DateTime updatedAt)
+    {
+        UpdatedAt = updatedAt;
+    }
+
 }

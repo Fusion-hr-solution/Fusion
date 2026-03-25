@@ -9,14 +9,17 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddInterviewServices(builder.Configuration);
 
+var autoMigrate = builder.Configuration.GetValue<bool?>("Database:AutoMigrate")
+                  ?? builder.Environment.IsDevelopment();
 var app = builder.Build();
-
-using (var scope = app.Services.CreateScope())
+if (autoMigrate)
 {
-    var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await dbContext.Database.MigrateAsync();
+    using (var scope = app.Services.CreateScope())
+    {
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await dbContext.Database.MigrateAsync();
+    }
 }
-
 app.UseInterviewPipeline();
 
 app.Run();

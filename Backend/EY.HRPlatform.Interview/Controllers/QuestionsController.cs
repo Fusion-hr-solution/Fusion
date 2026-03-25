@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace EY.HRPlatform.Interview.Controllers;
 
 [ApiController]
-[Route("api/questions")]
+[Route("api/interview/questions")]
 public class QuestionsController(IQuestionService questionService) : ControllerBase
 {
     [HttpGet]
@@ -14,7 +14,7 @@ public class QuestionsController(IQuestionService questionService) : ControllerB
     public async Task<IActionResult> Get([FromQuery] QuestionFilterDto filter, CancellationToken cancellationToken)
     {
         var data = await questionService.GetAsync(filter, cancellationToken);
-        return Ok(ApiResponse<PagedResultDto<QuestionDto>>.Ok(data, "Questions retrieved successfully."));
+        return Ok(ApiResponse<PagedResultDto<QuestionDto>>.Success(data));
     }
 
     [HttpGet("{id:guid}")]
@@ -22,7 +22,7 @@ public class QuestionsController(IQuestionService questionService) : ControllerB
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
     {
         var data = await questionService.GetByIdAsync(id, cancellationToken);
-        return Ok(ApiResponse<QuestionDto>.Ok(data, "Question retrieved successfully."));
+        return Ok(ApiResponse<QuestionDto>.Success(data));
     }
 
     [HttpPost]
@@ -30,7 +30,7 @@ public class QuestionsController(IQuestionService questionService) : ControllerB
     public async Task<IActionResult> Create([FromBody] CreateQuestionDto request, CancellationToken cancellationToken)
     {
         var data = await questionService.CreateAsync(request, cancellationToken);
-        return CreatedAtAction(nameof(GetById), new { id = data.Id }, ApiResponse<QuestionDto>.Ok(data, "Question created successfully."));
+        return CreatedAtAction(nameof(GetById), new { id = data.Id }, ApiResponse<QuestionDto>.Success(data));
     }
 
     [HttpPut("{id:guid}")]
@@ -38,7 +38,7 @@ public class QuestionsController(IQuestionService questionService) : ControllerB
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateQuestionDto request, CancellationToken cancellationToken)
     {
         var data = await questionService.UpdateAsync(id, request, cancellationToken);
-        return Ok(ApiResponse<QuestionDto>.Ok(data, "Question updated successfully."));
+        return Ok(ApiResponse<QuestionDto>.Success(data));
     }
 
     [HttpDelete("{id:guid}")]
@@ -46,6 +46,6 @@ public class QuestionsController(IQuestionService questionService) : ControllerB
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         await questionService.DeleteAsync(id, cancellationToken);
-        return Ok(ApiResponse.Ok(message: "Question deleted successfully."));
+        return Ok(ApiResponse.Success());
     }
 }

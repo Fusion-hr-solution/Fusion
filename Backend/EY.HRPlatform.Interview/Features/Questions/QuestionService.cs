@@ -15,7 +15,6 @@ public class QuestionService(AppDbContext dbContext) : IQuestionService
 
         var query = dbContext.Questions
             .AsNoTracking()
-            .Include(q => q.Options)
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(filter.Search))
@@ -82,10 +81,11 @@ public class QuestionService(AppDbContext dbContext) : IQuestionService
     public async Task<QuestionDto> CreateAsync(CreateQuestionDto request, CancellationToken cancellationToken)
     {
         ValidateRequest(request);
+        var tags = request.Tags ?? [];
+        var options = request.Options ?? [];
 
         var question = new Question
         {
-            Id = Guid.NewGuid(),
             Title = request.Title.Trim(),
             Description = request.Description.Trim(),
             Type = ParseQuestionType(request.Type),
@@ -93,14 +93,13 @@ public class QuestionService(AppDbContext dbContext) : IQuestionService
             GradingMethod = ParseGradingMethod(request.GradingMethod),
             Points = request.Points,
             DurationMinutes = request.DurationMinutes,
-            Tags = request.Tags.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).Distinct().ToList(),
+            Tags = tags.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).Distinct().ToList(),
             UsageCount = 0,
             Language = string.IsNullOrWhiteSpace(request.Language) ? null : request.Language.Trim(),
             StarterCode = string.IsNullOrWhiteSpace(request.StarterCode) ? null : request.StarterCode,
             EvaluationCriteria = string.IsNullOrWhiteSpace(request.EvaluationCriteria) ? null : request.EvaluationCriteria.Trim(),
-            Options = request.Options.Select(o => new QuestionOption
+            Options = options.Select(o => new QuestionOption
             {
-                Id = Guid.NewGuid(),
                 Text = o.Text.Trim(),
                 Correct = o.Correct
             }).ToList()
@@ -115,6 +114,8 @@ public class QuestionService(AppDbContext dbContext) : IQuestionService
     public async Task<QuestionDto> UpdateAsync(Guid id, UpdateQuestionDto request, CancellationToken cancellationToken)
     {
         ValidateRequest(request);
+        var tags = request.Tags ?? [];
+        var options = request.Options ?? [];
 
         var question = await dbContext.Questions
             .Include(q => q.Options)
@@ -130,15 +131,14 @@ public class QuestionService(AppDbContext dbContext) : IQuestionService
         question.GradingMethod = ParseGradingMethod(request.GradingMethod);
         question.Points = request.Points;
         question.DurationMinutes = request.DurationMinutes;
-        question.Tags = request.Tags.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).Distinct().ToList();
+        question.Tags = tags.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).Distinct().ToList();
         question.Language = string.IsNullOrWhiteSpace(request.Language) ? null : request.Language.Trim();
         question.StarterCode = string.IsNullOrWhiteSpace(request.StarterCode) ? null : request.StarterCode;
         question.EvaluationCriteria = string.IsNullOrWhiteSpace(request.EvaluationCriteria) ? null : request.EvaluationCriteria.Trim();
 
         dbContext.QuestionOptions.RemoveRange(question.Options);
-        question.Options = request.Options.Select(o => new QuestionOption
+        question.Options = options.Select(o => new QuestionOption
         {
-            Id = Guid.NewGuid(),
             QuestionId = question.Id,
             Text = o.Text.Trim(),
             Correct = o.Correct
@@ -184,10 +184,11 @@ public class QuestionService(AppDbContext dbContext) : IQuestionService
     private static void ValidateRequest(CreateQuestionDto request)
     {
         var errors = new List<string>();
+        var options = request.Options ?? [];
 
         if (string.IsNullOrWhiteSpace(request.Title))
             errors.Add("title is required.");
-        if (request.Title.Length > 200)
+        else if (request.Title.Length > 200)
             errors.Add("title max length is 200.");
         if (request.Points <= 0)
             errors.Add("points must be greater than 0.");
@@ -199,7 +200,7 @@ public class QuestionService(AppDbContext dbContext) : IQuestionService
         _ = ParseGradingMethod(request.GradingMethod);
 
         if ((type is QuestionType.MultipleChoice or QuestionType.TrueFalse)
-            && (request.Options.Count == 0 || !request.Options.Any(x => x.Correct)))
+            && (options.Count == 0 || !options.Any(x => x.Correct)))
         {
             errors.Add("Multiple Choice and True/False questions require options and at least one correct option.");
         }
@@ -207,15 +208,18 @@ public class QuestionService(AppDbContext dbContext) : IQuestionService
         if ((type is QuestionType.Coding or QuestionType.Sql) && string.IsNullOrWhiteSpace(request.Language))
             errors.Add("Coding and SQL questions require language.");
 
-        if (request.Options.Any(o => string.IsNullOrWhiteSpace(o.Text)))
+        if (options.Any(o => string.IsNullOrWhiteSpace(o.Text)))
             errors.Add("option text is required.");
 
         if (errors.Count > 0)
             throw new ApiException("Validation failed.", StatusCodes.Status400BadRequest, errors);
     }
 
-    private static QuestionType ParseQuestionType(string value)
+    private static QuestionType ParseQuestionType(string? value)
     {
+        if (string.IsNullOrWhiteSpace(value))
+            throw new ApiException("QuestionType is required.", StatusCodes.Status400BadRequest);
+
         return value.Trim() switch
         {
             "Coding" => QuestionType.Coding,
@@ -230,8 +234,11 @@ public class QuestionService(AppDbContext dbContext) : IQuestionService
         };
     }
 
-    private static Difficulty ParseDifficulty(string value)
+    private static Difficulty ParseDifficulty(string? value)
     {
+        if (string.IsNullOrWhiteSpace(value))
+            throw new ApiException("Difficulty is required.", StatusCodes.Status400BadRequest);
+
         return value.Trim() switch
         {
             "Easy" => Difficulty.Easy,
@@ -242,8 +249,11 @@ public class QuestionService(AppDbContext dbContext) : IQuestionService
         };
     }
 
-    private static GradingMethod ParseGradingMethod(string value)
+    private static GradingMethod ParseGradingMethod(string? value)
     {
+        if (string.IsNullOrWhiteSpace(value))
+            throw new ApiException("GradingMethod is required.", StatusCodes.Status400BadRequest);
+
         return value.Trim() switch
         {
             "Auto-graded" => GradingMethod.AutoGraded,

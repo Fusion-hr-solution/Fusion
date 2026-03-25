@@ -1,6 +1,6 @@
 @EY.HRPlatform.Interview_HostAddress = http://localhost:5209
 
-GET {{EY.HRPlatform.Interview_HostAddress}}/weatherforecast/
+GET {{EY.HRPlatform.Interview_HostAddress}}/api/questions
 Accept: application/json
 
 ###

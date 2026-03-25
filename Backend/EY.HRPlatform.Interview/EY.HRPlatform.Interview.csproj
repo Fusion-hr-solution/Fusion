@@ -21,4 +21,8 @@
     <PackageReference Include="Swashbuckle.AspNetCore" Version="10.1.4" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\EY.HRPlatform.SharedKernel\EY.HRPlatform.SharedKernel.csproj" />
+  </ItemGroup>
+
 </Project>

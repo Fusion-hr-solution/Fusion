@@ -23,13 +23,13 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         {
             if (entry.State == EntityState.Added)
             {
-                entry.Entity.CreatedAt = utcNow;
-                entry.Entity.UpdatedAt = utcNow;
+                entry.Property(x => x.CreatedAt).CurrentValue = utcNow;
+                entry.Property(x => x.UpdatedAt).CurrentValue = utcNow;
             }
 
             if (entry.State == EntityState.Modified)
             {
-                entry.Entity.UpdatedAt = utcNow;
+                entry.Property(x => x.UpdatedAt).CurrentValue = utcNow;
                 entry.Property(x => x.CreatedAt).IsModified = false;
             }
         }

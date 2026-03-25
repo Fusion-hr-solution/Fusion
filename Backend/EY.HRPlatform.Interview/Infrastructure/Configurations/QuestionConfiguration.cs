@@ -12,6 +12,10 @@ public class QuestionConfiguration : IEntityTypeConfiguration<Question>
         builder.ToTable("Questions");
         builder.HasKey(q => q.Id);
 
+        // Keep Interview schema backward-compatible while using shared base entities.
+        builder.Ignore(q => q.CreatedBy);
+        builder.Ignore(q => q.UpdatedBy);
+
         builder.Property(q => q.Title).IsRequired().HasMaxLength(200);
         builder.Property(q => q.Description).HasMaxLength(4000);
 

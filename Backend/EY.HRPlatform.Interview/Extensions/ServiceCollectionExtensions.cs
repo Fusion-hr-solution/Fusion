@@ -14,9 +14,15 @@ public static class ServiceCollectionExtensions
             throw new InvalidOperationException("ConnectionStrings:InterviewDb is not configured.");
 
         services.AddDbContext<AppDbContext>(options =>
-            options.UseSqlServer(connectionString)
-                .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning)));
-
+           {
+            options.UseSqlServer(connectionString);
+            var environment = configuration["ASPNETCORE_ENVIRONMENT"];
+            if (!string.IsNullOrWhiteSpace(environment) &&
+                string.Equals(environment, "Development", StringComparison.OrdinalIgnoreCase))
+            {
+                options.ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning));
+            }
+        });
         services.AddScoped<IQuestionService, QuestionService>();
 
         return services;

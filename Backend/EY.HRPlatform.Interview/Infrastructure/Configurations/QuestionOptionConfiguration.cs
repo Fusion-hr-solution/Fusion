@@ -11,6 +11,11 @@ public class QuestionOptionConfiguration : IEntityTypeConfiguration<QuestionOpti
         builder.ToTable("QuestionOptions");
         builder.HasKey(o => o.Id);
 
+        builder.Ignore(o => o.CreatedAt);
+        builder.Ignore(o => o.UpdatedAt);
+        builder.Ignore(o => o.CreatedBy);
+        builder.Ignore(o => o.UpdatedBy);
+
         builder.Property(o => o.Text).IsRequired().HasMaxLength(1000);
         builder.HasIndex(o => o.QuestionId);
     }

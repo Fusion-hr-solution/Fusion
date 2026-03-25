@@ -1,3 +1,5 @@
+using System;
+
 namespace EY.HRPlatform.Interview.Models.Questions;
 
 public class QuestionDto

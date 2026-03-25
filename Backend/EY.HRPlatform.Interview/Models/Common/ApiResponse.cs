@@ -2,48 +2,19 @@ namespace EY.HRPlatform.Interview.Models.Common;
 
 public class ApiResponse<T>
 {
-    public bool Success { get; set; }
-    public string Message { get; set; } = string.Empty;
     public T? Data { get; set; }
     public List<string> Errors { get; set; } = [];
+    public bool IsSuccess => Errors.Count == 0;
 
-    public static ApiResponse<T> Ok(T data, string message = "Success") => new()
-    {
-        Success = true,
-        Message = message,
-        Data = data,
-        Errors = []
-    };
-
-    public static ApiResponse<T> Fail(string message, IEnumerable<string>? errors = null) => new()
-    {
-        Success = false,
-        Message = message,
-        Data = default,
-        Errors = errors?.ToList() ?? []
-    };
+    public static ApiResponse<T> Success(T data) => new() { Data = data };
+    public static ApiResponse<T> Failure(params string[] errors) => new() { Errors = [.. errors] };
 }
 
 public class ApiResponse
 {
-    public bool Success { get; set; }
-    public string Message { get; set; } = string.Empty;
-    public object? Data { get; set; }
     public List<string> Errors { get; set; } = [];
+    public bool IsSuccess => Errors.Count == 0;
 
-    public static ApiResponse Ok(object? data = null, string message = "Success") => new()
-    {
-        Success = true,
-        Message = message,
-        Data = data,
-        Errors = []
-    };
-
-    public static ApiResponse Fail(string message, IEnumerable<string>? errors = null) => new()
-    {
-        Success = false,
-        Message = message,
-        Data = null,
-        Errors = errors?.ToList() ?? []
-    };
+    public static ApiResponse Success() => new();
+    public static ApiResponse Failure(params string[] errors) => new() { Errors = [.. errors] };
 }
