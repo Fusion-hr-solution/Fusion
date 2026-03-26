@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useRouter } from "next/navigation";
 import { BookOpen } from "lucide-react";
 import { PageHeader } from "./page-header";
 import { SearchInput } from "./search-input";
@@ -37,7 +36,6 @@ function sortTrainings(trainings: Training[], sort: SortOption): Training[] {
 }
 
 export function TrainingCatalog({ trainings }: TrainingCatalogProps) {
-  const router = useRouter();
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<TrainingCategory | null>(null);
   const [level, setLevel] = useState<TrainingLevel | null>(null);
@@ -66,10 +64,6 @@ export function TrainingCatalog({ trainings }: TrainingCatalogProps) {
 
     return sortTrainings(result, sort);
   }, [trainings, category, level, search, sort]);
-
-  const handleSelect = (training: Training) => {
-    router.push(`/training/${training.id}`);
-  };
 
   const clearAll = () => {
     setSearch("");
@@ -140,7 +134,6 @@ export function TrainingCatalog({ trainings }: TrainingCatalogProps) {
               <TrainingCard
                 key={training.id}
                 training={training}
-                onSelect={handleSelect}
               />
             ))}
           </div>
