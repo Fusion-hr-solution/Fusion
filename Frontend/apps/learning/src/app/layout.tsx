@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import NextTopLoader from "nextjs-toploader";
 import { AuthProvider } from "@repo/auth";
 import { LearningSidebar } from "@/components/learning-sidebar";
 import "./globals.css";
@@ -16,6 +17,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="min-h-screen antialiased">
+        <NextTopLoader color="hsl(var(--ey-grey-800))" height={2} showSpinner={false} />
         <AuthProvider>
           <div className="flex h-screen overflow-hidden">
             <LearningSidebar />

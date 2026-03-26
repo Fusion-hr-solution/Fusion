@@ -38,7 +38,7 @@ export function TrainingCard({ training, onSelect }: TrainingCardProps) {
               {category.label}
             </span>
             {training.isMandatory && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-[hsl(var(--ey-red-500))]/10 border border-[hsl(var(--ey-red-500))]/20 px-2 py-0.5 text-xs font-semibold text-[hsl(var(--ey-red-500))] shrink-0">
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-xs font-semibold text-amber-700 shrink-0">
                 <AlertTriangle className="h-3 w-3" aria-hidden="true" />
                 Mandatory
               </span>

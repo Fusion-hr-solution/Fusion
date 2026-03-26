@@ -22,7 +22,7 @@ export function ProgressRing({
 
   return (
     <Card className="overflow-hidden border border-border/60 bg-white">
-      <div className="h-1 w-full ey-bg-accent ey-animate-stripe" />
+      <div className="h-1 w-full bg-[hsl(var(--ey-grey-200))] ey-animate-stripe" />
       <CardContent className="p-5">
         <div className="flex items-center gap-2.5 mb-5">
           <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[hsl(var(--ey-grey-100))]">
