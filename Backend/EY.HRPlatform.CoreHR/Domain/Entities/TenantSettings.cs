@@ -36,7 +36,7 @@ public class TenantSettings : BaseEntity, ITenantEntity
         return new TenantSettings
         {
             TenantId = tenantId,
-            SettingsOverrides = settingsOverrides
+            SettingsOverrides = NormalizeOverrides(settingsOverrides)
         };
     }
 
@@ -45,7 +45,13 @@ public class TenantSettings : BaseEntity, ITenantEntity
     /// </summary>
     public void UpdateOverrides(string? settingsOverrides)
     {
-        SettingsOverrides = settingsOverrides;
+        SettingsOverrides = NormalizeOverrides(settingsOverrides);
         UpdatedAt = DateTime.UtcNow;
     }
+
+    /// <summary>
+    /// Normalizes overrides: empty/whitespace becomes null (JSONB cannot store empty strings).
+    /// </summary>
+    private static string? NormalizeOverrides(string? value)
+        => string.IsNullOrWhiteSpace(value) ? null : value;
 }
