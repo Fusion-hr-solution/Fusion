@@ -17,7 +17,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="min-h-screen antialiased">
-        <NextTopLoader color="hsl(var(--ey-grey-800))" height={2} showSpinner={false} />
+        <NextTopLoader color="#2d2d2d" height={4} showSpinner={true} />
         <AuthProvider>
           <div className="flex h-screen overflow-hidden">
             <LearningSidebar />
