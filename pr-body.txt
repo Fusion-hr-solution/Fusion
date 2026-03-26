@@ -1,0 +1,69 @@
+Closes #40
+
+## What
+
+This PR adds an employee directory and search API for CoreHR. HR admins and authenticated users can now list all employees in their tenant with support for searching, filtering, sorting, and pagination.
+
+**New endpoint:** GET /api/corehr/employees
+
+## Why
+
+This endpoint enables:
+- Building an employee directory UI (upcoming Feature 2.4)
+- Searching for employees by name or email when assigning managers
+- Filtering the workforce by department or employment status
+- Browsing large employee lists efficiently with pagination
+
+## Changes
+
+### Pagination Model
+- Created PagedResponse<T> with standard pagination metadata (Items, TotalCount, Page, PageSize, TotalPages, HasNextPage, HasPreviousPage)
+
+### Lightweight List DTO
+- Created EmployeeListItemDto for directory views
+- Includes core fields: name, email, department, job title, status, hire date, manager info
+- Excludes audit fields to reduce payload size
+
+### Query + Handler
+- GetEmployeesQuery with optional parameters for search, department filter, status filter, sorting, and pagination
+- GetEmployeesQueryHandler with tenant isolation, case-insensitive search, page/pageSize validation (1-100), efficient querying
+
+### Controller Endpoint
+- Added GET /api/corehr/employees to EmployeesController
+- All query parameters optional (defaults: page 1, 20 items, sorted by name)
+- Requires authentication
+
+## AC Checklist
+
+**Pagination**
+- [x] Returns paginated results with metadata (Items, TotalCount, Page, PageSize, TotalPages)
+- [x] Default page size is 20, maximum is 100
+- [x] Invalid page numbers are clamped to valid range
+- [x] Empty results return 200 with empty Items array
+
+**Search**
+- [x] Case-insensitive search across first name, last name, email, and full name
+- [x] Search with no matches returns empty results
+- [x] Search respects tenant isolation
+
+**Filtering**
+- [x] Filter by department (case-insensitive, exact match)
+- [x] Filter by status (Active/Inactive)
+- [x] Combine search and filters with AND logic
+
+**Sorting**
+- [x] Sort by Name, Email, Department, HireDate, or Status
+- [x] Each field supports Asc and Desc directions
+- [x] Default sort is by Name ascending
+
+**Security & Tenancy**
+- [x] Requires authentication (401 without token)
+- [x] Results automatically scoped to current tenant
+- [x] Cannot see employees from other tenants
+
+**Response Format**
+- [x] Returns ApiResponse<PagedResponse<EmployeeListItemDto>>
+- [x] Includes manager name when present, null when absent
+
+**Quality**
+- [x] All 76 CoreHR tests pass (53 existing + 23 new)

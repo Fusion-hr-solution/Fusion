@@ -32,6 +32,15 @@ export {
 } from "./components/tooltip";
 export { Avatar, AvatarImage, AvatarFallback } from "./components/avatar";
 export { Separator } from "./components/separator";
+export {
+  AppSidebar,
+  ModuleSwitcher,
+  SidebarNav,
+  type NavItem,
+  type NavSection,
+  type SidebarModule,
+  type AppSidebarProps,
+} from "./components/sidebar";
 
 // Utilities
 export { cn } from "./lib/utils";

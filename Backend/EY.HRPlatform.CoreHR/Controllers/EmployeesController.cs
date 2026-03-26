@@ -1,8 +1,10 @@
+using EY.HRPlatform.CoreHR.Domain.Enums;
 using EY.HRPlatform.CoreHR.Features.Employees.Commands.CreateEmployee;
 using EY.HRPlatform.CoreHR.Features.Employees.Commands.DeactivateEmployee;
 using EY.HRPlatform.CoreHR.Features.Employees.Commands.UpdateEmployee;
 using EY.HRPlatform.CoreHR.Features.Employees.Dtos;
 using EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployeeById;
+using EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployees;
 using EY.HRPlatform.CoreHR.Models.Requests;
 using EY.HRPlatform.SharedKernel.Api;
 using MediatR;
@@ -16,6 +18,26 @@ namespace EY.HRPlatform.CoreHR.Controllers;
 [Authorize]
 public class EmployeesController(ISender sender) : ControllerBase
 {
+    /// <summary>
+    /// List employees with optional search, filtering, sorting, and pagination.
+    /// </summary>
+    [HttpGet]
+    [ProducesResponseType(typeof(ApiResponse<PagedResponse<EmployeeListItemDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAll(
+        [FromQuery] string? search,
+        [FromQuery] string? department,
+        [FromQuery] EmployeeStatus? status,
+        [FromQuery] EmployeeSortField sortBy = EmployeeSortField.Name,
+        [FromQuery] SortDirection sortDir = SortDirection.Asc,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        var query = new GetEmployeesQuery(search, department, status, sortBy, sortDir, page, pageSize);
+        var result = await sender.Send(query, cancellationToken);
+        return Ok(ApiResponse<PagedResponse<EmployeeListItemDto>>.Success(result.Value));
+    }
+
     /// <summary>
     /// Create a new employee within the current tenant.
     /// </summary>

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import "@repo/ui/src/ey-brand.css";
 import "./globals.css";
 import { Providers } from "./providers";
 
