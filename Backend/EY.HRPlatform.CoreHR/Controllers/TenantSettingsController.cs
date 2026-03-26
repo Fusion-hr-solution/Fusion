@@ -22,6 +22,10 @@ public class TenantSettingsController(ISender sender) : ControllerBase
     public async Task<IActionResult> Get(CancellationToken cancellationToken)
     {
         var settings = await sender.Send(new GetTenantSettingsQuery(), cancellationToken);
+
+        if (settings.Version.HasValue)
+            Response.Headers.ETag = $"\"{settings.Version}\"";
+
         return Ok(ApiResponse<TenantSettingsDto>.Success(settings));
     }
 }

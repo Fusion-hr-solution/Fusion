@@ -18,19 +18,20 @@ public static class TenantSettingsMerger
     /// Merges platform defaults with tenant-specific overrides.
     /// Returns defaults if overrides is null/empty.
     /// </summary>
-    public static TenantSettingsDto Merge(string? overridesJson)
+    public static TenantSettingsDto Merge(string? overridesJson, uint? version = null)
     {
         if (string.IsNullOrWhiteSpace(overridesJson))
-            return TenantSettingsDto.Defaults;
+            return TenantSettingsDto.Defaults with { Version = version };
 
         var overrides = JsonSerializer.Deserialize<TenantSettingsOverrides>(overridesJson, JsonOptions);
         if (overrides is null)
-            return TenantSettingsDto.Defaults;
+            return TenantSettingsDto.Defaults with { Version = version };
 
         var defaults = TenantSettingsDto.Defaults;
 
         return new TenantSettingsDto
         {
+            Version = version,
             OrgUnitTypes = overrides.OrgUnitTypes ?? defaults.OrgUnitTypes,
             EmployeeFieldConfig = MergeFieldConfig(defaults.EmployeeFieldConfig, overrides.EmployeeFieldConfig),
             Branding = MergeBranding(defaults.Branding, overrides.Branding)
