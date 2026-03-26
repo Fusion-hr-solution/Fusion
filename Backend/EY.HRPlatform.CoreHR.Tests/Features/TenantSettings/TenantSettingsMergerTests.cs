@@ -81,6 +81,20 @@ public class TenantSettingsMergerTests
     }
 
     [Fact]
+    public void Merge_WithPrimaryColorOnlyBrandingOverride_PreservesDefaultLogoUrl()
+    {
+        // Arrange
+        var overrides = """{"branding":{"primaryColor":"#00ff00"}}""";
+
+        // Act
+        var result = TenantSettingsMerger.Merge(overrides);
+
+        // Assert
+        Assert.Null(result.Branding.LogoUrl);
+        Assert.Equal("#00ff00", result.Branding.PrimaryColor);
+    }
+
+    [Fact]
     public void Merge_WithPartialFieldConfigOverride_MergesFieldConfig()
     {
         // Arrange - override just one field
@@ -94,6 +108,34 @@ public class TenantSettingsMergerTests
         // Other fields should still be defaults
         Assert.True(result.EmployeeFieldConfig["firstName"].Visible);
         Assert.True(result.EmployeeFieldConfig["firstName"].Required);
+    }
+
+    [Fact]
+    public void Merge_WithPartialFieldConfigMissingRequired_PreservesDefaultRequired()
+    {
+        // Arrange - required is omitted, should preserve default false for phone
+        var overrides = """{"employeeFieldConfig":{"phone":{"visible":true}}}""";
+
+        // Act
+        var result = TenantSettingsMerger.Merge(overrides);
+
+        // Assert
+        Assert.True(result.EmployeeFieldConfig["phone"].Visible);
+        Assert.False(result.EmployeeFieldConfig["phone"].Required);
+    }
+
+    [Fact]
+    public void Merge_WithPartialFieldConfigMissingVisible_PreservesDefaultVisible()
+    {
+        // Arrange - visible is omitted, should preserve default true for firstName
+        var overrides = """{"employeeFieldConfig":{"firstName":{"required":false}}}""";
+
+        // Act
+        var result = TenantSettingsMerger.Merge(overrides);
+
+        // Assert
+        Assert.True(result.EmployeeFieldConfig["firstName"].Visible);
+        Assert.False(result.EmployeeFieldConfig["firstName"].Required);
     }
 
     [Fact]

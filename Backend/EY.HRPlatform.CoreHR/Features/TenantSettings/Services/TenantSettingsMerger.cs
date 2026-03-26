@@ -27,11 +27,6 @@ public static class TenantSettingsMerger
         if (overrides is null)
             return TenantSettingsDto.Defaults;
 
-        return MergeWithDefaults(overrides);
-    }
-
-    private static TenantSettingsDto MergeWithDefaults(TenantSettingsOverrides overrides)
-    {
         var defaults = TenantSettingsDto.Defaults;
 
         return new TenantSettingsDto
@@ -44,7 +39,7 @@ public static class TenantSettingsMerger
 
     private static Dictionary<string, FieldConfig> MergeFieldConfig(
         Dictionary<string, FieldConfig> defaults,
-        Dictionary<string, FieldConfig>? overrides)
+        Dictionary<string, FieldConfigOverrides>? overrides)
     {
         if (overrides is null || overrides.Count == 0)
             return defaults;
@@ -53,12 +48,18 @@ public static class TenantSettingsMerger
         var merged = new Dictionary<string, FieldConfig>(defaults);
         foreach (var (key, value) in overrides)
         {
-            merged[key] = value;
+            var defaultConfig = defaults.TryGetValue(key, out var existing)
+                ? existing
+                : new FieldConfig(Visible: false, Required: false);
+
+            merged[key] = new FieldConfig(
+                Visible: value.Visible ?? defaultConfig.Visible,
+                Required: value.Required ?? defaultConfig.Required);
         }
         return merged;
     }
 
-    private static BrandingSettings MergeBranding(BrandingSettings defaults, BrandingSettings? overrides)
+    private static BrandingSettings MergeBranding(BrandingSettings defaults, BrandingSettingsOverrides? overrides)
     {
         if (overrides is null)
             return defaults;
@@ -76,7 +77,19 @@ public static class TenantSettingsMerger
     private sealed record TenantSettingsOverrides
     {
         public List<string>? OrgUnitTypes { get; init; }
-        public Dictionary<string, FieldConfig>? EmployeeFieldConfig { get; init; }
-        public BrandingSettings? Branding { get; init; }
+        public Dictionary<string, FieldConfigOverrides>? EmployeeFieldConfig { get; init; }
+        public BrandingSettingsOverrides? Branding { get; init; }
+    }
+
+    private sealed record FieldConfigOverrides
+    {
+        public bool? Visible { get; init; }
+        public bool? Required { get; init; }
+    }
+
+    private sealed record BrandingSettingsOverrides
+    {
+        public string? LogoUrl { get; init; }
+        public string? PrimaryColor { get; init; }
     }
 }

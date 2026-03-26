@@ -15,6 +15,7 @@ public sealed class GetTenantSettingsQueryHandler(
     {
         // Query filtered by tenant via global query filter
         var settings = await dbContext.TenantSettings
+            .AsNoTracking()
             .FirstOrDefaultAsync(cancellationToken);
 
         // If no row exists, return defaults; otherwise merge overrides with defaults
