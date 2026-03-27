@@ -48,8 +48,8 @@ export function AppSidebar({
           collapsed && "justify-center px-0"
         )}
       >
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ey-bg-dark shadow-sm">
-          <BrandIcon className="h-4 w-4 ey-text-accent" aria-hidden="true" />
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[hsl(var(--ey-grey-500))] shadow-sm">
+          <BrandIcon className="h-4 w-4 text-[hsl(var(--ey-yellow))]" aria-hidden="true" />
         </div>
         {!collapsed && (
           <div className="overflow-hidden">

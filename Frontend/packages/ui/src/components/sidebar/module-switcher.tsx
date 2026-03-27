@@ -143,7 +143,7 @@ export function ModuleSwitcher({
                       "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm",
                       "transition-colors duration-200",
                       isActive
-                        ? "ey-bg-dark text-white font-medium"
+                        ? "bg-[hsl(var(--ey-grey-500))] text-white font-medium"
                         : "text-[hsl(var(--ey-grey-500))] hover:bg-[hsl(var(--ey-grey-100))]"
                     )}
                   >
