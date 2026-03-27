@@ -91,6 +91,9 @@ services:
     build:
       context: ./Frontend
       dockerfile: apps/shell/Dockerfile
+      args:
+        GATEWAY_URL: http://gateway:5000
+        CORE_MFE_URL: http://frontend-core:3002
     container_name: fusion-frontend-shell
     environment:
       GATEWAY_URL: http://gateway:5000

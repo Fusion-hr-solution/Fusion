@@ -18,12 +18,18 @@ FROM node:20-alpine AS build
 RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
 WORKDIR /app
 
+# Accept build arguments
+ARG GATEWAY_URL=http://localhost:5000
+ARG CORE_MFE_URL=http://localhost:3002
+
 # Copy everything from deps stage
 COPY --from=deps /app .
 # Copy source code (overwrites any placeholder files)
 COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV GATEWAY_URL=${GATEWAY_URL}
+ENV CORE_MFE_URL=${CORE_MFE_URL}
 RUN pnpm --filter shell build
 
 # Stage 3: Runtime
