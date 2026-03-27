@@ -25,6 +25,8 @@ export { AuthProvider, useAuth } from "./auth-context";
 export type { AuthContextValue } from "./auth-context";
 
 // Components
-export { AuthButtons } from "./components/auth-buttons";
-export { AppHeader, AuthLayout } from "./components/app-header";
 export { SidebarUserPanel } from "./components/sidebar-user-panel";
+export { SignInPage } from "./components/signin-page";
+export type { SignInPageProps } from "./components/signin-page";
+export { SignUpPage } from "./components/signup-page";
+export type { SignUpPageProps } from "./components/signup-page";
