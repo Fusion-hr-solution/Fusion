@@ -1,6 +1,5 @@
-import Link from "next/link";
 import { Button } from "@repo/ui";
-import { ArrowLeft, CalendarDays, ChevronRight, AlertTriangle, Award } from "lucide-react";
+import { CalendarDays, ChevronRight, AlertTriangle, Award } from "lucide-react";
 import type { TrainingDetailPageProps } from "@/types/component-props";
 import { CATEGORY_CONFIG, LEVEL_CONFIG } from "@/data/categories";
 import { BADGE_LEVEL_CONFIG } from "@/data/badge-config";
@@ -25,24 +24,6 @@ export function TrainingDetailPage({ training }: TrainingDetailPageProps) {
         title={training.title}
         description={training.description}
       >
-        {/* Breadcrumb */}
-        <nav
-          className="ey-animate-fade-in mb-4 -mt-2"
-          style={{ animationDelay: "0ms" }}
-          aria-label="Breadcrumb"
-        >
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground group"
-          >
-            <ArrowLeft
-              className="h-4 w-4 transition-transform group-hover:-translate-x-0.5"
-              aria-hidden="true"
-            />
-            Back to Catalog
-          </Link>
-        </nav>
-
         {/* Badges row */}
         <div
           className="ey-animate-fade-up mt-4 flex items-center gap-3 flex-wrap"
