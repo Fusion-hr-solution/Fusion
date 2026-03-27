@@ -34,7 +34,6 @@ public class CoreHRDbContext : DbContext
     private Guid CurrentTenantId => _tenantContext?.TenantIdOrDefault ?? Guid.Empty;
 
     public DbSet<Employee> Employees => Set<Employee>();
-    public DbSet<TenantSettings> TenantSettings => Set<TenantSettings>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -56,8 +55,5 @@ public class CoreHRDbContext : DbContext
         // When CurrentTenantId is Empty (design-time/no context), queries return no results.
         modelBuilder.Entity<Employee>()
             .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
-
-        modelBuilder.Entity<TenantSettings>()
-            .HasQueryFilter(ts => CurrentTenantId != Guid.Empty && ts.TenantId == CurrentTenantId);
     }
 }
