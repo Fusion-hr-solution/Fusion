@@ -19,6 +19,6 @@ public sealed class GetTenantSettingsQueryHandler(
             .FirstOrDefaultAsync(cancellationToken);
 
         // If no row exists, return defaults; otherwise merge overrides with defaults
-        return TenantSettingsMerger.Merge(settings?.SettingsOverrides, settings?.Version);
+        return TenantSettingsMerger.Merge(settings?.SettingsOverrides);
     }
 }
