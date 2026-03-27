@@ -33,10 +33,8 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
         context.Response.ContentType = "application/json";
 
         var errorList = errors?.ToList() ?? [];
-        if (!string.IsNullOrWhiteSpace(message))
-            errorList.Insert(0, message);
 
-        var response = ApiResponse.Failure([.. errorList]);
+        var response = ApiResponse.Failure(message, [.. errorList]);
         var json = JsonSerializer.Serialize(response, new JsonSerializerOptions
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase

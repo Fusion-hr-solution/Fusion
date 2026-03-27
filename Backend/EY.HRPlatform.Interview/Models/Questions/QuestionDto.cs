@@ -14,4 +14,8 @@ public class QuestionDto
     public int DurationMinutes { get; set; }
     public List<string> Tags { get; set; } = [];
     public int UsageCount { get; set; }
+    public List<QuestionOptionDto> Options { get; set; } = [];
+    public string Language { get; set; } = string.Empty;
+    public string StarterCode { get; set; } = string.Empty;
+    public string EvaluationCriteria { get; set; } = string.Empty;
 }
