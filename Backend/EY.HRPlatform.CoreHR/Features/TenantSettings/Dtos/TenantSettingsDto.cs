@@ -7,6 +7,12 @@ namespace EY.HRPlatform.CoreHR.Features.TenantSettings.Dtos;
 public sealed record TenantSettingsDto
 {
     /// <summary>
+    /// Row version for optimistic concurrency (used in ETag).
+    /// Null when returning defaults (no database row exists).
+    /// </summary>
+    public uint? Version { get; init; }
+
+    /// <summary>
     /// Allowed organizational unit types for this tenant.
     /// </summary>
     public List<string> OrgUnitTypes { get; init; } = ["Department", "Team"];
