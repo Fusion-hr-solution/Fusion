@@ -5,6 +5,7 @@ import type { LucideIcon } from "lucide-react";
 interface SectionHeaderProps {
   icon: LucideIcon;
   iconClassName?: string;
+  iconColorClassName?: string;
   title: string;
   linkHref?: string;
   linkLabel?: string;
@@ -13,6 +14,7 @@ interface SectionHeaderProps {
 export function SectionHeader({
   icon: Icon,
   iconClassName = "ey-bg-dark",
+  iconColorClassName = "text-white",
   title,
   linkHref,
   linkLabel,
@@ -23,7 +25,7 @@ export function SectionHeader({
         <div
           className={`flex h-7 w-7 items-center justify-center rounded-lg ${iconClassName}`}
         >
-          <Icon className="h-3.5 w-3.5 text-white" aria-hidden="true" />
+          <Icon className={`h-3.5 w-3.5 ${iconColorClassName}`} aria-hidden="true" />
         </div>
         <h2 className="text-base font-bold text-foreground">{title}</h2>
       </div>

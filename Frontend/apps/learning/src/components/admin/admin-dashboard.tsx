@@ -193,7 +193,6 @@ export function AdminDashboard({ employees, trainings: _trainings }: AdminDashbo
                   <EmployeeRow
                     key={employee.id}
                     employee={employee}
-                    colorIndex={idx}
                     expanded={expandedId === employee.id}
                     onToggle={() => setExpandedId(expandedId === employee.id ? null : employee.id)}
                     statusFilter={statusFilter}

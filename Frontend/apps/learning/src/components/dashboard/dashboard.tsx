@@ -119,6 +119,7 @@ export function Dashboard({ trainings, enrolledTrainings }: DashboardProps) {
                 <SectionHeader
                   icon={Target}
                   iconClassName="bg-[hsl(var(--ey-yellow))]/15"
+                  iconColorClassName="text-[hsl(var(--ey-grey-600))]"
                   title="Recommended for You"
                   linkHref="/"
                   linkLabel="Browse catalog"

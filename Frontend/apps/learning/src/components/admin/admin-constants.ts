@@ -31,13 +31,4 @@ export const STATUS_ICONS: Record<TrainingStatus, typeof Play> = {
   "not-started": CircleDashed,
 };
 
-export const AVATAR_COLORS = [
-  "bg-[hsl(var(--ey-grey-500))]",
-  "bg-[hsl(var(--ey-grey-400))]",
-  "bg-[hsl(var(--ey-grey-500))]",
-  "bg-[hsl(var(--ey-grey-400))]",
-  "bg-[hsl(var(--ey-grey-500))]",
-  "bg-[hsl(var(--ey-grey-400))]",
-  "bg-[hsl(var(--ey-grey-500))]",
-  "bg-[hsl(var(--ey-grey-400))]",
-];
+export const AVATAR_COLOR = "bg-[hsl(var(--ey-grey-500))]";
