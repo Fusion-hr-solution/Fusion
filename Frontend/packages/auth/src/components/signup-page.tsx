@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   Button,
   Card,
@@ -16,7 +17,7 @@ import {
 import { useAuth } from "../auth-context";
 
 export interface SignUpPageProps {
-  /** Called after successful registration. Defaults to router.push("/") */
+  /** Called after successful registration or when already authenticated. Defaults to router.push("/") */
   onSuccess?: () => void;
   /** URL for sign in link. Defaults to "/auth/signin" */
   signInUrl?: string;
@@ -32,9 +33,13 @@ export function SignUpPage({
   // Redirect if already authenticated
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
-      router.replace("/");
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        router.replace("/");
+      }
     }
-  }, [authLoading, isAuthenticated, router]);
+  }, [authLoading, isAuthenticated, router, onSuccess]);
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -64,25 +69,28 @@ export function SignUpPage({
 
     setIsSubmitting(true);
 
-    const result = await register({
-      email,
-      password,
-      firstName,
-      lastName,
-      department: department || undefined,
-      jobTitle: jobTitle || undefined,
-      hireDate: hireDate || new Date().toISOString(),
-    });
+    try {
+      const result = await register({
+        email,
+        password,
+        firstName,
+        lastName,
+        department: department || undefined,
+        jobTitle: jobTitle || undefined,
+        hireDate: hireDate || new Date().toISOString().slice(0, 10),
+      });
 
-    if (result) {
-      setErrors(result);
-      setIsSubmitting(false);
-    } else {
-      if (onSuccess) {
-        onSuccess();
+      if (result) {
+        setErrors(result);
       } else {
-        router.push("/");
+        if (onSuccess) {
+          onSuccess();
+        } else {
+          router.push("/");
+        }
       }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -221,12 +229,12 @@ export function SignUpPage({
 
             <p className="text-sm text-muted-foreground text-center">
               Already have an account?{" "}
-              <a
+              <Link
                 href={signInUrl}
                 className="text-primary underline-offset-4 hover:underline font-medium"
               >
                 Sign In
-              </a>
+              </Link>
             </p>
           </CardFooter>
         </form>
