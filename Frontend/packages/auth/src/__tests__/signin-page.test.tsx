@@ -1,0 +1,173 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import React from "react";
+import { SignInPage } from "../components/signin-page";
+import { AuthProvider } from "../auth-context";
+import * as authService from "../auth-service";
+import { makeAuthResponse, makeApiError, makeStoredAuth } from "./helpers";
+
+// Mock next/navigation
+const mockPush = vi.fn();
+const mockReplace = vi.fn();
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    push: mockPush,
+    replace: mockReplace,
+  }),
+}));
+
+// Mock auth-service
+vi.mock("../auth-service", async () => {
+  const actual = await vi.importActual<typeof authService>("../auth-service");
+  return {
+    ...actual,
+    login: vi.fn(),
+    register: vi.fn(),
+    logout: vi.fn(),
+    refreshToken: vi.fn(),
+    persistAuth: vi.fn(),
+    loadAuth: vi.fn(),
+    clearAuth: vi.fn(),
+  };
+});
+
+const mockedService = vi.mocked(authService);
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  mockedService.loadAuth.mockReturnValue(null);
+});
+
+function renderSignInPage(props = {}) {
+  return render(
+    <AuthProvider>
+      <SignInPage {...props} />
+    </AuthProvider>
+  );
+}
+
+describe("SignInPage", () => {
+  describe("rendering", () => {
+    it("renders email and password fields", () => {
+      renderSignInPage();
+      expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
+    });
+
+    it("renders sign in button", () => {
+      renderSignInPage();
+      expect(screen.getByRole("button", { name: /sign in/i })).toBeInTheDocument();
+    });
+
+    it("renders sign up link with default URL", () => {
+      renderSignInPage();
+      const link = screen.getByRole("link", { name: /sign up/i });
+      expect(link).toHaveAttribute("href", "/auth/signup");
+    });
+
+    it("renders sign up link with custom URL", () => {
+      renderSignInPage({ signUpUrl: "/custom/signup" });
+      const link = screen.getByRole("link", { name: /sign up/i });
+      expect(link).toHaveAttribute("href", "/custom/signup");
+    });
+  });
+
+  describe("form submission", () => {
+    it("calls login with email and password", async () => {
+      mockedService.login.mockResolvedValue(makeAuthResponse());
+      renderSignInPage();
+
+      await userEvent.type(screen.getByLabelText(/email/i), "test@example.com");
+      await userEvent.type(screen.getByLabelText(/password/i), "password123");
+      await userEvent.click(screen.getByRole("button", { name: /sign in/i }));
+
+      await waitFor(() => {
+        expect(mockedService.login).toHaveBeenCalledWith({
+          email: "test@example.com",
+          password: "password123",
+        });
+      });
+    });
+
+    it("redirects to / on successful login by default", async () => {
+      mockedService.login.mockResolvedValue(makeAuthResponse());
+      renderSignInPage();
+
+      await userEvent.type(screen.getByLabelText(/email/i), "test@example.com");
+      await userEvent.type(screen.getByLabelText(/password/i), "password123");
+      await userEvent.click(screen.getByRole("button", { name: /sign in/i }));
+
+      await waitFor(() => {
+        expect(mockPush).toHaveBeenCalledWith("/");
+      });
+    });
+
+    it("calls onSuccess callback on successful login", async () => {
+      mockedService.login.mockResolvedValue(makeAuthResponse());
+      const onSuccess = vi.fn();
+      renderSignInPage({ onSuccess });
+
+      await userEvent.type(screen.getByLabelText(/email/i), "test@example.com");
+      await userEvent.type(screen.getByLabelText(/password/i), "password123");
+      await userEvent.click(screen.getByRole("button", { name: /sign in/i }));
+
+      await waitFor(() => {
+        expect(onSuccess).toHaveBeenCalled();
+        expect(mockPush).not.toHaveBeenCalled();
+      });
+    });
+
+    it("displays errors on login failure", async () => {
+      mockedService.login.mockRejectedValue(
+        makeApiError(["Invalid email or password"])
+      );
+      renderSignInPage();
+
+      await userEvent.type(screen.getByLabelText(/email/i), "test@example.com");
+      await userEvent.type(screen.getByLabelText(/password/i), "wrongpassword");
+      await userEvent.click(screen.getByRole("button", { name: /sign in/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText(/invalid email or password/i)).toBeInTheDocument();
+      });
+    });
+
+    it("resets isSubmitting after submission", async () => {
+      mockedService.login.mockResolvedValue(makeAuthResponse());
+      renderSignInPage();
+
+      await userEvent.type(screen.getByLabelText(/email/i), "test@example.com");
+      await userEvent.type(screen.getByLabelText(/password/i), "password123");
+      
+      const submitButton = screen.getByRole("button", { name: /sign in/i });
+      await userEvent.click(submitButton);
+
+      await waitFor(() => {
+        expect(submitButton).not.toBeDisabled();
+      });
+    });
+  });
+
+  describe("already authenticated redirect", () => {
+    it("redirects to / when already authenticated", async () => {
+      mockedService.loadAuth.mockReturnValue(makeStoredAuth());
+      renderSignInPage();
+
+      await waitFor(() => {
+        expect(mockReplace).toHaveBeenCalledWith("/");
+      });
+    });
+
+    it("calls onSuccess when already authenticated", async () => {
+      mockedService.loadAuth.mockReturnValue(makeStoredAuth());
+      const onSuccess = vi.fn();
+      renderSignInPage({ onSuccess });
+
+      await waitFor(() => {
+        expect(onSuccess).toHaveBeenCalled();
+        expect(mockReplace).not.toHaveBeenCalled();
+      });
+    });
+  });
+});
