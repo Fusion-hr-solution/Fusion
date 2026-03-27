@@ -7,6 +7,9 @@ using EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployeeById;
 using EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployees;
 using EY.HRPlatform.CoreHR.Models.Requests;
 using EY.HRPlatform.CoreHR.Models.Responses;
+using ApiResponse = EY.HRPlatform.SharedKernel.Api.ApiResponse;
+using ApiResponseOfEmployeeDto = EY.HRPlatform.SharedKernel.Api.ApiResponse<EY.HRPlatform.CoreHR.Features.Employees.Dtos.EmployeeDto>;
+using ApiResponseOfPagedEmployeeList = EY.HRPlatform.SharedKernel.Api.ApiResponse<EY.HRPlatform.CoreHR.Models.Responses.PagedResponse<EY.HRPlatform.CoreHR.Features.Employees.Dtos.EmployeeListItemDto>>;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -22,7 +25,7 @@ public class EmployeesController(ISender sender) : ControllerBase
     /// List employees with optional search, filtering, sorting, and pagination.
     /// </summary>
     [HttpGet]
-    [ProducesResponseType(typeof(ApiResponse<PagedResponse<EmployeeListItemDto>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponseOfPagedEmployeeList), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAll(
         [FromQuery] string? search,
         [FromQuery] string? department,
@@ -35,14 +38,14 @@ public class EmployeesController(ISender sender) : ControllerBase
     {
         var query = new GetEmployeesQuery(search, department, status, sortBy, sortDir, page, pageSize);
         var result = await sender.Send(query, cancellationToken);
-        return Ok(ApiResponse<PagedResponse<EmployeeListItemDto>>.Success(result.Value));
+        return Ok(ApiResponseOfPagedEmployeeList.Success(result.Value));
     }
 
     /// <summary>
     /// Create a new employee within the current tenant.
     /// </summary>
     [HttpPost]
-    [ProducesResponseType(typeof(ApiResponse<EmployeeDto>), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ApiResponseOfEmployeeDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Create(
@@ -65,14 +68,14 @@ public class EmployeesController(ISender sender) : ControllerBase
         return CreatedAtAction(
             nameof(GetById),
             new { id = result.Value.Id },
-            ApiResponse<EmployeeDto>.Success(result.Value));
+            ApiResponseOfEmployeeDto.Success(result.Value));
     }
 
     /// <summary>
     /// Get an employee by ID.
     /// </summary>
     [HttpGet("{id:guid}")]
-    [ProducesResponseType(typeof(ApiResponse<EmployeeDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponseOfEmployeeDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
     {
@@ -85,7 +88,7 @@ public class EmployeesController(ISender sender) : ControllerBase
 
         Response.Headers.ETag = $"\"{result.Value.Version}\"";
 
-        return Ok(ApiResponse<EmployeeDto>.Success(result.Value));
+        return Ok(ApiResponseOfEmployeeDto.Success(result.Value));
     }
 
     /// <summary>
@@ -93,7 +96,7 @@ public class EmployeesController(ISender sender) : ControllerBase
     /// Requires If-Match header with current version for optimistic concurrency.
     /// </summary>
     [HttpPut("{id:guid}")]
-    [ProducesResponseType(typeof(ApiResponse<EmployeeDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponseOfEmployeeDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status409Conflict)]
@@ -125,7 +128,7 @@ public class EmployeesController(ISender sender) : ControllerBase
 
         Response.Headers.ETag = $"\"{result.Value.Version}\"";
 
-        return Ok(ApiResponse<EmployeeDto>.Success(result.Value));
+        return Ok(ApiResponseOfEmployeeDto.Success(result.Value));
     }
 
     /// <summary>
