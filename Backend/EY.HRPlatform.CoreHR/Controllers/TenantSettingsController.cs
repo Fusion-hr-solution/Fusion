@@ -1,3 +1,4 @@
+using EY.HRPlatform.CoreHR.Features.TenantSettings.Commands.UpdateTenantSettings;
 using EY.HRPlatform.CoreHR.Features.TenantSettings.Dtos;
 using EY.HRPlatform.CoreHR.Features.TenantSettings.Queries.GetTenantSettings;
 using EY.HRPlatform.SharedKernel.Api;
@@ -27,5 +28,49 @@ public class TenantSettingsController(ISender sender) : ControllerBase
             Response.Headers.ETag = $"\"{settings.Version}\"";
 
         return Ok(ApiResponse<TenantSettingsDto>.Success(settings));
+    }
+
+    /// <summary>
+    /// Partial update of tenant settings.
+    /// Creates settings if none exist for the tenant.
+    /// Requires If-Match header with current version for updates to existing settings.
+    /// </summary>
+    [HttpPatch]
+    [ProducesResponseType(typeof(ApiResponse<TenantSettingsDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Patch(
+        [FromBody] UpdateTenantSettingsRequest request,
+        [FromHeader(Name = "If-Match")] string? ifMatch,
+        CancellationToken cancellationToken)
+    {
+        // Parse If-Match header (optional for creation, required for updates)
+        uint? expectedVersion = TryParseVersion(ifMatch, out var version) ? version : null;
+
+        var command = new UpdateTenantSettingsCommand(
+            expectedVersion,
+            request.OrgUnitTypes,
+            request.EmployeeFieldConfig,
+            request.Branding);
+
+        var result = await sender.Send(command, cancellationToken);
+
+        if (result.Value.Version.HasValue)
+            Response.Headers.ETag = $"\"{result.Value.Version}\"";
+
+        return Ok(ApiResponse<TenantSettingsDto>.Success(result.Value));
+    }
+
+    private static bool TryParseVersion(string? ifMatch, out uint version)
+    {
+        version = 0;
+
+        if (string.IsNullOrWhiteSpace(ifMatch))
+            return false;
+
+        // Remove surrounding quotes if present: "123" -> 123
+        var trimmed = ifMatch.Trim().Trim('"');
+
+        return uint.TryParse(trimmed, out version);
     }
 }
