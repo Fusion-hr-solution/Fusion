@@ -125,6 +125,33 @@ public class UpdateTenantSettingsCommandHandlerTests
             () => handler.Handle(command, CancellationToken.None));
     }
 
+    [Fact]
+    public async Task Handle_WithMissingVersionOnExistingSettings_ThrowsConcurrencyException()
+    {
+        // Arrange
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+
+        // Seed existing settings
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+        var existingSettings = CoreHREntities.TenantSettings.Create(TenantId);
+        seedContext.TenantSettings.Add(existingSettings);
+        await seedContext.SaveChangesAsync();
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = new UpdateTenantSettingsCommandHandler(context, tenantContext);
+
+        var command = new UpdateTenantSettingsCommand(
+            ExpectedVersion: null, // Missing If-Match
+            OrgUnitTypes: ["New"],
+            EmployeeFieldConfig: null,
+            Branding: null);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<ConcurrencyException>(
+            () => handler.Handle(command, CancellationToken.None));
+    }
+
     #endregion
 
     #region Partial Updates

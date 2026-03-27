@@ -43,6 +43,10 @@ public static class TenantSettingsOverrideBuilder
             var existing = root["employeeFieldConfig"]?.AsObject() ?? new JsonObject();
             foreach (var (key, value) in employeeFieldConfig)
             {
+                // Skip if neither value is provided
+                if (!value.Visible.HasValue && !value.Required.HasValue)
+                    continue;
+
                 var fieldObj = existing[key]?.AsObject() ?? new JsonObject();
 
                 if (value.Visible.HasValue)
@@ -50,9 +54,14 @@ public static class TenantSettingsOverrideBuilder
                 if (value.Required.HasValue)
                     fieldObj["required"] = value.Required.Value;
 
-                existing[key] = fieldObj;
+                // Only add if we actually have properties
+                if (fieldObj.Count > 0)
+                    existing[key] = fieldObj;
             }
-            root["employeeFieldConfig"] = existing;
+
+            // Only set employeeFieldConfig if it has content
+            if (existing.Count > 0)
+                root["employeeFieldConfig"] = existing;
         }
 
         // Merge branding if provided
@@ -65,13 +74,33 @@ public static class TenantSettingsOverrideBuilder
             if (branding.PrimaryColor is not null)
                 existing["primaryColor"] = branding.PrimaryColor;
 
-            root["branding"] = existing;
+            // Only set branding if it has content
+            if (existing.Count > 0)
+                root["branding"] = existing;
         }
 
-        // Return null if empty (no overrides)
+        // Prune empty objects and return null if nothing remains
+        PruneEmptyObjects(root);
+
         if (root.Count == 0)
             return null;
 
         return root.ToJsonString(JsonOptions);
+    }
+
+    /// <summary>
+    /// Removes any top-level keys that are empty objects.
+    /// </summary>
+    private static void PruneEmptyObjects(JsonObject root)
+    {
+        var keysToRemove = root
+            .Where(kvp => kvp.Value is JsonObject obj && obj.Count == 0)
+            .Select(kvp => kvp.Key)
+            .ToList();
+
+        foreach (var key in keysToRemove)
+        {
+            root.Remove(key);
+        }
     }
 }

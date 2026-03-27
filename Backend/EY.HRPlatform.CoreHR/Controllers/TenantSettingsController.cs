@@ -32,8 +32,8 @@ public class TenantSettingsController(ISender sender) : ControllerBase
 
     /// <summary>
     /// Partial update of tenant settings.
-    /// Creates settings if none exist for the tenant.
-    /// Requires If-Match header with current version for updates to existing settings.
+    /// Creates settings if none exist (If-Match optional for creation).
+    /// Updates existing settings (If-Match required, returns 409 if missing or mismatched).
     /// </summary>
     [HttpPatch]
     [ProducesResponseType(typeof(ApiResponse<TenantSettingsDto>), StatusCodes.Status200OK)]

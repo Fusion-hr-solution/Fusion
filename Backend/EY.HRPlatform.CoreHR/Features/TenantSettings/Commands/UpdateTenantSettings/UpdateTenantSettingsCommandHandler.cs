@@ -11,16 +11,15 @@ using System.Text.RegularExpressions;
 
 namespace EY.HRPlatform.CoreHR.Features.TenantSettings.Commands.UpdateTenantSettings;
 
-public sealed class UpdateTenantSettingsCommandHandler(
+public sealed partial class UpdateTenantSettingsCommandHandler(
     CoreHRDbContext dbContext,
     ITenantContext tenantContext) : ICommandHandler<UpdateTenantSettingsCommand, Result<TenantSettingsDto>>
 {
-    private static readonly Regex HexColorPattern = new("^#[0-9A-Fa-f]{6}$", RegexOptions.Compiled);
+    private static readonly Regex HexColorPattern = HexColorRegex();
 
-    private static readonly HashSet<string> KnownFieldNames =
-    [
-        "firstName", "lastName", "email", "hireDate", "phone", "jobTitle"
-    ];
+    // Derive known field names from the defaults to avoid duplication
+    private static readonly HashSet<string> KnownFieldNames = 
+        TenantSettingsDto.DefaultEmployeeFieldConfig.Keys.ToHashSet();
 
     public async Task<Result<TenantSettingsDto>> Handle(
         UpdateTenantSettingsCommand request,
@@ -38,8 +37,13 @@ public sealed class UpdateTenantSettingsCommandHandler(
             return await CreateSettings(request, cancellationToken);
         }
 
-        // Verify optimistic concurrency
-        if (request.ExpectedVersion.HasValue && settings.Version != request.ExpectedVersion.Value)
+        // For updates to existing settings, require If-Match header
+        if (!request.ExpectedVersion.HasValue)
+        {
+            throw new ConcurrencyException("TenantSettings", settings.Id);
+        }
+
+        if (settings.Version != request.ExpectedVersion.Value)
         {
             throw new ConcurrencyException("TenantSettings", settings.Id);
         }
@@ -88,8 +92,8 @@ public sealed class UpdateTenantSettingsCommandHandler(
         }
         catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex))
         {
-            // Race condition: another request created settings first
-            // Retry by fetching and updating
+            // Race condition: another request created settings first.
+            // Treat as concurrency conflict - client should GET and retry with If-Match.
             var existingSettings = await dbContext.TenantSettings
                 .FirstOrDefaultAsync(cancellationToken);
 
@@ -148,4 +152,7 @@ public sealed class UpdateTenantSettingsCommandHandler(
             || ex.InnerException?.Message.Contains("unique constraint") == true
             || ex.InnerException?.Message.Contains("duplicate key") == true;
     }
+
+    [GeneratedRegex("^#[0-9A-Fa-f]{6}$")]
+    private static partial Regex HexColorRegex();
 }

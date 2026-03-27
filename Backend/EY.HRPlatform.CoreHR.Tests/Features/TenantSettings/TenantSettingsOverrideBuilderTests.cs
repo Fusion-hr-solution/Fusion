@@ -199,4 +199,35 @@ public class TenantSettingsOverrideBuilderTests
         var branding = json.RootElement.GetProperty("branding");
         Assert.Equal("https://example.com/logo.png", branding.GetProperty("logoUrl").GetString());
     }
+
+    [Fact]
+    public void Build_WithEmptyBrandingInput_ReturnsNull()
+    {
+        // Act - branding with both nulls should not persist an empty branding object
+        var result = TenantSettingsOverrideBuilder.Build(
+            null,
+            null,
+            null,
+            new BrandingSettingsInput(null, null));
+
+        // Assert
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public void Build_WithEmptyFieldConfigInput_ReturnsNull()
+    {
+        // Act - field config with no actual values should not persist
+        var result = TenantSettingsOverrideBuilder.Build(
+            null,
+            null,
+            new Dictionary<string, FieldConfigInput>
+            {
+                ["phone"] = new FieldConfigInput(null, null) // Both null
+            },
+            null);
+
+        // Assert
+        Assert.Null(result);
+    }
 }
