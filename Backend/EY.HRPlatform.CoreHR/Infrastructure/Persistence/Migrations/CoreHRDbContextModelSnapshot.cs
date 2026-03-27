@@ -103,47 +103,6 @@ namespace EY.HRPlatform.CoreHR.Infrastructure.Persistence.Migrations
                     b.ToTable("Employees", "corehr");
                 });
 
-            modelBuilder.Entity("EY.HRPlatform.CoreHR.Domain.Entities.TenantSettings", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
-
-                    b.Property<string>("SettingsOverrides")
-                        .HasColumnType("jsonb");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("UpdatedBy")
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
-
-                    b.Property<uint>("Version")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("xid")
-                        .HasColumnName("xmin");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TenantId")
-                        .IsUnique()
-                        .HasDatabaseName("IX_TenantSettings_TenantId");
-
-                    b.ToTable("TenantSettings", "corehr");
-                });
-
             modelBuilder.Entity("EY.HRPlatform.CoreHR.Domain.Entities.Employee", b =>
                 {
                     b.HasOne("EY.HRPlatform.CoreHR.Domain.Entities.Employee", "Manager")
