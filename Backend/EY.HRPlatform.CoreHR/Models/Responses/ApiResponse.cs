@@ -1,8 +1,5 @@
-namespace EY.HRPlatform.SharedKernel.Api;
+namespace EY.HRPlatform.CoreHR.Models.Responses;
 
-/// <summary>
-/// Standard API response envelope with data payload.
-/// </summary>
 public class ApiResponse<T>
 {
     public T? Data { get; set; }
@@ -13,9 +10,6 @@ public class ApiResponse<T>
     public static ApiResponse<T> Failure(params string[] errors) => new() { Errors = [.. errors] };
 }
 
-/// <summary>
-/// Standard API response envelope without data payload.
-/// </summary>
 public class ApiResponse
 {
     public List<string> Errors { get; set; } = [];

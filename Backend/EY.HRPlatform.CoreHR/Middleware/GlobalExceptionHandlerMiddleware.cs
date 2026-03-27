@@ -2,7 +2,7 @@ using System.Net;
 using System.Text.Json;
 using EY.HRPlatform.CoreHR.Exceptions;
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence.Interceptors;
-using EY.HRPlatform.SharedKernel.Api;
+using EY.HRPlatform.CoreHR.Models.Responses;
 
 namespace EY.HRPlatform.CoreHR.Middleware;
 
