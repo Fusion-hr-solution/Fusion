@@ -1,4 +1,5 @@
 import { createPlatformApiClient, ApiError } from "@repo/api";
+import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE } from "@repo/ui";
 import type { Employee, EmployeesPagedResult, EmployeeFilters } from "@/types/employee";
 import {
   type BackendPagedResponse,
@@ -15,7 +16,15 @@ const client = createPlatformApiClient();
 export async function getEmployees(
   filters: EmployeeFilters = {}
 ): Promise<EmployeesPagedResult> {
-  const { page = 1, pageSize = 10, search, department, status, sortBy, sortDir } = filters;
+  const { 
+    page = DEFAULT_PAGE, 
+    pageSize = DEFAULT_PAGE_SIZE, 
+    search, 
+    department, 
+    status, 
+    sortBy, 
+    sortDir 
+  } = filters;
 
   const response = await client.get<BackendPagedResponse<BackendEmployeeListItemDto>>(
     "/corehr/employees",

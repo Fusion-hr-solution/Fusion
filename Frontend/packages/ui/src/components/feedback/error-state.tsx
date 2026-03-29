@@ -1,7 +1,7 @@
 "use client";
 
 import { AlertCircle, RefreshCw } from "lucide-react";
-import { Button } from "@repo/ui";
+import { Button } from "../primitives/button";
 
 interface ErrorStateProps {
   title?: string;
@@ -12,6 +12,15 @@ interface ErrorStateProps {
 /**
  * Reusable error state component.
  * Shows error message with optional retry button.
+ * 
+ * @example
+ * ```tsx
+ * <ErrorState
+ *   title="Failed to load employees"
+ *   message="Network error occurred"
+ *   onRetry={() => refetch()}
+ * />
+ * ```
  */
 export function ErrorState({
   title = "Something went wrong",

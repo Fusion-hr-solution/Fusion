@@ -86,6 +86,22 @@ export {
 } from "./components/sidebar";
 export { TopLoader } from "./components/top-loader";
 export { ModuleLayout } from "./components/module-layout";
+export { EmptyState } from "./components/feedback/empty-state";
+export { ErrorState } from "./components/feedback/error-state";
 
 // ── Utilities ────────────────────────────────────────────────────────
 export { cn } from "./lib/utils";
+
+// ── Table configuration ──────────────────────────────────────────────
+export {
+  PAGE_SIZE_OPTIONS,
+  DEFAULT_PAGE_SIZE,
+  DEFAULT_PAGE,
+  SEARCH_DEBOUNCE_MS,
+  parsePaginationFromParams,
+  parseSortFromParams,
+  type PageSize,
+  type SortDirection,
+  type TablePaginationConfig,
+  type TableSortConfig,
+} from "./lib/table-config";

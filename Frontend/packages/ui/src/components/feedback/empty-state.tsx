@@ -1,7 +1,7 @@
 "use client";
 
 import { type LucideIcon, FileX2 } from "lucide-react";
-import { Button } from "@repo/ui";
+import { Button } from "../primitives/button";
 
 interface EmptyStateProps {
   icon?: LucideIcon;
@@ -14,8 +14,18 @@ interface EmptyStateProps {
 }
 
 /**
- * Reusable empty state component.
- * Shows when a list/table has no data.
+ * Reusable empty state component for lists and tables.
+ * Shows when a data source returns no results.
+ * 
+ * @example
+ * ```tsx
+ * <EmptyState
+ *   icon={Users}
+ *   title="No employees found"
+ *   description="Add employees to get started"
+ *   action={{ label: "Add Employee", onClick: () => {} }}
+ * />
+ * ```
  */
 export function EmptyState({
   icon: Icon = FileX2,

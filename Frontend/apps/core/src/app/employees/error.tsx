@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { ErrorState } from "@/components/feedback";
+import { ErrorState } from "@repo/ui";
 
 export default function EmployeesError({
   error,

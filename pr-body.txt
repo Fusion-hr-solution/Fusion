@@ -12,15 +12,24 @@ Employee directory page for CoreHR with full server-side pagination, sorting, se
 - `Program.cs`: JsonStringEnumConverter for proper status serialization
 
 ### Frontend
-- **@repo/ui**: Table, Select, Skeleton, Checkbox, DropdownMenu primitives
+- **@repo/ui primitives**: Table, Select, Skeleton, Checkbox, DropdownMenu
+- **@repo/ui shared config**: 
+  - `table-config.ts` — PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE, SEARCH_DEBOUNCE_MS
+  - `EmptyState`, `ErrorState` feedback components (moved from core for reuse)
 - **Employee directory** (`/core/employees`):
   - TanStack Table with server-side pagination & sorting
   - URL param state persistence (page, pageSize, sortBy, sortDir, search, filters)
-  - Page size selector (10/25/50)
+  - Page size selector using shared PAGE_SIZE_OPTIONS
   - Breadcrumb navigation + Add Employee button
 - **API integration**: Backend DTOs + mappers via @repo/api
-- **Feedback components**: Reusable EmptyState, ErrorState
 - **Sidebar**: Employees nav item
+
+## Maintainability
+
+This PR establishes patterns for future data tables across modules:
+- **Shared constants** in `@repo/ui/lib/table-config.ts` — change page size options once, applies everywhere
+- **Feedback components** in `@repo/ui` — EmptyState/ErrorState ready for other modules
+- **DataTable component** — generic TanStack wrapper, ready for extraction to @repo/ui when needed
 
 ## Testing
 

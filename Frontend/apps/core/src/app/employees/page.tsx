@@ -5,9 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { getEmployees, getDepartments, ApiError } from "@/services/employee-service";
 import { DataTable, createColumns, columnToSortField } from "@/components/employees";
-import { ErrorState, EmptyState } from "@/components/feedback";
 import type { EmployeesPagedResult, EmployeeSortField, SortDirection } from "@/types/employee";
-import { Button, Skeleton } from "@repo/ui";
+import { Button, Skeleton, EmptyState, ErrorState, DEFAULT_PAGE_SIZE, DEFAULT_PAGE } from "@repo/ui";
 import { Users, Plus, ChevronRight, Home } from "lucide-react";
 
 export default function EmployeesPage() {
@@ -19,8 +18,8 @@ export default function EmployeesPage() {
     search: searchParams.get("search") || undefined,
     department: searchParams.get("department") || undefined,
     status: (searchParams.get("status") as "active" | "inactive") || undefined,
-    page: parseInt(searchParams.get("page") || "1", 10),
-    pageSize: parseInt(searchParams.get("pageSize") || "10", 10),
+    page: parseInt(searchParams.get("page") || String(DEFAULT_PAGE), 10),
+    pageSize: parseInt(searchParams.get("pageSize") || String(DEFAULT_PAGE_SIZE), 10),
     sortBy: (searchParams.get("sortBy") as EmployeeSortField) || undefined,
     sortDir: (searchParams.get("sortDir") as SortDirection) || undefined,
   }), [searchParams]);

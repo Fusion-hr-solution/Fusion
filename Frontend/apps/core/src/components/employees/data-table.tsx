@@ -29,6 +29,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  PAGE_SIZE_OPTIONS,
+  SEARCH_DEBOUNCE_MS,
 } from "@repo/ui";
 
 interface FilterableColumn {
@@ -95,7 +97,7 @@ export function DataTable<TData, TValue>({
 
       searchTimeoutRef.current = setTimeout(() => {
         onFilterChange?.("search", value || null);
-      }, 300);
+      }, SEARCH_DEBOUNCE_MS);
     },
     [onFilterChange]
   );
@@ -278,7 +280,7 @@ export function DataTable<TData, TValue>({
                   <SelectValue placeholder={pagination.pageSize} />
                 </SelectTrigger>
                 <SelectContent side="top">
-                  {[10, 25, 50].map((size) => (
+                  {PAGE_SIZE_OPTIONS.map((size) => (
                     <SelectItem key={size} value={String(size)}>
                       {size}
                     </SelectItem>
