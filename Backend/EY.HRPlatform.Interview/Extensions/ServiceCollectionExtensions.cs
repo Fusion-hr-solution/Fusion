@@ -32,7 +32,9 @@ public static class ServiceCollectionExtensions
 
         services.AddDbContext<AppDbContext>(options =>
            {
-            options.UseSqlServer(connectionString);
+            options.UseNpgsql(
+                connectionString,
+                npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "interview"));
             if (!string.IsNullOrWhiteSpace(environment) &&
                 string.Equals(environment, "Development", StringComparison.OrdinalIgnoreCase))
             {

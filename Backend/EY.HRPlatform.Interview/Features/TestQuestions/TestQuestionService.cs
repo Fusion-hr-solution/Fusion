@@ -14,11 +14,13 @@ public class TestQuestionService(AppDbContext dbContext) : ITestQuestionService
     {
         await EnsureTestExists(testId, cancellationToken);
 
-        var items = await dbContext.Questions
+        var items = await dbContext.TestQuestions
             .AsNoTracking()
-            .Include(q => q.Options)
-            .Where(q => dbContext.TestQuestions.Any(tq => tq.TestId == testId && tq.QuestionId == q.Id))
-            .OrderByDescending(q => q.CreatedAt)
+            .Where(tq => tq.TestId == testId)
+            .Include(tq => tq.Question)
+                .ThenInclude(q => q.Options)
+            .OrderByDescending(tq => tq.Question.CreatedAt)
+            .Select(tq => tq.Question)
             .ToListAsync(cancellationToken);
 
         return items.Select(MapQuestion).ToList();
