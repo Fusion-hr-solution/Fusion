@@ -58,6 +58,7 @@ if (app.Environment.IsDevelopment() && builder.Configuration.GetValue<bool>("Dat
     using var scope = app.Services.CreateScope();
     var dbContext = scope.ServiceProvider.GetRequiredService<CoreHRDbContext>();
     await dbContext.Database.MigrateAsync();
+    await CoreHRSeeder.SeedAsync(dbContext);
 }
 
 if (app.Environment.IsDevelopment())

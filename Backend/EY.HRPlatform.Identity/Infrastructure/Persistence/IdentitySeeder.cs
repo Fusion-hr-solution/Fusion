@@ -6,6 +6,9 @@ namespace EY.HRPlatform.Identity.Infrastructure.Persistence;
 
 public static class IdentitySeeder
 {
+    // Well-known tenant ID for demo/dev - matches CoreHRSeeder.DemoTenantId
+    public static readonly Guid DemoTenantId = new("019cbe00-0000-7000-8000-000000000001");
+
     public static async Task SeedAsync(
         RoleManager<IdentityRole<Guid>> roleManager,
         UserManager<ApplicationUser> userManager)
@@ -25,9 +28,11 @@ public static class IdentitySeeder
 
         // Create default admin user if it doesn't exist
         const string adminEmail = "admin@ey-hr.com";
-        if (await userManager.FindByEmailAsync(adminEmail) is null)
+        var admin = await userManager.FindByEmailAsync(adminEmail);
+        
+        if (admin is null)
         {
-            var admin = new ApplicationUser
+            admin = new ApplicationUser
             {
                 UserName = adminEmail,
                 Email = adminEmail,
@@ -44,6 +49,19 @@ public static class IdentitySeeder
             {
                 await userManager.AddToRoleAsync(admin, PlatformRole.Admin);
                 await userManager.AddToRoleAsync(admin, PlatformRole.HR);
+                // Add tenant_id claim for CoreHR access
+                await userManager.AddClaimAsync(admin, 
+                    new System.Security.Claims.Claim("tenant_id", DemoTenantId.ToString()));
+            }
+        }
+        else
+        {
+            // Ensure existing admin has tenant_id claim
+            var claims = await userManager.GetClaimsAsync(admin);
+            if (!claims.Any(c => c.Type == "tenant_id"))
+            {
+                await userManager.AddClaimAsync(admin,
+                    new System.Security.Claims.Claim("tenant_id", DemoTenantId.ToString()));
             }
         }
     }
