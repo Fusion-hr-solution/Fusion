@@ -61,11 +61,11 @@ namespace EY.HRPlatform.Interview.Migrations
                         .HasColumnType("integer");
 
                     b.Property<string>("StarterCode")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<string>("Tags")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<string>("Title")
                         .IsRequired()

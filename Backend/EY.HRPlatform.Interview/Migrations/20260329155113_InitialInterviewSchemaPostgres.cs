@@ -23,10 +23,10 @@ namespace EY.HRPlatform.Interview.Migrations
                     GradingMethod = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
                     Points = table.Column<int>(type: "integer", nullable: false),
                     DurationMinutes = table.Column<int>(type: "integer", nullable: false),
-                    Tags = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Tags = table.Column<string>(type: "text", nullable: false),
                     UsageCount = table.Column<int>(type: "integer", nullable: false, defaultValue: 0),
                     Language = table.Column<string>(type: "character varying(80)", maxLength: 80, nullable: true),
-                    StarterCode = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    StarterCode = table.Column<string>(type: "text", nullable: true),
                     EvaluationCriteria = table.Column<string>(type: "character varying(4000)", maxLength: 4000, nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)

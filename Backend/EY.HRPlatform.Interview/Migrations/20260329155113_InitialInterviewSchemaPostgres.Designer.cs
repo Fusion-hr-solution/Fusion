@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace EY.HRPlatform.Interview.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260329150806_InitialInterviewSchemaPostgres")]
+    [Migration("20260329155113_InitialInterviewSchemaPostgres")]
     partial class InitialInterviewSchemaPostgres
     {
         /// <inheritdoc />
@@ -64,11 +64,11 @@ namespace EY.HRPlatform.Interview.Migrations
                         .HasColumnType("integer");
 
                     b.Property<string>("StarterCode")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<string>("Tags")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<string>("Title")
                         .IsRequired()

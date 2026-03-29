@@ -38,11 +38,10 @@ public class QuestionConfiguration : IEntityTypeConfiguration<Question>
             .HasConversion(
                 tags => JsonSerializer.Serialize(tags, JsonSerializerOptions.Default),
                 value => JsonSerializer.Deserialize<List<string>>(value, JsonSerializerOptions.Default) ?? new List<string>())
-            .HasColumnType("nvarchar(max)")
             .IsRequired();
 
         builder.Property(q => q.Language).HasMaxLength(80);
-        builder.Property(q => q.StarterCode).HasColumnType("nvarchar(max)");
+        builder.Property(q => q.StarterCode);
         builder.Property(q => q.EvaluationCriteria).HasMaxLength(4000);
         builder.Property(q => q.UsageCount).HasDefaultValue(0);
         builder.Property(q => q.CreatedAt).IsRequired();
