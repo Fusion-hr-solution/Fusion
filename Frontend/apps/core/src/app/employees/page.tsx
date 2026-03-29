@@ -2,12 +2,13 @@
 
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { getEmployees, getDepartments, ApiError } from "@/services/employee-service";
-import { DataTable, columns } from "@/components/employees";
+import { DataTable, createColumns, columnToSortField } from "@/components/employees";
 import { ErrorState, EmptyState } from "@/components/feedback";
-import type { EmployeesPagedResult } from "@/types/employee";
-import { Skeleton } from "@repo/ui";
-import { Users } from "lucide-react";
+import type { EmployeesPagedResult, EmployeeSortField, SortDirection } from "@/types/employee";
+import { Button, Skeleton } from "@repo/ui";
+import { Users, Plus, ChevronRight, Home } from "lucide-react";
 
 export default function EmployeesPage() {
   const router = useRouter();
@@ -20,6 +21,8 @@ export default function EmployeesPage() {
     status: (searchParams.get("status") as "active" | "inactive") || undefined,
     page: parseInt(searchParams.get("page") || "1", 10),
     pageSize: parseInt(searchParams.get("pageSize") || "10", 10),
+    sortBy: (searchParams.get("sortBy") as EmployeeSortField) || undefined,
+    sortDir: (searchParams.get("sortDir") as SortDirection) || undefined,
   }), [searchParams]);
 
   const [data, setData] = useState<EmployeesPagedResult | null>(null);
@@ -81,8 +84,8 @@ export default function EmployeesPage() {
       } else {
         params.delete(key);
       }
-      // Reset to page 1 when filters change (except page itself)
-      if (key !== "page") {
+      // Reset to page 1 when filters change (except page/pageSize itself)
+      if (key !== "page" && key !== "pageSize") {
         params.set("page", "1");
       }
       router.push(`?${params.toString()}`);
@@ -95,6 +98,44 @@ export default function EmployeesPage() {
       handleFilterChange("page", newPage.toString());
     },
     [handleFilterChange]
+  );
+
+  const handlePageSizeChange = useCallback(
+    (newPageSize: number) => {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("pageSize", newPageSize.toString());
+      params.set("page", "1"); // Reset to first page
+      router.push(`?${params.toString()}`);
+    },
+    [router, searchParams]
+  );
+
+  const handleSortChange = useCallback(
+    (columnId: string) => {
+      const backendField = columnToSortField[columnId];
+      if (!backendField) return;
+
+      const params = new URLSearchParams(searchParams.toString());
+      const currentSortBy = params.get("sortBy");
+      const currentSortDir = params.get("sortDir");
+
+      if (currentSortBy !== backendField) {
+        // Different column -> start with Asc
+        params.set("sortBy", backendField);
+        params.set("sortDir", "Asc");
+      } else if (currentSortDir === "Asc") {
+        // Same column, was Asc -> go Desc
+        params.set("sortDir", "Desc");
+      } else {
+        // Same column, was Desc -> clear sort
+        params.delete("sortBy");
+        params.delete("sortDir");
+      }
+      
+      params.set("page", "1"); // Reset to first page on sort
+      router.push(`?${params.toString()}`);
+    },
+    [router, searchParams]
   );
 
   const handleRetry = useCallback(() => {
@@ -120,15 +161,44 @@ export default function EmployeesPage() {
     [departments]
   );
 
-  if (error) {
-    return (
-      <div className="container mx-auto px-6 py-10">
-        <div className="mb-8">
+  // Create columns with sort handlers
+  const columns = useMemo(
+    () => createColumns(handleSortChange, filters.sortBy, filters.sortDir),
+    [handleSortChange, filters.sortBy, filters.sortDir]
+  );
+
+  // Page header component
+  const PageHeader = () => (
+    <div className="mb-8 space-y-4">
+      {/* Breadcrumb */}
+      <nav className="flex items-center gap-1 text-sm text-muted-foreground">
+        <Link href="/" className="flex items-center hover:text-foreground transition-colors">
+          <Home className="h-4 w-4" />
+        </Link>
+        <ChevronRight className="h-4 w-4" />
+        <span className="text-foreground font-medium">Employees</span>
+      </nav>
+
+      {/* Title + Actions */}
+      <div className="flex items-center justify-between">
+        <div>
           <h1 className="text-3xl font-bold tracking-tight">Employees</h1>
-          <p className="mt-2 text-muted-foreground">
+          <p className="mt-1 text-muted-foreground">
             Manage your organization&apos;s employee directory
           </p>
         </div>
+        <Button>
+          <Plus className="mr-2 h-4 w-4" />
+          Add Employee
+        </Button>
+      </div>
+    </div>
+  );
+
+  if (error) {
+    return (
+      <div className="container mx-auto px-6 py-10">
+        <PageHeader />
         <div className="border rounded-md">
           <ErrorState
             title="Failed to load employees"
@@ -142,12 +212,7 @@ export default function EmployeesPage() {
 
   return (
     <div className="container mx-auto px-6 py-10">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">Employees</h1>
-        <p className="mt-2 text-muted-foreground">
-          Manage your organization&apos;s employee directory
-        </p>
-      </div>
+      <PageHeader />
 
       {isLoading ? (
         <div className="space-y-4">
@@ -178,7 +243,7 @@ export default function EmployeesPage() {
             }
             action={
               filters.search || filters.department || filters.status
-                ? { label: "Clear filters", onClick: () => router.push("/employees") }
+                ? { label: "Clear filters", onClick: () => router.push("/core/employees") }
                 : undefined
             }
           />
@@ -195,6 +260,7 @@ export default function EmployeesPage() {
             totalCount: data.totalCount,
             totalPages: data.totalPages,
             onPageChange: handlePageChange,
+            onPageSizeChange: handlePageSizeChange,
           }}
           onFilterChange={handleFilterChange}
           currentFilters={filters}

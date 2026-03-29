@@ -32,6 +32,47 @@ export {
 } from "./components/primitives/tooltip";
 export { Avatar, AvatarImage, AvatarFallback } from "./components/primitives/avatar";
 export { Separator } from "./components/primitives/separator";
+export {
+  Table,
+  TableHeader,
+  TableBody,
+  TableFooter,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableCaption,
+} from "./components/primitives/table";
+export {
+  Select,
+  SelectGroup,
+  SelectValue,
+  SelectTrigger,
+  SelectContent,
+  SelectLabel,
+  SelectItem,
+  SelectSeparator,
+  SelectScrollUpButton,
+  SelectScrollDownButton,
+} from "./components/primitives/select";
+export { Skeleton } from "./components/primitives/skeleton";
+export { Checkbox } from "./components/primitives/checkbox";
+export {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuCheckboxItem,
+  DropdownMenuRadioItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuShortcut,
+  DropdownMenuGroup,
+  DropdownMenuPortal,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuRadioGroup,
+} from "./components/primitives/dropdown-menu";
 
 // ── Custom EY components ─────────────────────────────────────────────
 export {
