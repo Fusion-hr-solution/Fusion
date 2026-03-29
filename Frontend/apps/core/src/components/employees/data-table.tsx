@@ -3,14 +3,11 @@
 import * as React from "react";
 import type {
   ColumnDef,
-  SortingState,
   VisibilityState,
 } from "@tanstack/react-table";
 import {
   flexRender,
   getCoreRowModel,
-  getFilteredRowModel,
-  getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
 import { ChevronDown, Search, X } from "lucide-react";
@@ -46,6 +43,7 @@ interface PaginationProps {
   totalCount: number;
   totalPages: number;
   onPageChange: (page: number) => void;
+  onPageSizeChange?: (pageSize: number) => void;
 }
 
 interface CurrentFilters {
@@ -73,7 +71,6 @@ export function DataTable<TData, TValue>({
   onFilterChange,
   currentFilters,
 }: DataTableProps<TData, TValue>) {
-  const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
@@ -115,16 +112,13 @@ export function DataTable<TData, TValue>({
   const table = useReactTable({
     data,
     columns,
-    onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
     manualPagination: true,
+    manualSorting: true, // Server-side sorting handled by columns
     pageCount: pagination?.totalPages ?? -1,
     state: {
-      sorting,
       columnVisibility,
       rowSelection,
     },
@@ -263,13 +257,35 @@ export function DataTable<TData, TValue>({
 
       {/* Footer */}
       <div className="flex items-center justify-between">
-        <div className="text-sm text-muted-foreground">
-          {selectedCount > 0 ? (
-            <>
-              {selectedCount} of {pagination?.totalCount ?? data.length} row(s) selected.
-            </>
-          ) : (
-            <>{pagination?.totalCount ?? data.length} row(s) total.</>
+        <div className="flex items-center gap-4">
+          <div className="text-sm text-muted-foreground">
+            {selectedCount > 0 ? (
+              <>
+                {selectedCount} of {pagination?.totalCount ?? data.length} row(s) selected.
+              </>
+            ) : (
+              <>{pagination?.totalCount ?? data.length} row(s) total.</>
+            )}
+          </div>
+          {pagination?.onPageSizeChange && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Rows per page</span>
+              <Select
+                value={String(pagination.pageSize)}
+                onValueChange={(value) => pagination.onPageSizeChange?.(Number(value))}
+              >
+                <SelectTrigger className="h-8 w-[70px]">
+                  <SelectValue placeholder={pagination.pageSize} />
+                </SelectTrigger>
+                <SelectContent side="top">
+                  {[10, 25, 50].map((size) => (
+                    <SelectItem key={size} value={String(size)}>
+                      {size}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           )}
         </div>
         {pagination && (
