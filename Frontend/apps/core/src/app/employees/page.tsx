@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { getEmployees, getDepartments, ApiError } from "@/services/employee-service";
 import { DataTable, columns } from "@/components/employees";
 import { ErrorState, EmptyState } from "@/components/feedback";
-import type { EmployeeListItem, EmployeesPagedResult } from "@/types/employee";
+import type { EmployeesPagedResult } from "@/types/employee";
 import { Skeleton } from "@repo/ui";
 import { Users } from "lucide-react";
 
