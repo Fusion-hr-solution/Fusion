@@ -11,7 +11,6 @@ import {
   flexRender,
   getCoreRowModel,
   getFilteredRowModel,
-  getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
@@ -42,11 +41,28 @@ interface FilterableColumn {
   options: { label: string; value: string }[];
 }
 
+interface PaginationProps {
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+}
+
+interface CurrentFilters {
+  search?: string;
+  department?: string;
+  status?: string;
+}
+
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
   searchPlaceholder?: string;
   filterableColumns?: FilterableColumn[];
+  pagination?: PaginationProps;
+  onFilterChange?: (key: string, value: string | null) => void;
+  currentFilters?: CurrentFilters;
 }
 
 export function DataTable<TData, TValue>({
@@ -54,34 +70,64 @@ export function DataTable<TData, TValue>({
   data,
   searchPlaceholder = "Search...",
   filterableColumns = [],
+  pagination,
+  onFilterChange,
+  currentFilters,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] =
-    React.useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
-  const [globalFilter, setGlobalFilter] = React.useState("");
+
+  // Local search state for debouncing
+  const [searchValue, setSearchValue] = React.useState(currentFilters?.search || "");
+  const searchTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  // Sync local search with URL params
+  React.useEffect(() => {
+    setSearchValue(currentFilters?.search || "");
+  }, [currentFilters?.search]);
+
+  // Debounced search handler
+  const handleSearchChange = React.useCallback(
+    (value: string) => {
+      setSearchValue(value);
+      
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+
+      searchTimeoutRef.current = setTimeout(() => {
+        onFilterChange?.("search", value || null);
+      }, 300);
+    },
+    [onFilterChange]
+  );
+
+  // Cleanup timeout on unmount
+  React.useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const table = useReactTable({
     data,
     columns,
     onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters,
     getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
-    onGlobalFilterChange: setGlobalFilter,
-    globalFilterFn: "includesString",
+    manualPagination: true,
+    pageCount: pagination?.totalPages ?? -1,
     state: {
       sorting,
-      columnFilters,
       columnVisibility,
       rowSelection,
-      globalFilter,
     },
   });
 
@@ -97,16 +143,16 @@ export function DataTable<TData, TValue>({
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder={searchPlaceholder}
-              value={globalFilter}
-              onChange={(e) => setGlobalFilter(e.target.value)}
+              value={searchValue}
+              onChange={(e) => handleSearchChange(e.target.value)}
               className="pl-9"
             />
-            {globalFilter && (
+            {searchValue && (
               <Button
                 variant="ghost"
                 size="sm"
                 className="absolute right-1 top-1/2 h-6 w-6 -translate-y-1/2 p-0"
-                onClick={() => setGlobalFilter("")}
+                onClick={() => handleSearchChange("")}
               >
                 <X className="h-3 w-3" />
               </Button>
@@ -115,17 +161,14 @@ export function DataTable<TData, TValue>({
 
           {/* Column Filters */}
           {filterableColumns.map((filter) => {
-            const column = table.getColumn(filter.id);
-            const selectedValue = column?.getFilterValue() as
-              | string[]
-              | undefined;
+            const currentValue = currentFilters?.[filter.id as keyof CurrentFilters] || "";
 
             return (
               <Select
                 key={filter.id}
-                value={selectedValue?.[0] || "all"}
+                value={currentValue || "all"}
                 onValueChange={(value) => {
-                  column?.setFilterValue(value === "all" ? undefined : [value]);
+                  onFilterChange?.(filter.id, value === "all" ? null : value);
                 }}
               >
                 <SelectTrigger className="w-[150px]">
@@ -224,35 +267,35 @@ export function DataTable<TData, TValue>({
         <div className="text-sm text-muted-foreground">
           {selectedCount > 0 ? (
             <>
-              {selectedCount} of {table.getFilteredRowModel().rows.length}{" "}
-              row(s) selected.
+              {selectedCount} of {pagination?.totalCount ?? data.length} row(s) selected.
             </>
           ) : (
-            <>{table.getFilteredRowModel().rows.length} row(s) total.</>
+            <>{pagination?.totalCount ?? data.length} row(s) total.</>
           )}
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
-          >
-            Previous
-          </Button>
-          <div className="text-sm text-muted-foreground">
-            Page {table.getState().pagination.pageIndex + 1} of{" "}
-            {table.getPageCount()}
+        {pagination && (
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => pagination.onPageChange(pagination.page - 1)}
+              disabled={pagination.page <= 1}
+            >
+              Previous
+            </Button>
+            <div className="text-sm text-muted-foreground">
+              Page {pagination.page} of {pagination.totalPages || 1}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => pagination.onPageChange(pagination.page + 1)}
+              disabled={pagination.page >= pagination.totalPages}
+            >
+              Next
+            </Button>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
-          >
-            Next
-          </Button>
-        </div>
+        )}
       </div>
     </div>
   );

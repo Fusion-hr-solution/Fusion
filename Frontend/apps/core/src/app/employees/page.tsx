@@ -1,18 +1,33 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
-import { getEmployees, getDepartments } from "@/services/employee-service";
+import { useEffect, useState, useMemo, useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { getEmployees, getDepartments, ApiError } from "@/services/employee-service";
 import { DataTable, columns } from "@/components/employees";
-import type { EmployeeListItem } from "@/types/employee";
+import { ErrorState, EmptyState } from "@/components/feedback";
+import type { EmployeeListItem, EmployeesPagedResult } from "@/types/employee";
 import { Skeleton } from "@repo/ui";
 import { Users } from "lucide-react";
 
 export default function EmployeesPage() {
-  const [employees, setEmployees] = useState<EmployeeListItem[]>([]);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Parse filters from URL
+  const filters = useMemo(() => ({
+    search: searchParams.get("search") || undefined,
+    department: searchParams.get("department") || undefined,
+    status: (searchParams.get("status") as "active" | "inactive") || undefined,
+    page: parseInt(searchParams.get("page") || "1", 10),
+    pageSize: parseInt(searchParams.get("pageSize") || "10", 10),
+  }), [searchParams]);
+
+  const [data, setData] = useState<EmployeesPagedResult | null>(null);
   const [departments, setDepartments] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Fetch data when filters change
   useEffect(() => {
     let cancelled = false;
 
@@ -22,19 +37,27 @@ export default function EmployeesPage() {
 
       try {
         const [employeesData, depts] = await Promise.all([
-          getEmployees({ pageSize: 100 }),
+          getEmployees(filters),
           getDepartments(),
         ]);
 
         if (!cancelled) {
-          setEmployees(employeesData.items);
+          setData(employeesData);
           setDepartments(depts);
         }
       } catch (err) {
         if (!cancelled) {
-          setError(
-            err instanceof Error ? err.message : "Failed to load employees"
-          );
+          if (err instanceof ApiError) {
+            if (err.status === 401) {
+              setError("Please log in to view employees.");
+            } else if (err.status === 400) {
+              setError(err.errors[0] || "Invalid request. Please check your filters.");
+            } else {
+              setError(err.errors[0] || "Failed to load employees.");
+            }
+          } else {
+            setError("Failed to load employees. Please try again.");
+          }
         }
       } finally {
         if (!cancelled) {
@@ -47,6 +70,35 @@ export default function EmployeesPage() {
     return () => {
       cancelled = true;
     };
+  }, [filters]);
+
+  // Update URL when filters change
+  const handleFilterChange = useCallback(
+    (key: string, value: string | null) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (value) {
+        params.set(key, value);
+      } else {
+        params.delete(key);
+      }
+      // Reset to page 1 when filters change (except page itself)
+      if (key !== "page") {
+        params.set("page", "1");
+      }
+      router.push(`?${params.toString()}`);
+    },
+    [router, searchParams]
+  );
+
+  const handlePageChange = useCallback(
+    (newPage: number) => {
+      handleFilterChange("page", newPage.toString());
+    },
+    [handleFilterChange]
+  );
+
+  const handleRetry = useCallback(() => {
+    window.location.reload();
   }, []);
 
   const filterableColumns = useMemo(
@@ -71,15 +123,18 @@ export default function EmployeesPage() {
   if (error) {
     return (
       <div className="container mx-auto px-6 py-10">
-        <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
-          <h2 className="text-xl font-semibold mb-2">Failed to load employees</h2>
-          <p className="text-muted-foreground mb-4">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="text-primary hover:underline"
-          >
-            Try again
-          </button>
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold tracking-tight">Employees</h1>
+          <p className="mt-2 text-muted-foreground">
+            Manage your organization&apos;s employee directory
+          </p>
+        </div>
+        <div className="border rounded-md">
+          <ErrorState
+            title="Failed to load employees"
+            message={error}
+            onRetry={handleRetry}
+          />
         </div>
       </div>
     );
@@ -111,24 +166,40 @@ export default function EmployeesPage() {
             </div>
           </div>
         </div>
-      ) : employees.length === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-3 py-24 border rounded-md">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-            <Users className="h-6 w-6 text-muted-foreground" />
-          </div>
-          <p className="text-[15px] font-medium">No employees found</p>
-          <p className="text-[13px] text-muted-foreground">
-            Add employees to get started
-          </p>
+      ) : data && data.items.length === 0 ? (
+        <div className="border rounded-md">
+          <EmptyState
+            icon={Users}
+            title="No employees found"
+            description={
+              filters.search || filters.department || filters.status
+                ? "Try adjusting your search or filters"
+                : "Add employees to get started"
+            }
+            action={
+              filters.search || filters.department || filters.status
+                ? { label: "Clear filters", onClick: () => router.push("/employees") }
+                : undefined
+            }
+          />
         </div>
-      ) : (
+      ) : data ? (
         <DataTable
           columns={columns}
-          data={employees}
+          data={data.items}
           searchPlaceholder="Search employees..."
           filterableColumns={filterableColumns}
+          pagination={{
+            page: data.page,
+            pageSize: data.pageSize,
+            totalCount: data.totalCount,
+            totalPages: data.totalPages,
+            onPageChange: handlePageChange,
+          }}
+          onFilterChange={handleFilterChange}
+          currentFilters={filters}
         />
-      )}
+      ) : null}
     </div>
   );
 }
