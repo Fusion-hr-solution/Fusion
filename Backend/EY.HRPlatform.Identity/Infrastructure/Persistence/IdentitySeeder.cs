@@ -7,7 +7,7 @@ namespace EY.HRPlatform.Identity.Infrastructure.Persistence;
 public static class IdentitySeeder
 {
     // Well-known tenant ID for demo/dev - matches CoreHRSeeder.DemoTenantId
-    public static readonly Guid DemoTenantId = new("019cbe00-0000-7000-8000-000000000001");
+    public static readonly Guid DemoTenantId = new("019d0000-0000-7000-0000-000000000001");
 
     public static async Task SeedAsync(
         RoleManager<IdentityRole<Guid>> roleManager,

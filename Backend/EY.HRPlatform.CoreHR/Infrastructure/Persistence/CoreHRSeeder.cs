@@ -11,8 +11,8 @@ namespace EY.HRPlatform.CoreHR.Infrastructure.Persistence;
 public static class CoreHRSeeder
 {
     // Well-known tenant ID for demo/dev purposes
-    // This should be assigned as a claim to the admin user in Identity
-    public static readonly Guid DemoTenantId = new("019cbe00-0000-7000-8000-000000000001");
+    // This must match the tenant_id claim assigned to the admin user in Identity
+    public static readonly Guid DemoTenantId = new("019d0000-0000-7000-0000-000000000001");
 
     public static async Task SeedAsync(CoreHRDbContext db)
     {
