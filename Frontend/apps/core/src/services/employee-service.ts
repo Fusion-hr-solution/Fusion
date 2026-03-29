@@ -15,7 +15,7 @@ const client = createPlatformApiClient();
 export async function getEmployees(
   filters: EmployeeFilters = {}
 ): Promise<EmployeesPagedResult> {
-  const { page = 1, pageSize = 10, search, department, status } = filters;
+  const { page = 1, pageSize = 10, search, department, status, sortBy, sortDir } = filters;
 
   const response = await client.get<BackendPagedResponse<BackendEmployeeListItemDto>>(
     "/corehr/employees",
@@ -26,6 +26,8 @@ export async function getEmployees(
         search: search || undefined,
         department: department || undefined,
         status: status ? (status === "active" ? "Active" : "Inactive") : undefined,
+        sortBy: sortBy || undefined,
+        sortDir: sortDir || undefined,
       },
     }
   );
