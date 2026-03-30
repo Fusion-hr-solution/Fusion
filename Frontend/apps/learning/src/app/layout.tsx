@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import NextTopLoader from "nextjs-toploader";
 import { AuthProvider } from "@repo/auth";
+import { ModuleLayout } from "@repo/ui";
 import { LearningSidebar } from "@/components/learning-sidebar";
+import "@repo/ui/src/ey-brand.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -17,12 +18,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="min-h-screen antialiased">
-        <NextTopLoader color="#2d2d2d" height={4} showSpinner={true} />
         <AuthProvider>
-          <div className="flex h-screen overflow-hidden">
-            <LearningSidebar />
-            <main className="flex-1 overflow-y-auto">{children}</main>
-          </div>
+          <ModuleLayout sidebar={<LearningSidebar />}>
+            {children}
+          </ModuleLayout>
         </AuthProvider>
       </body>
     </html>

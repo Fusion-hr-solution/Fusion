@@ -2,18 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Learning-specific extended palette (grey/yellow/black come from ey-brand.css) */
 @layer base {
   :root {
-    /* EY Brand Palette */
-    --ey-black: 240 14% 12%; /* #1A1A24 */
-    --ey-yellow: 54 100% 50%; /* #FFE600 */
-    --ey-white: 0 0% 100%; /* #FFFFFF */
-    --ey-grey-50: 240 14% 98%; /* #FAFAFC */
-    --ey-grey-100: 240 14% 97%; /* #F6F6FA */
-    --ey-grey-200: 240 12% 93%; /* #EAEAF2 */
-    --ey-grey-300: 240 4% 77%; /* #C4C4CD */
-    --ey-grey-400: 240 4% 48%; /* #747480 */
-    --ey-grey-500: 240 10% 20%; /* #2E2E38 */
     --ey-blue-400: 203 82% 50%; /* #188CE5 */
     --ey-blue-500: 207 83% 43%; /* #1177C7 */
     --ey-blue-600: 212 78% 39%; /* #155CB4 */
@@ -21,28 +12,6 @@
     --ey-green-500: 148 74% 30%; /* #168736 */
     --ey-orange-500: 24 100% 47%; /* #F76900 */
     --ey-red-500: 4 74% 42%; /* #B9251C */
-
-    /* shadcn token mapping → EY */
-    --background: var(--ey-grey-50);
-    --foreground: var(--ey-grey-500);
-    --card: var(--ey-white);
-    --card-foreground: var(--ey-grey-500);
-    --popover: var(--ey-white);
-    --popover-foreground: var(--ey-grey-500);
-    --primary: var(--ey-black);
-    --primary-foreground: var(--ey-white);
-    --secondary: var(--ey-grey-100);
-    --secondary-foreground: var(--ey-grey-500);
-    --muted: var(--ey-grey-100);
-    --muted-foreground: var(--ey-grey-400);
-    --accent: var(--ey-yellow);
-    --accent-foreground: var(--ey-black);
-    --destructive: var(--ey-red-500);
-    --destructive-foreground: var(--ey-white);
-    --border: var(--ey-grey-200);
-    --input: var(--ey-grey-200);
-    --ring: var(--ey-yellow);
-    --radius: 0.375rem;
   }
 }
 
