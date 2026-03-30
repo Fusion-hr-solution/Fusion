@@ -58,6 +58,14 @@ if (app.Environment.IsDevelopment() && builder.Configuration.GetValue<bool>("Dat
     using var scope = app.Services.CreateScope();
     var dbContext = scope.ServiceProvider.GetRequiredService<CoreHRDbContext>();
     await dbContext.Database.MigrateAsync();
+    
+    // Seed demo data for development - uses a well-known demo tenant ID
+    if (builder.Configuration.GetValue<bool>("Database:AutoSeed"))
+    {
+        var demoTenantId = builder.Configuration.GetValue<Guid?>("Database:DemoTenantId") 
+            ?? Guid.Parse("00000000-0000-0000-0000-000000000001");
+        await CoreHRSeeder.SeedAsync(dbContext, demoTenantId);
+    }
 }
 
 if (app.Environment.IsDevelopment())

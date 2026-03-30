@@ -31,6 +31,13 @@ public sealed partial class UpdateTenantSettingsCommandHandler(
         var settings = await dbContext.TenantSettings
             .FirstOrDefaultAsync(cancellationToken);
 
+        // Validate OrgUnitType removal if types are being changed and settings exist
+        if (request.OrgUnitTypes is not null && settings is not null)
+        {
+            var currentSettings = TenantSettingsMerger.Merge(settings.SettingsOverrides, settings.Version);
+            await ValidateOrgUnitTypeRemoval(currentSettings.OrgUnitTypes, request.OrgUnitTypes, cancellationToken);
+        }
+
         if (settings is null)
         {
             // Create new settings row for this tenant
@@ -151,6 +158,46 @@ public sealed partial class UpdateTenantSettingsCommandHandler(
         return ex.InnerException?.Message.Contains("23505") == true
             || ex.InnerException?.Message.Contains("unique constraint") == true
             || ex.InnerException?.Message.Contains("duplicate key") == true;
+    }
+
+    /// <summary>
+    /// Validates that no OrgUnitTypes being removed are in use by active OrgUnits.
+    /// </summary>
+    private async Task ValidateOrgUnitTypeRemoval(
+        IList<string> currentTypes,
+        IList<string> requestedTypes,
+        CancellationToken cancellationToken)
+    {
+        var removedTypes = currentTypes
+            .Except(requestedTypes, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (removedTypes.Count == 0)
+            return;
+
+        // Check if any removed types are in use by active OrgUnits
+        var removedTypesLower = removedTypes.Select(t => t.ToLowerInvariant()).ToHashSet();
+        
+        var typesInUse = await dbContext.OrgUnits
+            .Where(o => o.IsActive)
+            .Select(o => o.Type.ToLower())
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        var conflictingTypes = typesInUse
+            .Where(t => removedTypesLower.Contains(t))
+            .ToList();
+
+        if (conflictingTypes.Count > 0)
+        {
+            // Find original casing from the removed types
+            var conflictingOriginal = removedTypes
+                .Where(t => conflictingTypes.Contains(t.ToLowerInvariant()))
+                .ToList();
+            
+            throw new ArgumentException(
+                $"Cannot remove org unit type(s) '{string.Join("', '", conflictingOriginal)}' because they are in use by existing org units.");
+        }
     }
 
     [GeneratedRegex("^#[0-9A-Fa-f]{6}$")]
