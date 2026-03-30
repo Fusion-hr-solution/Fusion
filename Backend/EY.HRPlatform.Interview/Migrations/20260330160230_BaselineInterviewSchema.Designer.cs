@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace EY.HRPlatform.Interview.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260330151831_AddTestsSchema")]
-    partial class AddTestsSchema
+    [Migration("20260330160230_BaselineInterviewSchema")]
+    partial class BaselineInterviewSchema
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

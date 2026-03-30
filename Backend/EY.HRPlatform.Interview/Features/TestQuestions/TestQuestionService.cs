@@ -5,6 +5,7 @@ using EY.HRPlatform.Interview.Models.Common;
 using EY.HRPlatform.Interview.Models.Questions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace EY.HRPlatform.Interview.Features.TestQuestions;
 
@@ -15,12 +16,13 @@ public class TestQuestionService(AppDbContext dbContext) : ITestQuestionService
         await EnsureTestExists(testId, cancellationToken);
 
         var items = await dbContext.TestQuestions
-            .AsNoTracking()
+             .AsNoTrackingWithIdentityResolution()
             .Where(tq => tq.TestId == testId)
             .Include(tq => tq.Question)
                 .ThenInclude(q => q.Options)
             .OrderByDescending(tq => tq.Question.CreatedAt)
             .Select(tq => tq.Question)
+            .Distinct()
             .ToListAsync(cancellationToken);
 
         return items.Select(MapQuestion).ToList();
@@ -43,7 +45,14 @@ public class TestQuestionService(AppDbContext dbContext) : ITestQuestionService
             QuestionId = questionId
         });
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException ex) when (IsDuplicateTestQuestionMapping(ex))
+        {
+            throw new ApiException("Question is already mapped to this test.", StatusCodes.Status409Conflict);
+        }
     }
 
     public async Task RemoveQuestionAsync(Guid testId, Guid questionId, CancellationToken cancellationToken)
@@ -117,5 +126,12 @@ public class TestQuestionService(AppDbContext dbContext) : ITestQuestionService
             GradingMethod.AutoGraded => "Auto-graded",
             _ => method.ToString()
         };
+    }
+
+    private static bool IsDuplicateTestQuestionMapping(DbUpdateException ex)
+    {
+        return ex.InnerException is PostgresException pg
+               && pg.SqlState == PostgresErrorCodes.UniqueViolation
+               && pg.ConstraintName == "IX_TestQuestions_TestId_QuestionId";
     }
 }

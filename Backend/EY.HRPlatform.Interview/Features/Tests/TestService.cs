@@ -15,7 +15,7 @@ public class TestService(AppDbContext dbContext) : ITestService
         ValidatePaging(filter.Page, filter.PageSize);
 
         var query = dbContext.Tests
-            .AsNoTracking()
+            .AsNoTrackingWithIdentityResolution()
             .Include(t => t.TestQuestions)
             .ThenInclude(tq => tq.Question)
             .AsQueryable();
@@ -106,8 +106,6 @@ public class TestService(AppDbContext dbContext) : ITestService
         ValidateRequest(request);
 
         var test = await dbContext.Tests
-            .Include(t => t.TestQuestions)
-            .ThenInclude(tq => tq.Question)
             .FirstOrDefaultAsync(t => t.Id == id, cancellationToken);
 
         if (test is null)
@@ -119,7 +117,9 @@ public class TestService(AppDbContext dbContext) : ITestService
         test.Status = string.IsNullOrWhiteSpace(request.Status) ? TestStatus.Draft : ParseStatus(request.Status);
 
         await dbContext.SaveChangesAsync(cancellationToken);
-        return MapToDto(test);
+
+        // Re-query with navigations for consistent DTO shape without over-fetching in the update query.
+        return await GetByIdAsync(id, cancellationToken);
     }
 
     public async Task DeleteAsync(Guid id, CancellationToken cancellationToken)

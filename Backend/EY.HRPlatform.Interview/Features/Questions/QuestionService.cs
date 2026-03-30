@@ -14,7 +14,7 @@ public class QuestionService(AppDbContext dbContext) : IQuestionService
         ValidatePaging(filter.Page, filter.PageSize);
 
         var query = dbContext.Questions
-            .AsNoTracking()
+            .AsNoTrackingWithIdentityResolution()
             .Include(q => q.Options)
             .AsQueryable();
 
