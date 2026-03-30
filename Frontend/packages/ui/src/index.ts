@@ -1,5 +1,5 @@
-// Components
-export { Button, buttonVariants, type ButtonProps } from "./components/button";
+// ── shadcn primitives ────────────────────────────────────────────────
+export { Button, buttonVariants, type ButtonProps } from "./components/primitives/button";
 export {
   Card,
   CardHeader,
@@ -7,10 +7,10 @@ export {
   CardTitle,
   CardDescription,
   CardContent,
-} from "./components/card";
-export { Input } from "./components/input";
-export { Label } from "./components/label";
-export { Badge } from "./components/badge";
+} from "./components/primitives/card";
+export { Input } from "./components/primitives/input";
+export { Label } from "./components/primitives/label";
+export { Badge } from "./components/primitives/badge";
 export {
   Dialog,
   DialogPortal,
@@ -22,16 +22,18 @@ export {
   DialogFooter,
   DialogTitle,
   DialogDescription,
-} from "./components/dialog";
-export { Progress } from "./components/progress";
+} from "./components/primitives/dialog";
+export { Progress } from "./components/primitives/progress";
 export {
   Tooltip,
   TooltipTrigger,
   TooltipContent,
   TooltipProvider,
-} from "./components/tooltip";
-export { Avatar, AvatarImage, AvatarFallback } from "./components/avatar";
-export { Separator } from "./components/separator";
+} from "./components/primitives/tooltip";
+export { Avatar, AvatarImage, AvatarFallback } from "./components/primitives/avatar";
+export { Separator } from "./components/primitives/separator";
+
+// ── Custom EY components ─────────────────────────────────────────────
 export {
   AppSidebar,
   ModuleSwitcher,
@@ -41,6 +43,8 @@ export {
   type SidebarModule,
   type AppSidebarProps,
 } from "./components/sidebar";
+export { TopLoader } from "./components/top-loader";
+export { ModuleLayout } from "./components/module-layout";
 
-// Utilities
+// ── Utilities ────────────────────────────────────────────────────────
 export { cn } from "./lib/utils";

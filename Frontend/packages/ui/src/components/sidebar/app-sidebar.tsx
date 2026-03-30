@@ -24,14 +24,14 @@ export function AppSidebar({
   return (
     <aside
       className={cn(
-        "group/sidebar relative flex h-full shrink-0 flex-col border-r border-[hsl(var(--ey-grey-200))]/60 bg-white transition-[width] duration-300 ease-in-out",
+        "group/sidebar relative flex h-full shrink-0 flex-col border-r border-sidebar-border bg-sidebar transition-[width] duration-300 ease-in-out",
         collapsed ? "w-[68px]" : "w-[260px]"
       )}
     >
       {/* Collapse toggle */}
       <button
         onClick={() => setCollapsed((c) => !c)}
-        className="absolute -right-3 top-6 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-[hsl(var(--ey-grey-200))]/60 bg-white text-[hsl(var(--ey-grey-400))] shadow-sm transition-all duration-200 hover:bg-[hsl(var(--ey-grey-100))] hover:text-[hsl(var(--ey-grey-500))] hover:shadow-md hover:scale-110"
+        className="absolute -right-3 top-6 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-sidebar-border bg-sidebar text-muted-foreground shadow-sm transition-all duration-200 hover:bg-accent hover:text-foreground hover:shadow-md hover:scale-110"
         aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
       >
         {collapsed ? (
@@ -44,20 +44,20 @@ export function AppSidebar({
       {/* Brand header */}
       <div
         className={cn(
-          "flex items-center gap-2.5 border-b border-[hsl(var(--ey-grey-200))]/40 px-5 py-4",
+          "flex items-center gap-2.5 border-b border-sidebar-border px-5 py-4",
           collapsed && "justify-center px-0"
         )}
       >
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ey-bg-dark shadow-sm">
-          <BrandIcon className="h-4 w-4 ey-text-accent" aria-hidden="true" />
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-foreground shadow-sm">
+          <BrandIcon className="h-4 w-4 text-primary" aria-hidden="true" />
         </div>
         {!collapsed && (
           <div className="overflow-hidden">
-            <p className="text-sm font-bold leading-none text-[hsl(var(--ey-grey-500))]">
+            <p className="text-sm font-bold leading-none text-foreground">
               {brandTitle}
             </p>
             {brandSubtitle && (
-              <p className="mt-0.5 text-xs text-[hsl(var(--ey-grey-400))]">
+              <p className="mt-0.5 text-xs text-muted-foreground">
                 {brandSubtitle}
               </p>
             )}
@@ -68,7 +68,7 @@ export function AppSidebar({
       {/* Module switcher */}
       <div
         className={cn(
-          "shrink-0 border-b border-[hsl(var(--ey-grey-200))]/40 px-3 py-3",
+          "shrink-0 border-b border-sidebar-border px-3 py-3",
           collapsed && "px-2"
         )}
       >
@@ -84,7 +84,7 @@ export function AppSidebar({
         {sections.map((section, i) => (
           <div key={section.title}>
             {i > 0 && (
-              <div className="my-4 border-t border-[hsl(var(--ey-grey-200))]/40" />
+              <div className="my-4 border-t border-sidebar-border" />
             )}
             <SidebarNav
               section={section}
@@ -100,7 +100,7 @@ export function AppSidebar({
       {footer && (
         <div
           className={cn(
-            "border-t border-[hsl(var(--ey-grey-200))]/40 px-5 py-3",
+            "border-t border-sidebar-border px-5 py-3",
             collapsed && "px-3"
           )}
         >
@@ -112,7 +112,7 @@ export function AppSidebar({
       {userPanel && (
         <div
           className={cn(
-            "border-t border-[hsl(var(--ey-grey-200))]/40 px-3 py-3",
+            "border-t border-sidebar-border px-3 py-3",
             collapsed && "px-2"
           )}
         >
