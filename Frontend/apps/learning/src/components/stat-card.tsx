@@ -19,11 +19,11 @@ export function StatCard({
 }: StatCardProps) {
   return (
     <div
-      className="ey-animate-fade-up flex items-center gap-3 rounded-xl border border-border/60 bg-[hsl(var(--ey-grey-100))] px-4 py-3 transition-all hover:shadow-sm"
+      className="ey-animate-fade-up flex items-center gap-3 rounded-xl border border-border/60 bg-ey-grey-100 px-4 py-3 transition-all hover:shadow-sm"
       style={{ animationDelay: `${delayBase + index * delayStep}ms` }}
     >
       <Icon
-        className="h-5 w-5 text-[hsl(var(--ey-grey-400))]"
+        className="h-5 w-5 text-ey-grey-400"
         aria-hidden="true"
       />
       <div>

@@ -25,7 +25,7 @@ export function SearchInput({
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="h-10 rounded-lg border-border/60 bg-[hsl(var(--ey-grey-50))] pl-10 text-sm shadow-sm placeholder:text-muted-foreground/60 focus-visible:ring-[hsl(var(--ey-yellow))] focus-visible:border-[hsl(var(--ey-yellow))]/40 transition-shadow focus-visible:shadow-[0_0_0_3px_hsl(var(--ey-yellow)/0.1)]"
+        className="h-10 rounded-lg border-border/60 bg-ey-grey-50 pl-10 text-sm shadow-sm placeholder:text-muted-foreground/60 focus-visible:ring-ey-yellow focus-visible:border-ey-yellow/40 transition-shadow focus-visible:shadow-[0_0_0_3px_hsl(var(--ey-yellow)/0.1)]"
       />
     </div>
   );
