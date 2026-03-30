@@ -17,21 +17,21 @@ namespace EY.HRPlatform.Interview.Migrations
                 name: "Questions",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    Title = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
-                    Description = table.Column<string>(type: "nvarchar(4000)", maxLength: 4000, nullable: false),
-                    Type = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: false),
-                    Difficulty = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
-                    GradingMethod = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
-                    Points = table.Column<int>(type: "int", nullable: false),
-                    DurationMinutes = table.Column<int>(type: "int", nullable: false),
-                    Tags = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    UsageCount = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    Language = table.Column<string>(type: "nvarchar(80)", maxLength: 80, nullable: true),
-                    StarterCode = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    EvaluationCriteria = table.Column<string>(type: "nvarchar(4000)", maxLength: 4000, nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    Id = table.Column<Guid>(nullable: false),
+                    Title = table.Column<string>(maxLength: 200, nullable: false),
+                    Description = table.Column<string>(maxLength: 4000, nullable: false),
+                    Type = table.Column<string>(maxLength: 30, nullable: false),
+                    Difficulty = table.Column<string>(maxLength: 20, nullable: false),
+                    GradingMethod = table.Column<string>(maxLength: 20, nullable: false),
+                    Points = table.Column<int>(nullable: false),
+                    DurationMinutes = table.Column<int>(nullable: false),
+                    Tags = table.Column<string>(nullable: false),
+                    UsageCount = table.Column<int>(nullable: false, defaultValue: 0),
+                    Language = table.Column<string>(maxLength: 80, nullable: true),
+                    StarterCode = table.Column<string>(nullable: true),
+                    EvaluationCriteria = table.Column<string>(maxLength: 4000, nullable: true),
+                    CreatedAt = table.Column<DateTime>(nullable: false),
+                    UpdatedAt = table.Column<DateTime>(nullable: false)
                 },
                 constraints: table =>
                 {
@@ -42,10 +42,10 @@ namespace EY.HRPlatform.Interview.Migrations
                 name: "QuestionOptions",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    QuestionId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    Text = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: false),
-                    Correct = table.Column<bool>(type: "bit", nullable: false)
+                    Id = table.Column<Guid>(nullable: false),
+                    QuestionId = table.Column<Guid>(nullable: false),
+                    Text = table.Column<string>(maxLength: 1000, nullable: false),
+                    Correct = table.Column<bool>(nullable: false)
                 },
                 constraints: table =>
                 {
