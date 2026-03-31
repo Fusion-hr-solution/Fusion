@@ -13,7 +13,12 @@ public sealed record UpdateTenantSettingsRequest(
 /// <summary>
 /// Input type for field configuration with nullable properties for partial updates.
 /// </summary>
-public sealed record FieldConfigInput(bool? Visible, bool? Required);
+public sealed record FieldConfigInput(
+    bool? Visible,
+    bool? Required,
+    bool? VisibleToEmployee,
+    bool? VisibleToManager
+);
 
 /// <summary>
 /// Input type for branding settings with nullable properties for partial updates.

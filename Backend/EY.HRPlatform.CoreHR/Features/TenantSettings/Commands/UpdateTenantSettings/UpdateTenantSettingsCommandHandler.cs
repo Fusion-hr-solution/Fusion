@@ -21,6 +21,9 @@ public sealed partial class UpdateTenantSettingsCommandHandler(
     private static readonly HashSet<string> KnownFieldNames = 
         TenantSettingsDto.DefaultEmployeeFieldConfig.Keys.ToHashSet();
 
+    // Core identity fields that cannot have any visibility flag set to false
+    private static readonly HashSet<string> CoreFields = ["firstName", "lastName", "email"];
+
     public async Task<Result<TenantSettingsDto>> Handle(
         UpdateTenantSettingsCommand request,
         CancellationToken cancellationToken)
@@ -138,6 +141,25 @@ public sealed partial class UpdateTenantSettingsCommandHandler(
 
             if (unknownFields.Count > 0)
                 throw new ArgumentException($"Unknown field names: {string.Join(", ", unknownFields)}");
+
+            // Core fields cannot be hidden or made optional for any role
+            foreach (var (fieldName, config) in request.EmployeeFieldConfig)
+            {
+                if (!CoreFields.Contains(fieldName))
+                    continue;
+
+                if (config.Visible.HasValue && !config.Visible.Value)
+                    throw new ArgumentException($"'{fieldName}' is a core field and cannot be hidden.");
+
+                if (config.Required.HasValue && !config.Required.Value)
+                    throw new ArgumentException($"'{fieldName}' is a core field and cannot be made optional.");
+
+                if (config.VisibleToEmployee.HasValue && !config.VisibleToEmployee.Value)
+                    throw new ArgumentException($"'{fieldName}' is a core field and must remain visible to employees.");
+
+                if (config.VisibleToManager.HasValue && !config.VisibleToManager.Value)
+                    throw new ArgumentException($"'{fieldName}' is a core field and must remain visible to managers.");
+            }
         }
 
         // Validate branding

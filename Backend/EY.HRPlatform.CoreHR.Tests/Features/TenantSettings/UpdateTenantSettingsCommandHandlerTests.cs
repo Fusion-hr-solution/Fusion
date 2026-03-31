@@ -245,7 +245,7 @@ public class UpdateTenantSettingsCommandHandlerTests
             OrgUnitTypes: null,
             EmployeeFieldConfig: new Dictionary<string, FieldConfigInput>
             {
-                ["phone"] = new FieldConfigInput(false, true)
+                ["phone"] = new FieldConfigInput(false, true, null, null)
             },
             Branding: null);
 
@@ -316,7 +316,7 @@ public class UpdateTenantSettingsCommandHandlerTests
             OrgUnitTypes: null,
             EmployeeFieldConfig: new Dictionary<string, FieldConfigInput>
             {
-                ["unknownField"] = new FieldConfigInput(true, false)
+                ["unknownField"] = new FieldConfigInput(true, false, null, null)
             },
             Branding: null);
 
@@ -364,6 +364,250 @@ public class UpdateTenantSettingsCommandHandlerTests
         var ex = await Assert.ThrowsAsync<ArgumentException>(
             () => handler.Handle(command, CancellationToken.None));
         Assert.Contains("URL", ex.Message);
+    }
+
+    #endregion
+
+    #region Core Field Validation (Per-Role Visibility)
+
+    [Fact]
+    public async Task Handle_WithCoreFieldVisibleFalse_ThrowsArgumentException()
+    {
+        // Arrange
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        await using var context = TestDbContextFactory.Create(tenantContext);
+        var handler = new UpdateTenantSettingsCommandHandler(context, tenantContext);
+
+        var command = new UpdateTenantSettingsCommand(
+            ExpectedVersion: null,
+            OrgUnitTypes: null,
+            EmployeeFieldConfig: new Dictionary<string, FieldConfigInput>
+            {
+                ["firstName"] = new FieldConfigInput(Visible: false, Required: null, VisibleToEmployee: null, VisibleToManager: null)
+            },
+            Branding: null);
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<ArgumentException>(
+            () => handler.Handle(command, CancellationToken.None));
+        Assert.Contains("firstName", ex.Message);
+        Assert.Contains("core field", ex.Message);
+        Assert.Contains("hidden", ex.Message);
+    }
+
+    [Fact]
+    public async Task Handle_WithCoreFieldRequiredFalse_ThrowsArgumentException()
+    {
+        // Arrange
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        await using var context = TestDbContextFactory.Create(tenantContext);
+        var handler = new UpdateTenantSettingsCommandHandler(context, tenantContext);
+
+        var command = new UpdateTenantSettingsCommand(
+            ExpectedVersion: null,
+            OrgUnitTypes: null,
+            EmployeeFieldConfig: new Dictionary<string, FieldConfigInput>
+            {
+                ["email"] = new FieldConfigInput(Visible: null, Required: false, VisibleToEmployee: null, VisibleToManager: null)
+            },
+            Branding: null);
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<ArgumentException>(
+            () => handler.Handle(command, CancellationToken.None));
+        Assert.Contains("email", ex.Message);
+        Assert.Contains("core field", ex.Message);
+        Assert.Contains("optional", ex.Message);
+    }
+
+    [Fact]
+    public async Task Handle_WithCoreFieldVisibleToEmployeeFalse_ThrowsArgumentException()
+    {
+        // Arrange
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        await using var context = TestDbContextFactory.Create(tenantContext);
+        var handler = new UpdateTenantSettingsCommandHandler(context, tenantContext);
+
+        var command = new UpdateTenantSettingsCommand(
+            ExpectedVersion: null,
+            OrgUnitTypes: null,
+            EmployeeFieldConfig: new Dictionary<string, FieldConfigInput>
+            {
+                ["lastName"] = new FieldConfigInput(Visible: null, Required: null, VisibleToEmployee: false, VisibleToManager: null)
+            },
+            Branding: null);
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<ArgumentException>(
+            () => handler.Handle(command, CancellationToken.None));
+        Assert.Contains("lastName", ex.Message);
+        Assert.Contains("core field", ex.Message);
+        Assert.Contains("employees", ex.Message);
+    }
+
+    [Fact]
+    public async Task Handle_WithCoreFieldVisibleToManagerFalse_ThrowsArgumentException()
+    {
+        // Arrange
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        await using var context = TestDbContextFactory.Create(tenantContext);
+        var handler = new UpdateTenantSettingsCommandHandler(context, tenantContext);
+
+        var command = new UpdateTenantSettingsCommand(
+            ExpectedVersion: null,
+            OrgUnitTypes: null,
+            EmployeeFieldConfig: new Dictionary<string, FieldConfigInput>
+            {
+                ["firstName"] = new FieldConfigInput(Visible: null, Required: null, VisibleToEmployee: null, VisibleToManager: false)
+            },
+            Branding: null);
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<ArgumentException>(
+            () => handler.Handle(command, CancellationToken.None));
+        Assert.Contains("firstName", ex.Message);
+        Assert.Contains("core field", ex.Message);
+        Assert.Contains("managers", ex.Message);
+    }
+
+    [Fact]
+    public async Task Handle_WithNonCoreFieldVisibleToEmployeeFalse_Succeeds()
+    {
+        // Arrange
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        await using var context = TestDbContextFactory.Create(tenantContext);
+        var handler = new UpdateTenantSettingsCommandHandler(context, tenantContext);
+
+        var command = new UpdateTenantSettingsCommand(
+            ExpectedVersion: null,
+            OrgUnitTypes: null,
+            EmployeeFieldConfig: new Dictionary<string, FieldConfigInput>
+            {
+                ["phone"] = new FieldConfigInput(Visible: null, Required: null, VisibleToEmployee: false, VisibleToManager: null)
+            },
+            Branding: null);
+
+        // Act
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.False(result.Value.EmployeeFieldConfig["phone"].VisibleToEmployee);
+    }
+
+    [Fact]
+    public async Task Handle_WithNonCoreFieldVisibleToManagerFalse_Succeeds()
+    {
+        // Arrange
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        await using var context = TestDbContextFactory.Create(tenantContext);
+        var handler = new UpdateTenantSettingsCommandHandler(context, tenantContext);
+
+        var command = new UpdateTenantSettingsCommand(
+            ExpectedVersion: null,
+            OrgUnitTypes: null,
+            EmployeeFieldConfig: new Dictionary<string, FieldConfigInput>
+            {
+                ["jobTitle"] = new FieldConfigInput(Visible: null, Required: null, VisibleToEmployee: null, VisibleToManager: false)
+            },
+            Branding: null);
+
+        // Act
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.False(result.Value.EmployeeFieldConfig["jobTitle"].VisibleToManager);
+    }
+
+    [Fact]
+    public async Task Handle_WithCoreFieldRoleVisibilityTrue_Succeeds()
+    {
+        // Arrange - setting true should always be allowed
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        await using var context = TestDbContextFactory.Create(tenantContext);
+        var handler = new UpdateTenantSettingsCommandHandler(context, tenantContext);
+
+        var command = new UpdateTenantSettingsCommand(
+            ExpectedVersion: null,
+            OrgUnitTypes: null,
+            EmployeeFieldConfig: new Dictionary<string, FieldConfigInput>
+            {
+                ["firstName"] = new FieldConfigInput(Visible: true, Required: true, VisibleToEmployee: true, VisibleToManager: true)
+            },
+            Branding: null);
+
+        // Act
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.True(result.Value.EmployeeFieldConfig["firstName"].VisibleToEmployee);
+        Assert.True(result.Value.EmployeeFieldConfig["firstName"].VisibleToManager);
+    }
+
+    [Theory]
+    [InlineData("firstName")]
+    [InlineData("lastName")]
+    [InlineData("email")]
+    public async Task Handle_WithAnyCoreFieldHiddenFromEmployee_ThrowsArgumentException(string coreField)
+    {
+        // Arrange
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        await using var context = TestDbContextFactory.Create(tenantContext);
+        var handler = new UpdateTenantSettingsCommandHandler(context, tenantContext);
+
+        var command = new UpdateTenantSettingsCommand(
+            ExpectedVersion: null,
+            OrgUnitTypes: null,
+            EmployeeFieldConfig: new Dictionary<string, FieldConfigInput>
+            {
+                [coreField] = new FieldConfigInput(null, null, VisibleToEmployee: false, VisibleToManager: null)
+            },
+            Branding: null);
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<ArgumentException>(
+            () => handler.Handle(command, CancellationToken.None));
+        Assert.Contains(coreField, ex.Message);
+    }
+
+    [Fact]
+    public async Task Handle_WithPartialRoleVisibilityUpdate_MergesCorrectly()
+    {
+        // Arrange
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+
+        // Seed existing settings with visible override
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+        var existingSettings = CoreHREntities.TenantSettings.Create(
+            TenantId,
+            """{"employeeFieldConfig":{"phone":{"visible":false}}}""");
+        seedContext.TenantSettings.Add(existingSettings);
+        await seedContext.SaveChangesAsync();
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = new UpdateTenantSettingsCommandHandler(context, tenantContext);
+
+        // Update only role visibility
+        var command = new UpdateTenantSettingsCommand(
+            ExpectedVersion: existingSettings.Version,
+            OrgUnitTypes: null,
+            EmployeeFieldConfig: new Dictionary<string, FieldConfigInput>
+            {
+                ["phone"] = new FieldConfigInput(null, null, VisibleToEmployee: false, VisibleToManager: null)
+            },
+            Branding: null);
+
+        // Act
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.False(result.Value.EmployeeFieldConfig["phone"].Visible); // Preserved from existing
+        Assert.False(result.Value.EmployeeFieldConfig["phone"].VisibleToEmployee); // New
+        Assert.True(result.Value.EmployeeFieldConfig["phone"].VisibleToManager); // Default
     }
 
     #endregion

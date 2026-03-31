@@ -43,8 +43,9 @@ public static class TenantSettingsOverrideBuilder
             var existing = root["employeeFieldConfig"]?.AsObject() ?? new JsonObject();
             foreach (var (key, value) in employeeFieldConfig)
             {
-                // Skip if neither value is provided
-                if (!value.Visible.HasValue && !value.Required.HasValue)
+                // Skip if no values are provided
+                if (!value.Visible.HasValue && !value.Required.HasValue &&
+                    !value.VisibleToEmployee.HasValue && !value.VisibleToManager.HasValue)
                     continue;
 
                 var fieldObj = existing[key]?.AsObject() ?? new JsonObject();
@@ -53,6 +54,10 @@ public static class TenantSettingsOverrideBuilder
                     fieldObj["visible"] = value.Visible.Value;
                 if (value.Required.HasValue)
                     fieldObj["required"] = value.Required.Value;
+                if (value.VisibleToEmployee.HasValue)
+                    fieldObj["visibleToEmployee"] = value.VisibleToEmployee.Value;
+                if (value.VisibleToManager.HasValue)
+                    fieldObj["visibleToManager"] = value.VisibleToManager.Value;
 
                 // Only add if we actually have properties
                 if (fieldObj.Count > 0)

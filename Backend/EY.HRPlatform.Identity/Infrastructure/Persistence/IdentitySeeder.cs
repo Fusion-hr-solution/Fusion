@@ -31,11 +31,11 @@ public static class IdentitySeeder
 
         // Create default admin user if it doesn't exist
         const string adminEmail = "admin@ey-hr.com";
-        var existingAdmin = await userManager.FindByEmailAsync(adminEmail);
+        var admin = await userManager.FindByEmailAsync(adminEmail);
         
-        if (existingAdmin is null)
+        if (admin is null)
         {
-            var admin = new ApplicationUser
+            admin = new ApplicationUser
             {
                 UserName = adminEmail,
                 Email = adminEmail,
@@ -60,10 +60,10 @@ public static class IdentitySeeder
         else
         {
             // Ensure existing admin has the tenant claim (handles DB created before this fix)
-            var existingClaims = await userManager.GetClaimsAsync(existingAdmin);
+            var existingClaims = await userManager.GetClaimsAsync(admin);
             if (!existingClaims.Any(c => c.Type == CustomClaimTypes.TenantId))
             {
-                await userManager.AddClaimAsync(existingAdmin, new Claim(CustomClaimTypes.TenantId, DemoConstants.TenantId.ToString()));
+                await userManager.AddClaimAsync(admin, new Claim(CustomClaimTypes.TenantId, DemoConstants.TenantId.ToString()));
             }
         }
     }

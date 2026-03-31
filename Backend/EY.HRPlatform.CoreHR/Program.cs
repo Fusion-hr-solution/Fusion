@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json.Serialization;
 using EY.HRPlatform.CoreHR.Extensions;
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
 using EY.HRPlatform.CoreHR.Middleware;
@@ -19,7 +20,11 @@ var jwtSecret = builder.Configuration["Jwt:Secret"];
 if (string.IsNullOrEmpty(jwtSecret))
     throw new InvalidOperationException("Jwt:Secret is not configured. Set it via environment variable or appsettings.");
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -65,6 +70,11 @@ if (builder.Configuration.GetValue<bool>("Database:AutoMigrate"))
     {
         var demoTenantId = builder.Configuration.GetValue<Guid?>("Database:DemoTenantId") 
             ?? DemoConstants.TenantId;
+        
+        // Set tenant context for seeding (required by TenantSaveChangesInterceptor)
+        var tenantContext = scope.ServiceProvider.GetRequiredService<TenantContext>();
+        tenantContext.SetTenant(demoTenantId);
+        
         await CoreHRSeeder.SeedAsync(dbContext, demoTenantId);
     }
 }
