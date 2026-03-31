@@ -1,25 +1,16 @@
 import { BarChart3 } from "lucide-react";
 import { Card, CardContent } from "@repo/ui";
-import type { TrainingCategory } from "@/types";
 import { CATEGORY_CONFIG } from "@/data/categories";
-
-interface CategoryPerformanceProps {
-  items: {
-    category: TrainingCategory;
-    total: number;
-    completed: number;
-    rate: number;
-  }[];
-}
+import type { CategoryPerformanceProps } from "@/types/admin-props";
 
 export function CategoryPerformance({ items }: CategoryPerformanceProps) {
   return (
     <Card className="overflow-hidden border border-border/60 bg-white">
       <CardContent className="p-5">
         <div className="flex items-center gap-2.5 mb-5">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-purple-500/10">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[hsl(var(--ey-blue-400))]/10">
             <BarChart3
-              className="h-3.5 w-3.5 text-purple-500"
+              className="h-3.5 w-3.5 text-[hsl(var(--ey-blue-400))]"
               aria-hidden="true"
             />
           </div>

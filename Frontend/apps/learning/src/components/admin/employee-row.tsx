@@ -11,7 +11,7 @@ import {
   TooltipTrigger,
   TooltipContent,
 } from "@repo/ui";
-import type { Employee, TrainingStatus } from "@/types";
+import type { EmployeeRowProps } from "@/types/admin-props";
 import { CATEGORY_CONFIG } from "@/data/categories";
 import {
   initials,
@@ -20,14 +20,6 @@ import {
   STATUS_ICONS,
   AVATAR_COLORS,
 } from "./admin-constants";
-
-interface EmployeeRowProps {
-  employee: Employee;
-  colorIndex: number;
-  expanded: boolean;
-  onToggle: () => void;
-  statusFilter: TrainingStatus | "all";
-}
 
 export function EmployeeRow({
   employee,

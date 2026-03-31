@@ -6,13 +6,7 @@ import {
   TooltipTrigger,
   TooltipContent,
 } from "@repo/ui";
-
-interface CompletionFunnelProps {
-  completed: number;
-  inProgress: number;
-  notStarted: number;
-  total: number;
-}
+import type { CompletionFunnelProps } from "@/types/admin-props";
 
 export function CompletionFunnel({
   completed,

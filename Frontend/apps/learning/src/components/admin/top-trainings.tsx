@@ -1,15 +1,6 @@
 import { TrendingUp, Users, CheckCircle2 } from "lucide-react";
 import { Card, CardContent } from "@repo/ui";
-
-interface TopTrainingsProps {
-  items: {
-    title: string;
-    enrolled: number;
-    completed: number;
-    avgProgress: number;
-    completionRate: number;
-  }[];
-}
+import type { TopTrainingsProps } from "@/types/admin-props";
 
 export function TopTrainings({ items }: TopTrainingsProps) {
   return (

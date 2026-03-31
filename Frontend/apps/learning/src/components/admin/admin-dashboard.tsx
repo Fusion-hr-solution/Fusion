@@ -10,16 +10,12 @@ import {
   BookOpen,
 } from "lucide-react";
 import { TooltipProvider, Input } from "@repo/ui";
-import type { Employee, Training, TrainingCategory, TrainingStatus } from "@/types";
+import type { TrainingCategory, TrainingStatus } from "@/types";
+import type { AdminDashboardProps } from "@/types/admin-props";
 import { EmployeeRow } from "./employee-row";
 import { CompletionFunnel } from "./completion-funnel";
 import { CategoryPerformance } from "./category-performance";
 import { TopTrainings } from "./top-trainings";
-
-interface AdminDashboardProps {
-  employees: Employee[];
-  trainings: Training[];
-}
 
 export function AdminDashboard({ employees, trainings: _trainings }: AdminDashboardProps) {
   const [search, setSearch] = useState("");
