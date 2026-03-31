@@ -14,7 +14,8 @@ public class QuestionService(AppDbContext dbContext) : IQuestionService
         ValidatePaging(filter.Page, filter.PageSize);
 
         var query = dbContext.Questions
-            .AsNoTracking()
+            .AsNoTrackingWithIdentityResolution()
+            .Include(q => q.Options)
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(filter.Search))
@@ -171,7 +172,15 @@ public class QuestionService(AppDbContext dbContext) : IQuestionService
             Points = question.Points,
             DurationMinutes = question.DurationMinutes,
             Tags = question.Tags,
-            UsageCount = question.UsageCount
+            UsageCount = question.UsageCount,
+            Options = question.Options.Select(o => new QuestionOptionDto
+            {
+                Text = o.Text,
+                Correct = o.Correct
+            }).ToList(),
+            Language = question.Language ?? string.Empty,
+            StarterCode = question.StarterCode ?? string.Empty,
+            EvaluationCriteria = question.EvaluationCriteria ?? string.Empty
         };
     }
 
