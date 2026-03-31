@@ -2,6 +2,7 @@ using System.Text;
 using EY.HRPlatform.CoreHR.Extensions;
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
 using EY.HRPlatform.CoreHR.Middleware;
+using EY.HRPlatform.SharedKernel.Constants;
 using EY.HRPlatform.SharedKernel.Multitenancy;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -63,7 +64,7 @@ if (app.Environment.IsDevelopment() && builder.Configuration.GetValue<bool>("Dat
     if (builder.Configuration.GetValue<bool>("Database:AutoSeed"))
     {
         var demoTenantId = builder.Configuration.GetValue<Guid?>("Database:DemoTenantId") 
-            ?? Guid.Parse("00000000-0000-0000-0000-000000000001");
+            ?? DemoConstants.TenantId;
         await CoreHRSeeder.SeedAsync(dbContext, demoTenantId);
     }
 }

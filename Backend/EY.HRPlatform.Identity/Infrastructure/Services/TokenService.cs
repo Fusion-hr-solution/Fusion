@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using EY.HRPlatform.Identity.Domain.Entities;
+using EY.HRPlatform.SharedKernel.Auth;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
 
@@ -35,9 +36,9 @@ public class TokenService : ITokenService
         {
             new(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new(ClaimTypes.Email, user.Email!),
-            new("full_name", user.FullName),
-            new("department", user.Department ?? string.Empty),
-            new("job_title", user.JobTitle ?? string.Empty),
+            new(CustomClaimTypes.FullName, user.FullName),
+            new(CustomClaimTypes.Department, user.Department ?? string.Empty),
+            new(CustomClaimTypes.JobTitle, user.JobTitle ?? string.Empty),
         };
 
         // Step 3: Add one role claim per role
@@ -46,13 +47,21 @@ public class TokenService : ITokenService
             claims.Add(new Claim(ClaimTypes.Role, role));
         }
 
-        // Step 4: Create the signing key from our secret
+        // Step 4: Add tenant_id claim if present in user's claims
+        var userClaims = await _userManager.GetClaimsAsync(user);
+        var tenantClaim = userClaims.FirstOrDefault(c => c.Type == CustomClaimTypes.TenantId);
+        if (tenantClaim is not null && Guid.TryParse(tenantClaim.Value, out var tenantId) && tenantId != Guid.Empty)
+        {
+            claims.Add(new Claim(CustomClaimTypes.TenantId, tenantId.ToString()));
+        }
+
+        // Step 5: Create the signing key from our secret
         var key = new SymmetricSecurityKey(
             Encoding.UTF8.GetBytes(_configuration["Jwt:Secret"]!));
 
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-        // Step 5: Build the token
+        // Step 6: Build the token
         var token = new JwtSecurityToken(
             issuer: _configuration["Jwt:Issuer"],
             audience: _configuration["Jwt:Audience"],
@@ -62,7 +71,7 @@ public class TokenService : ITokenService
             signingCredentials: credentials
         );
 
-        // Step 6: Serialize to string
+        // Step 7: Serialize to string
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
