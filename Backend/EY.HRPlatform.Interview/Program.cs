@@ -23,3 +23,7 @@ if (autoMigrate)
 app.UseInterviewPipeline();
 
 app.Run();
+
+public partial class Program
+{
+}

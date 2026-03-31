@@ -1,12 +1,15 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   transpilePackages: ["@repo/ui", "@repo/auth", "@repo/api"],
   async rewrites() {
+    const gatewayUrl = process.env.GATEWAY_URL || "http://localhost:5000";
+    const coreUrl = process.env.CORE_MFE_URL || "http://localhost:3002";
     return [
       {
         source: "/api/:path*",
-        destination: "http://localhost:5000/api/:path*",
+        destination: `${gatewayUrl}/api/:path*`,
       },
       {
         source: "/interview/:path*",
@@ -14,7 +17,7 @@ const nextConfig: NextConfig = {
       },
       {
         source: "/core/:path*",
-        destination: "http://localhost:3002/core/:path*",
+        destination: `${coreUrl}/core/:path*`,
       },
       {
         source: "/learning/:path*",
