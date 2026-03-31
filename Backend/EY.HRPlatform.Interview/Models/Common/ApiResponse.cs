@@ -1,20 +1,40 @@
+using System.Text.Json.Serialization;
+
 namespace EY.HRPlatform.Interview.Models.Common;
 
 public class ApiResponse<T>
 {
+    [JsonPropertyName("success")]
+    public bool Succeeded { get; set; }
+
+    [JsonPropertyName("isSuccess")]
+    public bool IsSuccess => Succeeded;
+
+    public string Message { get; set; } = string.Empty;
     public T? Data { get; set; }
     public List<string> Errors { get; set; } = [];
-    public bool IsSuccess => Errors.Count == 0;
 
-    public static ApiResponse<T> Success(T data) => new() { Data = data };
-    public static ApiResponse<T> Failure(params string[] errors) => new() { Errors = [.. errors] };
+    public static ApiResponse<T> Success(T data, string message = "Request succeeded.")
+        => new() { Succeeded = true, Message = message, Data = data };
+
+    public static ApiResponse<T> Failure(string message, params string[] errors)
+        => new() { Succeeded = false, Message = message, Errors = [.. errors] };
 }
 
 public class ApiResponse
 {
-    public List<string> Errors { get; set; } = [];
-    public bool IsSuccess => Errors.Count == 0;
+    [JsonPropertyName("success")]
+    public bool Succeeded { get; set; }
 
-    public static ApiResponse Success() => new();
-    public static ApiResponse Failure(params string[] errors) => new() { Errors = [.. errors] };
+    [JsonPropertyName("isSuccess")]
+    public bool IsSuccess => Succeeded;
+
+    public string Message { get; set; } = string.Empty;
+    public List<string> Errors { get; set; } = [];
+
+    public static ApiResponse Success(string message = "Request succeeded.")
+        => new() { Succeeded = true, Message = message };
+
+    public static ApiResponse Failure(string message, params string[] errors)
+        => new() { Succeeded = false, Message = message, Errors = [.. errors] };
 }
