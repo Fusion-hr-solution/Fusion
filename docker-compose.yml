@@ -1,0 +1,123 @@
+services:
+  # ─── Database ────────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: fusion-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-fusion}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-FusionDev123!}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./docker/postgres/init-databases.sh:/docker-entrypoint-initdb.d/init-databases.sh:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-fusion}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - fusion-net
+
+  # ─── Backend Services ────────────────────────────────────────────────────────
+  gateway:
+    build:
+      context: ./Backend
+      dockerfile: EY.HRPlatform.Gateway/Dockerfile
+    container_name: fusion-gateway
+    environment:
+      ASPNETCORE_ENVIRONMENT: Docker
+      Jwt__Secret: ${JWT_SECRET:?JWT_SECRET must be set in .env file}
+    ports:
+      - "${GATEWAY_PORT:-5000}:5000"
+    depends_on:
+      identity:
+        condition: service_healthy
+      training:
+        condition: service_healthy
+      corehr:
+        condition: service_healthy
+    networks:
+      - fusion-net
+
+  identity:
+    build:
+      context: ./Backend
+      dockerfile: EY.HRPlatform.Identity/Dockerfile
+    container_name: fusion-identity
+    environment:
+      ASPNETCORE_ENVIRONMENT: Docker
+      ConnectionStrings__IdentityDb: Host=postgres;Database=fusion_identity;Username=${POSTGRES_USER:-fusion};Password=${POSTGRES_PASSWORD:-FusionDev123!}
+      Jwt__Secret: ${JWT_SECRET:?JWT_SECRET must be set in .env file}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - fusion-net
+
+  training:
+    build:
+      context: ./Backend
+      dockerfile: EY.HRPlatform.Training/Dockerfile
+    container_name: fusion-training
+    environment:
+      ASPNETCORE_ENVIRONMENT: Docker
+      ConnectionStrings__TrainingDb: Host=postgres;Database=fusion_training;Username=${POSTGRES_USER:-fusion};Password=${POSTGRES_PASSWORD:-FusionDev123!}
+      Jwt__Secret: ${JWT_SECRET:?JWT_SECRET must be set in .env file}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - fusion-net
+
+  corehr:
+    build:
+      context: ./Backend
+      dockerfile: EY.HRPlatform.CoreHR/Dockerfile
+    container_name: fusion-corehr
+    environment:
+      ASPNETCORE_ENVIRONMENT: Docker
+      ConnectionStrings__CoreHRDb: Host=postgres;Database=fusion_corehr;Username=${POSTGRES_USER:-fusion};Password=${POSTGRES_PASSWORD:-FusionDev123!}
+      Jwt__Secret: ${JWT_SECRET:?JWT_SECRET must be set in .env file}
+      Database__AutoMigrate: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - fusion-net
+
+  # ─── Frontend ────────────────────────────────────────────────────────────────
+  frontend-shell:
+    build:
+      context: ./Frontend
+      dockerfile: apps/shell/Dockerfile
+      args:
+        GATEWAY_URL: http://gateway:5000
+        CORE_MFE_URL: http://frontend-core:3002
+    container_name: fusion-frontend-shell
+    environment:
+      GATEWAY_URL: http://gateway:5000
+      CORE_MFE_URL: http://frontend-core:3002
+    ports:
+      - "${FRONTEND_SHELL_PORT:-3000}:3000"
+    depends_on:
+      - gateway
+    networks:
+      - fusion-net
+
+  frontend-core:
+    build:
+      context: ./Frontend
+      dockerfile: apps/core/Dockerfile
+    container_name: fusion-frontend-core
+    ports:
+      - "${FRONTEND_CORE_PORT:-3002}:3002"
+    networks:
+      - fusion-net
+
+networks:
+  fusion-net:
+    driver: bridge
+
+volumes:
+  postgres-data:

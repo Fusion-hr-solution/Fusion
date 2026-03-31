@@ -1,0 +1,39 @@
+# Build outputs
+**/bin/
+**/obj/
+
+# IDE and editor files
+**/.vs/
+**/.vscode/
+**/*.user
+**/*.suo
+**/*.userosscache
+**/*.sln.docstates
+
+# NuGet
+**/packages/
+
+# Test results
+**/TestResults/
+
+# Coverage reports
+**/coverage/
+
+# Rider
+**/.idea/
+
+# macOS
+**/.DS_Store
+
+# Windows
+**/Thumbs.db
+
+# Logs
+**/*.log
+
+# Local settings (gitignored anyway)
+**/appsettings.Development.json
+**/appsettings.Local.json
+
+# Config
+.config/dotnet-tools.json
