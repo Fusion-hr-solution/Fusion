@@ -19,4 +19,5 @@
     <Project Path="EY.HRPlatform.Training.Tests/EY.HRPlatform.Training.Tests.csproj" />
     <Project Path="EY.HRPlatform.Interview.Tests/EY.HRPlatform.Interview.Tests.csproj" />
   </Folder>
+  <Project Path="EY.HRPlatform.Identity.Tests/EY.HRPlatform.Identity.Tests.csproj" />
 </Solution>
