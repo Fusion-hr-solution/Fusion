@@ -18,12 +18,11 @@ import {
   statusLabel,
   STATUS_COLORS,
   STATUS_ICONS,
-  AVATAR_COLORS,
+  AVATAR_COLOR,
 } from "./admin-constants";
 
 interface EmployeeRowProps {
   employee: Employee;
-  colorIndex: number;
   expanded: boolean;
   onToggle: () => void;
   statusFilter: TrainingStatus | "all";
@@ -31,7 +30,6 @@ interface EmployeeRowProps {
 
 export function EmployeeRow({
   employee,
-  colorIndex,
   expanded,
   onToggle,
   statusFilter,
@@ -41,7 +39,6 @@ export function EmployeeRow({
   ).length;
   const total = employee.trainings.length;
   const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
-  const avatarColor = AVATAR_COLORS[colorIndex % AVATAR_COLORS.length]!;
 
   const filteredTrainings =
     statusFilter === "all"
@@ -70,7 +67,7 @@ export function EmployeeRow({
       >
         <Avatar className="h-10 w-10 ring-2 ring-white shadow-sm">
           <AvatarFallback
-            className={`${avatarColor} text-white text-xs font-bold`}
+            className={`${AVATAR_COLOR} text-white text-xs font-bold`}
           >
             {initials(employee.name)}
           </AvatarFallback>
