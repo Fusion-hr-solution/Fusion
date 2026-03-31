@@ -9,6 +9,9 @@ public class TrainingChapter : BaseEntity
     public ContentType ContentType { get; private set; }
     public string? ContentUri { get; private set; }
     public int OrderIndex { get; private set; }
+    public string? TextContent { get; private set; }
+    public string? VideoUrl { get; private set; }
+    public int? EstimatedDurationMinutes { get; private set; }
 
     public Guid TrainingId { get; private set; }
     public TrainingCourse Training { get; private set; } = null!;
@@ -18,12 +21,42 @@ public class TrainingChapter : BaseEntity
 
     private TrainingChapter() { }
 
-    public TrainingChapter(string title, ContentType contentType, string? contentUri, int orderIndex, Guid trainingId)
+    public TrainingChapter(
+        string title,
+        ContentType contentType,
+        string? contentUri,
+        int orderIndex,
+        Guid trainingId,
+        string? textContent = null,
+        string? videoUrl = null,
+        int? estimatedDurationMinutes = null)
     {
         Title = title;
         ContentType = contentType;
         ContentUri = contentUri;
         OrderIndex = orderIndex;
         TrainingId = trainingId;
+        TextContent = textContent;
+        VideoUrl = videoUrl;
+        EstimatedDurationMinutes = estimatedDurationMinutes;
+    }
+
+    public void Update(
+        string title,
+        ContentType contentType,
+        string? contentUri,
+        int orderIndex,
+        string? textContent = null,
+        string? videoUrl = null,
+        int? estimatedDurationMinutes = null)
+    {
+        Title = title;
+        ContentType = contentType;
+        ContentUri = contentUri;
+        OrderIndex = orderIndex;
+        TextContent = textContent;
+        VideoUrl = videoUrl;
+        EstimatedDurationMinutes = estimatedDurationMinutes;
+        UpdatedAt = DateTime.UtcNow;
     }
 }

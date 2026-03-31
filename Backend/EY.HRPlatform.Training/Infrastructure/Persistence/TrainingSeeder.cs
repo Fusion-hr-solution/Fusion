@@ -92,21 +92,263 @@ public static class TrainingSeeder
         var csharpTraining = trainings[0];
         var csharpChapters = new List<TrainingChapter>
         {
-            new("Introduction to C# and .NET", ContentType.Video, null, 1, csharpTraining.Id),
-            new("Variables, Types, and Control Flow", ContentType.Video, null, 2, csharpTraining.Id),
-            new("Object-Oriented Programming in C#", ContentType.Video, null, 3, csharpTraining.Id),
-            new("LINQ and Collections", ContentType.Article, null, 4, csharpTraining.Id),
-            new("Async/Await and Task Parallel Library", ContentType.Video, null, 5, csharpTraining.Id),
+            new("Introduction to C# and .NET", ContentType.Video, null, 1, csharpTraining.Id,
+                null,
+                "https://www.youtube.com/embed/GhQdlMFylQ8",
+                45),
+            new("Variables, Types, and Control Flow", ContentType.Video, null, 2, csharpTraining.Id,
+                null,
+                "https://www.youtube.com/embed/IFayQioG71A",
+                60),
+            new("Object-Oriented Programming in C#", ContentType.Article, null, 3, csharpTraining.Id,
+                """
+                # Object-Oriented Programming in C#
+
+                ## Introduction
+                Object-Oriented Programming (OOP) is a paradigm that organizes code around **objects** — instances of classes that bundle data and behavior.
+
+                ## The Four Pillars of OOP
+
+                ### 1. Encapsulation
+                Encapsulation hides internal state and requires all interaction through well-defined methods.
+
+                ```csharp
+                public class BankAccount
+                {
+                    private decimal _balance;
+
+                    public decimal Balance => _balance;
+
+                    public void Deposit(decimal amount)
+                    {
+                        if (amount <= 0) throw new ArgumentException("Amount must be positive");
+                        _balance += amount;
+                    }
+                }
+                ```
+
+                ### 2. Inheritance
+                Inheritance allows a class to inherit members from a base class, promoting code reuse.
+
+                ```csharp
+                public class Employee : Person
+                {
+                    public string Department { get; set; }
+                }
+                ```
+
+                ### 3. Polymorphism
+                Polymorphism enables objects of different types to be treated through a common interface.
+
+                ```csharp
+                public abstract class Shape
+                {
+                    public abstract double Area();
+                }
+
+                public class Circle : Shape
+                {
+                    public double Radius { get; set; }
+                    public override double Area() => Math.PI * Radius * Radius;
+                }
+                ```
+
+                ### 4. Abstraction
+                Abstraction focuses on exposing only relevant details while hiding implementation complexity.
+
+                ## Summary
+                Understanding these four pillars is essential for writing clean, maintainable C# code. Practice by refactoring procedural code into well-structured OOP designs.
+                """,
+                null,
+                90),
+            new("LINQ and Collections", ContentType.Article, null, 4, csharpTraining.Id,
+                """
+                # LINQ and Collections in C#
+
+                ## What is LINQ?
+                Language Integrated Query (LINQ) provides a consistent query syntax for working with data from different sources.
+
+                ## Query Syntax vs Method Syntax
+
+                ```csharp
+                // Query syntax
+                var result = from student in students
+                             where student.Grade > 80
+                             orderby student.Name
+                             select student;
+
+                // Method syntax (fluent)
+                var result = students
+                    .Where(s => s.Grade > 80)
+                    .OrderBy(s => s.Name);
+                ```
+
+                ## Common LINQ Methods
+                - **Where** — Filters elements based on a predicate
+                - **Select** — Projects each element into a new form
+                - **OrderBy / OrderByDescending** — Sorts elements
+                - **GroupBy** — Groups elements by a key
+                - **First / FirstOrDefault** — Returns the first element
+                - **Any / All** — Tests conditions across the collection
+
+                ## Collections Overview
+                | Type | Description |
+                |------|-------------|
+                | `List<T>` | Dynamic array |
+                | `Dictionary<TKey, TValue>` | Key-value pairs |
+                | `HashSet<T>` | Unique elements |
+                | `Queue<T>` | FIFO collection |
+                | `Stack<T>` | LIFO collection |
+
+                ## Performance Tips
+                - Use `AsNoTracking()` for read-only EF Core queries
+                - Prefer `ToListAsync()` over `ToList()` in async contexts
+                - Avoid multiple enumeration with `ToList()` when needed
+                """,
+                null,
+                75),
+            new("Async/Await and Task Parallel Library", ContentType.Exercise, null, 5, csharpTraining.Id,
+                """
+                # Exercise: Async/Await and Task Parallel Library
+
+                ## Objective
+                Practice using async/await patterns and the Task Parallel Library in C#.
+
+                ## Exercise 1: Async File Processing
+                Create an async method that reads multiple files concurrently and returns their combined content.
+
+                ```csharp
+                public async Task<string> ReadFilesAsync(string[] filePaths)
+                {
+                    // TODO: Implement using Task.WhenAll
+                    // Each file should be read with File.ReadAllTextAsync
+                    // Return all contents joined with newlines
+                }
+                ```
+
+                ## Exercise 2: Rate-Limited API Calls
+                Implement a method that calls an API endpoint for each item in a list, but limits concurrency to 3 simultaneous requests.
+
+                ```csharp
+                public async Task<List<ApiResult>> FetchAllAsync(
+                    List<string> urls,
+                    HttpClient client)
+                {
+                    // TODO: Use SemaphoreSlim to limit concurrency
+                }
+                ```
+
+                ## Exercise 3: Cancellation Support
+                Add CancellationToken support to a long-running task.
+
+                ```csharp
+                public async Task ProcessDataAsync(
+                    IEnumerable<DataItem> items,
+                    CancellationToken cancellationToken = default)
+                {
+                    // TODO: Check cancellation between items
+                    // Throw OperationCanceledException if cancelled
+                }
+                ```
+
+                ## Acceptance Criteria
+                - All exercises compile without errors
+                - Proper exception handling for async operations
+                - Cancellation is checked at appropriate intervals
+                """,
+                null,
+                120),
         };
         await db.Chapters.AddRangeAsync(csharpChapters);
 
         var complianceTraining = trainings[4];
         var complianceChapters = new List<TrainingChapter>
         {
-            new("Introduction to GDPR", ContentType.Pdf, null, 1, complianceTraining.Id),
-            new("Data Classification and Handling", ContentType.Video, null, 2, complianceTraining.Id),
-            new("Reporting Data Breaches", ContentType.Article, null, 3, complianceTraining.Id),
-            new("Compliance Assessment", ContentType.Pdf, null, 4, complianceTraining.Id),
+            new("Introduction to GDPR", ContentType.Pdf, "https://gdpr-info.eu/art-1-gdpr/", 1, complianceTraining.Id,
+                """
+                # Introduction to GDPR
+
+                ## What is GDPR?
+                The General Data Protection Regulation (GDPR) is a comprehensive data protection regulation adopted by the European Union in 2016 and enforced from May 25, 2018.
+
+                ## Key Principles
+                1. **Lawfulness, fairness, and transparency** — Data must be processed lawfully
+                2. **Purpose limitation** — Collected for specified, explicit purposes
+                3. **Data minimization** — Adequate, relevant, and limited
+                4. **Accuracy** — Kept up to date
+                5. **Storage limitation** — Kept only as long as necessary
+                6. **Integrity and confidentiality** — Appropriate security measures
+
+                ## Data Subject Rights
+                - Right to access
+                - Right to rectification
+                - Right to erasure ("right to be forgotten")
+                - Right to data portability
+                - Right to object
+
+                ## Penalties
+                Non-compliance can result in fines of up to €20 million or 4% of global annual turnover, whichever is higher.
+                """,
+                null,
+                30),
+            new("Data Classification and Handling", ContentType.Video, null, 2, complianceTraining.Id,
+                null,
+                "https://www.youtube.com/embed/example-data-classification",
+                45),
+            new("Reporting Data Breaches", ContentType.Article, null, 3, complianceTraining.Id,
+                """
+                # Reporting Data Breaches
+
+                ## What Constitutes a Data Breach?
+                A data breach is any security incident that leads to unauthorized access, disclosure, alteration, or destruction of personal data.
+
+                ## Reporting Timeline
+                Under GDPR, data breaches must be reported to the relevant supervisory authority **within 72 hours** of becoming aware of the breach.
+
+                ## Steps to Follow
+                1. **Identify** — Determine the scope and nature of the breach
+                2. **Contain** — Take immediate steps to limit the breach
+                3. **Assess** — Evaluate the risk to individuals
+                4. **Notify** — Report to authorities and affected individuals if high risk
+                5. **Document** — Record all details for compliance audit
+
+                ## Notification Requirements
+                The notification must include:
+                - Nature of the breach
+                - Categories and approximate number of individuals affected
+                - Contact details of the Data Protection Officer
+                - Likely consequences
+                - Measures taken or proposed to address the breach
+                """,
+                null,
+                35),
+            new("Compliance Assessment", ContentType.Exercise, null, 4, complianceTraining.Id,
+                """
+                # Compliance Assessment Exercise
+
+                ## Scenario
+                You are the Data Protection Officer at a mid-size financial services firm. Review the following scenarios and determine the appropriate action.
+
+                ## Scenario 1: Marketing Emails
+                The marketing department wants to send promotional emails to all customers in the database, including those who haven't provided explicit consent.
+
+                **Question:** What should you advise? What GDPR article applies?
+
+                ## Scenario 2: Third-Party Data Sharing
+                A partner company requests access to customer transaction data for analytics purposes.
+
+                **Question:** What safeguards must be in place? What documentation is required?
+
+                ## Scenario 3: Data Breach Response
+                An employee's laptop containing unencrypted customer data is stolen from a coffee shop.
+
+                **Question:** Walk through the complete breach response process. Who must be notified and within what timeframe?
+
+                ## Deliverable
+                Write a brief report (500 words) for each scenario outlining your recommendations with references to specific GDPR articles.
+                """,
+                null,
+                60),
         };
         await db.Chapters.AddRangeAsync(complianceChapters);
         await db.SaveChangesAsync();
