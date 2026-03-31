@@ -1,4 +1,5 @@
 ﻿using EY.HRPlatform.Identity.Domain.Entities;
+using EY.HRPlatform.Identity.Infrastructure.Persistence.Configurations;
 using EY.HRPlatform.SharedKernel.Persistence;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -9,6 +10,7 @@ namespace EY.HRPlatform.Identity.Infrastructure.Persistence;
 public class AppIdentityDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>
 {
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<Tenant> Tenants => Set<Tenant>();
 
     public AppIdentityDbContext(DbContextOptions<AppIdentityDbContext> options)
         : base(options)
@@ -64,5 +66,8 @@ public class AppIdentityDbContext : IdentityDbContext<ApplicationUser, IdentityR
 
             entity.HasIndex(rt => rt.UserId);
         });
+
+        // Tenant table configuration
+        builder.ApplyConfiguration(new TenantConfiguration());
     }
 }
