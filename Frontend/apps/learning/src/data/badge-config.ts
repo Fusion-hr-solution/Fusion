@@ -6,14 +6,14 @@ export const BADGE_LEVEL_CONFIG: Record<
 > = {
   bronze: {
     label: "Bronze",
-    className: "text-orange-700 bg-orange-100 border-orange-200",
+    className: "text-zinc-600 bg-zinc-100 border-zinc-200",
   },
   silver: {
     label: "Silver",
-    className: "text-slate-600 bg-slate-100 border-slate-200",
+    className: "text-zinc-600 bg-zinc-100 border-zinc-200",
   },
   gold: {
     label: "Gold",
-    className: "text-yellow-700 bg-yellow-50 border-yellow-200",
+    className: "text-zinc-600 bg-zinc-100 border-zinc-200",
   },
 };
