@@ -54,7 +54,7 @@ builder.Services.AddOpenTelemetry()
 
 var app = builder.Build();
 
-if (app.Environment.IsDevelopment() && builder.Configuration.GetValue<bool>("Database:AutoMigrate"))
+if (builder.Configuration.GetValue<bool>("Database:AutoMigrate"))
 {
     using var scope = app.Services.CreateScope();
     var dbContext = scope.ServiceProvider.GetRequiredService<CoreHRDbContext>();

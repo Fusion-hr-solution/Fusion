@@ -1,0 +1,45 @@
+# Dependencies
+**/node_modules/
+
+# Build outputs
+**/.next/
+**/dist/
+**/out/
+
+# Turborepo cache
+**/.turbo/
+
+# IDE and editor files
+**/.vscode/
+**/.idea/
+
+# macOS
+**/.DS_Store
+
+# Windows
+**/Thumbs.db
+
+# Logs
+**/*.log
+**/npm-debug.log*
+**/yarn-debug.log*
+**/yarn-error.log*
+**/pnpm-debug.log*
+
+# Local env files (keep .env.example)
+**/.env
+**/.env.local
+**/.env.*.local
+!**/.env.example
+
+# Test coverage
+**/coverage/
+
+# TypeScript build info
+**/*.tsbuildinfo
+
+# ESLint cache
+**/.eslintcache
+
+# Prettier cache
+**/.prettiercache
