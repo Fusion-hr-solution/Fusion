@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using EY.HRPlatform.CoreHR.Extensions;
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
 using EY.HRPlatform.CoreHR.Middleware;
+using EY.HRPlatform.SharedKernel.Constants;
 using EY.HRPlatform.SharedKernel.Multitenancy;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -64,11 +65,18 @@ if (builder.Configuration.GetValue<bool>("Database:AutoMigrate"))
     var dbContext = scope.ServiceProvider.GetRequiredService<CoreHRDbContext>();
     await dbContext.Database.MigrateAsync();
     
-    // Set tenant context for seeding (required by TenantSaveChangesInterceptor)
-    var tenantContext = scope.ServiceProvider.GetRequiredService<TenantContext>();
-    tenantContext.SetTenant(CoreHRSeeder.DemoTenantId);
-    
-    await CoreHRSeeder.SeedAsync(dbContext);
+    // Seed demo data for development - uses a well-known demo tenant ID
+    if (builder.Configuration.GetValue<bool>("Database:AutoSeed"))
+    {
+        var demoTenantId = builder.Configuration.GetValue<Guid?>("Database:DemoTenantId") 
+            ?? DemoConstants.TenantId;
+        
+        // Set tenant context for seeding (required by TenantSaveChangesInterceptor)
+        var tenantContext = scope.ServiceProvider.GetRequiredService<TenantContext>();
+        tenantContext.SetTenant(demoTenantId);
+        
+        await CoreHRSeeder.SeedAsync(dbContext, demoTenantId);
+    }
 }
 
 if (app.Environment.IsDevelopment())
