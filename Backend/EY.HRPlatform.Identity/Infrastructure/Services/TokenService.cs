@@ -46,13 +46,21 @@ public class TokenService : ITokenService
             claims.Add(new Claim(ClaimTypes.Role, role));
         }
 
-        // Step 4: Create the signing key from our secret
+        // Step 4: Add tenant_id claim if user has one
+        var userClaims = await _userManager.GetClaimsAsync(user);
+        var tenantClaim = userClaims.FirstOrDefault(c => c.Type == "tenant_id");
+        if (tenantClaim != null && Guid.TryParse(tenantClaim.Value, out var tenantId) && tenantId != Guid.Empty)
+        {
+            claims.Add(new Claim("tenant_id", tenantClaim.Value));
+        }
+
+        // Step 5: Create the signing key from our secret
         var key = new SymmetricSecurityKey(
             Encoding.UTF8.GetBytes(_configuration["Jwt:Secret"]!));
 
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-        // Step 5: Build the token
+        // Step 6: Build the token
         var token = new JwtSecurityToken(
             issuer: _configuration["Jwt:Issuer"],
             audience: _configuration["Jwt:Audience"],
@@ -62,7 +70,7 @@ public class TokenService : ITokenService
             signingCredentials: credentials
         );
 
-        // Step 6: Serialize to string
+        // Step 7: Serialize to string
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
 

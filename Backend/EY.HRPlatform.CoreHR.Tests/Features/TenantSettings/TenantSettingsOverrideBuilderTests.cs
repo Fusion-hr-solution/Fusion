@@ -71,7 +71,7 @@ public class TenantSettingsOverrideBuilderTests
             null,
             new Dictionary<string, FieldConfigInput>
             {
-                ["phone"] = new FieldConfigInput(false, true)
+                ["phone"] = new FieldConfigInput(false, true, null, null)
             },
             null);
 
@@ -143,7 +143,7 @@ public class TenantSettingsOverrideBuilderTests
             null,
             new Dictionary<string, FieldConfigInput>
             {
-                ["phone"] = new FieldConfigInput(false, null)
+                ["phone"] = new FieldConfigInput(false, null, null, null)
             },
             null);
 
@@ -165,7 +165,7 @@ public class TenantSettingsOverrideBuilderTests
         // Arrange - only visible is provided for phone, required is null
         var fieldConfig = new Dictionary<string, FieldConfigInput>
         {
-            ["phone"] = new FieldConfigInput(Visible: false, Required: null)
+            ["phone"] = new FieldConfigInput(Visible: false, Required: null, VisibleToEmployee: null, VisibleToManager: null)
         };
 
         // Act
@@ -223,11 +223,152 @@ public class TenantSettingsOverrideBuilderTests
             null,
             new Dictionary<string, FieldConfigInput>
             {
-                ["phone"] = new FieldConfigInput(null, null) // Both null
+                ["phone"] = new FieldConfigInput(null, null, null, null) // All null
             },
             null);
 
         // Assert
         Assert.Null(result);
     }
+
+    #region Per-Role Visibility Tests
+
+    [Fact]
+    public void Build_WithVisibleToEmployee_WritesToJson()
+    {
+        // Act
+        var result = TenantSettingsOverrideBuilder.Build(
+            null,
+            null,
+            new Dictionary<string, FieldConfigInput>
+            {
+                ["phone"] = new FieldConfigInput(null, null, VisibleToEmployee: false, VisibleToManager: null)
+            },
+            null);
+
+        // Assert
+        Assert.NotNull(result);
+        var json = JsonDocument.Parse(result);
+        var phone = json.RootElement.GetProperty("employeeFieldConfig").GetProperty("phone");
+        Assert.False(phone.GetProperty("visibleToEmployee").GetBoolean());
+        Assert.False(phone.TryGetProperty("visibleToManager", out _));
+    }
+
+    [Fact]
+    public void Build_WithVisibleToManager_WritesToJson()
+    {
+        // Act
+        var result = TenantSettingsOverrideBuilder.Build(
+            null,
+            null,
+            new Dictionary<string, FieldConfigInput>
+            {
+                ["jobTitle"] = new FieldConfigInput(null, null, VisibleToEmployee: null, VisibleToManager: false)
+            },
+            null);
+
+        // Assert
+        Assert.NotNull(result);
+        var json = JsonDocument.Parse(result);
+        var jobTitle = json.RootElement.GetProperty("employeeFieldConfig").GetProperty("jobTitle");
+        Assert.False(jobTitle.GetProperty("visibleToManager").GetBoolean());
+        Assert.False(jobTitle.TryGetProperty("visibleToEmployee", out _));
+    }
+
+    [Fact]
+    public void Build_WithBothRoleVisibilityFields_WritesBoth()
+    {
+        // Act
+        var result = TenantSettingsOverrideBuilder.Build(
+            null,
+            null,
+            new Dictionary<string, FieldConfigInput>
+            {
+                ["hireDate"] = new FieldConfigInput(null, null, VisibleToEmployee: false, VisibleToManager: true)
+            },
+            null);
+
+        // Assert
+        Assert.NotNull(result);
+        var json = JsonDocument.Parse(result);
+        var hireDate = json.RootElement.GetProperty("employeeFieldConfig").GetProperty("hireDate");
+        Assert.False(hireDate.GetProperty("visibleToEmployee").GetBoolean());
+        Assert.True(hireDate.GetProperty("visibleToManager").GetBoolean());
+    }
+
+    [Fact]
+    public void Build_WithAllFourFieldConfigProperties_WritesAll()
+    {
+        // Act
+        var result = TenantSettingsOverrideBuilder.Build(
+            null,
+            null,
+            new Dictionary<string, FieldConfigInput>
+            {
+                ["phone"] = new FieldConfigInput(
+                    Visible: false,
+                    Required: true,
+                    VisibleToEmployee: false,
+                    VisibleToManager: true)
+            },
+            null);
+
+        // Assert
+        Assert.NotNull(result);
+        var json = JsonDocument.Parse(result);
+        var phone = json.RootElement.GetProperty("employeeFieldConfig").GetProperty("phone");
+        Assert.False(phone.GetProperty("visible").GetBoolean());
+        Assert.True(phone.GetProperty("required").GetBoolean());
+        Assert.False(phone.GetProperty("visibleToEmployee").GetBoolean());
+        Assert.True(phone.GetProperty("visibleToManager").GetBoolean());
+    }
+
+    [Fact]
+    public void Build_MergesRoleVisibilityWithExisting()
+    {
+        // Arrange - existing has visible set
+        var existing = """{"employeeFieldConfig":{"phone":{"visible":false}}}""";
+
+        // Act - add role visibility
+        var result = TenantSettingsOverrideBuilder.Build(
+            existing,
+            null,
+            new Dictionary<string, FieldConfigInput>
+            {
+                ["phone"] = new FieldConfigInput(null, null, VisibleToEmployee: false, VisibleToManager: null)
+            },
+            null);
+
+        // Assert
+        Assert.NotNull(result);
+        var json = JsonDocument.Parse(result);
+        var phone = json.RootElement.GetProperty("employeeFieldConfig").GetProperty("phone");
+        Assert.False(phone.GetProperty("visible").GetBoolean()); // Preserved
+        Assert.False(phone.GetProperty("visibleToEmployee").GetBoolean()); // Added
+    }
+
+    [Fact]
+    public void Build_WithOnlyRoleVisibility_CreatesValidJson()
+    {
+        // Act - only role visibility, no visible/required
+        var result = TenantSettingsOverrideBuilder.Build(
+            null,
+            null,
+            new Dictionary<string, FieldConfigInput>
+            {
+                ["jobTitle"] = new FieldConfigInput(null, null, VisibleToEmployee: true, VisibleToManager: false)
+            },
+            null);
+
+        // Assert
+        Assert.NotNull(result);
+        var json = JsonDocument.Parse(result);
+        var jobTitle = json.RootElement.GetProperty("employeeFieldConfig").GetProperty("jobTitle");
+        Assert.True(jobTitle.GetProperty("visibleToEmployee").GetBoolean());
+        Assert.False(jobTitle.GetProperty("visibleToManager").GetBoolean());
+        Assert.False(jobTitle.TryGetProperty("visible", out _));
+        Assert.False(jobTitle.TryGetProperty("required", out _));
+    }
+
+    #endregion
 }

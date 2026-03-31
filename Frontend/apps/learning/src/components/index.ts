@@ -1,3 +1,9 @@
+export { PageHeader } from "./page-header";
+export { KpiCard } from "./kpi-card";
+export { StatCard } from "./stat-card";
+export { EmptyState } from "./empty-state";
+export { SearchInput } from "./search-input";
+export { SectionHeader } from "./section-header";
 export { CourseCard } from "./course-card";
 export { TrainingCatalog } from "./training-catalog";
 export { TrainingCard } from "./training-card";
