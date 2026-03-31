@@ -1,8 +1,10 @@
 import { Button } from "@repo/ui";
-import { CalendarDays, ChevronRight } from "lucide-react";
+import { CalendarDays, ChevronRight, AlertTriangle, Award } from "lucide-react";
 import type { TrainingDetailPageProps } from "@/types/component-props";
+import { CATEGORY_CONFIG, LEVEL_CONFIG } from "@/data/categories";
+import { BADGE_LEVEL_CONFIG } from "@/data/badge-config";
+import { PageHeader } from "./page-header";
 import {
-  TrainingDetailBanner,
   TrainingStatsGrid,
   ChapterList,
   ExamSection,
@@ -11,12 +13,48 @@ import {
 } from "./training-detail";
 
 export function TrainingDetailPage({ training }: TrainingDetailPageProps) {
+  const category = CATEGORY_CONFIG[training.category];
+  const level = LEVEL_CONFIG[training.level];
+  const badge = BADGE_LEVEL_CONFIG[training.badgeLevel];
+
   return (
     <div className="min-h-full">
-      <TrainingDetailBanner training={training} />
+      <PageHeader
+        moduleTitle="Training Details"
+        title={training.title}
+        description={training.description}
+      >
+        {/* Badges row */}
+        <div
+          className="ey-animate-fade-up mt-4 flex items-center gap-3 flex-wrap"
+          style={{ animationDelay: "200ms" }}
+        >
+          <span
+            className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold tracking-wide uppercase ${category.badgeClass}`}
+          >
+            {category.label}
+          </span>
+          <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            <span className={`h-2 w-2 rounded-full ${level.dotClass}`} />
+            {level.label}
+          </span>
+          <span
+            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${badge.className}`}
+          >
+            <Award className="h-3 w-3" aria-hidden="true" />
+            {badge.label}
+          </span>
+          {training.isMandatory && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
+              <AlertTriangle className="h-3 w-3" aria-hidden="true" />
+              Mandatory
+            </span>
+          )}
+        </div>
+      </PageHeader>
 
       {/* ── Body ── */}
-      <div className="mx-auto max-w-5xl px-6 py-8 lg:px-8">
+      <div className="px-8 py-8">
         <div className="grid gap-8 lg:grid-cols-[1fr_340px]">
           {/* ── Left column ── */}
           <div className="space-y-8">
@@ -45,10 +83,7 @@ export function TrainingDetailPage({ training }: TrainingDetailPageProps) {
               style={{ animationDelay: "300ms" }}
             >
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <CalendarDays
-                  className="h-4 w-4"
-                  aria-hidden="true"
-                />
+                <CalendarDays className="h-4 w-4" aria-hidden="true" />
                 <span>
                   Last updated{" "}
                   {new Date(

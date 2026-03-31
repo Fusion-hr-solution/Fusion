@@ -3,7 +3,7 @@ export default function Loading() {
     <div>
       {/* Hero skeleton */}
       <section className="border-b border-border/50 bg-white">
-        <div className="mx-auto max-w-7xl px-6 py-12 lg:py-16">
+        <div className="px-8 py-12 lg:py-16">
           <div className="flex items-end gap-3 mb-1">
             <div className="h-9 w-1 rounded-full ey-shimmer" />
             <div className="h-3 w-20 rounded ey-shimmer" />
@@ -15,7 +15,7 @@ export default function Loading() {
       </section>
 
       {/* Filters skeleton */}
-      <div className="mx-auto max-w-7xl px-6 py-8">
+      <div className="px-8 py-8">
         <div className="flex gap-2">
           {Array.from({ length: 5 }).map((_, i) => (
             <div

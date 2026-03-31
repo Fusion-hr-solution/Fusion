@@ -3,7 +3,7 @@ export default function DashboardLoading() {
     <div className="animate-pulse">
       {/* Hero skeleton */}
       <section className="border-b border-border/50 bg-white">
-        <div className="mx-auto max-w-7xl px-6 py-10 lg:py-12">
+        <div className="px-8 py-10 lg:py-12">
           <div className="flex items-end gap-3 mb-1">
             <div className="h-9 w-1 rounded-full ey-shimmer" />
             <div className="h-3 w-28 rounded ey-shimmer" />
@@ -30,7 +30,7 @@ export default function DashboardLoading() {
       </section>
 
       {/* Content skeleton */}
-      <div className="mx-auto max-w-7xl px-6 py-8">
+      <div className="px-8 py-8">
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Left column */}
           <div className="space-y-6 lg:col-span-2">

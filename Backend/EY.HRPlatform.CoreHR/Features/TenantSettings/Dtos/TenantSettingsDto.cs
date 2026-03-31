@@ -29,15 +29,16 @@ public sealed record TenantSettingsDto
 
     /// <summary>
     /// Default field configuration for employee records.
+    /// All fields default to visible for all roles.
     /// </summary>
     public static Dictionary<string, FieldConfig> DefaultEmployeeFieldConfig => new()
     {
-        ["firstName"] = new(Visible: true, Required: true),
-        ["lastName"] = new(Visible: true, Required: true),
-        ["email"] = new(Visible: true, Required: true),
-        ["hireDate"] = new(Visible: true, Required: true),
-        ["phone"] = new(Visible: true, Required: false),
-        ["jobTitle"] = new(Visible: true, Required: false)
+        ["firstName"] = new(Visible: true, Required: true, VisibleToEmployee: true, VisibleToManager: true),
+        ["lastName"] = new(Visible: true, Required: true, VisibleToEmployee: true, VisibleToManager: true),
+        ["email"] = new(Visible: true, Required: true, VisibleToEmployee: true, VisibleToManager: true),
+        ["hireDate"] = new(Visible: true, Required: true, VisibleToEmployee: true, VisibleToManager: true),
+        ["phone"] = new(Visible: true, Required: false, VisibleToEmployee: true, VisibleToManager: true),
+        ["jobTitle"] = new(Visible: true, Required: false, VisibleToEmployee: true, VisibleToManager: true)
     };
 
     /// <summary>

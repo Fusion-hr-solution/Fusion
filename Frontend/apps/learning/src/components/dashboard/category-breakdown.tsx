@@ -8,9 +8,9 @@ export function CategoryBreakdown({ items }: CategoryBreakdownProps) {
     <Card className="overflow-hidden border border-border/60 bg-white">
       <CardContent className="p-5">
         <div className="flex items-center gap-2.5 mb-5">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[hsl(var(--ey-blue-400))]/10">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-ey-grey-100">
             <GraduationCap
-              className="h-3.5 w-3.5 text-[hsl(var(--ey-blue-400))]"
+              className="h-3.5 w-3.5 text-ey-grey-400"
               aria-hidden="true"
             />
           </div>
@@ -34,7 +34,7 @@ export function CategoryBreakdown({ items }: CategoryBreakdownProps) {
                     {item.count}
                   </span>
                 </div>
-                <div className="h-1.5 rounded-full bg-[hsl(var(--ey-grey-200))] overflow-hidden">
+                <div className="h-1.5 rounded-full bg-ey-grey-200 overflow-hidden">
                   <div
                     className={`h-full rounded-full ${config.stripClass} transition-all duration-700 ease-out`}
                     style={{ width: `${item.percentage}%` }}

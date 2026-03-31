@@ -1,35 +1,36 @@
 export default function TrainingDetailLoading() {
   return (
     <div className="min-h-full animate-pulse">
-      {/* Header banner skeleton */}
-      <div className="border-b border-border/50 bg-white">
-        <div className="h-1 w-full bg-[hsl(var(--ey-grey-200))]" />
-        <div className="mx-auto max-w-5xl px-6 pt-6 pb-10 lg:px-8">
-          {/* Breadcrumb */}
-          <div className="mb-6 h-4 w-28 rounded ey-shimmer" />
-          {/* Category + Level */}
-          <div className="mb-4 flex items-center gap-3">
-            <div className="h-6 w-24 rounded-full ey-shimmer" />
-            <div className="h-4 w-20 rounded ey-shimmer" />
+      {/* Hero skeleton (matches PageHeader) */}
+      <section className="border-b border-border/50 bg-white">
+        <div className="px-8 py-10 lg:py-12">
+          {/* Back link */}
+          <div className="mb-4 h-4 w-28 rounded ey-shimmer" />
+          {/* Module label */}
+          <div className="flex items-end gap-3 mb-1">
+            <div className="h-9 w-1 rounded-full ey-shimmer" />
+            <div className="h-3 w-28 rounded ey-shimmer" />
           </div>
           {/* Title */}
-          <div className="space-y-2">
-            <div className="h-8 w-3/4 rounded ey-shimmer" />
-            <div className="h-8 w-1/2 rounded ey-shimmer" />
+          <div className="mt-3 space-y-2">
+            <div className="h-9 w-3/4 max-w-2xl rounded-lg ey-shimmer" />
           </div>
-          {/* Yellow bar */}
-          <div className="mt-4 h-1 w-20 rounded-full ey-shimmer" />
           {/* Description */}
-          <div className="mt-5 space-y-2">
+          <div className="mt-2 space-y-2 max-w-xl">
             <div className="h-4 w-full rounded ey-shimmer" />
             <div className="h-4 w-5/6 rounded ey-shimmer" />
-            <div className="h-4 w-2/3 rounded ey-shimmer" />
+          </div>
+          {/* Badges */}
+          <div className="mt-4 flex items-center gap-3">
+            <div className="h-6 w-24 rounded-full ey-shimmer" />
+            <div className="h-4 w-20 rounded ey-shimmer" />
+            <div className="h-6 w-16 rounded-full ey-shimmer" />
           </div>
         </div>
-      </div>
+      </section>
 
       {/* Body skeleton */}
-      <div className="mx-auto max-w-5xl px-6 py-8 lg:px-8">
+      <div className="px-8 py-8">
         <div className="grid gap-8 lg:grid-cols-[1fr_340px]">
           {/* Left column */}
           <div className="space-y-8">
