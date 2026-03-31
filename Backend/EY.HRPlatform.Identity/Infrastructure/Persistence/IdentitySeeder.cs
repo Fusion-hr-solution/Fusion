@@ -1,14 +1,10 @@
-﻿using System.Security.Claims;
+using System.Security.Claims;
 using EY.HRPlatform.Identity.Domain.Entities;
-using EY.HRPlatform.Identity.Domain.Enums;
 using EY.HRPlatform.SharedKernel.Auth;
 using EY.HRPlatform.SharedKernel.Constants;
 using Microsoft.AspNetCore.Identity;
 
 namespace EY.HRPlatform.Identity.Infrastructure.Persistence;
-
-// Use Identity's PlatformRole to avoid ambiguity with SharedKernel.Auth.PlatformRole
-using PlatformRole = EY.HRPlatform.Identity.Domain.Enums.PlatformRole;
 
 public static class IdentitySeeder
 {
