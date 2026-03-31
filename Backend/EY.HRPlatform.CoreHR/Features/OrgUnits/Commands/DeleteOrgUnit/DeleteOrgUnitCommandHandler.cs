@@ -31,7 +31,7 @@ public sealed class DeleteOrgUnitCommandHandler(
         var blockReason = await GetDeletionBlockReason(request.Id, cancellationToken);
         if (blockReason is not null)
         {
-            throw new InvalidOperationException(blockReason);
+            return Result.Failure(new Error("Conflict", blockReason));
         }
 
         // Soft delete

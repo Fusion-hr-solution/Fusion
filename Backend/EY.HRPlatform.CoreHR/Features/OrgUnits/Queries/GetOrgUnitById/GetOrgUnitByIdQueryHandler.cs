@@ -1,4 +1,3 @@
-using EY.HRPlatform.CoreHR.Exceptions;
 using EY.HRPlatform.CoreHR.Features.OrgUnits.Dtos;
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
 using EY.HRPlatform.SharedKernel.CQRS;
@@ -21,7 +20,7 @@ public sealed class GetOrgUnitByIdQueryHandler(
 
         if (orgUnit is null)
         {
-            throw new EntityNotFoundException("OrgUnit", request.Id);
+            return Result.Failure<OrgUnitDto>(Error.NotFound("OrgUnit", request.Id));
         }
 
         return Result.Success(new OrgUnitDto(
