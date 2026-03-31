@@ -55,7 +55,9 @@ public static class TenantSettingsMerger
 
             merged[key] = new FieldConfig(
                 Visible: value.Visible ?? defaultConfig.Visible,
-                Required: value.Required ?? defaultConfig.Required);
+                Required: value.Required ?? defaultConfig.Required,
+                VisibleToEmployee: value.VisibleToEmployee ?? defaultConfig.VisibleToEmployee,
+                VisibleToManager: value.VisibleToManager ?? defaultConfig.VisibleToManager);
         }
         return merged;
     }
@@ -86,6 +88,8 @@ public static class TenantSettingsMerger
     {
         public bool? Visible { get; init; }
         public bool? Required { get; init; }
+        public bool? VisibleToEmployee { get; init; }
+        public bool? VisibleToManager { get; init; }
     }
 
     private sealed record BrandingSettingsOverrides
