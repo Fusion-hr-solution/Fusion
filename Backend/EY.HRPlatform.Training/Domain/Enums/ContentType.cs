@@ -4,5 +4,6 @@ public enum ContentType
 {
     Video,
     Pdf,
-    Article
+    Article,
+    Exercise
 }

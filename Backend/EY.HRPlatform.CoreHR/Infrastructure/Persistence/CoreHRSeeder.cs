@@ -1,51 +1,75 @@
 using EY.HRPlatform.CoreHR.Domain.Entities;
-using EY.HRPlatform.CoreHR.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace EY.HRPlatform.CoreHR.Infrastructure.Persistence;
 
 /// <summary>
-/// Seeds demo employee data for development and testing.
-/// Uses a well-known tenant ID that should match the tenant_id claim in test tokens.
+/// Seeds initial data for CoreHR module (development/demo environments).
 /// </summary>
 public static class CoreHRSeeder
 {
-    // Well-known tenant ID for demo/dev purposes
-    // This must match the tenant_id claim assigned to the admin user in Identity
-    public static readonly Guid DemoTenantId = new("019d0000-0000-7000-0000-000000000001");
-
-    public static async Task SeedAsync(CoreHRDbContext db)
+    public static async Task SeedAsync(CoreHRDbContext dbContext, Guid tenantId)
     {
-        // Idempotent: skip if employees already exist
-        if (await db.Employees.AnyAsync())
+        await SeedOrgUnits(dbContext, tenantId);
+        await SeedEmployees(dbContext, tenantId);
+    }
+
+    private static async Task SeedOrgUnits(CoreHRDbContext dbContext, Guid tenantId)
+    {
+        // Skip if OrgUnits already exist for this tenant
+        if (await dbContext.OrgUnits.IgnoreQueryFilters().AnyAsync(o => o.TenantId == tenantId))
             return;
 
-        var now = DateTime.UtcNow;
+        // Create root departments
+        var engineering = OrgUnit.Create(tenantId, "ENG", "Engineering", "Department", null);
+        var hr = OrgUnit.Create(tenantId, "HR", "Human Resources", "Department", null);
+        var sales = OrgUnit.Create(tenantId, "SALES", "Sales", "Department", null);
+
+        dbContext.OrgUnits.AddRange(engineering, hr, sales);
+        await dbContext.SaveChangesAsync();
+
+        // Create teams under departments
+        var platformTeam = OrgUnit.Create(tenantId, "ENG-PLATFORM", "Platform Team", "Team", engineering.Id);
+        var frontendTeam = OrgUnit.Create(tenantId, "ENG-FRONTEND", "Frontend Team", "Team", engineering.Id);
+        var backendTeam = OrgUnit.Create(tenantId, "ENG-BACKEND", "Backend Team", "Team", engineering.Id);
+        var recruiting = OrgUnit.Create(tenantId, "HR-RECRUIT", "Recruiting", "Team", hr.Id);
+        var peopleOps = OrgUnit.Create(tenantId, "HR-OPS", "People Ops", "Team", hr.Id);
+        var enterpriseSales = OrgUnit.Create(tenantId, "SALES-ENT", "Enterprise Sales", "Team", sales.Id);
+
+        dbContext.OrgUnits.AddRange(platformTeam, frontendTeam, backendTeam, recruiting, peopleOps, enterpriseSales);
+        await dbContext.SaveChangesAsync();
+    }
+
+    private static async Task SeedEmployees(CoreHRDbContext db, Guid tenantId)
+    {
+        // Idempotent: skip if employees already exist for this tenant
+        if (await db.Employees.IgnoreQueryFilters().AnyAsync(e => e.TenantId == tenantId))
+            return;
 
         // Create employees without managers first
         var vpEng = Employee.Create(
-            DemoTenantId,
+            tenantId,
             "Robert", "Taylor",
             "robert.taylor@ey-hr.com",
             new DateTime(2018, 3, 1, 0, 0, 0, DateTimeKind.Utc),
             "Engineering", "VP of Engineering");
 
         var hrDirector = Employee.Create(
-            DemoTenantId,
+            tenantId,
             "Maria", "Garcia",
             "maria.garcia@ey-hr.com",
             new DateTime(2021, 3, 10, 0, 0, 0, DateTimeKind.Utc),
             "Human Resources", "HR Director");
 
         var financeDirector = Employee.Create(
-            DemoTenantId,
+            tenantId,
             "Lisa", "Brown",
             "lisa.brown@ey-hr.com",
             new DateTime(2020, 11, 1, 0, 0, 0, DateTimeKind.Utc),
             "Finance", "Finance Director");
 
         var marketingDirector = Employee.Create(
-            DemoTenantId,
+            tenantId,
             "Michael", "Lee",
             "michael.lee@ey-hr.com",
             new DateTime(2019, 7, 15, 0, 0, 0, DateTimeKind.Utc),
@@ -57,7 +81,7 @@ public static class CoreHRSeeder
 
         // Create tech lead reporting to VP
         var techLead = Employee.Create(
-            DemoTenantId,
+            tenantId,
             "James", "Wilson",
             "james.wilson@ey-hr.com",
             new DateTime(2022, 6, 1, 0, 0, 0, DateTimeKind.Utc),
@@ -66,21 +90,21 @@ public static class CoreHRSeeder
 
         // Create employees with managers
         var seniorDev = Employee.Create(
-            DemoTenantId,
+            tenantId,
             "Sarah", "Chen",
             "sarah.chen@ey-hr.com",
             new DateTime(2023, 1, 15, 0, 0, 0, DateTimeKind.Utc),
             "Engineering", "Senior Software Engineer");
         
         var juniorDev = Employee.Create(
-            DemoTenantId,
+            tenantId,
             "Alex", "Kumar",
             "alex.kumar@ey-hr.com",
             new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc),
             "Engineering", "Junior Software Engineer");
 
         var hrSpecialist = Employee.Create(
-            DemoTenantId,
+            tenantId,
             "Emma", "Rodriguez",
             "emma.rodriguez@ey-hr.com",
             new DateTime(2023, 5, 20, 0, 0, 0, DateTimeKind.Utc),
@@ -88,7 +112,7 @@ public static class CoreHRSeeder
         hrSpecialist.AssignManager(hrDirector.Id);
 
         var financialAnalyst = Employee.Create(
-            DemoTenantId,
+            tenantId,
             "David", "Kim",
             "david.kim@ey-hr.com",
             new DateTime(2023, 8, 20, 0, 0, 0, DateTimeKind.Utc),
@@ -96,7 +120,7 @@ public static class CoreHRSeeder
         financialAnalyst.AssignManager(financeDirector.Id);
 
         var marketingSpecialist = Employee.Create(
-            DemoTenantId,
+            tenantId,
             "Emily", "Johnson",
             "emily.johnson@ey-hr.com",
             new DateTime(2022, 2, 14, 0, 0, 0, DateTimeKind.Utc),
@@ -121,7 +145,7 @@ public static class CoreHRSeeder
 
         // Add one inactive employee for filter testing
         var formerEmployee = Employee.Create(
-            DemoTenantId,
+            tenantId,
             "John", "Smith",
             "john.smith@ey-hr.com",
             new DateTime(2020, 1, 10, 0, 0, 0, DateTimeKind.Utc),

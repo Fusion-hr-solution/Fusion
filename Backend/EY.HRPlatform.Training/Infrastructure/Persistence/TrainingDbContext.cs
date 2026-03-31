@@ -79,6 +79,9 @@ public class TrainingDbContext : DbContext
             e.Property(c => c.Title).HasMaxLength(300).IsRequired();
             e.Property(c => c.ContentType).HasConversion<string>().HasMaxLength(20);
             e.Property(c => c.ContentUri).HasMaxLength(500);
+            e.Property(c => c.TextContent);
+            e.Property(c => c.VideoUrl).HasMaxLength(500);
+            e.Property(c => c.EstimatedDurationMinutes);
             e.HasOne(c => c.Training)
                 .WithMany(t => t.Chapters)
                 .HasForeignKey(c => c.TrainingId)

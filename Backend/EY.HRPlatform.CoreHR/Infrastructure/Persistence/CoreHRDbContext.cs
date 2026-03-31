@@ -35,6 +35,7 @@ public class CoreHRDbContext : DbContext
 
     public DbSet<Employee> Employees => Set<Employee>();
     public DbSet<TenantSettings> TenantSettings => Set<TenantSettings>();
+    public DbSet<OrgUnit> OrgUnits => Set<OrgUnit>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -59,5 +60,8 @@ public class CoreHRDbContext : DbContext
 
         modelBuilder.Entity<TenantSettings>()
             .HasQueryFilter(ts => CurrentTenantId != Guid.Empty && ts.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<OrgUnit>()
+            .HasQueryFilter(o => CurrentTenantId != Guid.Empty && o.TenantId == CurrentTenantId);
     }
 }

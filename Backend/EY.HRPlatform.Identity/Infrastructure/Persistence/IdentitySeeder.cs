@@ -1,14 +1,13 @@
-﻿using EY.HRPlatform.Identity.Domain.Entities;
+using System.Security.Claims;
+using EY.HRPlatform.Identity.Domain.Entities;
 using EY.HRPlatform.SharedKernel.Auth;
+using EY.HRPlatform.SharedKernel.Constants;
 using Microsoft.AspNetCore.Identity;
 
 namespace EY.HRPlatform.Identity.Infrastructure.Persistence;
 
 public static class IdentitySeeder
 {
-    // Well-known tenant ID for demo/dev - matches CoreHRSeeder.DemoTenantId
-    public static readonly Guid DemoTenantId = new("019d0000-0000-7000-0000-000000000001");
-
     public static async Task SeedAsync(
         RoleManager<IdentityRole<Guid>> roleManager,
         UserManager<ApplicationUser> userManager)
@@ -49,19 +48,18 @@ public static class IdentitySeeder
             {
                 await userManager.AddToRoleAsync(admin, PlatformRole.Admin);
                 await userManager.AddToRoleAsync(admin, PlatformRole.HR);
-                // Add tenant_id claim for CoreHR access
-                await userManager.AddClaimAsync(admin, 
-                    new System.Security.Claims.Claim("tenant_id", DemoTenantId.ToString()));
+                
+                // Assign demo tenant for local development
+                await userManager.AddClaimAsync(admin, new Claim(CustomClaimTypes.TenantId, DemoConstants.TenantId.ToString()));
             }
         }
         else
         {
-            // Ensure existing admin has tenant_id claim
-            var claims = await userManager.GetClaimsAsync(admin);
-            if (!claims.Any(c => c.Type == "tenant_id"))
+            // Ensure existing admin has the tenant claim (handles DB created before this fix)
+            var existingClaims = await userManager.GetClaimsAsync(admin);
+            if (!existingClaims.Any(c => c.Type == CustomClaimTypes.TenantId))
             {
-                await userManager.AddClaimAsync(admin,
-                    new System.Security.Claims.Claim("tenant_id", DemoTenantId.ToString()));
+                await userManager.AddClaimAsync(admin, new Claim(CustomClaimTypes.TenantId, DemoConstants.TenantId.ToString()));
             }
         }
     }
