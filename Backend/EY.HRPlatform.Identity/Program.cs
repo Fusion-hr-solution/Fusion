@@ -28,6 +28,10 @@ builder.Services.AddCors(options =>
     });
 });
 
+// Health checks
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<AppIdentityDbContext>();
+
 var app = builder.Build();
 
 // Apply database migrations and seed data on startup
@@ -44,11 +48,14 @@ using (var scope = app.Services.CreateScope())
 }
 
 // Middleware pipeline (ORDER MATTERS!)
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment() || app.Environment.EnvironmentName == "Docker")
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+// Health endpoint
+app.MapHealthChecks("/health").AllowAnonymous();
 
 app.UseCors("AllowFrontend");
 app.UseAuthentication();

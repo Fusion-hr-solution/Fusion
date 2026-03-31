@@ -12,6 +12,10 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddTrainingServices(builder.Configuration);
 builder.Services.AddAuthorization();
 
+// Health checks
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<TrainingDbContext>();
+
 var app = builder.Build();
 
 // Apply EF Core migrations on startup and seed data
@@ -22,7 +26,7 @@ using (var scope = app.Services.CreateScope())
     await TrainingSeeder.SeedAsync(db);
 }
 
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment() || app.Environment.EnvironmentName == "Docker")
 {
     app.UseSwagger(c => c.RouteTemplate = "api/training/swagger/{documentName}/swagger.json");
     app.UseSwaggerUI(c =>
@@ -31,6 +35,9 @@ if (app.Environment.IsDevelopment())
         c.RoutePrefix = "api/training/swagger";
     });
 }
+
+// Health endpoint
+app.MapHealthChecks("/health").AllowAnonymous();
 
 app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
 

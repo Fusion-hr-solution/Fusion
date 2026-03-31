@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import NextTopLoader from "nextjs-toploader";
+import { TopLoader } from "@repo/ui";
 import "@repo/ui/src/ey-brand.css";
 import "./globals.css";
 import { Providers } from "./providers";
@@ -17,7 +17,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="min-h-screen antialiased">
-        <NextTopLoader color="#2d2d2d" height={3} showSpinner={false} />
+        <TopLoader />
         <Providers>{children}</Providers>
       </body>
     </html>

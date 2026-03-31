@@ -143,12 +143,29 @@ The frontend uses **Turborepo** to orchestrate 7 independent Next.js apps. The `
 | pnpm     | >= 9.x    |
 | .NET SDK | 10.0      |
 | PostgreSQL | Latest  |
+| Docker     | Latest  |
 
 ---
 
 ## Getting Started
 
-### 1. Backend
+### Option A: Docker (Recommended)
+
+```bash
+# Copy environment template
+cp .env.example .env
+
+# Start all services
+docker-compose up -d
+
+# Access the app at http://localhost:3000
+```
+
+See [docker/README.md](docker/README.md) for more details.
+
+### Option B: Local Development
+
+#### 1. Backend
 
 ```bash
 cd Backend
@@ -162,7 +179,7 @@ dotnet run --project EY.HRPlatform.Gateway
 
 > Make sure PostgreSQL is running and the connection strings in `appsettings.Development.json` are correct. Both Identity and Training services auto-migrate and seed on startup.
 
-### 2. Frontend
+#### 2. Frontend
 
 ```bash
 cd Frontend
