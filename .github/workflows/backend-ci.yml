@@ -13,31 +13,13 @@ on:
       - ".github/workflows/backend-ci.yml"
 
 jobs:
-  build-and-migrate:
-    name: Build · Test · CoreHR Migrations
+  build-and-test:
+    name: Build · Test
     runs-on: ubuntu-latest
-
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: ci
-          POSTGRES_PASSWORD: ci
-          POSTGRES_DB: corehr_ci
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd="pg_isready -U ci"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
 
     defaults:
       run:
         working-directory: Backend
-
-    env:
-      ConnectionStrings__CoreHRDb: "Host=localhost;Port=5432;Database=corehr_ci;Username=ci;Password=ci"
 
     steps:
       - uses: actions/checkout@v4
@@ -58,33 +40,72 @@ jobs:
       - name: Test
         run: dotnet test EY.HRPlatform.slnx --no-build --verbosity normal
 
-      # CoreHR migration validation
-      # Each step uses --no-build; the build output from the step above is reused.
+  migrate-training:
+    name: Training Migrations
+    runs-on: ubuntu-latest
 
-      - name: "CoreHR: list migrations"
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: training_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U ci"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    defaults:
+      run:
+        working-directory: Backend
+
+    env:
+      ConnectionStrings__TrainingDb: "Host=localhost;Port=5432;Database=training_ci;Username=ci;Password=ci"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Restore dotnet tools
+        run: dotnet tool restore
+
+      - name: Restore packages
+        run: dotnet restore EY.HRPlatform.slnx
+
+      - name: Build
+        run: dotnet build EY.HRPlatform.slnx --no-restore
+
+      - name: "Training: list migrations"
         run: >
           dotnet ef migrations list
-          --project EY.HRPlatform.CoreHR
-          --startup-project EY.HRPlatform.CoreHR
+          --project EY.HRPlatform.Training
+          --startup-project EY.HRPlatform.Training
           --no-build
 
-      - name: "CoreHR: apply migrations"
+      - name: "Training: apply migrations"
         run: >
           dotnet ef database update
-          --project EY.HRPlatform.CoreHR
-          --startup-project EY.HRPlatform.CoreHR
+          --project EY.HRPlatform.Training
+          --startup-project EY.HRPlatform.Training
           --no-build
 
-      - name: "CoreHR: check for pending model changes"
+      - name: "Training: check for pending model changes"
         run: >
           dotnet ef migrations has-pending-model-changes
-          --project EY.HRPlatform.CoreHR
-          --startup-project EY.HRPlatform.CoreHR
+          --project EY.HRPlatform.Training
+          --startup-project EY.HRPlatform.Training
           --no-build
 
-      - name: "CoreHR: rollback migrations"
+      - name: "Training: rollback migrations"
         run: >
           dotnet ef database update 0
-          --project EY.HRPlatform.CoreHR
-          --startup-project EY.HRPlatform.CoreHR
+          --project EY.HRPlatform.Training
+          --startup-project EY.HRPlatform.Training
           --no-build

@@ -189,7 +189,7 @@ export function AdminDashboard({ employees, trainings: _trainings }: AdminDashbo
             {/* Employee list */}
             <div className="ey-stagger-list space-y-3">
               {filteredEmployees.length > 0 ? (
-                filteredEmployees.map((employee, idx) => (
+                filteredEmployees.map((employee, _idx) => (
                   <EmployeeRow
                     key={employee.id}
                     employee={employee}
