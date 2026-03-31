@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { TopLoader } from "@repo/ui";
 import "@repo/ui/src/ey-brand.css";
 import "./globals.css";
 import { Providers } from "./providers";
@@ -16,6 +17,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="min-h-screen antialiased">
+        <TopLoader />
         <Providers>{children}</Providers>
       </body>
     </html>
