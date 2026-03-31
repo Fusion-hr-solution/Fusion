@@ -9,10 +9,21 @@ namespace EY.HRPlatform.Identity.Infrastructure.Persistence;
 public static class IdentitySeeder
 {
     public static async Task SeedAsync(
+        AppIdentityDbContext dbContext,
         RoleManager<IdentityRole<Guid>> roleManager,
         UserManager<ApplicationUser> userManager)
     {
-        // Create all roles if they don't exist
+        // 1. Seed demo tenant if it doesn't exist
+        var demoTenantId = DemoConstants.TenantId;
+        var existingTenant = await dbContext.Tenants.FindAsync(demoTenantId);
+        if (existingTenant is null)
+        {
+            var demoTenant = Tenant.Create(demoTenantId, "Demo Tenant");
+            dbContext.Tenants.Add(demoTenant);
+            await dbContext.SaveChangesAsync();
+        }
+
+        // 2. Create all roles if they don't exist
         foreach (var role in PlatformRole.All)
         {
             if (!await roleManager.RoleExistsAsync(role))
@@ -25,7 +36,7 @@ public static class IdentitySeeder
             }
         }
 
-        // Create default admin user if it doesn't exist
+        // 3. Create default admin user if it doesn't exist
         const string adminEmail = "admin@ey-hr.com";
         var admin = await userManager.FindByEmailAsync(adminEmail);
         

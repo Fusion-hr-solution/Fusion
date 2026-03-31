@@ -44,7 +44,7 @@ using (var scope = app.Services.CreateScope())
         .GetRequiredService<RoleManager<IdentityRole<Guid>>>();
     var userManager = scope.ServiceProvider
         .GetRequiredService<UserManager<ApplicationUser>>();
-    await IdentitySeeder.SeedAsync(roleManager, userManager);
+    await IdentitySeeder.SeedAsync(dbContext, roleManager, userManager);
 }
 
 // Middleware pipeline (ORDER MATTERS!)
