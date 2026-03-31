@@ -36,8 +36,6 @@ public class TokenService : ITokenService
             new(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new(ClaimTypes.Email, user.Email!),
             new("full_name", user.FullName),
-            new("department", user.Department ?? string.Empty),
-            new("job_title", user.JobTitle ?? string.Empty),
         };
 
         // Step 3: Add one role claim per role
