@@ -19,7 +19,7 @@ export function TrainingDetailBanner({ training }: { training: Training }) {
       <div className="ey-hero-pattern absolute inset-0 opacity-30" />
       <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full border-2 border-[hsl(var(--ey-yellow))]/8" />
 
-      <div className="relative mx-auto max-w-5xl px-6 pt-6 pb-10 lg:px-8">
+      <div className="relative px-8 pt-6 pb-10">
         {/* Breadcrumb */}
         <nav className="ey-animate-fade-in mb-6" aria-label="Breadcrumb">
           <Link
@@ -55,7 +55,7 @@ export function TrainingDetailBanner({ training }: { training: Training }) {
             {badge.label}
           </span>
           {training.isMandatory && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-[hsl(var(--ey-red-500))]/10 border border-[hsl(var(--ey-red-500))]/20 px-2.5 py-0.5 text-xs font-semibold text-[hsl(var(--ey-red-500))]">
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
               <AlertTriangle className="h-3 w-3" aria-hidden="true" />
               Mandatory
             </span>
