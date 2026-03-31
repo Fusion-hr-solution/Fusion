@@ -45,7 +45,13 @@ builder.Services.AddCors(options =>
     });
 });
 
+// Health checks
+builder.Services.AddHealthChecks();
+
 var app = builder.Build();
+
+// Health endpoint (before auth middleware)
+app.MapHealthChecks("/health").AllowAnonymous();
 
 // Middleware pipeline (ORDER MATTERS!)
 app.UseCors("AllowFrontend");
