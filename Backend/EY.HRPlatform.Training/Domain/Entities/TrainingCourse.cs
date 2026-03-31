@@ -71,5 +71,23 @@ public class TrainingCourse : AggregateRoot
         _exams.Add(exam);
     }
 
+    public void RemoveChapter(TrainingChapter chapter)
+    {
+        _chapters.Remove(chapter);
+    }
+
+    public void UpdateCategory(Guid categoryId)
+    {
+        CategoryId = categoryId;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
     public void Delete() => (IsDeleted, DeletedAt) = (true, DateTime.UtcNow);
+
+    public void Restore()
+    {
+        IsDeleted = false;
+        DeletedAt = null;
+        UpdatedAt = DateTime.UtcNow;
+    }
 }
