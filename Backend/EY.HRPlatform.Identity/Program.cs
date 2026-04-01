@@ -44,7 +44,10 @@ using (var scope = app.Services.CreateScope())
         .GetRequiredService<RoleManager<IdentityRole<Guid>>>();
     var userManager = scope.ServiceProvider
         .GetRequiredService<UserManager<ApplicationUser>>();
-    await IdentitySeeder.SeedAsync(roleManager, userManager);
+    
+    // Seed roles always; demo data only when explicitly enabled
+    var seedDemoData = builder.Configuration.GetValue<bool>("Database:AutoSeed");
+    await IdentitySeeder.SeedAsync(dbContext, roleManager, userManager, seedDemoData);
 }
 
 // Middleware pipeline (ORDER MATTERS!)
