@@ -37,16 +37,29 @@ public sealed class TenantResolutionMiddleware(RequestDelegate next, ILogger<Ten
     {
         var isAuthenticated = context.User.Identity?.IsAuthenticated == true;
 
-        // For authenticated users, only trust tenant from JWT claims (security: prevent privilege escalation)
         if (isAuthenticated)
         {
-            return context.User.GetTenantId();
+            var jwtTenantId = context.User.GetTenantId();
+
+            // PlatformAdmin can override tenant context via header (for cross-tenant operations)
+            if (context.User.IsInRole(PlatformRole.PlatformAdmin) &&
+                context.Request.Headers.TryGetValue(TenantHeader, out var headerValue))
+            {
+                var headerString = headerValue.FirstOrDefault();
+                if (Guid.TryParse(headerString, out var headerTenantId) && headerTenantId != Guid.Empty)
+                {
+                    return headerTenantId;
+                }
+            }
+
+            // For non-PlatformAdmin users, only trust tenant from JWT claims (security: prevent privilege escalation)
+            return jwtTenantId;
         }
 
         // For unauthenticated requests (e.g., internal service-to-service calls), allow header-based resolution
-        if (context.Request.Headers.TryGetValue(TenantHeader, out var headerValue))
+        if (context.Request.Headers.TryGetValue(TenantHeader, out var unauthHeaderValue))
         {
-            var headerString = headerValue.FirstOrDefault();
+            var headerString = unauthHeaderValue.FirstOrDefault();
             if (Guid.TryParse(headerString, out var headerId) && headerId != Guid.Empty)
                 return headerId;
         }
