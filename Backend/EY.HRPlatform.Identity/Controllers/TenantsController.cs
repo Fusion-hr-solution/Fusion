@@ -9,7 +9,7 @@ namespace EY.HRPlatform.Identity.Controllers;
 
 [ApiController]
 [Route("api/identity/tenants")]
-[Authorize(Roles = PlatformRole.Admin)]
+[Authorize(Roles = PlatformRole.PlatformAdmin)]
 public class TenantsController : ControllerBase
 {
     private readonly ITenantService _tenantService;
