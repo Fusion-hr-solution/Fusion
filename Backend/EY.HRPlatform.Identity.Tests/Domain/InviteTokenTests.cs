@@ -1,0 +1,252 @@
+using EY.HRPlatform.Identity.Domain.Entities;
+using EY.HRPlatform.SharedKernel.Auth;
+
+namespace EY.HRPlatform.Identity.Tests.Domain;
+
+public class InviteTokenTests
+{
+    private readonly Guid _validTenantId = Guid.NewGuid();
+    private readonly Guid _validUserId = Guid.NewGuid();
+    private const string ValidEmail = "test@example.com";
+    private const string ValidRole = PlatformRole.Employee;
+
+    [Fact]
+    public void Create_WithValidInputs_ReturnsInviteToken()
+    {
+        // Act
+        var invite = InviteToken.Create(
+            ValidEmail,
+            _validTenantId,
+            ValidRole,
+            _validUserId);
+
+        // Assert
+        Assert.NotEqual(Guid.Empty, invite.Id);
+        Assert.NotEmpty(invite.Token);
+        Assert.Equal(ValidEmail.ToLowerInvariant(), invite.Email);
+        Assert.Equal(_validTenantId, invite.TenantId);
+        Assert.Equal(ValidRole, invite.Role);
+        Assert.Null(invite.FirstName);
+        Assert.Null(invite.LastName);
+        Assert.True(invite.ExpiresAt > DateTime.UtcNow);
+        Assert.Null(invite.AcceptedAt);
+        Assert.Null(invite.AcceptedByUserId);
+        Assert.True(invite.CreatedAt <= DateTime.UtcNow);
+        Assert.Equal(_validUserId, invite.CreatedByUserId);
+    }
+
+    [Fact]
+    public void Create_WithOptionalNames_SetsNames()
+    {
+        // Act
+        var invite = InviteToken.Create(
+            ValidEmail,
+            _validTenantId,
+            ValidRole,
+            _validUserId,
+            firstName: "John",
+            lastName: "Doe");
+
+        // Assert
+        Assert.Equal("John", invite.FirstName);
+        Assert.Equal("Doe", invite.LastName);
+    }
+
+    [Fact]
+    public void Create_TokenIsBase64UrlEncoded()
+    {
+        // Act
+        var invite = InviteToken.Create(
+            ValidEmail,
+            _validTenantId,
+            ValidRole,
+            _validUserId);
+
+        // Assert - base64url should not contain +, /, or =
+        Assert.DoesNotContain("+", invite.Token);
+        Assert.DoesNotContain("/", invite.Token);
+        Assert.DoesNotContain("=", invite.Token);
+        // 32 bytes base64url encoded should be ~43 characters
+        Assert.InRange(invite.Token.Length, 40, 50);
+    }
+
+    [Fact]
+    public void Create_TokensAreUnique()
+    {
+        // Act
+        var invite1 = InviteToken.Create(ValidEmail, _validTenantId, ValidRole, _validUserId);
+        var invite2 = InviteToken.Create(ValidEmail, _validTenantId, ValidRole, _validUserId);
+
+        // Assert
+        Assert.NotEqual(invite1.Token, invite2.Token);
+    }
+
+    [Fact]
+    public void Create_DefaultExpiryIs7Days()
+    {
+        // Act
+        var invite = InviteToken.Create(
+            ValidEmail,
+            _validTenantId,
+            ValidRole,
+            _validUserId);
+
+        // Assert - should expire in approximately 7 days
+        var expectedExpiry = DateTime.UtcNow.AddDays(7);
+        Assert.InRange(invite.ExpiresAt, expectedExpiry.AddMinutes(-1), expectedExpiry.AddMinutes(1));
+    }
+
+    [Fact]
+    public void Create_CustomExpiryDays_SetsCorrectExpiry()
+    {
+        // Act
+        var invite = InviteToken.Create(
+            ValidEmail,
+            _validTenantId,
+            ValidRole,
+            _validUserId,
+            expiryDays: 14);
+
+        // Assert
+        var expectedExpiry = DateTime.UtcNow.AddDays(14);
+        Assert.InRange(invite.ExpiresAt, expectedExpiry.AddMinutes(-1), expectedExpiry.AddMinutes(1));
+    }
+
+    [Fact]
+    public void Create_NormalizesEmailToLowercase()
+    {
+        // Act
+        var invite = InviteToken.Create(
+            "TEST@EXAMPLE.COM",
+            _validTenantId,
+            ValidRole,
+            _validUserId);
+
+        // Assert
+        Assert.Equal("test@example.com", invite.Email);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Create_WithInvalidEmail_ThrowsArgumentException(string? email)
+    {
+        // Act & Assert
+        var ex = Assert.Throws<ArgumentException>(() =>
+            InviteToken.Create(email!, _validTenantId, ValidRole, _validUserId));
+        Assert.Contains("Email", ex.Message);
+    }
+
+    [Fact]
+    public void Create_WithInvalidEmailFormat_ThrowsArgumentException()
+    {
+        // Act & Assert
+        var ex = Assert.Throws<ArgumentException>(() =>
+            InviteToken.Create("notanemail", _validTenantId, ValidRole, _validUserId));
+        Assert.Contains("email", ex.Message.ToLower());
+    }
+
+    [Fact]
+    public void Create_WithEmptyTenantId_ThrowsArgumentException()
+    {
+        // Act & Assert
+        var ex = Assert.Throws<ArgumentException>(() =>
+            InviteToken.Create(ValidEmail, Guid.Empty, ValidRole, _validUserId));
+        Assert.Contains("Tenant", ex.Message);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Create_WithInvalidRole_ThrowsArgumentException(string? role)
+    {
+        // Act & Assert
+        var ex = Assert.Throws<ArgumentException>(() =>
+            InviteToken.Create(ValidEmail, _validTenantId, role!, _validUserId));
+        Assert.Contains("Role", ex.Message);
+    }
+
+    [Fact]
+    public void Create_WithNonExistentRole_ThrowsArgumentException()
+    {
+        // Act & Assert
+        var ex = Assert.Throws<ArgumentException>(() =>
+            InviteToken.Create(ValidEmail, _validTenantId, "InvalidRole", _validUserId));
+        Assert.Contains("Invalid role", ex.Message);
+    }
+
+    [Fact]
+    public void Create_WithEmptyCreatedByUserId_ThrowsArgumentException()
+    {
+        // Act & Assert
+        var ex = Assert.Throws<ArgumentException>(() =>
+            InviteToken.Create(ValidEmail, _validTenantId, ValidRole, Guid.Empty));
+        Assert.Contains("Creator", ex.Message);
+    }
+
+    [Fact]
+    public void IsValid_WhenNotExpiredAndNotUsed_ReturnsTrue()
+    {
+        // Arrange
+        var invite = InviteToken.Create(ValidEmail, _validTenantId, ValidRole, _validUserId);
+
+        // Assert
+        Assert.True(invite.IsValid);
+        Assert.False(invite.IsExpired);
+        Assert.False(invite.IsUsed);
+    }
+
+    [Fact]
+    public void MarkAccepted_SetsAcceptedAtAndUserId()
+    {
+        // Arrange
+        var invite = InviteToken.Create(ValidEmail, _validTenantId, ValidRole, _validUserId);
+        var acceptingUserId = Guid.NewGuid();
+
+        // Act
+        invite.MarkAccepted(acceptingUserId);
+
+        // Assert
+        Assert.NotNull(invite.AcceptedAt);
+        Assert.True(invite.AcceptedAt <= DateTime.UtcNow);
+        Assert.Equal(acceptingUserId, invite.AcceptedByUserId);
+        Assert.True(invite.IsUsed);
+        Assert.False(invite.IsValid);
+    }
+
+    [Fact]
+    public void MarkAccepted_WithEmptyUserId_ThrowsArgumentException()
+    {
+        // Arrange
+        var invite = InviteToken.Create(ValidEmail, _validTenantId, ValidRole, _validUserId);
+
+        // Act & Assert
+        var ex = Assert.Throws<ArgumentException>(() => invite.MarkAccepted(Guid.Empty));
+        Assert.Contains("User ID", ex.Message);
+    }
+
+    [Fact]
+    public void MarkAccepted_WhenAlreadyAccepted_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        var invite = InviteToken.Create(ValidEmail, _validTenantId, ValidRole, _validUserId);
+        invite.MarkAccepted(Guid.NewGuid());
+
+        // Act & Assert
+        var ex = Assert.Throws<InvalidOperationException>(() => invite.MarkAccepted(Guid.NewGuid()));
+        Assert.Contains("already been accepted", ex.Message);
+    }
+
+    [Fact]
+    public void Create_AllValidRoles_Succeeds()
+    {
+        // All platform roles should be valid
+        foreach (var role in PlatformRole.All)
+        {
+            var invite = InviteToken.Create(ValidEmail, _validTenantId, role, _validUserId);
+            Assert.Equal(role, invite.Role);
+        }
+    }
+}
