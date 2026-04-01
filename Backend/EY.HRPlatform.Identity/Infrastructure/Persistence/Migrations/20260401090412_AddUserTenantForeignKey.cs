@@ -8,8 +8,8 @@ namespace EY.HRPlatform.Identity.Infrastructure.Persistence.Migrations
     /// <inheritdoc />
     public partial class AddUserTenantForeignKey : Migration
     {
-        // Demo tenant ID for migrating existing users (from DemoConstants)
-        private static readonly Guid DemoTenantId = new("11111111-1111-1111-1111-111111111111");
+        // Demo tenant ID for migrating existing users (must match DemoConstants.TenantId)
+        private static readonly Guid DemoTenantId = new("00000000-0000-0000-0000-000000000001");
 
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -29,14 +29,13 @@ namespace EY.HRPlatform.Identity.Infrastructure.Persistence.Migrations
                 WHERE "TenantId" IS NULL
                 """);
 
-            // Step 3: Make TenantId required
+            // Step 3: Make TenantId required (no default - must be explicitly set on user creation)
             migrationBuilder.AlterColumn<Guid>(
                 name: "TenantId",
                 schema: "identity",
                 table: "AspNetUsers",
                 type: "uuid",
                 nullable: false,
-                defaultValue: new Guid("00000000-0000-0000-0000-000000000000"),
                 oldClrType: typeof(Guid),
                 oldType: "uuid",
                 oldNullable: true);
