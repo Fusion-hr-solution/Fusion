@@ -1,10 +1,5 @@
 import { BookOpen, Play } from "lucide-react";
-import type { TrainingChapter } from "@/types";
-
-interface ChapterListProps {
-  chapters: TrainingChapter[];
-  chaptersCount: number;
-}
+import type { ChapterListProps } from "@/types/component-props";
 
 export function ChapterList({ chapters, chaptersCount }: ChapterListProps) {
   return (
