@@ -24,7 +24,7 @@ public class TenantsController : ControllerBase
     /// </summary>
     [HttpPost]
     [ProducesResponseType(typeof(ApiResponse<TenantDto>), StatusCodes.Status201Created)]
-    [ProducesResponseType(typeof(ApiResponse<TenantDto>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<ApiResponse<TenantDto>>> Create(
         [FromBody] CreateTenantRequest request,
         CancellationToken cancellationToken)
