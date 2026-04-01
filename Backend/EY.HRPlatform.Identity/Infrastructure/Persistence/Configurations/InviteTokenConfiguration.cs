@@ -40,6 +40,13 @@ public class InviteTokenConfiguration : IEntityTypeConfiguration<InviteToken>
         // Index for finding invites by email within a tenant
         builder.HasIndex(i => new { i.TenantId, i.Email });
 
+        // Filtered unique index to prevent duplicate pending invites per {TenantId, Email}
+        // Note: PostgreSQL filter syntax. Active invites = not accepted and not expired
+        builder.HasIndex(i => new { i.TenantId, i.Email })
+            .HasFilter("\"AcceptedAt\" IS NULL")
+            .IsUnique()
+            .HasDatabaseName("IX_InviteTokens_TenantId_Email_Pending");
+
         // Foreign key to Tenant
         builder.HasOne(i => i.Tenant)
             .WithMany()

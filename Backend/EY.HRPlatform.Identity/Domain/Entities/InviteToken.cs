@@ -82,7 +82,7 @@ public class InviteToken
     /// <summary>
     /// Whether the token has expired.
     /// </summary>
-    public bool IsExpired => DateTime.UtcNow > ExpiresAt;
+    public bool IsExpired => DateTime.UtcNow >= ExpiresAt;
 
     /// <summary>
     /// Whether the token has already been used.
@@ -112,6 +112,7 @@ public class InviteToken
         ValidateTenantId(tenantId);
         ValidateRole(role);
         ValidateCreatedBy(createdByUserId);
+        ValidateExpiryDays(expiryDays);
 
         return new InviteToken
         {
@@ -120,12 +121,22 @@ public class InviteToken
             Email = email.Trim().ToLowerInvariant(),
             TenantId = tenantId,
             Role = role,
-            FirstName = firstName?.Trim(),
-            LastName = lastName?.Trim(),
+            FirstName = NormalizeOptionalName(firstName),
+            LastName = NormalizeOptionalName(lastName),
             ExpiresAt = DateTime.UtcNow.AddDays(expiryDays),
             CreatedAt = DateTime.UtcNow,
             CreatedByUserId = createdByUserId
         };
+    }
+
+    /// <summary>
+    /// Normalizes optional name: trims and converts whitespace-only to null.
+    /// </summary>
+    private static string? NormalizeOptionalName(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return null;
+        return name.Trim();
     }
 
     /// <summary>
@@ -197,5 +208,14 @@ public class InviteToken
     {
         if (createdByUserId == Guid.Empty)
             throw new ArgumentException("Creator user ID is required.", nameof(createdByUserId));
+    }
+
+    private static void ValidateExpiryDays(int expiryDays)
+    {
+        if (expiryDays < 1)
+            throw new ArgumentException("Expiry days must be at least 1.", nameof(expiryDays));
+
+        if (expiryDays > 90)
+            throw new ArgumentException("Expiry days cannot exceed 90.", nameof(expiryDays));
     }
 }

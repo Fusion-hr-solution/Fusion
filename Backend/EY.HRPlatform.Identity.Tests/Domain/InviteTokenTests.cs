@@ -249,4 +249,62 @@ public class InviteTokenTests
             Assert.Equal(role, invite.Role);
         }
     }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(-100)]
+    public void Create_WithZeroOrNegativeExpiryDays_ThrowsArgumentException(int expiryDays)
+    {
+        // Act & Assert
+        var ex = Assert.Throws<ArgumentException>(() =>
+            InviteToken.Create(ValidEmail, _validTenantId, ValidRole, _validUserId, expiryDays: expiryDays));
+        Assert.Contains("Expiry days", ex.Message);
+    }
+
+    [Fact]
+    public void Create_WithExpiryDaysExceeding90_ThrowsArgumentException()
+    {
+        // Act & Assert
+        var ex = Assert.Throws<ArgumentException>(() =>
+            InviteToken.Create(ValidEmail, _validTenantId, ValidRole, _validUserId, expiryDays: 91));
+        Assert.Contains("Expiry days", ex.Message);
+    }
+
+    [Theory]
+    [InlineData("   ")]
+    [InlineData("  \t  ")]
+    [InlineData("")]
+    public void Create_WithWhitespaceOnlyNames_NormalizesToNull(string whitespace)
+    {
+        // Act
+        var invite = InviteToken.Create(
+            ValidEmail,
+            _validTenantId,
+            ValidRole,
+            _validUserId,
+            firstName: whitespace,
+            lastName: whitespace);
+
+        // Assert - whitespace-only names should become null
+        Assert.Null(invite.FirstName);
+        Assert.Null(invite.LastName);
+    }
+
+    [Fact]
+    public void Create_WithNamesWithSurroundingWhitespace_TrimsNames()
+    {
+        // Act
+        var invite = InviteToken.Create(
+            ValidEmail,
+            _validTenantId,
+            ValidRole,
+            _validUserId,
+            firstName: "  John  ",
+            lastName: "  Doe  ");
+
+        // Assert - names should be trimmed
+        Assert.Equal("John", invite.FirstName);
+        Assert.Equal("Doe", invite.LastName);
+    }
 }

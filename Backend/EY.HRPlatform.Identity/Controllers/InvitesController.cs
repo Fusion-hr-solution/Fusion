@@ -65,15 +65,20 @@ public class InvitesController : ControllerBase
                 ApiResponse<InviteDto>.Failure("You do not have permission to invite users with this role."));
         }
 
+        // Normalize email once for consistent lookups
+        var normalizedEmail = request.Email?.Trim().ToLowerInvariant();
+        if (string.IsNullOrEmpty(normalizedEmail))
+            return BadRequest(ApiResponse<InviteDto>.Failure("Email is required."));
+
         // Check if email is already registered
-        var existingUser = await _userManager.FindByEmailAsync(request.Email);
+        var existingUser = await _userManager.FindByEmailAsync(normalizedEmail);
         if (existingUser is not null)
             return BadRequest(ApiResponse<InviteDto>.Failure("Email is already registered."));
 
         // Check for existing pending invite to same email in same tenant
         var existingInvite = await _dbContext.InviteTokens
             .Where(i => i.TenantId == tenantId &&
-                        i.Email == request.Email.ToLowerInvariant() &&
+                        i.Email == normalizedEmail &&
                         i.AcceptedAt == null &&
                         i.ExpiresAt > DateTime.UtcNow)
             .FirstOrDefaultAsync();
@@ -92,9 +97,9 @@ public class InvitesController : ControllerBase
             return BadRequest(ApiResponse<InviteDto>.Failure("Unable to determine current user."));
         }
 
-        // Create the invite
+        // Create the invite (use normalizedEmail which is already validated non-null)
         var invite = InviteToken.Create(
-            email: request.Email,
+            email: normalizedEmail,
             tenantId: tenantId,
             role: request.Role,
             createdByUserId: currentUserId,
@@ -106,6 +111,7 @@ public class InvitesController : ControllerBase
 
         // Build invite link
         var baseUrl = _configuration["Application:BaseUrl"] ?? "http://localhost:3000";
+        baseUrl = baseUrl.TrimEnd('/');
         var inviteLink = $"{baseUrl}/invite/{invite.Token}";
 
         var dto = new InviteDto
@@ -202,9 +208,9 @@ public class InvitesController : ControllerBase
             return StatusCode(StatusCodes.Status410Gone,
                 ApiResponse<UserDto>.Failure("This invitation has expired."));
 
-        // Determine names (from request or invite)
-        var firstName = request.FirstName ?? invite.FirstName;
-        var lastName = request.LastName ?? invite.LastName;
+        // Determine names (from request or invite; treat empty as not provided)
+        var firstName = string.IsNullOrWhiteSpace(request.FirstName) ? invite.FirstName : request.FirstName;
+        var lastName = string.IsNullOrWhiteSpace(request.LastName) ? invite.LastName : request.LastName;
 
         if (string.IsNullOrWhiteSpace(firstName))
             return BadRequest(ApiResponse<UserDto>.Failure("First name is required."));
@@ -217,52 +223,64 @@ public class InvitesController : ControllerBase
         if (existingUser is not null)
             return BadRequest(ApiResponse<UserDto>.Failure("Email is already registered."));
 
-        // Create the user
-        var user = new ApplicationUser
+        // Use transaction to ensure atomicity of user creation + role assignment + invite marking
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync();
+        try
         {
-            UserName = invite.Email,
-            Email = invite.Email,
-            FirstName = firstName.Trim(),
-            LastName = lastName.Trim(),
-            TenantId = invite.TenantId,
-            EmailConfirmed = true, // Invited users are pre-verified
-            HireDate = DateTime.UtcNow
-        };
+            // Create the user
+            var user = new ApplicationUser
+            {
+                UserName = invite.Email,
+                Email = invite.Email,
+                FirstName = firstName.Trim(),
+                LastName = lastName.Trim(),
+                TenantId = invite.TenantId,
+                EmailConfirmed = true, // Invited users are pre-verified
+                HireDate = DateTime.UtcNow
+            };
 
-        var result = await _userManager.CreateAsync(user, request.Password);
-        if (!result.Succeeded)
-        {
-            var errors = result.Errors.Select(e => e.Description).ToArray();
-            return BadRequest(ApiResponse<UserDto>.Failure(errors));
+            var result = await _userManager.CreateAsync(user, request.Password);
+            if (!result.Succeeded)
+            {
+                var errors = result.Errors.Select(e => e.Description).ToArray();
+                return BadRequest(ApiResponse<UserDto>.Failure(errors));
+            }
+
+            // Assign role
+            var roleResult = await _userManager.AddToRoleAsync(user, invite.Role);
+            if (!roleResult.Succeeded)
+            {
+                await transaction.RollbackAsync();
+                var errors = roleResult.Errors.Select(e => e.Description).ToArray();
+                return BadRequest(ApiResponse<UserDto>.Failure(errors));
+            }
+
+            // Mark invite as used
+            invite.MarkAccepted(user.Id);
+            await _dbContext.SaveChangesAsync();
+
+            await transaction.CommitAsync();
+
+            var dto = new UserDto
+            {
+                Id = user.Id,
+                Email = user.Email!,
+                FullName = user.FullName,
+                Department = user.Department,
+                JobTitle = user.JobTitle,
+                HireDate = user.HireDate,
+                TenantId = user.TenantId,
+                Roles = [invite.Role]
+            };
+
+            return StatusCode(StatusCodes.Status201Created,
+                ApiResponse<UserDto>.Success(dto));
         }
-
-        // Assign role (with rollback on failure)
-        var roleResult = await _userManager.AddToRoleAsync(user, invite.Role);
-        if (!roleResult.Succeeded)
+        catch
         {
-            await _userManager.DeleteAsync(user);
-            var errors = roleResult.Errors.Select(e => e.Description).ToArray();
-            return BadRequest(ApiResponse<UserDto>.Failure(errors));
+            await transaction.RollbackAsync();
+            throw;
         }
-
-        // Mark invite as used
-        invite.MarkAccepted(user.Id);
-        await _dbContext.SaveChangesAsync();
-
-        var dto = new UserDto
-        {
-            Id = user.Id,
-            Email = user.Email!,
-            FullName = user.FullName,
-            Department = user.Department,
-            JobTitle = user.JobTitle,
-            HireDate = user.HireDate,
-            TenantId = user.TenantId,
-            Roles = [invite.Role]
-        };
-
-        return StatusCode(StatusCodes.Status201Created,
-            ApiResponse<UserDto>.Success(dto));
     }
 
     /// <summary>
