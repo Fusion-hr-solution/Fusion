@@ -11,7 +11,7 @@ namespace EY.HRPlatform.CoreHR.Controllers;
 
 [ApiController]
 [Route("api/corehr/settings")]
-[Authorize(Roles = $"{PlatformRole.Admin},{PlatformRole.HR}")]
+[Authorize(Roles = $"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin}")]
 public class TenantSettingsController(ISender sender) : ControllerBase
 {
     /// <summary>

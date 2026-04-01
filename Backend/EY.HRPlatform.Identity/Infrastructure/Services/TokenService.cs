@@ -45,13 +45,14 @@ public class TokenService : ITokenService
             claims.Add(new Claim(ClaimTypes.Role, role));
         }
 
-        // Step 4: Add tenant_id claim if present in user's claims
-        var userClaims = await _userManager.GetClaimsAsync(user);
-        var tenantClaim = userClaims.FirstOrDefault(c => c.Type == CustomClaimTypes.TenantId);
-        if (tenantClaim is not null && Guid.TryParse(tenantClaim.Value, out var tenantId) && tenantId != Guid.Empty)
+        // Step 4: Add tenant_id claim from User.TenantId (required FK)
+        if (user.TenantId == Guid.Empty)
         {
-            claims.Add(new Claim(CustomClaimTypes.TenantId, tenantId.ToString()));
+            throw new InvalidOperationException(
+                $"Cannot generate token for user {user.Id}: TenantId is not set. " +
+                "All users must be assigned to a tenant before authentication.");
         }
+        claims.Add(new Claim(CustomClaimTypes.TenantId, user.TenantId.ToString()));
 
         // Step 5: Create the signing key from our secret
         var key = new SymmetricSecurityKey(

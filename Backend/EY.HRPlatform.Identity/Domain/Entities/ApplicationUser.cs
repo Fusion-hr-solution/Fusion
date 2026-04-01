@@ -13,5 +13,16 @@ public class ApplicationUser : IdentityUser<Guid>
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? LastLoginAt { get; set; }
 
+    /// <summary>
+    /// The tenant this user belongs to. Required for all users.
+    /// PlatformAdmin users can override their active context via X-Tenant-Id header.
+    /// </summary>
+    public Guid TenantId { get; set; }
+    
+    /// <summary>
+    /// Navigation property to the user's tenant.
+    /// </summary>
+    public Tenant? Tenant { get; set; }
+
     public string FullName => $"{FirstName} {LastName}";
 }
