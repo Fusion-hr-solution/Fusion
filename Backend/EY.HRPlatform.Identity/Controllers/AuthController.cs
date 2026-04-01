@@ -35,10 +35,28 @@ public class AuthController : ControllerBase
         _configuration = configuration;
     }
 
+    /// <summary>
+    /// Register a new user. Requires HRAdmin or PlatformAdmin role.
+    /// For B2B HR platforms, users are provisioned by admins, not self-registered.
+    /// Use POST /api/identity/tenants/{tenantId}/users for admin-provisioned user creation.
+    /// </summary>
     [HttpPost("register")]
+    [Authorize(Roles = $"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin}")]
+    [ProducesResponseType(typeof(ApiResponse<AuthResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<AuthResponse>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<ApiResponse<AuthResponse>>> Register(
         [FromBody] RegisterRequest request)
     {
+        // Get the caller's tenant ID for the new user
+        var callerTenantId = User.GetTenantId();
+        if (!callerTenantId.HasValue || callerTenantId.Value == Guid.Empty)
+        {
+            return BadRequest(ApiResponse<AuthResponse>.Failure(
+                "Cannot determine tenant context. Use POST /api/identity/tenants/{tenantId}/users instead."));
+        }
+
         // Check if email already exists
         var existingUser = await _userManager.FindByEmailAsync(request.Email);
         if (existingUser is not null)
@@ -53,7 +71,8 @@ public class AuthController : ControllerBase
             LastName = request.LastName,
             Department = request.Department,
             JobTitle = request.JobTitle,
-            HireDate = DateTime.SpecifyKind(request.HireDate, DateTimeKind.Utc)
+            HireDate = DateTime.SpecifyKind(request.HireDate, DateTimeKind.Utc),
+            TenantId = callerTenantId.Value
         };
 
         // Save to database with hashed password
