@@ -50,6 +50,15 @@ public class AppIdentityDbContext : IdentityDbContext<ApplicationUser, IdentityR
 
             entity.Property(u => u.JobTitle)
                 .HasMaxLength(100);
+
+            // User belongs to exactly one tenant
+            entity.HasOne(u => u.Tenant)
+                .WithMany()
+                .HasForeignKey(u => u.TenantId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired();
+
+            entity.HasIndex(u => u.TenantId);
         });
 
         // RefreshToken table configuration
