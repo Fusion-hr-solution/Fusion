@@ -1,11 +1,7 @@
 import { Clock, BookOpen, ArrowUpRight } from "lucide-react";
 import { Card, CardContent } from "@repo/ui";
-import type { Training } from "@/types";
+import type { RecommendedCardProps } from "@/types/component-props";
 import { CATEGORY_CONFIG } from "@/data/categories";
-
-interface RecommendedCardProps {
-  training: Training;
-}
 
 export function RecommendedCard({ training }: RecommendedCardProps) {
   const category = CATEGORY_CONFIG[training.category];

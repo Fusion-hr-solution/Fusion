@@ -1,12 +1,8 @@
 import { Play } from "lucide-react";
 import { Card, CardContent } from "@repo/ui";
-import type { EnrolledTraining } from "@/types";
+import type { ContinueCardProps } from "@/types/component-props";
 import { CATEGORY_CONFIG } from "@/data/categories";
 import { STATUS_CONFIG } from "@/data/status-config";
-
-interface ContinueCardProps {
-  training: EnrolledTraining;
-}
 
 export function ContinueCard({ training }: ContinueCardProps) {
   const category = CATEGORY_CONFIG[training.category];

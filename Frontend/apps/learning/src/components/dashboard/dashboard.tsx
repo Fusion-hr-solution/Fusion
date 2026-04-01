@@ -10,7 +10,8 @@ import {
   Target,
   Zap,
 } from "lucide-react";
-import type { Training, EnrolledTraining, TrainingCategory } from "@/types";
+import type { TrainingCategory } from "@/types";
+import type { DashboardProps } from "@/types/component-props";
 import { PageHeader } from "../page-header";
 import { KpiCard } from "../kpi-card";
 import { SectionHeader } from "../section-header";
@@ -19,11 +20,6 @@ import { RecommendedCard } from "./recommended-card";
 import { ProgressRing } from "./progress-ring";
 import { CategoryBreakdown } from "./category-breakdown";
 import { AchievementsCard } from "./achievements-card";
-
-interface DashboardProps {
-  trainings: Training[];
-  enrolledTrainings: EnrolledTraining[];
-}
 
 export function Dashboard({ trainings, enrolledTrainings }: DashboardProps) {
   const stats = useMemo(() => {
