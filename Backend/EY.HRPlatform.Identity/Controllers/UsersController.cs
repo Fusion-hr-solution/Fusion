@@ -10,7 +10,7 @@ namespace EY.HRPlatform.Identity.Controllers;
 
 [ApiController]
 [Route("api/identity/[controller]")]
-[Authorize(Roles = $"{PlatformRole.Admin},{PlatformRole.HR}")]
+[Authorize(Roles = $"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin}")]
 public class UsersController : ControllerBase
 {
     private readonly UserManager<ApplicationUser> _userManager;

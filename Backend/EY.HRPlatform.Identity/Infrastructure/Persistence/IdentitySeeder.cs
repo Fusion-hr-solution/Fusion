@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using EY.HRPlatform.Identity.Domain.Entities;
 using EY.HRPlatform.SharedKernel.Auth;
 using EY.HRPlatform.SharedKernel.Constants;
@@ -79,26 +78,24 @@ public static class IdentitySeeder
                 Department = "IT",
                 JobTitle = "Platform Administrator",
                 HireDate = DateTime.UtcNow,
-                EmailConfirmed = true
+                EmailConfirmed = true,
+                TenantId = demoTenantId
             };
 
             var result = await userManager.CreateAsync(admin, "Admin@123456");
             if (result.Succeeded)
             {
-                await userManager.AddToRoleAsync(admin, PlatformRole.Admin);
-                await userManager.AddToRoleAsync(admin, PlatformRole.HR);
-
-                // Assign demo tenant for local development
-                await userManager.AddClaimAsync(admin, new Claim(CustomClaimTypes.TenantId, demoTenantId.ToString()));
+                await userManager.AddToRoleAsync(admin, PlatformRole.PlatformAdmin);
+                await userManager.AddToRoleAsync(admin, PlatformRole.HRAdmin);
             }
         }
         else
         {
-            // Ensure existing admin has the tenant claim (handles DB created before this fix)
-            var existingClaims = await userManager.GetClaimsAsync(admin);
-            if (!existingClaims.Any(c => c.Type == CustomClaimTypes.TenantId))
+            // Ensure existing admin has a TenantId (handles DB created before this migration)
+            if (admin.TenantId == Guid.Empty)
             {
-                await userManager.AddClaimAsync(admin, new Claim(CustomClaimTypes.TenantId, demoTenantId.ToString()));
+                admin.TenantId = demoTenantId;
+                await userManager.UpdateAsync(admin);
             }
         }
     }
