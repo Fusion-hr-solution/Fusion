@@ -23,7 +23,11 @@ public class CreateUserRequest
     [MaxLength(100)]
     public string? JobTitle { get; set; }
 
-    public DateTime? HireDate { get; set; }
+    /// <summary>
+    /// The user's hire date. Required field.
+    /// </summary>
+    [Required]
+    public DateTime HireDate { get; set; }
 
     /// <summary>
     /// Role to assign to the new user. Defaults to Employee if not specified.

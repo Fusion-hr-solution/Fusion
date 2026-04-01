@@ -1,4 +1,6 @@
-﻿namespace EY.HRPlatform.Identity.Models.Responses;
+﻿using System.Text.Json.Serialization;
+
+namespace EY.HRPlatform.Identity.Models.Responses;
 
 public class UserDto
 {
@@ -15,5 +17,6 @@ public class UserDto
     /// Only populated when a user is created. Contains the temporary password
     /// that should be communicated to the user (e.g., via email or manual sharing).
     /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? TemporaryPassword { get; set; }
 }

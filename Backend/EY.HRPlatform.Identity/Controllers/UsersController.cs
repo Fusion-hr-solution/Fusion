@@ -1,4 +1,5 @@
-﻿using EY.HRPlatform.Identity.Domain.Entities;
+﻿using System.Security.Cryptography;
+using EY.HRPlatform.Identity.Domain.Entities;
 using EY.HRPlatform.Identity.Infrastructure.Persistence;
 using EY.HRPlatform.Identity.Models.Requests;
 using EY.HRPlatform.Identity.Models.Responses;
@@ -97,7 +98,7 @@ public class UsersController : ControllerBase
     /// </summary>
     [HttpPost("/api/identity/tenants/{tenantId:guid}/users")]
     [ProducesResponseType(typeof(ApiResponse<UserDto>), StatusCodes.Status201Created)]
-    [ProducesResponseType(typeof(ApiResponse<UserDto>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<UserDto>), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ApiResponse<UserDto>), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ApiResponse<UserDto>>> CreateUser(
@@ -144,11 +145,9 @@ public class UsersController : ControllerBase
             LastName = request.LastName,
             Department = request.Department,
             JobTitle = request.JobTitle,
-            HireDate = request.HireDate.HasValue
-                ? DateTime.SpecifyKind(request.HireDate.Value, DateTimeKind.Utc)
-                : DateTime.UtcNow,
+            HireDate = DateTime.SpecifyKind(request.HireDate, DateTimeKind.Utc),
             TenantId = tenantId,
-            EmailConfirmed = false // Requires email verification or password reset
+            EmailConfirmed = false
         };
 
         var result = await _userManager.CreateAsync(user, temporaryPassword);
@@ -158,8 +157,15 @@ public class UsersController : ControllerBase
             return BadRequest(ApiResponse<UserDto>.Failure(errors));
         }
 
-        // Assign role
-        await _userManager.AddToRoleAsync(user, role);
+        // Assign role (with rollback on failure)
+        var roleResult = await _userManager.AddToRoleAsync(user, role);
+        if (!roleResult.Succeeded)
+        {
+            // Rollback: delete the user if role assignment fails
+            await _userManager.DeleteAsync(user);
+            var errors = roleResult.Errors.Select(e => e.Description).ToArray();
+            return BadRequest(ApiResponse<UserDto>.Failure(errors));
+        }
 
         var dto = new UserDto
         {
@@ -287,33 +293,46 @@ public class UsersController : ControllerBase
     }
 
     /// <summary>
-    /// Generates a secure temporary password for new users.
+    /// Generates a cryptographically secure temporary password for new users.
     /// </summary>
     private static string GenerateTemporaryPassword()
     {
-        // Generate a random password that meets complexity requirements
         const string uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
         const string lowercase = "abcdefghijklmnopqrstuvwxyz";
         const string digits = "0123456789";
         const string special = "!@#$%^&*";
+        const string allChars = uppercase + lowercase + digits + special;
+        const int passwordLength = 12;
 
-        var random = new Random();
-        var password = new char[12];
+        var password = new char[passwordLength];
 
-        // Ensure at least one of each required character type
-        password[0] = uppercase[random.Next(uppercase.Length)];
-        password[1] = lowercase[random.Next(lowercase.Length)];
-        password[2] = digits[random.Next(digits.Length)];
-        password[3] = special[random.Next(special.Length)];
+        // Ensure at least one of each required character type using crypto RNG
+        password[0] = uppercase[GetCryptoRandomIndex(uppercase.Length)];
+        password[1] = lowercase[GetCryptoRandomIndex(lowercase.Length)];
+        password[2] = digits[GetCryptoRandomIndex(digits.Length)];
+        password[3] = special[GetCryptoRandomIndex(special.Length)];
 
         // Fill the rest randomly
-        var allChars = uppercase + lowercase + digits + special;
-        for (int i = 4; i < password.Length; i++)
+        for (int i = 4; i < passwordLength; i++)
         {
-            password[i] = allChars[random.Next(allChars.Length)];
+            password[i] = allChars[GetCryptoRandomIndex(allChars.Length)];
         }
 
-        // Shuffle the password
-        return new string(password.OrderBy(_ => random.Next()).ToArray());
+        // Fisher-Yates shuffle using crypto RNG
+        for (int i = passwordLength - 1; i > 0; i--)
+        {
+            int j = GetCryptoRandomIndex(i + 1);
+            (password[i], password[j]) = (password[j], password[i]);
+        }
+
+        return new string(password);
+    }
+
+    /// <summary>
+    /// Gets a cryptographically secure random index in the range [0, maxExclusive).
+    /// </summary>
+    private static int GetCryptoRandomIndex(int maxExclusive)
+    {
+        return RandomNumberGenerator.GetInt32(maxExclusive);
     }
 }
