@@ -611,4 +611,153 @@ public class UpdateTenantSettingsCommandHandlerTests
     }
 
     #endregion
+
+    #region OrgUnitType Removal Guard
+
+    [Fact]
+    public async Task Handle_RemovingUnusedOrgUnitType_Succeeds()
+    {
+        // Arrange
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+        // Settings with Department and Team types
+        var existingSettings = CoreHREntities.TenantSettings.Create(
+            TenantId,
+            """{"orgUnitTypes":["Department","Team"]}""");
+        seedContext.TenantSettings.Add(existingSettings);
+        
+        // Only a Department OrgUnit exists - Team is unused
+        var orgUnit = CoreHREntities.OrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null);
+        seedContext.OrgUnits.Add(orgUnit);
+        await seedContext.SaveChangesAsync();
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = new UpdateTenantSettingsCommandHandler(context, tenantContext);
+
+        // Remove Team type (unused)
+        var command = new UpdateTenantSettingsCommand(
+            ExpectedVersion: existingSettings.Version,
+            OrgUnitTypes: ["Department"], // Removing Team
+            EmployeeFieldConfig: null,
+            Branding: null);
+
+        // Act
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.Single(result.Value.OrgUnitTypes);
+        Assert.Equal("Department", result.Value.OrgUnitTypes[0]);
+    }
+
+    [Fact]
+    public async Task Handle_RemovingOrgUnitTypeInUse_ThrowsArgumentException()
+    {
+        // Arrange
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+        // Settings with Department and Team types
+        var existingSettings = CoreHREntities.TenantSettings.Create(
+            TenantId,
+            """{"orgUnitTypes":["Department","Team"]}""");
+        seedContext.TenantSettings.Add(existingSettings);
+        
+        // Both types are in use
+        var dept = CoreHREntities.OrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null);
+        var team = CoreHREntities.OrgUnit.Create(TenantId, "ENG-T1", "Team 1", "Team", null);
+        seedContext.OrgUnits.AddRange(dept, team);
+        await seedContext.SaveChangesAsync();
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = new UpdateTenantSettingsCommandHandler(context, tenantContext);
+
+        // Try to remove Team type (in use)
+        var command = new UpdateTenantSettingsCommand(
+            ExpectedVersion: existingSettings.Version,
+            OrgUnitTypes: ["Department"], // Trying to remove Team
+            EmployeeFieldConfig: null,
+            Branding: null);
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<ArgumentException>(
+            () => handler.Handle(command, CancellationToken.None));
+        Assert.Contains("Team", ex.Message);
+        Assert.Contains("in use", ex.Message);
+    }
+
+    [Fact]
+    public async Task Handle_RemovingOrgUnitTypeInUse_CaseInsensitive()
+    {
+        // Arrange
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+        var existingSettings = CoreHREntities.TenantSettings.Create(
+            TenantId,
+            """{"orgUnitTypes":["department","TEAM"]}""");
+        seedContext.TenantSettings.Add(existingSettings);
+        
+        // OrgUnit with "Department" (different case than settings)
+        var dept = CoreHREntities.OrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null);
+        seedContext.OrgUnits.Add(dept);
+        await seedContext.SaveChangesAsync();
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = new UpdateTenantSettingsCommandHandler(context, tenantContext);
+
+        // Try to remove "department" (lowercase in settings, but OrgUnit uses "Department")
+        var command = new UpdateTenantSettingsCommand(
+            ExpectedVersion: existingSettings.Version,
+            OrgUnitTypes: ["TEAM"], // Trying to remove department
+            EmployeeFieldConfig: null,
+            Branding: null);
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<ArgumentException>(
+            () => handler.Handle(command, CancellationToken.None));
+        Assert.Contains("department", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Handle_RemovingOrgUnitTypeOnlyOnInactiveUnits_Succeeds()
+    {
+        // Arrange
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+        var existingSettings = CoreHREntities.TenantSettings.Create(
+            TenantId,
+            """{"orgUnitTypes":["Department","Team"]}""");
+        seedContext.TenantSettings.Add(existingSettings);
+        
+        // Team OrgUnit exists but is inactive
+        var team = CoreHREntities.OrgUnit.Create(TenantId, "ENG-T1", "Team 1", "Team", null);
+        team.Deactivate();
+        seedContext.OrgUnits.Add(team);
+        await seedContext.SaveChangesAsync();
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = new UpdateTenantSettingsCommandHandler(context, tenantContext);
+
+        // Remove Team type - should succeed because only inactive OrgUnits use it
+        var command = new UpdateTenantSettingsCommand(
+            ExpectedVersion: existingSettings.Version,
+            OrgUnitTypes: ["Department"],
+            EmployeeFieldConfig: null,
+            Branding: null);
+
+        // Act
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+    }
+
+    #endregion
 }

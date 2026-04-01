@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using EY.HRPlatform.Identity.Domain.Entities;
+using EY.HRPlatform.SharedKernel.Auth;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
 
@@ -35,9 +36,9 @@ public class TokenService : ITokenService
         {
             new(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new(ClaimTypes.Email, user.Email!),
-            new("full_name", user.FullName),
-            new("department", user.Department ?? string.Empty),
-            new("job_title", user.JobTitle ?? string.Empty),
+            new(CustomClaimTypes.FullName, user.FullName),
+            new(CustomClaimTypes.Department, user.Department ?? string.Empty),
+            new(CustomClaimTypes.JobTitle, user.JobTitle ?? string.Empty),
         };
 
         // Step 3: Add one role claim per role
@@ -46,13 +47,14 @@ public class TokenService : ITokenService
             claims.Add(new Claim(ClaimTypes.Role, role));
         }
 
-        // Step 4: Add tenant_id claim if user has one
-        var userClaims = await _userManager.GetClaimsAsync(user);
-        var tenantClaim = userClaims.FirstOrDefault(c => c.Type == "tenant_id");
-        if (tenantClaim != null && Guid.TryParse(tenantClaim.Value, out var tenantId) && tenantId != Guid.Empty)
+        // Step 4: Add tenant_id claim from User.TenantId (required FK)
+        if (user.TenantId == Guid.Empty)
         {
-            claims.Add(new Claim("tenant_id", tenantClaim.Value));
+            throw new InvalidOperationException(
+                $"Cannot generate token for user {user.Id}: TenantId is not set. " +
+                "All users must be assigned to a tenant before authentication.");
         }
+        claims.Add(new Claim(CustomClaimTypes.TenantId, user.TenantId.ToString()));
 
         // Step 5: Create the signing key from our secret
         var key = new SymmetricSecurityKey(

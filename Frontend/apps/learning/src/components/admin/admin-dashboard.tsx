@@ -9,7 +9,8 @@ import {
   BookOpen,
 } from "lucide-react";
 import { TooltipProvider } from "@repo/ui";
-import type { Employee, Training, TrainingCategory, TrainingStatus } from "@/types";
+import type { TrainingCategory, TrainingStatus } from "@/types";
+import type { AdminDashboardProps } from "@/types/admin-props";
 import { PageHeader } from "../page-header";
 import { KpiCard } from "../kpi-card";
 import { SearchInput } from "../search-input";
@@ -184,7 +185,7 @@ export function AdminDashboard({ employees, trainings: _trainings }: AdminDashbo
             {/* Employee list */}
             <div className="ey-stagger-list space-y-3">
               {filteredEmployees.length > 0 ? (
-                filteredEmployees.map((employee, idx) => (
+                filteredEmployees.map((employee, _idx) => (
                   <EmployeeRow
                     key={employee.id}
                     employee={employee}

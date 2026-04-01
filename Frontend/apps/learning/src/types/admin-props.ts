@@ -28,7 +28,6 @@ export interface ChapterFormDialogProps {
 
 export interface EmployeeRowProps {
   employee: Employee;
-  colorIndex: number;
   expanded: boolean;
   onToggle: () => void;
   statusFilter: TrainingStatus | "all";

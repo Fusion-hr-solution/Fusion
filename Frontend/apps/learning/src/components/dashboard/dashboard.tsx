@@ -10,7 +10,8 @@ import {
   Target,
   Zap,
 } from "lucide-react";
-import type { Training, EnrolledTraining, TrainingCategory } from "@/types";
+import type { TrainingCategory } from "@/types";
+import type { DashboardProps } from "@/types/component-props";
 import { PageHeader } from "../page-header";
 import { KpiCard } from "../kpi-card";
 import { SectionHeader } from "../section-header";

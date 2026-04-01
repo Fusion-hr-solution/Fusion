@@ -21,13 +21,6 @@ import {
   AVATAR_COLOR,
 } from "./admin-constants";
 
-interface EmployeeRowProps {
-  employee: Employee;
-  expanded: boolean;
-  onToggle: () => void;
-  statusFilter: TrainingStatus | "all";
-}
-
 export function EmployeeRow({
   employee,
   expanded,

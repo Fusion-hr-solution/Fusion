@@ -1,3 +1,4 @@
+using EY.HRPlatform.SharedKernel.Auth;
 using EY.HRPlatform.Training.Features.Admin.Commands;
 using EY.HRPlatform.Training.Features.Catalog.Queries;
 using EY.HRPlatform.Training.Models.Requests;
@@ -10,7 +11,7 @@ namespace EY.HRPlatform.Training.Controllers;
 
 [ApiController]
 [Route("api/training/admin/categories")]
-[Authorize(Roles = "Admin,HR")]
+[Authorize(Roles = $"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin}")]
 public class AdminCategoriesController : ControllerBase
 {
     private readonly ISender _sender;
