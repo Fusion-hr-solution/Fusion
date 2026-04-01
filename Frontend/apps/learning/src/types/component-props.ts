@@ -7,6 +7,7 @@ import type {
   EnrolledTraining,
   ExamInfo,
   Course,
+  TrainingChapter,
 } from "./index";
 import type { NavSection } from "@repo/ui";
 
@@ -93,6 +94,58 @@ export interface TrainingStatusTabsProps {
   activeTab: TrainingStatus | "all";
   counts: Record<TrainingStatus | "all", number>;
   onChange: (tab: TrainingStatus | "all") => void;
+}
+
+/* ── Dashboard components ── */
+
+export interface DashboardProps {
+  trainings: Training[];
+  enrolledTrainings: EnrolledTraining[];
+}
+
+export interface ContinueCardProps {
+  training: EnrolledTraining;
+}
+
+export interface RecommendedCardProps {
+  training: Training;
+}
+
+export interface ProgressRingProps {
+  completionRate: number;
+  avgProgress: number;
+  total: number;
+  completed: number;
+  inProgress: number;
+}
+
+export interface CategoryBreakdownProps {
+  items: {
+    category: TrainingCategory;
+    count: number;
+    percentage: number;
+  }[];
+}
+
+export interface AchievementsCardProps {
+  completedCount: number;
+}
+
+/* ── Training detail sub-components ── */
+
+export interface ChapterListProps {
+  chapters: TrainingChapter[];
+  chaptersCount: number;
+}
+
+export interface ExamSectionProps {
+  exam?: ExamInfo;
+  chaptersCount: number;
+}
+
+export interface InstructorCardProps {
+  name: string;
+  role: string;
 }
 
 export interface MyTrainingsListProps {

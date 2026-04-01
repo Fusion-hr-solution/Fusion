@@ -1,9 +1,5 @@
 import { User } from "lucide-react";
-
-interface InstructorCardProps {
-  name: string;
-  role: string;
-}
+import type { InstructorCardProps } from "@/types/component-props";
 
 export function InstructorCard({ name, role }: InstructorCardProps) {
   return (

@@ -1,15 +1,7 @@
 import { GraduationCap } from "lucide-react";
 import { Card, CardContent } from "@repo/ui";
-import type { TrainingCategory } from "@/types";
+import type { CategoryBreakdownProps } from "@/types/component-props";
 import { CATEGORY_CONFIG } from "@/data/categories";
-
-interface CategoryBreakdownProps {
-  items: {
-    category: TrainingCategory;
-    count: number;
-    percentage: number;
-  }[];
-}
 
 export function CategoryBreakdown({ items }: CategoryBreakdownProps) {
   return (

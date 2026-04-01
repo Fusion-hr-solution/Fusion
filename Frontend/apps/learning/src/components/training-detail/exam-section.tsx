@@ -1,11 +1,6 @@
 import { CheckCircle2 } from "lucide-react";
-import type { ExamInfo } from "@/types";
+import type { ExamSectionProps } from "@/types/component-props";
 import { ExamCard } from "../exam-card";
-
-interface ExamSectionProps {
-  exam?: ExamInfo;
-  chaptersCount: number;
-}
 
 export function ExamSection({ exam, chaptersCount }: ExamSectionProps) {
   return (

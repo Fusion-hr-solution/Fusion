@@ -6,10 +6,7 @@ import {
   GraduationCap,
 } from "lucide-react";
 import { Card, CardContent } from "@repo/ui";
-
-interface AchievementsCardProps {
-  completedCount: number;
-}
+import type { AchievementsCardProps } from "@/types/component-props";
 
 export function AchievementsCard({ completedCount }: AchievementsCardProps) {
   const badges = [

@@ -1,13 +1,6 @@
 import { BarChart3 } from "lucide-react";
 import { Card, CardContent } from "@repo/ui";
-
-interface ProgressRingProps {
-  completionRate: number;
-  avgProgress: number;
-  total: number;
-  completed: number;
-  inProgress: number;
-}
+import type { ProgressRingProps } from "@/types/component-props";
 
 export function ProgressRing({
   completionRate,
