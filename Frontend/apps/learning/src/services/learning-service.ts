@@ -1,13 +1,14 @@
 import { createPlatformApiClient } from "@repo/api";
-import type { EnrolledTraining, Training, TrainingCategory, TrainingLevel, BadgeLevel } from "@/types";
+import type { EnrolledTraining, Training, TrainingCategory, TrainingLevel, BadgeLevel, TrainingLearnData, ContentType } from "@/types";
 import type {
   BackendTrainingCategoryDto,
   BackendTrainingDto,
   BackendTrainingDetailDto,
   BackendMyTrainingDto,
   BackendPagedResponse,
+  BackendTrainingProgressDto,
 } from "@/types/backend-dtos";
-import { CATEGORY_MAP, LEVEL_MAP, BADGE_LEVEL_MAP } from "@/types/backend-dtos";
+import { CATEGORY_MAP, LEVEL_MAP, BADGE_LEVEL_MAP, CONTENT_TYPE_MAP } from "@/types/backend-dtos";
 
 function mapBadgeLevel(badgeLevel: string): BadgeLevel {
   return BADGE_LEVEL_MAP[badgeLevel] ?? "bronze";
@@ -19,6 +20,10 @@ function mapCategory(categoryName: string): TrainingCategory {
 
 function mapLevel(badgeLevel: string): TrainingLevel {
   return LEVEL_MAP[badgeLevel] ?? "intermediate";
+}
+
+function mapContentType(contentType: string): ContentType {
+  return CONTENT_TYPE_MAP[contentType] ?? "article";
 }
 
 function mapTrainingStatus(status: string): "in-progress" | "completed" | "not-started" {
@@ -159,4 +164,57 @@ export async function updateChapterProgress(
     `/training/my-trainings/${encodeURIComponent(trainingId)}/chapters/progress`,
     { chapterId, completed },
   );
+}
+
+export async function getTrainingProgress(trainingId: string): Promise<TrainingLearnData> {
+  const data = await client.get<BackendTrainingProgressDto>(
+    `/training/my-trainings/${encodeURIComponent(trainingId)}/progress`,
+  );
+
+  const training = mapBackendToTraining({
+    id: data.trainingId,
+    title: data.title,
+    description: data.description,
+    credits: data.credits,
+    isMandatory: data.isMandatory,
+    badgeLevel: data.badgeLevel,
+    duration: data.duration,
+    categoryId: "",
+    categoryName: data.categoryName,
+    chapterCount: data.totalChapters,
+    createdAt: new Date().toISOString(),
+  });
+
+  training.chapters = data.chapters
+    .sort((a, b) => a.orderIndex - b.orderIndex)
+    .map((c) => ({
+      id: c.id,
+      title: c.title,
+      duration: c.estimatedDurationMinutes ? `${c.estimatedDurationMinutes} min` : "~30 min",
+    }));
+  training.chaptersCount = data.chapters.length;
+
+  return {
+    training,
+    chapters: data.chapters
+      .sort((a, b) => a.orderIndex - b.orderIndex)
+      .map((c) => ({
+        id: c.id,
+        title: c.title,
+        duration: c.estimatedDurationMinutes ? `${c.estimatedDurationMinutes} min` : "~30 min",
+        contentType: mapContentType(c.contentType),
+        textContent: c.textContent,
+        videoUrl: c.videoUrl,
+        contentUri: c.contentUri,
+        orderIndex: c.orderIndex,
+        estimatedDurationMinutes: c.estimatedDurationMinutes,
+      })),
+    chapterProgress: data.chapterProgress.map((p) => ({
+      chapterId: p.chapterId,
+      completed: p.completed,
+      completedAt: p.completedAt,
+    })),
+    overallProgress: data.progressPercentage,
+    status: mapTrainingStatus(data.status),
+  };
 }

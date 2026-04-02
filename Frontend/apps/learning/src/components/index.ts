@@ -59,3 +59,10 @@ export {
   InstructorCard,
   TrainingTagsCard,
 } from "./training-detail";
+export {
+  CoursePlayer,
+  ChapterSidebar,
+  ChapterContentView,
+  ChapterNavigation,
+  ExamLockedBanner,
+} from "./learn";

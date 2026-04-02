@@ -1,8 +1,11 @@
+"use client";
+
 import { Button } from "@repo/ui";
-import { CalendarDays, ChevronRight, AlertTriangle, Award } from "lucide-react";
+import { CalendarDays, ChevronRight, AlertTriangle, Award, Loader2 } from "lucide-react";
 import type { TrainingDetailPageProps } from "@/types/component-props";
 import { CATEGORY_CONFIG, LEVEL_CONFIG } from "@/data/categories";
 import { BADGE_LEVEL_CONFIG } from "@/data/badge-config";
+import { useEnroll } from "@/hooks/use-enroll";
 import { PageHeader } from "./page-header";
 import { PageBreadcrumb } from "./page-breadcrumb";
 import {
@@ -17,6 +20,7 @@ export function TrainingDetailPage({ training }: TrainingDetailPageProps) {
   const category = CATEGORY_CONFIG[training.category];
   const level = LEVEL_CONFIG[training.level];
   const badge = BADGE_LEVEL_CONFIG[training.badgeLevel];
+  const { handleEnroll, isLoading } = useEnroll(training.id);
 
   return (
     <div className="min-h-full">
@@ -111,12 +115,25 @@ export function TrainingDetailPage({ training }: TrainingDetailPageProps) {
               className="ey-animate-fade-up sticky top-6"
               style={{ animationDelay: "350ms" }}
             >
-              <Button className="w-full ey-bg-dark hover:ey-bg-dark-deep text-white gap-2 shadow-lg transition-all hover:shadow-xl hover:gap-3 h-12 text-sm font-semibold">
-                Enroll Now
-                <ChevronRight
-                  className="h-4 w-4 transition-transform"
-                  aria-hidden="true"
-                />
+              <Button
+                onClick={handleEnroll}
+                disabled={isLoading}
+                className="w-full ey-bg-dark hover:ey-bg-dark-deep text-white gap-2 shadow-lg transition-all hover:shadow-xl hover:gap-3 h-12 text-sm font-semibold"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                    Enrolling...
+                  </>
+                ) : (
+                  <>
+                    Enroll Now
+                    <ChevronRight
+                      className="h-4 w-4 transition-transform"
+                      aria-hidden="true"
+                    />
+                  </>
+                )}
               </Button>
             </div>
           </aside>
