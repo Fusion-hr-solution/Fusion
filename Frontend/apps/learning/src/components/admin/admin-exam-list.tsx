@@ -1,11 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@repo/ui";
-
-interface AdminExam {
-  id: string;
-  title: string;
-  questionCount: number;
-  passingScore: number;
-}
+import type { AdminExam } from "@/types/admin";
 
 interface AdminExamListProps {
   exams: AdminExam[];

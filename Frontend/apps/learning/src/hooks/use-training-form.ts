@@ -119,7 +119,15 @@ export function useTrainingForm({ trainingId, enabled, onCreated, onUpdated }: U
 
   async function handleSubmit() {
     setFormError(null);
-    const payload = { title: title.trim(), description: description.trim(), credits, isMandatory, badgeLevel, duration, categoryId };
+    const payload = {
+      title: title.trim(),
+      description: description.trim() || undefined,
+      credits,
+      isMandatory,
+      badgeLevel,
+      duration: duration || undefined,
+      categoryId,
+    };
     if (isEditing) await doUpdate(payload);
     else await doCreate(payload);
   }

@@ -31,14 +31,16 @@ export function PageBreadcrumb({ items, backHref, backLabel = "Back" }: PageBrea
           {items.map((item, i) => {
             const isLast = i === items.length - 1;
             return (
-              <React.Fragment key={item.label}>
+              <React.Fragment key={`${item.href ?? ""}-${item.label}-${i}`}>
                 <BreadcrumbItem>
                   {isLast ? (
                     <BreadcrumbPage>{item.label}</BreadcrumbPage>
-                  ) : (
+                  ) : item.href ? (
                     <BreadcrumbLink asChild>
-                      <Link href={item.href!}>{item.label}</Link>
+                      <Link href={item.href}>{item.label}</Link>
                     </BreadcrumbLink>
+                  ) : (
+                    <BreadcrumbPage>{item.label}</BreadcrumbPage>
                   )}
                 </BreadcrumbItem>
                 {!isLast && <BreadcrumbSeparator />}
