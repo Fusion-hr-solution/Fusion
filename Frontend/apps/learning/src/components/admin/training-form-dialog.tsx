@@ -69,15 +69,7 @@ export function TrainingFormDialog({
   );
 
   useEffect(() => {
-    if (existing) {
-      setTitle(existing.title);
-      setDescription(existing.description);
-      setCredits(existing.credits);
-      setIsMandatory(existing.isMandatory);
-      setBadgeLevel(existing.badgeLevel);
-      setDuration(existing.duration);
-      setCategoryId(existing.categoryId);
-    } else if (!trainingId) {
+    if (!trainingId) {
       setTitle("");
       setDescription("");
       setCategoryId("");
@@ -85,6 +77,14 @@ export function TrainingFormDialog({
       setCredits(0);
       setDuration("");
       setIsMandatory(false);
+    } else if (existing) {
+      setTitle(existing.title);
+      setDescription(existing.description);
+      setCredits(existing.credits);
+      setIsMandatory(existing.isMandatory);
+      setBadgeLevel(existing.badgeLevel);
+      setDuration(existing.duration);
+      setCategoryId(existing.categoryId);
     }
     setStep(0);
     setFormError(null);

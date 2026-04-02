@@ -10,12 +10,19 @@ import { StatRow } from "./stat-row";
 function QuickStatsFooter({ collapsed }: { collapsed: boolean }) {
   if (collapsed) {
     return (
-      <div className="flex flex-col items-center gap-1">
-        <BarChart3
-          className="h-4 w-4 text-[hsl(var(--ey-grey-400))]"
-          aria-hidden="true"
-        />
-        <span className="text-xs font-bold tabular-nums text-foreground">12</span>
+      <div className="flex flex-col items-center gap-2 py-1">
+        <div className="flex flex-col items-center gap-0.5" title="Completed">
+          <span className="text-xs font-bold tabular-nums text-foreground">12</span>
+          <span className="text-[9px] text-muted-foreground">Done</span>
+        </div>
+        <div className="flex flex-col items-center gap-0.5" title="In Progress">
+          <span className="text-xs font-bold tabular-nums text-foreground">3</span>
+          <span className="text-[9px] text-muted-foreground">Active</span>
+        </div>
+        <div className="flex flex-col items-center gap-0.5" title="Certificates">
+          <span className="text-xs font-bold tabular-nums text-foreground">8</span>
+          <span className="text-[9px] text-muted-foreground">Certs</span>
+        </div>
       </div>
     );
   }
