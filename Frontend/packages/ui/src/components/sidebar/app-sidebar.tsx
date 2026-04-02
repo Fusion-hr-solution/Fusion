@@ -104,7 +104,7 @@ export function AppSidebar({
             collapsed && "px-3"
           )}
         >
-          {footer}
+          {footer(collapsed)}
         </div>
       )}
 

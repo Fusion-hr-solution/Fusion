@@ -49,7 +49,7 @@ export function ExamCard({ exam, chaptersCount, isEnrolled }: ExamCardProps) {
       </div>
 
       {/* Stats grid */}
-      <div className="grid grid-cols-2 gap-px bg-border/30 sm:grid-cols-4">
+      <div className={`grid grid-cols-2 gap-px bg-border/30 ${stats.length <= 2 ? "sm:grid-cols-2 max-w-md" : stats.length === 3 ? "sm:grid-cols-3" : "sm:grid-cols-4"}`}>
         {stats.map((stat) => {
           const Icon = stat.icon;
           return (

@@ -27,6 +27,7 @@ import { StepIndicator } from "./step-indicator";
 import { TrainingFormBasicStep } from "./training-form-basic-step";
 import { TrainingFormDetailsStep } from "./training-form-details-step";
 import { TrainingFormReviewStep } from "./training-form-review-step";
+import { PageBreadcrumb } from "../page-breadcrumb";
 
 const STEPS = [
   { label: "Basic Info", icon: <FileText className="h-4 w-4" /> },
@@ -142,9 +143,14 @@ export function TrainingForm({ trainingId }: TrainingFormProps) {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <Button variant="ghost" size="sm" onClick={() => router.back()} className="text-muted-foreground">
-        <ArrowLeft className="mr-1 h-4 w-4" /> Back
-      </Button>
+      <PageBreadcrumb
+        backHref="/admin/trainings"
+        backLabel="Back"
+        items={[
+          { label: "Manage Trainings", href: "/admin/trainings" },
+          { label: isEditing ? "Edit Training" : "New Training" },
+        ]}
+      />
 
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-foreground">

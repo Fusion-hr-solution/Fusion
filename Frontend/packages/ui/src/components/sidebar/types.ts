@@ -33,8 +33,8 @@ export interface AppSidebarProps {
   brandSubtitle?: string;
   /** Next.js basePath for the module (e.g. "/learning"), prepended to nav hrefs */
   basePath?: string;
-  /** Optional custom footer rendered at the bottom of the sidebar */
-  footer?: React.ReactNode;
+  /** Optional custom footer rendered at the bottom of the sidebar, receives collapsed state */
+  footer?: (collapsed: boolean) => React.ReactNode;
   /** User panel at the very bottom, receives collapsed state */
   userPanel?: (collapsed: boolean) => React.ReactNode;
   /** List of available modules for the switcher (defaults to all platform modules) */

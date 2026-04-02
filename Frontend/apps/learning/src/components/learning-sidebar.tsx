@@ -7,7 +7,19 @@ import { SidebarUserPanel } from "@repo/auth";
 import { EMPLOYEE_NAV, ADMIN_NAV } from "@/data/sidebar-nav";
 import { StatRow } from "./stat-row";
 
-function QuickStatsFooter() {
+function QuickStatsFooter({ collapsed }: { collapsed: boolean }) {
+  if (collapsed) {
+    return (
+      <div className="flex flex-col items-center gap-1">
+        <BarChart3
+          className="h-4 w-4 text-[hsl(var(--ey-grey-400))]"
+          aria-hidden="true"
+        />
+        <span className="text-xs font-bold tabular-nums text-foreground">12</span>
+      </div>
+    );
+  }
+
   return (
     <div className="rounded-xl bg-[hsl(var(--ey-yellow))]/8 p-3">
       <div className="flex items-center gap-1.5">
@@ -41,7 +53,7 @@ export function LearningSidebar() {
       brandTitle="EY Academy"
       brandSubtitle="Learning Platform"
       basePath="/learning"
-      footer={<QuickStatsFooter />}
+      footer={(collapsed) => <QuickStatsFooter collapsed={collapsed} />}
       userPanel={(collapsed) => <SidebarUserPanel collapsed={collapsed} />}
     />
   );

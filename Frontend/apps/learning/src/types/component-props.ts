@@ -11,6 +11,17 @@ import type {
 } from "./index";
 import type { NavSection } from "@repo/ui";
 
+export interface BreadcrumbItem {
+  label: string;
+  href?: string;
+}
+
+export interface PageBreadcrumbProps {
+  items: BreadcrumbItem[];
+  backHref?: string;
+  backLabel?: string;
+}
+
 export interface CategoryFilterProps {
   selected: TrainingCategory | null;
   onChange: (category: TrainingCategory | null) => void;

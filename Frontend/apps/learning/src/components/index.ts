@@ -1,4 +1,5 @@
 export { PageHeader } from "./page-header";
+export { PageBreadcrumb } from "./page-breadcrumb";
 export { KpiCard } from "./kpi-card";
 export { StatCard } from "./stat-card";
 export { EmptyState } from "./empty-state";

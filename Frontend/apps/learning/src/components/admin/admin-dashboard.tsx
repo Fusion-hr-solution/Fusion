@@ -8,7 +8,7 @@ import {
   TrendingUp,
   BookOpen,
 } from "lucide-react";
-import { TooltipProvider } from "@repo/ui";
+import { TooltipProvider, Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@repo/ui";
 import type { TrainingCategory, TrainingStatus } from "@/types";
 import type { AdminDashboardProps } from "@/types/admin-props";
 import { PageHeader } from "../page-header";
@@ -157,28 +157,30 @@ export function AdminDashboard({ employees, trainings: _trainings }: AdminDashbo
               </div>
 
               <div className="flex gap-2">
-                <select
-                  value={deptFilter}
-                  onChange={(e) => setDeptFilter(e.target.value)}
-                  className="h-9 rounded-lg border border-border/60 bg-white px-3 text-xs font-medium text-foreground transition-colors hover:bg-[hsl(var(--ey-grey-50))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ey-yellow))]/40"
-                >
-                  {departments.map((d) => (
-                    <option key={d} value={d}>
-                      {d === "all" ? "All Departments" : d}
-                    </option>
-                  ))}
-                </select>
+                <Select value={deptFilter} onValueChange={setDeptFilter}>
+                  <SelectTrigger className="h-9 w-[160px] text-xs">
+                    <SelectValue placeholder="All Departments" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {departments.map((d) => (
+                      <SelectItem key={d} value={d}>
+                        {d === "all" ? "All Departments" : d}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
 
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value as TrainingStatus | "all")}
-                  className="h-9 rounded-lg border border-border/60 bg-white px-3 text-xs font-medium text-foreground transition-colors hover:bg-[hsl(var(--ey-grey-50))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ey-yellow))]/40"
-                >
-                  <option value="all">All Statuses</option>
-                  <option value="completed">Completed</option>
-                  <option value="in-progress">In Progress</option>
-                  <option value="not-started">Not Started</option>
-                </select>
+                <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as TrainingStatus | "all")}>
+                  <SelectTrigger className="h-9 w-[140px] text-xs">
+                    <SelectValue placeholder="All Statuses" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="in-progress">In Progress</SelectItem>
+                    <SelectItem value="not-started">Not Started</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 

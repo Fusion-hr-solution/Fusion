@@ -3,7 +3,6 @@
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
-  ArrowLeft,
   Pencil,
   Trash2,
   Plus,
@@ -32,6 +31,7 @@ import type { AdminChapter } from "@/types/admin";
 import type { TrainingDetailViewProps } from "@/types/admin-props";
 import { ChapterFormDialog } from "./chapter-form-dialog";
 import { MetaCard } from "./meta-card";
+import { PageBreadcrumb } from "../page-breadcrumb";
 
 export function TrainingDetailView({ trainingId }: TrainingDetailViewProps) {
   const router = useRouter();
@@ -79,16 +79,15 @@ export function TrainingDetailView({ trainingId }: TrainingDetailViewProps) {
 
   return (
     <div className="space-y-6">
-      {/* Back button */}
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => router.push("/admin/trainings")}
-        className="text-muted-foreground"
-      >
-        <ArrowLeft className="mr-1 h-4 w-4" />
-        Back to Trainings
-      </Button>
+      {/* Breadcrumb */}
+      <PageBreadcrumb
+        backHref="/admin/trainings"
+        backLabel="Back"
+        items={[
+          { label: "Manage Trainings", href: "/admin/trainings" },
+          { label: training.title },
+        ]}
+      />
 
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">

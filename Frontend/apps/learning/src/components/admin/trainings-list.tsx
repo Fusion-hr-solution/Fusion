@@ -4,14 +4,24 @@ import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   Plus,
-  Search,
   BookOpen,
   RotateCcw,
 } from "lucide-react";
-import { Button, Input, Card, CardContent } from "@repo/ui";
+import {
+  Button,
+  Card,
+  CardContent,
+  Select,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
+  SelectValue,
+  Checkbox,
+} from "@repo/ui";
 import { useApiQuery, useApiMutation } from "@repo/api/react";
 import { getAdminTrainings, deleteTraining, getAdminCategories } from "@/services/admin-service";
 import type { AdminCategory } from "@/types/admin";
+import { SearchInput } from "../search-input";
 import { TrainingRow } from "./training-row";
 
 export function TrainingsList() {
@@ -73,31 +83,29 @@ export function TrainingsList() {
       {/* Filters */}
       <Card className="border-border/60">
         <CardContent className="flex flex-wrap items-center gap-3 p-4">
-          <div className="relative flex-1 min-w-[200px]">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search trainings..."
-              className="pl-9"
+          <div className="flex-1 min-w-[200px]">
+            <SearchInput
               value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+              onChange={(v) => { setSearch(v); setPage(1); }}
+              placeholder="Search trainings..."
+              ariaLabel="Search trainings"
             />
           </div>
-          <select
-            className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-            value={categoryId}
-            onChange={(e) => { setCategoryId(e.target.value); setPage(1); }}
-          >
-            <option value="">All Categories</option>
-            {categories?.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
+          <Select value={categoryId || "all"} onValueChange={(v) => { setCategoryId(v === "all" ? "" : v); setPage(1); }}>
+            <SelectTrigger className="h-9 w-[180px] text-sm">
+              <SelectValue placeholder="All Categories" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              {categories?.map((c) => (
+                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <label className="flex items-center gap-2 text-sm text-muted-foreground">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={includeDeleted}
-              onChange={(e) => { setIncludeDeleted(e.target.checked); setPage(1); }}
-              className="rounded border-border"
+              onCheckedChange={(checked) => { setIncludeDeleted(checked === true); setPage(1); }}
             />
             Show deleted
           </label>
