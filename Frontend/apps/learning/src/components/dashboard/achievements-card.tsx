@@ -58,21 +58,21 @@ export function AchievementsCard({ completedCount }: AchievementsCardProps) {
                 className={`flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors ${
                   badge.unlocked
                     ? "bg-[hsl(var(--ey-yellow))]/8"
-                    : "bg-[hsl(var(--ey-grey-100))]"
+                    : "bg-muted"
                 }`}
               >
                 <div
                   className={`flex h-8 w-8 items-center justify-center rounded-lg ${
                     badge.unlocked
                       ? "ey-bg-accent"
-                      : "bg-[hsl(var(--ey-grey-200))]"
+                      : "bg-muted"
                   }`}
                 >
                   <Icon
                     className={`h-4 w-4 ${
                       badge.unlocked
-                        ? "text-[hsl(var(--ey-grey-500))]"
-                        : "text-[hsl(var(--ey-grey-400))]"
+                        ? "text-muted-foreground"
+                        : "text-muted-foreground"
                     }`}
                     aria-hidden="true"
                   />

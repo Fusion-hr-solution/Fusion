@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
   Users,
   CheckCircle2,
@@ -8,8 +8,10 @@ import {
   TrendingUp,
   BookOpen,
 } from "lucide-react";
-import { TooltipProvider } from "@repo/ui";
-import type { Employee, Training, TrainingCategory, TrainingStatus } from "@/types";
+import { TooltipProvider, Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@repo/ui";
+import type { TrainingStatus } from "@/types";
+import type { AdminDashboardProps } from "@/types/admin-props";
+import { useAdminDashboardData } from "@/hooks/use-admin-dashboard-data";
 import { PageHeader } from "../page-header";
 import { KpiCard } from "../kpi-card";
 import { SearchInput } from "../search-input";
@@ -19,107 +21,14 @@ import { CompletionFunnel } from "./completion-funnel";
 import { CategoryPerformance } from "./category-performance";
 import { TopTrainings } from "./top-trainings";
 
-interface AdminDashboardProps {
-  employees: Employee[];
-  trainings: Training[];
-}
-
 export function AdminDashboard({ employees, trainings: _trainings }: AdminDashboardProps) {
   const [search, setSearch] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<TrainingStatus | "all">("all");
   const [deptFilter, setDeptFilter] = useState<string>("all");
 
-  /* Aggregate stats */
-  const stats = useMemo(() => {
-    const allRecords = employees.flatMap((e) => e.trainings);
-    const completed = allRecords.filter((r) => r.status === "completed").length;
-    const inProgress = allRecords.filter((r) => r.status === "in-progress").length;
-    const notStarted = allRecords.filter((r) => r.status === "not-started").length;
-    const overdue = allRecords.filter((r) => {
-      if (!r.deadline || r.status === "completed") return false;
-      return new Date(r.deadline) < new Date();
-    }).length;
-    const avgCompletion =
-      allRecords.length > 0
-        ? Math.round(allRecords.reduce((sum, r) => sum + r.progress, 0) / allRecords.length)
-        : 0;
-
-    return { totalEmployees: employees.length, totalEnrollments: allRecords.length, completed, inProgress, notStarted, overdue, avgCompletion };
-  }, [employees]);
-
-  /* Departments */
-  const departments = useMemo(() => {
-    const depts = new Set(employees.map((e) => e.department));
-    return ["all", ...Array.from(depts).sort()];
-  }, [employees]);
-
-  /* Category popularity */
-  const categoryStats = useMemo(() => {
-    const map = new Map<TrainingCategory, { total: number; completed: number }>();
-    for (const emp of employees) {
-      for (const t of emp.trainings) {
-        const existing = map.get(t.category) ?? { total: 0, completed: 0 };
-        existing.total++;
-        if (t.status === "completed") existing.completed++;
-        map.set(t.category, existing);
-      }
-    }
-    return Array.from(map.entries())
-      .sort((a, b) => b[1].total - a[1].total)
-      .map(([category, data]) => ({
-        category,
-        ...data,
-        rate: data.total > 0 ? Math.round((data.completed / data.total) * 100) : 0,
-      }));
-  }, [employees]);
-
-  /* Training performance */
-  const trainingPerformance = useMemo(() => {
-    const map = new Map<
-      string,
-      { title: string; enrolled: number; completed: number; avgProgress: number; totalProgress: number }
-    >();
-    for (const emp of employees) {
-      for (const t of emp.trainings) {
-        const existing = map.get(t.trainingId) ?? {
-          title: t.trainingTitle, enrolled: 0, completed: 0, avgProgress: 0, totalProgress: 0,
-        };
-        existing.enrolled++;
-        existing.totalProgress += t.progress;
-        if (t.status === "completed") existing.completed++;
-        map.set(t.trainingId, existing);
-      }
-    }
-    return Array.from(map.values())
-      .map((t) => ({
-        ...t,
-        avgProgress: Math.round(t.totalProgress / t.enrolled),
-        completionRate: Math.round((t.completed / t.enrolled) * 100),
-      }))
-      .sort((a, b) => b.enrolled - a.enrolled);
-  }, [employees]);
-
-  /* Filtered employees */
-  const filteredEmployees = useMemo(() => {
-    let result = employees;
-    if (deptFilter !== "all") {
-      result = result.filter((e) => e.department === deptFilter);
-    }
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      result = result.filter(
-        (e) =>
-          e.name.toLowerCase().includes(q) ||
-          e.email.toLowerCase().includes(q) ||
-          e.department.toLowerCase().includes(q)
-      );
-    }
-    if (statusFilter !== "all") {
-      result = result.filter((e) => e.trainings.some((t) => t.status === statusFilter));
-    }
-    return result;
-  }, [employees, search, deptFilter, statusFilter]);
+  const { stats, departments, categoryStats, trainingPerformance, filteredEmployees } =
+    useAdminDashboardData(employees, search, deptFilter, statusFilter);
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -161,28 +70,30 @@ export function AdminDashboard({ employees, trainings: _trainings }: AdminDashbo
               </div>
 
               <div className="flex gap-2">
-                <select
-                  value={deptFilter}
-                  onChange={(e) => setDeptFilter(e.target.value)}
-                  className="h-9 rounded-lg border border-border/60 bg-white px-3 text-xs font-medium text-foreground transition-colors hover:bg-[hsl(var(--ey-grey-50))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ey-yellow))]/40"
-                >
-                  {departments.map((d) => (
-                    <option key={d} value={d}>
-                      {d === "all" ? "All Departments" : d}
-                    </option>
-                  ))}
-                </select>
+                <Select value={deptFilter} onValueChange={setDeptFilter}>
+                  <SelectTrigger className="h-9 w-[160px] text-xs">
+                    <SelectValue placeholder="All Departments" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {departments.map((d) => (
+                      <SelectItem key={d} value={d}>
+                        {d === "all" ? "All Departments" : d}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
 
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value as TrainingStatus | "all")}
-                  className="h-9 rounded-lg border border-border/60 bg-white px-3 text-xs font-medium text-foreground transition-colors hover:bg-[hsl(var(--ey-grey-50))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ey-yellow))]/40"
-                >
-                  <option value="all">All Statuses</option>
-                  <option value="completed">Completed</option>
-                  <option value="in-progress">In Progress</option>
-                  <option value="not-started">Not Started</option>
-                </select>
+                <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as TrainingStatus | "all")}>
+                  <SelectTrigger className="h-9 w-[140px] text-xs">
+                    <SelectValue placeholder="All Statuses" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="in-progress">In Progress</SelectItem>
+                    <SelectItem value="not-started">Not Started</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 

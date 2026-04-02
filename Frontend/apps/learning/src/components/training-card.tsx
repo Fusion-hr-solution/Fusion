@@ -59,11 +59,11 @@ export function TrainingCard({ training }: { training: Training }) {
 
         {/* Meta row — pill style */}
         <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
-          <span className="flex items-center gap-1.5 rounded-md bg-[hsl(var(--ey-grey-100))] px-2 py-1">
+          <span className="flex items-center gap-1.5 rounded-md bg-muted px-2 py-1">
             <Clock className="h-3.5 w-3.5" aria-hidden="true" />
             {training.duration}
           </span>
-          <span className="flex items-center gap-1.5 rounded-md bg-[hsl(var(--ey-grey-100))] px-2 py-1">
+          <span className="flex items-center gap-1.5 rounded-md bg-muted px-2 py-1">
             <BookOpen className="h-3.5 w-3.5" aria-hidden="true" />
             {training.chaptersCount} chapters
           </span>
@@ -71,7 +71,7 @@ export function TrainingCard({ training }: { training: Training }) {
             <Award className="h-3.5 w-3.5" aria-hidden="true" />
             {badge.label}
           </span>
-          <span className="flex items-center gap-1.5 rounded-md bg-[hsl(var(--ey-grey-100))] px-2 py-1 font-semibold">
+          <span className="flex items-center gap-1.5 rounded-md bg-muted px-2 py-1 font-semibold">
             {training.credits} credits
           </span>
         </div>
@@ -79,7 +79,7 @@ export function TrainingCard({ training }: { training: Training }) {
         {/* Bottom — instructor + stats */}
         <div className="flex items-center justify-between border-t border-border/40 pt-3.5">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-7 w-7 items-center justify-center rounded-full ey-bg-dark text-xs font-semibold text-white ring-2 ring-[hsl(var(--ey-grey-200))] transition-all duration-300 group-hover:ring-[hsl(var(--ey-yellow))]/40">
+            <div className="flex h-7 w-7 items-center justify-center rounded-full ey-bg-dark text-xs font-semibold text-white ring-2 ring-border transition-all duration-300 group-hover:ring-[hsl(var(--ey-yellow))]/40">
               {training.instructor
                 .split(" ")
                 .map((n) => n[0])

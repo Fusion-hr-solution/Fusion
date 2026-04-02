@@ -4,6 +4,7 @@ import type { TrainingDetailPageProps } from "@/types/component-props";
 import { CATEGORY_CONFIG, LEVEL_CONFIG } from "@/data/categories";
 import { BADGE_LEVEL_CONFIG } from "@/data/badge-config";
 import { PageHeader } from "./page-header";
+import { PageBreadcrumb } from "./page-breadcrumb";
 import {
   TrainingStatsGrid,
   ChapterList,
@@ -19,6 +20,14 @@ export function TrainingDetailPage({ training }: TrainingDetailPageProps) {
 
   return (
     <div className="min-h-full">
+      <PageBreadcrumb
+        backHref="/"
+        backLabel="Back"
+        items={[
+          { label: "Catalog", href: "/" },
+          { label: training.title },
+        ]}
+      />
       <PageHeader
         moduleTitle="Training Details"
         title={training.title}

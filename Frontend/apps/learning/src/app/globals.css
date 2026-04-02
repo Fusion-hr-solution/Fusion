@@ -93,7 +93,7 @@
   .ey-cat-soft-skills,
   .ey-cat-finance,
   .ey-cat-data-analytics {
-    @apply bg-[hsl(var(--ey-grey-100))] text-[hsl(var(--ey-grey-500))] border-[hsl(var(--ey-grey-200))];
+    @apply bg-muted text-muted-foreground border-border;
   }
 
   /* Category active chip backgrounds — neutral */

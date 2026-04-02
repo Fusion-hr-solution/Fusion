@@ -1,15 +1,6 @@
 import { TrendingUp, Users, CheckCircle2 } from "lucide-react";
 import { Card, CardContent } from "@repo/ui";
-
-interface TopTrainingsProps {
-  items: {
-    title: string;
-    enrolled: number;
-    completed: number;
-    avgProgress: number;
-    completionRate: number;
-  }[];
-}
+import type { TopTrainingsProps } from "@/types/admin-props";
 
 export function TopTrainings({ items }: TopTrainingsProps) {
   return (
@@ -31,7 +22,7 @@ export function TopTrainings({ items }: TopTrainingsProps) {
           {items.map((item, i) => (
             <div
               key={item.title}
-              className="group flex items-start gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-[hsl(var(--ey-grey-50))]"
+              className="group flex items-start gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-muted/50"
             >
               <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md ey-bg-dark text-[10px] font-bold text-white mt-0.5">
                 {i + 1}
@@ -50,7 +41,7 @@ export function TopTrainings({ items }: TopTrainingsProps) {
                     {item.completionRate}% done
                   </span>
                 </div>
-                <div className="mt-1.5 h-1 rounded-full bg-[hsl(var(--ey-grey-200))] overflow-hidden">
+                <div className="mt-1.5 h-1 rounded-full bg-muted overflow-hidden">
                   <div
                     className="h-full rounded-full bg-[hsl(var(--ey-green-500))] transition-all duration-500"
                     style={{ width: `${item.completionRate}%` }}

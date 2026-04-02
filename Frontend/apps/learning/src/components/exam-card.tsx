@@ -34,7 +34,7 @@ export function ExamCard({ exam, chaptersCount, isEnrolled }: ExamCardProps) {
       <div className="relative flex items-center gap-3 border-b border-border/40 bg-gradient-to-r from-[hsl(var(--ey-yellow))]/8 to-transparent px-6 py-4">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[hsl(var(--ey-yellow))]/15 ring-1 ring-[hsl(var(--ey-yellow))]/20">
           <GraduationCap
-            className="h-5 w-5 text-[hsl(var(--ey-grey-500))]"
+            className="h-5 w-5 text-muted-foreground"
             aria-hidden="true"
           />
         </div>
@@ -49,7 +49,7 @@ export function ExamCard({ exam, chaptersCount, isEnrolled }: ExamCardProps) {
       </div>
 
       {/* Stats grid */}
-      <div className="grid grid-cols-2 gap-px bg-border/30 sm:grid-cols-4">
+      <div className={`grid grid-cols-2 gap-px bg-border/30 ${stats.length <= 2 ? "sm:grid-cols-2 max-w-md" : stats.length === 3 ? "sm:grid-cols-3" : "sm:grid-cols-4"}`}>
         {stats.map((stat) => {
           const Icon = stat.icon;
           return (
@@ -74,7 +74,7 @@ export function ExamCard({ exam, chaptersCount, isEnrolled }: ExamCardProps) {
 
       {/* Unlock callout — shown only for enrolled users */}
       {isEnrolled && (
-        <div className="flex items-center gap-2.5 border-t border-border/40 bg-[hsl(var(--ey-grey-50))] px-6 py-3">
+        <div className="flex items-center gap-2.5 border-t border-border/40 bg-muted/50 px-6 py-3">
           <Lock
             className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
             aria-hidden="true"

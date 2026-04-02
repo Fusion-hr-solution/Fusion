@@ -22,7 +22,7 @@ export const STATUS_COLORS: Record<TrainingStatus, string> = {
   completed:
     "bg-[hsl(var(--ey-green-500))]/10 text-[hsl(var(--ey-green-500))] border-[hsl(var(--ey-green-500))]/25",
   "not-started":
-    "bg-[hsl(var(--ey-grey-200))] text-[hsl(var(--ey-grey-400))] border-[hsl(var(--ey-grey-300))]/25",
+    "bg-muted text-muted-foreground border-border/25",
 };
 
 export const STATUS_ICONS: Record<TrainingStatus, typeof Play> = {
@@ -31,4 +31,4 @@ export const STATUS_ICONS: Record<TrainingStatus, typeof Play> = {
   "not-started": CircleDashed,
 };
 
-export const AVATAR_COLOR = "bg-[hsl(var(--ey-grey-500))]";
+export const AVATAR_COLOR = "bg-muted-foreground";

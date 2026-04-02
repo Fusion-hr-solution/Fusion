@@ -14,7 +14,7 @@ export function LevelFilter({ selected, onChange }: LevelFilterProps) {
         className={`rounded-full border px-3 py-1 text-xs font-medium transition-all duration-200 ${
           selected === null
             ? "ey-bg-dark border-transparent text-white shadow-sm"
-            : "border-border bg-white text-muted-foreground hover:border-[hsl(var(--ey-grey-300))] hover:text-foreground hover:shadow-sm"
+            : "border-border bg-white text-muted-foreground hover:border-border hover:text-foreground hover:shadow-sm"
         }`}
       >
         All Levels
@@ -29,7 +29,7 @@ export function LevelFilter({ selected, onChange }: LevelFilterProps) {
             className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-all duration-200 ${
               isActive
                 ? "ey-bg-dark border-transparent text-white shadow-sm"
-                : "border-border bg-white text-muted-foreground hover:border-[hsl(var(--ey-grey-300))] hover:text-foreground hover:shadow-sm"
+                : "border-border bg-white text-muted-foreground hover:border-border hover:text-foreground hover:shadow-sm"
             }`}
           >
             <span
