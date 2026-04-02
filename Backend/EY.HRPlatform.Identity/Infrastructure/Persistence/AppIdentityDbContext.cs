@@ -11,6 +11,7 @@ public class AppIdentityDbContext : IdentityDbContext<ApplicationUser, IdentityR
 {
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<Tenant> Tenants => Set<Tenant>();
+    public DbSet<InviteToken> InviteTokens => Set<InviteToken>();
 
     public AppIdentityDbContext(DbContextOptions<AppIdentityDbContext> options)
         : base(options)
@@ -78,5 +79,8 @@ public class AppIdentityDbContext : IdentityDbContext<ApplicationUser, IdentityR
 
         // Tenant table configuration
         builder.ApplyConfiguration(new TenantConfiguration());
+
+        // InviteToken table configuration
+        builder.ApplyConfiguration(new InviteTokenConfiguration());
     }
 }
