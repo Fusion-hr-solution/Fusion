@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Search, Plus, Eye, Minus, GripVertical, X, Inbox,
   CheckCircle2, BarChart2, Zap, Clock, ChevronLeft,
@@ -17,13 +17,11 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useWizardStore } from "@/store/wizard-store";
-import { MOCK_QUESTIONS } from "@/services/test-service";
+import { createQuestion, getQuestions } from "@/services/test-service";
 import { QUESTION_TYPES, DIFFICULTIES, GRADING_METHODS, SORT_OPTIONS } from "@/config/constants";
 import { CreateQuestionSheet } from "./create-question-sheet";
 import { cn } from "@/lib/utils";
-import type { Question, QuestionFilterState, SortOption, Difficulty } from "@/types";
-
-// ─── Diff badge colours ───────────────────────────────────────────────────────
+import type { Question, QuestionFilterState, SortOption, Difficulty, NewQuestionForm } from "@/types";// ─── Diff badge colours ───────────────────────────────────────────────────────
 
 const DIFF_STYLES: Record<Difficulty, string> = {
   Easy:   "bg-emerald-50 text-emerald-700 border-emerald-100",
@@ -105,7 +103,35 @@ export function StepQuestions() {
   const [sheetOpen,    setSheetOpen]    = useState(false);
   const [sortOpen,     setSortOpen]     = useState(false);
   const [filtersOpen,  setFiltersOpen]  = useState(true);
+  const [questionLibrary, setQuestionLibrary] = useState<Question[]>([]);
+  const [isLoadingLibrary, setIsLoadingLibrary] = useState(true);
+  const [libraryError, setLibraryError] = useState<string | null>(null);
   const PAGE_SIZE = 8;
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadLibrary() {
+      setIsLoadingLibrary(true);
+      setLibraryError(null);
+      try {
+        const data = await getQuestions();
+        if (isMounted) setQuestionLibrary(data);
+      } catch (err) {
+        if (isMounted) {
+          setLibraryError(err instanceof Error ? err.message : "Failed to load question library.");
+          setQuestionLibrary([]);
+        }
+      } finally {
+        if (isMounted) setIsLoadingLibrary(false);
+      }
+    }
+
+    void loadLibrary();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -132,7 +158,7 @@ export function StepQuestions() {
   const activeFilterCount =
     filters.types.length + filters.difficulties.length + filters.gradingMethods.length;
 
-  const filteredLib = MOCK_QUESTIONS
+  const filteredLib = questionLibrary
     .filter((q) => {
       if (filters.search             && !q.title.toLowerCase().includes(filters.search.toLowerCase())) return false;
       if (filters.types.length       && !filters.types.includes(q.type))                              return false;
@@ -152,9 +178,22 @@ export function StepQuestions() {
   const pagedLib    = filteredLib.slice((libPage - 1) * PAGE_SIZE, libPage * PAGE_SIZE);
   const totalPoints = selectedQuestions.reduce((s, q) => s + q.points, 0);
 
-  const typeCounts = Object.fromEntries(QUESTION_TYPES.map((t)  => [t, MOCK_QUESTIONS.filter((q) => q.type === t).length]));
-  const diffCounts = Object.fromEntries(DIFFICULTIES.map((d)    => [d, MOCK_QUESTIONS.filter((q) => q.difficulty === d).length]));
-  const gradCounts = Object.fromEntries(GRADING_METHODS.map((g) => [g, MOCK_QUESTIONS.filter((q) => q.gradingMethod === g).length]));
+  const typeCounts = Object.fromEntries(QUESTION_TYPES.map((t)  => [t, questionLibrary.filter((q) => q.type === t).length]));
+  const diffCounts = Object.fromEntries(DIFFICULTIES.map((d)    => [d, questionLibrary.filter((q) => q.difficulty === d).length]));
+  const gradCounts = Object.fromEntries(GRADING_METHODS.map((g) => [g, questionLibrary.filter((q) => q.gradingMethod === g).length]));
+
+  async function persistQuestion(form: NewQuestionForm, addToSelection: boolean): Promise<void> {
+    const created = await createQuestion(form);
+
+    setQuestionLibrary((current) => {
+      if (current.some((question) => question.id === created.id)) return current;
+      return [created, ...current];
+    });
+
+    if (addToSelection && !isQuestionSelected(created.id)) {
+      addQuestion(created);
+    }
+  }
 
   return (
     <div className="flex flex-col gap-6 pb-4">
@@ -353,7 +392,15 @@ export function StepQuestions() {
           </div>
 
           {/* grid */}
-          {pagedLib.length === 0 ? (
+          {isLoadingLibrary ? (
+            <div className="rounded-2xl border border-zinc-200 bg-white py-10 text-center text-[13px] text-zinc-500">
+              Loading question library...
+            </div>
+          ) : libraryError ? (
+            <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-[13px] text-red-700">
+              {libraryError}
+            </div>
+          ) : pagedLib.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-zinc-200 py-20">
               <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-100">
                 <Inbox className="h-6 w-6 text-zinc-400" />
@@ -626,7 +673,8 @@ export function StepQuestions() {
       <CreateQuestionSheet
         open={sheetOpen}
         onClose={() => setSheetOpen(false)}
-        onSaveAndAdd={addQuestion}
+        onSaveToLibrary={(form) => persistQuestion(form, false)}
+        onSaveAndAdd={(form) => persistQuestion(form, true)}
       />
 
       {/* ── Question preview modal ──────────────────────────────── */}
