@@ -1,7 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
-
 import {
   BookOpen,
   Clock,
@@ -10,8 +8,8 @@ import {
   Target,
   Zap,
 } from "lucide-react";
-import type { TrainingCategory } from "@/types";
 import type { DashboardProps } from "@/types/component-props";
+import { useDashboardData } from "@/hooks/use-dashboard-data";
 import { PageHeader } from "../page-header";
 import { KpiCard } from "../kpi-card";
 import { SectionHeader } from "../section-header";
@@ -22,52 +20,8 @@ import { CategoryBreakdown } from "./category-breakdown";
 import { AchievementsCard } from "./achievements-card";
 
 export function Dashboard({ trainings, enrolledTrainings }: DashboardProps) {
-  const stats = useMemo(() => {
-    const inProgress = enrolledTrainings.filter((t) => t.status === "in-progress");
-    const completed = enrolledTrainings.filter((t) => t.status === "completed");
-    const totalHours = enrolledTrainings.reduce(
-      (sum, t) => sum + parseInt(t.duration.replace(/\D/g, "")),
-      0
-    );
-    const completedHours = completed.reduce(
-      (sum, t) => sum + parseInt(t.duration.replace(/\D/g, "")),
-      0
-    );
-    const completionRate =
-      enrolledTrainings.length > 0
-        ? Math.round((completed.length / enrolledTrainings.length) * 100)
-        : 0;
-    const avgProgress =
-      inProgress.length > 0
-        ? Math.round(inProgress.reduce((sum, t) => sum + t.progress, 0) / inProgress.length)
-        : 0;
-
-    return { inProgress, completed, totalHours, completedHours, completionRate, avgProgress };
-  }, [enrolledTrainings]);
-
-  const categoryBreakdown = useMemo(() => {
-    const map = new Map<TrainingCategory, number>();
-    for (const t of enrolledTrainings) {
-      map.set(t.category, (map.get(t.category) ?? 0) + 1);
-    }
-    return Array.from(map.entries())
-      .sort((a, b) => b[1] - a[1])
-      .map(([category, count]) => ({
-        category,
-        count,
-        percentage: Math.round((count / enrolledTrainings.length) * 100),
-      }));
-  }, [enrolledTrainings]);
-
-  const continueTrainings = stats.inProgress
-    .sort((a, b) => b.progress - a.progress)
-    .slice(0, 3);
-
-  const enrolledIds = new Set(enrolledTrainings.map((t) => t.id));
-  const recommended = trainings
-    .filter((t) => !enrolledIds.has(t.id))
-    .sort((a, b) => b.rating - a.rating)
-    .slice(0, 4);
+  const { stats, categoryBreakdown, continueTrainings, recommended } =
+    useDashboardData(enrolledTrainings, trainings);
 
   return (
     <>
@@ -115,7 +69,7 @@ export function Dashboard({ trainings, enrolledTrainings }: DashboardProps) {
                 <SectionHeader
                   icon={Target}
                   iconClassName="bg-[hsl(var(--ey-yellow))]/15"
-                  iconColorClassName="text-[hsl(var(--ey-grey-600))]"
+                  iconColorClassName="text-muted-foreground"
                   title="Recommended for You"
                   linkHref="/"
                   linkLabel="Browse catalog"

@@ -17,10 +17,10 @@ export function CourseOutline({ chapters }: CourseOutlineProps) {
         {chapters.map((chapter, i) => (
           <div
             key={chapter.id}
-            className="flex items-center justify-between px-4 py-3 text-sm transition-colors hover:bg-[hsl(var(--ey-grey-50))] group/chapter"
+            className="flex items-center justify-between px-4 py-3 text-sm transition-colors hover:bg-muted/50 group/chapter"
           >
             <div className="flex items-center gap-3">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[hsl(var(--ey-grey-100))] text-xs font-bold text-muted-foreground transition-colors group-hover/chapter:bg-[hsl(var(--ey-grey-200))]">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-muted text-xs font-bold text-muted-foreground transition-colors group-hover/chapter:bg-muted">
                 {i + 1}
               </span>
               <span className="text-foreground font-medium">{chapter.title}</span>

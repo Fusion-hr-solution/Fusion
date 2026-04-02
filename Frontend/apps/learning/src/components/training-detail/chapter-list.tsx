@@ -15,7 +15,7 @@ export function ChapterList({ chapters, chaptersCount }: ChapterListProps) {
         <h2 className="text-base font-bold text-foreground sm:text-lg">
           Course Content
         </h2>
-        <span className="rounded-full bg-[hsl(var(--ey-grey-100))] px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+        <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
           {chaptersCount} chapters
         </span>
       </div>
@@ -25,14 +25,14 @@ export function ChapterList({ chapters, chaptersCount }: ChapterListProps) {
           {chapters.map((chapter, i) => (
             <div
               key={chapter.id}
-              className={`group/ch flex items-center gap-4 px-5 py-4 transition-colors hover:bg-[hsl(var(--ey-grey-50))] ${
+              className={`group/ch flex items-center gap-4 px-5 py-4 transition-colors hover:bg-muted/50 ${
                 i !== chapters.length - 1
                   ? "border-b border-border/30"
                   : ""
               }`}
             >
               {/* Chapter number */}
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[hsl(var(--ey-grey-100))] text-sm font-bold text-muted-foreground transition-all group-hover/ch:bg-[hsl(var(--ey-grey-500))] group-hover/ch:text-white">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-muted text-sm font-bold text-muted-foreground transition-all group-hover/ch:bg-muted-foreground group-hover/ch:text-white">
                 {i + 1}
               </div>
 
@@ -45,7 +45,7 @@ export function ChapterList({ chapters, chaptersCount }: ChapterListProps) {
                   <span className="text-xs tabular-nums text-muted-foreground">
                     {chapter.duration}
                   </span>
-                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[hsl(var(--ey-grey-100))] text-muted-foreground/60 transition-all group-hover/ch:bg-[hsl(var(--ey-yellow))]/20 group-hover/ch:text-[hsl(var(--ey-grey-500))]">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-muted-foreground/60 transition-all group-hover/ch:bg-[hsl(var(--ey-yellow))]/20 group-hover/ch:text-muted-foreground">
                     <Play
                       className="h-3 w-3"
                       aria-hidden="true"

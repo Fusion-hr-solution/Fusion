@@ -1,25 +1,16 @@
 import { BarChart3 } from "lucide-react";
 import { Card, CardContent } from "@repo/ui";
-import type { TrainingCategory } from "@/types";
 import { CATEGORY_CONFIG } from "@/data/categories";
-
-interface CategoryPerformanceProps {
-  items: {
-    category: TrainingCategory;
-    total: number;
-    completed: number;
-    rate: number;
-  }[];
-}
+import type { CategoryPerformanceProps } from "@/types/admin-props";
 
 export function CategoryPerformance({ items }: CategoryPerformanceProps) {
   return (
     <Card className="overflow-hidden border border-border/60 bg-white">
       <CardContent className="p-5">
         <div className="flex items-center gap-2.5 mb-5">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-ey-grey-100">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-muted">
             <BarChart3
-              className="h-3.5 w-3.5 text-ey-grey-400"
+              className="h-3.5 w-3.5 text-muted-foreground"
               aria-hidden="true"
             />
           </div>
@@ -47,7 +38,7 @@ export function CategoryPerformance({ items }: CategoryPerformanceProps) {
                     ({item.completed}/{item.total})
                   </span>
                 </div>
-                <div className="h-2 rounded-full bg-ey-grey-200 overflow-hidden">
+                <div className="h-2 rounded-full bg-muted overflow-hidden">
                   <div
                     className={`h-full rounded-full ${config.stripClass} transition-all duration-700 ease-out`}
                     style={{ width: `${item.rate}%` }}

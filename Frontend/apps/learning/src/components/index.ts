@@ -1,4 +1,5 @@
 export { PageHeader } from "./page-header";
+export { PageBreadcrumb } from "./page-breadcrumb";
 export { KpiCard } from "./kpi-card";
 export { StatCard } from "./stat-card";
 export { EmptyState } from "./empty-state";
@@ -32,6 +33,22 @@ export { EmployeeRow } from "./admin/employee-row";
 export { CompletionFunnel } from "./admin/completion-funnel";
 export { CategoryPerformance } from "./admin/category-performance";
 export { TopTrainings } from "./admin/top-trainings";
+export { TrainingsList } from "./admin/trainings-list";
+export { TrainingRow } from "./admin/training-row";
+export { TrainingForm } from "./admin/training-form";
+export { TrainingFormBasicStep } from "./admin/training-form-basic-step";
+export { TrainingFormDetailsStep } from "./admin/training-form-details-step";
+export { TrainingFormReviewStep } from "./admin/training-form-review-step";
+export { TrainingDetailView } from "./admin/training-detail-view";
+export { MetaCard } from "./admin/meta-card";
+export { ChapterFormDialog } from "./admin/chapter-form-dialog";
+export { ChapterFormInfoStep } from "./admin/chapter-form-info-step";
+export { ChapterFormContentStep } from "./admin/chapter-form-content-step";
+export { StepIndicator } from "./admin/step-indicator";
+export { CategoriesManager } from "./admin/categories-manager";
+export { CategoryForm } from "./admin/category-form";
+export { AssignmentsView } from "./admin/assignments-view";
+export { SummaryCard } from "./admin/summary-card";
 export { TrainingDetailPage } from "./training-detail-page";
 export { ExamCard } from "./exam-card";
 export {

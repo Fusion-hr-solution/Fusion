@@ -12,6 +12,15 @@ export { Input } from "./components/primitives/input";
 export { Label } from "./components/primitives/label";
 export { Badge } from "./components/primitives/badge";
 export {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+  BreadcrumbEllipsis,
+} from "./components/primitives/breadcrumb";
+export {
   Dialog,
   DialogPortal,
   DialogOverlay,

@@ -18,7 +18,7 @@ export function InstructorCard({ name, role }: InstructorCardProps) {
       </div>
 
       <div className="flex items-center gap-4">
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl ey-bg-dark text-base font-semibold text-white ring-2 ring-[hsl(var(--ey-grey-200))]">
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl ey-bg-dark text-base font-semibold text-white ring-2 ring-border">
           {name
             .split(" ")
             .map((n) => n[0])

@@ -2,6 +2,7 @@ using EY.HRPlatform.Training.Features.Admin.Commands;
 using EY.HRPlatform.Training.Features.Admin.Queries;
 using EY.HRPlatform.Training.Models.Requests;
 using EY.HRPlatform.Training.Models.Responses;
+using EY.HRPlatform.SharedKernel.Auth;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -10,7 +11,7 @@ namespace EY.HRPlatform.Training.Controllers;
 
 [ApiController]
 [Route("api/training/admin/trainings")]
-[Authorize(Roles = "Admin,HR")]
+[Authorize(Roles = $"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin}")]
 public class AdminTrainingsController : ControllerBase
 {
     private readonly ISender _sender;

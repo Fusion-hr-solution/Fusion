@@ -16,13 +16,13 @@ export const STATUS_CONFIG: Record<TrainingStatus, StatusConfigEntry> = {
       "bg-[hsl(var(--ey-green-500))]/10 text-[hsl(var(--ey-green-500))]",
     buttonLabel: "Review",
     buttonClass:
-      "border border-border bg-white text-foreground hover:bg-[hsl(var(--ey-grey-100))]",
+      "border border-border bg-white text-foreground hover:bg-muted",
   },
   "not-started": {
     icon: CircleDashed,
     label: "Not Started",
-    className: "bg-[hsl(var(--ey-grey-200))] text-[hsl(var(--ey-grey-400))]",
+    className: "bg-muted text-muted-foreground",
     buttonLabel: "Start",
-    buttonClass: "ey-bg-accent text-[hsl(var(--ey-grey-500))] hover:opacity-90",
+    buttonClass: "ey-bg-accent text-muted-foreground hover:opacity-90",
   },
 };

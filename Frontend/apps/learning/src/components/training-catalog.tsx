@@ -5,32 +5,22 @@ import { BookOpen } from "lucide-react";
 import { PageHeader } from "./page-header";
 import { SearchInput } from "./search-input";
 import { EmptyState } from "./empty-state";
-import type { TrainingCategory, TrainingLevel, SortOption } from "@/types";
+import type { TrainingCategory, TrainingLevel, SortOption, Training } from "@/types";
 import type { TrainingCatalogProps } from "@/types/component-props";
 import { TrainingCard } from "./training-card";
 import { CategoryFilter } from "./category-filter";
 import { LevelFilter } from "./level-filter";
 import { SortSelect } from "./sort-select";
 import { ActiveFilters } from "./active-filters";
-import type { Training } from "@/types";
-
-function parseDuration(d: string): number {
-  return parseInt(d.replace(/\D/g, ""));
-}
 
 function sortTrainings(trainings: Training[], sort: SortOption): Training[] {
+  const parseDuration = (d: string) => parseInt(d.replace(/\D/g, ""));
   return [...trainings].sort((a, b) => {
     switch (sort) {
-      case "rating":
-        return b.rating - a.rating;
-      case "newest":
-        return (
-          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-        );
-      case "enrolled":
-        return b.enrolledCount - a.enrolledCount;
-      case "duration":
-        return parseDuration(a.duration) - parseDuration(b.duration);
+      case "rating": return b.rating - a.rating;
+      case "newest": return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+      case "enrolled": return b.enrolledCount - a.enrolledCount;
+      case "duration": return parseDuration(a.duration) - parseDuration(b.duration);
     }
   });
 }

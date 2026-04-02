@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { BookOpen, GraduationCap, Clock, CheckCircle2 } from "lucide-react";
+import { Card, CardContent } from "@repo/ui";
 import type { TrainingStatus, EnrolledTraining } from "@/types";
 import type { MyTrainingsListProps } from "@/types/component-props";
 import { TrainingStatusTabs } from "./training-status-tabs";
@@ -9,9 +10,11 @@ import { PageHeader } from "./page-header";
 import { StatCard } from "./stat-card";
 import { EmptyState } from "./empty-state";
 import { EnrolledTrainingCard } from "./enrolled-training-card";
+import { SearchInput } from "./search-input";
 
 export function MyTrainingsList({ trainings }: MyTrainingsListProps) {
   const [activeTab, setActiveTab] = useState<TrainingStatus | "all">("all");
+  const [search, setSearch] = useState("");
 
   const counts = useMemo(() => {
     const c: Record<TrainingStatus | "all", number> = {
@@ -27,9 +30,14 @@ export function MyTrainingsList({ trainings }: MyTrainingsListProps) {
   }, [trainings]);
 
   const filtered = useMemo(() => {
-    if (activeTab === "all") return trainings;
-    return trainings.filter((t) => t.status === activeTab);
-  }, [trainings, activeTab]);
+    let result = trainings;
+    if (activeTab !== "all") result = result.filter((t) => t.status === activeTab);
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      result = result.filter((t) => t.title.toLowerCase().includes(q));
+    }
+    return result;
+  }, [trainings, activeTab, search]);
 
   const inProgress = counts["in-progress"];
   const completed = counts["completed"];
@@ -70,11 +78,23 @@ export function MyTrainingsList({ trainings }: MyTrainingsListProps) {
 
       {/* Content */}
       <section className="px-8 py-8">
-        <TrainingStatusTabs
-          activeTab={activeTab}
-          counts={counts}
-          onChange={setActiveTab}
-        />
+        <Card className="border-border/60">
+          <CardContent className="flex flex-wrap items-center gap-3 p-4">
+            <div className="flex-1 min-w-[200px]">
+              <SearchInput
+                value={search}
+                onChange={setSearch}
+                placeholder="Search trainings..."
+                ariaLabel="Search enrolled trainings"
+              />
+            </div>
+            <TrainingStatusTabs
+              activeTab={activeTab}
+              counts={counts}
+              onChange={setActiveTab}
+            />
+          </CardContent>
+        </Card>
 
         <div className="mt-6 ey-stagger-list space-y-4">
           {filtered.length > 0 ? (

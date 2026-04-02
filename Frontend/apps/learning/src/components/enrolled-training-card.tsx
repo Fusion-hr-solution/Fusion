@@ -28,7 +28,7 @@ export function EnrolledTrainingCard({
   const StatusIcon = status.icon;
 
   return (
-    <Card className="group overflow-hidden border border-border/60 bg-card transition-all duration-300 hover:shadow-lg hover:shadow-black/5 hover:border-[hsl(var(--ey-grey-300))]">
+    <Card className="group overflow-hidden border border-border/60 bg-card transition-all duration-300 hover:shadow-lg hover:shadow-black/5 hover:border-border">
       {/* Category strip with animation */}
       <div className={`h-1 w-full ey-animate-stripe ${category.stripClass}`} />
 
@@ -72,16 +72,16 @@ export function EnrolledTrainingCard({
 
             {/* Meta */}
             <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1.5 rounded-md bg-[hsl(var(--ey-grey-100))] px-2 py-1">
+              <span className="flex items-center gap-1.5 rounded-md bg-muted px-2 py-1">
                 <Clock className="h-3.5 w-3.5" aria-hidden="true" />
                 {training.duration}
               </span>
-              <span className="flex items-center gap-1.5 rounded-md bg-[hsl(var(--ey-grey-100))] px-2 py-1">
+              <span className="flex items-center gap-1.5 rounded-md bg-muted px-2 py-1">
                 <Star className="h-3 w-3 ey-star" aria-hidden="true" />
                 {training.rating}
               </span>
               {training.deadline && (
-                <span className="flex items-center gap-1.5 rounded-md bg-[hsl(var(--ey-grey-100))] px-2 py-1">
+                <span className="flex items-center gap-1.5 rounded-md bg-muted px-2 py-1">
                   <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
                   Due{" "}
                   {formatLocalDate(training.deadline, {
@@ -94,7 +94,7 @@ export function EnrolledTrainingCard({
 
             {/* Instructor */}
             <div className="flex items-center gap-2">
-              <div className="flex h-6 w-6 items-center justify-center rounded-full ey-bg-dark text-xs font-semibold text-white ring-1 ring-[hsl(var(--ey-grey-200))]">
+              <div className="flex h-6 w-6 items-center justify-center rounded-full ey-bg-dark text-xs font-semibold text-white ring-1 ring-border">
                 {training.instructor
                   .split(" ")
                   .map((n) => n[0])

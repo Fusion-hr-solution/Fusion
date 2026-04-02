@@ -13,8 +13,8 @@ export default function Error({
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-6">
       <div className="ey-animate-scale-in flex flex-col items-center">
-        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[hsl(var(--ey-red-500))]/10 mb-5">
-          <AlertTriangle className="h-8 w-8 text-[hsl(var(--ey-red-500))]" aria-hidden="true" />
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-destructive/10 mb-5">
+          <AlertTriangle className="h-8 w-8 text-destructive" aria-hidden="true" />
         </div>
         <h2 className="text-2xl font-bold tracking-tight text-foreground mb-2">
           Something went wrong
