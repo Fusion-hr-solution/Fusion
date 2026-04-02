@@ -19,6 +19,7 @@ const INITIAL_CONFIG: WizardFormState["config"] = {
 
 interface WizardStore {
   step: number;
+  testId: string | null;
   basicInfo: WizardFormState["basicInfo"];
   selectedQuestions: Question[];
   config: WizardFormState["config"];
@@ -33,6 +34,7 @@ interface WizardStore {
   removeQuestion: (id: string) => void;
   reorderQuestions: (qs: Question[]) => void;
   isQuestionSelected: (id: string) => boolean;
+  setPersistedTestId: (id: string | null) => void;
   markSaved: () => void;
   reset: () => void;
 }
@@ -41,6 +43,7 @@ export const useWizardStore = create<WizardStore>()(
   persist(
     (set, get) => ({
       step: 1,
+      testId: null,
       basicInfo: INITIAL_BASIC_INFO,
       selectedQuestions: [],
       config: INITIAL_CONFIG,
@@ -55,12 +58,13 @@ export const useWizardStore = create<WizardStore>()(
       removeQuestion: (id) => set((s) => ({ selectedQuestions: s.selectedQuestions.filter((q) => q.id !== id), isDirty: true })),
       reorderQuestions: (qs) => set({ selectedQuestions: qs, isDirty: true }),
       isQuestionSelected: (id) => get().selectedQuestions.some((q) => q.id === id),
+      setPersistedTestId: (id) => set({ testId: id }),
       markSaved: () => set({ isDirty: false, lastSaved: Date.now() }),
-      reset: () => set({ step: 1, basicInfo: INITIAL_BASIC_INFO, selectedQuestions: [], config: INITIAL_CONFIG, isDirty: false, lastSaved: null }),
+      reset: () => set({ step: 1, testId: null, basicInfo: INITIAL_BASIC_INFO, selectedQuestions: [], config: INITIAL_CONFIG, isDirty: false, lastSaved: null }),
     }),
     {
       name: "fusion-wizard-state",
-      partialize: (s) => ({ basicInfo: s.basicInfo, selectedQuestions: s.selectedQuestions, config: s.config, step: s.step }),
+      partialize: (s) => ({ testId: s.testId, basicInfo: s.basicInfo, selectedQuestions: s.selectedQuestions, config: s.config, step: s.step }),
     }
   )
 );
