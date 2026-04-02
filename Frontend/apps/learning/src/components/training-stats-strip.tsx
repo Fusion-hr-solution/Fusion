@@ -15,7 +15,7 @@ export function TrainingStatsStrip({
   ];
 
   return (
-    <div className="mx-6 mt-5 grid grid-cols-4 gap-2 rounded-xl bg-[hsl(var(--ey-grey-50))] border border-border/40 p-4">
+    <div className="mx-6 mt-5 grid grid-cols-4 gap-2 rounded-xl bg-muted/50 border border-border/40 p-4">
       {stats.map((stat) => {
         const Icon = stat.icon;
         return (

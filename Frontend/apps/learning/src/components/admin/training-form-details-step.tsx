@@ -26,9 +26,9 @@ export function TrainingFormDetailsStep({
               max={1000}
               value={credits}
               onChange={(e) => onCreditsChange(Number(e.target.value))}
-              className={fieldErrors.credits ? "border-[hsl(var(--ey-red-500))]" : ""}
+              className={fieldErrors.credits ? "border-destructive" : ""}
             />
-            {fieldErrors.credits && <p className="text-xs text-[hsl(var(--ey-red-500))]">{fieldErrors.credits}</p>}
+            {fieldErrors.credits && <p className="text-xs text-destructive">{fieldErrors.credits}</p>}
           </div>
           <div className="space-y-2">
             <Label htmlFor="duration">Duration</Label>

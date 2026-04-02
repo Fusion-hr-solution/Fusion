@@ -31,7 +31,7 @@ export function TrainingProgressBar({
         <div className="relative flex-1">
           <Progress
             value={clampedProgress}
-            className={`${barHeight} rounded-full bg-[hsl(var(--ey-grey-200))]`}
+            className={`${barHeight} rounded-full bg-muted`}
             indicatorClassName={`${indicatorColor} transition-all duration-500 ease-out`}
           />
 

@@ -30,9 +30,9 @@ export function TrainingFormBasicStep({
             value={title}
             onChange={(e) => onTitleChange(e.target.value)}
             placeholder="e.g. Advanced Leadership Skills"
-            className={fieldErrors.title ? "border-[hsl(var(--ey-red-500))]" : ""}
+            className={fieldErrors.title ? "border-destructive" : ""}
           />
-          {fieldErrors.title && <p className="text-xs text-[hsl(var(--ey-red-500))]">{fieldErrors.title}</p>}
+          {fieldErrors.title && <p className="text-xs text-destructive">{fieldErrors.title}</p>}
         </div>
 
         <div className="space-y-2">
@@ -54,7 +54,7 @@ export function TrainingFormBasicStep({
             <select
               id="category"
               required
-              className={`flex h-9 w-full rounded-md border bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${fieldErrors.categoryId ? "border-[hsl(var(--ey-red-500))]" : "border-input"}`}
+              className={`flex h-9 w-full rounded-md border bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${fieldErrors.categoryId ? "border-destructive" : "border-input"}`}
               value={categoryId}
               onChange={(e) => onCategoryChange(e.target.value)}
             >
@@ -63,7 +63,7 @@ export function TrainingFormBasicStep({
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
             </select>
-            {fieldErrors.categoryId && <p className="text-xs text-[hsl(var(--ey-red-500))]">{fieldErrors.categoryId}</p>}
+            {fieldErrors.categoryId && <p className="text-xs text-destructive">{fieldErrors.categoryId}</p>}
           </div>
           <div className="space-y-2">
             <Label htmlFor="badgeLevel">Badge Level *</Label>

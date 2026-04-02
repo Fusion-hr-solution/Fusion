@@ -20,7 +20,7 @@ export function TrainingFormReviewStep({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="rounded-lg bg-[hsl(var(--ey-grey-50))] p-4 space-y-3 text-sm">
+        <div className="rounded-lg bg-muted/50 p-4 space-y-3 text-sm">
           <Row label="Title" value={title} />
           <Row label="Description" value={description || "—"} />
           <Row label="Category" value={categoryName} />
@@ -31,7 +31,7 @@ export function TrainingFormReviewStep({
             label="Mandatory"
             value={
               isMandatory ? (
-                <Badge variant="outline" className="text-[10px] border-[hsl(var(--ey-red-500))]/30 text-[hsl(var(--ey-red-500))]">
+                <Badge variant="outline" className="text-[10px] border-destructive/30 text-destructive">
                   Yes
                 </Badge>
               ) : (

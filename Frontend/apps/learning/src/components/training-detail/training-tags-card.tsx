@@ -14,7 +14,7 @@ export function TrainingTagsCard({ tags }: { tags: string[] }) {
           <Badge
             key={tag}
             variant="secondary"
-            className="rounded-full text-xs font-normal transition-colors hover:bg-[hsl(var(--ey-grey-200))]"
+            className="rounded-full text-xs font-normal transition-colors hover:bg-muted"
           >
             {tag}
           </Badge>

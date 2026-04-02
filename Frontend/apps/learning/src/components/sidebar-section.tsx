@@ -26,7 +26,7 @@ export function SidebarSection({
                 } ${
                   isActive
                     ? "ey-bg-dark text-white shadow-sm"
-                    : "text-muted-foreground hover:bg-[hsl(var(--ey-grey-100))] hover:text-foreground"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 }`}
                 title={collapsed ? item.label : undefined}
               >
@@ -41,8 +41,8 @@ export function SidebarSection({
                       <span
                         className={`flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-bold transition-colors ${
                           isActive
-                            ? "ey-bg-accent text-[hsl(var(--ey-grey-500))]"
-                            : "bg-[hsl(var(--ey-grey-200))] text-muted-foreground"
+                            ? "ey-bg-accent text-muted-foreground"
+                            : "bg-muted text-muted-foreground"
                         }`}
                       >
                         {item.badge}

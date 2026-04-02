@@ -33,8 +33,8 @@ export function CompletionFunnel({
       label: "Not Started",
       value: notStarted,
       pct: total > 0 ? Math.round((notStarted / total) * 100) : 0,
-      color: "bg-[hsl(var(--ey-grey-300))]",
-      dotColor: "bg-[hsl(var(--ey-grey-300))]",
+      color: "bg-muted",
+      dotColor: "bg-muted",
     },
   ];
 
@@ -45,7 +45,7 @@ export function CompletionFunnel({
         <div className="flex items-center gap-2.5 mb-5">
           <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[hsl(var(--ey-black))]/8">
             <Shield
-              className="h-3.5 w-3.5 text-[hsl(var(--ey-grey-500))]"
+              className="h-3.5 w-3.5 text-muted-foreground"
               aria-hidden="true"
             />
           </div>
@@ -55,7 +55,7 @@ export function CompletionFunnel({
         </div>
 
         {/* Stacked bar */}
-        <div className="h-4 flex rounded-full overflow-hidden bg-[hsl(var(--ey-grey-200))] mb-5">
+        <div className="h-4 flex rounded-full overflow-hidden bg-muted mb-5">
           {segments.map(
             (seg) =>
               seg.pct > 0 && (

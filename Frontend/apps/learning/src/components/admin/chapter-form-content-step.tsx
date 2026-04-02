@@ -23,9 +23,9 @@ export function ChapterFormContentStep({
           value={contentUri}
           onChange={(e) => onContentUriChange(e.target.value)}
           placeholder="https://..."
-          className={fieldErrors.contentUri ? "border-[hsl(var(--ey-red-500))]" : ""}
+          className={fieldErrors.contentUri ? "border-destructive" : ""}
         />
-        {fieldErrors.contentUri && <p className="text-xs text-[hsl(var(--ey-red-500))]">{fieldErrors.contentUri}</p>}
+        {fieldErrors.contentUri && <p className="text-xs text-destructive">{fieldErrors.contentUri}</p>}
       </div>
 
       {contentType === "Video" && (
@@ -37,9 +37,9 @@ export function ChapterFormContentStep({
             value={videoUrl}
             onChange={(e) => onVideoUrlChange(e.target.value)}
             placeholder="https://youtube.com/..."
-            className={fieldErrors.videoUrl ? "border-[hsl(var(--ey-red-500))]" : ""}
+            className={fieldErrors.videoUrl ? "border-destructive" : ""}
           />
-          {fieldErrors.videoUrl && <p className="text-xs text-[hsl(var(--ey-red-500))]">{fieldErrors.videoUrl}</p>}
+          {fieldErrors.videoUrl && <p className="text-xs text-destructive">{fieldErrors.videoUrl}</p>}
         </div>
       )}
 
@@ -68,9 +68,9 @@ export function ChapterFormContentStep({
           onChange={(e) =>
             onEstimatedDurationChange(e.target.value ? Number(e.target.value) : "")
           }
-          className={fieldErrors.estimatedDuration ? "border-[hsl(var(--ey-red-500))]" : ""}
+          className={fieldErrors.estimatedDuration ? "border-destructive" : ""}
         />
-        {fieldErrors.estimatedDuration && <p className="text-xs text-[hsl(var(--ey-red-500))]">{fieldErrors.estimatedDuration}</p>}
+        {fieldErrors.estimatedDuration && <p className="text-xs text-destructive">{fieldErrors.estimatedDuration}</p>}
       </div>
     </div>
   );

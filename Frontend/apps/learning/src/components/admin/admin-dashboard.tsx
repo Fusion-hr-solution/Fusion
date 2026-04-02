@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
   Users,
   CheckCircle2,
@@ -9,8 +9,9 @@ import {
   BookOpen,
 } from "lucide-react";
 import { TooltipProvider, Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@repo/ui";
-import type { TrainingCategory, TrainingStatus } from "@/types";
+import type { TrainingStatus } from "@/types";
 import type { AdminDashboardProps } from "@/types/admin-props";
+import { useAdminDashboardData } from "@/hooks/use-admin-dashboard-data";
 import { PageHeader } from "../page-header";
 import { KpiCard } from "../kpi-card";
 import { SearchInput } from "../search-input";
@@ -26,96 +27,8 @@ export function AdminDashboard({ employees, trainings: _trainings }: AdminDashbo
   const [statusFilter, setStatusFilter] = useState<TrainingStatus | "all">("all");
   const [deptFilter, setDeptFilter] = useState<string>("all");
 
-  /* Aggregate stats */
-  const stats = useMemo(() => {
-    const allRecords = employees.flatMap((e) => e.trainings);
-    const completed = allRecords.filter((r) => r.status === "completed").length;
-    const inProgress = allRecords.filter((r) => r.status === "in-progress").length;
-    const notStarted = allRecords.filter((r) => r.status === "not-started").length;
-    const overdue = allRecords.filter((r) => {
-      if (!r.deadline || r.status === "completed") return false;
-      return new Date(r.deadline) < new Date();
-    }).length;
-    const avgCompletion =
-      allRecords.length > 0
-        ? Math.round(allRecords.reduce((sum, r) => sum + r.progress, 0) / allRecords.length)
-        : 0;
-
-    return { totalEmployees: employees.length, totalEnrollments: allRecords.length, completed, inProgress, notStarted, overdue, avgCompletion };
-  }, [employees]);
-
-  /* Departments */
-  const departments = useMemo(() => {
-    const depts = new Set(employees.map((e) => e.department));
-    return ["all", ...Array.from(depts).sort()];
-  }, [employees]);
-
-  /* Category popularity */
-  const categoryStats = useMemo(() => {
-    const map = new Map<TrainingCategory, { total: number; completed: number }>();
-    for (const emp of employees) {
-      for (const t of emp.trainings) {
-        const existing = map.get(t.category) ?? { total: 0, completed: 0 };
-        existing.total++;
-        if (t.status === "completed") existing.completed++;
-        map.set(t.category, existing);
-      }
-    }
-    return Array.from(map.entries())
-      .sort((a, b) => b[1].total - a[1].total)
-      .map(([category, data]) => ({
-        category,
-        ...data,
-        rate: data.total > 0 ? Math.round((data.completed / data.total) * 100) : 0,
-      }));
-  }, [employees]);
-
-  /* Training performance */
-  const trainingPerformance = useMemo(() => {
-    const map = new Map<
-      string,
-      { title: string; enrolled: number; completed: number; avgProgress: number; totalProgress: number }
-    >();
-    for (const emp of employees) {
-      for (const t of emp.trainings) {
-        const existing = map.get(t.trainingId) ?? {
-          title: t.trainingTitle, enrolled: 0, completed: 0, avgProgress: 0, totalProgress: 0,
-        };
-        existing.enrolled++;
-        existing.totalProgress += t.progress;
-        if (t.status === "completed") existing.completed++;
-        map.set(t.trainingId, existing);
-      }
-    }
-    return Array.from(map.values())
-      .map((t) => ({
-        ...t,
-        avgProgress: Math.round(t.totalProgress / t.enrolled),
-        completionRate: Math.round((t.completed / t.enrolled) * 100),
-      }))
-      .sort((a, b) => b.enrolled - a.enrolled);
-  }, [employees]);
-
-  /* Filtered employees */
-  const filteredEmployees = useMemo(() => {
-    let result = employees;
-    if (deptFilter !== "all") {
-      result = result.filter((e) => e.department === deptFilter);
-    }
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      result = result.filter(
-        (e) =>
-          e.name.toLowerCase().includes(q) ||
-          e.email.toLowerCase().includes(q) ||
-          e.department.toLowerCase().includes(q)
-      );
-    }
-    if (statusFilter !== "all") {
-      result = result.filter((e) => e.trainings.some((t) => t.status === statusFilter));
-    }
-    return result;
-  }, [employees, search, deptFilter, statusFilter]);
+  const { stats, departments, categoryStats, trainingPerformance, filteredEmployees } =
+    useAdminDashboardData(employees, search, deptFilter, statusFilter);
 
   return (
     <TooltipProvider delayDuration={200}>

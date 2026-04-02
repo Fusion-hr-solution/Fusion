@@ -18,7 +18,7 @@ export function StepIndicator({ steps, currentStep }: StepIndicatorProps) {
                     ? "border-[hsl(var(--ey-green-500))] bg-[hsl(var(--ey-green-500))] text-white"
                     : isCurrent
                       ? "border-[hsl(var(--ey-black))] bg-[hsl(var(--ey-black))] text-white shadow-md"
-                      : "border-[hsl(var(--ey-grey-200))] bg-white text-[hsl(var(--ey-grey-400))]"
+                      : "border-border bg-white text-muted-foreground"
                 }`}
               >
                 {isCompleted ? (
@@ -44,7 +44,7 @@ export function StepIndicator({ steps, currentStep }: StepIndicatorProps) {
                 className={`mx-3 mb-5 h-0.5 w-12 rounded-full transition-colors duration-300 sm:w-20 ${
                   index < currentStep
                     ? "bg-[hsl(var(--ey-green-500))]"
-                    : "bg-[hsl(var(--ey-grey-200))]"
+                    : "bg-muted"
                 }`}
               />
             )}

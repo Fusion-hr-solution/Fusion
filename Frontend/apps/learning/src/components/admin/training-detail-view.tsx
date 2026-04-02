@@ -2,25 +2,8 @@
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Pencil,
-  Trash2,
-  Plus,
-  BookOpen,
-  Users,
-  GripVertical,
-  Clock,
-  FileText,
-  Video,
-} from "lucide-react";
-import {
-  Button,
-  Badge,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@repo/ui";
+import { Pencil, Trash2, BookOpen, Users, FileText } from "lucide-react";
+import { Button, Badge } from "@repo/ui";
 import { useApiQuery, useApiMutation } from "@repo/api/react";
 import {
   getAdminTrainingDetail,
@@ -32,6 +15,9 @@ import type { TrainingDetailViewProps } from "@/types/admin-props";
 import { ChapterFormDialog } from "./chapter-form-dialog";
 import { TrainingFormDialog } from "./training-form-dialog";
 import { MetaCard } from "./meta-card";
+import { AdminChapterList } from "./admin-chapter-list";
+import { AdminExamList } from "./admin-exam-list";
+import { TrainingStatCard } from "./training-stat-card";
 import { PageBreadcrumb } from "../page-breadcrumb";
 
 export function TrainingDetailView({ trainingId }: TrainingDetailViewProps) {
@@ -76,12 +62,8 @@ export function TrainingDetailView({ trainingId }: TrainingDetailViewProps) {
     );
   }
 
-  const contentTypeIcon = (type: string) =>
-    type === "Video" ? <Video className="h-4 w-4" /> : <FileText className="h-4 w-4" />;
-
   return (
     <div className="space-y-6">
-      {/* Breadcrumb */}
       <PageBreadcrumb
         backHref="/admin/trainings"
         backLabel="Back"
@@ -99,12 +81,10 @@ export function TrainingDetailView({ trainingId }: TrainingDetailViewProps) {
               {training.title}
             </h1>
             {training.isDeleted && (
-              <Badge variant="outline" className="border-[hsl(var(--ey-red-500))]/30 text-[hsl(var(--ey-red-500))]">
-                Deleted
-              </Badge>
+              <Badge variant="destructive">Deleted</Badge>
             )}
             {training.isMandatory && (
-              <Badge variant="outline" className="border-[hsl(var(--ey-red-500))]/30 text-[hsl(var(--ey-red-500))]">
+              <Badge variant="outline" className="border-destructive/30 text-destructive">
                 Mandatory
               </Badge>
             )}
@@ -112,12 +92,7 @@ export function TrainingDetailView({ trainingId }: TrainingDetailViewProps) {
           <p className="text-sm text-muted-foreground">{training.description}</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setTrainingDialogOpen(true)}
-            disabled={training.isDeleted}
-          >
+          <Button variant="outline" size="sm" onClick={() => setTrainingDialogOpen(true)} disabled={training.isDeleted}>
             <Pencil className="mr-1 h-4 w-4" />
             Edit
           </Button>
@@ -126,7 +101,7 @@ export function TrainingDetailView({ trainingId }: TrainingDetailViewProps) {
             size="sm"
             onClick={handleDeleteTraining}
             disabled={training.isDeleted}
-            className="text-[hsl(var(--ey-red-500))] border-[hsl(var(--ey-red-500))]/30 hover:bg-[hsl(var(--ey-red-500))]/10"
+            className="text-destructive border-destructive/30 hover:bg-destructive/10"
           >
             <Trash2 className="mr-1 h-4 w-4" />
             Delete
@@ -134,7 +109,7 @@ export function TrainingDetailView({ trainingId }: TrainingDetailViewProps) {
         </div>
       </div>
 
-      {/* Metadata cards */}
+      {/* Metadata */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <MetaCard label="Category" value={training.categoryName} />
         <MetaCard label="Badge Level" value={training.badgeLevel} />
@@ -144,163 +119,25 @@ export function TrainingDetailView({ trainingId }: TrainingDetailViewProps) {
 
       {/* Stats */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-        <Card className="border-border/60">
-          <CardContent className="flex items-center gap-3 p-4">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[hsl(var(--ey-blue-400))]/10">
-              <BookOpen className="h-4 w-4 text-[hsl(var(--ey-blue-600))]" />
-            </div>
-            <div>
-              <p className="text-lg font-bold text-foreground">{training.chapters.length}</p>
-              <p className="text-xs text-muted-foreground">Chapters</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-border/60">
-          <CardContent className="flex items-center gap-3 p-4">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[hsl(var(--ey-green-500))]/10">
-              <Users className="h-4 w-4 text-[hsl(var(--ey-green-500))]" />
-            </div>
-            <div>
-              <p className="text-lg font-bold text-foreground">{training.enrollmentCount}</p>
-              <p className="text-xs text-muted-foreground">Enrolled</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-border/60">
-          <CardContent className="flex items-center gap-3 p-4">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[hsl(var(--ey-yellow))]/10">
-              <FileText className="h-4 w-4 text-[hsl(var(--ey-orange-500))]" />
-            </div>
-            <div>
-              <p className="text-lg font-bold text-foreground">{training.exams.length}</p>
-              <p className="text-xs text-muted-foreground">Exams</p>
-            </div>
-          </CardContent>
-        </Card>
+        <TrainingStatCard icon={BookOpen} iconBgClass="bg-[hsl(var(--ey-blue-400))]/10" iconColorClass="text-[hsl(var(--ey-blue-600))]" value={training.chapters.length} label="Chapters" />
+        <TrainingStatCard icon={Users} iconBgClass="bg-[hsl(var(--ey-green-500))]/10" iconColorClass="text-[hsl(var(--ey-green-500))]" value={training.enrollmentCount} label="Enrolled" />
+        <TrainingStatCard icon={FileText} iconBgClass="bg-[hsl(var(--ey-yellow))]/10" iconColorClass="text-[hsl(var(--ey-orange-500))]" value={training.exams.length} label="Exams" />
       </div>
 
       {/* Chapters */}
-      <Card className="border-border/60">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-base">Chapters</CardTitle>
-          <Button
-            size="sm"
-            onClick={() => {
-              setEditingChapter(null);
-              setChapterDialogOpen(true);
-            }}
-            disabled={training.isDeleted}
-            className="ey-bg-dark hover:opacity-90"
-          >
-            <Plus className="mr-1 h-4 w-4" />
-            Add Chapter
-          </Button>
-        </CardHeader>
-        <CardContent>
-          {training.chapters.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">
-              No chapters yet. Add one to get started.
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {[...training.chapters]
-                .sort((a, b) => a.orderIndex - b.orderIndex)
-                .map((ch) => (
-                  <div
-                    key={ch.id}
-                    className="flex items-center gap-3 rounded-lg border border-border/40 p-3 transition-colors hover:bg-[hsl(var(--ey-grey-100))]/30"
-                  >
-                    <GripVertical className="h-4 w-4 text-muted-foreground/40 shrink-0" />
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[hsl(var(--ey-grey-200))] text-xs font-semibold text-muted-foreground">
-                      {ch.orderIndex + 1}
-                    </span>
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      {contentTypeIcon(ch.contentType)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">{ch.title}</p>
-                      <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground">
-                        <span className="capitalize">{ch.contentType}</span>
-                        {ch.estimatedDurationMinutes && (
-                          <span className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            {ch.estimatedDurationMinutes} min
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setEditingChapter(ch);
-                          setChapterDialogOpen(true);
-                        }}
-                        disabled={training.isDeleted}
-                        aria-label={`Edit ${ch.title}`}
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteChapter(ch)}
-                        disabled={training.isDeleted}
-                        aria-label={`Delete ${ch.title}`}
-                        className="text-[hsl(var(--ey-red-500))] hover:text-[hsl(var(--ey-red-500))] hover:bg-[hsl(var(--ey-red-500))]/10"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Exams (read-only) */}
-      {training.exams.length > 0 && (
-        <Card className="border-border/60">
-          <CardHeader>
-            <CardTitle className="text-base">Exams</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {training.exams.map((exam) => (
-                <div
-                  key={exam.id}
-                  className="flex items-center justify-between rounded-lg border border-border/40 p-3"
-                >
-                  <span className="text-sm font-medium text-foreground">{exam.title}</span>
-                  <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                    <span>{exam.questionCount} questions</span>
-                    <span>Pass: {exam.passingScore}%</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Chapter form dialog */}
-      <ChapterFormDialog
-        trainingId={trainingId}
-        chapter={editingChapter}
-        open={chapterDialogOpen}
-        onOpenChange={setChapterDialogOpen}
-        onSaved={refetch}
+      <AdminChapterList
+        chapters={training.chapters}
+        isDeleted={training.isDeleted}
+        onAddChapter={() => { setEditingChapter(null); setChapterDialogOpen(true); }}
+        onEditChapter={(ch) => { setEditingChapter(ch); setChapterDialogOpen(true); }}
+        onDeleteChapter={handleDeleteChapter}
       />
 
-      {/* Training edit dialog */}
-      <TrainingFormDialog
-        trainingId={trainingId}
-        open={trainingDialogOpen}
-        onOpenChange={setTrainingDialogOpen}
-        onSaved={refetch}
-      />
+      {/* Exams */}
+      <AdminExamList exams={training.exams} />
+
+      <ChapterFormDialog trainingId={trainingId} chapter={editingChapter} open={chapterDialogOpen} onOpenChange={setChapterDialogOpen} onSaved={refetch} />
+      <TrainingFormDialog trainingId={trainingId} open={trainingDialogOpen} onOpenChange={setTrainingDialogOpen} onSaved={refetch} />
     </div>
   );
 }

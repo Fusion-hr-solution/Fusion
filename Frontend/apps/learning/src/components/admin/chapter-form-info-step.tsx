@@ -23,9 +23,9 @@ export function ChapterFormInfoStep({
           value={title}
           onChange={(e) => onTitleChange(e.target.value)}
           placeholder="Chapter title"
-          className={fieldErrors.title ? "border-[hsl(var(--ey-red-500))]" : ""}
+          className={fieldErrors.title ? "border-destructive" : ""}
         />
-        {fieldErrors.title && <p className="text-xs text-[hsl(var(--ey-red-500))]">{fieldErrors.title}</p>}
+        {fieldErrors.title && <p className="text-xs text-destructive">{fieldErrors.title}</p>}
       </div>
 
       <div className="grid grid-cols-2 gap-4">
@@ -51,9 +51,9 @@ export function ChapterFormInfoStep({
             min={0}
             value={orderIndex}
             onChange={(e) => onOrderIndexChange(Number(e.target.value))}
-            className={fieldErrors.orderIndex ? "border-[hsl(var(--ey-red-500))]" : ""}
+            className={fieldErrors.orderIndex ? "border-destructive" : ""}
           />
-          {fieldErrors.orderIndex && <p className="text-xs text-[hsl(var(--ey-red-500))]">{fieldErrors.orderIndex}</p>}
+          {fieldErrors.orderIndex && <p className="text-xs text-destructive">{fieldErrors.orderIndex}</p>}
         </div>
       </div>
     </div>

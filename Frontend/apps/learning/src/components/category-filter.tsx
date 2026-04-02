@@ -13,8 +13,8 @@ export function CategoryFilter({ selected, onChange }: CategoryFilterProps) {
         onClick={() => onChange(null)}
         className={`rounded-full border px-4 py-1.5 text-sm font-medium transition-all duration-200 ${
           selected === null
-            ? "ey-bg-dark border-transparent text-white shadow-md shadow-[hsl(var(--ey-grey-500))]/20"
-            : "border-border bg-white text-muted-foreground hover:border-[hsl(var(--ey-grey-300))] hover:text-foreground hover:shadow-sm"
+            ? "ey-bg-dark border-transparent text-white shadow-md shadow-border/20"
+            : "border-border bg-white text-muted-foreground hover:border-border hover:text-foreground hover:shadow-sm"
         }`}
       >
         All
@@ -29,7 +29,7 @@ export function CategoryFilter({ selected, onChange }: CategoryFilterProps) {
             className={`rounded-full border px-4 py-1.5 text-sm font-medium transition-all duration-200 ${
               isActive
                 ? `border-transparent ${config.chipClass} shadow-md`
-                : "border-border bg-white text-muted-foreground hover:border-[hsl(var(--ey-grey-300))] hover:text-foreground hover:shadow-sm"
+                : "border-border bg-white text-muted-foreground hover:border-border hover:text-foreground hover:shadow-sm"
             }`}
           >
             {config.label}

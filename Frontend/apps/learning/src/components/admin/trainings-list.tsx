@@ -2,28 +2,15 @@
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Plus,
-  BookOpen,
-  RotateCcw,
-} from "lucide-react";
-import {
-  Button,
-  Card,
-  CardContent,
-  Select,
-  SelectTrigger,
-  SelectContent,
-  SelectItem,
-  SelectValue,
-  Checkbox,
-} from "@repo/ui";
+import { Plus, BookOpen } from "lucide-react";
+import { Button, Card, Table, TableHeader, TableBody, TableRow, TableHead } from "@repo/ui";
 import { useApiQuery, useApiMutation } from "@repo/api/react";
 import { getAdminTrainings, deleteTraining, getAdminCategories } from "@/services/admin-service";
 import type { AdminCategory } from "@/types/admin";
-import { SearchInput } from "../search-input";
 import { TrainingRow } from "./training-row";
 import { TrainingFormDialog } from "./training-form-dialog";
+import { PaginationBar } from "./pagination-bar";
+import { TrainingsFilterBar } from "./trainings-filter-bar";
 
 export function TrainingsList() {
   const router = useRouter();
@@ -85,40 +72,16 @@ export function TrainingsList() {
       </div>
 
       {/* Filters */}
-      <Card className="border-border/60">
-        <CardContent className="flex flex-wrap items-center gap-3 p-4">
-          <div className="flex-1 min-w-[200px]">
-            <SearchInput
-              value={search}
-              onChange={(v) => { setSearch(v); setPage(1); }}
-              placeholder="Search trainings..."
-              ariaLabel="Search trainings"
-            />
-          </div>
-          <Select value={categoryId || "all"} onValueChange={(v) => { setCategoryId(v === "all" ? "" : v); setPage(1); }}>
-            <SelectTrigger className="h-9 w-[180px] text-sm">
-              <SelectValue placeholder="All Categories" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Categories</SelectItem>
-              {categories?.map((c) => (
-                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <label className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Checkbox
-              checked={includeDeleted}
-              onCheckedChange={(checked) => { setIncludeDeleted(checked === true); setPage(1); }}
-            />
-            Show deleted
-          </label>
-          <Button variant="outline" size="sm" onClick={() => refetch()}>
-            <RotateCcw className="mr-1 h-3.5 w-3.5" />
-            Refresh
-          </Button>
-        </CardContent>
-      </Card>
+      <TrainingsFilterBar
+        search={search}
+        onSearchChange={(v) => { setSearch(v); setPage(1); }}
+        categoryId={categoryId}
+        onCategoryChange={(v) => { setCategoryId(v); setPage(1); }}
+        includeDeleted={includeDeleted}
+        onIncludeDeletedChange={(v) => { setIncludeDeleted(v); setPage(1); }}
+        categories={categories ?? []}
+        onRefresh={refetch}
+      />
 
       {/* Table */}
       {isLoading ? (
@@ -132,65 +95,42 @@ export function TrainingsList() {
         </div>
       ) : (
         <Card className="border-border/60 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border/60 bg-[hsl(var(--ey-grey-100))]/50">
-                  <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Title</th>
-                  <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Category</th>
-                  <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Chapters</th>
-                  <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Enrolled</th>
-                  <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Level</th>
-                  <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Status</th>
-                  <th className="px-4 py-3 text-right font-semibold text-muted-foreground">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {trainings.map((t) => (
-                  <TrainingRow
-                    key={t.id}
-                    training={t}
-                    isDeleting={isDeleting}
-                    onView={() => router.push(`/admin/trainings/${t.id}`)}
-                    onEdit={() => { setEditingTrainingId(t.id); setFormDialogOpen(true); }}
-                    onDelete={() => handleDelete(t.id, t.title)}
-                  />
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/50">
+                <TableHead>Title</TableHead>
+                <TableHead>Category</TableHead>
+                <TableHead className="text-center">Chapters</TableHead>
+                <TableHead className="text-center">Enrolled</TableHead>
+                <TableHead className="text-center">Level</TableHead>
+                <TableHead className="text-center">Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {trainings.map((t) => (
+                <TrainingRow
+                  key={t.id}
+                  training={t}
+                  isDeleting={isDeleting}
+                  onView={() => router.push(`/admin/trainings/${t.id}`)}
+                  onEdit={() => { setEditingTrainingId(t.id); setFormDialogOpen(true); }}
+                  onDelete={() => handleDelete(t.id, t.title)}
+                />
+              ))}
+            </TableBody>
+          </Table>
         </Card>
       )}
 
       {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
-            Showing {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, totalCount)} of {totalCount}
-          </p>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page <= 1}
-              onClick={() => setPage((p) => p - 1)}
-            >
-              Previous
-            </Button>
-            <span className="text-sm text-muted-foreground">
-              Page {page} of {totalPages}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page >= totalPages}
-              onClick={() => setPage((p) => p + 1)}
-            >
-              Next
-            </Button>
-          </div>
-        </div>
-      )}
+      <PaginationBar
+        page={page}
+        totalPages={totalPages}
+        pageSize={pageSize}
+        totalCount={totalCount}
+        onPageChange={setPage}
+      />
 
       <TrainingFormDialog
         trainingId={editingTrainingId}

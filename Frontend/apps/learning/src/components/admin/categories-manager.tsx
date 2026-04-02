@@ -121,7 +121,7 @@ export function CategoriesManager() {
                       size="sm"
                       onClick={() => handleDelete(cat)}
                       aria-label={`Delete ${cat.name}`}
-                      className="text-[hsl(var(--ey-red-500))] hover:text-[hsl(var(--ey-red-500))] hover:bg-[hsl(var(--ey-red-500))]/10"
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>

@@ -73,8 +73,8 @@ export function TrainingDetailDialog({
         />
 
         {/* Instructor */}
-        <div className="mx-6 mt-5 flex items-center gap-3.5 rounded-xl border border-border/60 bg-[hsl(var(--ey-grey-50))] p-4 transition-colors hover:border-[hsl(var(--ey-yellow))]/30">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full ey-bg-dark text-sm font-semibold text-white ring-2 ring-[hsl(var(--ey-grey-200))]">
+        <div className="mx-6 mt-5 flex items-center gap-3.5 rounded-xl border border-border/60 bg-muted/50 p-4 transition-colors hover:border-[hsl(var(--ey-yellow))]/30">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full ey-bg-dark text-sm font-semibold text-white ring-2 ring-border">
             {training.instructor
               .split(" ")
               .map((n) => n[0])
@@ -100,7 +100,7 @@ export function TrainingDetailDialog({
             <Badge
               key={tag}
               variant="secondary"
-              className="rounded-full text-xs font-normal transition-colors hover:bg-[hsl(var(--ey-grey-200))]"
+              className="rounded-full text-xs font-normal transition-colors hover:bg-muted"
             >
               {tag}
             </Badge>

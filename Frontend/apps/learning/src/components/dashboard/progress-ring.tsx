@@ -15,12 +15,12 @@ export function ProgressRing({
 
   return (
     <Card className="overflow-hidden border border-border/60 bg-white">
-      <div className="h-1 w-full bg-[hsl(var(--ey-grey-200))] ey-animate-stripe" />
+      <div className="h-1 w-full bg-muted ey-animate-stripe" />
       <CardContent className="p-5">
         <div className="flex items-center gap-2.5 mb-5">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[hsl(var(--ey-grey-100))]">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-muted">
             <BarChart3
-              className="h-3.5 w-3.5 text-[hsl(var(--ey-grey-400))]"
+              className="h-3.5 w-3.5 text-muted-foreground"
               aria-hidden="true"
             />
           </div>
@@ -98,7 +98,7 @@ export function ProgressRing({
           </div>
           <div className="flex items-center justify-between text-xs">
             <div className="flex items-center gap-2">
-              <span className="h-2.5 w-2.5 rounded-full bg-[hsl(var(--ey-grey-300))]" />
+              <span className="h-2.5 w-2.5 rounded-full bg-muted" />
               <span className="text-muted-foreground">Not Started</span>
             </div>
             <span className="font-bold text-foreground tabular-nums">
@@ -118,7 +118,7 @@ export function ProgressRing({
                 {avgProgress}%
               </span>
             </div>
-            <div className="h-2 rounded-full bg-[hsl(var(--ey-grey-200))] overflow-hidden">
+            <div className="h-2 rounded-full bg-muted overflow-hidden">
               <div
                 className="h-full rounded-full bg-[hsl(var(--ey-blue-400))] transition-all duration-700 ease-out"
                 style={{ width: `${avgProgress}%` }}
