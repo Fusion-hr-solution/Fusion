@@ -362,6 +362,61 @@ public class InvitesController : ControllerBase
         return Ok(ApiResponse.Success());
     }
 
+    /// <summary>
+    /// Resend an invitation by extending its expiry.
+    /// </summary>
+    [HttpPost("invites/{inviteId:guid}/resend")]
+    [Authorize(Roles = $"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin}")]
+    [ProducesResponseType(typeof(ApiResponse<InviteDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<InviteDto>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<InviteDto>), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiResponse<InviteDto>), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ApiResponse<InviteDto>>> ResendInvite(Guid inviteId)
+    {
+        var invite = await _dbContext.InviteTokens
+            .Include(i => i.Tenant)
+            .FirstOrDefaultAsync(i => i.Id == inviteId);
+
+        if (invite is null)
+            return NotFound(ApiResponse<InviteDto>.Failure("Invitation not found."));
+
+        // Check tenant access
+        if (!CanAccessTenant(invite.TenantId))
+            return StatusCode(StatusCodes.Status403Forbidden,
+                ApiResponse<InviteDto>.Failure("You do not have permission to resend this invitation."));
+
+        if (invite.IsUsed)
+            return BadRequest(ApiResponse<InviteDto>.Failure("Cannot resend an already accepted invitation."));
+
+        // Extend expiry (default 7 days from now)
+        invite.ExtendExpiry();
+        await _dbContext.SaveChangesAsync();
+
+        // Build invite link
+        var baseUrl = _configuration["Application:BaseUrl"] ?? "http://localhost:3000";
+        baseUrl = baseUrl.TrimEnd('/');
+        var inviteLink = $"{baseUrl}/invite/{invite.Token}";
+
+        var dto = new InviteDto
+        {
+            Id = invite.Id,
+            Token = invite.Token,
+            InviteLink = inviteLink,
+            Email = invite.Email,
+            TenantId = invite.TenantId,
+            TenantName = invite.Tenant?.Name ?? string.Empty,
+            Role = invite.Role,
+            FirstName = invite.FirstName,
+            LastName = invite.LastName,
+            ExpiresAt = invite.ExpiresAt,
+            IsExpired = invite.IsExpired,
+            IsUsed = invite.IsUsed,
+            CreatedAt = invite.CreatedAt
+        };
+
+        return Ok(ApiResponse<InviteDto>.Success(dto));
+    }
+
     private bool CanAccessTenant(Guid tenantId)
     {
         if (User.IsInRole(PlatformRole.PlatformAdmin))

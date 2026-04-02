@@ -159,6 +159,20 @@ public class InviteToken
     }
 
     /// <summary>
+    /// Extends the invitation expiry to a new date (default 7 days from now).
+    /// Used when resending an invitation.
+    /// </summary>
+    /// <param name="days">Days from now to set expiry (default 7, max 90).</param>
+    public void ExtendExpiry(int days = 7)
+    {
+        if (IsUsed)
+            throw new InvalidOperationException("Cannot extend an accepted invitation.");
+
+        ValidateExpiryDays(days);
+        ExpiresAt = DateTime.UtcNow.AddDays(days);
+    }
+
+    /// <summary>
     /// Generates a cryptographically secure 32-byte token, base64url encoded.
     /// </summary>
     private static string GenerateSecureToken()

@@ -307,4 +307,70 @@ public class InviteTokenTests
         Assert.Equal("John", invite.FirstName);
         Assert.Equal("Doe", invite.LastName);
     }
+
+    [Fact]
+    public void ExtendExpiry_WithDefaultDays_ExtendsBy7Days()
+    {
+        // Arrange
+        var invite = InviteToken.Create(ValidEmail, _validTenantId, ValidRole, _validUserId, expiryDays: 1);
+        var originalExpiry = invite.ExpiresAt;
+
+        // Act
+        invite.ExtendExpiry();
+
+        // Assert
+        var expectedExpiry = DateTime.UtcNow.AddDays(7);
+        Assert.InRange(invite.ExpiresAt, expectedExpiry.AddMinutes(-1), expectedExpiry.AddMinutes(1));
+        Assert.True(invite.ExpiresAt > originalExpiry);
+    }
+
+    [Fact]
+    public void ExtendExpiry_WithCustomDays_ExtendsCorrectly()
+    {
+        // Arrange
+        var invite = InviteToken.Create(ValidEmail, _validTenantId, ValidRole, _validUserId);
+
+        // Act
+        invite.ExtendExpiry(days: 14);
+
+        // Assert
+        var expectedExpiry = DateTime.UtcNow.AddDays(14);
+        Assert.InRange(invite.ExpiresAt, expectedExpiry.AddMinutes(-1), expectedExpiry.AddMinutes(1));
+    }
+
+    [Fact]
+    public void ExtendExpiry_WhenAlreadyAccepted_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        var invite = InviteToken.Create(ValidEmail, _validTenantId, ValidRole, _validUserId);
+        invite.MarkAccepted(Guid.NewGuid());
+
+        // Act & Assert
+        var ex = Assert.Throws<InvalidOperationException>(() => invite.ExtendExpiry());
+        Assert.Contains("accepted", ex.Message.ToLower());
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void ExtendExpiry_WithInvalidDays_ThrowsArgumentException(int days)
+    {
+        // Arrange
+        var invite = InviteToken.Create(ValidEmail, _validTenantId, ValidRole, _validUserId);
+
+        // Act & Assert
+        var ex = Assert.Throws<ArgumentException>(() => invite.ExtendExpiry(days));
+        Assert.Contains("Expiry days", ex.Message);
+    }
+
+    [Fact]
+    public void ExtendExpiry_WithDaysExceeding90_ThrowsArgumentException()
+    {
+        // Arrange
+        var invite = InviteToken.Create(ValidEmail, _validTenantId, ValidRole, _validUserId);
+
+        // Act & Assert
+        var ex = Assert.Throws<ArgumentException>(() => invite.ExtendExpiry(91));
+        Assert.Contains("Expiry days", ex.Message);
+    }
 }
