@@ -1,9 +1,8 @@
 "use client";
 
-import { use } from "react";
+import { use, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useApiQuery } from "@repo/api/react";
-import { ApiError } from "@repo/api";
 import { CoursePlayer } from "@/components/learn";
 import { getTrainingProgress } from "@/services/learning-service";
 
@@ -19,7 +18,15 @@ export default function LearnPage({ params }: LearnPageProps) {
     () => getTrainingProgress(id),
   );
 
-  if (isLoading) {
+  const shouldRedirect = !isLoading && (!!error || !learnData || learnData.chapters.length === 0);
+
+  useEffect(() => {
+    if (shouldRedirect) {
+      router.replace(`/training/${encodeURIComponent(id)}`);
+    }
+  }, [shouldRedirect, id, router]);
+
+  if (isLoading || shouldRedirect) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
@@ -30,11 +37,5 @@ export default function LearnPage({ params }: LearnPageProps) {
     );
   }
 
-  if (error || !learnData || learnData.chapters.length === 0) {
-    // Not enrolled or no content — redirect to training detail
-    router.replace(`/training/${encodeURIComponent(id)}`);
-    return null;
-  }
-
-  return <CoursePlayer learnData={learnData} />;
+  return <CoursePlayer learnData={learnData!} />;
 }

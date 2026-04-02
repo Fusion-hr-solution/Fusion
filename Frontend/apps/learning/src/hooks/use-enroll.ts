@@ -1,37 +1,36 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { useApiMutation } from "@repo/api/react";
 import { ApiError } from "@repo/api";
 import { enrollInTraining } from "@/services/learning-service";
+import { useState } from "react";
 
 export function useEnroll(trainingId: string) {
   const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
   const [enrolled, setEnrolled] = useState(false);
 
-  const { mutate, isLoading } = useApiMutation(
-    () => enrollInTraining(trainingId),
-    {
-      onSuccess: () => {
-        setEnrolled(true);
-        router.push(`/training/${encodeURIComponent(trainingId)}/learn`);
-      },
-      onError: (error) => {
-        // 409 = already enrolled — treat as success and redirect to learn page
-        if (error instanceof ApiError && error.status === 409) {
-          setEnrolled(true);
-          router.push(`/training/${encodeURIComponent(trainingId)}/learn`);
-        }
-      },
-    },
-  );
+  const handleEnroll = useCallback(async () => {
+    if (isLoading) return;
+    setIsLoading(true);
 
-  const handleEnroll = useCallback(() => {
-    if (!isLoading) {
-      mutate(undefined);
+    try {
+      await enrollInTraining(trainingId);
+      setEnrolled(true);
+    } catch (error) {
+      // 409 = already enrolled — treat as success
+      if (error instanceof ApiError && error.status === 409) {
+        setEnrolled(true);
+      } else {
+        setIsLoading(false);
+        return;
+      }
     }
-  }, [isLoading, mutate]);
+
+    // Navigate after state updates are flushed
+    router.push(`/training/${encodeURIComponent(trainingId)}/learn`);
+  }, [isLoading, trainingId, router]);
 
   return { handleEnroll, isLoading, enrolled };
 }
