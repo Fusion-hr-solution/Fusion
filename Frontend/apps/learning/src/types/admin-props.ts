@@ -16,6 +16,13 @@ export interface TrainingDetailViewProps {
   trainingId: string;
 }
 
+export interface TrainingFormDialogProps {
+  trainingId?: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSaved: () => void;
+}
+
 export interface ChapterFormDialogProps {
   trainingId: string;
   chapter: AdminChapter | null;

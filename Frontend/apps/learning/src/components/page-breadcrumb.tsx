@@ -1,3 +1,4 @@
+import React from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import {
@@ -30,18 +31,18 @@ export function PageBreadcrumb({ items, backHref, backLabel = "Back" }: PageBrea
           {items.map((item, i) => {
             const isLast = i === items.length - 1;
             return (
-              <BreadcrumbItem key={item.label}>
-                {isLast ? (
-                  <BreadcrumbPage>{item.label}</BreadcrumbPage>
-                ) : (
-                  <>
+              <React.Fragment key={item.label}>
+                <BreadcrumbItem>
+                  {isLast ? (
+                    <BreadcrumbPage>{item.label}</BreadcrumbPage>
+                  ) : (
                     <BreadcrumbLink asChild>
                       <Link href={item.href!}>{item.label}</Link>
                     </BreadcrumbLink>
-                    <BreadcrumbSeparator />
-                  </>
-                )}
-              </BreadcrumbItem>
+                  )}
+                </BreadcrumbItem>
+                {!isLast && <BreadcrumbSeparator />}
+              </React.Fragment>
             );
           })}
         </BreadcrumbList>

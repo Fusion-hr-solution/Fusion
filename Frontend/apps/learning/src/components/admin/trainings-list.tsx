@@ -23,6 +23,7 @@ import { getAdminTrainings, deleteTraining, getAdminCategories } from "@/service
 import type { AdminCategory } from "@/types/admin";
 import { SearchInput } from "../search-input";
 import { TrainingRow } from "./training-row";
+import { TrainingFormDialog } from "./training-form-dialog";
 
 export function TrainingsList() {
   const router = useRouter();
@@ -31,6 +32,9 @@ export function TrainingsList() {
   const [includeDeleted, setIncludeDeleted] = useState(false);
   const [page, setPage] = useState(1);
   const pageSize = 10;
+
+  const [formDialogOpen, setFormDialogOpen] = useState(false);
+  const [editingTrainingId, setEditingTrainingId] = useState<string | undefined>();
 
   const { data, isLoading, refetch } = useApiQuery(
     () => getAdminTrainings({ search: search || undefined, categoryId: categoryId || undefined, includeDeleted, page, pageSize }),
@@ -72,7 +76,7 @@ export function TrainingsList() {
           </p>
         </div>
         <Button
-          onClick={() => router.push("/admin/trainings/new")}
+          onClick={() => { setEditingTrainingId(undefined); setFormDialogOpen(true); }}
           className="ey-bg-dark hover:opacity-90"
         >
           <Plus className="mr-2 h-4 w-4" />
@@ -148,7 +152,7 @@ export function TrainingsList() {
                     training={t}
                     isDeleting={isDeleting}
                     onView={() => router.push(`/admin/trainings/${t.id}`)}
-                    onEdit={() => router.push(`/admin/trainings/${t.id}/edit`)}
+                    onEdit={() => { setEditingTrainingId(t.id); setFormDialogOpen(true); }}
                     onDelete={() => handleDelete(t.id, t.title)}
                   />
                 ))}
@@ -187,6 +191,13 @@ export function TrainingsList() {
           </div>
         </div>
       )}
+
+      <TrainingFormDialog
+        trainingId={editingTrainingId}
+        open={formDialogOpen}
+        onOpenChange={setFormDialogOpen}
+        onSaved={refetch}
+      />
     </div>
   );
 }

@@ -30,6 +30,7 @@ import {
 import type { AdminChapter } from "@/types/admin";
 import type { TrainingDetailViewProps } from "@/types/admin-props";
 import { ChapterFormDialog } from "./chapter-form-dialog";
+import { TrainingFormDialog } from "./training-form-dialog";
 import { MetaCard } from "./meta-card";
 import { PageBreadcrumb } from "../page-breadcrumb";
 
@@ -37,6 +38,7 @@ export function TrainingDetailView({ trainingId }: TrainingDetailViewProps) {
   const router = useRouter();
   const [chapterDialogOpen, setChapterDialogOpen] = useState(false);
   const [editingChapter, setEditingChapter] = useState<AdminChapter | null>(null);
+  const [trainingDialogOpen, setTrainingDialogOpen] = useState(false);
 
   const { data: training, isLoading, refetch } = useApiQuery(
     () => getAdminTrainingDetail(trainingId),
@@ -113,7 +115,7 @@ export function TrainingDetailView({ trainingId }: TrainingDetailViewProps) {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => router.push(`/admin/trainings/${trainingId}/edit`)}
+            onClick={() => setTrainingDialogOpen(true)}
             disabled={training.isDeleted}
           >
             <Pencil className="mr-1 h-4 w-4" />
@@ -289,6 +291,14 @@ export function TrainingDetailView({ trainingId }: TrainingDetailViewProps) {
         chapter={editingChapter}
         open={chapterDialogOpen}
         onOpenChange={setChapterDialogOpen}
+        onSaved={refetch}
+      />
+
+      {/* Training edit dialog */}
+      <TrainingFormDialog
+        trainingId={trainingId}
+        open={trainingDialogOpen}
+        onOpenChange={setTrainingDialogOpen}
         onSaved={refetch}
       />
     </div>
