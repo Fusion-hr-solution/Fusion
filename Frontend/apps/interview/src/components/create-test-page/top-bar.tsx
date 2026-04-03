@@ -9,6 +9,7 @@ import {
 import * as AlertDialog from "@radix-ui/react-alert-dialog";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { useWizardStore } from "@/store/wizard-store";
+import { useTestPersistence } from "@/hooks/use-test-persistence";
 import { cn } from "@/lib/utils";
 
 function Tooltip({ content, children }: { content: string; children: React.ReactNode }) {
@@ -34,9 +35,12 @@ function Tooltip({ content, children }: { content: string; children: React.React
 export function TopBar() {
   const router = useRouter();
   const { isDirty, lastSaved, markSaved, basicInfo, selectedQuestions, reset } = useWizardStore();
+  const { saveDraft, publishTest } = useTestPersistence();
   const [saving,    setSaving]    = useState(false);
   const [justSaved, setJustSaved] = useState(false);
   const [alertOpen, setAlertOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isDirty) return;
@@ -65,6 +69,34 @@ export function TopBar() {
     reset();
     router.push("/");
   }
+  async function handleSaveDraft() {
+    setIsSubmitting(true);
+    setActionMessage(null);
+    try {
+      await saveDraft();
+      setActionMessage("Draft saved.");
+    } catch (err) {
+      setActionMessage(err instanceof Error ? err.message : "Failed to save draft.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handlePublish() {
+    setIsSubmitting(true);
+    setActionMessage(null);
+    try {
+      await publishTest();
+      setActionMessage("Test published.");
+      reset();
+      router.push("/");
+    } catch (err) {
+      setActionMessage(err instanceof Error ? err.message : "Failed to publish test.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
 
   return (
     <>
@@ -123,18 +155,21 @@ export function TopBar() {
         {/* Right */}
         <div className="flex items-center gap-2">
           <button
-            onClick={() => markSaved()}
+            onClick={() => void handleSaveDraft()}
+            disabled={isSubmitting}
             className="flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3.5 py-1.5 text-[13px] font-medium text-zinc-600 shadow-sm transition-all duration-150 hover:border-zinc-300 hover:bg-zinc-50 hover:shadow-none"
           >
             <BookmarkPlus className="h-4 w-4" />
-            Save Draft
+            {isSubmitting ? "Saving..." : "Save Draft"}
           </button>
 
           {isPublishReady ? (
-            <button className="flex items-center gap-1.5 rounded-lg bg-zinc-900 px-4 py-1.5 text-[13px] font-semibold text-white shadow-sm transition-all duration-150 hover:bg-zinc-800 hover:shadow-none active:scale-[0.98]">
-              <Send className="h-3.5 w-3.5" />
-              Publish Test
-            </button>
+<button
+              onClick={() => void handlePublish()}
+              disabled={isSubmitting}
+              className="flex items-center gap-1.5 rounded-lg bg-zinc-900 px-4 py-1.5 text-[13px] font-semibold text-white shadow-sm transition-all duration-150 hover:bg-zinc-800 hover:shadow-none active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-zinc-500"
+            >              <Send className="h-3.5 w-3.5" />
+{isSubmitting ? "Publishing..." : "Publish Test"}            </button>
           ) : (
             <Tooltip content="Add a title, discipline and at least one question to publish">
               <span>
@@ -150,6 +185,11 @@ export function TopBar() {
           )}
         </div>
       </header>
+        {actionMessage && (
+        <div className="border-b border-zinc-100 bg-white px-6 py-2 text-[12px] text-zinc-600">
+          {actionMessage}
+        </div>
+      )}
 
       {/* Unsaved changes alert */}
       <AlertDialog.Root open={alertOpen} onOpenChange={setAlertOpen}>
