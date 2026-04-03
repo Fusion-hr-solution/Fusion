@@ -107,7 +107,6 @@ export function PlatformAdminSidebar() {
             icon={LayoutDashboard}
             label="Dashboard"
             active={dashActive}
-            disabled
           />
           <NavItem
             href="/employees"
@@ -122,12 +121,6 @@ export function PlatformAdminSidebar() {
             active={orgActive}
           />
           <NavItem
-            href="/design-system"
-            icon={Palette}
-            label="Design system"
-            active={designActive}
-          />
-          <NavItem
             href="/settings"
             icon={Settings}
             label="Settings"
@@ -138,6 +131,12 @@ export function PlatformAdminSidebar() {
       </nav>
 
       <div className="mt-auto space-y-1 px-2">
+        <NavItem
+          href="/design-system"
+          icon={Palette}
+          label="Design system"
+          active={designActive}
+        />
         <a
           href="#"
           className="flex items-center gap-3 px-4 py-3 text-stone-500 transition-colors hover:bg-stone-200/50 hover:text-stone-700 dark:text-stone-400 dark:hover:bg-stone-800/50"

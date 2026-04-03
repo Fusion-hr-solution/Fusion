@@ -1,31 +1,70 @@
-import { ModuleCard, PlatformSettingsForm } from "@/components";
-import { getPlatformModules } from "@/services/core-service";
-
-export default async function CorePage() {
-  const modules = await getPlatformModules();
-
+export default function CorePage() {
   return (
-    <div className="container mx-auto px-4 py-12">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">Core Platform</h1>
-        <p className="mt-2 text-muted-foreground">
-          Core platform features, settings, and administration tools.
+    <div className="min-h-screen bg-ch-surface p-8 font-chBody text-ch-on-surface">
+      <div className="mx-auto max-w-7xl">
+        <h1 className="mb-2 font-chHeadline text-4xl font-black text-ch-on-surface">
+          Platform Admin Dashboard
+        </h1>
+        <p className="mb-8 text-ch-secondary">
+          Overview of platform health, organizations, and system metrics.
         </p>
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2">
-          <h2 className="text-xl font-semibold mb-4">Platform Modules</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {modules.map((module) => (
-              <ModuleCard key={module.id} module={module} />
-            ))}
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+          <div className="rounded-ch-lg bg-ch-surface-container-low p-6">
+            <p className="text-xs font-bold uppercase tracking-wider text-ch-secondary">
+              Organizations
+            </p>
+            <p className="mt-2 font-chHeadline text-3xl font-black text-ch-on-surface">
+              —
+            </p>
+            <p className="mt-1 text-xs text-ch-secondary">
+              Waiting for stats endpoint
+            </p>
+          </div>
+
+          <div className="rounded-ch-lg bg-ch-surface-container-low p-6">
+            <p className="text-xs font-bold uppercase tracking-wider text-ch-secondary">
+              Active Users
+            </p>
+            <p className="mt-2 font-chHeadline text-3xl font-black text-ch-on-surface">
+              —
+            </p>
+            <p className="mt-1 text-xs text-ch-secondary">
+              Waiting for stats endpoint
+            </p>
+          </div>
+
+          <div className="rounded-ch-lg bg-ch-surface-container-low p-6">
+            <p className="text-xs font-bold uppercase tracking-wider text-ch-secondary">
+              Attention Needed
+            </p>
+            <p className="mt-2 font-chHeadline text-3xl font-black text-ch-error">
+              —
+            </p>
+            <p className="mt-1 text-xs text-ch-secondary">
+              Waiting for stats endpoint
+            </p>
           </div>
         </div>
 
-        <div>
-          <h2 className="text-xl font-semibold mb-4">Quick Settings</h2>
-          <PlatformSettingsForm />
+        <div className="mt-8 rounded-ch-lg bg-ch-surface-container-low p-6">
+          <h2 className="mb-4 font-chHeadline text-xl font-bold">
+            Quick Actions
+          </h2>
+          <div className="space-y-2">
+            <a
+              href="/organizations"
+              className="block rounded-ch-md bg-ch-primary-container px-4 py-3 text-ch-on-primary-container transition-colors hover:bg-ch-primary-container/80"
+            >
+              View All Organizations →
+            </a>
+            <a
+              href="/organizations/new"
+              className="block rounded-ch-md bg-ch-surface-container-high px-4 py-3 text-ch-on-surface transition-colors hover:bg-ch-surface-container-highest"
+            >
+              Create New Organization →
+            </a>
+          </div>
         </div>
       </div>
     </div>

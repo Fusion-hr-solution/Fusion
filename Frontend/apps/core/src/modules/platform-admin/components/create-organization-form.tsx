@@ -54,7 +54,7 @@ export function CreateOrganizationForm() {
         <div className="mb-6">
           <PlatformAdminBreadcrumbs
             items={[
-              { label: "Admin console", href: "/" },
+              { label: "Dashboard", href: "/" },
               { label: "Organizations", href: "/organizations" },
               { label: "Create" },
             ]}
