@@ -8,7 +8,6 @@ import {
   corePrimaryButtonClassName,
 } from "@/lib/core-ui-classes";
 import { cn } from "@/lib/utils";
-import { MOCK_OPERATIONAL_LOGS } from "../data/mock-organizations";
 import { useOrganizations } from "../context/organizations-context";
 import type { OrganizationLifecycle } from "../types/organization";
 import { PlatformAdminBreadcrumbs } from "./platform-admin-breadcrumbs";
@@ -350,29 +349,12 @@ export function OrganizationsListView() {
         <div className="mt-12 grid grid-cols-1 gap-8">
           <div>
             <h3 className="mb-6 font-chHeadline text-sm font-bold uppercase tracking-widest text-ch-on-surface">
-              Recent Operational Logs
+              Operational Logs
             </h3>
-            <div className="space-y-4">
-              {MOCK_OPERATIONAL_LOGS.map((log) => (
-                <div
-                  key={log.id}
-                  className="group flex items-start gap-4 bg-ch-surface-container-low/50 p-4 transition-colors hover:bg-ch-surface-container-low"
-                >
-                  <div
-                    className={cn(
-                      "mt-1 h-2 w-2 rounded-full",
-                      log.tone === "primary" ? "bg-ch-primary" : "bg-ch-error"
-                    )}
-                  />
-                  <div className="flex-1">
-                    <p className="text-sm text-ch-on-surface">{log.body}</p>
-                    <span className="mt-1 block text-[10px] font-bold uppercase tracking-tighter text-ch-secondary">
-                      {log.meta}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <p className="text-sm text-ch-secondary">
+              Audit logging for Platform Admin actions will appear here once
+              the backend event stream is connected.
+            </p>
           </div>
         </div>
       </div>
