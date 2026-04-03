@@ -55,6 +55,12 @@ type ListQueryInput = {
 interface OrganizationsContextValue {
   organizations: Organization[];
   totalCount: number;
+  stats: {
+    totalOrganizations: number;
+    attentionNeeded: number;
+    invitedPending: number;
+    activeUserCount: number;
+  } | null;
   loading: boolean;
   error: string | null;
   refresh: (override?: Partial<ListQueryInput>) => Promise<void>;
@@ -77,6 +83,7 @@ export function OrganizationsProvider({ children }: { children: ReactNode }) {
   const client = useRef(createPlatformApiClient()).current;
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [totalCount, setTotalCount] = useState(0);
+  const [stats, setStats] = useState<OrganizationsContextValue["stats"]>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -109,6 +116,7 @@ export function OrganizationsProvider({ children }: { children: ReactNode }) {
       );
       setOrganizations(paged.items.map(mapSummaryToOrganization));
       setTotalCount(paged.totalCount);
+      setStats(paged.stats);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load organizations.");
     } finally {
@@ -219,6 +227,7 @@ export function OrganizationsProvider({ children }: { children: ReactNode }) {
     () => ({
       organizations,
       totalCount,
+      stats,
       loading,
       error,
       refresh: refreshWithOverride,
@@ -234,6 +243,7 @@ export function OrganizationsProvider({ children }: { children: ReactNode }) {
     [
       organizations,
       totalCount,
+      stats,
       loading,
       error,
       refreshWithOverride,

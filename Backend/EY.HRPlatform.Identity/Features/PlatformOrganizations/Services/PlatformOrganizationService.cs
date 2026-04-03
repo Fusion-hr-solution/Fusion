@@ -119,10 +119,23 @@ public sealed class PlatformOrganizationService(
         var totalCount = ordered.Count();
         var items = ordered.Skip(skip).Take(take).ToList();
 
+        // Compute stats from the full filtered dataset (before pagination)
+        var allSummaries = ordered.ToList();
+        var stats = new PlatformOrganizationStatsDto
+        {
+            TotalOrganizations = allSummaries.Count,
+            AttentionNeeded = allSummaries.Count(s => 
+                s.OperationalStatus.Equals(OrganizationOperationalStatus.Attention, StringComparison.OrdinalIgnoreCase)),
+            InvitedPending = allSummaries.Count(s => 
+                s.OperationalStatus.Equals(OrganizationOperationalStatus.Invited, StringComparison.OrdinalIgnoreCase)),
+            ActiveUserCount = allSummaries.Sum(s => s.ActiveUserCount)
+        };
+
         return new PlatformOrganizationPagedListDto
         {
             Items = items,
-            TotalCount = totalCount
+            TotalCount = totalCount,
+            Stats = stats
         };
     }
 

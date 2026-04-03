@@ -144,12 +144,14 @@ export function OrganizationRowActions({ org }: { org: Organization }) {
         </span>
       ) : null}
       <DropdownMenu>
-        <DropdownMenuTrigger asChild>
+        <DropdownMenuTrigger asChild disabled={busy}>
           <button
             type="button"
+            disabled={busy}
             className={cn(
               "rounded-ch-md p-2 text-stone-500 transition-colors",
-              "hover:bg-ch-surface-container-high focus:outline-none focus-visible:ring-2 focus-visible:ring-ch-primary-container focus-visible:ring-offset-2 focus-visible:ring-offset-ch-surface"
+              "hover:bg-ch-surface-container-high focus:outline-none focus-visible:ring-2 focus-visible:ring-ch-primary-container focus-visible:ring-offset-2 focus-visible:ring-offset-ch-surface",
+              busy && "cursor-not-allowed opacity-50"
             )}
             title="Organization actions"
             aria-label={`Actions for ${org.name}`}

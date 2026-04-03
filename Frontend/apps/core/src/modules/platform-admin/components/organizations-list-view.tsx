@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Filter, Plus, Search } from "lucide-react";
+import { Filter, FilterX, Plus, Search } from "lucide-react";
 import {
   coreFieldClassName,
   corePrimaryButtonClassName,
@@ -10,6 +10,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useDebounce } from "@/hooks";
 import { useOrganizations } from "../context/organizations-context";
+import { MOCK_OPERATIONAL_LOGS } from "../data/mock-organizations";
 import type { OrganizationLifecycle } from "../types/organization";
 import { PlatformAdminBreadcrumbs } from "./platform-admin-breadcrumbs";
 import { LifecycleBadge } from "./lifecycle-badge";
@@ -52,25 +53,26 @@ const STATUS_FILTER: Array<OrganizationLifecycle | "all"> = [
 ];
 
 export function OrganizationsListView() {
-  const { organizations, totalCount, loading, error, refresh } =
+  const { organizations, totalCount, stats, loading, error, refresh } =
     useOrganizations();
 
-  const stats = useMemo(() => {
-    const total = organizations.length;
-    const attentionNeeded = organizations.filter(
-      (o) => o.lifecycle === "attention"
-    ).length;
-    const invitedPending = organizations.filter(
-      (o) => o.lifecycle === "invited"
-    ).length;
-    const activeUsers = organizations.reduce((s, o) => s + o.userCount, 0);
+  // Use API stats when available, fallback to empty stats
+  const displayStats = useMemo(() => {
+    if (stats) {
+      return {
+        totalAssets: stats.totalOrganizations,
+        attentionNeeded: stats.attentionNeeded,
+        invitedPending: stats.invitedPending,
+        activeUsersLabel: stats.activeUserCount.toLocaleString(),
+      };
+    }
     return {
-      totalAssets: total,
-      attentionNeeded,
-      invitedPending,
-      activeUsersLabel: activeUsers.toLocaleString(),
+      totalAssets: 0,
+      attentionNeeded: 0,
+      invitedPending: 0,
+      activeUsersLabel: "0",
     };
-  }, [organizations]);
+  }, [stats]);
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<OrganizationLifecycle | "all">("all");
   const [page, setPage] = useState(1);
@@ -87,6 +89,13 @@ export function OrganizationsListView() {
 
   const debouncedQ = useDebounce(q, 300);
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+
+  const hasActiveFilters = q.trim() !== "" || status !== "all";
+
+  const clearFilters = useCallback(() => {
+    setQ("");
+    setStatus("all");
+  }, []);
 
   const toggleSort = useCallback(
     (key: typeof sortBy) => {
@@ -168,16 +177,16 @@ export function OrganizationsListView() {
         ) : null}
 
         <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-4">
-          <Stat label="Organizations" value={String(stats.totalAssets)} />
+          <Stat label="Organizations" value={String(displayStats.totalAssets)} />
           <Stat
             label="Attention Needed"
-            value={String(stats.attentionNeeded)}
+            value={String(displayStats.attentionNeeded)}
             valueClass="text-ch-error"
           />
-          <Stat label="Invited Pending" value={String(stats.invitedPending)} />
+          <Stat label="Invited Pending" value={String(displayStats.invitedPending)} />
           <Stat
             label="Active Users (sum)"
-            value={stats.activeUsersLabel}
+            value={displayStats.activeUsersLabel}
             valueClass="text-ch-tertiary"
           />
         </div>
@@ -221,11 +230,23 @@ export function OrganizationsListView() {
               </select>
               <button
                 type="button"
-                className="flex items-center gap-2 rounded-ch-md bg-ch-surface-container-low px-4 py-2.5 transition-colors hover:bg-ch-surface-container-high focus:outline-none focus-visible:ring-2 focus-visible:ring-ch-primary-container focus-visible:ring-offset-2 focus-visible:ring-offset-ch-surface"
+                onClick={clearFilters}
+                disabled={!hasActiveFilters}
+                className={cn(
+                  "flex items-center gap-2 rounded-ch-md px-4 py-2.5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ch-primary-container focus-visible:ring-offset-2 focus-visible:ring-offset-ch-surface",
+                  hasActiveFilters
+                    ? "bg-ch-primary-container text-ch-on-primary-container hover:bg-ch-primary-container/80"
+                    : "cursor-not-allowed bg-ch-surface-container-low text-ch-secondary opacity-60"
+                )}
+                title={hasActiveFilters ? "Clear all filters" : "No active filters"}
               >
-                <Filter className="h-4 w-4" aria-hidden />
+                {hasActiveFilters ? (
+                  <FilterX className="h-4 w-4" aria-hidden />
+                ) : (
+                  <Filter className="h-4 w-4" aria-hidden />
+                )}
                 <span className="text-xs font-bold uppercase tracking-widest">
-                  Filter
+                  {hasActiveFilters ? "Clear" : "Filter"}
                 </span>
               </button>
             </div>
@@ -405,10 +426,30 @@ export function OrganizationsListView() {
             <h3 className="mb-6 font-chHeadline text-sm font-bold uppercase tracking-widest text-ch-on-surface">
               Operational Logs
             </h3>
-            <p className="text-sm text-ch-secondary">
-              Audit logging for Platform Admin actions will appear here once the
-              backend event stream is connected.
-            </p>
+            <div className="space-y-4">
+              {MOCK_OPERATIONAL_LOGS.map((log) => (
+                <div
+                  key={log.id}
+                  className="flex items-start gap-4 rounded-ch-lg bg-ch-surface-container-low p-4"
+                >
+                  <div
+                    className={cn(
+                      "mt-1 h-2 w-2 shrink-0 rounded-full",
+                      log.tone === "error"
+                        ? "bg-ch-error"
+                        : log.tone === "primary"
+                          ? "bg-ch-primary"
+                          : "bg-ch-secondary"
+                    )}
+                    aria-hidden
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-ch-on-surface">{log.body}</p>
+                    <p className="mt-1 text-xs text-ch-secondary">{log.meta}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>

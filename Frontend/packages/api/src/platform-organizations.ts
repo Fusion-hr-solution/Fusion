@@ -1,5 +1,12 @@
 /** DTOs aligned with Identity `PlatformOrganizations` API (camelCase JSON). */
 
+export interface PlatformOrganizationStatsDto {
+  totalOrganizations: number;
+  attentionNeeded: number;
+  invitedPending: number;
+  activeUserCount: number;
+}
+
 export interface PlatformOrganizationInviteStatusDto {
   inviteId: string | null;
   status: string;
@@ -48,6 +55,7 @@ export interface PlatformOrganizationCreatedDto {
 export interface PlatformOrganizationPagedListDto {
   items: PlatformOrganizationSummaryDto[];
   totalCount: number;
+  stats: PlatformOrganizationStatsDto;
 }
 
 export interface CreatePlatformOrganizationRequest {
