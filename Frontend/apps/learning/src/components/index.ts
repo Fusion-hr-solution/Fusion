@@ -45,6 +45,7 @@ export { MetaCard } from "./admin/meta-card";
 export { ChapterFormDialog } from "./admin/chapter-form-dialog";
 export { ChapterFormInfoStep } from "./admin/chapter-form-info-step";
 export { ChapterFormContentStep } from "./admin/chapter-form-content-step";
+export { FileUploadZone } from "./admin/file-upload-zone";
 export { StepIndicator } from "./admin/step-indicator";
 export { CategoriesManager } from "./admin/categories-manager";
 export { CategoryForm } from "./admin/category-form";
