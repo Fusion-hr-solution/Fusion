@@ -69,7 +69,7 @@ export default function EmployeeProfilePage() {
             removed.
           </p>
           <Button asChild variant="outline">
-            <Link href="/core/employees">
+            <Link href="/employees">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Directory
             </Link>
@@ -86,7 +86,7 @@ export default function EmployeeProfilePage() {
           <h2 className="text-xl font-semibold mb-2">Failed to load employee</h2>
           <p className="text-muted-foreground mb-4">{error}</p>
           <Button asChild variant="outline">
-            <Link href="/core/employees">
+            <Link href="/employees">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Directory
             </Link>
@@ -100,7 +100,7 @@ export default function EmployeeProfilePage() {
     <div className="container mx-auto px-6 py-10">
       <div className="mb-8">
         <Button asChild variant="ghost" size="sm" className="-ml-2">
-          <Link href="/core/employees">
+          <Link href="/employees">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Directory
           </Link>

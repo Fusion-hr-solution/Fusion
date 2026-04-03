@@ -5,6 +5,15 @@ const nextConfig: NextConfig = {
   basePath: "/core",
   transpilePackages: ["@repo/ui", "@repo/auth"],
   allowedDevOrigins: ["http://localhost:3000"],
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "lh3.googleusercontent.com",
+        pathname: "/**",
+      },
+    ],
+  },
   async redirects() {
     return [
       {
