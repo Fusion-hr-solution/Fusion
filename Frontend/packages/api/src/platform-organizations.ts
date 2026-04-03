@@ -45,6 +45,11 @@ export interface PlatformOrganizationCreatedDto {
   inviteLink: string;
 }
 
+export interface PlatformOrganizationPagedListDto {
+  items: PlatformOrganizationSummaryDto[];
+  totalCount: number;
+}
+
 export interface CreatePlatformOrganizationRequest {
   name: string;
   firstAdminEmail: string;

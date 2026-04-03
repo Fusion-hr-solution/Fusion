@@ -14,6 +14,7 @@ export type {
   PlatformOrganizationDetailDto,
   PlatformOrganizationInviteStatusDto,
   PlatformOrganizationSummaryDto,
+  PlatformOrganizationPagedListDto,
 } from "./platform-organizations";
 export { platformOrganizationsPaths } from "./platform-organizations";
 export type { AcceptInviteRequest, InviteDto } from "./invites";

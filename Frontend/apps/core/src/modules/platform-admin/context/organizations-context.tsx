@@ -16,6 +16,7 @@ import {
   type CreatePlatformOrganizationRequest,
   type PlatformOrganizationCreatedDto,
   type PlatformOrganizationDetailDto,
+  type PlatformOrganizationPagedListDto,
   type PlatformOrganizationSummaryDto,
 } from "@repo/api";
 import type { Organization } from "../types/organization";
@@ -42,11 +43,21 @@ interface CreateOrgInput {
   internalNotes?: string;
 }
 
+type ListQueryInput = {
+  skip: number;
+  take: number;
+  search?: string;
+  filterByStatus?: Organization["lifecycle"] | undefined;
+  orderBy?: string;
+  orderDirection?: "asc" | "desc";
+};
+
 interface OrganizationsContextValue {
   organizations: Organization[];
+  totalCount: number;
   loading: boolean;
   error: string | null;
-  refresh: () => Promise<void>;
+  refresh: (override?: Partial<ListQueryInput>) => Promise<void>;
   getById: (id: string) => Organization | undefined;
   /** Loads detail from API and merges into state (invite link, counts). */
   ensureOrganization: (id: string) => Promise<Organization | null>;
@@ -65,17 +76,39 @@ const OrganizationsContext = createContext<OrganizationsContextValue | null>(
 export function OrganizationsProvider({ children }: { children: ReactNode }) {
   const client = useRef(createPlatformApiClient()).current;
   const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const listQueryRef = useRef<ListQueryInput>({
+    skip: 0,
+    take: 100,
+    orderBy: "createdAt",
+    orderDirection: "desc",
+    search: undefined,
+    filterByStatus: undefined,
+  });
 
   const refresh = useCallback(async () => {
     setError(null);
     setLoading(true);
     try {
-      const rows = await client.get<PlatformOrganizationSummaryDto[]>(
-        platformOrganizationsPaths.list()
+      const q = { ...listQueryRef.current };
+      const paged = await client.get<PlatformOrganizationPagedListDto>(
+        platformOrganizationsPaths.list(),
+        {
+          params: {
+            skip: q.skip,
+            take: q.take,
+            search: q.search,
+            orderBy: q.orderBy,
+            orderDirection: q.orderDirection,
+            filterByStatus: q.filterByStatus,
+          },
+        }
       );
-      setOrganizations(rows.map(mapSummaryToOrganization));
+      setOrganizations(paged.items.map(mapSummaryToOrganization));
+      setTotalCount(paged.totalCount);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load organizations.");
     } finally {
@@ -83,9 +116,19 @@ export function OrganizationsProvider({ children }: { children: ReactNode }) {
     }
   }, [client]);
 
+  const refreshWithOverride = useCallback(
+    async (override?: Partial<ListQueryInput>) => {
+      if (override) {
+        listQueryRef.current = { ...listQueryRef.current, ...override };
+      }
+      await refresh();
+    },
+    [refresh]
+  );
+
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    void refreshWithOverride();
+  }, [refreshWithOverride]);
 
   const getById = useCallback(
     (id: string) => organizations.find((o) => o.id === id),
@@ -135,49 +178,50 @@ export function OrganizationsProvider({ children }: { children: ReactNode }) {
   const suspendOrganization = useCallback(
     async (id: string) => {
       await client.post(platformOrganizationsPaths.suspend(id));
-      await refresh();
+      await refreshWithOverride();
     },
-    [client, refresh]
+    [client, refreshWithOverride]
   );
 
   const reactivateOrganization = useCallback(
     async (id: string) => {
       await client.post(platformOrganizationsPaths.reactivate(id));
-      await refresh();
+      await refreshWithOverride();
     },
-    [client, refresh]
+    [client, refreshWithOverride]
   );
 
   const archiveOrganization = useCallback(
     async (id: string) => {
       await client.post(platformOrganizationsPaths.archive(id));
-      await refresh();
+      await refreshWithOverride();
     },
-    [client, refresh]
+    [client, refreshWithOverride]
   );
 
   const resendFirstAdminInvite = useCallback(
     async (id: string) => {
       await client.post(platformOrganizationsPaths.resendFirstAdmin(id));
-      await refresh();
+      await refreshWithOverride();
     },
-    [client, refresh]
+    [client, refreshWithOverride]
   );
 
   const revokeFirstAdminInvites = useCallback(
     async (id: string) => {
       await client.post(platformOrganizationsPaths.revokeFirstAdmin(id));
-      await refresh();
+      await refreshWithOverride();
     },
-    [client, refresh]
+    [client, refreshWithOverride]
   );
 
   const value = useMemo(
     () => ({
       organizations,
+      totalCount,
       loading,
       error,
-      refresh,
+      refresh: refreshWithOverride,
       getById,
       ensureOrganization,
       createOrganization,
@@ -189,9 +233,10 @@ export function OrganizationsProvider({ children }: { children: ReactNode }) {
     }),
     [
       organizations,
+      totalCount,
       loading,
       error,
-      refresh,
+      refreshWithOverride,
       getById,
       ensureOrganization,
       createOrganization,

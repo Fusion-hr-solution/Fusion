@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Filter, Plus, Search } from "lucide-react";
 import {
   coreFieldClassName,
@@ -50,17 +50,8 @@ const STATUS_FILTER: Array<OrganizationLifecycle | "all"> = [
   "archived",
 ];
 
-function matchesFilter(
-  lifecycle: OrganizationLifecycle,
-  filter: OrganizationLifecycle | "all"
-) {
-  if (filter === "all") return true;
-  if (filter === "attention") return lifecycle === "attention";
-  return lifecycle === filter;
-}
-
 export function OrganizationsListView() {
-  const { organizations, loading, error } = useOrganizations();
+  const { organizations, totalCount, loading, error, refresh } = useOrganizations();
 
   const stats = useMemo(() => {
     const total = organizations.length;
@@ -82,34 +73,52 @@ export function OrganizationsListView() {
   const [status, setStatus] = useState<OrganizationLifecycle | "all">("all");
   const [page, setPage] = useState(1);
 
-  const filtered = useMemo(() => {
-    const needle = q.trim().toLowerCase();
-    return organizations.filter((o) => {
-      const byStatus = matchesFilter(o.lifecycle, status);
-      const byQ =
-        !needle || o.name.toLowerCase().includes(needle);
-      return byStatus && byQ;
-    });
-  }, [organizations, q, status]);
+  const [sortBy, setSortBy] = useState<
+    "createdAt" | "name" | "operationalStatus" | "activeUserCount" | "pendingInviteCount" | "lastActivityAt"
+  >("createdAt");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
+  const toggleSort = useCallback(
+    (key: typeof sortBy) => {
+      if (sortBy === key) {
+        setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+        return;
+      }
+      setSortBy(key);
+      setSortDir("desc");
+    },
+    [sortBy]
+  );
+
+  // Reset to the first page when filters/sort change.
+  useEffect(() => {
+    setPage(1);
+  }, [q, status, sortBy, sortDir]);
+
+  // Keep page within bounds.
   useEffect(() => {
     setPage((p) => Math.min(p, totalPages));
   }, [totalPages]);
 
   useEffect(() => {
-    setPage(1);
-  }, [q, status]);
+    const skip = (page - 1) * PAGE_SIZE;
+    const take = PAGE_SIZE;
+    const trimmedSearch = q.trim();
 
-  const pageRows = useMemo(() => {
-    const start = (page - 1) * PAGE_SIZE;
-    return filtered.slice(start, start + PAGE_SIZE);
-  }, [filtered, page]);
+    void refresh({
+      skip,
+      take,
+      search: trimmedSearch ? trimmedSearch : undefined,
+      filterByStatus: status === "all" ? undefined : status,
+      orderBy: sortBy,
+      orderDirection: sortDir,
+    });
+  }, [page, q, status, sortBy, sortDir, refresh]);
 
-  const rangeStart =
-    filtered.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
-  const rangeEnd = Math.min(page * PAGE_SIZE, filtered.length);
+  const rangeStart = totalCount === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const rangeEnd = Math.min(page * PAGE_SIZE, totalCount);
 
   return (
     <div className="bg-ch-surface font-chBody text-ch-on-surface">
@@ -221,25 +230,68 @@ export function OrganizationsListView() {
             <table className="w-full border-collapse text-left">
               <thead>
                 <tr className="bg-ch-surface-container-low">
-                  {[
-                    "Organization Name",
-                    "Lifecycle Status",
-                    "Admin Status",
-                    "Users / Pending",
-                    "Last Activity",
-                    "Actions",
-                  ].map((h) => (
-                    <th
-                      key={h}
-                      className={cn(
-                        "border-none px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-ch-secondary",
-                        h === "Users / Pending" && "text-right",
-                        h === "Actions" && "text-center"
-                      )}
+                  <th className="border-none px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-ch-secondary">
+                    <button
+                      type="button"
+                      onClick={() => toggleSort("name")}
+                      className="inline-flex items-center gap-2"
                     >
-                      {h}
-                    </th>
-                  ))}
+                      Organization Name
+                      {sortBy === "name" ? (
+                        <span className="text-[9px] text-ch-secondary">
+                          {sortDir}
+                        </span>
+                      ) : null}
+                    </button>
+                  </th>
+                  <th className="border-none px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-ch-secondary">
+                    <button
+                      type="button"
+                      onClick={() => toggleSort("operationalStatus")}
+                      className="inline-flex items-center gap-2"
+                    >
+                      Lifecycle Status
+                      {sortBy === "operationalStatus" ? (
+                        <span className="text-[9px] text-ch-secondary">
+                          {sortDir}
+                        </span>
+                      ) : null}
+                    </button>
+                  </th>
+                  <th className="border-none px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-ch-secondary">
+                    Admin Status
+                  </th>
+                  <th className="border-none px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-ch-secondary text-right">
+                    <button
+                      type="button"
+                      onClick={() => toggleSort("pendingInviteCount")}
+                      className="inline-flex items-center gap-2"
+                    >
+                      Users / Pending
+                      {sortBy === "pendingInviteCount" ? (
+                        <span className="text-[9px] text-ch-secondary">
+                          {sortDir}
+                        </span>
+                      ) : null}
+                    </button>
+                  </th>
+                  <th className="border-none px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-ch-secondary">
+                    <button
+                      type="button"
+                      onClick={() => toggleSort("lastActivityAt")}
+                      className="inline-flex items-center gap-2"
+                    >
+                      Last Activity
+                      {sortBy === "lastActivityAt" ? (
+                        <span className="text-[9px] text-ch-secondary">
+                          {sortDir}
+                        </span>
+                      ) : null}
+                    </button>
+                  </th>
+                  <th className="border-none px-6 py-4 text-center text-[10px] font-bold uppercase tracking-widest text-ch-secondary">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-ch-surface-container-lowest">
@@ -253,7 +305,7 @@ export function OrganizationsListView() {
                     </td>
                   </tr>
                 ) : null}
-                {!loading && filtered.length === 0 ? (
+                {!loading && totalCount === 0 ? (
                   <tr>
                     <td
                       colSpan={6}
@@ -263,7 +315,7 @@ export function OrganizationsListView() {
                     </td>
                   </tr>
                 ) : null}
-                {pageRows.map((row) => (
+                {organizations.map((row) => (
                   <tr
                     key={row.id}
                     className="group border-t border-stone-100 transition-colors hover:bg-ch-surface-container-low"
@@ -326,15 +378,12 @@ export function OrganizationsListView() {
 
           <div className="flex flex-col items-center justify-between gap-4 border-t border-stone-200 bg-ch-surface-container-lowest px-6 py-4 md:flex-row">
             <span className="text-xs text-ch-secondary">
-              {filtered.length === 0 ? (
+              {totalCount === 0 ? (
                 <>No organizations match your filters.</>
               ) : (
                 <>
-                  Showing {rangeStart} to {rangeEnd} of {filtered.length}{" "}
+                  Showing {rangeStart} to {rangeEnd} of {totalCount}{" "}
                   organizations
-                  {filtered.length !== organizations.length
-                    ? ` (filtered from ${organizations.length} total)`
-                    : null}
                 </>
               )}
             </span>
