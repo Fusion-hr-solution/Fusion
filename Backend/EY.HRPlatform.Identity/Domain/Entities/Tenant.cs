@@ -10,6 +10,10 @@ public class Tenant
     public Guid Id { get; private set; }
     public string Name { get; private set; } = string.Empty;
     public bool IsActive { get; private set; } = true;
+    /// <summary>Soft-offboarded customer; distinct from suspended (governance pause).</summary>
+    public bool IsArchived { get; private set; }
+    public string? InternalNotes { get; private set; }
+    public string? PlanTier { get; private set; }
     public DateTime CreatedAt { get; private set; }
     public DateTime? UpdatedAt { get; private set; }
 
@@ -32,6 +36,7 @@ public class Tenant
             Id = id,
             Name = name.Trim(),
             IsActive = true,
+            IsArchived = false,
             CreatedAt = DateTime.UtcNow
         };
     }
@@ -56,7 +61,7 @@ public class Tenant
     }
 
     /// <summary>
-    /// Deactivates the tenant (soft delete).
+    /// Deactivates the tenant (access suspended).
     /// </summary>
     public void Deactivate()
     {
@@ -65,11 +70,58 @@ public class Tenant
     }
 
     /// <summary>
-    /// Reactivates a previously deactivated tenant.
+    /// Reactivates a suspended tenant (clears archived flag).
     /// </summary>
     public void Reactivate()
     {
         IsActive = true;
+        IsArchived = false;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Archives an offboarded customer (inactive + archived flag).
+    /// </summary>
+    public void Archive()
+    {
+        IsArchived = true;
+        IsActive = false;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>Platform admin notes (not visible to tenant users).</summary>
+    public void SetInternalNotes(string? notes)
+    {
+        if (string.IsNullOrWhiteSpace(notes))
+        {
+            InternalNotes = null;
+        }
+        else
+        {
+            var t = notes.Trim();
+            if (t.Length > 4000)
+                throw new ArgumentException("Internal notes cannot exceed 4000 characters.", nameof(notes));
+            InternalNotes = t;
+        }
+
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>Optional commercial / operational tier label.</summary>
+    public void SetPlanTier(string? tier)
+    {
+        if (string.IsNullOrWhiteSpace(tier))
+        {
+            PlanTier = null;
+        }
+        else
+        {
+            var t = tier.Trim();
+            if (t.Length > 100)
+                throw new ArgumentException("Plan tier cannot exceed 100 characters.", nameof(tier));
+            PlanTier = t;
+        }
+
         UpdatedAt = DateTime.UtcNow;
     }
 
