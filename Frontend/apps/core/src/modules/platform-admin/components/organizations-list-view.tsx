@@ -8,6 +8,7 @@ import {
   corePrimaryButtonClassName,
 } from "@/lib/core-ui-classes";
 import { cn } from "@/lib/utils";
+import { useDebounce } from "@/hooks";
 import { useOrganizations } from "../context/organizations-context";
 import type { OrganizationLifecycle } from "../types/organization";
 import { PlatformAdminBreadcrumbs } from "./platform-admin-breadcrumbs";
@@ -51,7 +52,8 @@ const STATUS_FILTER: Array<OrganizationLifecycle | "all"> = [
 ];
 
 export function OrganizationsListView() {
-  const { organizations, totalCount, loading, error, refresh } = useOrganizations();
+  const { organizations, totalCount, loading, error, refresh } =
+    useOrganizations();
 
   const stats = useMemo(() => {
     const total = organizations.length;
@@ -74,10 +76,16 @@ export function OrganizationsListView() {
   const [page, setPage] = useState(1);
 
   const [sortBy, setSortBy] = useState<
-    "createdAt" | "name" | "operationalStatus" | "activeUserCount" | "pendingInviteCount" | "lastActivityAt"
+    | "createdAt"
+    | "name"
+    | "operationalStatus"
+    | "activeUserCount"
+    | "pendingInviteCount"
+    | "lastActivityAt"
   >("createdAt");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
+  const debouncedQ = useDebounce(q, 300);
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
   const toggleSort = useCallback(
@@ -95,7 +103,7 @@ export function OrganizationsListView() {
   // Reset to the first page when filters/sort change.
   useEffect(() => {
     setPage(1);
-  }, [q, status, sortBy, sortDir]);
+  }, [debouncedQ, status, sortBy, sortDir]);
 
   // Keep page within bounds.
   useEffect(() => {
@@ -105,7 +113,7 @@ export function OrganizationsListView() {
   useEffect(() => {
     const skip = (page - 1) * PAGE_SIZE;
     const take = PAGE_SIZE;
-    const trimmedSearch = q.trim();
+    const trimmedSearch = debouncedQ.trim();
 
     void refresh({
       skip,
@@ -115,7 +123,7 @@ export function OrganizationsListView() {
       orderBy: sortBy,
       orderDirection: sortDir,
     });
-  }, [page, q, status, sortBy, sortDir, refresh]);
+  }, [page, debouncedQ, status, sortBy, sortDir, refresh]);
 
   const rangeStart = totalCount === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const rangeEnd = Math.min(page * PAGE_SIZE, totalCount);
@@ -166,10 +174,7 @@ export function OrganizationsListView() {
             value={String(stats.attentionNeeded)}
             valueClass="text-ch-error"
           />
-          <Stat
-            label="Invited Pending"
-            value={String(stats.invitedPending)}
-          />
+          <Stat label="Invited Pending" value={String(stats.invitedPending)} />
           <Stat
             label="Active Users (sum)"
             value={stats.activeUsersLabel}
@@ -401,8 +406,8 @@ export function OrganizationsListView() {
               Operational Logs
             </h3>
             <p className="text-sm text-ch-secondary">
-              Audit logging for Platform Admin actions will appear here once
-              the backend event stream is connected.
+              Audit logging for Platform Admin actions will appear here once the
+              backend event stream is connected.
             </p>
           </div>
         </div>

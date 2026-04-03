@@ -155,7 +155,7 @@ export function CreateOrganizationForm() {
             </section>
           </div>
 
-          <div className="space-y-6 lg:col-span-5">
+          <div className="space-y-6 lg:col-span-5 lg:self-start">
             <div className="rounded-ch-lg bg-ch-surface-container-low p-8">
               <h3 className="mb-4 flex items-center gap-2 font-chHeadline text-lg font-bold text-ch-on-surface">
                 <Info className="h-5 w-5 shrink-0 text-ch-primary" aria-hidden />
