@@ -1,11 +1,14 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { Button } from "@repo/ui";
-import { CalendarDays, ChevronRight, AlertTriangle, Award, Loader2 } from "lucide-react";
+import { useApiQuery } from "@repo/api/react";
+import { CalendarDays, ChevronRight, AlertTriangle, Award, Loader2, Play } from "lucide-react";
 import type { TrainingDetailPageProps } from "@/types/component-props";
 import { CATEGORY_CONFIG, LEVEL_CONFIG } from "@/data/categories";
 import { BADGE_LEVEL_CONFIG } from "@/data/badge-config";
 import { useEnroll } from "@/hooks/use-enroll";
+import { getEnrollmentStatus } from "@/services/learning-service";
 import { PageHeader } from "./page-header";
 import { PageBreadcrumb } from "./page-breadcrumb";
 import {
@@ -17,10 +20,21 @@ import {
 } from "./training-detail";
 
 export function TrainingDetailPage({ training }: TrainingDetailPageProps) {
+  const router = useRouter();
   const category = CATEGORY_CONFIG[training.category];
   const level = LEVEL_CONFIG[training.level];
   const badge = BADGE_LEVEL_CONFIG[training.badgeLevel];
-  const { handleEnroll, isLoading } = useEnroll(training.id);
+  const { handleEnroll, isLoading, enrolled } = useEnroll(training.id);
+
+  const { data: enrollment, isLoading: checkingEnrollment } = useApiQuery(
+    () => getEnrollmentStatus(training.id),
+  );
+
+  const isEnrolled = enrolled || !!enrollment;
+
+  const handleContinueLearning = () => {
+    router.push(`/training/${encodeURIComponent(training.id)}/learn`);
+  };
 
   return (
     <div className="min-h-full">
@@ -115,26 +129,47 @@ export function TrainingDetailPage({ training }: TrainingDetailPageProps) {
               className="ey-animate-fade-up sticky top-6"
               style={{ animationDelay: "350ms" }}
             >
-              <Button
-                onClick={handleEnroll}
-                disabled={isLoading}
-                className="w-full ey-bg-dark hover:ey-bg-dark-deep text-white gap-2 shadow-lg transition-all hover:shadow-xl hover:gap-3 h-12 text-sm font-semibold"
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                    Enrolling...
-                  </>
-                ) : (
-                  <>
-                    Enroll Now
-                    <ChevronRight
-                      className="h-4 w-4 transition-transform"
-                      aria-hidden="true"
-                    />
-                  </>
-                )}
-              </Button>
+              {checkingEnrollment ? (
+                <Button
+                  disabled
+                  className="w-full h-12 text-sm font-semibold"
+                >
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                </Button>
+              ) : isEnrolled ? (
+                <Button
+                  onClick={handleContinueLearning}
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white gap-2 shadow-lg transition-all hover:shadow-xl hover:gap-3 h-12 text-sm font-semibold"
+                >
+                  <Play className="h-4 w-4" aria-hidden="true" />
+                  Continue Learning
+                  <ChevronRight
+                    className="h-4 w-4 transition-transform"
+                    aria-hidden="true"
+                  />
+                </Button>
+              ) : (
+                <Button
+                  onClick={handleEnroll}
+                  disabled={isLoading}
+                  className="w-full ey-bg-dark hover:ey-bg-dark-deep text-white gap-2 shadow-lg transition-all hover:shadow-xl hover:gap-3 h-12 text-sm font-semibold"
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                      Enrolling...
+                    </>
+                  ) : (
+                    <>
+                      Enroll Now
+                      <ChevronRight
+                        className="h-4 w-4 transition-transform"
+                        aria-hidden="true"
+                      />
+                    </>
+                  )}
+                </Button>
+              )}
             </div>
           </aside>
         </div>

@@ -151,6 +151,20 @@ export async function getMyTrainings(statusFilter?: string): Promise<EnrolledTra
   return data.map(mapBackendToEnrolledTraining);
 }
 
+export async function getEnrollmentStatus(
+  trainingId: string,
+): Promise<EnrolledTraining | null> {
+  try {
+    const data = await client.get<BackendMyTrainingDto>(
+      `/training/my-trainings/${encodeURIComponent(trainingId)}`,
+    );
+    return mapBackendToEnrolledTraining(data);
+  } catch {
+    // 404 = not enrolled, auth error = not signed in
+    return null;
+  }
+}
+
 export async function enrollInTraining(trainingId: string): Promise<string> {
   return client.post<string>("/training/my-trainings/enroll", { trainingId });
 }
