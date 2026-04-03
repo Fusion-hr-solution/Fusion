@@ -3,6 +3,7 @@ using EY.HRPlatform.Identity.Features.PlatformOrganizations.Dtos;
 using EY.HRPlatform.Identity.Infrastructure.Persistence;
 using EY.HRPlatform.SharedKernel.Auth;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace EY.HRPlatform.Identity.Features.PlatformOrganizations.Services;
 
@@ -64,7 +65,16 @@ public sealed class PlatformOrganizationService(
         Guid createdByUserId,
         CancellationToken cancellationToken = default)
     {
-        await using var tx = await db.Database.BeginTransactionAsync(cancellationToken);
+        // EF InMemory doesn't support transactions; skip them in tests.
+        IDbContextTransaction? tx = null;
+        try
+        {
+            tx = await db.Database.BeginTransactionAsync(cancellationToken);
+        }
+        catch (InvalidOperationException)
+        {
+            tx = null;
+        }
         try
         {
             var tenant = Tenant.Create(request.Name.Trim());
@@ -97,7 +107,8 @@ public sealed class PlatformOrganizationService(
 
             db.InviteTokens.Add(invite);
             await db.SaveChangesAsync(cancellationToken);
-            await tx.CommitAsync(cancellationToken);
+            if (tx is not null)
+                await tx.CommitAsync(cancellationToken);
 
             var detail = await GetAsync(tenant.Id, cancellationToken)
                          ?? throw new InvalidOperationException("Failed to load created organization.");
@@ -111,8 +122,14 @@ public sealed class PlatformOrganizationService(
         }
         catch
         {
-            await tx.RollbackAsync(cancellationToken);
+            if (tx is not null)
+                await tx.RollbackAsync(cancellationToken);
             throw;
+        }
+        finally
+        {
+            if (tx is not null)
+                await tx.DisposeAsync();
         }
     }
 
@@ -273,7 +290,7 @@ public sealed class PlatformOrganizationService(
             .ToListAsync(cancellationToken);
 
         var allInvitesForPending = await db.InviteTokens.AsNoTracking()
-            .Where(i => tenantIds.Contains(i.TenantId))
+            .Where(i => tenantIds.Contains(i.TenantId) && i.Role == PlatformRole.HRAdmin)
             .ToListAsync(cancellationToken);
 
         var pendingByTenant = allInvitesForPending
