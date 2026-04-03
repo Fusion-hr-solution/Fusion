@@ -10,6 +10,7 @@ import {
   Palette,
   Settings,
   Terminal,
+  Users,
 } from "lucide-react";
 import { useAuth } from "@repo/auth";
 import { ModuleSwitcher } from "@repo/ui";
@@ -74,6 +75,7 @@ export function PlatformAdminSidebar() {
   const router = useRouter();
   const { logout } = useAuth();
   const dashActive = path === "/" || path === "";
+  const employeesActive = path.startsWith("/employees");
   const orgActive = path.startsWith("/organizations");
   const designActive = path.startsWith("/design-system");
   const settingsActive = path.startsWith("/settings");
@@ -106,6 +108,12 @@ export function PlatformAdminSidebar() {
             label="Dashboard"
             active={dashActive}
             disabled
+          />
+          <NavItem
+            href="/employees"
+            icon={Users}
+            label="Employees"
+            active={employeesActive}
           />
           <NavItem
             href="/organizations"
