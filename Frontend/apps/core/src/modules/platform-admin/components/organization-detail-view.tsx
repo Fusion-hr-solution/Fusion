@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { Archive, ChevronRight, PauseCircle, RotateCcw, UserPlus } from "lucide-react";
+import { Archive, ChevronRight, PauseCircle, RotateCcw } from "lucide-react";
 import { ApiError } from "@repo/api";
 import { cn } from "@/lib/utils";
 import type { Organization } from "../types/organization";
@@ -510,16 +510,6 @@ export function OrganizationDetailView({ org }: { org: Organization }) {
             Governance Controls
           </h3>
           <div className="space-y-px">
-            <button
-              type="button"
-              className="group flex w-full items-center justify-between bg-ch-surface-container-lowest py-2 pl-3 pr-3 font-chBody text-sm font-bold text-stone-900 transition-colors hover:bg-stone-100"
-            >
-              <div className="flex items-center gap-3">
-                <UserPlus className="h-5 w-5 text-stone-400" />
-                <span>Invite Second Admin</span>
-              </div>
-              <ChevronRight className="h-5 w-5 text-stone-300 transition-transform group-hover:translate-x-1" />
-            </button>
             <button
               type="button"
               disabled={busy || org.lifecycle !== "active"}

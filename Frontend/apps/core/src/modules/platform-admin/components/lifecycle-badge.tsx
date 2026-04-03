@@ -46,7 +46,7 @@ export function LifecycleBadge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 whitespace-nowrap rounded px-3 py-1 text-[10px] font-bold uppercase tracking-wider",
+        "inline-flex items-center gap-1.5 whitespace-nowrap rounded-ch-md px-3 py-1 text-[10px] font-bold uppercase tracking-wider",
         palette,
         className
       )}

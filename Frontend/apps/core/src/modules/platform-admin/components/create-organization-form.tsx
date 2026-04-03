@@ -77,7 +77,7 @@ export function CreateOrganizationForm() {
         </header>
 
         <div className="grid grid-cols-1 gap-12 lg:grid-cols-12">
-          <div className="space-y-6 lg:col-span-7">
+          <div className="flex flex-col space-y-6 lg:col-span-7">
             <section className="rounded-ch-lg border-0 bg-ch-surface-container-lowest p-8 shadow-sm">
               <form className="space-y-8" onSubmit={onSubmit}>
                 <div>
@@ -155,8 +155,8 @@ export function CreateOrganizationForm() {
             </section>
           </div>
 
-          <div className="space-y-6 lg:col-span-5 lg:self-start">
-            <div className="rounded-ch-lg bg-ch-surface-container-low p-8">
+          <div className="flex flex-col space-y-6 lg:col-span-5">
+            <div className="flex-1 rounded-ch-lg bg-ch-surface-container-low p-8">
               <h3 className="mb-4 flex items-center gap-2 font-chHeadline text-lg font-bold text-ch-on-surface">
                 <Info className="h-5 w-5 shrink-0 text-ch-primary" aria-hidden />
                 Deployment Logistics
@@ -217,7 +217,7 @@ export function CreateOrganizationForm() {
                 sizes="(max-width: 1024px) 100vw, 480px"
               />
               <div className="absolute bottom-0 left-0 z-20 p-6">
-                <span className="mb-2 inline-block rounded bg-ch-primary-container px-3 py-1 font-chBody text-[10px] font-bold uppercase tracking-widest text-ch-on-primary-container">
+                <span className="mb-2 inline-block rounded-ch-md bg-ch-primary-container px-3 py-1 font-chBody text-[10px] font-bold uppercase tracking-widest text-ch-on-primary-container">
                   Architectural Standard
                 </span>
                 <h4 className="font-chHeadline text-xl font-bold text-white">

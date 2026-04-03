@@ -52,13 +52,29 @@ public sealed class PlatformOrganizationService(
                 .Select(s => s.Trim())
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        var tenantsQuery = db.Tenants.AsNoTracking();
-        if (searchLower is not null)
-            tenantsQuery = tenantsQuery.Where(t => t.Name.ToLower().Contains(searchLower));
+        // Load ALL tenants for global stats (unfiltered by search)
+        var allTenants = await db.Tenants.AsNoTracking().ToListAsync(cancellationToken);
+        var allIds = allTenants.Select(t => t.Id).ToList();
+        var allMetrics = await LoadMetricsAsync(allIds, cancellationToken);
+        var allSummaries = allTenants.Select(t => MapSummary(t, allMetrics)).ToList();
 
-        var tenants = await tenantsQuery.ToListAsync(cancellationToken);
+        // Compute global stats from full DB (before any filters)
+        var stats = new PlatformOrganizationStatsDto
+        {
+            TotalOrganizations = allSummaries.Count,
+            AttentionNeeded = allSummaries.Count(s =>
+                s.OperationalStatus.Equals(OrganizationOperationalStatus.Attention, StringComparison.OrdinalIgnoreCase)),
+            InvitedPending = allSummaries.Count(s =>
+                s.OperationalStatus.Equals(OrganizationOperationalStatus.Invited, StringComparison.OrdinalIgnoreCase)),
+            ActiveUserCount = allSummaries.Sum(s => s.ActiveUserCount)
+        };
+
+        // Apply search filter for paginated list
+        var tenants = searchLower is not null
+            ? allTenants.Where(t => t.Name.ToLower().Contains(searchLower)).ToList()
+            : allTenants;
         var ids = tenants.Select(t => t.Id).ToList();
-        var metrics = await LoadMetricsAsync(ids, cancellationToken);
+        var metrics = allMetrics;
 
         var summaries = tenants.Select(t => MapSummary(t, metrics)).ToList();
 
@@ -118,18 +134,6 @@ public sealed class PlatformOrganizationService(
 
         var totalCount = ordered.Count();
         var items = ordered.Skip(skip).Take(take).ToList();
-
-        // Compute stats from the full filtered dataset (before pagination)
-        var allSummaries = ordered.ToList();
-        var stats = new PlatformOrganizationStatsDto
-        {
-            TotalOrganizations = allSummaries.Count,
-            AttentionNeeded = allSummaries.Count(s => 
-                s.OperationalStatus.Equals(OrganizationOperationalStatus.Attention, StringComparison.OrdinalIgnoreCase)),
-            InvitedPending = allSummaries.Count(s => 
-                s.OperationalStatus.Equals(OrganizationOperationalStatus.Invited, StringComparison.OrdinalIgnoreCase)),
-            ActiveUserCount = allSummaries.Sum(s => s.ActiveUserCount)
-        };
 
         return new PlatformOrganizationPagedListDto
         {

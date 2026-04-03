@@ -351,7 +351,7 @@ export function OrganizationsListView() {
                         href={`/organizations/${encodeURIComponent(row.id)}`}
                         className="flex items-center gap-3"
                       >
-                        <div className="flex h-8 w-8 items-center justify-center rounded bg-stone-100 font-bold text-stone-400">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-ch-md bg-stone-100 font-bold text-stone-400">
                           {row.initials}
                         </div>
                         <span className="text-sm font-semibold text-ch-on-surface hover:underline">
