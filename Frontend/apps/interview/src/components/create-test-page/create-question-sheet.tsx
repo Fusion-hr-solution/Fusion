@@ -4,7 +4,7 @@ import { useState } from "react";
 import { X, Plus, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { QUESTION_TYPES, CODING_LANGUAGES, GRADING_METHODS } from "@/config/constants";
-import type { Question, NewQuestionForm, QuestionType, Difficulty, GradingMethod } from "@/types";
+import type { NewQuestionForm, QuestionType, Difficulty, GradingMethod } from "@/types";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -15,9 +15,39 @@ const EMPTY_FORM: NewQuestionForm = {
   language: "Python", starterCode: "", evaluationCriteria: "",
 };
 
-function genId(): string {
-  return `q_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+function defaultOptionsForType(type: NewQuestionForm["type"]) {
+  if (type === "True/False") {
+    return [
+      { text: "True", correct: true },
+      { text: "False", correct: false },
+    ];
+  }
+
+  return [{ text: "", correct: false }, { text: "", correct: false }];
 }
+
+function getValidationError(form: NewQuestionForm): string | null {
+  if (!form.type) return "Question type is required.";
+  if (!form.title.trim()) return "Title is required.";
+  if (!form.difficulty) return "Difficulty is required.";
+  if (!form.gradingMethod) return "Grading method is required.";
+  if (form.points <= 0) return "Points must be greater than 0.";
+  if (form.durationMinutes <= 0) return "Duration must be greater than 0 minutes.";
+
+  if ((form.type === "Coding" || form.type === "SQL") && !form.language.trim()) {
+    return "Language is required for Coding and SQL questions.";
+  }
+
+  if (form.type === "Multiple Choice" || form.type === "True/False") {
+    const nonEmptyOptions = form.options.filter((option) => option.text.trim().length > 0);
+    if (nonEmptyOptions.length === 0 || !nonEmptyOptions.some((option) => option.correct)) {
+      return "Multiple Choice and True/False questions require options and at least one correct option.";
+    }
+  }
+
+  return null;
+}
+
 
 const DIFF_STYLES: Record<string, string> = {
   Easy:   "bg-emerald-50 text-emerald-700 border-emerald-200",
@@ -52,14 +82,17 @@ function SelectChevron() {
 interface Props {
   open: boolean;
   onClose: () => void;
-  onSaveAndAdd: (q: Question) => void;
+  onSaveToLibrary: (form: NewQuestionForm) => Promise<void>;
+  onSaveAndAdd: (form: NewQuestionForm) => Promise<void>;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function CreateQuestionSheet({ open, onClose, onSaveAndAdd }: Props) {
+export function CreateQuestionSheet({ open, onClose, onSaveToLibrary, onSaveAndAdd }: Props) {
   const [form,     setForm]     = useState<NewQuestionForm>(EMPTY_FORM);
   const [tagInput, setTagInput] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   function update<K extends keyof NewQuestionForm>(key: K, val: NewQuestionForm[K]) {
     setForm((p) => ({ ...p, [key]: val }));
@@ -86,7 +119,8 @@ export function CreateQuestionSheet({ open, onClose, onSaveAndAdd }: Props) {
   const showOptions = form.type === "Multiple Choice" || form.type === "True/False";
   const showCoding  = form.type === "Coding" || form.type === "SQL";
   const showEval    = form.type === "Essay" || form.type === "Case Study";
-  const isValid     = Boolean(form.type && form.title.trim() && form.difficulty && form.gradingMethod);
+  const validationError = getValidationError(form);
+  const isValid = validationError === null;
 
   // completion steps for the progress bar
   const progressSteps = [
@@ -97,17 +131,26 @@ export function CreateQuestionSheet({ open, onClose, onSaveAndAdd }: Props) {
   ];
   const completedCount = progressSteps.filter((s) => s.done).length;
 
-  function handleSaveAndAdd() {
-    if (!isValid) return;
-    onSaveAndAdd({
-      id: genId(), title: form.title, description: form.description,
-      type: form.type as QuestionType, difficulty: form.difficulty as Difficulty,
-      gradingMethod: form.gradingMethod as GradingMethod,
-      points: form.points, durationMinutes: form.durationMinutes,
-      tags: form.tags, usageCount: 0,
-    });
-    setForm(EMPTY_FORM);
-    onClose();
+   async function submit(saveToTest: boolean) {
+    if (!isValid) {
+      setSubmitError(validationError ?? "Please complete required fields.");
+      return;
+    }
+    setIsSaving(true);
+    setSubmitError(null);
+    try {
+      if (saveToTest) {
+        await onSaveAndAdd(form);
+      } else {
+        await onSaveToLibrary(form);
+      }
+      setForm(EMPTY_FORM);
+      onClose();
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : "Failed to save question.");
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   if (!open) return null;
@@ -136,7 +179,7 @@ export function CreateQuestionSheet({ open, onClose, onSaveAndAdd }: Props) {
             <div>
               <h2 className="text-[20px] font-bold text-zinc-900">Create New Question</h2>
               <p className="mt-0.5 text-[13px] text-zinc-500">
-                Saved to your library and added to this test
+                Save to your library, then optionally add it to this test
               </p>
             </div>
             <button
@@ -199,7 +242,17 @@ export function CreateQuestionSheet({ open, onClose, onSaveAndAdd }: Props) {
                 <div className="relative">
                   <select
                     value={form.type}
-                    onChange={(e) => update("type", e.target.value as QuestionType | "")}
+                    onChange={(e) => {
+                      const nextType = e.target.value as QuestionType | "";
+                      setForm((prev) => ({
+                        ...prev,
+                        type: nextType,
+                        options:
+                          nextType === "Multiple Choice" || nextType === "True/False"
+                            ? defaultOptionsForType(nextType)
+                            : prev.options,
+                      }));
+                    }}
                     className={cn(
                       "w-full appearance-none rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-[13px] shadow-sm transition-all duration-150",
                       "focus:border-zinc-300 focus:outline-none focus:ring-2 focus:ring-zinc-900/10",
@@ -458,9 +511,13 @@ export function CreateQuestionSheet({ open, onClose, onSaveAndAdd }: Props) {
 
         {/* ── Footer ─────────────────────────────────────────────── */}
         <div className="flex shrink-0 items-center justify-between border-t border-zinc-100 bg-zinc-50/80 px-8 py-4">
+          {submitError && (
+            <p className="mr-4 max-w-[320px] text-[12px] text-red-600">{submitError}</p>
+          )}
           <button
             type="button"
-            onClick={onClose}
+            onClick={() => void submit(false)}
+            disabled={!isValid || isSaving}
             className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-[13px] font-semibold text-zinc-600 shadow-sm transition-colors duration-150 hover:bg-zinc-50"
           >
             Save to Library Only
@@ -469,23 +526,24 @@ export function CreateQuestionSheet({ open, onClose, onSaveAndAdd }: Props) {
             <button
               type="button"
               onClick={onClose}
+              disabled={isSaving}
               className="rounded-xl px-4 py-2 text-[13px] font-medium text-zinc-500 transition-colors duration-150 hover:bg-zinc-100"
             >
               Cancel
             </button>
             <button
               type="button"
-              onClick={handleSaveAndAdd}
-              disabled={!isValid}
+               onClick={() => void submit(true)}
+              disabled={!isValid || isSaving}
               className={cn(
                 "flex items-center gap-2 rounded-xl px-5 py-2 text-[13px] font-bold shadow-sm transition-all duration-150 active:scale-[0.98]",
-                isValid
+                isValid && !isSaving
                   ? "bg-zinc-900 text-white hover:bg-zinc-800"
                   : "cursor-not-allowed bg-zinc-100 text-zinc-400 shadow-none"
               )}
             >
               <Plus className="h-4 w-4" />
-              Save &amp; Add to Test
+              {isSaving ? "Saving..." : "Save & Add to Test"}
             </button>
           </div>
         </div>
