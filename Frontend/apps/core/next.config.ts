@@ -22,6 +22,17 @@ const nextConfig: NextConfig = {
         basePath: false,
         permanent: false,
       },
+      // Legacy executive-console paths → flat /core/* routes
+      {
+        source: "/corehr",
+        destination: "/organizations",
+        permanent: false,
+      },
+      {
+        source: "/corehr/:path*",
+        destination: "/:path*",
+        permanent: false,
+      },
     ];
   },
 };

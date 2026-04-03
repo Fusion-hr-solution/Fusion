@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { AppSidebar, type NavSection } from "@repo/ui";
 import { SidebarUserPanel } from "@repo/auth";
+import { PLATFORM_MODULES } from "@/config/platform-modules";
 
 const CORE_NAV: NavSection = {
   title: "Administration",
@@ -26,16 +27,16 @@ const CORE_NAV: NavSection = {
 const CORE_HR_NAV: NavSection = {
   title: "Core HR",
   items: [
-    { label: "Organizations", href: "/corehr/organizations", icon: Building2 },
-    { label: "Design system", href: "/corehr/design-system", icon: Palette },
+    { label: "Organizations", href: "/organizations", icon: Building2 },
+    { label: "Design system", href: "/design-system", icon: Palette },
   ],
 };
 
-/** Maps nested Core HR routes to sidebar nav hrefs (exact match in AppSidebar). */
+/** Maps nested executive-console routes to sidebar nav hrefs (exact match in AppSidebar). */
 function normalizeCoreActivePath(pathname: string): string {
   const p = pathname.replace(/^\/core/, "") || "/";
-  if (p.startsWith("/corehr/organizations")) return "/corehr/organizations";
-  if (p.startsWith("/corehr/design-system")) return "/corehr/design-system";
+  if (p.startsWith("/organizations")) return "/organizations";
+  if (p.startsWith("/design-system")) return "/design-system";
   return p;
 }
 
@@ -52,6 +53,7 @@ export function CoreSidebar() {
       brandTitle="EY Core"
       brandSubtitle="Platform Admin"
       basePath="/core"
+      modules={PLATFORM_MODULES}
       userPanel={(collapsed) => <SidebarUserPanel collapsed={collapsed} />}
     />
   );

@@ -18,6 +18,13 @@ const config: Config = {
         chHeadline: ["var(--font-ch-headline)", "Manrope", "system-ui", "sans-serif"],
         chBody: ["var(--font-ch-body)", "Inter", "system-ui", "sans-serif"],
       },
+      borderRadius: {
+        /** Stitch Executive Console radii (tighter than default Tailwind) */
+        ch: "0.125rem",
+        "ch-md": "0.25rem",
+        "ch-lg": "0.5rem",
+        "ch-xl": "0.75rem",
+      },
       colors: {
         ch: {
           background: "#f9f9f9",
