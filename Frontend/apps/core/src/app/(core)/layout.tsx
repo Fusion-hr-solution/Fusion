@@ -1,6 +1,7 @@
 import { Inter, Manrope } from "next/font/google";
 import { OrganizationsProvider } from "@/modules/platform-admin/context/organizations-context";
 import { PlatformAdminChrome } from "@/modules/platform-admin/components/platform-admin-chrome";
+import { PlatformAdminAccessGate } from "@/modules/platform-admin/components/platform-admin-access-gate";
 
 const manrope = Manrope({
   subsets: ["latin"],
@@ -20,7 +21,9 @@ export default function CoreModuleLayout({
   return (
     <div className={`core-ui-root ${manrope.variable} ${inter.variable}`}>
       <OrganizationsProvider>
-        <PlatformAdminChrome>{children}</PlatformAdminChrome>
+        <PlatformAdminAccessGate>
+          <PlatformAdminChrome>{children}</PlatformAdminChrome>
+        </PlatformAdminAccessGate>
       </OrganizationsProvider>
     </div>
   );
