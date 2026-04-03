@@ -19,6 +19,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@repo/ui";
+import { ApiError } from "@repo/api";
 import { useOrganizations } from "../context/organizations-context";
 import {
   buildInviteAcceptPath,
@@ -27,24 +28,14 @@ import {
 import type { Organization } from "../types/organization";
 import { cn } from "@/lib/utils";
 
-function formatShortStamp(d: Date): string {
-  return d.toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
-}
-
-function addDays(d: Date, days: number): Date {
-  const n = new Date(d);
-  n.setDate(n.getDate() + days);
-  return n;
-}
-
 export function OrganizationRowActions({ org }: { org: Organization }) {
-  const { updateOrganization } = useOrganizations();
+  const {
+    ensureOrganization,
+    suspendOrganization,
+    reactivateOrganization,
+    resendFirstAdminInvite,
+    revokeFirstAdminInvites,
+  } = useOrganizations();
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -60,48 +51,87 @@ export function OrganizationRowActions({ org }: { org: Organization }) {
   const copyInviteLink = useCallback(async () => {
     setBusy(true);
     try {
-      const path = buildInviteAcceptPath(org);
+      let effective = org;
+      if (!effective.inviteLink) {
+        const fresh = await ensureOrganization(org.id);
+        if (fresh) effective = fresh;
+      }
+      const path = buildInviteAcceptPath(effective);
       const origin =
         typeof window !== "undefined" ? window.location.origin : "";
-      await navigator.clipboard.writeText(`${origin}${path}`);
+      const full = path.startsWith("http") ? path : `${origin}${path}`;
+      await navigator.clipboard.writeText(full);
       flash("Invite link copied to clipboard.");
     } catch {
       flash("Could not copy link.");
     } finally {
       setBusy(false);
     }
-  }, [flash, org]);
+  }, [ensureOrganization, flash, org]);
 
-  const resendInvite = useCallback(() => {
-    const now = new Date();
-    const expires = addDays(now, 7);
-    updateOrganization(org.id, {
-      inviteSentAt: formatShortStamp(now),
-      inviteExpiresAt: formatShortStamp(expires),
-      adminStatus: "Awaiting Login",
-      pendingInvites: Math.max(1, org.pendingInvites || 1),
-    });
-    flash("First admin invite resent.");
-  }, [flash, org.id, org.pendingInvites, updateOrganization]);
+  const resendInvite = useCallback(async () => {
+    setBusy(true);
+    try {
+      await resendFirstAdminInvite(org.id);
+      flash("First admin invite resent.");
+    } catch (e) {
+      const msg =
+        e instanceof ApiError
+          ? (e.errors[0] ?? e.message)
+          : "Could not resend invite.";
+      flash(msg);
+    } finally {
+      setBusy(false);
+    }
+  }, [flash, org.id, resendFirstAdminInvite]);
 
-  const revokeInvite = useCallback(() => {
-    updateOrganization(org.id, {
-      pendingInvites: 0,
-      adminStatus: "Invite revoked",
-      lifecycle: "attention",
-    });
-    flash("Invite revoked.");
-  }, [flash, org.id, updateOrganization]);
+  const revokeInvite = useCallback(async () => {
+    setBusy(true);
+    try {
+      await revokeFirstAdminInvites(org.id);
+      flash("Pending invite revoked.");
+    } catch (e) {
+      const msg =
+        e instanceof ApiError
+          ? (e.errors[0] ?? e.message)
+          : "Could not revoke invite.";
+      flash(msg);
+    } finally {
+      setBusy(false);
+    }
+  }, [flash, org.id, revokeFirstAdminInvites]);
 
-  const suspend = useCallback(() => {
-    updateOrganization(org.id, { lifecycle: "suspended" });
-    flash("Organization suspended.");
-  }, [flash, org.id, updateOrganization]);
+  const suspend = useCallback(async () => {
+    setBusy(true);
+    try {
+      await suspendOrganization(org.id);
+      flash("Organization suspended.");
+    } catch (e) {
+      const msg =
+        e instanceof ApiError
+          ? (e.errors[0] ?? e.message)
+          : "Could not suspend organization.";
+      flash(msg);
+    } finally {
+      setBusy(false);
+    }
+  }, [flash, org.id, suspendOrganization]);
 
-  const reactivate = useCallback(() => {
-    updateOrganization(org.id, { lifecycle: "active" });
-    flash("Organization reactivated.");
-  }, [flash, org.id, updateOrganization]);
+  const reactivate = useCallback(async () => {
+    setBusy(true);
+    try {
+      await reactivateOrganization(org.id);
+      flash("Organization reactivated.");
+    } catch (e) {
+      const msg =
+        e instanceof ApiError
+          ? (e.errors[0] ?? e.message)
+          : "Could not reactivate.";
+      flash(msg);
+    } finally {
+      setBusy(false);
+    }
+  }, [flash, org.id, reactivateOrganization]);
 
   return (
     <div className="relative flex items-center justify-center">
@@ -160,7 +190,7 @@ export function OrganizationRowActions({ org }: { org: Organization }) {
               disabled={busy}
               onSelect={(e) => {
                 e.preventDefault();
-                resendInvite();
+                void resendInvite();
               }}
               className="cursor-pointer rounded-ch-sm data-[highlighted]:bg-ch-surface-container-low data-[highlighted]:text-ch-on-surface"
             >
@@ -188,7 +218,7 @@ export function OrganizationRowActions({ org }: { org: Organization }) {
               disabled={busy}
               onSelect={(e) => {
                 e.preventDefault();
-                revokeInvite();
+                void revokeInvite();
               }}
               className="cursor-pointer rounded-ch-sm text-ch-error data-[highlighted]:bg-ch-error-container/35 data-[highlighted]:text-ch-error"
             >
@@ -206,7 +236,7 @@ export function OrganizationRowActions({ org }: { org: Organization }) {
               disabled={busy}
               onSelect={(e) => {
                 e.preventDefault();
-                suspend();
+                void suspend();
               }}
               className="cursor-pointer rounded-ch-sm text-ch-error data-[highlighted]:bg-ch-error-container/35 data-[highlighted]:text-ch-error"
             >
@@ -220,7 +250,7 @@ export function OrganizationRowActions({ org }: { org: Organization }) {
               disabled={busy}
               onSelect={(e) => {
                 e.preventDefault();
-                reactivate();
+                void reactivate();
               }}
               className="cursor-pointer rounded-ch-sm data-[highlighted]:bg-ch-surface-container-low data-[highlighted]:text-ch-on-surface"
             >

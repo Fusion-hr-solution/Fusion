@@ -11,7 +11,7 @@ export interface OrganizationActionFlags {
 }
 
 /**
- * Visibility rules for the organizations table row menu (mock / client-side until APIs exist).
+ * Row menu visibility from organization lifecycle (Identity-derived).
  */
 export function getOrganizationActionFlags(
   o: Organization
@@ -19,25 +19,42 @@ export function getOrganizationActionFlags(
   const hasPrimary = Boolean(o.primaryAdminEmail?.trim());
   const inviteExists =
     hasPrimary && Boolean(o.inviteSentAt || o.pendingInvites > 0);
-  const invitePending = o.lifecycle === "invited" && o.pendingInvites > 0;
+  const invitePending =
+    (o.lifecycle === "invited" || o.lifecycle === "draft") &&
+    o.pendingInvites > 0;
   const inviteOutstanding =
     o.lifecycle !== "suspended" &&
-    hasPrimary &&
-    (o.lifecycle === "invited" || o.lifecycle === "attention");
+    o.lifecycle !== "archived" &&
+    (o.lifecycle === "invited" ||
+      o.lifecycle === "attention" ||
+      o.lifecycle === "draft");
 
   return {
     showView: true,
     showContinueSetup:
-      o.onboardingProgressPercent < 100 && o.lifecycle !== "suspended",
+      o.lifecycle !== "suspended" &&
+      o.lifecycle !== "archived" &&
+      o.onboardingProgressPercent < 100,
     showResendFirstAdminInvite: inviteOutstanding,
-    showCopyInviteLink: inviteExists,
+    showCopyInviteLink: inviteExists || Boolean(o.inviteLink),
     showRevokeInvite: invitePending,
     showSuspend: o.lifecycle === "active",
     showReactivate: o.lifecycle === "suspended",
   };
 }
 
+/** Prefer server-issued absolute link; fallback to token query (invite acceptance page). */
 export function buildInviteAcceptPath(org: Organization): string {
+  if (org.inviteLink) {
+    try {
+      const u = new URL(org.inviteLink);
+      return `${u.pathname}${u.search}`;
+    } catch {
+      return org.inviteLink.startsWith("/")
+        ? org.inviteLink
+        : `/${org.inviteLink}`;
+    }
+  }
   const q = new URLSearchParams();
   q.set("org", org.name);
   if (org.primaryAdminEmail) q.set("email", org.primaryAdminEmail);

@@ -17,6 +17,9 @@ importers:
 
   apps/core:
     dependencies:
+      '@repo/api':
+        specifier: workspace:*
+        version: link:../../packages/api
       '@repo/auth':
         specifier: workspace:*
         version: link:../../packages/auth

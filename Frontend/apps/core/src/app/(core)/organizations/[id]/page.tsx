@@ -2,14 +2,40 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import { OrganizationDetailView } from "@/modules/platform-admin/components/organization-detail-view";
 import { useOrganizations } from "@/modules/platform-admin/context/organizations-context";
 
 export default function OrganizationDetailPage() {
   const params = useParams();
-  const id = typeof params.id === "string" ? params.id : "";
-  const { getById } = useOrganizations();
-  const org = getById(decodeURIComponent(id));
+  const id = typeof params.id === "string" ? decodeURIComponent(params.id) : "";
+  const { getById, ensureOrganization } = useOrganizations();
+  const [detailLoading, setDetailLoading] = useState(true);
+
+  useEffect(() => {
+    if (!id) {
+      setDetailLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setDetailLoading(true);
+    void ensureOrganization(id).finally(() => {
+      if (!cancelled) setDetailLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [id, ensureOrganization]);
+
+  const org = getById(id);
+
+  if (detailLoading && !org) {
+    return (
+      <div className="mx-auto max-w-lg py-16 text-center font-chBody text-ch-secondary">
+        Loading organization…
+      </div>
+    );
+  }
 
   if (!org) {
     return (

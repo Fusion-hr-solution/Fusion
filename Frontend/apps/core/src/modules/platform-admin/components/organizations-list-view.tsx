@@ -8,7 +8,7 @@ import {
   corePrimaryButtonClassName,
 } from "@/lib/core-ui-classes";
 import { cn } from "@/lib/utils";
-import { MOCK_OPERATIONAL_LOGS, MOCK_ORG_STATS } from "../data/mock-organizations";
+import { MOCK_OPERATIONAL_LOGS } from "../data/mock-organizations";
 import { useOrganizations } from "../context/organizations-context";
 import type { OrganizationLifecycle } from "../types/organization";
 import { PlatformAdminBreadcrumbs } from "./platform-admin-breadcrumbs";
@@ -43,10 +43,12 @@ function getVisiblePages(
 
 const STATUS_FILTER: Array<OrganizationLifecycle | "all"> = [
   "all",
+  "draft",
   "active",
   "invited",
   "attention",
   "suspended",
+  "archived",
 ];
 
 function matchesFilter(
@@ -59,7 +61,24 @@ function matchesFilter(
 }
 
 export function OrganizationsListView() {
-  const { organizations } = useOrganizations();
+  const { organizations, loading, error } = useOrganizations();
+
+  const stats = useMemo(() => {
+    const total = organizations.length;
+    const attentionNeeded = organizations.filter(
+      (o) => o.lifecycle === "attention"
+    ).length;
+    const invitedPending = organizations.filter(
+      (o) => o.lifecycle === "invited"
+    ).length;
+    const activeUsers = organizations.reduce((s, o) => s + o.userCount, 0);
+    return {
+      totalAssets: total,
+      attentionNeeded,
+      invitedPending,
+      activeUsersLabel: activeUsers.toLocaleString(),
+    };
+  }, [organizations]);
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<OrganizationLifecycle | "all">("all");
   const [page, setPage] = useState(1);
@@ -126,20 +145,26 @@ export function OrganizationsListView() {
           </Link>
         </div>
 
+        {error ? (
+          <p className="mb-6 rounded-ch-md border border-ch-error/40 bg-ch-error-container/20 px-4 py-3 text-sm text-ch-error">
+            {error}
+          </p>
+        ) : null}
+
         <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-4">
-          <Stat label="Total Assets" value={String(MOCK_ORG_STATS.totalAssets)} />
+          <Stat label="Organizations" value={String(stats.totalAssets)} />
           <Stat
             label="Attention Needed"
-            value={String(MOCK_ORG_STATS.attentionNeeded)}
+            value={String(stats.attentionNeeded)}
             valueClass="text-ch-error"
           />
           <Stat
             label="Invited Pending"
-            value={String(MOCK_ORG_STATS.invitedPending)}
+            value={String(stats.invitedPending)}
           />
           <Stat
-            label="Active Users"
-            value={MOCK_ORG_STATS.activeUsersLabel}
+            label="Active Users (sum)"
+            value={stats.activeUsersLabel}
             valueClass="text-ch-tertiary"
           />
         </div>
@@ -219,7 +244,17 @@ export function OrganizationsListView() {
                 </tr>
               </thead>
               <tbody className="bg-ch-surface-container-lowest">
-                {filtered.length === 0 ? (
+                {loading && organizations.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={6}
+                      className="px-6 py-16 text-center text-sm text-ch-secondary"
+                    >
+                      Loading organizations…
+                    </td>
+                  </tr>
+                ) : null}
+                {!loading && filtered.length === 0 ? (
                   <tr>
                     <td
                       colSpan={6}

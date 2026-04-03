@@ -8,3 +8,13 @@ export type {
   RequestOptions,
 } from "./types";
 export type { PlatformApiClientConfig } from "./platform";
+export type {
+  CreatePlatformOrganizationRequest,
+  PlatformOrganizationCreatedDto,
+  PlatformOrganizationDetailDto,
+  PlatformOrganizationInviteStatusDto,
+  PlatformOrganizationSummaryDto,
+} from "./platform-organizations";
+export { platformOrganizationsPaths } from "./platform-organizations";
+export type { AcceptInviteRequest, InviteDto } from "./invites";
+export { invitePaths } from "./invites";

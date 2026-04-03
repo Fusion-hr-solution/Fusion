@@ -1,24 +1,18 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { Archive, ChevronRight, PauseCircle, UserPlus } from "lucide-react";
+import { Archive, ChevronRight, PauseCircle, RotateCcw, UserPlus } from "lucide-react";
+import { ApiError } from "@repo/api";
 import { cn } from "@/lib/utils";
 import type { Organization } from "../types/organization";
 import { useOrganizations } from "../context/organizations-context";
+import { buildInviteAcceptPath } from "../lib/org-action-flags";
 import { PlatformAdminBreadcrumbs } from "./platform-admin-breadcrumbs";
-
-function formatShortStamp(d: Date): string {
-  return d.toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
-}
 
 function lifecyclePillLabel(lifecycle: Organization["lifecycle"]): string {
   switch (lifecycle) {
+    case "draft":
+      return "Lifecycle: Draft";
     case "active":
       return "Lifecycle: Active";
     case "invited":
@@ -27,12 +21,17 @@ function lifecyclePillLabel(lifecycle: Organization["lifecycle"]): string {
       return "Lifecycle: Attention Needed";
     case "suspended":
       return "Lifecycle: Suspended";
+    case "archived":
+      return "Lifecycle: Archived";
     default:
       return "Lifecycle";
   }
 }
 
 function handoffCopy(org: Organization) {
+  if (org.lifecycle === "archived") {
+    return { dot: "bg-stone-500", headline: "Archived" };
+  }
   if (org.lifecycle === "suspended") {
     return {
       dot: "bg-stone-500",
@@ -51,6 +50,9 @@ function handoffCopy(org: Organization) {
       headline: "Action Required",
     };
   }
+  if (org.lifecycle === "draft") {
+    return { dot: "bg-stone-400", headline: "Draft" };
+  }
   return {
     dot: "bg-yellow-400",
     headline: "Pending Approval",
@@ -64,27 +66,52 @@ function adminInitials(name: string): string {
 }
 
 export function OrganizationDetailView({ org }: { org: Organization }) {
-  const { updateOrganization } = useOrganizations();
+  const {
+    resendFirstAdminInvite,
+    revokeFirstAdminInvites,
+    suspendOrganization,
+    reactivateOrganization,
+    archiveOrganization,
+    ensureOrganization,
+  } = useOrganizations();
   const [actionBanner, setActionBanner] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const handoff = useMemo(() => handoffCopy(org), [org]);
 
-  const onResend = useCallback(() => {
-    const now = new Date();
-    const expires = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-    updateOrganization(org.id, {
-      inviteSentAt: formatShortStamp(now),
-      inviteExpiresAt: formatShortStamp(expires),
-    });
-    setActionBanner("Invitation resent successfully.");
+  const onResend = useCallback(async () => {
+    setBusy(true);
+    try {
+      await resendFirstAdminInvite(org.id);
+      await ensureOrganization(org.id);
+      setActionBanner("Invitation resent successfully.");
+    } catch (e) {
+      const msg =
+        e instanceof ApiError
+          ? (e.errors[0] ?? e.message)
+          : "Could not resend invitation.";
+      setActionBanner(msg);
+    } finally {
+      setBusy(false);
+    }
     window.setTimeout(() => setActionBanner(null), 4000);
-  }, [org.id, updateOrganization]);
+  }, [ensureOrganization, org.id, resendFirstAdminInvite]);
 
   const onCopyLink = useCallback(async () => {
+    let effective = org;
+    if (!effective.inviteLink) {
+      const fresh = await ensureOrganization(org.id);
+      if (fresh) effective = fresh;
+    }
     const origin =
       typeof window !== "undefined" ? window.location.origin : "";
-    const path = `/core/invite/accept?org=${encodeURIComponent(org.name)}&email=${encodeURIComponent(org.primaryAdminEmail ?? "")}`;
-    const text = `${origin}${path}`;
+    let text: string;
+    if (effective.inviteLink?.startsWith("http")) {
+      text = effective.inviteLink;
+    } else {
+      const path = buildInviteAcceptPath(effective);
+      text = path.startsWith("http") ? path : `${origin}${path}`;
+    }
     try {
       await navigator.clipboard.writeText(text);
       setActionBanner("Invite link copied to clipboard.");
@@ -92,7 +119,79 @@ export function OrganizationDetailView({ org }: { org: Organization }) {
       setActionBanner("Unable to copy link.");
     }
     window.setTimeout(() => setActionBanner(null), 3500);
-  }, [org.name, org.primaryAdminEmail]);
+  }, [ensureOrganization, org]);
+
+  const onRevoke = useCallback(async () => {
+    setBusy(true);
+    try {
+      await revokeFirstAdminInvites(org.id);
+      await ensureOrganization(org.id);
+      setActionBanner("Invite revoked.");
+    } catch (e) {
+      const msg =
+        e instanceof ApiError
+          ? (e.errors[0] ?? e.message)
+          : "Could not revoke invite.";
+      setActionBanner(msg);
+    } finally {
+      setBusy(false);
+    }
+    window.setTimeout(() => setActionBanner(null), 4000);
+  }, [ensureOrganization, org.id, revokeFirstAdminInvites]);
+
+  const onSuspend = useCallback(async () => {
+    setBusy(true);
+    try {
+      await suspendOrganization(org.id);
+      await ensureOrganization(org.id);
+      setActionBanner("Organization suspended.");
+    } catch (e) {
+      const msg =
+        e instanceof ApiError
+          ? (e.errors[0] ?? e.message)
+          : "Could not suspend organization.";
+      setActionBanner(msg);
+    } finally {
+      setBusy(false);
+    }
+    window.setTimeout(() => setActionBanner(null), 4000);
+  }, [ensureOrganization, org.id, suspendOrganization]);
+
+  const onReactivate = useCallback(async () => {
+    setBusy(true);
+    try {
+      await reactivateOrganization(org.id);
+      await ensureOrganization(org.id);
+      setActionBanner("Organization reactivated.");
+    } catch (e) {
+      const msg =
+        e instanceof ApiError
+          ? (e.errors[0] ?? e.message)
+          : "Could not reactivate.";
+      setActionBanner(msg);
+    } finally {
+      setBusy(false);
+    }
+    window.setTimeout(() => setActionBanner(null), 4000);
+  }, [ensureOrganization, org.id, reactivateOrganization]);
+
+  const onArchive = useCallback(async () => {
+    setBusy(true);
+    try {
+      await archiveOrganization(org.id);
+      await ensureOrganization(org.id);
+      setActionBanner("Organization archived.");
+    } catch (e) {
+      const msg =
+        e instanceof ApiError
+          ? (e.errors[0] ?? e.message)
+          : "Could not archive organization.";
+      setActionBanner(msg);
+    } finally {
+      setBusy(false);
+    }
+    window.setTimeout(() => setActionBanner(null), 4000);
+  }, [archiveOrganization, ensureOrganization, org.id]);
 
   const milestones = useMemo(() => {
     const p = org.onboardingProgressPercent;
@@ -321,17 +420,27 @@ export function OrganizationDetailView({ org }: { org: Organization }) {
               <div className="flex flex-col gap-2 pt-4">
                 <button
                   type="button"
-                  onClick={onResend}
-                  className="w-full bg-yellow-400 py-3 font-chHeadline text-xs font-black uppercase tracking-widest text-stone-900 transition-colors hover:bg-yellow-300"
+                  disabled={busy}
+                  onClick={() => void onResend()}
+                  className="w-full bg-yellow-400 py-3 font-chHeadline text-xs font-black uppercase tracking-widest text-stone-900 transition-colors hover:bg-yellow-300 disabled:opacity-50"
                 >
                   Resend Invite
                 </button>
                 <button
                   type="button"
-                  onClick={onCopyLink}
-                  className="w-full border border-stone-700 py-3 font-chHeadline text-xs font-black uppercase tracking-widest text-stone-300 transition-colors hover:bg-stone-800"
+                  disabled={busy}
+                  onClick={() => void onCopyLink()}
+                  className="w-full border border-stone-700 py-3 font-chHeadline text-xs font-black uppercase tracking-widest text-stone-300 transition-colors hover:bg-stone-800 disabled:opacity-50"
                 >
                   Copy Invite Link
+                </button>
+                <button
+                  type="button"
+                  disabled={busy || org.pendingInvites < 1}
+                  onClick={() => void onRevoke()}
+                  className="w-full border border-ch-error/50 py-3 font-chHeadline text-xs font-black uppercase tracking-widest text-ch-error transition-colors hover:bg-ch-error/10 disabled:opacity-50"
+                >
+                  Revoke Pending Invite
                 </button>
               </div>
             </div>
@@ -413,7 +522,9 @@ export function OrganizationDetailView({ org }: { org: Organization }) {
             </button>
             <button
               type="button"
-              className="group flex w-full items-center justify-between bg-ch-surface-container-lowest py-2 pl-3 pr-3 font-chBody text-sm font-bold text-stone-900 transition-colors hover:bg-stone-100"
+              disabled={busy || org.lifecycle !== "active"}
+              onClick={() => void onSuspend()}
+              className="group flex w-full items-center justify-between bg-ch-surface-container-lowest py-2 pl-3 pr-3 font-chBody text-sm font-bold text-stone-900 transition-colors hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-40"
             >
               <div className="flex items-center gap-3">
                 <PauseCircle className="h-5 w-5 text-stone-400" />
@@ -423,7 +534,21 @@ export function OrganizationDetailView({ org }: { org: Organization }) {
             </button>
             <button
               type="button"
-              className="group flex w-full items-center justify-between bg-ch-surface-container-lowest py-2 pl-3 pr-3 font-chBody text-sm font-bold text-ch-error transition-colors hover:bg-ch-error-container/20"
+              disabled={busy || org.lifecycle !== "suspended"}
+              onClick={() => void onReactivate()}
+              className="group flex w-full items-center justify-between bg-ch-surface-container-lowest py-2 pl-3 pr-3 font-chBody text-sm font-bold text-stone-900 transition-colors hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <div className="flex items-center gap-3">
+                <RotateCcw className="h-5 w-5 text-ch-tertiary" />
+                <span>Reactivate Organization</span>
+              </div>
+              <ChevronRight className="h-5 w-5 text-stone-300 transition-transform group-hover:translate-x-1" />
+            </button>
+            <button
+              type="button"
+              disabled={busy || org.lifecycle === "archived"}
+              onClick={() => void onArchive()}
+              className="group flex w-full items-center justify-between bg-ch-surface-container-lowest py-2 pl-3 pr-3 font-chBody text-sm font-bold text-ch-error transition-colors hover:bg-ch-error-container/20 disabled:cursor-not-allowed disabled:opacity-40"
             >
               <div className="flex items-center gap-3">
                 <Archive className="h-5 w-5" />

@@ -1,18 +1,22 @@
 /**
- * UI/domain shapes for platform-admin organizations.
- * Align field names with backend DTOs when APIs land; adjust only via mappers.
+ * UI shapes for platform-admin organizations.
+ * Populated from Identity platform-admin APIs via `map-platform-organization.ts`.
  */
 export type OrganizationLifecycle =
-  | "active"
+  | "draft"
   | "invited"
+  | "active"
   | "attention"
-  | "suspended";
+  | "suspended"
+  | "archived";
 
 export interface Organization {
   id: string;
   name: string;
   initials: string;
   lifecycle: OrganizationLifecycle;
+  /** Raw Identity `operationalStatus` string (set when loaded from API). */
+  operationalStatus?: string;
   adminStatus: string;
   userCount: number;
   pendingInvites: number;
@@ -20,10 +24,13 @@ export interface Organization {
   createdAt: string;
   description: string;
   internalNotes?: string;
+  planTier?: string | null;
   primaryAdminName?: string;
   primaryAdminEmail?: string;
   inviteSentAt?: string;
   inviteExpiresAt?: string;
+  /** Present when API returned a link (detail / resend). */
+  inviteLink?: string | null;
   onboardingProgressPercent: number;
   onboardingStageTitle: string;
   onboardingStageSubtitle: string;

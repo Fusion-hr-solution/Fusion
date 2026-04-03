@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Image from "next/image";
 import { Info, Send } from "lucide-react";
+import { ApiError } from "@repo/api";
 import { CoreInput, CorePrimaryButton, CoreTextarea } from "@/components/core-ui";
 import { useOrganizations } from "../context/organizations-context";
 import { PlatformAdminBreadcrumbs } from "./platform-admin-breadcrumbs";
@@ -13,24 +14,38 @@ const ARCH_HERO_IMAGE =
 
 export function CreateOrganizationForm() {
   const router = useRouter();
-  const { addOrganization } = useOrganizations();
+  const { createOrganization } = useOrganizations();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [adminName, setAdminName] = useState("");
   const [internalNotes, setInternalNotes] = useState("");
   const [busy, setBusy] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
-  function onSubmit(e: React.FormEvent) {
+  async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim() || !email.trim()) return;
     setBusy(true);
-    const created = addOrganization({
-      name: name.trim(),
-      adminEmail: email.trim(),
-      adminName: adminName.trim() || undefined,
-      internalNotes: internalNotes.trim() || undefined,
-    });
-    router.push(`/organizations/${encodeURIComponent(created.id)}`);
+    setFormError(null);
+    try {
+      const created = await createOrganization({
+        name: name.trim(),
+        adminEmail: email.trim(),
+        adminName: adminName.trim() || undefined,
+        internalNotes: internalNotes.trim() || undefined,
+      });
+      router.push(`/organizations/${encodeURIComponent(created.id)}`);
+    } catch (err) {
+      const msg =
+        err instanceof ApiError
+          ? (err.errors[0] ?? err.message)
+          : err instanceof Error
+            ? err.message
+            : "Could not create organization.";
+      setFormError(msg);
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -54,6 +69,11 @@ export function CreateOrganizationForm() {
             Provision a new dedicated environment and invite the primary
             administrator.
           </p>
+          {formError ? (
+            <p className="mt-4 rounded-ch-md border border-ch-error/40 bg-ch-error-container/20 px-4 py-2 text-sm text-ch-error">
+              {formError}
+            </p>
+          ) : null}
         </header>
 
         <div className="grid grid-cols-1 gap-12 lg:grid-cols-12">
