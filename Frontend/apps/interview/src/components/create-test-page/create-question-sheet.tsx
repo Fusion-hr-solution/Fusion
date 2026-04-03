@@ -15,6 +15,39 @@ const EMPTY_FORM: NewQuestionForm = {
   language: "Python", starterCode: "", evaluationCriteria: "",
 };
 
+function defaultOptionsForType(type: NewQuestionForm["type"]) {
+  if (type === "True/False") {
+    return [
+      { text: "True", correct: true },
+      { text: "False", correct: false },
+    ];
+  }
+
+  return [{ text: "", correct: false }, { text: "", correct: false }];
+}
+
+function getValidationError(form: NewQuestionForm): string | null {
+  if (!form.type) return "Question type is required.";
+  if (!form.title.trim()) return "Title is required.";
+  if (!form.difficulty) return "Difficulty is required.";
+  if (!form.gradingMethod) return "Grading method is required.";
+  if (form.points <= 0) return "Points must be greater than 0.";
+  if (form.durationMinutes <= 0) return "Duration must be greater than 0 minutes.";
+
+  if ((form.type === "Coding" || form.type === "SQL") && !form.language.trim()) {
+    return "Language is required for Coding and SQL questions.";
+  }
+
+  if (form.type === "Multiple Choice" || form.type === "True/False") {
+    const nonEmptyOptions = form.options.filter((option) => option.text.trim().length > 0);
+    if (nonEmptyOptions.length === 0 || !nonEmptyOptions.some((option) => option.correct)) {
+      return "Multiple Choice and True/False questions require options and at least one correct option.";
+    }
+  }
+
+  return null;
+}
+
 
 const DIFF_STYLES: Record<string, string> = {
   Easy:   "bg-emerald-50 text-emerald-700 border-emerald-200",
@@ -86,7 +119,8 @@ export function CreateQuestionSheet({ open, onClose, onSaveToLibrary, onSaveAndA
   const showOptions = form.type === "Multiple Choice" || form.type === "True/False";
   const showCoding  = form.type === "Coding" || form.type === "SQL";
   const showEval    = form.type === "Essay" || form.type === "Case Study";
-  const isValid     = Boolean(form.type && form.title.trim() && form.difficulty && form.gradingMethod);
+  const validationError = getValidationError(form);
+  const isValid = validationError === null;
 
   // completion steps for the progress bar
   const progressSteps = [
@@ -98,7 +132,10 @@ export function CreateQuestionSheet({ open, onClose, onSaveToLibrary, onSaveAndA
   const completedCount = progressSteps.filter((s) => s.done).length;
 
    async function submit(saveToTest: boolean) {
-    if (!isValid) return;
+    if (!isValid) {
+      setSubmitError(validationError ?? "Please complete required fields.");
+      return;
+    }
     setIsSaving(true);
     setSubmitError(null);
     try {
@@ -205,7 +242,17 @@ export function CreateQuestionSheet({ open, onClose, onSaveToLibrary, onSaveAndA
                 <div className="relative">
                   <select
                     value={form.type}
-                    onChange={(e) => update("type", e.target.value as QuestionType | "")}
+                    onChange={(e) => {
+                      const nextType = e.target.value as QuestionType | "";
+                      setForm((prev) => ({
+                        ...prev,
+                        type: nextType,
+                        options:
+                          nextType === "Multiple Choice" || nextType === "True/False"
+                            ? defaultOptionsForType(nextType)
+                            : prev.options,
+                      }));
+                    }}
                     className={cn(
                       "w-full appearance-none rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-[13px] shadow-sm transition-all duration-150",
                       "focus:border-zinc-300 focus:outline-none focus:ring-2 focus:ring-zinc-900/10",

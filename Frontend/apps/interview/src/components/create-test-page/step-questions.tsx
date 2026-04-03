@@ -21,7 +21,7 @@ import { createQuestion, getQuestions } from "@/services/test-service";
 import { QUESTION_TYPES, DIFFICULTIES, GRADING_METHODS, SORT_OPTIONS } from "@/config/constants";
 import { CreateQuestionSheet } from "./create-question-sheet";
 import { cn } from "@/lib/utils";
-import type { Question, QuestionFilterState, SortOption, Difficulty, NewQuestionForm } from "@/types";// ─── Diff badge colours ───────────────────────────────────────────────────────
+import type { Question, QuestionFilterState, SortOption, Difficulty, NewQuestionForm } from "@/types";
 
 const DIFF_STYLES: Record<Difficulty, string> = {
   Easy:   "bg-emerald-50 text-emerald-700 border-emerald-100",

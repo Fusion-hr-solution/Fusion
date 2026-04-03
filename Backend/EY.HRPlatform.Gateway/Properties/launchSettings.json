@@ -4,8 +4,7 @@
       "commandName": "Project",
       "launchBrowser": false,
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development",
-        "Jwt__Secret": "dev-gateway-secret-key-32chars-minimum!!"
+       "ASPNETCORE_ENVIRONMENT": "Development"
       },
       "applicationUrl": "http://localhost:5000;https://localhost:5001"
     }

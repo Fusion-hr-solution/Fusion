@@ -155,6 +155,28 @@ function mapQuestion(dto: BackendQuestionDto): Question {
 }
 
 function toCreateQuestionRequest(form: NewQuestionForm): CreateQuestionRequest {
+  const trimmedOptions = form.options
+    .map((option) => ({ text: option.text.trim(), correct: option.correct }))
+    .filter((option) => option.text.length > 0);
+
+  const options =
+    form.type === "True/False"
+      ? [
+          {
+            text: trimmedOptions[0]?.text || "True",
+            correct: trimmedOptions.length > 0
+              ? Boolean(trimmedOptions[0]?.correct)
+              : true,
+          },
+          {
+            text: trimmedOptions[1]?.text || "False",
+            correct: trimmedOptions.length > 1
+              ? Boolean(trimmedOptions[1]?.correct)
+              : false,
+          },
+        ]
+      : trimmedOptions;
+
   return {
     type: form.type as QuestionType,
     title: form.title.trim(),
@@ -164,9 +186,7 @@ function toCreateQuestionRequest(form: NewQuestionForm): CreateQuestionRequest {
     durationMinutes: form.durationMinutes,
     gradingMethod: form.gradingMethod as GradingMethod,
     tags: form.tags,
-    options: form.options
-      .map((option) => ({ text: option.text.trim(), correct: option.correct }))
-      .filter((option) => option.text.length > 0),
+    options,
     language: form.language,
     starterCode: form.starterCode,
     evaluationCriteria: form.evaluationCriteria,
@@ -233,16 +253,25 @@ async function syncTestQuestions(testId: string, questionIds: string[]): Promise
   const desired = new Set(questionIds);
   const current = await getMappedQuestionIds(testId);
 
-  for (const questionId of desired) {
-    if (!current.has(questionId)) {
-      await client.post(`/interview/tests/${testId}/questions/${questionId}`);
-    }
+  const questionsToAdd = Array.from(desired).filter(
+    (questionId) => !current.has(questionId)
+  );
+  const questionsToRemove = Array.from(current).filter(
+    (questionId) => !desired.has(questionId)
+  );
+  if (questionsToAdd.length > 0) {
+    await Promise.all(
+      questionsToAdd.map((questionId) =>
+        client.post(`/interview/tests/${testId}/questions/${questionId}`)
+      )
+    );
   }
-
-  for (const questionId of current) {
-    if (!desired.has(questionId)) {
-      await client.delete(`/interview/tests/${testId}/questions/${questionId}`);
-    }
+  if (questionsToRemove.length > 0) {
+    await Promise.all(
+      questionsToRemove.map((questionId) =>
+        client.delete(`/interview/tests/${testId}/questions/${questionId}`)
+      )
+    );
   }
 }
 

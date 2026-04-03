@@ -5,9 +5,7 @@
       "launchBrowser": true,
       "launchUrl": "swagger",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development",
-        "Jwt__Secret": "dev-identity-secret-key-32chars-minimum!",
-        "ConnectionStrings__IdentityDb": "Host=localhost;Port=5432;Database=fusion_identity;Username=postgres;Password=root"
+        "ASPNETCORE_ENVIRONMENT": "Development"
       },
       "applicationUrl": "https://localhost:5100;http://localhost:5101"
     }

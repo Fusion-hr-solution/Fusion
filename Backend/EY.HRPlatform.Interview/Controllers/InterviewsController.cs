@@ -1,4 +1,5 @@
 using EY.HRPlatform.Interview.Models;
+using EY.HRPlatform.Interview.Models.Common;
 using Microsoft.AspNetCore.Mvc;
 
 namespace EY.HRPlatform.Interview.Controllers;
@@ -38,7 +39,7 @@ public sealed class InterviewsController : ControllerBase
     [HttpGet]
     public ActionResult<ApiResponse<IReadOnlyList<InterviewDto>>> GetAll()
     {
-        return Ok(ApiResponse<IReadOnlyList<InterviewDto>>.Ok(Interviews));
+        return Ok(ApiResponse<IReadOnlyList<InterviewDto>>.Success(Interviews));
     }
 
     [HttpGet("{id:guid}")]
@@ -47,9 +48,9 @@ public sealed class InterviewsController : ControllerBase
         var interview = Interviews.FirstOrDefault(i => i.Id == id);
         if (interview is null)
         {
-            return NotFound(ApiResponse<InterviewDto>.Fail("Interview not found."));
+            return NotFound(ApiResponse<InterviewDto>.Failure("Interview not found."));
         }
 
-        return Ok(ApiResponse<InterviewDto>.Ok(interview));
+        return Ok(ApiResponse<InterviewDto>.Success(interview));
     }
 }

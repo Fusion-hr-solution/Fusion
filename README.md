@@ -179,6 +179,21 @@ dotnet run --project EY.HRPlatform.Gateway
 
 > Make sure PostgreSQL is running and the connection strings in `appsettings.Development.json` are correct. Both Identity and Training services auto-migrate and seed on startup.
 
+Before running Gateway locally, set its JWT secret in local user-secrets (not in git):
+
+```bash
+cd Backend/EY.HRPlatform.Gateway
+dotnet user-secrets set "Jwt:Secret" "<your-local-dev-secret-min-32-chars>"
+```
+
+Before running Identity locally, set its JWT secret and DB connection in local user-secrets (not in git):
+
+```bash
+cd Backend/EY.HRPlatform.Identity
+dotnet user-secrets set "Jwt:Secret" "<your-local-dev-secret-min-32-chars>"
+dotnet user-secrets set "ConnectionStrings:IdentityDb" "Host=localhost;Port=5432;Database=fusion_identity;Username=postgres;Password=root"
+```
+
 #### 2. Frontend
 
 ```bash
