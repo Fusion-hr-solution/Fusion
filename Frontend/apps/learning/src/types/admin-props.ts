@@ -1,4 +1,4 @@
-import type { AdminCategory, AdminChapter, AdminTraining } from "./admin";
+import type { AdminCategory, AdminChapter, AdminTraining, ArticleTemplate, ArticleTemplateSection } from "./admin";
 import type { Employee, Training, TrainingCategory, TrainingStatus } from "./index";
 
 /* ── Admin page-level components ── */
@@ -148,5 +148,9 @@ export interface ChapterFormContentStepProps {
   estimatedDuration: number | "";
   onEstimatedDurationChange: (v: number | "") => void;
   isUploading: boolean;
+  selectedTemplate: ArticleTemplate | null;
+  onTemplateChange: (template: ArticleTemplate | null) => void;
+  sectionValues: Record<string, string>;
+  onSectionChange: (sectionId: string, value: string) => void;
   fieldErrors?: Record<string, string>;
 }

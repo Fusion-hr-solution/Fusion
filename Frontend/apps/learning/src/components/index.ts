@@ -47,6 +47,8 @@ export { ChapterFormInfoStep } from "./admin/chapter-form-info-step";
 export { ChapterFormContentStep } from "./admin/chapter-form-content-step";
 export { FileUploadZone } from "./admin/file-upload-zone";
 export { StepIndicator } from "./admin/step-indicator";
+export { ArticleTemplateSelector } from "./admin/article-template-selector";
+export { ArticleSectionEditor } from "./admin/article-section-editor";
 export { CategoriesManager } from "./admin/categories-manager";
 export { CategoryForm } from "./admin/category-form";
 export { AssignmentsView } from "./admin/assignments-view";

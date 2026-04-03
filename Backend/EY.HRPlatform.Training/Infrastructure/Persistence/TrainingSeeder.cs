@@ -370,5 +370,29 @@ public static class TrainingSeeder
             new ExamOption("class", false, q1.Id),
             new ExamOption("struct", false, q1.Id));
         await db.SaveChangesAsync();
+
+        // --- Article Templates ---
+        if (!await db.ArticleTemplates.AnyAsync())
+        {
+            var standard = new ArticleTemplate("Standard Article", "Introduction, body, and conclusion");
+            standard.AddSection("Introduction", "Provide an overview of the topic...", 0);
+            standard.AddSection("Body", "Main content of the article...", 1);
+            standard.AddSection("Conclusion", "Summarize the key takeaways...", 2);
+
+            var tutorial = new ArticleTemplate("Step-by-Step Tutorial", "Objective, prerequisites, steps, and summary");
+            tutorial.AddSection("Objective", "What the reader will learn...", 0);
+            tutorial.AddSection("Prerequisites", "Required knowledge or tools...", 1);
+            tutorial.AddSection("Steps", "Detailed step-by-step instructions...", 2);
+            tutorial.AddSection("Summary", "Recap what was covered...", 3);
+
+            var casestudy = new ArticleTemplate("Case Study", "Background, challenge, solution, and results");
+            casestudy.AddSection("Background", "Context and background information...", 0);
+            casestudy.AddSection("Challenge", "The problem or challenge faced...", 1);
+            casestudy.AddSection("Solution", "How the challenge was addressed...", 2);
+            casestudy.AddSection("Results", "Outcomes and measurable results...", 3);
+
+            await db.ArticleTemplates.AddRangeAsync(standard, tutorial, casestudy);
+            await db.SaveChangesAsync();
+        }
     }
 }

@@ -122,3 +122,18 @@ export interface AssignTrainingInput {
   employeeId: string;
   dueDate?: string;
 }
+
+/** Article template (read-only from backend) */
+export interface ArticleTemplate {
+  id: string;
+  name: string;
+  description: string;
+  sections: ArticleTemplateSection[];
+}
+
+export interface ArticleTemplateSection {
+  id: string;
+  label: string;
+  placeholder: string;
+  orderIndex: number;
+}

@@ -70,6 +70,10 @@ export function ChapterFormDialog({
               videoUrl={form.videoUrl} onVideoUrlChange={(v) => { form.setVideoUrl(v); form.clearFieldError("videoUrl"); }}
               estimatedDuration={form.estimatedDuration} onEstimatedDurationChange={(v) => { form.setEstimatedDuration(v); form.clearFieldError("estimatedDuration"); }}
               isUploading={form.isUploading}
+              selectedTemplate={form.selectedTemplate}
+              onTemplateChange={form.setSelectedTemplate}
+              sectionValues={form.sectionValues}
+              onSectionChange={form.handleSectionChange}
               fieldErrors={form.fieldErrors}
             />
           )}

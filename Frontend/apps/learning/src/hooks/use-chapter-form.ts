@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useApiMutation } from "@repo/api/react";
 import { ApiError } from "@repo/api";
 import { addChapter, updateChapter, uploadChapterFile } from "@/services/admin-service";
-import type { CreateChapterInput, UpdateChapterInput, AdminChapter } from "@/types/admin";
+import type { CreateChapterInput, UpdateChapterInput, AdminChapter, ArticleTemplate } from "@/types/admin";
 
 interface UseChapterFormOptions {
   trainingId: string;
@@ -26,6 +26,8 @@ export function useChapterForm({ trainingId, chapter, open, onSuccess }: UseChap
   const [estimatedDuration, setEstimatedDuration] = useState<number | "">("");
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<ArticleTemplate | null>(null);
+  const [sectionValues, setSectionValues] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (chapter) {
@@ -36,6 +38,18 @@ export function useChapterForm({ trainingId, chapter, open, onSuccess }: UseChap
       setTextContent(chapter.textContent ?? "");
       setVideoUrl(chapter.videoUrl ?? "");
       setEstimatedDuration(chapter.estimatedDurationMinutes ?? "");
+      // Restore article template sections from stored JSON
+      if (chapter.contentType === "Article" && chapter.textContent) {
+        try {
+          const parsed = JSON.parse(chapter.textContent);
+          if (parsed.sections) setSectionValues(parsed.sections);
+        } catch {
+          setSectionValues({});
+        }
+      } else {
+        setSectionValues({});
+      }
+      setSelectedTemplate(null);
     } else {
       setTitle("");
       setContentType("Article");
@@ -44,6 +58,8 @@ export function useChapterForm({ trainingId, chapter, open, onSuccess }: UseChap
       setTextContent("");
       setVideoUrl("");
       setEstimatedDuration("");
+      setSelectedTemplate(null);
+      setSectionValues({});
     }
     setFile(null);
     setIsUploading(false);
@@ -102,6 +118,10 @@ export function useChapterForm({ trainingId, chapter, open, onSuccess }: UseChap
     if (validateStep0()) setStep(1);
   }, [title, orderIndex]);
 
+  const handleSectionChange = useCallback((sectionLabel: string, value: string) => {
+    setSectionValues((prev) => ({ ...prev, [sectionLabel]: value }));
+  }, []);
+
   const handleSubmit = useCallback(async () => {
     if (!validateStep1()) return;
     setFormError(null);
@@ -119,18 +139,24 @@ export function useChapterForm({ trainingId, chapter, open, onSuccess }: UseChap
       }
     }
 
+    // For Articles with templates, serialize sections as JSON into textContent
+    const resolvedTextContent =
+      contentType === "Article" && selectedTemplate
+        ? JSON.stringify({ templateName: selectedTemplate.name, sections: sectionValues })
+        : textContent || undefined;
+
     const payload = {
       title: title.trim(),
       contentType,
       contentUri: uploadedUri || undefined,
       orderIndex,
-      textContent: textContent || undefined,
+      textContent: resolvedTextContent,
       videoUrl: (!file && videoUrl) ? videoUrl : undefined,
       estimatedDurationMinutes: estimatedDuration || undefined,
     };
     if (isEditing) await doUpdate(payload);
     else await doAdd(payload);
-  }, [title, contentType, contentUri, orderIndex, textContent, videoUrl, estimatedDuration, file, isEditing, doUpdate, doAdd]);
+  }, [title, contentType, contentUri, orderIndex, textContent, videoUrl, estimatedDuration, file, isEditing, doUpdate, doAdd, selectedTemplate, sectionValues]);
 
   const canAdvance = title.trim().length > 0;
   const clearFieldError = (field: string) => setFieldErrors((p) => ({ ...p, [field]: "" }));
@@ -142,6 +168,8 @@ export function useChapterForm({ trainingId, chapter, open, onSuccess }: UseChap
     textContent, setTextContent, videoUrl, setVideoUrl,
     estimatedDuration, setEstimatedDuration,
     file, setFile, isUploading,
+    selectedTemplate, setSelectedTemplate,
+    sectionValues, handleSectionChange,
     isSaving, handleNext, handleSubmit, canAdvance,
   };
 }

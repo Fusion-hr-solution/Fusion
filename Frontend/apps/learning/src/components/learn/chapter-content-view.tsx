@@ -86,11 +86,7 @@ export function ChapterContentView({
           </div>
         )}
 
-        {chapter.textContent && (
-          <article className="prose prose-sm max-w-none mb-8 rounded-2xl border border-border/50 bg-white p-8 shadow-sm">
-            <div dangerouslySetInnerHTML={{ __html: renderMarkdown(chapter.textContent) }} />
-          </article>
-        )}
+        {chapter.textContent && renderArticleContent(chapter.textContent)}
 
         {!chapter.textContent && !chapter.videoUrl && !chapter.contentUri && (
           <div className="mb-8 rounded-2xl border border-dashed border-border/60 bg-muted/30 px-8 py-16 text-center">
@@ -113,6 +109,33 @@ export function ChapterContentView({
         isLoading={isLoading}
       />
     </div>
+  );
+}
+
+/** Render article content — structured JSON sections or plain markdown. */
+function renderArticleContent(textContent: string) {
+  try {
+    const parsed = JSON.parse(textContent);
+    if (parsed.sections && typeof parsed.sections === "object") {
+      const entries = Object.entries(parsed.sections) as [string, string][];
+      return (
+        <article className="prose prose-sm max-w-none mb-8 space-y-6 rounded-2xl border border-border/50 bg-white p-8 shadow-sm">
+          {entries.map(([label, content]) => (
+            <section key={label}>
+              <h2 className="text-lg font-semibold text-foreground mb-2">{label}</h2>
+              <div dangerouslySetInnerHTML={{ __html: renderMarkdown(String(content)) }} />
+            </section>
+          ))}
+        </article>
+      );
+    }
+  } catch {
+    // Not JSON — fall through to markdown rendering
+  }
+  return (
+    <article className="prose prose-sm max-w-none mb-8 rounded-2xl border border-border/50 bg-white p-8 shadow-sm">
+      <div dangerouslySetInnerHTML={{ __html: renderMarkdown(textContent) }} />
+    </article>
   );
 }
 
