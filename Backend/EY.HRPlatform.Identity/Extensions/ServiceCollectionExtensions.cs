@@ -1,5 +1,6 @@
 ﻿using System.Text;
 using EY.HRPlatform.Identity.Domain.Entities;
+using EY.HRPlatform.Identity.Features.PlatformOrganizations.Services;
 using EY.HRPlatform.Identity.Features.Tenants.Services;
 using EY.HRPlatform.Identity.Infrastructure.Persistence;
 using EY.HRPlatform.Identity.Infrastructure.Services;
@@ -68,6 +69,7 @@ public static class ServiceCollectionExtensions
         // 4. Register our custom services
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<ITenantService, TenantService>();
+        services.AddScoped<IPlatformOrganizationService, PlatformOrganizationService>();
 
         return services;
     }
