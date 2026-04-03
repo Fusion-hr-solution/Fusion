@@ -13,12 +13,34 @@ namespace EY.HRPlatform.Identity.Controllers;
 public class PlatformOrganizationsController(IPlatformOrganizationService platformOrganizations) : ControllerBase
 {
     [HttpGet]
-    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<PlatformOrganizationSummaryDto>>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<ApiResponse<IReadOnlyList<PlatformOrganizationSummaryDto>>>> List(
-        CancellationToken cancellationToken)
+    [ProducesResponseType(typeof(ApiResponse<PlatformOrganizationPagedListDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiResponse<PlatformOrganizationPagedListDto>>> List(
+        [FromQuery] int skip = 0,
+        [FromQuery] int take = 20,
+        [FromQuery] string? search = null,
+        [FromQuery] string orderBy = "createdAt",
+        [FromQuery] string orderDirection = "desc",
+        [FromQuery(Name = "filterByStatus")] string[]? filterByStatus = null,
+        CancellationToken cancellationToken = default)
     {
-        var items = await platformOrganizations.ListAsync(cancellationToken);
-        return Ok(ApiResponse<IReadOnlyList<PlatformOrganizationSummaryDto>>.Success(items));
+        if (skip < 0)
+            return BadRequest(ApiResponse<PlatformOrganizationPagedListDto>.Failure("skip must be >= 0."));
+
+        if (take < 1)
+            return BadRequest(ApiResponse<PlatformOrganizationPagedListDto>.Failure("take must be >= 1."));
+
+        var query = new PlatformOrganizationListQueryDto
+        {
+            Skip = skip,
+            Take = take,
+            Search = search,
+            OrderBy = orderBy,
+            OrderDirection = orderDirection,
+            FilterByStatus = filterByStatus,
+        };
+
+        var paged = await platformOrganizations.ListAsync(query, cancellationToken);
+        return Ok(ApiResponse<PlatformOrganizationPagedListDto>.Success(paged));
     }
 
     [HttpGet("{tenantId:guid}")]

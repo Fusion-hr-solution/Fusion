@@ -25,7 +25,8 @@ public class PlatformOrganizationServiceTests
         await db.SaveChangesAsync();
 
         // Act
-        var items = await service.ListAsync();
+        var paged = await service.ListAsync(new PlatformOrganizationListQueryDto { Skip = 0, Take = 100 });
+        var items = paged.Items;
         var summary = items.Single(x => x.Id == tenant.Id);
 
         // Assert
@@ -57,7 +58,8 @@ public class PlatformOrganizationServiceTests
         await db.SaveChangesAsync();
 
         // Act
-        var items = await service.ListAsync();
+        var paged = await service.ListAsync(new PlatformOrganizationListQueryDto { Skip = 0, Take = 100 });
+        var items = paged.Items;
         var summary = items.Single(x => x.Id == tenant.Id);
 
         // Assert
@@ -109,7 +111,8 @@ public class PlatformOrganizationServiceTests
         await db.SaveChangesAsync();
 
         // Act
-        var items = await service.ListAsync();
+        var paged = await service.ListAsync(new PlatformOrganizationListQueryDto { Skip = 0, Take = 100 });
+        var items = paged.Items;
         var summary = items.Single(x => x.Id == tenant.Id);
 
         // Assert
@@ -143,7 +146,8 @@ public class PlatformOrganizationServiceTests
         await db.SaveChangesAsync();
 
         // Act
-        var items = await service.ListAsync();
+        var paged = await service.ListAsync(new PlatformOrganizationListQueryDto { Skip = 0, Take = 100 });
+        var items = paged.Items;
         var summary = items.Single(x => x.Id == tenant.Id);
 
         // Assert
@@ -166,7 +170,8 @@ public class PlatformOrganizationServiceTests
         await db.SaveChangesAsync();
 
         // Act
-        var items = await service.ListAsync();
+        var paged = await service.ListAsync(new PlatformOrganizationListQueryDto { Skip = 0, Take = 100 });
+        var items = paged.Items;
         var summary = items.Single(x => x.Id == tenant.Id);
 
         // Assert
@@ -188,7 +193,8 @@ public class PlatformOrganizationServiceTests
         await db.SaveChangesAsync();
 
         // Act
-        var items = await service.ListAsync();
+        var paged = await service.ListAsync(new PlatformOrganizationListQueryDto { Skip = 0, Take = 100 });
+        var items = paged.Items;
         var summary = items.Single(x => x.Id == tenant.Id);
 
         // Assert

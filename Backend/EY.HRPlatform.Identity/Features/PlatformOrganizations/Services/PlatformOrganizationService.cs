@@ -9,7 +9,9 @@ namespace EY.HRPlatform.Identity.Features.PlatformOrganizations.Services;
 
 public interface IPlatformOrganizationService
 {
-    Task<IReadOnlyList<PlatformOrganizationSummaryDto>> ListAsync(CancellationToken cancellationToken = default);
+    Task<PlatformOrganizationPagedListDto> ListAsync(
+        PlatformOrganizationListQueryDto query,
+        CancellationToken cancellationToken = default);
     Task<PlatformOrganizationDetailDto?> GetAsync(Guid tenantId, CancellationToken cancellationToken = default);
     Task<PlatformOrganizationCreatedDto> CreateAsync(
         CreatePlatformOrganizationRequest request,
@@ -29,20 +31,99 @@ public sealed class PlatformOrganizationService(
     AppIdentityDbContext db,
     IConfiguration configuration) : IPlatformOrganizationService
 {
-    public async Task<IReadOnlyList<PlatformOrganizationSummaryDto>> ListAsync(
+    public async Task<PlatformOrganizationPagedListDto> ListAsync(
+        PlatformOrganizationListQueryDto query,
         CancellationToken cancellationToken = default)
     {
-        var tenants = await db.Tenants.AsNoTracking()
-            .OrderBy(t => t.Name)
-            .ToListAsync(cancellationToken);
+        var skip = Math.Max(0, query.Skip);
+        var take = Math.Clamp(query.Take, 1, 100);
 
-        if (tenants.Count == 0)
-            return [];
+        var orderDirection = query.OrderDirection?.Equals("asc", StringComparison.OrdinalIgnoreCase) == true
+            ? "asc"
+            : "desc";
 
+        var search = query.Search?.Trim();
+        var searchLower = string.IsNullOrWhiteSpace(search)
+            ? null
+            : search.ToLowerInvariant();
+
+        var allowedFilter =
+            query.FilterByStatus?.Where(s => !string.IsNullOrWhiteSpace(s))
+                .Select(s => s.Trim())
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var tenantsQuery = db.Tenants.AsNoTracking();
+        if (searchLower is not null)
+            tenantsQuery = tenantsQuery.Where(t => t.Name.ToLower().Contains(searchLower));
+
+        var tenants = await tenantsQuery.ToListAsync(cancellationToken);
         var ids = tenants.Select(t => t.Id).ToList();
         var metrics = await LoadMetricsAsync(ids, cancellationToken);
 
-        return tenants.Select(t => MapSummary(t, metrics)).ToList();
+        var summaries = tenants.Select(t => MapSummary(t, metrics)).ToList();
+
+        if (allowedFilter is not null && allowedFilter.Count > 0)
+            summaries = summaries
+                .Where(s => allowedFilter.Contains(s.OperationalStatus))
+                .ToList();
+
+        static int StatusPriority(string operationalStatus) => operationalStatus switch
+        {
+            OrganizationOperationalStatus.Archived => 0,
+            OrganizationOperationalStatus.Suspended => 1,
+            OrganizationOperationalStatus.Attention => 2,
+            OrganizationOperationalStatus.Draft => 3,
+            OrganizationOperationalStatus.Invited => 4,
+            OrganizationOperationalStatus.Active => 5,
+            _ => -1
+        };
+
+        IOrderedEnumerable<PlatformOrganizationSummaryDto> ordered;
+        switch (query.OrderBy)
+        {
+            case "name":
+                ordered = orderDirection == "asc"
+                    ? summaries.OrderBy(s => s.Name)
+                    : summaries.OrderByDescending(s => s.Name);
+                break;
+            case "createdAt":
+                ordered = orderDirection == "asc"
+                    ? summaries.OrderBy(s => s.CreatedAt)
+                    : summaries.OrderByDescending(s => s.CreatedAt);
+                break;
+            case "operationalStatus":
+                ordered = orderDirection == "asc"
+                    ? summaries.OrderBy(s => StatusPriority(s.OperationalStatus))
+                    : summaries.OrderByDescending(s => StatusPriority(s.OperationalStatus));
+                break;
+            case "activeUserCount":
+                ordered = orderDirection == "asc"
+                    ? summaries.OrderBy(s => s.ActiveUserCount)
+                    : summaries.OrderByDescending(s => s.ActiveUserCount);
+                break;
+            case "pendingInviteCount":
+                ordered = orderDirection == "asc"
+                    ? summaries.OrderBy(s => s.PendingInviteCount)
+                    : summaries.OrderByDescending(s => s.PendingInviteCount);
+                break;
+            case "lastActivityAt":
+                ordered = orderDirection == "asc"
+                    ? summaries.OrderBy(s => s.LastActivityAt)
+                    : summaries.OrderByDescending(s => s.LastActivityAt);
+                break;
+            default:
+                ordered = summaries.OrderByDescending(s => s.CreatedAt);
+                break;
+        }
+
+        var totalCount = ordered.Count();
+        var items = ordered.Skip(skip).Take(take).ToList();
+
+        return new PlatformOrganizationPagedListDto
+        {
+            Items = items,
+            TotalCount = totalCount
+        };
     }
 
     public async Task<PlatformOrganizationDetailDto?> GetAsync(

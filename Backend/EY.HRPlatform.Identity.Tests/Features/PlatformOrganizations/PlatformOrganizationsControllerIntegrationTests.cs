@@ -125,7 +125,8 @@ public class PlatformOrganizationsControllerIntegrationTests
         Assert.Equal(HttpStatusCode.OK, listResp.StatusCode);
 
         using var listJson = JsonDocument.Parse(await listResp.Content.ReadAsStringAsync());
-        var listItems = listJson.RootElement.GetProperty("data").EnumerateArray();
+        var listData = listJson.RootElement.GetProperty("data");
+        var listItems = listData.GetProperty("items").EnumerateArray();
         Assert.Contains(listItems, x => x.GetProperty("id").GetGuid() == tenantId);
 
         // Detail should show invited state
