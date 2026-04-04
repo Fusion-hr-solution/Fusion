@@ -215,6 +215,15 @@ export async function createQuestion(form: NewQuestionForm): Promise<Question> {
   return mapQuestion(created);
 }
 
+export async function getTestQuestions(testId: string): Promise<Question[]> {
+  const questions = await client.get<BackendQuestionDto[]>(`/interview/tests/${testId}/questions`);
+  return questions.map(mapQuestion);
+}
+
+export async function deleteTest(testId: string): Promise<void> {
+  await client.delete(`/interview/tests/${testId}`);
+}
+
 interface PersistTestInput {
   testId?: string;
   title: string;
@@ -279,4 +288,36 @@ export async function persistTest(input: PersistTestInput): Promise<Test> {
   const saved = await upsertTest(input);
   await syncTestQuestions(saved.id, input.questionIds);
   return saved;
+}
+
+export async function setTestStatus(test: Test, status: TestStatus): Promise<Test> {
+  const questionIds = (await getTestQuestions(test.id)).map((question) => question.id);
+
+  return persistTest({
+    testId: test.id,
+    title: test.title,
+    description: test.description,
+    discipline: test.discipline,
+    status,
+    questionIds,
+  });
+}
+
+export async function archiveTest(test: Test): Promise<Test> {
+  return setTestStatus(test, "Archived");
+}
+
+export async function duplicateTest(test: Test): Promise<Test> {
+  const questionIds = (await getTestQuestions(test.id)).map((question) => question.id);
+  const duplicateTitle = test.title.includes("(Copy)")
+    ? test.title
+    : `${test.title} (Copy)`;
+
+  return persistTest({
+    title: duplicateTitle,
+    description: test.description,
+    discipline: test.discipline,
+    status: "Draft",
+    questionIds,
+  });
 }

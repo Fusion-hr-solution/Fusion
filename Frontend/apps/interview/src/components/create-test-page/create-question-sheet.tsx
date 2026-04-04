@@ -80,15 +80,22 @@ function SelectChevron() {
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface Props {
-  open: boolean;
+  open?: boolean;
   onClose: () => void;
   onSaveToLibrary: (form: NewQuestionForm) => Promise<void>;
   onSaveAndAdd: (form: NewQuestionForm) => Promise<void>;
+  fullPage?: boolean;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function CreateQuestionSheet({ open, onClose, onSaveToLibrary, onSaveAndAdd }: Props) {
+export function CreateQuestionSheet({
+  open = true,
+  onClose,
+  onSaveToLibrary,
+  onSaveAndAdd,
+  fullPage = false,
+}: Props) {
   const [form,     setForm]     = useState<NewQuestionForm>(EMPTY_FORM);
   const [tagInput, setTagInput] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -153,17 +160,16 @@ export function CreateQuestionSheet({ open, onClose, onSaveToLibrary, onSaveAndA
     }
   }
 
-  if (!open) return null;
+  if (!fullPage && !open) return null;
 
   return (
-    // Centered overlay — flex items-center justify-center
-    <div className="fixed inset-0 z-[55] flex items-center justify-center p-6">
-
-      {/* backdrop */}
-      <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-[3px]"
-        onClick={onClose}
-      />
+    <div className={fullPage ? "w-full" : "fixed inset-0 z-[55] flex items-center justify-center p-6"}>
+      {!fullPage && (
+        <div
+          className="absolute inset-0 bg-black/40 backdrop-blur-[3px]"
+          onClick={onClose}
+        />
+      )}
 
       {/*
        * Modal panel
@@ -171,7 +177,14 @@ export function CreateQuestionSheet({ open, onClose, onSaveToLibrary, onSaveAndA
        *  - max-h-[90vh] never taller than 90% of the viewport
        *  - flex flex-col so header/footer stay fixed and body scrolls
        */}
-      <div className="relative z-10 flex w-[780px] max-w-[95vw] flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-2xl animate-in fade-in-0 zoom-in-95 duration-200">
+      <div
+        className={cn(
+          "relative z-10 flex flex-col overflow-hidden border border-zinc-200 bg-white",
+          fullPage
+            ? "w-full rounded-2xl shadow-sm"
+            : "w-[780px] max-w-[95vw] rounded-3xl shadow-2xl animate-in fade-in-0 zoom-in-95 duration-200"
+        )}
+      >
 
         {/* ── Header ─────────────────────────────────────────────── */}
         <div className="shrink-0 border-b border-zinc-100 bg-white px-8 py-6">
@@ -231,10 +244,13 @@ export function CreateQuestionSheet({ open, onClose, onSaveToLibrary, onSaveAndA
 
         {/* ── Body — two columns ──────────────────────────────────── */}
         <div className="flex-1 overflow-y-auto">
-          <div className="grid grid-cols-2 divide-x divide-zinc-100">
+          <div className={cn(
+            "grid divide-zinc-100",
+            fullPage ? "grid-cols-1 xl:grid-cols-2 xl:divide-x" : "grid-cols-2 divide-x"
+          )}>
 
             {/* Left column — core fields */}
-            <div className="flex flex-col gap-6 px-8 py-6">
+            <div className={cn("flex flex-col gap-6 px-8 py-6", fullPage && "xl:px-10 xl:py-8")}>
 
               {/* Question Type */}
               <div>
@@ -328,7 +344,7 @@ export function CreateQuestionSheet({ open, onClose, onSaveToLibrary, onSaveAndA
             </div>
 
             {/* Right column — settings + conditional */}
-            <div className="flex flex-col gap-6 px-8 py-6">
+            <div className={cn("flex flex-col gap-6 px-8 py-6", fullPage && "xl:px-10 xl:py-8")}>
 
               {/* Difficulty */}
               <div>
