@@ -103,15 +103,15 @@ export function OrganizationDetailView({ org }: { org: Organization }) {
       const fresh = await ensureOrganization(org.id);
       if (fresh) effective = fresh;
     }
+    const path = buildInviteAcceptPath(effective);
+    if (!path) {
+      setActionBanner("No invite link available.");
+      window.setTimeout(() => setActionBanner(null), 3500);
+      return;
+    }
     const origin =
       typeof window !== "undefined" ? window.location.origin : "";
-    let text: string;
-    if (effective.inviteLink?.startsWith("http")) {
-      text = effective.inviteLink;
-    } else {
-      const path = buildInviteAcceptPath(effective);
-      text = path.startsWith("http") ? path : `${origin}${path}`;
-    }
+    const text = path.startsWith("http") ? path : `${origin}${path}`;
     try {
       await navigator.clipboard.writeText(text);
       setActionBanner("Invite link copied to clipboard.");

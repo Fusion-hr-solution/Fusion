@@ -36,27 +36,25 @@ export function getOrganizationActionFlags(
       o.lifecycle !== "archived" &&
       o.onboardingProgressPercent < 100,
     showResendFirstAdminInvite: inviteOutstanding,
-    showCopyInviteLink: inviteExists || Boolean(o.inviteLink),
+    showCopyInviteLink: Boolean(o.inviteLink),
     showRevokeInvite: invitePending,
     showSuspend: o.lifecycle === "active",
     showReactivate: o.lifecycle === "suspended",
   };
 }
 
-/** Prefer server-issued absolute link; fallback to token query (invite acceptance page). */
-export function buildInviteAcceptPath(org: Organization): string {
-  if (org.inviteLink) {
-    try {
-      const u = new URL(org.inviteLink);
-      return `${u.pathname}${u.search}`;
-    } catch {
-      return org.inviteLink.startsWith("/")
-        ? org.inviteLink
-        : `/${org.inviteLink}`;
-    }
+/**
+ * Return the invite acceptance path if an invite link exists. Returns `null`
+ * when no valid invite link is available—callers should hide the copy action.
+ */
+export function buildInviteAcceptPath(org: Organization): string | null {
+  if (!org.inviteLink) return null;
+  try {
+    const u = new URL(org.inviteLink);
+    return `${u.pathname}${u.search}`;
+  } catch {
+    return org.inviteLink.startsWith("/")
+      ? org.inviteLink
+      : `/${org.inviteLink}`;
   }
-  const q = new URLSearchParams();
-  q.set("org", org.name);
-  if (org.primaryAdminEmail) q.set("email", org.primaryAdminEmail);
-  return `/core/invite/accept?${q.toString()}`;
 }

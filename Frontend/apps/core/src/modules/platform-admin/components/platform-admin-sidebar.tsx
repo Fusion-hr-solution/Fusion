@@ -82,7 +82,9 @@ export function PlatformAdminSidebar() {
 
   const handleLogout = async () => {
     await logout();
-    router.push("/auth/signin");
+    const shellOrigin =
+      process.env.NEXT_PUBLIC_SHELL_ORIGIN || window.location.origin;
+    window.location.href = `${shellOrigin}/auth/signin`;
   };
 
   return (

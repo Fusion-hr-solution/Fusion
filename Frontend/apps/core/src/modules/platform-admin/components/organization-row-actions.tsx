@@ -57,6 +57,10 @@ export function OrganizationRowActions({ org }: { org: Organization }) {
         if (fresh) effective = fresh;
       }
       const path = buildInviteAcceptPath(effective);
+      if (!path) {
+        flash("No invite link available.");
+        return;
+      }
       const origin =
         typeof window !== "undefined" ? window.location.origin : "";
       const full = path.startsWith("http") ? path : `${origin}${path}`;
