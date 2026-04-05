@@ -291,15 +291,13 @@ export async function persistTest(input: PersistTestInput): Promise<Test> {
 }
 
 export async function setTestStatus(test: Test, status: TestStatus): Promise<Test> {
-  const questionIds = (await getTestQuestions(test.id)).map((question) => question.id);
-
-  return persistTest({
+  return upsertTest({
     testId: test.id,
     title: test.title,
     description: test.description,
     discipline: test.discipline,
     status,
-    questionIds,
+    questionIds: [],
   });
 }
 

@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Archive, Plus, Trash2 } from "lucide-react";
 import * as AlertDialog from "@radix-ui/react-alert-dialog";
@@ -37,38 +37,42 @@ export function TestDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [actionBusyId, setActionBusyId] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<PendingAction>(null);
+  const mountedRef = useRef(false);
 
   async function loadTests(): Promise<void> {
+    if (!mountedRef.current) return;
     setIsLoading(true);
     setError(null);
     try {
       const data = await getTests();
+      if (!mountedRef.current) return;
       setTests(data);
     } catch (err) {
+      if (!mountedRef.current) return;
       setError(err instanceof Error ? err.message : "Failed to load tests.");
       setTests([]);
     } finally {
+      if (!mountedRef.current) return;
       setIsLoading(false);
     }
   }
 
   useEffect(() => {
-    let isMounted = true;
+    mountedRef.current = true;
 
-    void (async () => {
-      if (!isMounted) return;
-      await loadTests();
-    })();
+    void loadTests();
 
     return () => {
-      isMounted = false;
+      mountedRef.current = false;
     };
   }, []);
 
   async function handleEdit(test: Test): Promise<void> {
+    if (!mountedRef.current) return;
     setActionBusyId(test.id);
     try {
       const selectedQuestions = await getTestQuestions(test.id);
+      if (!mountedRef.current) return;
       resetWizard();
       setPersistedTestId(test.id);
       updateBasicInfo({
@@ -81,26 +85,27 @@ export function TestDashboard() {
       markSaved();
       router.push("/tests/create");
     } catch (err) {
+      if (!mountedRef.current) return;
       setError(err instanceof Error ? err.message : "Failed to load test for editing.");
     } finally {
+      if (!mountedRef.current) return;
       setActionBusyId(null);
     }
   }
 
   async function handleDuplicate(test: Test): Promise<void> {
+    if (!mountedRef.current) return;
     setActionBusyId(test.id);
     try {
       await duplicateTest(test);
       await loadTests();
     } catch (err) {
+      if (!mountedRef.current) return;
       setError(err instanceof Error ? err.message : "Failed to duplicate test.");
     } finally {
+      if (!mountedRef.current) return;
       setActionBusyId(null);
     }
-  }
-
-  async function handleArchive(test: Test): Promise<void> {
-    setPendingAction({ type: "archive", test });
   }
 
   async function handleSetStatus(test: Test, status: TestStatus): Promise<void> {
@@ -111,13 +116,16 @@ export function TestDashboard() {
       return;
     }
 
+    if (!mountedRef.current) return;
     setActionBusyId(test.id);
     try {
       await setTestStatus(test, status);
       await loadTests();
     } catch (err) {
+      if (!mountedRef.current) return;
       setError(err instanceof Error ? err.message : `Failed to set status to ${status}.`);
     } finally {
+      if (!mountedRef.current) return;
       setActionBusyId(null);
     }
   }
@@ -130,6 +138,7 @@ export function TestDashboard() {
     if (!pendingAction) return;
 
     const { test, type } = pendingAction;
+    if (!mountedRef.current) return;
     setActionBusyId(test.id);
     try {
       if (type === "archive") {
@@ -139,6 +148,7 @@ export function TestDashboard() {
       }
       await loadTests();
     } catch (err) {
+      if (!mountedRef.current) return;
       setError(
         err instanceof Error
           ? err.message
@@ -147,6 +157,7 @@ export function TestDashboard() {
             : "Failed to delete test."
       );
     } finally {
+      if (!mountedRef.current) return;
       setActionBusyId(null);
       setPendingAction(null);
     }

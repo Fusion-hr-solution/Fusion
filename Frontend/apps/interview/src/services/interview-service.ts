@@ -5,6 +5,8 @@ type ProcessLike = { env?: Record<string, string | undefined> };
 type InterviewStatus = Interview["status"];
 
 interface ApiEnvelope<T> {
+  isSuccess?: boolean;
+  success?: boolean;
   data?: T;
   errors?: string[];
   message?: string;
@@ -91,6 +93,12 @@ function extractMessage(payload: ApiEnvelope<unknown>, statusText: string): stri
   return payload.message ?? statusText;
 }
 
+function isEnvelopeFailure(payload: ApiEnvelope<unknown>): boolean {
+  if (payload.isSuccess === false) return true;
+  if (payload.success === false) return true;
+  return false;
+}
+
 export async function getInterviews(): Promise<Interview[]> {
   const response = await fetch(`${getApiBaseUrl()}/interview/interviews`, {
     method: "GET",
@@ -104,7 +112,7 @@ export async function getInterviews(): Promise<Interview[]> {
     PagedResultDto<BackendInterviewDto> | BackendInterviewDto[]
   >;
 
-  if (!response.ok) {
+  if (!response.ok || isEnvelopeFailure(payload)) {
     throw new Error(extractMessage(payload, "Failed to fetch interviews."));
   }
 
@@ -126,7 +134,7 @@ export async function getInterviewById(id: string): Promise<Interview | undefine
 
   const payload = (await response.json().catch(() => ({}))) as ApiEnvelope<BackendInterviewDto>;
 
-  if (!response.ok) {
+  if (!response.ok || isEnvelopeFailure(payload)) {
     throw new Error(extractMessage(payload, "Failed to fetch interview details."));
   }
 
