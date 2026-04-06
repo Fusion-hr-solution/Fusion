@@ -10,6 +10,7 @@ import type { Test, TestStatus } from "@/types";
 
 interface TestCardProps {
   test: Test;
+  onOpen: (test: Test) => void;
   onEdit: (test: Test) => void;
   onPreview: (test: Test) => void;
   onDuplicate: (test: Test) => void;
@@ -26,6 +27,7 @@ const STATUS_STYLES: Record<Test["status"], string> = {
 
 export function TestCard({
   test,
+  onOpen,
   onEdit,
   onPreview,
   onDuplicate,
@@ -46,8 +48,25 @@ export function TestCard({
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
+  function handleOpen(): void {
+    if (isBusy) return;
+    onOpen(test);
+  }
+
   return (
-    <div className="group relative flex flex-col gap-3 rounded-lg border border-zinc-200 bg-white p-5 shadow-sm hover:shadow-md transition-shadow duration-150">
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={handleOpen}
+      onKeyDown={(e) => {
+        if (e.currentTarget !== e.target) return;
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          handleOpen();
+        }
+      }}
+      className="group relative flex cursor-pointer flex-col gap-3 rounded-lg border border-zinc-200 bg-white p-5 shadow-sm transition-shadow duration-150 hover:shadow-md"
+    >
       {/* Top row */}
       <div className="flex items-center justify-between">
         <span className="rounded-full border border-zinc-200 px-2.5 py-0.5 text-[11px] font-medium text-zinc-600">
@@ -55,7 +74,7 @@ export function TestCard({
         </span>
 
         {/* Actions menu */}
-        <div ref={menuRef} className="relative">
+        <div ref={menuRef} className="relative" onClick={(e) => e.stopPropagation()}>
           <button
             onClick={() => setMenuOpen((p) => !p)}
             className="flex h-7 w-7 items-center justify-center rounded-md text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 transition-colors duration-150"

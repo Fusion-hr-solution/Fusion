@@ -225,6 +225,14 @@ export async function deleteChapter(trainingId: string, chapterId: string): Prom
   );
 }
 
+// --- File upload ---
+
+export async function uploadChapterFile(file: File): Promise<string> {
+  const form = new FormData();
+  form.append("file", file);
+  return client.post<string>("/training/admin/uploads", form);
+}
+
 // --- Assignment management ---
 
 export async function getTrainingAssignments(trainingId: string): Promise<AdminAssignment[]> {

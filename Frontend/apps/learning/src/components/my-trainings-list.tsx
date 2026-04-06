@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { BookOpen, GraduationCap, Clock, CheckCircle2 } from "lucide-react";
 import { Card, CardContent } from "@repo/ui";
 import type { TrainingStatus, EnrolledTraining } from "@/types";
@@ -13,6 +14,7 @@ import { EnrolledTrainingCard } from "./enrolled-training-card";
 import { SearchInput } from "./search-input";
 
 export function MyTrainingsList({ trainings }: MyTrainingsListProps) {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<TrainingStatus | "all">("all");
   const [search, setSearch] = useState("");
 
@@ -45,8 +47,8 @@ export function MyTrainingsList({ trainings }: MyTrainingsListProps) {
     return sum + parseInt(t.duration.replace(/\D/g, ""));
   }, 0);
 
-  const handleContinue = (_training: EnrolledTraining) => {
-    // TODO: navigate to training player
+  const handleContinue = (training: EnrolledTraining) => {
+    router.push(`/training/${encodeURIComponent(training.id)}/learn`);
   };
 
   const stats = [

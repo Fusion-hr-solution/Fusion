@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Archive, Clock, Eye, HelpCircle, Plus, Trash2, X } from "lucide-react";
 import * as AlertDialog from "@radix-ui/react-alert-dialog";
 import * as Dialog from "@radix-ui/react-dialog";
@@ -18,6 +18,7 @@ import {
   setTestStatus,
 } from "@/services/test-service";
 import { useWizardStore } from "@/store/wizard-store";
+import { cn } from "@/lib/utils";
 import type { Question, Test, TestStatus } from "@/types";
 
 type PendingAction =
@@ -27,6 +28,7 @@ type PendingAction =
 
 export function TestDashboard() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const resetWizard = useWizardStore((state) => state.reset);
   const setPersistedTestId = useWizardStore((state) => state.setPersistedTestId);
   const updateBasicInfo = useWizardStore((state) => state.updateBasicInfo);
@@ -45,12 +47,20 @@ export function TestDashboard() {
   const mountedRef = useRef(false);
   const previewRequestTokenRef = useRef(0);
 
+  const requestedView = searchParams.get("view");
+  const statusScope: TestStatus =
+    requestedView === "draft"
+      ? "Draft"
+      : requestedView === "archived"
+        ? "Archived"
+        : "Active";
+
   async function loadTests(): Promise<void> {
     if (!mountedRef.current) return;
     setIsLoading(true);
     setError(null);
     try {
-      const data = await getTests();
+      const data = await getTests(statusScope);
       if (!mountedRef.current) return;
       setTests(data);
     } catch (err) {
@@ -71,28 +81,51 @@ export function TestDashboard() {
     return () => {
       mountedRef.current = false;
     };
-  }, []);
+  }, [statusScope]);
 
-  async function handleEdit(test: Test): Promise<void> {
+  async function loadTestIntoWizard(test: Test, targetStep: number): Promise<void> {
+    const selectedQuestions = await getTestQuestions(test.id);
+    if (!mountedRef.current) return;
+
+    resetWizard();
+    setPersistedTestId(test.id);
+    updateBasicInfo({
+      title: test.title,
+      description: test.description,
+      discipline: test.discipline,
+    });
+    reorderQuestions(selectedQuestions);
+    setStep(targetStep);
+    markSaved();
+  }
+
+  async function handleEdit(test: Test, targetStep = 1): Promise<void> {
     if (!mountedRef.current) return;
     setActionBusyId(test.id);
     try {
-      const selectedQuestions = await getTestQuestions(test.id);
+      await loadTestIntoWizard(test, targetStep);
       if (!mountedRef.current) return;
-      resetWizard();
-      setPersistedTestId(test.id);
-      updateBasicInfo({
-        title: test.title,
-        description: test.description,
-        discipline: test.discipline,
-      });
-      reorderQuestions(selectedQuestions);
-      setStep(1);
-      markSaved();
       router.push("/tests/create");
     } catch (err) {
       if (!mountedRef.current) return;
       setError(err instanceof Error ? err.message : "Failed to load test for editing.");
+    } finally {
+      if (!mountedRef.current) return;
+      setActionBusyId(null);
+    }
+  }
+
+  async function handleOpenCandidatePreview(test: Test): Promise<void> {
+    if (!mountedRef.current) return;
+    setActionBusyId(test.id);
+    try {
+      await loadTestIntoWizard(test, 4);
+      if (!mountedRef.current) return;
+      closePreview();
+      router.push("/tests/create/preview");
+    } catch (err) {
+      if (!mountedRef.current) return;
+      setError(err instanceof Error ? err.message : "Failed to open candidate view.");
     } finally {
       if (!mountedRef.current) return;
       setActionBusyId(null);
@@ -211,7 +244,12 @@ export function TestDashboard() {
     currentPage,
     totalPages,
     setCurrentPage,
-        } = useTestFilters(tests);
+        } = useTestFilters(tests.filter((test) => test.status === statusScope));
+
+  function navigateToView(view: "active" | "draft" | "archived"): void {
+    router.push(view === "active" ? "/" : `/?view=${view}`);
+  }
+
   return (
     <div className="flex flex-1 flex-col min-h-screen bg-zinc-50">
       {/* Page header */}
@@ -223,6 +261,26 @@ export function TestDashboard() {
           <p className="mt-0.5 text-[13px] text-zinc-500">
             Manage and organize your assessments
           </p>
+          <div className="mt-3 inline-flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-50 p-1">
+            {[
+              { key: "active" as const, label: "Active", status: "Active" as const },
+              { key: "draft" as const, label: "Draft", status: "Draft" as const },
+              { key: "archived" as const, label: "Archived", status: "Archived" as const },
+            ].map((item) => (
+              <button
+                key={item.key}
+                onClick={() => navigateToView(item.key)}
+                className={cn(
+                  "rounded-md px-3 py-1.5 text-[12px] font-semibold transition-colors duration-150",
+                  statusScope === item.status
+                    ? "bg-zinc-900 text-white"
+                    : "text-zinc-600 hover:bg-white"
+                )}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         <button
@@ -243,6 +301,7 @@ export function TestDashboard() {
         filters={filters}
         activeFilterCount={activeFilterCount}
         resultCount={filtered.length}
+        showStatusFilter={false}
         onFilterChange={updateFilter}
         onClearAll={clearFilters}
       />
@@ -282,6 +341,7 @@ export function TestDashboard() {
             <TestCard
               key={test.id}
               test={test}
+              onOpen={(item) => void handleEdit(item, 4)}
               onEdit={(item) => void handleEdit(item)}
               onPreview={(item) => void handlePreview(item)}
               onDuplicate={(item) => void handleDuplicate(item)}
@@ -398,6 +458,23 @@ export function TestDashboard() {
                     ))}
                   </div>
                 ) : null}
+              </div>
+
+              <div className="flex items-center justify-end gap-2 border-t border-zinc-100 px-6 py-4">
+                <button
+                  onClick={closePreview}
+                  className="rounded-lg border border-zinc-200 bg-white px-4 py-2 text-[13px] font-medium text-zinc-700 hover:bg-zinc-50"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={() => void handleOpenCandidatePreview(previewTest)}
+                  disabled={previewLoading || Boolean(previewError) || actionBusyId === previewTest.id}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-4 py-2 text-[13px] font-semibold text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-400"
+                >
+                  <Eye className="h-3.5 w-3.5" />
+                  Candidate View
+                </button>
               </div>
             </Dialog.Content>
           ) : null}
