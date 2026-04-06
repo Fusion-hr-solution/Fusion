@@ -37,6 +37,7 @@ interface WizardStore {
   testId: string | null;
   basicInfo: WizardFormState["basicInfo"];
   selectedQuestions: Question[];
+  previewFlaggedQuestionIds: string[];
   config: WizardFormState["config"];
   isDirty: boolean;
   lastSaved: number | null;
@@ -46,9 +47,12 @@ interface WizardStore {
   updateBasicInfo: (updates: Partial<WizardFormState["basicInfo"]>) => void;
   updateConfig: (updates: Partial<WizardFormState["config"]>) => void;
   addQuestion: (q: Question) => void;
+  updateSelectedQuestion: (q: Question) => void;
   removeQuestion: (id: string) => void;
   reorderQuestions: (qs: Question[]) => void;
   isQuestionSelected: (id: string) => boolean;
+  setPreviewFlaggedQuestionIds: (ids: string[]) => void;
+  togglePreviewFlaggedQuestion: (id: string) => void;
   setPersistedTestId: (id: string | null) => void;
   markSaved: () => void;
   reset: () => void;
@@ -61,6 +65,7 @@ export const useWizardStore = create<WizardStore>()(
       testId: null,
       basicInfo: INITIAL_BASIC_INFO,
       selectedQuestions: [],
+      previewFlaggedQuestionIds: [],
       config: INITIAL_CONFIG,
       isDirty: false,
       lastSaved: null,
@@ -73,13 +78,29 @@ export const useWizardStore = create<WizardStore>()(
         set((s) => ({ config: { ...s.config, ...updates }, isDirty: true })),
       addQuestion: (q) =>
         set((s) => ({ selectedQuestions: [...s.selectedQuestions, q], isDirty: true })),
+      updateSelectedQuestion: (q) =>
+        set((s) => ({
+          selectedQuestions: s.selectedQuestions.map((existing) =>
+            existing.id === q.id ? q : existing
+          ),
+          isDirty: true,
+        })),
       removeQuestion: (id) =>
         set((s) => ({
           selectedQuestions: s.selectedQuestions.filter((q) => q.id !== id),
+          previewFlaggedQuestionIds: s.previewFlaggedQuestionIds.filter((qId) => qId !== id),
           isDirty: true,
         })),
       reorderQuestions: (qs) => set({ selectedQuestions: qs, isDirty: true }),
       isQuestionSelected: (id) => get().selectedQuestions.some((q) => q.id === id),
+      setPreviewFlaggedQuestionIds: (ids) =>
+        set({ previewFlaggedQuestionIds: Array.from(new Set(ids)) }),
+      togglePreviewFlaggedQuestion: (id) =>
+        set((s) => ({
+          previewFlaggedQuestionIds: s.previewFlaggedQuestionIds.includes(id)
+            ? s.previewFlaggedQuestionIds.filter((qId) => qId !== id)
+            : [...s.previewFlaggedQuestionIds, id],
+        })),
       setPersistedTestId: (id) => set({ testId: id }),
       markSaved: () => set({ isDirty: false, lastSaved: Date.now() }),
       reset: () =>
@@ -88,6 +109,7 @@ export const useWizardStore = create<WizardStore>()(
           testId: null,
           basicInfo: INITIAL_BASIC_INFO,
           selectedQuestions: [],
+          previewFlaggedQuestionIds: [],
           config: INITIAL_CONFIG,
           isDirty: false,
           lastSaved: null,
@@ -99,6 +121,7 @@ export const useWizardStore = create<WizardStore>()(
         testId: s.testId,
         basicInfo: s.basicInfo,
         selectedQuestions: s.selectedQuestions,
+        previewFlaggedQuestionIds: s.previewFlaggedQuestionIds,
         config: s.config,
         step: s.step,
       }),

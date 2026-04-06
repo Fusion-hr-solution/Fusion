@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { X, Plus, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { QUESTION_TYPES, CODING_LANGUAGES, GRADING_METHODS } from "@/config/constants";
@@ -85,6 +85,10 @@ interface Props {
   onSaveToLibrary: (form: NewQuestionForm) => Promise<void>;
   onSaveAndAdd: (form: NewQuestionForm) => Promise<void>;
   fullPage?: boolean;
+  initialForm?: NewQuestionForm | null;
+  mode?: "create" | "edit";
+  saveLibraryLabel?: string;
+  saveAndAddLabel?: string;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -95,11 +99,26 @@ export function CreateQuestionSheet({
   onSaveToLibrary,
   onSaveAndAdd,
   fullPage = false,
+  initialForm = null,
+  mode = "create",
+  saveLibraryLabel,
+  saveAndAddLabel,
 }: Props) {
   const [form,     setForm]     = useState<NewQuestionForm>(EMPTY_FORM);
   const [tagInput, setTagInput] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    if (initialForm) {
+      setForm(initialForm);
+    } else {
+      setForm(EMPTY_FORM);
+    }
+    setTagInput("");
+    setSubmitError(null);
+  }, [open, initialForm]);
 
   function update<K extends keyof NewQuestionForm>(key: K, val: NewQuestionForm[K]) {
     setForm((p) => ({ ...p, [key]: val }));
@@ -192,7 +211,9 @@ export function CreateQuestionSheet({
             <div>
               <h2 className="text-[20px] font-bold text-zinc-900">Create New Question</h2>
               <p className="mt-0.5 text-[13px] text-zinc-500">
-                Save to your library, then optionally add it to this test
+                {mode === "edit"
+                  ? "Update this question and keep your test set in sync"
+                  : "Save to your library, then optionally add it to this test"}
               </p>
             </div>
             <button
@@ -530,14 +551,14 @@ export function CreateQuestionSheet({
           {submitError && (
             <p className="mr-4 max-w-[320px] text-[12px] text-red-600">{submitError}</p>
           )}
-          <button
-            type="button"
-            onClick={() => void submit(false)}
-            disabled={!isValid || isSaving}
-            className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-[13px] font-semibold text-zinc-600 shadow-sm transition-colors duration-150 hover:bg-zinc-50"
-          >
-            Save to Library Only
-          </button>
+            <button
+              type="button"
+              onClick={() => void submit(false)}
+              disabled={!isValid || isSaving}
+              className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-[13px] font-semibold text-zinc-600 shadow-sm transition-colors duration-150 hover:bg-zinc-50"
+            >
+              {saveLibraryLabel ?? (mode === "edit" ? "Save Changes" : "Save to Library Only")}
+            </button>
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -559,7 +580,9 @@ export function CreateQuestionSheet({
               )}
             >
               <Plus className="h-4 w-4" />
-              {isSaving ? "Saving..." : "Save & Add to Test"}
+              {isSaving
+                ? "Saving..."
+                : (saveAndAddLabel ?? (mode === "edit" ? "Save & Keep in Test" : "Save & Add to Test"))}
             </button>
           </div>
         </div>

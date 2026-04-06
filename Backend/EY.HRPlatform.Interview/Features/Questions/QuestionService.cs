@@ -137,15 +137,31 @@ public class QuestionService(AppDbContext dbContext) : IQuestionService
         question.StarterCode = string.IsNullOrWhiteSpace(request.StarterCode) ? null : request.StarterCode;
         question.EvaluationCriteria = string.IsNullOrWhiteSpace(request.EvaluationCriteria) ? null : request.EvaluationCriteria.Trim();
 
-        dbContext.QuestionOptions.RemoveRange(question.Options);
-        question.Options = options.Select(o => new QuestionOption
+        // Mutate the tracked collection in-place to avoid duplicate delete tracking
+        // (explicit RemoveRange + relationship orphan delete), which can trigger
+        // DbUpdateConcurrencyException with 0 affected rows.
+        question.Options.Clear();
+        foreach (var option in options)
         {
-            QuestionId = question.Id,
-            Text = o.Text.Trim(),
-            Correct = o.Correct
-        }).ToList();
+            question.Options.Add(new QuestionOption
+            {
+                QuestionId = question.Id,
+                Text = option.Text.Trim(),
+                Correct = option.Correct
+            });
+        }
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw new ApiException(
+                "Question was modified or deleted by another process. Please reload and try again.",
+                StatusCodes.Status409Conflict);
+        }
+
         return MapToDto(question);
     }
 

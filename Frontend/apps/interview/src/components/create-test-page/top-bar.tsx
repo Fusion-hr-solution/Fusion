@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import {
   ArrowLeft, BookmarkPlus, Send,
-  Cloud, Loader2, CheckCircle2,
+  Cloud, Loader2, CheckCircle2, MonitorPlay,
 } from "lucide-react";
 import * as AlertDialog from "@radix-ui/react-alert-dialog";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
@@ -154,6 +154,14 @@ export function TopBar() {
 
         {/* Right */}
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => router.push("/tests/create/preview")}
+            className="flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3.5 py-1.5 text-[13px] font-medium text-zinc-600 shadow-sm transition-all duration-150 hover:border-zinc-300 hover:bg-zinc-50 hover:shadow-none"
+          >
+            <MonitorPlay className="h-4 w-4" />
+            Candidate view
+          </button>
+
           <button
             onClick={() => void handleSaveDraft()}
             disabled={isSubmitting}
