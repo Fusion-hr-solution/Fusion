@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Archive, Clock, Eye, HelpCircle, Plus, Trash2, X } from "lucide-react";
 import * as AlertDialog from "@radix-ui/react-alert-dialog";
+import * as Dialog from "@radix-ui/react-dialog";
 import { StatsRow } from "./stats-row";
 import { FilterBar } from "./filter-bar";
 import { TestCard } from "./test-card";
@@ -42,6 +43,7 @@ export function TestDashboard() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const mountedRef = useRef(false);
+  const previewRequestTokenRef = useRef(0);
 
   async function loadTests(): Promise<void> {
     if (!mountedRef.current) return;
@@ -140,6 +142,8 @@ export function TestDashboard() {
 
   async function handlePreview(test: Test): Promise<void> {
     if (!mountedRef.current) return;
+    const requestToken = previewRequestTokenRef.current + 1;
+    previewRequestTokenRef.current = requestToken;
     setPreviewTest(test);
     setPreviewQuestions([]);
     setPreviewError(null);
@@ -147,17 +151,21 @@ export function TestDashboard() {
     try {
       const questions = await getTestQuestions(test.id);
       if (!mountedRef.current) return;
+      if (previewRequestTokenRef.current !== requestToken) return;
       setPreviewQuestions(questions);
     } catch (err) {
       if (!mountedRef.current) return;
+      if (previewRequestTokenRef.current !== requestToken) return;
       setPreviewError(err instanceof Error ? err.message : "Failed to load test preview.");
     } finally {
       if (!mountedRef.current) return;
+      if (previewRequestTokenRef.current !== requestToken) return;
       setPreviewLoading(false);
     }
   }
 
   function closePreview(): void {
+    previewRequestTokenRef.current += 1;
     setPreviewTest(null);
     setPreviewQuestions([]);
     setPreviewError(null);
@@ -291,99 +299,106 @@ export function TestDashboard() {
         onPageChange={setCurrentPage}
       />
 
-      {previewTest ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-black/30 backdrop-blur-[2px]"
-            onClick={closePreview}
-          />
-          <div className="relative z-10 w-[760px] max-w-[96vw] overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl">
-            <div className="flex items-start justify-between border-b border-zinc-100 px-6 py-5">
-              <div>
-                <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-0.5 text-[11px] font-semibold text-zinc-700">
-                  <Eye className="h-3.5 w-3.5" />
-                  Preview Mode
+      <Dialog.Root
+        open={previewTest !== null}
+        onOpenChange={(open) => {
+          if (!open) closePreview();
+        }}
+      >
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-50 bg-black/30 backdrop-blur-[2px] data-[state=open]:animate-in data-[state=open]:fade-in-0" />
+          {previewTest ? (
+            <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[760px] max-w-[96vw] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 focus:outline-none">
+              <div className="flex items-start justify-between border-b border-zinc-100 px-6 py-5">
+                <div>
+                  <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-0.5 text-[11px] font-semibold text-zinc-700">
+                    <Eye className="h-3.5 w-3.5" />
+                    Preview Mode
+                  </div>
+                  <Dialog.Title className="text-[18px] font-bold text-zinc-900">
+                    {previewTest.title}
+                  </Dialog.Title>
+                  <Dialog.Description className="mt-1 text-[13px] leading-relaxed text-zinc-500">
+                    {previewTest.description || "No description provided."}
+                  </Dialog.Description>
                 </div>
-                <h2 className="text-[18px] font-bold text-zinc-900">{previewTest.title}</h2>
-                <p className="mt-1 text-[13px] leading-relaxed text-zinc-500">
-                  {previewTest.description || "No description provided."}
-                </p>
+                <Dialog.Close asChild>
+                  <button
+                    className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition-colors duration-150 hover:bg-zinc-100 hover:text-zinc-700"
+                    aria-label="Close preview"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </Dialog.Close>
               </div>
-              <button
-                onClick={closePreview}
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition-colors duration-150 hover:bg-zinc-100 hover:text-zinc-700"
-                aria-label="Close preview"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
 
-            <div className="border-b border-zinc-100 bg-zinc-50/70 px-6 py-3">
-              <div className="flex flex-wrap items-center gap-4 text-[12px] text-zinc-600">
-                <span className="flex items-center gap-1.5">
-                  <HelpCircle className="h-3.5 w-3.5" />
-                  {previewTest.questionCount} questions
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <Clock className="h-3.5 w-3.5" />
-                  {previewQuestions.reduce((total, q) => total + q.durationMinutes, 0)} min total
-                </span>
-                <span className="rounded-full bg-zinc-200 px-2 py-0.5 text-[11px] font-semibold text-zinc-700">
-                  Answers are not saved
-                </span>
-              </div>
-            </div>
-
-            <div className="max-h-[58vh] overflow-y-auto px-6 py-5">
-              {previewLoading ? (
-                <p className="text-[13px] text-zinc-500">Loading candidate preview...</p>
-              ) : null}
-
-              {!previewLoading && previewError ? (
-                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3">
-                  <p className="text-[13px] text-red-700">{previewError}</p>
+              <div className="border-b border-zinc-100 bg-zinc-50/70 px-6 py-3">
+                <div className="flex flex-wrap items-center gap-4 text-[12px] text-zinc-600">
+                  <span className="flex items-center gap-1.5">
+                    <HelpCircle className="h-3.5 w-3.5" />
+                    {previewTest.questionCount} questions
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5" />
+                    {previewQuestions.reduce((total, q) => total + q.durationMinutes, 0)} min total
+                  </span>
+                  <span className="rounded-full bg-zinc-200 px-2 py-0.5 text-[11px] font-semibold text-zinc-700">
+                    Answers are not saved
+                  </span>
                 </div>
-              ) : null}
+              </div>
 
-              {!previewLoading && !previewError && previewQuestions.length === 0 ? (
-                <p className="text-[13px] text-zinc-500">This test has no questions yet.</p>
-              ) : null}
+              <div className="max-h-[58vh] overflow-y-auto px-6 py-5">
+                {previewLoading ? (
+                  <p className="text-[13px] text-zinc-500">Loading candidate preview...</p>
+                ) : null}
 
-              {!previewLoading && !previewError && previewQuestions.length > 0 ? (
-                <div className="space-y-4">
-                  {previewQuestions.slice(0, 2).map((question, idx) => (
-                    <article key={question.id} className="rounded-xl border border-zinc-200 bg-white p-4">
-                      <div className="mb-2 flex items-center gap-2 text-[11px] text-zinc-500">
-                        <span className="rounded-full bg-zinc-100 px-2 py-0.5 font-semibold text-zinc-700">
-                          Question {idx + 1}
-                        </span>
-                        <span className="rounded-full border border-zinc-200 px-2 py-0.5">{question.type}</span>
-                        <span className="ml-auto text-zinc-400">{question.points} pts</span>
-                      </div>
+                {!previewLoading && previewError ? (
+                  <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+                    <p className="text-[13px] text-red-700">{previewError}</p>
+                  </div>
+                ) : null}
 
-                      <h3 className="text-[15px] font-semibold text-zinc-900">{question.title}</h3>
-                      <p className="mt-1.5 text-[13px] leading-relaxed text-zinc-600">
-                        {question.description || "No prompt text provided."}
+                {!previewLoading && !previewError && previewQuestions.length === 0 ? (
+                  <p className="text-[13px] text-zinc-500">This test has no questions yet.</p>
+                ) : null}
+
+                {!previewLoading && !previewError && previewQuestions.length > 0 ? (
+                  <div className="space-y-4">
+                    {previewQuestions.slice(0, 2).map((question, idx) => (
+                      <article key={question.id} className="rounded-xl border border-zinc-200 bg-white p-4">
+                        <div className="mb-2 flex items-center gap-2 text-[11px] text-zinc-500">
+                          <span className="rounded-full bg-zinc-100 px-2 py-0.5 font-semibold text-zinc-700">
+                            Question {idx + 1}
+                          </span>
+                          <span className="rounded-full border border-zinc-200 px-2 py-0.5">{question.type}</span>
+                          <span className="ml-auto text-zinc-400">{question.points} pts</span>
+                        </div>
+
+                        <h3 className="text-[15px] font-semibold text-zinc-900">{question.title}</h3>
+                        <p className="mt-1.5 text-[13px] leading-relaxed text-zinc-600">
+                          {question.description || "No prompt text provided."}
+                        </p>
+
+                        <div className="mt-3 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2">
+                          <p className="text-[12px] text-zinc-500">Candidate answer area</p>
+                          <div className="mt-2 h-20 rounded-md border border-dashed border-zinc-300 bg-white" />
+                        </div>
+                      </article>
+                    ))}
+
+                    {previewQuestions.length > 2 ? (
+                      <p className="text-[12px] text-zinc-500">
+                        Showing first 2 of {previewQuestions.length} questions in quick preview.
                       </p>
-
-                      <div className="mt-3 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2">
-                        <p className="text-[12px] text-zinc-500">Candidate answer area</p>
-                        <div className="mt-2 h-20 rounded-md border border-dashed border-zinc-300 bg-white" />
-                      </div>
-                    </article>
-                  ))}
-
-                  {previewQuestions.length > 2 ? (
-                    <p className="text-[12px] text-zinc-500">
-                      Showing first 2 of {previewQuestions.length} questions in quick preview.
-                    </p>
-                  ) : null}
-                </div>
-              ) : null}
-            </div>
-          </div>
-        </div>
-      ) : null}
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            </Dialog.Content>
+          ) : null}
+        </Dialog.Portal>
+      </Dialog.Root>
 
       <AlertDialog.Root
         open={pendingAction !== null}

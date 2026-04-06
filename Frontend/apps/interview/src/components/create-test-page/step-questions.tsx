@@ -56,9 +56,10 @@ function SortableRow({
       <button
         {...attributes} {...listeners}
         tabIndex={-1}
+        aria-label={`Reorder question ${index + 1}`}
         className="mt-0.5 shrink-0 cursor-grab touch-none text-zinc-300 hover:text-zinc-400"
       >
-        <GripVertical className="h-3.5 w-3.5" />
+        <GripVertical className="h-3.5 w-3.5" aria-hidden="true" />
       </button>
 
       {/* index badge */}
@@ -91,15 +92,17 @@ function SortableRow({
           onClick={() => onPreview(question)}
           className="rounded-md p-0.5 text-zinc-300 transition-colors duration-150 hover:bg-zinc-100 hover:text-zinc-500"
           title="Edit / Preview"
+          aria-label="Edit or preview question"
         >
-          <Pencil className="h-3.5 w-3.5" />
+          <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
         </button>
         <button
           onClick={() => onRemove(question.id)}
           className="rounded-md p-0.5 text-zinc-300 transition-colors duration-150 hover:bg-red-50 hover:text-red-500"
           title="Delete"
+          aria-label="Delete question"
         >
-          <X className="h-3.5 w-3.5" />
+          <X className="h-3.5 w-3.5" aria-hidden="true" />
         </button>
       </div>
     </div>
@@ -726,9 +729,10 @@ export function StepQuestions() {
               </div>
               <button
                 onClick={() => setPreviewQ(null)}
+                aria-label="Close question preview"
                 className="flex h-8 w-8 items-center justify-center rounded-xl text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 transition-colors duration-150"
               >
-                <X className="h-4 w-4" />
+                <X className="h-4 w-4" aria-hidden="true" />
               </button>
             </div>
 

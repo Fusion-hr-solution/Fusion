@@ -124,7 +124,10 @@ export function CandidatePreviewPage() {
 
   function goToQuestion(index: number): void {
     if (index < 0 || index >= questions.length) return;
-    if (!config.allowSkipping && index > currentIndex + 1) return;
+   if (!config.allowSkipping && index > currentIndex) {
+      if (!currentQuestion) return;
+      if (!isAnsweredValue(answers[currentQuestion.id])) return;
+    }
     setCurrentIndex(index);
   }
 
