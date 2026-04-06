@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Search, Plus, Eye, Minus, GripVertical, X, Inbox,
   CheckCircle2, BarChart2, Zap, Clock, ChevronLeft,
@@ -17,11 +18,10 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useWizardStore } from "@/store/wizard-store";
-import { createQuestion, getQuestions } from "@/services/test-service";
+import { getQuestions } from "@/services/test-service";
 import { QUESTION_TYPES, DIFFICULTIES, GRADING_METHODS, SORT_OPTIONS } from "@/config/constants";
-import { CreateQuestionSheet } from "./create-question-sheet";
 import { cn } from "@/lib/utils";
-import type { Question, QuestionFilterState, SortOption, Difficulty, NewQuestionForm } from "@/types";
+import type { Question, QuestionFilterState, SortOption, Difficulty } from "@/types";
 
 const DIFF_STYLES: Record<Difficulty, string> = {
   Easy:   "bg-emerald-50 text-emerald-700 border-emerald-100",
@@ -91,6 +91,7 @@ function SortableRow({
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function StepQuestions() {
+  const router = useRouter();
   const {
     selectedQuestions, addQuestion, removeQuestion,
     reorderQuestions, isQuestionSelected, nextStep, prevStep,
@@ -100,7 +101,6 @@ export function StepQuestions() {
   const [sortBy,       setSortBy]       = useState<SortOption>("newest");
   const [libPage,      setLibPage]      = useState(1);
   const [previewQ,     setPreviewQ]     = useState<Question | null>(null);
-  const [sheetOpen,    setSheetOpen]    = useState(false);
   const [sortOpen,     setSortOpen]     = useState(false);
   const [filtersOpen,  setFiltersOpen]  = useState(true);
   const [questionLibrary, setQuestionLibrary] = useState<Question[]>([]);
@@ -181,19 +181,6 @@ export function StepQuestions() {
   const typeCounts = Object.fromEntries(QUESTION_TYPES.map((t)  => [t, questionLibrary.filter((q) => q.type === t).length]));
   const diffCounts = Object.fromEntries(DIFFICULTIES.map((d)    => [d, questionLibrary.filter((q) => q.difficulty === d).length]));
   const gradCounts = Object.fromEntries(GRADING_METHODS.map((g) => [g, questionLibrary.filter((q) => q.gradingMethod === g).length]));
-
-  async function persistQuestion(form: NewQuestionForm, addToSelection: boolean): Promise<void> {
-    const created = await createQuestion(form);
-
-    setQuestionLibrary((current) => {
-      if (current.some((question) => question.id === created.id)) return current;
-      return [created, ...current];
-    });
-
-    if (addToSelection && !isQuestionSelected(created.id)) {
-      addQuestion(created);
-    }
-  }
 
   return (
     <div className="flex flex-col gap-6 pb-4">
@@ -295,7 +282,7 @@ export function StepQuestions() {
 
         {/* new question CTA */}
         <button
-          onClick={() => setSheetOpen(true)}
+          onClick={() => router.push("/tests/create/questions/new")}
           className="flex items-center gap-2 rounded-xl bg-zinc-900 px-4 py-2.5 text-[13px] font-semibold text-white shadow-sm hover:bg-zinc-800 active:scale-[0.98] transition-all duration-150"
         >
           <Plus className="h-4 w-4" />
@@ -668,14 +655,6 @@ export function StepQuestions() {
           Continue to Configuration <ArrowRight className="h-4 w-4" />
         </button>
       </div>
-
-      {/* ── Create question sheet ───────────────────────────────── */}
-      <CreateQuestionSheet
-        open={sheetOpen}
-        onClose={() => setSheetOpen(false)}
-        onSaveToLibrary={(form) => persistQuestion(form, false)}
-        onSaveAndAdd={(form) => persistQuestion(form, true)}
-      />
 
       {/* ── Question preview modal ──────────────────────────────── */}
       {previewQ && (

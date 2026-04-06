@@ -4,7 +4,6 @@ import { useEffect, useRef } from "react";
 import { useWizardStore } from "@/store/wizard-store";
 import { TopBar } from "./top-bar";
 import { Stepper } from "./stepper";
-import { LivePreview } from "./live-preview";
 import { StepBasicInfo } from "./step-basic-info";
 import { StepQuestions } from "./step-questions";
 import { StepConfig } from "./step-config";
@@ -19,8 +18,6 @@ const STEP_COMPONENTS: Record<number, StepComponent> = {
   3: StepConfig,
   4: StepReview,
 };
-
-const PREVIEW_WIDTH = 296;
 
 export function CreateTestPage() {
   const { step, isDirty, markSaved } = useWizardStore();
@@ -42,11 +39,7 @@ export function CreateTestPage() {
       <TopBar />
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Main column — full width minus the preview panel */}
-        <div
-          className="flex flex-1 flex-col overflow-hidden"
-          style={{ paddingRight: PREVIEW_WIDTH }}
-        >
+        <div className="flex flex-1 flex-col overflow-hidden">
           {/* Sticky stepper */}
           <div className="shrink-0 bg-white">
             <Stepper />
@@ -67,8 +60,6 @@ export function CreateTestPage() {
           </div>
         </div>
 
-        {/* Live preview panel */}
-        <LivePreview />
       </div>
     </div>
   );
