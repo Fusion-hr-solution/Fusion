@@ -8,6 +8,7 @@ import type { Organization } from "../types/organization";
 import { useOrganizations } from "../context/organizations-context";
 import { buildInviteAcceptUrl } from "../lib/org-action-flags";
 import { PlatformAdminBreadcrumbs } from "./platform-admin-breadcrumbs";
+import { ConfirmDialog } from "./confirm-dialog";
 
 function lifecyclePillLabel(lifecycle: Organization["lifecycle"]): string {
   switch (lifecycle) {
@@ -76,6 +77,11 @@ export function OrganizationDetailView({ org }: { org: Organization }) {
   } = useOrganizations();
   const [actionBanner, setActionBanner] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // Confirmation dialog state
+  const [confirmAction, setConfirmAction] = useState<
+    "suspend" | "archive" | "revoke" | null
+  >(null);
 
   const handoff = useMemo(() => handoffCopy(org), [org]);
 
@@ -434,7 +440,7 @@ export function OrganizationDetailView({ org }: { org: Organization }) {
                 <button
                   type="button"
                   disabled={busy || org.pendingInvites < 1}
-                  onClick={() => void onRevoke()}
+                  onClick={() => setConfirmAction("revoke")}
                   className="w-full border border-ch-error/50 py-3 font-chHeadline text-xs font-black uppercase tracking-widest text-ch-error transition-colors hover:bg-ch-error/10 disabled:opacity-50"
                 >
                   Revoke Pending Invite
@@ -510,7 +516,7 @@ export function OrganizationDetailView({ org }: { org: Organization }) {
             <button
               type="button"
               disabled={busy || org.lifecycle !== "active"}
-              onClick={() => void onSuspend()}
+              onClick={() => setConfirmAction("suspend")}
               className="group flex w-full items-center justify-between bg-ch-surface-container-lowest py-2 pl-3 pr-3 font-chBody text-sm font-bold text-stone-900 transition-colors hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-40"
             >
               <div className="flex items-center gap-3">
@@ -534,7 +540,7 @@ export function OrganizationDetailView({ org }: { org: Organization }) {
             <button
               type="button"
               disabled={busy || org.lifecycle === "archived"}
-              onClick={() => void onArchive()}
+              onClick={() => setConfirmAction("archive")}
               className="group flex w-full items-center justify-between bg-ch-surface-container-lowest py-2 pl-3 pr-3 font-chBody text-sm font-bold text-ch-error transition-colors hover:bg-ch-error-container/20 disabled:cursor-not-allowed disabled:opacity-40"
             >
               <div className="flex items-center gap-3">
@@ -546,6 +552,38 @@ export function OrganizationDetailView({ org }: { org: Organization }) {
           </div>
         </section>
       </div>
+
+      {/* Confirmation Dialogs */}
+      <ConfirmDialog
+        open={confirmAction === "suspend"}
+        onOpenChange={(open) => !open && setConfirmAction(null)}
+        title="Suspend Organization"
+        description={`This will temporarily disable access for all users in ${org.name}. The organization can be reactivated later.`}
+        confirmLabel="Suspend"
+        variant="destructive"
+        onConfirm={onSuspend}
+        loading={busy}
+      />
+      <ConfirmDialog
+        open={confirmAction === "archive"}
+        onOpenChange={(open) => !open && setConfirmAction(null)}
+        title="Archive Organization"
+        description={`This will permanently archive ${org.name}. Archived organizations cannot be restored. All user access will be revoked.`}
+        confirmLabel="Archive"
+        variant="destructive"
+        onConfirm={onArchive}
+        loading={busy}
+      />
+      <ConfirmDialog
+        open={confirmAction === "revoke"}
+        onOpenChange={(open) => !open && setConfirmAction(null)}
+        title="Revoke Invitation"
+        description="This will cancel the pending invitation. The invitee will no longer be able to use the invite link."
+        confirmLabel="Revoke Invite"
+        variant="destructive"
+        onConfirm={onRevoke}
+        loading={busy}
+      />
     </main>
   );
 }
