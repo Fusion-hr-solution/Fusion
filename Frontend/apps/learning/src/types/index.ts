@@ -10,10 +10,35 @@ export type TrainingCategory =
   | "finance"
   | "data-analytics";
 
+export type ContentType = "video" | "pdf" | "article" | "exercise";
+
 export interface TrainingChapter {
   id: string;
   title: string;
   duration: string;
+}
+
+export interface ChapterContent extends TrainingChapter {
+  contentType: ContentType;
+  textContent: string | null;
+  videoUrl: string | null;
+  contentUri: string | null;
+  orderIndex: number;
+  estimatedDurationMinutes: number | null;
+}
+
+export interface ChapterProgressEntry {
+  chapterId: string;
+  completed: boolean;
+  completedAt: string | null;
+}
+
+export interface TrainingLearnData {
+  training: Training;
+  chapters: ChapterContent[];
+  chapterProgress: ChapterProgressEntry[];
+  overallProgress: number;
+  status: TrainingStatus;
 }
 
 export interface ExamInfo {

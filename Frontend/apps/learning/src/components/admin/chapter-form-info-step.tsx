@@ -1,7 +1,12 @@
-import { Input, Label } from "@repo/ui";
+import { Input, Label, Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@repo/ui";
 import type { ChapterFormInfoStepProps } from "@/types/admin-props";
 
-const CONTENT_TYPES = ["Article", "Video", "Document", "Interactive"];
+const CONTENT_TYPES = [
+  { value: "Article", label: "Article" },
+  { value: "Pdf", label: "PDF Document" },
+  { value: "Video", label: "Video" },
+  { value: "Exercise", label: "Exercise" },
+];
 
 export function ChapterFormInfoStep({
   title,
@@ -30,18 +35,17 @@ export function ChapterFormInfoStep({
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="ch-type">Content Type *</Label>
-          <select
-            id="ch-type"
-            required
-            className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            value={contentType}
-            onChange={(e) => onContentTypeChange(e.target.value)}
-          >
-            {CONTENT_TYPES.map((t) => (
-              <option key={t} value={t}>{t}</option>
-            ))}
-          </select>
+          <Label>Content Type *</Label>
+          <Select value={contentType} onValueChange={onContentTypeChange}>
+            <SelectTrigger className={fieldErrors.contentType ? "border-destructive" : ""}>
+              <SelectValue placeholder="Select type" />
+            </SelectTrigger>
+            <SelectContent>
+              {CONTENT_TYPES.map((t) => (
+                <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="space-y-2">
           <Label htmlFor="ch-order">Order Index</Label>

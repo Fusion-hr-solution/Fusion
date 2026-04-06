@@ -105,6 +105,32 @@ public class MyTrainingsController : ControllerBase
         }
     }
 
+    /// <summary>Get detailed progress including chapters and per-chapter completion for the learn page.</summary>
+    [HttpGet("{trainingId:guid}/progress")]
+    [ProducesResponseType(typeof(ApiResponse<MyTrainingProgressDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> GetDetailedProgress(Guid trainingId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var employeeId = User.GetUserId();
+            var result = await _sender.Send(
+                new GetMyTrainingDetailedProgressQuery(employeeId, trainingId), cancellationToken);
+
+            if (result.IsFailure)
+                return NotFound(ApiResponse.Failure(result.Error.Message));
+
+            return Ok(ApiResponse<MyTrainingProgressDto>.Success(result.Value!));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to retrieve detailed progress for {TrainingId}", trainingId);
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                ApiResponse.Failure("An error occurred while retrieving training progress."));
+        }
+    }
+
     /// <summary>Update progress for a specific chapter.</summary>
     [HttpPut("{trainingId:guid}/chapters/progress")]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]

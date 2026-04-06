@@ -64,10 +64,12 @@ export function ChapterFormDialog({
           {form.step === 1 && (
             <ChapterFormContentStep
               contentType={form.contentType}
-              contentUri={form.contentUri} onContentUriChange={(v) => { form.setContentUri(v); form.clearFieldError("contentUri"); }}
+              file={form.file} onFileChange={(f) => { form.setFile(f); form.clearFieldError("file"); }}
+              existingFileUrl={form.contentUri}
               textContent={form.textContent} onTextContentChange={form.setTextContent}
               videoUrl={form.videoUrl} onVideoUrlChange={(v) => { form.setVideoUrl(v); form.clearFieldError("videoUrl"); }}
               estimatedDuration={form.estimatedDuration} onEstimatedDurationChange={(v) => { form.setEstimatedDuration(v); form.clearFieldError("estimatedDuration"); }}
+              isUploading={form.isUploading}
               fieldErrors={form.fieldErrors}
             />
           )}

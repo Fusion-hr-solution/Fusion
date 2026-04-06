@@ -138,13 +138,15 @@ export interface ChapterFormInfoStepProps {
 
 export interface ChapterFormContentStepProps {
   contentType: string;
-  contentUri: string;
-  onContentUriChange: (v: string) => void;
+  file: File | null;
+  onFileChange: (file: File | null) => void;
+  existingFileUrl: string;
   textContent: string;
   onTextContentChange: (v: string) => void;
   videoUrl: string;
   onVideoUrlChange: (v: string) => void;
   estimatedDuration: number | "";
   onEstimatedDurationChange: (v: number | "") => void;
+  isUploading: boolean;
   fieldErrors?: Record<string, string>;
 }
