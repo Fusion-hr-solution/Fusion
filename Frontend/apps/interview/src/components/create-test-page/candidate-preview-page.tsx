@@ -21,6 +21,10 @@ function asText(value: AnswerValue | undefined): string {
   return typeof value === "string" ? value : "";
 }
 
+function asChoices(value: AnswerValue | undefined): string[] {
+  return Array.isArray(value) ? value : [];
+}
+
 function isAnsweredValue(value: AnswerValue | undefined): boolean {
   if (typeof value === "string") {
     return value.trim().length > 0;
@@ -179,6 +183,20 @@ export function CandidatePreviewPage() {
     }));
   }
 
+  function toggleMultipleChoiceAnswer(questionId: string, choice: string): void {
+    setAnswers((prev) => {
+      const current = asChoices(prev[questionId]);
+      const next = current.includes(choice)
+        ? current.filter((item) => item !== choice)
+        : [...current, choice];
+
+      return {
+        ...prev,
+        [questionId]: next,
+      };
+    });
+  }
+
   function renderAnswerInput(question: Question): React.ReactNode {
     if (question.type === "True/False") {
       const value = asText(answers[question.id]);
@@ -207,19 +225,23 @@ export function CandidatePreviewPage() {
     }
 
     if (question.type === "Multiple Choice") {
-      const value = asText(answers[question.id]);
-      const options = ["Option A", "Option B", "Option C", "Option D"];
+      const selectedChoices = asChoices(answers[question.id]);
+      const options =
+        question.options && question.options.length > 0
+          ? question.options.map((option) => option.text)
+          : ["Option A", "Option B", "Option C", "Option D"];
+
       return (
         <div>
-          <p className="mb-2 text-[12px] text-zinc-500">Preview options (placeholder)</p>
+          <p className="mb-2 text-[12px] text-zinc-500">Select one or more choices</p>
           <div className="space-y-2">
             {options.map((choice) => {
-              const selected = value === choice;
+              const selected = selectedChoices.includes(choice);
               return (
                 <button
                   key={choice}
                   type="button"
-                  onClick={() => updateAnswer(question.id, choice)}
+                  onClick={() => toggleMultipleChoiceAnswer(question.id, choice)}
                   className={cn(
                     "flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left text-[14px] transition-colors",
                     selected
@@ -229,10 +251,12 @@ export function CandidatePreviewPage() {
                 >
                   <span
                     className={cn(
-                      "inline-flex h-4 w-4 rounded-full border",
-                      selected ? "border-white bg-white" : "border-zinc-300"
+                      "inline-flex h-4 w-4 items-center justify-center rounded border",
+                      selected ? "border-white bg-white text-zinc-900" : "border-zinc-300"
                     )}
-                  />
+                  >
+                    {selected ? <span className="h-2 w-2 rounded-sm bg-zinc-900" /> : null}
+                  </span>
                   {choice}
                 </button>
               );

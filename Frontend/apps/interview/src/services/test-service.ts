@@ -151,6 +151,10 @@ function mapQuestion(dto: BackendQuestionDto): Question {
     durationMinutes: dto.durationMinutes,
     tags: dto.tags ?? [],
     usageCount: dto.usageCount,
+    options: dto.options,
+    language: dto.language,
+    starterCode: dto.starterCode,
+    evaluationCriteria: dto.evaluationCriteria,
   };
 }
 
@@ -213,6 +217,14 @@ export async function createQuestion(form: NewQuestionForm): Promise<Question> {
     toCreateQuestionRequest(form)
   );
   return mapQuestion(created);
+}
+
+export async function updateQuestion(questionId: string, form: NewQuestionForm): Promise<Question> {
+  const updated = await client.put<BackendQuestionDto>(
+    `/interview/questions/${questionId}`,
+    toCreateQuestionRequest(form)
+  );
+  return mapQuestion(updated);
 }
 
 export async function getTestQuestions(testId: string): Promise<Question[]> {

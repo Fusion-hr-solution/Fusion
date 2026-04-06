@@ -52,6 +52,10 @@ export interface Question {
   durationMinutes: number;
   tags: string[];
   usageCount: number;
+  options?: { text: string; correct: boolean }[];
+  language?: string;
+  starterCode?: string;
+  evaluationCriteria?: string;
 }
 
 export interface NewQuestionForm {

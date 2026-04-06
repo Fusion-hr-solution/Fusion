@@ -47,6 +47,7 @@ interface WizardStore {
   updateBasicInfo: (updates: Partial<WizardFormState["basicInfo"]>) => void;
   updateConfig: (updates: Partial<WizardFormState["config"]>) => void;
   addQuestion: (q: Question) => void;
+  updateSelectedQuestion: (q: Question) => void;
   removeQuestion: (id: string) => void;
   reorderQuestions: (qs: Question[]) => void;
   isQuestionSelected: (id: string) => boolean;
@@ -77,6 +78,13 @@ export const useWizardStore = create<WizardStore>()(
         set((s) => ({ config: { ...s.config, ...updates }, isDirty: true })),
       addQuestion: (q) =>
         set((s) => ({ selectedQuestions: [...s.selectedQuestions, q], isDirty: true })),
+      updateSelectedQuestion: (q) =>
+        set((s) => ({
+          selectedQuestions: s.selectedQuestions.map((existing) =>
+            existing.id === q.id ? q : existing
+          ),
+          isDirty: true,
+        })),
       removeQuestion: (id) =>
         set((s) => ({
           selectedQuestions: s.selectedQuestions.filter((q) => q.id !== id),

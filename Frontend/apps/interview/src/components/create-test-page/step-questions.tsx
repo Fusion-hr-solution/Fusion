@@ -6,7 +6,7 @@ import {
   Search, Plus, Eye, Minus, GripVertical, X, Inbox,
   CheckCircle2, BarChart2, Zap, Clock, ChevronLeft,
   ChevronRight, SlidersHorizontal, ArrowLeft, ArrowRight, ListChecks,
-  Filter, Flag, Pencil,
+  Filter, Flag, Pencil, MoreHorizontal,
 } from "lucide-react";
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor,
@@ -126,6 +126,7 @@ export function StepQuestions() {
   const [sortBy,       setSortBy]       = useState<SortOption>("newest");
   const [libPage,      setLibPage]      = useState(1);
   const [previewQ,     setPreviewQ]     = useState<Question | null>(null);
+  const [openCardMenuId, setOpenCardMenuId] = useState<string | null>(null);
   const [sortOpen,     setSortOpen]     = useState(false);
   const [filtersOpen,  setFiltersOpen]  = useState(true);
   const [questionLibrary, setQuestionLibrary] = useState<Question[]>([]);
@@ -156,6 +157,18 @@ export function StepQuestions() {
     return () => {
       isMounted = false;
     };
+  }, []);
+
+  useEffect(() => {
+    function handleOutsideClick(event: MouseEvent) {
+      const target = event.target as Element | null;
+      if (!target?.closest("[data-question-card-menu]")) {
+        setOpenCardMenuId(null);
+      }
+    }
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
   }, []);
 
   const sensors = useSensors(
@@ -435,14 +448,16 @@ export function StepQuestions() {
                     key={q.id}
                     onClick={() => {
                       if (flagged) return;
+                      setOpenCardMenuId(null);
                       selected ? removeQuestion(q.id) : addQuestion(q);
                     }}
                     className={cn(
-                      "group relative flex cursor-pointer flex-col gap-2 overflow-hidden rounded-2xl border-2 p-4 transition-all duration-150",
+                      "group relative flex cursor-pointer flex-col gap-2 overflow-visible rounded-2xl border-2 p-4 transition-all duration-150",
                       selected
                         ? "border-zinc-900 bg-zinc-50 shadow-md"
                         : "border-zinc-100 bg-white hover:border-zinc-300 hover:shadow-lg",
-                      flagged && "cursor-default"
+                      flagged && "cursor-default",
+                      openCardMenuId === q.id && "z-30"
                     )}
                   >
                     {/* selected tick */}
@@ -505,14 +520,54 @@ export function StepQuestions() {
                       className="flex items-center justify-between border-t border-zinc-100 pt-2"
                       onClick={(e) => e.stopPropagation()}
                     >
+                      <div className="relative z-30" data-question-card-menu>
+                        <button
+                          onClick={() => setOpenCardMenuId((prev) => (prev === q.id ? null : q.id))}
+                          className="flex h-7 w-7 items-center justify-center rounded-md text-zinc-400 transition-colors duration-150 hover:bg-zinc-100 hover:text-zinc-700"
+                          aria-label="Open question actions"
+                        >
+                          <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
+                        </button>
+
+                        {openCardMenuId === q.id ? (
+                          <div className="absolute left-0 top-full z-40 mt-1 w-36 overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-lg">
+                            <button
+                              onClick={() => {
+                                router.push(`/tests/create/questions/${q.id}/edit?from=/tests/create`);
+                                setOpenCardMenuId(null);
+                              }}
+                              className="flex w-full items-center gap-2 px-3 py-2 text-left text-[12px] text-zinc-700 hover:bg-zinc-50"
+                            >
+                              <Pencil className="h-3.5 w-3.5" aria-hidden="true" /> Edit
+                            </button>
+                            <button
+                              onClick={() => {
+                                setQuestionLibrary((prev) => prev.filter((item) => item.id !== q.id));
+                                removeQuestion(q.id);
+                                setOpenCardMenuId(null);
+                              }}
+                              className="flex w-full items-center gap-2 px-3 py-2 text-left text-[12px] text-red-600 hover:bg-zinc-50"
+                            >
+                              <X className="h-3.5 w-3.5" aria-hidden="true" /> Delete
+                            </button>
+                            <button
+                              onClick={() => {
+                                setPreviewQ(q);
+                                setOpenCardMenuId(null);
+                              }}
+                              className="flex w-full items-center gap-2 px-3 py-2 text-left text-[12px] text-zinc-700 hover:bg-zinc-50"
+                            >
+                              <Eye className="h-3.5 w-3.5" aria-hidden="true" /> Preview
+                            </button>
+                          </div>
+                        ) : null}
+                      </div>
+
                       <button
-                        onClick={() => setPreviewQ(q)}
-                        className="flex items-center gap-1 rounded-lg px-2 py-1 text-[12px] font-medium text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 transition-colors duration-150"
-                      >
-                        <Eye className="h-3.5 w-3.5" /> Preview
-                      </button>
-                      <button
-                        onClick={() => selected ? removeQuestion(q.id) : addQuestion(q)}
+                        onClick={() => {
+                          setOpenCardMenuId(null);
+                          selected ? removeQuestion(q.id) : addQuestion(q);
+                        }}
                         className={cn(
                           "flex items-center gap-1.5 rounded-lg px-3 py-1 text-[12px] font-semibold transition-all duration-150",
                           selected
