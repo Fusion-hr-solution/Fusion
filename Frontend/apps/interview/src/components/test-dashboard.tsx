@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Archive, Plus, Trash2 } from "lucide-react";
+import { Archive, Clock, Eye, HelpCircle, Plus, Trash2, X } from "lucide-react";
 import * as AlertDialog from "@radix-ui/react-alert-dialog";
 import { StatsRow } from "./stats-row";
 import { FilterBar } from "./filter-bar";
@@ -17,7 +17,7 @@ import {
   setTestStatus,
 } from "@/services/test-service";
 import { useWizardStore } from "@/store/wizard-store";
-import type { Test, TestStatus } from "@/types";
+import type { Question, Test, TestStatus } from "@/types";
 
 type PendingAction =
   | { type: "archive"; test: Test }
@@ -37,6 +37,10 @@ export function TestDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [actionBusyId, setActionBusyId] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<PendingAction>(null);
+  const [previewTest, setPreviewTest] = useState<Test | null>(null);
+  const [previewQuestions, setPreviewQuestions] = useState<Question[]>([]);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
   const mountedRef = useRef(false);
 
   async function loadTests(): Promise<void> {
@@ -134,6 +138,32 @@ export function TestDashboard() {
     setPendingAction({ type: "delete", test });
   }
 
+  async function handlePreview(test: Test): Promise<void> {
+    if (!mountedRef.current) return;
+    setPreviewTest(test);
+    setPreviewQuestions([]);
+    setPreviewError(null);
+    setPreviewLoading(true);
+    try {
+      const questions = await getTestQuestions(test.id);
+      if (!mountedRef.current) return;
+      setPreviewQuestions(questions);
+    } catch (err) {
+      if (!mountedRef.current) return;
+      setPreviewError(err instanceof Error ? err.message : "Failed to load test preview.");
+    } finally {
+      if (!mountedRef.current) return;
+      setPreviewLoading(false);
+    }
+  }
+
+  function closePreview(): void {
+    setPreviewTest(null);
+    setPreviewQuestions([]);
+    setPreviewError(null);
+    setPreviewLoading(false);
+  }
+
   async function confirmPendingAction(): Promise<void> {
     if (!pendingAction) return;
 
@@ -212,7 +242,12 @@ export function TestDashboard() {
       <div className="mx-8 border-t border-zinc-200" />
 
       {isLoading ? (
-        <div className="px-8 py-6 text-[13px] text-zinc-500">Loading tests...</div>
+        <div className="flex min-h-[420px] items-center justify-center px-8 py-10">
+          <div className="flex flex-col items-center gap-3 text-center">
+            <div className="h-10 w-10 animate-spin rounded-full border-2 border-zinc-200 border-t-zinc-900" />
+            <p className="text-[13px] font-medium text-zinc-600">Loading tests...</p>
+          </div>
+        </div>
       ) : null}
 
       {!isLoading && error ? (
@@ -240,6 +275,7 @@ export function TestDashboard() {
               key={test.id}
               test={test}
               onEdit={(item) => void handleEdit(item)}
+              onPreview={(item) => void handlePreview(item)}
               onDuplicate={(item) => void handleDuplicate(item)}
               onSetStatus={(item, status) => void handleSetStatus(item, status)}
               onDelete={(item) => void handleDelete(item)}
@@ -254,6 +290,100 @@ export function TestDashboard() {
         totalPages={totalPages}
         onPageChange={setCurrentPage}
       />
+
+      {previewTest ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/30 backdrop-blur-[2px]"
+            onClick={closePreview}
+          />
+          <div className="relative z-10 w-[760px] max-w-[96vw] overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl">
+            <div className="flex items-start justify-between border-b border-zinc-100 px-6 py-5">
+              <div>
+                <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-0.5 text-[11px] font-semibold text-zinc-700">
+                  <Eye className="h-3.5 w-3.5" />
+                  Preview Mode
+                </div>
+                <h2 className="text-[18px] font-bold text-zinc-900">{previewTest.title}</h2>
+                <p className="mt-1 text-[13px] leading-relaxed text-zinc-500">
+                  {previewTest.description || "No description provided."}
+                </p>
+              </div>
+              <button
+                onClick={closePreview}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition-colors duration-150 hover:bg-zinc-100 hover:text-zinc-700"
+                aria-label="Close preview"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="border-b border-zinc-100 bg-zinc-50/70 px-6 py-3">
+              <div className="flex flex-wrap items-center gap-4 text-[12px] text-zinc-600">
+                <span className="flex items-center gap-1.5">
+                  <HelpCircle className="h-3.5 w-3.5" />
+                  {previewTest.questionCount} questions
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Clock className="h-3.5 w-3.5" />
+                  {previewQuestions.reduce((total, q) => total + q.durationMinutes, 0)} min total
+                </span>
+                <span className="rounded-full bg-zinc-200 px-2 py-0.5 text-[11px] font-semibold text-zinc-700">
+                  Answers are not saved
+                </span>
+              </div>
+            </div>
+
+            <div className="max-h-[58vh] overflow-y-auto px-6 py-5">
+              {previewLoading ? (
+                <p className="text-[13px] text-zinc-500">Loading candidate preview...</p>
+              ) : null}
+
+              {!previewLoading && previewError ? (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+                  <p className="text-[13px] text-red-700">{previewError}</p>
+                </div>
+              ) : null}
+
+              {!previewLoading && !previewError && previewQuestions.length === 0 ? (
+                <p className="text-[13px] text-zinc-500">This test has no questions yet.</p>
+              ) : null}
+
+              {!previewLoading && !previewError && previewQuestions.length > 0 ? (
+                <div className="space-y-4">
+                  {previewQuestions.slice(0, 2).map((question, idx) => (
+                    <article key={question.id} className="rounded-xl border border-zinc-200 bg-white p-4">
+                      <div className="mb-2 flex items-center gap-2 text-[11px] text-zinc-500">
+                        <span className="rounded-full bg-zinc-100 px-2 py-0.5 font-semibold text-zinc-700">
+                          Question {idx + 1}
+                        </span>
+                        <span className="rounded-full border border-zinc-200 px-2 py-0.5">{question.type}</span>
+                        <span className="ml-auto text-zinc-400">{question.points} pts</span>
+                      </div>
+
+                      <h3 className="text-[15px] font-semibold text-zinc-900">{question.title}</h3>
+                      <p className="mt-1.5 text-[13px] leading-relaxed text-zinc-600">
+                        {question.description || "No prompt text provided."}
+                      </p>
+
+                      <div className="mt-3 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2">
+                        <p className="text-[12px] text-zinc-500">Candidate answer area</p>
+                        <div className="mt-2 h-20 rounded-md border border-dashed border-zinc-300 bg-white" />
+                      </div>
+                    </article>
+                  ))}
+
+                  {previewQuestions.length > 2 ? (
+                    <p className="text-[12px] text-zinc-500">
+                      Showing first 2 of {previewQuestions.length} questions in quick preview.
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <AlertDialog.Root
         open={pendingAction !== null}

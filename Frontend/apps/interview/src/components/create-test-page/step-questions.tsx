@@ -6,7 +6,7 @@ import {
   Search, Plus, Eye, Minus, GripVertical, X, Inbox,
   CheckCircle2, BarChart2, Zap, Clock, ChevronLeft,
   ChevronRight, SlidersHorizontal, ArrowLeft, ArrowRight, ListChecks,
-  Filter,
+  Filter, Flag, Pencil,
 } from "lucide-react";
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor,
@@ -33,9 +33,13 @@ const DIFF_STYLES: Record<Difficulty, string> = {
 // ─── Sortable selected-question row ──────────────────────────────────────────
 
 function SortableRow({
-  question, index, onRemove,
+  question, index, flagged, onPreview, onRemove,
 }: {
-  question: Question; index: number; onRemove: (id: string) => void;
+  question: Question;
+  index: number;
+  flagged: boolean;
+  onPreview: (question: Question) => void;
+  onRemove: (id: string) => void;
 }) {
   const {
     attributes, listeners, setNodeRef,
@@ -74,16 +78,30 @@ function SortableRow({
           <span className="rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] font-bold text-zinc-600">
             {question.points}pt
           </span>
+          {flagged ? (
+            <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
+              <Flag className="h-2.5 w-2.5" /> Flagged
+            </span>
+          ) : null}
         </div>
       </div>
 
-      {/* remove */}
-      <button
-        onClick={() => onRemove(question.id)}
-        className="mt-0.5 shrink-0 rounded-md p-0.5 text-zinc-300 transition-colors duration-150 hover:bg-red-50 hover:text-red-500"
-      >
-        <X className="h-3.5 w-3.5" />
-      </button>
+      <div className="mt-0.5 flex shrink-0 items-center gap-1">
+        <button
+          onClick={() => onPreview(question)}
+          className="rounded-md p-0.5 text-zinc-300 transition-colors duration-150 hover:bg-zinc-100 hover:text-zinc-500"
+          title="Edit / Preview"
+        >
+          <Pencil className="h-3.5 w-3.5" />
+        </button>
+        <button
+          onClick={() => onRemove(question.id)}
+          className="rounded-md p-0.5 text-zinc-300 transition-colors duration-150 hover:bg-red-50 hover:text-red-500"
+          title="Delete"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
     </div>
   );
 }
@@ -95,7 +113,11 @@ export function StepQuestions() {
   const {
     selectedQuestions, addQuestion, removeQuestion,
     reorderQuestions, isQuestionSelected, nextStep, prevStep,
+    previewFlaggedQuestionIds,
+    togglePreviewFlaggedQuestion,
   } = useWizardStore();
+
+  const flaggedIdSet = new Set(previewFlaggedQuestionIds);
 
   const [filters,      setFilters]      = useState<QuestionFilterState>({ search: "", types: [], difficulties: [], gradingMethods: [] });
   const [sortBy,       setSortBy]       = useState<SortOption>("newest");
@@ -404,21 +426,31 @@ export function StepQuestions() {
             <div className="grid grid-cols-3 gap-4">
               {pagedLib.map((q) => {
                 const selected = isQuestionSelected(q.id);
+                const flagged = flaggedIdSet.has(q.id);
                 return (
                   <div
                     key={q.id}
-                    onClick={() => selected ? removeQuestion(q.id) : addQuestion(q)}
+                    onClick={() => {
+                      if (flagged) return;
+                      selected ? removeQuestion(q.id) : addQuestion(q);
+                    }}
                     className={cn(
                       "group relative flex cursor-pointer flex-col gap-2 overflow-hidden rounded-2xl border-2 p-4 transition-all duration-150",
                       selected
                         ? "border-zinc-900 bg-zinc-50 shadow-md"
-                        : "border-zinc-100 bg-white hover:border-zinc-300 hover:shadow-lg"
+                        : "border-zinc-100 bg-white hover:border-zinc-300 hover:shadow-lg",
+                      flagged && "cursor-default"
                     )}
                   >
                     {/* selected tick */}
                     {selected && (
                       <CheckCircle2 className="absolute right-3 top-3 h-5 w-5 fill-zinc-900 text-white" />
                     )}
+
+                    {/* flagged marker from candidate preview */}
+                    {flagged ? (
+                      <div className="pointer-events-none absolute inset-0 z-[1] bg-white/35 backdrop-blur-[1.5px]" />
+                    ) : null}
 
                     {/* type + difficulty + points */}
                     <div className="flex flex-wrap items-center gap-1.5 pr-6">
@@ -491,6 +523,23 @@ export function StepQuestions() {
                         }
                       </button>
                     </div>
+
+                    {flagged ? (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          togglePreviewFlaggedQuestion(q.id);
+                        }}
+                        className="absolute inset-0 z-[2] flex items-center justify-center"
+                        title="Click to clear flag"
+                        aria-label="Clear flag"
+                      >
+                        <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-amber-200 bg-amber-50 text-amber-700 shadow-sm transition-colors duration-150 hover:bg-amber-100">
+                          <Flag className="h-4 w-4" />
+                        </span>
+                      </button>
+                    ) : null}
                   </div>
                 );
               })}
@@ -613,6 +662,8 @@ export function StepQuestions() {
                           key={q.id}
                           question={q}
                           index={i}
+                          flagged={flaggedIdSet.has(q.id)}
+                          onPreview={(question) => setPreviewQ(question)}
                           onRemove={removeQuestion}
                         />
                       ))}

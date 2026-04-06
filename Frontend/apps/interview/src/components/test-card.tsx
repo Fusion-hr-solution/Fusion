@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import {
   Users, HelpCircle, Clock, MoreHorizontal,
-  Pencil, Copy, Archive, Trash2,
+  Pencil, Copy, Archive, Trash2, Eye,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Test, TestStatus } from "@/types";
@@ -11,6 +11,7 @@ import type { Test, TestStatus } from "@/types";
 interface TestCardProps {
   test: Test;
   onEdit: (test: Test) => void;
+  onPreview: (test: Test) => void;
   onDuplicate: (test: Test) => void;
   onSetStatus: (test: Test, status: TestStatus) => void;
   onDelete: (test: Test) => void;
@@ -26,6 +27,7 @@ const STATUS_STYLES: Record<Test["status"], string> = {
 export function TestCard({
   test,
   onEdit,
+  onPreview,
   onDuplicate,
   onSetStatus,
   onDelete,
@@ -86,6 +88,7 @@ export function TestCard({
               ))}
               <div className="border-t border-zinc-100" />
               {[
+                { icon: Eye, label: "Preview", action: onPreview },
                 { icon: Pencil, label: "Edit", action: onEdit },
                 { icon: Copy, label: "Duplicate", action: onDuplicate },
                 { icon: Archive, label: "Archive", action: (item: Test) => onSetStatus(item, "Archived") },
