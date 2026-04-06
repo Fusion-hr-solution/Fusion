@@ -73,7 +73,6 @@ public sealed class PlatformOrganizationService(
         var tenants = searchLower is not null
             ? allTenants.Where(t => t.Name.ToLower().Contains(searchLower)).ToList()
             : allTenants;
-        var ids = tenants.Select(t => t.Id).ToList();
         var metrics = allMetrics;
 
         var summaries = tenants.Select(t => MapSummary(t, metrics)).ToList();
@@ -387,11 +386,7 @@ public sealed class PlatformOrganizationService(
             .Where(i => tenantIds.Contains(i.TenantId) && i.Role == PlatformRole.HRAdmin)
             .ToListAsync(cancellationToken);
 
-        var allInvitesForPending = await db.InviteTokens.AsNoTracking()
-            .Where(i => tenantIds.Contains(i.TenantId) && i.Role == PlatformRole.HRAdmin)
-            .ToListAsync(cancellationToken);
-
-        var pendingByTenant = allInvitesForPending
+        var pendingByTenant = hrInvitesByTenant
             .Where(i => i.AcceptedAt == null && i.ExpiresAt > DateTime.UtcNow)
             .GroupBy(i => i.TenantId)
             .ToDictionary(g => g.Key, g => g.Count());

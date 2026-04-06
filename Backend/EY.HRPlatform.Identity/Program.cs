@@ -40,7 +40,7 @@ using (var scope = app.Services.CreateScope())
     var dbContext = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
     // Migrations require a relational provider (e.g. Npgsql). For integration tests we use
     // an in-memory database, so we create schema via EnsureCreated instead.
-    if (app.Environment.EnvironmentName == "Testing")
+    if (app.Environment.IsEnvironment("Testing"))
         await dbContext.Database.EnsureCreatedAsync();
     else
         await dbContext.Database.MigrateAsync();
@@ -56,7 +56,7 @@ using (var scope = app.Services.CreateScope())
 }
 
 // Middleware pipeline (ORDER MATTERS!)
-if (app.Environment.IsDevelopment() || app.Environment.EnvironmentName == "Docker")
+if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Docker"))
 {
     app.UseSwagger();
     app.UseSwaggerUI();

@@ -17,7 +17,6 @@ import {
   type PlatformOrganizationCreatedDto,
   type PlatformOrganizationDetailDto,
   type PlatformOrganizationPagedListDto,
-  type PlatformOrganizationSummaryDto,
 } from "@repo/api";
 import type { Organization } from "../types/organization";
 import {

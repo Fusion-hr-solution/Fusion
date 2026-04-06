@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 import {
   Building2,
@@ -72,7 +72,6 @@ function NavItem({
 
 export function PlatformAdminSidebar() {
   const path = useNormalizedPath();
-  const router = useRouter();
   const { logout } = useAuth();
   const dashActive = path === "/" || path === "";
   const employeesActive = path.startsWith("/employees");

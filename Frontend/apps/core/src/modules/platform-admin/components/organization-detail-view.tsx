@@ -6,7 +6,7 @@ import { ApiError } from "@repo/api";
 import { cn } from "@/lib/utils";
 import type { Organization } from "../types/organization";
 import { useOrganizations } from "../context/organizations-context";
-import { buildInviteAcceptPath } from "../lib/org-action-flags";
+import { buildInviteAcceptUrl } from "../lib/org-action-flags";
 import { PlatformAdminBreadcrumbs } from "./platform-admin-breadcrumbs";
 
 function lifecyclePillLabel(lifecycle: Organization["lifecycle"]): string {
@@ -103,17 +103,14 @@ export function OrganizationDetailView({ org }: { org: Organization }) {
       const fresh = await ensureOrganization(org.id);
       if (fresh) effective = fresh;
     }
-    const path = buildInviteAcceptPath(effective);
-    if (!path) {
+    const url = buildInviteAcceptUrl(effective);
+    if (!url) {
       setActionBanner("No invite link available.");
       window.setTimeout(() => setActionBanner(null), 3500);
       return;
     }
-    const origin =
-      typeof window !== "undefined" ? window.location.origin : "";
-    const text = path.startsWith("http") ? path : `${origin}${path}`;
     try {
-      await navigator.clipboard.writeText(text);
+      await navigator.clipboard.writeText(url);
       setActionBanner("Invite link copied to clipboard.");
     } catch {
       setActionBanner("Unable to copy link.");

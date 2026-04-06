@@ -16,9 +16,6 @@ export interface OrganizationActionFlags {
 export function getOrganizationActionFlags(
   o: Organization
 ): OrganizationActionFlags {
-  const hasPrimary = Boolean(o.primaryAdminEmail?.trim());
-  const inviteExists =
-    hasPrimary && Boolean(o.inviteSentAt || o.pendingInvites > 0);
   const invitePending =
     (o.lifecycle === "invited" || o.lifecycle === "draft") &&
     o.pendingInvites > 0;
@@ -44,17 +41,10 @@ export function getOrganizationActionFlags(
 }
 
 /**
- * Return the invite acceptance path if an invite link exists. Returns `null`
- * when no valid invite link is available—callers should hide the copy action.
+ * Return the full invite acceptance URL. Preserves the absolute URL from the API
+ * to avoid origin mismatches when PublicBaseUrl differs from admin console origin.
  */
-export function buildInviteAcceptPath(org: Organization): string | null {
+export function buildInviteAcceptUrl(org: Organization): string | null {
   if (!org.inviteLink) return null;
-  try {
-    const u = new URL(org.inviteLink);
-    return `${u.pathname}${u.search}`;
-  } catch {
-    return org.inviteLink.startsWith("/")
-      ? org.inviteLink
-      : `/${org.inviteLink}`;
-  }
+  return org.inviteLink;
 }

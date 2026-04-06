@@ -35,7 +35,7 @@ function isExternalModuleHref(href: string) {
 }
 
 const DEFAULT_MODULES: SidebarModule[] = [
-  { label: "Core", href: "/", icon: BrainCircuit },
+  { label: "Core", href: "/core", icon: BrainCircuit },
   { label: "Learning", href: "/learning", icon: BookOpen },
   { label: "Performance", href: "/performance", icon: BarChart2 },
   { label: "Recruitment", href: "/recruitment", icon: Users },

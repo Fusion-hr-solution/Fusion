@@ -22,7 +22,7 @@ import {
 import { ApiError } from "@repo/api";
 import { useOrganizations } from "../context/organizations-context";
 import {
-  buildInviteAcceptPath,
+  buildInviteAcceptUrl,
   getOrganizationActionFlags,
 } from "../lib/org-action-flags";
 import type { Organization } from "../types/organization";
@@ -56,15 +56,12 @@ export function OrganizationRowActions({ org }: { org: Organization }) {
         const fresh = await ensureOrganization(org.id);
         if (fresh) effective = fresh;
       }
-      const path = buildInviteAcceptPath(effective);
-      if (!path) {
+      const url = buildInviteAcceptUrl(effective);
+      if (!url) {
         flash("No invite link available.");
         return;
       }
-      const origin =
-        typeof window !== "undefined" ? window.location.origin : "";
-      const full = path.startsWith("http") ? path : `${origin}${path}`;
-      await navigator.clipboard.writeText(full);
+      await navigator.clipboard.writeText(url);
       flash("Invite link copied to clipboard.");
     } catch {
       flash("Could not copy link.");
