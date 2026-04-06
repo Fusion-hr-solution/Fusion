@@ -343,14 +343,14 @@ export function TestDashboard() {
                     {previewQuestions.reduce((total, q) => total + q.durationMinutes, 0)} min total
                   </span>
                   <span className="rounded-full bg-zinc-200 px-2 py-0.5 text-[11px] font-semibold text-zinc-700">
-                    Answers are not saved
+                    {previewQuestions.reduce((total, q) => total + q.points, 0)} pts total
                   </span>
                 </div>
               </div>
 
               <div className="max-h-[58vh] overflow-y-auto px-6 py-5">
                 {previewLoading ? (
-                  <p className="text-[13px] text-zinc-500">Loading candidate preview...</p>
+                  <p className="text-[13px] text-zinc-500">Loading test details...</p>
                 ) : null}
 
                 {!previewLoading && previewError ? (
@@ -365,13 +365,14 @@ export function TestDashboard() {
 
                 {!previewLoading && !previewError && previewQuestions.length > 0 ? (
                   <div className="space-y-4">
-                    {previewQuestions.slice(0, 2).map((question, idx) => (
+                    {previewQuestions.map((question, idx) => (
                       <article key={question.id} className="rounded-xl border border-zinc-200 bg-white p-4">
                         <div className="mb-2 flex items-center gap-2 text-[11px] text-zinc-500">
                           <span className="rounded-full bg-zinc-100 px-2 py-0.5 font-semibold text-zinc-700">
                             Question {idx + 1}
                           </span>
                           <span className="rounded-full border border-zinc-200 px-2 py-0.5">{question.type}</span>
+                          <span className="rounded-full border border-zinc-200 px-2 py-0.5">{question.difficulty}</span>
                           <span className="ml-auto text-zinc-400">{question.points} pts</span>
                         </div>
 
@@ -380,18 +381,21 @@ export function TestDashboard() {
                           {question.description || "No prompt text provided."}
                         </p>
 
-                        <div className="mt-3 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2">
-                          <p className="text-[12px] text-zinc-500">Candidate answer area</p>
-                          <div className="mt-2 h-20 rounded-md border border-dashed border-zinc-300 bg-white" />
+                        <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-zinc-500">
+                          <span className="rounded-full bg-zinc-100 px-2 py-0.5">
+                            {question.durationMinutes} min
+                          </span>
+                          <span className="rounded-full bg-zinc-100 px-2 py-0.5">
+                            {question.gradingMethod}
+                          </span>
+                          {question.tags.slice(0, 4).map((tag) => (
+                            <span key={tag} className="rounded-full bg-zinc-100 px-2 py-0.5">
+                              {tag}
+                            </span>
+                          ))}
                         </div>
                       </article>
                     ))}
-
-                    {previewQuestions.length > 2 ? (
-                      <p className="text-[12px] text-zinc-500">
-                        Showing first 2 of {previewQuestions.length} questions in quick preview.
-                      </p>
-                    ) : null}
                   </div>
                 ) : null}
               </div>
