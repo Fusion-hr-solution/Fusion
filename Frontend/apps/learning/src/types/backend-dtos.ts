@@ -1,4 +1,4 @@
-import type { TrainingCategory, TrainingLevel, BadgeLevel } from "./index";
+import type { TrainingCategory, TrainingLevel, BadgeLevel, ContentType } from "./index";
 
 // --- Backend DTOs (from .NET API) ---
 
@@ -15,6 +15,32 @@ export interface BackendChapterDto {
   contentType: string;
   contentUri: string | null;
   orderIndex: number;
+  textContent: string | null;
+  videoUrl: string | null;
+  estimatedDurationMinutes: number | null;
+}
+
+export interface BackendChapterProgressDto {
+  chapterId: string;
+  completed: boolean;
+  completedAt: string | null;
+}
+
+export interface BackendTrainingProgressDto {
+  trainingId: string;
+  title: string;
+  description: string | null;
+  categoryName: string;
+  duration: string | null;
+  credits: number;
+  isMandatory: boolean;
+  badgeLevel: string;
+  status: string;
+  progressPercentage: number;
+  completedChapters: number;
+  totalChapters: number;
+  chapters: BackendChapterDto[];
+  chapterProgress: BackendChapterProgressDto[];
 }
 
 export interface BackendTrainingDto {
@@ -82,4 +108,11 @@ export const BADGE_LEVEL_MAP: Record<string, BadgeLevel> = {
   Bronze: "bronze",
   Silver: "silver",
   Gold: "gold",
+};
+
+export const CONTENT_TYPE_MAP: Record<string, ContentType> = {
+  Video: "video",
+  Pdf: "pdf",
+  Article: "article",
+  Exercise: "exercise",
 };

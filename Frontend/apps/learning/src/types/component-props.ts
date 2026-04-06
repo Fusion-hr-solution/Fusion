@@ -8,6 +8,9 @@ import type {
   ExamInfo,
   Course,
   TrainingChapter,
+  ChapterContent,
+  ChapterProgressEntry,
+  TrainingLearnData,
 } from "./index";
 import type { NavSection } from "@repo/ui";
 
@@ -171,4 +174,49 @@ export interface SidebarSectionProps {
   section: NavSection;
   activePath: string;
   collapsed: boolean;
+}
+
+/* ── Course Player / Learn components ── */
+
+export interface CoursePlayerProps {
+  learnData: TrainingLearnData;
+}
+
+export interface ChapterSidebarProps {
+  chapters: ChapterContent[];
+  chapterProgress: ChapterProgressEntry[];
+  activeChapterId: string;
+  onSelectChapter: (chapterId: string) => void;
+  trainingTitle: string;
+  overallProgress: number;
+  examAvailable: boolean;
+  onOpenExam: () => void;
+}
+
+export interface ChapterContentViewProps {
+  chapter: ChapterContent;
+  isCompleted: boolean;
+  isLast: boolean;
+  onMarkComplete: () => void;
+  onNext: () => void;
+  onPrevious: () => void;
+  hasPrevious: boolean;
+  isLoading: boolean;
+}
+
+export interface ChapterNavigationProps {
+  isCompleted: boolean;
+  isLast: boolean;
+  onMarkComplete: () => void;
+  onNext: () => void;
+  onPrevious: () => void;
+  hasPrevious: boolean;
+  isLoading: boolean;
+}
+
+export interface ExamLockedBannerProps {
+  completedCount: number;
+  totalCount: number;
+  examAvailable: boolean;
+  onStartExam: () => void;
 }

@@ -2,6 +2,7 @@ using EY.HRPlatform.Training.Extensions;
 using EY.HRPlatform.Training.Infrastructure.Persistence;
 using EY.HRPlatform.Training.Middleware;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -40,6 +41,15 @@ if (app.Environment.IsDevelopment() || app.Environment.EnvironmentName == "Docke
 app.MapHealthChecks("/health").AllowAnonymous();
 
 app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
+
+// Serve uploaded chapter files (PDF, video) under /api/training/uploads
+var uploadsPath = Path.Combine(app.Environment.WebRootPath ?? Path.Combine(app.Environment.ContentRootPath, "wwwroot"), "uploads");
+Directory.CreateDirectory(uploadsPath);
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(uploadsPath),
+    RequestPath = "/api/training/uploads",
+});
 
 app.UseAuthentication();
 app.UseAuthorization();

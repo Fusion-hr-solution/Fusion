@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useApiMutation } from "@repo/api/react";
 import { ApiError } from "@repo/api";
-import { addChapter, updateChapter } from "@/services/admin-service";
+import { addChapter, updateChapter, uploadChapterFile } from "@/services/admin-service";
 import type { CreateChapterInput, UpdateChapterInput, AdminChapter } from "@/types/admin";
 
 interface UseChapterFormOptions {
@@ -24,6 +24,8 @@ export function useChapterForm({ trainingId, chapter, open, onSuccess }: UseChap
   const [textContent, setTextContent] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
   const [estimatedDuration, setEstimatedDuration] = useState<number | "">("");
+  const [file, setFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     if (chapter) {
@@ -43,6 +45,8 @@ export function useChapterForm({ trainingId, chapter, open, onSuccess }: UseChap
       setVideoUrl("");
       setEstimatedDuration("");
     }
+    setFile(null);
+    setIsUploading(false);
     setStep(0);
     setFormError(null);
     setFieldErrors({});
@@ -70,7 +74,7 @@ export function useChapterForm({ trainingId, chapter, open, onSuccess }: UseChap
     },
   );
 
-  const isSaving = adding || updating;
+  const isSaving = adding || updating || isUploading;
 
   function validateStep0(): boolean {
     const errors: Record<string, string> = {};
@@ -83,8 +87,9 @@ export function useChapterForm({ trainingId, chapter, open, onSuccess }: UseChap
 
   function validateStep1(): boolean {
     const errors: Record<string, string> = {};
-    if (contentUri && !/^https?:\/\/.+/i.test(contentUri))
-      errors.contentUri = "Content URI must be a valid URL (https://...).";
+    const needsFile = contentType === "Pdf" || (contentType === "Video" && !videoUrl);
+    if (needsFile && !file && !contentUri)
+      errors.file = `Please upload a ${contentType === "Pdf" ? "PDF" : "video"} file.`;
     if (contentType === "Video" && videoUrl && !/^https?:\/\/.+/i.test(videoUrl))
       errors.videoUrl = "Video URL must be a valid URL (https://...).";
     if (estimatedDuration !== "" && estimatedDuration <= 0)
@@ -100,18 +105,32 @@ export function useChapterForm({ trainingId, chapter, open, onSuccess }: UseChap
   const handleSubmit = useCallback(async () => {
     if (!validateStep1()) return;
     setFormError(null);
+
+    let uploadedUri = contentUri;
+    if (file) {
+      try {
+        setIsUploading(true);
+        uploadedUri = await uploadChapterFile(file);
+      } catch (err) {
+        setFormError(extractErrorMessage(err));
+        return;
+      } finally {
+        setIsUploading(false);
+      }
+    }
+
     const payload = {
       title: title.trim(),
       contentType,
-      contentUri: contentUri || undefined,
+      contentUri: uploadedUri || undefined,
       orderIndex,
       textContent: textContent || undefined,
-      videoUrl: videoUrl || undefined,
+      videoUrl: (!file && videoUrl) ? videoUrl : undefined,
       estimatedDurationMinutes: estimatedDuration || undefined,
     };
     if (isEditing) await doUpdate(payload);
     else await doAdd(payload);
-  }, [title, contentType, contentUri, orderIndex, textContent, videoUrl, estimatedDuration, isEditing, doUpdate, doAdd]);
+  }, [title, contentType, contentUri, orderIndex, textContent, videoUrl, estimatedDuration, file, isEditing, doUpdate, doAdd]);
 
   const canAdvance = title.trim().length > 0;
   const clearFieldError = (field: string) => setFieldErrors((p) => ({ ...p, [field]: "" }));
@@ -122,6 +141,7 @@ export function useChapterForm({ trainingId, chapter, open, onSuccess }: UseChap
     contentUri, setContentUri, orderIndex, setOrderIndex,
     textContent, setTextContent, videoUrl, setVideoUrl,
     estimatedDuration, setEstimatedDuration,
+    file, setFile, isUploading,
     isSaving, handleNext, handleSubmit, canAdvance,
   };
 }

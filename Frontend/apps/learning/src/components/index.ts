@@ -22,6 +22,7 @@ export { TrainingProgressBar } from "./training-progress-bar";
 export { TrainingStatusTabs } from "./training-status-tabs";
 export { EnrolledTrainingCard } from "./enrolled-training-card";
 export { MyTrainingsList } from "./my-trainings-list";
+export { MyTrainingsPage } from "./my-trainings-page";
 export { Dashboard } from "./dashboard/dashboard";
 export { ContinueCard } from "./dashboard/continue-card";
 export { RecommendedCard } from "./dashboard/recommended-card";
@@ -44,6 +45,7 @@ export { MetaCard } from "./admin/meta-card";
 export { ChapterFormDialog } from "./admin/chapter-form-dialog";
 export { ChapterFormInfoStep } from "./admin/chapter-form-info-step";
 export { ChapterFormContentStep } from "./admin/chapter-form-content-step";
+export { FileUploadZone } from "./admin/file-upload-zone";
 export { StepIndicator } from "./admin/step-indicator";
 export { CategoriesManager } from "./admin/categories-manager";
 export { CategoryForm } from "./admin/category-form";
@@ -59,3 +61,10 @@ export {
   InstructorCard,
   TrainingTagsCard,
 } from "./training-detail";
+export {
+  CoursePlayer,
+  ChapterSidebar,
+  ChapterContentView,
+  ChapterNavigation,
+  ExamLockedBanner,
+} from "./learn";
