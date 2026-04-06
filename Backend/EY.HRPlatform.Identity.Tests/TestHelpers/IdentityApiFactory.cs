@@ -14,21 +14,14 @@ public class IdentityApiFactory : WebApplicationFactory<Program>
     {
         builder.UseEnvironment("Testing");
         
-        builder.ConfigureAppConfiguration((_, config) =>
-        {
-            // Configuration is applied via in-memory settings to avoid global process state
-            var settings = new Dictionary<string, string?>
-            {
-                ["ConnectionStrings:IdentityDb"] = "Host=localhost;Port=5432;Database=identity_integration_tests;Username=postgres;Password=postgres",
-                ["Jwt:Secret"] = "integration-test-secret-please-change",
-                ["Database:AutoSeed"] = "false",
-                ["Database:Provider"] = "inmemory",
-                ["Database:InMemoryName"] = _databaseName,
-                ["Application:PublicBaseUrl"] = "http://localhost:3000",
-                ["Application:InviteAcceptPath"] = "/core/invite/accept"
-            };
-            config.AddInMemoryCollection(settings);
-        });
+        // Use UseSetting for configuration - these are applied before host builds
+        builder.UseSetting("ConnectionStrings:IdentityDb", "Host=localhost;Port=5432;Database=identity_integration_tests;Username=postgres;Password=postgres");
+        builder.UseSetting("Jwt:Secret", "integration-test-secret-please-change");
+        builder.UseSetting("Database:AutoSeed", "false");
+        builder.UseSetting("Database:Provider", "inmemory");
+        builder.UseSetting("Database:InMemoryName", _databaseName);
+        builder.UseSetting("Application:PublicBaseUrl", "http://localhost:3000");
+        builder.UseSetting("Application:InviteAcceptPath", "/core/invite/accept");
     }
 }
 
