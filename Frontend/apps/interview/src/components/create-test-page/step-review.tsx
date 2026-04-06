@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, XCircle, BookmarkPlus, Send, ArrowLeft, Pencil, ClipboardCheck } from "lucide-react";
+import { CheckCircle2, XCircle, BookmarkPlus, Send, ArrowLeft, Pencil, ClipboardCheck, MonitorPlay } from "lucide-react";
 import { useWizardStore } from "@/store/wizard-store";
 import { useTestPersistence } from "@/hooks/use-test-persistence";
 import { cn } from "@/lib/utils";
@@ -265,6 +265,12 @@ const router = useRouter();
           <ArrowLeft className="h-4 w-4" /> Back
         </button>
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => router.push("/tests/create/preview")}
+            className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-5 py-2.5 text-[14px] font-semibold text-zinc-700 shadow-sm transition-all duration-150 hover:bg-zinc-50"
+          >
+            <MonitorPlay className="h-4 w-4" /> Preview Candidate View
+          </button>
           <button
             onClick={() => void handleSaveDraft()}
             disabled={isSubmitting}
