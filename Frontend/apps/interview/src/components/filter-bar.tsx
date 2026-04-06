@@ -10,6 +10,7 @@ interface FilterBarProps {
   filters: FilterState;
   activeFilterCount: number;
   resultCount: number;
+  showStatusFilter?: boolean;
   onFilterChange: <K extends keyof FilterState>(key: K, value: FilterState[K]) => void;
   onClearAll: () => void;
 }
@@ -91,6 +92,7 @@ export function FilterBar({
   filters,
   activeFilterCount,
   resultCount,
+  showStatusFilter = true,
   onFilterChange,
   onClearAll,
 }: FilterBarProps) {
@@ -121,12 +123,14 @@ export function FilterBar({
         value={filters.questionType}
         onChange={(v) => onFilterChange("questionType", v as FilterState["questionType"])}
       />
-      <FilterDropdown
-        label="Status"
-        options={TEST_STATUSES}
-        value={filters.status}
-        onChange={(v) => onFilterChange("status", v as FilterState["status"])}
-      />
+      {showStatusFilter ? (
+        <FilterDropdown
+          label="Status"
+          options={TEST_STATUSES}
+          value={filters.status}
+          onChange={(v) => onFilterChange("status", v as FilterState["status"])}
+        />
+      ) : null}
 
       {/* Active filter badge + clear */}
       {activeFilterCount > 0 && (

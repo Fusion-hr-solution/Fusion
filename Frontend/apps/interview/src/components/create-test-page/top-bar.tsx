@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import {
-  ArrowLeft, BookmarkPlus, Send,
+  ArrowLeft, BookmarkPlus,
   Cloud, Loader2, CheckCircle2, MonitorPlay,
 } from "lucide-react";
 import * as AlertDialog from "@radix-ui/react-alert-dialog";
@@ -34,8 +34,8 @@ function Tooltip({ content, children }: { content: string; children: React.React
 
 export function TopBar() {
   const router = useRouter();
-  const { isDirty, lastSaved, markSaved, basicInfo, selectedQuestions, reset } = useWizardStore();
-  const { saveDraft, publishTest } = useTestPersistence();
+  const { step, isDirty, lastSaved, markSaved, basicInfo, reset } = useWizardStore();
+  const { saveDraft } = useTestPersistence();
   const [saving,    setSaving]    = useState(false);
   const [justSaved, setJustSaved] = useState(false);
   const [alertOpen, setAlertOpen] = useState(false);
@@ -55,11 +55,6 @@ export function TopBar() {
     }, 1500);
     return () => clearTimeout(id);
   }, [isDirty, markSaved]);
-
-  const isPublishReady =
-    basicInfo.title.trim() !== "" &&
-    basicInfo.discipline !== "" &&
-    selectedQuestions.length > 0;
 
   function handleBack() {
     isDirty ? setAlertOpen(true) : router.push("/");
@@ -81,22 +76,6 @@ export function TopBar() {
       setIsSubmitting(false);
     }
   }
-
-  async function handlePublish() {
-    setIsSubmitting(true);
-    setActionMessage(null);
-    try {
-      await publishTest();
-      setActionMessage("Test published.");
-      reset();
-      router.push("/");
-    } catch (err) {
-      setActionMessage(err instanceof Error ? err.message : "Failed to publish test.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
-
 
   return (
     <>
@@ -154,13 +133,27 @@ export function TopBar() {
 
         {/* Right */}
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => router.push("/tests/create/preview")}
-            className="flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3.5 py-1.5 text-[13px] font-medium text-zinc-600 shadow-sm transition-all duration-150 hover:border-zinc-300 hover:bg-zinc-50 hover:shadow-none"
-          >
-            <MonitorPlay className="h-4 w-4" />
-            Candidate view
-          </button>
+          {step === 4 ? (
+            <button
+              onClick={() => router.push("/tests/create/preview")}
+              className="flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3.5 py-1.5 text-[13px] font-medium text-zinc-600 shadow-sm transition-all duration-150 hover:border-zinc-300 hover:bg-zinc-50 hover:shadow-none"
+            >
+              <MonitorPlay className="h-4 w-4" />
+              Candidate view
+            </button>
+          ) : (
+            <Tooltip content="Candidate view is available after reaching Step 4 (Review)">
+              <span>
+                <button
+                  disabled
+                  className="flex cursor-not-allowed items-center gap-1.5 rounded-lg border border-zinc-200 bg-zinc-100 px-3.5 py-1.5 text-[13px] font-medium text-zinc-400"
+                >
+                  <MonitorPlay className="h-4 w-4" />
+                  Candidate view
+                </button>
+              </span>
+            </Tooltip>
+          )}
 
           <button
             onClick={() => void handleSaveDraft()}
@@ -171,26 +164,6 @@ export function TopBar() {
             {isSubmitting ? "Saving..." : "Save Draft"}
           </button>
 
-          {isPublishReady ? (
-<button
-              onClick={() => void handlePublish()}
-              disabled={isSubmitting}
-              className="flex items-center gap-1.5 rounded-lg bg-zinc-900 px-4 py-1.5 text-[13px] font-semibold text-white shadow-sm transition-all duration-150 hover:bg-zinc-800 hover:shadow-none active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-zinc-500"
-            >              <Send className="h-3.5 w-3.5" />
-{isSubmitting ? "Publishing..." : "Publish Test"}            </button>
-          ) : (
-            <Tooltip content="Add a title, discipline and at least one question to publish">
-              <span>
-                <button
-                  disabled
-                  className="flex cursor-not-allowed items-center gap-1.5 rounded-lg bg-zinc-100 px-4 py-1.5 text-[13px] font-semibold text-zinc-400"
-                >
-                  <Send className="h-3.5 w-3.5" />
-                  Publish Test
-                </button>
-              </span>
-            </Tooltip>
-          )}
         </div>
       </header>
         {actionMessage && (

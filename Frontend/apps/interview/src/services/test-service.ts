@@ -197,9 +197,13 @@ function toCreateQuestionRequest(form: NewQuestionForm): CreateQuestionRequest {
   };
 }
 
-export async function getTests(): Promise<Test[]> {
+export async function getTests(status?: TestStatus): Promise<Test[]> {
   const page = await client.get<BackendPagedResult<BackendTestDto>>("/interview/tests", {
-    params: { page: 1, pageSize: 200 },
+    params: {
+      page: 1,
+      pageSize: 200,
+      ...(status ? { status } : {}),
+    },
   });
   return page.items.map(mapTest);
 }

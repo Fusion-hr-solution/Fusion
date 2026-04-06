@@ -519,10 +519,10 @@ export function CandidatePreviewPage() {
                 <RotateCcw className="h-4 w-4" /> Restart Preview
               </button>
               <button
-                onClick={() => router.push("/tests/create")}
+                onClick={() => router.push("/")}
                 className="inline-flex items-center gap-2 rounded-xl bg-zinc-900 px-5 py-2.5 text-[14px] font-semibold text-white hover:bg-zinc-800"
               >
-                <ArrowLeft className="h-4 w-4" /> Return to Builder
+                <ArrowLeft className="h-4 w-4" /> Test Dashboard
               </button>
             </div>
           </section>
