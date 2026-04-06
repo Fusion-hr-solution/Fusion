@@ -55,8 +55,9 @@ export function useTestPersistence() {
         : saved;
 
     if (status === "Active" && ensured.status !== "Active") {
-      throw new Error("Publish failed: test status remained Draft. Please try again.");
-    }
+ throw new Error(
+        `Publish failed: test status remained ${ensured.status}. Please try again.`,
+      );    }
 
     setPersistedTestId(ensured.id);
     markSaved();

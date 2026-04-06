@@ -59,6 +59,7 @@ export function TestCard({
       tabIndex={0}
       onClick={handleOpen}
       onKeyDown={(e) => {
+        if (e.currentTarget !== e.target) return;
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
           handleOpen();
