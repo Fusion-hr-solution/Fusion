@@ -196,57 +196,6 @@ export function OrganizationDetailView({ org }: { org: Organization }) {
     window.setTimeout(() => setActionBanner(null), 4000);
   }, [archiveOrganization, ensureOrganization, org.id]);
 
-  const milestones = useMemo(() => {
-    const p = org.onboardingProgressPercent;
-    const inviteActive =
-      org.lifecycle === "invited" ||
-      (org.lifecycle === "attention" && p < 50);
-    return [
-      {
-        key: "creation",
-        title: "Creation",
-        sub: `Completed ${org.createdAt}`,
-        dim: false,
-        border: false,
-        accent: false,
-      },
-      {
-        key: "invitation",
-        title: "Invitation",
-        sub:
-          inviteActive && p >= 25
-            ? "Active Stage"
-            : p >= 50
-              ? "Completed"
-              : "—",
-        dim: p < 25,
-        border: inviteActive && p >= 25,
-        accent: inviteActive && p >= 25,
-      },
-      {
-        key: "verification",
-        title: "Verification",
-        sub:
-          p >= 100
-            ? "Completed"
-            : p >= 50
-              ? "In progress"
-              : "Locked",
-        dim: p < 50,
-        border: false,
-        accent: p >= 50 && p < 100,
-      },
-      {
-        key: "production",
-        title: "Production",
-        sub: p >= 100 ? "Live" : "Locked",
-        dim: p < 100,
-        border: false,
-        accent: p >= 100,
-      },
-    ];
-  }, [org]);
-
   return (
     <main className="mx-auto w-full max-w-7xl bg-ch-surface font-chBody text-ch-on-surface">
       {actionBanner && (
@@ -459,7 +408,7 @@ export function OrganizationDetailView({ org }: { org: Organization }) {
                 Onboarding Lifecycle
               </h3>
               <p className="font-chBody text-xs text-stone-500">
-                Milestones achieved in the last 24 hours.
+                Lifecycle-derived progress estimate for operational visibility.
               </p>
             </div>
             <div className="text-right">
@@ -477,34 +426,16 @@ export function OrganizationDetailView({ org }: { org: Organization }) {
               style={{ width: `${org.onboardingProgressPercent}%` }}
             />
           </div>
-          <div className="mt-4 grid grid-cols-2 gap-4 md:grid-cols-4">
-            {milestones.map((m) => (
-              <div
-                key={m.key}
-                className={cn(
-                  m.border && "border-l-2 border-ch-primary pl-4",
-                  m.dim && "opacity-30"
-                )}
-              >
-                <p
-                  className={cn(
-                    "mb-1 font-chHeadline text-[10px] font-black uppercase",
-                    m.accent ? "text-ch-primary" : "text-stone-900",
-                    m.dim && "text-stone-400"
-                  )}
-                >
-                  {m.title}
-                </p>
-                <p
-                  className={cn(
-                    "font-chBody text-[10px]",
-                    m.dim ? "text-stone-400" : "text-stone-500"
-                  )}
-                >
-                  {m.sub}
-                </p>
-              </div>
-            ))}
+          <div className="mt-4 rounded-ch-sm bg-ch-surface-container-lowest p-4">
+            <p className="font-chHeadline text-[10px] font-black uppercase tracking-widest text-stone-400">
+              Current Stage
+            </p>
+            <p className="mt-1 font-chHeadline text-sm font-bold text-stone-900">
+              {org.onboardingStageTitle}
+            </p>
+            <p className="mt-1 font-chBody text-xs text-stone-500">
+              {org.onboardingStageSubtitle}
+            </p>
           </div>
         </section>
 

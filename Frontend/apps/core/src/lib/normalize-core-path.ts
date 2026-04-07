@@ -5,9 +5,9 @@
  * @returns The normalized path without /core prefix (e.g., "/organizations")
  * 
  * @example
- * normalizeCoreappPath("/core/organizations") // "/organizations"
- * normalizeCoreappPath("/core") // "/"
- * normalizeCoreappPath("/organizations") // "/organizations"
+ * normalizeCorePath("/core/organizations") // "/organizations"
+ * normalizeCorePath("/core") // "/"
+ * normalizeCorePath("/organizations") // "/organizations"
  */
 export function normalizeCorePath(pathname: string): string {
   return pathname.replace(/^\/core(?=\/|$)/, "") || "/";

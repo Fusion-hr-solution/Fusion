@@ -2,11 +2,9 @@
 
 import {
   ArrowRight,
-  Building2,
   CheckCircle,
   Settings,
   Users,
-  HelpCircle,
   Sparkles,
 } from "lucide-react";
 import { useAuth } from "@repo/auth";
@@ -145,13 +143,6 @@ export default function WelcomePage() {
               <p className="text-xs text-ch-on-surface-variant">
                 Contact your system administrator for assistance.
               </p>
-            </div>
-          </div>
-                className="inline-flex items-center gap-2 text-sm font-medium text-ch-primary hover:underline"
-              >
-                <HelpCircle className="h-4 w-4" />
-                Contact Support
-              </a>
             </div>
           </div>
         </div>

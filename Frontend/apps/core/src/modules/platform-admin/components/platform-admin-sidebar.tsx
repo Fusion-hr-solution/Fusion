@@ -12,18 +12,13 @@ import {
   LogOut,
   Palette,
   Settings,
-  Terminal,
   Users,
 } from "lucide-react";
 import { useAuth } from "@repo/auth";
 import { ModuleSwitcher } from "@repo/ui";
 import { PLATFORM_MODULES } from "@/config/platform-modules";
+import { normalizeCorePath } from "@/lib/normalize-core-path";
 import { cn } from "@/lib/utils";
-
-function useNormalizedPath() {
-  const pathname = usePathname() || "";
-  return pathname.replace(/^\/core(?=\/|$)/, "") || "/";
-}
 
 function NavItem({
   href,
@@ -80,7 +75,8 @@ function NavItem({
 
 export function PlatformAdminSidebar() {
   const [collapsed, setCollapsed] = useState(false);
-  const path = useNormalizedPath();
+  const pathname = usePathname() || "";
+  const path = normalizeCorePath(pathname);
   const { user, logout } = useAuth();
   const dashActive = path === "/" || path === "";
   const employeesActive = path.startsWith("/employees");
@@ -89,7 +85,6 @@ export function PlatformAdminSidebar() {
   const settingsActive = path.startsWith("/settings");
 
   const isPlatformAdmin = user?.roles?.includes("PlatformAdmin");
-  const isHRAdmin = user?.roles?.includes("HRAdmin");
 
   const handleLogout = async () => {
     await logout();
@@ -190,20 +185,7 @@ export function PlatformAdminSidebar() {
           collapsed={collapsed}
           disabled={!isPlatformAdmin}
         />
-        <button
-          type="button"
-          className={cn(
-            "flex w-full items-center gap-3 px-4 py-3 text-stone-500 transition-colors hover:bg-stone-200/50 hover:text-stone-700 dark:text-stone-400 dark:hover:bg-stone-800/50",
-            collapsed && "justify-center px-2"
-          )}
-          title={collapsed ? "Logs" : undefined}
-          onClick={(e) => e.preventDefault()}
-        >
-          <Terminal className="h-[22px] w-[22px] shrink-0" aria-hidden />
-          {!collapsed && (
-            <span className="font-chBody text-sm">Logs</span>
-          )}
-        </button>
+        {/* TODO: Logs - hide until implemented to avoid user confusion */}
 
         {/* User panel */}
         <div

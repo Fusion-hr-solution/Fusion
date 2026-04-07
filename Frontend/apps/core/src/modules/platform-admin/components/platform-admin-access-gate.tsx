@@ -59,28 +59,42 @@ export function PlatformAdminAccessGate({
 
   const isPlatformAdmin = user?.roles?.includes("PlatformAdmin");
   const isHRAdmin = user?.roles?.includes("HRAdmin");
+  const isInviteRoute = normalized.startsWith("/invite");
+  const isWelcomeRoute = normalized.startsWith("/welcome");
+  const isRestrictedPlatformPath = PLATFORM_ADMIN_PATHS.some(
+    (p) => normalized === p || normalized.startsWith(p + "/")
+  );
+
+  useEffect(() => {
+    if (
+      !isLoading &&
+      !isInviteRoute &&
+      !isWelcomeRoute &&
+      isHRAdmin &&
+      !isPlatformAdmin &&
+      isRestrictedPlatformPath
+    ) {
+      router.replace("/welcome");
+    }
+  }, [
+    isHRAdmin,
+    isInviteRoute,
+    isLoading,
+    isPlatformAdmin,
+    isRestrictedPlatformPath,
+    isWelcomeRoute,
+    router,
+  ]);
 
   // Public invite acceptance must stay anonymous.
-  if (normalized.startsWith("/invite")) {
+  if (isInviteRoute) {
     return <>{children}</>;
   }
 
   // Welcome page for newly activated tenant admins
-  if (normalized.startsWith("/welcome")) {
+  if (isWelcomeRoute) {
     return <>{children}</>;
   }
-
-  // Redirect HRAdmin away from Platform Admin restricted areas
-  useEffect(() => {
-    if (!isLoading && isHRAdmin && !isPlatformAdmin) {
-      const isRestrictedPath = PLATFORM_ADMIN_PATHS.some(
-        p => normalized === p || normalized.startsWith(p + "/")
-      );
-      if (isRestrictedPath) {
-        router.replace("/welcome");
-      }
-    }
-  }, [isLoading, isHRAdmin, isPlatformAdmin, normalized, router]);
 
   if (isLoading) {
     return (
@@ -90,14 +104,22 @@ export function PlatformAdminAccessGate({
     );
   }
 
+  if (isHRAdmin && !isPlatformAdmin && isRestrictedPlatformPath) {
+    return (
+      <div className="core-ui-root flex min-h-screen items-center justify-center bg-ch-surface px-6 font-chBody text-ch-secondary">
+        Redirecting to your welcome page…
+      </div>
+    );
+  }
+
   const hasAccess = user?.roles?.some((role) => ALLOWED_ROLES.includes(role));
 
   if (!isAuthenticated || !hasAccess) {
     const signinUrl = `${getShellOrigin()}/auth/signin`;
-    
+
     // Role-aware messaging
     const isHRAdminAttempt = isAuthenticated && isHRAdmin && !isPlatformAdmin;
-    
+
     return (
       <div className="core-ui-root flex min-h-screen flex-col items-center justify-center gap-4 bg-ch-surface px-6 font-chBody text-ch-on-surface">
         <h1 className="font-chHeadline text-2xl font-bold">Not authorized</h1>

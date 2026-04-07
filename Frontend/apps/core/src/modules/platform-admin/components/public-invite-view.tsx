@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useId, useMemo, useState } from "react";
 import {
   ArrowRight,
@@ -24,7 +24,6 @@ import { cn } from "@/lib/utils";
 const anonClient = createApiClient({ baseUrl: "/api" });
 
 export function PublicInviteView() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const reactId = useId();
   const token = searchParams.get("token");
