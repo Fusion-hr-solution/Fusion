@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { useMemo } from "react";
 import { useAuth } from "@repo/auth";
 
-const PLATFORM_ADMIN_ROLE = "PlatformAdmin";
+const ALLOWED_ROLES = ["PlatformAdmin", "HRAdmin"];
 
 function getShellOrigin(): string {
   if (typeof window !== "undefined") {
@@ -32,6 +32,11 @@ export function PlatformAdminAccessGate({
     return <>{children}</>;
   }
 
+  // Welcome page for newly activated tenant admins
+  if (normalized.startsWith("/welcome")) {
+    return <>{children}</>;
+  }
+
   if (isLoading) {
     return (
       <div className="core-ui-root flex min-h-screen items-center justify-center bg-ch-surface text-ch-secondary">
@@ -40,13 +45,15 @@ export function PlatformAdminAccessGate({
     );
   }
 
-  if (!isAuthenticated || user?.roles?.includes(PLATFORM_ADMIN_ROLE) !== true) {
+  const hasAccess = user?.roles?.some((role) => ALLOWED_ROLES.includes(role));
+
+  if (!isAuthenticated || !hasAccess) {
     const signinUrl = `${getShellOrigin()}/auth/signin`;
     return (
       <div className="core-ui-root flex min-h-screen flex-col items-center justify-center gap-4 bg-ch-surface px-6 font-chBody text-ch-on-surface">
         <h1 className="font-chHeadline text-2xl font-bold">Not authorized</h1>
         <p className="text-sm text-ch-secondary">
-          Your account does not have Platform Admin access.
+          Your account does not have access to this area.
         </p>
         <a
           href={signinUrl}
@@ -60,4 +67,3 @@ export function PlatformAdminAccessGate({
 
   return <>{children}</>;
 }
-

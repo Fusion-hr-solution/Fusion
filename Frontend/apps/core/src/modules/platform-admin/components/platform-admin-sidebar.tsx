@@ -88,6 +88,9 @@ export function PlatformAdminSidebar() {
   const designActive = path.startsWith("/design-system");
   const settingsActive = path.startsWith("/settings");
 
+  const isPlatformAdmin = user?.roles?.includes("PlatformAdmin");
+  const isHRAdmin = user?.roles?.includes("HRAdmin");
+
   const handleLogout = async () => {
     await logout();
     const shellOrigin =
@@ -130,7 +133,7 @@ export function PlatformAdminSidebar() {
         )}
         {!collapsed && (
           <p className="px-1 text-center font-chBody text-[10px] font-medium uppercase tracking-wider text-stone-500">
-            Platform admin
+            {isPlatformAdmin ? "Platform admin" : "HR Admin"}
           </p>
         )}
         {collapsed && (
@@ -150,6 +153,7 @@ export function PlatformAdminSidebar() {
             label="Dashboard"
             active={dashActive}
             collapsed={collapsed}
+            disabled={!isPlatformAdmin}
           />
           <NavItem
             href="/employees"
@@ -164,6 +168,7 @@ export function PlatformAdminSidebar() {
             label="Organizations"
             active={orgActive}
             collapsed={collapsed}
+            disabled={!isPlatformAdmin}
           />
           <NavItem
             href="/settings"
@@ -183,6 +188,7 @@ export function PlatformAdminSidebar() {
           label="Design System"
           active={designActive}
           collapsed={collapsed}
+          disabled={!isPlatformAdmin}
         />
         <button
           type="button"
