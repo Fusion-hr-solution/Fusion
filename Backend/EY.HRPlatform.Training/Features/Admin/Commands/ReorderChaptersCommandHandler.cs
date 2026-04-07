@@ -16,6 +16,11 @@ public class ReorderChaptersCommandHandler : ICommandHandler<ReorderChaptersComm
         if (request.ChapterIds.Count == 0)
             return Result.Failure(Error.Validation("Chapter.EmptyReorderList", "Chapter list cannot be empty."));
 
+        var distinctCount = request.ChapterIds.Distinct().Count();
+        if (distinctCount != request.ChapterIds.Count)
+            return Result.Failure(Error.Validation("Chapter.DuplicateIds",
+                "Chapter IDs must be unique — duplicates are not allowed."));
+
         var trainingExists = await _db.Trainings
             .AnyAsync(t => t.Id == request.TrainingId, cancellationToken);
 
@@ -40,8 +45,7 @@ public class ReorderChaptersCommandHandler : ICommandHandler<ReorderChaptersComm
                 return Result.Failure(Error.Validation("Chapter.InvalidId",
                     $"Chapter '{chapterId}' does not belong to this training."));
 
-            chapter.Update(chapter.Title, chapter.ContentType, chapter.ContentUri, i,
-                chapter.TextContent, chapter.VideoUrl, chapter.EstimatedDurationMinutes);
+            chapter.Reorder(i);
         }
 
         await _db.SaveChangesAsync(cancellationToken);

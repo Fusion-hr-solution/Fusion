@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import type { DragEndEvent } from "@dnd-kit/core";
-import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { SortableContext, arrayMove, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { Plus } from "lucide-react";
 import { Button, Card, CardContent, CardHeader, CardTitle } from "@repo/ui";
+import type { AdminChapter } from "@/types/admin";
 import type { AdminChapterListProps } from "@/types/admin-props";
 import { SortableChapterItem } from "./sortable-chapter-item";
 
@@ -17,7 +18,14 @@ export function AdminChapterList({
   onDeleteChapter,
   onReorder,
 }: AdminChapterListProps) {
-  const sorted = [...chapters].sort((a, b) => a.orderIndex - b.orderIndex);
+  const [orderedChapters, setOrderedChapters] = useState<AdminChapter[]>(() =>
+    [...chapters].sort((a, b) => a.orderIndex - b.orderIndex),
+  );
+
+  // Sync from props when parent refetches
+  useEffect(() => {
+    setOrderedChapters([...chapters].sort((a, b) => a.orderIndex - b.orderIndex));
+  }, [chapters]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -25,21 +33,27 @@ export function AdminChapterList({
   );
 
   const handleDragEnd = useCallback(
-    (event: DragEndEvent) => {
+    async (event: DragEndEvent) => {
       const { active, over } = event;
       if (!over || active.id === over.id) return;
 
-      const oldIndex = sorted.findIndex((c) => c.id === active.id);
-      const newIndex = sorted.findIndex((c) => c.id === over.id);
+      const oldIndex = orderedChapters.findIndex((c) => c.id === active.id);
+      const newIndex = orderedChapters.findIndex((c) => c.id === over.id);
       if (oldIndex === -1 || newIndex === -1) return;
 
-      const reordered = [...sorted];
-      const [moved] = reordered.splice(oldIndex, 1);
-      reordered.splice(newIndex, 0, moved!);
+      const reordered = arrayMove(orderedChapters, oldIndex, newIndex);
 
-      onReorder(reordered.map((c) => c.id));
+      // Optimistic update
+      setOrderedChapters(reordered);
+
+      try {
+        await onReorder(reordered.map((c) => c.id));
+      } catch {
+        // Revert to previous order on failure
+        setOrderedChapters(orderedChapters);
+      }
     },
-    [sorted, onReorder],
+    [orderedChapters, onReorder],
   );
 
   return (
@@ -51,15 +65,15 @@ export function AdminChapterList({
         </Button>
       </CardHeader>
       <CardContent>
-        {sorted.length === 0 ? (
+        {orderedChapters.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">
             No chapters yet. Add one to get started.
           </p>
         ) : (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <SortableContext items={sorted.map((c) => c.id)} strategy={verticalListSortingStrategy}>
+            <SortableContext items={orderedChapters.map((c) => c.id)} strategy={verticalListSortingStrategy}>
               <div className="space-y-2">
-                {sorted.map((ch, i) => (
+                {orderedChapters.map((ch, i) => (
                   <SortableChapterItem
                     key={ch.id}
                     chapter={ch}

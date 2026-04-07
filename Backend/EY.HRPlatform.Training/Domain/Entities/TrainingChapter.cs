@@ -59,4 +59,10 @@ public class TrainingChapter : BaseEntity
         EstimatedDurationMinutes = estimatedDurationMinutes;
         UpdatedAt = DateTime.UtcNow;
     }
+
+    public void Reorder(int orderIndex)
+    {
+        OrderIndex = orderIndex;
+        UpdatedAt = DateTime.UtcNow;
+    }
 }

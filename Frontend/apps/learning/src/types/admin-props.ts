@@ -92,7 +92,7 @@ export interface AdminChapterListProps {
   onAddChapter: () => void;
   onEditChapter: (chapter: AdminChapter) => void;
   onDeleteChapter: (chapter: AdminChapter) => void;
-  onReorder: (chapterIds: string[]) => void;
+  onReorder: (chapterIds: string[]) => Promise<void>;
 }
 
 export interface SortableChapterItemProps {
