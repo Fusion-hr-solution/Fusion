@@ -38,7 +38,12 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
-    await dbContext.Database.MigrateAsync();
+    // Migrations require a relational provider (e.g. Npgsql). For integration tests we use
+    // an in-memory database, so we create schema via EnsureCreated instead.
+    if (app.Environment.IsEnvironment("Testing"))
+        await dbContext.Database.EnsureCreatedAsync();
+    else
+        await dbContext.Database.MigrateAsync();
 
     var roleManager = scope.ServiceProvider
         .GetRequiredService<RoleManager<IdentityRole<Guid>>>();
@@ -51,7 +56,7 @@ using (var scope = app.Services.CreateScope())
 }
 
 // Middleware pipeline (ORDER MATTERS!)
-if (app.Environment.IsDevelopment() || app.Environment.EnvironmentName == "Docker")
+if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Docker"))
 {
     app.UseSwagger();
     app.UseSwaggerUI();
