@@ -1,8 +1,36 @@
+/**
+ * Access control gate for Platform Admin and HR Admin roles.
+ * 
+ * ACCESS CONTROL ARCHITECTURE:
+ * This file is part of a multi-layer access control system:
+ * 
+ * 1. Shell middleware (apps/shell/src/middleware.ts)
+ *    - Authority: Authentication check (user has valid session?)
+ *    - Allows PUBLIC_PATHS bypass (e.g., /core/invite)
+ * 
+ * 2. PlatformAdminAccessGate (this file)
+ *    - Authority: Role-based route authorization (does user's role permit this route?)
+ *    - Allows PlatformAdmin + HRAdmin
+ *    - Redirects HRAdmin away from platform-restricted areas
+ * 
+ * 3. Page components
+ *    - Authority: Business logic authorization (can user perform this specific action?)
+ *    - E.g., can this user suspend THIS specific organization?
+ * 
+ * 4. UI components (sidebar, nav)
+ *    - Authority: None (visual reflection of gates only)
+ *    - Disables/hides unavailable options based on role
+ * 
+ * IMPORTANT: This gate is the authoritative source for route-level access.
+ * The Chrome component no longer handles redirects (moved here to eliminate client-side race).
+ */
+
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
 import { useMemo, useEffect } from "react";
 import { useAuth } from "@repo/auth";
+import { normalizeCorePath } from "@/lib/normalize-core-path";
 
 const ALLOWED_ROLES = ["PlatformAdmin", "HRAdmin"];
 
@@ -27,9 +55,7 @@ export function PlatformAdminAccessGate({
   const pathname = usePathname() || "";
   const router = useRouter();
 
-  const normalized = useMemo(() => {
-    return pathname.replace(/^\/core(?=\/|$)/, "") || "/";
-  }, [pathname]);
+  const normalized = useMemo(() => normalizeCorePath(pathname), [pathname]);
 
   const isPlatformAdmin = user?.roles?.includes("PlatformAdmin");
   const isHRAdmin = user?.roles?.includes("HRAdmin");

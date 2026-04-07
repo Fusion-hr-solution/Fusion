@@ -2,12 +2,13 @@
 
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import { normalizeCorePath } from "@/lib/normalize-core-path";
 import { PlatformAdminSidebar } from "./platform-admin-sidebar";
 import { PlatformAdminTopBar } from "./platform-admin-top-bar";
 
 export function PlatformAdminChrome({ children }: { children: ReactNode }) {
   const pathname = usePathname() || "";
-  const normalized = pathname.replace(/^\/core(?=\/|$)/, "") || "/";
+  const normalized = normalizeCorePath(pathname);
 
   // Skip chrome for invite pages (anonymous access)
   if (normalized.startsWith("/invite")) {
