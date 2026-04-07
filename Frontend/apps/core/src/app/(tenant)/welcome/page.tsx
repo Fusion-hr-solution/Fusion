@@ -23,6 +23,17 @@ export default function WelcomePage() {
   const shellOrigin = getShellOrigin();
 
   const firstName = user?.fullName?.split(" ")[0] || "Admin";
+  const isPlatformAdmin = user?.roles?.includes("PlatformAdmin");
+  const isHRAdmin = user?.roles?.includes("HRAdmin");
+
+  // For HRAdmin, link to employees (their accessible area)
+  // For PlatformAdmin, link to dashboard
+  const dashboardLink = isHRAdmin && !isPlatformAdmin 
+    ? `${shellOrigin}/core/employees`
+    : shellOrigin;
+  const dashboardLabel = isHRAdmin && !isPlatformAdmin
+    ? "Go to Employees"
+    : "Go to Dashboard";
 
   return (
     <div className="min-h-screen bg-ch-surface font-chBody text-ch-on-surface">
@@ -44,10 +55,10 @@ export default function WelcomePage() {
             </span>
           </div>
           <a
-            href={shellOrigin}
+            href={dashboardLink}
             className="text-sm font-medium text-ch-primary hover:underline"
           >
-            Go to Dashboard
+            {dashboardLabel}
           </a>
         </div>
       </header>
@@ -91,23 +102,16 @@ export default function WelcomePage() {
             <div className="space-y-3">
               <NextStepCard
                 icon={<Users className="h-5 w-5" />}
-                title="Invite team members"
-                description="Add HR staff or administrators to help manage your organization."
-                href={`${shellOrigin}/employees`}
+                title="Explore employee management"
+                description="View and manage your organization's employee directory."
+                href={`${shellOrigin}/core/employees`}
                 ctaLabel="Go to Employees"
-              />
-              <NextStepCard
-                icon={<Building2 className="h-5 w-5" />}
-                title="Set up organization structure"
-                description="Define departments, teams, and reporting hierarchy."
-                href={`${shellOrigin}/employees`}
-                ctaLabel="Configure Structure"
               />
               <NextStepCard
                 icon={<Settings className="h-5 w-5" />}
                 title="Configure settings"
                 description="Customize employee fields, branding, and organization preferences."
-                href={`${shellOrigin}/settings`}
+                href={`${shellOrigin}/core/settings`}
                 ctaLabel="Open Settings"
                 disabled
               />
@@ -122,18 +126,11 @@ export default function WelcomePage() {
               </h3>
               <div className="space-y-2">
                 <a
-                  href={`${shellOrigin}/employees`}
+                  href={`${shellOrigin}/core/employees`}
                   className="flex items-center justify-between rounded-ch-md bg-ch-surface-container-low px-4 py-3 text-sm font-medium text-ch-on-surface transition-colors hover:bg-ch-surface-container-high"
                 >
                   View Employee Directory
                   <ArrowRight className="h-4 w-4 text-ch-secondary" />
-                </a>
-                <a
-                  href={`${shellOrigin}/employees/new`}
-                  className="flex items-center justify-between rounded-ch-md bg-ch-primary-container px-4 py-3 text-sm font-medium text-ch-on-primary-container transition-colors hover:bg-ch-primary-container/80"
-                >
-                  Add First Employee
-                  <ArrowRight className="h-4 w-4" />
                 </a>
               </div>
             </div>
@@ -145,8 +142,11 @@ export default function WelcomePage() {
               <p className="mb-4 text-sm text-ch-on-surface-variant">
                 Our support team is here to help you get started.
               </p>
-              <a
-                href="#"
+              <p className="text-xs text-ch-on-surface-variant">
+                Contact your system administrator for assistance.
+              </p>
+            </div>
+          </div>
                 className="inline-flex items-center gap-2 text-sm font-medium text-ch-primary hover:underline"
               >
                 <HelpCircle className="h-4 w-4" />

@@ -155,13 +155,9 @@ export function PublicInviteView() {
     return (
       <div className="core-ui-root flex min-h-screen flex-col items-center justify-center bg-ch-surface px-6 font-chBody text-ch-on-surface">
         <p className="max-w-md text-center text-sm text-ch-error">{inviteError}</p>
-        <button
-          type="button"
-          className="mt-6 text-sm font-semibold text-ch-primary underline"
-          onClick={() => router.push("/organizations")}
-        >
-          Back
-        </button>
+        <p className="mt-6 max-w-md text-center text-xs text-ch-on-surface-variant">
+          Please contact your administrator for a new invitation.
+        </p>
       </div>
     );
   }
