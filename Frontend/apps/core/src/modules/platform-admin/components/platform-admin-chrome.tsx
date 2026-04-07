@@ -1,34 +1,15 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
-import { useAuth } from "@repo/auth";
 import { PlatformAdminSidebar } from "./platform-admin-sidebar";
 import { PlatformAdminTopBar } from "./platform-admin-top-bar";
 
 export function PlatformAdminChrome({ children }: { children: ReactNode }) {
   const pathname = usePathname() || "";
-  const router = useRouter();
-  const { user } = useAuth();
   const normalized = pathname.replace(/^\/core(?=\/|$)/, "") || "/";
 
-  const isPlatformAdmin = user?.roles?.includes("PlatformAdmin");
-  const isHRAdmin = user?.roles?.includes("HRAdmin");
-
-  // Redirect HRAdmin to welcome page if they try to access platform admin areas
-  useEffect(() => {
-    if (isHRAdmin && !isPlatformAdmin) {
-      const platformAdminPaths = ["/", "/organizations", "/design-system"];
-      if (platformAdminPaths.some(p => normalized === p || normalized.startsWith(p + "/"))) {
-        if (normalized !== "/welcome") {
-          router.push("/welcome");
-        }
-      }
-    }
-  }, [isHRAdmin, isPlatformAdmin, normalized, router]);
-
+  // Skip chrome for invite pages (anonymous access)
   if (normalized.startsWith("/invite")) {
     return <>{children}</>;
   }
