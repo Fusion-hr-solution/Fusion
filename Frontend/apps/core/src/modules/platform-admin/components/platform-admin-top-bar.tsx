@@ -1,10 +1,15 @@
 "use client";
 
-import { Bell, Search, UserCircle2 } from "lucide-react";
+import { Bell, Search } from "lucide-react";
+import { useAuth } from "@repo/auth";
 import { coreFieldClassName } from "@/lib/core-ui-classes";
 import { cn } from "@/lib/utils";
 
 export function PlatformAdminTopBar() {
+  const { user } = useAuth();
+  const userInitial = user?.fullName?.charAt(0)?.toUpperCase() || "U";
+  const userRole = user?.roles?.[0] || "Platform Admin";
+
   return (
     <nav className="sticky top-0 z-40 flex w-full items-center justify-between border-b border-stone-200 bg-white/80 px-5 py-3 shadow-sm backdrop-blur-xl sm:px-8 lg:px-10 dark:border-stone-800 dark:bg-stone-950/80">
       <div className="mr-auto flex items-center">
@@ -32,18 +37,24 @@ export function PlatformAdminTopBar() {
         <div className="flex items-center gap-4 border-l border-stone-200 pl-6 dark:border-stone-800">
           <button
             type="button"
-            className="text-stone-500 transition-colors hover:text-stone-900 dark:hover:text-stone-100"
+            className="relative text-stone-500 transition-colors hover:text-stone-900 dark:hover:text-stone-100"
             aria-label="Notifications"
           >
             <Bell className="h-5 w-5" />
           </button>
-          <button
-            type="button"
-            className="text-stone-500 transition-colors hover:text-stone-900 dark:hover:text-stone-100"
-            aria-label="Account"
-          >
-            <UserCircle2 className="h-5 w-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-stone-900 text-xs font-bold text-white dark:bg-stone-100 dark:text-stone-900">
+              {userInitial}
+            </div>
+            <div className="hidden min-w-0 md:block">
+              <p className="truncate text-sm font-medium text-stone-700 dark:text-stone-200">
+                {user?.fullName || "Platform Admin"}
+              </p>
+              <p className="truncate text-xs text-stone-500 dark:text-stone-400">
+                {userRole}
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </nav>
