@@ -60,7 +60,6 @@ export function PlatformAdminAccessGate({
   const isPlatformAdmin = user?.roles?.includes("PlatformAdmin");
   const isHRAdmin = user?.roles?.includes("HRAdmin");
   const isInviteRoute = normalized.startsWith("/invite");
-  const isWelcomeRoute = normalized.startsWith("/welcome");
   const isRestrictedPlatformPath = PLATFORM_ADMIN_PATHS.some(
     (p) => normalized === p || normalized.startsWith(p + "/")
   );
@@ -69,7 +68,6 @@ export function PlatformAdminAccessGate({
     if (
       !isLoading &&
       !isInviteRoute &&
-      !isWelcomeRoute &&
       isHRAdmin &&
       !isPlatformAdmin &&
       isRestrictedPlatformPath
@@ -82,17 +80,11 @@ export function PlatformAdminAccessGate({
     isLoading,
     isPlatformAdmin,
     isRestrictedPlatformPath,
-    isWelcomeRoute,
     router,
   ]);
 
   // Public invite acceptance must stay anonymous.
   if (isInviteRoute) {
-    return <>{children}</>;
-  }
-
-  // Welcome page for newly activated tenant admins
-  if (isWelcomeRoute) {
     return <>{children}</>;
   }
 

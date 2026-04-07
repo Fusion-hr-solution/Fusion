@@ -138,7 +138,7 @@ export function PublicInviteView() {
 
   // Build URL to sign in with redirect to welcome page (must be before conditionals)
   const welcomeRedirectUrl = useMemo(() => {
-    const next = encodeURIComponent("/core/welcome");
+    const next = encodeURIComponent("/core/welcome?activation=1");
     return `${shellOrigin}/auth/signin?next=${next}`;
   }, [shellOrigin]);
 

@@ -1,5 +1,6 @@
 import { Inter, Manrope } from "next/font/google";
-import { TenantAdminAccessGate } from "@/modules/platform-admin/components/tenant-admin-access-gate";
+import { PlatformAdminChrome } from "@/modules/platform-admin/components/platform-admin-chrome";
+import { PlatformAdminAccessGate } from "@/modules/platform-admin/components/platform-admin-access-gate";
 
 const manrope = Manrope({
   subsets: ["latin"],
@@ -14,15 +15,17 @@ const inter = Inter({
 });
 
 /**
- * Tenant-scoped layout — for pages that tenant HR Admins access
- * (e.g., Admin Activation Home after accepting invite).
+ * Tenant-scoped pages share the same core chrome for now.
+ * Access/visibility is still role-driven inside the gate/page logic.
  */
 export default function TenantLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <div className={`core-ui-root ${manrope.variable} ${inter.variable}`}>
-      <TenantAdminAccessGate>{children}</TenantAdminAccessGate>
+      <PlatformAdminAccessGate>
+        <PlatformAdminChrome>{children}</PlatformAdminChrome>
+      </PlatformAdminAccessGate>
     </div>
   );
 }
