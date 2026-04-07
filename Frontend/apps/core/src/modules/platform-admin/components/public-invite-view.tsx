@@ -138,8 +138,8 @@ export function PublicInviteView() {
 
   // Build URL to sign in with redirect to welcome page (must be before conditionals)
   const welcomeRedirectUrl = useMemo(() => {
-    const next = encodeURIComponent("/core/welcome?activation=1");
-    return `${shellOrigin}/auth/signin?next=${next}`;
+    const callbackUrl = encodeURIComponent("/core/welcome?activation=1");
+    return `${shellOrigin}/auth/signin?callbackUrl=${callbackUrl}`;
   }, [shellOrigin]);
 
   if (loading) {
@@ -176,7 +176,7 @@ export function PublicInviteView() {
         </p>
         <a
           href={welcomeRedirectUrl}
-          className="mt-8 inline-flex items-center gap-2 rounded-ch-md bg-[#ffe600] px-6 py-3 text-sm font-bold text-ch-on-surface transition-colors hover:bg-[#e6cf00]"
+          className="mt-8 inline-flex items-center gap-2 rounded-ch-md bg-ch-primary px-6 py-3 text-sm font-bold text-ch-on-primary transition-colors hover:bg-ch-primary/90"
         >
           Continue to your organization
           <ArrowRight className="h-4 w-4" />

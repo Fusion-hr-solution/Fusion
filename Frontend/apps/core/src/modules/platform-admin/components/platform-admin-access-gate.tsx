@@ -109,25 +109,10 @@ export function PlatformAdminAccessGate({
   if (!isAuthenticated || !hasAccess) {
     const signinUrl = `${getShellOrigin()}/auth/signin`;
 
-    // Role-aware messaging
-    const isHRAdminAttempt = isAuthenticated && isHRAdmin && !isPlatformAdmin;
-
     return (
       <div className="core-ui-root flex min-h-screen flex-col items-center justify-center gap-4 bg-ch-surface px-6 font-chBody text-ch-on-surface">
         <h1 className="font-chHeadline text-2xl font-bold">Not authorized</h1>
-        {isHRAdminAttempt ? (
-          <>
-            <p className="max-w-md text-center text-sm text-ch-secondary">
-              You are signed in as an HR Administrator. Platform Admin areas are not accessible to your role.
-            </p>
-            <a
-              href={`${getShellOrigin()}/core/welcome`}
-              className="text-sm font-semibold text-ch-primary underline"
-            >
-              Go to your welcome page
-            </a>
-          </>
-        ) : !isAuthenticated ? (
+        {!isAuthenticated ? (
           <>
             <p className="text-sm text-ch-secondary">
               Please sign in to access this area.
