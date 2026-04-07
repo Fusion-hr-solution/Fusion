@@ -3,13 +3,20 @@
 import { useState, useRef, useEffect } from "react";
 import {
   Users, HelpCircle, Clock, MoreHorizontal,
-  Pencil, Copy, Archive, Trash2,
+  Pencil, Copy, Archive, Trash2, Eye,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { Test } from "@/types";
+import type { Test, TestStatus } from "@/types";
 
 interface TestCardProps {
   test: Test;
+  onOpen: (test: Test) => void;
+  onEdit: (test: Test) => void;
+  onPreview: (test: Test) => void;
+  onDuplicate: (test: Test) => void;
+  onSetStatus: (test: Test, status: TestStatus) => void;
+  onDelete: (test: Test) => void;
+  isBusy?: boolean;
 }
 
 const STATUS_STYLES: Record<Test["status"], string> = {
@@ -18,7 +25,16 @@ const STATUS_STYLES: Record<Test["status"], string> = {
   Archived: "bg-zinc-100 text-zinc-400",
 };
 
-export function TestCard({ test }: TestCardProps) {
+export function TestCard({
+  test,
+  onOpen,
+  onEdit,
+  onPreview,
+  onDuplicate,
+  onSetStatus,
+  onDelete,
+  isBusy = false,
+}: TestCardProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -32,8 +48,25 @@ export function TestCard({ test }: TestCardProps) {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
+  function handleOpen(): void {
+    if (isBusy) return;
+    onOpen(test);
+  }
+
   return (
-    <div className="group relative flex flex-col gap-3 rounded-lg border border-zinc-200 bg-white p-5 shadow-sm hover:shadow-md transition-shadow duration-150">
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={handleOpen}
+      onKeyDown={(e) => {
+        if (e.currentTarget !== e.target) return;
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          handleOpen();
+        }
+      }}
+      className="group relative flex cursor-pointer flex-col gap-3 rounded-lg border border-zinc-200 bg-white p-5 shadow-sm transition-shadow duration-150 hover:shadow-md"
+    >
       {/* Top row */}
       <div className="flex items-center justify-between">
         <span className="rounded-full border border-zinc-200 px-2.5 py-0.5 text-[11px] font-medium text-zinc-600">
@@ -41,23 +74,51 @@ export function TestCard({ test }: TestCardProps) {
         </span>
 
         {/* Actions menu */}
-        <div ref={menuRef} className="relative">
+        <div ref={menuRef} className="relative" onClick={(e) => e.stopPropagation()}>
           <button
             onClick={() => setMenuOpen((p) => !p)}
-            className="flex h-7 w-7 items-center justify-center rounded-md text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 transition-colors duration-150 opacity-0 group-hover:opacity-100"
+            className="flex h-7 w-7 items-center justify-center rounded-md text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 transition-colors duration-150"
           >
             <MoreHorizontal className="h-4 w-4" />
           </button>
 
           {menuOpen && (
             <div className="absolute right-0 top-full mt-1 w-44 rounded-lg border border-zinc-200 bg-white shadow-lg z-20 overflow-hidden">
+              <div className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
+                Set Status
+              </div>
+              {(["Active", "Draft", "Archived"] as TestStatus[]).map((status) => (
+                <button
+                  key={status}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onSetStatus(test, status);
+                  }}
+                  disabled={isBusy || test.status === status}
+                  className={cn(
+                    "flex w-full items-center gap-2.5 px-3 py-2 text-[13px] transition-colors duration-150",
+                    test.status === status
+                      ? "bg-zinc-100 font-semibold text-zinc-900"
+                      : "text-zinc-700 hover:bg-zinc-50"
+                  )}
+                >
+                  {status}
+                </button>
+              ))}
+              <div className="border-t border-zinc-100" />
               {[
-                { icon: Pencil, label: "Edit" },
-                { icon: Copy, label: "Duplicate" },
-                { icon: Archive, label: "Archive" },
+                { icon: Eye, label: "Preview", action: onPreview },
+                { icon: Pencil, label: "Edit", action: onEdit },
+                { icon: Copy, label: "Duplicate", action: onDuplicate },
+                { icon: Archive, label: "Archive", action: (item: Test) => onSetStatus(item, "Archived") },
               ].map((item) => (
                 <button
                   key={item.label}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    item.action(test);
+                  }}
+                  disabled={isBusy}
                   className="flex w-full items-center gap-2.5 px-3 py-2 text-[13px] text-zinc-700 hover:bg-zinc-50 transition-colors duration-150"
                 >
                   <item.icon className="h-4 w-4" />
@@ -65,7 +126,14 @@ export function TestCard({ test }: TestCardProps) {
                 </button>
               ))}
               <div className="border-t border-zinc-100" />
-              <button className="flex w-full items-center gap-2.5 px-3 py-2 text-[13px] text-red-600 hover:bg-zinc-50 transition-colors duration-150">
+              <button
+                onClick={() => {
+                  setMenuOpen(false);
+                  onDelete(test);
+                }}
+                disabled={isBusy}
+                className="flex w-full items-center gap-2.5 px-3 py-2 text-[13px] text-red-600 hover:bg-zinc-50 transition-colors duration-150"
+              >
                 <Trash2 className="h-4 w-4" />
                 Delete
               </button>

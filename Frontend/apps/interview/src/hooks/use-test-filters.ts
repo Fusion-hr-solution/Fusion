@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import type { Test, FilterState } from "@/types";
 
 export function useTestFilters(tests: Test[]) {
@@ -46,6 +46,11 @@ export function useTestFilters(tests: Test[]) {
   }, [tests, filters]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+
+  useEffect(() => {
+    setCurrentPage((prev) => Math.min(prev, totalPages));
+  }, [totalPages]);
+
   const paginatedTests = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   return {

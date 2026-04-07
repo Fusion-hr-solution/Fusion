@@ -1,7 +1,9 @@
 "use client";
-
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { CheckCircle2, XCircle, BookmarkPlus, Send, ArrowLeft, Pencil, ClipboardCheck } from "lucide-react";
 import { useWizardStore } from "@/store/wizard-store";
+import { useTestPersistence } from "@/hooks/use-test-persistence";
 import { cn } from "@/lib/utils";
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -44,8 +46,11 @@ function Pair({ label, value }: { label: string; value?: string | null }) {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function StepReview() {
-  const { basicInfo, selectedQuestions, config, setStep, markSaved } = useWizardStore();
-
+const router = useRouter();
+  const { basicInfo, selectedQuestions, config, setStep, reset } = useWizardStore();
+  const { saveDraft, publishTest } = useTestPersistence();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
   const totalPoints   = selectedQuestions.reduce((s, q) => s + q.points, 0);
   const totalDuration = selectedQuestions.reduce((s, q) => s + q.durationMinutes, 0);
 
@@ -58,6 +63,34 @@ export function StepReview() {
   ];
 
   const isReady = checks.filter((c) => !c.warn).every((c) => c.pass);
+  async function handleSaveDraft() {
+    setIsSubmitting(true);
+    setActionMessage(null);
+    try {
+      await saveDraft();
+      setActionMessage("Draft saved.");
+    } catch (err) {
+      setActionMessage(err instanceof Error ? err.message : "Failed to save draft.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handlePublish() {
+    setIsSubmitting(true);
+    setActionMessage(null);
+    try {
+      await publishTest();
+      setActionMessage("Test published.");
+      reset();
+      router.push("/");
+    } catch (err) {
+      setActionMessage(err instanceof Error ? err.message : "Failed to publish test.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
 
   return (
     // w-full — fills entire available column, no max-w centering
@@ -233,24 +266,28 @@ export function StepReview() {
         </button>
         <div className="flex items-center gap-3">
           <button
-            onClick={() => markSaved()}
+            onClick={() => void handleSaveDraft()}
+            disabled={isSubmitting}
             className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-5 py-2.5 text-[14px] font-semibold text-zinc-700 shadow-sm transition-all duration-150 hover:bg-zinc-50"
-          >
-            <BookmarkPlus className="h-4 w-4" /> Save Draft
+          ><BookmarkPlus className="h-4 w-4" /> {isSubmitting ? "Saving..." : "Save Draft"}
           </button>
           <button
-            disabled={!isReady}
+             onClick={() => void handlePublish()}
+            disabled={!isReady || isSubmitting}
             className={cn(
               "flex items-center gap-2 rounded-xl px-6 py-2.5 text-[14px] font-bold shadow-sm transition-all duration-150",
-              isReady
+               isReady && !isSubmitting
                 ? "bg-zinc-900 text-white hover:bg-zinc-800 active:scale-[0.98]"
                 : "cursor-not-allowed bg-zinc-100 text-zinc-400 shadow-none"
             )}
           >
-            <Send className="h-4 w-4" /> Publish Test
+            <Send className="h-4 w-4" /> {isSubmitting ? "Publishing..." : "Publish Test"}
           </button>
         </div>
       </div>
+      {actionMessage && (
+        <p className="mt-3 text-[13px] text-zinc-600">{actionMessage}</p>
+      )}
     </div>
   );
 }
