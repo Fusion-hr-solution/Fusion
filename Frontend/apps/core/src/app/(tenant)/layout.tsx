@@ -14,7 +14,11 @@ const inter = Inter({
   display: "swap",
 });
 
-export default function MainModuleLayout({
+/**
+ * Tenant-scoped pages share the same core chrome for now.
+ * Access/visibility is still role-driven inside the gate/page logic.
+ */
+export default function TenantLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
