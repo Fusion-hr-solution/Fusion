@@ -85,6 +85,19 @@ export function OrganizationDetailView({ org }: { org: Organization }) {
 
   const handoff = useMemo(() => handoffCopy(org), [org]);
 
+  // Determine which actions should be available based on lifecycle
+  const canResendInvite =
+    org.lifecycle !== "suspended" &&
+    org.lifecycle !== "archived" &&
+    (org.lifecycle === "invited" ||
+      org.lifecycle === "attention" ||
+      org.lifecycle === "draft");
+
+  const canCopyInvite = Boolean(org.inviteLink);
+  const canRevokeInvite =
+    (org.lifecycle === "invited" || org.lifecycle === "draft") &&
+    org.pendingInvites > 0;
+
   const onResend = useCallback(async () => {
     setBusy(true);
     try {
@@ -231,7 +244,9 @@ export function OrganizationDetailView({ org }: { org: Organization }) {
             <h1 className="mb-2 font-chHeadline text-5xl font-extrabold tracking-tighter text-ch-on-surface">
               {org.name}
             </h1>
-            <p className="max-w-xl font-chBody text-stone-500">{org.description}</p>
+            <p className="max-w-xl font-chBody text-stone-500">
+              {org.description}
+            </p>
           </div>
           <div className="flex gap-3">
             <button
@@ -372,25 +387,25 @@ export function OrganizationDetailView({ org }: { org: Organization }) {
               <div className="flex flex-col gap-2 pt-4">
                 <button
                   type="button"
-                  disabled={busy}
+                  disabled={busy || !canResendInvite}
                   onClick={() => void onResend()}
-                  className="w-full bg-yellow-400 py-3 font-chHeadline text-xs font-black uppercase tracking-widest text-stone-900 transition-colors hover:bg-yellow-300 disabled:opacity-50"
+                  className="w-full bg-yellow-400 py-3 font-chHeadline text-xs font-black uppercase tracking-widest text-stone-900 transition-colors hover:bg-yellow-300 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Resend Invite
                 </button>
                 <button
                   type="button"
-                  disabled={busy}
+                  disabled={busy || !canCopyInvite}
                   onClick={() => void onCopyLink()}
-                  className="w-full border border-stone-700 py-3 font-chHeadline text-xs font-black uppercase tracking-widest text-stone-300 transition-colors hover:bg-stone-800 disabled:opacity-50"
+                  className="w-full border border-stone-700 py-3 font-chHeadline text-xs font-black uppercase tracking-widest text-stone-300 transition-colors hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Copy Invite Link
                 </button>
                 <button
                   type="button"
-                  disabled={busy || org.pendingInvites < 1}
+                  disabled={busy || !canRevokeInvite}
                   onClick={() => setConfirmAction("revoke")}
-                  className="w-full border border-ch-error/50 py-3 font-chHeadline text-xs font-black uppercase tracking-widest text-ch-error transition-colors hover:bg-ch-error/10 disabled:opacity-50"
+                  className="w-full border border-ch-error/50 py-3 font-chHeadline text-xs font-black uppercase tracking-widest text-ch-error transition-colors hover:bg-ch-error/10 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Revoke Pending Invite
                 </button>
@@ -420,22 +435,45 @@ export function OrganizationDetailView({ org }: { org: Organization }) {
               </p>
             </div>
           </div>
-          <div className="relative h-2 overflow-hidden bg-stone-200">
+          <div className="relative mb-4 h-2 overflow-hidden bg-stone-200">
             <div
               className="absolute left-0 top-0 h-full bg-ch-primary transition-[width] duration-500"
               style={{ width: `${org.onboardingProgressPercent}%` }}
             />
           </div>
-          <div className="mt-4 rounded-ch-sm bg-ch-surface-container-lowest p-4">
-            <p className="font-chHeadline text-[10px] font-black uppercase tracking-widest text-stone-400">
-              Current Stage
-            </p>
-            <p className="mt-1 font-chHeadline text-sm font-bold text-stone-900">
-              {org.onboardingStageTitle}
-            </p>
-            <p className="mt-1 font-chBody text-xs text-stone-500">
-              {org.onboardingStageSubtitle}
-            </p>
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+            <div>
+              <p className="mb-1 font-chHeadline text-[10px] font-bold uppercase text-stone-400">
+                Current Stage
+              </p>
+              <p className="text-sm font-bold text-stone-900">
+                {org.onboardingStageTitle}
+              </p>
+            </div>
+            <div>
+              <p className="mb-1 font-chHeadline text-[10px] font-bold uppercase text-stone-400">
+                Created On
+              </p>
+              <p className="text-sm font-bold text-stone-900">
+                {org.createdAt ?? "—"}
+              </p>
+            </div>
+            <div>
+              <p className="mb-1 font-chHeadline text-[10px] font-bold uppercase text-stone-400">
+                Invite Status
+              </p>
+              <p className="text-sm font-bold text-stone-900">
+                {org.inviteSentAt ? "Sent" : "Not Sent"}
+              </p>
+            </div>
+            <div>
+              <p className="mb-1 font-chHeadline text-[10px] font-bold uppercase text-stone-400">
+                Next Action
+              </p>
+              <p className="text-sm font-bold text-stone-900">
+                {org.onboardingStageSubtitle || "—"}
+              </p>
+            </div>
           </div>
         </section>
 
