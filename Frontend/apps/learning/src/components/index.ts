@@ -7,6 +7,7 @@ export { SearchInput } from "./search-input";
 export { SectionHeader } from "./section-header";
 export { CourseCard } from "./course-card";
 export { TrainingCatalog } from "./training-catalog";
+export { CatalogPagination } from "./catalog-pagination";
 export { TrainingCard } from "./training-card";
 export { TrainingDetailDialog } from "./training-detail-dialog";
 export { CategoryFilter } from "./category-filter";
