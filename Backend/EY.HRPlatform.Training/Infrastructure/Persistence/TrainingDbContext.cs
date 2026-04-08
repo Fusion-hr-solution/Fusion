@@ -21,6 +21,8 @@ public class TrainingDbContext : DbContext
     public DbSet<Badge> Badges => Set<Badge>();
     public DbSet<EmployeeBadge> EmployeeBadges => Set<EmployeeBadge>();
     public DbSet<Certification> Certifications => Set<Certification>();
+    public DbSet<ArticleTemplate> ArticleTemplates => Set<ArticleTemplate>();
+    public DbSet<ArticleTemplateSection> ArticleTemplateSections => Set<ArticleTemplateSection>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -204,6 +206,28 @@ public class TrainingDbContext : DbContext
                 .HasForeignKey(c => c.TrainingId)
                 .OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(c => new { c.EmployeeId, c.TrainingId }).IsUnique();
+        });
+
+        // --- ArticleTemplate ---
+        modelBuilder.Entity<ArticleTemplate>(e =>
+        {
+            e.HasKey(t => t.Id);
+            e.Property(t => t.Name).HasMaxLength(200).IsRequired();
+            e.Property(t => t.Description).HasMaxLength(500);
+            e.HasIndex(t => t.Name).IsUnique();
+        });
+
+        // --- ArticleTemplateSection ---
+        modelBuilder.Entity<ArticleTemplateSection>(e =>
+        {
+            e.HasKey(s => s.Id);
+            e.Property(s => s.Label).HasMaxLength(200).IsRequired();
+            e.Property(s => s.Placeholder).HasMaxLength(500);
+            e.HasOne(s => s.Template)
+                .WithMany(t => t.Sections)
+                .HasForeignKey(s => s.TemplateId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(s => new { s.TemplateId, s.OrderIndex }).IsUnique();
         });
     }
 }

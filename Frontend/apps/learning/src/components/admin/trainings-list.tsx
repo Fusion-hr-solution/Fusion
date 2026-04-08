@@ -1,27 +1,22 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Plus, BookOpen } from "lucide-react";
-import { Button, Card, Table, TableHeader, TableBody, TableRow, TableHead } from "@repo/ui";
+import { buttonVariants, Card, Table, TableHeader, TableBody, TableRow, TableHead } from "@repo/ui";
 import { useApiQuery, useApiMutation } from "@repo/api/react";
 import { getAdminTrainings, deleteTraining, getAdminCategories } from "@/services/admin-service";
 import type { AdminCategory } from "@/types/admin";
 import { TrainingRow } from "./training-row";
-import { TrainingFormDialog } from "./training-form-dialog";
 import { PaginationBar } from "./pagination-bar";
 import { TrainingsFilterBar } from "./trainings-filter-bar";
 
 export function TrainingsList() {
-  const router = useRouter();
   const [search, setSearch] = useState("");
   const [categoryId, setCategoryId] = useState<string>("");
   const [includeDeleted, setIncludeDeleted] = useState(false);
   const [page, setPage] = useState(1);
   const pageSize = 10;
-
-  const [formDialogOpen, setFormDialogOpen] = useState(false);
-  const [editingTrainingId, setEditingTrainingId] = useState<string | undefined>();
 
   const { data, isLoading, refetch } = useApiQuery(
     () => getAdminTrainings({ search: search || undefined, categoryId: categoryId || undefined, includeDeleted, page, pageSize }),
@@ -51,7 +46,7 @@ export function TrainingsList() {
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -62,13 +57,13 @@ export function TrainingsList() {
             Create, edit, and manage training programs
           </p>
         </div>
-        <Button
-          onClick={() => { setEditingTrainingId(undefined); setFormDialogOpen(true); }}
-          className="ey-bg-dark hover:opacity-90"
+        <Link
+          href="/admin/create"
+          className={buttonVariants() + " ey-bg-dark hover:opacity-90"}
         >
           <Plus className="mr-2 h-4 w-4" />
           New Training
-        </Button>
+        </Link>
       </div>
 
       {/* Filters */}
@@ -113,8 +108,8 @@ export function TrainingsList() {
                   key={t.id}
                   training={t}
                   isDeleting={isDeleting}
-                  onView={() => router.push(`/admin/trainings/${t.id}`)}
-                  onEdit={() => { setEditingTrainingId(t.id); setFormDialogOpen(true); }}
+                  viewHref={`/admin/trainings/${t.id}`}
+                  editHref={`/admin/trainings/${t.id}/edit`}
                   onDelete={() => handleDelete(t.id, t.title)}
                 />
               ))}
@@ -130,13 +125,6 @@ export function TrainingsList() {
         pageSize={pageSize}
         totalCount={totalCount}
         onPageChange={setPage}
-      />
-
-      <TrainingFormDialog
-        trainingId={editingTrainingId}
-        open={formDialogOpen}
-        onOpenChange={setFormDialogOpen}
-        onSaved={refetch}
       />
     </div>
   );

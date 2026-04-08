@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useApiMutation } from "@repo/api/react";
 import { ApiError } from "@repo/api";
 import { addChapter, updateChapter, uploadChapterFile } from "@/services/admin-service";
-import type { CreateChapterInput, UpdateChapterInput, AdminChapter } from "@/types/admin";
+import type { CreateChapterInput, UpdateChapterInput, AdminChapter, ArticleTemplate } from "@/types/admin";
 
 interface UseChapterFormOptions {
   trainingId: string;
@@ -26,6 +26,9 @@ export function useChapterForm({ trainingId, chapter, open, onSuccess }: UseChap
   const [estimatedDuration, setEstimatedDuration] = useState<number | "">("");
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<ArticleTemplate | null>(null);
+  const [sectionValues, setSectionValues] = useState<Record<string, string>>({});
+  const [initialTemplateName, setInitialTemplateName] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     if (chapter) {
@@ -36,6 +39,33 @@ export function useChapterForm({ trainingId, chapter, open, onSuccess }: UseChap
       setTextContent(chapter.textContent ?? "");
       setVideoUrl(chapter.videoUrl ?? "");
       setEstimatedDuration(chapter.estimatedDurationMinutes ?? "");
+      // Restore article template sections from stored JSON
+      if (chapter.contentType === "Article" && chapter.textContent) {
+        try {
+          const parsed = JSON.parse(chapter.textContent);
+          if (parsed.templateName) setInitialTemplateName(parsed.templateName);
+          // Sections stored as array of { label, content } — we'll re-populate
+          // sectionValues by label once the template loads and we know the section IDs.
+          // For now, store the raw parsed sections for label-based restoration.
+          if (Array.isArray(parsed.sections)) {
+            setSectionValues(
+              Object.fromEntries(parsed.sections.map((s: { label: string; content: string }) => [s.label, s.content])),
+            );
+          } else if (parsed.sections) {
+            // Legacy format: Record<sectionId, content>
+            setSectionValues(parsed.sections);
+          } else {
+            setSectionValues({});
+          }
+        } catch {
+          setSectionValues({});
+          setInitialTemplateName(undefined);
+        }
+      } else {
+        setSectionValues({});
+        setInitialTemplateName(undefined);
+      }
+      setSelectedTemplate(null);
     } else {
       setTitle("");
       setContentType("Article");
@@ -44,10 +74,13 @@ export function useChapterForm({ trainingId, chapter, open, onSuccess }: UseChap
       setTextContent("");
       setVideoUrl("");
       setEstimatedDuration("");
+      setSelectedTemplate(null);
+      setSectionValues({});
+      setInitialTemplateName(undefined);
     }
     setFile(null);
     setIsUploading(false);
-    setStep(0);
+    setStep(chapter ? 1 : 0);
     setFormError(null);
     setFieldErrors({});
   }, [chapter, open]);
@@ -99,8 +132,32 @@ export function useChapterForm({ trainingId, chapter, open, onSuccess }: UseChap
   }
 
   const handleNext = useCallback(() => {
-    if (validateStep0()) setStep(1);
-  }, [title, orderIndex]);
+    if (step === 0) {
+      // Step 0 is the type picker — just advance
+      setStep(1);
+    } else if (validateStep0()) {
+      setStep(step + 1);
+    }
+  }, [step, title, orderIndex]);
+
+  const handleSectionChange = useCallback((sectionId: string, value: string) => {
+    setSectionValues((prev) => ({ ...prev, [sectionId]: value }));
+  }, []);
+
+  // When a template is selected, remap any label-keyed section values to section-ID keys
+  const handleTemplateChange = useCallback((template: ArticleTemplate | null) => {
+    setSelectedTemplate(template);
+    if (!template) return;
+    setSectionValues((prev) => {
+      const hasLabelKeys = template.sections.some((s) => prev[s.label] !== undefined);
+      if (!hasLabelKeys) return prev;
+      const remapped: Record<string, string> = {};
+      for (const section of template.sections) {
+        remapped[section.id] = prev[section.label] ?? prev[section.id] ?? "";
+      }
+      return remapped;
+    });
+  }, []);
 
   const handleSubmit = useCallback(async () => {
     if (!validateStep1()) return;
@@ -119,18 +176,30 @@ export function useChapterForm({ trainingId, chapter, open, onSuccess }: UseChap
       }
     }
 
+    // For Articles with templates, serialize sections as structured JSON into textContent.
+    // Store as an array of { label, content } for self-describing player rendering.
+    let resolvedTextContent: string | undefined;
+    if (contentType === "Article" && selectedTemplate) {
+      const sectionArray = [...selectedTemplate.sections]
+        .sort((a, b) => a.orderIndex - b.orderIndex)
+        .map((s) => ({ label: s.label, content: sectionValues[s.id] ?? "" }));
+      resolvedTextContent = JSON.stringify({ templateName: selectedTemplate.name, sections: sectionArray });
+    } else {
+      resolvedTextContent = textContent || undefined;
+    }
+
     const payload = {
       title: title.trim(),
       contentType,
       contentUri: uploadedUri || undefined,
       orderIndex,
-      textContent: textContent || undefined,
+      textContent: resolvedTextContent,
       videoUrl: (!file && videoUrl) ? videoUrl : undefined,
       estimatedDurationMinutes: estimatedDuration || undefined,
     };
     if (isEditing) await doUpdate(payload);
     else await doAdd(payload);
-  }, [title, contentType, contentUri, orderIndex, textContent, videoUrl, estimatedDuration, file, isEditing, doUpdate, doAdd]);
+  }, [title, contentType, contentUri, orderIndex, textContent, videoUrl, estimatedDuration, file, isEditing, doUpdate, doAdd, selectedTemplate, sectionValues]);
 
   const canAdvance = title.trim().length > 0;
   const clearFieldError = (field: string) => setFieldErrors((p) => ({ ...p, [field]: "" }));
@@ -142,6 +211,9 @@ export function useChapterForm({ trainingId, chapter, open, onSuccess }: UseChap
     textContent, setTextContent, videoUrl, setVideoUrl,
     estimatedDuration, setEstimatedDuration,
     file, setFile, isUploading,
+    selectedTemplate, handleTemplateChange,
+    sectionValues, handleSectionChange,
+    initialTemplateName,
     isSaving, handleNext, handleSubmit, canAdvance,
   };
 }

@@ -1,12 +1,13 @@
+import Link from "next/link";
 import { Pencil, Eye, Trash2, BookOpen, Users, AlertTriangle } from "lucide-react";
-import { Button, Badge, TableRow, TableCell } from "@repo/ui";
+import { buttonVariants, Badge, TableRow, TableCell } from "@repo/ui";
 import type { TrainingRowProps } from "@/types/admin-props";
 
 export function TrainingRow({
   training,
   isDeleting,
-  onView,
-  onEdit,
+  viewHref,
+  editHref,
   onDelete,
 }: TrainingRowProps) {
   return (
@@ -53,22 +54,26 @@ export function TrainingRow({
       </TableCell>
       <TableCell className="text-right">
         <div className="flex items-center justify-end gap-1">
-          <Button variant="ghost" size="sm" onClick={onView} aria-label={`View ${training.title}`}>
+          <Link href={viewHref} className={buttonVariants({ variant: "ghost", size: "sm" })} aria-label={`View ${training.title}`}>
             <Eye className="h-3.5 w-3.5" />
-          </Button>
-          <Button variant="ghost" size="sm" onClick={onEdit} disabled={training.isDeleted} aria-label={`Edit ${training.title}`}>
-            <Pencil className="h-3.5 w-3.5" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
+          </Link>
+          {!training.isDeleted ? (
+            <Link href={editHref} className={buttonVariants({ variant: "ghost", size: "sm" })} aria-label={`Edit ${training.title}`}>
+              <Pencil className="h-3.5 w-3.5" />
+            </Link>
+          ) : (
+            <span className={buttonVariants({ variant: "ghost", size: "sm" }) + " pointer-events-none opacity-50"} aria-disabled>
+              <Pencil className="h-3.5 w-3.5" />
+            </span>
+          )}
+          <button
             onClick={onDelete}
             disabled={isDeleting || training.isDeleted}
             aria-label={`Delete ${training.title}`}
-            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+            className={buttonVariants({ variant: "ghost", size: "sm" }) + " text-destructive hover:text-destructive hover:bg-destructive/10"}
           >
             <Trash2 className="h-3.5 w-3.5" />
-          </Button>
+          </button>
         </div>
       </TableCell>
     </TableRow>

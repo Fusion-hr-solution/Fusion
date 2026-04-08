@@ -12,6 +12,7 @@ public class UpdateChapterCommandHandlerTests
         await using var context = await TestDbContextFactory.CreateWithSeedDataAsync();
         var handler = new UpdateChapterCommandHandler(context);
         var chapter = context.Chapters.First();
+        var originalOrderIndex = chapter.OrderIndex;
 
         var command = new UpdateChapterCommand(
             chapter.TrainingId, chapter.Id,
@@ -25,7 +26,7 @@ public class UpdateChapterCommandHandlerTests
         Assert.NotNull(updated);
         Assert.Equal("Updated Title", updated.Title);
         Assert.Equal(Domain.Enums.ContentType.Pdf, updated.ContentType);
-        Assert.Equal(5, updated.OrderIndex);
+        Assert.Equal(originalOrderIndex, updated.OrderIndex); // OrderIndex is immutable via update; use reorder endpoint
         Assert.Equal(60, updated.EstimatedDurationMinutes);
     }
 

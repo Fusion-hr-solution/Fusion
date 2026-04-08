@@ -1,5 +1,41 @@
-import type { AdminCategory, AdminChapter, AdminTraining } from "./admin";
+import type { AdminCategory, AdminChapter, AdminTraining, ArticleTemplate, ArticleTemplateSection, WizardChapter } from "./admin";
 import type { Employee, Training, TrainingCategory, TrainingStatus } from "./index";
+
+/* ── Wizard shared state (used by create + edit wizards) ── */
+
+export interface WizardState {
+  step: number;
+  setStep: (step: number) => void;
+  formError: string | null;
+  setFormError: (error: string | null) => void;
+  isSubmitting: boolean;
+  title: string;
+  setTitle: (v: string) => void;
+  description: string;
+  setDescription: (v: string) => void;
+  categoryId: string;
+  setCategoryId: (v: string) => void;
+  badgeLevel: string;
+  setBadgeLevel: (v: string) => void;
+  categories: AdminCategory[];
+  credits: number;
+  setCredits: (v: number) => void;
+  duration: string;
+  setDuration: (v: string) => void;
+  isMandatory: boolean;
+  setIsMandatory: (v: boolean) => void;
+  chapters: WizardChapter[];
+  addChapter: (chapter: Omit<WizardChapter, "clientId">) => void;
+  updateChapter: (clientId: string, updates: Partial<WizardChapter>) => void;
+  removeChapter: (clientId: string) => void;
+  reorderChapters: (reordered: WizardChapter[]) => void;
+  handleNext: () => void;
+  prevStep: () => void;
+  handleSubmit: () => Promise<void>;
+  canAdvanceStep1: boolean;
+  isReady: boolean;
+  categoryName: string;
+}
 
 /* ── Admin page-level components ── */
 
@@ -69,8 +105,8 @@ export interface MetaCardProps {
 export interface TrainingRowProps {
   training: AdminTraining;
   isDeleting: boolean;
-  onView: () => void;
-  onEdit: () => void;
+  viewHref: string;
+  editHref: string;
   onDelete: () => void;
 }
 
@@ -165,5 +201,10 @@ export interface ChapterFormContentStepProps {
   estimatedDuration: number | "";
   onEstimatedDurationChange: (v: number | "") => void;
   isUploading: boolean;
+  selectedTemplate: ArticleTemplate | null;
+  onTemplateChange: (template: ArticleTemplate | null) => void;
+  initialTemplateName?: string;
+  sectionValues: Record<string, string>;
+  onSectionChange: (sectionId: string, value: string) => void;
   fieldErrors?: Record<string, string>;
 }

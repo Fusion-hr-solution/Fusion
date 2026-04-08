@@ -18,31 +18,26 @@ public class AddChapterCommandHandler : ICommandHandler<AddChapterCommand, Resul
         if (string.IsNullOrWhiteSpace(request.Title))
             return Result.Failure<Guid>(Error.Validation("Chapter.TitleRequired", "Chapter title is required."));
 
-        if (request.OrderIndex < 0)
-            return Result.Failure<Guid>(Error.Validation("Chapter.InvalidOrderIndex", "Order index must be zero or greater."));
-
         var trainingExists = await _db.Trainings
             .AnyAsync(t => t.Id == request.TrainingId, cancellationToken);
 
         if (!trainingExists)
             return Result.Failure<Guid>(Error.NotFound("Training", request.TrainingId));
 
-        var duplicateIndex = await _db.Chapters
-            .AnyAsync(c => c.TrainingId == request.TrainingId && c.OrderIndex == request.OrderIndex, cancellationToken);
-
-        if (duplicateIndex)
-            return Result.Failure<Guid>(Error.Conflict("Chapter.DuplicateOrderIndex",
-                $"A chapter with order index {request.OrderIndex} already exists in this training. Please choose a different index."));
-
         if (!Enum.TryParse<ContentType>(request.ContentType, true, out var contentType))
             return Result.Failure<Guid>(Error.Validation("Chapter.InvalidContentType",
                 $"Invalid content type '{request.ContentType}'. Valid values: Video, Pdf, Article, Exercise."));
+
+        // Auto-assign order index to the end of the list to avoid unique-index conflicts.
+        var maxIndex = await _db.Chapters
+            .Where(c => c.TrainingId == request.TrainingId)
+            .MaxAsync(c => (int?)c.OrderIndex, cancellationToken) ?? -1;
 
         var chapter = new TrainingChapter(
             request.Title,
             contentType,
             request.ContentUri,
-            request.OrderIndex,
+            maxIndex + 1,
             request.TrainingId,
             request.TextContent,
             request.VideoUrl,
