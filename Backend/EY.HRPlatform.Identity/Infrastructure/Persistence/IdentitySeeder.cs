@@ -110,25 +110,43 @@ public static class IdentitySeeder
         Guid createdByUserId)
     {
         // Stable IDs so the seeded dataset is idempotent across restarts.
-        var draftTenantId = Guid.Parse("00000000-0000-0000-0000-000000000002");
-        var invitedTenantId = Guid.Parse("00000000-0000-0000-0000-000000000003");
-        var activeTenantId = Guid.Parse("00000000-0000-0000-0000-000000000004");
-        var attentionTenantId = Guid.Parse("00000000-0000-0000-0000-000000000005");
-        var suspendedTenantId = Guid.Parse("00000000-0000-0000-0000-000000000006");
+        // Doubled dataset for pagination demonstration
+        var draftTenantId1 = Guid.Parse("00000000-0000-0000-0000-000000000002");
+        var draftTenantId2 = Guid.Parse("00000000-0000-0000-0000-000000000012");
+        var invitedTenantId1 = Guid.Parse("00000000-0000-0000-0000-000000000003");
+        var invitedTenantId2 = Guid.Parse("00000000-0000-0000-0000-000000000013");
+        var activeTenantId1 = Guid.Parse("00000000-0000-0000-0000-000000000004");
+        var activeTenantId2 = Guid.Parse("00000000-0000-0000-0000-000000000014");
+        var activeTenantId3 = Guid.Parse("00000000-0000-0000-0000-000000000024");
+        var attentionTenantId1 = Guid.Parse("00000000-0000-0000-0000-000000000005");
+        var attentionTenantId2 = Guid.Parse("00000000-0000-0000-0000-000000000015");
+        var suspendedTenantId1 = Guid.Parse("00000000-0000-0000-0000-000000000006");
+        var suspendedTenantId2 = Guid.Parse("00000000-0000-0000-0000-000000000016");
         var archivedTenantId = Guid.Parse("00000000-0000-0000-0000-000000000007");
 
-        var draftTenant = await GetOrCreateTenantAsync(dbContext, draftTenantId, "Demo Draft Org");
-        var invitedTenant = await GetOrCreateTenantAsync(dbContext, invitedTenantId, "Demo Invited Org");
-        var activeTenant = await GetOrCreateTenantAsync(dbContext, activeTenantId, "Demo Active Org");
-        var attentionTenant = await GetOrCreateTenantAsync(dbContext, attentionTenantId, "Demo Attention Org");
-        var suspendedTenant = await GetOrCreateTenantAsync(dbContext, suspendedTenantId, "Demo Suspended Org");
-        var archivedTenant = await GetOrCreateTenantAsync(dbContext, archivedTenantId, "Demo Archived Org");
+        var draftTenant1 = await GetOrCreateTenantAsync(dbContext, draftTenantId1, "Acme Corp");
+        var draftTenant2 = await GetOrCreateTenantAsync(dbContext, draftTenantId2, "Beta Industries");
+        var invitedTenant1 = await GetOrCreateTenantAsync(dbContext, invitedTenantId1, "Contoso Ltd");
+        var invitedTenant2 = await GetOrCreateTenantAsync(dbContext, invitedTenantId2, "Delta Systems");
+        var activeTenant1 = await GetOrCreateTenantAsync(dbContext, activeTenantId1, "Echo Enterprises");
+        var activeTenant2 = await GetOrCreateTenantAsync(dbContext, activeTenantId2, "Fabrikam Group");
+        var activeTenant3 = await GetOrCreateTenantAsync(dbContext, activeTenantId3, "Globex Corporation");
+        var attentionTenant1 = await GetOrCreateTenantAsync(dbContext, attentionTenantId1, "Horizon Partners");
+        var attentionTenant2 = await GetOrCreateTenantAsync(dbContext, attentionTenantId2, "Initech Solutions");
+        var suspendedTenant1 = await GetOrCreateTenantAsync(dbContext, suspendedTenantId1, "Juno Ventures");
+        var suspendedTenant2 = await GetOrCreateTenantAsync(dbContext, suspendedTenantId2, "Kappa Holdings");
+        var archivedTenant = await GetOrCreateTenantAsync(dbContext, archivedTenantId, "Legacy Systems Inc");
 
         // Suspended/Archived flags
-        if (suspendedTenant.IsActive)
+        if (suspendedTenant1.IsActive)
         {
-            suspendedTenant.Deactivate();
-            dbContext.Tenants.Update(suspendedTenant);
+            suspendedTenant1.Deactivate();
+            dbContext.Tenants.Update(suspendedTenant1);
+        }
+        if (suspendedTenant2.IsActive)
+        {
+            suspendedTenant2.Deactivate();
+            dbContext.Tenants.Update(suspendedTenant2);
         }
 
         if (!archivedTenant.IsArchived)
@@ -137,33 +155,61 @@ public static class IdentitySeeder
             dbContext.Tenants.Update(archivedTenant);
         }
 
-        // Create pending first-admin invite (Invited)
-        const string invitedAdminEmail = "invited.admin@example.com";
-        var invitedInviteExists = await dbContext.InviteTokens.AnyAsync(
-            i => i.TenantId == invitedTenant.Id && i.Role == PlatformRole.HRAdmin && i.Email == invitedAdminEmail,
+        // Create pending first-admin invites (Invited)
+        await SeedInviteForTenant(dbContext, invitedTenant1, "invited.admin1@example.com", createdByUserId, "Alice", "Chen");
+        await SeedInviteForTenant(dbContext, invitedTenant2, "invited.admin2@example.com", createdByUserId, "Bob", "Martinez");
+
+        // Create expired first-admin invites (Attention)
+        await SeedExpiredInviteForTenant(dbContext, attentionTenant1, "attention.admin1@example.com", createdByUserId);
+        await SeedExpiredInviteForTenant(dbContext, attentionTenant2, "attention.admin2@example.com", createdByUserId);
+
+        // Active tenants: create HRAdmin users + accepted first-admin invites
+        await SeedActiveTenantWithAdmin(dbContext, userManager, activeTenant1, "active.admin1@example.com", "Carlos", "Johnson", createdByUserId);
+        await SeedActiveTenantWithAdmin(dbContext, userManager, activeTenant2, "active.admin2@example.com", "Diana", "Lee", createdByUserId);
+        await SeedActiveTenantWithAdmin(dbContext, userManager, activeTenant3, "active.admin3@example.com", "Ethan", "Brown", createdByUserId);
+
+        // Ensure tenant state objects are persisted
+        await dbContext.SaveChangesAsync();
+    }
+
+    private static async Task SeedInviteForTenant(
+        AppIdentityDbContext dbContext,
+        Tenant tenant,
+        string email,
+        Guid createdByUserId,
+        string firstName,
+        string lastName)
+    {
+        var exists = await dbContext.InviteTokens.AnyAsync(
+            i => i.TenantId == tenant.Id && i.Role == PlatformRole.HRAdmin && i.Email == email,
             CancellationToken.None);
-        if (!invitedInviteExists)
+        if (!exists)
         {
             var invite = InviteToken.Create(
-                invitedAdminEmail,
-                invitedTenant.Id,
+                email,
+                tenant.Id,
                 PlatformRole.HRAdmin,
                 createdByUserId,
-                firstName: "Invited",
-                lastName: "Admin");
+                firstName: firstName,
+                lastName: lastName);
             dbContext.InviteTokens.Add(invite);
         }
+    }
 
-        // Create an expired first-admin invite (Attention)
-        const string attentionAdminEmail = "attention.admin@example.com";
-        var attentionInviteExists = await dbContext.InviteTokens.AnyAsync(
-            i => i.TenantId == attentionTenant.Id && i.Role == PlatformRole.HRAdmin && i.Email == attentionAdminEmail,
+    private static async Task SeedExpiredInviteForTenant(
+        AppIdentityDbContext dbContext,
+        Tenant tenant,
+        string email,
+        Guid createdByUserId)
+    {
+        var exists = await dbContext.InviteTokens.AnyAsync(
+            i => i.TenantId == tenant.Id && i.Role == PlatformRole.HRAdmin && i.Email == email,
             CancellationToken.None);
-        if (!attentionInviteExists)
+        if (!exists)
         {
             var invite = InviteToken.Create(
-                attentionAdminEmail,
-                attentionTenant.Id,
+                email,
+                tenant.Id,
                 PlatformRole.HRAdmin,
                 createdByUserId,
                 expiryDays: 1);
@@ -171,54 +217,59 @@ public static class IdentitySeeder
             SetPrivateProperty(invite, "ExpiresAt", DateTime.UtcNow.AddMinutes(-10));
             dbContext.InviteTokens.Add(invite);
         }
+    }
 
-        // Active tenant: create HRAdmin user + an accepted first-admin invite
-        const string activeAdminEmail = "active.admin@example.com";
-        var activeHrAdmin = await userManager.FindByEmailAsync(activeAdminEmail);
-        if (activeHrAdmin is null)
+    private static async Task SeedActiveTenantWithAdmin(
+        AppIdentityDbContext dbContext,
+        UserManager<ApplicationUser> userManager,
+        Tenant tenant,
+        string email,
+        string firstName,
+        string lastName,
+        Guid createdByUserId)
+    {
+        var admin = await userManager.FindByEmailAsync(email);
+        if (admin is null)
         {
-            activeHrAdmin = new ApplicationUser
+            admin = new ApplicationUser
             {
-                UserName = activeAdminEmail,
-                Email = activeAdminEmail,
-                NormalizedEmail = activeAdminEmail.ToUpperInvariant(),
-                FirstName = "Active",
-                LastName = "Admin",
+                UserName = email,
+                Email = email,
+                NormalizedEmail = email.ToUpperInvariant(),
+                FirstName = firstName,
+                LastName = lastName,
                 Department = "Platform",
                 JobTitle = "HR Admin",
                 HireDate = DateTime.UtcNow,
                 EmailConfirmed = true,
-                TenantId = activeTenant.Id,
+                TenantId = tenant.Id,
                 IsActive = true,
                 LastLoginAt = DateTime.UtcNow.AddMinutes(-30),
             };
 
-            var createRes = await userManager.CreateAsync(activeHrAdmin, "Admin@1234");
+            var createRes = await userManager.CreateAsync(admin, "Admin@1234");
             if (createRes.Succeeded)
-                await userManager.AddToRoleAsync(activeHrAdmin, PlatformRole.HRAdmin);
+                await userManager.AddToRoleAsync(admin, PlatformRole.HRAdmin);
         }
 
-        const string activeInviteEmail = "active.firstadmin@example.com";
-        var activeAcceptedInviteExists = await dbContext.InviteTokens.AnyAsync(
-            i => i.TenantId == activeTenant.Id && i.Role == PlatformRole.HRAdmin && i.Email == activeInviteEmail,
+        var inviteEmail = $"{firstName.ToLowerInvariant()}.firstadmin@example.com";
+        var inviteExists = await dbContext.InviteTokens.AnyAsync(
+            i => i.TenantId == tenant.Id && i.Role == PlatformRole.HRAdmin && i.Email == inviteEmail,
             CancellationToken.None);
-        if (!activeAcceptedInviteExists)
+        if (!inviteExists)
         {
             var invite = InviteToken.Create(
-                activeInviteEmail,
-                activeTenant.Id,
+                inviteEmail,
+                tenant.Id,
                 PlatformRole.HRAdmin,
                 createdByUserId,
-                firstName: "Active",
-                lastName: "Admin",
+                firstName: firstName,
+                lastName: lastName,
                 expiryDays: 14);
 
-            invite.MarkAccepted(activeHrAdmin!.Id);
+            invite.MarkAccepted(admin!.Id);
             dbContext.InviteTokens.Add(invite);
         }
-
-        // Ensure tenant state objects are persisted
-        await dbContext.SaveChangesAsync();
     }
 
     private static async Task<Tenant> GetOrCreateTenantAsync(
