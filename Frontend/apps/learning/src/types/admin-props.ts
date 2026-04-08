@@ -189,22 +189,32 @@ export interface ChapterFormInfoStepProps {
   fieldErrors?: Record<string, string>;
 }
 
-export interface ChapterFormContentStepProps {
+/** Grouped content state for ChapterFormContentStep — replaces individual props */
+export interface ChapterContentState {
   contentType: string;
   file: File | null;
-  onFileChange: (file: File | null) => void;
   existingFileUrl: string;
   textContent: string;
-  onTextContentChange: (v: string) => void;
   videoUrl: string;
-  onVideoUrlChange: (v: string) => void;
   estimatedDuration: number | "";
-  onEstimatedDurationChange: (v: number | "") => void;
   isUploading: boolean;
   selectedTemplate: ArticleTemplate | null;
-  onTemplateChange: (template: ArticleTemplate | null) => void;
   initialTemplateName?: string;
   sectionValues: Record<string, string>;
-  onSectionChange: (sectionId: string, value: string) => void;
   fieldErrors?: Record<string, string>;
+}
+
+/** Grouped content callbacks for ChapterFormContentStep */
+export interface ChapterContentHandlers {
+  onFileChange: (file: File | null) => void;
+  onTextContentChange: (v: string) => void;
+  onVideoUrlChange: (v: string) => void;
+  onEstimatedDurationChange: (v: number | "") => void;
+  onTemplateChange: (template: ArticleTemplate | null) => void;
+  onSectionChange: (sectionId: string, value: string) => void;
+}
+
+export interface ChapterFormContentStepProps {
+  content: ChapterContentState;
+  handlers: ChapterContentHandlers;
 }

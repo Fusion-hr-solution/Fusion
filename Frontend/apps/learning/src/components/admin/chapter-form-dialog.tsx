@@ -95,23 +95,27 @@ export function ChapterFormDialog({
 
             {/* Content */}
             <ChapterFormContentStep
-              contentType={form.contentType}
-              file={form.file}
-              onFileChange={(f) => { form.setFile(f); form.clearFieldError("file"); }}
-              existingFileUrl={form.contentUri}
-              textContent={form.textContent}
-              onTextContentChange={form.setTextContent}
-              videoUrl={form.videoUrl}
-              onVideoUrlChange={(v) => { form.setVideoUrl(v); form.clearFieldError("videoUrl"); }}
-              estimatedDuration={form.estimatedDuration}
-              onEstimatedDurationChange={(v) => { form.setEstimatedDuration(v); form.clearFieldError("estimatedDuration"); }}
-              isUploading={form.isUploading}
-              selectedTemplate={form.selectedTemplate}
-              onTemplateChange={form.handleTemplateChange}
-              initialTemplateName={form.initialTemplateName}
-              sectionValues={form.sectionValues}
-              onSectionChange={form.handleSectionChange}
-              fieldErrors={form.fieldErrors}
+              content={{
+                contentType: form.contentType,
+                file: form.file,
+                existingFileUrl: form.contentUri,
+                textContent: form.textContent,
+                videoUrl: form.videoUrl,
+                estimatedDuration: form.estimatedDuration,
+                isUploading: form.isUploading,
+                selectedTemplate: form.selectedTemplate,
+                initialTemplateName: form.initialTemplateName,
+                sectionValues: form.sectionValues,
+                fieldErrors: form.fieldErrors,
+              }}
+              handlers={{
+                onFileChange: (f) => { form.setFile(f); form.clearFieldError("file"); },
+                onTextContentChange: form.setTextContent,
+                onVideoUrlChange: (v) => { form.setVideoUrl(v); form.clearFieldError("videoUrl"); },
+                onEstimatedDurationChange: (v) => { form.setEstimatedDuration(v); form.clearFieldError("estimatedDuration"); },
+                onTemplateChange: form.handleTemplateChange,
+                onSectionChange: form.handleSectionChange,
+              }}
             />
 
             {/* Actions */}

@@ -1,32 +1,23 @@
 "use client";
 
-import { useState } from "react";
 import { Input, Label } from "@repo/ui";
 import type { ChapterFormContentStepProps } from "@/types/admin-props";
 import { FileUploadZone } from "./file-upload-zone";
 import { ArticleTemplateSelector } from "./article-template-selector";
 import { ArticleSectionEditor } from "./article-section-editor";
+import { VideoEditor } from "./create-training-wizard/video-editor";
 
-export function ChapterFormContentStep({
-  contentType,
-  file,
-  onFileChange,
-  existingFileUrl,
-  textContent,
-  onTextContentChange,
-  videoUrl,
-  onVideoUrlChange,
-  estimatedDuration,
-  onEstimatedDurationChange,
-  isUploading,
-  selectedTemplate,
-  onTemplateChange,
-  initialTemplateName,
-  sectionValues,
-  onSectionChange,
-  fieldErrors = {},
-}: ChapterFormContentStepProps) {
-  const [videoMode, setVideoMode] = useState<"upload" | "url">(existingFileUrl ? "upload" : "url");
+export function ChapterFormContentStep({ content, handlers }: ChapterFormContentStepProps) {
+  const {
+    contentType, file, existingFileUrl, textContent,
+    videoUrl, estimatedDuration, isUploading,
+    selectedTemplate, initialTemplateName,
+    sectionValues, fieldErrors = {},
+  } = content;
+  const {
+    onFileChange, onTextContentChange, onVideoUrlChange,
+    onEstimatedDurationChange, onTemplateChange, onSectionChange,
+  } = handlers;
 
   return (
     <div className="space-y-4">
@@ -46,47 +37,16 @@ export function ChapterFormContentStep({
       )}
 
       {contentType === "Video" && (
-        <div className="space-y-3">
-          <Label>Video Content *</Label>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${videoMode === "upload" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
-              onClick={() => setVideoMode("upload")}
-            >
-              Upload file
-            </button>
-            <button
-              type="button"
-              className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${videoMode === "url" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
-              onClick={() => setVideoMode("url")}
-            >
-              Enter URL
-            </button>
-          </div>
-          {videoMode === "upload" ? (
-            <FileUploadZone
-              accept=".mp4,.webm,.mov"
-              file={file}
-              onFileChange={onFileChange}
-              existingUrl={existingFileUrl}
-              label="Upload a video file (max 50 MB)"
-              disabled={isUploading}
-              error={fieldErrors.file}
-            />
-          ) : (
-            <div className="space-y-1">
-              <Input
-                maxLength={500}
-                value={videoUrl}
-                onChange={(e) => onVideoUrlChange(e.target.value)}
-                placeholder="https://youtube.com/..."
-                className={fieldErrors.videoUrl ? "border-destructive" : ""}
-              />
-              {fieldErrors.videoUrl && <p className="text-xs text-destructive">{fieldErrors.videoUrl}</p>}
-            </div>
-          )}
-        </div>
+        <VideoEditor
+          file={file}
+          onFileChange={onFileChange}
+          videoUrl={videoUrl}
+          onVideoUrlChange={onVideoUrlChange}
+          existingFileUrl={existingFileUrl}
+          fileError={fieldErrors.file}
+          urlError={fieldErrors.videoUrl}
+          disabled={isUploading}
+        />
       )}
 
       {contentType === "Article" && (
