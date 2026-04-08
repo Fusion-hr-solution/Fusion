@@ -52,6 +52,10 @@ export interface Question {
   durationMinutes: number;
   tags: string[];
   usageCount: number;
+  options?: { text: string; correct: boolean }[];
+  language?: string;
+  starterCode?: string;
+  evaluationCriteria?: string;
 }
 
 export interface NewQuestionForm {
@@ -112,4 +116,12 @@ export interface QuestionFilterState {
   types: QuestionType[];
   difficulties: Difficulty[];
   gradingMethods: GradingMethod[];
+}
+
+export interface Interview {
+  id: string;
+  candidate: string;
+  role: string;
+  status: "scheduled" | "in-progress" | "completed" | "cancelled";
+  date: string;
 }

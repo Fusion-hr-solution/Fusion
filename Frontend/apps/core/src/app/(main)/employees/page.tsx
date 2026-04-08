@@ -242,7 +242,7 @@ export default function EmployeesPage() {
             }
             action={
               filters.search || filters.department || filters.status
-                ? { label: "Clear filters", onClick: () => router.push("/core/employees") }
+                ? { label: "Clear filters", onClick: () => router.push("/employees") }
                 : undefined
             }
           />

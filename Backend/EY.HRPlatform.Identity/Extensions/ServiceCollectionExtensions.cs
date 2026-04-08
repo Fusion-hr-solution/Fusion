@@ -1,5 +1,6 @@
 ﻿using System.Text;
 using EY.HRPlatform.Identity.Domain.Entities;
+using EY.HRPlatform.Identity.Features.PlatformOrganizations.Services;
 using EY.HRPlatform.Identity.Features.Tenants.Services;
 using EY.HRPlatform.Identity.Infrastructure.Persistence;
 using EY.HRPlatform.Identity.Infrastructure.Services;
@@ -19,16 +20,29 @@ public static class ServiceCollectionExtensions
         if (string.IsNullOrEmpty(jwtSecret))
             throw new InvalidOperationException("Jwt:Secret is not configured. Set it via environment variable or appsettings.");
 
-        var connectionString = configuration.GetConnectionString("IdentityDb");
-        if (string.IsNullOrEmpty(connectionString))
-            throw new InvalidOperationException("ConnectionStrings:IdentityDb is not configured. Set it via environment variable or appsettings.");
+        var databaseProvider = configuration["Database:Provider"] ?? "postgres";
+        var inMemoryName = configuration["Database:InMemoryName"] ?? "identity_inmemory";
 
-        // 1. Register PostgreSQL database
-        services.AddDbContext<AppIdentityDbContext>(options =>
-            options.UseNpgsql(
-                connectionString,
-                npgsql => npgsql.MigrationsHistoryTable(
-                    "__EFMigrationsHistory", "identity")));
+        // 1. Register database
+        if (databaseProvider.Equals("inmemory", StringComparison.OrdinalIgnoreCase))
+        {
+            services.AddDbContext<AppIdentityDbContext>(options =>
+                options.UseInMemoryDatabase(inMemoryName));
+        }
+        else
+        {
+            var connectionString = configuration.GetConnectionString("IdentityDb");
+            if (string.IsNullOrEmpty(connectionString))
+                throw new InvalidOperationException(
+                    "ConnectionStrings:IdentityDb is not configured. Set it via environment variable or appsettings.");
+
+            // PostgreSQL database
+            services.AddDbContext<AppIdentityDbContext>(options =>
+                options.UseNpgsql(
+                    connectionString,
+                    npgsql => npgsql.MigrationsHistoryTable(
+                        "__EFMigrationsHistory", "identity")));
+        }
 
         // 2. Register ASP.NET Core Identity
         services.AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
@@ -68,6 +82,7 @@ public static class ServiceCollectionExtensions
         // 4. Register our custom services
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<ITenantService, TenantService>();
+        services.AddScoped<IPlatformOrganizationService, PlatformOrganizationService>();
 
         return services;
     }

@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Search, Plus, Eye, Minus, GripVertical, X, Inbox,
   CheckCircle2, BarChart2, Zap, Clock, ChevronLeft,
   ChevronRight, SlidersHorizontal, ArrowLeft, ArrowRight, ListChecks,
-  Filter,
+  Filter, Flag, Pencil, MoreHorizontal,
 } from "lucide-react";
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor,
@@ -17,13 +18,10 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useWizardStore } from "@/store/wizard-store";
-import { MOCK_QUESTIONS } from "@/services/test-service";
+import { getQuestions } from "@/services/test-service";
 import { QUESTION_TYPES, DIFFICULTIES, GRADING_METHODS, SORT_OPTIONS } from "@/config/constants";
-import { CreateQuestionSheet } from "./create-question-sheet";
 import { cn } from "@/lib/utils";
 import type { Question, QuestionFilterState, SortOption, Difficulty } from "@/types";
-
-// ─── Diff badge colours ───────────────────────────────────────────────────────
 
 const DIFF_STYLES: Record<Difficulty, string> = {
   Easy:   "bg-emerald-50 text-emerald-700 border-emerald-100",
@@ -35,9 +33,13 @@ const DIFF_STYLES: Record<Difficulty, string> = {
 // ─── Sortable selected-question row ──────────────────────────────────────────
 
 function SortableRow({
-  question, index, onRemove,
+  question, index, flagged, onPreview, onRemove,
 }: {
-  question: Question; index: number; onRemove: (id: string) => void;
+  question: Question;
+  index: number;
+  flagged: boolean;
+  onPreview: (question: Question) => void;
+  onRemove: (id: string) => void;
 }) {
   const {
     attributes, listeners, setNodeRef,
@@ -54,9 +56,10 @@ function SortableRow({
       <button
         {...attributes} {...listeners}
         tabIndex={-1}
+        aria-label={`Reorder question ${index + 1}`}
         className="mt-0.5 shrink-0 cursor-grab touch-none text-zinc-300 hover:text-zinc-400"
       >
-        <GripVertical className="h-3.5 w-3.5" />
+        <GripVertical className="h-3.5 w-3.5" aria-hidden="true" />
       </button>
 
       {/* index badge */}
@@ -76,16 +79,32 @@ function SortableRow({
           <span className="rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] font-bold text-zinc-600">
             {question.points}pt
           </span>
+          {flagged ? (
+            <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
+              <Flag className="h-2.5 w-2.5" /> Flagged
+            </span>
+          ) : null}
         </div>
       </div>
 
-      {/* remove */}
-      <button
-        onClick={() => onRemove(question.id)}
-        className="mt-0.5 shrink-0 rounded-md p-0.5 text-zinc-300 transition-colors duration-150 hover:bg-red-50 hover:text-red-500"
-      >
-        <X className="h-3.5 w-3.5" />
-      </button>
+      <div className="mt-0.5 flex shrink-0 items-center gap-1">
+        <button
+          onClick={() => onPreview(question)}
+          className="rounded-md p-0.5 text-zinc-300 transition-colors duration-150 hover:bg-zinc-100 hover:text-zinc-500"
+          title="Edit / Preview"
+          aria-label="Edit or preview question"
+        >
+          <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+        </button>
+        <button
+          onClick={() => onRemove(question.id)}
+          className="rounded-md p-0.5 text-zinc-300 transition-colors duration-150 hover:bg-red-50 hover:text-red-500"
+          title="Delete"
+          aria-label="Delete question"
+        >
+          <X className="h-3.5 w-3.5" aria-hidden="true" />
+        </button>
+      </div>
     </div>
   );
 }
@@ -93,19 +112,64 @@ function SortableRow({
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function StepQuestions() {
+  const router = useRouter();
   const {
     selectedQuestions, addQuestion, removeQuestion,
     reorderQuestions, isQuestionSelected, nextStep, prevStep,
+    previewFlaggedQuestionIds,
+    togglePreviewFlaggedQuestion,
   } = useWizardStore();
+
+  const flaggedIdSet = new Set(previewFlaggedQuestionIds);
 
   const [filters,      setFilters]      = useState<QuestionFilterState>({ search: "", types: [], difficulties: [], gradingMethods: [] });
   const [sortBy,       setSortBy]       = useState<SortOption>("newest");
   const [libPage,      setLibPage]      = useState(1);
   const [previewQ,     setPreviewQ]     = useState<Question | null>(null);
-  const [sheetOpen,    setSheetOpen]    = useState(false);
+  const [openCardMenuId, setOpenCardMenuId] = useState<string | null>(null);
   const [sortOpen,     setSortOpen]     = useState(false);
   const [filtersOpen,  setFiltersOpen]  = useState(true);
+  const [questionLibrary, setQuestionLibrary] = useState<Question[]>([]);
+  const [isLoadingLibrary, setIsLoadingLibrary] = useState(true);
+  const [libraryError, setLibraryError] = useState<string | null>(null);
   const PAGE_SIZE = 8;
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadLibrary() {
+      setIsLoadingLibrary(true);
+      setLibraryError(null);
+      try {
+        const data = await getQuestions();
+        if (isMounted) setQuestionLibrary(data);
+      } catch (err) {
+        if (isMounted) {
+          setLibraryError(err instanceof Error ? err.message : "Failed to load question library.");
+          setQuestionLibrary([]);
+        }
+      } finally {
+        if (isMounted) setIsLoadingLibrary(false);
+      }
+    }
+
+    void loadLibrary();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    function handleOutsideClick(event: MouseEvent) {
+      const target = event.target as Element | null;
+      if (!target?.closest("[data-question-card-menu]")) {
+        setOpenCardMenuId(null);
+      }
+    }
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, []);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -132,7 +196,7 @@ export function StepQuestions() {
   const activeFilterCount =
     filters.types.length + filters.difficulties.length + filters.gradingMethods.length;
 
-  const filteredLib = MOCK_QUESTIONS
+  const filteredLib = questionLibrary
     .filter((q) => {
       if (filters.search             && !q.title.toLowerCase().includes(filters.search.toLowerCase())) return false;
       if (filters.types.length       && !filters.types.includes(q.type))                              return false;
@@ -152,9 +216,9 @@ export function StepQuestions() {
   const pagedLib    = filteredLib.slice((libPage - 1) * PAGE_SIZE, libPage * PAGE_SIZE);
   const totalPoints = selectedQuestions.reduce((s, q) => s + q.points, 0);
 
-  const typeCounts = Object.fromEntries(QUESTION_TYPES.map((t)  => [t, MOCK_QUESTIONS.filter((q) => q.type === t).length]));
-  const diffCounts = Object.fromEntries(DIFFICULTIES.map((d)    => [d, MOCK_QUESTIONS.filter((q) => q.difficulty === d).length]));
-  const gradCounts = Object.fromEntries(GRADING_METHODS.map((g) => [g, MOCK_QUESTIONS.filter((q) => q.gradingMethod === g).length]));
+  const typeCounts = Object.fromEntries(QUESTION_TYPES.map((t)  => [t, questionLibrary.filter((q) => q.type === t).length]));
+  const diffCounts = Object.fromEntries(DIFFICULTIES.map((d)    => [d, questionLibrary.filter((q) => q.difficulty === d).length]));
+  const gradCounts = Object.fromEntries(GRADING_METHODS.map((g) => [g, questionLibrary.filter((q) => q.gradingMethod === g).length]));
 
   return (
     <div className="flex flex-col gap-6 pb-4">
@@ -256,7 +320,7 @@ export function StepQuestions() {
 
         {/* new question CTA */}
         <button
-          onClick={() => setSheetOpen(true)}
+          onClick={() => router.push("/tests/create/questions/new")}
           className="flex items-center gap-2 rounded-xl bg-zinc-900 px-4 py-2.5 text-[13px] font-semibold text-white shadow-sm hover:bg-zinc-800 active:scale-[0.98] transition-all duration-150"
         >
           <Plus className="h-4 w-4" />
@@ -353,7 +417,15 @@ export function StepQuestions() {
           </div>
 
           {/* grid */}
-          {pagedLib.length === 0 ? (
+          {isLoadingLibrary ? (
+            <div className="rounded-2xl border border-zinc-200 bg-white py-10 text-center text-[13px] text-zinc-500">
+              Loading question library...
+            </div>
+          ) : libraryError ? (
+            <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-[13px] text-red-700">
+              {libraryError}
+            </div>
+          ) : pagedLib.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-zinc-200 py-20">
               <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-100">
                 <Inbox className="h-6 w-6 text-zinc-400" />
@@ -370,21 +442,33 @@ export function StepQuestions() {
             <div className="grid grid-cols-3 gap-4">
               {pagedLib.map((q) => {
                 const selected = isQuestionSelected(q.id);
+                const flagged = flaggedIdSet.has(q.id);
                 return (
                   <div
                     key={q.id}
-                    onClick={() => selected ? removeQuestion(q.id) : addQuestion(q)}
+                    onClick={() => {
+                      if (flagged) return;
+                      setOpenCardMenuId(null);
+                      selected ? removeQuestion(q.id) : addQuestion(q);
+                    }}
                     className={cn(
-                      "group relative flex cursor-pointer flex-col gap-2 overflow-hidden rounded-2xl border-2 p-4 transition-all duration-150",
+                      "group relative flex cursor-pointer flex-col gap-2 overflow-visible rounded-2xl border-2 p-4 transition-all duration-150",
                       selected
                         ? "border-zinc-900 bg-zinc-50 shadow-md"
-                        : "border-zinc-100 bg-white hover:border-zinc-300 hover:shadow-lg"
+                        : "border-zinc-100 bg-white hover:border-zinc-300 hover:shadow-lg",
+                      flagged && "cursor-default",
+                      openCardMenuId === q.id && "z-30"
                     )}
                   >
                     {/* selected tick */}
                     {selected && (
                       <CheckCircle2 className="absolute right-3 top-3 h-5 w-5 fill-zinc-900 text-white" />
                     )}
+
+                    {/* flagged marker from candidate preview */}
+                    {flagged ? (
+                      <div className="pointer-events-none absolute inset-0 z-[1] bg-white/35 backdrop-blur-[1.5px]" />
+                    ) : null}
 
                     {/* type + difficulty + points */}
                     <div className="flex flex-wrap items-center gap-1.5 pr-6">
@@ -436,14 +520,54 @@ export function StepQuestions() {
                       className="flex items-center justify-between border-t border-zinc-100 pt-2"
                       onClick={(e) => e.stopPropagation()}
                     >
+                      <div className="relative z-30" data-question-card-menu>
+                        <button
+                          onClick={() => setOpenCardMenuId((prev) => (prev === q.id ? null : q.id))}
+                          className="flex h-7 w-7 items-center justify-center rounded-md text-zinc-400 transition-colors duration-150 hover:bg-zinc-100 hover:text-zinc-700"
+                          aria-label="Open question actions"
+                        >
+                          <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
+                        </button>
+
+                        {openCardMenuId === q.id ? (
+                          <div className="absolute left-0 top-full z-40 mt-1 w-36 overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-lg">
+                            <button
+                              onClick={() => {
+                                router.push(`/tests/create/questions/${q.id}/edit?from=/tests/create`);
+                                setOpenCardMenuId(null);
+                              }}
+                              className="flex w-full items-center gap-2 px-3 py-2 text-left text-[12px] text-zinc-700 hover:bg-zinc-50"
+                            >
+                              <Pencil className="h-3.5 w-3.5" aria-hidden="true" /> Edit
+                            </button>
+                            <button
+                              onClick={() => {
+                                setQuestionLibrary((prev) => prev.filter((item) => item.id !== q.id));
+                                removeQuestion(q.id);
+                                setOpenCardMenuId(null);
+                              }}
+                              className="flex w-full items-center gap-2 px-3 py-2 text-left text-[12px] text-red-600 hover:bg-zinc-50"
+                            >
+                              <X className="h-3.5 w-3.5" aria-hidden="true" /> Delete
+                            </button>
+                            <button
+                              onClick={() => {
+                                setPreviewQ(q);
+                                setOpenCardMenuId(null);
+                              }}
+                              className="flex w-full items-center gap-2 px-3 py-2 text-left text-[12px] text-zinc-700 hover:bg-zinc-50"
+                            >
+                              <Eye className="h-3.5 w-3.5" aria-hidden="true" /> Preview
+                            </button>
+                          </div>
+                        ) : null}
+                      </div>
+
                       <button
-                        onClick={() => setPreviewQ(q)}
-                        className="flex items-center gap-1 rounded-lg px-2 py-1 text-[12px] font-medium text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 transition-colors duration-150"
-                      >
-                        <Eye className="h-3.5 w-3.5" /> Preview
-                      </button>
-                      <button
-                        onClick={() => selected ? removeQuestion(q.id) : addQuestion(q)}
+                        onClick={() => {
+                          setOpenCardMenuId(null);
+                          selected ? removeQuestion(q.id) : addQuestion(q);
+                        }}
                         className={cn(
                           "flex items-center gap-1.5 rounded-lg px-3 py-1 text-[12px] font-semibold transition-all duration-150",
                           selected
@@ -457,6 +581,23 @@ export function StepQuestions() {
                         }
                       </button>
                     </div>
+
+                    {flagged ? (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          togglePreviewFlaggedQuestion(q.id);
+                        }}
+                        className="absolute inset-0 z-[2] flex items-center justify-center"
+                        title="Click to clear flag"
+                        aria-label="Clear flag"
+                      >
+                        <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-amber-200 bg-amber-50 text-amber-700 shadow-sm transition-colors duration-150 hover:bg-amber-100">
+                          <Flag className="h-4 w-4" />
+                        </span>
+                      </button>
+                    ) : null}
                   </div>
                 );
               })}
@@ -579,6 +720,8 @@ export function StepQuestions() {
                           key={q.id}
                           question={q}
                           index={i}
+                          flagged={flaggedIdSet.has(q.id)}
+                          onPreview={(question) => setPreviewQ(question)}
                           onRemove={removeQuestion}
                         />
                       ))}
@@ -622,13 +765,6 @@ export function StepQuestions() {
         </button>
       </div>
 
-      {/* ── Create question sheet ───────────────────────────────── */}
-      <CreateQuestionSheet
-        open={sheetOpen}
-        onClose={() => setSheetOpen(false)}
-        onSaveAndAdd={addQuestion}
-      />
-
       {/* ── Question preview modal ──────────────────────────────── */}
       {previewQ && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -648,9 +784,10 @@ export function StepQuestions() {
               </div>
               <button
                 onClick={() => setPreviewQ(null)}
+                aria-label="Close question preview"
                 className="flex h-8 w-8 items-center justify-center rounded-xl text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 transition-colors duration-150"
               >
-                <X className="h-4 w-4" />
+                <X className="h-4 w-4" aria-hidden="true" />
               </button>
             </div>
 

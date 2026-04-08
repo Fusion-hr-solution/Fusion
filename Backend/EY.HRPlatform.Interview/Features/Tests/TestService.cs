@@ -114,7 +114,7 @@ public class TestService(AppDbContext dbContext) : ITestService
         test.Title = request.Title.Trim();
         test.Description = string.IsNullOrWhiteSpace(request.Description) ? string.Empty : request.Description.Trim();
         test.Discipline = ParseDiscipline(request.Discipline);
-        test.Status = string.IsNullOrWhiteSpace(request.Status) ? TestStatus.Draft : ParseStatus(request.Status);
+        test.Status = string.IsNullOrWhiteSpace(request.Status) ? test.Status : ParseStatus(request.Status);
 
         await dbContext.SaveChangesAsync(cancellationToken);
 

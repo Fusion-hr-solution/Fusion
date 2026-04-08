@@ -56,4 +56,14 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Fusion Core app UI: tighter radii + EY yellow focus ring for shadcn primitives inside this scope */
+  .core-ui-root {
+    --radius: 0.25rem;
+    --ring: 48 95% 42%;
+  }
+
+  .dark .core-ui-root {
+    --ring: 48 92% 58%;
+  }
 }
