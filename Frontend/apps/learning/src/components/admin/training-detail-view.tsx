@@ -9,6 +9,7 @@ import {
   getAdminTrainingDetail,
   deleteChapter,
   deleteTraining,
+  reorderChapters,
 } from "@/services/admin-service";
 import type { AdminChapter } from "@/types/admin";
 import type { TrainingDetailViewProps } from "@/types/admin-props";
@@ -39,6 +40,11 @@ export function TrainingDetailView({ trainingId }: TrainingDetailViewProps) {
   const { mutateAsync: removeTraining } = useApiMutation(
     () => deleteTraining(trainingId),
     { onSuccess: () => router.push("/admin/trainings") },
+  );
+
+  const { mutateAsync: doReorder } = useApiMutation(
+    (chapterIds: string[]) => reorderChapters(trainingId, chapterIds),
+    { onSuccess: () => refetch() },
   );
 
   const handleDeleteChapter = useCallback(
@@ -131,6 +137,7 @@ export function TrainingDetailView({ trainingId }: TrainingDetailViewProps) {
         onAddChapter={() => { setEditingChapter(null); setChapterDialogOpen(true); }}
         onEditChapter={(ch) => { setEditingChapter(ch); setChapterDialogOpen(true); }}
         onDeleteChapter={handleDeleteChapter}
+        onReorder={doReorder}
       />
 
       {/* Exams */}

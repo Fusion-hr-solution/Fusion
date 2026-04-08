@@ -225,6 +225,13 @@ export async function deleteChapter(trainingId: string, chapterId: string): Prom
   );
 }
 
+export async function reorderChapters(trainingId: string, chapterIds: string[]): Promise<void> {
+  await client.put(
+    `/training/admin/trainings/${encodeURIComponent(trainingId)}/chapters/reorder`,
+    { chapterIds },
+  );
+}
+
 // --- File upload ---
 
 export async function uploadChapterFile(file: File): Promise<string> {
