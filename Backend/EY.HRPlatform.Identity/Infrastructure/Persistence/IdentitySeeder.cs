@@ -252,7 +252,7 @@ public static class IdentitySeeder
                 await userManager.AddToRoleAsync(admin, PlatformRole.HRAdmin);
         }
 
-        var inviteEmail = $"{firstName.ToLowerInvariant()}.firstadmin@example.com";
+        var inviteEmail = $"{firstName.ToLowerInvariant()}-firstadmin@example.com";
         var inviteExists = await dbContext.InviteTokens.AnyAsync(
             i => i.TenantId == tenant.Id && i.Role == PlatformRole.HRAdmin && i.Email == inviteEmail,
             CancellationToken.None);

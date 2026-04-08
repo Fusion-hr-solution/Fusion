@@ -87,6 +87,7 @@ export function OrganizationDetailView({ org }: { org: Organization }) {
 
   // Determine which actions should be available based on lifecycle
   const canResendInvite =
+    org.pendingInvites > 0 &&
     org.lifecycle !== "suspended" &&
     org.lifecycle !== "archived" &&
     (org.lifecycle === "invited" ||

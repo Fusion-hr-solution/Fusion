@@ -1,5 +1,3 @@
-import Image from "next/image";
-
 const SWATCHES: Array<{ name: string; className: string }> = [
   { name: "Primary", className: "bg-ch-primary" },
   { name: "Primary container", className: "bg-ch-primary-container" },
