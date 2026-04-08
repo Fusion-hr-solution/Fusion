@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useId, useMemo, useState } from "react";
 import {
   ArrowRight,
@@ -24,7 +24,6 @@ import { cn } from "@/lib/utils";
 const anonClient = createApiClient({ baseUrl: "/api" });
 
 export function PublicInviteView() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const reactId = useId();
   const token = searchParams.get("token");
@@ -137,6 +136,12 @@ export function PublicInviteView() {
       ? process.env.NEXT_PUBLIC_SHELL_ORIGIN ?? "http://localhost:3000"
       : "http://localhost:3000";
 
+  // Build URL to sign in with redirect to welcome page (must be before conditionals)
+  const welcomeRedirectUrl = useMemo(() => {
+    const callbackUrl = encodeURIComponent("/core/welcome?activation=1");
+    return `${shellOrigin}/auth/signin?callbackUrl=${callbackUrl}`;
+  }, [shellOrigin]);
+
   if (loading) {
     return (
       <div className="core-ui-root flex min-h-screen items-center justify-center bg-ch-surface font-chBody text-ch-on-surface">
@@ -149,13 +154,9 @@ export function PublicInviteView() {
     return (
       <div className="core-ui-root flex min-h-screen flex-col items-center justify-center bg-ch-surface px-6 font-chBody text-ch-on-surface">
         <p className="max-w-md text-center text-sm text-ch-error">{inviteError}</p>
-        <button
-          type="button"
-          className="mt-6 text-sm font-semibold text-ch-primary underline"
-          onClick={() => router.push("/organizations")}
-        >
-          Back
-        </button>
+        <p className="mt-6 max-w-md text-center text-xs text-ch-on-surface-variant">
+          Please contact your administrator for a new invitation.
+        </p>
       </div>
     );
   }
@@ -163,18 +164,22 @@ export function PublicInviteView() {
   if (done) {
     return (
       <div className="core-ui-root flex min-h-screen flex-col items-center justify-center bg-ch-surface px-6 font-chBody text-ch-on-surface">
-        <h1 className="font-chHeadline text-2xl font-bold text-ch-on-surface">
-          You&apos;re in
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-ch-tertiary-container">
+          <CheckCircle className="h-8 w-8 text-ch-on-tertiary-container" />
+        </div>
+        <h1 className="mt-6 font-chHeadline text-2xl font-bold text-ch-on-surface">
+          Your organization is now active
         </h1>
         <p className="mt-3 max-w-md text-center text-sm text-ch-secondary">
-          Your account is ready. Sign in with your work email and the password
-          you chose.
+          Your account has been created. Sign in to access your Admin Dashboard
+          and start setting up your organization.
         </p>
         <a
-          href={shellOrigin}
-          className="mt-8 inline-flex items-center gap-2 rounded-ch-md bg-ch-primary px-6 py-3 text-sm font-bold text-ch-on-primary"
+          href={welcomeRedirectUrl}
+          className="mt-8 inline-flex items-center gap-2 rounded-ch-md bg-ch-primary px-6 py-3 text-sm font-bold text-ch-on-primary transition-colors hover:bg-ch-primary/90"
         >
-          Go to sign in
+          Continue to your organization
+          <ArrowRight className="h-4 w-4" />
         </a>
       </div>
     );

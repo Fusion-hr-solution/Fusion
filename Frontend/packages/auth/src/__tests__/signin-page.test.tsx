@@ -10,10 +10,14 @@ import { makeAuthResponse, makeApiError, makeStoredAuth } from "./helpers";
 // Mock next/navigation
 const mockPush = vi.fn();
 const mockReplace = vi.fn();
+const mockSearchParamGet = vi.fn<(key: string) => string | null>();
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
     push: mockPush,
     replace: mockReplace,
+  }),
+  useSearchParams: () => ({
+    get: mockSearchParamGet,
   }),
 }));
 
@@ -37,6 +41,7 @@ const mockedService = vi.mocked(authService);
 beforeEach(() => {
   vi.clearAllMocks();
   mockedService.loadAuth.mockReturnValue(null);
+  mockSearchParamGet.mockReturnValue(null);
 });
 
 function renderSignInPage(props = {}) {
@@ -103,6 +108,38 @@ describe("SignInPage", () => {
       });
     });
 
+    it("redirects to callbackUrl on successful login when provided", async () => {
+      mockedService.login.mockResolvedValue(makeAuthResponse());
+      mockSearchParamGet.mockImplementation((key) =>
+        key === "callbackUrl" ? "/core/welcome?activation=1" : null
+      );
+      renderSignInPage();
+
+      await userEvent.type(screen.getByLabelText(/email/i), "test@example.com");
+      await userEvent.type(screen.getByLabelText(/password/i), "password123");
+      await userEvent.click(screen.getByRole("button", { name: /sign in/i }));
+
+      await waitFor(() => {
+        expect(mockPush).toHaveBeenCalledWith("/core/welcome?activation=1");
+      });
+    });
+
+    it("uses next when callbackUrl is not present", async () => {
+      mockedService.login.mockResolvedValue(makeAuthResponse());
+      mockSearchParamGet.mockImplementation((key) =>
+        key === "next" ? "/core/welcome?activation=1" : null
+      );
+      renderSignInPage();
+
+      await userEvent.type(screen.getByLabelText(/email/i), "test@example.com");
+      await userEvent.type(screen.getByLabelText(/password/i), "password123");
+      await userEvent.click(screen.getByRole("button", { name: /sign in/i }));
+
+      await waitFor(() => {
+        expect(mockPush).toHaveBeenCalledWith("/core/welcome?activation=1");
+      });
+    });
+
     it("calls onSuccess callback on successful login", async () => {
       mockedService.login.mockResolvedValue(makeAuthResponse());
       const onSuccess = vi.fn();
@@ -156,6 +193,18 @@ describe("SignInPage", () => {
 
       await waitFor(() => {
         expect(mockReplace).toHaveBeenCalledWith("/");
+      });
+    });
+
+    it("redirects to callbackUrl when already authenticated", async () => {
+      mockedService.loadAuth.mockReturnValue(makeStoredAuth());
+      mockSearchParamGet.mockImplementation((key) =>
+        key === "callbackUrl" ? "/core/welcome?activation=1" : null
+      );
+      renderSignInPage();
+
+      await waitFor(() => {
+        expect(mockReplace).toHaveBeenCalledWith("/core/welcome?activation=1");
       });
     });
 

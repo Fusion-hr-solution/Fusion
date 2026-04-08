@@ -27,6 +27,7 @@ import {
 } from "../lib/org-action-flags";
 import type { Organization } from "../types/organization";
 import { cn } from "@/lib/utils";
+import { ConfirmDialog } from "./confirm-dialog";
 
 export function OrganizationRowActions({ org }: { org: Organization }) {
   const {
@@ -38,6 +39,9 @@ export function OrganizationRowActions({ org }: { org: Organization }) {
   } = useOrganizations();
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [confirmAction, setConfirmAction] = useState<
+    "suspend" | "revoke" | null
+  >(null);
 
   const flash = useCallback((msg: string) => {
     setToast(msg);
@@ -221,7 +225,7 @@ export function OrganizationRowActions({ org }: { org: Organization }) {
               disabled={busy}
               onSelect={(e) => {
                 e.preventDefault();
-                void revokeInvite();
+                setConfirmAction("revoke");
               }}
               className="cursor-pointer rounded-ch-sm text-ch-error data-[highlighted]:bg-ch-error-container/35 data-[highlighted]:text-ch-error"
             >
@@ -239,7 +243,7 @@ export function OrganizationRowActions({ org }: { org: Organization }) {
               disabled={busy}
               onSelect={(e) => {
                 e.preventDefault();
-                void suspend();
+                setConfirmAction("suspend");
               }}
               className="cursor-pointer rounded-ch-sm text-ch-error data-[highlighted]:bg-ch-error-container/35 data-[highlighted]:text-ch-error"
             >
@@ -263,6 +267,28 @@ export function OrganizationRowActions({ org }: { org: Organization }) {
           ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
+
+      {/* Confirmation Dialogs */}
+      <ConfirmDialog
+        open={confirmAction === "suspend"}
+        onOpenChange={(open) => !open && setConfirmAction(null)}
+        title="Suspend Organization"
+        description={`This will temporarily disable access for all users in ${org.name}. The organization can be reactivated later.`}
+        confirmLabel="Suspend"
+        variant="destructive"
+        onConfirm={suspend}
+        loading={busy}
+      />
+      <ConfirmDialog
+        open={confirmAction === "revoke"}
+        onOpenChange={(open) => !open && setConfirmAction(null)}
+        title="Revoke Invitation"
+        description="This will cancel the pending invitation. The invitee will no longer be able to use the invite link."
+        confirmLabel="Revoke Invite"
+        variant="destructive"
+        onConfirm={revokeInvite}
+        loading={busy}
+      />
     </div>
   );
 }
