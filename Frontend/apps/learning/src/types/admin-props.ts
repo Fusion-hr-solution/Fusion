@@ -4,6 +4,7 @@ import type { Employee, Training, TrainingCategory, TrainingStatus } from "./ind
 /* ── Wizard shared state (used by create + edit wizards) ── */
 
 export interface WizardState {
+  mode: "create" | "edit";
   step: number;
   setStep: (step: number) => void;
   formError: string | null;

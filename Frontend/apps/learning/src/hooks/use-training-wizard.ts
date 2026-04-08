@@ -225,6 +225,7 @@ export function useTrainingWizard({ mode, trainingId }: UseTrainingWizardOptions
   const isReady = canAdvanceStep1 && (mode === "create" ? chapters.length > 0 : true);
 
   return {
+    mode,
     step, setStep, formError, setFormError, isSubmitting,
     loadingDetail: mode === "edit" ? loadingDetail : false,
     title, setTitle, description, setDescription,

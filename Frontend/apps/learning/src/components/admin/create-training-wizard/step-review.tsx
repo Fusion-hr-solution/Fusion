@@ -50,7 +50,7 @@ export function StepReview({ wizard }: StepReviewProps) {
     try {
       await wizard.handleSubmit();
     } catch {
-      setActionMessage("Failed to create training.");
+      setActionMessage(wizard.mode === "edit" ? "Failed to update training." : "Failed to create training.");
     }
   }
 
@@ -62,9 +62,9 @@ export function StepReview({ wizard }: StepReviewProps) {
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-foreground">
             <ClipboardCheck className="h-3.5 w-3.5 text-background" />
           </div>
-          <h2 className="text-xl font-bold tracking-tight text-foreground">Review & Create</h2>
+          <h2 className="text-xl font-bold tracking-tight text-foreground">{wizard.mode === "edit" ? "Review & Save" : "Review & Create"}</h2>
         </div>
-        <p className="ml-9 text-[13px] text-muted-foreground">Verify everything before creating your training</p>
+        <p className="ml-9 text-[13px] text-muted-foreground">{wizard.mode === "edit" ? "Verify everything before saving your changes" : "Verify everything before creating your training"}</p>
       </div>
 
       <div className="grid grid-cols-2 gap-5">
@@ -121,7 +121,7 @@ export function StepReview({ wizard }: StepReviewProps) {
             <div className="px-6 py-5">
               <div className="mb-4">
                 <span className={`rounded-xl px-4 py-1.5 text-[13px] font-bold ${isReady ? "bg-foreground text-background" : "bg-muted text-muted-foreground"}`}>
-                  {isReady ? "✓ Ready to Create" : "Needs Attention"}
+                  {isReady ? (wizard.mode === "edit" ? "✓ Ready to Save" : "✓ Ready to Create") : "Needs Attention"}
                 </span>
               </div>
               <div className="flex flex-col gap-2">
@@ -152,7 +152,7 @@ export function StepReview({ wizard }: StepReviewProps) {
           }`}
         >
           {wizard.isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-          {wizard.isSubmitting ? "Creating..." : "Create Training"}
+          {wizard.isSubmitting ? (wizard.mode === "edit" ? "Saving..." : "Creating...") : (wizard.mode === "edit" ? "Save Changes" : "Create Training")}
         </button>
       </div>
       {(actionMessage || wizard.formError) && (
