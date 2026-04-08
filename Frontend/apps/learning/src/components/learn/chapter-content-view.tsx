@@ -4,6 +4,19 @@ import { Video, FileText, BookOpen, Dumbbell, CheckCircle2 } from "lucide-react"
 import type { ChapterContentViewProps } from "@/types/component-props";
 import { ChapterNavigation } from "./chapter-navigation";
 
+/**
+ * Resolve a backend asset path (e.g. /api/training/uploads/...) to a full URL.
+ * In dev the frontend and backend run on different ports, so relative paths
+ * would hit the Next.js server instead of the API gateway.
+ */
+function resolveAssetUrl(path: string): string {
+  if (!path) return path;
+  if (/^https?:\/\//i.test(path)) return path;             // already absolute
+  const base = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";  // e.g. http://localhost:5000/api
+  const origin = base.replace(/\/api\/?$/, "");             // e.g. http://localhost:5000
+  return origin ? `${origin}${path}` : path;
+}
+
 const CONTENT_TYPE_ICON = {
   video: Video,
   pdf: FileText,
@@ -79,7 +92,7 @@ export function ChapterContentView({
         {chapter.contentType === "pdf" && chapter.contentUri && (
           <div className="mb-8 overflow-hidden rounded-2xl border border-border aspect-[3/4]">
             <iframe
-              src={chapter.contentUri}
+              src={resolveAssetUrl(chapter.contentUri)}
               title={chapter.title}
               className="h-full w-full"
             />
@@ -116,6 +129,21 @@ export function ChapterContentView({
 function renderArticleContent(textContent: string) {
   try {
     const parsed = JSON.parse(textContent);
+    // New format: sections as array of { label, content }
+    if (Array.isArray(parsed.sections)) {
+      const sections = parsed.sections as { label: string; content: string }[];
+      return (
+        <article className="prose prose-sm max-w-none mb-8 space-y-6 rounded-2xl border border-border/50 bg-white p-8 shadow-sm">
+          {sections.map((s) => (
+            <section key={s.label}>
+              <h2 className="text-lg font-semibold text-foreground mb-2">{s.label}</h2>
+              <div dangerouslySetInnerHTML={{ __html: renderMarkdown(s.content) }} />
+            </section>
+          ))}
+        </article>
+      );
+    }
+    // Legacy format: sections as Record<key, value>
     if (parsed.sections && typeof parsed.sections === "object") {
       const entries = Object.entries(parsed.sections) as [string, string][];
       return (

@@ -21,6 +21,7 @@ export function ChapterFormContentStep({
   isUploading,
   selectedTemplate,
   onTemplateChange,
+  initialTemplateName,
   sectionValues,
   onSectionChange,
   fieldErrors = {},
@@ -93,6 +94,7 @@ export function ChapterFormContentStep({
           <ArticleTemplateSelector
             selectedTemplateId={selectedTemplate?.id ?? ""}
             onTemplateChange={onTemplateChange}
+            initialTemplateName={initialTemplateName}
           />
           {selectedTemplate && (
             <ArticleSectionEditor

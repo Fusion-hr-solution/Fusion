@@ -49,6 +49,11 @@ app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new PhysicalFileProvider(uploadsPath),
     RequestPath = "/api/training/uploads",
+    OnPrepareResponse = ctx =>
+    {
+        // Ensure PDFs render inline in iframes rather than triggering a download.
+        ctx.Context.Response.Headers.Append("Content-Disposition", "inline");
+    },
 });
 
 app.UseAuthentication();

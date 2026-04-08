@@ -1,3 +1,18 @@
+/** Chapter being built in the training creation wizard (client-side only) */
+export interface WizardChapter {
+  clientId: string;
+  title: string;
+  contentType: string;
+  textContent?: string;
+  file?: File;
+  videoUrl?: string;
+  estimatedDurationMinutes?: number;
+  /** Server-side ID when editing an existing chapter */
+  serverId?: string;
+  /** Existing uploaded file URL */
+  contentUri?: string;
+}
+
 /** Admin Training (list view) */
 export interface AdminTraining {
   id: string;

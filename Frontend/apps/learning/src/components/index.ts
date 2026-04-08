@@ -54,6 +54,8 @@ export { CategoriesManager } from "./admin/categories-manager";
 export { CategoryForm } from "./admin/category-form";
 export { AssignmentsView } from "./admin/assignments-view";
 export { SummaryCard } from "./admin/summary-card";
+export { CreateTrainingWizard } from "./admin/create-training-wizard";
+export { EditTrainingWizard } from "./admin/edit-training-wizard";
 export { TrainingDetailPage } from "./training-detail-page";
 export { ExamCard } from "./exam-card";
 export {
