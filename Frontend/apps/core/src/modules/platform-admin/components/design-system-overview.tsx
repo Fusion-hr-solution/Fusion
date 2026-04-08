@@ -10,24 +10,6 @@ const SWATCHES: Array<{ name: string; className: string }> = [
   { name: "Error", className: "bg-ch-error" },
 ];
 
-const STITCH_SHOTS = [
-  {
-    title: "Organizations list",
-    file: "organizations-list.png",
-    caption: "Organizations ledger with operational activity.",
-  },
-  {
-    title: "Create organization",
-    file: "create-organization.png",
-    caption: "Provisioning flow with deployment guidance panel.",
-  },
-  {
-    title: "Public invite acceptance",
-    file: "public-invite.png",
-    caption: "Administrator invitation and account activation.",
-  },
-];
-
 export function DesignSystemOverview() {
   return (
     <div className="bg-ch-surface font-chBody text-ch-on-surface">
@@ -65,7 +47,7 @@ export function DesignSystemOverview() {
           </div>
         </section>
 
-        <section className="mb-14">
+        <section>
           <h2 className="mb-6 font-chHeadline text-sm font-bold uppercase tracking-widest">
             Typography
           </h2>
@@ -79,39 +61,6 @@ export function DesignSystemOverview() {
             <p className="font-chBody text-[10px] font-bold uppercase tracking-[0.2em] text-ch-secondary">
               Label — uppercase metadata
             </p>
-          </div>
-        </section>
-
-        <section>
-          <h2 className="mb-6 font-chHeadline text-sm font-bold uppercase tracking-widest">
-            Reference screens
-          </h2>
-          <p className="mb-8 text-sm text-ch-secondary">
-            Design snapshots in{" "}
-            <code className="text-ch-tertiary">public/stitch</code>.
-          </p>
-          <div className="space-y-12">
-            {STITCH_SHOTS.map((s) => (
-              <figure key={s.file} className="space-y-3">
-                <div className="relative overflow-hidden rounded-ch-lg border border-ch-outline-variant/20 bg-ch-surface-container-low">
-                  <Image
-                    src={`/stitch/${s.file}`}
-                    alt={s.title}
-                    width={1280}
-                    height={800}
-                    className="h-auto w-full object-top"
-                    sizes="(max-width: 1024px) 100vw, 896px"
-                    priority={s.file === "organizations-list.png"}
-                  />
-                </div>
-                <figcaption className="text-sm text-ch-secondary">
-                  <span className="font-chHeadline font-semibold text-ch-on-surface">
-                    {s.title}.{" "}
-                  </span>
-                  {s.caption}
-                </figcaption>
-              </figure>
-            ))}
           </div>
         </section>
       </div>
