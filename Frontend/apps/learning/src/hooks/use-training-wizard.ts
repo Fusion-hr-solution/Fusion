@@ -161,6 +161,7 @@ export function useTrainingWizard({ mode, trainingId }: UseTrainingWizardOptions
           chapters: resolvedChapters,
         });
         router.push("/admin/trainings");
+        router.refresh();
       } else {
         // 1. Update training metadata
         await doUpdate({
@@ -206,6 +207,7 @@ export function useTrainingWizard({ mode, trainingId }: UseTrainingWizardOptions
         }
 
         router.push(`/admin/trainings/${trainingId}`);
+        router.refresh();
       }
     } catch (err) {
       const message =
