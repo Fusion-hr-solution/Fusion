@@ -37,17 +37,24 @@ public class ReorderChaptersCommandHandler : ICommandHandler<ReorderChaptersComm
 
         var chapterMap = chapters.ToDictionary(c => c.Id);
 
+        // Validate all IDs first, before modifying any entity
         for (var i = 0; i < request.ChapterIds.Count; i++)
         {
-            var chapterId = request.ChapterIds[i];
-
-            if (!chapterMap.TryGetValue(chapterId, out var chapter))
+            if (!chapterMap.ContainsKey(request.ChapterIds[i]))
                 return Result.Failure(Error.Validation("Chapter.InvalidId",
-                    $"Chapter '{chapterId}' does not belong to this training."));
-
-            chapter.Reorder(i);
+                    $"Chapter '{request.ChapterIds[i]}' does not belong to this training."));
         }
 
+        // Two-pass save to avoid EF circular dependency caused by the unique (TrainingId, OrderIndex)
+        // index (e.g. swapping 0↔1 creates a cycle EF cannot resolve in a single SaveChanges).
+        // Pass 1: set all chapters to temporary negative indices (unique, no constraint conflicts).
+        for (var i = 0; i < chapters.Count; i++)
+            chapters[i].Reorder(-(i + 1));
+        await _db.SaveChangesAsync(cancellationToken);
+
+        // Pass 2: set the final target indices (transitions from negative → non-negative, no conflicts).
+        for (var i = 0; i < request.ChapterIds.Count; i++)
+            chapterMap[request.ChapterIds[i]].Reorder(i);
         await _db.SaveChangesAsync(cancellationToken);
 
         return Result.Success();
