@@ -11,12 +11,14 @@ import type { AdminChapterListProps } from "@/types/admin-props";
 import { SortableChapterItem } from "./sortable-chapter-item";
 
 export function AdminChapterList({
+  trainingId,
   chapters,
   isDeleted,
   onAddChapter,
   onEditChapter,
   onDeleteChapter,
   onReorder,
+  onRefetch,
 }: AdminChapterListProps) {
   const [orderedChapters, setOrderedChapters] = useState<AdminChapter[]>(() =>
     [...chapters].sort((a, b) => a.orderIndex - b.orderIndex),
@@ -76,11 +78,13 @@ export function AdminChapterList({
                 {orderedChapters.map((ch, i) => (
                   <SortableChapterItem
                     key={ch.id}
+                    trainingId={trainingId}
                     chapter={ch}
                     index={i}
                     isDeleted={isDeleted}
                     onEdit={() => onEditChapter(ch)}
                     onDelete={() => onDeleteChapter(ch)}
+                    onRefetch={onRefetch}
                   />
                 ))}
               </div>

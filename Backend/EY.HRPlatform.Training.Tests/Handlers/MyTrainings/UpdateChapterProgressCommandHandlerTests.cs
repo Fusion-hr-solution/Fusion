@@ -6,167 +6,123 @@ using Microsoft.EntityFrameworkCore;
 
 namespace EY.HRPlatform.Training.Tests.Handlers.MyTrainings;
 
-public class UpdateChapterProgressCommandHandlerTests
+public class UpdateContentBlockProgressCommandHandlerTests
 {
     [Fact]
     public async Task Handle_ReturnsFailure_WhenNotEnrolled()
     {
-        // Arrange
         await using var context = await TestDbContextFactory.CreateWithSeedDataAsync();
         var training = context.Trainings.Include(t => t.Chapters).First();
         var chapter = training.Chapters.First();
+        var block = context.ContentBlocks.First(b => b.ChapterId == chapter.Id);
         var employeeId = Guid.NewGuid();
 
-        var handler = new UpdateChapterProgressCommandHandler(context);
-        var command = new UpdateChapterProgressCommand(employeeId, training.Id, chapter.Id, true);
+        var handler = new UpdateContentBlockProgressCommandHandler(context);
+        var command = new UpdateContentBlockProgressCommand(employeeId, training.Id, chapter.Id, block.Id, true);
 
-        // Act
         var result = await handler.Handle(command, CancellationToken.None);
 
-        // Assert
         Assert.True(result.IsFailure);
         Assert.Equal("Enrollment.NotFound", result.Error.Code);
     }
 
     [Fact]
-    public async Task Handle_ReturnsFailure_WhenChapterNotFound()
+    public async Task Handle_ReturnsFailure_WhenContentBlockNotFound()
     {
-        // Arrange
         await using var context = await TestDbContextFactory.CreateWithSeedDataAsync();
         var training = context.Trainings.First();
+        var chapter = context.Chapters.First(c => c.TrainingId == training.Id);
         var employeeId = Guid.NewGuid();
 
-        // Enroll the employee
         var assignment = new TrainingAssignment(training.Id, employeeId, AssignmentType.SelfEnroll);
         context.Assignments.Add(assignment);
         await context.SaveChangesAsync();
 
-        var handler = new UpdateChapterProgressCommandHandler(context);
-        var command = new UpdateChapterProgressCommand(employeeId, training.Id, Guid.NewGuid(), true);
+        var handler = new UpdateContentBlockProgressCommandHandler(context);
+        var command = new UpdateContentBlockProgressCommand(employeeId, training.Id, chapter.Id, Guid.NewGuid(), true);
 
-        // Act
         var result = await handler.Handle(command, CancellationToken.None);
 
-        // Assert
         Assert.True(result.IsFailure);
-        Assert.Equal("Chapter.NotFound", result.Error.Code);
+        Assert.Equal("ContentBlock.NotFound", result.Error.Code);
     }
 
     [Fact]
-    public async Task Handle_CreatesChapterProgress_WhenValid()
+    public async Task Handle_CreatesBlockProgress_WhenValid()
     {
-        // Arrange
         await using var context = await TestDbContextFactory.CreateWithSeedDataAsync();
         var training = context.Trainings.Include(t => t.Chapters).First();
         var chapter = training.Chapters.First();
+        var block = context.ContentBlocks.First(b => b.ChapterId == chapter.Id);
         var employeeId = Guid.NewGuid();
 
-        // Enroll the employee
         var assignment = new TrainingAssignment(training.Id, employeeId, AssignmentType.SelfEnroll);
         context.Assignments.Add(assignment);
         await context.SaveChangesAsync();
 
-        var handler = new UpdateChapterProgressCommandHandler(context);
-        var command = new UpdateChapterProgressCommand(employeeId, training.Id, chapter.Id, true);
+        var handler = new UpdateContentBlockProgressCommandHandler(context);
+        var command = new UpdateContentBlockProgressCommand(employeeId, training.Id, chapter.Id, block.Id, true);
 
-        // Act
         var result = await handler.Handle(command, CancellationToken.None);
 
-        // Assert
         Assert.True(result.IsSuccess);
 
-        var progress = await context.ChapterProgress
-            .FirstOrDefaultAsync(cp => cp.EmployeeId == employeeId && cp.ChapterId == chapter.Id);
+        var progress = await context.ContentBlockProgress
+            .FirstOrDefaultAsync(p => p.EmployeeId == employeeId && p.ContentBlockId == block.Id);
         Assert.NotNull(progress);
         Assert.True(progress.Completed);
     }
 
     [Fact]
-    public async Task Handle_UpdatesTrainingProgress_WhenChapterCompleted()
+    public async Task Handle_AutoCompletesChapter_WhenAllBlocksCompleted()
     {
-        // Arrange
-        await using var context = await TestDbContextFactory.CreateWithSeedDataAsync();
-        var training = context.Trainings.Include(t => t.Chapters).First();
-        var chapters = training.Chapters.ToList();
-        var employeeId = Guid.NewGuid();
-
-        // Enroll the employee
-        var assignment = new TrainingAssignment(training.Id, employeeId, AssignmentType.SelfEnroll);
-        context.Assignments.Add(assignment);
-        await context.SaveChangesAsync();
-
-        var handler = new UpdateChapterProgressCommandHandler(context);
-
-        // Act - complete first chapter
-        var result = await handler.Handle(
-            new UpdateChapterProgressCommand(employeeId, training.Id, chapters[0].Id, true),
-            CancellationToken.None);
-
-        // Assert
-        Assert.True(result.IsSuccess);
-
-        var trainingProgress = await context.TrainingProgress
-            .FirstOrDefaultAsync(tp => tp.EmployeeId == employeeId && tp.TrainingId == training.Id);
-        Assert.NotNull(trainingProgress);
-        Assert.Equal(50, trainingProgress.ProgressPercentage); // 1 of 2 chapters = 50%
-    }
-
-    [Fact]
-    public async Task Handle_SetsProgressTo100_WhenAllChaptersCompleted()
-    {
-        // Arrange
-        await using var context = await TestDbContextFactory.CreateWithSeedDataAsync();
-        var training = context.Trainings.Include(t => t.Chapters).First();
-        var chapters = training.Chapters.ToList();
-        var employeeId = Guid.NewGuid();
-
-        // Enroll the employee
-        var assignment = new TrainingAssignment(training.Id, employeeId, AssignmentType.SelfEnroll);
-        context.Assignments.Add(assignment);
-        await context.SaveChangesAsync();
-
-        var handler = new UpdateChapterProgressCommandHandler(context);
-
-        // Act - complete all chapters
-        foreach (var chapter in chapters)
-        {
-            await handler.Handle(
-                new UpdateChapterProgressCommand(employeeId, training.Id, chapter.Id, true),
-                CancellationToken.None);
-        }
-
-        // Assert
-        var trainingProgress = await context.TrainingProgress
-            .FirstOrDefaultAsync(tp => tp.EmployeeId == employeeId && tp.TrainingId == training.Id);
-        Assert.NotNull(trainingProgress);
-        Assert.Equal(100, trainingProgress.ProgressPercentage);
-    }
-
-    [Fact]
-    public async Task Handle_DoesNotUpdateProgress_WhenNotCompleted()
-    {
-        // Arrange
         await using var context = await TestDbContextFactory.CreateWithSeedDataAsync();
         var training = context.Trainings.Include(t => t.Chapters).First();
         var chapter = training.Chapters.First();
+        var blocks = context.ContentBlocks.Where(b => b.ChapterId == chapter.Id).ToList();
         var employeeId = Guid.NewGuid();
 
-        // Enroll the employee
         var assignment = new TrainingAssignment(training.Id, employeeId, AssignmentType.SelfEnroll);
         context.Assignments.Add(assignment);
         await context.SaveChangesAsync();
 
-        var handler = new UpdateChapterProgressCommandHandler(context);
-        var command = new UpdateChapterProgressCommand(employeeId, training.Id, chapter.Id, false);
+        var handler = new UpdateContentBlockProgressCommandHandler(context);
 
-        // Act
+        foreach (var block in blocks)
+        {
+            await handler.Handle(
+                new UpdateContentBlockProgressCommand(employeeId, training.Id, chapter.Id, block.Id, true),
+                CancellationToken.None);
+        }
+
+        var chapterProgress = await context.ChapterProgress
+            .FirstOrDefaultAsync(cp => cp.EmployeeId == employeeId && cp.ChapterId == chapter.Id);
+        Assert.NotNull(chapterProgress);
+        Assert.True(chapterProgress.Completed);
+    }
+
+    [Fact]
+    public async Task Handle_DoesNotCompleteBlock_WhenNotMarkedCompleted()
+    {
+        await using var context = await TestDbContextFactory.CreateWithSeedDataAsync();
+        var training = context.Trainings.Include(t => t.Chapters).First();
+        var chapter = training.Chapters.First();
+        var block = context.ContentBlocks.First(b => b.ChapterId == chapter.Id);
+        var employeeId = Guid.NewGuid();
+
+        var assignment = new TrainingAssignment(training.Id, employeeId, AssignmentType.SelfEnroll);
+        context.Assignments.Add(assignment);
+        await context.SaveChangesAsync();
+
+        var handler = new UpdateContentBlockProgressCommandHandler(context);
+        var command = new UpdateContentBlockProgressCommand(employeeId, training.Id, chapter.Id, block.Id, false);
+
         var result = await handler.Handle(command, CancellationToken.None);
 
-        // Assert
         Assert.True(result.IsSuccess);
 
-        var progress = await context.ChapterProgress
-            .FirstOrDefaultAsync(cp => cp.EmployeeId == employeeId && cp.ChapterId == chapter.Id);
+        var progress = await context.ContentBlockProgress
+            .FirstOrDefaultAsync(p => p.EmployeeId == employeeId && p.ContentBlockId == block.Id);
         Assert.NotNull(progress);
         Assert.False(progress.Completed);
     }

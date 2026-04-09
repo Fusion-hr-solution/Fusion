@@ -133,12 +133,14 @@ export function TrainingDetailView({ trainingId }: TrainingDetailViewProps) {
 
       {/* Chapters */}
       <AdminChapterList
+        trainingId={trainingId}
         chapters={training.chapters}
         isDeleted={training.isDeleted}
         onAddChapter={() => { setEditingChapter(null); setChapterDialogOpen(true); }}
         onEditChapter={(ch) => { setEditingChapter(ch); setChapterDialogOpen(true); }}
         onDeleteChapter={handleDeleteChapter}
         onReorder={doReorder}
+        onRefetch={refetch}
       />
 
       {/* Exams */}

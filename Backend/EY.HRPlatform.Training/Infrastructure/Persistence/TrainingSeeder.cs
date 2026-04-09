@@ -90,18 +90,19 @@ public static class TrainingSeeder
 
         // --- Chapters for a few trainings ---
         var csharpTraining = trainings[0];
-        var csharpChapters = new List<TrainingChapter>
-        {
-            new("Introduction to C# and .NET", ContentType.Video, null, 1, csharpTraining.Id,
-                null,
-                "https://www.youtube.com/embed/GhQdlMFylQ8",
-                45),
-            new("Variables, Types, and Control Flow", ContentType.Video, null, 2, csharpTraining.Id,
-                null,
-                "https://www.youtube.com/embed/IFayQioG71A",
-                60),
-            new("Object-Oriented Programming in C#", ContentType.Article, null, 3, csharpTraining.Id,
-                """
+        var ch1 = new TrainingChapter("Introduction to C# and .NET", ChapterLayout.SingleContent, 1, csharpTraining.Id);
+        ch1.AddContentBlock(new ContentBlock(ContentType.Video, 0, ch1.Id,
+            "Introduction Video", null, null,
+            "https://www.youtube.com/embed/GhQdlMFylQ8", 45));
+
+        var ch2 = new TrainingChapter("Variables, Types, and Control Flow", ChapterLayout.SingleContent, 2, csharpTraining.Id);
+        ch2.AddContentBlock(new ContentBlock(ContentType.Video, 0, ch2.Id,
+            "Variables Video", null, null,
+            "https://www.youtube.com/embed/IFayQioG71A", 60));
+
+        var ch3 = new TrainingChapter("Object-Oriented Programming in C#", ChapterLayout.SingleContent, 3, csharpTraining.Id);
+        ch3.AddContentBlock(new ContentBlock(ContentType.Article, 0, ch3.Id,
+            "OOP Article", """
                 # Object-Oriented Programming in C#
 
                 ## Introduction
@@ -159,10 +160,11 @@ public static class TrainingSeeder
                 ## Summary
                 Understanding these four pillars is essential for writing clean, maintainable C# code. Practice by refactoring procedural code into well-structured OOP designs.
                 """,
-                null,
-                90),
-            new("LINQ and Collections", ContentType.Article, null, 4, csharpTraining.Id,
-                """
+            null, null, 90));
+
+        var ch4 = new TrainingChapter("LINQ and Collections", ChapterLayout.SingleContent, 4, csharpTraining.Id);
+        ch4.AddContentBlock(new ContentBlock(ContentType.Article, 0, ch4.Id,
+            "LINQ Article", """
                 # LINQ and Collections in C#
 
                 ## What is LINQ?
@@ -205,10 +207,11 @@ public static class TrainingSeeder
                 - Prefer `ToListAsync()` over `ToList()` in async contexts
                 - Avoid multiple enumeration with `ToList()` when needed
                 """,
-                null,
-                75),
-            new("Async/Await and Task Parallel Library", ContentType.Exercise, null, 5, csharpTraining.Id,
-                """
+            null, null, 75));
+
+        var ch5 = new TrainingChapter("Async/Await and Task Parallel Library", ChapterLayout.SingleContent, 5, csharpTraining.Id);
+        ch5.AddContentBlock(new ContentBlock(ContentType.Exercise, 0, ch5.Id,
+            "Async Exercise", """
                 # Exercise: Async/Await and Task Parallel Library
 
                 ## Objective
@@ -256,16 +259,15 @@ public static class TrainingSeeder
                 - Proper exception handling for async operations
                 - Cancellation is checked at appropriate intervals
                 """,
-                null,
-                120),
-        };
+            null, null, 120));
+
+        var csharpChapters = new List<TrainingChapter> { ch1, ch2, ch3, ch4, ch5 };
         await db.Chapters.AddRangeAsync(csharpChapters);
 
         var complianceTraining = trainings[4];
-        var complianceChapters = new List<TrainingChapter>
-        {
-            new("Introduction to GDPR", ContentType.Pdf, "https://gdpr-info.eu/art-1-gdpr/", 1, complianceTraining.Id,
-                """
+        var cch1 = new TrainingChapter("Introduction to GDPR", ChapterLayout.SingleContent, 1, complianceTraining.Id);
+        cch1.AddContentBlock(new ContentBlock(ContentType.Pdf, 0, cch1.Id,
+            "GDPR Overview", """
                 # Introduction to GDPR
 
                 ## What is GDPR?
@@ -289,14 +291,16 @@ public static class TrainingSeeder
                 ## Penalties
                 Non-compliance can result in fines of up to €20 million or 4% of global annual turnover, whichever is higher.
                 """,
-                null,
-                30),
-            new("Data Classification and Handling", ContentType.Video, null, 2, complianceTraining.Id,
-                null,
-                "https://www.youtube.com/embed/example-data-classification",
-                45),
-            new("Reporting Data Breaches", ContentType.Article, null, 3, complianceTraining.Id,
-                """
+            "https://gdpr-info.eu/art-1-gdpr/", null, 30));
+
+        var cch2 = new TrainingChapter("Data Classification and Handling", ChapterLayout.SingleContent, 2, complianceTraining.Id);
+        cch2.AddContentBlock(new ContentBlock(ContentType.Video, 0, cch2.Id,
+            "Data Classification Video", null, null,
+            "https://www.youtube.com/embed/example-data-classification", 45));
+
+        var cch3 = new TrainingChapter("Reporting Data Breaches", ChapterLayout.SingleContent, 3, complianceTraining.Id);
+        cch3.AddContentBlock(new ContentBlock(ContentType.Article, 0, cch3.Id,
+            "Data Breaches Article", """
                 # Reporting Data Breaches
 
                 ## What Constitutes a Data Breach?
@@ -320,10 +324,11 @@ public static class TrainingSeeder
                 - Likely consequences
                 - Measures taken or proposed to address the breach
                 """,
-                null,
-                35),
-            new("Compliance Assessment", ContentType.Exercise, null, 4, complianceTraining.Id,
-                """
+            null, null, 35));
+
+        var cch4 = new TrainingChapter("Compliance Assessment", ChapterLayout.SingleContent, 4, complianceTraining.Id);
+        cch4.AddContentBlock(new ContentBlock(ContentType.Exercise, 0, cch4.Id,
+            "Compliance Exercise", """
                 # Compliance Assessment Exercise
 
                 ## Scenario
@@ -347,9 +352,9 @@ public static class TrainingSeeder
                 ## Deliverable
                 Write a brief report (500 words) for each scenario outlining your recommendations with references to specific GDPR articles.
                 """,
-                null,
-                60),
-        };
+            null, null, 60));
+
+        var complianceChapters = new List<TrainingChapter> { cch1, cch2, cch3, cch4 };
         await db.Chapters.AddRangeAsync(complianceChapters);
         await db.SaveChangesAsync();
 
@@ -371,28 +376,5 @@ public static class TrainingSeeder
             new ExamOption("struct", false, q1.Id));
         await db.SaveChangesAsync();
 
-        // --- Article Templates ---
-        if (!await db.ArticleTemplates.AnyAsync())
-        {
-            var standard = new ArticleTemplate("Standard Article", "Introduction, body, and conclusion");
-            standard.AddSection("Introduction", "Provide an overview of the topic...", 0);
-            standard.AddSection("Body", "Main content of the article...", 1);
-            standard.AddSection("Conclusion", "Summarize the key takeaways...", 2);
-
-            var tutorial = new ArticleTemplate("Step-by-Step Tutorial", "Objective, prerequisites, steps, and summary");
-            tutorial.AddSection("Objective", "What the reader will learn...", 0);
-            tutorial.AddSection("Prerequisites", "Required knowledge or tools...", 1);
-            tutorial.AddSection("Steps", "Detailed step-by-step instructions...", 2);
-            tutorial.AddSection("Summary", "Recap what was covered...", 3);
-
-            var casestudy = new ArticleTemplate("Case Study", "Background, challenge, solution, and results");
-            casestudy.AddSection("Background", "Context and background information...", 0);
-            casestudy.AddSection("Challenge", "The problem or challenge faced...", 1);
-            casestudy.AddSection("Solution", "How the challenge was addressed...", 2);
-            casestudy.AddSection("Results", "Outcomes and measurable results...", 3);
-
-            await db.ArticleTemplates.AddRangeAsync(standard, tutorial, casestudy);
-            await db.SaveChangesAsync();
-        }
     }
 }

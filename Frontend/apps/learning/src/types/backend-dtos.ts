@@ -9,15 +9,50 @@ export interface BackendTrainingCategoryDto {
   trainingCount: number;
 }
 
+/** Catalog chapter (no content, just metadata) */
 export interface BackendChapterDto {
   id: string;
   title: string;
-  contentType: string;
-  contentUri: string | null;
+  layout: string;
   orderIndex: number;
+  blockCount: number;
+}
+
+/** Chapter detail for progress view (sidebar) */
+export interface BackendChapterDetailDto {
+  id: string;
+  title: string;
+  layout: string;
+  orderIndex: number;
+  blockCount: number;
+  completedBlockCount: number;
+}
+
+/** Full chapter content with blocks (loaded on demand) */
+export interface BackendChapterContentDto {
+  id: string;
+  title: string;
+  layout: string;
+  orderIndex: number;
+  trainingId: string;
+  trainingTitle: string;
+  totalChapters: number;
+  nextChapterId: string | null;
+  previousChapterId: string | null;
+  isCompleted: boolean;
+  contentBlocks: BackendContentBlockDto[];
+}
+
+export interface BackendContentBlockDto {
+  id: string;
+  type: string;
+  orderIndex: number;
+  title: string | null;
   textContent: string | null;
+  contentUri: string | null;
   videoUrl: string | null;
   estimatedDurationMinutes: number | null;
+  isCompleted: boolean;
 }
 
 export interface BackendChapterProgressDto {
@@ -39,7 +74,7 @@ export interface BackendTrainingProgressDto {
   progressPercentage: number;
   completedChapters: number;
   totalChapters: number;
-  chapters: BackendChapterDto[];
+  chapters: BackendChapterDetailDto[];
   chapterProgress: BackendChapterProgressDto[];
 }
 

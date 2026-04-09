@@ -4,5 +4,6 @@ export {
   getTrainingById,
   getMyTrainings,
   enrollInTraining,
-  updateChapterProgress,
+  updateContentBlockProgress,
+  getChapterContent,
 } from "./learning-service";

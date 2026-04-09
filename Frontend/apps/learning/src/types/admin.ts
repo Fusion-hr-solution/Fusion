@@ -1,16 +1,10 @@
+import type { ChapterLayout } from "./index";
+
 /** Chapter being built in the training creation wizard (client-side only) */
 export interface WizardChapter {
   clientId: string;
   title: string;
-  contentType: string;
-  textContent?: string;
-  file?: File;
-  videoUrl?: string;
-  estimatedDurationMinutes?: number;
-  /** Server-side ID when editing an existing chapter */
-  serverId?: string;
-  /** Existing uploaded file URL */
-  contentUri?: string;
+  layout: ChapterLayout;
 }
 
 /** Admin Training (list view) */
@@ -35,10 +29,21 @@ export interface AdminTraining {
 export interface AdminChapter {
   id: string;
   title: string;
-  contentType: string;
-  contentUri?: string;
+  layout: ChapterLayout;
   orderIndex: number;
+  createdAt: string;
+  updatedAt?: string;
+  contentBlocks: AdminContentBlock[];
+}
+
+/** Admin Content Block */
+export interface AdminContentBlock {
+  id: string;
+  type: string;
+  orderIndex: number;
+  title?: string;
   textContent?: string;
+  contentUri?: string;
   videoUrl?: string;
   estimatedDurationMinutes?: number;
   createdAt: string;
@@ -84,10 +89,17 @@ export interface AdminCategory {
 
 export interface CreateChapterInput {
   title: string;
-  contentType: string;
-  contentUri?: string;
+  layout: ChapterLayout;
   orderIndex: number;
+  contentBlocks?: CreateContentBlockInput[];
+}
+
+export interface CreateContentBlockInput {
+  type: string;
+  orderIndex: number;
+  title?: string;
   textContent?: string;
+  contentUri?: string;
   videoUrl?: string;
   estimatedDurationMinutes?: number;
 }
@@ -115,10 +127,14 @@ export interface UpdateTrainingInput {
 
 export interface UpdateChapterInput {
   title: string;
-  contentType: string;
-  contentUri?: string;
-  orderIndex: number;
+  layout: ChapterLayout;
+}
+
+export interface UpdateContentBlockInput {
+  type: string;
+  title?: string;
   textContent?: string;
+  contentUri?: string;
   videoUrl?: string;
   estimatedDurationMinutes?: number;
 }
@@ -136,19 +152,4 @@ export interface UpdateCategoryInput {
 export interface AssignTrainingInput {
   employeeId: string;
   dueDate?: string;
-}
-
-/** Article template (read-only from backend) */
-export interface ArticleTemplate {
-  id: string;
-  name: string;
-  description: string;
-  sections: ArticleTemplateSection[];
-}
-
-export interface ArticleTemplateSection {
-  id: string;
-  label: string;
-  placeholder: string;
-  orderIndex: number;
 }

@@ -36,19 +36,34 @@ public class CreateTrainingCommandHandler : ICommandHandler<CreateTrainingComman
 
         foreach (var ch in request.Chapters)
         {
-            if (!Enum.TryParse<ContentType>(ch.ContentType, true, out var contentType))
-                return Result.Failure<Guid>(Error.Validation("Chapter.InvalidContentType",
-                    $"Invalid content type '{ch.ContentType}'. Valid values: Video, Pdf, Article, Exercise."));
+            if (!Enum.TryParse<ChapterLayout>(ch.Layout, true, out var layout))
+                return Result.Failure<Guid>(Error.Validation("Chapter.InvalidLayout",
+                    $"Invalid layout '{ch.Layout}'. Valid values: SingleContent, SplitLayout, MultiSection."));
 
-            training.AddChapter(new TrainingChapter(
+            var chapter = new TrainingChapter(
                 ch.Title,
-                contentType,
-                ch.ContentUri,
+                layout,
                 ch.OrderIndex,
-                training.Id,
-                ch.TextContent,
-                ch.VideoUrl,
-                ch.EstimatedDurationMinutes));
+                training.Id);
+
+            foreach (var block in ch.ContentBlocks)
+            {
+                if (!Enum.TryParse<ContentType>(block.Type, true, out var contentType))
+                    return Result.Failure<Guid>(Error.Validation("ContentBlock.InvalidType",
+                        $"Invalid content type '{block.Type}'. Valid values: Video, Pdf, Article, Exercise."));
+
+                chapter.AddContentBlock(new ContentBlock(
+                    contentType,
+                    block.OrderIndex,
+                    chapter.Id,
+                    block.Title,
+                    block.TextContent,
+                    block.ContentUri,
+                    block.VideoUrl,
+                    block.EstimatedDurationMinutes));
+            }
+
+            training.AddChapter(chapter);
         }
 
         _db.Trainings.Add(training);

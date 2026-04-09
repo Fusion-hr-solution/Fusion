@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useApiQuery, useApiMutation } from "@repo/api/react";
 import { ApiError } from "@repo/api";
-import { getAdminCategories, createTraining, uploadChapterFile } from "@/services/admin-service";
+import { getAdminCategories, createTraining } from "@/services/admin-service";
 import type { AdminCategory, CreateTrainingInput, WizardChapter } from "@/types/admin";
 
 export function useTrainingWizard() {
@@ -77,21 +77,11 @@ export function useTrainingWizard() {
     setFormError(null);
     setIsSubmitting(true);
     try {
-      const resolvedChapters = await Promise.all(
-        chapters.map(async (ch, index) => {
-          let contentUri: string | undefined;
-          if (ch.file) contentUri = await uploadChapterFile(ch.file);
-          return {
-            title: ch.title,
-            contentType: ch.contentType,
-            orderIndex: index,
-            textContent: ch.textContent,
-            contentUri,
-            videoUrl: ch.videoUrl,
-            estimatedDurationMinutes: ch.estimatedDurationMinutes,
-          };
-        }),
-      );
+      const resolvedChapters = chapters.map((ch, index) => ({
+        title: ch.title,
+        layout: ch.layout,
+        orderIndex: index,
+      }));
 
       await doCreate({
         title: title.trim(),

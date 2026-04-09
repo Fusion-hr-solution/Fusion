@@ -3,17 +3,20 @@ import type {
   AdminTraining,
   AdminTrainingDetail,
   AdminChapter,
+  AdminContentBlock,
   AdminAssignment,
   AdminCategory,
-  ArticleTemplate,
   CreateTrainingInput,
   UpdateTrainingInput,
   CreateChapterInput,
   UpdateChapterInput,
+  CreateContentBlockInput,
+  UpdateContentBlockInput,
   CreateCategoryInput,
   UpdateCategoryInput,
   AssignTrainingInput,
 } from "@/types/admin";
+import type { ChapterLayout } from "@/types";
 
 // --- Backend DTOs (mirror .NET API responses) ---
 
@@ -37,10 +40,20 @@ interface BackendAdminTrainingDto {
 interface BackendAdminChapterDto {
   id: string;
   title: string;
-  contentType: string;
-  contentUri: string | null;
+  layout: string;
   orderIndex: number;
+  createdAt: string;
+  updatedAt: string | null;
+  contentBlocks: BackendAdminContentBlockDto[];
+}
+
+interface BackendAdminContentBlockDto {
+  id: string;
+  type: string;
+  orderIndex: number;
+  title: string | null;
   textContent: string | null;
+  contentUri: string | null;
   videoUrl: string | null;
   estimatedDurationMinutes: number | null;
   createdAt: string;
@@ -110,10 +123,22 @@ function mapChapter(dto: BackendAdminChapterDto): AdminChapter {
   return {
     id: dto.id,
     title: dto.title,
-    contentType: dto.contentType,
-    contentUri: dto.contentUri ?? undefined,
+    layout: dto.layout as ChapterLayout,
     orderIndex: dto.orderIndex,
+    createdAt: dto.createdAt,
+    updatedAt: dto.updatedAt ?? undefined,
+    contentBlocks: dto.contentBlocks.map(mapContentBlock),
+  };
+}
+
+function mapContentBlock(dto: BackendAdminContentBlockDto): AdminContentBlock {
+  return {
+    id: dto.id,
+    type: dto.type,
+    orderIndex: dto.orderIndex,
+    title: dto.title ?? undefined,
     textContent: dto.textContent ?? undefined,
+    contentUri: dto.contentUri ?? undefined,
     videoUrl: dto.videoUrl ?? undefined,
     estimatedDurationMinutes: dto.estimatedDurationMinutes ?? undefined,
     createdAt: dto.createdAt,
@@ -280,26 +305,48 @@ export async function deleteCategory(categoryId: string): Promise<void> {
   await client.delete("/training/admin/categories/" + encodeURIComponent(categoryId));
 }
 
-// --- Article Templates ---
+// --- Content Block CRUD ---
 
-interface BackendArticleTemplateDto {
-  id: string;
-  name: string;
-  description: string | null;
-  sections: { id: string; label: string; placeholder: string | null; orderIndex: number }[];
+export async function addContentBlock(
+  trainingId: string,
+  chapterId: string,
+  input: CreateContentBlockInput,
+): Promise<string> {
+  return client.post<string>(
+    `/training/admin/trainings/${encodeURIComponent(trainingId)}/chapters/${encodeURIComponent(chapterId)}/content-blocks`,
+    input,
+  );
 }
 
-export async function getArticleTemplates(): Promise<ArticleTemplate[]> {
-  const data = await client.get<BackendArticleTemplateDto[]>("/training/admin/article-templates");
-  return data.map((t) => ({
-    id: t.id,
-    name: t.name,
-    description: t.description ?? "",
-    sections: t.sections.map((s) => ({
-      id: s.id,
-      label: s.label,
-      placeholder: s.placeholder ?? "",
-      orderIndex: s.orderIndex,
-    })),
-  }));
+export async function updateContentBlock(
+  trainingId: string,
+  chapterId: string,
+  contentBlockId: string,
+  input: UpdateContentBlockInput,
+): Promise<void> {
+  await client.put(
+    `/training/admin/trainings/${encodeURIComponent(trainingId)}/chapters/${encodeURIComponent(chapterId)}/content-blocks/${encodeURIComponent(contentBlockId)}`,
+    input,
+  );
+}
+
+export async function deleteContentBlock(
+  trainingId: string,
+  chapterId: string,
+  contentBlockId: string,
+): Promise<void> {
+  await client.delete(
+    `/training/admin/trainings/${encodeURIComponent(trainingId)}/chapters/${encodeURIComponent(chapterId)}/content-blocks/${encodeURIComponent(contentBlockId)}`,
+  );
+}
+
+export async function reorderContentBlocks(
+  trainingId: string,
+  chapterId: string,
+  contentBlockIds: string[],
+): Promise<void> {
+  await client.put(
+    `/training/admin/trainings/${encodeURIComponent(trainingId)}/chapters/${encodeURIComponent(chapterId)}/content-blocks/reorder`,
+    { contentBlockIds },
+  );
 }

@@ -1,5 +1,5 @@
 import { createPlatformApiClient } from "@repo/api";
-import type { EnrolledTraining, Training, TrainingCategory, TrainingLevel, BadgeLevel, TrainingLearnData, ContentType } from "@/types";
+import type { EnrolledTraining, Training, TrainingCategory, TrainingLevel, BadgeLevel, TrainingLearnData, ContentType, ChapterContent, ChapterLayout } from "@/types";
 import type {
   BackendTrainingCategoryDto,
   BackendTrainingDto,
@@ -7,6 +7,7 @@ import type {
   BackendMyTrainingDto,
   BackendPagedResponse,
   BackendTrainingProgressDto,
+  BackendChapterContentDto,
 } from "@/types/backend-dtos";
 import { CATEGORY_MAP, LEVEL_MAP, BADGE_LEVEL_MAP, CONTENT_TYPE_MAP } from "@/types/backend-dtos";
 
@@ -128,11 +129,15 @@ export async function getTrainingById(id: string): Promise<Training> {
     skipAuth: true,
   });
   const training = mapBackendToTraining(data);
-  training.chapters = data.chapters.map((c) => ({
-    id: c.id,
-    title: c.title,
-    duration: "~30 min",
-  }));
+  training.chapters = data.chapters
+    .sort((a, b) => a.orderIndex - b.orderIndex)
+    .map((c) => ({
+      id: c.id,
+      title: c.title,
+      layout: c.layout as ChapterLayout,
+      orderIndex: c.orderIndex,
+      blockCount: c.blockCount,
+    }));
   training.chaptersCount = data.chapters.length;
   if (data.exams.length > 0) {
     const exam = data.exams[0]!;
@@ -169,15 +174,51 @@ export async function enrollInTraining(trainingId: string): Promise<string> {
   return client.post<string>("/training/my-trainings/enroll", { trainingId });
 }
 
-export async function updateChapterProgress(
+export async function updateContentBlockProgress(
   trainingId: string,
   chapterId: string,
-  completed: boolean
+  contentBlockId: string,
+  completed: boolean,
 ): Promise<void> {
   await client.put<null>(
-    `/training/my-trainings/${encodeURIComponent(trainingId)}/chapters/progress`,
-    { chapterId, completed },
+    `/training/my-trainings/${encodeURIComponent(trainingId)}/chapters/${encodeURIComponent(chapterId)}/content-blocks/${encodeURIComponent(contentBlockId)}/progress`,
+    { completed },
   );
+}
+
+export async function getChapterContent(
+  trainingId: string,
+  chapterId: string,
+): Promise<ChapterContent> {
+  const data = await client.get<{ data: BackendChapterContentDto }>(
+    `/training/my-trainings/${encodeURIComponent(trainingId)}/chapters/${encodeURIComponent(chapterId)}`,
+  );
+  const dto = data.data;
+  return {
+    id: dto.id,
+    title: dto.title,
+    layout: dto.layout as ChapterLayout,
+    orderIndex: dto.orderIndex,
+    trainingId: dto.trainingId,
+    trainingTitle: dto.trainingTitle,
+    totalChapters: dto.totalChapters,
+    nextChapterId: dto.nextChapterId,
+    previousChapterId: dto.previousChapterId,
+    isCompleted: dto.isCompleted,
+    contentBlocks: dto.contentBlocks
+      .sort((a, b) => a.orderIndex - b.orderIndex)
+      .map((b) => ({
+        id: b.id,
+        type: mapContentType(b.type),
+        orderIndex: b.orderIndex,
+        title: b.title,
+        textContent: b.textContent,
+        contentUri: b.contentUri,
+        videoUrl: b.videoUrl,
+        estimatedDurationMinutes: b.estimatedDurationMinutes,
+        isCompleted: b.isCompleted,
+      })),
+  };
 }
 
 export async function getTrainingProgress(trainingId: string): Promise<TrainingLearnData> {
@@ -204,7 +245,9 @@ export async function getTrainingProgress(trainingId: string): Promise<TrainingL
     .map((c) => ({
       id: c.id,
       title: c.title,
-      duration: c.estimatedDurationMinutes ? `${c.estimatedDurationMinutes} min` : "~30 min",
+      layout: c.layout as ChapterLayout,
+      orderIndex: c.orderIndex,
+      blockCount: c.blockCount,
     }));
   training.chaptersCount = data.chapters.length;
 
@@ -215,13 +258,12 @@ export async function getTrainingProgress(trainingId: string): Promise<TrainingL
       .map((c) => ({
         id: c.id,
         title: c.title,
-        duration: c.estimatedDurationMinutes ? `${c.estimatedDurationMinutes} min` : "~30 min",
-        contentType: mapContentType(c.contentType),
-        textContent: c.textContent,
-        videoUrl: c.videoUrl,
-        contentUri: c.contentUri,
+        layout: c.layout as ChapterLayout,
         orderIndex: c.orderIndex,
-        estimatedDurationMinutes: c.estimatedDurationMinutes,
+        blockCount: c.blockCount,
+        completedBlockCount: c.completedBlockCount,
+        isCompleted: c.completedBlockCount >= c.blockCount && c.blockCount > 0,
+        completedAt: null,
       })),
     chapterProgress: data.chapterProgress.map((p) => ({
       chapterId: p.chapterId,

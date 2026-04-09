@@ -20,9 +20,9 @@ public class ChapterDto
 {
     public Guid Id { get; set; }
     public string Title { get; set; } = string.Empty;
-    public string ContentType { get; set; } = string.Empty;
-    public string? ContentUri { get; set; }
+    public string Layout { get; set; } = string.Empty;
     public int OrderIndex { get; set; }
+    public int BlockCount { get; set; }
 }
 
 public class ExamDto

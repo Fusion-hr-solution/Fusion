@@ -26,7 +26,7 @@ export function CourseOutline({ chapters }: CourseOutlineProps) {
               <span className="text-foreground font-medium">{chapter.title}</span>
             </div>
             <span className="text-xs text-muted-foreground tabular-nums">
-              {chapter.duration}
+              {chapter.blockCount} {chapter.blockCount === 1 ? "block" : "blocks"}
             </span>
           </div>
         ))}

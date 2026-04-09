@@ -15,9 +15,15 @@ public record CreateTrainingCommand(
 
 public record CreateTrainingChapterItem(
     string Title,
-    string ContentType,
-    string? ContentUri,
+    string Layout,
     int OrderIndex,
+    List<CreateTrainingContentBlockItem> ContentBlocks);
+
+public record CreateTrainingContentBlockItem(
+    string Type,
+    int OrderIndex,
+    string? Title,
     string? TextContent,
+    string? ContentUri,
     string? VideoUrl,
     int? EstimatedDurationMinutes);

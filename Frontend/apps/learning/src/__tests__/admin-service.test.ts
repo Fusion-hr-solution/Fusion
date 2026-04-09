@@ -35,6 +35,8 @@ import {
   deleteCategory,
 } from "@/services/admin-service";
 
+import type { ChapterLayout } from "@/types";
+
 beforeEach(() => {
   vi.clearAllMocks();
 });
@@ -61,14 +63,24 @@ const backendTrainingDto = {
 const backendChapterDto = {
   id: "ch1",
   title: "Chapter 1",
-  contentType: "Video",
-  contentUri: null,
+  layout: "SingleContent",
   orderIndex: 1,
-  textContent: null,
-  videoUrl: "https://example.com/video",
-  estimatedDurationMinutes: null,
   createdAt: "2025-01-01T00:00:00Z",
   updatedAt: null,
+  contentBlocks: [
+    {
+      id: "cb1",
+      type: "Video",
+      orderIndex: 0,
+      title: null,
+      textContent: null,
+      contentUri: null,
+      videoUrl: "https://example.com/video",
+      estimatedDurationMinutes: null,
+      createdAt: "2025-01-01T00:00:00Z",
+      updatedAt: null,
+    },
+  ],
 };
 
 const backendAssignmentDto = {
@@ -139,8 +151,8 @@ describe("getAdminTrainingDetail", () => {
     expect(mockGet).toHaveBeenCalledWith("/training/admin/trainings/t1");
     expect(result.title).toBe("Test Training");
     expect(result.chapters).toHaveLength(1);
-    expect(result.chapters[0]!.videoUrl).toBe("https://example.com/video");
-    expect(result.chapters[0]!.textContent).toBeUndefined();
+    expect(result.chapters[0]!.contentBlocks).toHaveLength(1);
+    expect(result.chapters[0]!.contentBlocks[0]!.videoUrl).toBe("https://example.com/video");
     expect(result.exams).toHaveLength(1);
     expect(result.exams[0]!.passingScore).toBe(70);
   });
@@ -214,7 +226,7 @@ describe("addChapter", () => {
 
     const input = {
       title: "New Chapter",
-      contentType: "Article",
+      layout: "SingleContent" as ChapterLayout,
       orderIndex: 1,
     };
     const id = await addChapter("t1", input);
@@ -231,7 +243,7 @@ describe("updateChapter", () => {
   it("puts to correct endpoint", async () => {
     mockPut.mockResolvedValue(undefined);
 
-    const input = { title: "Updated", contentType: "Pdf", orderIndex: 2 };
+    const input = { title: "Updated", layout: "SplitLayout" as ChapterLayout };
     await updateChapter("t1", "ch1", input);
 
     expect(mockPut).toHaveBeenCalledWith(

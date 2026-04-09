@@ -24,6 +24,7 @@ public class GetMyTrainingDetailedProgressQueryHandler
                 .ThenInclude(t => t.Category)
             .Include(a => a.Training)
                 .ThenInclude(t => t.Chapters)
+                    .ThenInclude(c => c.ContentBlocks)
             .FirstOrDefaultAsync(a =>
                 a.EmployeeId == request.EmployeeId &&
                 a.TrainingId == request.TrainingId,
@@ -48,6 +49,20 @@ public class GetMyTrainingDetailedProgressQueryHandler
             .Where(cp => cp.EmployeeId == request.EmployeeId && chapterIds.Contains(cp.ChapterId))
             .ToListAsync(cancellationToken);
 
+        // Load content block progress for all blocks in this training
+        var allBlockIds = training.Chapters
+            .SelectMany(c => c.ContentBlocks)
+            .Select(b => b.Id)
+            .ToList();
+
+        var completedBlockIds = await _db.ContentBlockProgress
+            .AsNoTracking()
+            .Where(p => p.EmployeeId == request.EmployeeId && p.Completed && allBlockIds.Contains(p.ContentBlockId))
+            .Select(p => p.ContentBlockId)
+            .ToListAsync(cancellationToken);
+
+        var completedBlockSet = completedBlockIds.ToHashSet();
+
         var completedCount = chapterProgressRecords.Count(cp => cp.Completed);
 
         return Result.Success(new MyTrainingProgressDto
@@ -70,12 +85,11 @@ public class GetMyTrainingDetailedProgressQueryHandler
                 {
                     Id = c.Id,
                     Title = c.Title,
-                    ContentType = c.ContentType.ToString(),
-                    ContentUri = c.ContentUri,
-                    TextContent = c.TextContent,
-                    VideoUrl = c.VideoUrl,
-                    EstimatedDurationMinutes = c.EstimatedDurationMinutes,
+                    Layout = c.Layout.ToString(),
                     OrderIndex = c.OrderIndex,
+                    BlockCount = c.ContentBlocks.Count,
+                    CompletedBlockCount = c.ContentBlocks
+                        .Count(b => completedBlockSet.Contains(b.Id)),
                 })
                 .ToList(),
             ChapterProgress = chapterProgressRecords

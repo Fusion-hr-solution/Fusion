@@ -23,10 +23,21 @@ public class AdminChapterDto
 {
     public Guid Id { get; set; }
     public string Title { get; set; } = string.Empty;
-    public string ContentType { get; set; } = string.Empty;
-    public string? ContentUri { get; set; }
+    public string Layout { get; set; } = string.Empty;
     public int OrderIndex { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime? UpdatedAt { get; set; }
+    public List<AdminContentBlockDto> ContentBlocks { get; set; } = [];
+}
+
+public class AdminContentBlockDto
+{
+    public Guid Id { get; set; }
+    public string Type { get; set; } = string.Empty;
+    public int OrderIndex { get; set; }
+    public string? Title { get; set; }
     public string? TextContent { get; set; }
+    public string? ContentUri { get; set; }
     public string? VideoUrl { get; set; }
     public int? EstimatedDurationMinutes { get; set; }
     public DateTime CreatedAt { get; set; }

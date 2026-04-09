@@ -52,18 +52,17 @@ describe("Admin type contracts", () => {
     expect(detail.exams).toEqual([]);
   });
 
-  it("AdminChapter supports optional fields", () => {
+  it("AdminChapter supports content blocks", () => {
     const chapter: AdminChapter = {
       id: "ch1",
       title: "Basics",
-      contentType: "Video",
+      layout: "SingleContent",
       orderIndex: 1,
       createdAt: "2025-01-01",
+      contentBlocks: [],
     };
-    expect(chapter.contentUri).toBeUndefined();
-    expect(chapter.textContent).toBeUndefined();
-    expect(chapter.videoUrl).toBeUndefined();
-    expect(chapter.estimatedDurationMinutes).toBeUndefined();
+    expect(chapter.contentBlocks).toEqual([]);
+    expect(chapter.updatedAt).toBeUndefined();
   });
 
   it("AdminAssignment has status default", () => {
@@ -96,7 +95,7 @@ describe("Admin type contracts", () => {
   it("CreateChapterInput requires core fields", () => {
     const input: CreateChapterInput = {
       title: "Chapter 1",
-      contentType: "Article",
+      layout: "SingleContent",
       orderIndex: 0,
     };
     expect(input.title).toBe("Chapter 1");

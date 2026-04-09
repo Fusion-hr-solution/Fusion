@@ -22,12 +22,10 @@ public class ChapterDetailDto
 {
     public Guid Id { get; set; }
     public string Title { get; set; } = string.Empty;
-    public string ContentType { get; set; } = string.Empty;
-    public string? ContentUri { get; set; }
-    public string? TextContent { get; set; }
-    public string? VideoUrl { get; set; }
-    public int? EstimatedDurationMinutes { get; set; }
+    public string Layout { get; set; } = string.Empty;
     public int OrderIndex { get; set; }
+    public int BlockCount { get; set; }
+    public int CompletedBlockCount { get; set; }
 }
 
 public class ChapterProgressDto

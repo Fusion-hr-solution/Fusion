@@ -1,4 +1,4 @@
-import type { AdminCategory, AdminChapter, AdminTraining, ArticleTemplate, ArticleTemplateSection, WizardChapter } from "./admin";
+import type { AdminCategory, AdminChapter, AdminContentBlock, AdminTraining, WizardChapter } from "./admin";
 import type { Employee, Training, TrainingCategory, TrainingStatus } from "./index";
 
 /* ── Wizard shared state (used by create + edit wizards) ── */
@@ -67,6 +67,17 @@ export interface ChapterFormDialogProps {
   onSaved: () => void;
 }
 
+/* ── Content Block inline management ── */
+
+export interface ContentBlockEditorDialogProps {
+  trainingId: string;
+  chapterId: string;
+  block: AdminContentBlock | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSaved: () => void;
+}
+
 /* ── Admin sub-components ── */
 
 export interface EmployeeRowProps {
@@ -123,20 +134,24 @@ export interface CategoryFormProps {
 }
 
 export interface AdminChapterListProps {
+  trainingId: string;
   chapters: AdminChapter[];
   isDeleted: boolean;
   onAddChapter: () => void;
   onEditChapter: (chapter: AdminChapter) => void;
   onDeleteChapter: (chapter: AdminChapter) => void;
   onReorder: (chapterIds: string[]) => Promise<void>;
+  onRefetch: () => void;
 }
 
 export interface SortableChapterItemProps {
+  trainingId: string;
   chapter: AdminChapter;
   index: number;
   isDeleted: boolean;
   onEdit: () => void;
   onDelete: () => void;
+  onRefetch: () => void;
 }
 
 /* ── Multi-step wizard ── */
@@ -177,34 +192,4 @@ export interface TrainingFormReviewStepProps {
   credits: number;
   duration: string;
   isMandatory: boolean;
-}
-
-export interface ChapterFormInfoStepProps {
-  title: string;
-  onTitleChange: (v: string) => void;
-  contentType: string;
-  onContentTypeChange: (v: string) => void;
-  orderIndex: number;
-  onOrderIndexChange: (v: number) => void;
-  fieldErrors?: Record<string, string>;
-}
-
-export interface ChapterFormContentStepProps {
-  contentType: string;
-  file: File | null;
-  onFileChange: (file: File | null) => void;
-  existingFileUrl: string;
-  textContent: string;
-  onTextContentChange: (v: string) => void;
-  videoUrl: string;
-  onVideoUrlChange: (v: string) => void;
-  estimatedDuration: number | "";
-  onEstimatedDurationChange: (v: number | "") => void;
-  isUploading: boolean;
-  selectedTemplate: ArticleTemplate | null;
-  onTemplateChange: (template: ArticleTemplate | null) => void;
-  initialTemplateName?: string;
-  sectionValues: Record<string, string>;
-  onSectionChange: (sectionId: string, value: string) => void;
-  fieldErrors?: Record<string, string>;
 }

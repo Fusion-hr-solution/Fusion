@@ -12,19 +12,51 @@ export type TrainingCategory =
 
 export type ContentType = "video" | "pdf" | "article" | "exercise";
 
+export type ChapterLayout = "SingleContent" | "SplitLayout" | "MultiSection";
+
 export interface TrainingChapter {
   id: string;
   title: string;
-  duration: string;
+  layout: ChapterLayout;
+  orderIndex: number;
+  blockCount: number;
 }
 
-export interface ChapterContent extends TrainingChapter {
-  contentType: ContentType;
-  textContent: string | null;
-  videoUrl: string | null;
-  contentUri: string | null;
+export interface ContentBlock {
+  id: string;
+  type: ContentType;
   orderIndex: number;
+  title: string | null;
+  textContent: string | null;
+  contentUri: string | null;
+  videoUrl: string | null;
   estimatedDurationMinutes: number | null;
+  isCompleted: boolean;
+}
+
+export interface ChapterContent {
+  id: string;
+  title: string;
+  layout: ChapterLayout;
+  orderIndex: number;
+  trainingId: string;
+  trainingTitle: string;
+  totalChapters: number;
+  nextChapterId: string | null;
+  previousChapterId: string | null;
+  isCompleted: boolean;
+  contentBlocks: ContentBlock[];
+}
+
+export interface ChapterListItem {
+  id: string;
+  title: string;
+  layout: ChapterLayout;
+  orderIndex: number;
+  blockCount: number;
+  completedBlockCount: number;
+  isCompleted: boolean;
+  completedAt: string | null;
 }
 
 export interface ChapterProgressEntry {
@@ -35,7 +67,7 @@ export interface ChapterProgressEntry {
 
 export interface TrainingLearnData {
   training: Training;
-  chapters: ChapterContent[];
+  chapters: ChapterListItem[];
   chapterProgress: ChapterProgressEntry[];
   overallProgress: number;
   status: TrainingStatus;

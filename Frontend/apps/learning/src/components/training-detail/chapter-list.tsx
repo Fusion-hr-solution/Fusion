@@ -1,4 +1,4 @@
-import { BookOpen, Play } from "lucide-react";
+import { BookOpen, Layers } from "lucide-react";
 import type { ChapterListProps } from "@/types/component-props";
 
 export function ChapterList({ chapters, chaptersCount }: ChapterListProps) {
@@ -36,21 +36,19 @@ export function ChapterList({ chapters, chaptersCount }: ChapterListProps) {
                 {i + 1}
               </div>
 
-              {/* Title & duration */}
+              {/* Title & block count */}
               <div className="flex flex-1 items-center justify-between gap-3">
                 <span className="text-sm font-medium text-foreground">
                   {chapter.title}
                 </span>
-                <div className="flex items-center gap-3 shrink-0">
+                <div className="flex items-center gap-2 shrink-0">
                   <span className="text-xs tabular-nums text-muted-foreground">
-                    {chapter.duration}
+                    {chapter.blockCount} {chapter.blockCount === 1 ? "block" : "blocks"}
                   </span>
-                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-muted-foreground/60 transition-all group-hover/ch:bg-[hsl(var(--ey-yellow))]/20 group-hover/ch:text-muted-foreground">
-                    <Play
-                      className="h-3 w-3"
-                      aria-hidden="true"
-                    />
-                  </div>
+                  <Layers
+                    className="h-3.5 w-3.5 text-muted-foreground/50"
+                    aria-hidden="true"
+                  />
                 </div>
               </div>
             </div>
