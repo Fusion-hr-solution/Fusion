@@ -24,9 +24,9 @@ public class AddChapterCommandHandler : ICommandHandler<AddChapterCommand, Resul
         if (!trainingExists)
             return Result.Failure<Guid>(Error.NotFound("Training", request.TrainingId));
 
-        if (!Enum.TryParse<ContentType>(request.ContentType, true, out var contentType))
-            return Result.Failure<Guid>(Error.Validation("Chapter.InvalidContentType",
-                $"Invalid content type '{request.ContentType}'. Valid values: Video, Pdf, Article, Exercise."));
+        if (!Enum.TryParse<ChapterLayout>(request.Layout, true, out var layout))
+            return Result.Failure<Guid>(Error.Validation("Chapter.InvalidLayout",
+                $"Invalid layout '{request.Layout}'. Valid values: SingleContent, SplitLayout, MultiSection."));
 
         // Auto-assign order index to the end of the list to avoid unique-index conflicts.
         var maxIndex = await _db.Chapters
@@ -35,13 +35,27 @@ public class AddChapterCommandHandler : ICommandHandler<AddChapterCommand, Resul
 
         var chapter = new TrainingChapter(
             request.Title,
-            contentType,
-            request.ContentUri,
+            layout,
             maxIndex + 1,
-            request.TrainingId,
-            request.TextContent,
-            request.VideoUrl,
-            request.EstimatedDurationMinutes);
+            request.TrainingId);
+
+        // Add content blocks
+        foreach (var block in request.ContentBlocks)
+        {
+            if (!Enum.TryParse<ContentType>(block.Type, true, out var contentType))
+                return Result.Failure<Guid>(Error.Validation("ContentBlock.InvalidType",
+                    $"Invalid content type '{block.Type}'. Valid values: Video, Pdf, Article, Exercise."));
+
+            chapter.AddContentBlock(new ContentBlock(
+                contentType,
+                block.OrderIndex,
+                chapter.Id,
+                block.Title,
+                block.TextContent,
+                block.ContentUri,
+                block.VideoUrl,
+                block.EstimatedDurationMinutes));
+        }
 
         _db.Chapters.Add(chapter);
         await _db.SaveChangesAsync(cancellationToken);

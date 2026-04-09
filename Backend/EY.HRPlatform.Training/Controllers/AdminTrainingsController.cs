@@ -84,8 +84,10 @@ public class AdminTrainingsController : ControllerBase
         try
         {
             var chapters = request.Chapters.Select(c => new CreateTrainingChapterItem(
-                c.Title, c.ContentType, c.ContentUri, c.OrderIndex,
-                c.TextContent, c.VideoUrl, c.EstimatedDurationMinutes)).ToList();
+                c.Title, c.Layout, c.OrderIndex,
+                c.ContentBlocks.Select(b => new CreateTrainingContentBlockItem(
+                    b.Type, b.OrderIndex, b.Title, b.TextContent,
+                    b.ContentUri, b.VideoUrl, b.EstimatedDurationMinutes)).ToList())).ToList();
 
             var result = await _sender.Send(
                 new CreateTrainingCommand(request.Title, request.Description, request.Credits,
@@ -171,9 +173,11 @@ public class AdminTrainingsController : ControllerBase
         try
         {
             var result = await _sender.Send(
-                new AddChapterCommand(trainingId, request.Title, request.ContentType,
-                    request.ContentUri, request.OrderIndex, request.TextContent,
-                    request.VideoUrl, request.EstimatedDurationMinutes),
+                new AddChapterCommand(trainingId, request.Title, request.Layout,
+                    request.OrderIndex,
+                    request.ContentBlocks.Select(b => new AddChapterContentBlockItem(
+                        b.Type, b.OrderIndex, b.Title, b.TextContent,
+                        b.ContentUri, b.VideoUrl, b.EstimatedDurationMinutes)).ToList()),
                 cancellationToken);
 
             if (result.IsFailure)
@@ -208,8 +212,7 @@ public class AdminTrainingsController : ControllerBase
         {
             var result = await _sender.Send(
                 new UpdateChapterCommand(trainingId, chapterId, request.Title,
-                    request.ContentType, request.ContentUri, request.OrderIndex,
-                    request.TextContent, request.VideoUrl, request.EstimatedDurationMinutes),
+                    request.Layout),
                 cancellationToken);
 
             if (result.IsFailure)

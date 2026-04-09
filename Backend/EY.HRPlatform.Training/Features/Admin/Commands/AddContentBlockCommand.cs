@@ -3,18 +3,13 @@ using EY.HRPlatform.SharedKernel.Results;
 
 namespace EY.HRPlatform.Training.Features.Admin.Commands;
 
-public record AddChapterCommand(
+public record AddContentBlockCommand(
     Guid TrainingId,
-    string Title,
-    string Layout,
-    int OrderIndex,
-    List<AddChapterContentBlockItem> ContentBlocks) : ICommand<Result<Guid>>;
-
-public record AddChapterContentBlockItem(
+    Guid ChapterId,
     string Type,
     int OrderIndex,
     string? Title,
     string? TextContent,
     string? ContentUri,
     string? VideoUrl,
-    int? EstimatedDurationMinutes);
+    int? EstimatedDurationMinutes) : ICommand<Result<Guid>>;
