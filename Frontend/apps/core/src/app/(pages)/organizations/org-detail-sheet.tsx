@@ -166,18 +166,24 @@ function DetailContent({
             {/* Metrics grid */}
             <div className="grid grid-cols-2 gap-3">
               <MetricCard
-                icon={<Users className="size-4 text-blue-500 dark:text-blue-400" />}
+                icon={
+                  <Users className="size-4 text-blue-500 dark:text-blue-400" />
+                }
                 label="Active Users"
                 value={org.activeUserCount}
               />
               <MetricCard
-                icon={<Mail className="size-4 text-amber-500 dark:text-amber-400" />}
+                icon={
+                  <Mail className="size-4 text-amber-500 dark:text-amber-400" />
+                }
                 label="Pending Invites"
                 value={org.pendingInviteCount}
                 highlight={org.pendingInviteCount > 0}
               />
               <MetricCard
-                icon={<UserCheck className="size-4 text-emerald-500 dark:text-emerald-400" />}
+                icon={
+                  <UserCheck className="size-4 text-emerald-500 dark:text-emerald-400" />
+                }
                 label="Primary Admin"
                 value={org.primaryAdminEmail ?? "—"}
                 text
@@ -311,7 +317,11 @@ function DetailContent({
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <Button variant="outline" size="icon-sm" asChild>
+                                <Button
+                                  variant="outline"
+                                  size="icon-sm"
+                                  asChild
+                                >
                                   <a
                                     href={org.firstAdminInvite.inviteLink}
                                     target="_blank"
@@ -561,7 +571,9 @@ function MetricCard({
     <div className="flex flex-col justify-between rounded-lg border p-3 space-y-1.5">
       <div className="flex items-center gap-1.5">
         <span className="shrink-0 flex items-center">{icon}</span>
-        <p className="text-xs font-medium text-muted-foreground truncate">{label}</p>
+        <p className="text-xs font-medium text-muted-foreground truncate">
+          {label}
+        </p>
       </div>
       <p
         className={cn(
