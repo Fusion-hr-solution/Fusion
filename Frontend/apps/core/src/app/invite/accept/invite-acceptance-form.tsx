@@ -6,18 +6,24 @@ import { useForm } from "react-hook-form";
 import { ApiError } from "@repo/api";
 import { login as apiLogin, persistAuth } from "@repo/auth";
 import type { AuthUser, StoredAuth } from "@repo/auth";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   useValidateInvite,
   useAcceptInvite,
   type AcceptInvitePayload,
 } from "./use-invite";
 import {
-  MailIcon,
   CheckCircle2Icon,
   CircleIcon,
   ShieldCheckIcon,
@@ -185,9 +191,9 @@ export function InviteAcceptanceForm() {
     return (
       <InviteShell>
         <Card className="w-full max-w-lg">
-          <CardContent className="flex flex-col items-center justify-center py-16">
-            <Spinner className="size-8 text-muted-foreground" />
-            <p className="mt-4 text-sm text-muted-foreground">
+          <CardContent className="flex flex-col items-center justify-center gap-3 py-16">
+            <Spinner className="size-6 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">
               Verifying your invitation…
             </p>
           </CardContent>
@@ -254,31 +260,24 @@ export function InviteAcceptanceForm() {
   return (
     <InviteShell>
       <Card className="w-full max-w-lg">
-        <CardHeader className="text-center space-y-3 pb-2">
-          <div className="mx-auto flex items-center gap-2 rounded-full bg-amber-50 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-amber-800 border border-amber-200">
-            <MailIcon className="size-3.5" />
-            Administrator Invite
-          </div>
-          <h1 className="text-xl font-semibold tracking-tight">
-            You&apos;ve been invited to administer{" "}
-            <span className="bg-yellow-200 px-1 py-0.5 font-bold">
+        <CardHeader>
+          <CardTitle>
+            Accept invitation for{" "}
+            <span className="bg-yellow-200 px-1 py-0.5">
               {invite.tenantName}
-            </span>{" "}
-            in Fusion.
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Access the executive console to manage platform operations, review
-            system status, and configure organizational parameters.
-          </p>
+            </span>
+          </CardTitle>
+          <CardDescription>
+            Set up your administrator account to manage platform operations and
+            configure organizational parameters.
+          </CardDescription>
         </CardHeader>
 
         <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+          <form onSubmit={handleSubmit(onSubmit)} className="grid gap-4">
             {/* Work Email (read-only) */}
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Work Email
-              </Label>
+            <div className="grid gap-2">
+              <Label>Work Email</Label>
               <Input
                 value={invite.email}
                 readOnly
@@ -293,13 +292,8 @@ export function InviteAcceptanceForm() {
 
             {/* Name fields */}
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label
-                  htmlFor="firstName"
-                  className="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
-                >
-                  First Name
-                </Label>
+              <div className="grid gap-2">
+                <Label htmlFor="firstName">First Name</Label>
                 <Input
                   id="firstName"
                   placeholder="Jane"
@@ -307,13 +301,8 @@ export function InviteAcceptanceForm() {
                   disabled={isSubmitting}
                 />
               </div>
-              <div className="space-y-2">
-                <Label
-                  htmlFor="lastName"
-                  className="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
-                >
-                  Last Name
-                </Label>
+              <div className="grid gap-2">
+                <Label htmlFor="lastName">Last Name</Label>
                 <Input
                   id="lastName"
                   placeholder="Doe"
@@ -325,13 +314,8 @@ export function InviteAcceptanceForm() {
 
             {/* Password fields */}
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label
-                  htmlFor="password"
-                  className="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
-                >
-                  Create Password
-                </Label>
+              <div className="grid gap-2">
+                <Label htmlFor="password">Password</Label>
                 <Input
                   id="password"
                   type="password"
@@ -346,13 +330,8 @@ export function InviteAcceptanceForm() {
                   disabled={isSubmitting}
                 />
               </div>
-              <div className="space-y-2">
-                <Label
-                  htmlFor="confirmPassword"
-                  className="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
-                >
-                  Confirm Password
-                </Label>
+              <div className="grid gap-2">
+                <Label htmlFor="confirmPassword">Confirm Password</Label>
                 <Input
                   id="confirmPassword"
                   type="password"
@@ -370,11 +349,11 @@ export function InviteAcceptanceForm() {
             </div>
 
             {/* Password requirements checklist */}
-            <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Security Requirements
+            <div className="grid gap-1.5">
+              <p className="text-xs text-muted-foreground">
+                Security requirements
               </p>
-              <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+              <div className="flex flex-wrap gap-x-4 gap-y-1">
                 {ruleResults.map((rule) => (
                   <div
                     key={rule.label}
@@ -406,18 +385,20 @@ export function InviteAcceptanceForm() {
 
             {/* Server errors */}
             {serverErrors.length > 0 && (
-              <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-                {serverErrors.map((err, i) => (
-                  <p key={i}>{err}</p>
-                ))}
-              </div>
+              <Alert variant="destructive">
+                <AlertDescription>
+                  {serverErrors.map((err, i) => (
+                    <p key={i}>{err}</p>
+                  ))}
+                </AlertDescription>
+              </Alert>
             )}
 
             {/* Submit */}
             <Button
               type="submit"
               size="lg"
-              className="w-full bg-yellow-400 text-black font-semibold hover:bg-yellow-500"
+              className="w-full"
               disabled={isSubmitting}
             >
               {isSubmitting ? (
@@ -436,7 +417,7 @@ export function InviteAcceptanceForm() {
             </Button>
 
             <p className="text-center text-xs text-muted-foreground">
-              By accepting, you agree to the Executive Console{" "}
+              By accepting, you agree to the{" "}
               <a
                 href="#"
                 className="underline underline-offset-2 hover:text-foreground"
@@ -465,18 +446,8 @@ export function InviteAcceptanceForm() {
 
 function InviteShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      {/* Top bar — matches Core's authenticated header */}
-      <header className="sticky top-0 z-10 flex h-10 shrink-0 items-center border-b bg-background/95 px-6 backdrop-blur supports-backdrop-filter:bg-background/60">
-        <span className="text-sm font-semibold tracking-widest text-muted-foreground">
-          FUSION
-        </span>
-      </header>
-
-      {/* Main content */}
-      <main className="flex flex-1 items-center justify-center p-6">
-        {children}
-      </main>
+    <div className="flex min-h-screen items-center justify-center bg-background p-6">
+      {children}
     </div>
   );
 }
@@ -498,10 +469,14 @@ function ErrorState({
 }) {
   return (
     <Card className="w-full max-w-lg">
-      <CardContent className="flex flex-col items-center justify-center py-12 text-center space-y-4">
+      <CardContent className="flex flex-col items-center justify-center py-12 text-center gap-4">
         {icon}
-        <h2 className="text-lg font-semibold">{title}</h2>
-        <p className="text-sm text-muted-foreground max-w-sm">{description}</p>
+        <div className="grid gap-1">
+          <p className="font-semibold">{title}</p>
+          <p className="text-sm text-muted-foreground max-w-sm">
+            {description}
+          </p>
+        </div>
         {action}
       </CardContent>
     </Card>
