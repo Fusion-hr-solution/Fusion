@@ -18,7 +18,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty";
+import {
+  Empty,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+  EmptyDescription,
+} from "@/components/ui/empty";
 import { Building2 } from "lucide-react";
 
 interface OrganizationsTableProps {
@@ -27,6 +33,7 @@ interface OrganizationsTableProps {
   sorting: SortingState;
   onSortingChange: (sorting: SortingState) => void;
   onRowClick: (org: PlatformOrganizationSummaryDto) => void;
+  onMutated?: () => void;
 }
 
 export function OrganizationsTable({
@@ -35,6 +42,7 @@ export function OrganizationsTable({
   sorting,
   onSortingChange,
   onRowClick,
+  onMutated,
 }: OrganizationsTableProps) {
   const table = useReactTable({
     data,
@@ -84,7 +92,10 @@ export function OrganizationsTable({
                 <TableHead key={header.id}>
                   {header.isPlaceholder
                     ? null
-                    : flexRender(header.column.columnDef.header, header.getContext())}
+                    : flexRender(
+                        header.column.columnDef.header,
+                        header.getContext()
+                      )}
                 </TableHead>
               ))}
               <TableHead className="w-10" />
@@ -104,7 +115,7 @@ export function OrganizationsTable({
                 </TableCell>
               ))}
               <TableCell>
-                <RowActions org={row.original} />
+                <RowActions org={row.original} onMutated={onMutated} />
               </TableCell>
             </TableRow>
           ))}

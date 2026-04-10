@@ -2,14 +2,7 @@
 
 import { useState } from "react";
 import type { PlatformOrganizationSummaryDto } from "@repo/api";
-import {
-  MoreHorizontal,
-  Pause,
-  Play,
-  Archive,
-  Send,
-  Ban,
-} from "lucide-react";
+import { MoreHorizontal, Pause, Play, Archive, Send, Ban } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -51,7 +44,9 @@ type ConfirmAction = {
 };
 
 export function RowActions({ org, onMutated }: RowActionsProps) {
-  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(
+    null
+  );
 
   const suspend = useSuspendOrganization({
     onSuccess: () => {
@@ -98,8 +93,14 @@ export function RowActions({ org, onMutated }: RowActionsProps) {
   const canSuspend = org.isActive && !org.isArchived;
   const canReactivate = !org.isActive && !org.isArchived;
   const canArchive = !org.isArchived;
-  const canResend = org.operationalStatus === "invited" || org.operationalStatus === "draft";
+  const canResend =
+    org.operationalStatus === "invited" || org.operationalStatus === "draft";
   const canRevoke = org.operationalStatus === "invited";
+
+  const hasActions =
+    canSuspend || canReactivate || canArchive || canResend || canRevoke;
+
+  if (!hasActions) return null;
 
   return (
     <>
@@ -145,9 +146,10 @@ export function RowActions({ org, onMutated }: RowActionsProps) {
               <Ban className="size-4" /> Revoke Invite
             </DropdownMenuItem>
           )}
-          {(canResend || canRevoke) && (canSuspend || canReactivate || canArchive) && (
-            <DropdownMenuSeparator />
-          )}
+          {(canResend || canRevoke) &&
+            (canSuspend || canReactivate || canArchive) && (
+              <DropdownMenuSeparator />
+            )}
           {canSuspend && (
             <DropdownMenuItem
               onClick={() =>
