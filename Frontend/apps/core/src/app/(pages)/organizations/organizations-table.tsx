@@ -114,7 +114,7 @@ export function OrganizationsTable({
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
                 </TableCell>
               ))}
-              <TableCell>
+              <TableCell onClick={(e) => e.stopPropagation()}>
                 <RowActions org={row.original} onMutated={onMutated} />
               </TableCell>
             </TableRow>
