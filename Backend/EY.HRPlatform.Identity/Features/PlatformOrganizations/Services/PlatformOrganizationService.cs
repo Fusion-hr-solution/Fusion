@@ -25,6 +25,7 @@ public interface IPlatformOrganizationService
         Guid platformAdminUserId,
         CancellationToken cancellationToken = default);
     Task<bool> RevokePendingFirstAdminInvitesAsync(Guid tenantId, CancellationToken cancellationToken = default);
+    Task<PlatformOrganizationDetailDto?> UpdateAsync(Guid tenantId, UpdatePlatformOrganizationRequest request, CancellationToken cancellationToken = default);
 }
 
 public sealed class PlatformOrganizationService(
@@ -62,11 +63,11 @@ public sealed class PlatformOrganizationService(
         var stats = new PlatformOrganizationStatsDto
         {
             TotalOrganizations = allSummaries.Count,
-            AttentionNeeded = allSummaries.Count(s =>
-                s.OperationalStatus.Equals(OrganizationOperationalStatus.Attention, StringComparison.OrdinalIgnoreCase)),
+            AttentionNeeded = allSummaries.Count(s => s.NeedsAttention),
             InvitedPending = allSummaries.Count(s =>
                 s.OperationalStatus.Equals(OrganizationOperationalStatus.Invited, StringComparison.OrdinalIgnoreCase)),
-            ActiveUserCount = allSummaries.Sum(s => s.ActiveUserCount)
+            ActiveOrganizations = allSummaries.Count(s =>
+                s.OperationalStatus.Equals(OrganizationOperationalStatus.Active, StringComparison.OrdinalIgnoreCase))
         };
 
         // Apply search filter for paginated list
@@ -82,14 +83,16 @@ public sealed class PlatformOrganizationService(
                 .Where(s => allowedFilter.Contains(s.OperationalStatus))
                 .ToList();
 
+        if (query.FilterNeedsAttention == true)
+            summaries = summaries.Where(s => s.NeedsAttention).ToList();
+
         static int StatusPriority(string operationalStatus) => operationalStatus switch
         {
             OrganizationOperationalStatus.Archived => 0,
             OrganizationOperationalStatus.Suspended => 1,
-            OrganizationOperationalStatus.Attention => 2,
-            OrganizationOperationalStatus.Draft => 3,
-            OrganizationOperationalStatus.Invited => 4,
-            OrganizationOperationalStatus.Active => 5,
+            OrganizationOperationalStatus.Draft => 2,
+            OrganizationOperationalStatus.Invited => 3,
+            OrganizationOperationalStatus.Active => 4,
             _ => -1
         };
 
@@ -177,8 +180,6 @@ public sealed class PlatformOrganizationService(
             var tenant = Tenant.Create(request.Name.Trim());
             if (!string.IsNullOrWhiteSpace(request.InternalNotes))
                 tenant.SetInternalNotes(request.InternalNotes);
-            if (!string.IsNullOrWhiteSpace(request.PlanTier))
-                tenant.SetPlanTier(request.PlanTier);
 
             db.Tenants.Add(tenant);
             await db.SaveChangesAsync(cancellationToken);
@@ -305,6 +306,28 @@ public sealed class PlatformOrganizationService(
         return true;
     }
 
+    public async Task<PlatformOrganizationDetailDto?> UpdateAsync(
+        Guid tenantId,
+        UpdatePlatformOrganizationRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var tenant = await db.Tenants.FirstOrDefaultAsync(t => t.Id == tenantId, cancellationToken);
+        if (tenant is null)
+            return null;
+
+        if (request.Name is not null)
+            tenant.Update(request.Name);
+
+        if (request.InternalNotes is not null)
+            tenant.SetInternalNotes(request.InternalNotes);
+
+        await db.SaveChangesAsync(cancellationToken);
+
+        var metrics = await LoadMetricsAsync([tenantId], cancellationToken);
+        var primaryEmail = await GetPrimaryHrAdminEmailAsync(tenantId, cancellationToken);
+        return MapDetail(tenant, metrics, primaryEmail);
+    }
+
     private string BuildInviteLink(string token)
     {
         var publicBase = configuration["Application:PublicBaseUrl"] ?? "http://localhost:3000";
@@ -401,10 +424,6 @@ public sealed class PlatformOrganizationService(
             DateTime? lastLogin = lastUser.Count == 0
                 ? null
                 : lastUser.Max(u => u.LastLoginAt);
-            DateTime? lastInvite = invites.Count == 0
-                ? null
-                : invites.Max(i => i.CreatedAt);
-            var lastActivity = MaxDate(lastLogin, lastInvite);
 
             result[tid] = new TenantMetrics
             {
@@ -412,7 +431,7 @@ public sealed class PlatformOrganizationService(
                 PendingInviteCount = pc,
                 HasHrAdminUser = hasHrAdminByTenant.Contains(tid),
                 HrInvites = invites,
-                LastActivityAt = lastActivity
+                LastActivityAt = lastLogin
             };
         }
 
@@ -427,13 +446,13 @@ public sealed class PlatformOrganizationService(
         m ??= new TenantMetrics();
 
         var status = ComputeOperationalStatus(tenant, m);
-        var firstAdmin = ComputeFirstAdminStatus(tenant, m, status);
+        var attention = ComputeNeedsAttention(m, status);
         return new PlatformOrganizationSummaryDto
         {
             Id = tenant.Id,
             Name = tenant.Name,
             OperationalStatus = status,
-            FirstAdminStatus = firstAdmin,
+            NeedsAttention = attention,
             ActiveUserCount = m.ActiveUserCount,
             PendingInviteCount = m.PendingInviteCount,
             CreatedAt = tenant.CreatedAt,
@@ -451,7 +470,7 @@ public sealed class PlatformOrganizationService(
         metrics.TryGetValue(tenant.Id, out var m);
         m ??= new TenantMetrics();
         var status = ComputeOperationalStatus(tenant, m);
-        var firstAdmin = ComputeFirstAdminStatus(tenant, m, status);
+        var attention = ComputeNeedsAttention(m, status);
         var inviteDto = BuildInviteStatus(m.HrInvites);
 
         return new PlatformOrganizationDetailDto
@@ -459,11 +478,10 @@ public sealed class PlatformOrganizationService(
             Id = tenant.Id,
             Name = tenant.Name,
             OperationalStatus = status,
-            FirstAdminStatus = firstAdmin,
+            NeedsAttention = attention,
             CreatedAt = tenant.CreatedAt,
             UpdatedAt = tenant.UpdatedAt,
             InternalNotes = tenant.InternalNotes,
-            PlanTier = tenant.PlanTier,
             ActiveUserCount = m.ActiveUserCount,
             PendingInviteCount = m.PendingInviteCount,
             LastActivityAt = m.LastActivityAt,
@@ -555,32 +573,26 @@ public sealed class PlatformOrganizationService(
         if (m.HrInvites.Count == 0)
             return OrganizationOperationalStatus.Draft;
 
-        return OrganizationOperationalStatus.Attention;
+        // Has invites but all expired/failed — still in "invited" lifecycle stage
+        return OrganizationOperationalStatus.Invited;
     }
 
-    private static string ComputeFirstAdminStatus(Tenant tenant, TenantMetrics m, string operational)
+    private static bool ComputeNeedsAttention(TenantMetrics m, string operationalStatus)
     {
-        if (operational == OrganizationOperationalStatus.Active)
-            return "Verified";
-        if (operational == OrganizationOperationalStatus.Invited)
-            return "Awaiting acceptance";
-        if (operational == OrganizationOperationalStatus.Draft)
-            return "Not invited";
-        if (operational == OrganizationOperationalStatus.Attention)
-            return "Action required";
-        if (operational == OrganizationOperationalStatus.Suspended)
-            return "Suspended";
-        if (operational == OrganizationOperationalStatus.Archived)
-            return "Archived";
-        return "Unknown";
-    }
+        // Only non-terminal states can need attention
+        if (operationalStatus is OrganizationOperationalStatus.Suspended
+            or OrganizationOperationalStatus.Archived
+            or OrganizationOperationalStatus.Active)
+            return false;
 
-    private static DateTime? MaxDate(DateTime? a, DateTime? b)
-    {
-        if (!a.HasValue)
-            return b;
-        if (!b.HasValue)
-            return a;
-        return a.Value >= b.Value ? a : b;
+        // Has HR invites but ALL are expired/failed (none pending)
+        if (m.HrInvites.Count > 0)
+        {
+            var hasPending = m.HrInvites.Any(i =>
+                i.AcceptedAt == null && i.ExpiresAt > DateTime.UtcNow);
+            return !hasPending;
+        }
+
+        return false;
     }
 }
