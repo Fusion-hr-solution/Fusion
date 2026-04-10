@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { ReactNode } from "react";
 import { useForm } from "react-hook-form";
 import { cn } from "@/lib/utils";
 import type {
@@ -74,7 +75,7 @@ export function OrgDetailSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
+      <SheetContent className="w-full sm:max-w-lg">
         {isLoading || !org ? (
           <DetailSkeleton />
         ) : (
@@ -147,7 +148,7 @@ function DetailContent({
       </SheetHeader>
 
       <div className="flex-1 overflow-y-auto px-4 pb-4">
-        <Tabs defaultValue="overview" className="flex flex-col w-full">
+        <Tabs defaultValue="overview" className="w-full">
           <TabsList className="w-full">
             <TabsTrigger value="overview" className="flex-1">
               Overview
@@ -165,18 +166,18 @@ function DetailContent({
             {/* Metrics grid */}
             <div className="grid grid-cols-2 gap-3">
               <MetricCard
-                icon={<Users className="size-4 text-blue-600" />}
+                icon={<Users className="size-4 text-blue-500 dark:text-blue-400" />}
                 label="Active Users"
                 value={org.activeUserCount}
               />
               <MetricCard
-                icon={<Mail className="size-4 text-amber-600" />}
+                icon={<Mail className="size-4 text-amber-500 dark:text-amber-400" />}
                 label="Pending Invites"
                 value={org.pendingInviteCount}
                 highlight={org.pendingInviteCount > 0}
               />
               <MetricCard
-                icon={<UserCheck className="size-4 text-emerald-600" />}
+                icon={<UserCheck className="size-4 text-emerald-500 dark:text-emerald-400" />}
                 label="Primary Admin"
                 value={org.primaryAdminEmail ?? "—"}
                 text
@@ -288,42 +289,44 @@ function DetailContent({
                           {org.firstAdminInvite.inviteLink}
                         </code>
                         <div className="flex shrink-0 items-center gap-1">
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="outline"
-                                size="icon-sm"
-                                onClick={() => {
-                                  navigator.clipboard.writeText(
-                                    org.firstAdminInvite.inviteLink!
-                                  );
-                                  toast.success("Invite link copied");
-                                }}
-                              >
-                                <Copy className="size-3.5" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Copy link</TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button variant="outline" size="icon-sm" asChild>
-                                <a
-                                  href={org.firstAdminInvite.inviteLink}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="icon-sm"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(
+                                      org.firstAdminInvite.inviteLink!
+                                    );
+                                    toast.success("Invite link copied");
+                                  }}
                                 >
-                                  <ExternalLink className="size-3.5" />
-                                </a>
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Open in new tab</TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>                      </div>                    </div>
+                                  <Copy className="size-3.5" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Copy link</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button variant="outline" size="icon-sm" asChild>
+                                  <a
+                                    href={org.firstAdminInvite.inviteLink}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                  >
+                                    <ExternalLink className="size-3.5" />
+                                  </a>
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Open in new tab</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
+                      </div>
+                    </div>
                   )}
 
                   {(canResend || canRevoke) && (
@@ -547,7 +550,7 @@ function MetricCard({
   highlight,
   tooltip,
 }: {
-  icon: React.ReactNode;
+  icon: ReactNode;
   label: string;
   value: string | number;
   text?: boolean;
