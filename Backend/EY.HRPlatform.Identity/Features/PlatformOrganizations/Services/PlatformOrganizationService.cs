@@ -63,7 +63,6 @@ public sealed class PlatformOrganizationService(
         var stats = new PlatformOrganizationStatsDto
         {
             TotalOrganizations = allSummaries.Count,
-            AttentionNeeded = allSummaries.Count(s => s.NeedsAttention),
             InvitedPending = allSummaries.Count(s =>
                 s.OperationalStatus.Equals(OrganizationOperationalStatus.Invited, StringComparison.OrdinalIgnoreCase)),
             ActiveOrganizations = allSummaries.Count(s =>
@@ -82,9 +81,6 @@ public sealed class PlatformOrganizationService(
             summaries = summaries
                 .Where(s => allowedFilter.Contains(s.OperationalStatus))
                 .ToList();
-
-        if (query.FilterNeedsAttention == true)
-            summaries = summaries.Where(s => s.NeedsAttention).ToList();
 
         static int StatusPriority(string operationalStatus) => operationalStatus switch
         {
@@ -446,13 +442,11 @@ public sealed class PlatformOrganizationService(
         m ??= new TenantMetrics();
 
         var status = ComputeOperationalStatus(tenant, m);
-        var attention = ComputeNeedsAttention(m, status);
         return new PlatformOrganizationSummaryDto
         {
             Id = tenant.Id,
             Name = tenant.Name,
             OperationalStatus = status,
-            NeedsAttention = attention,
             ActiveUserCount = m.ActiveUserCount,
             PendingInviteCount = m.PendingInviteCount,
             CreatedAt = tenant.CreatedAt,
@@ -470,7 +464,6 @@ public sealed class PlatformOrganizationService(
         metrics.TryGetValue(tenant.Id, out var m);
         m ??= new TenantMetrics();
         var status = ComputeOperationalStatus(tenant, m);
-        var attention = ComputeNeedsAttention(m, status);
         var inviteDto = BuildInviteStatus(m.HrInvites);
 
         return new PlatformOrganizationDetailDto
@@ -478,7 +471,6 @@ public sealed class PlatformOrganizationService(
             Id = tenant.Id,
             Name = tenant.Name,
             OperationalStatus = status,
-            NeedsAttention = attention,
             CreatedAt = tenant.CreatedAt,
             UpdatedAt = tenant.UpdatedAt,
             InternalNotes = tenant.InternalNotes,
@@ -577,22 +569,4 @@ public sealed class PlatformOrganizationService(
         return OrganizationOperationalStatus.Invited;
     }
 
-    private static bool ComputeNeedsAttention(TenantMetrics m, string operationalStatus)
-    {
-        // Only non-terminal states can need attention
-        if (operationalStatus is OrganizationOperationalStatus.Suspended
-            or OrganizationOperationalStatus.Archived
-            or OrganizationOperationalStatus.Active)
-            return false;
-
-        // Has HR invites but ALL are expired/failed (none pending)
-        if (m.HrInvites.Count > 0)
-        {
-            var hasPending = m.HrInvites.Any(i =>
-                i.AcceptedAt == null && i.ExpiresAt > DateTime.UtcNow);
-            return !hasPending;
-        }
-
-        return false;
-    }
 }

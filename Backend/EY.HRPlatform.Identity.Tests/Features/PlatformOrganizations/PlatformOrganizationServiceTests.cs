@@ -31,7 +31,6 @@ public class PlatformOrganizationServiceTests
 
         // Assert
         Assert.Equal("draft", summary.OperationalStatus);
-        Assert.False(summary.NeedsAttention);
         Assert.Equal(0, summary.PendingInviteCount);
         Assert.Equal(0, summary.ActiveUserCount);
     }
@@ -64,7 +63,6 @@ public class PlatformOrganizationServiceTests
 
         // Assert
         Assert.Equal("invited", summary.OperationalStatus);
-        Assert.False(summary.NeedsAttention);
         Assert.Equal(1, summary.PendingInviteCount);
     }
 
@@ -117,12 +115,11 @@ public class PlatformOrganizationServiceTests
 
         // Assert
         Assert.Equal("active", summary.OperationalStatus);
-        Assert.False(summary.NeedsAttention);
         Assert.Equal(1, summary.ActiveUserCount);
     }
 
     [Fact]
-    public async Task ListAsync_ReturnsInvitedWithAttention_WhenHrAdminInviteExpiredAndNoHrAdminUser()
+    public async Task ListAsync_ReturnsInvited_WhenHrAdminInviteExpiredAndNoHrAdminUser()
     {
         // Arrange
         var db = CreateDbContext();
@@ -152,7 +149,6 @@ public class PlatformOrganizationServiceTests
 
         // Assert
         Assert.Equal("invited", summary.OperationalStatus);
-        Assert.True(summary.NeedsAttention);
         Assert.Equal(0, summary.PendingInviteCount);
     }
 
@@ -176,7 +172,6 @@ public class PlatformOrganizationServiceTests
 
         // Assert
         Assert.Equal("suspended", summary.OperationalStatus);
-        Assert.False(summary.NeedsAttention);
     }
 
     [Fact]
@@ -199,7 +194,6 @@ public class PlatformOrganizationServiceTests
 
         // Assert
         Assert.Equal("archived", summary.OperationalStatus);
-        Assert.False(summary.NeedsAttention);
     }
 
     [Fact]

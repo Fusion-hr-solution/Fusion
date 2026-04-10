@@ -21,7 +21,6 @@ public class PlatformOrganizationsController(IPlatformOrganizationService platfo
         [FromQuery] string orderBy = "createdAt",
         [FromQuery] string orderDirection = "desc",
         [FromQuery(Name = "filterByStatus")] string[]? filterByStatus = null,
-        [FromQuery] bool? filterNeedsAttention = null,
         CancellationToken cancellationToken = default)
     {
         if (skip < 0)
@@ -38,7 +37,6 @@ public class PlatformOrganizationsController(IPlatformOrganizationService platfo
             OrderBy = orderBy,
             OrderDirection = orderDirection,
             FilterByStatus = filterByStatus,
-            FilterNeedsAttention = filterNeedsAttention,
         };
 
         var paged = await platformOrganizations.ListAsync(query, cancellationToken);
