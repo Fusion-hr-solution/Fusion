@@ -3,7 +3,7 @@
 import { Video, FileText, BookOpen, Dumbbell, CheckCircle2, Circle } from "lucide-react";
 import { Button } from "@repo/ui";
 import type { ChapterContentViewProps } from "@/types/component-props";
-import type { ContentBlock } from "@/types";
+import type { ContentBlock, ChapterLayout } from "@/types";
 import { ChapterNavigation } from "./chapter-navigation";
 
 /**
@@ -17,6 +17,64 @@ function resolveAssetUrl(path: string): string {
   const base = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";  // e.g. http://localhost:5000/api
   const origin = base.replace(/\/api\/?$/, "");             // e.g. http://localhost:5000
   return origin ? `${origin}${path}` : path;
+}
+
+/** Detect embeddable video URLs (YouTube, Vimeo, etc.) */
+function isEmbedUrl(url: string): boolean {
+  return /youtube\.com|youtu\.be|vimeo\.com|dailymotion\.com|wistia\.com/i.test(url);
+}
+
+/** Render video content — embedded iframe for YouTube/Vimeo, native player for uploads */
+function renderVideoContent(block: ContentBlock) {
+  // Uploaded video file takes priority
+  if (block.contentUri) {
+    const src = resolveAssetUrl(block.contentUri);
+    return (
+      <div className="overflow-hidden rounded-xl border border-border bg-black aspect-video">
+        <video
+          src={src}
+          title={block.title ?? "Video"}
+          className="h-full w-full"
+          controls
+          controlsList="nodownload"
+          preload="metadata"
+        />
+      </div>
+    );
+  }
+
+  // Embeddable URL (YouTube, Vimeo, etc.)
+  if (block.videoUrl && isEmbedUrl(block.videoUrl)) {
+    return (
+      <div className="overflow-hidden rounded-xl border border-border bg-black aspect-video">
+        <iframe
+          src={block.videoUrl}
+          title={block.title ?? "Video"}
+          className="h-full w-full"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+        />
+      </div>
+    );
+  }
+
+  // Direct video URL (non-embeddable)
+  if (block.videoUrl) {
+    return (
+      <div className="overflow-hidden rounded-xl border border-border bg-black aspect-video">
+        <video
+          src={block.videoUrl}
+          title={block.title ?? "Video"}
+          className="h-full w-full"
+          controls
+          controlsList="nodownload"
+          preload="metadata"
+        />
+      </div>
+    );
+  }
+
+  return null;
 }
 
 const BLOCK_TYPE_ICON = {
@@ -61,27 +119,7 @@ export function ChapterContentView({
       </div>
 
       {/* Content blocks */}
-      <div className="space-y-8">
-        {sortedBlocks.map((block, i) => (
-          <ContentBlockView
-            key={block.id}
-            block={block}
-            index={i}
-            isCompleted={completedBlockIds.has(block.id)}
-            onMarkComplete={() => onMarkBlockComplete(block.id)}
-            isLoading={isLoading}
-          />
-        ))}
-
-        {sortedBlocks.length === 0 && (
-          <div className="rounded-2xl border border-dashed border-border/60 bg-muted/30 px-8 py-16 text-center">
-            <BookOpen className="mx-auto h-10 w-10 text-muted-foreground/40 mb-3" aria-hidden="true" />
-            <p className="text-sm text-muted-foreground">
-              Content for this chapter is not yet available.
-            </p>
-          </div>
-        )}
-      </div>
+      {renderBlocksWithLayout(sortedBlocks, chapter.layout, completedBlockIds, onMarkBlockComplete, isLoading)}
 
       {/* Navigation */}
       <ChapterNavigation
@@ -94,6 +132,73 @@ export function ChapterContentView({
       />
     </div>
   );
+}
+
+/* ── Layout-aware block renderer ── */
+
+function renderBlocksWithLayout(
+  blocks: ContentBlock[],
+  layout: ChapterLayout,
+  completedBlockIds: Set<string>,
+  onMarkBlockComplete: (blockId: string) => void,
+  isLoading: boolean,
+) {
+  if (blocks.length === 0) {
+    return (
+      <div className="rounded-2xl border border-dashed border-border/60 bg-muted/30 px-8 py-16 text-center">
+        <BookOpen className="mx-auto h-10 w-10 text-muted-foreground/40 mb-3" aria-hidden="true" />
+        <p className="text-sm text-muted-foreground">
+          Content for this chapter is not yet available.
+        </p>
+      </div>
+    );
+  }
+
+  const blockElements = (list: ContentBlock[], startIndex: number) =>
+    list.map((block, i) => (
+      <ContentBlockView
+        key={block.id}
+        block={block}
+        index={startIndex + i}
+        isCompleted={completedBlockIds.has(block.id)}
+        onMarkComplete={() => onMarkBlockComplete(block.id)}
+        isLoading={isLoading}
+      />
+    ));
+
+  if (layout === "SplitLayout" && blocks.length >= 2) {
+    const mid = Math.ceil(blocks.length / 2);
+    const left = blocks.slice(0, mid);
+    const right = blocks.slice(mid);
+    return (
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="space-y-6">{blockElements(left, 0)}</div>
+        <div className="space-y-6">{blockElements(right, mid)}</div>
+      </div>
+    );
+  }
+
+  if (layout === "MultiSection") {
+    return (
+      <div className="space-y-10">
+        {blocks.map((block, i) => (
+          <div key={block.id}>
+            {i > 0 && <hr className="mb-6 border-border/40" />}
+            <ContentBlockView
+              block={block}
+              index={i}
+              isCompleted={completedBlockIds.has(block.id)}
+              onMarkComplete={() => onMarkBlockComplete(block.id)}
+              isLoading={isLoading}
+            />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // SingleContent (default) — vertical stack
+  return <div className="space-y-8">{blockElements(blocks, 0)}</div>;
 }
 
 /* ── Individual content block renderer ── */
@@ -153,25 +258,26 @@ function ContentBlockView({
       </div>
 
       {/* Block content */}
-      {block.type === "video" && block.videoUrl && (
-        <div className="overflow-hidden rounded-xl border border-border bg-black aspect-video">
-          <iframe
-            src={block.videoUrl}
-            title={block.title ?? "Video"}
-            className="h-full w-full"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-          />
-        </div>
-      )}
+      {block.type === "video" && renderVideoContent(block)}
 
       {block.type === "pdf" && block.contentUri && (
-        <div className="overflow-hidden rounded-xl border border-border aspect-[3/4]">
-          <iframe
-            src={resolveAssetUrl(block.contentUri)}
-            title={block.title ?? "PDF"}
-            className="h-full w-full"
-          />
+        <div className="space-y-2">
+          <div className="overflow-hidden rounded-xl border border-border aspect-[3/4]">
+            <iframe
+              src={resolveAssetUrl(block.contentUri)}
+              title={block.title ?? "PDF"}
+              className="h-full w-full"
+            />
+          </div>
+          <a
+            href={resolveAssetUrl(block.contentUri)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-[hsl(var(--ey-blue-500))] hover:underline"
+          >
+            <FileText className="h-3.5 w-3.5" />
+            Open PDF in new tab
+          </a>
         </div>
       )}
 

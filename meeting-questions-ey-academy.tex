@@ -1,0 +1,263 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{titlesec}
+
+\definecolor{eyblue}{RGB}{46,49,146}
+\definecolor{eygray}{RGB}{100,100,100}
+
+\titleformat{\section}{\large\bfseries\color{eyblue}}{}{0em}{}[\vspace{-0.5em}\color{eyblue}\rule{\textwidth}{0.5pt}]
+\titleformat{\subsection}{\normalsize\bfseries\color{eyblue!80}}{}{0em}{}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.4em}
+
+\begin{document}
+
+\begin{center}
+  {\LARGE\bfseries\color{eyblue} EY Academy Platform --- Meeting Preparation}\\[0.5em]
+  {\large\color{eygray} Questions \& Feature Validation Document}\\[0.3em]
+  {\small\color{eygray} Prepared for the EY Academy Team Meeting}
+\end{center}
+
+\vspace{1.5em}
+
+\section{Purpose of This Document}
+
+This document contains structured questions for the EY Academy platform meeting. The goal is to:
+\begin{itemize}[nosep]
+  \item Validate that our current implementation aligns with the team's expectations
+  \item Clarify open design and workflow questions
+  \item Confirm the final feature scope for the learning module
+\end{itemize}
+
+% ==========================================================================
+\section{General Platform Vision}
+% ==========================================================================
+
+\begin{enumerate}[leftmargin=2em]
+  \item What is the target audience size? How many employees will use the platform simultaneously?
+  \item Should the platform support multiple languages (French / English / Arabic)?
+  \item Is there a specific design system or branding guideline we should follow for the UI?
+  \item Will the platform be accessed only internally (VPN / intranet) or also externally?
+  \item Who are the different user roles? (Admin RH, Manager, Employee, Trainer --- any others?)
+  \item Should there be a mobile-responsive version or a dedicated mobile app?
+\end{enumerate}
+
+% ==========================================================================
+\section{Formation (Training) Management --- Admin RH}
+% ==========================================================================
+
+\subsection{CRUD Operations}
+\begin{enumerate}[leftmargin=2em]
+  \item The Admin RH currently can create, read, update, and delete formations. \textbf{Is this workflow correct?}
+  \item When creating a formation, we currently ask for: title, description, category, badge level, credits, duration, mandatory flag, and chapters. \textbf{Are there additional fields needed?}
+  \item Should there be a \textbf{draft / published} status for formations? (i.e.\ the admin builds it as a draft before making it visible to employees)
+  \item Can a formation be \textbf{archived} instead of deleted? What happens to employees who are mid-progress?
+  \item Should there be \textbf{versioning} for formations? (e.g.\ if the content is updated, do existing enrollments keep the old version?)
+  \item Who can create formations --- only Admin RH, or also department managers / trainers?
+\end{enumerate}
+
+\subsection{Formation Display \& Templates}
+\begin{enumerate}[leftmargin=2em]
+  \item We currently display formations in a \textbf{catalog view} with cards (showing title, category, badge level, duration, chapter count). \textbf{Is this the desired layout?}
+  \item Should there be a \textbf{featured / recommended} section on the catalog page?
+  \item For the formation detail page, we show: description, chapter outline, exam info, instructor info, stats (duration, enrolled count, rating). \textbf{Is anything missing?}
+  \item Should formations have a \textbf{thumbnail / cover image}? If yes, should the admin upload it or should it be auto-generated based on category?
+  \item Should there be a \textbf{preview mode} for the admin to see the formation exactly as the employee would see it before publishing?
+\end{enumerate}
+
+% ==========================================================================
+\section{Chapters \& Content Blocks}
+% ==========================================================================
+
+\subsection{Chapter Structure}
+\begin{enumerate}[leftmargin=2em]
+  \item Currently each formation has multiple \textbf{chapters}, and each chapter has multiple \textbf{content blocks} (Video, PDF, Article, Exercise). \textbf{Is this structure correct?}
+  \item We support three chapter layouts: \textbf{Single Content} (vertical stack), \textbf{Split Layout} (two columns), and \textbf{Multi-Section} (separated sections). \textbf{Are these layouts sufficient?}
+  \item Should chapters have a \textbf{minimum time requirement} (e.g.\ the employee must spend at least X minutes before marking it complete)?
+  \item Can chapters be \textbf{reordered} after creation? (Currently yes, via drag-and-drop.) \textbf{Is this the expected behavior?}
+  \item Should there be \textbf{prerequisites} between chapters (e.g.\ Chapter 3 requires Chapter 1 and 2 to be completed)?
+\end{enumerate}
+
+\subsection{Content Upload \& Creation Flow}
+\begin{enumerate}[leftmargin=2em]
+  \item \textbf{Current video flow:} Admin can either paste an embed URL (YouTube/Vimeo) or upload a video file. \textbf{Is this correct? Are there other video sources?}
+  \item \textbf{Current PDF flow:} Admin uploads a PDF file which is displayed inline with a fallback link. \textbf{Is this sufficient?}
+  \item \textbf{Current article flow:} Admin writes text content (with basic markdown support). \textbf{Should we support a richer text editor (bold, images, tables, code blocks)?}
+  \item \textbf{Exercise blocks:} How should exercises work? Multiple choice questions? Free text? Interactive activities?
+  \item What are the \textbf{file size limits} for uploads (video, PDF)?
+  \item Should there be a \textbf{content library} where admins can reuse content blocks across multiple formations?
+  \item How is the content \textbf{actually produced}? Does the EY team create it internally, or is it imported from an external LMS / SCORM packages?
+\end{enumerate}
+
+% ==========================================================================
+\section{Categories \& Badge System}
+% ==========================================================================
+
+\begin{enumerate}[leftmargin=2em]
+  \item We have predefined big categories: \textbf{Technique, Soft Skills, Compliance, Leadership, Finance, Data Analytics}. \textbf{Is this list final? Can the admin create new categories?}
+  \item The 3 badge levels (\textbf{Bronze, Silver, Gold}) are assigned to formations. An employee earns a badge by completing all formations of that badge level. \textbf{Is this logic correct?}
+  \item Are badges \textbf{per-category} (e.g.\ Gold in Technical, Silver in Soft Skills) or \textbf{global} across all formations?
+  \item Is there a \textbf{visual representation} expected for badges? (Certificate PDF, profile badge icon, leaderboard?)
+  \item Can badge requirements \textbf{change over time}? What happens to employees who already earned a badge if new formations are added to that level?
+\end{enumerate}
+
+% ==========================================================================
+\section{Progress Tracking \& Credits}
+% ==========================================================================
+
+\begin{enumerate}[leftmargin=2em]
+  \item Each formation gives a number of \textbf{credits} upon completion. The employee has a progress bar showing credits earned vs.\ credits required. \textbf{Is the credit target fixed or configurable per employee / department / period?}
+  \item How is the \textbf{required credit threshold} determined? Per year? Per semester? Per badge level?
+  \item Should the progress bar show \textbf{only credits}, or also \textbf{number of formations completed}?
+  \item When an employee completes a content block, we currently mark it as done and update the chapter progress. \textbf{Is manual marking sufficient, or should there be automatic tracking} (e.g.\ video must be watched to 90\%, PDF scrolled to end)?
+  \item \textbf{What defines formation completion?} Currently: all chapters completed + exam passed. \textbf{Is this correct?}
+\end{enumerate}
+
+% ==========================================================================
+\section{Exams \& Certification}
+% ==========================================================================
+
+\begin{enumerate}[leftmargin=2em]
+  \item Exams are currently \textbf{locked until all chapters are completed}. \textbf{Is this the desired behavior?}
+  \item What is the \textbf{exam format}? Multiple choice only? Mixed (MCQ + free text + practical)?
+  \item Is there a \textbf{time limit} for exams?
+  \item How many \textbf{attempts} does the employee get? What happens after failing all attempts?
+  \item What is the \textbf{passing score}? Is it configurable per formation?
+  \item Should there be a \textbf{certificate PDF} generated upon passing? What information should it contain (name, formation title, date, score, badge)?
+  \item Should certificates have a \textbf{unique verification code} or QR code for authenticity?
+  \item Who \textbf{creates the exam questions}? The Admin RH? A separate trainer role?
+\end{enumerate}
+
+% ==========================================================================
+\section{Enrollment \& Assignment}
+% ==========================================================================
+
+\begin{enumerate}[leftmargin=2em]
+  \item \textbf{Assignment methods:} We support Admin RH manual assignment and employee self-enrollment. \textbf{Are there other methods?} (e.g.\ manager assigns to their team)
+  \item For the \textbf{automatic assignment system based on employee skills}: how are employee skills determined? From their profile? From HR data? From completed formations?
+  \item What are the \textbf{rules for automatic assignment}? (e.g.\ new employee $\rightarrow$ assign onboarding formations; employee in IT department $\rightarrow$ assign technical formations)
+  \item Can an employee \textbf{unenroll} from a self-enrolled formation? What about mandatory formations?
+  \item Should there be a \textbf{waiting list} or \textbf{approval workflow} for certain formations?
+  \item When assigning formations, should there always be a \textbf{due date}? Who sets it?
+\end{enumerate}
+
+% ==========================================================================
+\section{Alerts, Warnings \& Notifications}
+% ==========================================================================
+
+\begin{enumerate}[leftmargin=2em]
+  \item \textbf{Warning emails} are sent if the employee didn't start or finish a formation. \textbf{What are the trigger conditions?}
+  \begin{itemize}[nosep]
+    \item X days before the due date?
+    \item X days after enrollment with no progress?
+    \item Specific calendar dates (end of quarter, end of year)?
+  \end{itemize}
+  \item \textbf{Red warning text} is shown to the employee if they haven't reached the required credits before a selected period. \textbf{What is this period?} (monthly, quarterly, yearly?)
+  \item Should warnings also be visible to the \textbf{employee's manager}?
+  \item What \textbf{notification channels} are expected? (Email only? In-app notifications? Teams integration?)
+  \item Should there be an \textbf{escalation path}? (e.g.\ first reminder $\rightarrow$ second reminder $\rightarrow$ notify manager $\rightarrow$ notify HR)
+\end{enumerate}
+
+% ==========================================================================
+\section{HR Dashboard}
+% ==========================================================================
+
+\begin{enumerate}[leftmargin=2em]
+  \item What \textbf{key metrics} should the HR dashboard display?
+  \begin{itemize}[nosep]
+    \item Overall completion rate across all employees?
+    \item Completion rate per department / team?
+    \item Most / least popular formations?
+    \item Employees at risk (behind on credits)?
+    \item Badge distribution across the organization?
+  \end{itemize}
+  \item Should the dashboard support \textbf{filtering by period} (this month, this quarter, this year)?
+  \item Should there be \textbf{exportable reports} (CSV, PDF)?
+  \item Should the dashboard show \textbf{individual employee details} or only aggregated data?
+  \item Are there any \textbf{compliance reporting} requirements (e.g.\ for regulatory audits)?
+\end{enumerate}
+
+% ==========================================================================
+\section{Mandatory vs.\ Optional Formations}
+% ==========================================================================
+
+\begin{enumerate}[leftmargin=2em]
+  \item How are \textbf{mandatory formations} determined? Per role? Per department? Company-wide?
+  \item Is there a \textbf{deadline} for mandatory formations? What happens if an employee misses it?
+  \item Should mandatory formations appear \textbf{differently in the UI} (e.g.\ pinned at the top, special badge, red border)?
+  \item Can a mandatory formation become optional (or vice versa) after it has been assigned?
+\end{enumerate}
+
+% ==========================================================================
+\section{Feature Validation Checklist}
+% ==========================================================================
+
+{\small\color{eygray} Please confirm each feature with \textbf{Yes (correct)}, \textbf{No (wrong)}, or \textbf{Modify (needs changes)}.}
+
+\vspace{0.5em}
+
+\renewcommand{\arraystretch}{1.4}
+\begin{tabular}{|p{0.65\textwidth}|p{0.25\textwidth}|}
+\hline
+\textbf{Feature} & \textbf{Status} \\
+\hline
+Admin RH can CRUD formations & \hspace{1em} $\square$ Yes \quad $\square$ No \\
+\hline
+Formation display with catalog view and detail pages & \hspace{1em} $\square$ Yes \quad $\square$ No \\
+\hline
+Chapters with content blocks (Video, PDF, Article, Exercise) & \hspace{1em} $\square$ Yes \quad $\square$ No \\
+\hline
+3 chapter layouts (Single, Split, Multi-Section) & \hspace{1em} $\square$ Yes \quad $\square$ No \\
+\hline
+Big categories (Technique, Soft Skills, Compliance, etc.) & \hspace{1em} $\square$ Yes \quad $\square$ No \\
+\hline
+Mandatory and optional formations & \hspace{1em} $\square$ Yes \quad $\square$ No \\
+\hline
+Credits system per formation & \hspace{1em} $\square$ Yes \quad $\square$ No \\
+\hline
+Employee progress bar (credits-based) & \hspace{1em} $\square$ Yes \quad $\square$ No \\
+\hline
+Formation assignment (Admin RH + self-enrollment) & \hspace{1em} $\square$ Yes \quad $\square$ No \\
+\hline
+Warning emails and alerts for non-completion & \hspace{1em} $\square$ Yes \quad $\square$ No \\
+\hline
+Automatic assignment based on employee skills & \hspace{1em} $\square$ Yes \quad $\square$ No \\
+\hline
+HR dashboard for tracking all employee formations & \hspace{1em} $\square$ Yes \quad $\square$ No \\
+\hline
+Red warnings for employees missing required credits & \hspace{1em} $\square$ Yes \quad $\square$ No \\
+\hline
+Certification for each formation & \hspace{1em} $\square$ Yes \quad $\square$ No \\
+\hline
+Exam to complete the formation & \hspace{1em} $\square$ Yes \quad $\square$ No \\
+\hline
+3 badges: Bronze, Silver, Gold & \hspace{1em} $\square$ Yes \quad $\square$ No \\
+\hline
+Exams locked until chapters are completed & \hspace{1em} $\square$ Yes \quad $\square$ No \\
+\hline
+Formation progress tracking per employee & \hspace{1em} $\square$ Yes \quad $\square$ No \\
+\hline
+\end{tabular}
+
+\vspace{2em}
+
+\section{Open Questions \& Notes}
+
+\begin{enumerate}[leftmargin=2em]
+  \item Are there any \textbf{integrations} needed with existing systems? (Active Directory, existing HRIS, Teams, Outlook calendar)
+  \item Is there an existing \textbf{content library} or do we start from scratch?
+  \item What \textbf{data migration} is needed from current training processes?
+  \item Are there any \textbf{legal / compliance constraints} on data storage (employee progress data, exam results)?
+  \item What is the expected \textbf{go-live timeline} and which features are \textbf{MVP} vs.\ later phases?
+\end{enumerate}
+
+\vspace{2em}
+\begin{center}
+  \color{eygray}\small --- End of Document ---
+\end{center}
+
+\end{document}

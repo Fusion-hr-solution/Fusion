@@ -3,7 +3,7 @@
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Pencil, Trash2, BookOpen, Users, FileText } from "lucide-react";
+import { Pencil, Trash2, BookOpen, Users, FileText, LayoutGrid } from "lucide-react";
 import { Button, buttonVariants, Badge } from "@repo/ui";
 import { useApiQuery, useApiMutation } from "@repo/api/react";
 import {
@@ -132,6 +132,18 @@ export function TrainingDetailView({ trainingId }: TrainingDetailViewProps) {
       </div>
 
       {/* Chapters */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-base font-semibold text-foreground">Chapters</h2>
+        {!training.isDeleted && (
+          <Link
+            href={`/admin/trainings/${trainingId}/chapters`}
+            className={buttonVariants({ variant: "outline", size: "sm" })}
+          >
+            <LayoutGrid className="mr-1.5 h-4 w-4" />
+            Manage Chapters
+          </Link>
+        )}
+      </div>
       <AdminChapterList
         trainingId={trainingId}
         chapters={training.chapters}
