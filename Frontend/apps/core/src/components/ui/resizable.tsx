@@ -1,13 +1,17 @@
-"use client"
+"use client";
 
-import { PanelGroup, Panel, PanelResizeHandle, type PanelGroupProps, type PanelProps, type PanelResizeHandleProps } from "react-resizable-panels"
+import {
+  PanelGroup,
+  Panel,
+  PanelResizeHandle,
+  type PanelGroupProps,
+  type PanelProps,
+  type PanelResizeHandleProps,
+} from "react-resizable-panels";
 
-import { cn } from '@/lib/utils'
+import { cn } from "@/lib/utils";
 
-function ResizablePanelGroup({
-  className,
-  ...props
-}: PanelGroupProps) {
+function ResizablePanelGroup({ className, ...props }: PanelGroupProps) {
   return (
     <PanelGroup
       data-slot="resizable-panel-group"
@@ -17,11 +21,11 @@ function ResizablePanelGroup({
       )}
       {...props}
     />
-  )
+  );
 }
 
 function ResizablePanel({ ...props }: PanelProps) {
-  return <Panel data-slot="resizable-panel" {...props} />
+  return <Panel data-slot="resizable-panel" {...props} />;
 }
 
 function ResizableHandle({
@@ -29,7 +33,7 @@ function ResizableHandle({
   className,
   ...props
 }: PanelResizeHandleProps & {
-  withHandle?: boolean
+  withHandle?: boolean;
 }) {
   return (
     <PanelResizeHandle
@@ -44,7 +48,7 @@ function ResizableHandle({
         <div className="z-10 flex h-6 w-1 shrink-0 rounded-lg bg-border" />
       )}
     </PanelResizeHandle>
-  )
+  );
 }
 
-export { ResizableHandle, ResizablePanel, ResizablePanelGroup }
+export { ResizableHandle, ResizablePanel, ResizablePanelGroup };
