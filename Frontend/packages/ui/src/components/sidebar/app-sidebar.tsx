@@ -83,9 +83,7 @@ export function AppSidebar({
       <nav className="flex-1 overflow-y-auto px-3 py-4">
         {sections.map((section, i) => (
           <div key={section.title}>
-            {i > 0 && (
-              <div className="my-4 border-t border-sidebar-border" />
-            )}
+            {i > 0 && <div className="my-4 border-t border-sidebar-border" />}
             <SidebarNav
               section={section}
               activePath={activePath}
