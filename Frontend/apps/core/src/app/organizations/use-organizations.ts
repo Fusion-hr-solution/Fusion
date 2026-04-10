@@ -11,7 +11,12 @@ import {
   type UpdatePlatformOrganizationRequest,
   type PlatformOrganizationInviteStatusDto,
 } from "@repo/api";
-import { useApiQuery, useApiMutation, type UseApiQueryResult, type UseApiMutationResult } from "@repo/api/react";
+import {
+  useApiQuery,
+  useApiMutation,
+  type UseApiQueryResult,
+  type UseApiMutationResult,
+} from "@repo/api/react";
 import { useAuth } from "@repo/auth";
 
 // ---------------------------------------------------------------------------
@@ -24,33 +29,38 @@ export interface OrgListParams {
   orderBy?: string;
   orderDirection?: string;
   filterByStatus?: string[];
-  filterNeedsAttention?: boolean;
 }
 
 // ---------------------------------------------------------------------------
 // List hook
 // ---------------------------------------------------------------------------
-export function useOrganizationList(params: OrgListParams): UseApiQueryResult<PlatformOrganizationPagedListDto> {
+export function useOrganizationList(
+  params: OrgListParams
+): UseApiQueryResult<PlatformOrganizationPagedListDto> {
   const { isAuthenticated } = useAuth();
   const client = useMemo(() => createPlatformApiClient(), []);
+
+  const { skip, take, search, orderBy, orderDirection, filterByStatus } =
+    params;
+  const statusKey = filterByStatus?.join(",") ?? "";
 
   const queryFn = useCallback(
     (signal: AbortSignal) => {
       const queryParams: Record<string, string | number | boolean | undefined> =
         {
-          skip: params.skip,
-          take: params.take,
-          search: params.search || undefined,
-          orderBy: params.orderBy || "createdAt",
-          orderDirection: params.orderDirection || "desc",
-          filterNeedsAttention: params.filterNeedsAttention ?? undefined,
+          skip,
+          take,
+          search: search || undefined,
+          orderBy: orderBy || "createdAt",
+          orderDirection: orderDirection || "desc",
         };
 
       // filterByStatus is an array — API expects repeated query params
       // Our client.get appends params as URLSearchParams, so we join them manually
       let path = platformOrganizationsPaths.list();
-      if (params.filterByStatus && params.filterByStatus.length > 0) {
-        const statusParams = params.filterByStatus
+      const statuses = statusKey ? statusKey.split(",") : [];
+      if (statuses.length > 0) {
+        const statusParams = statuses
           .map((s) => `filterByStatus=${encodeURIComponent(s)}`)
           .join("&");
         path += `?${statusParams}`;
@@ -61,7 +71,7 @@ export function useOrganizationList(params: OrgListParams): UseApiQueryResult<Pl
         params: queryParams,
       });
     },
-    [client, params]
+    [client, skip, take, search, orderBy, orderDirection, statusKey]
   );
 
   return useApiQuery(queryFn, { enabled: isAuthenticated });
@@ -70,7 +80,9 @@ export function useOrganizationList(params: OrgListParams): UseApiQueryResult<Pl
 // ---------------------------------------------------------------------------
 // Detail hook
 // ---------------------------------------------------------------------------
-export function useOrganizationDetail(tenantId: string | null): UseApiQueryResult<PlatformOrganizationDetailDto> {
+export function useOrganizationDetail(
+  tenantId: string | null
+): UseApiQueryResult<PlatformOrganizationDetailDto> {
   const { isAuthenticated } = useAuth();
   const client = useMemo(() => createPlatformApiClient(), []);
 
@@ -89,9 +101,12 @@ export function useOrganizationDetail(tenantId: string | null): UseApiQueryResul
 // ---------------------------------------------------------------------------
 // Mutations
 // ---------------------------------------------------------------------------
-export function useCreateOrganization(
-  opts?: { onSuccess?: (data: PlatformOrganizationCreatedDto) => void }
-): UseApiMutationResult<PlatformOrganizationCreatedDto, CreatePlatformOrganizationRequest> {
+export function useCreateOrganization(opts?: {
+  onSuccess?: (data: PlatformOrganizationCreatedDto) => void;
+}): UseApiMutationResult<
+  PlatformOrganizationCreatedDto,
+  CreatePlatformOrganizationRequest
+> {
   const client = useMemo(() => createPlatformApiClient(), []);
 
   return useApiMutation<
@@ -110,7 +125,10 @@ export function useCreateOrganization(
 export function useUpdateOrganization(
   tenantId: string,
   opts?: { onSuccess?: (data: PlatformOrganizationDetailDto) => void }
-): UseApiMutationResult<PlatformOrganizationDetailDto, UpdatePlatformOrganizationRequest> {
+): UseApiMutationResult<
+  PlatformOrganizationDetailDto,
+  UpdatePlatformOrganizationRequest
+> {
   const client = useMemo(() => createPlatformApiClient(), []);
 
   return useApiMutation<
@@ -126,9 +144,9 @@ export function useUpdateOrganization(
   );
 }
 
-export function useSuspendOrganization(
-  opts?: { onSuccess?: () => void }
-): UseApiMutationResult<boolean, string> {
+export function useSuspendOrganization(opts?: {
+  onSuccess?: () => void;
+}): UseApiMutationResult<boolean, string> {
   const client = useMemo(() => createPlatformApiClient(), []);
 
   return useApiMutation<boolean, string>(
@@ -138,9 +156,9 @@ export function useSuspendOrganization(
   );
 }
 
-export function useReactivateOrganization(
-  opts?: { onSuccess?: () => void }
-): UseApiMutationResult<boolean, string> {
+export function useReactivateOrganization(opts?: {
+  onSuccess?: () => void;
+}): UseApiMutationResult<boolean, string> {
   const client = useMemo(() => createPlatformApiClient(), []);
 
   return useApiMutation<boolean, string>(
@@ -150,9 +168,9 @@ export function useReactivateOrganization(
   );
 }
 
-export function useArchiveOrganization(
-  opts?: { onSuccess?: () => void }
-): UseApiMutationResult<boolean, string> {
+export function useArchiveOrganization(opts?: {
+  onSuccess?: () => void;
+}): UseApiMutationResult<boolean, string> {
   const client = useMemo(() => createPlatformApiClient(), []);
 
   return useApiMutation<boolean, string>(
@@ -162,9 +180,9 @@ export function useArchiveOrganization(
   );
 }
 
-export function useResendFirstAdminInvite(
-  opts?: { onSuccess?: (data: PlatformOrganizationInviteStatusDto) => void }
-): UseApiMutationResult<PlatformOrganizationInviteStatusDto, string> {
+export function useResendFirstAdminInvite(opts?: {
+  onSuccess?: (data: PlatformOrganizationInviteStatusDto) => void;
+}): UseApiMutationResult<PlatformOrganizationInviteStatusDto, string> {
   const client = useMemo(() => createPlatformApiClient(), []);
 
   return useApiMutation<PlatformOrganizationInviteStatusDto, string>(
@@ -176,9 +194,9 @@ export function useResendFirstAdminInvite(
   );
 }
 
-export function useRevokeFirstAdminInvite(
-  opts?: { onSuccess?: () => void }
-): UseApiMutationResult<boolean, string> {
+export function useRevokeFirstAdminInvite(opts?: {
+  onSuccess?: () => void;
+}): UseApiMutationResult<boolean, string> {
   const client = useMemo(() => createPlatformApiClient(), []);
 
   return useApiMutation<boolean, string>(

@@ -1,9 +1,10 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { SEARCH_DEBOUNCE_MS } from "@repo/ui";
 import {
   Select,
   SelectContent,
@@ -25,8 +26,6 @@ interface ToolbarProps {
   onSearchChange: (value: string) => void;
   statusFilter: string[];
   onStatusFilterChange: (value: string[]) => void;
-  attentionFilter: boolean | undefined;
-  onAttentionFilterChange: (value: boolean | undefined) => void;
 }
 
 export function Toolbar({
@@ -34,10 +33,24 @@ export function Toolbar({
   onSearchChange,
   statusFilter,
   onStatusFilterChange,
-  attentionFilter,
-  onAttentionFilterChange,
 }: ToolbarProps) {
-  const hasFilters = statusFilter.length > 0 || attentionFilter !== undefined;
+  const hasFilters = statusFilter.length > 0;
+
+  // Local input state + debounce before pushing upstream
+  const [localSearch, setLocalSearch] = useState(search);
+
+  useEffect(() => {
+    setLocalSearch(search);
+  }, [search]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (localSearch !== search) {
+        onSearchChange(localSearch);
+      }
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [localSearch, search, onSearchChange]);
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -45,8 +58,8 @@ export function Toolbar({
         <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
         <Input
           placeholder="Search organizations…"
-          value={search}
-          onChange={(e) => onSearchChange(e.target.value)}
+          value={localSearch}
+          onChange={(e) => setLocalSearch(e.target.value)}
           className="pl-8"
         />
       </div>
@@ -71,28 +84,12 @@ export function Toolbar({
         </SelectContent>
       </Select>
 
-      <Button
-        variant={attentionFilter ? "secondary" : "outline"}
-        size="sm"
-        onClick={() =>
-          onAttentionFilterChange(attentionFilter === true ? undefined : true)
-        }
-      >
-        Needs Attention
-        {attentionFilter && (
-          <Badge variant="secondary" className="ml-1 size-4 justify-center p-0 text-[10px]">
-            !
-          </Badge>
-        )}
-      </Button>
-
       {hasFilters && (
         <Button
           variant="ghost"
           size="sm"
           onClick={() => {
             onStatusFilterChange([]);
-            onAttentionFilterChange(undefined);
           }}
         >
           <X className="size-3" />

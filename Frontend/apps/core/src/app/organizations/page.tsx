@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import type { SortingState } from "@tanstack/react-table";
 import type { PlatformOrganizationSummaryDto } from "@repo/api";
+import { DEFAULT_PAGE_SIZE, type PageSize } from "@repo/ui";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -14,14 +15,12 @@ import { PaginationBar } from "./pagination-bar";
 import { CreateOrgDialog } from "./create-org-dialog";
 import { OrgDetailSheet } from "./org-detail-sheet";
 
-const PAGE_SIZE = 20;
-
 export default function OrganizationsPage() {
   // ---- list query state ----
   const [skip, setSkip] = useState(0);
+  const [pageSize, setPageSize] = useState<PageSize>(DEFAULT_PAGE_SIZE);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
-  const [attentionFilter, setAttentionFilter] = useState<boolean | undefined>();
   const [sorting, setSorting] = useState<SortingState>([
     { id: "createdAt", desc: true },
   ]);
@@ -31,12 +30,11 @@ export default function OrganizationsPage() {
 
   const { data, isLoading, refetch } = useOrganizationList({
     skip,
-    take: PAGE_SIZE,
+    take: pageSize,
     search: search || undefined,
     orderBy,
     orderDirection,
     filterByStatus: statusFilter.length > 0 ? statusFilter : undefined,
-    filterNeedsAttention: attentionFilter,
   });
 
   // ---- dialogs ----
@@ -57,13 +55,10 @@ export default function OrganizationsPage() {
     setSkip(0);
   }, []);
 
-  const handleAttentionFilterChange = useCallback(
-    (value: boolean | undefined) => {
-      setAttentionFilter(value);
-      setSkip(0);
-    },
-    []
-  );
+  const handlePageSizeChange = useCallback((size: PageSize) => {
+    setPageSize(size);
+    setSkip(0);
+  }, []);
 
   return (
     <div className="flex h-full flex-col gap-6 p-6">
@@ -92,8 +87,6 @@ export default function OrganizationsPage() {
         onSearchChange={handleSearchChange}
         statusFilter={statusFilter}
         onStatusFilterChange={handleStatusFilterChange}
-        attentionFilter={attentionFilter}
-        onAttentionFilterChange={handleAttentionFilterChange}
       />
 
       {/* Table */}
@@ -103,15 +96,17 @@ export default function OrganizationsPage() {
         sorting={sorting}
         onSortingChange={setSorting}
         onRowClick={handleRowClick}
+        onMutated={refetch}
       />
 
       {/* Pagination */}
       {data && data.totalCount > 0 && (
         <PaginationBar
           skip={skip}
-          take={PAGE_SIZE}
+          take={pageSize}
           totalCount={data.totalCount}
           onPageChange={setSkip}
+          onPageSizeChange={handlePageSizeChange}
         />
       )}
 
