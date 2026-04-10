@@ -42,10 +42,7 @@ export function useApiQuery<T>(
         }
       })
       .catch((err: unknown) => {
-        if (
-          err instanceof DOMException &&
-          err.name === "AbortError"
-        ) {
+        if (err instanceof DOMException && err.name === "AbortError") {
           return; // ignore aborted requests — cleanup handles isLoading
         }
         if (!controller.signal.aborted) {
@@ -65,7 +62,8 @@ export function useApiQuery<T>(
     return () => {
       controllerRef.current?.abort();
     };
-  }, [enabled, execute]);
+    // queryFn included so param changes trigger re-fetch
+  }, [enabled, execute, queryFn]);
 
   const refetch = useCallback(() => {
     execute();
