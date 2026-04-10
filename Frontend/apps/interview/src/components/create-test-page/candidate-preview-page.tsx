@@ -76,6 +76,7 @@ export function CandidatePreviewPage() {
 
   const [phase, setPhase] = useState<"intro" | "running" | "submitted">("intro");
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [lockedBeforeIndex, setLockedBeforeIndex] = useState(-1);
   const [secondsLeft, setSecondsLeft] = useState(initialSeconds);
   const [answers, setAnswers] = useState<Record<string, AnswerValue>>({});
 
@@ -121,6 +122,7 @@ export function CandidatePreviewPage() {
   function restartPreview(): void {
     setPhase("intro");
     setCurrentIndex(0);
+    setLockedBeforeIndex(-1);
     setAnswers({});
     setPreviewFlaggedQuestionIds([]);
     setSecondsLeft(initialSeconds);
@@ -128,7 +130,8 @@ export function CandidatePreviewPage() {
 
   function goToQuestion(index: number): void {
     if (index < 0 || index >= questions.length) return;
-   if (!config.allowSkipping && index > currentIndex) {
+    if (!config.allowBacktracking && index <= lockedBeforeIndex) return;
+    if (!config.allowSkipping && index > currentIndex) {
       if (!currentQuestion) return;
       if (!isAnsweredValue(answers[currentQuestion.id])) return;
     }
@@ -141,11 +144,15 @@ export function CandidatePreviewPage() {
     if (!config.allowSkipping) {
       if (!isAnsweredValue(answers[currentQuestion.id])) return;
     }
+    if (!config.allowBacktracking && isAnsweredValue(answers[currentQuestion.id])) {
+      setLockedBeforeIndex((prev) => Math.max(prev, currentIndex));
+    }
     setCurrentIndex((idx) => idx + 1);
   }
 
   function prevQuestion(): void {
     if (currentIndex <= 0) return;
+    if (!config.allowBacktracking && currentIndex - 1 <= lockedBeforeIndex) return;
     setCurrentIndex((idx) => idx - 1);
   }
 
@@ -350,6 +357,7 @@ export function CandidatePreviewPage() {
 
             <div className="mt-6 rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-[13px] text-zinc-600">
               <p>Question skipping: {config.allowSkipping ? "Allowed" : "Sequential only"}</p>
+              <p>Backtracking: {config.allowBacktracking ? "Allowed" : "Locked after answered next"}</p>
               <p>Progress bar: {config.showProgressBar ? "Visible" : "Hidden"}</p>
               <p>Question order: {config.randomizeOrder ? "Randomized" : "Fixed"}</p>
             </div>
@@ -394,7 +402,9 @@ export function CandidatePreviewPage() {
                 {questions.map((q, idx) => {
                   const isActive = idx === currentIndex;
                   const isAnswered = isAnsweredValue(answers[q.id]);
-                  const canJump = config.allowSkipping || idx <= currentIndex + 1;
+                  const canJumpForward = config.allowSkipping || idx <= currentIndex + 1;
+                  const canJumpBack = config.allowBacktracking || idx > lockedBeforeIndex;
+                  const canJump = canJumpForward && canJumpBack;
 
                   return (
                     <button
@@ -471,7 +481,7 @@ export function CandidatePreviewPage() {
               <div className="mt-6 flex items-center justify-between border-t border-zinc-100 pt-5">
                 <button
                   onClick={prevQuestion}
-                  disabled={currentIndex === 0}
+                  disabled={currentIndex === 0 || (!config.allowBacktracking && currentIndex - 1 <= lockedBeforeIndex)}
                   className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-[13px] font-semibold text-zinc-700 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   <ArrowLeft className="h-4 w-4" /> Previous

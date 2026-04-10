@@ -87,6 +87,7 @@ export interface WizardFormState {
   selectedQuestions: Question[];
   config: {
     allowSkipping: boolean;
+    allowBacktracking: boolean;
     showProgressBar: boolean;
     restrictCopyPaste: boolean;
     enableProctoring: boolean;
@@ -124,4 +125,29 @@ export interface Interview {
   role: string;
   status: "scheduled" | "in-progress" | "completed" | "cancelled";
   date: string;
+}
+
+export interface CandidateManagementOverview {
+  pendingInvitations: number;
+  deliveryFailed: number;
+  expiringLinks: number;
+  inProgressCandidates: number;
+  retakeRequests: number;
+  pendingDeletion: number;
+  generatedAtUtc: string;
+}
+
+export interface CandidateInvitation {
+  id: string;
+  testId: string;
+  testTitle: string;
+  email: string;
+  candidateName?: string;
+  status: "Invited" | "DeliveryFailed";
+  deadlineUtc?: string;
+  inviteLink: string;
+  createdAtUtc: string;
+  lastSentAtUtc: string;
+  resendCount: number;
+  opensCount: number;
 }

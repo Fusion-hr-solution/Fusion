@@ -131,6 +131,12 @@ export function StepConfig() {
               onChange={(v) => updateConfig({ allowSkipping: v })}
             />
             <SwitchRow
+              label="Allow backtracking"
+              helper="If off, answered questions are locked after clicking Next"
+              checked={config.allowBacktracking}
+              onChange={(v) => updateConfig({ allowBacktracking: v })}
+            />
+            <SwitchRow
               label="Show progress bar"
               helper="Displays a step indicator during the test"
               checked={config.showProgressBar}
