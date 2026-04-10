@@ -27,9 +27,6 @@ public class TenantConfiguration : IEntityTypeConfiguration<Tenant>
         builder.Property(t => t.InternalNotes)
             .HasMaxLength(4000);
 
-        builder.Property(t => t.PlanTier)
-            .HasMaxLength(100);
-
         builder.HasIndex(t => t.IsActive);
         builder.HasIndex(t => t.IsArchived);
     }

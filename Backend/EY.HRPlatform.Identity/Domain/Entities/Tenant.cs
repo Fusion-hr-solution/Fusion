@@ -13,7 +13,6 @@ public class Tenant
     /// <summary>Soft-offboarded customer; distinct from suspended (governance pause).</summary>
     public bool IsArchived { get; private set; }
     public string? InternalNotes { get; private set; }
-    public string? PlanTier { get; private set; }
     public DateTime CreatedAt { get; private set; }
     public DateTime? UpdatedAt { get; private set; }
 
@@ -102,24 +101,6 @@ public class Tenant
             if (t.Length > 4000)
                 throw new ArgumentException("Internal notes cannot exceed 4000 characters.", nameof(notes));
             InternalNotes = t;
-        }
-
-        UpdatedAt = DateTime.UtcNow;
-    }
-
-    /// <summary>Optional commercial / operational tier label.</summary>
-    public void SetPlanTier(string? tier)
-    {
-        if (string.IsNullOrWhiteSpace(tier))
-        {
-            PlanTier = null;
-        }
-        else
-        {
-            var t = tier.Trim();
-            if (t.Length > 100)
-                throw new ArgumentException("Plan tier cannot exceed 100 characters.", nameof(tier));
-            PlanTier = t;
         }
 
         UpdatedAt = DateTime.UtcNow;

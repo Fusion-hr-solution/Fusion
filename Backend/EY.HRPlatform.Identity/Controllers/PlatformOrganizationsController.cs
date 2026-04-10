@@ -21,6 +21,7 @@ public class PlatformOrganizationsController(IPlatformOrganizationService platfo
         [FromQuery] string orderBy = "createdAt",
         [FromQuery] string orderDirection = "desc",
         [FromQuery(Name = "filterByStatus")] string[]? filterByStatus = null,
+        [FromQuery] bool? filterNeedsAttention = null,
         CancellationToken cancellationToken = default)
     {
         if (skip < 0)
@@ -37,6 +38,7 @@ public class PlatformOrganizationsController(IPlatformOrganizationService platfo
             OrderBy = orderBy,
             OrderDirection = orderDirection,
             FilterByStatus = filterByStatus,
+            FilterNeedsAttention = filterNeedsAttention,
         };
 
         var paged = await platformOrganizations.ListAsync(query, cancellationToken);
@@ -83,6 +85,28 @@ public class PlatformOrganizationsController(IPlatformOrganizationService platfo
         catch (InvalidOperationException ex)
         {
             return BadRequest(ApiResponse<PlatformOrganizationCreatedDto>.Failure(ex.Message));
+        }
+    }
+
+    [HttpPatch("{tenantId:guid}")]
+    [ProducesResponseType(typeof(ApiResponse<PlatformOrganizationDetailDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<PlatformOrganizationDetailDto>), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ApiResponse<PlatformOrganizationDetailDto>>> Update(
+        Guid tenantId,
+        [FromBody] UpdatePlatformOrganizationRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var updated = await platformOrganizations.UpdateAsync(tenantId, request, cancellationToken);
+            if (updated is null)
+                return NotFound(ApiResponse<PlatformOrganizationDetailDto>.Failure("Organization not found."));
+
+            return Ok(ApiResponse<PlatformOrganizationDetailDto>.Success(updated));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ApiResponse<PlatformOrganizationDetailDto>.Failure(ex.Message));
         }
     }
 

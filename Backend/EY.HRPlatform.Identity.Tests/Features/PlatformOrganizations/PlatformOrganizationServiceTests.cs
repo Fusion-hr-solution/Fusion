@@ -31,7 +31,7 @@ public class PlatformOrganizationServiceTests
 
         // Assert
         Assert.Equal("draft", summary.OperationalStatus);
-        Assert.Equal("Not invited", summary.FirstAdminStatus);
+        Assert.False(summary.NeedsAttention);
         Assert.Equal(0, summary.PendingInviteCount);
         Assert.Equal(0, summary.ActiveUserCount);
     }
@@ -64,7 +64,7 @@ public class PlatformOrganizationServiceTests
 
         // Assert
         Assert.Equal("invited", summary.OperationalStatus);
-        Assert.Equal("Awaiting acceptance", summary.FirstAdminStatus);
+        Assert.False(summary.NeedsAttention);
         Assert.Equal(1, summary.PendingInviteCount);
     }
 
@@ -117,12 +117,12 @@ public class PlatformOrganizationServiceTests
 
         // Assert
         Assert.Equal("active", summary.OperationalStatus);
-        Assert.Equal("Verified", summary.FirstAdminStatus);
+        Assert.False(summary.NeedsAttention);
         Assert.Equal(1, summary.ActiveUserCount);
     }
 
     [Fact]
-    public async Task ListAsync_ReturnsAttention_WhenHrAdminInviteExpiredAndNoHrAdminUser()
+    public async Task ListAsync_ReturnsInvitedWithAttention_WhenHrAdminInviteExpiredAndNoHrAdminUser()
     {
         // Arrange
         var db = CreateDbContext();
@@ -151,8 +151,8 @@ public class PlatformOrganizationServiceTests
         var summary = items.Single(x => x.Id == tenant.Id);
 
         // Assert
-        Assert.Equal("attention", summary.OperationalStatus);
-        Assert.Equal("Action required", summary.FirstAdminStatus);
+        Assert.Equal("invited", summary.OperationalStatus);
+        Assert.True(summary.NeedsAttention);
         Assert.Equal(0, summary.PendingInviteCount);
     }
 
@@ -176,7 +176,7 @@ public class PlatformOrganizationServiceTests
 
         // Assert
         Assert.Equal("suspended", summary.OperationalStatus);
-        Assert.Equal("Suspended", summary.FirstAdminStatus);
+        Assert.False(summary.NeedsAttention);
     }
 
     [Fact]
@@ -199,7 +199,7 @@ public class PlatformOrganizationServiceTests
 
         // Assert
         Assert.Equal("archived", summary.OperationalStatus);
-        Assert.Equal("Archived", summary.FirstAdminStatus);
+        Assert.False(summary.NeedsAttention);
     }
 
     [Fact]
@@ -345,6 +345,144 @@ public class PlatformOrganizationServiceTests
             .Where(i => i.TenantId == tenant.Id && i.Role == PlatformRole.HRAdmin && i.AcceptedAt == null)
             .ToList();
         Assert.Empty(remainingPending);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_UpdatesNameOnly()
+    {
+        // Arrange
+        var db = CreateDbContext();
+        var configuration = CreateConfiguration();
+        var service = new PlatformOrganizationService(db, configuration);
+
+        var tenant = Tenant.Create("Original Name");
+        db.Tenants.Add(tenant);
+        await db.SaveChangesAsync();
+
+        var request = new UpdatePlatformOrganizationRequest { Name = "Updated Name" };
+
+        // Act
+        var result = await service.UpdateAsync(tenant.Id, request);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal("Updated Name", result!.Name);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_UpdatesInternalNotesOnly()
+    {
+        // Arrange
+        var db = CreateDbContext();
+        var configuration = CreateConfiguration();
+        var service = new PlatformOrganizationService(db, configuration);
+
+        var tenant = Tenant.Create("Notes Org");
+        db.Tenants.Add(tenant);
+        await db.SaveChangesAsync();
+
+        var request = new UpdatePlatformOrganizationRequest { InternalNotes = "Some admin notes" };
+
+        // Act
+        var result = await service.UpdateAsync(tenant.Id, request);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal("Some admin notes", result!.InternalNotes);
+        Assert.Equal("Notes Org", result.Name);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_UpdatesNameAndNotes()
+    {
+        // Arrange
+        var db = CreateDbContext();
+        var configuration = CreateConfiguration();
+        var service = new PlatformOrganizationService(db, configuration);
+
+        var tenant = Tenant.Create("Both Org");
+        db.Tenants.Add(tenant);
+        await db.SaveChangesAsync();
+
+        var request = new UpdatePlatformOrganizationRequest
+        {
+            Name = "New Name",
+            InternalNotes = "New notes"
+        };
+
+        // Act
+        var result = await service.UpdateAsync(tenant.Id, request);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal("New Name", result!.Name);
+        Assert.Equal("New notes", result.InternalNotes);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_ReturnsNull_WhenTenantNotFound()
+    {
+        // Arrange
+        var db = CreateDbContext();
+        var configuration = CreateConfiguration();
+        var service = new PlatformOrganizationService(db, configuration);
+
+        var request = new UpdatePlatformOrganizationRequest { Name = "Nonexistent" };
+
+        // Act
+        var result = await service.UpdateAsync(Guid.NewGuid(), request);
+
+        // Assert
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task ListAsync_StatsIncludeActiveOrganizations()
+    {
+        // Arrange
+        var db = CreateDbContext();
+        var configuration = CreateConfiguration();
+        var service = new PlatformOrganizationService(db, configuration);
+
+        var activeTenant = Tenant.Create("Active Org");
+        var draftTenant = Tenant.Create("Draft Org");
+
+        var hrRole = new IdentityRole<Guid>
+        {
+            Id = Guid.NewGuid(),
+            Name = PlatformRole.HRAdmin,
+            NormalizedName = PlatformRole.HRAdmin.ToUpperInvariant(),
+        };
+
+        var hrAdmin = new ApplicationUser
+        {
+            Id = Guid.NewGuid(),
+            UserName = "admin@active.com",
+            Email = "admin@active.com",
+            NormalizedEmail = "ADMIN@ACTIVE.COM",
+            EmailConfirmed = true,
+            TenantId = activeTenant.Id,
+            IsActive = true,
+            FirstName = "Hr",
+            LastName = "Admin",
+        };
+
+        db.Tenants.AddRange(activeTenant, draftTenant);
+        db.Roles.Add(hrRole);
+        db.Users.Add(hrAdmin);
+        db.UserRoles.Add(new IdentityUserRole<Guid>
+        {
+            UserId = hrAdmin.Id,
+            RoleId = hrRole.Id
+        });
+        await db.SaveChangesAsync();
+
+        // Act
+        var paged = await service.ListAsync(new PlatformOrganizationListQueryDto { Skip = 0, Take = 100 });
+
+        // Assert
+        Assert.Equal(2, paged.Stats.TotalOrganizations);
+        Assert.Equal(1, paged.Stats.ActiveOrganizations);
     }
 
     private static AppIdentityDbContext CreateDbContext(string? databaseName = null)
