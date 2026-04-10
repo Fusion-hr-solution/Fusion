@@ -245,7 +245,7 @@ export function ModuleSwitcher({
                       ? "text-[#6d5d00]"
                       : "text-stone-500 dark:text-stone-400"
                     : isActive
-                      ? "text-primary"
+                      ? "text-background"
                       : "text-muted-foreground"
                 );
                 const inner = (
@@ -258,7 +258,7 @@ export function ModuleSwitcher({
                           "h-3.5 w-3.5 shrink-0",
                           variant === "stitch"
                             ? "text-[#6d5d00]"
-                            : "text-primary"
+                            : "text-background"
                         )}
                       />
                     )}
