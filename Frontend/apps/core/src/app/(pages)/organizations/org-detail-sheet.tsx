@@ -306,15 +306,19 @@ function DetailContent({
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <a
-                                href={org.firstAdminInvite.inviteLink}
-                                target="_blank"
-                                rel="noopener noreferrer"
+                              <Button
+                                variant="outline"
+                                size="icon-sm"
+                                asChild
                               >
-                                <Button variant="outline" size="icon-sm">
+                                <a
+                                  href={org.firstAdminInvite.inviteLink}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                >
                                   <ExternalLink className="size-3.5" />
-                                </Button>
-                              </a>
+                                </a>
+                              </Button>
                             </TooltipTrigger>
                             <TooltipContent>Open in new tab</TooltipContent>
                           </Tooltip>
