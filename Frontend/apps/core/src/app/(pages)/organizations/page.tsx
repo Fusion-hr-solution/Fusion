@@ -6,6 +6,7 @@ import type { PlatformOrganizationSummaryDto } from "@repo/api";
 import { DEFAULT_PAGE_SIZE, type PageSize } from "@repo/ui";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/page-header";
 
 import { useOrganizationList } from "./use-organizations";
 import { StatsCards } from "./stats-cards";
@@ -61,22 +62,17 @@ export default function OrganizationsPage() {
   }, []);
 
   return (
-    <div className="flex h-full flex-col gap-6 p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Organizations
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Manage tenant organizations, invites, and lifecycle.
-          </p>
-        </div>
-        <Button onClick={() => setCreateOpen(true)}>
-          <Plus className="size-4" />
-          New Organization
-        </Button>
-      </div>
+    <div className="flex flex-col gap-6 p-6">
+      <PageHeader
+        title="Organizations"
+        description="Manage tenant organizations, invites, and lifecycle."
+        actions={
+          <Button onClick={() => setCreateOpen(true)}>
+            <Plus className="size-4" />
+            New Organization
+          </Button>
+        }
+      />
 
       {/* Stats */}
       <StatsCards stats={data?.stats} isLoading={isLoading} />
