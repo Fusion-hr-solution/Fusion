@@ -18,7 +18,10 @@ function SortHeader({
   column,
 }: {
   label: string;
-  column: { getIsSorted: () => false | "asc" | "desc"; toggleSorting: (desc?: boolean) => void };
+  column: {
+    getIsSorted: () => false | "asc" | "desc";
+    toggleSorting: (desc?: boolean) => void;
+  };
 }) {
   const sorted = column.getIsSorted();
   return (
@@ -62,12 +65,7 @@ export const columns: ColumnDef<PlatformOrganizationSummaryDto>[] = [
   {
     accessorKey: "operationalStatus",
     header: "Status",
-    cell: ({ row }) => (
-      <StatusBadge
-        status={row.original.operationalStatus}
-        needsAttention={row.original.needsAttention}
-      />
-    ),
+    cell: ({ row }) => <StatusBadge status={row.original.operationalStatus} />,
     enableSorting: false,
   },
   {
@@ -83,7 +81,9 @@ export const columns: ColumnDef<PlatformOrganizationSummaryDto>[] = [
     cell: ({ row }) => {
       const count = row.getValue("pendingInviteCount") as number;
       return (
-        <span className={`tabular-nums ${count > 0 ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"}`}>
+        <span
+          className={`tabular-nums ${count > 0 ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"}`}
+        >
           {count}
         </span>
       );
@@ -97,7 +97,9 @@ export const columns: ColumnDef<PlatformOrganizationSummaryDto>[] = [
   },
   {
     accessorKey: "lastActivityAt",
-    header: ({ column }) => <SortHeader label="Last Activity" column={column} />,
+    header: ({ column }) => (
+      <SortHeader label="Last Activity" column={column} />
+    ),
     cell: ({ row }) => <DateCell value={row.getValue("lastActivityAt")} />,
   },
 ];

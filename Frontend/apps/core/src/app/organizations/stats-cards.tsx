@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  Building2,
-  AlertTriangle,
-  Mail,
-  CheckCircle2,
-} from "lucide-react";
+import { Building2, Mail, CheckCircle2 } from "lucide-react";
 import type { PlatformOrganizationStatsDto } from "@repo/api";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -20,13 +15,6 @@ const CARDS = [
     label: "Total Organizations",
     icon: Building2,
     format: formatCount,
-  },
-  {
-    key: "attentionNeeded" as const,
-    label: "Attention Needed",
-    icon: AlertTriangle,
-    format: formatCount,
-    highlight: true,
   },
   {
     key: "invitedPending" as const,
@@ -50,7 +38,7 @@ function formatCount(n: number): string {
 
 export function StatsCards({ stats, isLoading }: StatsCardsProps) {
   return (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <div className="grid grid-cols-3 gap-3">
       {CARDS.map((card) => {
         const Icon = card.icon;
         return (
@@ -65,13 +53,7 @@ export function StatsCards({ stats, isLoading }: StatsCardsProps) {
             {isLoading || !stats ? (
               <Skeleton className="mt-1 h-8 w-16" />
             ) : (
-              <div
-                className={`text-2xl font-bold tabular-nums ${
-                  card.highlight && stats[card.key] > 0
-                    ? "text-amber-600 dark:text-amber-400"
-                    : "text-foreground"
-                }`}
-              >
+              <div className="text-2xl font-bold tabular-nums text-foreground">
                 {card.format(stats[card.key])}
               </div>
             )}

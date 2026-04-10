@@ -1,20 +1,7 @@
 "use client";
 
-import {
-  FileText,
-  Mail,
-  CheckCircle2,
-  Pause,
-  Archive,
-  AlertTriangle,
-} from "lucide-react";
+import { FileText, Mail, CheckCircle2, Pause, Archive } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 const STATUS_CONFIG: Record<
@@ -29,12 +16,14 @@ const STATUS_CONFIG: Record<
   invited: {
     label: "Invited",
     icon: Mail,
-    className: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
+    className:
+      "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
   },
   active: {
     label: "Active",
     icon: CheckCircle2,
-    className: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
+    className:
+      "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
   },
   suspended: {
     label: "Suspended",
@@ -48,44 +37,18 @@ const STATUS_CONFIG: Record<
   },
 };
 
-export function StatusBadge({
-  status,
-  needsAttention,
-}: {
-  status: string;
-  needsAttention: boolean;
-}) {
+export function StatusBadge({ status }: { status: string }) {
   const config = STATUS_CONFIG[status] ?? STATUS_CONFIG.draft!;
   const Icon = config!.icon;
 
-  const badge = (
+  return (
     <Badge
       variant="outline"
-      className={cn(
-        "gap-1 border-transparent font-medium",
-        config.className,
-        needsAttention && "ring-2 ring-amber-400/50"
-      )}
+      className={cn("gap-1 border-transparent font-medium", config.className)}
     >
       <Icon className="size-3" />
       {config.label}
-      {needsAttention && (
-        <AlertTriangle className="size-3 text-amber-600 dark:text-amber-400" />
-      )}
     </Badge>
-  );
-
-  if (!needsAttention) return badge;
-
-  return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>{badge}</TooltipTrigger>
-        <TooltipContent>
-          <p>Needs attention — invite may have expired</p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
   );
 }
 
@@ -93,19 +56,23 @@ export function InviteStatusBadge({ status }: { status: string }) {
   const config: Record<string, { label: string; className: string }> = {
     pending: {
       label: "Pending",
-      className: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
+      className:
+        "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
     },
     accepted: {
       label: "Accepted",
-      className: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
+      className:
+        "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
     },
     expired: {
       label: "Expired",
-      className: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
+      className:
+        "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
     },
     revoked: {
       label: "Revoked",
-      className: "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400",
+      className:
+        "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400",
     },
     none: {
       label: "None",

@@ -2,7 +2,6 @@
 
 export interface PlatformOrganizationStatsDto {
   totalOrganizations: number;
-  attentionNeeded: number;
   invitedPending: number;
   activeOrganizations: number;
 }
@@ -20,7 +19,6 @@ export interface PlatformOrganizationSummaryDto {
   id: string;
   name: string;
   operationalStatus: string;
-  needsAttention: boolean;
   activeUserCount: number;
   pendingInviteCount: number;
   createdAt: string;
@@ -33,7 +31,6 @@ export interface PlatformOrganizationDetailDto {
   id: string;
   name: string;
   operationalStatus: string;
-  needsAttention: boolean;
   createdAt: string;
   updatedAt: string | null;
   internalNotes: string | null;

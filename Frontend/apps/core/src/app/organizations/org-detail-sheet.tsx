@@ -43,9 +43,11 @@ export function OrgDetailSheet({
   onOpenChange,
   onMutated,
 }: OrgDetailSheetProps) {
-  const { data: org, isLoading, refetch } = useOrganizationDetail(
-    open ? tenantId : null
-  );
+  const {
+    data: org,
+    isLoading,
+    refetch,
+  } = useOrganizationDetail(open ? tenantId : null);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -90,14 +92,12 @@ function DetailContent({
       <SheetHeader>
         <SheetTitle className="flex items-center gap-2">
           {org.name}
-          <StatusBadge
-            status={org.operationalStatus}
-            needsAttention={org.needsAttention}
-          />
+          <StatusBadge status={org.operationalStatus} />
         </SheetTitle>
         <SheetDescription>
           Created {format(new Date(org.createdAt), "PPP")}
-          {org.updatedAt && ` · Updated ${format(new Date(org.updatedAt), "PPP")}`}
+          {org.updatedAt &&
+            ` · Updated ${format(new Date(org.updatedAt), "PPP")}`}
         </SheetDescription>
       </SheetHeader>
 
@@ -116,7 +116,11 @@ function DetailContent({
         ) : (
           <>
             <div className="flex justify-end">
-              <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setEditing(true)}
+              >
                 <Pencil className="size-3" />
                 Edit
               </Button>
@@ -125,7 +129,10 @@ function DetailContent({
             {/* Metrics */}
             <section className="grid grid-cols-2 gap-4">
               <MetricCard label="Active Users" value={org.activeUserCount} />
-              <MetricCard label="Pending Invites" value={org.pendingInviteCount} />
+              <MetricCard
+                label="Pending Invites"
+                value={org.pendingInviteCount}
+              />
               <MetricCard
                 label="Primary Admin"
                 value={org.primaryAdminEmail ?? "—"}
@@ -290,9 +297,7 @@ function EditForm({
         )}
       </div>
 
-      {serverError && (
-        <p className="text-sm text-destructive">{serverError}</p>
-      )}
+      {serverError && <p className="text-sm text-destructive">{serverError}</p>}
 
       <div className="flex gap-2">
         <Button type="submit" size="sm" disabled={!isDirty || update.isLoading}>
