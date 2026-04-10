@@ -4,7 +4,7 @@ export interface PlatformOrganizationStatsDto {
   totalOrganizations: number;
   attentionNeeded: number;
   invitedPending: number;
-  activeUserCount: number;
+  activeOrganizations: number;
 }
 
 export interface PlatformOrganizationInviteStatusDto {
@@ -20,7 +20,7 @@ export interface PlatformOrganizationSummaryDto {
   id: string;
   name: string;
   operationalStatus: string;
-  firstAdminStatus: string;
+  needsAttention: boolean;
   activeUserCount: number;
   pendingInviteCount: number;
   createdAt: string;
@@ -33,11 +33,10 @@ export interface PlatformOrganizationDetailDto {
   id: string;
   name: string;
   operationalStatus: string;
-  firstAdminStatus: string;
+  needsAttention: boolean;
   createdAt: string;
   updatedAt: string | null;
   internalNotes: string | null;
-  planTier: string | null;
   activeUserCount: number;
   pendingInviteCount: number;
   lastActivityAt: string | null;
@@ -63,7 +62,11 @@ export interface CreatePlatformOrganizationRequest {
   firstAdminEmail: string;
   firstAdminFirstName?: string | null;
   firstAdminLastName?: string | null;
-  planTier?: string | null;
+  internalNotes?: string | null;
+}
+
+export interface UpdatePlatformOrganizationRequest {
+  name?: string | null;
   internalNotes?: string | null;
 }
 
@@ -72,6 +75,8 @@ export const platformOrganizationsPaths = {
   detail: (tenantId: string) =>
     `/identity/platform-admin/organizations/${tenantId}`,
   create: () => "/identity/platform-admin/organizations",
+  update: (tenantId: string) =>
+    `/identity/platform-admin/organizations/${tenantId}`,
   suspend: (tenantId: string) =>
     `/identity/platform-admin/organizations/${tenantId}/suspend`,
   reactivate: (tenantId: string) =>
