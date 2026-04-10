@@ -1,5 +1,6 @@
 "use client";
 
+import { RowActions } from "./row-actions";
 import type { PlatformOrganizationSummaryDto } from "@repo/api";
 import {
   useReactTable,
@@ -127,4 +128,3 @@ export function OrganizationsTable({
 // ---------------------------------------------------------------------------
 // Inline row actions (imported from row-actions module)
 // ---------------------------------------------------------------------------
-import { RowActions } from "./row-actions";

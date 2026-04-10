@@ -147,11 +147,17 @@ function DetailContent({
       </SheetHeader>
 
       <div className="flex-1 overflow-y-auto px-4 pb-4">
-        <Tabs defaultValue="overview" className="w-full">
+        <Tabs defaultValue="overview" className="flex flex-col w-full">
           <TabsList className="w-full">
-            <TabsTrigger value="overview" className="flex-1">Overview</TabsTrigger>
-            <TabsTrigger value="invite" className="flex-1">Admin Invite</TabsTrigger>
-            <TabsTrigger value="settings" className="flex-1">Settings</TabsTrigger>
+            <TabsTrigger value="overview" className="flex-1">
+              Overview
+            </TabsTrigger>
+            <TabsTrigger value="invite" className="flex-1">
+              Admin Invite
+            </TabsTrigger>
+            <TabsTrigger value="settings" className="flex-1">
+              Settings
+            </TabsTrigger>
           </TabsList>
 
           {/* ── Overview tab ─────────────────────────────────── */}
@@ -202,7 +208,7 @@ function DetailContent({
                 Tenant ID
               </p>
               <div className="flex items-center gap-2">
-                <code className="flex-1 rounded bg-muted px-2 py-1 text-xs font-mono select-all truncate">
+                <code className="min-w-0 flex-1 rounded bg-muted px-2 py-1 text-xs font-mono select-all truncate">
                   {org.id}
                 </code>
                 <Button
@@ -255,10 +261,7 @@ function DetailContent({
                 {org.firstAdminInvite.sentAt && (
                   <DetailRow
                     label="Sent"
-                    value={format(
-                      new Date(org.firstAdminInvite.sentAt),
-                      "PPp"
-                    )}
+                    value={format(new Date(org.firstAdminInvite.sentAt), "PPp")}
                   />
                 )}
                 {org.firstAdminInvite.expiresAt && (
@@ -281,9 +284,10 @@ function DetailContent({
                         Invite Link
                       </p>
                       <div className="flex items-center gap-2">
-                        <code className="flex-1 rounded bg-muted px-2 py-1.5 text-xs font-mono truncate select-all">
+                        <code className="flex-1 rounded bg-muted px-2 py-1 text-xs font-mono select-all truncate min-w-0">
                           {org.firstAdminInvite.inviteLink}
                         </code>
+                        <div className="flex shrink-0 items-center gap-1">
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -306,11 +310,7 @@ function DetailContent({
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <Button
-                                variant="outline"
-                                size="icon-sm"
-                                asChild
-                              >
+                              <Button variant="outline" size="icon-sm" asChild>
                                 <a
                                   href={org.firstAdminInvite.inviteLink}
                                   target="_blank"
@@ -323,8 +323,7 @@ function DetailContent({
                             <TooltipContent>Open in new tab</TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
-                      </div>
-                    </div>
+                      </div>                      </div>                    </div>
                   )}
 
                   {(canResend || canRevoke) && (
@@ -395,7 +394,11 @@ function DetailContent({
 
                 <div className="rounded-lg border divide-y">
                   <DetailRow label="Name" value={org.name} />
-                  <DetailRow label="Status" value={org.operationalStatus} capitalize />
+                  <DetailRow
+                    label="Status"
+                    value={org.operationalStatus}
+                    capitalize
+                  />
                   <DetailRow
                     label="Created"
                     value={format(new Date(org.createdAt), "PPP")}
@@ -552,10 +555,10 @@ function MetricCard({
   tooltip?: string;
 }) {
   const content = (
-    <div className="rounded-lg border p-3 space-y-1.5">
+    <div className="flex flex-col justify-between rounded-lg border p-3 space-y-1.5">
       <div className="flex items-center gap-1.5">
-        {icon}
-        <p className="text-xs font-medium text-muted-foreground">{label}</p>
+        <span className="shrink-0 flex items-center">{icon}</span>
+        <p className="text-xs font-medium text-muted-foreground truncate">{label}</p>
       </div>
       <p
         className={cn(
@@ -598,7 +601,9 @@ function DetailRow({
   return (
     <div className="flex items-center justify-between px-4 py-2.5 text-sm">
       <span className="text-muted-foreground shrink-0">{label}</span>
-      <span className={cn("text-right truncate ml-4", capitalize && "capitalize")}>
+      <span
+        className={cn("text-right truncate ml-4", capitalize && "capitalize")}
+      >
         {value}
       </span>
     </div>

@@ -88,10 +88,12 @@ export function useOrganizationDetail(
 
   const queryFn = useCallback(
     (signal: AbortSignal) =>
-      client.get<PlatformOrganizationDetailDto>(
-        platformOrganizationsPaths.detail(tenantId!),
-        { signal }
-      ),
+      tenantId
+        ? client.get<PlatformOrganizationDetailDto>(
+            platformOrganizationsPaths.detail(tenantId),
+            { signal }
+          )
+        : Promise.reject(new Error("tenantId is required")),
     [client, tenantId]
   );
 
