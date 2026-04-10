@@ -37,7 +37,10 @@ interface PasswordRule {
 
 const PASSWORD_RULES: PasswordRule[] = [
   { label: "10+ characters", test: (v) => v.length >= 10 },
-  { label: "Upper & lower case", test: (v) => /[a-z]/.test(v) && /[A-Z]/.test(v) },
+  {
+    label: "Upper & lower case",
+    test: (v) => /[a-z]/.test(v) && /[A-Z]/.test(v),
+  },
   { label: "Special character", test: (v) => /[^a-zA-Z0-9]/.test(v) },
 ];
 
@@ -61,8 +64,11 @@ export function InviteAcceptanceForm() {
   const router = useRouter();
   const token = searchParams.get("token");
 
-  const { data: invite, isLoading: isValidating, error: validateError } =
-    useValidateInvite(token);
+  const {
+    data: invite,
+    isLoading: isValidating,
+    error: validateError,
+  } = useValidateInvite(token);
 
   const accept = useAcceptInvite();
 
@@ -75,7 +81,12 @@ export function InviteAcceptanceForm() {
     watch,
     formState: { errors },
   } = useForm<AcceptFormValues>({
-    defaultValues: { firstName: "", lastName: "", password: "", confirmPassword: "" },
+    defaultValues: {
+      firstName: "",
+      lastName: "",
+      password: "",
+      confirmPassword: "",
+    },
     values: invite
       ? {
           firstName: invite.firstName ?? "",
@@ -88,7 +99,11 @@ export function InviteAcceptanceForm() {
 
   const passwordValue = watch("password");
   const ruleResults = useMemo(
-    () => PASSWORD_RULES.map((rule) => ({ ...rule, met: rule.test(passwordValue ?? "") })),
+    () =>
+      PASSWORD_RULES.map((rule) => ({
+        ...rule,
+        met: rule.test(passwordValue ?? ""),
+      })),
     [passwordValue]
   );
   const allRulesMet = ruleResults.every((r) => r.met);
@@ -138,7 +153,9 @@ export function InviteAcceptanceForm() {
       setIsAutoLoginning(false);
       if (err instanceof ApiError) {
         setServerErrors(
-          err.errors.length > 0 ? err.errors : ["Something went wrong. Please try again."]
+          err.errors.length > 0
+            ? err.errors
+            : ["Something went wrong. Please try again."]
         );
       } else {
         setServerErrors(["An unexpected error occurred. Please try again."]);
@@ -170,7 +187,9 @@ export function InviteAcceptanceForm() {
         <Card className="w-full max-w-lg">
           <CardContent className="flex flex-col items-center justify-center py-16">
             <Spinner className="size-8 text-muted-foreground" />
-            <p className="mt-4 text-sm text-muted-foreground">Verifying your invitation…</p>
+            <p className="mt-4 text-sm text-muted-foreground">
+              Verifying your invitation…
+            </p>
           </CardContent>
         </Card>
       </InviteShell>
@@ -275,7 +294,10 @@ export function InviteAcceptanceForm() {
             {/* Name fields */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label htmlFor="firstName" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <Label
+                  htmlFor="firstName"
+                  className="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+                >
                   First Name
                 </Label>
                 <Input
@@ -286,7 +308,10 @@ export function InviteAcceptanceForm() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="lastName" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <Label
+                  htmlFor="lastName"
+                  className="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+                >
                   Last Name
                 </Label>
                 <Input
@@ -301,7 +326,10 @@ export function InviteAcceptanceForm() {
             {/* Password fields */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label htmlFor="password" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <Label
+                  htmlFor="password"
+                  className="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+                >
                   Create Password
                 </Label>
                 <Input
@@ -319,7 +347,10 @@ export function InviteAcceptanceForm() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="confirmPassword" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <Label
+                  htmlFor="confirmPassword"
+                  className="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+                >
                   Confirm Password
                 </Label>
                 <Input
@@ -345,13 +376,20 @@ export function InviteAcceptanceForm() {
               </p>
               <div className="flex flex-wrap gap-x-4 gap-y-1.5">
                 {ruleResults.map((rule) => (
-                  <div key={rule.label} className="flex items-center gap-1.5 text-xs">
+                  <div
+                    key={rule.label}
+                    className="flex items-center gap-1.5 text-xs"
+                  >
                     {rule.met ? (
                       <CheckCircle2Icon className="size-3.5 text-green-600" />
                     ) : (
                       <CircleIcon className="size-3.5 text-muted-foreground/50" />
                     )}
-                    <span className={rule.met ? "text-green-700" : "text-muted-foreground"}>
+                    <span
+                      className={
+                        rule.met ? "text-green-700" : "text-muted-foreground"
+                      }
+                    >
                       {rule.label}
                     </span>
                   </div>
@@ -385,7 +423,9 @@ export function InviteAcceptanceForm() {
               {isSubmitting ? (
                 <>
                   <Spinner className="mr-2" />
-                  {isAutoLoginning ? "Signing you in…" : "Creating your account…"}
+                  {isAutoLoginning
+                    ? "Signing you in…"
+                    : "Creating your account…"}
                 </>
               ) : (
                 <>
@@ -397,11 +437,17 @@ export function InviteAcceptanceForm() {
 
             <p className="text-center text-xs text-muted-foreground">
               By accepting, you agree to the Executive Console{" "}
-              <a href="#" className="underline underline-offset-2 hover:text-foreground">
+              <a
+                href="#"
+                className="underline underline-offset-2 hover:text-foreground"
+              >
                 Service Terms
               </a>{" "}
               and{" "}
-              <a href="#" className="underline underline-offset-2 hover:text-foreground">
+              <a
+                href="#"
+                className="underline underline-offset-2 hover:text-foreground"
+              >
                 Privacy Protocol
               </a>
               .
@@ -414,23 +460,15 @@ export function InviteAcceptanceForm() {
 }
 
 // ---------------------------------------------------------------------------
-// Shell wrapper — provides the page layout with branding header/footer
+// Shell wrapper — public invite page layout aligned with Core design system
 // ---------------------------------------------------------------------------
 
 function InviteShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-screen flex-col bg-linear-to-br from-background via-background to-amber-50/30">
-      {/* Header */}
-      <header className="flex items-center justify-between border-b px-6 py-3">
-        <div className="flex items-center gap-2 text-sm">
-          <span className="font-bold tracking-tight">EY</span>
-          <span className="text-[10px] text-muted-foreground leading-tight">
-            BUILDING A BETTER
-            <br />
-            WORKING WORLD
-          </span>
-        </div>
-        <span className="text-lg font-semibold tracking-widest text-muted-foreground">
+    <div className="flex min-h-screen flex-col bg-background">
+      {/* Top bar — matches Core's authenticated header */}
+      <header className="sticky top-0 z-10 flex h-10 shrink-0 items-center border-b bg-background/95 px-6 backdrop-blur supports-backdrop-filter:bg-background/60">
+        <span className="text-sm font-semibold tracking-widest text-muted-foreground">
           FUSION
         </span>
       </header>
@@ -439,18 +477,6 @@ function InviteShell({ children }: { children: React.ReactNode }) {
       <main className="flex flex-1 items-center justify-center p-6">
         {children}
       </main>
-
-      {/* Footer */}
-      <footer className="border-t px-6 py-4">
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <p>&copy; {new Date().getFullYear()} EY Global Services Limited. All Rights Reserved.</p>
-          <div className="flex items-center gap-4">
-            <a href="#" className="hover:text-foreground">Support</a>
-            <a href="#" className="hover:text-foreground">Documentation</a>
-            <a href="#" className="hover:text-foreground">Status</a>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }
