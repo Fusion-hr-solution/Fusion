@@ -159,4 +159,148 @@ public class TenantTests
         Assert.True(tenant.IsActive);
         Assert.NotNull(tenant.UpdatedAt);
     }
+
+    [Fact]
+    public void Archive_SetsIsArchivedAndIsActiveFalse()
+    {
+        // Arrange
+        var tenant = Tenant.Create(Guid.NewGuid(), "Test Tenant");
+
+        // Act
+        tenant.Archive();
+
+        // Assert
+        Assert.True(tenant.IsArchived);
+        Assert.False(tenant.IsActive);
+        Assert.NotNull(tenant.UpdatedAt);
+    }
+
+    [Fact]
+    public void Archive_WhenAlreadyArchived_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        var tenant = Tenant.Create(Guid.NewGuid(), "Test Tenant");
+        tenant.Archive();
+
+        // Act & Assert
+        var ex = Assert.Throws<InvalidOperationException>(() => tenant.Archive());
+        Assert.Contains("already archived", ex.Message);
+    }
+
+    [Fact]
+    public void Deactivate_WhenAlreadyInactive_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        var tenant = Tenant.Create(Guid.NewGuid(), "Test Tenant");
+        tenant.Deactivate();
+
+        // Act & Assert
+        var ex = Assert.Throws<InvalidOperationException>(() => tenant.Deactivate());
+        Assert.Contains("already suspended", ex.Message);
+    }
+
+    [Fact]
+    public void Deactivate_WhenArchived_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        var tenant = Tenant.Create(Guid.NewGuid(), "Test Tenant");
+        tenant.Archive();
+
+        // Act & Assert
+        var ex = Assert.Throws<InvalidOperationException>(() => tenant.Deactivate());
+        Assert.Contains("archived", ex.Message);
+    }
+
+    [Fact]
+    public void Reactivate_WhenAlreadyActive_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        var tenant = Tenant.Create(Guid.NewGuid(), "Test Tenant");
+
+        // Act & Assert
+        var ex = Assert.Throws<InvalidOperationException>(() => tenant.Reactivate());
+        Assert.Contains("already active", ex.Message);
+    }
+
+    [Fact]
+    public void Reactivate_WhenArchived_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        var tenant = Tenant.Create(Guid.NewGuid(), "Test Tenant");
+        tenant.Archive();
+
+        // Act & Assert
+        var ex = Assert.Throws<InvalidOperationException>(() => tenant.Reactivate());
+        Assert.Contains("archived", ex.Message);
+    }
+
+    [Fact]
+    public void SetInternalNotes_SetsNotesAndUpdatesTimestamp()
+    {
+        // Arrange
+        var tenant = Tenant.Create(Guid.NewGuid(), "Test Tenant");
+
+        // Act
+        tenant.SetInternalNotes("Some admin notes");
+
+        // Assert
+        Assert.Equal("Some admin notes", tenant.InternalNotes);
+        Assert.NotNull(tenant.UpdatedAt);
+    }
+
+    [Fact]
+    public void SetInternalNotes_TrimsWhitespace()
+    {
+        // Arrange
+        var tenant = Tenant.Create(Guid.NewGuid(), "Test Tenant");
+
+        // Act
+        tenant.SetInternalNotes("  Trimmed notes  ");
+
+        // Assert
+        Assert.Equal("Trimmed notes", tenant.InternalNotes);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void SetInternalNotes_WithNullOrWhitespace_ClearsNotes(string? notes)
+    {
+        // Arrange
+        var tenant = Tenant.Create(Guid.NewGuid(), "Test Tenant");
+        tenant.SetInternalNotes("Existing notes");
+
+        // Act
+        tenant.SetInternalNotes(notes);
+
+        // Assert
+        Assert.Null(tenant.InternalNotes);
+    }
+
+    [Fact]
+    public void SetInternalNotes_Exceeding4000Chars_ThrowsArgumentException()
+    {
+        // Arrange
+        var tenant = Tenant.Create(Guid.NewGuid(), "Test Tenant");
+        var longNotes = new string('A', 4001);
+
+        // Act & Assert
+        var ex = Assert.Throws<ArgumentException>(() => tenant.SetInternalNotes(longNotes));
+        Assert.Contains("4000", ex.Message);
+    }
+
+    [Fact]
+    public void SetInternalNotes_Exactly4000Chars_Succeeds()
+    {
+        // Arrange
+        var tenant = Tenant.Create(Guid.NewGuid(), "Test Tenant");
+        var notes = new string('A', 4000);
+
+        // Act
+        tenant.SetInternalNotes(notes);
+
+        // Assert
+        Assert.Equal(notes, tenant.InternalNotes);
+    }
 }

@@ -373,4 +373,81 @@ public class InviteTokenTests
         var ex = Assert.Throws<ArgumentException>(() => invite.ExtendExpiry(91));
         Assert.Contains("Expiry days", ex.Message);
     }
+
+    [Fact]
+    public void ExtendExpiry_WhenRevoked_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        var invite = InviteToken.Create(ValidEmail, _validTenantId, ValidRole, _validUserId);
+        invite.Revoke();
+
+        // Act & Assert
+        var ex = Assert.Throws<InvalidOperationException>(() => invite.ExtendExpiry());
+        Assert.Contains("revoked", ex.Message.ToLower());
+    }
+
+    [Fact]
+    public void MarkAccepted_WhenExpired_ThrowsInvalidOperationException()
+    {
+        // Arrange — create with 1 day expiry, then use reflection to expire it
+        var invite = InviteToken.Create(ValidEmail, _validTenantId, ValidRole, _validUserId, expiryDays: 1);
+        var prop = invite.GetType().GetProperty("ExpiresAt")!;
+        prop.GetSetMethod(true)!.Invoke(invite, [DateTime.UtcNow.AddMinutes(-1)]);
+
+        // Act & Assert
+        var ex = Assert.Throws<InvalidOperationException>(() => invite.MarkAccepted(Guid.NewGuid()));
+        Assert.Contains("expired", ex.Message.ToLower());
+    }
+
+    [Fact]
+    public void Revoke_SetsIsRevokedAndRevokedAt()
+    {
+        // Arrange
+        var invite = InviteToken.Create(ValidEmail, _validTenantId, ValidRole, _validUserId);
+
+        // Act
+        invite.Revoke();
+
+        // Assert
+        Assert.True(invite.IsRevoked);
+        Assert.NotNull(invite.RevokedAt);
+        Assert.True(invite.RevokedAt <= DateTime.UtcNow);
+        Assert.False(invite.IsValid);
+    }
+
+    [Fact]
+    public void Revoke_WhenAlreadyAccepted_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        var invite = InviteToken.Create(ValidEmail, _validTenantId, ValidRole, _validUserId);
+        invite.MarkAccepted(Guid.NewGuid());
+
+        // Act & Assert
+        var ex = Assert.Throws<InvalidOperationException>(() => invite.Revoke());
+        Assert.Contains("accepted", ex.Message.ToLower());
+    }
+
+    [Fact]
+    public void Revoke_WhenAlreadyRevoked_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        var invite = InviteToken.Create(ValidEmail, _validTenantId, ValidRole, _validUserId);
+        invite.Revoke();
+
+        // Act & Assert
+        var ex = Assert.Throws<InvalidOperationException>(() => invite.Revoke());
+        Assert.Contains("already revoked", ex.Message.ToLower());
+    }
+
+    [Fact]
+    public void IsValid_WhenRevoked_ReturnsFalse()
+    {
+        // Arrange
+        var invite = InviteToken.Create(ValidEmail, _validTenantId, ValidRole, _validUserId);
+        invite.Revoke();
+
+        // Assert
+        Assert.False(invite.IsValid);
+        Assert.True(invite.IsRevoked);
+    }
 }
