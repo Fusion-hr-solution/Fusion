@@ -17,8 +17,11 @@ public interface IPlatformOrganizationService
         CreatePlatformOrganizationRequest request,
         Guid createdByUserId,
         CancellationToken cancellationToken = default);
+    /// <exception cref="InvalidOperationException">Tenant is in invalid state for this transition.</exception>
     Task<bool> SuspendAsync(Guid tenantId, CancellationToken cancellationToken = default);
+    /// <exception cref="InvalidOperationException">Tenant is in invalid state for this transition.</exception>
     Task<bool> ReactivateAsync(Guid tenantId, CancellationToken cancellationToken = default);
+    /// <exception cref="InvalidOperationException">Tenant is in invalid state for this transition.</exception>
     Task<bool> ArchiveAsync(Guid tenantId, CancellationToken cancellationToken = default);
     Task<PlatformOrganizationInviteStatusDto?> ResendFirstAdminInviteAsync(
         Guid tenantId,
@@ -177,6 +180,14 @@ public sealed class PlatformOrganizationService(
             if (!string.IsNullOrWhiteSpace(request.InternalNotes))
                 tenant.SetInternalNotes(request.InternalNotes);
 
+            // Check for duplicate tenant name (case-insensitive, among non-archived)
+            var normalizedName = tenant.Name.ToLowerInvariant();
+            var nameExists = await db.Tenants.AnyAsync(
+                t => t.Name.ToLower() == normalizedName && !t.IsArchived,
+                cancellationToken);
+            if (nameExists)
+                throw new InvalidOperationException("An organization with this name already exists.");
+
             db.Tenants.Add(tenant);
             await db.SaveChangesAsync(cancellationToken);
 
@@ -186,7 +197,7 @@ public sealed class PlatformOrganizationService(
                 throw new InvalidOperationException("That email is already registered to a user.");
 
             var pendingDup = await db.InviteTokens.AnyAsync(
-                i => i.TenantId == tenant.Id && i.Email == normalizedEmail && i.AcceptedAt == null && i.ExpiresAt > DateTime.UtcNow,
+                i => i.TenantId == tenant.Id && i.Email == normalizedEmail && i.AcceptedAt == null && !i.IsRevoked && i.ExpiresAt > DateTime.UtcNow,
                 cancellationToken);
             if (pendingDup)
                 throw new InvalidOperationException("A pending invitation already exists for this email.");
@@ -265,7 +276,7 @@ public sealed class PlatformOrganizationService(
         _ = platformAdminUserId;
 
         var invite = await db.InviteTokens
-            .Where(i => i.TenantId == tenantId && i.Role == PlatformRole.HRAdmin && i.AcceptedAt == null)
+            .Where(i => i.TenantId == tenantId && i.Role == PlatformRole.HRAdmin && i.AcceptedAt == null && !i.IsRevoked)
             .OrderByDescending(i => i.CreatedAt)
             .FirstOrDefaultAsync(cancellationToken);
 
@@ -291,13 +302,15 @@ public sealed class PlatformOrganizationService(
         CancellationToken cancellationToken = default)
     {
         var pending = await db.InviteTokens
-            .Where(i => i.TenantId == tenantId && i.Role == PlatformRole.HRAdmin && i.AcceptedAt == null)
+            .Where(i => i.TenantId == tenantId && i.Role == PlatformRole.HRAdmin && i.AcceptedAt == null && !i.IsRevoked)
             .ToListAsync(cancellationToken);
 
         if (pending.Count == 0)
             return false;
 
-        db.InviteTokens.RemoveRange(pending);
+        foreach (var invite in pending)
+            invite.Revoke();
+
         await db.SaveChangesAsync(cancellationToken);
         return true;
     }
@@ -312,7 +325,16 @@ public sealed class PlatformOrganizationService(
             return null;
 
         if (request.Name is not null)
+        {
+            var normalizedName = request.Name.Trim().ToLowerInvariant();
+            var nameExists = await db.Tenants.AnyAsync(
+                t => t.Id != tenantId && t.Name.ToLower() == normalizedName && !t.IsArchived,
+                cancellationToken);
+            if (nameExists)
+                throw new InvalidOperationException("An organization with this name already exists.");
+
             tenant.Update(request.Name);
+        }
 
         if (request.InternalNotes is not null)
             tenant.SetInternalNotes(request.InternalNotes);
@@ -402,7 +424,7 @@ public sealed class PlatformOrganizationService(
             .ToHashSet();
 
         var hrInvitesByTenant = await db.InviteTokens.AsNoTracking()
-            .Where(i => tenantIds.Contains(i.TenantId) && i.Role == PlatformRole.HRAdmin)
+            .Where(i => tenantIds.Contains(i.TenantId) && i.Role == PlatformRole.HRAdmin && !i.IsRevoked)
             .ToListAsync(cancellationToken);
 
         var pendingByTenant = hrInvitesByTenant

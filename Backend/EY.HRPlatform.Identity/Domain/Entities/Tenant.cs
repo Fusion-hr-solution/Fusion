@@ -61,28 +61,43 @@ public class Tenant
 
     /// <summary>
     /// Deactivates the tenant (access suspended).
+    /// Throws if already inactive or archived.
     /// </summary>
     public void Deactivate()
     {
+        if (IsArchived)
+            throw new InvalidOperationException("Cannot suspend an archived tenant.");
+        if (!IsActive)
+            throw new InvalidOperationException("Tenant is already suspended.");
+
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
     }
 
     /// <summary>
-    /// Reactivates a suspended tenant (clears archived flag).
+    /// Reactivates a suspended tenant.
+    /// Throws if already active or archived.
     /// </summary>
     public void Reactivate()
     {
+        if (IsActive && !IsArchived)
+            throw new InvalidOperationException("Tenant is already active.");
+        if (IsArchived)
+            throw new InvalidOperationException("Cannot reactivate an archived tenant.");
+
         IsActive = true;
-        IsArchived = false;
         UpdatedAt = DateTime.UtcNow;
     }
 
     /// <summary>
     /// Archives an offboarded customer (inactive + archived flag).
+    /// Throws if already archived.
     /// </summary>
     public void Archive()
     {
+        if (IsArchived)
+            throw new InvalidOperationException("Tenant is already archived.");
+
         IsArchived = true;
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
