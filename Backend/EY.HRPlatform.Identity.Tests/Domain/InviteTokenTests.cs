@@ -450,4 +450,47 @@ public class InviteTokenTests
         Assert.False(invite.IsValid);
         Assert.True(invite.IsRevoked);
     }
+
+    [Fact]
+    public void ExtendExpiry_WhenExpiredButNotAcceptedOrRevoked_Succeeds()
+    {
+        // Arrange — create with 1 day expiry, then expire it via reflection
+        var invite = InviteToken.Create(ValidEmail, _validTenantId, ValidRole, _validUserId, expiryDays: 1);
+        var prop = invite.GetType().GetProperty("ExpiresAt")!;
+        prop.GetSetMethod(true)!.Invoke(invite, [DateTime.UtcNow.AddMinutes(-30)]);
+
+        Assert.True(invite.IsExpired);
+        Assert.False(invite.IsValid);
+
+        // Act — extending an expired invite should succeed (resend scenario)
+        invite.ExtendExpiry();
+
+        // Assert — now valid again with fresh 7-day window
+        var expectedExpiry = DateTime.UtcNow.AddDays(7);
+        Assert.InRange(invite.ExpiresAt, expectedExpiry.AddMinutes(-1), expectedExpiry.AddMinutes(1));
+        Assert.False(invite.IsExpired);
+        Assert.True(invite.IsValid);
+    }
+
+    [Fact]
+    public void IsExpired_WhenExpiresAtInFuture_ReturnsFalse()
+    {
+        // Arrange
+        var invite = InviteToken.Create(ValidEmail, _validTenantId, ValidRole, _validUserId, expiryDays: 7);
+
+        // Assert
+        Assert.False(invite.IsExpired);
+    }
+
+    [Fact]
+    public void IsUsed_WhenNotAccepted_ReturnsFalse()
+    {
+        // Arrange
+        var invite = InviteToken.Create(ValidEmail, _validTenantId, ValidRole, _validUserId);
+
+        // Assert
+        Assert.False(invite.IsUsed);
+        Assert.Null(invite.AcceptedAt);
+        Assert.Null(invite.AcceptedByUserId);
+    }
 }

@@ -285,6 +285,155 @@ public class PlatformOrganizationsControllerIntegrationTests
         Assert.Equal(HttpStatusCode.NotFound, notFoundResp.StatusCode);
     }
 
+    [Fact]
+    public async Task GetOrganization_NotFound_Returns404()
+    {
+        await using var factory = new IdentityApiFactory();
+        var client = await CreateAuthenticatedPlatformAdminClientAsync(factory);
+
+        var resp = await client.GetAsync(
+            $"/api/identity/platform-admin/organizations/{Guid.NewGuid()}");
+        Assert.Equal(HttpStatusCode.NotFound, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task SuspendOrganization_NotFound_Returns404()
+    {
+        await using var factory = new IdentityApiFactory();
+        var client = await CreateAuthenticatedPlatformAdminClientAsync(factory);
+
+        var resp = await client.PostAsync(
+            $"/api/identity/platform-admin/organizations/{Guid.NewGuid()}/suspend", null);
+        Assert.Equal(HttpStatusCode.NotFound, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task SuspendOrganization_AlreadySuspended_Returns409()
+    {
+        await using var factory = new IdentityApiFactory();
+        var client = await CreateAuthenticatedPlatformAdminClientAsync(factory);
+
+        // Create an org
+        var tenantId = await CreateOrgViaApiAsync(client, "Suspend Conflict Org", "s-conf@test.com");
+
+        // Suspend once (succeeds)
+        var resp1 = await client.PostAsync(
+            $"/api/identity/platform-admin/organizations/{tenantId}/suspend", null);
+        Assert.Equal(HttpStatusCode.OK, resp1.StatusCode);
+
+        // Suspend again (conflict)
+        var resp2 = await client.PostAsync(
+            $"/api/identity/platform-admin/organizations/{tenantId}/suspend", null);
+        Assert.Equal(HttpStatusCode.Conflict, resp2.StatusCode);
+    }
+
+    [Fact]
+    public async Task ReactivateOrganization_AlreadyActive_Returns409()
+    {
+        await using var factory = new IdentityApiFactory();
+        var client = await CreateAuthenticatedPlatformAdminClientAsync(factory);
+
+        var tenantId = await CreateOrgViaApiAsync(client, "Reactivate Conflict Org", "r-conf@test.com");
+
+        // Org is active by default — reactivating should conflict
+        var resp = await client.PostAsync(
+            $"/api/identity/platform-admin/organizations/{tenantId}/reactivate", null);
+        Assert.Equal(HttpStatusCode.Conflict, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task ArchiveOrganization_AlreadyArchived_Returns409()
+    {
+        await using var factory = new IdentityApiFactory();
+        var client = await CreateAuthenticatedPlatformAdminClientAsync(factory);
+
+        var tenantId = await CreateOrgViaApiAsync(client, "Archive Conflict Org", "a-conf@test.com");
+
+        // Archive once
+        var resp1 = await client.PostAsync(
+            $"/api/identity/platform-admin/organizations/{tenantId}/archive", null);
+        Assert.Equal(HttpStatusCode.OK, resp1.StatusCode);
+
+        // Archive again — conflict
+        var resp2 = await client.PostAsync(
+            $"/api/identity/platform-admin/organizations/{tenantId}/archive", null);
+        Assert.Equal(HttpStatusCode.Conflict, resp2.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateOrganization_DuplicateName_Returns400()
+    {
+        await using var factory = new IdentityApiFactory();
+        var client = await CreateAuthenticatedPlatformAdminClientAsync(factory);
+
+        await CreateOrgViaApiAsync(client, "Unique Name Org", "uniq1@test.com");
+
+        // Try duplicate
+        var dupResp = await client.PostAsJsonAsync(
+            "/api/identity/platform-admin/organizations",
+            new { name = "unique name org", firstAdminEmail = "uniq2@test.com" });
+        Assert.Equal(HttpStatusCode.BadRequest, dupResp.StatusCode);
+    }
+
+    [Fact]
+    public async Task ResendInvite_NotFound_WhenNoPending()
+    {
+        await using var factory = new IdentityApiFactory();
+        var client = await CreateAuthenticatedPlatformAdminClientAsync(factory);
+
+        var tenantId = await CreateOrgViaApiAsync(client, "Resend Test Org", "resend@test.com");
+
+        // Revoke the invite first
+        await client.PostAsync(
+            $"/api/identity/platform-admin/organizations/{tenantId}/first-admin-invite/revoke", null);
+
+        // Now try to resend — should 404
+        var resp = await client.PostAsync(
+            $"/api/identity/platform-admin/organizations/{tenantId}/first-admin-invite/resend", null);
+        Assert.Equal(HttpStatusCode.NotFound, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task ListOrganizations_WithSearchFilter_ReturnsFiltered()
+    {
+        await using var factory = new IdentityApiFactory();
+        var client = await CreateAuthenticatedPlatformAdminClientAsync(factory);
+
+        await CreateOrgViaApiAsync(client, "Searchable Alpha", "search-a@test.com");
+        await CreateOrgViaApiAsync(client, "Searchable Beta", "search-b@test.com");
+        await CreateOrgViaApiAsync(client, "Other Gamma", "other@test.com");
+
+        var resp = await client.GetAsync(
+            "/api/identity/platform-admin/organizations?search=searchable");
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+
+        using var json = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
+        var items = json.RootElement.GetProperty("data").GetProperty("items");
+        Assert.Equal(2, items.GetArrayLength());
+    }
+
+    [Fact]
+    public async Task ListOrganizations_InvalidSkip_Returns400()
+    {
+        await using var factory = new IdentityApiFactory();
+        var client = await CreateAuthenticatedPlatformAdminClientAsync(factory);
+
+        var resp = await client.GetAsync(
+            "/api/identity/platform-admin/organizations?skip=-1");
+        Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task ListOrganizations_InvalidTake_Returns400()
+    {
+        await using var factory = new IdentityApiFactory();
+        var client = await CreateAuthenticatedPlatformAdminClientAsync(factory);
+
+        var resp = await client.GetAsync(
+            "/api/identity/platform-admin/organizations?take=0");
+        Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
+    }
+
     private static async Task<string> LoginAsync(
         IdentityApiFactory factory,
         string email,
@@ -300,6 +449,68 @@ public class PlatformOrganizationsControllerIntegrationTests
         var data = json.RootElement.GetProperty("data");
         return data.GetProperty("accessToken").GetString()
                ?? throw new InvalidOperationException("accessToken missing");
+    }
+
+    /// <summary>
+    /// Creates a PlatformAdmin user and returns an authenticated HttpClient.
+    /// </summary>
+    private static async Task<HttpClient> CreateAuthenticatedPlatformAdminClientAsync(
+        IdentityApiFactory factory)
+    {
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+
+        var adminTenant = Tenant.Create($"Admin Tenant {Guid.NewGuid():N}");
+        db.Tenants.Add(adminTenant);
+        await db.SaveChangesAsync();
+
+        var email = $"admin-{Guid.NewGuid():N}@test.com";
+        var password = "Admin@1234";
+
+        var adminUser = new ApplicationUser
+        {
+            UserName = email,
+            Email = email,
+            NormalizedEmail = email.ToUpperInvariant(),
+            EmailConfirmed = true,
+            TenantId = adminTenant.Id,
+            IsActive = true,
+            FirstName = "Platform",
+            LastName = "Admin",
+        };
+
+        var created = await userManager.CreateAsync(adminUser, password);
+        Assert.True(created.Succeeded);
+        await userManager.AddToRoleAsync(adminUser, PlatformRole.PlatformAdmin);
+
+        var accessToken = await LoginAsync(factory, email, password);
+        var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", accessToken);
+
+        return client;
+    }
+
+    /// <summary>
+    /// Creates an organization via the API and returns the tenant ID.
+    /// </summary>
+    private static async Task<Guid> CreateOrgViaApiAsync(
+        HttpClient client,
+        string name,
+        string adminEmail)
+    {
+        var resp = await client.PostAsJsonAsync(
+            "/api/identity/platform-admin/organizations",
+            new { name, firstAdminEmail = adminEmail });
+        Assert.Equal(HttpStatusCode.Created, resp.StatusCode);
+
+        using var json = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
+        return json.RootElement
+            .GetProperty("data")
+            .GetProperty("organization")
+            .GetProperty("id")
+            .GetGuid();
     }
 }
 

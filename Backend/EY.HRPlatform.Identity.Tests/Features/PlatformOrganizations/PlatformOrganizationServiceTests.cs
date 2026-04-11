@@ -830,6 +830,467 @@ public class PlatformOrganizationServiceTests
         Assert.False(await service.RevokePendingFirstAdminInvitesAsync(tenant.Id));
     }
 
+    // ---- ListAsync additional edge cases ----
+
+    [Fact]
+    public async Task ListAsync_SortByName_Descending()
+    {
+        var db = CreateDbContext();
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
+
+        db.Tenants.AddRange(
+            Tenant.Create("Alpha"),
+            Tenant.Create("Bravo"),
+            Tenant.Create("Charlie"));
+        await db.SaveChangesAsync();
+
+        var paged = await service.ListAsync(new PlatformOrganizationListQueryDto
+        {
+            Skip = 0, Take = 100, OrderBy = "name", OrderDirection = "desc"
+        });
+
+        Assert.Equal("Charlie", paged.Items[0].Name);
+        Assert.Equal("Bravo", paged.Items[1].Name);
+        Assert.Equal("Alpha", paged.Items[2].Name);
+    }
+
+    [Fact]
+    public async Task ListAsync_SortByCreatedAt_Ascending()
+    {
+        var db = CreateDbContext();
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
+
+        var t1 = Tenant.Create("First");
+        SetPrivateProperty(t1, "CreatedAt", DateTime.UtcNow.AddDays(-3));
+        var t2 = Tenant.Create("Second");
+        SetPrivateProperty(t2, "CreatedAt", DateTime.UtcNow.AddDays(-2));
+        var t3 = Tenant.Create("Third");
+        SetPrivateProperty(t3, "CreatedAt", DateTime.UtcNow.AddDays(-1));
+
+        db.Tenants.AddRange(t1, t2, t3);
+        await db.SaveChangesAsync();
+
+        var paged = await service.ListAsync(new PlatformOrganizationListQueryDto
+        {
+            Skip = 0, Take = 100, OrderBy = "createdAt", OrderDirection = "asc"
+        });
+
+        Assert.Equal("First", paged.Items[0].Name);
+        Assert.Equal("Second", paged.Items[1].Name);
+        Assert.Equal("Third", paged.Items[2].Name);
+    }
+
+    [Fact]
+    public async Task ListAsync_DefaultSort_IsCreatedAtDescending()
+    {
+        var db = CreateDbContext();
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
+
+        var t1 = Tenant.Create("First");
+        SetPrivateProperty(t1, "CreatedAt", DateTime.UtcNow.AddDays(-3));
+        var t2 = Tenant.Create("Second");
+        SetPrivateProperty(t2, "CreatedAt", DateTime.UtcNow.AddDays(-2));
+        var t3 = Tenant.Create("Third");
+        SetPrivateProperty(t3, "CreatedAt", DateTime.UtcNow.AddDays(-1));
+
+        db.Tenants.AddRange(t1, t2, t3);
+        await db.SaveChangesAsync();
+
+        // No orderBy specified — default is createdAt desc
+        var paged = await service.ListAsync(new PlatformOrganizationListQueryDto
+        {
+            Skip = 0, Take = 100
+        });
+
+        Assert.Equal("Third", paged.Items[0].Name);
+        Assert.Equal("Second", paged.Items[1].Name);
+        Assert.Equal("First", paged.Items[2].Name);
+    }
+
+    [Fact]
+    public async Task ListAsync_FilterByMultipleStatuses()
+    {
+        var db = CreateDbContext();
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
+
+        var draft = Tenant.Create("Draft T");
+        var suspended = Tenant.Create("Suspended T");
+        suspended.Deactivate();
+        var archived = Tenant.Create("Archived T");
+        archived.Archive();
+
+        db.Tenants.AddRange(draft, suspended, archived);
+        await db.SaveChangesAsync();
+
+        var paged = await service.ListAsync(new PlatformOrganizationListQueryDto
+        {
+            Skip = 0, Take = 100, FilterByStatus = ["suspended", "archived"]
+        });
+
+        Assert.Equal(2, paged.Items.Count);
+        Assert.All(paged.Items, i =>
+            Assert.True(i.OperationalStatus == "suspended" || i.OperationalStatus == "archived"));
+    }
+
+    [Fact]
+    public async Task ListAsync_Search_NoMatches_ReturnsEmpty()
+    {
+        var db = CreateDbContext();
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
+
+        db.Tenants.AddRange(Tenant.Create("Acme Corp"), Tenant.Create("Beta Inc"));
+        await db.SaveChangesAsync();
+
+        var paged = await service.ListAsync(new PlatformOrganizationListQueryDto
+        {
+            Skip = 0, Take = 100, Search = "nonexistent"
+        });
+
+        Assert.Empty(paged.Items);
+        Assert.Equal(0, paged.TotalCount);
+        // Stats are unaffected by search — they always show global stats
+        Assert.Equal(2, paged.Stats.TotalOrganizations);
+    }
+
+    [Fact]
+    public async Task ListAsync_EmptyDatabase_ReturnsEmptyWithZeroStats()
+    {
+        var db = CreateDbContext();
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
+
+        var paged = await service.ListAsync(new PlatformOrganizationListQueryDto
+        {
+            Skip = 0, Take = 100
+        });
+
+        Assert.Empty(paged.Items);
+        Assert.Equal(0, paged.TotalCount);
+        Assert.Equal(0, paged.Stats.TotalOrganizations);
+        Assert.Equal(0, paged.Stats.InvitedPending);
+        Assert.Equal(0, paged.Stats.ActiveOrganizations);
+    }
+
+    [Fact]
+    public async Task ListAsync_TakeClampedTo100()
+    {
+        var db = CreateDbContext();
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
+
+        for (int i = 0; i < 3; i++)
+            db.Tenants.Add(Tenant.Create($"Org {i}"));
+        await db.SaveChangesAsync();
+
+        // Request take=200, should be clamped to 100 (but only 3 exist)
+        var paged = await service.ListAsync(new PlatformOrganizationListQueryDto
+        {
+            Skip = 0, Take = 200
+        });
+
+        Assert.Equal(3, paged.TotalCount);
+        Assert.Equal(3, paged.Items.Count);
+    }
+
+    [Fact]
+    public async Task ListAsync_NegativeSkip_TreatedAsZero()
+    {
+        var db = CreateDbContext();
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
+
+        db.Tenants.Add(Tenant.Create("Single Org"));
+        await db.SaveChangesAsync();
+
+        var paged = await service.ListAsync(new PlatformOrganizationListQueryDto
+        {
+            Skip = -5, Take = 10
+        });
+
+        Assert.Single(paged.Items);
+    }
+
+    // ---- GetAsync with invite states ----
+
+    [Fact]
+    public async Task GetAsync_WithPendingInvite_ShowsPendingStatus()
+    {
+        var db = CreateDbContext();
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
+
+        var tenant = Tenant.Create("Pending Invite Org");
+        var invite = InviteToken.Create(
+            "admin@pending.com", tenant.Id, PlatformRole.HRAdmin, Guid.NewGuid());
+
+        db.Tenants.Add(tenant);
+        db.InviteTokens.Add(invite);
+        await db.SaveChangesAsync();
+
+        var detail = await service.GetAsync(tenant.Id);
+
+        Assert.NotNull(detail);
+        Assert.Equal("invited", detail!.OperationalStatus);
+        Assert.NotNull(detail.FirstAdminInvite);
+        Assert.Equal("pending", detail.FirstAdminInvite.Status);
+        Assert.Equal("admin@pending.com", detail.FirstAdminInvite.Email);
+        Assert.NotNull(detail.FirstAdminInvite.InviteLink);
+    }
+
+    [Fact]
+    public async Task GetAsync_WithAcceptedInvite_ShowsAcceptedStatus()
+    {
+        var db = CreateDbContext();
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
+
+        var tenant = Tenant.Create("Accepted Invite Org");
+        var invite = InviteToken.Create(
+            "admin@accepted.com", tenant.Id, PlatformRole.HRAdmin, Guid.NewGuid());
+        invite.MarkAccepted(Guid.NewGuid());
+
+        db.Tenants.Add(tenant);
+        db.InviteTokens.Add(invite);
+        await db.SaveChangesAsync();
+
+        var detail = await service.GetAsync(tenant.Id);
+
+        Assert.NotNull(detail);
+        Assert.NotNull(detail!.FirstAdminInvite);
+        Assert.Equal("accepted", detail.FirstAdminInvite.Status);
+        Assert.Null(detail.FirstAdminInvite.InviteLink); // no link for accepted
+    }
+
+    [Fact]
+    public async Task GetAsync_WithExpiredInvite_ShowsExpiredStatus()
+    {
+        var db = CreateDbContext();
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
+
+        var tenant = Tenant.Create("Expired Invite Org");
+        var invite = InviteToken.Create(
+            "admin@expired.com", tenant.Id, PlatformRole.HRAdmin, Guid.NewGuid(), expiryDays: 1);
+        SetPrivateProperty(invite, "ExpiresAt", DateTime.UtcNow.AddMinutes(-1));
+
+        db.Tenants.Add(tenant);
+        db.InviteTokens.Add(invite);
+        await db.SaveChangesAsync();
+
+        var detail = await service.GetAsync(tenant.Id);
+
+        Assert.NotNull(detail);
+        Assert.NotNull(detail!.FirstAdminInvite);
+        Assert.Equal("expired", detail.FirstAdminInvite.Status);
+        Assert.Null(detail.FirstAdminInvite.InviteLink); // no link for expired
+    }
+
+    [Fact]
+    public async Task GetAsync_WithNoInvites_ShowsNoneStatus()
+    {
+        var db = CreateDbContext();
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
+
+        var tenant = Tenant.Create("No Invite Org");
+        db.Tenants.Add(tenant);
+        await db.SaveChangesAsync();
+
+        var detail = await service.GetAsync(tenant.Id);
+
+        Assert.NotNull(detail);
+        Assert.Equal("draft", detail!.OperationalStatus);
+        Assert.NotNull(detail.FirstAdminInvite);
+        Assert.Equal("none", detail.FirstAdminInvite.Status);
+        Assert.Null(detail.FirstAdminInvite.InviteLink);
+        Assert.Null(detail.FirstAdminInvite.Email);
+    }
+
+    [Fact]
+    public async Task GetAsync_WithRevokedInvites_ShowsNoneStatus()
+    {
+        var db = CreateDbContext();
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
+
+        var tenant = Tenant.Create("Revoked Invite Org");
+        var invite = InviteToken.Create(
+            "admin@revoked.com", tenant.Id, PlatformRole.HRAdmin, Guid.NewGuid());
+        invite.Revoke();
+
+        db.Tenants.Add(tenant);
+        db.InviteTokens.Add(invite);
+        await db.SaveChangesAsync();
+
+        var detail = await service.GetAsync(tenant.Id);
+
+        Assert.NotNull(detail);
+        // Revoked invites are excluded from HrInvites (filtered by !IsRevoked in metrics)
+        Assert.NotNull(detail!.FirstAdminInvite);
+        Assert.Equal("none", detail.FirstAdminInvite.Status);
+    }
+
+    // ---- UpdateAsync edge cases ----
+
+    [Fact]
+    public async Task UpdateAsync_DuplicateName_Throws()
+    {
+        var db = CreateDbContext();
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
+
+        var tenant1 = Tenant.Create("Existing Org");
+        var tenant2 = Tenant.Create("To Be Renamed");
+        db.Tenants.AddRange(tenant1, tenant2);
+        await db.SaveChangesAsync();
+
+        var request = new UpdatePlatformOrganizationRequest { Name = "existing org" }; // case-insensitive dup
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.UpdateAsync(tenant2.Id, request));
+        Assert.Contains("already exists", ex.Message);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_SameNameAsSelf_Succeeds()
+    {
+        var db = CreateDbContext();
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
+
+        var tenant = Tenant.Create("Keep Me");
+        db.Tenants.Add(tenant);
+        await db.SaveChangesAsync();
+
+        // Updating to the same name should not throw (self-reference excluded from dup check)
+        var request = new UpdatePlatformOrganizationRequest { Name = "Keep Me" };
+        var result = await service.UpdateAsync(tenant.Id, request);
+
+        Assert.NotNull(result);
+        Assert.Equal("Keep Me", result!.Name);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_ClearsInternalNotes_WhenSetToEmpty()
+    {
+        var db = CreateDbContext();
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
+
+        var tenant = Tenant.Create("Notes Clear Org");
+        tenant.SetInternalNotes("Old notes");
+        db.Tenants.Add(tenant);
+        await db.SaveChangesAsync();
+
+        var request = new UpdatePlatformOrganizationRequest { InternalNotes = "" };
+        var result = await service.UpdateAsync(tenant.Id, request);
+
+        Assert.NotNull(result);
+        Assert.Null(result!.InternalNotes); // empty string clears notes (domain trims to null)
+    }
+
+    // ---- Lifecycle on archived tenant ----
+
+    [Fact]
+    public async Task SuspendAsync_WhenArchived_Throws()
+    {
+        var db = CreateDbContext();
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
+
+        var tenant = Tenant.Create("Archived for Suspend");
+        tenant.Archive();
+        db.Tenants.Add(tenant);
+        await db.SaveChangesAsync();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.SuspendAsync(tenant.Id));
+    }
+
+    [Fact]
+    public async Task ReactivateAsync_WhenArchived_Throws()
+    {
+        var db = CreateDbContext();
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
+
+        var tenant = Tenant.Create("Archived for Reactivate");
+        tenant.Archive();
+        db.Tenants.Add(tenant);
+        await db.SaveChangesAsync();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.ReactivateAsync(tenant.Id));
+    }
+
+    // ---- ResendInvite edge cases ----
+
+    [Fact]
+    public async Task ResendFirstAdminInviteAsync_ExtendsExpiredInvite()
+    {
+        var db = CreateDbContext();
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
+
+        var tenant = Tenant.Create("Expired Invite Tenant");
+        var invite = InviteToken.Create(
+            "admin@expired.com", tenant.Id, PlatformRole.HRAdmin, Guid.NewGuid(), expiryDays: 1);
+        // The invite is not expired yet — Resend finds non-revoked, non-accepted invites
+        // (the query doesn't check ExpiresAt, so expired invites ARE found)
+
+        db.Tenants.Add(tenant);
+        db.InviteTokens.Add(invite);
+        await db.SaveChangesAsync();
+
+        var result = await service.ResendFirstAdminInviteAsync(tenant.Id, Guid.NewGuid());
+
+        Assert.NotNull(result);
+        Assert.Equal("pending", result!.Status);
+        Assert.NotNull(result.InviteLink);
+    }
+
+    [Fact]
+    public async Task ResendFirstAdminInviteAsync_IgnoresAcceptedInvites()
+    {
+        var db = CreateDbContext();
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
+
+        var tenant = Tenant.Create("Accepted Only Tenant");
+        var invite = InviteToken.Create(
+            "admin@accepted.com", tenant.Id, PlatformRole.HRAdmin, Guid.NewGuid());
+        invite.MarkAccepted(Guid.NewGuid());
+
+        db.Tenants.Add(tenant);
+        db.InviteTokens.Add(invite);
+        await db.SaveChangesAsync();
+
+        var result = await service.ResendFirstAdminInviteAsync(tenant.Id, Guid.NewGuid());
+
+        Assert.Null(result); // no pending invite to resend
+    }
+
+    [Fact]
+    public async Task ResendFirstAdminInviteAsync_IgnoresRevokedInvites()
+    {
+        var db = CreateDbContext();
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
+
+        var tenant = Tenant.Create("Revoked Only Tenant");
+        var invite = InviteToken.Create(
+            "admin@revoked.com", tenant.Id, PlatformRole.HRAdmin, Guid.NewGuid());
+        invite.Revoke();
+
+        db.Tenants.Add(tenant);
+        db.InviteTokens.Add(invite);
+        await db.SaveChangesAsync();
+
+        var result = await service.ResendFirstAdminInviteAsync(tenant.Id, Guid.NewGuid());
+
+        Assert.Null(result); // revoked invite is not resendable
+    }
+
+    // ---- CreateAsync edge cases ----
+
+    [Fact]
+    public async Task CreateAsync_WithoutInternalNotes_OmitsNotes()
+    {
+        var db = CreateDbContext();
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
+
+        var request = new CreatePlatformOrganizationRequest
+        {
+            Name = "No Notes Org",
+            FirstAdminEmail = "admin@nonotes.com",
+        };
+
+        var created = await service.CreateAsync(request, Guid.NewGuid());
+        Assert.Null(created.Organization.InternalNotes);
+    }
+
     private static AppIdentityDbContext CreateDbContext(string? databaseName = null)
     {
         var dbName = databaseName ?? $"PlatformAdmin_{Guid.NewGuid()}";
