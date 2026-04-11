@@ -1219,8 +1219,10 @@ public class PlatformOrganizationServiceTests
         var tenant = Tenant.Create("Expired Invite Tenant");
         var invite = InviteToken.Create(
             "admin@expired.com", tenant.Id, PlatformRole.HRAdmin, Guid.NewGuid(), expiryDays: 1);
-        // The invite is not expired yet — Resend finds non-revoked, non-accepted invites
-        // (the query doesn't check ExpiresAt, so expired invites ARE found)
+
+        // Expire the invite via reflection (private setter)
+        var expiresAtProp = invite.GetType().GetProperty("ExpiresAt")!;
+        expiresAtProp.GetSetMethod(true)!.Invoke(invite, [DateTime.UtcNow.AddMinutes(-30)]);
 
         db.Tenants.Add(tenant);
         db.InviteTokens.Add(invite);
@@ -1231,6 +1233,10 @@ public class PlatformOrganizationServiceTests
         Assert.NotNull(result);
         Assert.Equal("pending", result!.Status);
         Assert.NotNull(result.InviteLink);
+        // ExpiresAt should have been extended forward from the expired past value
+        Assert.NotNull(result.ExpiresAt);
+        Assert.True(result.ExpiresAt > DateTime.UtcNow,
+            $"Expected ExpiresAt to be in the future after resend, but was {result.ExpiresAt}");
     }
 
     [Fact]

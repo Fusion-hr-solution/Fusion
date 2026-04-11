@@ -3,10 +3,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 
 // ── Mocks ────────────────────────────────────────────────────────────
-
-const mockGet = vi.fn();
-const mockPost = vi.fn();
-const mockPatch = vi.fn();
+// vi.mock is hoisted by Vitest, so mocks must be created via vi.hoisted
+// to avoid TDZ (temporal dead zone) ReferenceErrors.
+const { mockGet, mockPost, mockPatch } = vi.hoisted(() => ({
+  mockGet: vi.fn(),
+  mockPost: vi.fn(),
+  mockPatch: vi.fn(),
+}));
 
 vi.mock("@repo/api", () => ({
   createPlatformApiClient: () => ({
