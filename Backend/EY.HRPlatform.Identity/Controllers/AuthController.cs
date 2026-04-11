@@ -16,20 +16,17 @@ namespace EY.HRPlatform.Identity.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly UserManager<ApplicationUser> _userManager;
-    private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly ITokenService _tokenService;
     private readonly AppIdentityDbContext _dbContext;
     private readonly IConfiguration _configuration;
 
     public AuthController(
         UserManager<ApplicationUser> userManager,
-        SignInManager<ApplicationUser> signInManager,
         ITokenService tokenService,
         AppIdentityDbContext dbContext,
         IConfiguration configuration)
     {
         _userManager = userManager;
-        _signInManager = signInManager;
         _tokenService = tokenService;
         _dbContext = dbContext;
         _configuration = configuration;
@@ -57,9 +54,12 @@ public class AuthController : ControllerBase
                 "Cannot determine tenant context. Use POST /api/identity/tenants/{tenantId}/users instead."));
         }
 
-        // Check if email already exists
-        var existingUser = await _userManager.FindByEmailAsync(request.Email);
-        if (existingUser is not null)
+        // Check if email already exists (cross-tenant uniqueness)
+        var normalizedRegEmail = request.Email?.Trim().ToUpperInvariant();
+        var existingUser = await _dbContext.Users
+            .IgnoreQueryFilters()
+            .AnyAsync(u => u.NormalizedEmail == normalizedRegEmail);
+        if (existingUser)
             return BadRequest(ApiResponse<AuthResponse>.Failure("Email is already registered."));
 
         // Create the user entity
@@ -95,21 +95,23 @@ public class AuthController : ControllerBase
     public async Task<ActionResult<ApiResponse<AuthResponse>>> Login(
         [FromBody] LoginRequest request)
     {
-        // Find user by email
-        var user = await _userManager.FindByEmailAsync(request.Email);
+        // Find user by email — bypass tenant filter since no JWT exists at login time
+        var normalizedEmail = request.Email?.Trim().ToUpperInvariant();
+        var user = await _dbContext.Users
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(u => u.NormalizedEmail == normalizedEmail);
         if (user is null || !user.IsActive)
             return Unauthorized(ApiResponse<AuthResponse>.Failure("Invalid credentials."));
 
-        // Verify password
-        var signInResult = await _signInManager
-            .CheckPasswordSignInAsync(user, request.Password, lockoutOnFailure: false);
-
-        if (!signInResult.Succeeded)
+        // Verify password directly (SignInManager uses UserManager which is affected by query filters)
+        var verificationResult = _userManager.PasswordHasher
+            .VerifyHashedPassword(user, user.PasswordHash!, request.Password);
+        if (verificationResult == PasswordVerificationResult.Failed)
             return Unauthorized(ApiResponse<AuthResponse>.Failure("Invalid credentials."));
 
         // Update last login timestamp
         user.LastLoginAt = DateTime.UtcNow;
-        await _userManager.UpdateAsync(user);
+        await _dbContext.SaveChangesAsync();
 
         // Generate tokens and return
         var authResponse = await GenerateAuthResponseAsync(user);
@@ -131,8 +133,10 @@ public class AuthController : ControllerBase
         // Revoke the old token (one-time use)
         storedToken.RevokedAt = DateTime.UtcNow;
 
-        // Find the user
-        var user = await _userManager.FindByIdAsync(storedToken.UserId.ToString());
+        // Find the user — bypass tenant filter since refresh may happen without tenant context
+        var user = await _dbContext.Users
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(u => u.Id == storedToken.UserId);
         if (user is null || !user.IsActive)
             return Unauthorized(ApiResponse<AuthResponse>.Failure(
                 "User not found or deactivated."));
