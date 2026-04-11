@@ -69,8 +69,8 @@ app.MapHealthChecks("/health").AllowAnonymous();
 
 app.UseCors("AllowFrontend");
 app.UseAuthentication();
-app.UseAuthorization();
 app.UseMiddleware<TenantResolutionMiddleware>();
+app.UseAuthorization();
 app.MapControllers();
 
 app.Run();

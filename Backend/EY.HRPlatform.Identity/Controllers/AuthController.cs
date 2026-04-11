@@ -109,7 +109,11 @@ public class AuthController : ControllerBase
         if (verificationResult == PasswordVerificationResult.Failed)
             return Unauthorized(ApiResponse<AuthResponse>.Failure("Invalid credentials."));
 
-        // Update last login timestamp
+        // Rehash inline if the hasher settings have changed since the password was last set
+        if (verificationResult == PasswordVerificationResult.SuccessRehashNeeded)
+            user.PasswordHash = _userManager.PasswordHasher.HashPassword(user, request.Password);
+
+        // Update last login timestamp (and persists rehash if applicable)
         user.LastLoginAt = DateTime.UtcNow;
         await _dbContext.SaveChangesAsync();
 
