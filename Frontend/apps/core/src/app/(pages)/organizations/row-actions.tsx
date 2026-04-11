@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { PlatformOrganizationSummaryDto } from "@repo/api";
+import { ApiError } from "@repo/api";
 import { MoreHorizontal, Pause, Play, Archive, Send, Ban } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,7 +14,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -21,6 +21,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Spinner } from "@/components/ui/spinner";
 import { toast } from "sonner";
 import {
   useSuspendOrganization,
@@ -40,13 +41,14 @@ type ConfirmAction = {
   description: string;
   actionLabel: string;
   variant?: "default" | "destructive";
-  execute: () => void;
+  execute: () => Promise<unknown>;
 };
 
 export function RowActions({ org, onMutated }: RowActionsProps) {
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(
     null
   );
+  const [isPending, setIsPending] = useState(false);
 
   const suspend = useSuspendOrganization({
     onSuccess: () => {
@@ -124,7 +126,7 @@ export function RowActions({ org, onMutated }: RowActionsProps) {
                   title: "Resend Invite",
                   description: `Resend the first admin invite for "${org.name}"?`,
                   actionLabel: "Resend",
-                  execute: () => resend.mutate(org.id),
+                  execute: () => resend.mutateAsync(org.id),
                 })
               }
             >
@@ -139,7 +141,7 @@ export function RowActions({ org, onMutated }: RowActionsProps) {
                   description: `Revoke the pending invite for "${org.name}"? The org will return to draft state.`,
                   actionLabel: "Revoke",
                   variant: "destructive",
-                  execute: () => revoke.mutate(org.id),
+                  execute: () => revoke.mutateAsync(org.id),
                 })
               }
             >
@@ -158,7 +160,7 @@ export function RowActions({ org, onMutated }: RowActionsProps) {
                   description: `Suspend "${org.name}"? Users will be unable to access the platform.`,
                   actionLabel: "Suspend",
                   variant: "destructive",
-                  execute: () => suspend.mutate(org.id),
+                  execute: () => suspend.mutateAsync(org.id),
                 })
               }
             >
@@ -172,7 +174,7 @@ export function RowActions({ org, onMutated }: RowActionsProps) {
                   title: "Reactivate Organization",
                   description: `Reactivate "${org.name}"?`,
                   actionLabel: "Reactivate",
-                  execute: () => reactivate.mutate(org.id),
+                  execute: () => reactivate.mutateAsync(org.id),
                 })
               }
             >
@@ -190,7 +192,7 @@ export function RowActions({ org, onMutated }: RowActionsProps) {
                     description: `Archive "${org.name}"? This action cannot be easily undone.`,
                     actionLabel: "Archive",
                     variant: "destructive",
-                    execute: () => archive.mutate(org.id),
+                    execute: () => archive.mutateAsync(org.id),
                   })
                 }
               >
@@ -203,7 +205,9 @@ export function RowActions({ org, onMutated }: RowActionsProps) {
 
       <AlertDialog
         open={!!confirmAction}
-        onOpenChange={(open) => !open && setConfirmAction(null)}
+        onOpenChange={(open) => {
+          if (!open && !isPending) setConfirmAction(null);
+        }}
       >
         <AlertDialogContent onClick={(e) => e.stopPropagation()}>
           <AlertDialogHeader>
@@ -213,16 +217,30 @@ export function RowActions({ org, onMutated }: RowActionsProps) {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
+            <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
+            <Button
               variant={confirmAction?.variant ?? "default"}
-              onClick={() => {
-                confirmAction?.execute();
-                setConfirmAction(null);
+              disabled={isPending}
+              onClick={async () => {
+                if (!confirmAction) return;
+                setIsPending(true);
+                try {
+                  await confirmAction.execute();
+                  setConfirmAction(null);
+                } catch (err) {
+                  const message =
+                    err instanceof ApiError
+                      ? err.errors.join(", ")
+                      : "An unexpected error occurred.";
+                  toast.error(message);
+                } finally {
+                  setIsPending(false);
+                }
               }}
             >
+              {isPending && <Spinner className="mr-1" />}
               {confirmAction?.actionLabel}
-            </AlertDialogAction>
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

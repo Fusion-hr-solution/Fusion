@@ -6,6 +6,7 @@ import type { PlatformOrganizationSummaryDto } from "@repo/api";
 import { DEFAULT_PAGE_SIZE, type PageSize } from "@repo/ui";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { PageHeader } from "@/components/page-header";
 
 import { useOrganizationList } from "./use-organizations";
@@ -29,7 +30,7 @@ export default function OrganizationsPage() {
   const orderBy = sorting[0]?.id ?? "createdAt";
   const orderDirection = sorting[0]?.desc ? "desc" : "asc";
 
-  const { data, isLoading, refetch } = useOrganizationList({
+  const { data, error, isLoading, refetch } = useOrganizationList({
     skip,
     take: pageSize,
     search: search || undefined,
@@ -85,10 +86,24 @@ export default function OrganizationsPage() {
         onStatusFilterChange={handleStatusFilterChange}
       />
 
+      {/* Error */}
+      {error && (
+        <Alert variant="destructive">
+          <AlertTitle>Failed to load organizations</AlertTitle>
+          <AlertDescription className="flex items-center justify-between">
+            <span>{error.message || "An unexpected error occurred."}</span>
+            <Button variant="outline" size="sm" onClick={() => refetch()}>
+              Retry
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Table */}
       <OrganizationsTable
         data={data?.items ?? []}
         isLoading={isLoading}
+        isRefetching={isLoading && !!data}
         sorting={sorting}
         onSortingChange={setSorting}
         onRowClick={handleRowClick}

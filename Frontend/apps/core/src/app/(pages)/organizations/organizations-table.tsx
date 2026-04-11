@@ -30,6 +30,7 @@ import { Building2 } from "lucide-react";
 interface OrganizationsTableProps {
   data: PlatformOrganizationSummaryDto[];
   isLoading: boolean;
+  isRefetching: boolean;
   sorting: SortingState;
   onSortingChange: (sorting: SortingState) => void;
   onRowClick: (org: PlatformOrganizationSummaryDto) => void;
@@ -39,6 +40,7 @@ interface OrganizationsTableProps {
 export function OrganizationsTable({
   data,
   isLoading,
+  isRefetching,
   sorting,
   onSortingChange,
   onRowClick,
@@ -83,7 +85,10 @@ export function OrganizationsTable({
   }
 
   return (
-    <div className="rounded-xl border">
+    <div className="relative rounded-xl border">
+      {isRefetching && (
+        <div className="bg-background/50 absolute inset-0 z-10 rounded-xl" />
+      )}
       <Table>
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (

@@ -1,17 +1,17 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, X } from "lucide-react";
+import { Search, X, ListFilter } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { SEARCH_DEBOUNCE_MS } from "@repo/ui";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const STATUS_OPTIONS = [
   { value: "draft", label: "Draft" },
@@ -64,25 +64,37 @@ export function Toolbar({
         />
       </div>
 
-      <Select
-        value={statusFilter.length === 1 ? statusFilter[0] : ""}
-        onValueChange={(v) => {
-          if (v) {
-            onStatusFilterChange([v]);
-          }
-        }}
-      >
-        <SelectTrigger className="w-[130px]">
-          <SelectValue placeholder="All statuses" />
-        </SelectTrigger>
-        <SelectContent>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline" size="sm" className="h-9 gap-1">
+            <ListFilter className="size-3.5" />
+            Status
+            {statusFilter.length > 0 && (
+              <Badge variant="secondary" className="ml-1 rounded-full px-1.5">
+                {statusFilter.length}
+              </Badge>
+            )}
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start">
           {STATUS_OPTIONS.map((opt) => (
-            <SelectItem key={opt.value} value={opt.value}>
+            <DropdownMenuCheckboxItem
+              key={opt.value}
+              checked={statusFilter.includes(opt.value)}
+              onCheckedChange={(checked) => {
+                onStatusFilterChange(
+                  checked
+                    ? [...statusFilter, opt.value]
+                    : statusFilter.filter((v) => v !== opt.value)
+                );
+              }}
+              onSelect={(e) => e.preventDefault()}
+            >
               {opt.label}
-            </SelectItem>
+            </DropdownMenuCheckboxItem>
           ))}
-        </SelectContent>
-      </Select>
+        </DropdownMenuContent>
+      </DropdownMenu>
 
       {hasFilters && (
         <Button
