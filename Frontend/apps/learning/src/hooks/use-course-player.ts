@@ -48,14 +48,14 @@ export function useCoursePlayer(initialData: TrainingLearnData) {
     [initialData.chapters, activeChapterId],
   );
 
-  const activeChapter = initialData.chapters[activeIndex] ?? initialData.chapters[0]!;
+  const activeChapter = initialData.chapters[activeIndex] ?? initialData.chapters[0] ?? null;
 
   const handleMarkComplete = useCallback(() => {
-    if (!completedSet.has(activeChapter.id)) {
+    if (activeChapter && !completedSet.has(activeChapter.id)) {
       setPendingChapterId(activeChapter.id);
       markComplete(activeChapter.id);
     }
-  }, [activeChapter.id, completedSet, markComplete]);
+  }, [activeChapter, completedSet, markComplete]);
 
   const handleNext = useCallback(() => {
     if (activeIndex < totalCount - 1) {

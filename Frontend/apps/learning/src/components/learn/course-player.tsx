@@ -26,6 +26,14 @@ export function CoursePlayer({ learnData }: CoursePlayerProps) {
 
   const hasExam = Boolean(learnData.training.exam);
 
+  if (!activeChapter) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background">
+        <p className="text-sm text-muted-foreground">This training has no chapters yet.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex bg-background">
       {/* Chapter sidebar */}

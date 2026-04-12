@@ -256,6 +256,36 @@ public class AdminTrainingsController : ControllerBase
         }
     }
 
+    /// <summary>Reorder chapters within a training.</summary>
+    [HttpPut("{trainingId:guid}/chapters/reorder")]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ReorderChapters(
+        Guid trainingId, [FromBody] ReorderChaptersRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await _sender.Send(
+                new ReorderChaptersCommand(trainingId, request.ChapterIds),
+                cancellationToken);
+
+            if (result.IsFailure)
+            {
+                if (result.Error.Code.Contains("NotFound"))
+                    return NotFound(ApiResponse.Failure(result.Error.Message));
+                return BadRequest(ApiResponse.Failure(result.Error.Message));
+            }
+
+            return Ok(ApiResponse.Success());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to reorder chapters for training {TrainingId}", trainingId);
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                ApiResponse.Failure("An error occurred while reordering chapters."));
+        }
+    }
+
     // ── Assignment management ──
 
     /// <summary>Get all assignments for a training.</summary>
