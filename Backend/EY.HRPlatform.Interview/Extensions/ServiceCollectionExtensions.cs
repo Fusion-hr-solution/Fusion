@@ -1,3 +1,4 @@
+using EY.HRPlatform.Interview.Features.Candidates;
 using EY.HRPlatform.Interview.Features.Questions;
 using EY.HRPlatform.Interview.Features.TestQuestions;
 using EY.HRPlatform.Interview.Features.Tests;
@@ -11,6 +12,9 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddInterviewServices(this IServiceCollection services, IConfiguration configuration)
     {
+        services.Configure<CandidateInvitationEmailOptions>(configuration.GetSection("CandidateInvitations:Email"));
+        services.AddScoped<ICandidateInvitationEmailSender, SmtpCandidateInvitationEmailSender>();
+
         var environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")
                           ?? Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT")
                           ?? configuration["ASPNETCORE_ENVIRONMENT"]
@@ -23,6 +27,8 @@ public static class ServiceCollectionExtensions
             services.AddScoped<IQuestionService, QuestionService>();
             services.AddScoped<ITestService, TestService>();
             services.AddScoped<ITestQuestionService, TestQuestionService>();
+            services.AddScoped<ICandidateManagementService, CandidateManagementService>();
+            services.AddScoped<ICandidateInvitationService, CandidateInvitationService>();
             return services;
         }
 
@@ -44,6 +50,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IQuestionService, QuestionService>();
         services.AddScoped<ITestService, TestService>();
         services.AddScoped<ITestQuestionService, TestQuestionService>();
+        services.AddScoped<ICandidateManagementService, CandidateManagementService>();
+        services.AddScoped<ICandidateInvitationService, CandidateInvitationService>();
 
         return services;
     }
