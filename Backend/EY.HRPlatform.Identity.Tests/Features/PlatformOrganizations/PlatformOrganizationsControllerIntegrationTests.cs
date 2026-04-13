@@ -206,6 +206,85 @@ public class PlatformOrganizationsControllerIntegrationTests
         Assert.Equal("none", revokedData.GetProperty("firstAdminInvite").GetProperty("status").GetString());
     }
 
+    [Fact]
+    public async Task PatchOrganization_UpdatesNameAndNotes()
+    {
+        await using var factory = new IdentityApiFactory();
+        using var scope = factory.Services.CreateScope();
+
+        var db = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+
+        var adminTenant = Tenant.Create("Patch Admin Tenant");
+        db.Tenants.Add(adminTenant);
+        await db.SaveChangesAsync();
+
+        var adminEmail = "patch.admin@example.com";
+        var adminPassword = "Admin@1234";
+
+        var adminUser = new ApplicationUser
+        {
+            UserName = adminEmail,
+            Email = adminEmail,
+            NormalizedEmail = adminEmail.ToUpperInvariant(),
+            EmailConfirmed = true,
+            TenantId = adminTenant.Id,
+            IsActive = true,
+            FirstName = "Patch",
+            LastName = "Admin",
+        };
+
+        var created = await userManager.CreateAsync(adminUser, adminPassword);
+        Assert.True(created.Succeeded);
+        await userManager.AddToRoleAsync(adminUser, PlatformRole.PlatformAdmin);
+
+        var accessToken = await LoginAsync(factory, adminEmail, adminPassword);
+        var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", accessToken);
+
+        // Create an organization
+        var createReq = new
+        {
+            name = "Patch Target Org",
+            firstAdminEmail = "patch.target@example.com",
+            firstAdminFirstName = "Patch",
+            firstAdminLastName = "Target",
+        };
+
+        var createResp = await client.PostAsJsonAsync(
+            "/api/identity/platform-admin/organizations", createReq);
+        Assert.Equal(HttpStatusCode.Created, createResp.StatusCode);
+
+        using var createJson = JsonDocument.Parse(await createResp.Content.ReadAsStringAsync());
+        var tenantId = createJson.RootElement
+            .GetProperty("data").GetProperty("organization").GetProperty("id").GetGuid();
+
+        // PATCH name + notes
+        var patchReq = new { name = "Renamed Org", internalNotes = "Admin notes here" };
+        var patchResp = await client.PatchAsJsonAsync(
+            $"/api/identity/platform-admin/organizations/{tenantId}", patchReq);
+        Assert.Equal(HttpStatusCode.OK, patchResp.StatusCode);
+
+        using var patchJson = JsonDocument.Parse(await patchResp.Content.ReadAsStringAsync());
+        var patchData = patchJson.RootElement.GetProperty("data");
+        Assert.Equal("Renamed Org", patchData.GetProperty("name").GetString());
+        Assert.Equal("Admin notes here", patchData.GetProperty("internalNotes").GetString());
+
+        // Verify via GET detail
+        var detailResp = await client.GetAsync(
+            $"/api/identity/platform-admin/organizations/{tenantId}");
+        using var detailJson = JsonDocument.Parse(await detailResp.Content.ReadAsStringAsync());
+        var detailData = detailJson.RootElement.GetProperty("data");
+        Assert.Equal("Renamed Org", detailData.GetProperty("name").GetString());
+        Assert.Equal("Admin notes here", detailData.GetProperty("internalNotes").GetString());
+
+        // PATCH nonexistent -> 404
+        var notFoundResp = await client.PatchAsJsonAsync(
+            $"/api/identity/platform-admin/organizations/{Guid.NewGuid()}", patchReq);
+        Assert.Equal(HttpStatusCode.NotFound, notFoundResp.StatusCode);
+    }
+
     private static async Task<string> LoginAsync(
         IdentityApiFactory factory,
         string email,

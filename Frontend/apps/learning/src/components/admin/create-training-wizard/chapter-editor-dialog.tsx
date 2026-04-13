@@ -4,12 +4,14 @@ import { useState, useEffect } from "react";
 import { ArrowLeft } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, Input, Label } from "@repo/ui";
 import type { WizardChapter } from "@/types/admin";
+import type { ArticleTemplate } from "@/types/admin";
 import { CONTENT_TYPES } from "@/data/chapter-templates";
 import { ChapterTypePicker } from "./chapter-type-picker";
-import { ArticleEditor } from "./article-editor";
 import { VideoEditor } from "./video-editor";
 import { PdfEditor } from "./pdf-editor";
 import { ExerciseEditor } from "./exercise-editor";
+import { ArticleTemplateSelector } from "../article-template-selector";
+import { ArticleSectionEditor } from "../article-section-editor";
 
 interface ChapterEditorDialogProps {
   open: boolean;
@@ -26,15 +28,41 @@ export function ChapterEditorDialog({ open, onOpenChange, editingChapter, onAdd,
   const [file, setFile] = useState<File | null>(null);
   const [videoUrl, setVideoUrl] = useState("");
   const [duration, setDuration] = useState<number | "">("");
+  const [selectedTemplate, setSelectedTemplate] = useState<ArticleTemplate | null>(null);
+  const [sectionValues, setSectionValues] = useState<Record<string, string>>({});
+  const [initialTemplateName, setInitialTemplateName] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     if (editingChapter) {
       setContentType(editingChapter.contentType);
       setTitle(editingChapter.title);
-      setTextContent(editingChapter.textContent ?? "");
       setVideoUrl(editingChapter.videoUrl ?? "");
       setDuration(editingChapter.estimatedDurationMinutes ?? "");
       setFile(editingChapter.file ?? null);
+      setSelectedTemplate(null);
+      // Restore article template sections from stored JSON
+      if (editingChapter.contentType === "Article" && editingChapter.textContent) {
+        try {
+          const parsed = JSON.parse(editingChapter.textContent);
+          if (parsed.templateName) setInitialTemplateName(parsed.templateName);
+          if (Array.isArray(parsed.sections)) {
+            setSectionValues(
+              Object.fromEntries(
+                parsed.sections.map((s: { label: string; content: string }) => [s.label, s.content]),
+              ),
+            );
+          } else {
+            setSectionValues({});
+          }
+        } catch {
+          setSectionValues({});
+          setInitialTemplateName(undefined);
+        }
+      } else {
+        setTextContent(editingChapter.textContent ?? "");
+        setSectionValues({});
+        setInitialTemplateName(undefined);
+      }
     } else {
       setContentType(null);
       setTitle("");
@@ -42,6 +70,9 @@ export function ChapterEditorDialog({ open, onOpenChange, editingChapter, onAdd,
       setVideoUrl("");
       setDuration("");
       setFile(null);
+      setSelectedTemplate(null);
+      setSectionValues({});
+      setInitialTemplateName(undefined);
     }
   }, [editingChapter, open]);
 
@@ -49,12 +80,42 @@ export function ChapterEditorDialog({ open, onOpenChange, editingChapter, onAdd,
   const canSubmit = title.trim().length > 0 && contentType !== null;
   const typeConfig = CONTENT_TYPES.find((t) => t.type === contentType);
 
+  const handleTemplateChange = (template: ArticleTemplate | null) => {
+    setSelectedTemplate(template);
+    if (!template) return;
+    // Remap any label-keyed values to section-ID keys when template loads
+    setSectionValues((prev) => {
+      const hasLabelKeys = template.sections.some((s) => prev[s.label] !== undefined);
+      if (!hasLabelKeys) return prev;
+      const remapped: Record<string, string> = {};
+      for (const section of template.sections) {
+        remapped[section.id] = prev[section.label] ?? prev[section.id] ?? "";
+      }
+      return remapped;
+    });
+  };
+
+  const handleSectionChange = (sectionId: string, value: string) => {
+    setSectionValues((prev) => ({ ...prev, [sectionId]: value }));
+  };
+
   function handleSubmit() {
     if (!canSubmit || !contentType) return;
+
+    let resolvedTextContent: string | undefined;
+    if (contentType === "Article" && selectedTemplate) {
+      const sectionArray = [...selectedTemplate.sections]
+        .sort((a, b) => a.orderIndex - b.orderIndex)
+        .map((s) => ({ label: s.label, content: sectionValues[s.id] ?? "" }));
+      resolvedTextContent = JSON.stringify({ templateName: selectedTemplate.name, sections: sectionArray });
+    } else {
+      resolvedTextContent = textContent || undefined;
+    }
+
     const data: Omit<WizardChapter, "clientId"> = {
       title: title.trim(),
       contentType,
-      textContent: textContent || undefined,
+      textContent: resolvedTextContent,
       file: file ?? undefined,
       videoUrl: videoUrl || undefined,
       estimatedDurationMinutes: duration || undefined,
@@ -99,7 +160,22 @@ export function ChapterEditorDialog({ open, onOpenChange, editingChapter, onAdd,
             </div>
 
             {/* Type-specific editor */}
-            {contentType === "Article" && <ArticleEditor textContent={textContent} onTextContentChange={setTextContent} />}
+            {contentType === "Article" && (
+              <div className="space-y-4">
+                <ArticleTemplateSelector
+                  selectedTemplateId={selectedTemplate?.id ?? ""}
+                  onTemplateChange={handleTemplateChange}
+                  initialTemplateName={initialTemplateName}
+                />
+                {selectedTemplate && (
+                  <ArticleSectionEditor
+                    sections={selectedTemplate.sections}
+                    sectionValues={sectionValues}
+                    onSectionChange={handleSectionChange}
+                  />
+                )}
+              </div>
+            )}
             {contentType === "Video" && <VideoEditor file={file} onFileChange={setFile} videoUrl={videoUrl} onVideoUrlChange={setVideoUrl} />}
             {contentType === "Pdf" && <PdfEditor file={file} onFileChange={setFile} />}
             {contentType === "Exercise" && <ExerciseEditor textContent={textContent} onTextContentChange={setTextContent} />}

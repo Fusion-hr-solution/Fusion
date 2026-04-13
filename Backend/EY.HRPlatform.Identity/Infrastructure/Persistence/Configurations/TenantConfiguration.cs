@@ -27,10 +27,13 @@ public class TenantConfiguration : IEntityTypeConfiguration<Tenant>
         builder.Property(t => t.InternalNotes)
             .HasMaxLength(4000);
 
-        builder.Property(t => t.PlanTier)
-            .HasMaxLength(100);
-
         builder.HasIndex(t => t.IsActive);
         builder.HasIndex(t => t.IsArchived);
+
+        // Case-insensitive unique name constraint (excludes archived tenants)
+        builder.HasIndex(t => t.Name)
+            .HasFilter("\"IsArchived\" = false")
+            .IsUnique()
+            .HasDatabaseName("IX_Tenants_Name_Active");
     }
 }

@@ -43,6 +43,9 @@ export interface TrainingDetailDialogProps {
 
 export interface TrainingCatalogProps {
   trainings: Training[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
 }
 
 export interface StatRowProps {

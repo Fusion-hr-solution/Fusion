@@ -41,13 +41,10 @@ export function SidebarNav({
                 title={collapsed ? item.label : undefined}
               >
                 {isActive && (
-                  <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-primary" />
+                  <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-background" />
                 )}
                 <Icon
-                  className={cn(
-                    "h-4 w-4 shrink-0 transition-colors",
-                    isActive && "text-primary"
-                  )}
+                  className="h-4 w-4 shrink-0 transition-colors"
                   aria-hidden="true"
                 />
                 {!collapsed && (
@@ -58,7 +55,7 @@ export function SidebarNav({
                         className={cn(
                           "flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-bold transition-colors",
                           isActive
-                            ? "bg-primary text-primary-foreground"
+                            ? "bg-background text-foreground"
                             : "bg-muted text-muted-foreground"
                         )}
                       >

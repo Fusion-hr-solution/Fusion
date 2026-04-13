@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { BookOpen } from "lucide-react";
 import { PageHeader } from "./page-header";
 import { SearchInput } from "./search-input";
@@ -12,6 +13,7 @@ import { CategoryFilter } from "./category-filter";
 import { LevelFilter } from "./level-filter";
 import { SortSelect } from "./sort-select";
 import { ActiveFilters } from "./active-filters";
+import { CatalogPagination } from "./catalog-pagination";
 
 function sortTrainings(trainings: Training[], sort: SortOption): Training[] {
   const parseDuration = (d: string) => parseInt(d.replace(/\D/g, ""));
@@ -25,41 +27,60 @@ function sortTrainings(trainings: Training[], sort: SortOption): Training[] {
   });
 }
 
-export function TrainingCatalog({ trainings }: TrainingCatalogProps) {
-  const [search, setSearch] = useState("");
-  const [category, setCategory] = useState<TrainingCategory | null>(null);
+export function TrainingCatalog({ trainings, totalCount, page, pageSize }: TrainingCatalogProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Search — local controlled input, debounced URL update (triggers server re-render)
+  const urlSearch = searchParams.get("search") ?? "";
+  const [inputSearch, setInputSearch] = useState(urlSearch);
+
+  // Sync input when URL changes externally (back/forward navigation)
+  useEffect(() => { setInputSearch(urlSearch); }, [urlSearch]);
+
+  // Debounced search → URL update
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const p = new URLSearchParams(searchParams.toString());
+      if (inputSearch.trim()) p.set("search", inputSearch.trim());
+      else p.delete("search");
+      p.delete("page");
+      router.replace(`?${p.toString()}`, { scroll: false });
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [inputSearch]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Category — immediate URL update (server-side filtering across all pages)
+  const urlCategory = (searchParams.get("category") ?? null) as TrainingCategory | null;
+
+  const handleCategoryChange = useCallback(
+    (cat: TrainingCategory | null) => {
+      const p = new URLSearchParams(searchParams.toString());
+      if (cat) p.set("category", cat);
+      else p.delete("category");
+      p.delete("page");
+      router.replace(`?${p.toString()}`, { scroll: false });
+    },
+    [router, searchParams],
+  );
+
+  // Level + sort — client-side only (backend doesn't expose a level filter)
   const [level, setLevel] = useState<TrainingLevel | null>(null);
   const [sort, setSort] = useState<SortOption>("rating");
 
+  // search + category are already applied server-side; only level is client-side
   const filtered = useMemo(() => {
     let result = trainings;
-
-    if (category) {
-      result = result.filter((t) => t.category === category);
-    }
-
-    if (level) {
-      result = result.filter((t) => t.level === level);
-    }
-
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      result = result.filter(
-        (t) =>
-          t.title.toLowerCase().includes(q) ||
-          t.description.toLowerCase().includes(q) ||
-          t.tags.some((tag) => tag.toLowerCase().includes(q))
-      );
-    }
-
+    if (level) result = result.filter((t) => t.level === level);
     return sortTrainings(result, sort);
-  }, [trainings, category, level, search, sort]);
+  }, [trainings, level, sort]);
 
-  const clearAll = () => {
-    setSearch("");
-    setCategory(null);
+  const clearAll = useCallback(() => {
     setLevel(null);
-  };
+    setSort("rating");
+    setInputSearch("");
+    router.replace("?", { scroll: false });
+  }, [router]);
 
   return (
     <>
@@ -73,8 +94,8 @@ export function TrainingCatalog({ trainings }: TrainingCatalogProps) {
           style={{ animationDelay: "200ms" }}
         >
           <SearchInput
-            value={search}
-            onChange={setSearch}
+            value={inputSearch}
+            onChange={setInputSearch}
             placeholder="Search trainings by title, topic, or tag..."
             ariaLabel="Search trainings"
           />
@@ -85,7 +106,7 @@ export function TrainingCatalog({ trainings }: TrainingCatalogProps) {
       <section className="px-8 py-8">
         {/* Category chips */}
         <div className="ey-animate-fade-up" style={{ animationDelay: "280ms" }}>
-          <CategoryFilter selected={category} onChange={setCategory} />
+          <CategoryFilter selected={urlCategory} onChange={handleCategoryChange} />
         </div>
 
         {/* Level filter */}
@@ -96,12 +117,12 @@ export function TrainingCatalog({ trainings }: TrainingCatalogProps) {
         {/* Active filters */}
         <div className="mt-4">
           <ActiveFilters
-            category={category}
+            category={urlCategory}
             level={level}
-            search={search}
-            onClearCategory={() => setCategory(null)}
+            search={inputSearch}
+            onClearCategory={() => handleCategoryChange(null)}
             onClearLevel={() => setLevel(null)}
-            onClearSearch={() => setSearch("")}
+            onClearSearch={() => setInputSearch("")}
             onClearAll={clearAll}
           />
         </div>
@@ -112,7 +133,10 @@ export function TrainingCatalog({ trainings }: TrainingCatalogProps) {
             <span className="font-semibold text-foreground">
               {filtered.length}
             </span>{" "}
-            {filtered.length === 1 ? "training" : "trainings"} available
+            {filtered.length === 1 ? "training" : "trainings"} on this page
+            {totalCount > pageSize && (
+              <span className="ml-1 text-muted-foreground/70">(of {totalCount} total)</span>
+            )}
           </p>
           <SortSelect value={sort} onChange={setSort} />
         </div>
@@ -142,6 +166,8 @@ export function TrainingCatalog({ trainings }: TrainingCatalogProps) {
             }
           />
         )}
+
+        <CatalogPagination page={page} totalCount={totalCount} pageSize={pageSize} />
       </section>
 
     </>

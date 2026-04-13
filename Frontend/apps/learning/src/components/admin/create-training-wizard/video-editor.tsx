@@ -9,10 +9,29 @@ interface VideoEditorProps {
   onFileChange: (file: File | null) => void;
   videoUrl: string;
   onVideoUrlChange: (url: string) => void;
+  /** Existing uploaded file URL (admin edit mode) */
+  existingFileUrl?: string;
+  /** Validation error for the file field */
+  fileError?: string;
+  /** Validation error for the URL field */
+  urlError?: string;
+  /** Disable interactions while uploading */
+  disabled?: boolean;
 }
 
-export function VideoEditor({ file, onFileChange, videoUrl, onVideoUrlChange }: VideoEditorProps) {
-  const [mode, setMode] = useState<"upload" | "url">(videoUrl ? "url" : "upload");
+export function VideoEditor({
+  file,
+  onFileChange,
+  videoUrl,
+  onVideoUrlChange,
+  existingFileUrl,
+  fileError,
+  urlError,
+  disabled,
+}: VideoEditorProps) {
+  const [mode, setMode] = useState<"upload" | "url">(
+    existingFileUrl ? "upload" : videoUrl ? "url" : "upload",
+  );
 
   return (
     <div className="space-y-4">
@@ -25,6 +44,7 @@ export function VideoEditor({ file, onFileChange, videoUrl, onVideoUrlChange }: 
             key={m}
             type="button"
             onClick={() => setMode(m)}
+            disabled={disabled}
             className={`rounded-lg px-4 py-2 text-[13px] font-medium transition-colors ${
               mode === m
                 ? "bg-foreground text-background"
@@ -41,7 +61,10 @@ export function VideoEditor({ file, onFileChange, videoUrl, onVideoUrlChange }: 
           accept=".mp4,.webm,.mov"
           file={file}
           onFileChange={onFileChange}
+          existingUrl={existingFileUrl}
           label="Upload a video file (MP4, WebM, MOV — max 50 MB)"
+          disabled={disabled}
+          error={fileError}
         />
       ) : (
         <div className="space-y-2">
@@ -49,7 +72,10 @@ export function VideoEditor({ file, onFileChange, videoUrl, onVideoUrlChange }: 
             value={videoUrl}
             onChange={(e) => onVideoUrlChange(e.target.value)}
             placeholder="https://youtube.com/watch?v=..."
+            disabled={disabled}
+            className={urlError ? "border-destructive" : ""}
           />
+          {urlError && <p className="text-xs text-destructive">{urlError}</p>}
           <p className="text-[11px] text-muted-foreground">
             Paste a YouTube, Vimeo, or direct video URL
           </p>

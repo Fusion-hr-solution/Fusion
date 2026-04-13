@@ -1,8 +1,16 @@
 using EY.HRPlatform.Interview.Extensions;
 using EY.HRPlatform.Interview.Infrastructure;
+using DotNetEnv;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+
+var envPath = Path.Combine(builder.Environment.ContentRootPath, ".env");
+if (File.Exists(envPath))
+{
+    Env.Load(envPath);
+    builder.Configuration.AddEnvironmentVariables();
+}
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
