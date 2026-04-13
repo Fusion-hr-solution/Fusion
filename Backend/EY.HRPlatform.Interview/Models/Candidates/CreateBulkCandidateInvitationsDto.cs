@@ -6,5 +6,8 @@ public class CreateBulkCandidateInvitationsDto
     public List<string> Emails { get; set; } = [];
     public string? CandidateName { get; set; }
     public string? DeadlineUtc { get; set; }
+    public string InviteMethod { get; set; } = "bulk";
+    public int? TimeLimitMinutes { get; set; }
+    public string? CustomMessage { get; set; }
     public bool SendNotification { get; set; } = true;
 }

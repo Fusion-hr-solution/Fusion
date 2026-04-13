@@ -21,6 +21,9 @@ interface BackendCandidateInvitationDto {
   candidateName?: string;
   status: "Invited" | "DeliveryFailed";
   deadlineUtc?: string;
+  inviteMethod?: "email" | "bulk" | "link";
+  timeLimitMinutes?: number;
+  customMessage?: string;
   inviteLink: string;
   createdAtUtc: string;
   lastSentAtUtc: string;
@@ -31,8 +34,11 @@ interface BackendCandidateInvitationDto {
 interface InviteCandidateInput {
   testId: string;
   emails: string[];
+  inviteMethod: "email" | "bulk" | "link";
   candidateName?: string;
   deadlineUtc?: string;
+  timeLimitMinutes?: number;
+  customMessage?: string;
   sendNowNotification?: boolean;
 }
 
@@ -45,6 +51,9 @@ function mapInvitation(dto: BackendCandidateInvitationDto): CandidateInvitation 
     candidateName: dto.candidateName,
     status: dto.status,
     deadlineUtc: dto.deadlineUtc,
+    inviteMethod: dto.inviteMethod,
+    timeLimitMinutes: dto.timeLimitMinutes,
+    customMessage: dto.customMessage,
     inviteLink: dto.inviteLink,
     createdAtUtc: dto.createdAtUtc,
     lastSentAtUtc: dto.lastSentAtUtc,
@@ -93,8 +102,11 @@ export async function inviteCandidates(input: InviteCandidateInput): Promise<Can
       {
         testId: input.testId,
         email: cleanedEmails[0],
+        inviteMethod: input.inviteMethod,
         candidateName: input.candidateName,
         deadlineUtc: input.deadlineUtc,
+        timeLimitMinutes: input.timeLimitMinutes,
+        customMessage: input.customMessage,
         sendNotification: input.sendNowNotification ?? true,
       }
     );
@@ -106,8 +118,11 @@ export async function inviteCandidates(input: InviteCandidateInput): Promise<Can
     {
       testId: input.testId,
       emails: cleanedEmails,
+      inviteMethod: input.inviteMethod,
       candidateName: input.candidateName,
       deadlineUtc: input.deadlineUtc,
+      timeLimitMinutes: input.timeLimitMinutes,
+      customMessage: input.customMessage,
       sendNotification: input.sendNowNotification ?? true,
     }
   );

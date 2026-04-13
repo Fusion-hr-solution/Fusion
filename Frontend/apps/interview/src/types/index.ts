@@ -145,6 +145,9 @@ export interface CandidateInvitation {
   candidateName?: string;
   status: "Invited" | "DeliveryFailed";
   deadlineUtc?: string;
+  inviteMethod?: "email" | "bulk" | "link";
+  timeLimitMinutes?: number;
+  customMessage?: string;
   inviteLink: string;
   createdAtUtc: string;
   lastSentAtUtc: string;

@@ -265,13 +265,44 @@ function normalizeNameValue(value: string): string {
     .trim()
     .replace(/\s+/g, " ");
 }
-
+function splitCsvRecords(content: string): string[] {
+  const records: string[] = [];
+  let currentRecord = "";
+  let inQuotes = false;
+  for (let index = 0; index < content.length; index += 1) {
+    const character = content[index];
+    if (character === '"') {
+      if (inQuotes && content[index + 1] === '"') {
+        currentRecord += '""';
+        index += 1;
+        continue;
+      }
+      inQuotes = !inQuotes;
+      currentRecord += character;
+      continue;
+    }
+    if (!inQuotes && (character === "\n" || character === "\r")) {
+      const trimmedRecord = currentRecord.trim();
+      if (trimmedRecord.length > 0) {
+        records.push(trimmedRecord);
+      }
+      currentRecord = "";
+      if (character === "\r" && content[index + 1] === "\n") {
+        index += 1;
+      }
+      continue;
+    }
+    currentRecord += character;
+  }
+  const trimmedRecord = currentRecord.trim();
+  if (trimmedRecord.length > 0) {
+    records.push(trimmedRecord);
+  }
+  return records;
+}
 function extractEmailsFromCsv(content: string): CsvExtractResult {
   const normalizedContent = content.replace(/\u0000/g, "").replace(/^\uFEFF/, "");
-  const lines = normalizedContent
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
+  const lines = splitCsvRecords(normalizedContent);
 
   if (lines.length === 0) {
     return {
@@ -566,8 +597,11 @@ export function CandidateManagement() {
       const created = await inviteCandidates({
         testId: selectedTestId,
         emails,
+        inviteMethod,
         candidateName: candidateName.trim() || undefined,
         deadlineUtc: deadlineDate ? new Date(`${deadlineDate}T23:59:59.000Z`).toISOString() : undefined,
+        timeLimitMinutes: timeLimitMinutes > 0 ? timeLimitMinutes : undefined,
+        customMessage: customMessage.trim() || undefined,
         sendNowNotification,
       });
 
@@ -647,6 +681,9 @@ export function CandidateManagement() {
     setEmailChips([]);
     setEmailInput("");
     setCsvPreviewRows([]);
+    setCandidateName("");
+    setCustomMessage("");
+    setDeadlineDate("");
   }
 
   async function importCsvEmails(file: File): Promise<void> {
