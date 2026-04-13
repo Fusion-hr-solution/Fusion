@@ -1,0 +1,388 @@
+using System.Globalization;
+using System.Net.Mail;
+using System.Security.Cryptography;
+using EY.HRPlatform.Interview.Domain.Entities;
+using EY.HRPlatform.Interview.Infrastructure;
+using EY.HRPlatform.Interview.Models.Common;
+using EY.HRPlatform.Interview.Models.Candidates;
+using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
+
+namespace EY.HRPlatform.Interview.Features.Candidates;
+
+public class CandidateInvitationService(
+    AppDbContext dbContext,
+    IConfiguration configuration,
+    ICandidateInvitationEmailSender emailSender,
+    ILogger<CandidateInvitationService> logger)
+    : ICandidateInvitationService
+{
+    public async Task<CandidateInvitationDto> CreateAsync(CreateCandidateInvitationDto request, CancellationToken cancellationToken)
+    {
+        var normalizedEmail = NormalizeEmail(request.Email);
+        var test = await ResolveTestAsync(request.TestId, cancellationToken);
+        var deadlineUtc = ParseDeadline(request.DeadlineUtc);
+        var inviteMethod = NormalizeInviteMethod(request.InviteMethod);
+        var timeLimitMinutes = NormalizeTimeLimitMinutes(request.TimeLimitMinutes);
+        var customMessage = NormalizeCustomMessage(request.CustomMessage);
+
+        var invitation = await BuildInvitationAsync(
+            test,
+            normalizedEmail,
+            request.CandidateName,
+            deadlineUtc,
+            inviteMethod,
+            timeLimitMinutes,
+            customMessage,
+            request.SendNotification,
+            cancellationToken);
+
+        dbContext.CandidateInvitations.Add(invitation);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        LogCandidateInvited(invitation);
+
+        return MapToDto(invitation);
+    }
+
+    public async Task<IReadOnlyList<CandidateInvitationDto>> CreateBulkAsync(
+        CreateBulkCandidateInvitationsDto request,
+        CancellationToken cancellationToken)
+    {
+        var uniqueEmails = request.Emails
+            .Where(email => !string.IsNullOrWhiteSpace(email))
+            .Select(NormalizeEmail)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (uniqueEmails.Count == 0)
+        {
+            throw new ApiException("At least one valid email is required.", StatusCodes.Status400BadRequest);
+        }
+
+        var test = await ResolveTestAsync(request.TestId, cancellationToken);
+        var deadlineUtc = ParseDeadline(request.DeadlineUtc);
+        var inviteMethod = NormalizeInviteMethod(request.InviteMethod);
+        var timeLimitMinutes = NormalizeTimeLimitMinutes(request.TimeLimitMinutes);
+        var customMessage = NormalizeCustomMessage(request.CustomMessage);
+
+        var invitations = new List<CandidateInvitation>(uniqueEmails.Count);
+        foreach (var email in uniqueEmails)
+        {
+            var invitation = await BuildInvitationAsync(
+                test,
+                email,
+                request.CandidateName,
+                deadlineUtc,
+                inviteMethod,
+                timeLimitMinutes,
+                customMessage,
+                request.SendNotification,
+                cancellationToken);
+
+            invitations.Add(invitation);
+        }
+
+        dbContext.CandidateInvitations.AddRange(invitations);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        foreach (var invitation in invitations)
+        {
+            LogCandidateInvited(invitation);
+        }
+
+        return invitations.Select(MapToDto).ToList();
+    }
+
+    private async Task<CandidateInvitation> BuildInvitationAsync(
+        Test test,
+        string normalizedEmail,
+        string? candidateName,
+        DateTime? deadlineUtc,
+        string inviteMethod,
+        int? timeLimitMinutes,
+        string? customMessage,
+        bool sendNotification,
+        CancellationToken cancellationToken)
+    {
+
+        var invitation = new CandidateInvitation
+        {
+            TestId = test.Id,
+            TestTitle = test.Title,
+            Email = normalizedEmail,
+            CandidateName = string.IsNullOrWhiteSpace(candidateName) ? null : candidateName.Trim(),
+            Status = "Invited",
+            DeadlineUtc = deadlineUtc,
+            InviteMethod = inviteMethod,
+            TimeLimitMinutes = timeLimitMinutes,
+            CustomMessage = customMessage,
+            InviteLink = BuildInviteLink(),
+            LastSentAtUtc = DateTime.UtcNow,
+            ResendCount = 0,
+            OpensCount = 0,
+        };
+
+        if (sendNotification)
+        {
+            try
+            {
+                await emailSender.SendInvitationAsync(MapToDto(invitation), cancellationToken);
+                invitation.Status = "Invited";
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (ApiException)
+            {
+                throw;
+            }
+            catch (SmtpException ex)
+            {
+                invitation.Status = "DeliveryFailed";
+                logger.LogWarning(
+                    ex,
+                    "Candidate invitation delivery failed. InvitationId={InvitationId} | Email={Email}",
+                    invitation.Id.ToString(),
+                    invitation.Email);
+            }
+        }
+
+        return invitation;
+    }
+
+    private void LogCandidateInvited(CandidateInvitation invitation)
+    {
+        logger.LogInformation(
+            "Audit Event: CandidateInvited | TestId={TestId} | Email={Email} | InvitationId={InvitationId} | Status={Status}",
+            invitation.TestId.ToString(),
+            invitation.Email,
+            invitation.Id.ToString(),
+            invitation.Status
+        );
+    }
+
+    public Task<IReadOnlyList<CandidateInvitationDto>> GetPendingAsync(string? testId, CancellationToken cancellationToken)
+    {
+        return GetPendingInternalAsync(testId, cancellationToken);
+    }
+
+    public async Task<CandidateInvitationDto> ResendAsync(string invitationId, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (!Guid.TryParse(invitationId, out var parsedId))
+        {
+            throw new ApiException("Valid invitation id is required.", StatusCodes.Status400BadRequest);
+        }
+
+        var invitation = await dbContext.CandidateInvitations
+            .FirstOrDefaultAsync(item => item.Id == parsedId, cancellationToken);
+
+        if (invitation is null)
+        {
+            throw new ApiException("Invitation not found.", StatusCodes.Status404NotFound);
+        }
+
+        invitation.LastSentAtUtc = DateTime.UtcNow;
+        invitation.ResendCount += 1;
+
+        try
+        {
+            await emailSender.SendInvitationAsync(MapToDto(invitation), cancellationToken);
+            invitation.Status = "Invited";
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (ApiException)
+        {
+            throw;
+        }
+        catch (SmtpException ex)
+        {
+            invitation.Status = "DeliveryFailed";
+            logger.LogWarning(
+                ex,
+                "Candidate invitation resend failed. InvitationId={InvitationId} | Email={Email}",
+                    invitation.Id.ToString(),
+                invitation.Email);
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation(
+            "Audit Event: CandidateInvitationResent | InvitationId={InvitationId} | Email={Email} | ResendCount={ResendCount} | Status={Status}",
+            invitation.Id.ToString(),
+            invitation.Email,
+            invitation.ResendCount,
+            invitation.Status
+        );
+
+        return MapToDto(invitation);
+    }
+
+    private async Task<IReadOnlyList<CandidateInvitationDto>> GetPendingInternalAsync(
+        string? testId,
+        CancellationToken cancellationToken)
+    {
+        var query = dbContext.CandidateInvitations.AsNoTracking().AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(testId))
+        {
+            if (!Guid.TryParse(testId, out var parsedTestId))
+            {
+                return [];
+            }
+
+            query = query.Where(item => item.TestId == parsedTestId);
+        }
+
+        var data = await query
+            .Where(item => item.Status == "Invited" || item.Status == "DeliveryFailed")
+            .OrderByDescending(item => item.CreatedAt)
+            .ToListAsync(cancellationToken);
+
+        return data.Select(MapToDto).ToList();
+    }
+
+    private async Task<Domain.Entities.Test> ResolveTestAsync(string testId, CancellationToken cancellationToken)
+    {
+        if (!Guid.TryParse(testId, out var parsedId))
+        {
+            throw new ApiException("Valid testId is required.", StatusCodes.Status400BadRequest);
+        }
+
+        var test = await dbContext.Tests.AsNoTracking().FirstOrDefaultAsync(t => t.Id == parsedId, cancellationToken);
+        if (test is null)
+        {
+            throw new ApiException("Test not found.", StatusCodes.Status404NotFound);
+        }
+
+        return test;
+    }
+
+    private static string NormalizeEmail(string value)
+    {
+        var trimmed = value.Trim();
+        if (string.IsNullOrWhiteSpace(trimmed) || !trimmed.Contains('@'))
+        {
+            throw new ApiException("Valid email is required.", StatusCodes.Status400BadRequest);
+        }
+
+        return trimmed.ToLowerInvariant();
+    }
+
+    private static DateTime? ParseDeadline(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        if (!DateTimeOffset.TryParse(
+                value,
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
+                out var parsed))
+        {
+            throw new ApiException(
+                "deadlineUtc must be a valid ISO-8601 date/time.",
+                StatusCodes.Status400BadRequest);
+        }
+
+        return parsed.UtcDateTime;
+    }
+
+    private static string NormalizeInviteMethod(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return "email";
+        }
+
+        var normalized = value.Trim().ToLowerInvariant();
+        return normalized switch
+        {
+            "email" or "bulk" or "link" => normalized,
+            _ => throw new ApiException(
+                "inviteMethod must be one of: email, bulk, link.",
+                StatusCodes.Status400BadRequest),
+        };
+    }
+
+    private static int? NormalizeTimeLimitMinutes(int? value)
+    {
+        if (!value.HasValue)
+        {
+            return null;
+        }
+
+        if (value.Value <= 0)
+        {
+            throw new ApiException(
+                "timeLimitMinutes must be greater than 0 when provided.",
+                StatusCodes.Status400BadRequest);
+        }
+
+        return value;
+    }
+
+    private static string? NormalizeCustomMessage(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var trimmed = value.Trim();
+        if (trimmed.Length > 2000)
+        {
+            throw new ApiException(
+                "customMessage must be 2000 characters or fewer.",
+                StatusCodes.Status400BadRequest);
+        }
+
+        return trimmed;
+    }
+
+    private static CandidateInvitationDto MapToDto(CandidateInvitation invitation)
+    {
+        return new CandidateInvitationDto
+        {
+            Id = invitation.Id.ToString(),
+            TestId = invitation.TestId.ToString(),
+            TestTitle = invitation.TestTitle,
+            Email = invitation.Email,
+            CandidateName = invitation.CandidateName,
+            Status = invitation.Status,
+            DeadlineUtc = invitation.DeadlineUtc?.ToString("O"),
+            InviteMethod = invitation.InviteMethod,
+            TimeLimitMinutes = invitation.TimeLimitMinutes,
+            CustomMessage = invitation.CustomMessage,
+            InviteLink = invitation.InviteLink,
+            CreatedAtUtc = invitation.CreatedAt.ToString("O"),
+            LastSentAtUtc = invitation.LastSentAtUtc.ToString("O"),
+            ResendCount = invitation.ResendCount,
+            OpensCount = invitation.OpensCount,
+        };
+    }
+
+    private string BuildInviteLink()
+    {
+        var token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))
+            .TrimEnd('=')
+            .Replace('+', '-')
+            .Replace('/', '_');
+
+        var baseUrl = configuration["CandidateInvitations:PublicBaseUrl"];
+        if (string.IsNullOrWhiteSpace(baseUrl))
+        {
+            baseUrl = "http://localhost:3000/interview/candidate/start";
+        }
+
+        return $"{baseUrl}?token={token}";
+    }
+}

@@ -17,14 +17,18 @@ public interface IPlatformOrganizationService
         CreatePlatformOrganizationRequest request,
         Guid createdByUserId,
         CancellationToken cancellationToken = default);
+    /// <exception cref="InvalidOperationException">Tenant is in invalid state for this transition.</exception>
     Task<bool> SuspendAsync(Guid tenantId, CancellationToken cancellationToken = default);
+    /// <exception cref="InvalidOperationException">Tenant is in invalid state for this transition.</exception>
     Task<bool> ReactivateAsync(Guid tenantId, CancellationToken cancellationToken = default);
+    /// <exception cref="InvalidOperationException">Tenant is in invalid state for this transition.</exception>
     Task<bool> ArchiveAsync(Guid tenantId, CancellationToken cancellationToken = default);
     Task<PlatformOrganizationInviteStatusDto?> ResendFirstAdminInviteAsync(
         Guid tenantId,
         Guid platformAdminUserId,
         CancellationToken cancellationToken = default);
     Task<bool> RevokePendingFirstAdminInvitesAsync(Guid tenantId, CancellationToken cancellationToken = default);
+    Task<PlatformOrganizationDetailDto?> UpdateAsync(Guid tenantId, UpdatePlatformOrganizationRequest request, CancellationToken cancellationToken = default);
 }
 
 public sealed class PlatformOrganizationService(
@@ -62,11 +66,10 @@ public sealed class PlatformOrganizationService(
         var stats = new PlatformOrganizationStatsDto
         {
             TotalOrganizations = allSummaries.Count,
-            AttentionNeeded = allSummaries.Count(s =>
-                s.OperationalStatus.Equals(OrganizationOperationalStatus.Attention, StringComparison.OrdinalIgnoreCase)),
             InvitedPending = allSummaries.Count(s =>
                 s.OperationalStatus.Equals(OrganizationOperationalStatus.Invited, StringComparison.OrdinalIgnoreCase)),
-            ActiveUserCount = allSummaries.Sum(s => s.ActiveUserCount)
+            ActiveOrganizations = allSummaries.Count(s =>
+                s.OperationalStatus.Equals(OrganizationOperationalStatus.Active, StringComparison.OrdinalIgnoreCase))
         };
 
         // Apply search filter for paginated list
@@ -86,10 +89,9 @@ public sealed class PlatformOrganizationService(
         {
             OrganizationOperationalStatus.Archived => 0,
             OrganizationOperationalStatus.Suspended => 1,
-            OrganizationOperationalStatus.Attention => 2,
-            OrganizationOperationalStatus.Draft => 3,
-            OrganizationOperationalStatus.Invited => 4,
-            OrganizationOperationalStatus.Active => 5,
+            OrganizationOperationalStatus.Draft => 2,
+            OrganizationOperationalStatus.Invited => 3,
+            OrganizationOperationalStatus.Active => 4,
             _ => -1
         };
 
@@ -177,8 +179,14 @@ public sealed class PlatformOrganizationService(
             var tenant = Tenant.Create(request.Name.Trim());
             if (!string.IsNullOrWhiteSpace(request.InternalNotes))
                 tenant.SetInternalNotes(request.InternalNotes);
-            if (!string.IsNullOrWhiteSpace(request.PlanTier))
-                tenant.SetPlanTier(request.PlanTier);
+
+            // Check for duplicate tenant name (case-insensitive, among non-archived)
+            var normalizedName = tenant.Name.ToLowerInvariant();
+            var nameExists = await db.Tenants.AnyAsync(
+                t => t.Name.ToLower() == normalizedName && !t.IsArchived,
+                cancellationToken);
+            if (nameExists)
+                throw new InvalidOperationException("An organization with this name already exists.");
 
             db.Tenants.Add(tenant);
             await db.SaveChangesAsync(cancellationToken);
@@ -189,7 +197,7 @@ public sealed class PlatformOrganizationService(
                 throw new InvalidOperationException("That email is already registered to a user.");
 
             var pendingDup = await db.InviteTokens.AnyAsync(
-                i => i.TenantId == tenant.Id && i.Email == normalizedEmail && i.AcceptedAt == null && i.ExpiresAt > DateTime.UtcNow,
+                i => i.TenantId == tenant.Id && i.Email == normalizedEmail && i.AcceptedAt == null && !i.IsRevoked && i.ExpiresAt > DateTime.UtcNow,
                 cancellationToken);
             if (pendingDup)
                 throw new InvalidOperationException("A pending invitation already exists for this email.");
@@ -268,7 +276,7 @@ public sealed class PlatformOrganizationService(
         _ = platformAdminUserId;
 
         var invite = await db.InviteTokens
-            .Where(i => i.TenantId == tenantId && i.Role == PlatformRole.HRAdmin && i.AcceptedAt == null)
+            .Where(i => i.TenantId == tenantId && i.Role == PlatformRole.HRAdmin && i.AcceptedAt == null && !i.IsRevoked)
             .OrderByDescending(i => i.CreatedAt)
             .FirstOrDefaultAsync(cancellationToken);
 
@@ -294,15 +302,48 @@ public sealed class PlatformOrganizationService(
         CancellationToken cancellationToken = default)
     {
         var pending = await db.InviteTokens
-            .Where(i => i.TenantId == tenantId && i.Role == PlatformRole.HRAdmin && i.AcceptedAt == null)
+            .Where(i => i.TenantId == tenantId && i.Role == PlatformRole.HRAdmin && i.AcceptedAt == null && !i.IsRevoked)
             .ToListAsync(cancellationToken);
 
         if (pending.Count == 0)
             return false;
 
-        db.InviteTokens.RemoveRange(pending);
+        foreach (var invite in pending)
+            invite.Revoke();
+
         await db.SaveChangesAsync(cancellationToken);
         return true;
+    }
+
+    public async Task<PlatformOrganizationDetailDto?> UpdateAsync(
+        Guid tenantId,
+        UpdatePlatformOrganizationRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var tenant = await db.Tenants.FirstOrDefaultAsync(t => t.Id == tenantId, cancellationToken);
+        if (tenant is null)
+            return null;
+
+        if (request.Name is not null)
+        {
+            var normalizedName = request.Name.Trim().ToLowerInvariant();
+            var nameExists = await db.Tenants.AnyAsync(
+                t => t.Id != tenantId && t.Name.ToLower() == normalizedName && !t.IsArchived,
+                cancellationToken);
+            if (nameExists)
+                throw new InvalidOperationException("An organization with this name already exists.");
+
+            tenant.Update(request.Name);
+        }
+
+        if (request.InternalNotes is not null)
+            tenant.SetInternalNotes(request.InternalNotes);
+
+        await db.SaveChangesAsync(cancellationToken);
+
+        var metrics = await LoadMetricsAsync([tenantId], cancellationToken);
+        var primaryEmail = await GetPrimaryHrAdminEmailAsync(tenantId, cancellationToken);
+        return MapDetail(tenant, metrics, primaryEmail);
     }
 
     private string BuildInviteLink(string token)
@@ -383,7 +424,7 @@ public sealed class PlatformOrganizationService(
             .ToHashSet();
 
         var hrInvitesByTenant = await db.InviteTokens.AsNoTracking()
-            .Where(i => tenantIds.Contains(i.TenantId) && i.Role == PlatformRole.HRAdmin)
+            .Where(i => tenantIds.Contains(i.TenantId) && i.Role == PlatformRole.HRAdmin && !i.IsRevoked)
             .ToListAsync(cancellationToken);
 
         var pendingByTenant = hrInvitesByTenant
@@ -401,10 +442,6 @@ public sealed class PlatformOrganizationService(
             DateTime? lastLogin = lastUser.Count == 0
                 ? null
                 : lastUser.Max(u => u.LastLoginAt);
-            DateTime? lastInvite = invites.Count == 0
-                ? null
-                : invites.Max(i => i.CreatedAt);
-            var lastActivity = MaxDate(lastLogin, lastInvite);
 
             result[tid] = new TenantMetrics
             {
@@ -412,7 +449,7 @@ public sealed class PlatformOrganizationService(
                 PendingInviteCount = pc,
                 HasHrAdminUser = hasHrAdminByTenant.Contains(tid),
                 HrInvites = invites,
-                LastActivityAt = lastActivity
+                LastActivityAt = lastLogin
             };
         }
 
@@ -427,13 +464,11 @@ public sealed class PlatformOrganizationService(
         m ??= new TenantMetrics();
 
         var status = ComputeOperationalStatus(tenant, m);
-        var firstAdmin = ComputeFirstAdminStatus(tenant, m, status);
         return new PlatformOrganizationSummaryDto
         {
             Id = tenant.Id,
             Name = tenant.Name,
             OperationalStatus = status,
-            FirstAdminStatus = firstAdmin,
             ActiveUserCount = m.ActiveUserCount,
             PendingInviteCount = m.PendingInviteCount,
             CreatedAt = tenant.CreatedAt,
@@ -451,7 +486,6 @@ public sealed class PlatformOrganizationService(
         metrics.TryGetValue(tenant.Id, out var m);
         m ??= new TenantMetrics();
         var status = ComputeOperationalStatus(tenant, m);
-        var firstAdmin = ComputeFirstAdminStatus(tenant, m, status);
         var inviteDto = BuildInviteStatus(m.HrInvites);
 
         return new PlatformOrganizationDetailDto
@@ -459,11 +493,9 @@ public sealed class PlatformOrganizationService(
             Id = tenant.Id,
             Name = tenant.Name,
             OperationalStatus = status,
-            FirstAdminStatus = firstAdmin,
             CreatedAt = tenant.CreatedAt,
             UpdatedAt = tenant.UpdatedAt,
             InternalNotes = tenant.InternalNotes,
-            PlanTier = tenant.PlanTier,
             ActiveUserCount = m.ActiveUserCount,
             PendingInviteCount = m.PendingInviteCount,
             LastActivityAt = m.LastActivityAt,
@@ -555,32 +587,8 @@ public sealed class PlatformOrganizationService(
         if (m.HrInvites.Count == 0)
             return OrganizationOperationalStatus.Draft;
 
-        return OrganizationOperationalStatus.Attention;
+        // Has invites but all expired/failed — still in "invited" lifecycle stage
+        return OrganizationOperationalStatus.Invited;
     }
 
-    private static string ComputeFirstAdminStatus(Tenant tenant, TenantMetrics m, string operational)
-    {
-        if (operational == OrganizationOperationalStatus.Active)
-            return "Verified";
-        if (operational == OrganizationOperationalStatus.Invited)
-            return "Awaiting acceptance";
-        if (operational == OrganizationOperationalStatus.Draft)
-            return "Not invited";
-        if (operational == OrganizationOperationalStatus.Attention)
-            return "Action required";
-        if (operational == OrganizationOperationalStatus.Suspended)
-            return "Suspended";
-        if (operational == OrganizationOperationalStatus.Archived)
-            return "Archived";
-        return "Unknown";
-    }
-
-    private static DateTime? MaxDate(DateTime? a, DateTime? b)
-    {
-        if (!a.HasValue)
-            return b;
-        if (!b.HasValue)
-            return a;
-        return a.Value >= b.Value ? a : b;
-    }
 }

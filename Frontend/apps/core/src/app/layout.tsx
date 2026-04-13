@@ -1,22 +1,21 @@
 import type { Metadata } from "next";
-import { AuthProvider } from "@repo/auth";
-import "@repo/ui/src/ey-brand.css";
+import { Inter } from "next/font/google";
 import "./globals.css";
 
+const fontSans = Inter({ subsets: ["latin"], variable: "--font-sans" });
+
 export const metadata: Metadata = {
-  title: "Core HR - Employee Management",
-  description: "Core HR platform for employee directory and management",
+  title: "Core HR — Fusion",
+  description: "Core HR platform for employee and organizational management",
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
-      <body className="min-h-screen antialiased">
-        <AuthProvider>{children}</AuthProvider>
+    <html lang="en" suppressHydrationWarning className={fontSans.variable}>
+      <body className="min-h-screen antialiased bg-background text-foreground">
+        {children}
       </body>
     </html>
   );

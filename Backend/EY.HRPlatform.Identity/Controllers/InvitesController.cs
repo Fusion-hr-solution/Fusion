@@ -80,6 +80,7 @@ public class InvitesController : ControllerBase
             .Where(i => i.TenantId == tenantId &&
                         i.Email == normalizedEmail &&
                         i.AcceptedAt == null &&
+                        !i.IsRevoked &&
                         i.ExpiresAt > DateTime.UtcNow)
             .FirstOrDefaultAsync();
 
@@ -153,6 +154,10 @@ public class InvitesController : ControllerBase
         if (invite is null)
             return NotFound(ApiResponse<InviteDto>.Failure("Invalid invitation token."));
 
+        if (invite.IsRevoked)
+            return StatusCode(StatusCodes.Status410Gone,
+                ApiResponse<InviteDto>.Failure("This invitation has been revoked."));
+
         if (invite.IsUsed)
             return StatusCode(StatusCodes.Status410Gone,
                 ApiResponse<InviteDto>.Failure("This invitation has already been used."));
@@ -199,6 +204,10 @@ public class InvitesController : ControllerBase
 
         if (invite is null)
             return NotFound(ApiResponse<UserDto>.Failure("Invalid invitation token."));
+
+        if (invite.IsRevoked)
+            return StatusCode(StatusCodes.Status410Gone,
+                ApiResponse<UserDto>.Failure("This invitation has been revoked."));
 
         if (invite.IsUsed)
             return StatusCode(StatusCodes.Status410Gone,
@@ -310,7 +319,7 @@ public class InvitesController : ControllerBase
 
         if (!includePast)
         {
-            query = query.Where(i => i.AcceptedAt == null && i.ExpiresAt > DateTime.UtcNow);
+            query = query.Where(i => i.AcceptedAt == null && !i.IsRevoked && i.ExpiresAt > DateTime.UtcNow);
         }
 
         var invites = await query
@@ -356,7 +365,10 @@ public class InvitesController : ControllerBase
         if (invite.IsUsed)
             return BadRequest(ApiResponse.Failure("Cannot revoke an already accepted invitation."));
 
-        _dbContext.InviteTokens.Remove(invite);
+        if (invite.IsRevoked)
+            return BadRequest(ApiResponse.Failure("Invitation is already revoked."));
+
+        invite.Revoke();
         await _dbContext.SaveChangesAsync();
 
         return Ok(ApiResponse.Success());

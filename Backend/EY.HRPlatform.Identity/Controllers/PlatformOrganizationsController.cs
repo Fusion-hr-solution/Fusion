@@ -86,40 +86,90 @@ public class PlatformOrganizationsController(IPlatformOrganizationService platfo
         }
     }
 
+    [HttpPatch("{tenantId:guid}")]
+    [ProducesResponseType(typeof(ApiResponse<PlatformOrganizationDetailDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<PlatformOrganizationDetailDto>), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ApiResponse<PlatformOrganizationDetailDto>>> Update(
+        Guid tenantId,
+        [FromBody] UpdatePlatformOrganizationRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var updated = await platformOrganizations.UpdateAsync(tenantId, request, cancellationToken);
+            if (updated is null)
+                return NotFound(ApiResponse<PlatformOrganizationDetailDto>.Failure("Organization not found."));
+
+            return Ok(ApiResponse<PlatformOrganizationDetailDto>.Success(updated));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(ApiResponse<PlatformOrganizationDetailDto>.Failure(ex.Message));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ApiResponse<PlatformOrganizationDetailDto>.Failure(ex.Message));
+        }
+    }
+
     [HttpPost("{tenantId:guid}/suspend")]
     [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status409Conflict)]
     public async Task<ActionResult<ApiResponse<bool>>> Suspend(Guid tenantId, CancellationToken cancellationToken)
     {
-        var ok = await platformOrganizations.SuspendAsync(tenantId, cancellationToken);
-        if (!ok)
-            return NotFound(ApiResponse<bool>.Failure("Organization not found."));
+        try
+        {
+            var ok = await platformOrganizations.SuspendAsync(tenantId, cancellationToken);
+            if (!ok)
+                return NotFound(ApiResponse<bool>.Failure("Organization not found."));
 
-        return Ok(ApiResponse<bool>.Success(true));
+            return Ok(ApiResponse<bool>.Success(true));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(ApiResponse<bool>.Failure(ex.Message));
+        }
     }
 
     [HttpPost("{tenantId:guid}/reactivate")]
     [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status409Conflict)]
     public async Task<ActionResult<ApiResponse<bool>>> Reactivate(Guid tenantId, CancellationToken cancellationToken)
     {
-        var ok = await platformOrganizations.ReactivateAsync(tenantId, cancellationToken);
-        if (!ok)
-            return NotFound(ApiResponse<bool>.Failure("Organization not found."));
+        try
+        {
+            var ok = await platformOrganizations.ReactivateAsync(tenantId, cancellationToken);
+            if (!ok)
+                return NotFound(ApiResponse<bool>.Failure("Organization not found."));
 
-        return Ok(ApiResponse<bool>.Success(true));
+            return Ok(ApiResponse<bool>.Success(true));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(ApiResponse<bool>.Failure(ex.Message));
+        }
     }
 
     [HttpPost("{tenantId:guid}/archive")]
     [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status409Conflict)]
     public async Task<ActionResult<ApiResponse<bool>>> Archive(Guid tenantId, CancellationToken cancellationToken)
     {
-        var ok = await platformOrganizations.ArchiveAsync(tenantId, cancellationToken);
-        if (!ok)
-            return NotFound(ApiResponse<bool>.Failure("Organization not found."));
+        try
+        {
+            var ok = await platformOrganizations.ArchiveAsync(tenantId, cancellationToken);
+            if (!ok)
+                return NotFound(ApiResponse<bool>.Failure("Organization not found."));
 
-        return Ok(ApiResponse<bool>.Success(true));
+            return Ok(ApiResponse<bool>.Success(true));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(ApiResponse<bool>.Failure(ex.Message));
+        }
     }
 
     [HttpPost("{tenantId:guid}/first-admin-invite/resend")]

@@ -10,9 +10,11 @@ export type {
 export type { PlatformApiClientConfig } from "./platform";
 export type {
   CreatePlatformOrganizationRequest,
+  UpdatePlatformOrganizationRequest,
   PlatformOrganizationCreatedDto,
   PlatformOrganizationDetailDto,
   PlatformOrganizationInviteStatusDto,
+  PlatformOrganizationStatsDto,
   PlatformOrganizationSummaryDto,
   PlatformOrganizationPagedListDto,
 } from "./platform-organizations";

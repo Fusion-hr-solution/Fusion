@@ -7,7 +7,7 @@ public sealed class PlatformOrganizationListQueryDto
 
     public string? Search { get; init; }
 
-    /// <summary>draft | invited | active | attention | suspended | archived</summary>
+    /// <summary>draft | invited | active | suspended | archived</summary>
     public string[]? FilterByStatus { get; init; }
 
     /// <summary>name | createdAt | operationalStatus | activeUserCount | pendingInviteCount | lastActivityAt</summary>
