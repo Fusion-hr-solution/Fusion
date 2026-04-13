@@ -143,7 +143,8 @@ function mapTraining(dto: BackendAdminTrainingDto): AdminTraining {
 }
 
 function mapChapter(dto: BackendAdminChapterDto): AdminChapter {
-  const primaryBlock = dto.contentBlocks[0];
+  const contentBlocks = dto.contentBlocks ?? [];
+  const primaryBlock = contentBlocks[0];
 
   return {
     id: dto.id,
@@ -157,7 +158,7 @@ function mapChapter(dto: BackendAdminChapterDto): AdminChapter {
     estimatedDurationMinutes: primaryBlock?.estimatedDurationMinutes ?? undefined,
     createdAt: dto.createdAt,
     updatedAt: dto.updatedAt ?? undefined,
-    contentBlocks: dto.contentBlocks.map(mapContentBlock),
+    contentBlocks: contentBlocks.map(mapContentBlock),
   };
 }
 

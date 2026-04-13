@@ -61,6 +61,7 @@ describe("Admin type contracts", () => {
       title: "Basics",
       layout: "SingleContent",
       orderIndex: 1,
+      contentType: "Article",
       createdAt: "2025-01-01",
       contentBlocks: [],
     };

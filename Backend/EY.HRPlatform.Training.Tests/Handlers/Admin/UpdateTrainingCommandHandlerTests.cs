@@ -16,7 +16,8 @@ public class UpdateTrainingCommandHandlerTests
         var categoryId = training.CategoryId;
 
         var command = new UpdateTrainingCommand(
-            training.Id, "Updated Title", "Updated Desc", 50, true, "Gold", "10 hours", categoryId);
+            training.Id, "Updated Title", "Updated Desc", 50, true, "Gold", "10 hours", categoryId,
+            training.TrainingType.ToString(), training.ScheduledDate);
 
         var result = await handler.Handle(command, CancellationToken.None);
 
@@ -40,7 +41,8 @@ public class UpdateTrainingCommandHandlerTests
 
         var command = new UpdateTrainingCommand(
             training.Id, training.Title, training.Description, training.Credits,
-            training.IsMandatory, "Bronze", training.Duration, newCategory.Id);
+            training.IsMandatory, "Bronze", training.Duration, newCategory.Id,
+            training.TrainingType.ToString(), training.ScheduledDate);
 
         var result = await handler.Handle(command, CancellationToken.None);
 
@@ -55,7 +57,8 @@ public class UpdateTrainingCommandHandlerTests
         await using var context = TestDbContextFactory.Create();
         var handler = new UpdateTrainingCommandHandler(context);
         var command = new UpdateTrainingCommand(
-            Guid.NewGuid(), "Title", null, 10, false, "Bronze", null, Guid.NewGuid());
+            Guid.NewGuid(), "Title", null, 10, false, "Bronze", null, Guid.NewGuid(),
+            TrainingType.ELearning.ToString(), null);
 
         var result = await handler.Handle(command, CancellationToken.None);
 
@@ -71,7 +74,8 @@ public class UpdateTrainingCommandHandlerTests
         var training = context.Trainings.First();
 
         var command = new UpdateTrainingCommand(
-            training.Id, "Title", null, 10, false, "Platinum", null, training.CategoryId);
+            training.Id, "Title", null, 10, false, "Platinum", null, training.CategoryId,
+            training.TrainingType.ToString(), training.ScheduledDate);
 
         var result = await handler.Handle(command, CancellationToken.None);
 
@@ -87,7 +91,8 @@ public class UpdateTrainingCommandHandlerTests
         var training = context.Trainings.First();
 
         var command = new UpdateTrainingCommand(
-            training.Id, "Title", null, 10, false, "Bronze", null, Guid.NewGuid());
+            training.Id, "Title", null, 10, false, "Bronze", null, Guid.NewGuid(),
+            training.TrainingType.ToString(), training.ScheduledDate);
 
         var result = await handler.Handle(command, CancellationToken.None);
 
