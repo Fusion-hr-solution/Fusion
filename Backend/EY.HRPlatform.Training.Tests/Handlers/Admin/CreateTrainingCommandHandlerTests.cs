@@ -39,8 +39,8 @@ public class CreateTrainingCommandHandlerTests
         var handler = new CreateTrainingCommandHandler(context);
         var chapters = new List<CreateTrainingChapterItem>
         {
-            new("Chapter 1", "Article", null, 0, "Content", null, 30),
-            new("Chapter 2", "Video", null, 1, null, "https://example.com", 45),
+            new("Chapter 1", "SingleContent", 0, [new("Article", 0, "Block 1", "Content", null, null, 30)]),
+            new("Chapter 2", "SingleContent", 1, [new("Video", 0, "Block 2", null, null, "https://example.com", 45)]),
         };
         var command = new CreateTrainingCommand(
             "Training With Chapters", null, 20, true, "Gold", "5 hours", category.Id, chapters);
@@ -95,7 +95,7 @@ public class CreateTrainingCommandHandlerTests
         var handler = new CreateTrainingCommandHandler(context);
         var chapters = new List<CreateTrainingChapterItem>
         {
-            new("Bad Chapter", "InvalidType", null, 0, null, null, null),
+            new("Bad Chapter", "SingleContent", 0, [new("InvalidType", 0, null, null, null, null, null)]),
         };
         var command = new CreateTrainingCommand(
             "Training", null, 10, false, "Bronze", null, category.Id, chapters);
@@ -103,6 +103,6 @@ public class CreateTrainingCommandHandlerTests
         var result = await handler.Handle(command, CancellationToken.None);
 
         Assert.True(result.IsFailure);
-        Assert.Contains("InvalidContentType", result.Error.Code);
+        Assert.Contains("InvalidType", result.Error.Code);
     }
 }

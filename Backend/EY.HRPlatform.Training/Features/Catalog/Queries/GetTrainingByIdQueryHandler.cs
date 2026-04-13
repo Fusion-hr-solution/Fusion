@@ -18,6 +18,7 @@ public class GetTrainingByIdQueryHandler : IQueryHandler<GetTrainingByIdQuery, R
             .AsNoTracking()
             .Include(t => t.Category)
             .Include(t => t.Chapters)
+                .ThenInclude(c => c.ContentBlocks)
             .Include(t => t.Exams)
                 .ThenInclude(e => e.Questions)
             .FirstOrDefaultAsync(t => t.Id == request.TrainingId, cancellationToken);
@@ -43,9 +44,9 @@ public class GetTrainingByIdQueryHandler : IQueryHandler<GetTrainingByIdQuery, R
                 {
                     Id = c.Id,
                     Title = c.Title,
-                    ContentType = c.ContentType.ToString(),
-                    ContentUri = c.ContentUri,
-                    OrderIndex = c.OrderIndex
+                    Layout = c.Layout.ToString(),
+                    OrderIndex = c.OrderIndex,
+                    BlockCount = c.ContentBlocks.Count
                 })
                 .ToList(),
             Exams = training.Exams

@@ -3,8 +3,7 @@ using EY.HRPlatform.SharedKernel.Results;
 
 namespace EY.HRPlatform.Training.Features.Admin.Commands;
 
-public record UpdateChapterCommand(
+public record ReorderContentBlocksCommand(
     Guid TrainingId,
     Guid ChapterId,
-    string Title,
-    string Layout) : ICommand<Result>;
+    List<Guid> ContentBlockIds) : ICommand<Result>;
