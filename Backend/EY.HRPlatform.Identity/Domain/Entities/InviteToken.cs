@@ -75,9 +75,19 @@ public class InviteToken
     public Guid CreatedByUserId { get; private set; }
 
     /// <summary>
-    /// Whether the token is still valid (not expired, not used).
+    /// Whether this invite has been revoked (soft-deleted).
     /// </summary>
-    public bool IsValid => !IsExpired && !IsUsed;
+    public bool IsRevoked { get; private set; }
+
+    /// <summary>
+    /// When the invite was revoked. Null if not revoked.
+    /// </summary>
+    public DateTime? RevokedAt { get; private set; }
+
+    /// <summary>
+    /// Whether the token is still valid (not expired, not used, not revoked).
+    /// </summary>
+    public bool IsValid => !IsExpired && !IsUsed && !IsRevoked;
 
     /// <summary>
     /// Whether the token has expired.
@@ -167,9 +177,25 @@ public class InviteToken
     {
         if (IsUsed)
             throw new InvalidOperationException("Cannot extend an accepted invitation.");
+        if (IsRevoked)
+            throw new InvalidOperationException("Cannot extend a revoked invitation.");
 
         ValidateExpiryDays(days);
         ExpiresAt = DateTime.UtcNow.AddDays(days);
+    }
+
+    /// <summary>
+    /// Soft-revokes this invite so it can no longer be accepted.
+    /// </summary>
+    public void Revoke()
+    {
+        if (IsUsed)
+            throw new InvalidOperationException("Cannot revoke an accepted invitation.");
+        if (IsRevoked)
+            throw new InvalidOperationException("Invitation is already revoked.");
+
+        IsRevoked = true;
+        RevokedAt = DateTime.UtcNow;
     }
 
     /// <summary>

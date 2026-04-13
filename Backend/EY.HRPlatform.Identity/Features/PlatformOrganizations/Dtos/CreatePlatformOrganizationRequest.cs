@@ -18,9 +18,6 @@ public sealed class CreatePlatformOrganizationRequest
     [StringLength(100)]
     public string? FirstAdminLastName { get; set; }
 
-    [StringLength(100)]
-    public string? PlanTier { get; set; }
-
     [StringLength(4000)]
     public string? InternalNotes { get; set; }
 }

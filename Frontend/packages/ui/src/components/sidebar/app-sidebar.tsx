@@ -31,7 +31,7 @@ export function AppSidebar({
       {/* Collapse toggle */}
       <button
         onClick={() => setCollapsed((c) => !c)}
-        className="absolute -right-3 top-6 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-sidebar-border bg-sidebar text-muted-foreground shadow-sm transition-all duration-200 hover:bg-accent hover:text-foreground hover:shadow-md hover:scale-110"
+        className="absolute -right-3 top-6 z-20 flex h-6 w-6 items-center justify-center rounded-full border border-sidebar-border bg-sidebar text-muted-foreground shadow-sm transition-all duration-200 hover:bg-accent hover:text-foreground hover:shadow-md hover:scale-110"
         aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
       >
         {collapsed ? (
@@ -49,7 +49,7 @@ export function AppSidebar({
         )}
       >
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-foreground shadow-sm">
-          <BrandIcon className="h-4 w-4 text-primary" aria-hidden="true" />
+          <BrandIcon className="h-4 w-4 text-background" aria-hidden="true" />
         </div>
         {!collapsed && (
           <div className="overflow-hidden">
@@ -83,9 +83,7 @@ export function AppSidebar({
       <nav className="flex-1 overflow-y-auto px-3 py-4">
         {sections.map((section, i) => (
           <div key={section.title}>
-            {i > 0 && (
-              <div className="my-4 border-t border-sidebar-border" />
-            )}
+            {i > 0 && <div className="my-4 border-t border-sidebar-border" />}
             <SidebarNav
               section={section}
               activePath={activePath}

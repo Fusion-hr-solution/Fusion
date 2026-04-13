@@ -30,6 +30,10 @@ public class InviteTokenConfiguration : IEntityTypeConfiguration<InviteToken>
         builder.Property(i => i.LastName)
             .HasMaxLength(100);
 
+        builder.Property(i => i.IsRevoked)
+            .IsRequired()
+            .HasDefaultValue(false);
+
         // Unique index on token for fast lookup
         builder.HasIndex(i => i.Token)
             .IsUnique();
@@ -41,9 +45,9 @@ public class InviteTokenConfiguration : IEntityTypeConfiguration<InviteToken>
         builder.HasIndex(i => new { i.TenantId, i.Email });
 
         // Filtered unique index to prevent duplicate pending invites per {TenantId, Email}
-        // Note: PostgreSQL filter syntax. Active invites = not accepted and not expired
+        // Active invites = not accepted, not revoked
         builder.HasIndex(i => new { i.TenantId, i.Email })
-            .HasFilter("\"AcceptedAt\" IS NULL")
+            .HasFilter("\"AcceptedAt\" IS NULL AND \"IsRevoked\" = false")
             .IsUnique()
             .HasDatabaseName("IX_InviteTokens_TenantId_Email_Pending");
 
