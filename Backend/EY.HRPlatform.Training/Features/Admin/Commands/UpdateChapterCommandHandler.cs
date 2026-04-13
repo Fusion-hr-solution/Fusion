@@ -24,19 +24,11 @@ public class UpdateChapterCommandHandler : ICommandHandler<UpdateChapterCommand,
         if (chapter is null)
             return Result.Failure(Error.NotFound("Chapter", request.ChapterId));
 
-        if (!Enum.TryParse<ContentType>(request.ContentType, true, out var contentType))
-            return Result.Failure(Error.Validation("Chapter.InvalidContentType",
-                $"Invalid content type '{request.ContentType}'. Valid values: Video, Pdf, Article, Exercise."));
+        if (!Enum.TryParse<ChapterLayout>(request.Layout, true, out var layout))
+            return Result.Failure(Error.Validation("Chapter.InvalidLayout",
+                $"Invalid layout '{request.Layout}'. Valid values: SingleContent, SplitLayout, MultiSection."));
 
-        // Keep the existing order index — reordering is done via the dedicated reorder endpoint.
-        chapter.Update(
-            request.Title,
-            contentType,
-            request.ContentUri,
-            chapter.OrderIndex,
-            request.TextContent,
-            request.VideoUrl,
-            request.EstimatedDurationMinutes);
+        chapter.Update(request.Title, layout);
 
         await _db.SaveChangesAsync(cancellationToken);
 

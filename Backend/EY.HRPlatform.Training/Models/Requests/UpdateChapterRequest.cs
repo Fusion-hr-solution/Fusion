@@ -8,18 +8,5 @@ public class UpdateChapterRequest
     public string Title { get; set; } = string.Empty;
 
     [Required]
-    public string ContentType { get; set; } = "Article";
-
-    [MaxLength(500)]
-    public string? ContentUri { get; set; }
-
-    public int OrderIndex { get; set; }
-
-    public string? TextContent { get; set; }
-
-    [MaxLength(500)]
-    public string? VideoUrl { get; set; }
-
-    [Range(1, 600)]
-    public int? EstimatedDurationMinutes { get; set; }
+    public string Layout { get; set; } = "SingleContent";
 }

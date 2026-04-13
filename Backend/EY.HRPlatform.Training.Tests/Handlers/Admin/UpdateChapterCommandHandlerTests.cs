@@ -12,12 +12,10 @@ public class UpdateChapterCommandHandlerTests
         await using var context = await TestDbContextFactory.CreateWithSeedDataAsync();
         var handler = new UpdateChapterCommandHandler(context);
         var chapter = context.Chapters.First();
-        var originalOrderIndex = chapter.OrderIndex;
 
         var command = new UpdateChapterCommand(
             chapter.TrainingId, chapter.Id,
-            "Updated Title", "Pdf", "https://example.com/updated.pdf", 5,
-            null, null, 60);
+            "Updated Title", "SplitLayout");
 
         var result = await handler.Handle(command, CancellationToken.None);
 
@@ -25,9 +23,7 @@ public class UpdateChapterCommandHandlerTests
         var updated = await context.Chapters.FindAsync(chapter.Id);
         Assert.NotNull(updated);
         Assert.Equal("Updated Title", updated.Title);
-        Assert.Equal(Domain.Enums.ContentType.Pdf, updated.ContentType);
-        Assert.Equal(originalOrderIndex, updated.OrderIndex); // OrderIndex is immutable via update; use reorder endpoint
-        Assert.Equal(60, updated.EstimatedDurationMinutes);
+        Assert.Equal(Domain.Enums.ChapterLayout.SplitLayout, updated.Layout);
     }
 
     [Fact]
@@ -39,7 +35,7 @@ public class UpdateChapterCommandHandlerTests
 
         var command = new UpdateChapterCommand(
             training.Id, Guid.NewGuid(),
-            "Title", "Article", null, 0, null, null, null);
+            "Title", "SingleContent");
 
         var result = await handler.Handle(command, CancellationToken.None);
 
@@ -56,7 +52,7 @@ public class UpdateChapterCommandHandlerTests
 
         var command = new UpdateChapterCommand(
             Guid.NewGuid(), chapter.Id,
-            "Title", "Article", null, 0, null, null, null);
+            "Title", "SingleContent");
 
         var result = await handler.Handle(command, CancellationToken.None);
 
@@ -65,7 +61,7 @@ public class UpdateChapterCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_ReturnsFailure_WhenInvalidContentType()
+    public async Task Handle_ReturnsFailure_WhenInvalidLayout()
     {
         await using var context = await TestDbContextFactory.CreateWithSeedDataAsync();
         var handler = new UpdateChapterCommandHandler(context);
@@ -73,11 +69,11 @@ public class UpdateChapterCommandHandlerTests
 
         var command = new UpdateChapterCommand(
             chapter.TrainingId, chapter.Id,
-            "Title", "InvalidType", null, 0, null, null, null);
+            "Title", "InvalidLayout");
 
         var result = await handler.Handle(command, CancellationToken.None);
 
         Assert.True(result.IsFailure);
-        Assert.Contains("InvalidContentType", result.Error.Code);
+        Assert.Contains("InvalidLayout", result.Error.Code);
     }
 }

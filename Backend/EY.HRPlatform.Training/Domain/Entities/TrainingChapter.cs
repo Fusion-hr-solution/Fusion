@@ -6,15 +6,14 @@ namespace EY.HRPlatform.Training.Domain.Entities;
 public class TrainingChapter : BaseEntity
 {
     public string Title { get; private set; } = string.Empty;
-    public ContentType ContentType { get; private set; }
-    public string? ContentUri { get; private set; }
+    public ChapterLayout Layout { get; private set; } = ChapterLayout.SingleContent;
     public int OrderIndex { get; private set; }
-    public string? TextContent { get; private set; }
-    public string? VideoUrl { get; private set; }
-    public int? EstimatedDurationMinutes { get; private set; }
 
     public Guid TrainingId { get; private set; }
     public TrainingCourse Training { get; private set; } = null!;
+
+    private readonly List<ContentBlock> _contentBlocks = [];
+    public IReadOnlyCollection<ContentBlock> ContentBlocks => _contentBlocks.AsReadOnly();
 
     private readonly List<ChapterProgress> _progressRecords = [];
     public IReadOnlyCollection<ChapterProgress> ProgressRecords => _progressRecords.AsReadOnly();
@@ -23,40 +22,20 @@ public class TrainingChapter : BaseEntity
 
     public TrainingChapter(
         string title,
-        ContentType contentType,
-        string? contentUri,
+        ChapterLayout layout,
         int orderIndex,
-        Guid trainingId,
-        string? textContent = null,
-        string? videoUrl = null,
-        int? estimatedDurationMinutes = null)
+        Guid trainingId)
     {
         Title = title;
-        ContentType = contentType;
-        ContentUri = contentUri;
+        Layout = layout;
         OrderIndex = orderIndex;
         TrainingId = trainingId;
-        TextContent = textContent;
-        VideoUrl = videoUrl;
-        EstimatedDurationMinutes = estimatedDurationMinutes;
     }
 
-    public void Update(
-        string title,
-        ContentType contentType,
-        string? contentUri,
-        int orderIndex,
-        string? textContent = null,
-        string? videoUrl = null,
-        int? estimatedDurationMinutes = null)
+    public void Update(string title, ChapterLayout layout)
     {
         Title = title;
-        ContentType = contentType;
-        ContentUri = contentUri;
-        OrderIndex = orderIndex;
-        TextContent = textContent;
-        VideoUrl = videoUrl;
-        EstimatedDurationMinutes = estimatedDurationMinutes;
+        Layout = layout;
         UpdatedAt = DateTime.UtcNow;
     }
 
@@ -64,5 +43,10 @@ public class TrainingChapter : BaseEntity
     {
         OrderIndex = orderIndex;
         UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void AddContentBlock(ContentBlock block)
+    {
+        _contentBlocks.Add(block);
     }
 }

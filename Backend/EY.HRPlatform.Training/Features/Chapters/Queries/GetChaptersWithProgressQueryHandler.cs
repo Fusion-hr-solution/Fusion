@@ -48,9 +48,12 @@ public class GetChaptersWithProgressQueryHandler
             {
                 c.Id,
                 c.Title,
-                ContentType = c.ContentType.ToString(),
+                Layout = c.Layout.ToString(),
                 c.OrderIndex,
-                c.EstimatedDurationMinutes,
+                BlockCount = c.ContentBlocks.Count,
+                CompletedBlockCount = c.ContentBlocks
+                    .Count(b => b.ProgressRecords
+                        .Any(p => p.EmployeeId == request.EmployeeId && p.Completed)),
                 Progress = c.ProgressRecords
                     .Where(p => p.EmployeeId == request.EmployeeId)
                     .Select(p => new { p.Completed, p.CompletedAt })
@@ -62,9 +65,10 @@ public class GetChaptersWithProgressQueryHandler
         {
             Id = c.Id,
             Title = c.Title,
-            ContentType = c.ContentType,
+            Layout = c.Layout,
             OrderIndex = c.OrderIndex,
-            EstimatedDurationMinutes = c.EstimatedDurationMinutes,
+            BlockCount = c.BlockCount,
+            CompletedBlockCount = c.CompletedBlockCount,
             IsCompleted = c.Progress?.Completed ?? false,
             CompletedAt = c.Progress?.CompletedAt
         }).ToList();
