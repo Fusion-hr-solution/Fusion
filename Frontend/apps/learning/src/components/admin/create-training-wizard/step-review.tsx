@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { ClipboardCheck, ArrowLeft, CheckCircle2, XCircle, Loader2, Pencil, Send } from "lucide-react";
 import type { WizardState } from "@/types/admin-props";
-import { CONTENT_TYPES } from "@/data/chapter-templates";
 
 interface StepReviewProps {
   wizard: WizardState;
@@ -41,7 +40,9 @@ export function StepReview({ wizard }: StepReviewProps) {
   const checks = [
     { label: "Training title added", pass: wizard.title.trim() !== "" },
     { label: "Category selected", pass: wizard.categoryId !== "" },
-    { label: "At least 1 chapter added", pass: wizard.chapters.length > 0 },
+    ...(wizard.trainingType === "OnSite"
+      ? []
+      : [{ label: "At least 1 chapter added", pass: wizard.chapters.length > 0 }]),
   ];
   const isReady = checks.every((c) => c.pass);
 
@@ -72,6 +73,7 @@ export function StepReview({ wizard }: StepReviewProps) {
         <div className="flex flex-col gap-5">
           <ReviewCard title="Basic Info" step={1} onEdit={() => wizard.setStep(1)}>
             <div className="grid grid-cols-2 gap-x-8 gap-y-4">
+              <Pair label="Training Type" value={wizard.trainingType === "OnSite" ? "On-Site" : "E-Learning"} />
               <Pair label="Title" value={wizard.title} />
               <Pair label="Category" value={wizard.categoryName} />
               <Pair label="Badge Level" value={wizard.badgeLevel} />
@@ -88,30 +90,32 @@ export function StepReview({ wizard }: StepReviewProps) {
               <Pair label="Credits" value={String(wizard.credits)} />
               <Pair label="Duration" value={wizard.duration || null} />
               <Pair label="Mandatory" value={wizard.isMandatory ? "Yes" : "No"} />
+              {wizard.trainingType === "OnSite" && wizard.scheduledDate && (
+                <Pair label="Scheduled Date" value={new Date(wizard.scheduledDate).toLocaleString()} />
+              )}
             </div>
           </ReviewCard>
         </div>
 
         {/* Right column */}
         <div className="flex flex-col gap-5">
-          <ReviewCard title={`Chapters — ${wizard.chapters.length} total`} step={3} onEdit={() => wizard.setStep(3)}>
-            {wizard.chapters.length === 0 ? (
-              <p className="text-[13px] text-muted-foreground">No chapters added yet.</p>
-            ) : (
-              <div className="space-y-2">
-                {wizard.chapters.map((ch, i) => {
-                  const typeConfig = CONTENT_TYPES.find((t) => t.type === ch.contentType);
-                  return (
-                    <div key={ch.clientId} className="flex items-center gap-3 rounded-xl bg-muted/50 px-3 py-2.5">
-                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-bold text-muted-foreground">{i + 1}</span>
-                      <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-foreground">{ch.title}</span>
-                      <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">{typeConfig?.label ?? ch.contentType}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </ReviewCard>
+          {wizard.trainingType !== "OnSite" && (
+            <ReviewCard title={`Chapters — ${wizard.chapters.length} total`} step={3} onEdit={() => wizard.setStep(3)}>
+              {wizard.chapters.length === 0 ? (
+                <p className="text-[13px] text-muted-foreground">No chapters added yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {wizard.chapters.map((ch, i) => (
+                      <div key={ch.clientId} className="flex items-center gap-3 rounded-xl bg-muted/50 px-3 py-2.5">
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-bold text-muted-foreground">{i + 1}</span>
+                        <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-foreground">{ch.title}</span>
+                        <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">{ch.layout}</span>
+                      </div>
+                  ))}
+                </div>
+              )}
+            </ReviewCard>
+          )}
 
           {/* Readiness */}
           <div className="overflow-hidden rounded-2xl border border-border bg-background shadow-sm">
@@ -139,7 +143,7 @@ export function StepReview({ wizard }: StepReviewProps) {
 
       {/* Footer */}
       <div className="mt-8 flex items-center justify-between border-t border-border pt-6">
-        <button onClick={() => wizard.setStep(3)} className="flex items-center gap-2 rounded-xl border border-border bg-background px-5 py-2.5 text-sm font-semibold text-muted-foreground shadow-sm transition-colors hover:bg-muted hover:text-foreground">
+        <button onClick={() => wizard.setStep(wizard.trainingType === "OnSite" ? 2 : 3)} className="flex items-center gap-2 rounded-xl border border-border bg-background px-5 py-2.5 text-sm font-semibold text-muted-foreground shadow-sm transition-colors hover:bg-muted hover:text-foreground">
           <ArrowLeft className="h-4 w-4" /> Back
         </button>
         <button

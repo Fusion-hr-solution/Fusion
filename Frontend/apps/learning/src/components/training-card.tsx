@@ -31,6 +31,11 @@ export function TrainingCard({ training }: { training: Training }) {
                 Mandatory
               </span>
             )}
+            {training.trainingType === "OnSite" && (
+              <span className="inline-flex items-center rounded-full bg-blue-50 border border-blue-200 px-2 py-0.5 text-xs font-semibold text-blue-700 shrink-0">
+                On-Site
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -62,7 +67,7 @@ export function TrainingCard({ training }: { training: Training }) {
           </span>
           <span className="flex items-center gap-1.5 rounded-md bg-muted px-2 py-1">
             <BookOpen className="h-3.5 w-3.5" aria-hidden="true" />
-            {training.chaptersCount} chapters
+            {training.trainingType === "OnSite" ? `${training.onSiteCourses?.length ?? 0} courses` : `${training.chaptersCount} chapters`}
           </span>
           <span className={`flex items-center gap-1.5 rounded-md border px-2 py-1 ${badge.className}`}>
             <Award className="h-3.5 w-3.5" aria-hidden="true" />

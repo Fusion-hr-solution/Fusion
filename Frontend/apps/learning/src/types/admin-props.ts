@@ -1,5 +1,5 @@
-import type { AdminCategory, AdminChapter, AdminTraining, ArticleTemplate, ArticleTemplateSection, WizardChapter } from "./admin";
-import type { Employee, Training, TrainingCategory, TrainingStatus } from "./index";
+import type { AdminCategory, AdminChapter, AdminTraining, ArticleTemplate, WizardChapter } from "./admin";
+import type { Employee, Training, TrainingCategory, TrainingStatus, TrainingType } from "./index";
 
 /* ── Wizard shared state (used by create + edit wizards) ── */
 
@@ -25,6 +25,10 @@ export interface WizardState {
   setDuration: (v: string) => void;
   isMandatory: boolean;
   setIsMandatory: (v: boolean) => void;
+  trainingType: TrainingType;
+  setTrainingType: (v: TrainingType) => void;
+  scheduledDate: string;
+  setScheduledDate: (v: string) => void;
   chapters: WizardChapter[];
   addChapter: (chapter: Omit<WizardChapter, "clientId">) => void;
   updateChapter: (clientId: string, updates: Partial<WizardChapter>) => void;
@@ -157,6 +161,8 @@ export interface TrainingFormBasicStepProps {
   categories: AdminCategory[];
   badgeLevel: string;
   onBadgeLevelChange: (v: string) => void;
+  trainingType: TrainingType;
+  onTrainingTypeChange: (v: TrainingType) => void;
   fieldErrors?: Record<string, string>;
 }
 
@@ -167,6 +173,9 @@ export interface TrainingFormDetailsStepProps {
   onDurationChange: (v: string) => void;
   isMandatory: boolean;
   onMandatoryChange: (v: boolean) => void;
+  trainingType: TrainingType;
+  scheduledDate: string;
+  onScheduledDateChange: (v: string) => void;
   fieldErrors?: Record<string, string>;
 }
 
@@ -178,6 +187,8 @@ export interface TrainingFormReviewStepProps {
   credits: number;
   duration: string;
   isMandatory: boolean;
+  trainingType: TrainingType;
+  scheduledDate: string;
 }
 
 export interface ChapterFormInfoStepProps {

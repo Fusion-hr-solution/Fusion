@@ -30,8 +30,17 @@ public class UpdateTrainingCommandHandler : ICommandHandler<UpdateTrainingComman
         if (!categoryExists)
             return Result.Failure(Error.NotFound("Category", request.CategoryId));
 
+        TrainingType? parsedType = null;
+        if (!string.IsNullOrEmpty(request.TrainingType))
+        {
+            if (!Enum.TryParse<TrainingType>(request.TrainingType, true, out var tt))
+                return Result.Failure(Error.Validation("Training.InvalidTrainingType",
+                    $"Invalid training type '{request.TrainingType}'. Valid values: ELearning, OnSite."));
+            parsedType = tt;
+        }
+
         training.Update(request.Title, request.Description, request.Credits,
-            request.IsMandatory, badgeLevel, request.Duration);
+            request.IsMandatory, badgeLevel, request.Duration, parsedType, request.ScheduledDate);
 
         if (training.CategoryId != request.CategoryId)
             training.UpdateCategory(request.CategoryId);

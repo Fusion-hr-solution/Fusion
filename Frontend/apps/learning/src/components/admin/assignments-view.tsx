@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Users, CalendarClock, BarChart3 } from "lucide-react";
 import { Card, CardContent, Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@repo/ui";
 import { useApiQuery } from "@repo/api/react";
@@ -14,13 +14,23 @@ export function AssignmentsView() {
   const [selectedTrainingId, setSelectedTrainingId] = useState<string>("");
   const [search, setSearch] = useState("");
 
-  const { data: trainingsData } = useApiQuery(
+  const fetchTrainings = useCallback(
     () => getAdminTrainings({ pageSize: 100 }),
+    [],
+  );
+
+  const fetchAssignments = useCallback(
+    () => getTrainingAssignments(selectedTrainingId),
+    [selectedTrainingId],
+  );
+
+  const { data: trainingsData } = useApiQuery(
+    fetchTrainings,
     { enabled: true },
   );
 
   const { data: assignments, isLoading } = useApiQuery<AdminAssignment[]>(
-    () => getTrainingAssignments(selectedTrainingId),
+    fetchAssignments,
     { enabled: Boolean(selectedTrainingId) },
   );
 

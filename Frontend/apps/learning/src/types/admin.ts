@@ -1,16 +1,10 @@
+import type { ChapterLayout, TrainingType } from "./index";
+
 /** Chapter being built in the training creation wizard (client-side only) */
 export interface WizardChapter {
   clientId: string;
   title: string;
-  contentType: string;
-  textContent?: string;
-  file?: File;
-  videoUrl?: string;
-  estimatedDurationMinutes?: number;
-  /** Server-side ID when editing an existing chapter */
-  serverId?: string;
-  /** Existing uploaded file URL */
-  contentUri?: string;
+  layout: ChapterLayout;
 }
 
 /** Admin Training (list view) */
@@ -26,6 +20,8 @@ export interface AdminTraining {
   categoryName: string;
   chapterCount: number;
   enrollmentCount: number;
+  trainingType: TrainingType;
+  scheduledDate?: string;
   isDeleted: boolean;
   createdAt: string;
   updatedAt?: string;
@@ -35,10 +31,26 @@ export interface AdminTraining {
 export interface AdminChapter {
   id: string;
   title: string;
+  layout: ChapterLayout;
+  orderIndex: number;
   contentType: string;
   contentUri?: string;
-  orderIndex: number;
   textContent?: string;
+  videoUrl?: string;
+  estimatedDurationMinutes?: number;
+  createdAt: string;
+  updatedAt?: string;
+  contentBlocks: AdminContentBlock[];
+}
+
+/** Admin Content Block */
+export interface AdminContentBlock {
+  id: string;
+  type: string;
+  orderIndex: number;
+  title?: string;
+  textContent?: string;
+  contentUri?: string;
   videoUrl?: string;
   estimatedDurationMinutes?: number;
   createdAt: string;
@@ -53,10 +65,20 @@ export interface AdminExam {
   questionCount: number;
 }
 
+/** Admin On-Site Course */
+export interface AdminOnSiteCourse {
+  id: string;
+  title: string;
+  contentUri: string;
+  orderIndex: number;
+  createdAt: string;
+}
+
 /** Admin Training full detail (with chapters & exams) */
 export interface AdminTrainingDetail extends AdminTraining {
   chapters: AdminChapter[];
   exams: AdminExam[];
+  onSiteCourses: AdminOnSiteCourse[];
 }
 
 /** Assignment record */
@@ -84,10 +106,22 @@ export interface AdminCategory {
 
 export interface CreateChapterInput {
   title: string;
-  contentType: string;
-  contentUri?: string;
+  layout?: ChapterLayout;
   orderIndex: number;
+  contentType?: string;
+  contentUri?: string;
   textContent?: string;
+  videoUrl?: string;
+  estimatedDurationMinutes?: number;
+  contentBlocks?: CreateContentBlockInput[];
+}
+
+export interface CreateContentBlockInput {
+  type: string;
+  orderIndex: number;
+  title?: string;
+  textContent?: string;
+  contentUri?: string;
   videoUrl?: string;
   estimatedDurationMinutes?: number;
 }
@@ -100,7 +134,16 @@ export interface CreateTrainingInput {
   badgeLevel: string;
   duration?: string;
   categoryId: string;
+  trainingType?: string;
+  scheduledDate?: string;
   chapters?: CreateChapterInput[];
+  onSiteCourses?: CreateOnSiteCourseInput[];
+}
+
+export interface CreateOnSiteCourseInput {
+  title: string;
+  contentUri: string;
+  orderIndex: number;
 }
 
 export interface UpdateTrainingInput {
@@ -111,14 +154,25 @@ export interface UpdateTrainingInput {
   badgeLevel: string;
   duration?: string;
   categoryId: string;
+  trainingType?: string;
+  scheduledDate?: string;
 }
 
 export interface UpdateChapterInput {
   title: string;
-  contentType: string;
+  layout?: ChapterLayout;
+  contentType?: string;
   contentUri?: string;
-  orderIndex: number;
   textContent?: string;
+  videoUrl?: string;
+  estimatedDurationMinutes?: number;
+}
+
+export interface UpdateContentBlockInput {
+  type: string;
+  title?: string;
+  textContent?: string;
+  contentUri?: string;
   videoUrl?: string;
   estimatedDurationMinutes?: number;
 }

@@ -11,6 +11,8 @@ import { StepReview } from "./step-review";
 export function CreateTrainingWizard() {
   const wizard = useTrainingWizard({ mode: "create" });
 
+  const isOnSite = wizard.trainingType === "OnSite";
+
   return (
     <div className="flex min-h-screen flex-col bg-muted/30">
       {/* Top bar */}
@@ -21,7 +23,7 @@ export function CreateTrainingWizard() {
               Create Training
             </h1>
             <p className="text-xs text-muted-foreground">
-              Set up a new training program with chapters
+              {isOnSite ? "Set up a new on-site training program" : "Set up a new training program with chapters"}
             </p>
           </div>
           <Link
@@ -35,7 +37,7 @@ export function CreateTrainingWizard() {
 
       {/* Stepper */}
       <div className="shrink-0 bg-background">
-        <WizardStepper currentStep={wizard.step} onStepClick={wizard.setStep} />
+        <WizardStepper currentStep={wizard.step} onStepClick={wizard.setStep} isOnSite={isOnSite} />
       </div>
 
       {/* Content */}
@@ -44,8 +46,8 @@ export function CreateTrainingWizard() {
           <div key={wizard.step} className="ey-animate-fade-up">
             {wizard.step === 1 && <StepBasicInfo wizard={wizard} />}
             {wizard.step === 2 && <StepDetails wizard={wizard} />}
-            {wizard.step === 3 && <StepChapters wizard={wizard} />}
-            {wizard.step === 4 && <StepReview wizard={wizard} />}
+            {wizard.step === 3 && !isOnSite && <StepChapters wizard={wizard} />}
+            {((wizard.step === 4) || (wizard.step === 3 && isOnSite)) && <StepReview wizard={wizard} />}
           </div>
         </div>
       </div>

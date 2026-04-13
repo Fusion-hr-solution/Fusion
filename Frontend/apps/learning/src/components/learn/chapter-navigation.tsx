@@ -1,17 +1,15 @@
 "use client";
 
 import { Button } from "@repo/ui";
-import { ChevronLeft, ChevronRight, CheckCircle2, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, CheckCircle2 } from "lucide-react";
 import type { ChapterNavigationProps } from "@/types/component-props";
 
 export function ChapterNavigation({
-  isCompleted,
+  allBlocksCompleted,
   isLast,
-  onMarkComplete,
   onNext,
   onPrevious,
   hasPrevious,
-  isLoading,
 }: ChapterNavigationProps) {
   return (
     <div
@@ -29,26 +27,16 @@ export function ChapterNavigation({
         Previous
       </Button>
 
-      {/* Center action */}
+      {/* Center status */}
       <div className="flex items-center gap-3">
-        {!isCompleted && (
-          <Button
-            onClick={onMarkComplete}
-            disabled={isLoading}
-            className="gap-2 bg-[hsl(var(--ey-green-500))] hover:bg-[hsl(var(--ey-green-500))]/90 text-white"
-          >
-            {isLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-            ) : (
-              <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-            )}
-            Mark as Complete
-          </Button>
-        )}
-        {isCompleted && (
+        {allBlocksCompleted ? (
           <span className="flex items-center gap-1.5 text-sm font-semibold text-[hsl(var(--ey-green-500))]">
             <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-            Completed
+            All blocks completed
+          </span>
+        ) : (
+          <span className="text-xs text-muted-foreground">
+            Complete all blocks to finish this chapter
           </span>
         )}
       </div>

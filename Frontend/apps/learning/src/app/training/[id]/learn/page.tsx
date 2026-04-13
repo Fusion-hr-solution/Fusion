@@ -1,11 +1,12 @@
 "use client";
 
-import { use, useEffect } from "react";
+import { use, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useApiQuery } from "@repo/api/react";
 import { ApiError } from "@repo/api";
 import { CoursePlayer } from "@/components/learn";
-import { getTrainingProgress } from "@/services/learning-service";
+import { OnSiteLearnView } from "@/components/learn/onsite-learn-view";
+import { getTrainingProgress, getTrainingById } from "@/services/learning-service";
 
 interface LearnPageProps {
   params: Promise<{ id: string }>;
@@ -15,13 +16,34 @@ export default function LearnPage({ params }: LearnPageProps) {
   const { id } = use(params);
   const router = useRouter();
 
-  const { data: learnData, isLoading, error, refetch } = useApiQuery(
-    () => getTrainingProgress(id),
+  const fetchTraining = useCallback(
+    () => getTrainingById(id),
+    [id],
   );
+
+  const fetchProgress = useCallback(
+    () => getTrainingProgress(id),
+    [id],
+  );
+
+  // Fetch training detail to check type
+  const { data: training, isLoading: loadingTraining } = useApiQuery(
+    fetchTraining,
+  );
+
+  const isOnSite = training?.trainingType === "OnSite";
+
+  // Only fetch progress for e-learning trainings
+  const { data: learnData, isLoading: loadingProgress, error, refetch } = useApiQuery(
+    fetchProgress,
+    { enabled: !loadingTraining && !isOnSite },
+  );
+
+  const isLoading = loadingTraining || (!isOnSite && loadingProgress);
 
   // Only redirect when the user is definitively not enrolled (404)
   const notEnrolled =
-    !isLoading && error instanceof ApiError && error.status === 404;
+    !isLoading && !isOnSite && error instanceof ApiError && error.status === 404;
 
   useEffect(() => {
     if (notEnrolled) {
@@ -38,6 +60,11 @@ export default function LearnPage({ params }: LearnPageProps) {
         </div>
       </div>
     );
+  }
+
+  // On-site training: show PDF course viewer
+  if (isOnSite && training) {
+    return <OnSiteLearnView training={training} />;
   }
 
   // Non-404 error (network failure, 500, backend not restarted, etc.)

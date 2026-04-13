@@ -11,4 +11,6 @@ public record UpdateTrainingCommand(
     bool IsMandatory,
     string BadgeLevel,
     string? Duration,
-    Guid CategoryId) : ICommand<Result>;
+    Guid CategoryId,
+    string? TrainingType,
+    DateTime? ScheduledDate) : ICommand<Result>;
