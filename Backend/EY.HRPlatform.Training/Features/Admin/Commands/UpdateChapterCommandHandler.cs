@@ -17,9 +17,6 @@ public class UpdateChapterCommandHandler : ICommandHandler<UpdateChapterCommand,
         if (string.IsNullOrWhiteSpace(request.Title))
             return Result.Failure(Error.Validation("Chapter.TitleRequired", "Chapter title is required."));
 
-        if (request.OrderIndex < 0)
-            return Result.Failure(Error.Validation("Chapter.InvalidOrderIndex", "Order index must be zero or greater."));
-
         var chapter = await _db.Chapters
             .FirstOrDefaultAsync(c => c.Id == request.ChapterId && c.TrainingId == request.TrainingId,
                 cancellationToken);
@@ -27,22 +24,16 @@ public class UpdateChapterCommandHandler : ICommandHandler<UpdateChapterCommand,
         if (chapter is null)
             return Result.Failure(Error.NotFound("Chapter", request.ChapterId));
 
-        var duplicateIndex = await _db.Chapters
-            .AnyAsync(c => c.TrainingId == request.TrainingId && c.OrderIndex == request.OrderIndex && c.Id != request.ChapterId, cancellationToken);
-
-        if (duplicateIndex)
-            return Result.Failure(Error.Conflict("Chapter.DuplicateOrderIndex",
-                $"A chapter with order index {request.OrderIndex} already exists in this training. Please choose a different index."));
-
         if (!Enum.TryParse<ContentType>(request.ContentType, true, out var contentType))
             return Result.Failure(Error.Validation("Chapter.InvalidContentType",
                 $"Invalid content type '{request.ContentType}'. Valid values: Video, Pdf, Article, Exercise."));
 
+        // Keep the existing order index — reordering is done via the dedicated reorder endpoint.
         chapter.Update(
             request.Title,
             contentType,
             request.ContentUri,
-            request.OrderIndex,
+            chapter.OrderIndex,
             request.TextContent,
             request.VideoUrl,
             request.EstimatedDurationMinutes);

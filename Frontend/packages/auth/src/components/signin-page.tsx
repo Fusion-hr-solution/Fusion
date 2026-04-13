@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   Button,
@@ -17,10 +17,19 @@ import {
 import { useAuth } from "../auth-context";
 
 export interface SignInPageProps {
-  /** Called after successful login or when already authenticated. Defaults to router.push("/") */
+  /** Called after successful login or when already authenticated. Defaults to callbackUrl/next or "/" */
   onSuccess?: () => void;
   /** URL for sign up link. Defaults to "/auth/signup" */
   signUpUrl?: string;
+}
+
+function isSafeInternalRedirect(path: string | null): path is string {
+  return Boolean(path && path.startsWith("/") && !path.startsWith("//"));
+}
+
+function resolveRedirectTarget(searchParams: Pick<URLSearchParams, "get">): string {
+  const candidate = searchParams.get("callbackUrl") ?? searchParams.get("next");
+  return isSafeInternalRedirect(candidate) ? candidate : "/";
 }
 
 export function SignInPage({
@@ -28,7 +37,9 @@ export function SignInPage({
   signUpUrl = "/auth/signup",
 }: SignInPageProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { login, isLoading: authLoading, isAuthenticated } = useAuth();
+  const redirectTarget = resolveRedirectTarget(searchParams);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -41,10 +52,10 @@ export function SignInPage({
       if (onSuccess) {
         onSuccess();
       } else {
-        router.replace("/");
+        router.replace(redirectTarget);
       }
     }
-  }, [authLoading, isAuthenticated, router, onSuccess]);
+  }, [authLoading, isAuthenticated, router, onSuccess, redirectTarget]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,7 +71,7 @@ export function SignInPage({
         if (onSuccess) {
           onSuccess();
         } else {
-          router.push("/");
+          router.push(redirectTarget);
         }
       }
     } finally {

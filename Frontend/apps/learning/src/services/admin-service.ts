@@ -5,6 +5,7 @@ import type {
   AdminChapter,
   AdminAssignment,
   AdminCategory,
+  ArticleTemplate,
   CreateTrainingInput,
   UpdateTrainingInput,
   CreateChapterInput,
@@ -225,6 +226,13 @@ export async function deleteChapter(trainingId: string, chapterId: string): Prom
   );
 }
 
+export async function reorderChapters(trainingId: string, chapterIds: string[]): Promise<void> {
+  await client.put(
+    `/training/admin/trainings/${encodeURIComponent(trainingId)}/chapters/reorder`,
+    { chapterIds },
+  );
+}
+
 // --- File upload ---
 
 export async function uploadChapterFile(file: File): Promise<string> {
@@ -270,4 +278,28 @@ export async function updateCategory(categoryId: string, input: UpdateCategoryIn
 
 export async function deleteCategory(categoryId: string): Promise<void> {
   await client.delete("/training/admin/categories/" + encodeURIComponent(categoryId));
+}
+
+// --- Article Templates ---
+
+interface BackendArticleTemplateDto {
+  id: string;
+  name: string;
+  description: string | null;
+  sections: { id: string; label: string; placeholder: string | null; orderIndex: number }[];
+}
+
+export async function getArticleTemplates(): Promise<ArticleTemplate[]> {
+  const data = await client.get<BackendArticleTemplateDto[]>("/training/admin/article-templates");
+  return data.map((t) => ({
+    id: t.id,
+    name: t.name,
+    description: t.description ?? "",
+    sections: t.sections.map((s) => ({
+      id: s.id,
+      label: s.label,
+      placeholder: s.placeholder ?? "",
+      orderIndex: s.orderIndex,
+    })),
+  }));
 }

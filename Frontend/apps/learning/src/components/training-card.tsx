@@ -16,9 +16,6 @@ export function TrainingCard({ training }: { training: Training }) {
       className="group relative flex flex-col overflow-hidden border border-border/60 bg-card transition-all duration-300 hover:shadow-xl hover:shadow-black/8 hover:-translate-y-1 cursor-pointer h-full"
       aria-label={`View details for ${training.title}`}
     >
-      {/* Category color strip with entrance animation */}
-      <div className={`h-1 w-full ey-animate-stripe ${category.stripClass}`} />
-
       <CardContent className="flex flex-1 flex-col gap-4 p-5">
         {/* Top — category + level + mandatory */}
         <div className="flex items-center justify-between gap-2">

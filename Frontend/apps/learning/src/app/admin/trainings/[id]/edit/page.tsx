@@ -1,4 +1,4 @@
-import { TrainingForm } from "@/components/admin/training-form";
+import { EditTrainingWizard } from "@/components/admin/edit-training-wizard";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -6,5 +6,5 @@ interface PageProps {
 
 export default async function EditTrainingPage({ params }: PageProps) {
   const { id } = await params;
-  return <TrainingForm trainingId={id} />;
+  return <EditTrainingWizard trainingId={id} />;
 }

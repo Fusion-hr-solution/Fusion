@@ -4,6 +4,8 @@ import { useState } from "react";
 import { Input, Label } from "@repo/ui";
 import type { ChapterFormContentStepProps } from "@/types/admin-props";
 import { FileUploadZone } from "./file-upload-zone";
+import { ArticleTemplateSelector } from "./article-template-selector";
+import { ArticleSectionEditor } from "./article-section-editor";
 
 export function ChapterFormContentStep({
   contentType,
@@ -17,6 +19,11 @@ export function ChapterFormContentStep({
   estimatedDuration,
   onEstimatedDurationChange,
   isUploading,
+  selectedTemplate,
+  onTemplateChange,
+  initialTemplateName,
+  sectionValues,
+  onSectionChange,
   fieldErrors = {},
 }: ChapterFormContentStepProps) {
   const [videoMode, setVideoMode] = useState<"upload" | "url">(existingFileUrl ? "upload" : "url");
@@ -82,7 +89,24 @@ export function ChapterFormContentStep({
         </div>
       )}
 
-      {(contentType === "Article" || contentType === "Exercise") && (
+      {contentType === "Article" && (
+        <div className="space-y-4">
+          <ArticleTemplateSelector
+            selectedTemplateId={selectedTemplate?.id ?? ""}
+            onTemplateChange={onTemplateChange}
+            initialTemplateName={initialTemplateName}
+          />
+          {selectedTemplate && (
+            <ArticleSectionEditor
+              sections={selectedTemplate.sections}
+              sectionValues={sectionValues}
+              onSectionChange={onSectionChange}
+            />
+          )}
+        </div>
+      )}
+
+      {contentType === "Exercise" && (
         <div className="space-y-2">
           <Label htmlFor="ch-text">Text Content</Label>
           <textarea

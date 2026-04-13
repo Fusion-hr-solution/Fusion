@@ -2,18 +2,19 @@
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Pencil, Trash2, BookOpen, Users, FileText } from "lucide-react";
-import { Button, Badge } from "@repo/ui";
+import { Button, buttonVariants, Badge } from "@repo/ui";
 import { useApiQuery, useApiMutation } from "@repo/api/react";
 import {
   getAdminTrainingDetail,
   deleteChapter,
   deleteTraining,
+  reorderChapters,
 } from "@/services/admin-service";
 import type { AdminChapter } from "@/types/admin";
 import type { TrainingDetailViewProps } from "@/types/admin-props";
 import { ChapterFormDialog } from "./chapter-form-dialog";
-import { TrainingFormDialog } from "./training-form-dialog";
 import { MetaCard } from "./meta-card";
 import { AdminChapterList } from "./admin-chapter-list";
 import { AdminExamList } from "./admin-exam-list";
@@ -24,7 +25,6 @@ export function TrainingDetailView({ trainingId }: TrainingDetailViewProps) {
   const router = useRouter();
   const [chapterDialogOpen, setChapterDialogOpen] = useState(false);
   const [editingChapter, setEditingChapter] = useState<AdminChapter | null>(null);
-  const [trainingDialogOpen, setTrainingDialogOpen] = useState(false);
 
   const { data: training, isLoading, refetch } = useApiQuery(
     () => getAdminTrainingDetail(trainingId),
@@ -39,6 +39,11 @@ export function TrainingDetailView({ trainingId }: TrainingDetailViewProps) {
   const { mutateAsync: removeTraining } = useApiMutation(
     () => deleteTraining(trainingId),
     { onSuccess: () => router.push("/admin/trainings") },
+  );
+
+  const { mutateAsync: doReorder } = useApiMutation(
+    (chapterIds: string[]) => reorderChapters(trainingId, chapterIds),
+    { onSuccess: () => refetch() },
   );
 
   const handleDeleteChapter = useCallback(
@@ -63,7 +68,7 @@ export function TrainingDetailView({ trainingId }: TrainingDetailViewProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       <PageBreadcrumb
         backHref="/admin/trainings"
         backLabel="Back"
@@ -92,10 +97,12 @@ export function TrainingDetailView({ trainingId }: TrainingDetailViewProps) {
           <p className="text-sm text-muted-foreground">{training.description}</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setTrainingDialogOpen(true)} disabled={training.isDeleted}>
-            <Pencil className="mr-1 h-4 w-4" />
-            Edit
-          </Button>
+          {!training.isDeleted && (
+            <Link href={`/admin/trainings/${trainingId}/edit`} className={buttonVariants({ variant: "outline", size: "sm" })}>
+              <Pencil className="mr-1 h-4 w-4" />
+              Edit
+            </Link>
+          )}
           <Button
             variant="outline"
             size="sm"
@@ -131,13 +138,13 @@ export function TrainingDetailView({ trainingId }: TrainingDetailViewProps) {
         onAddChapter={() => { setEditingChapter(null); setChapterDialogOpen(true); }}
         onEditChapter={(ch) => { setEditingChapter(ch); setChapterDialogOpen(true); }}
         onDeleteChapter={handleDeleteChapter}
+        onReorder={doReorder}
       />
 
       {/* Exams */}
       <AdminExamList exams={training.exams} />
 
       <ChapterFormDialog trainingId={trainingId} chapter={editingChapter} open={chapterDialogOpen} onOpenChange={setChapterDialogOpen} onSaved={refetch} />
-      <TrainingFormDialog trainingId={trainingId} open={trainingDialogOpen} onOpenChange={setTrainingDialogOpen} onSaved={refetch} />
     </div>
   );
 }
