@@ -9,7 +9,7 @@ import { StepChapters } from "./step-chapters";
 import { StepReview } from "./step-review";
 
 export function CreateTrainingWizard() {
-  const wizard = useTrainingWizard();
+  const wizard = useTrainingWizard({ mode: "create" });
 
   return (
     <div className="flex min-h-screen flex-col bg-muted/30">
