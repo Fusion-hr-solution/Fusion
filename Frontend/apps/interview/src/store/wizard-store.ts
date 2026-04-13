@@ -16,6 +16,7 @@ const INITIAL_BASIC_INFO: WizardFormState["basicInfo"] = {
 
 const INITIAL_CONFIG: WizardFormState["config"] = {
   allowSkipping: false,
+  allowBacktracking: true,
   showProgressBar: true,
   restrictCopyPaste: false,
   enableProctoring: false,
