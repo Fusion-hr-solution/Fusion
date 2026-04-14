@@ -52,17 +52,21 @@ public static class TestDbContextFactory
         // Add chapters
         var chapter1 = new Domain.Entities.TrainingChapter(
             "Getting Started",
-            Domain.Enums.ContentType.Video,
-            "https://example.com/video1",
+            Domain.Enums.ChapterLayout.SingleContent,
             1,
             course1.Id);
+        chapter1.AddContentBlock(new Domain.Entities.ContentBlock(
+            Domain.Enums.ContentType.Video, 0, chapter1.Id,
+            "Intro Video", null, "https://example.com/video1", null, null));
         
         var chapter2 = new Domain.Entities.TrainingChapter(
             "First Application",
-            Domain.Enums.ContentType.Article,
-            "https://example.com/lab1",
+            Domain.Enums.ChapterLayout.SingleContent,
             2,
             course1.Id);
+        chapter2.AddContentBlock(new Domain.Entities.ContentBlock(
+            Domain.Enums.ContentType.Article, 0, chapter2.Id,
+            "Lab Article", "Some content", "https://example.com/lab1", null, null));
 
         context.Chapters.Add(chapter1);
         context.Chapters.Add(chapter2);

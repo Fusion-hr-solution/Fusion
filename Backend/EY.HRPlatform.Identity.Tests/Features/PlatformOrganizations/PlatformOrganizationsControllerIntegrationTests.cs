@@ -433,7 +433,6 @@ public class PlatformOrganizationsControllerIntegrationTests
             "/api/identity/platform-admin/organizations?take=0");
         Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
     }
-
     private static async Task<string> LoginAsync(
         IdentityApiFactory factory,
         string email,

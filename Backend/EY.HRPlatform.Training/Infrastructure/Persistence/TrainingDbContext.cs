@@ -11,7 +11,9 @@ public class TrainingDbContext : DbContext
     public DbSet<TrainingCategory> Categories => Set<TrainingCategory>();
     public DbSet<TrainingCourse> Trainings => Set<TrainingCourse>();
     public DbSet<TrainingChapter> Chapters => Set<TrainingChapter>();
+    public DbSet<ContentBlock> ContentBlocks => Set<ContentBlock>();
     public DbSet<ChapterProgress> ChapterProgress => Set<ChapterProgress>();
+    public DbSet<ContentBlockProgress> ContentBlockProgress => Set<ContentBlockProgress>();
     public DbSet<Exam> Exams => Set<Exam>();
     public DbSet<ExamQuestion> ExamQuestions => Set<ExamQuestion>();
     public DbSet<ExamOption> ExamOptions => Set<ExamOption>();
@@ -21,8 +23,6 @@ public class TrainingDbContext : DbContext
     public DbSet<Badge> Badges => Set<Badge>();
     public DbSet<EmployeeBadge> EmployeeBadges => Set<EmployeeBadge>();
     public DbSet<Certification> Certifications => Set<Certification>();
-    public DbSet<ArticleTemplate> ArticleTemplates => Set<ArticleTemplate>();
-    public DbSet<ArticleTemplateSection> ArticleTemplateSections => Set<ArticleTemplateSection>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -79,16 +79,29 @@ public class TrainingDbContext : DbContext
         {
             e.HasKey(c => c.Id);
             e.Property(c => c.Title).HasMaxLength(300).IsRequired();
-            e.Property(c => c.ContentType).HasConversion<string>().HasMaxLength(20);
-            e.Property(c => c.ContentUri).HasMaxLength(500);
-            e.Property(c => c.TextContent);
-            e.Property(c => c.VideoUrl).HasMaxLength(500);
-            e.Property(c => c.EstimatedDurationMinutes);
+            e.Property(c => c.Layout).HasConversion<string>().HasMaxLength(30);
             e.HasOne(c => c.Training)
                 .WithMany(t => t.Chapters)
                 .HasForeignKey(c => c.TrainingId)
                 .OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(c => new { c.TrainingId, c.OrderIndex }).IsUnique();
+        });
+
+        // --- ContentBlock ---
+        modelBuilder.Entity<ContentBlock>(e =>
+        {
+            e.HasKey(b => b.Id);
+            e.Property(b => b.Title).HasMaxLength(300);
+            e.Property(b => b.Type).HasConversion<string>().HasMaxLength(20);
+            e.Property(b => b.ContentUri).HasMaxLength(500);
+            e.Property(b => b.TextContent);
+            e.Property(b => b.VideoUrl).HasMaxLength(500);
+            e.Property(b => b.EstimatedDurationMinutes);
+            e.HasOne(b => b.Chapter)
+                .WithMany(c => c.ContentBlocks)
+                .HasForeignKey(b => b.ChapterId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(b => new { b.ChapterId, b.OrderIndex }).IsUnique();
         });
 
         // --- ChapterProgress ---
@@ -100,6 +113,17 @@ public class TrainingDbContext : DbContext
                 .HasForeignKey(p => p.ChapterId)
                 .OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(p => new { p.EmployeeId, p.ChapterId }).IsUnique();
+        });
+
+        // --- ContentBlockProgress ---
+        modelBuilder.Entity<ContentBlockProgress>(e =>
+        {
+            e.HasKey(p => p.Id);
+            e.HasOne(p => p.ContentBlock)
+                .WithMany(b => b.ProgressRecords)
+                .HasForeignKey(p => p.ContentBlockId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(p => new { p.EmployeeId, p.ContentBlockId }).IsUnique();
         });
 
         // --- Exam ---
@@ -206,28 +230,6 @@ public class TrainingDbContext : DbContext
                 .HasForeignKey(c => c.TrainingId)
                 .OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(c => new { c.EmployeeId, c.TrainingId }).IsUnique();
-        });
-
-        // --- ArticleTemplate ---
-        modelBuilder.Entity<ArticleTemplate>(e =>
-        {
-            e.HasKey(t => t.Id);
-            e.Property(t => t.Name).HasMaxLength(200).IsRequired();
-            e.Property(t => t.Description).HasMaxLength(500);
-            e.HasIndex(t => t.Name).IsUnique();
-        });
-
-        // --- ArticleTemplateSection ---
-        modelBuilder.Entity<ArticleTemplateSection>(e =>
-        {
-            e.HasKey(s => s.Id);
-            e.Property(s => s.Label).HasMaxLength(200).IsRequired();
-            e.Property(s => s.Placeholder).HasMaxLength(500);
-            e.HasOne(s => s.Template)
-                .WithMany(t => t.Sections)
-                .HasForeignKey(s => s.TemplateId)
-                .OnDelete(DeleteBehavior.Cascade);
-            e.HasIndex(s => new { s.TemplateId, s.OrderIndex }).IsUnique();
         });
     }
 }

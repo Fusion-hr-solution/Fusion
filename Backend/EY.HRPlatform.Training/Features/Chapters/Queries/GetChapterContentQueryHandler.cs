@@ -30,10 +30,11 @@ public class GetChapterContentQueryHandler
             return Result.Failure<ChapterContentDto>(
                 new Error("Enrollment.NotFound", "You must be enrolled in this training to view chapter content."));
 
-        // 2. Load the chapter with its training
+        // 2. Load the chapter with its training and content blocks
         var chapter = await _db.Chapters
             .AsNoTracking()
             .Include(c => c.Training)
+            .Include(c => c.ContentBlocks.OrderBy(b => b.OrderIndex))
             .FirstOrDefaultAsync(c => c.Id == request.ChapterId
                                    && c.TrainingId == request.TrainingId, cancellationToken);
 
@@ -64,22 +65,39 @@ public class GetChapterContentQueryHandler
                          && cp.ChapterId == request.ChapterId
                          && cp.Completed, cancellationToken);
 
+        // 5. Load per-block progress
+        var blockIds = chapter.ContentBlocks.Select(b => b.Id).ToList();
+        var blockProgressSet = await _db.ContentBlockProgress
+            .AsNoTracking()
+            .Where(p => p.EmployeeId == request.EmployeeId && blockIds.Contains(p.ContentBlockId) && p.Completed)
+            .Select(p => p.ContentBlockId)
+            .ToListAsync(cancellationToken);
+        var completedBlockIds = blockProgressSet.ToHashSet();
+
         return Result.Success(new ChapterContentDto
         {
             Id = chapter.Id,
             Title = chapter.Title,
-            ContentType = chapter.ContentType.ToString(),
-            ContentUri = chapter.ContentUri,
-            TextContent = chapter.TextContent,
-            VideoUrl = chapter.VideoUrl,
-            EstimatedDurationMinutes = chapter.EstimatedDurationMinutes,
+            Layout = chapter.Layout.ToString(),
             OrderIndex = chapter.OrderIndex,
             TrainingId = chapter.TrainingId,
             TrainingTitle = chapter.Training.Title,
             TotalChapters = allChapters.Count,
             NextChapterId = nextChapterId,
             PreviousChapterId = previousChapterId,
-            IsCompleted = isCompleted
+            IsCompleted = isCompleted,
+            ContentBlocks = chapter.ContentBlocks.Select(b => new ContentBlockDto
+            {
+                Id = b.Id,
+                Type = b.Type.ToString(),
+                OrderIndex = b.OrderIndex,
+                Title = b.Title,
+                TextContent = b.TextContent,
+                ContentUri = b.ContentUri,
+                VideoUrl = b.VideoUrl,
+                EstimatedDurationMinutes = b.EstimatedDurationMinutes,
+                IsCompleted = completedBlockIds.Contains(b.Id)
+            }).ToList()
         });
     }
 }

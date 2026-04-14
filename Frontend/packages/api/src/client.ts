@@ -116,6 +116,10 @@ export function createApiClient(config: ApiClientConfig = {}): ApiClient {
           : undefined,
       credentials: options?.credentials ?? "same-origin",
       signal: options?.signal,
+      // Prevent Next.js Data Cache from serving stale responses in
+      // Server Components.  Next.js 15 defaults to "no-store" but we
+      // make it explicit to avoid any edge-case caching.
+      cache: "no-store" as RequestCache,
     });
 
     const correlationId = res.headers.get("X-Correlation-Id");

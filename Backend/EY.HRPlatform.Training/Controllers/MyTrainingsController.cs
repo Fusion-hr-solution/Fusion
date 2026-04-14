@@ -132,32 +132,4 @@ public class MyTrainingsController : ControllerBase
     }
 
     /// <summary>Update progress for a specific chapter.</summary>
-    [HttpPut("{trainingId:guid}/chapters/progress")]
-    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
-    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status500InternalServerError)]
-    public async Task<IActionResult> UpdateChapterProgress(
-        Guid trainingId,
-        [FromBody] UpdateChapterProgressRequest request,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            var employeeId = User.GetUserId();
-            var result = await _sender.Send(
-                new UpdateChapterProgressCommand(employeeId, trainingId, request.ChapterId, request.Completed),
-                cancellationToken);
-
-            if (result.IsFailure)
-                return NotFound(ApiResponse.Failure(result.Error.Message));
-
-            return Ok(ApiResponse.Success());
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to update chapter progress for training {TrainingId}", trainingId);
-            return StatusCode(StatusCodes.Status500InternalServerError,
-                ApiResponse.Failure("An error occurred while updating chapter progress."));
-        }
-    }
 }

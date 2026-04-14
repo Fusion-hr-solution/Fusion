@@ -23,82 +23,6 @@ namespace EY.HRPlatform.Training.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("EY.HRPlatform.Training.Domain.Entities.ArticleTemplate", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("UpdatedBy")
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Name")
-                        .IsUnique();
-
-                    b.ToTable("ArticleTemplates", "training");
-                });
-
-            modelBuilder.Entity("EY.HRPlatform.Training.Domain.Entities.ArticleTemplateSection", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Label")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<int>("OrderIndex")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Placeholder")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<Guid>("TemplateId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("UpdatedBy")
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TemplateId", "OrderIndex")
-                        .IsUnique();
-
-                    b.ToTable("ArticleTemplateSections", "training");
-                });
-
             modelBuilder.Entity("EY.HRPlatform.Training.Domain.Entities.Badge", b =>
                 {
                     b.Property<Guid>("Id")
@@ -218,6 +142,101 @@ namespace EY.HRPlatform.Training.Migrations
                         .IsUnique();
 
                     b.ToTable("ChapterProgress", "training");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Training.Domain.Entities.ContentBlock", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ChapterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ContentUri")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<int?>("EstimatedDurationMinutes")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("OrderIndex")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("TextContent")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Title")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("VideoUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChapterId", "OrderIndex")
+                        .IsUnique();
+
+                    b.ToTable("ContentBlocks", "training");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Training.Domain.Entities.ContentBlockProgress", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("Completed")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("ContentBlockId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ContentBlockId");
+
+                    b.HasIndex("EmployeeId", "ContentBlockId")
+                        .IsUnique();
+
+                    b.ToTable("ContentBlockProgress", "training");
                 });
 
             modelBuilder.Entity("EY.HRPlatform.Training.Domain.Entities.EmployeeBadge", b =>
@@ -498,29 +517,19 @@ namespace EY.HRPlatform.Training.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<string>("ContentType")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<string>("ContentUri")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("CreatedBy")
                         .HasColumnType("text");
 
-                    b.Property<int?>("EstimatedDurationMinutes")
-                        .HasColumnType("integer");
+                    b.Property<string>("Layout")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
 
                     b.Property<int>("OrderIndex")
                         .HasColumnType("integer");
-
-                    b.Property<string>("TextContent")
-                        .HasColumnType("text");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -535,10 +544,6 @@ namespace EY.HRPlatform.Training.Migrations
 
                     b.Property<string>("UpdatedBy")
                         .HasColumnType("text");
-
-                    b.Property<string>("VideoUrl")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
 
                     b.HasKey("Id");
 
@@ -654,17 +659,6 @@ namespace EY.HRPlatform.Training.Migrations
                     b.ToTable("TrainingProgress", "training");
                 });
 
-            modelBuilder.Entity("EY.HRPlatform.Training.Domain.Entities.ArticleTemplateSection", b =>
-                {
-                    b.HasOne("EY.HRPlatform.Training.Domain.Entities.ArticleTemplate", "Template")
-                        .WithMany("Sections")
-                        .HasForeignKey("TemplateId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Template");
-                });
-
             modelBuilder.Entity("EY.HRPlatform.Training.Domain.Entities.Certification", b =>
                 {
                     b.HasOne("EY.HRPlatform.Training.Domain.Entities.TrainingCourse", "Training")
@@ -685,6 +679,28 @@ namespace EY.HRPlatform.Training.Migrations
                         .IsRequired();
 
                     b.Navigation("Chapter");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Training.Domain.Entities.ContentBlock", b =>
+                {
+                    b.HasOne("EY.HRPlatform.Training.Domain.Entities.TrainingChapter", "Chapter")
+                        .WithMany("ContentBlocks")
+                        .HasForeignKey("ChapterId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Chapter");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Training.Domain.Entities.ContentBlockProgress", b =>
+                {
+                    b.HasOne("EY.HRPlatform.Training.Domain.Entities.ContentBlock", "ContentBlock")
+                        .WithMany("ProgressRecords")
+                        .HasForeignKey("ContentBlockId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ContentBlock");
                 });
 
             modelBuilder.Entity("EY.HRPlatform.Training.Domain.Entities.EmployeeBadge", b =>
@@ -794,14 +810,14 @@ namespace EY.HRPlatform.Training.Migrations
                     b.Navigation("Training");
                 });
 
-            modelBuilder.Entity("EY.HRPlatform.Training.Domain.Entities.ArticleTemplate", b =>
-                {
-                    b.Navigation("Sections");
-                });
-
             modelBuilder.Entity("EY.HRPlatform.Training.Domain.Entities.Badge", b =>
                 {
                     b.Navigation("EmployeeBadges");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Training.Domain.Entities.ContentBlock", b =>
+                {
+                    b.Navigation("ProgressRecords");
                 });
 
             modelBuilder.Entity("EY.HRPlatform.Training.Domain.Entities.Exam", b =>
@@ -823,6 +839,8 @@ namespace EY.HRPlatform.Training.Migrations
 
             modelBuilder.Entity("EY.HRPlatform.Training.Domain.Entities.TrainingChapter", b =>
                 {
+                    b.Navigation("ContentBlocks");
+
                     b.Navigation("ProgressRecords");
                 });
 

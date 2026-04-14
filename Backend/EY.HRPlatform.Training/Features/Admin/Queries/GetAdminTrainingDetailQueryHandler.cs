@@ -19,6 +19,7 @@ public class GetAdminTrainingDetailQueryHandler : IQueryHandler<GetAdminTraining
             .IgnoreQueryFilters()
             .Include(t => t.Category)
             .Include(t => t.Chapters.OrderBy(c => c.OrderIndex))
+                .ThenInclude(c => c.ContentBlocks.OrderBy(b => b.OrderIndex))
             .Include(t => t.Exams)
             .ThenInclude(e => e.Questions)
             .Include(t => t.Assignments)
@@ -46,14 +47,23 @@ public class GetAdminTrainingDetailQueryHandler : IQueryHandler<GetAdminTraining
             {
                 Id = c.Id,
                 Title = c.Title,
-                ContentType = c.ContentType.ToString(),
-                ContentUri = c.ContentUri,
+                Layout = c.Layout.ToString(),
                 OrderIndex = c.OrderIndex,
-                TextContent = c.TextContent,
-                VideoUrl = c.VideoUrl,
-                EstimatedDurationMinutes = c.EstimatedDurationMinutes,
                 CreatedAt = c.CreatedAt,
-                UpdatedAt = c.UpdatedAt
+                UpdatedAt = c.UpdatedAt,
+                ContentBlocks = c.ContentBlocks.Select(b => new AdminContentBlockDto
+                {
+                    Id = b.Id,
+                    Type = b.Type.ToString(),
+                    OrderIndex = b.OrderIndex,
+                    Title = b.Title,
+                    TextContent = b.TextContent,
+                    ContentUri = b.ContentUri,
+                    VideoUrl = b.VideoUrl,
+                    EstimatedDurationMinutes = b.EstimatedDurationMinutes,
+                    CreatedAt = b.CreatedAt,
+                    UpdatedAt = b.UpdatedAt
+                }).ToList()
             }).ToList(),
             Exams = training.Exams.Select(e => new ExamDto
             {

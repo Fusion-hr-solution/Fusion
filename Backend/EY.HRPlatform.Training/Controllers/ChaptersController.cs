@@ -93,14 +93,15 @@ public class ChaptersController : ControllerBase
         }
     }
 
-    /// <summary>Mark a chapter as completed or uncompleted.</summary>
-    [HttpPut("{chapterId:guid}/progress")]
+    /// <summary>Mark a content block as completed or uncompleted.</summary>
+    [HttpPut("{chapterId:guid}/content-blocks/{contentBlockId:guid}/progress")]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status500InternalServerError)]
     public async Task<IActionResult> UpdateProgress(
         Guid trainingId,
         Guid chapterId,
+        Guid contentBlockId,
         [FromBody] UpdateChapterProgressRequest request,
         CancellationToken cancellationToken)
     {
@@ -108,7 +109,7 @@ public class ChaptersController : ControllerBase
         {
             var employeeId = User.GetUserId();
             var result = await _sender.Send(
-                new UpdateChapterProgressCommand(employeeId, trainingId, request.ChapterId, request.Completed),
+                new UpdateContentBlockProgressCommand(employeeId, trainingId, chapterId, contentBlockId, request.Completed),
                 cancellationToken);
 
             if (result.IsFailure)
@@ -118,8 +119,8 @@ public class ChaptersController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to update chapter progress {ChapterId} for training {TrainingId}",
-                chapterId, trainingId);
+            _logger.LogError(ex, "Failed to update content block progress {ContentBlockId} for chapter {ChapterId}",
+                contentBlockId, chapterId);
             return StatusCode(StatusCodes.Status500InternalServerError,
                 ApiResponse.Failure("An error occurred while updating chapter progress."));
         }

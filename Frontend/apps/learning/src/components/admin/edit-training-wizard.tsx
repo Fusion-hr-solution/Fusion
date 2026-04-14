@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEditTrainingWizard } from "@/hooks/use-edit-training-wizard";
+import { useTrainingWizard } from "@/hooks/use-training-wizard";
 import { WizardStepper } from "./create-training-wizard/wizard-stepper";
 import { StepBasicInfo } from "./create-training-wizard/step-basic-info";
 import { StepDetails } from "./create-training-wizard/step-details";
@@ -13,7 +13,7 @@ interface EditTrainingWizardProps {
 }
 
 export function EditTrainingWizard({ trainingId }: EditTrainingWizardProps) {
-  const wizard = useEditTrainingWizard(trainingId);
+  const wizard = useTrainingWizard({ mode: "edit", trainingId });
 
   if (wizard.loadingDetail) {
     return (

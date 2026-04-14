@@ -6,49 +6,89 @@ using Microsoft.EntityFrameworkCore;
 
 namespace EY.HRPlatform.Training.Features.MyTrainings.Commands;
 
-public class UpdateChapterProgressCommandHandler : ICommandHandler<UpdateChapterProgressCommand, Result>
+public class UpdateContentBlockProgressCommandHandler : ICommandHandler<UpdateContentBlockProgressCommand, Result>
 {
     private readonly TrainingDbContext _db;
 
-    public UpdateChapterProgressCommandHandler(TrainingDbContext db) => _db = db;
+    public UpdateContentBlockProgressCommandHandler(TrainingDbContext db) => _db = db;
 
-    public async Task<Result> Handle(UpdateChapterProgressCommand request, CancellationToken cancellationToken)
+    public async Task<Result> Handle(UpdateContentBlockProgressCommand request, CancellationToken cancellationToken)
     {
-        // Verify the employee is enrolled
+        // Verify enrollment
         var isEnrolled = await _db.Assignments
             .AnyAsync(a => a.EmployeeId == request.EmployeeId && a.TrainingId == request.TrainingId, cancellationToken);
 
         if (!isEnrolled)
             return Result.Failure(new Error("Enrollment.NotFound", "You are not enrolled in this training."));
 
-        // Verify the chapter belongs to the training
-        var chapter = await _db.Chapters
-            .FirstOrDefaultAsync(c => c.Id == request.ChapterId && c.TrainingId == request.TrainingId, cancellationToken);
+        // Verify the content block belongs to the chapter and training
+        var block = await _db.ContentBlocks
+            .Include(b => b.Chapter)
+            .FirstOrDefaultAsync(b => b.Id == request.ContentBlockId
+                                   && b.ChapterId == request.ChapterId
+                                   && b.Chapter.TrainingId == request.TrainingId, cancellationToken);
 
-        if (chapter is null)
-            return Result.Failure(new Error("Chapter.NotFound", "Chapter not found in this training."));
+        if (block is null)
+            return Result.Failure(new Error("ContentBlock.NotFound", "Content block not found in this chapter."));
 
-        // Upsert chapter progress
-        var chapterProgress = await _db.ChapterProgress
-            .FirstOrDefaultAsync(cp => cp.EmployeeId == request.EmployeeId && cp.ChapterId == request.ChapterId, cancellationToken);
+        // Upsert content block progress
+        var blockProgress = await _db.ContentBlockProgress
+            .FirstOrDefaultAsync(p => p.EmployeeId == request.EmployeeId
+                                   && p.ContentBlockId == request.ContentBlockId, cancellationToken);
 
-        if (chapterProgress is null)
+        if (blockProgress is null)
         {
-            chapterProgress = new ChapterProgress(request.EmployeeId, request.ChapterId);
-            _db.ChapterProgress.Add(chapterProgress);
+            blockProgress = new ContentBlockProgress(request.EmployeeId, request.ContentBlockId);
+            _db.ContentBlockProgress.Add(blockProgress);
         }
 
-        if (request.Completed && !chapterProgress.Completed)
-            chapterProgress.MarkCompleted();
+        if (request.Completed && !blockProgress.Completed)
+            blockProgress.MarkCompleted();
 
-        // Save chapter progress first so the count query includes it
         await _db.SaveChangesAsync(cancellationToken);
+
+        // Auto-complete chapter if all blocks are done
+        await AutoCompleteChapterAsync(request.EmployeeId, request.ChapterId, cancellationToken);
 
         // Recalculate overall training progress
         await RecalculateTrainingProgressAsync(request.EmployeeId, request.TrainingId, cancellationToken);
 
         await _db.SaveChangesAsync(cancellationToken);
         return Result.Success();
+    }
+
+    private async Task AutoCompleteChapterAsync(Guid employeeId, Guid chapterId, CancellationToken cancellationToken)
+    {
+        var totalBlocks = await _db.ContentBlocks
+            .CountAsync(b => b.ChapterId == chapterId, cancellationToken);
+
+        if (totalBlocks == 0) return;
+
+        var blockIds = await _db.ContentBlocks
+            .Where(b => b.ChapterId == chapterId)
+            .Select(b => b.Id)
+            .ToListAsync(cancellationToken);
+
+        var completedBlocks = await _db.ContentBlockProgress
+            .CountAsync(p => p.EmployeeId == employeeId && p.Completed && blockIds.Contains(p.ContentBlockId),
+                cancellationToken);
+
+        var allBlocksDone = completedBlocks >= totalBlocks;
+
+        var chapterProgress = await _db.ChapterProgress
+            .FirstOrDefaultAsync(cp => cp.EmployeeId == employeeId && cp.ChapterId == chapterId, cancellationToken);
+
+        if (allBlocksDone)
+        {
+            if (chapterProgress is null)
+            {
+                chapterProgress = new ChapterProgress(employeeId, chapterId);
+                _db.ChapterProgress.Add(chapterProgress);
+            }
+
+            if (!chapterProgress.Completed)
+                chapterProgress.MarkCompleted();
+        }
     }
 
     private async Task RecalculateTrainingProgressAsync(Guid employeeId, Guid trainingId, CancellationToken cancellationToken)
