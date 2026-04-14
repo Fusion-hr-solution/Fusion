@@ -21,6 +21,9 @@
       "optional": true
     }
   },
+  "dependencies": {
+    "@tanstack/react-query": "^5.99.0"
+  },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",
     "@repo/tsconfig": "workspace:*",
