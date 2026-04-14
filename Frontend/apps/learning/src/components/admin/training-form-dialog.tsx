@@ -75,6 +75,7 @@ export function TrainingFormDialog({
                   categoryId={form.categoryId} onCategoryChange={(v) => { form.setCategoryId(v); form.clearFieldError("categoryId"); }}
                   categories={form.categories}
                   badgeLevel={form.badgeLevel} onBadgeLevelChange={form.setBadgeLevel}
+                  trainingType={form.trainingType} onTrainingTypeChange={form.setTrainingType}
                   fieldErrors={form.fieldErrors}
                 />
               )}
@@ -84,6 +85,8 @@ export function TrainingFormDialog({
                   credits={form.credits} onCreditsChange={(v) => { form.setCredits(v); form.clearFieldError("credits"); }}
                   duration={form.duration} onDurationChange={form.setDuration}
                   isMandatory={form.isMandatory} onMandatoryChange={form.setIsMandatory}
+                  trainingType={form.trainingType}
+                  scheduledDate={form.scheduledDate} onScheduledDateChange={form.setScheduledDate}
                   fieldErrors={form.fieldErrors}
                 />
               )}
@@ -92,6 +95,7 @@ export function TrainingFormDialog({
                 <TrainingFormReviewStep
                   title={form.title} description={form.description} categoryName={form.categoryName}
                   badgeLevel={form.badgeLevel} credits={form.credits} duration={form.duration} isMandatory={form.isMandatory}
+                  trainingType={form.trainingType} scheduledDate={form.scheduledDate}
                 />
               )}
             </div>

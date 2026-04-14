@@ -8,6 +8,9 @@ export function TrainingFormDetailsStep({
   onDurationChange,
   isMandatory,
   onMandatoryChange,
+  trainingType,
+  scheduledDate,
+  onScheduledDateChange,
   fieldErrors = {},
 }: TrainingFormDetailsStepProps) {
   return (
@@ -41,6 +44,24 @@ export function TrainingFormDetailsStep({
             />
           </div>
         </div>
+
+        {trainingType === "OnSite" && (
+          <div className="space-y-2">
+            <Label htmlFor="scheduledDate">Scheduled Date & Time *</Label>
+            <Input
+              id="scheduledDate"
+              type="datetime-local"
+              value={scheduledDate}
+              onChange={(e) => onScheduledDateChange(e.target.value)}
+              min={new Date().toISOString().slice(0, 16)}
+              className={fieldErrors.scheduledDate ? "border-destructive" : ""}
+            />
+            {fieldErrors.scheduledDate && <p className="text-xs text-destructive">{fieldErrors.scheduledDate}</p>}
+            {!fieldErrors.scheduledDate && scheduledDate && new Date(scheduledDate) <= new Date() && (
+              <p className="text-xs text-destructive">Scheduled date must be in the future</p>
+            )}
+          </div>
+        )}
 
         <label className="flex items-center gap-2 text-sm">
           <input

@@ -25,6 +25,10 @@ public class CreateTrainingCommandHandler : ICommandHandler<CreateTrainingComman
             return Result.Failure<Guid>(Error.Validation("Training.InvalidBadgeLevel",
                 $"Invalid badge level '{request.BadgeLevel}'. Valid values: Bronze, Silver, Gold."));
 
+        if (!Enum.TryParse<TrainingType>(request.TrainingType, true, out var trainingType))
+            return Result.Failure<Guid>(Error.Validation("Training.InvalidTrainingType",
+                $"Invalid training type '{request.TrainingType}'. Valid values: ELearning, OnSite."));
+
         var training = new TrainingCourse(
             request.Title,
             request.Description,
@@ -32,7 +36,9 @@ public class CreateTrainingCommandHandler : ICommandHandler<CreateTrainingComman
             request.IsMandatory,
             badgeLevel,
             request.CategoryId,
-            request.Duration);
+            request.Duration,
+            trainingType,
+            request.ScheduledDate);
 
         foreach (var ch in request.Chapters)
         {
@@ -64,6 +70,15 @@ public class CreateTrainingCommandHandler : ICommandHandler<CreateTrainingComman
             }
 
             training.AddChapter(chapter);
+        }
+
+        foreach (var course in request.OnSiteCourses)
+        {
+            training.AddOnSiteCourse(new OnSiteCourse(
+                course.Title,
+                course.ContentUri,
+                course.OrderIndex,
+                training.Id));
         }
 
         _db.Trainings.Add(training);

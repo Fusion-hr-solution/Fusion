@@ -21,6 +21,7 @@ public class GetTrainingByIdQueryHandler : IQueryHandler<GetTrainingByIdQuery, R
                 .ThenInclude(c => c.ContentBlocks)
             .Include(t => t.Exams)
                 .ThenInclude(e => e.Questions)
+            .Include(t => t.OnSiteCourses.OrderBy(c => c.OrderIndex))
             .FirstOrDefaultAsync(t => t.Id == request.TrainingId, cancellationToken);
 
         if (training is null)
@@ -37,6 +38,8 @@ public class GetTrainingByIdQueryHandler : IQueryHandler<GetTrainingByIdQuery, R
             Duration = training.Duration,
             CategoryId = training.CategoryId,
             CategoryName = training.Category.Name,
+            TrainingType = training.TrainingType.ToString(),
+            ScheduledDate = training.ScheduledDate,
             CreatedAt = training.CreatedAt,
             Chapters = training.Chapters
                 .OrderBy(c => c.OrderIndex)
@@ -57,7 +60,15 @@ public class GetTrainingByIdQueryHandler : IQueryHandler<GetTrainingByIdQuery, R
                     PassingScore = e.PassingScore,
                     QuestionCount = e.Questions.Count
                 })
-                .ToList()
+                .ToList(),
+            OnSiteCourses = training.OnSiteCourses.Select(c => new OnSiteCourseDto
+            {
+                Id = c.Id,
+                Title = c.Title,
+                ContentUri = c.ContentUri,
+                OrderIndex = c.OrderIndex,
+                CreatedAt = c.CreatedAt
+            }).ToList()
         };
 
         return Result.Success(dto);

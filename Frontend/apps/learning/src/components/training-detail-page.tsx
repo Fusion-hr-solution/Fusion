@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@repo/ui";
 import { useApiQuery } from "@repo/api/react";
@@ -17,6 +18,7 @@ import {
   ExamSection,
   InstructorCard,
   TrainingTagsCard,
+  OnSiteCoursesList,
 } from "./training-detail";
 
 export function TrainingDetailPage({ training }: TrainingDetailPageProps) {
@@ -26,8 +28,13 @@ export function TrainingDetailPage({ training }: TrainingDetailPageProps) {
   const badge = BADGE_LEVEL_CONFIG[training.badgeLevel];
   const { handleEnroll, isLoading, enrolled } = useEnroll(training.id);
 
-  const { data: enrollment, isLoading: checkingEnrollment } = useApiQuery(
+  const fetchEnrollment = useCallback(
     () => getEnrollmentStatus(training.id),
+    [training.id],
+  );
+
+  const { data: enrollment, isLoading: checkingEnrollment } = useApiQuery(
+    fetchEnrollment,
   );
 
   const isEnrolled = enrolled || !!enrollment;
@@ -77,6 +84,11 @@ export function TrainingDetailPage({ training }: TrainingDetailPageProps) {
               Mandatory
             </span>
           )}
+          {training.trainingType === "OnSite" && (
+            <span className="inline-flex items-center rounded-full bg-blue-50 border border-blue-200 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
+              On-Site Training
+            </span>
+          )}
         </div>
       </PageHeader>
 
@@ -86,14 +98,23 @@ export function TrainingDetailPage({ training }: TrainingDetailPageProps) {
           {/* ── Left column ── */}
           <div className="space-y-8">
             <TrainingStatsGrid training={training} />
-            <ChapterList
-              chapters={training.chapters}
-              chaptersCount={training.chaptersCount}
-            />
-            <ExamSection
-              exam={training.exam}
-              chaptersCount={training.chaptersCount}
-            />
+            {training.trainingType === "OnSite" ? (
+              <OnSiteCoursesList
+                courses={training.onSiteCourses ?? []}
+                scheduledDate={training.scheduledDate}
+              />
+            ) : (
+              <>
+                <ChapterList
+                  chapters={training.chapters}
+                  chaptersCount={training.chaptersCount}
+                />
+                <ExamSection
+                  exam={training.exam}
+                  chaptersCount={training.chaptersCount}
+                />
+              </>
+            )}
           </div>
 
           {/* ── Right column / Sidebar ── */}
@@ -142,7 +163,7 @@ export function TrainingDetailPage({ training }: TrainingDetailPageProps) {
                   className="w-full bg-emerald-600 hover:bg-emerald-700 text-white gap-2 shadow-lg transition-all hover:shadow-xl hover:gap-3 h-12 text-sm font-semibold"
                 >
                   <Play className="h-4 w-4" aria-hidden="true" />
-                  Continue Learning
+                  {training.trainingType === "OnSite" ? "Access Courses" : "Continue Learning"}
                   <ChevronRight
                     className="h-4 w-4 transition-transform"
                     aria-hidden="true"

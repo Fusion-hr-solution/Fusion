@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Pencil, Eye, Trash2, BookOpen, Users, AlertTriangle } from "lucide-react";
+import { Pencil, Eye, Trash2, BookOpen, Users, AlertTriangle, Monitor, MapPin } from "lucide-react";
 import { buttonVariants, Badge, TableRow, TableCell } from "@repo/ui";
 import type { TrainingRowProps } from "@/types/admin-props";
 
@@ -24,9 +24,20 @@ export function TrainingRow({
       </TableCell>
       <TableCell className="text-muted-foreground">{training.categoryName}</TableCell>
       <TableCell className="text-center">
+        {training.trainingType === "OnSite" ? (
+          <Badge variant="outline" className="text-[10px] border-amber-500/30 text-amber-600 bg-amber-500/5">
+            <MapPin className="mr-1 h-3 w-3" /> On-Site
+          </Badge>
+        ) : (
+          <Badge variant="outline" className="text-[10px] border-blue-500/30 text-blue-600 bg-blue-500/5">
+            <Monitor className="mr-1 h-3 w-3" /> E-Learning
+          </Badge>
+        )}
+      </TableCell>
+      <TableCell className="text-center">
         <span className="inline-flex items-center gap-1">
           <BookOpen className="h-3.5 w-3.5 text-muted-foreground" />
-          {training.chapterCount}
+          {training.trainingType === "OnSite" ? `${training.chapterCount} courses` : `${training.chapterCount} ch.`}
         </span>
       </TableCell>
       <TableCell className="text-center">

@@ -12,6 +12,7 @@ public class TrainingDbContext : DbContext
     public DbSet<TrainingCourse> Trainings => Set<TrainingCourse>();
     public DbSet<TrainingChapter> Chapters => Set<TrainingChapter>();
     public DbSet<ContentBlock> ContentBlocks => Set<ContentBlock>();
+    public DbSet<OnSiteCourse> OnSiteCourses => Set<OnSiteCourse>();
     public DbSet<ChapterProgress> ChapterProgress => Set<ChapterProgress>();
     public DbSet<ContentBlockProgress> ContentBlockProgress => Set<ContentBlockProgress>();
     public DbSet<Exam> Exams => Set<Exam>();
@@ -66,6 +67,7 @@ public class TrainingDbContext : DbContext
             e.Property(t => t.Description).HasMaxLength(2000);
             e.Property(t => t.Duration).HasMaxLength(50);
             e.Property(t => t.BadgeLevel).HasConversion<string>().HasMaxLength(20);
+            e.Property(t => t.TrainingType).HasConversion<string>().HasMaxLength(20).HasDefaultValue(Domain.Enums.TrainingType.ELearning);
             e.HasQueryFilter(t => !t.IsDeleted);
             e.HasOne(t => t.Category)
                 .WithMany(c => c.Trainings)
@@ -104,6 +106,18 @@ public class TrainingDbContext : DbContext
             e.HasIndex(b => new { b.ChapterId, b.OrderIndex }).IsUnique();
         });
 
+        // --- OnSiteCourse ---
+        modelBuilder.Entity<OnSiteCourse>(e =>
+        {
+            e.HasKey(c => c.Id);
+            e.Property(c => c.Title).HasMaxLength(300).IsRequired();
+            e.Property(c => c.ContentUri).HasMaxLength(500).IsRequired();
+            e.HasOne(c => c.Training)
+                .WithMany(t => t.OnSiteCourses)
+                .HasForeignKey(c => c.TrainingId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(c => new { c.TrainingId, c.OrderIndex }).IsUnique();
+        });
         // --- ChapterProgress ---
         modelBuilder.Entity<ChapterProgress>(e =>
         {

@@ -18,13 +18,23 @@ export function TrainingsList() {
   const [page, setPage] = useState(1);
   const pageSize = 10;
 
-  const { data, isLoading, refetch } = useApiQuery(
+  const fetchTrainings = useCallback(
     () => getAdminTrainings({ search: search || undefined, categoryId: categoryId || undefined, includeDeleted, page, pageSize }),
+    [search, categoryId, includeDeleted, page, pageSize],
+  );
+
+  const fetchCategories = useCallback(
+    () => getAdminCategories(),
+    [],
+  );
+
+  const { data, isLoading, refetch } = useApiQuery(
+    fetchTrainings,
     { enabled: true },
   );
 
   const { data: categories } = useApiQuery<AdminCategory[]>(
-    () => getAdminCategories(),
+    fetchCategories,
     { enabled: true },
   );
 
@@ -95,7 +105,8 @@ export function TrainingsList() {
               <TableRow className="bg-muted/50">
                 <TableHead>Title</TableHead>
                 <TableHead>Category</TableHead>
-                <TableHead className="text-center">Chapters</TableHead>
+                <TableHead className="text-center">Type</TableHead>
+                <TableHead className="text-center">Content</TableHead>
                 <TableHead className="text-center">Enrolled</TableHead>
                 <TableHead className="text-center">Level</TableHead>
                 <TableHead className="text-center">Status</TableHead>

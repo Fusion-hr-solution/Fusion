@@ -92,7 +92,9 @@ public class AdminTrainingsController : ControllerBase
             var result = await _sender.Send(
                 new CreateTrainingCommand(request.Title, request.Description, request.Credits,
                     request.IsMandatory, request.BadgeLevel, request.Duration,
-                    request.CategoryId, chapters),
+                    request.CategoryId, request.TrainingType, request.ScheduledDate, chapters,
+                    request.OnSiteCourses.Select(c => new CreateOnSiteCourseItem(
+                        c.Title, c.ContentUri, c.OrderIndex)).ToList()),
                 cancellationToken);
 
             if (result.IsFailure)
@@ -121,7 +123,7 @@ public class AdminTrainingsController : ControllerBase
             var result = await _sender.Send(
                 new UpdateTrainingCommand(trainingId, request.Title, request.Description,
                     request.Credits, request.IsMandatory, request.BadgeLevel,
-                    request.Duration, request.CategoryId),
+                    request.Duration, request.CategoryId, request.TrainingType, request.ScheduledDate),
                 cancellationToken);
 
             if (result.IsFailure)
@@ -343,6 +345,95 @@ public class AdminTrainingsController : ControllerBase
             _logger.LogError(ex, "Failed to assign training {TrainingId}", trainingId);
             return StatusCode(StatusCodes.Status500InternalServerError,
                 ApiResponse.Failure("An error occurred while assigning the training."));
+        }
+    }
+
+    // ── On-site course management ──
+
+    [HttpPost("{trainingId:guid}/onsite-courses")]
+    [ProducesResponseType(typeof(ApiResponse<Guid>), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> AddOnSiteCourse(
+        Guid trainingId, [FromBody] CreateOnSiteCourseRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await _sender.Send(
+                new AddOnSiteCourseCommand(trainingId, request.Title, request.ContentUri, request.OrderIndex),
+                cancellationToken);
+            if (result.IsFailure)
+                return BadRequest(ApiResponse.Failure(result.Error.Message));
+            return StatusCode(StatusCodes.Status201Created, ApiResponse<Guid>.Success(result.Value!));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to add on-site course to training {TrainingId}", trainingId);
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                ApiResponse.Failure("An error occurred while adding the on-site course."));
+        }
+    }
+
+    [HttpPut("{trainingId:guid}/onsite-courses/{courseId:guid}")]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> UpdateOnSiteCourse(
+        Guid trainingId, Guid courseId, [FromBody] CreateOnSiteCourseRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await _sender.Send(
+                new UpdateOnSiteCourseCommand(trainingId, courseId, request.Title, request.ContentUri),
+                cancellationToken);
+            if (result.IsFailure)
+                return NotFound(ApiResponse.Failure(result.Error.Message));
+            return Ok(ApiResponse.Success());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to update on-site course {CourseId}", courseId);
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                ApiResponse.Failure("An error occurred while updating the on-site course."));
+        }
+    }
+
+    [HttpDelete("{trainingId:guid}/onsite-courses/{courseId:guid}")]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> DeleteOnSiteCourse(
+        Guid trainingId, Guid courseId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await _sender.Send(
+                new DeleteOnSiteCourseCommand(trainingId, courseId), cancellationToken);
+            if (result.IsFailure)
+                return NotFound(ApiResponse.Failure(result.Error.Message));
+            return Ok(ApiResponse.Success());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to delete on-site course {CourseId}", courseId);
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                ApiResponse.Failure("An error occurred while deleting the on-site course."));
+        }
+    }
+
+    [HttpPut("{trainingId:guid}/onsite-courses/reorder")]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ReorderOnSiteCourses(
+        Guid trainingId, [FromBody] ReorderOnSiteCoursesRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await _sender.Send(
+                new ReorderOnSiteCoursesCommand(trainingId, request.CourseIds), cancellationToken);
+            if (result.IsFailure)
+                return BadRequest(ApiResponse.Failure(result.Error.Message));
+            return Ok(ApiResponse.Success());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to reorder on-site courses for training {TrainingId}", trainingId);
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                ApiResponse.Failure("An error occurred while reordering on-site courses."));
         }
     }
 }

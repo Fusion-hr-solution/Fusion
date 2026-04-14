@@ -23,4 +23,8 @@ public class UpdateTrainingRequest
 
     [Required]
     public Guid CategoryId { get; set; }
+
+    public string? TrainingType { get; set; }
+
+    public DateTime? ScheduledDate { get; set; }
 }

@@ -3,7 +3,7 @@
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Pencil, Trash2, BookOpen, Users, FileText } from "lucide-react";
+import { Pencil, Trash2, BookOpen, Users, FileText, LayoutGrid } from "lucide-react";
 import { Button, buttonVariants, Badge } from "@repo/ui";
 import { useApiQuery, useApiMutation } from "@repo/api/react";
 import {
@@ -18,6 +18,7 @@ import { ChapterFormDialog } from "./chapter-form-dialog";
 import { MetaCard } from "./meta-card";
 import { AdminChapterList } from "./admin-chapter-list";
 import { AdminExamList } from "./admin-exam-list";
+import { AdminOnSiteCourseList } from "./admin-onsite-course-list";
 import { TrainingStatCard } from "./training-stat-card";
 import { PageBreadcrumb } from "../page-breadcrumb";
 
@@ -26,8 +27,13 @@ export function TrainingDetailView({ trainingId }: TrainingDetailViewProps) {
   const [chapterDialogOpen, setChapterDialogOpen] = useState(false);
   const [editingChapter, setEditingChapter] = useState<AdminChapter | null>(null);
 
-  const { data: training, isLoading, refetch } = useApiQuery(
+  const fetchTrainingDetail = useCallback(
     () => getAdminTrainingDetail(trainingId),
+    [trainingId],
+  );
+
+  const { data: training, isLoading, refetch } = useApiQuery(
+    fetchTrainingDetail,
     { enabled: true },
   );
 
@@ -93,6 +99,9 @@ export function TrainingDetailView({ trainingId }: TrainingDetailViewProps) {
                 Mandatory
               </Badge>
             )}
+            <Badge variant="outline" className={training.trainingType === "OnSite" ? "border-blue-500/30 text-blue-600" : "border-green-500/30 text-green-600"}>
+              {training.trainingType === "OnSite" ? "On-Site" : "E-Learning"}
+            </Badge>
           </div>
           <p className="text-sm text-muted-foreground">{training.description}</p>
         </div>
@@ -122,29 +131,68 @@ export function TrainingDetailView({ trainingId }: TrainingDetailViewProps) {
         <MetaCard label="Badge Level" value={training.badgeLevel} />
         <MetaCard label="Credits" value={String(training.credits)} />
         <MetaCard label="Duration" value={training.duration || "N/A"} />
+        {training.trainingType === "OnSite" && training.scheduledDate && (
+          <MetaCard label="Scheduled Date" value={new Date(training.scheduledDate).toLocaleString()} />
+        )}
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-        <TrainingStatCard icon={BookOpen} iconBgClass="bg-[hsl(var(--ey-blue-400))]/10" iconColorClass="text-[hsl(var(--ey-blue-600))]" value={training.chapters.length} label="Chapters" />
-        <TrainingStatCard icon={Users} iconBgClass="bg-[hsl(var(--ey-green-500))]/10" iconColorClass="text-[hsl(var(--ey-green-500))]" value={training.enrollmentCount} label="Enrolled" />
-        <TrainingStatCard icon={FileText} iconBgClass="bg-[hsl(var(--ey-yellow))]/10" iconColorClass="text-[hsl(var(--ey-orange-500))]" value={training.exams.length} label="Exams" />
+        {training.trainingType === "OnSite" ? (
+          <>
+            <TrainingStatCard icon={FileText} iconBgClass="bg-[hsl(var(--ey-blue-400))]/10" iconColorClass="text-[hsl(var(--ey-blue-600))]" value={training.onSiteCourses.length} label="Courses" />
+            <TrainingStatCard icon={Users} iconBgClass="bg-[hsl(var(--ey-green-500))]/10" iconColorClass="text-[hsl(var(--ey-green-500))]" value={training.enrollmentCount} label="Enrolled" />
+          </>
+        ) : (
+          <>
+            <TrainingStatCard icon={BookOpen} iconBgClass="bg-[hsl(var(--ey-blue-400))]/10" iconColorClass="text-[hsl(var(--ey-blue-600))]" value={training.chapters.length} label="Chapters" />
+            <TrainingStatCard icon={Users} iconBgClass="bg-[hsl(var(--ey-green-500))]/10" iconColorClass="text-[hsl(var(--ey-green-500))]" value={training.enrollmentCount} label="Enrolled" />
+            <TrainingStatCard icon={FileText} iconBgClass="bg-[hsl(var(--ey-yellow))]/10" iconColorClass="text-[hsl(var(--ey-orange-500))]" value={training.exams.length} label="Exams" />
+          </>
+        )}
       </div>
 
-      {/* Chapters */}
-      <AdminChapterList
-        chapters={training.chapters}
-        isDeleted={training.isDeleted}
-        onAddChapter={() => { setEditingChapter(null); setChapterDialogOpen(true); }}
-        onEditChapter={(ch) => { setEditingChapter(ch); setChapterDialogOpen(true); }}
-        onDeleteChapter={handleDeleteChapter}
-        onReorder={doReorder}
-      />
+      {training.trainingType === "OnSite" ? (
+        <>
+          {/* On-Site Courses */}
+          <h2 className="text-base font-semibold text-foreground">Course Materials</h2>
+          <AdminOnSiteCourseList
+            trainingId={trainingId}
+            courses={training.onSiteCourses}
+            isDeleted={training.isDeleted}
+            onRefetch={refetch}
+          />
+        </>
+      ) : (
+        <>
+          {/* Chapters */}
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-semibold text-foreground">Chapters</h2>
+            {!training.isDeleted && (
+              <Link
+                href={`/admin/trainings/${trainingId}/chapters`}
+                className={buttonVariants({ variant: "outline", size: "sm" })}
+              >
+                <LayoutGrid className="mr-1.5 h-4 w-4" />
+                Manage Chapters
+              </Link>
+            )}
+          </div>
+          <AdminChapterList
+            chapters={training.chapters}
+            isDeleted={training.isDeleted}
+            onAddChapter={() => { setEditingChapter(null); setChapterDialogOpen(true); }}
+            onEditChapter={(ch) => { setEditingChapter(ch); setChapterDialogOpen(true); }}
+            onDeleteChapter={handleDeleteChapter}
+            onReorder={doReorder}
+          />
 
-      {/* Exams */}
-      <AdminExamList exams={training.exams} />
+          {/* Exams */}
+          <AdminExamList exams={training.exams} />
 
-      <ChapterFormDialog trainingId={trainingId} chapter={editingChapter} open={chapterDialogOpen} onOpenChange={setChapterDialogOpen} onSaved={refetch} />
+          <ChapterFormDialog trainingId={trainingId} chapter={editingChapter} open={chapterDialogOpen} onOpenChange={setChapterDialogOpen} onSaved={refetch} />
+        </>
+      )}
     </div>
   );
 }

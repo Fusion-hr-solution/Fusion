@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback } from "react";
 import { useApiQuery } from "@repo/api/react";
 import { GraduationCap } from "lucide-react";
 import { getMyTrainings } from "@/services/learning-service";
@@ -7,8 +8,13 @@ import { MyTrainingsList } from "./my-trainings-list";
 import { EmptyState } from "./empty-state";
 
 export function MyTrainingsPage() {
-  const { data: trainings, isLoading, error } = useApiQuery(
+  const fetchMyTrainings = useCallback(
     () => getMyTrainings(),
+    [],
+  );
+
+  const { data: trainings, isLoading, error } = useApiQuery(
+    fetchMyTrainings,
   );
 
   if (isLoading) {

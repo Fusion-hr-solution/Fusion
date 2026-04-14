@@ -11,7 +11,10 @@ public record CreateTrainingCommand(
     string BadgeLevel,
     string? Duration,
     Guid CategoryId,
-    List<CreateTrainingChapterItem> Chapters) : ICommand<Result<Guid>>;
+    string TrainingType,
+    DateTime? ScheduledDate,
+    List<CreateTrainingChapterItem> Chapters,
+    List<CreateOnSiteCourseItem> OnSiteCourses) : ICommand<Result<Guid>>;
 
 public record CreateTrainingChapterItem(
     string Title,
@@ -27,3 +30,8 @@ public record CreateTrainingContentBlockItem(
     string? ContentUri,
     string? VideoUrl,
     int? EstimatedDurationMinutes);
+
+public record CreateOnSiteCourseItem(
+    string Title,
+    string ContentUri,
+    int OrderIndex);

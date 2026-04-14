@@ -23,6 +23,7 @@ public class GetAdminTrainingDetailQueryHandler : IQueryHandler<GetAdminTraining
             .Include(t => t.Exams)
             .ThenInclude(e => e.Questions)
             .Include(t => t.Assignments)
+            .Include(t => t.OnSiteCourses.OrderBy(c => c.OrderIndex))
             .FirstOrDefaultAsync(t => t.Id == request.TrainingId, cancellationToken);
 
         if (training is null)
@@ -40,6 +41,8 @@ public class GetAdminTrainingDetailQueryHandler : IQueryHandler<GetAdminTraining
             CategoryId = training.CategoryId,
             CategoryName = training.Category.Name,
             EnrollmentCount = training.Assignments.Count,
+            TrainingType = training.TrainingType.ToString(),
+            ScheduledDate = training.ScheduledDate,
             IsDeleted = training.IsDeleted,
             CreatedAt = training.CreatedAt,
             UpdatedAt = training.UpdatedAt,
@@ -71,6 +74,14 @@ public class GetAdminTrainingDetailQueryHandler : IQueryHandler<GetAdminTraining
                 Title = e.Title,
                 PassingScore = e.PassingScore,
                 QuestionCount = e.Questions.Count
+            }).ToList(),
+            OnSiteCourses = training.OnSiteCourses.Select(c => new OnSiteCourseDto
+            {
+                Id = c.Id,
+                Title = c.Title,
+                ContentUri = c.ContentUri,
+                OrderIndex = c.OrderIndex,
+                CreatedAt = c.CreatedAt
             }).ToList()
         };
 

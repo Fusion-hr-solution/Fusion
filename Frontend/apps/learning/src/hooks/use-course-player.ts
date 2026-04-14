@@ -1,96 +1,105 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
-import { useApiMutation } from "@repo/api/react";
-import type { TrainingLearnData, ChapterProgressEntry } from "@/types";
-import { updateChapterProgress } from "@/services/learning-service";
+import { useApiMutation, useApiQuery } from "@repo/api/react";
+import type { TrainingLearnData, ChapterListItem } from "@/types";
+import { updateContentBlockProgress, getChapterContent } from "@/services/learning-service";
 
 export function useCoursePlayer(initialData: TrainingLearnData) {
-  const [chapterProgress, setChapterProgress] = useState<ChapterProgressEntry[]>(
-    initialData.chapterProgress,
-  );
+  const [chapters, setChapters] = useState<ChapterListItem[]>(initialData.chapters);
   const [activeChapterId, setActiveChapterId] = useState<string>(
     () => getInitialChapter(initialData),
   );
-  const [pendingChapterId, setPendingChapterId] = useState<string | null>(null);
 
-  const { mutate: markComplete, isLoading } = useApiMutation<void, string>(
-    (chapterId: string) =>
-      updateChapterProgress(initialData.training.id, chapterId, true),
+  const trainingId = initialData.training.id;
+
+  const fetchChapterContent = useCallback(
+    () => getChapterContent(trainingId, activeChapterId),
+    [trainingId, activeChapterId],
+  );
+
+  // Load chapter content on demand
+  const { data: activeChapterContent, isLoading: isLoadingContent, refetch: refetchContent } = useApiQuery(
+    fetchChapterContent,
+    { enabled: Boolean(activeChapterId) },
+  );
+
+  const { mutate: markBlockComplete, isLoading: isMarkingComplete } = useApiMutation<void, { chapterId: string; blockId: string }>(
+    ({ chapterId, blockId }) =>
+      updateContentBlockProgress(trainingId, chapterId, blockId, true),
     {
       onSuccess: () => {
-        if (pendingChapterId) {
-          setChapterProgress((prev) =>
-            prev.map((p) =>
-              p.chapterId === pendingChapterId
-                ? { ...p, completed: true, completedAt: new Date().toISOString() }
-                : p,
-            ),
-          );
-          setPendingChapterId(null);
-        }
+        refetchContent();
+        // Optimistically update chapter list progress
+        setChapters((prev) =>
+          prev.map((ch) =>
+            ch.id === activeChapterId
+              ? { ...ch, completedBlockCount: ch.completedBlockCount + 1, isCompleted: ch.completedBlockCount + 1 >= ch.blockCount }
+              : ch,
+          ),
+        );
       },
     },
   );
 
   const completedSet = useMemo(
-    () => new Set(chapterProgress.filter((p) => p.completed).map((p) => p.chapterId)),
-    [chapterProgress],
+    () => new Set(chapters.filter((ch) => ch.isCompleted).map((ch) => ch.id)),
+    [chapters],
   );
 
+  const completedBlockIds = useMemo(() => {
+    if (!activeChapterContent) return new Set<string>();
+    return new Set(activeChapterContent.contentBlocks.filter((b) => b.isCompleted).map((b) => b.id));
+  }, [activeChapterContent]);
+
   const completedCount = completedSet.size;
-  const totalCount = initialData.chapters.length;
+  const totalCount = chapters.length;
   const overallProgress = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
   const allChaptersCompleted = completedCount === totalCount;
 
   const activeIndex = useMemo(
-    () => initialData.chapters.findIndex((c) => c.id === activeChapterId),
-    [initialData.chapters, activeChapterId],
+    () => chapters.findIndex((c) => c.id === activeChapterId),
+    [chapters, activeChapterId],
   );
 
-  const activeChapter = initialData.chapters[activeIndex] ?? initialData.chapters[0] ?? null;
-
-  const handleMarkComplete = useCallback(() => {
-    if (activeChapter && !completedSet.has(activeChapter.id)) {
-      setPendingChapterId(activeChapter.id);
-      markComplete(activeChapter.id);
-    }
-  }, [activeChapter, completedSet, markComplete]);
+  const handleMarkBlockComplete = useCallback((blockId: string) => {
+    if (completedBlockIds.has(blockId)) return;
+    markBlockComplete({ chapterId: activeChapterId, blockId });
+  }, [activeChapterId, completedBlockIds, markBlockComplete]);
 
   const handleNext = useCallback(() => {
     if (activeIndex < totalCount - 1) {
-      setActiveChapterId(initialData.chapters[activeIndex + 1]!.id);
+      setActiveChapterId(chapters[activeIndex + 1]!.id);
     }
-  }, [activeIndex, totalCount, initialData.chapters]);
+  }, [activeIndex, totalCount, chapters]);
 
   const handlePrevious = useCallback(() => {
     if (activeIndex > 0) {
-      setActiveChapterId(initialData.chapters[activeIndex - 1]!.id);
+      setActiveChapterId(chapters[activeIndex - 1]!.id);
     }
-  }, [activeIndex, initialData.chapters]);
+  }, [activeIndex, chapters]);
 
   return {
-    activeChapter,
+    activeChapterContent,
     activeChapterId,
     activeIndex,
-    chapterProgress,
+    chapters,
     completedSet,
+    completedBlockIds,
     completedCount,
     totalCount,
     overallProgress,
     allChaptersCompleted,
-    isLoading,
+    isLoading: isMarkingComplete,
+    isLoadingContent,
     setActiveChapterId,
-    handleMarkComplete,
+    handleMarkBlockComplete,
     handleNext,
     handlePrevious,
   };
 }
 
 function getInitialChapter(data: TrainingLearnData): string {
-  const completedIds = new Set(
-    data.chapterProgress.filter((p) => p.completed).map((p) => p.chapterId),
-  );
-  const firstIncomplete = data.chapters.find((c) => !completedIds.has(c.id));
+  const firstIncomplete = data.chapters.find((c) => !c.isCompleted);
   return firstIncomplete?.id ?? data.chapters[0]?.id ?? "";
 }

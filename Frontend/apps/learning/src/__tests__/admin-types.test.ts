@@ -23,6 +23,7 @@ describe("Admin type contracts", () => {
       categoryName: "Tech",
       chapterCount: 1,
       enrollmentCount: 5,
+      trainingType: "ELearning",
       isDeleted: false,
       createdAt: "2025-01-01",
     };
@@ -43,27 +44,29 @@ describe("Admin type contracts", () => {
       categoryName: "Tech",
       chapterCount: 0,
       enrollmentCount: 0,
+      trainingType: "ELearning",
       isDeleted: false,
       createdAt: "2025-01-01",
       chapters: [],
       exams: [],
+      onSiteCourses: [],
     };
     expect(detail.chapters).toEqual([]);
     expect(detail.exams).toEqual([]);
   });
 
-  it("AdminChapter supports optional fields", () => {
+  it("AdminChapter supports content blocks", () => {
     const chapter: AdminChapter = {
       id: "ch1",
       title: "Basics",
-      contentType: "Video",
+      layout: "SingleContent",
       orderIndex: 1,
+      contentType: "Article",
       createdAt: "2025-01-01",
+      contentBlocks: [],
     };
-    expect(chapter.contentUri).toBeUndefined();
-    expect(chapter.textContent).toBeUndefined();
-    expect(chapter.videoUrl).toBeUndefined();
-    expect(chapter.estimatedDurationMinutes).toBeUndefined();
+    expect(chapter.contentBlocks).toEqual([]);
+    expect(chapter.updatedAt).toBeUndefined();
   });
 
   it("AdminAssignment has status default", () => {
@@ -96,7 +99,7 @@ describe("Admin type contracts", () => {
   it("CreateChapterInput requires core fields", () => {
     const input: CreateChapterInput = {
       title: "Chapter 1",
-      contentType: "Article",
+      layout: "SingleContent",
       orderIndex: 0,
     };
     expect(input.title).toBe("Chapter 1");
