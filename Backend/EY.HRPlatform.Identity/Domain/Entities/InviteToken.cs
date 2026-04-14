@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using EY.HRPlatform.SharedKernel.Auth;
+using EY.HRPlatform.SharedKernel.Multitenancy;
 
 namespace EY.HRPlatform.Identity.Domain.Entities;
 
@@ -7,7 +8,7 @@ namespace EY.HRPlatform.Identity.Domain.Entities;
 /// Represents an invitation token for tenant-scoped user onboarding.
 /// Tokens are single-use and expire after a configured period (default 7 days).
 /// </summary>
-public class InviteToken
+public class InviteToken : ITenantEntity
 {
     private InviteToken() { } // EF constructor
 

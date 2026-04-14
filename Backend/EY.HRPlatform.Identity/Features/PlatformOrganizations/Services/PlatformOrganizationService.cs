@@ -192,11 +192,11 @@ public sealed class PlatformOrganizationService(
             await db.SaveChangesAsync(cancellationToken);
 
             var normalizedEmail = request.FirstAdminEmail.Trim().ToLowerInvariant();
-            var existingUser = await db.Users.AnyAsync(u => u.NormalizedEmail == normalizedEmail.ToUpperInvariant(), cancellationToken);
+            var existingUser = await db.Users.IgnoreQueryFilters().AnyAsync(u => u.NormalizedEmail == normalizedEmail.ToUpperInvariant(), cancellationToken);
             if (existingUser)
                 throw new InvalidOperationException("That email is already registered to a user.");
 
-            var pendingDup = await db.InviteTokens.AnyAsync(
+            var pendingDup = await db.InviteTokens.IgnoreQueryFilters().AnyAsync(
                 i => i.TenantId == tenant.Id && i.Email == normalizedEmail && i.AcceptedAt == null && !i.IsRevoked && i.ExpiresAt > DateTime.UtcNow,
                 cancellationToken);
             if (pendingDup)
@@ -276,6 +276,7 @@ public sealed class PlatformOrganizationService(
         _ = platformAdminUserId;
 
         var invite = await db.InviteTokens
+            .IgnoreQueryFilters()
             .Where(i => i.TenantId == tenantId && i.Role == PlatformRole.HRAdmin && i.AcceptedAt == null && !i.IsRevoked)
             .OrderByDescending(i => i.CreatedAt)
             .FirstOrDefaultAsync(cancellationToken);
@@ -302,6 +303,7 @@ public sealed class PlatformOrganizationService(
         CancellationToken cancellationToken = default)
     {
         var pending = await db.InviteTokens
+            .IgnoreQueryFilters()
             .Where(i => i.TenantId == tenantId && i.Role == PlatformRole.HRAdmin && i.AcceptedAt == null && !i.IsRevoked)
             .ToListAsync(cancellationToken);
 
@@ -366,7 +368,7 @@ public sealed class PlatformOrganizationService(
         if (hrAdminRoleId == Guid.Empty)
             return null;
 
-        var userId = await (from u in db.Users.AsNoTracking()
+        var userId = await (from u in db.Users.IgnoreQueryFilters().AsNoTracking()
                 join ur in db.UserRoles.AsNoTracking() on u.Id equals ur.UserId
                 where u.TenantId == tenantId && ur.RoleId == hrAdminRoleId
                 select (Guid?)u.Id)
@@ -375,7 +377,7 @@ public sealed class PlatformOrganizationService(
         if (!userId.HasValue)
             return null;
 
-        return await db.Users.AsNoTracking()
+        return await db.Users.IgnoreQueryFilters().AsNoTracking()
             .Where(u => u.Id == userId.Value)
             .Select(u => u.Email)
             .FirstOrDefaultAsync(cancellationToken);
@@ -399,7 +401,7 @@ public sealed class PlatformOrganizationService(
             .Select(r => r.Id)
             .FirstOrDefaultAsync(cancellationToken);
 
-        var usersInTenants = await db.Users.AsNoTracking()
+        var usersInTenants = await db.Users.IgnoreQueryFilters().AsNoTracking()
             .Where(u => tenantIds.Contains(u.TenantId) && u.IsActive)
             .Select(u => new { u.TenantId, u.Id, u.LastLoginAt })
             .ToListAsync(cancellationToken);
@@ -423,7 +425,7 @@ public sealed class PlatformOrganizationService(
             .Distinct()
             .ToHashSet();
 
-        var hrInvitesByTenant = await db.InviteTokens.AsNoTracking()
+        var hrInvitesByTenant = await db.InviteTokens.IgnoreQueryFilters().AsNoTracking()
             .Where(i => tenantIds.Contains(i.TenantId) && i.Role == PlatformRole.HRAdmin && !i.IsRevoked)
             .ToListAsync(cancellationToken);
 

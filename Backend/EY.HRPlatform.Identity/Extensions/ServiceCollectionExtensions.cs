@@ -4,6 +4,7 @@ using EY.HRPlatform.Identity.Features.PlatformOrganizations.Services;
 using EY.HRPlatform.Identity.Features.Tenants.Services;
 using EY.HRPlatform.Identity.Infrastructure.Persistence;
 using EY.HRPlatform.Identity.Infrastructure.Services;
+using EY.HRPlatform.SharedKernel.Multitenancy;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -13,6 +14,22 @@ namespace EY.HRPlatform.Identity.Extensions;
 
 public static class ServiceCollectionExtensions
 {
+    public static IServiceCollection AddMultitenancy(this IServiceCollection services)
+    {
+        // TenantContext is scoped - one instance per request
+        // Register concrete type first, then interface pointing to same instance
+        services.AddScoped<TenantContext>();
+        services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<TenantContext>());
+
+        // Note: Unlike CoreHR, Identity does NOT wire TenantSaveChangesInterceptor in DI.
+        // Identity inherently performs cross-tenant writes (PlatformAdmin creates orgs/invites/users
+        // for other tenants, IdentitySeeder runs at startup with no request context).
+        // Write authorization is enforced at the controller/service layer instead.
+        // The interceptor class is kept for explicit opt-in in unit tests.
+
+        return services;
+    }
+
     public static IServiceCollection AddIdentityServices(
         this IServiceCollection services, IConfiguration configuration)
     {
@@ -26,8 +43,10 @@ public static class ServiceCollectionExtensions
         // 1. Register database
         if (databaseProvider.Equals("inmemory", StringComparison.OrdinalIgnoreCase))
         {
-            services.AddDbContext<AppIdentityDbContext>(options =>
-                options.UseInMemoryDatabase(inMemoryName));
+            services.AddDbContext<AppIdentityDbContext>((sp, options) =>
+            {
+                options.UseInMemoryDatabase(inMemoryName);
+            });
         }
         else
         {
@@ -37,11 +56,13 @@ public static class ServiceCollectionExtensions
                     "ConnectionStrings:IdentityDb is not configured. Set it via environment variable or appsettings.");
 
             // PostgreSQL database
-            services.AddDbContext<AppIdentityDbContext>(options =>
+            services.AddDbContext<AppIdentityDbContext>((sp, options) =>
+            {
                 options.UseNpgsql(
                     connectionString,
                     npgsql => npgsql.MigrationsHistoryTable(
-                        "__EFMigrationsHistory", "identity")));
+                        "__EFMigrationsHistory", "identity"));
+            });
         }
 
         // 2. Register ASP.NET Core Identity
