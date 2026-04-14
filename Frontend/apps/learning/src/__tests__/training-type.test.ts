@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import type { Training, BadgeLevel, TrainingCategory, TrainingLevel } from "@/types";
+import type { Training, BadgeLevel, TrainingCategory, TrainingLevel, ChapterLayout } from "@/types";
 
 /** Factory to create a minimal valid Training for tests */
 function makeTraining(overrides: Partial<Training> = {}): Training {
@@ -12,8 +12,8 @@ function makeTraining(overrides: Partial<Training> = {}): Training {
     duration: "4h",
     chaptersCount: 2,
     chapters: [
-      { id: "c1", title: "Chapter 1", duration: "2h" },
-      { id: "c2", title: "Chapter 2", duration: "2h" },
+      { id: "c1", title: "Chapter 1", layout: "SingleContent" as ChapterLayout, orderIndex: 0, blockCount: 1 },
+      { id: "c2", title: "Chapter 2", layout: "SingleContent" as ChapterLayout, orderIndex: 1, blockCount: 1 },
     ],
     instructor: "Test Instructor",
     instructorRole: "Test Role",
@@ -25,6 +25,7 @@ function makeTraining(overrides: Partial<Training> = {}): Training {
     isMandatory: false,
     badgeLevel: "bronze" as BadgeLevel,
     credits: 10,
+    trainingType: "ELearning" as const,
     ...overrides,
   };
 }

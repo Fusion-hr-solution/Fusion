@@ -1,7 +1,12 @@
 import { Input, Label, Card, CardContent, CardHeader, CardTitle } from "@repo/ui";
 import type { TrainingFormBasicStepProps } from "@/types/admin-props";
+import type { TrainingType } from "@/types";
 
 const BADGE_LEVELS = ["Bronze", "Silver", "Gold"];
+const TRAINING_TYPES: { value: TrainingType; label: string; description: string }[] = [
+  { value: "ELearning", label: "E-Learning", description: "Online self-paced training with chapters and content" },
+  { value: "OnSite", label: "On-Site", description: "In-person training with PDF course materials" },
+];
 
 export function TrainingFormBasicStep({
   title,
@@ -13,6 +18,8 @@ export function TrainingFormBasicStep({
   categories,
   badgeLevel,
   onBadgeLevelChange,
+  trainingType,
+  onTrainingTypeChange,
   fieldErrors = {},
 }: TrainingFormBasicStepProps) {
   return (
@@ -21,6 +28,27 @@ export function TrainingFormBasicStep({
         <CardTitle className="text-base">Basic Information</CardTitle>
       </CardHeader>
       <CardContent className="space-y-5">
+        <div className="space-y-2">
+          <Label>Training Type *</Label>
+          <div className="grid grid-cols-2 gap-3">
+            {TRAINING_TYPES.map((t) => (
+              <button
+                key={t.value}
+                type="button"
+                onClick={() => onTrainingTypeChange(t.value)}
+                className={`rounded-lg border p-3 text-left transition-colors ${
+                  trainingType === t.value
+                    ? "border-primary bg-primary/5 ring-1 ring-primary"
+                    : "border-input hover:border-primary/50"
+                }`}
+              >
+                <div className="text-sm font-medium">{t.label}</div>
+                <div className="mt-0.5 text-xs text-muted-foreground">{t.description}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="space-y-2">
           <Label htmlFor="title">Title *</Label>
           <Input

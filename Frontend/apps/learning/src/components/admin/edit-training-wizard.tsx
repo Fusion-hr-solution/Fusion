@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useTrainingWizard } from "@/hooks/use-training-wizard";
+import { useEditTrainingWizard } from "@/hooks/use-edit-training-wizard";
 import { WizardStepper } from "./create-training-wizard/wizard-stepper";
 import { StepBasicInfo } from "./create-training-wizard/step-basic-info";
 import { StepDetails } from "./create-training-wizard/step-details";
@@ -13,7 +13,8 @@ interface EditTrainingWizardProps {
 }
 
 export function EditTrainingWizard({ trainingId }: EditTrainingWizardProps) {
-  const wizard = useTrainingWizard({ mode: "edit", trainingId });
+  const wizard = useEditTrainingWizard(trainingId);
+  const isOnSite = wizard.trainingType === "OnSite";
 
   if (wizard.loadingDetail) {
     return (
@@ -33,7 +34,7 @@ export function EditTrainingWizard({ trainingId }: EditTrainingWizardProps) {
               Edit Training
             </h1>
             <p className="text-xs text-muted-foreground">
-              Update training details and manage chapters
+              {isOnSite ? "Update training details and courses" : "Update training details and manage chapters"}
             </p>
           </div>
           <Link
@@ -47,7 +48,7 @@ export function EditTrainingWizard({ trainingId }: EditTrainingWizardProps) {
 
       {/* Stepper */}
       <div className="shrink-0 bg-background">
-        <WizardStepper currentStep={wizard.step} onStepClick={wizard.setStep} />
+        <WizardStepper currentStep={wizard.step} onStepClick={wizard.setStep} isOnSite={isOnSite} />
       </div>
 
       {/* Content */}
@@ -56,8 +57,8 @@ export function EditTrainingWizard({ trainingId }: EditTrainingWizardProps) {
           <div key={wizard.step} className="ey-animate-fade-up">
             {wizard.step === 1 && <StepBasicInfo wizard={wizard} />}
             {wizard.step === 2 && <StepDetails wizard={wizard} />}
-            {wizard.step === 3 && <StepChapters wizard={wizard} />}
-            {wizard.step === 4 && <StepReview wizard={wizard} />}
+            {wizard.step === 3 && !isOnSite && <StepChapters wizard={wizard} />}
+            {((wizard.step === 4) || (wizard.step === 3 && isOnSite)) && <StepReview wizard={wizard} />}
           </div>
         </div>
       </div>

@@ -1,10 +1,15 @@
 "use client";
 
-import { Sparkles, ArrowRight, AlertTriangle } from "lucide-react";
+import { Sparkles, ArrowRight, AlertTriangle, Monitor, MapPin } from "lucide-react";
 import { Input, Label, Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@repo/ui";
 import type { WizardState } from "@/types/admin-props";
+import type { TrainingType } from "@/types";
 
 const BADGE_LEVELS = ["Bronze", "Silver", "Gold"];
+const TRAINING_TYPES: { value: TrainingType; label: string; description: string; icon: typeof Monitor }[] = [
+  { value: "ELearning", label: "E-Learning", description: "Online self-paced training with chapters and content", icon: Monitor },
+  { value: "OnSite", label: "On-Site", description: "In-person training with PDF course materials", icon: MapPin },
+];
 
 interface StepBasicInfoProps {
   wizard: WizardState;
@@ -35,6 +40,39 @@ export function StepBasicInfo({ wizard }: StepBasicInfoProps) {
 
       {/* Form */}
       <div className="grid grid-cols-3 gap-6">
+        {/* Training Type Selector */}
+        <div className="col-span-3">
+          <div className="rounded-2xl border border-border bg-background p-6 shadow-sm">
+            <p className="mb-4 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Training Type</p>
+            <div className="grid grid-cols-2 gap-3">
+              {TRAINING_TYPES.map((t) => {
+                const Icon = t.icon;
+                const isActive = wizard.trainingType === t.value;
+                return (
+                  <button
+                    key={t.value}
+                    type="button"
+                    onClick={() => wizard.setTrainingType(t.value)}
+                    className={`flex items-start gap-3 rounded-xl border p-4 text-left transition-all ${
+                      isActive
+                        ? "border-foreground bg-foreground/5 ring-1 ring-foreground"
+                        : "border-border hover:border-muted-foreground/40"
+                    }`}
+                  >
+                    <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${isActive ? "bg-foreground" : "bg-muted"}`}>
+                      <Icon className={`h-4 w-4 ${isActive ? "text-background" : "text-muted-foreground"}`} />
+                    </div>
+                    <div>
+                      <p className="text-[13px] font-semibold text-foreground">{t.label}</p>
+                      <p className="mt-0.5 text-[12px] text-muted-foreground">{t.description}</p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
         <div className="col-span-2 rounded-2xl border border-border bg-background p-6 shadow-sm">
           <div className="flex flex-col gap-5">
             <div className="space-y-2">

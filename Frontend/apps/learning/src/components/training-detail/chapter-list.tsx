@@ -43,7 +43,7 @@ export function ChapterList({ chapters, chaptersCount }: ChapterListProps) {
                 </span>
                 <div className="flex items-center gap-3 shrink-0">
                   <span className="text-xs tabular-nums text-muted-foreground">
-                    {chapter.duration}
+                    {chapter.duration ?? `${chapter.blockCount} block${chapter.blockCount === 1 ? "" : "s"}`}
                   </span>
                   <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-muted-foreground/60 transition-all group-hover/ch:bg-[hsl(var(--ey-yellow))]/20 group-hover/ch:text-muted-foreground">
                     <Play

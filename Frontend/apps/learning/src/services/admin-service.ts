@@ -3,17 +3,23 @@ import type {
   AdminTraining,
   AdminTrainingDetail,
   AdminChapter,
+  AdminContentBlock,
   AdminAssignment,
   AdminCategory,
+  AdminOnSiteCourse,
   ArticleTemplate,
   CreateTrainingInput,
   UpdateTrainingInput,
   CreateChapterInput,
   UpdateChapterInput,
+  CreateContentBlockInput,
+  UpdateContentBlockInput,
   CreateCategoryInput,
   UpdateCategoryInput,
   AssignTrainingInput,
+  CreateOnSiteCourseInput,
 } from "@/types/admin";
+import type { ChapterLayout, TrainingType } from "@/types";
 
 // --- Backend DTOs (mirror .NET API responses) ---
 
@@ -29,6 +35,8 @@ interface BackendAdminTrainingDto {
   categoryName: string;
   chapterCount: number;
   enrollmentCount: number;
+  trainingType: string;
+  scheduledDate: string | null;
   isDeleted: boolean;
   createdAt: string;
   updatedAt: string | null;
@@ -37,10 +45,20 @@ interface BackendAdminTrainingDto {
 interface BackendAdminChapterDto {
   id: string;
   title: string;
-  contentType: string;
-  contentUri: string | null;
+  layout: string;
   orderIndex: number;
+  createdAt: string;
+  updatedAt: string | null;
+  contentBlocks: BackendAdminContentBlockDto[];
+}
+
+interface BackendAdminContentBlockDto {
+  id: string;
+  type: string;
+  orderIndex: number;
+  title: string | null;
   textContent: string | null;
+  contentUri: string | null;
   videoUrl: string | null;
   estimatedDurationMinutes: number | null;
   createdAt: string;
@@ -57,6 +75,15 @@ interface BackendExamDto {
 interface BackendAdminTrainingDetailDto extends BackendAdminTrainingDto {
   chapters: BackendAdminChapterDto[];
   exams: BackendExamDto[];
+  onSiteCourses: BackendOnSiteCourseDto[];
+}
+
+interface BackendOnSiteCourseDto {
+  id: string;
+  title: string;
+  contentUri: string;
+  orderIndex: number;
+  createdAt: string;
 }
 
 interface BackendAssignmentDto {
@@ -85,6 +112,13 @@ interface BackendPagedResponse<T> {
   pageSize: number;
 }
 
+interface BackendArticleTemplateDto {
+  id: string;
+  name: string;
+  description: string | null;
+  sections: { id: string; label: string; placeholder: string | null; orderIndex: number }[];
+}
+
 // --- Mapping helpers ---
 
 function mapTraining(dto: BackendAdminTrainingDto): AdminTraining {
@@ -100,6 +134,8 @@ function mapTraining(dto: BackendAdminTrainingDto): AdminTraining {
     categoryName: dto.categoryName,
     chapterCount: dto.chapterCount,
     enrollmentCount: dto.enrollmentCount,
+    trainingType: (dto.trainingType ?? "ELearning") as TrainingType,
+    scheduledDate: dto.scheduledDate ?? undefined,
     isDeleted: dto.isDeleted,
     createdAt: dto.createdAt,
     updatedAt: dto.updatedAt ?? undefined,
@@ -107,13 +143,64 @@ function mapTraining(dto: BackendAdminTrainingDto): AdminTraining {
 }
 
 function mapChapter(dto: BackendAdminChapterDto): AdminChapter {
+  const contentBlocks = dto.contentBlocks ?? [];
+  const primaryBlock = contentBlocks[0];
+
   return {
     id: dto.id,
     title: dto.title,
-    contentType: dto.contentType,
-    contentUri: dto.contentUri ?? undefined,
+    layout: dto.layout as ChapterLayout,
     orderIndex: dto.orderIndex,
+    contentType: primaryBlock?.type ?? "Article",
+    contentUri: primaryBlock?.contentUri ?? undefined,
+    textContent: primaryBlock?.textContent ?? undefined,
+    videoUrl: primaryBlock?.videoUrl ?? undefined,
+    estimatedDurationMinutes: primaryBlock?.estimatedDurationMinutes ?? undefined,
+    createdAt: dto.createdAt,
+    updatedAt: dto.updatedAt ?? undefined,
+    contentBlocks: contentBlocks.map(mapContentBlock),
+  };
+}
+
+function normalizeChapterPayload(input: CreateChapterInput | UpdateChapterInput) {
+  if ("contentBlocks" in input && input.contentBlocks?.length) {
+    return input;
+  }
+
+  const contentType = input.contentType?.trim();
+  if (!contentType) {
+    return {
+      ...input,
+      layout: input.layout ?? "SingleContent",
+    };
+  }
+
+  return {
+    title: input.title,
+    layout: input.layout ?? "SingleContent",
+    ...("orderIndex" in input ? { orderIndex: input.orderIndex } : {}),
+    contentBlocks: [
+      {
+        type: contentType,
+        orderIndex: 0,
+        title: input.title,
+        textContent: input.textContent,
+        contentUri: input.contentUri,
+        videoUrl: input.videoUrl,
+        estimatedDurationMinutes: input.estimatedDurationMinutes,
+      },
+    ],
+  };
+}
+
+function mapContentBlock(dto: BackendAdminContentBlockDto): AdminContentBlock {
+  return {
+    id: dto.id,
+    type: dto.type,
+    orderIndex: dto.orderIndex,
+    title: dto.title ?? undefined,
     textContent: dto.textContent ?? undefined,
+    contentUri: dto.contentUri ?? undefined,
     videoUrl: dto.videoUrl ?? undefined,
     estimatedDurationMinutes: dto.estimatedDurationMinutes ?? undefined,
     createdAt: dto.createdAt,
@@ -131,6 +218,17 @@ function mapTrainingDetail(dto: BackendAdminTrainingDetailDto): AdminTrainingDet
       passingScore: e.passingScore,
       questionCount: e.questionCount,
     })),
+    onSiteCourses: (dto.onSiteCourses ?? []).map(mapOnSiteCourse),
+  };
+}
+
+function mapOnSiteCourse(dto: BackendOnSiteCourseDto): AdminOnSiteCourse {
+  return {
+    id: dto.id,
+    title: dto.title,
+    contentUri: dto.contentUri,
+    orderIndex: dto.orderIndex,
+    createdAt: dto.createdAt,
   };
 }
 
@@ -205,7 +303,7 @@ export async function deleteTraining(trainingId: string): Promise<void> {
 export async function addChapter(trainingId: string, input: CreateChapterInput): Promise<string> {
   return client.post<string>(
     `/training/admin/trainings/${encodeURIComponent(trainingId)}/chapters`,
-    input,
+    normalizeChapterPayload(input),
   );
 }
 
@@ -216,7 +314,10 @@ export async function updateChapter(
 ): Promise<void> {
   await client.put(
     `/training/admin/trainings/${encodeURIComponent(trainingId)}/chapters/${encodeURIComponent(chapterId)}`,
-    input,
+    {
+      title: input.title,
+      layout: input.layout ?? "SingleContent",
+    },
   );
 }
 
@@ -280,26 +381,107 @@ export async function deleteCategory(categoryId: string): Promise<void> {
   await client.delete("/training/admin/categories/" + encodeURIComponent(categoryId));
 }
 
-// --- Article Templates ---
+// --- Content Block CRUD ---
 
-interface BackendArticleTemplateDto {
-  id: string;
-  name: string;
-  description: string | null;
-  sections: { id: string; label: string; placeholder: string | null; orderIndex: number }[];
+export async function addContentBlock(
+  trainingId: string,
+  chapterId: string,
+  input: CreateContentBlockInput,
+): Promise<string> {
+  return client.post<string>(
+    `/training/admin/trainings/${encodeURIComponent(trainingId)}/chapters/${encodeURIComponent(chapterId)}/content-blocks`,
+    input,
+  );
 }
+
+export async function updateContentBlock(
+  trainingId: string,
+  chapterId: string,
+  contentBlockId: string,
+  input: UpdateContentBlockInput,
+): Promise<void> {
+  await client.put(
+    `/training/admin/trainings/${encodeURIComponent(trainingId)}/chapters/${encodeURIComponent(chapterId)}/content-blocks/${encodeURIComponent(contentBlockId)}`,
+    input,
+  );
+}
+
+export async function deleteContentBlock(
+  trainingId: string,
+  chapterId: string,
+  contentBlockId: string,
+): Promise<void> {
+  await client.delete(
+    `/training/admin/trainings/${encodeURIComponent(trainingId)}/chapters/${encodeURIComponent(chapterId)}/content-blocks/${encodeURIComponent(contentBlockId)}`,
+  );
+}
+
+export async function reorderContentBlocks(
+  trainingId: string,
+  chapterId: string,
+  contentBlockIds: string[],
+): Promise<void> {
+  await client.put(
+    `/training/admin/trainings/${encodeURIComponent(trainingId)}/chapters/${encodeURIComponent(chapterId)}/content-blocks/reorder`,
+    { contentBlockIds },
+  );
+}
+
+// --- On-Site Course CRUD ---
+
+export async function addOnSiteCourse(
+  trainingId: string,
+  input: CreateOnSiteCourseInput,
+): Promise<string> {
+  return client.post<string>(
+    `/training/admin/trainings/${encodeURIComponent(trainingId)}/onsite-courses`,
+    input,
+  );
+}
+
+export async function updateOnSiteCourse(
+  trainingId: string,
+  courseId: string,
+  input: CreateOnSiteCourseInput,
+): Promise<void> {
+  await client.put(
+    `/training/admin/trainings/${encodeURIComponent(trainingId)}/onsite-courses/${encodeURIComponent(courseId)}`,
+    input,
+  );
+}
+
+export async function deleteOnSiteCourse(
+  trainingId: string,
+  courseId: string,
+): Promise<void> {
+  await client.delete(
+    `/training/admin/trainings/${encodeURIComponent(trainingId)}/onsite-courses/${encodeURIComponent(courseId)}`,
+  );
+}
+
+export async function reorderOnSiteCourses(
+  trainingId: string,
+  courseIds: string[],
+): Promise<void> {
+  await client.put(
+    `/training/admin/trainings/${encodeURIComponent(trainingId)}/onsite-courses/reorder`,
+    { courseIds },
+  );
+}
+
+// --- Article Templates ---
 
 export async function getArticleTemplates(): Promise<ArticleTemplate[]> {
   const data = await client.get<BackendArticleTemplateDto[]>("/training/admin/article-templates");
-  return data.map((t) => ({
-    id: t.id,
-    name: t.name,
-    description: t.description ?? "",
-    sections: t.sections.map((s) => ({
-      id: s.id,
-      label: s.label,
-      placeholder: s.placeholder ?? "",
-      orderIndex: s.orderIndex,
+  return data.map((template) => ({
+    id: template.id,
+    name: template.name,
+    description: template.description ?? "",
+    sections: template.sections.map((section) => ({
+      id: section.id,
+      label: section.label,
+      placeholder: section.placeholder ?? "",
+      orderIndex: section.orderIndex,
     })),
   }));
 }

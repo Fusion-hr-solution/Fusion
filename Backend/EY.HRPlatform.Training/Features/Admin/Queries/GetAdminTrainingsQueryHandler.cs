@@ -1,5 +1,6 @@
 using EY.HRPlatform.SharedKernel.CQRS;
 using EY.HRPlatform.SharedKernel.Results;
+using EY.HRPlatform.Training.Domain.Enums;
 using EY.HRPlatform.Training.Infrastructure.Persistence;
 using EY.HRPlatform.Training.Models.Responses;
 using Microsoft.EntityFrameworkCore;
@@ -34,6 +35,7 @@ public class GetAdminTrainingsQueryHandler : IQueryHandler<GetAdminTrainingsQuer
         var trainings = await query
             .Include(t => t.Category)
             .Include(t => t.Chapters)
+            .Include(t => t.OnSiteCourses)
             .Include(t => t.Assignments)
             .OrderByDescending(t => t.CreatedAt)
             .Skip((request.Page - 1) * request.PageSize)
@@ -49,8 +51,10 @@ public class GetAdminTrainingsQueryHandler : IQueryHandler<GetAdminTrainingsQuer
                 Duration = t.Duration,
                 CategoryId = t.CategoryId,
                 CategoryName = t.Category.Name,
-                ChapterCount = t.Chapters.Count,
+                ChapterCount = t.TrainingType == TrainingType.OnSite ? t.OnSiteCourses.Count : t.Chapters.Count,
                 EnrollmentCount = t.Assignments.Count,
+                TrainingType = t.TrainingType.ToString(),
+                ScheduledDate = t.ScheduledDate,
                 IsDeleted = t.IsDeleted,
                 CreatedAt = t.CreatedAt,
                 UpdatedAt = t.UpdatedAt

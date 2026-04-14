@@ -6,7 +6,7 @@ import { BookOpen } from "lucide-react";
 import { PageHeader } from "./page-header";
 import { SearchInput } from "./search-input";
 import { EmptyState } from "./empty-state";
-import type { TrainingCategory, TrainingLevel, SortOption, Training } from "@/types";
+import type { TrainingCategory, TrainingLevel, SortOption, Training, TrainingType } from "@/types";
 import type { TrainingCatalogProps } from "@/types/component-props";
 import { TrainingCard } from "./training-card";
 import { CategoryFilter } from "./category-filter";
@@ -67,16 +67,19 @@ export function TrainingCatalog({ trainings, totalCount, page, pageSize }: Train
   // Level + sort — client-side only (backend doesn't expose a level filter)
   const [level, setLevel] = useState<TrainingLevel | null>(null);
   const [sort, setSort] = useState<SortOption>("rating");
+  const [typeFilter, setTypeFilter] = useState<TrainingType | null>(null);
 
   // search + category are already applied server-side; only level is client-side
   const filtered = useMemo(() => {
     let result = trainings;
     if (level) result = result.filter((t) => t.level === level);
+    if (typeFilter) result = result.filter((t) => t.trainingType === typeFilter);
     return sortTrainings(result, sort);
-  }, [trainings, level, sort]);
+  }, [trainings, level, sort, typeFilter]);
 
   const clearAll = useCallback(() => {
     setLevel(null);
+    setTypeFilter(null);
     setSort("rating");
     setInputSearch("");
     router.replace("?", { scroll: false });
@@ -112,6 +115,24 @@ export function TrainingCatalog({ trainings, totalCount, page, pageSize }: Train
         {/* Level filter */}
         <div className="mt-3 ey-animate-fade-up" style={{ animationDelay: "340ms" }}>
           <LevelFilter selected={level} onChange={setLevel} />
+        </div>
+        <div className="mt-3 ey-animate-fade-up flex gap-2" style={{ animationDelay: "380ms" }}>
+          {(["all", "ELearning", "OnSite"] as const).map((t) => {
+            const isActive = t === "all" ? typeFilter === null : typeFilter === t;
+            return (
+              <button
+                key={t}
+                onClick={() => setTypeFilter(t === "all" ? null : t)}
+                className={`rounded-full px-4 py-1.5 text-xs font-medium transition-colors ${
+                  isActive
+                    ? "ey-bg-dark text-white"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80"
+                }`}
+              >
+                {t === "all" ? "All Types" : t === "ELearning" ? "E-Learning" : "On-Site"}
+              </button>
+            );
+          })}
         </div>
 
         {/* Active filters */}

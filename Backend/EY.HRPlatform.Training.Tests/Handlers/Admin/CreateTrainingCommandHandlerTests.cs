@@ -17,7 +17,8 @@ public class CreateTrainingCommandHandlerTests
 
         var handler = new CreateTrainingCommandHandler(context);
         var command = new CreateTrainingCommand(
-            "New Training", "Description", 10, false, "Bronze", "2 hours", category.Id, []);
+            "New Training", "Description", 10, false, "Bronze", "2 hours", category.Id,
+            TrainingType.ELearning.ToString(), null, [], []);
 
         var result = await handler.Handle(command, CancellationToken.None);
 
@@ -43,7 +44,8 @@ public class CreateTrainingCommandHandlerTests
             new("Chapter 2", "SingleContent", 1, [new("Video", 0, "Block 2", null, null, "https://example.com", 45)]),
         };
         var command = new CreateTrainingCommand(
-            "Training With Chapters", null, 20, true, "Gold", "5 hours", category.Id, chapters);
+            "Training With Chapters", null, 20, true, "Gold", "5 hours", category.Id,
+            TrainingType.ELearning.ToString(), null, chapters, []);
 
         var result = await handler.Handle(command, CancellationToken.None);
 
@@ -58,7 +60,8 @@ public class CreateTrainingCommandHandlerTests
         await using var context = TestDbContextFactory.Create();
         var handler = new CreateTrainingCommandHandler(context);
         var command = new CreateTrainingCommand(
-            "Training", null, 10, false, "Bronze", null, Guid.NewGuid(), []);
+            "Training", null, 10, false, "Bronze", null, Guid.NewGuid(),
+            TrainingType.ELearning.ToString(), null, [], []);
 
         var result = await handler.Handle(command, CancellationToken.None);
 
@@ -76,7 +79,8 @@ public class CreateTrainingCommandHandlerTests
 
         var handler = new CreateTrainingCommandHandler(context);
         var command = new CreateTrainingCommand(
-            "Training", null, 10, false, "InvalidLevel", null, category.Id, []);
+            "Training", null, 10, false, "InvalidLevel", null, category.Id,
+            TrainingType.ELearning.ToString(), null, [], []);
 
         var result = await handler.Handle(command, CancellationToken.None);
 
@@ -98,7 +102,8 @@ public class CreateTrainingCommandHandlerTests
             new("Bad Chapter", "SingleContent", 0, [new("InvalidType", 0, null, null, null, null, null)]),
         };
         var command = new CreateTrainingCommand(
-            "Training", null, 10, false, "Bronze", null, category.Id, chapters);
+            "Training", null, 10, false, "Bronze", null, category.Id,
+            TrainingType.ELearning.ToString(), null, chapters, []);
 
         var result = await handler.Handle(command, CancellationToken.None);
 

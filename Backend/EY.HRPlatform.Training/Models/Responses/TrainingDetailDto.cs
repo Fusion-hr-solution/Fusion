@@ -11,9 +11,12 @@ public class TrainingDetailDto
     public string? Duration { get; set; }
     public Guid CategoryId { get; set; }
     public string CategoryName { get; set; } = string.Empty;
+    public string TrainingType { get; set; } = "ELearning";
+    public DateTime? ScheduledDate { get; set; }
     public DateTime CreatedAt { get; set; }
     public List<ChapterDto> Chapters { get; set; } = [];
     public List<ExamDto> Exams { get; set; } = [];
+    public List<OnSiteCourseDto> OnSiteCourses { get; set; } = [];
 }
 
 public class ChapterDto
