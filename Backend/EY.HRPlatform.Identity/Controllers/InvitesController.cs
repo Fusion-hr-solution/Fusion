@@ -70,9 +70,11 @@ public class InvitesController : ControllerBase
         if (string.IsNullOrEmpty(normalizedEmail))
             return BadRequest(ApiResponse<InviteDto>.Failure("Email is required."));
 
-        // Check if email is already registered
-        var existingUser = await _userManager.FindByEmailAsync(normalizedEmail);
-        if (existingUser is not null)
+        // Check if email is already registered (cross-tenant uniqueness)
+        var emailExists = await _dbContext.Users
+            .IgnoreQueryFilters()
+            .AnyAsync(u => u.NormalizedEmail == normalizedEmail.ToUpperInvariant());
+        if (emailExists)
             return BadRequest(ApiResponse<InviteDto>.Failure("Email is already registered."));
 
         // Check for existing pending invite to same email in same tenant
@@ -147,7 +149,9 @@ public class InvitesController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<InviteDto>), StatusCodes.Status410Gone)]
     public async Task<ActionResult<ApiResponse<InviteDto>>> ValidateInvite(string token)
     {
+        // Anonymous endpoint — bypass tenant filter (no auth context)
         var invite = await _dbContext.InviteTokens
+            .IgnoreQueryFilters()
             .Include(i => i.Tenant)
             .FirstOrDefaultAsync(i => i.Token == token);
 
@@ -198,7 +202,9 @@ public class InvitesController : ControllerBase
         string token,
         [FromBody] AcceptInviteRequest request)
     {
+        // Anonymous endpoint — bypass tenant filter (no auth context)
         var invite = await _dbContext.InviteTokens
+            .IgnoreQueryFilters()
             .Include(i => i.Tenant)
             .FirstOrDefaultAsync(i => i.Token == token);
 
@@ -227,9 +233,11 @@ public class InvitesController : ControllerBase
         if (string.IsNullOrWhiteSpace(lastName))
             return BadRequest(ApiResponse<UserDto>.Failure("Last name is required."));
 
-        // Double-check email isn't registered (race condition protection)
-        var existingUser = await _userManager.FindByEmailAsync(invite.Email);
-        if (existingUser is not null)
+        // Double-check email isn't registered (cross-tenant uniqueness, race condition protection)
+        var emailTaken = await _dbContext.Users
+            .IgnoreQueryFilters()
+            .AnyAsync(u => u.NormalizedEmail == invite.Email.ToUpperInvariant());
+        if (emailTaken)
             return BadRequest(ApiResponse<UserDto>.Failure("Email is already registered."));
 
         // Use transaction to ensure atomicity of user creation + role assignment + invite marking

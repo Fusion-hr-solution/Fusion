@@ -1,8 +1,9 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using EY.HRPlatform.SharedKernel.Multitenancy;
+using Microsoft.AspNetCore.Identity;
 
 namespace EY.HRPlatform.Identity.Domain.Entities;
 
-public class ApplicationUser : IdentityUser<Guid>
+public class ApplicationUser : IdentityUser<Guid>, ITenantEntity
 {
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;

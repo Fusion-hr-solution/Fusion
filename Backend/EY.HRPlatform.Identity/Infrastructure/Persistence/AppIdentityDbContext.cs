@@ -1,5 +1,6 @@
 ﻿using EY.HRPlatform.Identity.Domain.Entities;
 using EY.HRPlatform.Identity.Infrastructure.Persistence.Configurations;
+using EY.HRPlatform.SharedKernel.Multitenancy;
 using EY.HRPlatform.SharedKernel.Persistence;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -9,14 +10,35 @@ namespace EY.HRPlatform.Identity.Infrastructure.Persistence;
 
 public class AppIdentityDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>
 {
+    private readonly ITenantContext? _tenantContext;
+
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<Tenant> Tenants => Set<Tenant>();
     public DbSet<InviteToken> InviteTokens => Set<InviteToken>();
 
+    /// <summary>
+    /// Runtime constructor with tenant context for production use.
+    /// </summary>
+    public AppIdentityDbContext(DbContextOptions<AppIdentityDbContext> options, ITenantContext tenantContext)
+        : base(options)
+    {
+        _tenantContext = tenantContext;
+    }
+
+    /// <summary>
+    /// Design-time constructor for EF migrations tooling and test seeding.
+    /// </summary>
     public AppIdentityDbContext(DbContextOptions<AppIdentityDbContext> options)
         : base(options)
     {
+        _tenantContext = null;
     }
+
+    /// <summary>
+    /// Current tenant ID used for query filters. Returns Empty when no tenant resolved
+    /// (design-time, startup seeding, or unauthenticated), which disables filtering (fail-open).
+    /// </summary>
+    private Guid CurrentTenantId => _tenantContext?.TenantIdOrDefault ?? Guid.Empty;
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -82,5 +104,14 @@ public class AppIdentityDbContext : IdentityDbContext<ApplicationUser, IdentityR
 
         // InviteToken table configuration
         builder.ApplyConfiguration(new InviteTokenConfiguration());
+
+        // Global tenant query filters: automatically scope queries to the current tenant.
+        // When CurrentTenantId is Empty (design-time/startup/no context), filters are disabled (fail-open).
+        // Use IgnoreQueryFilters() for cross-tenant operations (auth, platform admin, anonymous invites).
+        builder.Entity<ApplicationUser>()
+            .HasQueryFilter(u => CurrentTenantId == Guid.Empty || u.TenantId == CurrentTenantId);
+
+        builder.Entity<InviteToken>()
+            .HasQueryFilter(i => CurrentTenantId == Guid.Empty || i.TenantId == CurrentTenantId);
     }
 }

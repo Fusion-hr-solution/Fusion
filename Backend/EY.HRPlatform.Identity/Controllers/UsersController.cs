@@ -26,21 +26,18 @@ public class UsersController : ControllerBase
     }
 
     /// <summary>
-    /// Get all active users. HRAdmin sees only their tenant's users.
-    /// PlatformAdmin sees all users (or filtered by X-Tenant-Id header).
+    /// Get all active users. HRAdmin sees only their tenant's users (via query filter).
+    /// PlatformAdmin sees all users or filtered by X-Tenant-Id header (resolved by middleware).
     /// </summary>
     [HttpGet]
     [ProducesResponseType(typeof(ApiResponse<List<UserDto>>), StatusCodes.Status200OK)]
     public async Task<ActionResult<ApiResponse<List<UserDto>>>> GetAll()
     {
+        // PlatformAdmin without X-Tenant-Id header needs to see all tenants
+        // The middleware doesn't set tenant context when PlatformAdmin omits the header,
+        // so the fail-open filter returns all users. For non-PlatformAdmin, the middleware
+        // always sets tenant context from JWT, so the filter scopes automatically.
         var query = _userManager.Users.Where(u => u.IsActive);
-
-        // Apply tenant filter based on role
-        var tenantId = GetEffectiveTenantId();
-        if (tenantId.HasValue)
-        {
-            query = query.Where(u => u.TenantId == tenantId.Value);
-        }
 
         var users = await query
             .Select(u => new UserDto
@@ -115,9 +112,12 @@ public class UsersController : ControllerBase
             return StatusCode(StatusCodes.Status403Forbidden,
                 ApiResponse<UserDto>.Failure("You do not have permission to create users in this tenant."));
 
-        // Check if email already exists
-        var existingUser = await _userManager.FindByEmailAsync(request.Email);
-        if (existingUser is not null)
+        // Check if email already exists (cross-tenant uniqueness)
+        var normalizedEmail = request.Email?.Trim().ToUpperInvariant();
+        var emailExists = await _dbContext.Users
+            .IgnoreQueryFilters()
+            .AnyAsync(u => u.NormalizedEmail == normalizedEmail);
+        if (emailExists)
             return BadRequest(ApiResponse<UserDto>.Failure("Email is already registered."));
 
         // Validate and determine role
