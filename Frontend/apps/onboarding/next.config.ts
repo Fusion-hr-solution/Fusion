@@ -1,7 +1,11 @@
+import path from "node:path";
 import type { NextConfig } from "next";
+
+const frontendWorkspaceRoot = path.resolve(process.cwd(), "../..");
 
 const nextConfig: NextConfig = {
   basePath: "/onboarding",
+  outputFileTracingRoot: frontendWorkspaceRoot,
   transpilePackages: ["@repo/ui", "@repo/auth"],
   allowedDevOrigins: ["http://localhost:3000"],
   async redirects() {

@@ -24,6 +24,7 @@ COPY --from=deps /app .
 COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV NEXT_STANDALONE=true
 RUN pnpm --filter core build
 
 # Stage 3: Runtime
