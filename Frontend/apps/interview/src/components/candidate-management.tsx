@@ -499,6 +499,8 @@ export function CandidateManagement() {
         if (!isMounted) {
           return;
         }
+        setResendError(null);
+        setResendSuccess(null);
 
         setInvitations(invitationData);
       } catch (err) {

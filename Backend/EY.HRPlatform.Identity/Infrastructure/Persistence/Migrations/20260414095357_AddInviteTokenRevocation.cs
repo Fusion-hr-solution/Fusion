@@ -32,14 +32,6 @@ namespace EY.HRPlatform.Identity.Infrastructure.Persistence.Migrations
                 nullable: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_Tenants_Name_Active",
-                schema: "identity",
-                table: "Tenants",
-                column: "Name",
-                unique: true,
-                filter: "\"IsArchived\" = false");
-
-            migrationBuilder.CreateIndex(
                 name: "IX_InviteTokens_TenantId_Email_Pending",
                 schema: "identity",
                 table: "InviteTokens",
@@ -51,11 +43,6 @@ namespace EY.HRPlatform.Identity.Infrastructure.Persistence.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropIndex(
-                name: "IX_Tenants_Name_Active",
-                schema: "identity",
-                table: "Tenants");
-
             migrationBuilder.DropIndex(
                 name: "IX_InviteTokens_TenantId_Email_Pending",
                 schema: "identity",
