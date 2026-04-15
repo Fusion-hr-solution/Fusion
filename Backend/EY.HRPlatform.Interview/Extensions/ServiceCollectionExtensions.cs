@@ -29,6 +29,7 @@ public static class ServiceCollectionExtensions
             services.AddScoped<ITestQuestionService, TestQuestionService>();
             services.AddScoped<ICandidateManagementService, CandidateManagementService>();
             services.AddScoped<ICandidateInvitationService, CandidateInvitationService>();
+            services.AddScoped<ICandidateAccessService, CandidateAccessService>();
             return services;
         }
 
@@ -52,6 +53,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ITestQuestionService, TestQuestionService>();
         services.AddScoped<ICandidateManagementService, CandidateManagementService>();
         services.AddScoped<ICandidateInvitationService, CandidateInvitationService>();
+        services.AddScoped<ICandidateAccessService, CandidateAccessService>();
 
         return services;
     }

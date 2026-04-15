@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Net.Mail;
 using System.Security.Cryptography;
+using System.Text;
 using EY.HRPlatform.Interview.Domain.Entities;
 using EY.HRPlatform.Interview.Infrastructure;
 using EY.HRPlatform.Interview.Models.Common;
@@ -17,12 +18,16 @@ public class CandidateInvitationService(
     ILogger<CandidateInvitationService> logger)
     : ICandidateInvitationService
 {
+    private const int DefaultLinkExpiryHours = 72;
+    private const int MaxLinkExpiryHours = 720;
+
     public async Task<CandidateInvitationDto> CreateAsync(CreateCandidateInvitationDto request, CancellationToken cancellationToken)
     {
         var normalizedEmail = NormalizeEmail(request.Email);
         var test = await ResolveTestAsync(request.TestId, cancellationToken);
         var deadlineUtc = ParseDeadline(request.DeadlineUtc);
         var inviteMethod = NormalizeInviteMethod(request.InviteMethod);
+        var linkExpiryHours = NormalizeLinkExpiryHours(request.LinkExpiryHours);
         var timeLimitMinutes = NormalizeTimeLimitMinutes(request.TimeLimitMinutes);
         var customMessage = NormalizeCustomMessage(request.CustomMessage);
 
@@ -32,6 +37,7 @@ public class CandidateInvitationService(
             request.CandidateName,
             deadlineUtc,
             inviteMethod,
+            linkExpiryHours,
             timeLimitMinutes,
             customMessage,
             request.SendNotification,
@@ -49,9 +55,27 @@ public class CandidateInvitationService(
         CreateBulkCandidateInvitationsDto request,
         CancellationToken cancellationToken)
     {
+        var candidateNamesByEmail = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+        foreach (var candidate in request.Candidates)
+        {
+            if (string.IsNullOrWhiteSpace(candidate.Email))
+            {
+                continue;
+            }
+
+            var normalizedCandidateEmail = NormalizeEmail(candidate.Email);
+            var normalizedCandidateName = NormalizeCandidateName(candidate.CandidateName);
+            if (!candidateNamesByEmail.TryGetValue(normalizedCandidateEmail, out var existingName) ||
+                (string.IsNullOrWhiteSpace(existingName) && !string.IsNullOrWhiteSpace(normalizedCandidateName)))
+            {
+                candidateNamesByEmail[normalizedCandidateEmail] = normalizedCandidateName;
+            }
+        }
+
         var uniqueEmails = request.Emails
             .Where(email => !string.IsNullOrWhiteSpace(email))
             .Select(NormalizeEmail)
+            .Concat(candidateNamesByEmail.Keys)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
@@ -63,18 +87,24 @@ public class CandidateInvitationService(
         var test = await ResolveTestAsync(request.TestId, cancellationToken);
         var deadlineUtc = ParseDeadline(request.DeadlineUtc);
         var inviteMethod = NormalizeInviteMethod(request.InviteMethod);
+        var linkExpiryHours = NormalizeLinkExpiryHours(request.LinkExpiryHours);
         var timeLimitMinutes = NormalizeTimeLimitMinutes(request.TimeLimitMinutes);
         var customMessage = NormalizeCustomMessage(request.CustomMessage);
+        var defaultCandidateName = NormalizeCandidateName(request.CandidateName);
 
         var invitations = new List<CandidateInvitation>(uniqueEmails.Count);
         foreach (var email in uniqueEmails)
         {
+            candidateNamesByEmail.TryGetValue(email, out var candidateNameForEmail);
+            var resolvedCandidateName = candidateNameForEmail ?? defaultCandidateName;
+
             var invitation = await BuildInvitationAsync(
                 test,
                 email,
-                request.CandidateName,
+                resolvedCandidateName,
                 deadlineUtc,
                 inviteMethod,
+                linkExpiryHours,
                 timeLimitMinutes,
                 customMessage,
                 request.SendNotification,
@@ -100,11 +130,14 @@ public class CandidateInvitationService(
         string? candidateName,
         DateTime? deadlineUtc,
         string inviteMethod,
+        int linkExpiryHours,
         int? timeLimitMinutes,
         string? customMessage,
         bool sendNotification,
         CancellationToken cancellationToken)
     {
+        var now = DateTime.UtcNow;
+        var token = GenerateToken();
 
         var invitation = new CandidateInvitation
         {
@@ -115,12 +148,18 @@ public class CandidateInvitationService(
             Status = "Invited",
             DeadlineUtc = deadlineUtc,
             InviteMethod = inviteMethod,
+            LinkExpiryHours = linkExpiryHours,
             TimeLimitMinutes = timeLimitMinutes,
             CustomMessage = customMessage,
-            InviteLink = BuildInviteLink(),
-            LastSentAtUtc = DateTime.UtcNow,
+            InviteLink = BuildInviteLink(token),
+            TokenHash = HashToken(token),
+            TokenCreatedAtUtc = now,
+            TokenExpiresAtUtc = now.AddHours(linkExpiryHours),
+            LastSentAtUtc = now,
             ResendCount = 0,
             OpensCount = 0,
+            AttemptStartedAtUtc = null,
+            AttemptSubmittedAtUtc = null,
         };
 
         if (sendNotification)
@@ -185,8 +224,31 @@ public class CandidateInvitationService(
             throw new ApiException("Invitation not found.", StatusCodes.Status404NotFound);
         }
 
-        invitation.LastSentAtUtc = DateTime.UtcNow;
+        if (IsStatus(invitation.Status, "Submitted"))
+        {
+            throw new ApiException(
+                "Cannot resend invitation after a submitted attempt.",
+                StatusCodes.Status409Conflict);
+        }
+
+        var now = DateTime.UtcNow;
+        var token = GenerateToken();
+
+        invitation.LastSentAtUtc = now;
         invitation.ResendCount += 1;
+        invitation.InviteLink = BuildInviteLink(token);
+        invitation.TokenHash = HashToken(token);
+        invitation.TokenCreatedAtUtc = now;
+        invitation.TokenExpiresAtUtc = now.AddHours(invitation.LinkExpiryHours);
+        invitation.AttemptStartedAtUtc = null;
+        invitation.AttemptSubmittedAtUtc = null;
+
+        var existingAttempt = await dbContext.CandidateTestAttempts
+            .FirstOrDefaultAsync(item => item.InvitationId == invitation.Id, cancellationToken);
+        if (existingAttempt is not null)
+        {
+            dbContext.CandidateTestAttempts.Remove(existingAttempt);
+        }
 
         try
         {
@@ -275,6 +337,16 @@ public class CandidateInvitationService(
         return trimmed.ToLowerInvariant();
     }
 
+    private static string? NormalizeCandidateName(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        return value.Trim();
+    }
+
     private static DateTime? ParseDeadline(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -348,6 +420,51 @@ public class CandidateInvitationService(
         return trimmed;
     }
 
+    private int NormalizeLinkExpiryHours(int? value)
+    {
+        if (value.HasValue)
+        {
+            if (value.Value <= 0 || value.Value > MaxLinkExpiryHours)
+            {
+                throw new ApiException(
+                    $"linkExpiryHours must be between 1 and {MaxLinkExpiryHours}.",
+                    StatusCodes.Status400BadRequest);
+            }
+
+            return value.Value;
+        }
+
+        var configuredDefault = configuration.GetValue<int?>("CandidateInvitations:DefaultLinkExpiryHours");
+        if (configuredDefault.HasValue &&
+            configuredDefault.Value > 0 &&
+            configuredDefault.Value <= MaxLinkExpiryHours)
+        {
+            return configuredDefault.Value;
+        }
+
+        return DefaultLinkExpiryHours;
+    }
+
+    private static string GenerateToken()
+    {
+        return Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))
+            .TrimEnd('=')
+            .Replace('+', '-')
+            .Replace('/', '_');
+    }
+
+    private static string HashToken(string token)
+    {
+        var bytes = Encoding.UTF8.GetBytes(token);
+        var hash = SHA256.HashData(bytes);
+        return Convert.ToHexString(hash);
+    }
+
+    private static bool IsStatus(string? value, string expected)
+    {
+        return string.Equals(value?.Trim(), expected, StringComparison.OrdinalIgnoreCase);
+    }
+
     private static CandidateInvitationDto MapToDto(CandidateInvitation invitation)
     {
         return new CandidateInvitationDto
@@ -360,6 +477,9 @@ public class CandidateInvitationService(
             Status = invitation.Status,
             DeadlineUtc = invitation.DeadlineUtc?.ToString("O"),
             InviteMethod = invitation.InviteMethod,
+            LinkExpiryHours = invitation.LinkExpiryHours,
+            TokenCreatedAtUtc = invitation.TokenCreatedAtUtc.ToString("O"),
+            TokenExpiresAtUtc = invitation.TokenExpiresAtUtc.ToString("O"),
             TimeLimitMinutes = invitation.TimeLimitMinutes,
             CustomMessage = invitation.CustomMessage,
             InviteLink = invitation.InviteLink,
@@ -370,13 +490,8 @@ public class CandidateInvitationService(
         };
     }
 
-    private string BuildInviteLink()
+    private string BuildInviteLink(string token)
     {
-        var token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))
-            .TrimEnd('=')
-            .Replace('+', '-')
-            .Replace('/', '_');
-
         var baseUrl = configuration["CandidateInvitations:PublicBaseUrl"];
         if (string.IsNullOrWhiteSpace(baseUrl))
         {

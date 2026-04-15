@@ -425,6 +425,7 @@ export function CandidateManagement() {
   const [selectedTestId, setSelectedTestId] = useState("");
   const [candidateName, setCandidateName] = useState("");
   const [deadlineDate, setDeadlineDate] = useState("");
+  const [linkExpiryHours, setLinkExpiryHours] = useState(72);
   const [timeLimitMinutes, setTimeLimitMinutes] = useState(60);
   const [customMessage, setCustomMessage] = useState("");
   const [sendNowNotification, setSendNowNotification] = useState(true);
@@ -484,6 +485,57 @@ export function CandidateManagement() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (activeTab !== "resend") {
+      return;
+    }
+
+    let isMounted = true;
+
+    async function refreshResendInvitations() {
+      try {
+        const invitationData = await getPendingInvitations();
+        if (!isMounted) {
+          return;
+        }
+
+        setInvitations(invitationData);
+      } catch (err) {
+        if (!isMounted) {
+          return;
+        }
+
+        setResendError(err instanceof Error ? err.message : "Failed to refresh invitations.");
+      }
+    }
+
+    void refreshResendInvitations();
+
+    const intervalId = window.setInterval(() => {
+      void refreshResendInvitations();
+    }, 15000);
+
+    function handleFocus() {
+      void refreshResendInvitations();
+    }
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") {
+        void refreshResendInvitations();
+      }
+    }
+
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      isMounted = false;
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [activeTab]);
 
   const activeConfig = useMemo(
     () => TAB_CONFIG.find((tab) => tab.key === activeTab) ?? DEFAULT_TAB_CONFIG,
@@ -545,6 +597,7 @@ export function CandidateManagement() {
     setInviteMethod("email");
     setCandidateName("");
     setDeadlineDate("");
+    setLinkExpiryHours(72);
     setTimeLimitMinutes(60);
     setCustomMessage("");
     setSendNowNotification(true);
@@ -581,6 +634,21 @@ export function CandidateManagement() {
     setInviteSuccess(null);
 
     const emails = recipients;
+    const csvNameByEmail = new Map(
+      csvPreviewRows.map((item) => [item.email.toLowerCase(), item.name])
+    );
+    const candidateEntries =
+      inviteMethod === "bulk"
+        ? emails
+            .map((email) => {
+              const normalizedName = csvNameByEmail.get(email.toLowerCase())?.trim() || "";
+              return {
+                email,
+                candidateName: normalizedName || undefined,
+              };
+            })
+            .filter((entry) => Boolean(entry.candidateName))
+        : undefined;
 
     if (!selectedTestId) {
       setInviteError("Select a test before sending invitations.");
@@ -597,9 +665,11 @@ export function CandidateManagement() {
       const created = await inviteCandidates({
         testId: selectedTestId,
         emails,
+        candidateEntries,
         inviteMethod,
         candidateName: candidateName.trim() || undefined,
         deadlineUtc: deadlineDate ? new Date(`${deadlineDate}T23:59:59.000Z`).toISOString() : undefined,
+        linkExpiryHours: linkExpiryHours > 0 ? linkExpiryHours : undefined,
         timeLimitMinutes: timeLimitMinutes > 0 ? timeLimitMinutes : undefined,
         customMessage: customMessage.trim() || undefined,
         sendNowNotification,
@@ -1262,7 +1332,7 @@ export function CandidateManagement() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <div>
                   <label className="mb-1 block text-[12px] font-semibold text-zinc-600">Time Limit (minutes)</label>
                   <input
@@ -1273,6 +1343,19 @@ export function CandidateManagement() {
                     className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[13px] text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
                   />
                 </div>
+
+                <div>
+                  <label className="mb-1 block text-[12px] font-semibold text-zinc-600">Link Expiry (hours)</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={720}
+                    value={linkExpiryHours}
+                    onChange={(e) => setLinkExpiryHours(Math.min(720, Math.max(1, Number(e.target.value) || 1)))}
+                    className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[13px] text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+                  />
+                </div>
+
                 <div className="space-y-2 pt-6">
                   <label className="flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-[12px] text-zinc-700">
                     <input
@@ -1303,6 +1386,7 @@ export function CandidateManagement() {
                   <p>Recipients: <span className="font-semibold">{recipients.length}</span></p>
                   <p>Test: <span className="font-semibold">{selectedTest?.title || "Not selected"}</span></p>
                   <p>Deadline: <span className="font-semibold">{deadlineDate || "None"}</span></p>
+                  <p>Link expiry: <span className="font-semibold">{linkExpiryHours} hour(s)</span></p>
                   <p>Time limit: <span className="font-semibold">{timeLimitMinutes} min</span></p>
 
                   <p className="md:col-span-2">

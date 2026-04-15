@@ -10,6 +10,9 @@ public class CandidateInvitationDto
     public string Status { get; set; } = "Invited";
     public string? DeadlineUtc { get; set; }
     public string InviteMethod { get; set; } = "email";
+    public int LinkExpiryHours { get; set; } = 72;
+    public string TokenCreatedAtUtc { get; set; } = string.Empty;
+    public string TokenExpiresAtUtc { get; set; } = string.Empty;
     public int? TimeLimitMinutes { get; set; }
     public string? CustomMessage { get; set; }
     public string InviteLink { get; set; } = string.Empty;
