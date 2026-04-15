@@ -8,6 +8,8 @@ export type {
   RequestOptions,
 } from "./types";
 export type { PlatformApiClientConfig } from "./platform";
+export type { CoreSetupPhase, TenantSetupStateDto } from "./core-setup";
+export { coreSetupPaths } from "./core-setup";
 export type {
   CreatePlatformOrganizationRequest,
   UpdatePlatformOrganizationRequest,

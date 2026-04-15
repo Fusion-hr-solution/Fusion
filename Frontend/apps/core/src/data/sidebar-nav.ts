@@ -4,6 +4,7 @@ import {
   Building2,
   Briefcase,
   Building,
+  ClipboardList,
   Settings,
 } from "lucide-react";
 import { type NavSection } from "@repo/ui";
@@ -21,6 +22,7 @@ export const PEOPLE_NAV: NavSection = {
 export const ADMIN_NAV: NavSection = {
   title: "Administration",
   items: [
+    { label: "Setup", href: "/setup", icon: ClipboardList },
     { label: "Organizations", href: "/organizations", icon: Building },
     { label: "Settings", href: "/settings", icon: Settings },
   ],
