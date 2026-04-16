@@ -7,7 +7,6 @@ import type { ChapterSidebarProps } from "@/types/component-props";
 
 export function ChapterSidebar({
   chapters,
-  chapterProgress,
   activeChapterId,
   onSelectChapter,
   trainingTitle,
@@ -15,10 +14,6 @@ export function ChapterSidebar({
   examAvailable,
   onOpenExam,
 }: ChapterSidebarProps) {
-  const completedIds = new Set(
-    chapterProgress.filter((p) => p.completed).map((p) => p.chapterId),
-  );
-
   return (
     <aside className="flex w-80 shrink-0 flex-col border-r border-border bg-white">
       {/* Header */}
@@ -45,9 +40,8 @@ export function ChapterSidebar({
       <nav className="flex-1 overflow-y-auto py-2" aria-label="Course chapters">
         <ul className="space-y-0.5 px-2">
           {chapters.map((chapter, i) => {
-            const isCompleted = completedIds.has(chapter.id);
             const isActive = chapter.id === activeChapterId;
-            const isAccessible = i === 0 || completedIds.has(chapters[i - 1]!.id);
+            const isAccessible = i === 0 || chapters[i - 1]!.isCompleted;
 
             return (
               <li key={chapter.id}>
@@ -64,7 +58,7 @@ export function ChapterSidebar({
                 >
                   {/* Status icon */}
                   <div className="shrink-0">
-                    {isCompleted ? (
+                    {chapter.isCompleted ? (
                       <CheckCircle2 className="h-5 w-5 text-[hsl(var(--ey-green-500))]" aria-hidden="true" />
                     ) : !isAccessible ? (
                       <Lock className="h-4 w-4 text-muted-foreground/50" aria-hidden="true" />
@@ -82,7 +76,7 @@ export function ChapterSidebar({
                       className={`text-sm font-medium leading-snug truncate ${
                         isActive
                           ? "text-[hsl(var(--ey-blue-600))]"
-                          : isCompleted
+                          : chapter.isCompleted
                             ? "text-muted-foreground"
                             : "text-foreground"
                       }`}
@@ -90,7 +84,7 @@ export function ChapterSidebar({
                       {i + 1}. {chapter.title}
                     </p>
                     <span className="text-xs text-muted-foreground">
-                      {chapter.duration}
+                      {chapter.completedBlockCount}/{chapter.blockCount} blocks
                     </span>
                   </div>
                 </button>

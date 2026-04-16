@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start --port 3002",
     "lint": "next lint",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@base-ui/react": "^1.0.0",
@@ -42,13 +44,18 @@
     "@repo/eslint-config": "workspace:*",
     "@repo/tsconfig": "workspace:*",
     "@tailwindcss/postcss": "^4.1.8",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/node": "^22.10.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^5.1.4",
     "eslint": "^8.57.1",
+    "jsdom": "^28.1.0",
     "postcss": "^8.4.49",
     "shadcn": "^4.2.0",
     "tailwindcss": "^4.1.8",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "vitest": "^4.0.18"
   }
 }

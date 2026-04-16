@@ -13,6 +13,8 @@ public class AdminTrainingDto
     public string CategoryName { get; set; } = string.Empty;
     public int ChapterCount { get; set; }
     public int EnrollmentCount { get; set; }
+    public string TrainingType { get; set; } = "ELearning";
+    public DateTime? ScheduledDate { get; set; }
     public bool IsDeleted { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }

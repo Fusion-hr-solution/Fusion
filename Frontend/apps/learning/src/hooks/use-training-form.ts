@@ -8,6 +8,7 @@ import {
   updateTraining,
 } from "@/services/admin-service";
 import type { AdminCategory, CreateTrainingInput, UpdateTrainingInput } from "@/types/admin";
+import type { TrainingType } from "@/types";
 
 interface UseTrainingFormOptions {
   trainingId?: string;
@@ -29,14 +30,26 @@ export function useTrainingForm({ trainingId, enabled, onCreated, onUpdated }: U
   const [credits, setCredits] = useState(0);
   const [duration, setDuration] = useState("");
   const [isMandatory, setIsMandatory] = useState(false);
+  const [trainingType, setTrainingType] = useState<TrainingType>("ELearning");
+  const [scheduledDate, setScheduledDate] = useState("");
+
+  const fetchCategories = useCallback(
+    () => getAdminCategories(),
+    [],
+  );
+
+  const fetchExistingTraining = useCallback(
+    () => getAdminTrainingDetail(trainingId!),
+    [trainingId],
+  );
 
   const { data: categories } = useApiQuery<AdminCategory[]>(
-    () => getAdminCategories(),
+    fetchCategories,
     { enabled },
   );
 
   const { data: existing, isLoading: loadingDetail } = useApiQuery(
-    () => getAdminTrainingDetail(trainingId!),
+    fetchExistingTraining,
     { enabled: isEditing && enabled },
   );
 
@@ -48,6 +61,8 @@ export function useTrainingForm({ trainingId, enabled, onCreated, onUpdated }: U
     setCredits(0);
     setDuration("");
     setIsMandatory(false);
+    setTrainingType("ELearning");
+    setScheduledDate("");
     setStep(0);
     setFormError(null);
     setFieldErrors({});
@@ -64,6 +79,8 @@ export function useTrainingForm({ trainingId, enabled, onCreated, onUpdated }: U
       setBadgeLevel(existing.badgeLevel);
       setDuration(existing.duration);
       setCategoryId(existing.categoryId);
+      setTrainingType(existing.trainingType as TrainingType);
+      setScheduledDate(existing.scheduledDate ?? "");
       setStep(0);
       setFormError(null);
       setFieldErrors({});
@@ -127,6 +144,8 @@ export function useTrainingForm({ trainingId, enabled, onCreated, onUpdated }: U
       badgeLevel,
       duration: duration || undefined,
       categoryId,
+      trainingType,
+      scheduledDate: scheduledDate || undefined,
     };
     if (isEditing) await doUpdate(payload);
     else await doCreate(payload);
@@ -155,6 +174,8 @@ export function useTrainingForm({ trainingId, enabled, onCreated, onUpdated }: U
     credits, setCredits,
     duration, setDuration,
     isMandatory, setIsMandatory,
+    trainingType, setTrainingType,
+    scheduledDate, setScheduledDate,
     categories: categories ?? [],
     categoryName,
     loadingDetail,

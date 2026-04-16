@@ -53,6 +53,8 @@ const backendTrainingDto = {
   categoryName: "Tech",
   chapterCount: 2,
   enrollmentCount: 5,
+  trainingType: "ELearning",
+  scheduledDate: null,
   isDeleted: false,
   createdAt: "2025-01-01T00:00:00Z",
   updatedAt: null,
@@ -61,14 +63,24 @@ const backendTrainingDto = {
 const backendChapterDto = {
   id: "ch1",
   title: "Chapter 1",
-  contentType: "Video",
-  contentUri: null,
+  layout: "SingleContent",
   orderIndex: 1,
-  textContent: null,
-  videoUrl: "https://example.com/video",
-  estimatedDurationMinutes: null,
   createdAt: "2025-01-01T00:00:00Z",
   updatedAt: null,
+  contentBlocks: [
+    {
+      id: "b1",
+      type: "Video",
+      orderIndex: 0,
+      title: "Block 1",
+      textContent: null,
+      contentUri: null,
+      videoUrl: "https://example.com/video",
+      estimatedDurationMinutes: null,
+      createdAt: "2025-01-01T00:00:00Z",
+      updatedAt: null,
+    },
+  ],
 };
 
 const backendAssignmentDto = {
@@ -221,7 +233,22 @@ describe("addChapter", () => {
 
     expect(mockPost).toHaveBeenCalledWith(
       "/training/admin/trainings/t1/chapters",
-      input
+      {
+        title: "New Chapter",
+        layout: "SingleContent",
+        orderIndex: 1,
+        contentBlocks: [
+          {
+            type: "Article",
+            orderIndex: 0,
+            title: "New Chapter",
+            textContent: undefined,
+            contentUri: undefined,
+            videoUrl: undefined,
+            estimatedDurationMinutes: undefined,
+          },
+        ],
+      }
     );
     expect(id).toBe("ch-new");
   });
@@ -236,7 +263,10 @@ describe("updateChapter", () => {
 
     expect(mockPut).toHaveBeenCalledWith(
       "/training/admin/trainings/t1/chapters/ch1",
-      input
+      {
+        title: "Updated",
+        layout: "SingleContent",
+      }
     );
   });
 });

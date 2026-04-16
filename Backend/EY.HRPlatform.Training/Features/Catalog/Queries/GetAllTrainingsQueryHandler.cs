@@ -1,5 +1,6 @@
 using EY.HRPlatform.SharedKernel.CQRS;
 using EY.HRPlatform.SharedKernel.Results;
+using EY.HRPlatform.Training.Domain.Enums;
 using EY.HRPlatform.Training.Infrastructure.Persistence;
 using EY.HRPlatform.Training.Models.Responses;
 using Microsoft.EntityFrameworkCore;
@@ -18,6 +19,7 @@ public class GetAllTrainingsQueryHandler : IQueryHandler<GetAllTrainingsQuery, R
             .AsNoTracking()
             .Include(t => t.Category)
             .Include(t => t.Chapters)
+            .Include(t => t.OnSiteCourses)
             .AsQueryable();
 
         if (request.CategoryId.HasValue)
@@ -48,7 +50,9 @@ public class GetAllTrainingsQueryHandler : IQueryHandler<GetAllTrainingsQuery, R
                 Duration = t.Duration,
                 CategoryId = t.CategoryId,
                 CategoryName = t.Category.Name,
-                ChapterCount = t.Chapters.Count,
+                ChapterCount = t.TrainingType == TrainingType.OnSite ? t.OnSiteCourses.Count : t.Chapters.Count,
+                TrainingType = t.TrainingType.ToString(),
+                ScheduledDate = t.ScheduledDate,
                 CreatedAt = t.CreatedAt
             })
             .ToListAsync(cancellationToken);

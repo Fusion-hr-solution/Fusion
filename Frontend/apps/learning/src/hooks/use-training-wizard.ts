@@ -1,26 +1,16 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useApiQuery, useApiMutation } from "@repo/api/react";
 import { ApiError } from "@repo/api";
-import {
-  getAdminCategories,
-  getAdminTrainingDetail,
-  createTraining,
-  updateTraining,
-  addChapter,
-  updateChapter,
-  deleteChapter,
-  reorderChapters as reorderChaptersApi,
-  uploadChapterFile,
-} from "@/services/admin-service";
-import type { AdminCategory, CreateTrainingInput, UpdateTrainingInput, WizardChapter } from "@/types/admin";
+import { getAdminCategories, createTraining } from "@/services/admin-service";
+import type { AdminCategory, CreateTrainingInput, WizardChapter } from "@/types/admin";
+import type { TrainingType } from "@/types";
 
 interface UseTrainingWizardOptions {
-  mode: "create" | "edit";
-  trainingId?: string;
+  mode?: "create";
 }
 
-export function useTrainingWizard({ mode, trainingId }: UseTrainingWizardOptions) {
+export function useTrainingWizard(_options?: UseTrainingWizardOptions) {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [formError, setFormError] = useState<string | null>(null);
@@ -36,66 +26,37 @@ export function useTrainingWizard({ mode, trainingId }: UseTrainingWizardOptions
   const [credits, setCredits] = useState(0);
   const [duration, setDuration] = useState("");
   const [isMandatory, setIsMandatory] = useState(false);
+  const [trainingType, setTrainingType] = useState<TrainingType>("ELearning");
+  const [scheduledDate, setScheduledDate] = useState("");
 
   // Step 3
   const [chapters, setChapters] = useState<WizardChapter[]>([]);
-  // Track which server chapter IDs to delete on submit (edit mode only)
-  const [deletedServerIds, setDeletedServerIds] = useState<string[]>([]);
+
+  const fetchCategories = useCallback(
+    () => getAdminCategories(),
+    [],
+  );
 
   const { data: categories } = useApiQuery<AdminCategory[]>(
-    () => getAdminCategories(),
+    fetchCategories,
     { enabled: true },
   );
 
-  const { data: existing, isLoading: loadingDetail } = useApiQuery(
-    () => getAdminTrainingDetail(trainingId!),
-    { enabled: mode === "edit" && Boolean(trainingId) },
-  );
+  const maxStep = trainingType === "OnSite" ? 3 : 4;
 
-  // Populate form when editing an existing training
-  useEffect(() => {
-    if (mode !== "edit" || !existing) return;
-    setTitle(existing.title);
-    setDescription(existing.description);
-    setCategoryId(existing.categoryId);
-    setBadgeLevel(existing.badgeLevel);
-    setCredits(existing.credits);
-    setDuration(existing.duration);
-    setIsMandatory(existing.isMandatory);
-    setChapters(
-      [...existing.chapters]
-        .sort((a, b) => a.orderIndex - b.orderIndex)
-        .map((ch) => ({
-          clientId: ch.id,
-          title: ch.title,
-          contentType: ch.contentType,
-          textContent: ch.textContent,
-          videoUrl: ch.videoUrl,
-          estimatedDurationMinutes: ch.estimatedDurationMinutes,
-          serverId: ch.id,
-          contentUri: ch.contentUri,
-        })),
-    );
-    setDeletedServerIds([]);
-  }, [mode, existing]);
-
-  const nextStep = useCallback(() => setStep((s) => Math.min(s + 1, 4)), []);
+  const nextStep = useCallback(() => setStep((s) => Math.min(s + 1, maxStep)), [maxStep]);
   const prevStep = useCallback(() => setStep((s) => Math.max(s - 1, 1)), []);
 
-  const addWizardChapter = useCallback((chapter: Omit<WizardChapter, "clientId">) => {
+  const addChapter = useCallback((chapter: Omit<WizardChapter, "clientId">) => {
     setChapters((prev) => [...prev, { ...chapter, clientId: crypto.randomUUID() }]);
   }, []);
 
-  const updateWizardChapter = useCallback((clientId: string, updates: Partial<WizardChapter>) => {
+  const updateChapter = useCallback((clientId: string, updates: Partial<WizardChapter>) => {
     setChapters((prev) => prev.map((ch) => (ch.clientId === clientId ? { ...ch, ...updates } : ch)));
   }, []);
 
-  const removeWizardChapter = useCallback((clientId: string) => {
-    setChapters((prev) => {
-      const ch = prev.find((c) => c.clientId === clientId);
-      if (ch?.serverId) setDeletedServerIds((ids) => [...ids, ch.serverId!]);
-      return prev.filter((c) => c.clientId !== clientId);
-    });
+  const removeChapter = useCallback((clientId: string) => {
+    setChapters((prev) => prev.filter((ch) => ch.clientId !== clientId));
   }, []);
 
   const reorderChapters = useCallback((reordered: WizardChapter[]) => {
@@ -111,6 +72,10 @@ export function useTrainingWizard({ mode, trainingId }: UseTrainingWizardOptions
 
   function validateStep2(): boolean {
     if (credits < 0) { setFormError("Credits cannot be negative."); return false; }
+    if (trainingType === "OnSite" && scheduledDate && new Date(scheduledDate) <= new Date()) {
+      setFormError("Scheduled date must be in the future.");
+      return false;
+    }
     setFormError(null);
     return true;
   }
@@ -126,89 +91,30 @@ export function useTrainingWizard({ mode, trainingId }: UseTrainingWizardOptions
     (input: CreateTrainingInput) => createTraining(input),
   );
 
-  const { mutateAsync: doUpdate } = useApiMutation(
-    (input: UpdateTrainingInput) => updateTraining(trainingId!, input),
-  );
-
   async function handleSubmit() {
     setFormError(null);
     setIsSubmitting(true);
     try {
-      if (mode === "create") {
-        const resolvedChapters = await Promise.all(
-          chapters.map(async (ch, index) => {
-            let contentUri: string | undefined;
-            if (ch.file) contentUri = await uploadChapterFile(ch.file);
-            return {
-              title: ch.title,
-              contentType: ch.contentType,
-              orderIndex: index,
-              textContent: ch.textContent,
-              contentUri,
-              videoUrl: ch.videoUrl,
-              estimatedDurationMinutes: ch.estimatedDurationMinutes,
-            };
-          }),
-        );
-        await doCreate({
-          title: title.trim(),
-          description: description.trim() || undefined,
-          credits,
-          isMandatory,
-          badgeLevel,
-          duration: duration || undefined,
-          categoryId,
-          chapters: resolvedChapters,
-        });
-        router.push("/admin/trainings");
-        router.refresh();
-      } else {
-        // 1. Update training metadata
-        await doUpdate({
-          title: title.trim(),
-          description: description.trim() || undefined,
-          credits,
-          isMandatory,
-          badgeLevel,
-          duration: duration || undefined,
-          categoryId,
-        });
+      const resolvedChapters = chapters.map((ch, index) => ({
+        title: ch.title,
+        layout: ch.layout,
+        orderIndex: index,
+      }));
 
-        // 2. Delete removed chapters
-        for (const id of deletedServerIds) {
-          await deleteChapter(trainingId!, id);
-        }
+      await doCreate({
+        title: title.trim(),
+        description: description.trim() || undefined,
+        credits,
+        isMandatory,
+        badgeLevel,
+        duration: duration || undefined,
+        categoryId,
+        trainingType,
+        scheduledDate: scheduledDate || undefined,
+        chapters: resolvedChapters,
+      });
 
-        // 3. Add/update chapters
-        for (let i = 0; i < chapters.length; i++) {
-          const ch = chapters[i]!;
-          let contentUri = ch.contentUri;
-          if (ch.file) contentUri = await uploadChapterFile(ch.file);
-          const payload = {
-            title: ch.title,
-            contentType: ch.contentType,
-            orderIndex: i,
-            textContent: ch.textContent,
-            contentUri,
-            videoUrl: ch.videoUrl,
-            estimatedDurationMinutes: ch.estimatedDurationMinutes,
-          };
-          if (ch.serverId) {
-            await updateChapter(trainingId!, ch.serverId, payload);
-          } else {
-            await addChapter(trainingId!, payload);
-          }
-        }
-
-        // 4. Reorder chapters
-        const serverIds = chapters.filter((c) => c.serverId).map((c) => c.serverId!);
-        if (serverIds.length > 1) {
-          await reorderChaptersApi(trainingId!, serverIds);
-        }
-
-        router.push(`/admin/trainings/${trainingId}`);
-        router.refresh();
-      }
+      router.push("/admin/trainings");
     } catch (err) {
       const message =
         err instanceof ApiError
@@ -224,21 +130,18 @@ export function useTrainingWizard({ mode, trainingId }: UseTrainingWizardOptions
 
   const categoryName = categories?.find((c) => c.id === categoryId)?.name ?? "";
   const canAdvanceStep1 = title.trim().length > 0 && categoryId.length > 0;
-  const isReady = canAdvanceStep1 && (mode === "create" ? chapters.length > 0 : true);
+  const isReady = canAdvanceStep1 && (trainingType === "OnSite" || chapters.length > 0);
 
   return {
-    mode,
+    mode: "create" as const,
     step, setStep, formError, setFormError, isSubmitting,
-    loadingDetail: mode === "edit" ? loadingDetail : false,
+    loadingDetail: false,
     title, setTitle, description, setDescription,
     categoryId, setCategoryId, badgeLevel, setBadgeLevel,
     categories: categories ?? [],
     credits, setCredits, duration, setDuration, isMandatory, setIsMandatory,
-    chapters,
-    addChapter: addWizardChapter,
-    updateChapter: updateWizardChapter,
-    removeChapter: removeWizardChapter,
-    reorderChapters,
+    trainingType, setTrainingType, scheduledDate, setScheduledDate,
+    chapters, addChapter, updateChapter, removeChapter, reorderChapters,
     handleNext, prevStep, handleSubmit,
     canAdvanceStep1, isReady, categoryName,
   };

@@ -10,6 +10,8 @@ export function TrainingFormReviewStep({
   credits,
   duration,
   isMandatory,
+  trainingType,
+  scheduledDate,
 }: TrainingFormReviewStepProps) {
   return (
     <Card className="border-border/60">
@@ -21,12 +23,16 @@ export function TrainingFormReviewStep({
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="rounded-lg bg-muted/50 p-4 space-y-3 text-sm">
+          <Row label="Training Type" value={trainingType === "OnSite" ? "On-Site" : "E-Learning"} />
           <Row label="Title" value={title} />
           <Row label="Description" value={description || "—"} />
           <Row label="Category" value={categoryName} />
           <Row label="Badge Level" value={badgeLevel} />
           <Row label="Credits" value={String(credits)} />
           <Row label="Duration" value={duration || "—"} />
+          {trainingType === "OnSite" && scheduledDate && (
+            <Row label="Scheduled Date" value={new Date(scheduledDate).toLocaleString()} />
+          )}
           <Row
             label="Mandatory"
             value={

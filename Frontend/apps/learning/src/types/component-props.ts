@@ -9,7 +9,7 @@ import type {
   Course,
   TrainingChapter,
   ChapterContent,
-  ChapterProgressEntry,
+  ChapterListItem,
   TrainingLearnData,
 } from "./index";
 import type { NavSection } from "@repo/ui";
@@ -61,7 +61,7 @@ export interface TrainingStatsStripProps {
 }
 
 export interface CourseOutlineProps {
-  chapters: { id: string; title: string; duration: string }[];
+  chapters: TrainingChapter[];
 }
 
 export interface LevelFilterProps {
@@ -186,8 +186,7 @@ export interface CoursePlayerProps {
 }
 
 export interface ChapterSidebarProps {
-  chapters: ChapterContent[];
-  chapterProgress: ChapterProgressEntry[];
+  chapters: ChapterListItem[];
   activeChapterId: string;
   onSelectChapter: (chapterId: string) => void;
   trainingTitle: string;
@@ -198,9 +197,9 @@ export interface ChapterSidebarProps {
 
 export interface ChapterContentViewProps {
   chapter: ChapterContent;
-  isCompleted: boolean;
+  completedBlockIds: Set<string>;
   isLast: boolean;
-  onMarkComplete: () => void;
+  onMarkBlockComplete: (blockId: string) => void;
   onNext: () => void;
   onPrevious: () => void;
   hasPrevious: boolean;
@@ -208,9 +207,8 @@ export interface ChapterContentViewProps {
 }
 
 export interface ChapterNavigationProps {
-  isCompleted: boolean;
+  allBlocksCompleted: boolean;
   isLast: boolean;
-  onMarkComplete: () => void;
   onNext: () => void;
   onPrevious: () => void;
   hasPrevious: boolean;

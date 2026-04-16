@@ -24,5 +24,11 @@ public class CreateTrainingRequest
     [Required]
     public Guid CategoryId { get; set; }
 
+    public string TrainingType { get; set; } = "ELearning";
+
+    public DateTime? ScheduledDate { get; set; }
+
     public List<CreateChapterRequest> Chapters { get; set; } = [];
+
+    public List<CreateOnSiteCourseRequest> OnSiteCourses { get; set; } = [];
 }

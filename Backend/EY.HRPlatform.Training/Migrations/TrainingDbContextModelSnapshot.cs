@@ -433,6 +433,48 @@ namespace EY.HRPlatform.Training.Migrations
                     b.ToTable("ExamQuestions", "training");
                 });
 
+            modelBuilder.Entity("EY.HRPlatform.Training.Domain.Entities.OnSiteCourse", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ContentUri")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<int>("OrderIndex")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<Guid>("TrainingId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TrainingId", "OrderIndex")
+                        .IsUnique();
+
+                    b.ToTable("OnSiteCourses", "training");
+                });
+
             modelBuilder.Entity("EY.HRPlatform.Training.Domain.Entities.TrainingAssignment", b =>
                 {
                     b.Property<Guid>("Id")
@@ -593,10 +635,20 @@ namespace EY.HRPlatform.Training.Migrations
                     b.Property<bool>("IsMandatory")
                         .HasColumnType("boolean");
 
+                    b.Property<DateTime?>("ScheduledDate")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(300)
                         .HasColumnType("character varying(300)");
+
+                    b.Property<string>("TrainingType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("ELearning");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -766,6 +818,17 @@ namespace EY.HRPlatform.Training.Migrations
                     b.Navigation("Exam");
                 });
 
+            modelBuilder.Entity("EY.HRPlatform.Training.Domain.Entities.OnSiteCourse", b =>
+                {
+                    b.HasOne("EY.HRPlatform.Training.Domain.Entities.TrainingCourse", "Training")
+                        .WithMany("OnSiteCourses")
+                        .HasForeignKey("TrainingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Training");
+                });
+
             modelBuilder.Entity("EY.HRPlatform.Training.Domain.Entities.TrainingAssignment", b =>
                 {
                     b.HasOne("EY.HRPlatform.Training.Domain.Entities.TrainingCourse", "Training")
@@ -851,6 +914,8 @@ namespace EY.HRPlatform.Training.Migrations
                     b.Navigation("Chapters");
 
                     b.Navigation("Exams");
+
+                    b.Navigation("OnSiteCourses");
 
                     b.Navigation("ProgressRecords");
                 });

@@ -85,6 +85,22 @@ export function StepDetails({ wizard }: StepDetailsProps) {
               </p>
             </div>
           </div>
+
+          {wizard.trainingType === "OnSite" && (
+            <div className="mt-5 space-y-2">
+              <Label className="text-[13px] font-semibold">Scheduled Date & Time</Label>
+              <Input
+                type="datetime-local"
+                value={wizard.scheduledDate}
+                onChange={(e) => wizard.setScheduledDate(e.target.value)}
+                min={new Date().toISOString().slice(0, 16)}
+              />
+              {wizard.scheduledDate && new Date(wizard.scheduledDate) <= new Date() && (
+                <p className="text-[11px] text-destructive font-medium">Scheduled date must be in the future</p>
+              )}
+              <p className="text-[11px] text-muted-foreground">When the on-site training session will take place</p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -100,7 +116,7 @@ export function StepDetails({ wizard }: StepDetailsProps) {
           onClick={wizard.handleNext}
           className="flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-semibold shadow-sm transition-all ey-bg-dark text-white hover:opacity-90 active:scale-[0.98]"
         >
-          Continue to Chapters <ArrowRight className="h-4 w-4" />
+          Continue to {wizard.trainingType === "OnSite" ? "Review" : "Chapters"} <ArrowRight className="h-4 w-4" />
         </button>
       </div>
     </div>

@@ -2,19 +2,27 @@
 
 import { Check } from "lucide-react";
 
-const STEPS = [
+const ELEARNING_STEPS = [
   { label: "Basic Info", sub: "Title & category" },
   { label: "Details", sub: "Credits & duration" },
   { label: "Chapters", sub: "Build content" },
   { label: "Review", sub: "Final check" },
 ];
 
+const ONSITE_STEPS = [
+  { label: "Basic Info", sub: "Title & category" },
+  { label: "Details", sub: "Credits & schedule" },
+  { label: "Review", sub: "Final check" },
+];
+
 interface WizardStepperProps {
   currentStep: number;
   onStepClick: (step: number) => void;
+  isOnSite?: boolean;
 }
 
-export function WizardStepper({ currentStep, onStepClick }: WizardStepperProps) {
+export function WizardStepper({ currentStep, onStepClick, isOnSite }: WizardStepperProps) {
+  const STEPS = isOnSite ? ONSITE_STEPS : ELEARNING_STEPS;
   return (
     <div className="border-b border-border px-8 py-5">
       <div className="mx-auto flex w-full max-w-3xl items-center">

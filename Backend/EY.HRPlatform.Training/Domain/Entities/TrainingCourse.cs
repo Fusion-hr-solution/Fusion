@@ -11,6 +11,8 @@ public class TrainingCourse : AggregateRoot
     public bool IsMandatory { get; private set; }
     public BadgeLevel BadgeLevel { get; private set; }
     public string? Duration { get; private set; }
+    public TrainingType TrainingType { get; private set; } = TrainingType.ELearning;
+    public DateTime? ScheduledDate { get; private set; }
 
     public bool IsDeleted { get; private set; } = false;
     public DateTime? DeletedAt { get; private set; }
@@ -30,6 +32,9 @@ public class TrainingCourse : AggregateRoot
     private readonly List<TrainingProgress> _progressRecords = [];
     public IReadOnlyCollection<TrainingProgress> ProgressRecords => _progressRecords.AsReadOnly();
 
+    private readonly List<OnSiteCourse> _onSiteCourses = [];
+    public IReadOnlyCollection<OnSiteCourse> OnSiteCourses => _onSiteCourses.AsReadOnly();
+
     private TrainingCourse() { }
 
     public TrainingCourse(
@@ -39,7 +44,9 @@ public class TrainingCourse : AggregateRoot
         bool isMandatory,
         BadgeLevel badgeLevel,
         Guid categoryId,
-        string? duration = null)
+        string? duration = null,
+        TrainingType trainingType = TrainingType.ELearning,
+        DateTime? scheduledDate = null)
     {
         Title = title;
         Description = description;
@@ -48,9 +55,12 @@ public class TrainingCourse : AggregateRoot
         BadgeLevel = badgeLevel;
         CategoryId = categoryId;
         Duration = duration;
+        TrainingType = trainingType;
+        ScheduledDate = scheduledDate;
     }
 
-    public void Update(string title, string? description, int credits, bool isMandatory, BadgeLevel badgeLevel, string? duration)
+    public void Update(string title, string? description, int credits, bool isMandatory, BadgeLevel badgeLevel, string? duration,
+        TrainingType? trainingType = null, DateTime? scheduledDate = null)
     {
         Title = title;
         Description = description;
@@ -58,6 +68,8 @@ public class TrainingCourse : AggregateRoot
         IsMandatory = isMandatory;
         BadgeLevel = badgeLevel;
         Duration = duration;
+        if (trainingType.HasValue) TrainingType = trainingType.Value;
+        ScheduledDate = scheduledDate;
         UpdatedAt = DateTime.UtcNow;
     }
 
@@ -74,6 +86,16 @@ public class TrainingCourse : AggregateRoot
     public void RemoveChapter(TrainingChapter chapter)
     {
         _chapters.Remove(chapter);
+    }
+
+    public void AddOnSiteCourse(OnSiteCourse course)
+    {
+        _onSiteCourses.Add(course);
+    }
+
+    public void RemoveOnSiteCourse(OnSiteCourse course)
+    {
+        _onSiteCourses.Remove(course);
     }
 
     public void UpdateCategory(Guid categoryId)
