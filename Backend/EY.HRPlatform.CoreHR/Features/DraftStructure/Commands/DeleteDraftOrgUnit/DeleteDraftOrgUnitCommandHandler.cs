@@ -11,6 +11,9 @@ namespace EY.HRPlatform.CoreHR.Features.DraftStructure.Commands.DeleteDraftOrgUn
 public sealed class DeleteDraftOrgUnitCommandHandler(
     CoreHRDbContext dbContext) : ICommandHandler<DeleteDraftOrgUnitCommand, Result>
 {
+    private const string StructureItem = "Structure item";
+    private const string ReplacementParent = "Replacement parent structure item";
+
     public async Task<Result> Handle(
         DeleteDraftOrgUnitCommand request,
         CancellationToken cancellationToken)
@@ -22,12 +25,12 @@ public sealed class DeleteDraftOrgUnitCommandHandler(
 
         if (draftOrgUnit is null)
         {
-            throw new EntityNotFoundException("DraftOrgUnit", request.Id);
+            throw new EntityNotFoundException(StructureItem, request.Id);
         }
 
         if (draftOrgUnit.Version != request.ExpectedVersion)
         {
-            throw new ConcurrencyException("DraftOrgUnit", request.Id);
+            throw new ConcurrencyException(StructureItem, request.Id);
         }
 
         var children = await dbContext.DraftOrgUnits
@@ -45,12 +48,12 @@ public sealed class DeleteDraftOrgUnitCommandHandler(
             if (!request.ReplacementParentId.HasValue && !request.PromoteChildrenToRoot)
             {
                 throw new ArgumentException(
-                    "Deleting a draft unit with children requires a replacement parent or promotion to root.");
+                    "Deleting a structure item with children requires a replacement parent or promotion to root.");
             }
 
             if (request.ReplacementParentId == request.Id)
             {
-                throw new ArgumentException("Replacement parent cannot be the draft unit being deleted.");
+                throw new ArgumentException("Replacement parent cannot be the structure item being deleted.");
             }
 
             if (request.ReplacementParentId.HasValue)
@@ -60,7 +63,7 @@ public sealed class DeleteDraftOrgUnitCommandHandler(
 
                 if (replacementParent is null)
                 {
-                    throw new EntityNotFoundException("Replacement parent DraftOrgUnit", request.ReplacementParentId.Value);
+                    throw new EntityNotFoundException(ReplacementParent, request.ReplacementParentId.Value);
                 }
 
                 foreach (var child in children)
@@ -72,7 +75,7 @@ public sealed class DeleteDraftOrgUnitCommandHandler(
                             cancellationToken))
                     {
                         throw new ArgumentException(
-                            "Cannot reparent children to the selected draft unit because it would create a cycle.");
+                            "Cannot reparent children to the selected structure item because it would create a cycle.");
                     }
                 }
             }
@@ -91,7 +94,7 @@ public sealed class DeleteDraftOrgUnitCommandHandler(
         }
         catch (DbUpdateConcurrencyException)
         {
-            throw new ConcurrencyException("DraftOrgUnit", request.Id);
+            throw new ConcurrencyException(StructureItem, request.Id);
         }
 
         return Result.Success();

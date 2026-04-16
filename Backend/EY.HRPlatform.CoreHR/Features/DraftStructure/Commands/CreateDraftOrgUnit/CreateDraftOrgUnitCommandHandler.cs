@@ -14,6 +14,9 @@ public sealed class CreateDraftOrgUnitCommandHandler(
     CoreHRDbContext dbContext,
     ITenantContext tenantContext) : ICommandHandler<CreateDraftOrgUnitCommand, Result<DraftOrgUnitDto>>
 {
+    private const string StructureItem = "Structure item";
+    private const string ParentStructureItem = "Parent structure item";
+
     public async Task<Result<DraftOrgUnitDto>> Handle(
         CreateDraftOrgUnitCommand request,
         CancellationToken cancellationToken)
@@ -31,7 +34,7 @@ public sealed class CreateDraftOrgUnitCommandHandler(
 
         if (codeExists)
         {
-            throw new DuplicateEntityException("DraftOrgUnit", "code", normalizedCode);
+            throw new DuplicateEntityException(StructureItem, "code", normalizedCode);
         }
 
         var nameExists = await dbContext.DraftOrgUnits
@@ -39,7 +42,7 @@ public sealed class CreateDraftOrgUnitCommandHandler(
 
         if (nameExists)
         {
-            throw new DuplicateEntityException("DraftOrgUnit", "name", normalizedName);
+            throw new DuplicateEntityException(StructureItem, "name", normalizedName);
         }
 
         DraftOrgUnit? parent = null;
@@ -50,7 +53,7 @@ public sealed class CreateDraftOrgUnitCommandHandler(
 
             if (parent is null)
             {
-                throw new EntityNotFoundException("Parent DraftOrgUnit", request.ParentId.Value);
+                throw new EntityNotFoundException(ParentStructureItem, request.ParentId.Value);
             }
         }
 
@@ -71,10 +74,10 @@ public sealed class CreateDraftOrgUnitCommandHandler(
         {
             if (ex.InnerException?.Message.Contains("Code") == true)
             {
-                throw new DuplicateEntityException("DraftOrgUnit", "code", normalizedCode);
+                throw new DuplicateEntityException(StructureItem, "code", normalizedCode);
             }
 
-            throw new DuplicateEntityException("DraftOrgUnit", "name", normalizedName);
+            throw new DuplicateEntityException(StructureItem, "name", normalizedName);
         }
 
         return Result.Success(DraftStructureMapper.ToDto(draftOrgUnit, parent?.Name));

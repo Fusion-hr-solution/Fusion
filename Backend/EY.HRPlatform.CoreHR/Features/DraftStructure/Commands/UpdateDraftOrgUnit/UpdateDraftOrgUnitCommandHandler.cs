@@ -12,6 +12,9 @@ namespace EY.HRPlatform.CoreHR.Features.DraftStructure.Commands.UpdateDraftOrgUn
 public sealed class UpdateDraftOrgUnitCommandHandler(
     CoreHRDbContext dbContext) : ICommandHandler<UpdateDraftOrgUnitCommand, Result<DraftOrgUnitDto>>
 {
+    private const string StructureItem = "Structure item";
+    private const string ParentStructureItem = "Parent structure item";
+
     public async Task<Result<DraftOrgUnitDto>> Handle(
         UpdateDraftOrgUnitCommand request,
         CancellationToken cancellationToken)
@@ -23,12 +26,12 @@ public sealed class UpdateDraftOrgUnitCommandHandler(
 
         if (draftOrgUnit is null)
         {
-            throw new EntityNotFoundException("DraftOrgUnit", request.Id);
+            throw new EntityNotFoundException(StructureItem, request.Id);
         }
 
         if (draftOrgUnit.Version != request.ExpectedVersion)
         {
-            throw new ConcurrencyException("DraftOrgUnit", request.Id);
+            throw new ConcurrencyException(StructureItem, request.Id);
         }
 
         await DraftStructureRules.ValidateTypeAsync(dbContext, request.Type, cancellationToken);
@@ -41,7 +44,7 @@ public sealed class UpdateDraftOrgUnitCommandHandler(
 
             if (codeExists)
             {
-                throw new DuplicateEntityException("DraftOrgUnit", "code", normalizedCode);
+                throw new DuplicateEntityException(StructureItem, "code", normalizedCode);
             }
         }
 
@@ -53,7 +56,7 @@ public sealed class UpdateDraftOrgUnitCommandHandler(
 
             if (nameExists)
             {
-                throw new DuplicateEntityException("DraftOrgUnit", "name", normalizedName);
+                throw new DuplicateEntityException(StructureItem, "name", normalizedName);
             }
         }
 
@@ -62,7 +65,7 @@ public sealed class UpdateDraftOrgUnitCommandHandler(
         {
             if (request.ParentId.Value == request.Id)
             {
-                throw new ArgumentException("Draft org unit cannot be its own parent.");
+                throw new ArgumentException("A structure item cannot be its own parent.");
             }
 
             parent = await dbContext.DraftOrgUnits
@@ -70,7 +73,7 @@ public sealed class UpdateDraftOrgUnitCommandHandler(
 
             if (parent is null)
             {
-                throw new EntityNotFoundException("Parent DraftOrgUnit", request.ParentId.Value);
+                throw new EntityNotFoundException(ParentStructureItem, request.ParentId.Value);
             }
 
             if (await DraftStructureRules.WouldCreateCycleAsync(
@@ -92,16 +95,16 @@ public sealed class UpdateDraftOrgUnitCommandHandler(
         }
         catch (DbUpdateConcurrencyException)
         {
-            throw new ConcurrencyException("DraftOrgUnit", request.Id);
+            throw new ConcurrencyException(StructureItem, request.Id);
         }
         catch (DbUpdateException ex) when (DraftStructureRules.IsUniqueConstraintViolation(ex))
         {
             if (ex.InnerException?.Message.Contains("Code") == true)
             {
-                throw new DuplicateEntityException("DraftOrgUnit", "code", normalizedCode);
+                throw new DuplicateEntityException(StructureItem, "code", normalizedCode);
             }
 
-            throw new DuplicateEntityException("DraftOrgUnit", "name", normalizedName);
+            throw new DuplicateEntityException(StructureItem, "name", normalizedName);
         }
 
         return Result.Success(DraftStructureMapper.ToDto(draftOrgUnit, parent?.Name));

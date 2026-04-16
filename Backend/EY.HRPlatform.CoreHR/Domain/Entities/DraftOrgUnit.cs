@@ -98,7 +98,7 @@ public class DraftOrgUnit : BaseEntity, ITenantEntity
             parentId = null;
 
         if (parentId == Id)
-            throw new ArgumentException("Draft org unit cannot be its own parent.", nameof(parentId));
+            throw new ArgumentException("A structure item cannot be its own parent.", nameof(parentId));
 
         Code = code.Trim().ToUpperInvariant();
         Name = name.Trim();
@@ -113,7 +113,7 @@ public class DraftOrgUnit : BaseEntity, ITenantEntity
             parentId = null;
 
         if (parentId == Id)
-            throw new ArgumentException("Draft org unit cannot be its own parent.", nameof(parentId));
+            throw new ArgumentException("A structure item cannot be its own parent.", nameof(parentId));
 
         ParentId = parentId;
         UpdatedAt = DateTime.UtcNow;

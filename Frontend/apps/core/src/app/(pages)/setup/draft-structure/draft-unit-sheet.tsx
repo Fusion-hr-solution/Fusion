@@ -128,7 +128,7 @@ export function DraftUnitSheet({
 
   const update = useUpdateDraftOrgUnit({
     onSuccess: (data) => {
-      toast.success(`Draft unit "${data.name}" updated`);
+      toast.success(`Structure item "${data.name}" updated`);
       setServerError(null);
       onMutated();
     },
@@ -136,7 +136,7 @@ export function DraftUnitSheet({
 
   const remove = useDeleteDraftOrgUnit({
     onSuccess: () => {
-      toast.success(`Draft unit "${unit?.name}" deleted`);
+      toast.success(`Structure item "${unit?.name}" deleted`);
       setDeleteOpen(false);
       setDeleteStrategy("");
       onOpenChange(false);
@@ -201,7 +201,7 @@ export function DraftUnitSheet({
           <SheetHeader>
             <SheetTitle>{unit.name}</SheetTitle>
             <SheetDescription>
-              Update this draft unit without touching the live organization
+              Update this structure item without touching the live organization
               structure.
             </SheetDescription>
           </SheetHeader>
@@ -318,7 +318,7 @@ export function DraftUnitSheet({
                 onClick={() => setDeleteOpen(true)}
                 disabled={update.isLoading || remove.isLoading}
               >
-                Delete Unit
+                Delete Item
               </Button>
               <Button type="submit" disabled={update.isLoading || remove.isLoading}>
                 {update.isLoading && <Spinner className="mr-1" />}
@@ -332,11 +332,11 @@ export function DraftUnitSheet({
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete draft unit?</AlertDialogTitle>
+            <AlertDialogTitle>Delete structure item?</AlertDialogTitle>
             <AlertDialogDescription>
               {childUnits.length > 0
-                ? "Choose how to keep the child branch intact before deleting this unit."
-                : "This removes the draft unit from the workspace."}
+                ? "Choose how to keep the child branch intact before deleting this item."
+                : "This removes the structure item from the workspace."}
             </AlertDialogDescription>
           </AlertDialogHeader>
 

@@ -176,11 +176,11 @@ export default function DraftStructurePage() {
     <div className="flex flex-col gap-6 p-6">
       <PageHeader
         title="Draft Structure"
-        description="Prepare and correct draft units inside Setup while keeping the overall onboarding path import-led and the live organization untouched."
+        description="Prepare and correct your draft structure inside Setup while keeping the overall onboarding path import-led and the live organization untouched."
         actions={
           <Button onClick={() => setCreateOpen(true)} disabled={isWorkspaceLoading}>
             <Plus className="size-4" />
-            Add Draft Unit
+            Add Structure Item
           </Button>
         }
       />
@@ -213,11 +213,11 @@ export default function DraftStructurePage() {
         </Card>
         <Card>
           <CardHeader>
-            <CardDescription>Draft units</CardDescription>
+            <CardDescription>Structure items</CardDescription>
             <CardTitle>{workspace?.unitCount ?? 0}</CardTitle>
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground">
-            Root units: {workspace?.rootUnitCount ?? 0}
+            Root items: {workspace?.rootUnitCount ?? 0}
           </CardContent>
         </Card>
         <Card>
@@ -239,7 +239,7 @@ export default function DraftStructurePage() {
           <div>
             <p className="text-sm font-medium">Draft workspace</p>
             <p className="text-sm text-muted-foreground">
-              Search and sort draft units before governance and publication are
+              Search and sort structure items before governance and publication are
               introduced in later slices.
             </p>
           </div>

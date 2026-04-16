@@ -71,7 +71,7 @@ export function CreateDraftUnitDialog({
 
   const create = useCreateDraftOrgUnit({
     onSuccess: (data) => {
-      toast.success(`Draft unit "${data.name}" created`);
+      toast.success(`Structure item "${data.name}" created`);
       setServerError(null);
       onOpenChange(false);
       onCreated();
@@ -113,9 +113,9 @@ export function CreateDraftUnitDialog({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Add Draft Unit</DialogTitle>
+          <DialogTitle>Add Structure Item</DialogTitle>
           <DialogDescription>
-            Add a draft unit for preparation and later correction before
+            Add a structure item for preparation and later correction before
             governance and publication.
           </DialogDescription>
         </DialogHeader>
@@ -212,7 +212,7 @@ export function CreateDraftUnitDialog({
           <DialogFooter>
             <Button type="submit" disabled={create.isLoading}>
               {create.isLoading && <Spinner className="mr-1" />}
-              Add Draft Unit
+              Add Structure Item
             </Button>
           </DialogFooter>
         </form>

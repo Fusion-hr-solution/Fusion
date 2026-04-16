@@ -101,9 +101,9 @@ export function DraftStructureTable({
           <EmptyMedia variant="icon">
             <Building2 />
           </EmptyMedia>
-          <EmptyTitle>No draft units yet</EmptyTitle>
+          <EmptyTitle>No structure items yet</EmptyTitle>
           <EmptyDescription>
-            Add the first unit to begin preparing a draft structure for import
+            Add the first structure item to begin preparing a draft structure for import
             correction and later governance.
           </EmptyDescription>
         </EmptyHeader>

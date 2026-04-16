@@ -10,6 +10,8 @@ namespace EY.HRPlatform.CoreHR.Features.DraftStructure.Queries.GetDraftOrgUnitBy
 public sealed class GetDraftOrgUnitByIdQueryHandler(
     CoreHRDbContext dbContext) : IQueryHandler<GetDraftOrgUnitByIdQuery, DraftOrgUnitDto>
 {
+    private const string StructureItem = "Structure item";
+
     public async Task<DraftOrgUnitDto> Handle(
         GetDraftOrgUnitByIdQuery request,
         CancellationToken cancellationToken)
@@ -22,7 +24,7 @@ public sealed class GetDraftOrgUnitByIdQueryHandler(
 
         if (draftOrgUnit is null)
         {
-            throw new EntityNotFoundException("DraftOrgUnit", request.Id);
+            throw new EntityNotFoundException(StructureItem, request.Id);
         }
 
         string? parentName = null;
