@@ -3,20 +3,22 @@
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Pencil, Trash2, BookOpen, Users, FileText, LayoutGrid } from "lucide-react";
+import { Pencil, Trash2, BookOpen, Users, FileText, Plus } from "lucide-react";
 import { Button, buttonVariants, Badge } from "@repo/ui";
 import { useApiQuery, useApiMutation } from "@repo/api/react";
 import {
   getAdminTrainingDetail,
+  addChapter,
   deleteChapter,
   deleteTraining,
   reorderChapters,
 } from "@/services/admin-service";
-import type { AdminChapter } from "@/types/admin";
+import type { AdminChapter, CreateChapterInput } from "@/types/admin";
 import type { TrainingDetailViewProps } from "@/types/admin-props";
+import type { ChapterLayout } from "@/types";
 import { ChapterFormDialog } from "./chapter-form-dialog";
 import { MetaCard } from "./meta-card";
-import { AdminChapterList } from "./admin-chapter-list";
+import { ChapterManagerList } from "./chapter-manager-list";
 import { AdminExamList } from "./admin-exam-list";
 import { AdminOnSiteCourseList } from "./admin-onsite-course-list";
 import { TrainingStatCard } from "./training-stat-card";
@@ -52,12 +54,35 @@ export function TrainingDetailView({ trainingId }: TrainingDetailViewProps) {
     { onSuccess: () => refetch() },
   );
 
+  const { mutateAsync: doDuplicate } = useApiMutation(
+    (input: CreateChapterInput) => addChapter(trainingId, input),
+    { onSuccess: () => refetch() },
+  );
+
   const handleDeleteChapter = useCallback(
     async (ch: AdminChapter) => {
       if (!confirm(`Delete chapter "${ch.title}"?`)) return;
       await removeChapter(ch.id);
     },
     [removeChapter],
+  );
+
+  const handleDuplicateChapter = useCallback(
+    async (ch: AdminChapter) => {
+      await doDuplicate({
+        title: `${ch.title} (copy)`,
+        layout: ch.layout as ChapterLayout,
+        orderIndex: (training?.chapters.length ?? 0),
+      });
+    },
+    [doDuplicate, training],
+  );
+
+  const handleOpenBuilder = useCallback(
+    (ch: AdminChapter) => {
+      router.push(`/admin/trainings/${trainingId}/chapters/${ch.id}`);
+    },
+    [router, trainingId],
   );
 
   const handleDeleteTraining = useCallback(async () => {
@@ -169,22 +194,24 @@ export function TrainingDetailView({ trainingId }: TrainingDetailViewProps) {
           <div className="flex items-center justify-between">
             <h2 className="text-base font-semibold text-foreground">Chapters</h2>
             {!training.isDeleted && (
-              <Link
-                href={`/admin/trainings/${trainingId}/chapters`}
-                className={buttonVariants({ variant: "outline", size: "sm" })}
+              <Button
+                size="sm"
+                onClick={() => { setEditingChapter(null); setChapterDialogOpen(true); }}
+                className="ey-bg-dark hover:opacity-90"
               >
-                <LayoutGrid className="mr-1.5 h-4 w-4" />
-                Manage Chapters
-              </Link>
+                <Plus className="mr-1.5 h-4 w-4" />
+                Add Chapter
+              </Button>
             )}
           </div>
-          <AdminChapterList
+          <ChapterManagerList
             chapters={training.chapters}
             isDeleted={training.isDeleted}
-            onAddChapter={() => { setEditingChapter(null); setChapterDialogOpen(true); }}
-            onEditChapter={(ch) => { setEditingChapter(ch); setChapterDialogOpen(true); }}
-            onDeleteChapter={handleDeleteChapter}
             onReorder={doReorder}
+            onEdit={(ch) => { setEditingChapter(ch); setChapterDialogOpen(true); }}
+            onDelete={handleDeleteChapter}
+            onDuplicate={handleDuplicateChapter}
+            onOpen={handleOpenBuilder}
           />
 
           {/* Exams */}
