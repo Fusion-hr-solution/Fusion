@@ -7,6 +7,7 @@ public class CreateCandidateInvitationDto
     public string? CandidateName { get; set; }
     public string? DeadlineUtc { get; set; }
     public string InviteMethod { get; set; } = "email";
+    public int? LinkExpiryHours { get; set; }
     public int? TimeLimitMinutes { get; set; }
     public string? CustomMessage { get; set; }
     public bool SendNotification { get; set; } = true;

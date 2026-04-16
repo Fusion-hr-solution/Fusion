@@ -17,6 +17,7 @@ const AUTH_PATHS = ["/auth/signin", "/auth/signup"];
 // invite acceptance outside /core if separation becomes clearer in the future.
 const PUBLIC_PATHS = [
   "/core/invite", // Invite acceptance flow must be anonymous
+  "/interview/candidate/start", // Candidate test access from invitation email
 ];
 
 export function middleware(request: NextRequest) {

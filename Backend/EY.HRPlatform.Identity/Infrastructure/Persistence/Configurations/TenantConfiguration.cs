@@ -29,11 +29,5 @@ public class TenantConfiguration : IEntityTypeConfiguration<Tenant>
 
         builder.HasIndex(t => t.IsActive);
         builder.HasIndex(t => t.IsArchived);
-
-        // Case-insensitive unique name constraint (excludes archived tenants)
-        builder.HasIndex(t => t.Name)
-            .HasFilter("\"IsArchived\" = false")
-            .IsUnique()
-            .HasDatabaseName("IX_Tenants_Name_Active");
     }
 }

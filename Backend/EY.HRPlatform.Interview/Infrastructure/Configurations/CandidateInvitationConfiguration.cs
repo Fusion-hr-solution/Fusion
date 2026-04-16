@@ -36,6 +36,10 @@ public class CandidateInvitationConfiguration : IEntityTypeConfiguration<Candida
             .HasMaxLength(16)
             .HasDefaultValue("email");
 
+        builder.Property(x => x.LinkExpiryHours)
+            .IsRequired()
+            .HasDefaultValue(72);
+
         builder.Property(x => x.TimeLimitMinutes);
 
         builder.Property(x => x.CustomMessage)
@@ -44,6 +48,16 @@ public class CandidateInvitationConfiguration : IEntityTypeConfiguration<Candida
         builder.Property(x => x.InviteLink)
             .IsRequired()
             .HasMaxLength(1024);
+
+        builder.Property(x => x.TokenHash)
+            .IsRequired()
+            .HasMaxLength(128);
+
+        builder.Property(x => x.TokenCreatedAtUtc)
+            .IsRequired();
+
+        builder.Property(x => x.TokenExpiresAtUtc)
+            .IsRequired();
 
         builder.Property(x => x.LastSentAtUtc)
             .IsRequired();
@@ -56,6 +70,9 @@ public class CandidateInvitationConfiguration : IEntityTypeConfiguration<Candida
             .HasDefaultValue(0)
             .IsRequired();
 
+        builder.Property(x => x.AttemptStartedAtUtc);
+        builder.Property(x => x.AttemptSubmittedAtUtc);
+
         builder.Property(x => x.CreatedAt).IsRequired();
         builder.Property(x => x.UpdatedAt).IsRequired(false);
 
@@ -63,10 +80,17 @@ public class CandidateInvitationConfiguration : IEntityTypeConfiguration<Candida
         builder.HasIndex(x => x.Email);
         builder.HasIndex(x => x.Status);
         builder.HasIndex(x => x.CreatedAt);
+        builder.HasIndex(x => x.TokenHash).IsUnique();
+        builder.HasIndex(x => x.TokenExpiresAtUtc);
 
         builder.HasOne(x => x.Test)
             .WithMany()
             .HasForeignKey(x => x.TestId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasOne(x => x.Attempt)
+            .WithOne(x => x.Invitation)
+            .HasForeignKey<CandidateTestAttempt>(x => x.InvitationId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }

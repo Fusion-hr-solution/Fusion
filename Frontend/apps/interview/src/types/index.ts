@@ -143,9 +143,12 @@ export interface CandidateInvitation {
   testTitle: string;
   email: string;
   candidateName?: string;
-  status: "Invited" | "DeliveryFailed";
+  status: "Invited" | "DeliveryFailed" | "InProgress" | "Submitted" | "Expired";
   deadlineUtc?: string;
   inviteMethod?: "email" | "bulk" | "link";
+  linkExpiryHours?: number;
+  tokenCreatedAtUtc?: string;
+  tokenExpiresAtUtc?: string;
   timeLimitMinutes?: number;
   customMessage?: string;
   inviteLink: string;
