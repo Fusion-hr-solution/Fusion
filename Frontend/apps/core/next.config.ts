@@ -2,11 +2,10 @@ import path from "node:path";
 import type { NextConfig } from "next";
 
 const frontendWorkspaceRoot = path.resolve(process.cwd(), "../..");
-const output =
-  process.env.NEXT_STANDALONE === "true" ? "standalone" : undefined;
+const useStandaloneOutput = process.env.NEXT_OUTPUT_MODE === "standalone";
 
 const nextConfig: NextConfig = {
-  output,
+  ...(useStandaloneOutput ? { output: "standalone" as const } : {}),
   outputFileTracingRoot: frontendWorkspaceRoot,
   basePath: "/core",
   transpilePackages: ["@repo/api", "@repo/ui", "@repo/auth"],

@@ -11,6 +11,15 @@ export type { PlatformApiClientConfig } from "./platform";
 export type { CoreSetupPhase, TenantSetupStateDto } from "./core-setup";
 export { coreSetupPaths } from "./core-setup";
 export type {
+  DraftStructureWorkspaceStatus,
+  DraftOrgUnitDto,
+  DraftOrgUnitTreeNodeDto,
+  DraftStructureWorkspaceDto,
+  CreateDraftOrgUnitRequest,
+  UpdateDraftOrgUnitRequest,
+} from "./draft-structure";
+export { draftStructurePaths } from "./draft-structure";
+export type {
   CreatePlatformOrganizationRequest,
   UpdatePlatformOrganizationRequest,
   PlatformOrganizationCreatedDto,

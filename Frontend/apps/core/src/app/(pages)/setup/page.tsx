@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { startTransition, useEffect, useState } from "react";
 import { AlertCircle, ClipboardList } from "lucide-react";
 import { canAccessCoreSetup, useAuth } from "@repo/auth";
@@ -27,15 +29,19 @@ const STEP_LABELS: Record<string, string> = {
 };
 
 export default function SetupPage() {
+  const router = useRouter();
   const { user } = useAuth();
   const canAccess = canAccessCoreSetup(user);
   const { data, error, isLoading, refetch } = useSetupState();
   const [localError, setLocalError] = useState<string | null>(null);
 
   const activateSetup = useActivateSetup({
-    onSuccess: () => {
+    onSuccess: (nextState) => {
       startTransition(() => {
         void refetch();
+        if (nextState.canResumeSetup) {
+          router.push("/setup/draft-structure");
+        }
       });
     },
   });
@@ -70,7 +76,7 @@ export default function SetupPage() {
     <div className="flex flex-col gap-6 p-6">
       <PageHeader
         title="Setup"
-        description="Activate and track the tenant setup lifecycle before structure drafting, governance, and publication are introduced in later slices."
+        description="Activate and track the tenant setup lifecycle. Draft structure remains a Setup-owned next step for preparation and later correction around the import-led onboarding path."
       />
 
       {(error || localError) && (
@@ -153,19 +159,21 @@ export default function SetupPage() {
                 : (data?.nextAction ?? "Start setup")}
             </p>
           </div>
-          <Button
-            onClick={() => {
-              setLocalError(null);
-              activateSetup.mutate();
-            }}
-            disabled={
-              isLoading ||
-              activateSetup.isLoading ||
-              (!data?.canStartSetup && !data?.canResumeSetup)
-            }
-          >
-            {data?.canStartSetup ? "Start Setup" : "Resume Setup"}
-          </Button>
+          {data?.canStartSetup ? (
+            <Button
+              onClick={() => {
+                setLocalError(null);
+                activateSetup.mutate();
+              }}
+              disabled={isLoading || activateSetup.isLoading}
+            >
+              Start Setup
+            </Button>
+          ) : (
+            <Button asChild>
+              <Link href="/setup/draft-structure">Open Draft Workspace</Link>
+            </Button>
+          )}
         </CardFooter>
       </Card>
     </div>
