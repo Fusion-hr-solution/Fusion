@@ -1,7 +1,13 @@
+import path from "node:path";
 import type { NextConfig } from "next";
 
+const frontendWorkspaceRoot = path.resolve(process.cwd(), "../..");
+const output =
+  process.env.NEXT_STANDALONE === "true" ? "standalone" : undefined;
+
 const nextConfig: NextConfig = {
-  output: "standalone",
+  output,
+  outputFileTracingRoot: frontendWorkspaceRoot,
   transpilePackages: ["@repo/ui", "@repo/auth", "@repo/api"],
   async rewrites() {
     const gatewayUrl = process.env.GATEWAY_URL || "http://localhost:5000";
