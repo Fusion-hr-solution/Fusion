@@ -11,6 +11,15 @@ export type { PlatformApiClientConfig } from "./platform";
 export type { CoreSetupPhase, TenantSetupStateDto } from "./core-setup";
 export { coreSetupPaths } from "./core-setup";
 export type {
+  BrandingSettingsDto,
+  BrandingSettingsInputDto,
+  FieldConfigDto,
+  FieldConfigInputDto,
+  TenantSettingsDto,
+  UpdateTenantSettingsRequest,
+} from "./tenant-settings";
+export { tenantSettingsPaths } from "./tenant-settings";
+export type {
   DraftStructureWorkspaceStatus,
   DraftStructureAttributeValueType,
   DraftStructureImportStage,

@@ -2,7 +2,7 @@
 
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertCircle, FileSpreadsheet, FolderTree, Info, Plus } from "lucide-react";
+import { AlertCircle, FileSpreadsheet, FolderTree, Plus } from "lucide-react";
 import { canAccessCoreSetup, useAuth } from "@repo/auth";
 import { EmptyState } from "@repo/ui";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -16,9 +16,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/page-header";
 import { useSetupState } from "../use-setup";
 import { CreateDraftUnitDialog } from "./create-draft-unit-dialog";
+import { DraftOrgUnitKindManager } from "./draft-org-unit-kind-manager";
 import { DraftStructureImportPanel } from "./draft-structure-import-panel";
 import { getDraftFieldLabel } from "./draft-structure-labels";
 import { DraftStructureTree } from "./draft-structure-tree";
@@ -43,22 +45,6 @@ function formatTimestamp(value: string | null) {
   }).format(new Date(value));
 }
 
-function getLifecycleMessage(currentPhase: string | undefined) {
-  if (currentPhase === "operational") {
-    return {
-      title: "This workspace stays available after go-live",
-      description:
-        "Tenant admins can come back here for controlled structure changes later. Everything on this page stays in draft until a later governance and publish step moves it into the live organization.",
-    };
-  }
-
-  return {
-    title: "This is the setup workspace for organization structure",
-    description:
-      "Use it now for first-time setup, then reuse the same draft surface later when the organization needs structural changes. Draft edits never change the live organization immediately.",
-  };
-}
-
 export default function DraftStructurePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -77,7 +63,8 @@ export default function DraftStructurePage() {
     isLoading: isSetupLoading,
   } = useSetupState();
 
-  const workspaceEnabled = canAccess && !!setupState && !setupState.canStartSetup;
+  const workspaceEnabled =
+    canAccess && !!setupState && !setupState.canStartSetup;
   const {
     data: workspace,
     error: workspaceError,
@@ -125,7 +112,13 @@ export default function DraftStructurePage() {
   const selectedTreeNode = findDraftTreeNodeById(draftTree, selectedUnitId);
   const isImportOpen = searchParams.get("import") === "1";
   const hasImportSession = !!searchParams.get("session");
-  const lifecycleMessage = getLifecycleMessage(setupState?.currentPhase);
+  const visibleUnitTypes =
+    workspace?.draftStructureSchema.orgUnitKinds.slice(0, 3) ?? [];
+  const remainingUnitTypeCount = Math.max(
+    (workspace?.draftStructureSchema.orgUnitKinds.length ?? 0) -
+      visibleUnitTypes.length,
+    0
+  );
 
   const refreshWorkspace = () => {
     void refetch();
@@ -142,7 +135,9 @@ export default function DraftStructurePage() {
     }
 
     const query = params.toString();
-    router.replace(query ? `/setup/draft-structure?${query}` : "/setup/draft-structure");
+    router.replace(
+      query ? `/setup/draft-structure?${query}` : "/setup/draft-structure"
+    );
   };
 
   if (!canAccess) {
@@ -199,20 +194,32 @@ export default function DraftStructurePage() {
           icon={FolderTree}
           title="Setup has not been activated"
           description="The organization structure area opens after setup is activated."
-          action={{ label: "Go to Setup", onClick: () => router.push("/setup") }}
+          action={{
+            label: "Go to Setup",
+            onClick: () => router.push("/setup"),
+          }}
         />
       </div>
     );
   }
 
+  if (workspaceEnabled && isWorkspaceLoading && !workspace && !workspaceError) {
+    return <DraftStructurePageSkeleton hasImportSession={hasImportSession} />;
+  }
+
+  const showTreeSkeleton = isTreeLoading && !tree;
+
   return (
     <div className="flex flex-col gap-6 p-6">
       <PageHeader
         title="Organization Structure"
-        description="Plan the organization here during setup, then reuse the same working area later for controlled structural changes. Keep the first pass focused on Unit Name, Unit Type, Parent Unit, and Unit Code."
+        description="Build the draft tree here or import it from the template."
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" onClick={() => handleImportOpenChange(true)}>
+            <Button
+              variant="outline"
+              onClick={() => handleImportOpenChange(true)}
+            >
               <FileSpreadsheet className="size-4" />
               {hasImportSession ? "Resume Import" : "Import from Template"}
             </Button>
@@ -243,12 +250,6 @@ export default function DraftStructurePage() {
         </Alert>
       )}
 
-      <Alert>
-        <Info className="h-4 w-4" />
-        <AlertTitle>{lifecycleMessage.title}</AlertTitle>
-        <AlertDescription>{lifecycleMessage.description}</AlertDescription>
-      </Alert>
-
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader>
@@ -258,8 +259,7 @@ export default function DraftStructurePage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground">
-            Review imports, refine the hierarchy, and replace the working plan
-            here before later approval and publication.
+            Build and review the draft here.
           </CardContent>
         </Card>
         <Card>
@@ -279,16 +279,42 @@ export default function DraftStructurePage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground">
-            The tree stays inside Setup and never touches the live organization.
+            Draft only.
           </CardContent>
         </Card>
         <Card>
           <CardHeader>
             <CardDescription>Unit types available</CardDescription>
-            <CardTitle>{workspace?.draftStructureSchema.orgUnitKinds.length ?? 0}</CardTitle>
+            <CardTitle>
+              {workspace?.draftStructureSchema.orgUnitKinds.length ?? 0}
+            </CardTitle>
           </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
-            Attributes: {workspace?.draftStructureSchema.attributes.length ?? 0}
+          <CardContent className="space-y-3 text-sm text-muted-foreground">
+            <p>
+              Attributes:{" "}
+              {workspace?.draftStructureSchema.attributes.length ?? 0}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {visibleUnitTypes.map((kind) => (
+                <Badge key={kind.key} variant="secondary">
+                  {kind.displayLabel}
+                </Badge>
+              ))}
+              {remainingUnitTypeCount > 0 ? (
+                <Badge variant="outline">+{remainingUnitTypeCount} more</Badge>
+              ) : null}
+            </div>
+            <DraftOrgUnitKindManager
+              schema={
+                workspace?.draftStructureSchema ?? {
+                  orgUnitKinds: [],
+                  attributes: [],
+                }
+              }
+              existingUnits={workspace?.units ?? []}
+              onSchemaUpdated={refreshWorkspace}
+              disabled={!workspace}
+            />
           </CardContent>
         </Card>
       </div>
@@ -300,8 +326,7 @@ export default function DraftStructurePage() {
               <div>
                 <p className="text-sm font-medium">Structure tree</p>
                 <p className="text-sm text-muted-foreground">
-                  Search the planned hierarchy, select a unit, then use the side
-                  panel to inspect or edit its details.
+                  Search, review, and edit the draft tree.
                 </p>
               </div>
               <Input
@@ -313,12 +338,8 @@ export default function DraftStructurePage() {
             </div>
           </div>
 
-          {isTreeLoading && !tree ? (
-            <Card className="xl:h-full">
-              <CardContent className="p-6 text-sm text-muted-foreground xl:flex xl:h-full xl:items-center">
-                Loading structure tree...
-              </CardContent>
-            </Card>
+          {showTreeSkeleton ? (
+            <DraftStructureTreeSkeleton />
           ) : (
             <div className="min-h-0">
               <DraftStructureTree
@@ -342,28 +363,46 @@ export default function DraftStructurePage() {
         </div>
 
         <Card className="overflow-hidden xl:sticky xl:top-6 xl:max-h-[calc(100vh-3rem)]">
-          {selectedUnit && selectedTreeNode ? (
+          {showTreeSkeleton ? (
+            <DraftStructureDetailSkeleton />
+          ) : selectedUnit && selectedTreeNode ? (
             <div className="flex min-h-136 flex-col xl:min-h-0 xl:h-full">
               <CardHeader className="shrink-0 border-b">
                 <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="secondary">{selectedUnit.orgUnitKindLabel}</Badge>
-                  {selectedTreeNode.isOrphaned ? <Badge variant="outline">Parent missing</Badge> : null}
+                  <Badge variant="secondary">
+                    {selectedUnit.orgUnitKindLabel}
+                  </Badge>
+                  {selectedTreeNode.isOrphaned ? (
+                    <Badge variant="outline">Parent missing</Badge>
+                  ) : null}
                 </div>
-                <CardTitle className="mt-2">{selectedUnit.displayName}</CardTitle>
+                <CardTitle className="mt-2">
+                  {selectedUnit.displayName}
+                </CardTitle>
                 <CardDescription>
-                  Review the main hierarchy fields first, then use the optional
-                  section for lower-priority details. The action bar stays in
-                  view while you browse longer units.
+                  Review the main fields here, then edit or add a child.
                 </CardDescription>
               </CardHeader>
               <CardContent className="min-h-0 flex-1 space-y-6 overflow-y-auto p-6">
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <SummaryField label="Unit Name" value={selectedUnit.displayName} />
-                  <SummaryField label="Unit Type" value={selectedUnit.orgUnitKindLabel} />
-                  <SummaryField label="Unit Code" value={selectedUnit.referenceKey} mono />
+                  <SummaryField
+                    label="Unit Name"
+                    value={selectedUnit.displayName}
+                  />
+                  <SummaryField
+                    label="Unit Type"
+                    value={selectedUnit.orgUnitKindLabel}
+                  />
+                  <SummaryField
+                    label="Unit Code"
+                    value={selectedUnit.referenceKey}
+                    mono
+                  />
                   <SummaryField
                     label="Parent Unit"
-                    value={selectedUnit.parentDisplayName ?? "Organization root"}
+                    value={
+                      selectedUnit.parentDisplayName ?? "Organization root"
+                    }
                   />
                 </div>
 
@@ -392,31 +431,38 @@ export default function DraftStructurePage() {
                   <div className="rounded-xl border p-4">
                     <p className="text-sm font-medium">Additional fields</p>
                     <div className="mt-4 grid gap-3">
-                      {Object.entries(selectedUnit.attributes).map(([key, value]) => (
-                        <SummaryField
-                          key={key}
-                          label={getDraftFieldLabel(
-                            key,
-                            workspace?.draftStructureSchema
-                          )}
-                          value={formatAttributeValue(value)}
-                        />
-                      ))}
+                      {Object.entries(selectedUnit.attributes).map(
+                        ([key, value]) => (
+                          <SummaryField
+                            key={key}
+                            label={getDraftFieldLabel(
+                              key,
+                              workspace?.draftStructureSchema
+                            )}
+                            value={formatAttributeValue(value)}
+                          />
+                        )
+                      )}
                     </div>
                   </div>
                 ) : null}
 
                 <div className="text-xs text-muted-foreground">
-                  Last updated {formatTimestamp(selectedUnit.updatedAt ?? selectedUnit.createdAt)}
+                  Last updated{" "}
+                  {formatTimestamp(
+                    selectedUnit.updatedAt ?? selectedUnit.createdAt
+                  )}
                 </div>
               </CardContent>
-              <div className="shrink-0 border-t bg-background/95 p-4 supports-backdrop-filter:bg-background/85 supports-backdrop-filter:backdrop-blur">
+              <div className="shrink-0 border-t bg-background/95 p-4 pb-0 supports-backdrop-filter:bg-background/85 supports-backdrop-filter:backdrop-blur">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                     Actions
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    <Button onClick={() => setEditorOpen(true)}>Edit unit</Button>
+                    <Button onClick={() => setEditorOpen(true)}>
+                      Edit unit
+                    </Button>
                     <Button
                       variant="outline"
                       onClick={() => {
@@ -472,8 +518,14 @@ export default function DraftStructurePage() {
           setCreateParentId(null);
           refreshWorkspace();
         }}
+        onSchemaUpdated={refreshWorkspace}
         initialParentId={createParentId}
-        schema={workspace?.draftStructureSchema ?? { orgUnitKinds: [], attributes: [] }}
+        schema={
+          workspace?.draftStructureSchema ?? {
+            orgUnitKinds: [],
+            attributes: [],
+          }
+        }
         existingUnits={workspace?.units ?? []}
       />
 
@@ -492,7 +544,13 @@ export default function DraftStructurePage() {
         onMutated={() => {
           refreshWorkspace();
         }}
-        schema={workspace?.draftStructureSchema ?? { orgUnitKinds: [], attributes: [] }}
+        onSchemaUpdated={refreshWorkspace}
+        schema={
+          workspace?.draftStructureSchema ?? {
+            orgUnitKinds: [],
+            attributes: [],
+          }
+        }
         existingUnits={workspace?.units ?? []}
       />
     </div>
@@ -513,7 +571,9 @@ function SummaryField({
       <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
         {label}
       </p>
-      <p className={mono ? "mt-1 font-mono text-sm" : "mt-1 text-sm"}>{value}</p>
+      <p className={mono ? "mt-1 font-mono text-sm" : "mt-1 text-sm"}>
+        {value}
+      </p>
     </div>
   );
 }
@@ -532,4 +592,127 @@ function formatAttributeValue(value: unknown): string {
   }
 
   return JSON.stringify(value);
+}
+
+function DraftStructurePageSkeleton({
+  hasImportSession,
+}: {
+  hasImportSession: boolean;
+}) {
+  return (
+    <div className="flex flex-col gap-6 p-6">
+      <PageHeader
+        title="Organization Structure"
+        description="Build the draft tree here or import it from the template."
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" disabled>
+              <FileSpreadsheet className="size-4" />
+              {hasImportSession ? "Resume Import" : "Import from Template"}
+            </Button>
+            <Button disabled>
+              <Plus className="size-4" />
+              Add Top-Level Unit
+            </Button>
+          </div>
+        }
+      />
+
+      <div className="grid gap-4 md:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <Card key={index}>
+            <CardHeader>
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-7 w-32" />
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-4 w-full" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(22rem,0.8fr)] xl:items-start">
+        <div className="grid gap-4 xl:min-h-184 xl:grid-rows-[auto_minmax(0,1fr)]">
+          <div className="rounded-xl border p-4">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div className="space-y-2">
+                <Skeleton className="h-5 w-32" />
+                <Skeleton className="h-4 w-44" />
+              </div>
+              <Skeleton className="h-10 w-full md:max-w-sm" />
+            </div>
+          </div>
+
+          <DraftStructureTreeSkeleton />
+        </div>
+
+        <Card className="overflow-hidden xl:sticky xl:top-6 xl:max-h-[calc(100vh-3rem)]">
+          <DraftStructureDetailSkeleton />
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+
+function DraftStructureTreeSkeleton() {
+  return (
+    <Card className="xl:h-full">
+      <CardContent className="space-y-4 p-6">
+        <Skeleton className="h-8 w-40" />
+        {Array.from({ length: 8 }).map((_, index) => (
+          <Skeleton
+            key={index}
+            className={`h-10 ${index % 3 === 0 ? "w-11/12" : index % 3 === 1 ? "w-10/12" : "w-full"}`}
+          />
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
+function DraftStructureDetailSkeleton() {
+  return (
+    <div className="flex min-h-136 flex-col xl:min-h-0 xl:h-full">
+      <CardHeader className="shrink-0 border-b space-y-3">
+        <div className="flex gap-2">
+          <Skeleton className="h-6 w-24 rounded-full" />
+          <Skeleton className="h-6 w-28 rounded-full" />
+        </div>
+        <Skeleton className="h-8 w-2/3" />
+        <Skeleton className="h-4 w-full" />
+      </CardHeader>
+      <CardContent className="min-h-0 flex-1 space-y-6 overflow-y-auto p-6">
+        <div className="grid gap-3 sm:grid-cols-2">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div key={index} className="rounded-xl border bg-background p-3 space-y-2">
+              <Skeleton className="h-3 w-20" />
+              <Skeleton className="h-5 w-32" />
+            </div>
+          ))}
+        </div>
+
+        <div className="rounded-xl border bg-muted/20 p-4 space-y-4">
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-28" />
+            <Skeleton className="h-4 w-40" />
+          </div>
+          <div className="grid gap-3">
+            <Skeleton className="h-14 w-full" />
+            <Skeleton className="h-14 w-full" />
+          </div>
+        </div>
+      </CardContent>
+      <div className="shrink-0 border-t bg-background/95 p-4 pb-0">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Skeleton className="h-4 w-16" />
+          <div className="flex flex-wrap gap-2">
+            <Skeleton className="h-10 w-24" />
+            <Skeleton className="h-10 w-32" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }

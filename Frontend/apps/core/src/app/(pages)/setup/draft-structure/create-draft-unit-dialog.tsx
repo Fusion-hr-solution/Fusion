@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import type {
   CreateDraftOrgUnitRequest,
@@ -31,11 +31,13 @@ import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import type { DraftOrgUnitFormValues } from "./draft-structure-form-utils";
 import {
+  buildDraftOrgUnitKindKey,
   createDraftOrgUnitFormValues,
   DraftStructureAttributeFields,
   formatUnitOptionLabel,
   sanitizeDraftAttributes,
 } from "./draft-structure-form-utils";
+import { DraftOrgUnitKindManager } from "./draft-org-unit-kind-manager";
 import { useCreateDraftOrgUnit } from "./use-draft-structure";
 
 const ROOT_VALUE = "__root__";
@@ -44,6 +46,7 @@ interface CreateDraftUnitDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCreated: () => void;
+  onSchemaUpdated?: () => void;
   schema: DraftStructureSchemaDto;
   existingUnits: DraftOrgUnitDto[];
   initialParentId?: string | null;
@@ -63,11 +66,15 @@ export function CreateDraftUnitDialog({
   open,
   onOpenChange,
   onCreated,
+  onSchemaUpdated,
   schema,
   existingUnits,
   initialParentId,
 }: CreateDraftUnitDialogProps) {
   const [serverError, setServerError] = useState<string | null>(null);
+  const [editableSchema, setEditableSchema] = useState(schema);
+  const schemaRef = useRef(schema);
+  const editableSchemaRef = useRef(editableSchema);
 
   const {
     register,
@@ -75,6 +82,7 @@ export function CreateDraftUnitDialog({
     control,
     watch,
     reset,
+    setValue,
     formState: { errors },
   } = useForm<DraftOrgUnitFormValues>({
     defaultValues: buildDefaultValues(schema, initialParentId),
@@ -83,8 +91,27 @@ export function CreateDraftUnitDialog({
   const selectedKindKey = watch("orgUnitKindKey");
 
   useEffect(() => {
-    reset(buildDefaultValues(schema, initialParentId));
-  }, [initialParentId, open, reset, schema]);
+    schemaRef.current = schema;
+  }, [schema]);
+
+  useEffect(() => {
+    editableSchemaRef.current = editableSchema;
+  }, [editableSchema]);
+
+  useEffect(() => {
+    if (!open) {
+      setEditableSchema(schema);
+    }
+  }, [open, schema]);
+
+  useEffect(() => {
+    reset(
+      buildDefaultValues(
+        open ? editableSchemaRef.current : schemaRef.current,
+        initialParentId
+      )
+    );
+  }, [initialParentId, open, reset]);
 
   const create = useCreateDraftOrgUnit({
     onSuccess: (data) => {
@@ -107,7 +134,7 @@ export function CreateDraftUnitDialog({
         description: values.description.trim() || null,
         parentId: values.parentId || null,
         attributes: sanitizeDraftAttributes(
-          schema,
+          editableSchema,
           values.orgUnitKindKey,
           values.attributes
         ),
@@ -126,6 +153,7 @@ export function CreateDraftUnitDialog({
   const handleClose = (nextOpen: boolean) => {
     if (!nextOpen) {
       reset(buildDefaultValues(schema, initialParentId));
+      setEditableSchema(schema);
       setServerError(null);
     }
 
@@ -149,7 +177,7 @@ export function CreateDraftUnitDialog({
               <Label htmlFor="draft-reference-key">Unit Code</Label>
               <Input
                 id="draft-reference-key"
-                placeholder="engineering-root"
+                placeholder="ENG"
                 {...register("referenceKey", {
                   required: "Unit code is required",
                   maxLength: { value: 150, message: "Maximum 150 characters" },
@@ -176,7 +204,27 @@ export function CreateDraftUnitDialog({
             </div>
 
             <div className="grid gap-2">
-              <Label>Unit Type</Label>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <Label>Unit Type</Label>
+                <DraftOrgUnitKindManager
+                  schema={editableSchema}
+                  existingUnits={existingUnits}
+                  currentKindKey={selectedKindKey}
+                  onSchemaUpdated={(nextSchema) => {
+                    setEditableSchema(nextSchema);
+                    if (
+                      !nextSchema.orgUnitKinds.some((kind) => kind.key === selectedKindKey)
+                    ) {
+                      setValue(
+                        "orgUnitKindKey",
+                        nextSchema.orgUnitKinds[0]?.key ?? buildDraftOrgUnitKindKey("")
+                      );
+                    }
+                    onSchemaUpdated?.();
+                  }}
+                  triggerVariant="ghost"
+                />
+              </div>
               <Controller
                 control={control}
                 name="orgUnitKindKey"
@@ -187,7 +235,7 @@ export function CreateDraftUnitDialog({
                       <SelectValue placeholder="Select a unit type" />
                     </SelectTrigger>
                     <SelectContent>
-                      {schema.orgUnitKinds.map((kind) => (
+                      {editableSchema.orgUnitKinds.map((kind) => (
                         <SelectItem key={kind.key} value={kind.key}>
                           {kind.displayLabel}
                         </SelectItem>
@@ -271,7 +319,7 @@ export function CreateDraftUnitDialog({
                 </div>
 
                 <DraftStructureAttributeFields
-                  schema={schema}
+                  schema={editableSchema}
                   selectedKindKey={selectedKindKey}
                   control={control}
                   errors={errors}
@@ -284,7 +332,7 @@ export function CreateDraftUnitDialog({
             ) : null}
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="mx-0 mb-0 rounded-none border-t bg-muted/50 px-6 py-4">
             <Button type="submit" disabled={create.isLoading}>
               {create.isLoading ? <Spinner className="mr-1" /> : null}
               Add unit

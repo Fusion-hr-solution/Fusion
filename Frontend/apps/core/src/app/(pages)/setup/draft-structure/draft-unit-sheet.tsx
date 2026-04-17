@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import type { DraftOrgUnitDto, DraftStructureSchemaDto, UpdateDraftOrgUnitRequest } from "@repo/api";
 import { ApiError } from "@repo/api";
@@ -36,6 +36,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "sonner";
+import { DraftOrgUnitKindManager } from "./draft-org-unit-kind-manager";
 import {
   useDeleteDraftOrgUnit,
   useUpdateDraftOrgUnit,
@@ -55,6 +56,7 @@ interface DraftUnitSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onMutated: () => void;
+  onSchemaUpdated?: () => void;
   schema: DraftStructureSchemaDto;
   existingUnits: DraftOrgUnitDto[];
 }
@@ -81,12 +83,17 @@ export function DraftUnitSheet({
   open,
   onOpenChange,
   onMutated,
+  onSchemaUpdated,
   schema,
   existingUnits,
 }: DraftUnitSheetProps) {
   const [serverError, setServerError] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteStrategy, setDeleteStrategy] = useState<string>("");
+  const [editableSchema, setEditableSchema] = useState(schema);
+  const schemaRef = useRef(schema);
+  const editableSchemaRef = useRef(editableSchema);
+  const unitRef = useRef(unit);
 
   const {
     register,
@@ -94,6 +101,7 @@ export function DraftUnitSheet({
     control,
     watch,
     reset,
+    setValue,
     formState: { errors },
   } = useForm<DraftOrgUnitFormValues>({
     defaultValues: createDraftOrgUnitFormValues(schema, unit),
@@ -102,11 +110,34 @@ export function DraftUnitSheet({
   const selectedKindKey = watch("orgUnitKindKey");
 
   useEffect(() => {
-    reset(createDraftOrgUnitFormValues(schema, unit));
+    schemaRef.current = schema;
+  }, [schema]);
+
+  useEffect(() => {
+    editableSchemaRef.current = editableSchema;
+  }, [editableSchema]);
+
+  useEffect(() => {
+    unitRef.current = unit;
+  }, [unit]);
+
+  useEffect(() => {
+    if (!open) {
+      setEditableSchema(schema);
+    }
+  }, [open, schema]);
+
+  useEffect(() => {
+    reset(
+      createDraftOrgUnitFormValues(
+        open ? editableSchemaRef.current : schemaRef.current,
+        unitRef.current
+      )
+    );
     setServerError(null);
     setDeleteOpen(false);
     setDeleteStrategy("");
-  }, [reset, schema, unit]);
+  }, [open, reset, unit?.id, unit?.version]);
 
   const descendantIds = useMemo(
     () => (unit ? getDescendantIds(unit.id, existingUnits) : new Set<string>()),
@@ -160,7 +191,11 @@ export function DraftUnitSheet({
         location: values.location.trim() || null,
         description: values.description.trim() || null,
         parentId: values.parentId || null,
-        attributes: sanitizeDraftAttributes(schema, values.orgUnitKindKey, values.attributes),
+        attributes: sanitizeDraftAttributes(
+          editableSchema,
+          values.orgUnitKindKey,
+          values.attributes
+        ),
       };
 
       await update.mutateAsync({
@@ -252,7 +287,24 @@ export function DraftUnitSheet({
               </div>
 
               <div className="grid gap-2">
-                <Label>Unit Type</Label>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <Label>Unit Type</Label>
+                  <DraftOrgUnitKindManager
+                    schema={editableSchema}
+                    existingUnits={existingUnits}
+                    currentKindKey={selectedKindKey}
+                    onSchemaUpdated={(nextSchema) => {
+                      setEditableSchema(nextSchema);
+                      if (
+                        !nextSchema.orgUnitKinds.some((kind) => kind.key === selectedKindKey)
+                      ) {
+                        setValue("orgUnitKindKey", nextSchema.orgUnitKinds[0]?.key ?? "");
+                      }
+                      onSchemaUpdated?.();
+                    }}
+                    triggerVariant="ghost"
+                  />
+                </div>
                 <Controller
                   control={control}
                   name="orgUnitKindKey"
@@ -263,7 +315,7 @@ export function DraftUnitSheet({
                         <SelectValue placeholder="Select a unit type" />
                       </SelectTrigger>
                       <SelectContent>
-                        {schema.orgUnitKinds.map((kind) => (
+                        {editableSchema.orgUnitKinds.map((kind) => (
                           <SelectItem key={kind.key} value={kind.key}>
                             {kind.displayLabel}
                           </SelectItem>
@@ -346,7 +398,7 @@ export function DraftUnitSheet({
                   </div>
 
                   <DraftStructureAttributeFields
-                    schema={schema}
+                    schema={editableSchema}
                     selectedKindKey={selectedKindKey}
                     control={control}
                     errors={errors}

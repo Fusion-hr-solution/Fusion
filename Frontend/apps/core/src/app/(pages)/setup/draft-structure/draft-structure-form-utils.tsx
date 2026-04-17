@@ -104,6 +104,14 @@ export function formatUnitOptionLabel(unit: DraftOrgUnitDto) {
   return `${unit.displayName} (${unit.referenceKey})`;
 }
 
+export function buildDraftOrgUnitKindKey(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 export function DraftStructureAttributeFields({
   schema,
   selectedKindKey,
