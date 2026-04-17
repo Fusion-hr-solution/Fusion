@@ -28,6 +28,7 @@ export {
   HR_ADMIN_ROLE,
   hasAnyRole,
   canAccessCoreSetup,
+  canSeeCoreSetupNavigation,
 } from "./roles";
 
 // Components

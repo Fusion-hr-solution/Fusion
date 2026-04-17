@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation";
 import { BrainCircuit } from "lucide-react";
 import { AppSidebar } from "@repo/ui";
-import { SidebarUserPanel, useAuth, canAccessCoreSetup } from "@repo/auth";
+import { SidebarUserPanel, useAuth, canSeeCoreSetupNavigation } from "@repo/auth";
 import { PEOPLE_NAV, ADMIN_NAV } from "@/data/sidebar-nav";
 
 export function CoreSidebar() {
@@ -11,7 +11,7 @@ export function CoreSidebar() {
   const activePath = pathname.replace(/^\/core/, "") || "/";
   const { user } = useAuth();
 
-  const sections = canAccessCoreSetup(user)
+  const sections = canSeeCoreSetupNavigation(user)
     ? [PEOPLE_NAV, ADMIN_NAV]
     : [
         PEOPLE_NAV,
