@@ -6,6 +6,7 @@ namespace EY.HRPlatform.CoreHR.Features.TenantSettings.Dtos;
 /// </summary>
 public sealed record UpdateTenantSettingsRequest(
     List<string>? OrgUnitTypes,
+    DraftStructureSchemaDto? DraftStructureSchema,
     Dictionary<string, FieldConfigInput>? EmployeeFieldConfig,
     BrandingSettingsInput? Branding
 );

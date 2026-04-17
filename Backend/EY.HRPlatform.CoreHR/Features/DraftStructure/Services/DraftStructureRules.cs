@@ -34,7 +34,7 @@ public static class DraftStructureRules
             .FirstOrDefaultAsync(cancellationToken);
 
         var mergedSettings = TenantSettingsMerger.Merge(settings?.SettingsOverrides, settings?.Version);
-        return mergedSettings.DraftStructureSchema;
+        return NormalizeDraftStructureSchema(mergedSettings.DraftStructureSchema);
     }
 
     public static async Task<Dictionary<string, string>> GetOrgUnitKindLabelLookupAsync(
@@ -42,7 +42,76 @@ public static class DraftStructureRules
         CancellationToken cancellationToken)
     {
         var schema = await GetDraftStructureSchemaAsync(dbContext, cancellationToken);
-        return schema.OrgUnitKinds.ToDictionary(kind => kind.Key, kind => kind.DisplayLabel, StringComparer.OrdinalIgnoreCase);
+        return CreateOrgUnitKindLabelLookup(schema);
+    }
+
+    public static DraftStructureSchemaDto NormalizeDraftStructureSchema(DraftStructureSchemaDto? schema)
+    {
+        var sourceSchema = schema ?? DraftStructureSchemaDto.Defaults;
+        var orgUnitKinds = sourceSchema.OrgUnitKinds
+            .Where(kind => !string.IsNullOrWhiteSpace(kind.Key))
+            .Select(kind => new OrgUnitKindDto(
+                NormalizeKindKey(kind.Key),
+                string.IsNullOrWhiteSpace(kind.DisplayLabel)
+                    ? kind.Key.Trim()
+                    : kind.DisplayLabel.Trim()))
+            .Where(kind => !string.IsNullOrWhiteSpace(kind.Key) && !string.IsNullOrWhiteSpace(kind.DisplayLabel))
+            .GroupBy(kind => kind.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .ToList();
+
+        if (orgUnitKinds.Count == 0)
+        {
+            orgUnitKinds = DraftStructureSchemaDto.DefaultOrgUnitKinds
+                .Select(kind => new OrgUnitKindDto(kind.Key, kind.DisplayLabel))
+                .ToList();
+        }
+
+        var attributes = sourceSchema.Attributes
+            .Where(attribute =>
+                !string.IsNullOrWhiteSpace(attribute.Key)
+                && !string.IsNullOrWhiteSpace(attribute.DisplayLabel)
+                && !string.IsNullOrWhiteSpace(attribute.ValueType))
+            .Select(attribute => new DraftStructureAttributeDefinitionDto(
+                attribute.Key.Trim(),
+                attribute.DisplayLabel.Trim(),
+                attribute.ValueType.Trim(),
+                attribute.Required,
+                attribute.AppliesToKindKeys?
+                    .Where(kindKey => !string.IsNullOrWhiteSpace(kindKey))
+                    .Select(NormalizeKindKey)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList(),
+                attribute.AllowedValues?
+                    .Where(value => !string.IsNullOrWhiteSpace(value))
+                    .Select(value => value.Trim())
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList()))
+            .GroupBy(attribute => attribute.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .ToList();
+
+        return new DraftStructureSchemaDto
+        {
+            OrgUnitKinds = orgUnitKinds,
+            Attributes = attributes
+        };
+    }
+
+    public static Dictionary<string, string> CreateOrgUnitKindLabelLookup(DraftStructureSchemaDto schema)
+    {
+        var normalizedSchema = NormalizeDraftStructureSchema(schema);
+        var labels = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var kind in normalizedSchema.OrgUnitKinds)
+        {
+            if (labels.ContainsKey(kind.Key))
+                continue;
+
+            labels[kind.Key] = kind.DisplayLabel;
+        }
+
+        return labels;
     }
 
     public static async Task ValidateOrgUnitKindAsync(
@@ -58,12 +127,13 @@ public static class DraftStructureRules
         DraftStructureSchemaDto schema,
         string orgUnitKindKey)
     {
+        var normalizedSchema = NormalizeDraftStructureSchema(schema);
         var normalizedKey = NormalizeKindKey(orgUnitKindKey);
 
-        if (!schema.OrgUnitKinds.Any(kind => kind.Key.Equals(normalizedKey, StringComparison.OrdinalIgnoreCase)))
+        if (!normalizedSchema.OrgUnitKinds.Any(kind => kind.Key.Equals(normalizedKey, StringComparison.OrdinalIgnoreCase)))
         {
             throw new ArgumentException(
-                $"Invalid org unit kind '{orgUnitKindKey}'. Valid kinds are: {string.Join(", ", schema.OrgUnitKinds.Select(kind => kind.DisplayLabel))}");
+                $"Invalid org unit kind '{orgUnitKindKey}'. Valid kinds are: {string.Join(", ", normalizedSchema.OrgUnitKinds.Select(kind => kind.DisplayLabel))}");
         }
     }
 
@@ -85,8 +155,9 @@ public static class DraftStructureRules
         if (attributes is null || attributes.Count == 0)
             return null;
 
+        var normalizedSchema = NormalizeDraftStructureSchema(schema);
         var normalizedKindKey = NormalizeKindKey(orgUnitKindKey);
-        var attributeDefinitions = schema.Attributes.ToDictionary(attribute => attribute.Key, StringComparer.OrdinalIgnoreCase);
+        var attributeDefinitions = CreateAttributeDefinitionLookup(normalizedSchema);
         var normalizedAttributes = new JsonObject();
 
         foreach (var (attributeKey, rawValue) in attributes)
@@ -105,7 +176,7 @@ public static class DraftStructureRules
             normalizedAttributes[attributeDefinition.Key] = NormalizeAttributeValue(attributeDefinition, rawValue);
         }
 
-        foreach (var attributeDefinition in schema.Attributes.Where(attribute => attribute.Required))
+        foreach (var attributeDefinition in normalizedSchema.Attributes.Where(attribute => attribute.Required))
         {
             if (!AttributeAppliesToKind(attributeDefinition, normalizedKindKey))
                 continue;
@@ -173,6 +244,22 @@ public static class DraftStructureRules
         return attributeDefinition.AppliesToKindKeys is not { Count: > 0 }
             || attributeDefinition.AppliesToKindKeys.Any(kind =>
                 kind.Equals(normalizedKindKey, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static Dictionary<string, DraftStructureAttributeDefinitionDto> CreateAttributeDefinitionLookup(
+        DraftStructureSchemaDto schema)
+    {
+        var lookup = new Dictionary<string, DraftStructureAttributeDefinitionDto>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var attribute in schema.Attributes)
+        {
+            if (lookup.ContainsKey(attribute.Key))
+                continue;
+
+            lookup[attribute.Key] = attribute;
+        }
+
+        return lookup;
     }
 
     private static JsonNode? NormalizeAttributeValue(

@@ -51,7 +51,8 @@ public class TenantSettingsController(ISender sender) : ControllerBase
             expectedVersion,
             request.OrgUnitTypes,
             request.EmployeeFieldConfig,
-            request.Branding);
+            request.Branding,
+            request.DraftStructureSchema);
 
         var result = await sender.Send(command, cancellationToken);
 

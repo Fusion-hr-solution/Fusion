@@ -22,8 +22,19 @@ public static class DraftStructureJsonSerializer
         if (string.IsNullOrWhiteSpace(attributesJson))
             return new Dictionary<string, object?>();
 
-        return JsonSerializer.Deserialize<Dictionary<string, object?>>(attributesJson, JsonOptions)
-            ?? new Dictionary<string, object?>();
+        try
+        {
+            return JsonSerializer.Deserialize<Dictionary<string, object?>>(attributesJson, JsonOptions)
+                ?? new Dictionary<string, object?>();
+        }
+        catch (JsonException)
+        {
+            return new Dictionary<string, object?>();
+        }
+        catch (NotSupportedException)
+        {
+            return new Dictionary<string, object?>();
+        }
     }
 
     public static T Deserialize<T>(string? json, T fallback)

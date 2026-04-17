@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using CsvHelper;
 using CsvHelper.Configuration;
 using EY.HRPlatform.CoreHR.Domain.Entities;
@@ -109,10 +110,16 @@ public sealed class DraftStructureImportWorkflowService(
         await DraftStructureRules.EnsureSetupActivatedAsync(dbContext, cancellationToken);
 
         var session = await GetSessionEntityAsync(sessionId, cancellationToken);
-        var schema = await DraftStructureRules.GetDraftStructureSchemaAsync(dbContext, cancellationToken);
-        await MarkExpiredIfNeededAsync(session, cancellationToken);
+        return await ExecuteWithCorruptSessionGuardAsync(
+            session,
+            cancellationToken,
+            async () =>
+            {
+                var schema = await DraftStructureRules.GetDraftStructureSchemaAsync(dbContext, cancellationToken);
+                await MarkExpiredIfNeededAsync(session, cancellationToken);
 
-        return await BuildSessionDtoAsync(session, schema, cancellationToken);
+                return await BuildSessionDtoAsync(session, schema, cancellationToken);
+            });
     }
 
     public async Task<DraftStructureImportSessionDto> SaveMappingAsync(
@@ -125,20 +132,26 @@ public sealed class DraftStructureImportWorkflowService(
         var session = await GetSessionEntityAsync(sessionId, cancellationToken);
         await EnsureSessionCanMutateAsync(session, cancellationToken);
 
-        var persistedSchema = await DraftStructureRules.GetDraftStructureSchemaAsync(dbContext, cancellationToken);
-        var sourceHeaders = ReadSourceHeaders(session);
-        var columnMappings = SanitizeMappings(request.ColumnMappings, sourceHeaders, persistedSchema);
-        var sourceRows = ReadSourceRows(session);
-        var kindResolutions = BuildKindResolutions(sourceRows, columnMappings, persistedSchema, []);
+        return await ExecuteWithCorruptSessionGuardAsync(
+            session,
+            cancellationToken,
+            async () =>
+            {
+                var persistedSchema = await DraftStructureRules.GetDraftStructureSchemaAsync(dbContext, cancellationToken);
+                var sourceHeaders = ReadSourceHeaders(session);
+                var columnMappings = SanitizeMappings(request.ColumnMappings, sourceHeaders, persistedSchema);
+                var sourceRows = ReadSourceRows(session);
+                var kindResolutions = BuildKindResolutions(sourceRows, columnMappings, persistedSchema, []);
 
-        session.SetMapping(
-            DraftStructureJsonSerializer.SerializeObject(columnMappings),
-            kindResolutions.Count == 0 ? null : DraftStructureJsonSerializer.SerializeObject(kindResolutions),
-            kindResolutions.All(IsResolved));
+                session.SetMapping(
+                    DraftStructureJsonSerializer.SerializeObject(columnMappings),
+                    kindResolutions.Count == 0 ? null : DraftStructureJsonSerializer.SerializeObject(kindResolutions),
+                    kindResolutions.All(IsResolved));
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+                await dbContext.SaveChangesAsync(cancellationToken);
 
-        return await BuildSessionDtoAsync(session, persistedSchema, cancellationToken);
+                return await BuildSessionDtoAsync(session, persistedSchema, cancellationToken);
+            });
     }
 
     public async Task<DraftStructureImportSessionDto> ResolveKindsAsync(
@@ -151,21 +164,27 @@ public sealed class DraftStructureImportWorkflowService(
         var session = await GetSessionEntityAsync(sessionId, cancellationToken);
         await EnsureSessionCanMutateAsync(session, cancellationToken);
 
-        var columnMappings = ReadColumnMappings(session);
-        if (!columnMappings.ContainsKey(CanonicalFieldKeys.OrgUnitKindKey))
-            throw new ArgumentException("Map the Unit Type column before resolving unit types.");
+        return await ExecuteWithCorruptSessionGuardAsync(
+            session,
+            cancellationToken,
+            async () =>
+            {
+                var columnMappings = ReadColumnMappings(session);
+                if (!columnMappings.ContainsKey(CanonicalFieldKeys.OrgUnitKindKey))
+                    throw new ArgumentException("Map the Unit Type column before resolving unit types.");
 
-        var persistedSchema = await DraftStructureRules.GetDraftStructureSchemaAsync(dbContext, cancellationToken);
-        var sourceRows = ReadSourceRows(session);
-        var kindResolutions = BuildKindResolutions(sourceRows, columnMappings, persistedSchema, request.KindResolutions);
+                var persistedSchema = await DraftStructureRules.GetDraftStructureSchemaAsync(dbContext, cancellationToken);
+                var sourceRows = ReadSourceRows(session);
+                var kindResolutions = BuildKindResolutions(sourceRows, columnMappings, persistedSchema, request.KindResolutions);
 
-        session.SetKindReconciliations(
-            DraftStructureJsonSerializer.SerializeObject(kindResolutions),
-            kindResolutions.All(IsResolved));
+                session.SetKindReconciliations(
+                    DraftStructureJsonSerializer.SerializeObject(kindResolutions),
+                    kindResolutions.All(IsResolved));
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+                await dbContext.SaveChangesAsync(cancellationToken);
 
-        return await BuildSessionDtoAsync(session, persistedSchema, cancellationToken);
+                return await BuildSessionDtoAsync(session, persistedSchema, cancellationToken);
+            });
     }
 
     public async Task<DraftStructureImportSessionDto> ValidateAsync(Guid sessionId, CancellationToken cancellationToken)
@@ -175,27 +194,33 @@ public sealed class DraftStructureImportWorkflowService(
         var session = await GetSessionEntityAsync(sessionId, cancellationToken);
         await EnsureSessionCanMutateAsync(session, cancellationToken);
 
-        var persistedSchema = await DraftStructureRules.GetDraftStructureSchemaAsync(dbContext, cancellationToken);
-        var columnMappings = ReadColumnMappings(session);
-        EnsureRequiredMappings(columnMappings);
+        return await ExecuteWithCorruptSessionGuardAsync(
+            session,
+            cancellationToken,
+            async () =>
+            {
+                var persistedSchema = await DraftStructureRules.GetDraftStructureSchemaAsync(dbContext, cancellationToken);
+                var columnMappings = ReadColumnMappings(session);
+                EnsureRequiredMappings(columnMappings);
 
-        var sourceRows = ReadSourceRows(session);
-        var kindResolutions = ReadKindResolutions(session);
-        if (kindResolutions.Any() && kindResolutions.Any(resolution => !resolution.IsResolved))
-            throw new ArgumentException("Resolve all unit types before validating.");
+                var sourceRows = ReadSourceRows(session);
+                var kindResolutions = ReadKindResolutions(session);
+                if (kindResolutions.Any() && kindResolutions.Any(resolution => !resolution.IsResolved))
+                    throw new ArgumentException("Resolve all unit types before validating.");
 
-        var effectiveSchema = BuildEffectiveSchema(persistedSchema, kindResolutions);
-        var validation = ValidateRows(sourceRows, columnMappings, effectiveSchema, kindResolutions);
+                var effectiveSchema = BuildEffectiveSchema(persistedSchema, kindResolutions);
+                var validation = ValidateRows(sourceRows, columnMappings, effectiveSchema, kindResolutions);
 
-        session.SetValidationResult(
-            DraftStructureJsonSerializer.SerializeObject(validation.Rows),
-            DraftStructureJsonSerializer.SerializeObject(validation.Issues),
-            ComputeSchemaFingerprint(persistedSchema),
-            await ComputeDraftWatermarkAsync(cancellationToken));
+                session.SetValidationResult(
+                    DraftStructureJsonSerializer.SerializeObject(validation.Rows),
+                    DraftStructureJsonSerializer.SerializeObject(validation.Issues),
+                    ComputeSchemaFingerprint(persistedSchema),
+                    await ComputeDraftWatermarkAsync(cancellationToken));
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+                await dbContext.SaveChangesAsync(cancellationToken);
 
-        return await BuildSessionDtoAsync(session, persistedSchema, cancellationToken);
+                return await BuildSessionDtoAsync(session, persistedSchema, cancellationToken);
+            });
     }
 
     public async Task<DraftStructureImportApplyResultDto> ApplyAsync(Guid sessionId, CancellationToken cancellationToken)
@@ -205,49 +230,72 @@ public sealed class DraftStructureImportWorkflowService(
         var session = await GetSessionEntityAsync(sessionId, cancellationToken);
         await EnsureSessionCanMutateAsync(session, cancellationToken);
 
-        if (session.Stage != DraftStructureImportStage.Validated)
-            throw new ArgumentException("Validate the import before applying it.");
+        return await ExecuteWithCorruptSessionGuardAsync(
+            session,
+            cancellationToken,
+            async () =>
+            {
+                if (session.Stage != DraftStructureImportStage.Validated)
+                    throw new ArgumentException("Validate the import before applying it.");
 
-        var validationIssues = ReadValidationIssues(session);
-        if (validationIssues.Any(issue => issue.Severity.Equals("error", StringComparison.OrdinalIgnoreCase)))
-            throw new ArgumentException("The import contains validation errors. Fix them before applying.");
+                var validationIssues = ReadValidationIssues(session);
+                if (validationIssues.Any(issue => issue.Severity.Equals("error", StringComparison.OrdinalIgnoreCase)))
+                    throw new ArgumentException("The import contains validation errors. Fix them before applying.");
 
-        var persistedSchema = await DraftStructureRules.GetDraftStructureSchemaAsync(dbContext, cancellationToken);
-        var currentSchemaFingerprint = ComputeSchemaFingerprint(persistedSchema);
-        var currentDraftWatermark = await ComputeDraftWatermarkAsync(cancellationToken);
+                var persistedSchema = await DraftStructureRules.GetDraftStructureSchemaAsync(dbContext, cancellationToken);
+                var currentSchemaFingerprint = ComputeSchemaFingerprint(persistedSchema);
+                var currentDraftWatermark = await ComputeDraftWatermarkAsync(cancellationToken);
 
-        if (!session.SchemaFingerprint.Equals(currentSchemaFingerprint, StringComparison.Ordinal)
-            || !session.DraftWatermark.Equals(currentDraftWatermark, StringComparison.Ordinal))
+                if (!session.SchemaFingerprint.Equals(currentSchemaFingerprint, StringComparison.Ordinal)
+                    || !session.DraftWatermark.Equals(currentDraftWatermark, StringComparison.Ordinal))
+                {
+                    throw new ConcurrencyException(nameof(DraftStructureImportSession), session.Id);
+                }
+
+                var kindResolutions = ReadKindResolutions(session);
+                var effectiveSchema = BuildEffectiveSchema(persistedSchema, kindResolutions);
+                var normalizedRows = ReadNormalizedRows(session);
+
+                var useTransaction = !string.Equals(
+                    dbContext.Database.ProviderName,
+                    "Microsoft.EntityFrameworkCore.InMemory",
+                    StringComparison.OrdinalIgnoreCase);
+                await using var transaction = useTransaction
+                    ? await dbContext.Database.BeginTransactionAsync(cancellationToken)
+                    : null;
+
+                await UpsertDraftStructureSchemaAsync(effectiveSchema, cancellationToken);
+                await ReplaceDraftStructureAsync(normalizedRows, cancellationToken);
+
+                session.MarkApplied();
+                await dbContext.SaveChangesAsync(cancellationToken);
+
+                if (transaction is not null)
+                    await transaction.CommitAsync(cancellationToken);
+
+                return new DraftStructureImportApplyResultDto(
+                    session.Id,
+                    normalizedRows.Count,
+                    effectiveSchema,
+                    session.AppliedAt ?? DateTime.UtcNow);
+            });
+    }
+
+    private async Task<T> ExecuteWithCorruptSessionGuardAsync<T>(
+        DraftStructureImportSession session,
+        CancellationToken cancellationToken,
+        Func<Task<T>> action)
+    {
+        try
         {
-            throw new ConcurrencyException(nameof(DraftStructureImportSession), session.Id);
+            return await action();
         }
-
-        var kindResolutions = ReadKindResolutions(session);
-        var effectiveSchema = BuildEffectiveSchema(persistedSchema, kindResolutions);
-        var normalizedRows = ReadNormalizedRows(session);
-
-        var useTransaction = !string.Equals(
-            dbContext.Database.ProviderName,
-            "Microsoft.EntityFrameworkCore.InMemory",
-            StringComparison.OrdinalIgnoreCase);
-        await using var transaction = useTransaction
-            ? await dbContext.Database.BeginTransactionAsync(cancellationToken)
-            : null;
-
-        await UpsertDraftStructureSchemaAsync(effectiveSchema, cancellationToken);
-        await ReplaceDraftStructureAsync(normalizedRows, cancellationToken);
-
-        session.MarkApplied();
-        await dbContext.SaveChangesAsync(cancellationToken);
-
-        if (transaction is not null)
-            await transaction.CommitAsync(cancellationToken);
-
-        return new DraftStructureImportApplyResultDto(
-            session.Id,
-            normalizedRows.Count,
-            effectiveSchema,
-            session.AppliedAt ?? DateTime.UtcNow);
+        catch (CorruptImportSessionException ex)
+        {
+            session.MarkExpired();
+            await dbContext.SaveChangesAsync(cancellationToken);
+            throw new ArgumentException("The saved import session is no longer valid. Upload the file again.", ex);
+        }
     }
 
     private async Task<DraftStructureImportSession> GetSessionEntityAsync(Guid sessionId, CancellationToken cancellationToken)
@@ -782,7 +830,7 @@ public sealed class DraftStructureImportWorkflowService(
             .ToList();
         var normalizedRows = ReadNormalizedRows(session);
         var validationSummary = BuildValidationSummary(sourceRows.Count, validationIssues);
-        var kindLabels = effectiveSchema.OrgUnitKinds.ToDictionary(kind => kind.Key, kind => kind.DisplayLabel, StringComparer.OrdinalIgnoreCase);
+        var kindLabels = DraftStructureRules.CreateOrgUnitKindLabelLookup(effectiveSchema);
 
         return new DraftStructureImportSessionDto(
             session.Id,
@@ -985,40 +1033,57 @@ public sealed class DraftStructureImportWorkflowService(
                 kindResolution.ResolvedDisplayLabel ?? kindResolution.SourceValue));
         }
 
-        return new DraftStructureSchemaDto
-        {
-            OrgUnitKinds = orgUnitKinds
-                .OrderBy(kind => kind.DisplayLabel, StringComparer.OrdinalIgnoreCase)
-                .ToList(),
-            Attributes = persistedSchema.Attributes
-                .Select(attribute => new DraftStructureAttributeDefinitionDto(
-                    attribute.Key,
-                    attribute.DisplayLabel,
-                    attribute.ValueType,
-                    attribute.Required,
-                    attribute.AppliesToKindKeys is null ? null : [.. attribute.AppliesToKindKeys],
-                    attribute.AllowedValues is null ? null : [.. attribute.AllowedValues]))
-                .ToList()
-        };
+        return DraftStructureRules.NormalizeDraftStructureSchema(
+            new DraftStructureSchemaDto
+            {
+                OrgUnitKinds = orgUnitKinds
+                    .OrderBy(kind => kind.DisplayLabel, StringComparer.OrdinalIgnoreCase)
+                    .ToList(),
+                Attributes = persistedSchema.Attributes
+                    .Select(attribute => new DraftStructureAttributeDefinitionDto(
+                        attribute.Key,
+                        attribute.DisplayLabel,
+                        attribute.ValueType,
+                        attribute.Required,
+                        attribute.AppliesToKindKeys is null ? null : [.. attribute.AppliesToKindKeys],
+                        attribute.AllowedValues is null ? null : [.. attribute.AllowedValues]))
+                    .ToList()
+            });
     }
 
     private static IReadOnlyList<string> ReadSourceHeaders(DraftStructureImportSession session)
-        => DraftStructureJsonSerializer.Deserialize(session.SourceHeadersJson, new List<string>());
+        => DeserializeSessionPayload(session.SourceHeadersJson, new List<string>(), "source headers");
 
     private static List<StoredSourceRow> ReadSourceRows(DraftStructureImportSession session)
-        => DraftStructureJsonSerializer.Deserialize(session.SourceRowsJson, new List<StoredSourceRow>());
+        => DeserializeSessionPayload(session.SourceRowsJson, new List<StoredSourceRow>(), "source rows");
 
     private static Dictionary<string, string> ReadColumnMappings(DraftStructureImportSession session)
-        => DraftStructureJsonSerializer.Deserialize(session.MappingJson, new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase));
+        => DeserializeSessionPayload(session.MappingJson, new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase), "column mappings");
 
     private static List<StoredKindResolution> ReadKindResolutions(DraftStructureImportSession session)
-        => DraftStructureJsonSerializer.Deserialize(session.KindReconciliationsJson, new List<StoredKindResolution>());
+        => DeserializeSessionPayload(session.KindReconciliationsJson, new List<StoredKindResolution>(), "kind resolutions");
 
     private static List<StoredNormalizedRow> ReadNormalizedRows(DraftStructureImportSession session)
-        => DraftStructureJsonSerializer.Deserialize(session.NormalizedRowsJson, new List<StoredNormalizedRow>());
+        => DeserializeSessionPayload(session.NormalizedRowsJson, new List<StoredNormalizedRow>(), "normalized rows");
 
     private static List<StoredValidationIssue> ReadValidationIssues(DraftStructureImportSession session)
-        => DraftStructureJsonSerializer.Deserialize(session.ValidationIssuesJson, new List<StoredValidationIssue>());
+        => DeserializeSessionPayload(session.ValidationIssuesJson, new List<StoredValidationIssue>(), "validation issues");
+
+    private static T DeserializeSessionPayload<T>(string? json, T fallback, string payloadName)
+    {
+        try
+        {
+            return DraftStructureJsonSerializer.Deserialize(json, fallback);
+        }
+        catch (JsonException ex)
+        {
+            throw new CorruptImportSessionException(payloadName, ex);
+        }
+        catch (NotSupportedException ex)
+        {
+            throw new CorruptImportSessionException(payloadName, ex);
+        }
+    }
 
     private static string? ReadMappedValue(
         StoredSourceRow row,
@@ -1101,4 +1166,7 @@ public sealed class DraftStructureImportWorkflowService(
     private sealed record ValidationResult(
         List<StoredNormalizedRow> Rows,
         List<StoredValidationIssue> Issues);
+
+    private sealed class CorruptImportSessionException(string payloadName, Exception innerException)
+        : Exception($"Stored import session payload '{payloadName}' is invalid.", innerException);
 }
