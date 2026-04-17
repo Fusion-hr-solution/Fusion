@@ -18,6 +18,14 @@ function isEmbedUrl(url: string): boolean {
   return /youtube\.com|youtu\.be|vimeo\.com|dailymotion\.com|wistia\.com/i.test(url);
 }
 
+function toEmbedUrl(url: string): string {
+  const ytWatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/i);
+  if (ytWatch) return `https://www.youtube.com/embed/${ytWatch[1]}`;
+  const vimeo = url.match(/vimeo\.com\/(\d+)/i);
+  if (vimeo) return `https://player.vimeo.com/video/${vimeo[1]}`;
+  return url;
+}
+
 const BLOCK_TYPE_ICON = {
   Video: Video,
   Pdf: FileText,
@@ -154,11 +162,25 @@ function PreviewBlockView({ block, index }: { block: AdminContentBlock; index: n
       {blockType === "Pdf" && block.contentUri && (
         <div className="space-y-2">
           <div className="overflow-hidden rounded-xl border border-border aspect-[3/4]">
-            <iframe
-              src={resolveAssetUrl(block.contentUri)}
+            <object
+              data={`${resolveAssetUrl(block.contentUri)}#toolbar=1&view=FitH`}
+              type="application/pdf"
               title={block.title ?? "PDF"}
               className="h-full w-full"
-            />
+            >
+              <div className="flex h-full flex-col items-center justify-center gap-3 bg-muted/30 p-6 text-center">
+                <FileText className="h-10 w-10 text-muted-foreground/40" aria-hidden="true" />
+                <p className="text-sm text-muted-foreground">Your browser cannot display this PDF inline.</p>
+                <a
+                  href={resolveAssetUrl(block.contentUri)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
+                >
+                  Open PDF
+                </a>
+              </div>
+            </object>
           </div>
           <a
             href={resolveAssetUrl(block.contentUri)}
@@ -203,7 +225,7 @@ function renderVideoPreview(block: AdminContentBlock) {
     return (
       <div className="overflow-hidden rounded-xl border border-border bg-black aspect-video">
         <iframe
-          src={block.videoUrl}
+          src={toEmbedUrl(block.videoUrl)}
           title={block.title ?? "Video"}
           className="h-full w-full"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -233,22 +255,44 @@ function renderArticleContent(textContent: string) {
     const parsed = JSON.parse(textContent);
     if (Array.isArray(parsed.sections)) {
       return (
-        <article className="prose prose-sm max-w-none space-y-4">
+        <article className="article-content max-w-none space-y-4">
           {(parsed.sections as { label: string; content: string }[]).map((s) => (
             <section key={s.label}>
               <h2 className="text-lg font-semibold text-foreground mb-2">{s.label}</h2>
-              <div dangerouslySetInnerHTML={{ __html: renderMarkdown(s.content) }} />
+              <div
+                className="article-body text-sm leading-relaxed text-foreground/90"
+                dangerouslySetInnerHTML={{ __html: renderMarkdown(s.content) }}
+              />
+            </section>
+          ))}
+        </article>
+      );
+    }
+    if (parsed.sections && typeof parsed.sections === "object") {
+      const entries = Object.entries(parsed.sections) as [string, string][];
+      return (
+        <article className="article-content max-w-none space-y-4">
+          {entries.map(([label, content]) => (
+            <section key={label}>
+              <h2 className="text-lg font-semibold text-foreground mb-2">{label}</h2>
+              <div
+                className="article-body text-sm leading-relaxed text-foreground/90"
+                dangerouslySetInnerHTML={{ __html: renderMarkdown(String(content)) }}
+              />
             </section>
           ))}
         </article>
       );
     }
   } catch {
-    // Not JSON — fall through
+    // Not JSON — fall through to markdown rendering
   }
   return (
-    <article className="prose prose-sm max-w-none">
-      <div dangerouslySetInnerHTML={{ __html: renderMarkdown(textContent) }} />
+    <article className="article-content max-w-none">
+      <div
+        className="article-body text-sm leading-relaxed text-foreground/90"
+        dangerouslySetInnerHTML={{ __html: renderMarkdown(textContent) }}
+      />
     </article>
   );
 }

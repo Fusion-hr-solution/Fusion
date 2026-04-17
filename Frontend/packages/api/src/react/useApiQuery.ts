@@ -17,7 +17,7 @@ export function useApiQuery<T>(
 ): UseApiQueryResult<T> {
   const [data, setData] = useState<T | undefined>(undefined);
   const [error, setError] = useState<Error | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(() => (options?.enabled ?? true));
   const controllerRef = useRef<AbortController | null>(null);
   const queryFnRef = useRef(queryFn);
   queryFnRef.current = queryFn;

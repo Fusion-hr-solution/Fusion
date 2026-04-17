@@ -217,10 +217,9 @@ export async function getChapterContent(
   trainingId: string,
   chapterId: string,
 ): Promise<ChapterContent> {
-  const data = await client.get<{ data: BackendChapterContentDto }>(
+  const dto = await client.get<BackendChapterContentDto>(
     `/training/my-trainings/${encodeURIComponent(trainingId)}/chapters/${encodeURIComponent(chapterId)}`,
   );
-  const dto = data.data;
   return {
     id: dto.id,
     title: dto.title,

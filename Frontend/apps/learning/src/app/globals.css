@@ -218,4 +218,48 @@
     background-size: 40px 40px;
     background-position: 0 0, 0 20px, 20px -20px, 20px 0;
   }
+
+  /* ── Article body typography (replaces @tailwindcss/typography prose) ── */
+  .article-body h1 {
+    @apply text-xl font-bold text-foreground mt-6 mb-3;
+  }
+  .article-body h2 {
+    @apply text-lg font-semibold text-foreground mt-5 mb-2;
+  }
+  .article-body h3 {
+    @apply text-base font-semibold text-foreground mt-4 mb-2;
+  }
+  .article-body p {
+    @apply mb-3 leading-relaxed;
+  }
+  .article-body strong {
+    @apply font-semibold text-foreground;
+  }
+  .article-body em {
+    @apply italic;
+  }
+  .article-body ul {
+    @apply list-disc pl-5 mb-3 space-y-1;
+  }
+  .article-body ol {
+    @apply list-decimal pl-5 mb-3 space-y-1;
+  }
+  .article-body li {
+    @apply leading-relaxed;
+  }
+  .article-body a {
+    @apply text-[hsl(var(--ey-blue-500))] underline hover:text-[hsl(var(--ey-blue-600))];
+  }
+  .article-body blockquote {
+    @apply border-l-4 border-border pl-4 italic text-muted-foreground my-4;
+  }
+  .article-body code {
+    @apply bg-muted px-1.5 py-0.5 rounded text-sm font-mono;
+  }
+  .article-body pre {
+    @apply bg-muted rounded-lg p-4 overflow-x-auto mb-4;
+  }
+  .article-body hr {
+    @apply border-border my-6;
+  }
 }
