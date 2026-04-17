@@ -4,15 +4,23 @@ namespace EY.HRPlatform.CoreHR.Features.DraftStructure.Dtos;
 
 public sealed record UpdateDraftOrgUnitRequest(
     [Required]
-    [StringLength(50, MinimumLength = 1)]
-    string Code,
+    [StringLength(150, MinimumLength = 1)]
+    string ReferenceKey,
 
     [Required]
     [StringLength(200, MinimumLength = 1)]
-    string Name,
+    string DisplayName,
 
     [Required]
     [StringLength(100, MinimumLength = 1)]
-    string Type,
+    string OrgUnitKindKey,
 
-    Guid? ParentId);
+    [StringLength(100)]
+    string? BusinessCode,
+
+    [StringLength(500)]
+    string? Description,
+
+    Guid? ParentId,
+
+    Dictionary<string, object?>? Attributes = null);

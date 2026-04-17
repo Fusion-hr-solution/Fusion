@@ -12,11 +12,28 @@ export type { CoreSetupPhase, TenantSetupStateDto } from "./core-setup";
 export { coreSetupPaths } from "./core-setup";
 export type {
   DraftStructureWorkspaceStatus,
+  DraftStructureAttributeValueType,
+  DraftStructureImportStage,
+  OrgUnitKindDto,
+  DraftStructureAttributeDefinitionDto,
+  DraftStructureSchemaDto,
   DraftOrgUnitDto,
   DraftOrgUnitTreeNodeDto,
   DraftStructureWorkspaceDto,
   CreateDraftOrgUnitRequest,
   UpdateDraftOrgUnitRequest,
+  DraftStructureImportCanonicalFieldDto,
+  DraftStructureImportSchemaDto,
+  DraftStructureImportSourceRowDto,
+  DraftStructureImportKindResolutionDto,
+  DraftStructureImportValidationIssueDto,
+  DraftStructureImportValidationSummaryDto,
+  DraftStructureImportPreviewRowDto,
+  DraftStructureImportSessionDto,
+  DraftStructureImportMappingRequest,
+  DraftStructureImportResolveKindInputDto,
+  DraftStructureImportResolveKindsRequest,
+  DraftStructureImportApplyResultDto,
 } from "./draft-structure";
 export { draftStructurePaths } from "./draft-structure";
 export type {

@@ -28,13 +28,72 @@ public static class TenantSettingsMerger
             return TenantSettingsDto.Defaults with { Version = version };
 
         var defaults = TenantSettingsDto.Defaults;
+        var draftStructureSchema = overrides.DraftStructureSchema is not null
+            ? MergeDraftStructureSchema(defaults.DraftStructureSchema, overrides.DraftStructureSchema)
+            : overrides.OrgUnitTypes is not null
+                ? ConvertLegacyOrgUnitTypes(overrides.OrgUnitTypes)
+                : defaults.DraftStructureSchema;
 
         return new TenantSettingsDto
         {
             Version = version,
-            OrgUnitTypes = overrides.OrgUnitTypes ?? defaults.OrgUnitTypes,
+            DraftStructureSchema = draftStructureSchema,
             EmployeeFieldConfig = MergeFieldConfig(defaults.EmployeeFieldConfig, overrides.EmployeeFieldConfig),
             Branding = MergeBranding(defaults.Branding, overrides.Branding)
+        };
+    }
+
+    private static DraftStructureSchemaDto MergeDraftStructureSchema(
+        DraftStructureSchemaDto defaults,
+        DraftStructureSchemaOverrides overrides)
+    {
+        var kinds = overrides.OrgUnitKinds is { Count: > 0 }
+            ? overrides.OrgUnitKinds
+                .Where(kind => !string.IsNullOrWhiteSpace(kind.Key) && !string.IsNullOrWhiteSpace(kind.DisplayLabel))
+                .Select(kind => new OrgUnitKindDto(NormalizeKey(kind.Key), kind.DisplayLabel.Trim()))
+                .GroupBy(kind => kind.Key, StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.First())
+                .ToList()
+            : defaults.OrgUnitKinds;
+
+        var attributes = overrides.Attributes is { Count: > 0 }
+            ? overrides.Attributes
+                .Where(attribute =>
+                    !string.IsNullOrWhiteSpace(attribute.Key) &&
+                    !string.IsNullOrWhiteSpace(attribute.DisplayLabel) &&
+                    !string.IsNullOrWhiteSpace(attribute.ValueType))
+                .Select(attribute => new DraftStructureAttributeDefinitionDto(
+                    NormalizeKey(attribute.Key),
+                    attribute.DisplayLabel.Trim(),
+                    attribute.ValueType.Trim(),
+                    attribute.Required ?? false,
+                    attribute.AppliesToKindKeys?.Select(NormalizeKey).Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
+                    attribute.AllowedValues?.Where(value => !string.IsNullOrWhiteSpace(value)).Select(value => value.Trim()).ToList()))
+                .GroupBy(attribute => attribute.Key, StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.First())
+                .ToList()
+            : defaults.Attributes;
+
+        return new DraftStructureSchemaDto
+        {
+            OrgUnitKinds = kinds,
+            Attributes = attributes
+        };
+    }
+
+    private static DraftStructureSchemaDto ConvertLegacyOrgUnitTypes(List<string> orgUnitTypes)
+    {
+        var kinds = orgUnitTypes
+            .Where(type => !string.IsNullOrWhiteSpace(type))
+            .Select(type => new OrgUnitKindDto(NormalizeKey(type), type.Trim()))
+            .GroupBy(type => type.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .ToList();
+
+        return new DraftStructureSchemaDto
+        {
+            OrgUnitKinds = kinds.Count == 0 ? DraftStructureSchemaDto.DefaultOrgUnitKinds : kinds,
+            Attributes = []
         };
     }
 
@@ -80,8 +139,31 @@ public static class TenantSettingsMerger
     private sealed record TenantSettingsOverrides
     {
         public List<string>? OrgUnitTypes { get; init; }
+        public DraftStructureSchemaOverrides? DraftStructureSchema { get; init; }
         public Dictionary<string, FieldConfigOverrides>? EmployeeFieldConfig { get; init; }
         public BrandingSettingsOverrides? Branding { get; init; }
+    }
+
+    private sealed record DraftStructureSchemaOverrides
+    {
+        public List<OrgUnitKindOverrides>? OrgUnitKinds { get; init; }
+        public List<DraftStructureAttributeDefinitionOverrides>? Attributes { get; init; }
+    }
+
+    private sealed record OrgUnitKindOverrides
+    {
+        public string Key { get; init; } = string.Empty;
+        public string DisplayLabel { get; init; } = string.Empty;
+    }
+
+    private sealed record DraftStructureAttributeDefinitionOverrides
+    {
+        public string Key { get; init; } = string.Empty;
+        public string DisplayLabel { get; init; } = string.Empty;
+        public string ValueType { get; init; } = string.Empty;
+        public bool? Required { get; init; }
+        public List<string>? AppliesToKindKeys { get; init; }
+        public List<string>? AllowedValues { get; init; }
     }
 
     private sealed record FieldConfigOverrides
@@ -96,5 +178,30 @@ public static class TenantSettingsMerger
     {
         public string? LogoUrl { get; init; }
         public string? PrimaryColor { get; init; }
+    }
+
+    private static string NormalizeKey(string value)
+    {
+        var trimmed = value.Trim().ToLowerInvariant();
+        var buffer = new System.Text.StringBuilder(trimmed.Length);
+        var previousWasSeparator = false;
+
+        foreach (var character in trimmed)
+        {
+            if (char.IsLetterOrDigit(character))
+            {
+                buffer.Append(character);
+                previousWasSeparator = false;
+                continue;
+            }
+
+            if (previousWasSeparator)
+                continue;
+
+            buffer.Append('-');
+            previousWasSeparator = true;
+        }
+
+        return buffer.ToString().Trim('-');
     }
 }

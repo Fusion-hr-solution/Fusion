@@ -15,6 +15,7 @@ public sealed class GetDraftOrgUnitTreeQueryHandler(
         CancellationToken cancellationToken)
     {
         await DraftStructureRules.EnsureSetupActivatedAsync(dbContext, cancellationToken);
+        var kindLabels = await DraftStructureRules.GetOrgUnitKindLabelLookupAsync(dbContext, cancellationToken);
 
         var allUnits = await dbContext.DraftOrgUnits
             .AsNoTracking()
@@ -49,19 +50,20 @@ public sealed class GetDraftOrgUnitTreeQueryHandler(
 
             return new List<DraftOrgUnitTreeNodeDto>
             {
-                BuildTreeNode(rootOrgUnit, childrenMap, 0, request.MaxDepth, false)
+                BuildTreeNode(rootOrgUnit, childrenMap, kindLabels, 0, request.MaxDepth, false)
             };
         }
 
         return roots
-            .Select(r => BuildTreeNode(r.OrgUnit, childrenMap, 0, request.MaxDepth, r.IsOrphaned))
-            .OrderBy(n => n.Name)
+            .Select(r => BuildTreeNode(r.OrgUnit, childrenMap, kindLabels, 0, request.MaxDepth, r.IsOrphaned))
+            .OrderBy(n => n.DisplayName)
             .ToList();
     }
 
     private static DraftOrgUnitTreeNodeDto BuildTreeNode(
         DraftOrgUnit orgUnit,
         Dictionary<Guid, List<DraftOrgUnit>> childrenMap,
+        Dictionary<string, string> kindLabels,
         int currentLevel,
         int maxDepth,
         bool isOrphaned)
@@ -71,16 +73,20 @@ public sealed class GetDraftOrgUnitTreeQueryHandler(
         if (currentLevel < maxDepth && childrenMap.TryGetValue(orgUnit.Id, out var childOrgUnits))
         {
             children = childOrgUnits
-                .Select(child => BuildTreeNode(child, childrenMap, currentLevel + 1, maxDepth, false))
-                .OrderBy(c => c.Name)
+                .Select(child => BuildTreeNode(child, childrenMap, kindLabels, currentLevel + 1, maxDepth, false))
+                .OrderBy(c => c.DisplayName)
                 .ToList();
         }
 
         return new DraftOrgUnitTreeNodeDto(
             orgUnit.Id,
-            orgUnit.Code,
-            orgUnit.Name,
-            orgUnit.Type,
+            orgUnit.ReferenceKey,
+            orgUnit.DisplayName,
+            orgUnit.OrgUnitKindKey,
+            kindLabels.TryGetValue(orgUnit.OrgUnitKindKey, out var orgUnitKindLabel)
+                ? orgUnitKindLabel
+                : orgUnit.OrgUnitKindKey,
+            orgUnit.BusinessCode,
             currentLevel,
             isOrphaned,
             children);

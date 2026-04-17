@@ -5,7 +5,10 @@ using EY.HRPlatform.SharedKernel.Results;
 namespace EY.HRPlatform.CoreHR.Features.DraftStructure.Commands.CreateDraftOrgUnit;
 
 public sealed record CreateDraftOrgUnitCommand(
-    string Code,
-    string Name,
-    string Type,
-    Guid? ParentId) : ICommand<Result<DraftOrgUnitDto>>;
+    string ReferenceKey,
+    string DisplayName,
+    string OrgUnitKindKey,
+    string? BusinessCode,
+    string? Description,
+    Guid? ParentId,
+    Dictionary<string, object?>? Attributes) : ICommand<Result<DraftOrgUnitDto>>;

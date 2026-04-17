@@ -22,27 +22,25 @@ public sealed class CreateDraftOrgUnitCommandHandler(
         CancellationToken cancellationToken)
     {
         await DraftStructureRules.EnsureSetupActivatedAsync(dbContext, cancellationToken);
+        var schema = await DraftStructureRules.GetDraftStructureSchemaAsync(dbContext, cancellationToken);
 
         var tenantId = tenantContext.TenantId;
-        var normalizedCode = request.Code.Trim().ToUpperInvariant();
-        var normalizedName = request.Name.Trim();
+        var normalizedReferenceKey = DraftStructureRules.NormalizeReferenceKey(request.ReferenceKey);
 
-        await DraftStructureRules.ValidateTypeAsync(dbContext, request.Type, cancellationToken);
+        await DraftStructureRules.ValidateOrgUnitKindAsync(dbContext, request.OrgUnitKindKey, cancellationToken);
 
-        var codeExists = await dbContext.DraftOrgUnits
-            .AnyAsync(o => o.Code == normalizedCode, cancellationToken);
+        var attributesJson = await DraftStructureRules.ValidateAndNormalizeAttributesAsync(
+            dbContext,
+            request.OrgUnitKindKey,
+            request.Attributes,
+            cancellationToken);
 
-        if (codeExists)
+        var referenceKeyExists = await dbContext.DraftOrgUnits
+            .AnyAsync(o => o.NormalizedReferenceKey == normalizedReferenceKey, cancellationToken);
+
+        if (referenceKeyExists)
         {
-            throw new DuplicateEntityException(StructureItem, "code", normalizedCode);
-        }
-
-        var nameExists = await dbContext.DraftOrgUnits
-            .AnyAsync(o => o.Name == normalizedName, cancellationToken);
-
-        if (nameExists)
-        {
-            throw new DuplicateEntityException(StructureItem, "name", normalizedName);
+            throw new DuplicateEntityException(StructureItem, "referenceKey", request.ReferenceKey.Trim());
         }
 
         DraftOrgUnit? parent = null;
@@ -59,9 +57,12 @@ public sealed class CreateDraftOrgUnitCommandHandler(
 
         var draftOrgUnit = DraftOrgUnit.Create(
             tenantId,
-            request.Code,
-            request.Name,
-            request.Type,
+            request.ReferenceKey,
+            request.DisplayName,
+            request.OrgUnitKindKey,
+            request.BusinessCode,
+            request.Description,
+            attributesJson,
             request.ParentId);
 
         dbContext.DraftOrgUnits.Add(draftOrgUnit);
@@ -72,14 +73,9 @@ public sealed class CreateDraftOrgUnitCommandHandler(
         }
         catch (DbUpdateException ex) when (DraftStructureRules.IsUniqueConstraintViolation(ex))
         {
-            if (ex.InnerException?.Message.Contains("Code") == true)
-            {
-                throw new DuplicateEntityException(StructureItem, "code", normalizedCode);
-            }
-
-            throw new DuplicateEntityException(StructureItem, "name", normalizedName);
+            throw new DuplicateEntityException(StructureItem, "referenceKey", request.ReferenceKey.Trim());
         }
 
-        return Result.Success(DraftStructureMapper.ToDto(draftOrgUnit, parent?.Name));
+        return Result.Success(DraftStructureMapper.ToDto(draftOrgUnit, schema, parent));
     }
 }

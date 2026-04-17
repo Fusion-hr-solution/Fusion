@@ -1,3 +1,4 @@
+using EY.HRPlatform.CoreHR.Domain.Entities;
 using EY.HRPlatform.CoreHR.Exceptions;
 using EY.HRPlatform.CoreHR.Features.DraftStructure.Dtos;
 using EY.HRPlatform.CoreHR.Features.DraftStructure.Services;
@@ -17,6 +18,7 @@ public sealed class GetDraftOrgUnitByIdQueryHandler(
         CancellationToken cancellationToken)
     {
         await DraftStructureRules.EnsureSetupActivatedAsync(dbContext, cancellationToken);
+        var schema = await DraftStructureRules.GetDraftStructureSchemaAsync(dbContext, cancellationToken);
 
         var draftOrgUnit = await dbContext.DraftOrgUnits
             .AsNoTracking()
@@ -27,15 +29,15 @@ public sealed class GetDraftOrgUnitByIdQueryHandler(
             throw new EntityNotFoundException(StructureItem, request.Id);
         }
 
-        string? parentName = null;
+        DraftOrgUnit? parent = null;
         if (draftOrgUnit.ParentId.HasValue)
         {
-            parentName = await dbContext.DraftOrgUnits
+            parent = await dbContext.DraftOrgUnits
                 .Where(o => o.Id == draftOrgUnit.ParentId.Value)
-                .Select(o => o.Name)
+                .Select(o => o)
                 .FirstOrDefaultAsync(cancellationToken);
         }
 
-        return DraftStructureMapper.ToDto(draftOrgUnit, parentName);
+        return DraftStructureMapper.ToDto(draftOrgUnit, schema, parent);
     }
 }

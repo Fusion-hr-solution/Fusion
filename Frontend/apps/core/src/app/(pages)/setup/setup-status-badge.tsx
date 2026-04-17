@@ -21,25 +21,25 @@ const STATUS_CONFIG: Record<
     className: "bg-muted text-muted-foreground",
   },
   activated: {
-    label: "Activated",
+    label: "In Progress",
     icon: Flag,
     className:
       "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
   },
   structurallyGoverned: {
-    label: "Governed",
+    label: "Structure Approved",
     icon: ShieldCheck,
     className:
       "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
   },
   structurallyPublished: {
-    label: "Published",
+    label: "Published To Live",
     icon: CheckCircle2,
     className:
       "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
   },
   operational: {
-    label: "Operational",
+    label: "Live",
     icon: Rocket,
     className:
       "bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-400",

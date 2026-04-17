@@ -2,8 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import type { CreateDraftOrgUnitRequest, DraftOrgUnitDto } from "@repo/api";
+import type {
+  CreateDraftOrgUnitRequest,
+  DraftOrgUnitDto,
+  DraftStructureSchemaDto,
+} from "@repo/api";
 import { ApiError } from "@repo/api";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -12,7 +18,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -23,7 +28,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
-import { toast } from "sonner";
+import { Textarea } from "@/components/ui/textarea";
+import type { DraftOrgUnitFormValues } from "./draft-structure-form-utils";
+import {
+  createDraftOrgUnitFormValues,
+  DraftStructureAttributeFields,
+  formatUnitOptionLabel,
+  sanitizeDraftAttributes,
+} from "./draft-structure-form-utils";
 import { useCreateDraftOrgUnit } from "./use-draft-structure";
 
 const ROOT_VALUE = "__root__";
@@ -32,16 +44,28 @@ interface CreateDraftUnitDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCreated: () => void;
-  allowedTypes: string[];
+  schema: DraftStructureSchemaDto;
   existingUnits: DraftOrgUnitDto[];
+  initialParentId?: string | null;
+}
+
+function buildDefaultValues(
+  schema: DraftStructureSchemaDto,
+  initialParentId: string | null | undefined
+): DraftOrgUnitFormValues {
+  return {
+    ...createDraftOrgUnitFormValues(schema),
+    parentId: initialParentId ?? null,
+  };
 }
 
 export function CreateDraftUnitDialog({
   open,
   onOpenChange,
   onCreated,
-  allowedTypes,
+  schema,
   existingUnits,
+  initialParentId,
 }: CreateDraftUnitDialogProps) {
   const [serverError, setServerError] = useState<string | null>(null);
 
@@ -49,43 +73,47 @@ export function CreateDraftUnitDialog({
     register,
     handleSubmit,
     control,
+    watch,
     reset,
     formState: { errors },
-  } = useForm<CreateDraftOrgUnitRequest>({
-    defaultValues: {
-      code: "",
-      name: "",
-      type: allowedTypes[0] ?? "",
-      parentId: null,
-    },
+  } = useForm<DraftOrgUnitFormValues>({
+    defaultValues: buildDefaultValues(schema, initialParentId),
   });
 
+  const selectedKindKey = watch("orgUnitKindKey");
+
   useEffect(() => {
-    reset({
-      code: "",
-      name: "",
-      type: allowedTypes[0] ?? "",
-      parentId: null,
-    });
-  }, [allowedTypes, reset, open]);
+    reset(buildDefaultValues(schema, initialParentId));
+  }, [initialParentId, open, reset, schema]);
 
   const create = useCreateDraftOrgUnit({
     onSuccess: (data) => {
-      toast.success(`Structure item "${data.name}" created`);
+      toast.success(`Unit "${data.displayName}" created`);
       setServerError(null);
       onOpenChange(false);
       onCreated();
     },
   });
 
-  const onSubmit = async (values: CreateDraftOrgUnitRequest) => {
+  const onSubmit = async (values: DraftOrgUnitFormValues) => {
     setServerError(null);
 
     try {
-      await create.mutateAsync({
-        ...values,
+      const payload: CreateDraftOrgUnitRequest = {
+        referenceKey: values.referenceKey.trim(),
+        displayName: values.displayName.trim(),
+        orgUnitKindKey: values.orgUnitKindKey,
+        businessCode: values.businessCode.trim() || null,
+        description: values.description.trim() || null,
         parentId: values.parentId || null,
-      });
+        attributes: sanitizeDraftAttributes(
+          schema,
+          values.orgUnitKindKey,
+          values.attributes
+        ),
+      };
+
+      await create.mutateAsync(payload);
     } catch (error) {
       if (error instanceof ApiError) {
         setServerError(error.errors.join(", "));
@@ -97,12 +125,7 @@ export function CreateDraftUnitDialog({
 
   const handleClose = (nextOpen: boolean) => {
     if (!nextOpen) {
-      reset({
-        code: "",
-        name: "",
-        type: allowedTypes[0] ?? "",
-        parentId: null,
-      });
+      reset(buildDefaultValues(schema, initialParentId));
       setServerError(null);
     }
 
@@ -111,108 +134,160 @@ export function CreateDraftUnitDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Add Structure Item</DialogTitle>
+      <DialogContent className="flex h-[min(90vh,52rem)] max-w-[calc(100%-2rem)] flex-col gap-0 p-0 sm:max-w-xl">
+        <DialogHeader className="border-b p-6 pr-14">
+          <DialogTitle>Add unit</DialogTitle>
           <DialogDescription>
-            Add a structure item for preparation and later correction before
-            governance and publication.
+            Add a new unit under the draft organization without changing the
+            live structure immediately.
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="grid gap-4">
-          <div className="grid gap-2">
-            <Label htmlFor="draft-code">Code</Label>
-            <Input
-              id="draft-code"
-              placeholder="ENG"
-              {...register("code", {
-                required: "Code is required",
-                maxLength: { value: 50, message: "Maximum 50 characters" },
-              })}
-            />
-            {errors.code && (
-              <p className="text-sm text-destructive">{errors.code.message}</p>
-            )}
-          </div>
+        <form onSubmit={handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
+          <div className="flex-1 space-y-4 overflow-y-auto p-6">
+            <div className="grid gap-2">
+              <Label htmlFor="draft-reference-key">Unit Code</Label>
+              <Input
+                id="draft-reference-key"
+                placeholder="engineering-root"
+                {...register("referenceKey", {
+                  required: "Unit code is required",
+                  maxLength: { value: 150, message: "Maximum 150 characters" },
+                })}
+              />
+              {errors.referenceKey ? (
+                <p className="text-sm text-destructive">{errors.referenceKey.message}</p>
+              ) : null}
+            </div>
 
-          <div className="grid gap-2">
-            <Label htmlFor="draft-name">Name</Label>
-            <Input
-              id="draft-name"
-              placeholder="Engineering"
-              {...register("name", {
-                required: "Name is required",
-                maxLength: { value: 200, message: "Maximum 200 characters" },
-              })}
-            />
-            {errors.name && (
-              <p className="text-sm text-destructive">{errors.name.message}</p>
-            )}
-          </div>
+            <div className="grid gap-2">
+              <Label htmlFor="draft-display-name">Unit Name</Label>
+              <Input
+                id="draft-display-name"
+                placeholder="Engineering"
+                {...register("displayName", {
+                  required: "Unit name is required",
+                  maxLength: { value: 200, message: "Maximum 200 characters" },
+                })}
+              />
+              {errors.displayName ? (
+                <p className="text-sm text-destructive">{errors.displayName.message}</p>
+              ) : null}
+            </div>
 
-          <div className="grid gap-2">
-            <Label>Type</Label>
-            <Controller
-              control={control}
-              name="type"
-              rules={{ required: "Type is required" }}
-              render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select a type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {allowedTypes.map((type) => (
-                      <SelectItem key={type} value={type}>
-                        {type}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
-            {errors.type && (
-              <p className="text-sm text-destructive">{errors.type.message}</p>
-            )}
-          </div>
+            <div className="grid gap-2">
+              <Label>Unit Type</Label>
+              <Controller
+                control={control}
+                name="orgUnitKindKey"
+                rules={{ required: "Unit type is required" }}
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select a unit type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {schema.orgUnitKinds.map((kind) => (
+                        <SelectItem key={kind.key} value={kind.key}>
+                          {kind.displayLabel}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {errors.orgUnitKindKey ? (
+                <p className="text-sm text-destructive">{errors.orgUnitKindKey.message}</p>
+              ) : null}
+            </div>
 
-          <div className="grid gap-2">
-            <Label>Parent</Label>
-            <Controller
-              control={control}
-              name="parentId"
-              render={({ field }) => (
-                <Select
-                  value={field.value ?? ROOT_VALUE}
-                  onValueChange={(value) => {
-                    field.onChange(value === ROOT_VALUE ? null : value);
-                  }}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select a parent" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={ROOT_VALUE}>Root</SelectItem>
-                    {existingUnits.map((unit) => (
-                      <SelectItem key={unit.id} value={unit.id}>
-                        {unit.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
-          </div>
+            <div className="grid gap-2">
+              <Label>Parent Unit</Label>
+              <Controller
+                control={control}
+                name="parentId"
+                render={({ field }) => (
+                  <Select
+                    value={field.value ?? ROOT_VALUE}
+                    onValueChange={(value) => {
+                      field.onChange(value === ROOT_VALUE ? null : value);
+                    }}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select a parent unit" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={ROOT_VALUE}>Organization root</SelectItem>
+                      {existingUnits.map((unit) => (
+                        <SelectItem key={unit.id} value={unit.id}>
+                          {formatUnitOptionLabel(unit)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </div>
 
-          {serverError && (
-            <p className="text-sm text-destructive">{serverError}</p>
-          )}
+            <div className="rounded-xl border bg-muted/20 p-4">
+              <div className="mb-4 space-y-1">
+                <p className="text-sm font-medium">Optional details</p>
+                <p className="text-sm text-muted-foreground">
+                  Keep the first pass focused on the hierarchy. Add these details
+                  only if they help right now.
+                </p>
+              </div>
+
+              <div className="grid gap-4">
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <div className="grid gap-2">
+                    <Label htmlFor="draft-business-code">Business Code</Label>
+                    <Input
+                      id="draft-business-code"
+                      placeholder="ENG"
+                      {...register("businessCode", {
+                        maxLength: { value: 100, message: "Maximum 100 characters" },
+                      })}
+                    />
+                    {errors.businessCode ? (
+                      <p className="text-sm text-destructive">{errors.businessCode.message}</p>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="draft-description">Description</Label>
+                  <Textarea
+                    id="draft-description"
+                    placeholder="Optional notes about this unit"
+                    rows={3}
+                    {...register("description", {
+                      maxLength: { value: 500, message: "Maximum 500 characters" },
+                    })}
+                  />
+                  {errors.description ? (
+                    <p className="text-sm text-destructive">{errors.description.message}</p>
+                  ) : null}
+                </div>
+
+                <DraftStructureAttributeFields
+                  schema={schema}
+                  selectedKindKey={selectedKindKey}
+                  control={control}
+                  errors={errors}
+                />
+              </div>
+            </div>
+
+            {serverError ? (
+              <p className="text-sm text-destructive">{serverError}</p>
+            ) : null}
+          </div>
 
           <DialogFooter>
             <Button type="submit" disabled={create.isLoading}>
-              {create.isLoading && <Spinner className="mr-1" />}
-              Add Structure Item
+              {create.isLoading ? <Spinner className="mr-1" /> : null}
+              Add unit
             </Button>
           </DialogFooter>
         </form>

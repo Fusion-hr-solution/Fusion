@@ -37,6 +37,7 @@ public class CoreHRDbContext : DbContext
     public DbSet<TenantSettings> TenantSettings => Set<TenantSettings>();
     public DbSet<OrgUnit> OrgUnits => Set<OrgUnit>();
     public DbSet<DraftOrgUnit> DraftOrgUnits => Set<DraftOrgUnit>();
+    public DbSet<DraftStructureImportSession> DraftStructureImportSessions => Set<DraftStructureImportSession>();
     public DbSet<TenantSetupState> TenantSetupStates => Set<TenantSetupState>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
@@ -68,6 +69,9 @@ public class CoreHRDbContext : DbContext
 
         modelBuilder.Entity<DraftOrgUnit>()
             .HasQueryFilter(o => CurrentTenantId != Guid.Empty && o.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<DraftStructureImportSession>()
+            .HasQueryFilter(session => CurrentTenantId != Guid.Empty && session.TenantId == CurrentTenantId);
 
         modelBuilder.Entity<TenantSetupState>()
             .HasQueryFilter(ts => CurrentTenantId != Guid.Empty && ts.TenantId == CurrentTenantId);

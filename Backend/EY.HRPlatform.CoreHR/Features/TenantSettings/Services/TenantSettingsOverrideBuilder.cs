@@ -24,7 +24,8 @@ public static class TenantSettingsOverrideBuilder
         string? existingOverridesJson,
         List<string>? orgUnitTypes,
         Dictionary<string, FieldConfigInput>? employeeFieldConfig,
-        BrandingSettingsInput? branding)
+        BrandingSettingsInput? branding,
+        DraftStructureSchemaDto? draftStructureSchema = null)
     {
         // Start from existing overrides or empty object
         var root = string.IsNullOrWhiteSpace(existingOverridesJson)
@@ -32,9 +33,28 @@ public static class TenantSettingsOverrideBuilder
             : JsonNode.Parse(existingOverridesJson)?.AsObject() ?? new JsonObject();
 
         // Update orgUnitTypes if provided
-        if (orgUnitTypes is not null)
+        if (draftStructureSchema is not null)
+        {
+            root["draftStructureSchema"] = JsonSerializer.SerializeToNode(draftStructureSchema, JsonOptions);
+            root["orgUnitTypes"] = JsonSerializer.SerializeToNode(
+                draftStructureSchema.OrgUnitKinds.Select(kind => kind.DisplayLabel).ToList(),
+                JsonOptions);
+        }
+        else if (orgUnitTypes is not null)
         {
             root["orgUnitTypes"] = JsonSerializer.SerializeToNode(orgUnitTypes, JsonOptions);
+            root["draftStructureSchema"] = JsonSerializer.SerializeToNode(
+                new DraftStructureSchemaDto
+                {
+                    OrgUnitKinds = orgUnitTypes
+                        .Where(type => !string.IsNullOrWhiteSpace(type))
+                        .Select(type => new OrgUnitKindDto(NormalizeKey(type), type.Trim()))
+                        .GroupBy(kind => kind.Key, StringComparer.OrdinalIgnoreCase)
+                        .Select(group => group.First())
+                        .ToList(),
+                    Attributes = []
+                },
+                JsonOptions);
         }
 
         // Merge employeeFieldConfig if provided
@@ -107,5 +127,30 @@ public static class TenantSettingsOverrideBuilder
         {
             root.Remove(key);
         }
+    }
+
+    private static string NormalizeKey(string value)
+    {
+        var trimmed = value.Trim().ToLowerInvariant();
+        var buffer = new System.Text.StringBuilder(trimmed.Length);
+        var previousWasSeparator = false;
+
+        foreach (var character in trimmed)
+        {
+            if (char.IsLetterOrDigit(character))
+            {
+                buffer.Append(character);
+                previousWasSeparator = false;
+                continue;
+            }
+
+            if (previousWasSeparator)
+                continue;
+
+            buffer.Append('-');
+            previousWasSeparator = true;
+        }
+
+        return buffer.ToString().Trim('-');
     }
 }

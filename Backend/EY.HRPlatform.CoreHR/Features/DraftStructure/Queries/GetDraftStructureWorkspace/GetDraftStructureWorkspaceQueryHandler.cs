@@ -19,8 +19,8 @@ public sealed class GetDraftStructureWorkspaceQueryHandler(
             .AsNoTracking()
             .ToListAsync(cancellationToken);
 
-        var allowedTypes = await DraftStructureRules.GetAllowedTypesAsync(dbContext, cancellationToken);
+        var schema = await DraftStructureRules.GetDraftStructureSchemaAsync(dbContext, cancellationToken);
 
-        return DraftStructureMapper.ToWorkspace(units, allowedTypes);
+        return DraftStructureMapper.ToWorkspace(units, schema);
     }
 }

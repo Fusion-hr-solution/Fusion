@@ -20,6 +20,7 @@ public sealed class UpdateDraftOrgUnitCommandHandler(
         CancellationToken cancellationToken)
     {
         await DraftStructureRules.EnsureSetupActivatedAsync(dbContext, cancellationToken);
+        var schema = await DraftStructureRules.GetDraftStructureSchemaAsync(dbContext, cancellationToken);
 
         var draftOrgUnit = await dbContext.DraftOrgUnits
             .FirstOrDefaultAsync(o => o.Id == request.Id, cancellationToken);
@@ -34,31 +35,27 @@ public sealed class UpdateDraftOrgUnitCommandHandler(
             throw new ConcurrencyException(StructureItem, request.Id);
         }
 
-        await DraftStructureRules.ValidateTypeAsync(dbContext, request.Type, cancellationToken);
+        await DraftStructureRules.ValidateOrgUnitKindAsync(dbContext, request.OrgUnitKindKey, cancellationToken);
 
-        var normalizedCode = request.Code.Trim().ToUpperInvariant();
-        if (!draftOrgUnit.Code.Equals(normalizedCode, StringComparison.Ordinal))
+        var normalizedReferenceKey = DraftStructureRules.NormalizeReferenceKey(request.ReferenceKey);
+        if (!draftOrgUnit.NormalizedReferenceKey.Equals(normalizedReferenceKey, StringComparison.Ordinal))
         {
-            var codeExists = await dbContext.DraftOrgUnits
-                .AnyAsync(o => o.Id != request.Id && o.Code == normalizedCode, cancellationToken);
+            var referenceKeyExists = await dbContext.DraftOrgUnits
+                .AnyAsync(o => o.Id != request.Id && o.NormalizedReferenceKey == normalizedReferenceKey, cancellationToken);
 
-            if (codeExists)
+            if (referenceKeyExists)
             {
-                throw new DuplicateEntityException(StructureItem, "code", normalizedCode);
+                throw new DuplicateEntityException(StructureItem, "referenceKey", request.ReferenceKey.Trim());
             }
         }
 
-        var normalizedName = request.Name.Trim();
-        if (!draftOrgUnit.Name.Equals(normalizedName, StringComparison.Ordinal))
-        {
-            var nameExists = await dbContext.DraftOrgUnits
-                .AnyAsync(o => o.Id != request.Id && o.Name == normalizedName, cancellationToken);
-
-            if (nameExists)
-            {
-                throw new DuplicateEntityException(StructureItem, "name", normalizedName);
-            }
-        }
+        var attributesJson = request.Attributes is null
+            ? draftOrgUnit.AttributesJson
+            : await DraftStructureRules.ValidateAndNormalizeAttributesAsync(
+                dbContext,
+                request.OrgUnitKindKey,
+                request.Attributes,
+                cancellationToken);
 
         DraftOrgUnit? parent = null;
         if (request.ParentId.HasValue && request.ParentId.Value != Guid.Empty)
@@ -87,7 +84,14 @@ public sealed class UpdateDraftOrgUnitCommandHandler(
             }
         }
 
-        draftOrgUnit.Update(request.Code, request.Name, request.Type, request.ParentId);
+        draftOrgUnit.Update(
+            request.ReferenceKey,
+            request.DisplayName,
+            request.OrgUnitKindKey,
+            request.BusinessCode,
+            request.Description,
+            attributesJson,
+            request.ParentId);
 
         try
         {
@@ -99,14 +103,9 @@ public sealed class UpdateDraftOrgUnitCommandHandler(
         }
         catch (DbUpdateException ex) when (DraftStructureRules.IsUniqueConstraintViolation(ex))
         {
-            if (ex.InnerException?.Message.Contains("Code") == true)
-            {
-                throw new DuplicateEntityException(StructureItem, "code", normalizedCode);
-            }
-
-            throw new DuplicateEntityException(StructureItem, "name", normalizedName);
+            throw new DuplicateEntityException(StructureItem, "referenceKey", request.ReferenceKey.Trim());
         }
 
-        return Result.Success(DraftStructureMapper.ToDto(draftOrgUnit, parent?.Name));
+        return Result.Success(DraftStructureMapper.ToDto(draftOrgUnit, schema, parent));
     }
 }

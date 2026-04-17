@@ -26,14 +26,22 @@ public class DraftStructureHandlerTests
         await SeedSlicePrerequisitesAsync(context, TenantId);
 
         var handler = new CreateDraftOrgUnitCommandHandler(context, tenantContext);
-        var command = new CreateDraftOrgUnitCommand("ENG", "Engineering", "Department", null);
+        var command = new CreateDraftOrgUnitCommand(
+            "ENG",
+            "Engineering",
+            "department",
+            null,
+            null,
+            null,
+            null);
 
         var result = await handler.Handle(command, CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal("ENG", result.Value.Code);
-        Assert.Equal("Engineering", result.Value.Name);
-        Assert.Equal("Department", result.Value.Type);
+        Assert.Equal("ENG", result.Value.ReferenceKey);
+        Assert.Equal("Engineering", result.Value.DisplayName);
+        Assert.Equal("department", result.Value.OrgUnitKindKey);
+        Assert.Equal("Department", result.Value.OrgUnitKindLabel);
         Assert.Null(result.Value.ParentId);
 
         var saved = await context.DraftOrgUnits.IgnoreQueryFilters().FirstOrDefaultAsync();
@@ -59,12 +67,19 @@ public class DraftStructureHandlerTests
         var handler = new CreateDraftOrgUnitCommandHandler(context, tenantContext);
 
         var result = await handler.Handle(
-            new CreateDraftOrgUnitCommand("ENG", "Engineering Draft", "Department", null),
+            new CreateDraftOrgUnitCommand(
+                "ENG",
+                "Engineering Draft",
+                "department",
+                null,
+                null,
+                null,
+                null),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal("ENG", result.Value.Code);
-        Assert.Equal("Engineering Draft", result.Value.Name);
+        Assert.Equal("ENG", result.Value.ReferenceKey);
+        Assert.Equal("Engineering Draft", result.Value.DisplayName);
     }
 
     [Fact]
@@ -78,10 +93,17 @@ public class DraftStructureHandlerTests
 
         var ex = await Assert.ThrowsAsync<ArgumentException>(
             () => handler.Handle(
-                new CreateDraftOrgUnitCommand("OPS", "Operations", "Division", null),
+                new CreateDraftOrgUnitCommand(
+                    "OPS",
+                    "Operations",
+                    "division",
+                    null,
+                    null,
+                    null,
+                    null),
                 CancellationToken.None));
 
-        Assert.Contains("Invalid org unit type", ex.Message);
+        Assert.Contains("Invalid org unit kind", ex.Message);
     }
 
     [Fact]
@@ -95,7 +117,7 @@ public class DraftStructureHandlerTests
         {
             seedContext.TenantSetupStates.Add(TenantSetupState.CreateActivated(TenantId));
             seedContext.TenantSettings.Add(DomainTenantSettings.Create(TenantId, SettingsJson));
-            draftOrgUnit = DraftOrgUnit.Create(TenantId, "eng", "Engineering", "Department", null);
+            draftOrgUnit = CreateDraftOrgUnit(TenantId, "eng", "Engineering", "department");
             seedContext.DraftOrgUnits.Add(draftOrgUnit);
             await seedContext.SaveChangesAsync();
         }
@@ -109,14 +131,17 @@ public class DraftStructureHandlerTests
                 existing.Id,
                 "eng-core",
                 "Engineering Core",
-                "Department",
+                "department",
                 null,
-                existing.Version),
+                null,
+                null,
+                existing.Version,
+                null),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal("ENG-CORE", result.Value.Code);
-        Assert.Equal("Engineering Core", result.Value.Name);
+        Assert.Equal("eng-core", result.Value.ReferenceKey);
+        Assert.Equal("Engineering Core", result.Value.DisplayName);
     }
 
     [Fact]
@@ -130,33 +155,36 @@ public class DraftStructureHandlerTests
             seedContext.TenantSetupStates.Add(TenantSetupState.CreateActivated(TenantId));
             seedContext.TenantSettings.Add(DomainTenantSettings.Create(TenantId, SettingsJson));
 
-            var root = DraftOrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null);
+            var root = CreateDraftOrgUnit(TenantId, "ENG", "Engineering", "department");
             seedContext.DraftOrgUnits.Add(root);
             await seedContext.SaveChangesAsync();
 
-            var child = DraftOrgUnit.Create(TenantId, "TEAM", "Platform Team", "Team", root.Id);
+            var child = CreateDraftOrgUnit(TenantId, "TEAM", "Platform Team", "team", root.Id);
             seedContext.DraftOrgUnits.Add(child);
             await seedContext.SaveChangesAsync();
 
-            var grandChild = DraftOrgUnit.Create(TenantId, "SQUAD", "API Squad", "Squad", child.Id);
+            var grandChild = CreateDraftOrgUnit(TenantId, "SQUAD", "API Squad", "squad", child.Id);
             seedContext.DraftOrgUnits.Add(grandChild);
             await seedContext.SaveChangesAsync();
         }
 
         await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var rootUnit = await context.DraftOrgUnits.FirstAsync(o => o.Code == "ENG");
-        var grandChildUnit = await context.DraftOrgUnits.FirstAsync(o => o.Code == "SQUAD");
+        var rootUnit = await context.DraftOrgUnits.FirstAsync(o => o.ReferenceKey == "ENG");
+        var grandChildUnit = await context.DraftOrgUnits.FirstAsync(o => o.ReferenceKey == "SQUAD");
         var handler = new UpdateDraftOrgUnitCommandHandler(context);
 
         var ex = await Assert.ThrowsAsync<ArgumentException>(
             () => handler.Handle(
                 new UpdateDraftOrgUnitCommand(
                     rootUnit.Id,
-                    rootUnit.Code,
-                    rootUnit.Name,
-                    rootUnit.Type,
+                    rootUnit.ReferenceKey,
+                    rootUnit.DisplayName,
+                    rootUnit.OrgUnitKindKey,
+                    rootUnit.BusinessCode,
+                    rootUnit.Description,
                     grandChildUnit.Id,
-                    rootUnit.Version),
+                    rootUnit.Version,
+                    null),
                 CancellationToken.None));
 
         Assert.Contains("cycle", ex.Message, StringComparison.OrdinalIgnoreCase);
@@ -176,12 +204,12 @@ public class DraftStructureHandlerTests
             seedContext.TenantSetupStates.Add(TenantSetupState.CreateActivated(TenantId));
             seedContext.TenantSettings.Add(DomainTenantSettings.Create(TenantId, SettingsJson));
 
-            var department = DraftOrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null);
-            var archive = DraftOrgUnit.Create(TenantId, "OPS", "Operations", "Department", null);
+            var department = CreateDraftOrgUnit(TenantId, "ENG", "Engineering", "department");
+            var archive = CreateDraftOrgUnit(TenantId, "OPS", "Operations", "department");
             seedContext.DraftOrgUnits.AddRange(department, archive);
             await seedContext.SaveChangesAsync();
 
-            var child = DraftOrgUnit.Create(TenantId, "TEAM", "Platform Team", "Team", department.Id);
+            var child = CreateDraftOrgUnit(TenantId, "TEAM", "Platform Team", "team", department.Id);
             seedContext.DraftOrgUnits.Add(child);
             await seedContext.SaveChangesAsync();
 
@@ -218,11 +246,11 @@ public class DraftStructureHandlerTests
             seedContext.TenantSetupStates.Add(TenantSetupState.CreateActivated(TenantId));
             seedContext.TenantSettings.Add(DomainTenantSettings.Create(TenantId, SettingsJson));
 
-            var department = DraftOrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null);
+            var department = CreateDraftOrgUnit(TenantId, "ENG", "Engineering", "department");
             seedContext.DraftOrgUnits.Add(department);
             await seedContext.SaveChangesAsync();
 
-            var child = DraftOrgUnit.Create(TenantId, "TEAM", "Platform Team", "Team", department.Id);
+            var child = CreateDraftOrgUnit(TenantId, "TEAM", "Platform Team", "team", department.Id);
             seedContext.DraftOrgUnits.Add(child);
             await seedContext.SaveChangesAsync();
 
@@ -256,11 +284,11 @@ public class DraftStructureHandlerTests
             seedContext.TenantSetupStates.Add(TenantSetupState.CreateActivated(TenantId));
             seedContext.TenantSettings.Add(DomainTenantSettings.Create(TenantId, SettingsJson));
 
-            var department = DraftOrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null);
+            var department = CreateDraftOrgUnit(TenantId, "ENG", "Engineering", "department");
             seedContext.DraftOrgUnits.Add(department);
             await seedContext.SaveChangesAsync();
 
-            seedContext.DraftOrgUnits.Add(DraftOrgUnit.Create(TenantId, "TEAM", "Platform Team", "Team", department.Id));
+            seedContext.DraftOrgUnits.Add(CreateDraftOrgUnit(TenantId, "TEAM", "Platform Team", "team", department.Id));
             await seedContext.SaveChangesAsync();
 
             deleteId = department.Id;
@@ -279,7 +307,7 @@ public class DraftStructureHandlerTests
     }
 
     [Fact]
-    public async Task GetDraftStructureWorkspace_ReturnsWorkspaceCountsAndAllowedTypes()
+    public async Task GetDraftStructureWorkspace_ReturnsWorkspaceCountsAndSchema()
     {
         var dbName = Guid.NewGuid().ToString();
         var tenantContext = TestTenantContext.WithTenant(TenantId);
@@ -289,11 +317,11 @@ public class DraftStructureHandlerTests
             seedContext.TenantSetupStates.Add(TenantSetupState.CreateActivated(TenantId));
             seedContext.TenantSettings.Add(DomainTenantSettings.Create(TenantId, SettingsJson));
 
-            var department = DraftOrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null);
+            var department = CreateDraftOrgUnit(TenantId, "ENG", "Engineering", "department");
             seedContext.DraftOrgUnits.Add(department);
             await seedContext.SaveChangesAsync();
 
-            seedContext.DraftOrgUnits.Add(DraftOrgUnit.Create(TenantId, "TEAM", "Platform Team", "Team", department.Id));
+            seedContext.DraftOrgUnits.Add(CreateDraftOrgUnit(TenantId, "TEAM", "Platform Team", "team", department.Id));
             await seedContext.SaveChangesAsync();
         }
 
@@ -305,7 +333,7 @@ public class DraftStructureHandlerTests
         Assert.Equal("inProgress", result.WorkspaceStatus);
         Assert.Equal(2, result.UnitCount);
         Assert.Equal(1, result.RootUnitCount);
-        Assert.Contains("Department", result.AllowedTypes);
+        Assert.Contains(result.DraftStructureSchema.OrgUnitKinds, kind => kind.DisplayLabel == "Department");
         Assert.NotNull(result.LastModifiedAt);
     }
 
@@ -320,11 +348,11 @@ public class DraftStructureHandlerTests
             seedContext.TenantSetupStates.Add(TenantSetupState.CreateActivated(TenantId));
             seedContext.TenantSettings.Add(DomainTenantSettings.Create(TenantId, SettingsJson));
 
-            var root = DraftOrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null);
+            var root = CreateDraftOrgUnit(TenantId, "ENG", "Engineering", "department");
             seedContext.DraftOrgUnits.Add(root);
             await seedContext.SaveChangesAsync();
 
-            seedContext.DraftOrgUnits.Add(DraftOrgUnit.Create(TenantId, "TEAM", "Platform Team", "Team", root.Id));
+            seedContext.DraftOrgUnits.Add(CreateDraftOrgUnit(TenantId, "TEAM", "Platform Team", "team", root.Id));
             await seedContext.SaveChangesAsync();
         }
 
@@ -334,9 +362,9 @@ public class DraftStructureHandlerTests
         var tree = await handler.Handle(new GetDraftOrgUnitTreeQuery(null), CancellationToken.None);
 
         Assert.Single(tree);
-        Assert.Equal("Engineering", tree[0].Name);
+        Assert.Equal("Engineering", tree[0].DisplayName);
         Assert.Single(tree[0].Children);
-        Assert.Equal("Platform Team", tree[0].Children[0].Name);
+        Assert.Equal("Platform Team", tree[0].Children[0].DisplayName);
     }
 
     [Fact]
@@ -354,7 +382,7 @@ public class DraftStructureHandlerTests
             seedContext.TenantSettings.AddRange(
                 DomainTenantSettings.Create(tenantA, SettingsJson),
                 DomainTenantSettings.Create(tenantB, SettingsJson));
-            seedContext.DraftOrgUnits.Add(DraftOrgUnit.Create(tenantA, "ENG", "Engineering", "Department", null));
+            seedContext.DraftOrgUnits.Add(CreateDraftOrgUnit(tenantA, "ENG", "Engineering", "department"));
             await seedContext.SaveChangesAsync();
         }
 
@@ -385,7 +413,7 @@ public class DraftStructureHandlerTests
                 DomainTenantSettings.Create(tenantA, SettingsJson),
                 DomainTenantSettings.Create(tenantB, SettingsJson));
 
-            var draft = DraftOrgUnit.Create(tenantA, "ENG", "Engineering", "Department", null);
+            var draft = CreateDraftOrgUnit(tenantA, "ENG", "Engineering", "department");
             seedContext.DraftOrgUnits.Add(draft);
             await seedContext.SaveChangesAsync();
             draftId = draft.Id;
@@ -404,5 +432,24 @@ public class DraftStructureHandlerTests
         context.TenantSetupStates.Add(TenantSetupState.CreateActivated(tenantId));
         context.TenantSettings.Add(DomainTenantSettings.Create(tenantId, SettingsJson));
         await context.SaveChangesAsync();
+    }
+
+    private static DraftOrgUnit CreateDraftOrgUnit(
+        Guid tenantId,
+        string referenceKey,
+        string displayName,
+        string orgUnitKindKey,
+        Guid? parentId = null,
+        string? businessCode = null)
+    {
+        return DraftOrgUnit.Create(
+            tenantId,
+            referenceKey,
+            displayName,
+            orgUnitKindKey,
+            businessCode,
+            description: null,
+            attributesJson: null,
+            parentId);
     }
 }

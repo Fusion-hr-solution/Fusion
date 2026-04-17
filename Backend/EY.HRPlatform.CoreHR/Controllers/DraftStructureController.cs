@@ -61,10 +61,13 @@ public class DraftStructureController(ISender sender) : ControllerBase
         CancellationToken cancellationToken)
     {
         var command = new CreateDraftOrgUnitCommand(
-            request.Code,
-            request.Name,
-            request.Type,
-            request.ParentId);
+            request.ReferenceKey,
+            request.DisplayName,
+            request.OrgUnitKindKey,
+            request.BusinessCode,
+            request.Description,
+            request.ParentId,
+            request.Attributes);
 
         var result = await sender.Send(command, cancellationToken);
 
@@ -97,11 +100,14 @@ public class DraftStructureController(ISender sender) : ControllerBase
 
         var command = new UpdateDraftOrgUnitCommand(
             id,
-            request.Code,
-            request.Name,
-            request.Type,
+            request.ReferenceKey,
+            request.DisplayName,
+            request.OrgUnitKindKey,
+            request.BusinessCode,
+            request.Description,
             request.ParentId,
-            expectedVersion);
+            expectedVersion,
+            request.Attributes);
 
         var result = await sender.Send(command, cancellationToken);
 

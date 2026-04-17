@@ -10,6 +10,14 @@ interface SidebarNavProps {
   basePath?: string;
 }
 
+function isItemActive(activePath: string, itemHref: string) {
+  if (itemHref === "/") {
+    return activePath === "/";
+  }
+
+  return activePath === itemHref || activePath.startsWith(`${itemHref}/`);
+}
+
 export function SidebarNav({
   section,
   activePath,
@@ -25,7 +33,7 @@ export function SidebarNav({
       )}
       <ul className="space-y-0.5">
         {section.items.map((item) => {
-          const isActive = activePath === item.href;
+          const isActive = isItemActive(activePath, item.href);
           const Icon = item.icon;
           return (
             <li key={item.href}>
@@ -41,7 +49,7 @@ export function SidebarNav({
                 title={collapsed ? item.label : undefined}
               >
                 {isActive && (
-                  <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-background" />
+                  <span className="absolute left-0 top-1/2 h-5 w-0.75 -translate-y-1/2 rounded-r-full bg-background" />
                 )}
                 <Icon
                   className="h-4 w-4 shrink-0 transition-colors"

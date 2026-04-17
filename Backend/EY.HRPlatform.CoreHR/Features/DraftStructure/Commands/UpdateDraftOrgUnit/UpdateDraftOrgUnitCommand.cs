@@ -6,8 +6,11 @@ namespace EY.HRPlatform.CoreHR.Features.DraftStructure.Commands.UpdateDraftOrgUn
 
 public sealed record UpdateDraftOrgUnitCommand(
     Guid Id,
-    string Code,
-    string Name,
-    string Type,
+    string ReferenceKey,
+    string DisplayName,
+    string OrgUnitKindKey,
+    string? BusinessCode,
+    string? Description,
     Guid? ParentId,
-    uint ExpectedVersion) : ICommand<Result<DraftOrgUnitDto>>;
+    uint ExpectedVersion,
+    Dictionary<string, object?>? Attributes) : ICommand<Result<DraftOrgUnitDto>>;

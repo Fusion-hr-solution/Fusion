@@ -15,17 +15,33 @@ public class DraftOrgUnitConfiguration : IEntityTypeConfiguration<DraftOrgUnit>
 
         builder.Property(o => o.TenantId).IsRequired();
 
-        builder.Property(o => o.Code)
-            .HasMaxLength(50)
+        builder.Property(o => o.ReferenceKey)
+            .HasMaxLength(150)
             .IsRequired();
 
-        builder.Property(o => o.Name)
+        builder.Property(o => o.NormalizedReferenceKey)
+            .HasMaxLength(150)
+            .IsRequired();
+
+        builder.Property(o => o.DisplayName)
             .HasMaxLength(200)
             .IsRequired();
 
-        builder.Property(o => o.Type)
+        builder.Property(o => o.OrgUnitKindKey)
             .HasMaxLength(100)
             .IsRequired();
+
+        builder.Property(o => o.BusinessCode)
+            .HasMaxLength(100)
+            .IsRequired(false);
+
+        builder.Property(o => o.Description)
+            .HasMaxLength(500)
+            .IsRequired(false);
+
+        builder.Property(o => o.AttributesJson)
+            .HasColumnType("jsonb")
+            .IsRequired(false);
 
         builder.Property(o => o.CreatedBy).HasMaxLength(256);
         builder.Property(o => o.UpdatedBy).HasMaxLength(256);
@@ -39,13 +55,9 @@ public class DraftOrgUnitConfiguration : IEntityTypeConfiguration<DraftOrgUnit>
         builder.HasIndex(o => o.TenantId)
             .HasDatabaseName("IX_DraftOrgUnits_TenantId");
 
-        builder.HasIndex(o => new { o.TenantId, o.Code })
+        builder.HasIndex(o => new { o.TenantId, o.NormalizedReferenceKey })
             .IsUnique()
-            .HasDatabaseName("IX_DraftOrgUnits_TenantId_Code");
-
-        builder.HasIndex(o => new { o.TenantId, o.Name })
-            .IsUnique()
-            .HasDatabaseName("IX_DraftOrgUnits_TenantId_Name");
+            .HasDatabaseName("IX_DraftOrgUnits_TenantId_NormalizedReferenceKey");
 
         builder.HasIndex(o => o.ParentId)
             .HasDatabaseName("IX_DraftOrgUnits_ParentId");

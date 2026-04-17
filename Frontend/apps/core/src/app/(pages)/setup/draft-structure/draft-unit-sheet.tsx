@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import type { DraftOrgUnitDto, UpdateDraftOrgUnitRequest } from "@repo/api";
+import type { DraftOrgUnitDto, DraftStructureSchemaDto, UpdateDraftOrgUnitRequest } from "@repo/api";
 import { ApiError } from "@repo/api";
 import {
   AlertDialog,
@@ -17,6 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -39,6 +40,13 @@ import {
   useDeleteDraftOrgUnit,
   useUpdateDraftOrgUnit,
 } from "./use-draft-structure";
+import {
+  createDraftOrgUnitFormValues,
+  DraftStructureAttributeFields,
+  formatUnitOptionLabel,
+  sanitizeDraftAttributes,
+} from "./draft-structure-form-utils";
+import type { DraftOrgUnitFormValues } from "./draft-structure-form-utils";
 
 const ROOT_VALUE = "__root__";
 
@@ -47,7 +55,7 @@ interface DraftUnitSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onMutated: () => void;
-  allowedTypes: string[];
+  schema: DraftStructureSchemaDto;
   existingUnits: DraftOrgUnitDto[];
 }
 
@@ -73,7 +81,7 @@ export function DraftUnitSheet({
   open,
   onOpenChange,
   onMutated,
-  allowedTypes,
+  schema,
   existingUnits,
 }: DraftUnitSheetProps) {
   const [serverError, setServerError] = useState<string | null>(null);
@@ -84,28 +92,21 @@ export function DraftUnitSheet({
     register,
     handleSubmit,
     control,
+    watch,
     reset,
     formState: { errors },
-  } = useForm<UpdateDraftOrgUnitRequest>({
-    defaultValues: {
-      code: unit?.code ?? "",
-      name: unit?.name ?? "",
-      type: unit?.type ?? allowedTypes[0] ?? "",
-      parentId: unit?.parentId ?? null,
-    },
+  } = useForm<DraftOrgUnitFormValues>({
+    defaultValues: createDraftOrgUnitFormValues(schema, unit),
   });
 
+  const selectedKindKey = watch("orgUnitKindKey");
+
   useEffect(() => {
-    reset({
-      code: unit?.code ?? "",
-      name: unit?.name ?? "",
-      type: unit?.type ?? allowedTypes[0] ?? "",
-      parentId: unit?.parentId ?? null,
-    });
+    reset(createDraftOrgUnitFormValues(schema, unit));
     setServerError(null);
     setDeleteOpen(false);
     setDeleteStrategy("");
-  }, [allowedTypes, reset, unit]);
+  }, [reset, schema, unit]);
 
   const descendantIds = useMemo(
     () => (unit ? getDescendantIds(unit.id, existingUnits) : new Set<string>()),
@@ -128,7 +129,7 @@ export function DraftUnitSheet({
 
   const update = useUpdateDraftOrgUnit({
     onSuccess: (data) => {
-      toast.success(`Structure item "${data.name}" updated`);
+      toast.success(`Unit "${data.displayName}" updated`);
       setServerError(null);
       onMutated();
     },
@@ -136,7 +137,7 @@ export function DraftUnitSheet({
 
   const remove = useDeleteDraftOrgUnit({
     onSuccess: () => {
-      toast.success(`Structure item "${unit?.name}" deleted`);
+      toast.success(`Unit "${unit?.displayName}" deleted`);
       setDeleteOpen(false);
       setDeleteStrategy("");
       onOpenChange(false);
@@ -148,17 +149,24 @@ export function DraftUnitSheet({
     return null;
   }
 
-  const onSubmit = async (values: UpdateDraftOrgUnitRequest) => {
+  const onSubmit = async (values: DraftOrgUnitFormValues) => {
     setServerError(null);
 
     try {
+      const input: UpdateDraftOrgUnitRequest = {
+        referenceKey: values.referenceKey.trim(),
+        displayName: values.displayName.trim(),
+        orgUnitKindKey: values.orgUnitKindKey,
+        businessCode: values.businessCode.trim() || null,
+        description: values.description.trim() || null,
+        parentId: values.parentId || null,
+        attributes: sanitizeDraftAttributes(schema, values.orgUnitKindKey, values.attributes),
+      };
+
       await update.mutateAsync({
         id: unit.id,
         version: unit.version,
-        input: {
-          ...values,
-          parentId: values.parentId || null,
-        },
+        input,
       });
     } catch (error) {
       if (error instanceof ApiError) {
@@ -197,80 +205,80 @@ export function DraftUnitSheet({
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent className="w-full sm:max-w-lg">
-          <SheetHeader>
-            <SheetTitle>{unit.name}</SheetTitle>
+        <SheetContent className="w-full gap-0 p-0 sm:max-w-xl">
+          <SheetHeader className="border-b pr-14">
+            <SheetTitle>{unit.displayName}</SheetTitle>
             <SheetDescription>
-              Update this structure item without touching the live organization
-              structure.
+              Update this unit inside the draft organization without touching
+              the live structure immediately.
             </SheetDescription>
           </SheetHeader>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="flex h-full flex-col">
-            <div className="flex-1 space-y-5 overflow-y-auto px-4 pb-4">
+          <form onSubmit={handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
+            <div className="flex-1 space-y-5 overflow-y-auto px-4 py-4 sm:px-6">
               <section className="space-y-2 text-sm text-muted-foreground">
-                <p>Draft code: {unit.code}</p>
-                <p>Parent: {unit.parentName ?? "Root"}</p>
+                <p>Unit code: {unit.referenceKey}</p>
+                <p>Parent unit: {unit.parentDisplayName ?? "Organization root"}</p>
               </section>
 
               <Separator />
 
               <div className="grid gap-2">
-                <Label htmlFor="edit-draft-code">Code</Label>
+                <Label htmlFor="edit-draft-reference-key">Unit Code</Label>
                 <Input
-                  id="edit-draft-code"
-                  {...register("code", {
-                    required: "Code is required",
-                    maxLength: { value: 50, message: "Maximum 50 characters" },
+                  id="edit-draft-reference-key"
+                  {...register("referenceKey", {
+                    required: "Unit code is required",
+                    maxLength: { value: 150, message: "Maximum 150 characters" },
                   })}
                 />
-                {errors.code && (
-                  <p className="text-sm text-destructive">{errors.code.message}</p>
+                {errors.referenceKey && (
+                  <p className="text-sm text-destructive">{errors.referenceKey.message}</p>
                 )}
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="edit-draft-name">Name</Label>
+                <Label htmlFor="edit-draft-display-name">Unit Name</Label>
                 <Input
-                  id="edit-draft-name"
-                  {...register("name", {
-                    required: "Name is required",
+                  id="edit-draft-display-name"
+                  {...register("displayName", {
+                    required: "Unit name is required",
                     maxLength: { value: 200, message: "Maximum 200 characters" },
                   })}
                 />
-                {errors.name && (
-                  <p className="text-sm text-destructive">{errors.name.message}</p>
+                {errors.displayName && (
+                  <p className="text-sm text-destructive">{errors.displayName.message}</p>
                 )}
               </div>
 
               <div className="grid gap-2">
-                <Label>Type</Label>
+                <Label>Unit Type</Label>
                 <Controller
                   control={control}
-                  name="type"
-                  rules={{ required: "Type is required" }}
+                  name="orgUnitKindKey"
+                  rules={{ required: "Unit type is required" }}
                   render={({ field }) => (
                     <Select value={field.value} onValueChange={field.onChange}>
                       <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select a type" />
+                        <SelectValue placeholder="Select a unit type" />
                       </SelectTrigger>
                       <SelectContent>
-                        {allowedTypes.map((type) => (
-                          <SelectItem key={type} value={type}>
-                            {type}
+                        {schema.orgUnitKinds.map((kind) => (
+                          <SelectItem key={kind.key} value={kind.key}>
+                            {kind.displayLabel}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   )}
                 />
-                {errors.type && (
-                  <p className="text-sm text-destructive">{errors.type.message}</p>
+                {errors.orgUnitKindKey && (
+                  <p className="text-sm text-destructive">{errors.orgUnitKindKey.message}</p>
                 )}
               </div>
 
               <div className="grid gap-2">
-                <Label>Parent</Label>
+                <Label>Parent Unit</Label>
                 <Controller
                   control={control}
                   name="parentId"
@@ -282,19 +290,67 @@ export function DraftUnitSheet({
                       }}
                     >
                       <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select a parent" />
+                        <SelectValue placeholder="Select a parent unit" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value={ROOT_VALUE}>Root</SelectItem>
+                        <SelectItem value={ROOT_VALUE}>Organization root</SelectItem>
                         {parentCandidates.map((candidate) => (
                           <SelectItem key={candidate.id} value={candidate.id}>
-                            {candidate.name}
+                            {formatUnitOptionLabel(candidate)}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   )}
                 />
+              </div>
+
+              <div className="rounded-xl border bg-muted/20 p-4">
+                <div className="mb-4 space-y-1">
+                  <p className="text-sm font-medium">Optional details</p>
+                  <p className="text-sm text-muted-foreground">
+                    Keep the structure clean first. Add these details only when
+                    they are useful right now.
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <div className="grid gap-2">
+                      <Label htmlFor="edit-draft-business-code">Business Code</Label>
+                      <Input
+                        id="edit-draft-business-code"
+                        {...register("businessCode", {
+                          maxLength: { value: 100, message: "Maximum 100 characters" },
+                        })}
+                      />
+                      {errors.businessCode && (
+                        <p className="text-sm text-destructive">{errors.businessCode.message}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit-draft-description">Description</Label>
+                    <Textarea
+                      id="edit-draft-description"
+                      rows={3}
+                      {...register("description", {
+                        maxLength: { value: 500, message: "Maximum 500 characters" },
+                      })}
+                    />
+                    {errors.description && (
+                      <p className="text-sm text-destructive">{errors.description.message}</p>
+                    )}
+                  </div>
+
+                  <DraftStructureAttributeFields
+                    schema={schema}
+                    selectedKindKey={selectedKindKey}
+                    control={control}
+                    errors={errors}
+                  />
+                </div>
               </div>
 
               <div className="rounded-xl border bg-muted/30 p-4 text-sm text-muted-foreground">
@@ -318,7 +374,7 @@ export function DraftUnitSheet({
                 onClick={() => setDeleteOpen(true)}
                 disabled={update.isLoading || remove.isLoading}
               >
-                Delete Item
+                Delete Unit
               </Button>
               <Button type="submit" disabled={update.isLoading || remove.isLoading}>
                 {update.isLoading && <Spinner className="mr-1" />}
@@ -351,7 +407,7 @@ export function DraftUnitSheet({
                   <SelectItem value={ROOT_VALUE}>Promote children to root</SelectItem>
                   {parentCandidates.map((candidate) => (
                     <SelectItem key={candidate.id} value={candidate.id}>
-                      Reparent to {candidate.name}
+                      Reparent to {formatUnitOptionLabel(candidate)}
                     </SelectItem>
                   ))}
                 </SelectContent>

@@ -21,10 +21,11 @@ import {
 } from "@/components/ui/empty";
 
 export type DraftStructureSortField =
-  | "code"
-  | "name"
-  | "type"
-  | "parentName"
+  | "referenceKey"
+  | "displayName"
+  | "orgUnitKindLabel"
+  | "parentDisplayName"
+  | "businessCode"
   | "updatedAt";
 
 interface DraftStructureTableProps {
@@ -103,8 +104,8 @@ export function DraftStructureTable({
           </EmptyMedia>
           <EmptyTitle>No structure items yet</EmptyTitle>
           <EmptyDescription>
-            Add the first structure item to begin preparing a draft structure for import
-            correction and later governance.
+            Add the first structure item to begin preparing a draft structure
+            for import correction and later governance.
           </EmptyDescription>
         </EmptyHeader>
       </Empty>
@@ -118,8 +119,8 @@ export function DraftStructureTable({
           <TableRow>
             <TableHead>
               <SortHeader
-                label="Code"
-                field="code"
+                label="Reference Key"
+                field="referenceKey"
                 sortBy={sortBy}
                 sortDirection={sortDirection}
                 onSortChange={onSortChange}
@@ -127,8 +128,8 @@ export function DraftStructureTable({
             </TableHead>
             <TableHead>
               <SortHeader
-                label="Name"
-                field="name"
+                label="Display Name"
+                field="displayName"
                 sortBy={sortBy}
                 sortDirection={sortDirection}
                 onSortChange={onSortChange}
@@ -136,8 +137,8 @@ export function DraftStructureTable({
             </TableHead>
             <TableHead>
               <SortHeader
-                label="Type"
-                field="type"
+                label="Kind"
+                field="orgUnitKindLabel"
                 sortBy={sortBy}
                 sortDirection={sortDirection}
                 onSortChange={onSortChange}
@@ -146,7 +147,16 @@ export function DraftStructureTable({
             <TableHead>
               <SortHeader
                 label="Parent"
-                field="parentName"
+                field="parentDisplayName"
+                sortBy={sortBy}
+                sortDirection={sortDirection}
+                onSortChange={onSortChange}
+              />
+            </TableHead>
+            <TableHead>
+              <SortHeader
+                label="Business Code"
+                field="businessCode"
                 sortBy={sortBy}
                 sortDirection={sortDirection}
                 onSortChange={onSortChange}
@@ -170,12 +180,18 @@ export function DraftStructureTable({
               className="cursor-pointer"
               onClick={() => onRowClick(unit)}
             >
-              <TableCell className="font-mono text-xs">{unit.code}</TableCell>
-              <TableCell className="font-medium">{unit.name}</TableCell>
-              <TableCell>{unit.type}</TableCell>
-              <TableCell>{unit.parentName ?? "Root"}</TableCell>
+              <TableCell className="font-mono text-xs">
+                {unit.referenceKey}
+              </TableCell>
+              <TableCell className="font-medium">{unit.displayName}</TableCell>
+              <TableCell>{unit.orgUnitKindLabel}</TableCell>
+              <TableCell>{unit.parentDisplayName ?? "Root"}</TableCell>
+              <TableCell>{unit.businessCode ?? "-"}</TableCell>
               <TableCell className="text-muted-foreground">
-                {formatTimestamp(unit.updatedAt, formatTimestamp(unit.createdAt, "-"))}
+                {formatTimestamp(
+                  unit.updatedAt,
+                  formatTimestamp(unit.createdAt, "-")
+                )}
               </TableCell>
             </TableRow>
           ))}
