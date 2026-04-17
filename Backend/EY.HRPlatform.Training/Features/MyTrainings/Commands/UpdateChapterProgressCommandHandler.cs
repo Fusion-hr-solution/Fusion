@@ -120,6 +120,16 @@ public class UpdateContentBlockProgressCommandHandler : ICommandHandler<UpdateCo
             trainingProgress.Start();
         }
 
-        trainingProgress.UpdateProgress(percentage);
+        // When the training has an exam, chapter completion alone does NOT complete the training.
+        // Completion happens only after the exam is passed (see SubmitExamCommandHandler).
+        var hasExam = await _db.Exams.AnyAsync(e => e.TrainingId == trainingId, cancellationToken);
+        if (hasExam)
+        {
+            trainingProgress.SetProgressPercentage(percentage);
+        }
+        else
+        {
+            trainingProgress.UpdateProgress(percentage);
+        }
     }
 }

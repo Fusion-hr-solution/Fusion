@@ -365,15 +365,15 @@ public static class TrainingSeeder
         await db.SaveChangesAsync();
 
         // --- Questions for C# exam ---
-        var q1 = new ExamQuestion("Which keyword is used to define an interface in C#?", "SingleChoice", csharpExam.Id);
+        var q1 = new ExamQuestion("Which keyword is used to define an interface in C#?", QuestionType.SingleChoice, csharpExam.Id, 0);
         await db.ExamQuestions.AddAsync(q1);
         await db.SaveChangesAsync();
 
         await db.ExamOptions.AddRangeAsync(
-            new ExamOption("interface", true, q1.Id),
-            new ExamOption("abstract", false, q1.Id),
-            new ExamOption("class", false, q1.Id),
-            new ExamOption("struct", false, q1.Id));
+            new ExamOption("interface", true, q1.Id, 0),
+            new ExamOption("abstract", false, q1.Id, 1),
+            new ExamOption("class", false, q1.Id, 2),
+            new ExamOption("struct", false, q1.Id, 3));
         await db.SaveChangesAsync();
 
     }
