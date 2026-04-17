@@ -40,7 +40,7 @@ export interface DraftOrgUnitDto {
   displayName: string;
   orgUnitKindKey: string;
   orgUnitKindLabel: string;
-  businessCode: string | null;
+  location: string | null;
   description: string | null;
   parentId: string | null;
   parentReferenceKey: string | null;
@@ -57,7 +57,7 @@ export interface DraftOrgUnitTreeNodeDto {
   displayName: string;
   orgUnitKindKey: string;
   orgUnitKindLabel: string;
-  businessCode: string | null;
+  location: string | null;
   level: number;
   isOrphaned: boolean;
   children: DraftOrgUnitTreeNodeDto[];
@@ -76,7 +76,7 @@ export interface CreateDraftOrgUnitRequest {
   referenceKey: string;
   displayName: string;
   orgUnitKindKey: string;
-  businessCode: string | null;
+  location: string | null;
   description: string | null;
   parentId: string | null;
   attributes?: Record<string, unknown> | null;
@@ -86,7 +86,7 @@ export interface UpdateDraftOrgUnitRequest {
   referenceKey: string;
   displayName: string;
   orgUnitKindKey: string;
-  businessCode: string | null;
+  location: string | null;
   description: string | null;
   parentId: string | null;
   attributes?: Record<string, unknown> | null;
@@ -142,7 +142,7 @@ export interface DraftStructureImportPreviewRowDto {
   orgUnitKindKey: string;
   orgUnitKindLabel: string;
   parentReferenceKey: string | null;
-  businessCode: string | null;
+  location: string | null;
   description: string | null;
   attributes: Record<string, unknown>;
 }

@@ -10,7 +10,7 @@ const defaultFieldLabels: Record<string, string> = {
   parentId: "Parent Unit",
   parentReferenceKey: "Parent Unit Code",
   parentDisplayName: "Parent Unit",
-  businessCode: "Business Code",
+  location: "Location",
   description: "Description",
 };
 

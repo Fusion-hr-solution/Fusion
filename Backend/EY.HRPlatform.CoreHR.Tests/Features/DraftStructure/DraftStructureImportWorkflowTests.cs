@@ -15,7 +15,7 @@ public class DraftStructureImportWorkflowTests
 {
     private static readonly Guid TenantId = Guid.NewGuid();
     private const string SettingsJson = """{"orgUnitTypes":["Department","Team"]}""";
-    private const string TemplateHeaders = "Unit Code,Unit Name,Unit Type,Parent Unit Code,Business Code,Description\n";
+    private const string TemplateHeaders = "Unit Code,Unit Name,Unit Type,Parent Unit Code,Location,Description\n";
 
     [Fact]
     public async Task ImportWorkflow_WithTemplateUpload_ReplacesDraftStructureAtomically()

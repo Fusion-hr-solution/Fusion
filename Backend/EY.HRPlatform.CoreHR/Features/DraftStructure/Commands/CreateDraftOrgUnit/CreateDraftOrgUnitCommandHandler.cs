@@ -60,7 +60,7 @@ public sealed class CreateDraftOrgUnitCommandHandler(
             request.ReferenceKey,
             request.DisplayName,
             request.OrgUnitKindKey,
-            request.BusinessCode,
+            request.Location,
             request.Description,
             attributesJson,
             request.ParentId);

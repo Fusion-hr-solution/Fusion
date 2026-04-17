@@ -64,7 +64,7 @@ public class DraftStructureController(ISender sender) : ControllerBase
             request.ReferenceKey,
             request.DisplayName,
             request.OrgUnitKindKey,
-            request.BusinessCode,
+            request.Location,
             request.Description,
             request.ParentId,
             request.Attributes);
@@ -103,7 +103,7 @@ public class DraftStructureController(ISender sender) : ControllerBase
             request.ReferenceKey,
             request.DisplayName,
             request.OrgUnitKindKey,
-            request.BusinessCode,
+            request.Location,
             request.Description,
             request.ParentId,
             expectedVersion,

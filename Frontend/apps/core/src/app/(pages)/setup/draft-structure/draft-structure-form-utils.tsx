@@ -27,7 +27,7 @@ export interface DraftOrgUnitFormValues {
   referenceKey: string;
   displayName: string;
   orgUnitKindKey: string;
-  businessCode: string;
+  location: string;
   description: string;
   parentId: string | null;
   attributes: Record<string, unknown>;
@@ -58,7 +58,7 @@ export function createDraftOrgUnitFormValues(
     referenceKey: unit?.referenceKey ?? "",
     displayName: unit?.displayName ?? "",
     orgUnitKindKey: unit?.orgUnitKindKey ?? schema.orgUnitKinds[0]?.key ?? "",
-    businessCode: unit?.businessCode ?? "",
+    location: unit?.location ?? "",
     description: unit?.description ?? "",
     parentId: unit?.parentId ?? null,
     attributes: normalizeAttributeValues(unit?.attributes ?? {}),

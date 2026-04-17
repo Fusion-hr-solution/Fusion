@@ -47,7 +47,7 @@ public sealed record DraftStructureImportPreviewRowDto(
     string OrgUnitKindKey,
     string OrgUnitKindLabel,
     string? ParentReferenceKey,
-    string? BusinessCode,
+    string? Location,
     string? Description,
     Dictionary<string, object?> Attributes);
 

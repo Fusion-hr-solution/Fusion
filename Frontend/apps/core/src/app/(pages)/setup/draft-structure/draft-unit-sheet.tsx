@@ -157,7 +157,7 @@ export function DraftUnitSheet({
         referenceKey: values.referenceKey.trim(),
         displayName: values.displayName.trim(),
         orgUnitKindKey: values.orgUnitKindKey,
-        businessCode: values.businessCode.trim() || null,
+        location: values.location.trim() || null,
         description: values.description.trim() || null,
         parentId: values.parentId || null,
         attributes: sanitizeDraftAttributes(schema, values.orgUnitKindKey, values.attributes),
@@ -317,15 +317,16 @@ export function DraftUnitSheet({
                 <div className="space-y-4">
                   <div className="grid gap-2 sm:grid-cols-2">
                     <div className="grid gap-2">
-                      <Label htmlFor="edit-draft-business-code">Business Code</Label>
+                      <Label htmlFor="edit-draft-location">Location</Label>
                       <Input
-                        id="edit-draft-business-code"
-                        {...register("businessCode", {
+                        id="edit-draft-location"
+                        placeholder="Dubai HQ"
+                        {...register("location", {
                           maxLength: { value: 100, message: "Maximum 100 characters" },
                         })}
                       />
-                      {errors.businessCode && (
-                        <p className="text-sm text-destructive">{errors.businessCode.message}</p>
+                      {errors.location && (
+                        <p className="text-sm text-destructive">{errors.location.message}</p>
                       )}
                     </div>
                   </div>

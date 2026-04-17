@@ -48,6 +48,7 @@ import {
 import {
   useApplyDraftStructureImport,
   useDownloadDraftStructureTemplate,
+  useDraftStructureImportSchema,
   useDraftStructureImportSession,
   useUploadDraftStructureImport,
   useValidateDraftStructureImport,
@@ -151,6 +152,7 @@ export function DraftStructureImportPanel({
     isLoading: isSessionLoading,
     refetch: refetchSession,
   } = useDraftStructureImportSession(sessionId, !!sessionId);
+  const { data: importSchema } = useDraftStructureImportSchema(open);
   const uploadImport = useUploadDraftStructureImport();
   const downloadTemplate = useDownloadDraftStructureTemplate();
   const validateImport = useValidateDraftStructureImport();
@@ -176,6 +178,10 @@ export function DraftStructureImportPanel({
         errorCount: session.validationSummary.errorCount,
       })
     : null;
+  const availableUnitTypes =
+    session?.importSchema.draftStructureSchema.orgUnitKinds ??
+    importSchema?.draftStructureSchema.orgUnitKinds ??
+    [];
 
   useEffect(() => {
     if (!selectedPreviewNodeId) {
@@ -359,6 +365,26 @@ export function DraftStructureImportPanel({
             </div>
           </div>
 
+          <div className="rounded-2xl border p-5">
+            <p className="text-sm font-medium">Default unit types</p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              The template accepts these unit types by default. If the file introduces a new type, the review flow can still carry it forward as a new valid type.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {availableUnitTypes.length > 0 ? (
+                availableUnitTypes.map((kind) => (
+                  <Badge key={kind.key} variant="secondary">
+                    {kind.displayLabel}
+                  </Badge>
+                ))
+              ) : (
+                <span className="text-sm text-muted-foreground">
+                  Unit types will appear here when the import schema loads.
+                </span>
+              )}
+            </div>
+          </div>
+
           {session ? (
             <>
               <div className="grid gap-4 md:grid-cols-4">
@@ -506,8 +532,8 @@ export function DraftStructureImportPanel({
                           </div>
                           <div className="mt-4 grid gap-3">
                             <ImportField
-                              label="Business Code"
-                              value={selectedPreviewNode.businessCode ?? "Not set"}
+                              label="Location"
+                              value={selectedPreviewNode.location ?? "Not set"}
                             />
                             <ImportField
                               label="Description"

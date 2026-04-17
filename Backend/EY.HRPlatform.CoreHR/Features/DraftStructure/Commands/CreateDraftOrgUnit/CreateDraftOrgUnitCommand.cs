@@ -8,7 +8,7 @@ public sealed record CreateDraftOrgUnitCommand(
     string ReferenceKey,
     string DisplayName,
     string OrgUnitKindKey,
-    string? BusinessCode,
+    string? Location,
     string? Description,
     Guid? ParentId,
     Dictionary<string, object?>? Attributes) : ICommand<Result<DraftOrgUnitDto>>;

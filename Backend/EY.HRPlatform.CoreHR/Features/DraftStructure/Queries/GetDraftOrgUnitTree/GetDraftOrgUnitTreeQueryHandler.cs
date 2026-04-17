@@ -86,7 +86,7 @@ public sealed class GetDraftOrgUnitTreeQueryHandler(
             kindLabels.TryGetValue(orgUnit.OrgUnitKindKey, out var orgUnitKindLabel)
                 ? orgUnitKindLabel
                 : orgUnit.OrgUnitKindKey,
-            orgUnit.BusinessCode,
+            orgUnit.Location,
             currentLevel,
             isOrphaned,
             children);

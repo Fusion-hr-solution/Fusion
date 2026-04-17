@@ -378,8 +378,8 @@ export default function DraftStructurePage() {
 
                   <div className="mt-4 grid gap-3">
                     <SummaryField
-                      label="Business Code"
-                      value={selectedUnit.businessCode ?? "Not set"}
+                      label="Location"
+                      value={selectedUnit.location ?? "Not set"}
                     />
                     <SummaryField
                       label="Description"

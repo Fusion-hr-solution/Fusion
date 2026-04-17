@@ -22,7 +22,7 @@ public static class DraftStructureMapper
             unit.DisplayName,
             unit.OrgUnitKindKey,
             orgUnitKindLabel,
-            unit.BusinessCode,
+            unit.Location,
             unit.Description,
             unit.ParentId,
             parent?.ReferenceKey,

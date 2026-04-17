@@ -366,7 +366,7 @@ public sealed class DraftStructureImportWorkflowService(
                 "orgUnitKind",
                 schema.OrgUnitKinds.Select(kind => kind.DisplayLabel).ToList()),
             new(CanonicalFieldKeys.ParentReferenceKey, "Parent Unit Code", false, "text"),
-            new(CanonicalFieldKeys.BusinessCode, "Business Code", false, "text"),
+            new(CanonicalFieldKeys.Location, "Location", false, "text"),
             new(CanonicalFieldKeys.Description, "Description", false, "text")
         };
 
@@ -630,7 +630,7 @@ public sealed class DraftStructureImportWorkflowService(
             var displayName = ReadMappedValue(sourceRow, columnMappings, CanonicalFieldKeys.DisplayName);
             var orgUnitKindSourceValue = ReadMappedValue(sourceRow, columnMappings, CanonicalFieldKeys.OrgUnitKindKey);
             var parentReferenceKey = ReadMappedValue(sourceRow, columnMappings, CanonicalFieldKeys.ParentReferenceKey);
-            var businessCode = ReadMappedValue(sourceRow, columnMappings, CanonicalFieldKeys.BusinessCode);
+            var location = ReadMappedValue(sourceRow, columnMappings, CanonicalFieldKeys.Location);
             var description = ReadMappedValue(sourceRow, columnMappings, CanonicalFieldKeys.Description);
 
             if (string.IsNullOrWhiteSpace(referenceKey))
@@ -696,7 +696,7 @@ public sealed class DraftStructureImportWorkflowService(
                 kindResolution.ResolvedOrgUnitKindKey!,
                 string.IsNullOrWhiteSpace(parentReferenceKey) ? null : parentReferenceKey.Trim(),
                 normalizedParentReferenceKey,
-                string.IsNullOrWhiteSpace(businessCode) ? null : businessCode.Trim(),
+                string.IsNullOrWhiteSpace(location) ? null : location.Trim(),
                 string.IsNullOrWhiteSpace(description) ? null : description.Trim(),
                 attributesJson));
         }
@@ -818,7 +818,7 @@ public sealed class DraftStructureImportWorkflowService(
                     row.OrgUnitKindKey,
                     kindLabels.TryGetValue(row.OrgUnitKindKey, out var orgUnitKindLabel) ? orgUnitKindLabel : row.OrgUnitKindKey,
                     row.ParentReferenceKey,
-                    row.BusinessCode,
+                    row.Location,
                     row.Description,
                     DraftStructureJsonSerializer.DeserializeAttributes(row.AttributesJson)))
                 .ToList(),
@@ -865,7 +865,7 @@ public sealed class DraftStructureImportWorkflowService(
                 unit.NormalizedReferenceKey,
                 unit.ParentId,
                 unit.OrgUnitKindKey,
-                unit.BusinessCode,
+                unit.Location,
                 unit.Description,
                 unit.UpdatedAt,
                 unit.Version
@@ -934,7 +934,7 @@ public sealed class DraftStructureImportWorkflowService(
                 normalizedRow.ReferenceKey,
                 normalizedRow.DisplayName,
                 normalizedRow.OrgUnitKindKey,
-                normalizedRow.BusinessCode,
+                normalizedRow.Location,
                 normalizedRow.Description,
                 normalizedRow.AttributesJson,
                 parentId: null);
@@ -1059,7 +1059,7 @@ public sealed class DraftStructureImportWorkflowService(
         public const string DisplayName = "displayName";
         public const string OrgUnitKindKey = "orgUnitKindKey";
         public const string ParentReferenceKey = "parentReferenceKey";
-        public const string BusinessCode = "businessCode";
+        public const string Location = "location";
         public const string Description = "description";
     }
 
@@ -1087,7 +1087,7 @@ public sealed class DraftStructureImportWorkflowService(
         string OrgUnitKindKey,
         string? ParentReferenceKey,
         string? NormalizedParentReferenceKey,
-        string? BusinessCode,
+        string? Location,
         string? Description,
         string? AttributesJson);
 

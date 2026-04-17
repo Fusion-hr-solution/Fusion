@@ -25,7 +25,7 @@ export interface DraftStructureTreeNodeModel {
   orgUnitKindKey: string;
   orgUnitKindLabel: string;
   parentReferenceKey: string | null;
-  businessCode: string | null;
+  location: string | null;
   description: string | null;
   attributes: Record<string, unknown>;
   level: number;
@@ -71,7 +71,7 @@ export function buildImportPreviewDraftTree(
       orgUnitKindKey: previewRow.orgUnitKindKey,
       orgUnitKindLabel: previewRow.orgUnitKindLabel,
       parentReferenceKey: previewRow.parentReferenceKey,
-      businessCode: previewRow.businessCode,
+      location: previewRow.location,
       description: previewRow.description,
       attributes: previewRow.attributes,
       level: 0,
@@ -122,7 +122,7 @@ export function filterDraftTree(
       node.referenceKey,
       node.displayName,
       node.orgUnitKindLabel,
-      node.businessCode ?? "",
+      node.location ?? "",
       node.description ?? "",
       ...node.issueSummary.issues.map((issue) => issue.message),
     ]
@@ -190,7 +190,7 @@ function mapWorkspaceNode(
     orgUnitKindKey: node.orgUnitKindKey,
     orgUnitKindLabel: node.orgUnitKindLabel,
     parentReferenceKey,
-    businessCode: node.businessCode,
+    location: node.location,
     description: null,
     attributes: {},
     level,

@@ -25,7 +25,7 @@ export type DraftStructureSortField =
   | "displayName"
   | "orgUnitKindLabel"
   | "parentDisplayName"
-  | "businessCode"
+  | "location"
   | "updatedAt";
 
 interface DraftStructureTableProps {
@@ -155,8 +155,8 @@ export function DraftStructureTable({
             </TableHead>
             <TableHead>
               <SortHeader
-                label="Business Code"
-                field="businessCode"
+                label="Location"
+                field="location"
                 sortBy={sortBy}
                 sortDirection={sortDirection}
                 onSortChange={onSortChange}
@@ -186,7 +186,7 @@ export function DraftStructureTable({
               <TableCell className="font-medium">{unit.displayName}</TableCell>
               <TableCell>{unit.orgUnitKindLabel}</TableCell>
               <TableCell>{unit.parentDisplayName ?? "Root"}</TableCell>
-              <TableCell>{unit.businessCode ?? "-"}</TableCell>
+              <TableCell>{unit.location ?? "-"}</TableCell>
               <TableCell className="text-muted-foreground">
                 {formatTimestamp(
                   unit.updatedAt,

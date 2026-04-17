@@ -103,7 +103,7 @@ export function CreateDraftUnitDialog({
         referenceKey: values.referenceKey.trim(),
         displayName: values.displayName.trim(),
         orgUnitKindKey: values.orgUnitKindKey,
-        businessCode: values.businessCode.trim() || null,
+        location: values.location.trim() || null,
         description: values.description.trim() || null,
         parentId: values.parentId || null,
         attributes: sanitizeDraftAttributes(
@@ -241,16 +241,16 @@ export function CreateDraftUnitDialog({
               <div className="grid gap-4">
                 <div className="grid gap-2 sm:grid-cols-2">
                   <div className="grid gap-2">
-                    <Label htmlFor="draft-business-code">Business Code</Label>
+                    <Label htmlFor="draft-location">Location</Label>
                     <Input
-                      id="draft-business-code"
-                      placeholder="ENG"
-                      {...register("businessCode", {
+                      id="draft-location"
+                      placeholder="Dubai HQ"
+                      {...register("location", {
                         maxLength: { value: 100, message: "Maximum 100 characters" },
                       })}
                     />
-                    {errors.businessCode ? (
-                      <p className="text-sm text-destructive">{errors.businessCode.message}</p>
+                    {errors.location ? (
+                      <p className="text-sm text-destructive">{errors.location.message}</p>
                     ) : null}
                   </div>
                 </div>

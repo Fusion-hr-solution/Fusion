@@ -88,7 +88,7 @@ public sealed class UpdateDraftOrgUnitCommandHandler(
             request.ReferenceKey,
             request.DisplayName,
             request.OrgUnitKindKey,
-            request.BusinessCode,
+            request.Location,
             request.Description,
             attributesJson,
             request.ParentId);

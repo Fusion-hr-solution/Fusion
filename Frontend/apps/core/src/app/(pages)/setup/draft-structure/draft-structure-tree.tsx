@@ -200,7 +200,7 @@ function TreeBranch({
               <span className="font-mono uppercase tracking-wide">
                 {node.referenceKey}
               </span>
-              {node.businessCode ? <span>Business code {node.businessCode}</span> : null}
+              {node.location ? <span>Location {node.location}</span> : null}
               {node.rowNumber ? <span>Row {node.rowNumber}</span> : null}
             </div>
           </button>

@@ -9,7 +9,7 @@ public sealed record UpdateDraftOrgUnitCommand(
     string ReferenceKey,
     string DisplayName,
     string OrgUnitKindKey,
-    string? BusinessCode,
+    string? Location,
     string? Description,
     Guid? ParentId,
     uint ExpectedVersion,

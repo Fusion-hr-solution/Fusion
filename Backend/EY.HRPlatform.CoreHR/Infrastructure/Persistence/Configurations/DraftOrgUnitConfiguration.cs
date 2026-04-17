@@ -31,7 +31,7 @@ public class DraftOrgUnitConfiguration : IEntityTypeConfiguration<DraftOrgUnit>
             .HasMaxLength(100)
             .IsRequired();
 
-        builder.Property(o => o.BusinessCode)
+        builder.Property(o => o.Location)
             .HasMaxLength(100)
             .IsRequired(false);
 

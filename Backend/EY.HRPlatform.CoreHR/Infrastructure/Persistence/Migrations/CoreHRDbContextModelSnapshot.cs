@@ -32,7 +32,7 @@ namespace EY.HRPlatform.CoreHR.Infrastructure.Persistence.Migrations
                     b.Property<string>("AttributesJson")
                         .HasColumnType("jsonb");
 
-                    b.Property<string>("BusinessCode")
+                    b.Property<string>("Location")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 

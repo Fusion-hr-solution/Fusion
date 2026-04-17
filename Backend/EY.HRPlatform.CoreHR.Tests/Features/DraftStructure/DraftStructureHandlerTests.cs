@@ -180,7 +180,7 @@ public class DraftStructureHandlerTests
                     rootUnit.ReferenceKey,
                     rootUnit.DisplayName,
                     rootUnit.OrgUnitKindKey,
-                    rootUnit.BusinessCode,
+                    rootUnit.Location,
                     rootUnit.Description,
                     grandChildUnit.Id,
                     rootUnit.Version,
@@ -440,14 +440,14 @@ public class DraftStructureHandlerTests
         string displayName,
         string orgUnitKindKey,
         Guid? parentId = null,
-        string? businessCode = null)
+        string? location = null)
     {
         return DraftOrgUnit.Create(
             tenantId,
             referenceKey,
             displayName,
             orgUnitKindKey,
-            businessCode,
+            location,
             description: null,
             attributesJson: null,
             parentId);

@@ -16,7 +16,7 @@ public sealed record UpdateDraftOrgUnitRequest(
     string OrgUnitKindKey,
 
     [StringLength(100)]
-    string? BusinessCode,
+    string? Location,
 
     [StringLength(500)]
     string? Description,

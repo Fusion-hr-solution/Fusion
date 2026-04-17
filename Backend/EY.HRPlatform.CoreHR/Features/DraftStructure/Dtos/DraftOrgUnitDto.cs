@@ -8,7 +8,7 @@ public sealed record DraftOrgUnitDto(
     string DisplayName,
     string OrgUnitKindKey,
     string OrgUnitKindLabel,
-    string? BusinessCode,
+    string? Location,
     string? Description,
     Guid? ParentId,
     string? ParentReferenceKey,
@@ -24,7 +24,7 @@ public sealed record DraftOrgUnitTreeNodeDto(
     string DisplayName,
     string OrgUnitKindKey,
     string OrgUnitKindLabel,
-    string? BusinessCode,
+    string? Location,
     int Level,
     bool IsOrphaned,
     List<DraftOrgUnitTreeNodeDto> Children);

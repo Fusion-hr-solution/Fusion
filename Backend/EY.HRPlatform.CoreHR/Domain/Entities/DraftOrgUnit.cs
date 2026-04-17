@@ -35,9 +35,9 @@ public class DraftOrgUnit : BaseEntity, ITenantEntity
     public string OrgUnitKindKey { get; private set; } = string.Empty;
 
     /// <summary>
-    /// Optional business-facing code. Not the canonical identity.
+    /// Optional business-facing location.
     /// </summary>
-    public string? BusinessCode { get; private set; }
+    public string? Location { get; private set; }
 
     /// <summary>
     /// Optional business-facing description.
@@ -64,7 +64,7 @@ public class DraftOrgUnit : BaseEntity, ITenantEntity
         string referenceKey,
         string displayName,
         string orgUnitKindKey,
-        string? businessCode,
+        string? location,
         string? description,
         string? attributesJson,
         Guid? parentId)
@@ -87,8 +87,8 @@ public class DraftOrgUnit : BaseEntity, ITenantEntity
         if (string.IsNullOrWhiteSpace(orgUnitKindKey))
             throw new ArgumentException("OrgUnitKindKey cannot be empty.", nameof(orgUnitKindKey));
 
-        if (!string.IsNullOrWhiteSpace(businessCode) && businessCode.Trim().Length > 100)
-            throw new ArgumentException("BusinessCode cannot exceed 100 characters.", nameof(businessCode));
+        if (!string.IsNullOrWhiteSpace(location) && location.Trim().Length > 100)
+            throw new ArgumentException("Location cannot exceed 100 characters.", nameof(location));
 
         if (!string.IsNullOrWhiteSpace(description) && description.Trim().Length > 500)
             throw new ArgumentException("Description cannot exceed 500 characters.", nameof(description));
@@ -105,7 +105,7 @@ public class DraftOrgUnit : BaseEntity, ITenantEntity
             NormalizedReferenceKey = normalizedReferenceKey,
             DisplayName = displayName.Trim(),
             OrgUnitKindKey = NormalizeKindKey(orgUnitKindKey),
-            BusinessCode = NormalizeOptionalText(businessCode),
+            Location = NormalizeOptionalText(location),
             Description = NormalizeOptionalText(description),
             AttributesJson = NormalizeOptionalJson(attributesJson),
             ParentId = parentId
@@ -116,7 +116,7 @@ public class DraftOrgUnit : BaseEntity, ITenantEntity
         string referenceKey,
         string displayName,
         string orgUnitKindKey,
-        string? businessCode,
+        string? location,
         string? description,
         string? attributesJson,
         Guid? parentId)
@@ -136,8 +136,8 @@ public class DraftOrgUnit : BaseEntity, ITenantEntity
         if (string.IsNullOrWhiteSpace(orgUnitKindKey))
             throw new ArgumentException("OrgUnitKindKey cannot be empty.", nameof(orgUnitKindKey));
 
-        if (!string.IsNullOrWhiteSpace(businessCode) && businessCode.Trim().Length > 100)
-            throw new ArgumentException("BusinessCode cannot exceed 100 characters.", nameof(businessCode));
+        if (!string.IsNullOrWhiteSpace(location) && location.Trim().Length > 100)
+            throw new ArgumentException("Location cannot exceed 100 characters.", nameof(location));
 
         if (!string.IsNullOrWhiteSpace(description) && description.Trim().Length > 500)
             throw new ArgumentException("Description cannot exceed 500 characters.", nameof(description));
@@ -152,7 +152,7 @@ public class DraftOrgUnit : BaseEntity, ITenantEntity
         NormalizedReferenceKey = NormalizeReferenceKey(referenceKey);
         DisplayName = displayName.Trim();
         OrgUnitKindKey = NormalizeKindKey(orgUnitKindKey);
-        BusinessCode = NormalizeOptionalText(businessCode);
+        Location = NormalizeOptionalText(location);
         Description = NormalizeOptionalText(description);
         AttributesJson = NormalizeOptionalJson(attributesJson);
         ParentId = parentId;

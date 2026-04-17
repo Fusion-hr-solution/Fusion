@@ -58,7 +58,7 @@ namespace EY.HRPlatform.CoreHR.Infrastructure.Persistence.Migrations
                 nullable: true);
 
             migrationBuilder.AddColumn<string>(
-                name: "BusinessCode",
+                name: "Location",
                 schema: "corehr",
                 table: "DraftOrgUnits",
                 type: "character varying(100)",
@@ -86,8 +86,7 @@ namespace EY.HRPlatform.CoreHR.Infrastructure.Persistence.Migrations
                 UPDATE corehr."DraftOrgUnits"
                 SET "ReferenceKey" = COALESCE(NULLIF(BTRIM("ReferenceKey"), ''), "Id"::text),
                     "NormalizedReferenceKey" = UPPER(COALESCE(NULLIF(BTRIM("ReferenceKey"), ''), "Id"::text)),
-                    "OrgUnitKindKey" = LOWER(COALESCE(NULLIF(BTRIM("OrgUnitKindKey"), ''), 'department')),
-                    "BusinessCode" = COALESCE("BusinessCode", NULLIF(BTRIM("ReferenceKey"), ''));
+                    "OrgUnitKindKey" = LOWER(COALESCE(NULLIF(BTRIM("OrgUnitKindKey"), ''), 'department'));
                 """);
 
             migrationBuilder.AlterColumn<string>(
@@ -177,7 +176,7 @@ namespace EY.HRPlatform.CoreHR.Infrastructure.Persistence.Migrations
                 table: "DraftOrgUnits");
 
             migrationBuilder.DropColumn(
-                name: "BusinessCode",
+                name: "Location",
                 schema: "corehr",
                 table: "DraftOrgUnits");
 
