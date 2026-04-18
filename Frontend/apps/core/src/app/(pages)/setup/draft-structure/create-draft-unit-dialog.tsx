@@ -47,6 +47,7 @@ interface CreateDraftUnitDialogProps {
   onOpenChange: (open: boolean) => void;
   onCreated: () => void;
   onSchemaUpdated?: () => void;
+  readOnly?: boolean;
   schema: DraftStructureSchemaDto;
   existingUnits: DraftOrgUnitDto[];
   initialParentId?: string | null;
@@ -67,6 +68,7 @@ export function CreateDraftUnitDialog({
   onOpenChange,
   onCreated,
   onSchemaUpdated,
+  readOnly = false,
   schema,
   existingUnits,
   initialParentId,
@@ -123,6 +125,10 @@ export function CreateDraftUnitDialog({
   });
 
   const onSubmit = async (values: DraftOrgUnitFormValues) => {
+    if (readOnly) {
+      return;
+    }
+
     setServerError(null);
 
     try {
@@ -178,6 +184,7 @@ export function CreateDraftUnitDialog({
               <Input
                 id="draft-reference-key"
                 placeholder="ENG"
+                disabled={readOnly}
                 {...register("referenceKey", {
                   required: "Unit code is required",
                   maxLength: { value: 150, message: "Maximum 150 characters" },
@@ -193,6 +200,7 @@ export function CreateDraftUnitDialog({
               <Input
                 id="draft-display-name"
                 placeholder="Engineering"
+                disabled={readOnly}
                 {...register("displayName", {
                   required: "Unit name is required",
                   maxLength: { value: 200, message: "Maximum 200 characters" },
@@ -210,6 +218,7 @@ export function CreateDraftUnitDialog({
                   schema={editableSchema}
                   existingUnits={existingUnits}
                   currentKindKey={selectedKindKey}
+                  disabled={readOnly}
                   onSchemaUpdated={(nextSchema) => {
                     setEditableSchema(nextSchema);
                     if (
@@ -230,7 +239,11 @@ export function CreateDraftUnitDialog({
                 name="orgUnitKindKey"
                 rules={{ required: "Unit type is required" }}
                 render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
+                  <Select
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    disabled={readOnly}
+                  >
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select a unit type" />
                     </SelectTrigger>
@@ -257,6 +270,7 @@ export function CreateDraftUnitDialog({
                 render={({ field }) => (
                   <Select
                     value={field.value ?? ROOT_VALUE}
+                    disabled={readOnly}
                     onValueChange={(value) => {
                       field.onChange(value === ROOT_VALUE ? null : value);
                     }}
@@ -293,6 +307,7 @@ export function CreateDraftUnitDialog({
                     <Input
                       id="draft-location"
                       placeholder="Dubai HQ"
+                      disabled={readOnly}
                       {...register("location", {
                         maxLength: { value: 100, message: "Maximum 100 characters" },
                       })}
@@ -309,6 +324,7 @@ export function CreateDraftUnitDialog({
                     id="draft-description"
                     placeholder="Optional notes about this unit"
                     rows={3}
+                    disabled={readOnly}
                     {...register("description", {
                       maxLength: { value: 500, message: "Maximum 500 characters" },
                     })}
@@ -323,6 +339,7 @@ export function CreateDraftUnitDialog({
                   selectedKindKey={selectedKindKey}
                   control={control}
                   errors={errors}
+                  disabled={readOnly}
                 />
               </div>
             </div>
@@ -333,10 +350,16 @@ export function CreateDraftUnitDialog({
           </div>
 
           <DialogFooter className="mx-0 mb-0 rounded-none border-t bg-muted/50 px-6 py-4">
-            <Button type="submit" disabled={create.isLoading}>
-              {create.isLoading ? <Spinner className="mr-1" /> : null}
-              Add unit
-            </Button>
+            {readOnly ? (
+              <Button type="button" variant="outline" onClick={() => handleClose(false)}>
+                Close
+              </Button>
+            ) : (
+              <Button type="submit" disabled={create.isLoading}>
+                {create.isLoading ? <Spinner className="mr-1" /> : null}
+                Add unit
+              </Button>
+            )}
           </DialogFooter>
         </form>
       </DialogContent>

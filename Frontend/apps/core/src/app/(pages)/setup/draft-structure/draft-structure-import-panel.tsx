@@ -134,10 +134,12 @@ export function DraftStructureImportPanel({
   open,
   onOpenChange,
   onApplied,
+  readOnly = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onApplied: () => void;
+  readOnly?: boolean;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -329,6 +331,11 @@ export function DraftStructureImportPanel({
   };
 
   const handleUpload = async () => {
+    if (readOnly) {
+      setPageError("Reopen the draft from Setup before importing a new file.");
+      return;
+    }
+
     if (!selectedFile) {
       setPageError("Choose the official draft-structure template before uploading.");
       return;
@@ -352,6 +359,11 @@ export function DraftStructureImportPanel({
   };
 
   const handleStartNewImport = () => {
+    if (readOnly) {
+      setPageError("Reopen the draft from Setup before starting a new import.");
+      return;
+    }
+
     setSelectedFile(null);
     setPageError(null);
     setSelectedPreviewNodeId(null);
@@ -359,6 +371,11 @@ export function DraftStructureImportPanel({
   };
 
   const handleValidate = async () => {
+    if (readOnly) {
+      setPageError("Reopen the draft from Setup before validating a file.");
+      return;
+    }
+
     if (!sessionId) {
       return;
     }
@@ -376,6 +393,11 @@ export function DraftStructureImportPanel({
   };
 
   const handleApply = async () => {
+    if (readOnly) {
+      setPageError("Reopen the draft from Setup before replacing the draft.");
+      return;
+    }
+
     if (!sessionId) {
       return;
     }
@@ -416,7 +438,7 @@ export function DraftStructureImportPanel({
                 Download Template
               </Button>
               {canStartNewImport ? (
-                <Button variant="outline" onClick={handleStartNewImport}>
+                <Button variant="outline" onClick={handleStartNewImport} disabled={readOnly}>
                   New Import
                 </Button>
               ) : null}
@@ -429,6 +451,15 @@ export function DraftStructureImportPanel({
             <ImportPanelSkeleton />
           ) : (
             <>
+          {readOnly ? (
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Import is locked</AlertTitle>
+              <AlertDescription>
+                Reopen the draft from Setup before uploading, validating, or applying a file.
+              </AlertDescription>
+            </Alert>
+          ) : null}
           {pageError || (sessionId ? sessionError : null) ? (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
@@ -480,12 +511,16 @@ export function DraftStructureImportPanel({
                     id="draft-structure-import-file"
                     type="file"
                     accept=".csv,text/csv"
+                    disabled={readOnly}
                     onChange={(event) => {
                       setSelectedFile(event.target.files?.[0] ?? null);
                     }}
                   />
                   <div className="flex flex-wrap gap-2">
-                    <Button onClick={handleUpload} disabled={!selectedFile || uploadImport.isLoading}>
+                    <Button
+                      onClick={handleUpload}
+                      disabled={readOnly || !selectedFile || uploadImport.isLoading}
+                    >
                       {uploadImport.isLoading ? (
                         <Spinner className="mr-1" />
                       ) : (
@@ -738,7 +773,7 @@ export function DraftStructureImportPanel({
               {canValidateCurrentReview || canCheckCurrentReview ? (
                 <Button
                   onClick={handleValidate}
-                  disabled={validateImport.isLoading}
+                  disabled={readOnly || validateImport.isLoading}
                 >
                   {validateImport.isLoading ? <Spinner className="mr-1" /> : null}
                   {validateActionLabel}
@@ -746,7 +781,7 @@ export function DraftStructureImportPanel({
               ) : null}
               <Button
                 onClick={handleApply}
-                disabled={applyImport.isLoading || !session?.canApply || hasPendingUpload}
+                disabled={readOnly || applyImport.isLoading || !session?.canApply || hasPendingUpload}
               >
                 {applyImport.isLoading ? <Spinner className="mr-1" /> : null}
                 Replace Draft

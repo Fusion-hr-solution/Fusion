@@ -1,10 +1,6 @@
 "use client";
 
-import type {
-  Control,
-  FieldErrors,
-  FieldPath,
-} from "react-hook-form";
+import type { Control, FieldErrors, FieldPath } from "react-hook-form";
 import { Controller } from "react-hook-form";
 import type {
   DraftOrgUnitDto,
@@ -117,11 +113,13 @@ export function DraftStructureAttributeFields({
   selectedKindKey,
   control,
   errors,
+  disabled = false,
 }: {
   schema: DraftStructureSchemaDto;
   selectedKindKey: string;
   control: Control<DraftOrgUnitFormValues>;
   errors: FieldErrors<DraftOrgUnitFormValues>;
+  disabled?: boolean;
 }) {
   const attributes = getApplicableAttributes(schema, selectedKindKey);
 
@@ -146,6 +144,7 @@ export function DraftStructureAttributeFields({
             attribute={attribute}
             control={control}
             errors={errors}
+            disabled={disabled}
           />
         ))}
       </div>
@@ -157,10 +156,12 @@ function DraftAttributeField({
   attribute,
   control,
   errors,
+  disabled,
 }: {
   attribute: DraftStructureAttributeDefinitionDto;
   control: Control<DraftOrgUnitFormValues>;
   errors: FieldErrors<DraftOrgUnitFormValues>;
+  disabled: boolean;
 }) {
   const fieldName = `attributes.${attribute.key}` as FieldPath<DraftOrgUnitFormValues>;
   const attributeErrors = errors.attributes as Record<string, { message?: string }> | undefined;
@@ -185,14 +186,15 @@ function DraftAttributeField({
                 onValueChange={(value) => {
                   field.onChange(value === UNSET_VALUE ? undefined : value);
                 }}
+                disabled={disabled}
               >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder={`Select ${attribute.displayLabel}`} />
                 </SelectTrigger>
                 <SelectContent>
-                  {!attribute.required && (
+                  {!attribute.required ? (
                     <SelectItem value={UNSET_VALUE}>Not set</SelectItem>
-                  )}
+                  ) : null}
                   {(attribute.allowedValues ?? []).map((value) => (
                     <SelectItem key={value} value={value}>
                       {value}
@@ -215,14 +217,15 @@ function DraftAttributeField({
 
                   field.onChange(value === "true");
                 }}
+                disabled={disabled}
               >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder={`Select ${attribute.displayLabel}`} />
                 </SelectTrigger>
                 <SelectContent>
-                  {!attribute.required && (
+                  {!attribute.required ? (
                     <SelectItem value={UNSET_VALUE}>Not set</SelectItem>
-                  )}
+                  ) : null}
                   <SelectItem value="true">True</SelectItem>
                   <SelectItem value="false">False</SelectItem>
                 </SelectContent>
@@ -232,15 +235,22 @@ function DraftAttributeField({
 
           return (
             <Input
-              type={attribute.valueType === "date" ? "date" : attribute.valueType === "number" ? "number" : "text"}
+              type={
+                attribute.valueType === "date"
+                  ? "date"
+                  : attribute.valueType === "number"
+                    ? "number"
+                    : "text"
+              }
               value={field.value == null ? "" : String(field.value)}
               onChange={(event) => field.onChange(event.target.value)}
               placeholder={attribute.displayLabel}
+              disabled={disabled}
             />
           );
         }}
       />
-      {errorMessage && <p className="text-sm text-destructive">{errorMessage}</p>}
+      {errorMessage ? <p className="text-sm text-destructive">{errorMessage}</p> : null}
     </div>
   );
 }

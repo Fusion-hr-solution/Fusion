@@ -57,6 +57,7 @@ interface DraftUnitSheetProps {
   onOpenChange: (open: boolean) => void;
   onMutated: () => void;
   onSchemaUpdated?: () => void;
+  readOnly?: boolean;
   schema: DraftStructureSchemaDto;
   existingUnits: DraftOrgUnitDto[];
 }
@@ -84,6 +85,7 @@ export function DraftUnitSheet({
   onOpenChange,
   onMutated,
   onSchemaUpdated,
+  readOnly = false,
   schema,
   existingUnits,
 }: DraftUnitSheetProps) {
@@ -181,6 +183,10 @@ export function DraftUnitSheet({
   }
 
   const onSubmit = async (values: DraftOrgUnitFormValues) => {
+    if (readOnly) {
+      return;
+    }
+
     setServerError(null);
 
     try {
@@ -213,6 +219,10 @@ export function DraftUnitSheet({
   };
 
   const handleDelete = async () => {
+    if (readOnly) {
+      return;
+    }
+
     if (childUnits.length > 0 && !deleteStrategy) {
       return;
     }
@@ -244,8 +254,9 @@ export function DraftUnitSheet({
           <SheetHeader className="border-b pr-14">
             <SheetTitle>{unit.displayName}</SheetTitle>
             <SheetDescription>
-              Update this unit inside the draft organization without touching
-              the live structure immediately.
+              {readOnly
+                ? "Review this approved draft unit here. Reopen the draft before making changes."
+                : "Update this unit inside the draft organization without touching the live structure immediately."}
             </SheetDescription>
           </SheetHeader>
 
@@ -258,10 +269,17 @@ export function DraftUnitSheet({
 
               <Separator />
 
+              {readOnly ? (
+                <div className="rounded-xl border bg-muted/20 p-4 text-sm text-muted-foreground">
+                  This draft is locked. Reopen it from Setup before editing or deleting units.
+                </div>
+              ) : null}
+
               <div className="grid gap-2">
                 <Label htmlFor="edit-draft-reference-key">Unit Code</Label>
                 <Input
                   id="edit-draft-reference-key"
+                  disabled={readOnly}
                   {...register("referenceKey", {
                     required: "Unit code is required",
                     maxLength: { value: 150, message: "Maximum 150 characters" },
@@ -276,6 +294,7 @@ export function DraftUnitSheet({
                 <Label htmlFor="edit-draft-display-name">Unit Name</Label>
                 <Input
                   id="edit-draft-display-name"
+                  disabled={readOnly}
                   {...register("displayName", {
                     required: "Unit name is required",
                     maxLength: { value: 200, message: "Maximum 200 characters" },
@@ -293,6 +312,7 @@ export function DraftUnitSheet({
                     schema={editableSchema}
                     existingUnits={existingUnits}
                     currentKindKey={selectedKindKey}
+                    disabled={readOnly}
                     onSchemaUpdated={(nextSchema) => {
                       setEditableSchema(nextSchema);
                       if (
@@ -310,7 +330,11 @@ export function DraftUnitSheet({
                   name="orgUnitKindKey"
                   rules={{ required: "Unit type is required" }}
                   render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange}>
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        disabled={readOnly}
+                      >
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select a unit type" />
                       </SelectTrigger>
@@ -337,6 +361,7 @@ export function DraftUnitSheet({
                   render={({ field }) => (
                     <Select
                       value={field.value ?? ROOT_VALUE}
+                      disabled={readOnly}
                       onValueChange={(value) => {
                         field.onChange(value === ROOT_VALUE ? null : value);
                       }}
@@ -373,6 +398,7 @@ export function DraftUnitSheet({
                       <Input
                         id="edit-draft-location"
                         placeholder="Dubai HQ"
+                        disabled={readOnly}
                         {...register("location", {
                           maxLength: { value: 100, message: "Maximum 100 characters" },
                         })}
@@ -388,6 +414,7 @@ export function DraftUnitSheet({
                     <Textarea
                       id="edit-draft-description"
                       rows={3}
+                      disabled={readOnly}
                       {...register("description", {
                         maxLength: { value: 500, message: "Maximum 500 characters" },
                       })}
@@ -402,6 +429,7 @@ export function DraftUnitSheet({
                     selectedKindKey={selectedKindKey}
                     control={control}
                     errors={errors}
+                    disabled={readOnly}
                   />
                 </div>
               </div>
@@ -421,24 +449,32 @@ export function DraftUnitSheet({
             </div>
 
             <SheetFooter className="border-t bg-muted/50 sm:flex-row sm:justify-between">
-              <Button
-                type="button"
-                variant="destructive"
-                onClick={() => setDeleteOpen(true)}
-                disabled={update.isLoading || remove.isLoading}
-              >
-                Delete Unit
-              </Button>
-              <Button type="submit" disabled={update.isLoading || remove.isLoading}>
-                {update.isLoading && <Spinner className="mr-1" />}
-                Save Changes
-              </Button>
+              {readOnly ? (
+                <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                  Close
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    onClick={() => setDeleteOpen(true)}
+                    disabled={update.isLoading || remove.isLoading}
+                  >
+                    Delete Unit
+                  </Button>
+                  <Button type="submit" disabled={update.isLoading || remove.isLoading}>
+                    {update.isLoading && <Spinner className="mr-1" />}
+                    Save Changes
+                  </Button>
+                </>
+              )}
             </SheetFooter>
           </form>
         </SheetContent>
       </Sheet>
 
-      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+      <AlertDialog open={!readOnly && deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete structure item?</AlertDialogTitle>

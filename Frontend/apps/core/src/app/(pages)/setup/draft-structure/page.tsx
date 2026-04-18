@@ -2,7 +2,20 @@
 
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertCircle, FileSpreadsheet, FolderTree, Plus } from "lucide-react";
+import {
+  AlertCircle,
+  CheckCircle2,
+  FileSpreadsheet,
+  FolderTree,
+  LockKeyhole,
+  Plus,
+} from "lucide-react";
+import {
+  ApiError,
+  type CoreSetupPhase,
+  type DraftSetupIssueDto,
+  type DraftSetupReadinessDto,
+} from "@repo/api";
 import { canAccessCoreSetup, useAuth } from "@repo/auth";
 import { EmptyState } from "@repo/ui";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -18,7 +31,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/page-header";
-import { useSetupState } from "../use-setup";
+import { SetupStatusBadge } from "../setup-status-badge";
+import {
+  useApproveStructure,
+  useReopenStructure,
+  useSetupReadiness,
+  useSetupState,
+} from "../use-setup";
 import { CreateDraftUnitDialog } from "./create-draft-unit-dialog";
 import { DraftOrgUnitKindManager } from "./draft-org-unit-kind-manager";
 import { DraftStructureImportPanel } from "./draft-structure-import-panel";
@@ -50,6 +69,7 @@ export default function DraftStructurePage() {
   const searchParams = useSearchParams();
   const { user } = useAuth();
   const canAccess = canAccessCoreSetup(user);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [createParentId, setCreateParentId] = useState<string | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
@@ -61,10 +81,20 @@ export default function DraftStructurePage() {
     data: setupState,
     error: setupError,
     isLoading: isSetupLoading,
+    refetch: refetchSetup,
   } = useSetupState();
+  const isDraftLocked = setupState?.currentPhase !== "activated";
+  const canApproveFromDraft = setupState?.currentPhase === "activated";
+  const canReopenFromDraft = setupState?.currentPhase === "structurallyGoverned";
 
   const workspaceEnabled =
     canAccess && !!setupState && !setupState.canStartSetup;
+  const {
+    data: readiness,
+    error: readinessError,
+    isLoading: isReadinessLoading,
+    refetch: refetchReadiness,
+  } = useSetupReadiness(workspaceEnabled && canApproveFromDraft);
   const {
     data: workspace,
     error: workspaceError,
@@ -77,6 +107,23 @@ export default function DraftStructurePage() {
     isLoading: isTreeLoading,
     refetch: refetchTree,
   } = useDraftStructureTree(workspaceEnabled);
+  const approveStructure = useApproveStructure({
+    onSuccess: () => {
+      setActionError(null);
+      void refetchSetup();
+      void refetchReadiness();
+      void refetch();
+      void refetchTree();
+    },
+  });
+  const reopenStructure = useReopenStructure({
+    onSuccess: () => {
+      setActionError(null);
+      void refetchSetup();
+      void refetch();
+      void refetchTree();
+    },
+  });
 
   const draftTree = useMemo(() => buildWorkspaceDraftTree(tree ?? []), [tree]);
   const filteredTree = useMemo(
@@ -120,9 +167,48 @@ export default function DraftStructurePage() {
     0
   );
 
+  useEffect(() => {
+    if (!isDraftLocked) {
+      return;
+    }
+
+    setCreateOpen(false);
+    setEditorOpen(false);
+  }, [isDraftLocked]);
+
   const refreshWorkspace = () => {
     void refetch();
     void refetchTree();
+  };
+
+  const handleApprove = async () => {
+    if (setupState?.version == null) {
+      setActionError("The latest setup version is required before approval.");
+      return;
+    }
+
+    setActionError(null);
+
+    try {
+      await approveStructure.mutateAsync({ expectedVersion: setupState.version });
+    } catch (error) {
+      setActionError(getActionErrorMessage(error));
+    }
+  };
+
+  const handleReopen = async () => {
+    if (setupState?.version == null) {
+      setActionError("The latest setup version is required before reopening.");
+      return;
+    }
+
+    setActionError(null);
+
+    try {
+      await reopenStructure.mutateAsync({ expectedVersion: setupState.version });
+    } catch (error) {
+      setActionError(getActionErrorMessage(error));
+    }
   };
 
   const handleImportOpenChange = (nextOpen: boolean) => {
@@ -183,6 +269,10 @@ export default function DraftStructurePage() {
     );
   }
 
+  if (!setupState) {
+    return <DraftStructurePageSkeleton hasImportSession={hasImportSession} />;
+  }
+
   if (setupState?.canStartSetup) {
     return (
       <div className="flex flex-col gap-6 p-6">
@@ -213,12 +303,17 @@ export default function DraftStructurePage() {
     <div className="flex flex-col gap-6 p-6">
       <PageHeader
         title="Organization Structure"
-        description="Build the draft tree here or import it from the template."
+        description={
+          isDraftLocked
+            ? "Review the locked draft here. Reopen it if more changes are needed."
+            : "Build the draft here, then approve it when the first pass is ready."
+        }
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="outline"
               onClick={() => handleImportOpenChange(true)}
+              disabled={isDraftLocked}
             >
               <FileSpreadsheet className="size-4" />
               {hasImportSession ? "Resume Import" : "Import from Template"}
@@ -228,7 +323,7 @@ export default function DraftStructurePage() {
                 setCreateParentId(null);
                 setCreateOpen(true);
               }}
-              disabled={isWorkspaceLoading}
+              disabled={isWorkspaceLoading || isDraftLocked}
             >
               <Plus className="size-4" />
               Add Top-Level Unit
@@ -250,16 +345,63 @@ export default function DraftStructurePage() {
         </Alert>
       )}
 
+      {actionError ? (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Draft flow could not be updated</AlertTitle>
+          <AlertDescription>{actionError}</AlertDescription>
+        </Alert>
+      ) : null}
+
+      {isDraftLocked ? (
+        <Alert>
+          <LockKeyhole className="h-4 w-4" />
+          <AlertTitle>Draft is locked</AlertTitle>
+          <AlertDescription>
+            {canReopenFromDraft
+              ? "Reopen the draft before adding units, editing details, changing unit types, or importing a new file."
+              : "This draft is now read-only while later setup steps are in progress."}
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
+      <DraftGovernanceCard
+        phase={setupState.currentPhase}
+        readiness={readiness}
+        readinessError={readinessError?.message ?? null}
+        isReadinessLoading={isReadinessLoading}
+        approvedAt={setupState.approvedAt}
+        approvedByFullName={setupState.approvedByFullName}
+        approvedByRole={setupState.approvedByRole}
+        isApprovedInPlatformAssistMode={setupState.isApprovedInPlatformAssistMode}
+        onApprove={() => {
+          void handleApprove();
+        }}
+        onReopen={() => {
+          void handleReopen();
+        }}
+        onOpenSetup={() => router.push("/setup")}
+        onRetryReadiness={() => {
+          void refetchReadiness();
+        }}
+        isApproving={approveStructure.isLoading}
+        isReopening={reopenStructure.isLoading}
+      />
+
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader>
             <CardDescription>Planning status</CardDescription>
             <CardTitle>
-              {workspace?.workspaceStatus === "empty" ? "Empty" : "In Progress"}
+              {isDraftLocked
+                ? "Locked"
+                : workspace?.workspaceStatus === "empty"
+                  ? "Empty"
+                  : "In Progress"}
             </CardTitle>
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground">
-            Build and review the draft here.
+            {isDraftLocked ? "Review only." : "Build and review the draft here."}
           </CardContent>
         </Card>
         <Card>
@@ -313,7 +455,7 @@ export default function DraftStructurePage() {
               }
               existingUnits={workspace?.units ?? []}
               onSchemaUpdated={refreshWorkspace}
-              disabled={!workspace}
+              disabled={!workspace || isDraftLocked}
             />
           </CardContent>
         </Card>
@@ -326,7 +468,9 @@ export default function DraftStructurePage() {
               <div>
                 <p className="text-sm font-medium">Structure tree</p>
                 <p className="text-sm text-muted-foreground">
-                  Search, review, and edit the draft tree.
+                  {isDraftLocked
+                    ? "Search and review the approved draft tree."
+                    : "Search, review, and edit the draft tree."}
                 </p>
               </div>
               <Input
@@ -348,6 +492,7 @@ export default function DraftStructurePage() {
                 onSelect={(node) => setSelectedUnitId(node.id)}
                 emptyTitle="No draft units yet"
                 emptyDescription="Add the first top-level unit or start with a template import to build the planned organization tree."
+                readOnly={isDraftLocked}
                 onAddRoot={() => {
                   setCreateParentId(null);
                   setCreateOpen(true);
@@ -380,7 +525,9 @@ export default function DraftStructurePage() {
                   {selectedUnit.displayName}
                 </CardTitle>
                 <CardDescription>
-                  Review the main fields here, then edit or add a child.
+                  {isDraftLocked
+                    ? "Review the main fields here. Reopen the draft before making changes."
+                    : "Review the main fields here, then edit or add a child."}
                 </CardDescription>
               </CardHeader>
               <CardContent className="min-h-0 flex-1 space-y-6 overflow-y-auto p-6">
@@ -459,21 +606,44 @@ export default function DraftStructurePage() {
                   <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                     Actions
                   </p>
-                  <div className="flex flex-wrap gap-2">
-                    <Button onClick={() => setEditorOpen(true)}>
-                      Edit unit
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setCreateParentId(selectedUnit.id);
-                        setCreateOpen(true);
-                      }}
-                    >
-                      <Plus className="size-4" />
-                      Add child unit
-                    </Button>
-                  </div>
+                  {isDraftLocked ? (
+                    canReopenFromDraft ? (
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            void handleReopen();
+                          }}
+                          disabled={reopenStructure.isLoading}
+                        >
+                          Reopen draft
+                        </Button>
+                        <Button variant="outline" onClick={() => router.push("/setup")}>
+                          Open Setup
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button variant="outline" onClick={() => router.push("/setup")}>
+                        Go to Setup
+                      </Button>
+                    )
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      <Button onClick={() => setEditorOpen(true)}>
+                        Edit unit
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setCreateParentId(selectedUnit.id);
+                          setCreateOpen(true);
+                        }}
+                      >
+                        <Plus className="size-4" />
+                        Add child unit
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -485,21 +655,45 @@ export default function DraftStructurePage() {
               <div className="space-y-1">
                 <p className="font-medium">Select a unit</p>
                 <p className="text-sm text-muted-foreground">
-                  Choose a unit from the tree to inspect it, edit its details,
-                  or add a child underneath it.
+                  {isDraftLocked
+                    ? "Choose a unit from the tree to inspect the approved draft."
+                    : "Choose a unit from the tree to inspect it, edit its details, or add a child underneath it."}
                 </p>
               </div>
               <div className="flex justify-center">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setCreateParentId(null);
-                    setCreateOpen(true);
-                  }}
-                >
-                  <Plus className="size-4" />
-                  Add top-level unit
-                </Button>
+                {isDraftLocked ? (
+                  canReopenFromDraft ? (
+                    <div className="flex flex-wrap justify-center gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          void handleReopen();
+                        }}
+                        disabled={reopenStructure.isLoading}
+                      >
+                        Reopen draft
+                      </Button>
+                      <Button variant="outline" onClick={() => router.push("/setup")}>
+                        Open Setup
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button variant="outline" onClick={() => router.push("/setup")}>
+                      Go to Setup
+                    </Button>
+                  )
+                ) : (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setCreateParentId(null);
+                      setCreateOpen(true);
+                    }}
+                  >
+                    <Plus className="size-4" />
+                    Add top-level unit
+                  </Button>
+                )}
               </div>
             </div>
           )}
@@ -520,6 +714,7 @@ export default function DraftStructurePage() {
         }}
         onSchemaUpdated={refreshWorkspace}
         initialParentId={createParentId}
+        readOnly={isDraftLocked}
         schema={
           workspace?.draftStructureSchema ?? {
             orgUnitKinds: [],
@@ -535,6 +730,7 @@ export default function DraftStructurePage() {
         onApplied={() => {
           refreshWorkspace();
         }}
+        readOnly={isDraftLocked}
       />
 
       <DraftUnitSheet
@@ -545,6 +741,7 @@ export default function DraftStructurePage() {
           refreshWorkspace();
         }}
         onSchemaUpdated={refreshWorkspace}
+        readOnly={isDraftLocked}
         schema={
           workspace?.draftStructureSchema ?? {
             orgUnitKinds: [],
@@ -576,6 +773,298 @@ function SummaryField({
       </p>
     </div>
   );
+}
+
+function DraftGovernanceCard({
+  phase,
+  readiness,
+  readinessError,
+  isReadinessLoading,
+  approvedAt,
+  approvedByFullName,
+  approvedByRole,
+  isApprovedInPlatformAssistMode,
+  onApprove,
+  onReopen,
+  onOpenSetup,
+  onRetryReadiness,
+  isApproving,
+  isReopening,
+}: {
+  phase: CoreSetupPhase;
+  readiness: DraftSetupReadinessDto | undefined;
+  readinessError: string | null;
+  isReadinessLoading: boolean;
+  approvedAt: string | null;
+  approvedByFullName: string | null;
+  approvedByRole: string | null;
+  isApprovedInPlatformAssistMode: boolean;
+  onApprove: () => void;
+  onReopen: () => void;
+  onOpenSetup: () => void;
+  onRetryReadiness: () => void;
+  isApproving: boolean;
+  isReopening: boolean;
+}) {
+  if (phase === "activated") {
+    const isReadyForApproval = readiness?.isReadyForApproval ?? false;
+
+    return (
+      <Card className="overflow-hidden">
+        <CardHeader className="border-b bg-muted/20">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="space-y-3">
+              <SetupStatusBadge status="activated" />
+              <div className="space-y-1">
+                <CardTitle>Finish the draft here and lock it when ready</CardTitle>
+                <CardDescription>
+                  The same person can draft, check readiness, and approve from this flow. Use Setup when you want the broader milestone view.
+                </CardDescription>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" onClick={onOpenSetup}>
+                Open Setup
+              </Button>
+              <Button
+                onClick={onApprove}
+                disabled={isReadinessLoading || !isReadyForApproval || isApproving}
+              >
+                Approve and lock draft
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+
+        <CardContent className="space-y-4 p-6">
+          {isReadinessLoading && !readiness ? (
+            <div className="grid gap-3 md:grid-cols-3">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <div key={index} className="rounded-xl border p-4">
+                  <Skeleton className="h-3 w-20" />
+                  <Skeleton className="mt-3 h-7 w-16" />
+                  <Skeleton className="mt-2 h-4 w-full" />
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          {readinessError ? (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Readiness could not be checked</AlertTitle>
+              <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+                <span>{readinessError}</span>
+                <Button variant="outline" size="sm" onClick={onRetryReadiness}>
+                  Retry
+                </Button>
+              </AlertDescription>
+            </Alert>
+          ) : null}
+
+          {readiness ? (
+            <>
+              <div className="grid gap-3 md:grid-cols-3">
+                <ReadinessStat
+                  label="Units planned"
+                  value={String(readiness.totalUnitCount)}
+                  hint={`${readiness.rootUnitCount} top-level units`}
+                />
+                <ReadinessStat
+                  label="Blocking issues"
+                  value={String(readiness.blockingIssueCount)}
+                  hint={
+                    readiness.blockingIssueCount === 0
+                      ? "Ready to approve"
+                      : "Clear these first"
+                  }
+                />
+                <ReadinessStat
+                  label="Warnings"
+                  value={String(readiness.warningCount)}
+                  hint={
+                    readiness.warningCount === 0
+                      ? "No open warnings"
+                      : "Review before approval"
+                  }
+                />
+              </div>
+
+              {readiness.blockingIssues.length === 0 &&
+              readiness.warnings.length === 0 ? (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 p-4 text-sm text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/20 dark:text-emerald-200">
+                  <div className="flex items-center gap-2 font-medium">
+                    <CheckCircle2 className="size-4" />
+                    Draft is ready to approve
+                  </div>
+                  <p className="mt-2 text-emerald-800 dark:text-emerald-300">
+                    Lock it when this first pass is ready to hand off to the publish step.
+                  </p>
+                </div>
+              ) : null}
+
+              <div className="grid gap-3 lg:grid-cols-2">
+                {readiness.blockingIssues.length > 0 ? (
+                  <IssuePreviewList
+                    title="Blocking issues"
+                    issues={readiness.blockingIssues}
+                    tone="blocking"
+                  />
+                ) : null}
+
+                {readiness.warnings.length > 0 ? (
+                  <IssuePreviewList
+                    title="Warnings"
+                    issues={readiness.warnings}
+                    tone="warning"
+                  />
+                ) : null}
+              </div>
+            </>
+          ) : null}
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (phase === "structurallyGoverned") {
+    return (
+      <Card className="overflow-hidden">
+        <CardHeader className="border-b bg-muted/20">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="space-y-3">
+              <SetupStatusBadge status="structurallyGoverned" />
+              <div className="space-y-1">
+                <CardTitle>Draft approved and locked</CardTitle>
+                <CardDescription>
+                  The draft is frozen after approval. Reopen it only if more changes are needed before publish.
+                </CardDescription>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" onClick={onOpenSetup}>
+                Open Setup
+              </Button>
+              <Button variant="outline" onClick={onReopen} disabled={isReopening}>
+                Reopen draft
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+
+        <CardContent className="grid gap-3 p-6 md:grid-cols-3">
+          <ReadinessStat
+            label="Approved"
+            value={formatTimestamp(approvedAt)}
+            hint="Current approval time"
+          />
+          <ReadinessStat
+            label="Approved by"
+            value={approvedByFullName ?? "Not recorded"}
+            hint={approvedByRole ?? "Role not recorded"}
+          />
+          <ReadinessStat
+            label="Approval mode"
+            value={isApprovedInPlatformAssistMode ? "Platform assisted" : "Standard"}
+            hint="Reopen if the draft needs changes"
+          />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="overflow-hidden">
+      <CardHeader className="border-b bg-muted/20">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="space-y-3">
+            <SetupStatusBadge status={phase} />
+            <div className="space-y-1">
+              <CardTitle>Draft remains locked in this phase</CardTitle>
+              <CardDescription>
+                Later setup steps are already underway. Review the draft here and use Setup for the next milestone.
+              </CardDescription>
+            </div>
+          </div>
+
+          <Button variant="outline" onClick={onOpenSetup}>
+            Open Setup
+          </Button>
+        </div>
+      </CardHeader>
+    </Card>
+  );
+}
+
+function ReadinessStat({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: string;
+  hint: string;
+}) {
+  return (
+    <div className="rounded-xl border bg-background p-4">
+      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+        {label}
+      </p>
+      <p className="mt-2 text-lg font-semibold leading-tight">{value}</p>
+      <p className="mt-2 text-sm text-muted-foreground">{hint}</p>
+    </div>
+  );
+}
+
+function IssuePreviewList({
+  title,
+  issues,
+  tone,
+}: {
+  title: string;
+  issues: DraftSetupIssueDto[];
+  tone: "blocking" | "warning";
+}) {
+  const previewItems = issues.slice(0, 3);
+  const containerClass =
+    tone === "blocking"
+      ? "border-destructive/25 bg-destructive/5"
+      : "border-border bg-muted/20";
+
+  return (
+    <div className={`rounded-xl border p-4 ${containerClass}`}>
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm font-medium">{title}</p>
+        <Badge variant="outline">{issues.length}</Badge>
+      </div>
+      <div className="mt-3 space-y-2 text-sm text-muted-foreground">
+        {previewItems.map((issue) => (
+          <div key={`${issue.code}-${issue.unitId ?? "global"}-${issue.field ?? "none"}`}>
+            {issue.message}
+          </div>
+        ))}
+        {issues.length > previewItems.length ? (
+          <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+            +{issues.length - previewItems.length} more on Setup
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function getActionErrorMessage(error: unknown) {
+  if (error instanceof ApiError) {
+    return error.errors.join(", ");
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return "An unexpected error occurred.";
 }
 
 function formatAttributeValue(value: unknown): string {

@@ -8,7 +8,16 @@ export type {
   RequestOptions,
 } from "./types";
 export type { PlatformApiClientConfig } from "./platform";
-export type { CoreSetupPhase, TenantSetupStateDto } from "./core-setup";
+export type {
+  CoreSetupPhase,
+  TenantSetupActivityType,
+  DraftSetupIssueSeverity,
+  DraftSetupIssueCategory,
+  TenantSetupActivityDto,
+  DraftSetupIssueDto,
+  DraftSetupReadinessDto,
+  TenantSetupStateDto,
+} from "./core-setup";
 export { coreSetupPaths } from "./core-setup";
 export type {
   BrandingSettingsDto,
