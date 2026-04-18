@@ -9,7 +9,7 @@ import {
 import { useApiMutation, useApiQuery } from "@repo/api/react";
 import { useAuth } from "@repo/auth";
 
-export function useSetupState() {
+export function useSetupState(enabled = true) {
   const { isAuthenticated } = useAuth();
   const client = useMemo(() => createPlatformApiClient(), []);
 
@@ -19,7 +19,7 @@ export function useSetupState() {
     [client]
   );
 
-  return useApiQuery(queryFn, { enabled: isAuthenticated });
+  return useApiQuery(queryFn, { enabled: isAuthenticated && enabled });
 }
 
 export function useActivateSetup(opts?: {
