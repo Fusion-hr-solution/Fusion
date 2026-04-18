@@ -107,6 +107,40 @@ public class DraftStructureHandlerTests
     }
 
     [Fact]
+    public async Task CreateDraftOrgUnit_WhenSetupIsApproved_ThrowsInvalidTenantSetupStateException()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+
+        await using (var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName))
+        {
+            var state = TenantSetupState.CreateActivated(TenantId);
+            state.Approve(Guid.NewGuid(), "Jordan Approver", "HRAdmin", false);
+
+            seedContext.TenantSetupStates.Add(state);
+            seedContext.TenantSettings.Add(DomainTenantSettings.Create(TenantId, SettingsJson));
+            await seedContext.SaveChangesAsync();
+        }
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = new CreateDraftOrgUnitCommandHandler(context, tenantContext);
+
+        var ex = await Assert.ThrowsAsync<InvalidTenantSetupStateException>(
+            () => handler.Handle(
+                new CreateDraftOrgUnitCommand(
+                    "ENG",
+                    "Engineering",
+                    "department",
+                    null,
+                    null,
+                    null,
+                    null),
+                CancellationToken.None));
+
+        Assert.Contains("reopen", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task UpdateDraftOrgUnit_WithCodeChange_PersistsUpdatedCode()
     {
         var dbName = Guid.NewGuid().ToString();

@@ -11,6 +11,12 @@ public class UpdateTenantSettingsCommandHandlerTests
 {
     private static readonly Guid TenantId = Guid.NewGuid();
 
+    private static void AddActivatedSetupState(DbContext context)
+    {
+        context.Set<CoreHREntities.TenantSetupState>()
+            .Add(CoreHREntities.TenantSetupState.CreateActivated(TenantId));
+    }
+
     #region Create (No Existing Settings)
 
     [Fact]
@@ -19,6 +25,8 @@ public class UpdateTenantSettingsCommandHandlerTests
         // Arrange
         var tenantContext = TestTenantContext.WithTenant(TenantId);
         await using var context = TestDbContextFactory.Create(tenantContext);
+        AddActivatedSetupState(context);
+        await context.SaveChangesAsync();
         var handler = new UpdateTenantSettingsCommandHandler(context, tenantContext);
 
         var command = new UpdateTenantSettingsCommand(
@@ -77,6 +85,7 @@ public class UpdateTenantSettingsCommandHandlerTests
 
         // Seed existing settings
         await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+        AddActivatedSetupState(seedContext);
         var existingSettings = CoreHREntities.TenantSettings.Create(TenantId, """{"orgUnitTypes":["Old"]}""");
         seedContext.TenantSettings.Add(existingSettings);
         await seedContext.SaveChangesAsync();
@@ -107,6 +116,7 @@ public class UpdateTenantSettingsCommandHandlerTests
 
         // Seed existing settings
         await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+        AddActivatedSetupState(seedContext);
         var existingSettings = CoreHREntities.TenantSettings.Create(TenantId);
         seedContext.TenantSettings.Add(existingSettings);
         await seedContext.SaveChangesAsync();
@@ -134,6 +144,7 @@ public class UpdateTenantSettingsCommandHandlerTests
 
         // Seed existing settings
         await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+        AddActivatedSetupState(seedContext);
         var existingSettings = CoreHREntities.TenantSettings.Create(TenantId);
         seedContext.TenantSettings.Add(existingSettings);
         await seedContext.SaveChangesAsync();
@@ -165,6 +176,7 @@ public class UpdateTenantSettingsCommandHandlerTests
 
         // Seed with branding already set
         await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+        AddActivatedSetupState(seedContext);
         var existingSettings = CoreHREntities.TenantSettings.Create(
             TenantId,
             """{"branding":{"primaryColor":"#ff0000"}}""");
@@ -378,6 +390,7 @@ public class UpdateTenantSettingsCommandHandlerTests
         var tenantContext = TestTenantContext.WithTenant(TenantId);
 
         await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+        AddActivatedSetupState(seedContext);
         var existingSettings = CoreHREntities.TenantSettings.Create(
             TenantId,
             """
@@ -446,6 +459,7 @@ public class UpdateTenantSettingsCommandHandlerTests
         var tenantContext = TestTenantContext.WithTenant(TenantId);
 
         await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+        AddActivatedSetupState(seedContext);
         var existingSettings = CoreHREntities.TenantSettings.Create(
             TenantId,
             """
@@ -501,6 +515,7 @@ public class UpdateTenantSettingsCommandHandlerTests
         var tenantContext = TestTenantContext.WithTenant(TenantId);
 
         await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+        AddActivatedSetupState(seedContext);
         seedContext.DraftOrgUnits.Add(
             CoreHREntities.DraftOrgUnit.Create(
                 TenantId,
@@ -531,6 +546,54 @@ public class UpdateTenantSettingsCommandHandlerTests
         var ex = await Assert.ThrowsAsync<ArgumentException>(
             () => handler.Handle(command, CancellationToken.None));
         Assert.Contains("draft org unit kind", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Handle_WithApprovedSetupAndDraftStructureSchema_ThrowsInvalidTenantSetupStateException()
+    {
+        // Arrange
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+        var state = CoreHREntities.TenantSetupState.CreateActivated(TenantId);
+        state.Approve(Guid.NewGuid(), "Jordan Approver", "HRAdmin", false);
+
+        var existingSettings = CoreHREntities.TenantSettings.Create(
+            TenantId,
+            """
+            {
+                "draftStructureSchema": {
+                    "orgUnitKinds": [
+                        { "key": "department", "displayLabel": "Department" }
+                    ],
+                    "attributes": []
+                }
+            }
+            """);
+
+        seedContext.TenantSetupStates.Add(state);
+        seedContext.TenantSettings.Add(existingSettings);
+        await seedContext.SaveChangesAsync();
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = new UpdateTenantSettingsCommandHandler(context, tenantContext);
+
+        var command = new UpdateTenantSettingsCommand(
+            ExpectedVersion: existingSettings.Version,
+            OrgUnitTypes: null,
+            DraftStructureSchema: new DraftStructureSchemaDto
+            {
+                OrgUnitKinds = [new OrgUnitKindDto("department", "Division")],
+                Attributes = []
+            },
+            EmployeeFieldConfig: null,
+            Branding: null);
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<InvalidTenantSetupStateException>(
+            () => handler.Handle(command, CancellationToken.None));
+        Assert.Contains("reopen", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     #endregion
@@ -789,6 +852,7 @@ public class UpdateTenantSettingsCommandHandlerTests
         var tenantContext = TestTenantContext.WithTenant(TenantId);
 
         await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+        AddActivatedSetupState(seedContext);
         // Settings with Department and Team types
         var existingSettings = CoreHREntities.TenantSettings.Create(
             TenantId,
@@ -827,6 +891,7 @@ public class UpdateTenantSettingsCommandHandlerTests
         var tenantContext = TestTenantContext.WithTenant(TenantId);
 
         await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+        AddActivatedSetupState(seedContext);
         // Settings with Department and Team types
         var existingSettings = CoreHREntities.TenantSettings.Create(
             TenantId,
@@ -864,6 +929,7 @@ public class UpdateTenantSettingsCommandHandlerTests
         var tenantContext = TestTenantContext.WithTenant(TenantId);
 
         await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+        AddActivatedSetupState(seedContext);
         var existingSettings = CoreHREntities.TenantSettings.Create(
             TenantId,
             """{"orgUnitTypes":["department","TEAM"]}""");
@@ -898,6 +964,7 @@ public class UpdateTenantSettingsCommandHandlerTests
         var tenantContext = TestTenantContext.WithTenant(TenantId);
 
         await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+        AddActivatedSetupState(seedContext);
         var existingSettings = CoreHREntities.TenantSettings.Create(
             TenantId,
             """{"orgUnitTypes":["Department","Team"]}""");
