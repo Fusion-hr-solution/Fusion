@@ -21,7 +21,7 @@ public sealed class CreateDraftOrgUnitCommandHandler(
         CreateDraftOrgUnitCommand request,
         CancellationToken cancellationToken)
     {
-        await DraftStructureRules.EnsureSetupActivatedAsync(dbContext, cancellationToken);
+        await DraftStructureRules.EnsureDraftEditableAsync(dbContext, cancellationToken);
         var schema = await DraftStructureRules.GetDraftStructureSchemaAsync(dbContext, cancellationToken);
 
         var tenantId = tenantContext.TenantId;

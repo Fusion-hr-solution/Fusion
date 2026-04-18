@@ -69,7 +69,7 @@ public sealed class DraftStructureImportWorkflowService(
 
     public async Task<DraftStructureImportSessionDto> UploadAsync(IFormFile file, CancellationToken cancellationToken)
     {
-        await DraftStructureRules.EnsureSetupActivatedAsync(dbContext, cancellationToken);
+        await DraftStructureRules.EnsureDraftEditableAsync(dbContext, cancellationToken);
 
         if (file.Length <= 0)
             throw new ArgumentException("Upload a non-empty CSV file.", nameof(file));
@@ -127,7 +127,7 @@ public sealed class DraftStructureImportWorkflowService(
         DraftStructureImportMappingRequest request,
         CancellationToken cancellationToken)
     {
-        await DraftStructureRules.EnsureSetupActivatedAsync(dbContext, cancellationToken);
+        await DraftStructureRules.EnsureDraftEditableAsync(dbContext, cancellationToken);
 
         var session = await GetSessionEntityAsync(sessionId, cancellationToken);
         await EnsureSessionCanMutateAsync(session, cancellationToken);
@@ -159,7 +159,7 @@ public sealed class DraftStructureImportWorkflowService(
         DraftStructureImportResolveKindsRequest request,
         CancellationToken cancellationToken)
     {
-        await DraftStructureRules.EnsureSetupActivatedAsync(dbContext, cancellationToken);
+        await DraftStructureRules.EnsureDraftEditableAsync(dbContext, cancellationToken);
 
         var session = await GetSessionEntityAsync(sessionId, cancellationToken);
         await EnsureSessionCanMutateAsync(session, cancellationToken);
@@ -189,7 +189,7 @@ public sealed class DraftStructureImportWorkflowService(
 
     public async Task<DraftStructureImportSessionDto> ValidateAsync(Guid sessionId, CancellationToken cancellationToken)
     {
-        await DraftStructureRules.EnsureSetupActivatedAsync(dbContext, cancellationToken);
+        await DraftStructureRules.EnsureDraftEditableAsync(dbContext, cancellationToken);
 
         var session = await GetSessionEntityAsync(sessionId, cancellationToken);
         await EnsureSessionCanMutateAsync(session, cancellationToken);
@@ -225,7 +225,7 @@ public sealed class DraftStructureImportWorkflowService(
 
     public async Task<DraftStructureImportApplyResultDto> ApplyAsync(Guid sessionId, CancellationToken cancellationToken)
     {
-        await DraftStructureRules.EnsureSetupActivatedAsync(dbContext, cancellationToken);
+        await DraftStructureRules.EnsureDraftEditableAsync(dbContext, cancellationToken);
 
         var session = await GetSessionEntityAsync(sessionId, cancellationToken);
         await EnsureSessionCanMutateAsync(session, cancellationToken);

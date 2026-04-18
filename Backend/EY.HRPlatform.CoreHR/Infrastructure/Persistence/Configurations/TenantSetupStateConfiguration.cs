@@ -20,8 +20,16 @@ public class TenantSetupStateConfiguration : IEntityTypeConfiguration<TenantSetu
             .HasMaxLength(64)
             .IsRequired();
 
+        builder.Property(ts => ts.ApprovedByFullName).HasMaxLength(256);
+        builder.Property(ts => ts.ApprovedByRole).HasMaxLength(64);
+
         builder.Property(ts => ts.CreatedBy).HasMaxLength(256);
         builder.Property(ts => ts.UpdatedBy).HasMaxLength(256);
+
+        builder.HasMany(ts => ts.Activities)
+            .WithOne(activity => activity.TenantSetupState)
+            .HasForeignKey(activity => activity.TenantSetupStateId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasIndex(ts => ts.TenantId)
             .IsUnique()

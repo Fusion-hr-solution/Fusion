@@ -18,7 +18,7 @@ public sealed class DeleteDraftOrgUnitCommandHandler(
         DeleteDraftOrgUnitCommand request,
         CancellationToken cancellationToken)
     {
-        await DraftStructureRules.EnsureSetupActivatedAsync(dbContext, cancellationToken);
+        await DraftStructureRules.EnsureDraftEditableAsync(dbContext, cancellationToken);
 
         var draftOrgUnit = await dbContext.DraftOrgUnits
             .FirstOrDefaultAsync(o => o.Id == request.Id, cancellationToken);

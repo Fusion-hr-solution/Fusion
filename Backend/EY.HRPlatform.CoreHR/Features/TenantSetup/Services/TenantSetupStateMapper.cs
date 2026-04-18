@@ -13,11 +13,16 @@ public static class TenantSetupStateMapper
         "operational"
     ];
 
-    public static TenantSetupStateDto Map(TenantSetupState? state)
+    public static TenantSetupStateDto Map(
+        TenantSetupState? state,
+        IReadOnlyCollection<TenantSetupActivity>? recentActivities = null)
     {
         var phase = state?.CurrentPhase ?? TenantSetupPhase.NotStarted;
         var completedSteps = GetCompletedSteps(phase);
         var pendingSteps = OrderedSteps.Where(step => !completedSteps.Contains(step)).ToList();
+        var activities = recentActivities?
+            .Select(MapActivity)
+            .ToList() ?? [];
 
         return new TenantSetupStateDto
         {
@@ -25,17 +30,45 @@ public static class TenantSetupStateMapper
             CurrentPhase = ToClientPhase(phase),
             CurrentStep = completedSteps.Count,
             TotalSteps = OrderedSteps.Count,
-            NextAction = phase == TenantSetupPhase.NotStarted ? "Start setup" : "Resume setup",
+            NextAction = GetNextAction(phase),
             CompletedSteps = completedSteps,
             PendingSteps = pendingSteps,
             CanStartSetup = phase == TenantSetupPhase.NotStarted,
             CanResumeSetup = phase != TenantSetupPhase.NotStarted && phase != TenantSetupPhase.Operational,
             ActivatedAt = state?.ActivatedAt,
             StructurallyGovernedAt = state?.StructurallyGovernedAt,
+            ApprovedAt = state?.ApprovedAt,
+            ApprovedByUserId = state?.ApprovedByUserId,
+            ApprovedByFullName = state?.ApprovedByFullName,
+            ApprovedByRole = state?.ApprovedByRole,
+            IsApprovedInPlatformAssistMode = state?.IsApprovedInPlatformAssistMode ?? false,
             StructurallyPublishedAt = state?.StructurallyPublishedAt,
-            OperationalAt = state?.OperationalAt
+            OperationalAt = state?.OperationalAt,
+            RecentActivities = activities,
         };
     }
+
+    private static string GetNextAction(TenantSetupPhase phase) => phase switch
+    {
+        TenantSetupPhase.NotStarted => "Start setup",
+        TenantSetupPhase.Activated => "Review the structure and approve when ready",
+        TenantSetupPhase.StructurallyGoverned => "The structure is approved and waiting for publish",
+        TenantSetupPhase.StructurallyPublished => "Finish the remaining go-live work",
+        TenantSetupPhase.Operational => "Setup is complete",
+        _ => throw new ArgumentOutOfRangeException(nameof(phase), phase, null)
+    };
+
+    private static TenantSetupActivityDto MapActivity(TenantSetupActivity activity)
+        => new()
+        {
+            Id = activity.Id,
+            ActivityType = ToClientActivityType(activity.ActivityType),
+            OccurredAt = activity.CreatedAt,
+            ActorUserId = activity.ActorUserId,
+            ActorFullName = activity.ActorFullName,
+            ActorRole = activity.ActorRole,
+            IsPlatformAssisted = activity.IsPlatformAssisted,
+        };
 
     private static List<string> GetCompletedSteps(TenantSetupPhase phase)
     {
@@ -64,5 +97,12 @@ public static class TenantSetupStateMapper
         TenantSetupPhase.StructurallyPublished => "structurallyPublished",
         TenantSetupPhase.Operational => "operational",
         _ => throw new ArgumentOutOfRangeException(nameof(phase), phase, null)
+    };
+
+    private static string ToClientActivityType(TenantSetupActivityType activityType) => activityType switch
+    {
+        TenantSetupActivityType.Approved => "approved",
+        TenantSetupActivityType.Reopened => "reopened",
+        _ => throw new ArgumentOutOfRangeException(nameof(activityType), activityType, null)
     };
 }

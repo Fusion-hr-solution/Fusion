@@ -39,6 +39,11 @@ public class GlobalExceptionHandlerMiddleware(RequestDelegate next, ILogger<Glob
             logger.LogWarning(ex, "Invalid tenant activation state for {Method} {Path}", context.Request.Method, context.Request.Path);
             await WriteErrorResponseAsync(context, HttpStatusCode.Conflict, ex.Message);
         }
+        catch (InvalidTenantSetupStateException ex)
+        {
+            logger.LogWarning(ex, "Invalid tenant setup state for {Method} {Path}", context.Request.Method, context.Request.Path);
+            await WriteErrorResponseAsync(context, HttpStatusCode.Conflict, ex.Message);
+        }
         catch (TenantAccessDeniedException ex)
         {
             logger.LogWarning(ex, "Tenant access denied for {Method} {Path}", context.Request.Method, context.Request.Path);

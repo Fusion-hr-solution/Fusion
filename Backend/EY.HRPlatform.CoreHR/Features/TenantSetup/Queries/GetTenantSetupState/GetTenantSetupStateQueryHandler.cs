@@ -17,6 +17,18 @@ public sealed class GetTenantSetupStateQueryHandler(
             .AsNoTracking()
             .FirstOrDefaultAsync(cancellationToken);
 
-        return TenantSetupStateMapper.Map(state);
+        if (state is null)
+        {
+            return TenantSetupStateMapper.Map(null, []);
+        }
+
+        var recentActivities = await dbContext.TenantSetupActivities
+            .AsNoTracking()
+            .Where(activity => activity.TenantSetupStateId == state.Id)
+            .OrderByDescending(activity => activity.CreatedAt)
+            .Take(10)
+            .ToListAsync(cancellationToken);
+
+        return TenantSetupStateMapper.Map(state, recentActivities);
     }
 }

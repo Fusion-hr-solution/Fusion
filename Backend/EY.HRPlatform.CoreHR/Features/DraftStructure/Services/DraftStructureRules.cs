@@ -1,4 +1,6 @@
 using EY.HRPlatform.CoreHR.Domain.Entities;
+using EY.HRPlatform.CoreHR.Exceptions;
+using EY.HRPlatform.CoreHR.Features.TenantSetup.Dtos;
 using EY.HRPlatform.CoreHR.Features.TenantSettings.Dtos;
 using EY.HRPlatform.CoreHR.Features.TenantSettings.Services;
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
@@ -11,6 +13,11 @@ namespace EY.HRPlatform.CoreHR.Features.DraftStructure.Services;
 
 public static class DraftStructureRules
 {
+    private const string StructureCategory = "structure";
+    private const string HierarchyCategory = "hierarchy";
+    private const string UnitTypesCategory = "unitTypes";
+    private const string RequiredDetailsCategory = "requiredDetails";
+
     public static async Task EnsureSetupActivatedAsync(
         CoreHRDbContext dbContext,
         CancellationToken cancellationToken)
@@ -23,6 +30,188 @@ public static class DraftStructureRules
         {
             throw new ArgumentException("Setup must be activated before managing draft structure.");
         }
+    }
+
+    public static async Task EnsureDraftEditableAsync(
+        CoreHRDbContext dbContext,
+        CancellationToken cancellationToken)
+    {
+        var setupState = await dbContext.TenantSetupStates
+            .AsNoTracking()
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (setupState is null || setupState.CurrentPhase == TenantSetupPhase.NotStarted)
+        {
+            throw new ArgumentException("Setup must be activated before managing draft structure.");
+        }
+
+        if (setupState.CurrentPhase >= TenantSetupPhase.StructurallyGoverned)
+        {
+            throw new InvalidTenantSetupStateException(
+                "Reopen the approved structure in Setup before changing the draft.");
+        }
+    }
+
+    public static async Task<DraftSetupReadinessDto> EvaluateDraftReadinessAsync(
+        CoreHRDbContext dbContext,
+        CancellationToken cancellationToken)
+    {
+        await EnsureSetupActivatedAsync(dbContext, cancellationToken);
+
+        var units = await dbContext.DraftOrgUnits
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+
+        var schema = await GetDraftStructureSchemaAsync(dbContext, cancellationToken);
+        return EvaluateDraftReadiness(units, schema);
+    }
+
+    public static DraftSetupReadinessDto EvaluateDraftReadiness(
+        IReadOnlyCollection<DraftOrgUnit> units,
+        DraftStructureSchemaDto schema)
+    {
+        var blockingIssues = new List<DraftSetupIssueDto>();
+        var warnings = new List<DraftSetupIssueDto>();
+        var normalizedSchema = NormalizeDraftStructureSchema(schema);
+        var lookup = units.ToDictionary(unit => unit.Id);
+        var rootUnitCount = units.Count(unit => !unit.ParentId.HasValue);
+
+        if (units.Count == 0)
+        {
+            blockingIssues.Add(CreateError(
+                StructureCategory,
+                "NO_UNITS",
+                "Add at least one top-level unit before approval."));
+        }
+
+        if (units.Count > 0 && rootUnitCount == 0)
+        {
+            blockingIssues.Add(CreateError(
+                StructureCategory,
+                "NO_TOP_LEVEL_UNIT",
+                "At least one top-level unit is required before approval."));
+        }
+
+        if (rootUnitCount > 1)
+        {
+            warnings.Add(CreateWarning(
+                StructureCategory,
+                "MULTIPLE_TOP_LEVEL_UNITS",
+                "More than one top-level unit is planned. Confirm that this is intended."));
+        }
+
+        var duplicateReferenceKeyGroups = units
+            .Where(unit => !string.IsNullOrWhiteSpace(unit.ReferenceKey))
+            .GroupBy(unit => NormalizeReferenceKey(unit.ReferenceKey), StringComparer.OrdinalIgnoreCase)
+            .Where(group => group.Count() > 1);
+
+        foreach (var group in duplicateReferenceKeyGroups)
+        {
+            blockingIssues.Add(CreateError(
+                StructureCategory,
+                "DUPLICATE_REFERENCE_KEY",
+                $"Unit code '{group.First().ReferenceKey}' is used more than once. Unit codes must stay unique.",
+                null,
+                "referenceKey"));
+        }
+
+        var validKindKeys = normalizedSchema.OrgUnitKinds
+            .Select(kind => kind.Key)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var unit in units)
+        {
+            var unitLabel = GetUnitLabel(unit);
+
+            if (string.IsNullOrWhiteSpace(unit.ReferenceKey))
+            {
+                blockingIssues.Add(CreateError(
+                    RequiredDetailsCategory,
+                    "MISSING_REFERENCE_KEY",
+                    $"{unitLabel} is missing a unit code.",
+                    unit.Id,
+                    "referenceKey"));
+            }
+
+            if (string.IsNullOrWhiteSpace(unit.DisplayName))
+            {
+                blockingIssues.Add(CreateError(
+                    RequiredDetailsCategory,
+                    "MISSING_DISPLAY_NAME",
+                    $"{unitLabel} is missing a unit name.",
+                    unit.Id,
+                    "displayName"));
+            }
+
+            if (string.IsNullOrWhiteSpace(unit.OrgUnitKindKey))
+            {
+                blockingIssues.Add(CreateError(
+                    UnitTypesCategory,
+                    "MISSING_ORG_UNIT_KIND",
+                    $"{unitLabel} is missing a unit type.",
+                    unit.Id,
+                    "orgUnitKindKey"));
+            }
+            else if (!validKindKeys.Contains(NormalizeKindKey(unit.OrgUnitKindKey)))
+            {
+                blockingIssues.Add(CreateError(
+                    UnitTypesCategory,
+                    "INVALID_ORG_UNIT_KIND",
+                    $"{unitLabel} uses a unit type that is no longer available.",
+                    unit.Id,
+                    "orgUnitKindKey"));
+            }
+
+            if (unit.ParentId.HasValue && !lookup.ContainsKey(unit.ParentId.Value))
+            {
+                blockingIssues.Add(CreateError(
+                    HierarchyCategory,
+                    "INVALID_PARENT_REFERENCE",
+                    $"{unitLabel} points to a parent that is no longer present in the draft.",
+                    unit.Id,
+                    "parentId"));
+            }
+
+            if (WouldCreateCycle(unit, lookup))
+            {
+                blockingIssues.Add(CreateError(
+                    HierarchyCategory,
+                    "CIRCULAR_HIERARCHY",
+                    $"{unitLabel} creates a circular reporting line. Move it under a different parent.",
+                    unit.Id,
+                    "parentId"));
+            }
+
+            if (!string.IsNullOrWhiteSpace(unit.OrgUnitKindKey)
+                && validKindKeys.Contains(NormalizeKindKey(unit.OrgUnitKindKey)))
+            {
+                try
+                {
+                    ValidateAndNormalizeAttributes(
+                        normalizedSchema,
+                        unit.OrgUnitKindKey,
+                        DraftStructureJsonSerializer.DeserializeAttributes(unit.AttributesJson));
+                }
+                catch (ArgumentException ex)
+                {
+                    blockingIssues.Add(CreateError(
+                        RequiredDetailsCategory,
+                        "INVALID_ATTRIBUTES",
+                        $"{unitLabel}: {ex.Message}",
+                        unit.Id,
+                        "attributes"));
+                }
+            }
+        }
+
+        return new DraftSetupReadinessDto(
+            blockingIssues.Count == 0,
+            units.Count,
+            rootUnitCount,
+            blockingIssues.Count,
+            warnings.Count,
+            OrderIssues(blockingIssues),
+            OrderIssues(warnings));
     }
 
     public static async Task<DraftStructureSchemaDto> GetDraftStructureSchemaAsync(
@@ -236,6 +425,64 @@ public static class DraftStructureRules
 
     public static string NormalizeKindKey(string value)
         => value.Trim().ToLowerInvariant();
+
+    private static bool WouldCreateCycle(
+        DraftOrgUnit unit,
+        IReadOnlyDictionary<Guid, DraftOrgUnit> lookup)
+    {
+        var visited = new HashSet<Guid> { unit.Id };
+        var currentParentId = unit.ParentId;
+
+        while (currentParentId.HasValue)
+        {
+            if (!lookup.TryGetValue(currentParentId.Value, out var parent))
+            {
+                return false;
+            }
+
+            if (!visited.Add(parent.Id))
+            {
+                return true;
+            }
+
+            currentParentId = parent.ParentId;
+        }
+
+        return false;
+    }
+
+    private static string GetUnitLabel(DraftOrgUnit unit)
+    {
+        if (!string.IsNullOrWhiteSpace(unit.DisplayName))
+            return $"'{unit.DisplayName}'";
+
+        if (!string.IsNullOrWhiteSpace(unit.ReferenceKey))
+            return $"Unit '{unit.ReferenceKey}'";
+
+        return "This unit";
+    }
+
+    private static List<DraftSetupIssueDto> OrderIssues(IEnumerable<DraftSetupIssueDto> issues)
+        => issues
+            .OrderBy(issue => issue.Category, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(issue => issue.Message, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+    private static DraftSetupIssueDto CreateError(
+        string category,
+        string code,
+        string message,
+        Guid? unitId = null,
+        string? field = null)
+        => new("error", category, code, message, unitId, field);
+
+    private static DraftSetupIssueDto CreateWarning(
+        string category,
+        string code,
+        string message,
+        Guid? unitId = null,
+        string? field = null)
+        => new("warning", category, code, message, unitId, field);
 
     private static bool AttributeAppliesToKind(
         DraftStructureAttributeDefinitionDto attributeDefinition,

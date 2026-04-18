@@ -19,7 +19,7 @@ public sealed class UpdateDraftOrgUnitCommandHandler(
         UpdateDraftOrgUnitCommand request,
         CancellationToken cancellationToken)
     {
-        await DraftStructureRules.EnsureSetupActivatedAsync(dbContext, cancellationToken);
+        await DraftStructureRules.EnsureDraftEditableAsync(dbContext, cancellationToken);
         var schema = await DraftStructureRules.GetDraftStructureSchemaAsync(dbContext, cancellationToken);
 
         var draftOrgUnit = await dbContext.DraftOrgUnits

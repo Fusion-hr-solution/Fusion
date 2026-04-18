@@ -32,6 +32,11 @@ public sealed partial class UpdateTenantSettingsCommandHandler(
         ValidateRequest(request);
         var requestedSchema = BuildRequestedSchema(request);
 
+        if (requestedSchema is not null)
+        {
+            await DraftStructureRules.EnsureDraftEditableAsync(dbContext, cancellationToken);
+        }
+
         // Query settings for current tenant (auto-filtered by global query filter)
         var settings = await dbContext.TenantSettings
             .FirstOrDefaultAsync(cancellationToken);
