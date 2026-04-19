@@ -17,7 +17,7 @@ import {
   type UseApiQueryResult,
   type UseApiMutationResult,
 } from "@repo/api/react";
-import { useAuth } from "@repo/auth";
+import { canAccessOrganizations, useAuth } from "@repo/auth";
 
 // ---------------------------------------------------------------------------
 // Query params
@@ -37,8 +37,9 @@ export interface OrgListParams {
 export function useOrganizationList(
   params: OrgListParams
 ): UseApiQueryResult<PlatformOrganizationPagedListDto> {
-  const { isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const client = useMemo(() => createPlatformApiClient(), []);
+  const canManageOrganizations = canAccessOrganizations(user);
 
   const { skip, take, search, orderBy, orderDirection, filterByStatus } =
     params;
@@ -74,7 +75,9 @@ export function useOrganizationList(
     [client, skip, take, search, orderBy, orderDirection, statusKey]
   );
 
-  return useApiQuery(queryFn, { enabled: isAuthenticated });
+  return useApiQuery(queryFn, {
+    enabled: isAuthenticated && canManageOrganizations,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -83,8 +86,9 @@ export function useOrganizationList(
 export function useOrganizationDetail(
   tenantId: string | null
 ): UseApiQueryResult<PlatformOrganizationDetailDto> {
-  const { isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const client = useMemo(() => createPlatformApiClient(), []);
+  const canManageOrganizations = canAccessOrganizations(user);
 
   const queryFn = useCallback(
     (signal: AbortSignal) =>
@@ -97,7 +101,9 @@ export function useOrganizationDetail(
     [client, tenantId]
   );
 
-  return useApiQuery(queryFn, { enabled: isAuthenticated && !!tenantId });
+  return useApiQuery(queryFn, {
+    enabled: isAuthenticated && canManageOrganizations && !!tenantId,
+  });
 }
 
 // ---------------------------------------------------------------------------

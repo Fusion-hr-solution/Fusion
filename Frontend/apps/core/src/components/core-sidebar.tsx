@@ -3,7 +3,12 @@
 import { usePathname } from "next/navigation";
 import { BrainCircuit } from "lucide-react";
 import { AppSidebar, type NavSection } from "@repo/ui";
-import { SidebarUserPanel, useAuth, canSeeCoreSetupNavigation } from "@repo/auth";
+import {
+  SidebarUserPanel,
+  useAuth,
+  canSeeCoreSetupNavigation,
+  canSeeOrganizationsNavigation,
+} from "@repo/auth";
 import { PEOPLE_NAV, ADMIN_NAV } from "@/data/sidebar-nav";
 import { useCoreSetupAccess } from "@/components/core-setup-access";
 
@@ -27,16 +32,23 @@ export function CoreSidebar() {
   const activePath = pathname.replace(/^\/core/, "") || "/";
   const { user } = useAuth();
   const { isNavigationLocked, lockedNavigationReason } = useCoreSetupAccess();
+  const canSeeSetup = canSeeCoreSetupNavigation(user);
+  const canSeeOrganizations = canSeeOrganizationsNavigation(user);
+  const adminItems = ADMIN_NAV.items.filter((item) => {
+    if (item.href === "/setup") {
+      return canSeeSetup;
+    }
 
-  const visibleSections = canSeeCoreSetupNavigation(user)
-    ? [PEOPLE_NAV, ADMIN_NAV]
-    : [
-        PEOPLE_NAV,
-        {
-          ...ADMIN_NAV,
-          items: ADMIN_NAV.items.filter((item) => item.href !== "/setup"),
-        },
-      ];
+    if (item.href === "/organizations") {
+      return canSeeOrganizations;
+    }
+
+    return canSeeSetup;
+  });
+
+  const visibleSections = adminItems.length
+    ? [PEOPLE_NAV, { ...ADMIN_NAV, items: adminItems }]
+    : [PEOPLE_NAV];
 
   const sections =
     isNavigationLocked && lockedNavigationReason

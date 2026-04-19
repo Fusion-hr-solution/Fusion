@@ -15,9 +15,17 @@ export function hasAnyRole(
 }
 
 export function canAccessCoreSetup(user: AuthUser | null): boolean {
-  return hasAnyRole(user, [PLATFORM_ADMIN_ROLE, HR_ADMIN_ROLE]);
+  return hasAnyRole(user, [HR_ADMIN_ROLE]) && !hasAnyRole(user, [PLATFORM_ADMIN_ROLE]);
 }
 
 export function canSeeCoreSetupNavigation(user: AuthUser | null): boolean {
-  return hasAnyRole(user, [HR_ADMIN_ROLE]);
+  return canAccessCoreSetup(user);
+}
+
+export function canAccessOrganizations(user: AuthUser | null): boolean {
+  return hasAnyRole(user, [PLATFORM_ADMIN_ROLE]);
+}
+
+export function canSeeOrganizationsNavigation(user: AuthUser | null): boolean {
+  return canAccessOrganizations(user);
 }
