@@ -78,3 +78,31 @@ export function useReopenStructure(opts?: {
     opts
   );
 }
+
+export function usePublishStructure(opts?: {
+  onSuccess?: (data: TenantSetupStateDto) => void;
+}) {
+  const client = useMemo(() => createPlatformApiClient(), []);
+
+  return useApiMutation<TenantSetupStateDto, VersionedSetupMutationArgs>(
+    ({ expectedVersion }) =>
+      client.post<TenantSetupStateDto>(coreSetupPaths.publish(), undefined, {
+        headers: { "If-Match": `"${expectedVersion}"` },
+      }),
+    opts
+  );
+}
+
+export function useCompleteSetup(opts?: {
+  onSuccess?: (data: TenantSetupStateDto) => void;
+}) {
+  const client = useMemo(() => createPlatformApiClient(), []);
+
+  return useApiMutation<TenantSetupStateDto, VersionedSetupMutationArgs>(
+    ({ expectedVersion }) =>
+      client.post<TenantSetupStateDto>(coreSetupPaths.complete(), undefined, {
+        headers: { "If-Match": `"${expectedVersion}"` },
+      }),
+    opts
+  );
+}

@@ -5,6 +5,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useCallback,
   type ReactNode,
 } from "react";
 import { Lock } from "lucide-react";
@@ -15,7 +16,7 @@ import { PageHeader } from "@/components/page-header";
 import { Spinner } from "@/components/ui/spinner";
 import { useSetupState } from "@/app/(pages)/setup/use-setup";
 
-const SETUP_LOCK_REASON = "Finish setup to unlock the rest of Core HR.";
+const SETUP_LOCK_REASON = "Complete organization setup before using the rest of the workspace.";
 const SETUP_LOADING_REASON = "Checking setup access...";
 
 interface CoreSetupAccessContextValue {
@@ -24,6 +25,7 @@ interface CoreSetupAccessContextValue {
   isSetupLocked: boolean;
   isNavigationLocked: boolean;
   lockedNavigationReason: string | null;
+  refreshSetupAccess: () => void;
 }
 
 const CoreSetupAccessContext = createContext<CoreSetupAccessContextValue>({
@@ -32,6 +34,7 @@ const CoreSetupAccessContext = createContext<CoreSetupAccessContextValue>({
   isSetupLocked: false,
   isNavigationLocked: false,
   lockedNavigationReason: null,
+  refreshSetupAccess: () => {},
 });
 
 function getCorePathname(pathname: string): string {
@@ -44,7 +47,10 @@ function isSetupAreaPath(pathname: string): boolean {
 }
 
 function isSetupComplete(setupState: TenantSetupStateDto | undefined): boolean {
-  return setupState?.currentPhase === "operational";
+  return (
+    setupState?.currentPhase === "operational" ||
+    setupState?.currentPhase === "structurallyPublished"
+  );
 }
 
 function SetupRedirectFallback({ isChecking }: { isChecking: boolean }) {
@@ -52,7 +58,7 @@ function SetupRedirectFallback({ isChecking }: { isChecking: boolean }) {
     <div className="flex min-h-full flex-col gap-6 p-6">
       <PageHeader
         title="Setup required"
-        description="Finish setup before using the rest of Core HR."
+        description="Complete organization setup before using the rest of the workspace."
       />
       <div className="flex flex-1 items-center justify-center">
         <div className="flex items-center gap-3 rounded-lg border bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
@@ -72,7 +78,16 @@ export function CoreSetupAccessProvider({ children }: { children: ReactNode }) {
     data: setupState,
     error: setupError,
     isLoading: isSetupStateLoading,
+    refetch: refetchSetupState,
   } = useSetupState(shouldCheckSetupAccess);
+
+  const refreshSetupAccess = useCallback(() => {
+    if (!shouldCheckSetupAccess) {
+      return;
+    }
+
+    refetchSetupState();
+  }, [shouldCheckSetupAccess, refetchSetupState]);
 
   const value = useMemo<CoreSetupAccessContextValue>(() => {
     const isSetupLocked =
@@ -93,8 +108,15 @@ export function CoreSetupAccessProvider({ children }: { children: ReactNode }) {
             ? SETUP_LOCK_REASON
             : null
         : null,
+      refreshSetupAccess,
     };
-  }, [shouldCheckSetupAccess, isSetupStateLoading, setupError, setupState]);
+  }, [
+    shouldCheckSetupAccess,
+    isSetupStateLoading,
+    refreshSetupAccess,
+    setupError,
+    setupState,
+  ]);
 
   return (
     <CoreSetupAccessContext.Provider value={value}>

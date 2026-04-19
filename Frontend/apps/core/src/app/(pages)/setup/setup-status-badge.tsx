@@ -39,7 +39,7 @@ const STATUS_CONFIG: Record<
       "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
   },
   operational: {
-    label: "Live",
+    label: "Setup Complete",
     icon: Rocket,
     className:
       "bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-400",

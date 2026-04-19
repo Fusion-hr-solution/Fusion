@@ -5,7 +5,11 @@ export type CoreSetupPhase =
   | "structurallyPublished"
   | "operational";
 
-export type TenantSetupActivityType = "approved" | "reopened";
+export type TenantSetupActivityType =
+  | "approved"
+  | "reopened"
+  | "published"
+  | "completed";
 
 export type DraftSetupIssueSeverity = "error" | "warning";
 
@@ -72,4 +76,6 @@ export const coreSetupPaths = {
   readiness: () => "/corehr/setup/readiness",
   approve: () => "/corehr/setup/approve",
   reopen: () => "/corehr/setup/reopen",
+  publish: () => "/corehr/setup/publish",
+  complete: () => "/corehr/setup/complete",
 } as const;

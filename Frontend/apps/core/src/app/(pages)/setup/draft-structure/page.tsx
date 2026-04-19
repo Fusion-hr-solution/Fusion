@@ -82,7 +82,7 @@ export default function DraftStructurePage() {
     error: setupError,
     isLoading: isSetupLoading,
     refetch: refetchSetup,
-  } = useSetupState();
+  } = useSetupState(canAccess);
   const isDraftLocked = setupState?.currentPhase !== "activated";
   const canApproveFromDraft = setupState?.currentPhase === "activated";
   const canReopenFromDraft = setupState?.currentPhase === "structurallyGoverned";
@@ -176,9 +176,13 @@ export default function DraftStructurePage() {
     setEditorOpen(false);
   }, [isDraftLocked]);
 
-  const refreshWorkspace = () => {
+  const refreshWorkspaceAndReadiness = () => {
     void refetch();
     void refetchTree();
+
+    if (canApproveFromDraft) {
+      void refetchReadiness();
+    }
   };
 
   const handleApprove = async () => {
@@ -231,12 +235,12 @@ export default function DraftStructurePage() {
       <div className="flex flex-col gap-6 p-6">
         <PageHeader
           title="Organization Structure"
-          description="Organization structure is limited to HR administrators and platform operators in tenant context."
+          description="Organization structure is limited to tenant HR administrators."
         />
         <EmptyState
           icon={FolderTree}
           title="Organization structure is not available for this role"
-          description="Ask a tenant HR administrator or platform administrator to manage the draft workspace."
+          description="Ask a tenant HR administrator to manage the draft workspace."
         />
       </div>
     );
@@ -338,7 +342,7 @@ export default function DraftStructurePage() {
           <AlertTitle>Draft workspace could not be loaded</AlertTitle>
           <AlertDescription className="flex items-center justify-between gap-4">
             <span>{workspaceError?.message ?? treeError?.message}</span>
-            <Button variant="outline" size="sm" onClick={refreshWorkspace}>
+            <Button variant="outline" size="sm" onClick={refreshWorkspaceAndReadiness}>
               Retry
             </Button>
           </AlertDescription>
@@ -454,7 +458,7 @@ export default function DraftStructurePage() {
                 }
               }
               existingUnits={workspace?.units ?? []}
-              onSchemaUpdated={refreshWorkspace}
+              onSchemaUpdated={refreshWorkspaceAndReadiness}
               disabled={!workspace || isDraftLocked}
             />
           </CardContent>
@@ -710,9 +714,9 @@ export default function DraftStructurePage() {
         }}
         onCreated={() => {
           setCreateParentId(null);
-          refreshWorkspace();
+          refreshWorkspaceAndReadiness();
         }}
-        onSchemaUpdated={refreshWorkspace}
+        onSchemaUpdated={refreshWorkspaceAndReadiness}
         initialParentId={createParentId}
         readOnly={isDraftLocked}
         schema={
@@ -728,7 +732,7 @@ export default function DraftStructurePage() {
         open={isImportOpen}
         onOpenChange={handleImportOpenChange}
         onApplied={() => {
-          refreshWorkspace();
+          refreshWorkspaceAndReadiness();
         }}
         readOnly={isDraftLocked}
       />
@@ -738,9 +742,9 @@ export default function DraftStructurePage() {
         open={editorOpen && !!selectedUnit}
         onOpenChange={setEditorOpen}
         onMutated={() => {
-          refreshWorkspace();
+          refreshWorkspaceAndReadiness();
         }}
-        onSchemaUpdated={refreshWorkspace}
+        onSchemaUpdated={refreshWorkspaceAndReadiness}
         readOnly={isDraftLocked}
         schema={
           workspace?.draftStructureSchema ?? {
@@ -773,6 +777,23 @@ function SummaryField({
       </p>
     </div>
   );
+}
+
+function formatRoleLabel(role: string | null | undefined, fallback = "Role not recorded") {
+  switch (role) {
+    case "HRAdmin":
+      return "HR administrator";
+    case "PlatformAdmin":
+      return "Platform administrator";
+    case "Manager":
+      return "Manager";
+    case "Employee":
+      return "Employee";
+    default:
+      return role?.trim()
+        ? role.replace(/([a-z])([A-Z])/g, "$1 $2")
+        : fallback;
+  }
 }
 
 function DraftGovernanceCard({
@@ -808,6 +829,7 @@ function DraftGovernanceCard({
 }) {
   if (phase === "activated") {
     const isReadyForApproval = readiness?.isReadyForApproval ?? false;
+    const isDraftEmpty = (readiness?.totalUnitCount ?? 0) === 0;
 
     return (
       <Card className="overflow-hidden">
@@ -873,26 +895,34 @@ function DraftGovernanceCard({
                 />
                 <ReadinessStat
                   label="Blocking issues"
-                  value={String(readiness.blockingIssueCount)}
+                  value={String(isDraftEmpty ? 0 : readiness.blockingIssueCount)}
                   hint={
-                    readiness.blockingIssueCount === 0
+                    isDraftEmpty
+                      ? "Shown after the draft takes shape"
+                      : readiness.blockingIssueCount === 0
                       ? "Ready to approve"
                       : "Clear these first"
                   }
                 />
                 <ReadinessStat
                   label="Warnings"
-                  value={String(readiness.warningCount)}
+                  value={String(isDraftEmpty ? 0 : readiness.warningCount)}
                   hint={
-                    readiness.warningCount === 0
+                    isDraftEmpty
+                      ? "Shown after the draft takes shape"
+                      : readiness.warningCount === 0
                       ? "No open warnings"
                       : "Review before approval"
                   }
                 />
               </div>
 
-              {readiness.blockingIssues.length === 0 &&
-              readiness.warnings.length === 0 ? (
+              {isDraftEmpty ? (
+                <div className="rounded-xl border bg-muted/20 p-4 text-sm text-muted-foreground">
+                  Add the first unit or import the structure template to start the approval checks.
+                </div>
+              ) : readiness.blockingIssues.length === 0 &&
+                readiness.warnings.length === 0 ? (
                 <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 p-4 text-sm text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/20 dark:text-emerald-200">
                   <div className="flex items-center gap-2 font-medium">
                     <CheckCircle2 className="size-4" />
@@ -963,11 +993,11 @@ function DraftGovernanceCard({
           <ReadinessStat
             label="Approved by"
             value={approvedByFullName ?? "Not recorded"}
-            hint={approvedByRole ?? "Role not recorded"}
+            hint={formatRoleLabel(approvedByRole)}
           />
           <ReadinessStat
             label="Approval mode"
-            value={isApprovedInPlatformAssistMode ? "Platform assisted" : "Standard"}
+            value={isApprovedInPlatformAssistMode ? "Assisted" : "Standard"}
             hint="Reopen if the draft needs changes"
           />
         </CardContent>
@@ -982,9 +1012,15 @@ function DraftGovernanceCard({
           <div className="space-y-3">
             <SetupStatusBadge status={phase} />
             <div className="space-y-1">
-              <CardTitle>Draft remains locked in this phase</CardTitle>
+              <CardTitle>
+                {phase === "structurallyPublished"
+                  ? "Live structure published"
+                  : "Setup is complete"}
+              </CardTitle>
               <CardDescription>
-                Later setup steps are already underway. Review the draft here and use Setup for the next milestone.
+                {phase === "structurallyPublished"
+                  ? "This draft is now the locked record of what was published. Setup is treated as complete in this flow."
+                  : "This draft stays available as a locked snapshot of what went live. Use Setup for the finished milestone view."}
               </CardDescription>
             </div>
           </div>
