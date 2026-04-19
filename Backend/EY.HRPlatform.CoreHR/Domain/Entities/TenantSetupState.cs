@@ -113,4 +113,32 @@ public class TenantSetupState : BaseEntity, ITenantEntity
         IsApprovedInPlatformAssistMode = false;
         UpdatedAt = DateTime.UtcNow;
     }
+
+    public void Publish()
+    {
+        if (CurrentPhase != TenantSetupPhase.StructurallyGoverned)
+        {
+            throw new InvalidOperationException("Only an approved structure can be published.");
+        }
+
+        var publishedAt = DateTime.UtcNow;
+
+        CurrentPhase = TenantSetupPhase.StructurallyPublished;
+        StructurallyPublishedAt = publishedAt;
+        UpdatedAt = publishedAt;
+    }
+
+    public void Complete()
+    {
+        if (CurrentPhase != TenantSetupPhase.StructurallyPublished)
+        {
+            throw new InvalidOperationException("Only a published structure can complete setup.");
+        }
+
+        var completedAt = DateTime.UtcNow;
+
+        CurrentPhase = TenantSetupPhase.Operational;
+        OperationalAt = completedAt;
+        UpdatedAt = completedAt;
+    }
 }

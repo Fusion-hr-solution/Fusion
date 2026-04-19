@@ -17,6 +17,8 @@ public static class DraftStructureRules
     private const string HierarchyCategory = "hierarchy";
     private const string UnitTypesCategory = "unitTypes";
     private const string RequiredDetailsCategory = "requiredDetails";
+    private const int LiveOrgUnitCodeMaxLength = 50;
+    private const int LiveOrgUnitTypeMaxLength = 100;
 
     public static async Task EnsureSetupActivatedAsync(
         CoreHRDbContext dbContext,
@@ -78,13 +80,17 @@ public static class DraftStructureRules
 
         if (units.Count == 0)
         {
-            blockingIssues.Add(CreateError(
-                StructureCategory,
-                "NO_UNITS",
-                "Add at least one top-level unit before approval."));
+            return new DraftSetupReadinessDto(
+                false,
+                0,
+                0,
+                0,
+                0,
+                [],
+                []);
         }
 
-        if (units.Count > 0 && rootUnitCount == 0)
+        if (rootUnitCount == 0)
         {
             blockingIssues.Add(CreateError(
                 StructureCategory,
@@ -115,9 +121,25 @@ public static class DraftStructureRules
                 "referenceKey"));
         }
 
+        var duplicateDisplayNameGroups = units
+            .Where(unit => !string.IsNullOrWhiteSpace(unit.DisplayName))
+            .GroupBy(unit => unit.DisplayName.Trim(), StringComparer.Ordinal)
+            .Where(group => group.Count() > 1);
+
+        foreach (var group in duplicateDisplayNameGroups)
+        {
+            blockingIssues.Add(CreateError(
+                StructureCategory,
+                "DUPLICATE_DISPLAY_NAME",
+                $"Unit name '{group.First().DisplayName}' is used more than once. Unit names must stay unique before publish.",
+                null,
+                "displayName"));
+        }
+
         var validKindKeys = normalizedSchema.OrgUnitKinds
             .Select(kind => kind.Key)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var kindLabelLookup = CreateOrgUnitKindLabelLookup(normalizedSchema);
 
         foreach (var unit in units)
         {
@@ -129,6 +151,15 @@ public static class DraftStructureRules
                     RequiredDetailsCategory,
                     "MISSING_REFERENCE_KEY",
                     $"{unitLabel} is missing a unit code.",
+                    unit.Id,
+                    "referenceKey"));
+            }
+            else if (unit.ReferenceKey.Length > LiveOrgUnitCodeMaxLength)
+            {
+                blockingIssues.Add(CreateError(
+                    RequiredDetailsCategory,
+                    "LIVE_REFERENCE_KEY_TOO_LONG",
+                    $"{unitLabel} has a unit code longer than {LiveOrgUnitCodeMaxLength} characters. Shorten it before approval.",
                     unit.Id,
                     "referenceKey"));
             }
@@ -158,6 +189,16 @@ public static class DraftStructureRules
                     UnitTypesCategory,
                     "INVALID_ORG_UNIT_KIND",
                     $"{unitLabel} uses a unit type that is no longer available.",
+                    unit.Id,
+                    "orgUnitKindKey"));
+            }
+            else if (kindLabelLookup.TryGetValue(unit.OrgUnitKindKey, out var kindLabel)
+                && kindLabel.Length > LiveOrgUnitTypeMaxLength)
+            {
+                blockingIssues.Add(CreateError(
+                    UnitTypesCategory,
+                    "LIVE_ORG_UNIT_KIND_LABEL_TOO_LONG",
+                    $"{unitLabel} uses a unit type label longer than {LiveOrgUnitTypeMaxLength} characters. Shorten the unit type before approval.",
                     unit.Id,
                     "orgUnitKindKey"));
             }

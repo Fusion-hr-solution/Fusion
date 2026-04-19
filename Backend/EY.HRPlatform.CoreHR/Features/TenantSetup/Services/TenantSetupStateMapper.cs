@@ -34,7 +34,9 @@ public static class TenantSetupStateMapper
             CompletedSteps = completedSteps,
             PendingSteps = pendingSteps,
             CanStartSetup = phase == TenantSetupPhase.NotStarted,
-            CanResumeSetup = phase != TenantSetupPhase.NotStarted && phase != TenantSetupPhase.Operational,
+            CanResumeSetup =
+                phase != TenantSetupPhase.NotStarted &&
+                phase < TenantSetupPhase.StructurallyPublished,
             ActivatedAt = state?.ActivatedAt,
             StructurallyGovernedAt = state?.StructurallyGovernedAt,
             ApprovedAt = state?.ApprovedAt,
@@ -52,8 +54,8 @@ public static class TenantSetupStateMapper
     {
         TenantSetupPhase.NotStarted => "Start setup",
         TenantSetupPhase.Activated => "Review the structure and approve when ready",
-        TenantSetupPhase.StructurallyGoverned => "The structure is approved and waiting for publish",
-        TenantSetupPhase.StructurallyPublished => "Finish the remaining go-live work",
+        TenantSetupPhase.StructurallyGoverned => "Publish the approved structure to complete setup",
+        TenantSetupPhase.StructurallyPublished => "Setup is complete",
         TenantSetupPhase.Operational => "Setup is complete",
         _ => throw new ArgumentOutOfRangeException(nameof(phase), phase, null)
     };
@@ -81,10 +83,10 @@ public static class TenantSetupStateMapper
             steps.Add("structurallyGoverned");
 
         if (phase >= TenantSetupPhase.StructurallyPublished)
+        {
             steps.Add("structurallyPublished");
-
-        if (phase >= TenantSetupPhase.Operational)
             steps.Add("operational");
+        }
 
         return steps;
     }
@@ -103,6 +105,8 @@ public static class TenantSetupStateMapper
     {
         TenantSetupActivityType.Approved => "approved",
         TenantSetupActivityType.Reopened => "reopened",
+        TenantSetupActivityType.Published => "published",
+        TenantSetupActivityType.Completed => "completed",
         _ => throw new ArgumentOutOfRangeException(nameof(activityType), activityType, null)
     };
 }

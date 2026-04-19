@@ -87,4 +87,109 @@ public class GetTenantSetupStateQueryHandlerTests
         Assert.Equal("approved", result.RecentActivities[0].ActivityType);
         Assert.Equal(ActorUserId, result.RecentActivities[0].ActorUserId);
     }
+
+    [Fact]
+    public async Task Handle_WithPublishedSetupState_TreatsSetupAsCompleteForUiCompatibility()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+
+        await using (var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName))
+        {
+            var state = TenantSetupState.CreateActivated(TenantId);
+            state.Approve(ActorUserId, "Jordan Approver", "HRAdmin", false);
+            state.Publish();
+
+            seedContext.TenantSetupStates.Add(state);
+            seedContext.TenantSetupActivities.AddRange(
+                TenantSetupActivity.Create(
+                    TenantId,
+                    state.Id,
+                    TenantSetupActivityType.Approved,
+                    ActorUserId,
+                    "Jordan Approver",
+                    "HRAdmin",
+                    false),
+                TenantSetupActivity.Create(
+                    TenantId,
+                    state.Id,
+                    TenantSetupActivityType.Published,
+                    ActorUserId,
+                    "Jordan Approver",
+                    "HRAdmin",
+                    false));
+            await seedContext.SaveChangesAsync();
+        }
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = new GetTenantSetupStateQueryHandler(context);
+
+        var result = await handler.Handle(new GetTenantSetupStateQuery(), CancellationToken.None);
+
+        Assert.Equal("structurallyPublished", result.CurrentPhase);
+        Assert.Equal(4, result.CurrentStep);
+        Assert.Equal("Setup is complete", result.NextAction);
+        Assert.False(result.CanResumeSetup);
+        Assert.NotNull(result.StructurallyPublishedAt);
+        Assert.Null(result.OperationalAt);
+        Assert.Contains("operational", result.CompletedSteps);
+        Assert.Empty(result.PendingSteps);
+    }
+
+    [Fact]
+    public async Task Handle_WithOperationalSetupState_ReturnsFinalProgressAndLifecycleTimestamps()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+
+        await using (var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName))
+        {
+            var state = TenantSetupState.CreateActivated(TenantId);
+            state.Approve(ActorUserId, "Jordan Approver", "HRAdmin", false);
+            state.Publish();
+            state.Complete();
+
+            seedContext.TenantSetupStates.Add(state);
+            seedContext.TenantSetupActivities.AddRange(
+                TenantSetupActivity.Create(
+                    TenantId,
+                    state.Id,
+                    TenantSetupActivityType.Approved,
+                    ActorUserId,
+                    "Jordan Approver",
+                    "HRAdmin",
+                    false),
+                TenantSetupActivity.Create(
+                    TenantId,
+                    state.Id,
+                    TenantSetupActivityType.Published,
+                    ActorUserId,
+                    "Jordan Approver",
+                    "HRAdmin",
+                    false),
+                TenantSetupActivity.Create(
+                    TenantId,
+                    state.Id,
+                    TenantSetupActivityType.Completed,
+                    ActorUserId,
+                    "Jordan Approver",
+                    "HRAdmin",
+                    false));
+            await seedContext.SaveChangesAsync();
+        }
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = new GetTenantSetupStateQueryHandler(context);
+
+        var result = await handler.Handle(new GetTenantSetupStateQuery(), CancellationToken.None);
+
+        Assert.Equal("operational", result.CurrentPhase);
+        Assert.Equal(4, result.CurrentStep);
+        Assert.False(result.CanResumeSetup);
+        Assert.NotNull(result.StructurallyPublishedAt);
+        Assert.NotNull(result.OperationalAt);
+        Assert.Equal(3, result.RecentActivities.Count);
+        Assert.Contains(result.RecentActivities, activity => activity.ActivityType == "published");
+        Assert.Contains(result.RecentActivities, activity => activity.ActivityType == "completed");
+    }
 }
