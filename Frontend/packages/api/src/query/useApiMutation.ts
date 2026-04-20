@@ -37,28 +37,37 @@ export function useApiMutation<TData, TArgs = void>(
   options?: UseApiMutationOptions<TData, TArgs>
 ): UseApiMutationResult<TData, TArgs> {
   const queryClient = useQueryClient();
+  const {
+    invalidateQueries,
+    onSuccess,
+    onError,
+    ...mutationOptions
+  } = options ?? {};
+
   const mutation = useMutation<TData, Error, TArgs>({
     mutationFn,
-    ...options,
-    onSuccess: async (data, args, context) => {
+    ...mutationOptions,
+    onSuccess: async (data, args, _context) => {
       const invalidations =
-        typeof options?.invalidateQueries === "function"
-          ? options.invalidateQueries(data, args)
-          : options?.invalidateQueries;
+        typeof invalidateQueries === "function"
+          ? invalidateQueries(data, args)
+          : invalidateQueries;
 
       if (invalidations && invalidations.length > 0) {
-        invalidations.forEach((invalidation) => {
-          void queryClient.invalidateQueries({
+        await Promise.all(
+          invalidations.map((invalidation) =>
+            queryClient.invalidateQueries({
             queryKey: invalidation.queryKey,
             exact: invalidation.exact,
-          });
-        });
+            })
+          )
+        );
       }
 
-      await options?.onSuccess?.(data, args);
+      await onSuccess?.(data, args);
     },
     onError: async (error, args, _context) => {
-      await options?.onError?.(error, args);
+      await onError?.(error, args);
     },
   });
 

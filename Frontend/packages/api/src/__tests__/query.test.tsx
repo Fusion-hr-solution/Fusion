@@ -21,6 +21,15 @@ function createWrapper() {
   };
 }
 
+function createDeferredPromise<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+
+  return { promise, resolve };
+}
+
 describe("query layer", () => {
   it("uses conservative default query and mutation behavior", () => {
     const defaults = createApiQueryDefaultOptions();
@@ -80,5 +89,44 @@ describe("query layer", () => {
 
     await waitFor(() => expect(fetchValue).toHaveBeenCalledTimes(2));
     expect(queryHook.result.current.data).toBe("second");
+  });
+
+  it("waits for invalidations to finish before calling onSuccess", async () => {
+    const deferred = createDeferredPromise<string>();
+    const fetchValue = vi
+      .fn<() => Promise<string>>()
+      .mockResolvedValueOnce("first")
+      .mockImplementationOnce(() => deferred.promise);
+    const mutateValue = vi.fn<() => Promise<string>>().mockResolvedValue("done");
+    const onSuccess = vi.fn();
+    const { wrapper } = createWrapper();
+
+    renderHook(() => useApiQuery(["example"], () => fetchValue()), {
+      wrapper,
+    });
+
+    await waitFor(() => expect(fetchValue).toHaveBeenCalledTimes(1));
+
+    const mutationHook = renderHook(
+      () =>
+        useApiMutation(mutateValue, {
+          invalidateQueries: [{ queryKey: ["example"] }],
+          onSuccess,
+        }),
+      { wrapper }
+    );
+
+    const mutationPromise = mutationHook.result.current.mutateAsync(undefined as void);
+
+    await Promise.resolve();
+    expect(onSuccess).not.toHaveBeenCalled();
+
+    deferred.resolve("second");
+
+    await act(async () => {
+      await mutationPromise;
+    });
+
+    expect(onSuccess).toHaveBeenCalledOnce();
   });
 });

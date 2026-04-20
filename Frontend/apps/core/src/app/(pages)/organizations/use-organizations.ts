@@ -40,7 +40,12 @@ export function useOrganizationList(
 
   const { skip, take, search, orderBy, orderDirection, filterByStatus } =
     params;
-  const statusKey = filterByStatus?.join(",") ?? "";
+  const normalizedSearch = search?.trim() || undefined;
+  const normalizedFilterByStatus =
+    filterByStatus && filterByStatus.length > 0
+      ? [...filterByStatus].sort()
+      : undefined;
+  const statusKey = normalizedFilterByStatus?.join(",") ?? "";
 
   const queryFn = useCallback(
     (signal: AbortSignal) => {
@@ -48,7 +53,7 @@ export function useOrganizationList(
         {
           skip,
           take,
-          search: search || undefined,
+          search: normalizedSearch,
           orderBy: orderBy || "createdAt",
           orderDirection: orderDirection || "desc",
         };
@@ -69,7 +74,15 @@ export function useOrganizationList(
         params: queryParams,
       });
     },
-    [client, skip, take, search, orderBy, orderDirection, statusKey]
+    [
+      client,
+      skip,
+      take,
+      normalizedSearch,
+      orderBy,
+      orderDirection,
+      statusKey,
+    ]
   );
 
   return useApiQuery(platformOrganizationsQueryKeys.list(params), queryFn, {

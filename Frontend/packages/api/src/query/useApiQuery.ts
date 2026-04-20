@@ -37,10 +37,11 @@ export function useApiQuery<TQueryFnData, TData = TQueryFnData>(
     queryFn: ({ signal }) => queryFn(signal),
     ...options,
   });
+  const { refetch: refetchQuery } = result;
 
   const refetch = useCallback(async () => {
-    await result.refetch();
-  }, [result]);
+    await refetchQuery();
+  }, [refetchQuery]);
 
   const invalidate = useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey });
