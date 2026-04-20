@@ -7,6 +7,7 @@ import type {
   AdminAssignment,
   AdminCategory,
   AdminOnSiteCourse,
+  AdminExamDetail,
   ArticleTemplate,
   CreateTrainingInput,
   UpdateTrainingInput,
@@ -18,6 +19,10 @@ import type {
   UpdateCategoryInput,
   AssignTrainingInput,
   CreateOnSiteCourseInput,
+  CreateExamInput,
+  UpdateExamInput,
+  CreateExamQuestionInput,
+  UpdateExamQuestionInput,
 } from "@/types/admin";
 import type { ChapterLayout, TrainingType } from "@/types";
 
@@ -70,6 +75,34 @@ interface BackendExamDto {
   title: string;
   passingScore: number;
   questionCount: number;
+}
+
+interface BackendAdminExamDetailDto {
+  id: string;
+  trainingId: string;
+  title: string;
+  description: string | null;
+  passingScore: number;
+  durationMinutes: number | null;
+  createdAt: string;
+  updatedAt: string | null;
+  questions: BackendAdminExamQuestionDto[];
+}
+
+interface BackendAdminExamQuestionDto {
+  id: string;
+  questionText: string;
+  type: string;
+  orderIndex: number;
+  points: number;
+  options: BackendAdminExamOptionDto[];
+}
+
+interface BackendAdminExamOptionDto {
+  id: string;
+  optionText: string;
+  isCorrect: boolean;
+  orderIndex: number;
 }
 
 interface BackendAdminTrainingDetailDto extends BackendAdminTrainingDto {
@@ -484,4 +517,113 @@ export async function getArticleTemplates(): Promise<ArticleTemplate[]> {
       orderIndex: section.orderIndex,
     })),
   }));
+}
+
+// --- Exam CRUD ---
+
+function mapExamDetail(dto: BackendAdminExamDetailDto): AdminExamDetail {
+  return {
+    id: dto.id,
+    trainingId: dto.trainingId,
+    title: dto.title,
+    description: dto.description ?? undefined,
+    passingScore: dto.passingScore,
+    durationMinutes: dto.durationMinutes ?? undefined,
+    createdAt: dto.createdAt,
+    updatedAt: dto.updatedAt ?? undefined,
+    questions: dto.questions
+      .slice()
+      .sort((a, b) => a.orderIndex - b.orderIndex)
+      .map((q) => ({
+        id: q.id,
+        questionText: q.questionText,
+        type: q.type as AdminExamDetail["questions"][number]["type"],
+        orderIndex: q.orderIndex,
+        points: q.points,
+        options: q.options
+          .slice()
+          .sort((a, b) => a.orderIndex - b.orderIndex)
+          .map((o) => ({
+            id: o.id,
+            optionText: o.optionText,
+            isCorrect: o.isCorrect,
+            orderIndex: o.orderIndex,
+          })),
+      })),
+  };
+}
+
+export async function getAdminExamDetail(trainingId: string): Promise<AdminExamDetail | null> {
+  try {
+    const data = await client.get<BackendAdminExamDetailDto>(
+      `/training/admin/trainings/${encodeURIComponent(trainingId)}/exam`,
+    );
+    return mapExamDetail(data);
+  } catch {
+    return null;
+  }
+}
+
+export async function createExam(trainingId: string, input: CreateExamInput): Promise<string> {
+  return client.post<string>(
+    `/training/admin/trainings/${encodeURIComponent(trainingId)}/exam`,
+    input,
+  );
+}
+
+export async function updateExam(trainingId: string, examId: string, input: UpdateExamInput): Promise<void> {
+  await client.put(
+    `/training/admin/trainings/${encodeURIComponent(trainingId)}/exam/${encodeURIComponent(examId)}`,
+    input,
+  );
+}
+
+export async function deleteExam(trainingId: string, examId: string): Promise<void> {
+  await client.delete(
+    `/training/admin/trainings/${encodeURIComponent(trainingId)}/exam/${encodeURIComponent(examId)}`,
+  );
+}
+
+export async function addExamQuestion(
+  trainingId: string,
+  examId: string,
+  input: CreateExamQuestionInput,
+): Promise<string> {
+  return client.post<string>(
+    `/training/admin/trainings/${encodeURIComponent(trainingId)}/exam/${encodeURIComponent(examId)}/questions`,
+    input,
+  );
+}
+
+export async function updateExamQuestion(
+  trainingId: string,
+  examId: string,
+  questionId: string,
+  input: UpdateExamQuestionInput,
+): Promise<void> {
+  await client.put(
+    `/training/admin/trainings/${encodeURIComponent(trainingId)}/exam/${encodeURIComponent(examId)}/questions/${encodeURIComponent(questionId)}`,
+    input,
+  );
+}
+
+export async function deleteExamQuestion(
+  trainingId: string,
+  examId: string,
+  questionId: string,
+): Promise<void> {
+  await client.delete(
+    `/training/admin/trainings/${encodeURIComponent(trainingId)}/exam/${encodeURIComponent(examId)}/questions/${encodeURIComponent(questionId)}`,
+  );
+}
+
+export async function reorderExamQuestions(
+  trainingId: string,
+  examId: string,
+  questionIds: string[],
+): Promise<void> {
+  await client.put(
+    `/training/admin/trainings/${encodeURIComponent(trainingId)}/exam/${encodeURIComponent(examId)}/questions/reorder`,
+    { questionIds },
+  );
 }
