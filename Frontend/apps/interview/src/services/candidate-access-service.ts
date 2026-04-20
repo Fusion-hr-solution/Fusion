@@ -25,6 +25,10 @@ export interface CandidateAccessValidation {
   canStart: boolean;
   canResume: boolean;
   canSubmit: boolean;
+  requiresEmailVerification: boolean;
+  requiresIpLock: boolean;
+  requiresBrowserFingerprint: boolean;
+  singleUseLinkEnabled: boolean;
   status: "Invalid" | "Invited" | "InProgress" | "Submitted" | "Expired";
   message: string;
   invitationId?: string;
@@ -35,6 +39,15 @@ export interface CandidateAccessValidation {
   deadlineUtc?: string;
   tokenExpiresAtUtc?: string;
   timeLimitMinutes?: number;
+}
+
+export interface StartCandidateAttemptInput {
+  candidateEmail?: string;
+  browserFingerprint?: string;
+}
+
+export interface SubmitCandidateAttemptInput {
+  browserFingerprint?: string;
 }
 
 export interface CandidateAccessSession {
@@ -75,10 +88,17 @@ export async function validateCandidateAccess(token: string): Promise<CandidateA
   });
 }
 
-export async function startCandidateAttempt(token: string): Promise<CandidateAccessSession> {
+export async function startCandidateAttempt(
+  token: string,
+  input?: StartCandidateAttemptInput
+): Promise<CandidateAccessSession> {
   return client.post<CandidateAccessSession>(
     "/interview/candidate-access/start",
-    { token },
+    {
+      token,
+      candidateEmail: input?.candidateEmail,
+      browserFingerprint: input?.browserFingerprint,
+    },
     { skipAuth: true }
   );
 }
@@ -86,12 +106,14 @@ export async function startCandidateAttempt(token: string): Promise<CandidateAcc
 export async function submitCandidateAttempt(
   token: string,
   answers: unknown,
-  result: unknown
+  result: unknown,
+  input?: SubmitCandidateAttemptInput
 ): Promise<CandidateAccessSubmission> {
   return client.post<CandidateAccessSubmission>(
     "/interview/candidate-access/submit",
     {
       token,
+      browserFingerprint: input?.browserFingerprint,
       answers,
       result,
     },

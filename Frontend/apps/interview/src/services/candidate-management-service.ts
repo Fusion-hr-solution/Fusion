@@ -1,5 +1,10 @@
 import { createPlatformApiClient } from "@repo/api";
-import type { CandidateInvitation, CandidateManagementOverview } from "@/types";
+import type {
+  CandidateInvitation,
+  CandidateLinkSecuritySettings,
+  CandidateLinkSecurityState,
+  CandidateManagementOverview,
+} from "@/types";
 
 const client = createPlatformApiClient();
 
@@ -52,6 +57,38 @@ interface InviteCandidateInput {
   sendNowNotification?: boolean;
 }
 
+interface BackendCandidateLinkSecuritySettingsDto {
+  singleUseLinkEnabled: boolean;
+  emailVerificationEnabled: boolean;
+  ipLockEnabled: boolean;
+  browserFingerprintEnabled: boolean;
+  linkValidForValue: number;
+  linkValidForUnit: "days" | "hours" | "minutes";
+  gracePeriodValue: number;
+  gracePeriodUnit: "minutes" | "hours";
+}
+
+interface BackendCandidateLinkPreviewDto {
+  hasInvitation: boolean;
+  invitationId?: string;
+  inviteLink?: string;
+  opensCount: number;
+  allowedUses?: number;
+  tokenExpiresAtUtc?: string;
+  securityLevel: "Low" | "Medium" | "High";
+}
+
+interface BackendCandidateLinkSecurityStateDto {
+  testId: string;
+  testTitle: string;
+  settings: BackendCandidateLinkSecuritySettingsDto;
+  preview: BackendCandidateLinkPreviewDto;
+}
+
+interface SaveCandidateLinkSecurityInput extends CandidateLinkSecuritySettings {
+  testId: string;
+}
+
 function mapInvitation(dto: BackendCandidateInvitationDto): CandidateInvitation {
   return {
     id: dto.id,
@@ -72,6 +109,32 @@ function mapInvitation(dto: BackendCandidateInvitationDto): CandidateInvitation 
     lastSentAtUtc: dto.lastSentAtUtc,
     resendCount: dto.resendCount,
     opensCount: dto.opensCount,
+  };
+}
+
+function mapLinkSecurityState(dto: BackendCandidateLinkSecurityStateDto): CandidateLinkSecurityState {
+  return {
+    testId: dto.testId,
+    testTitle: dto.testTitle,
+    settings: {
+      singleUseLinkEnabled: dto.settings.singleUseLinkEnabled,
+      emailVerificationEnabled: dto.settings.emailVerificationEnabled,
+      ipLockEnabled: dto.settings.ipLockEnabled,
+      browserFingerprintEnabled: dto.settings.browserFingerprintEnabled,
+      linkValidForValue: dto.settings.linkValidForValue,
+      linkValidForUnit: dto.settings.linkValidForUnit,
+      gracePeriodValue: dto.settings.gracePeriodValue,
+      gracePeriodUnit: dto.settings.gracePeriodUnit,
+    },
+    preview: {
+      hasInvitation: dto.preview.hasInvitation,
+      invitationId: dto.preview.invitationId,
+      inviteLink: dto.preview.inviteLink,
+      opensCount: dto.preview.opensCount,
+      allowedUses: dto.preview.allowedUses,
+      tokenExpiresAtUtc: dto.preview.tokenExpiresAtUtc,
+      securityLevel: dto.preview.securityLevel,
+    },
   };
 }
 
@@ -177,4 +240,42 @@ export async function resendInvitation(invitationId: string): Promise<CandidateI
   );
 
   return mapInvitation(dto);
+}
+
+export async function getCandidateLinkSecurityState(testId: string): Promise<CandidateLinkSecurityState> {
+  const dto = await client.get<BackendCandidateLinkSecurityStateDto>(
+    "/interview/candidates/management/link-security",
+    { params: { testId } }
+  );
+
+  return mapLinkSecurityState(dto);
+}
+
+export async function saveCandidateLinkSecuritySettings(
+  input: SaveCandidateLinkSecurityInput
+): Promise<CandidateLinkSecurityState> {
+  const dto = await client.put<BackendCandidateLinkSecurityStateDto>(
+    "/interview/candidates/management/link-security",
+    {
+      testId: input.testId,
+      singleUseLinkEnabled: input.singleUseLinkEnabled,
+      emailVerificationEnabled: input.emailVerificationEnabled,
+      ipLockEnabled: input.ipLockEnabled,
+      browserFingerprintEnabled: input.browserFingerprintEnabled,
+      linkValidForValue: input.linkValidForValue,
+      linkValidForUnit: input.linkValidForUnit,
+      gracePeriodValue: input.gracePeriodValue,
+      gracePeriodUnit: input.gracePeriodUnit,
+    }
+  );
+
+  return mapLinkSecurityState(dto);
+}
+
+export async function regenerateCandidateLinkSecurityLink(testId: string): Promise<CandidateLinkSecurityState> {
+  const dto = await client.post<BackendCandidateLinkSecurityStateDto>(
+    `/interview/candidates/management/link-security/${encodeURIComponent(testId)}/regenerate`
+  );
+
+  return mapLinkSecurityState(dto);
 }

@@ -73,6 +73,17 @@ public class CandidateInvitationConfiguration : IEntityTypeConfiguration<Candida
         builder.Property(x => x.AttemptStartedAtUtc);
         builder.Property(x => x.AttemptSubmittedAtUtc);
 
+        builder.Property(x => x.VerifiedEmail)
+            .HasMaxLength(320);
+
+        builder.Property(x => x.EmailVerifiedAtUtc);
+
+        builder.Property(x => x.LockedIpAddress)
+            .HasMaxLength(64);
+
+        builder.Property(x => x.AccessFingerprintHash)
+            .HasMaxLength(128);
+
         builder.Property(x => x.CreatedAt).IsRequired();
         builder.Property(x => x.UpdatedAt).IsRequired(false);
 

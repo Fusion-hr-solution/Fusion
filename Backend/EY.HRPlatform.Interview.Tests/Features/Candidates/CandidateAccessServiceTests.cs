@@ -14,6 +14,8 @@ namespace EY.HRPlatform.Interview.Tests.Features.Candidates;
 
 public class CandidateAccessServiceTests
 {
+    private const string DefaultFingerprint = "fp-browser-default";
+
     [Fact]
     public async Task StartOrResumeAsync_WithValidToken_CreatesAttemptAndBindsCandidate()
     {
@@ -33,7 +35,14 @@ public class CandidateAccessServiceTests
             CancellationToken.None);
 
         var token = ExtractToken(created.InviteLink);
-        var session = await accessService.StartOrResumeAsync(token, CancellationToken.None);
+        var session = await accessService.StartOrResumeAsync(
+            new StartCandidateAttemptDto
+            {
+                Token = token,
+                CandidateEmail = "candidate.one@example.com",
+                BrowserFingerprint = DefaultFingerprint,
+            },
+            CancellationToken.None);
 
         Assert.Equal(created.Id, session.InvitationId);
         Assert.Equal(created.TestId, session.TestId);
@@ -44,6 +53,8 @@ public class CandidateAccessServiceTests
         Assert.NotNull(invitation);
         Assert.Equal("InProgress", invitation!.Status);
         Assert.NotNull(invitation.AttemptStartedAtUtc);
+        Assert.NotNull(invitation.EmailVerifiedAtUtc);
+        Assert.NotNull(invitation.AccessFingerprintHash);
         Assert.Equal(1, invitation.OpensCount);
 
         var attempt = await db.CandidateTestAttempts.FirstOrDefaultAsync(item => item.InvitationId == invitation.Id);
@@ -75,7 +86,14 @@ public class CandidateAccessServiceTests
         await db.SaveChangesAsync();
 
         var token = ExtractToken(created.InviteLink);
-        var ex = await Assert.ThrowsAsync<ApiException>(() => accessService.StartOrResumeAsync(token, CancellationToken.None));
+        var ex = await Assert.ThrowsAsync<ApiException>(() => accessService.StartOrResumeAsync(
+            new StartCandidateAttemptDto
+            {
+                Token = token,
+                CandidateEmail = "candidate.two@example.com",
+                BrowserFingerprint = DefaultFingerprint,
+            },
+            CancellationToken.None));
 
         Assert.Equal(410, ex.StatusCode);
     }
@@ -99,7 +117,14 @@ public class CandidateAccessServiceTests
             CancellationToken.None);
 
         var token = ExtractToken(created.InviteLink);
-        await accessService.StartOrResumeAsync(token, CancellationToken.None);
+        await accessService.StartOrResumeAsync(
+            new StartCandidateAttemptDto
+            {
+                Token = token,
+                CandidateEmail = "candidate.three@example.com",
+                BrowserFingerprint = DefaultFingerprint,
+            },
+            CancellationToken.None);
 
         var answers = JsonDocument.Parse("{\"responses\":[{\"questionId\":\"q1\",\"answerText\":\"answer\"}]}").RootElement.Clone();
         var result = JsonDocument.Parse("{\"score\":85}").RootElement.Clone();
@@ -108,6 +133,7 @@ public class CandidateAccessServiceTests
             new SubmitCandidateAttemptDto
             {
                 Token = token,
+                BrowserFingerprint = DefaultFingerprint,
                 Answers = answers,
                 Result = result,
             },
@@ -117,6 +143,7 @@ public class CandidateAccessServiceTests
             new SubmitCandidateAttemptDto
             {
                 Token = token,
+                BrowserFingerprint = DefaultFingerprint,
                 Answers = answers,
                 Result = result,
             },
@@ -184,6 +211,136 @@ public class CandidateAccessServiceTests
         var invitation = await db.CandidateInvitations.FindAsync(Guid.Parse(created.Id));
         Assert.NotNull(invitation);
         Assert.Equal(1, invitation!.OpensCount);
+    }
+
+    [Fact]
+    public async Task StartOrResumeAsync_WhenEmailVerificationFails_ThrowsForbidden()
+    {
+        await using var db = TestDbContextFactory.Create();
+        var test = await SeedTestAsync(db);
+        var invitationService = CreateInvitationService(db);
+        var accessService = new CandidateAccessService(db);
+
+        var created = await invitationService.CreateAsync(
+            new CreateCandidateInvitationDto
+            {
+                TestId = test.Id.ToString(),
+                Email = "candidate.verify@example.com",
+                CandidateName = "Candidate Verify",
+                SendNotification = false,
+            },
+            CancellationToken.None);
+
+        var token = ExtractToken(created.InviteLink);
+
+        var ex = await Assert.ThrowsAsync<ApiException>(() => accessService.StartOrResumeAsync(
+            new StartCandidateAttemptDto
+            {
+                Token = token,
+                CandidateEmail = "wrong.email@example.com",
+                BrowserFingerprint = DefaultFingerprint,
+            },
+            CancellationToken.None));
+
+        Assert.Equal(403, ex.StatusCode);
+    }
+
+    [Fact]
+    public async Task StartOrResumeAsync_WhenSingleUseFingerprintChanges_ThrowsConflict()
+    {
+        await using var db = TestDbContextFactory.Create();
+        var test = await SeedTestAsync(db);
+        var invitationService = CreateInvitationService(db);
+        var accessService = new CandidateAccessService(db);
+
+        var created = await invitationService.CreateAsync(
+            new CreateCandidateInvitationDto
+            {
+                TestId = test.Id.ToString(),
+                Email = "candidate.singleuse@example.com",
+                CandidateName = "Candidate SingleUse",
+                SendNotification = false,
+            },
+            CancellationToken.None);
+
+        var token = ExtractToken(created.InviteLink);
+
+        await accessService.StartOrResumeAsync(
+            new StartCandidateAttemptDto
+            {
+                Token = token,
+                CandidateEmail = "candidate.singleuse@example.com",
+                BrowserFingerprint = "fingerprint-A",
+            },
+            CancellationToken.None);
+
+        var ex = await Assert.ThrowsAsync<ApiException>(() => accessService.StartOrResumeAsync(
+            new StartCandidateAttemptDto
+            {
+                Token = token,
+                CandidateEmail = "candidate.singleuse@example.com",
+                BrowserFingerprint = "fingerprint-B",
+            },
+            CancellationToken.None));
+
+        Assert.Equal(409, ex.StatusCode);
+    }
+
+    [Fact]
+    public async Task StartOrResumeAsync_WhenIpLockEnabledAndIpChanges_ThrowsConflict()
+    {
+        await using var db = TestDbContextFactory.Create();
+        var test = await SeedTestAsync(db);
+        var invitationService = CreateInvitationService(db);
+        var accessService = new CandidateAccessService(db);
+
+        db.CandidateLinkSecuritySettings.Add(new CandidateLinkSecuritySettings
+        {
+            TestId = test.Id,
+            SingleUseLinkEnabled = true,
+            EmailVerificationEnabled = true,
+            IpLockEnabled = true,
+            BrowserFingerprintEnabled = false,
+            LinkValidForValue = 7,
+            LinkValidForUnit = "days",
+            GracePeriodValue = 30,
+            GracePeriodUnit = "minutes",
+        });
+        await db.SaveChangesAsync();
+
+        var created = await invitationService.CreateAsync(
+            new CreateCandidateInvitationDto
+            {
+                TestId = test.Id.ToString(),
+                Email = "candidate.iplock@example.com",
+                CandidateName = "Candidate IpLock",
+                SendNotification = false,
+            },
+            CancellationToken.None);
+
+        var token = ExtractToken(created.InviteLink);
+
+        await accessService.StartOrResumeAsync(
+            new StartCandidateAttemptDto
+            {
+                Token = token,
+                CandidateEmail = "candidate.iplock@example.com",
+                BrowserFingerprint = DefaultFingerprint,
+                ClientIpAddress = "10.10.10.1",
+            },
+            CancellationToken.None);
+
+        var ex = await Assert.ThrowsAsync<ApiException>(() => accessService.StartOrResumeAsync(
+            new StartCandidateAttemptDto
+            {
+                Token = token,
+                CandidateEmail = "candidate.iplock@example.com",
+                BrowserFingerprint = DefaultFingerprint,
+                ClientIpAddress = "10.10.10.2",
+            },
+            CancellationToken.None));
+
+        Assert.Equal(409, ex.StatusCode);
     }
 
     private static CandidateInvitationService CreateInvitationService(AppDbContext db)

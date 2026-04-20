@@ -157,3 +157,34 @@ export interface CandidateInvitation {
   resendCount: number;
   opensCount: number;
 }
+
+export type LinkValidityUnit = "days" | "hours" | "minutes";
+export type GracePeriodUnit = "minutes" | "hours";
+
+export interface CandidateLinkSecuritySettings {
+  singleUseLinkEnabled: boolean;
+  emailVerificationEnabled: boolean;
+  ipLockEnabled: boolean;
+  browserFingerprintEnabled: boolean;
+  linkValidForValue: number;
+  linkValidForUnit: LinkValidityUnit;
+  gracePeriodValue: number;
+  gracePeriodUnit: GracePeriodUnit;
+}
+
+export interface CandidateLinkPreview {
+  hasInvitation: boolean;
+  invitationId?: string;
+  inviteLink?: string;
+  opensCount: number;
+  allowedUses?: number;
+  tokenExpiresAtUtc?: string;
+  securityLevel: "Low" | "Medium" | "High";
+}
+
+export interface CandidateLinkSecurityState {
+  testId: string;
+  testTitle: string;
+  settings: CandidateLinkSecuritySettings;
+  preview: CandidateLinkPreview;
+}
