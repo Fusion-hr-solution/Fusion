@@ -15,19 +15,21 @@
     "test": "vitest run"
   },
   "peerDependencies": {
-    "react": ">=18"
+    "react": ">=18",
+    "@tanstack/react-query": ">=5"
   },
   "peerDependenciesMeta": {
     "react": {
       "optional": true
+    },
+    "@tanstack/react-query": {
+      "optional": true
     }
-  },
-  "dependencies": {
-    "@tanstack/react-query": "^5.90.5"
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",
     "@repo/tsconfig": "workspace:*",
+    "@tanstack/react-query": "^5.90.5",
     "@testing-library/react": "^16.3.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

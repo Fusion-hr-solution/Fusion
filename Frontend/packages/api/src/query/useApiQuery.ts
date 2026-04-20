@@ -8,13 +8,13 @@ import {
 import { useCallback } from "react";
 import type { ApiQueryKey } from "./provider";
 
-export interface UseApiQueryOptions<
+export type UseApiQueryOptions<
   TQueryFnData,
   TData = TQueryFnData,
-> extends Omit<
+> = Omit<
   UseQueryOptions<TQueryFnData, Error, TData, ApiQueryKey>,
   "queryKey" | "queryFn"
-> {}
+>;
 
 export interface UseApiQueryResult<T> {
   data: T | undefined;
@@ -30,7 +30,6 @@ export function useApiQuery<TQueryFnData, TData = TQueryFnData>(
   queryFn: (signal: AbortSignal) => Promise<TQueryFnData>,
   options?: UseApiQueryOptions<TQueryFnData, TData>
 ): UseApiQueryResult<TData> {
-  const enabled = options?.enabled ?? true;
   const queryClient = useQueryClient();
   const result = useQuery<TQueryFnData, Error, TData, ApiQueryKey>({
     queryKey,
@@ -50,7 +49,7 @@ export function useApiQuery<TQueryFnData, TData = TQueryFnData>(
   return {
     data: result.data,
     error: result.error ?? null,
-    isLoading: enabled && result.isPending,
+    isLoading: result.isLoading,
     isFetching: result.isFetching,
     refetch,
     invalidate,
