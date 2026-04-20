@@ -135,11 +135,15 @@ export function DraftStructureImportPanel({
   onOpenChange,
   onApplied,
   readOnly = false,
+  readOnlyTitle = "Import is unavailable",
+  readOnlyMessage = "This draft is read-only.",
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onApplied: () => void;
   readOnly?: boolean;
+  readOnlyTitle?: string;
+  readOnlyMessage?: string;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -332,7 +336,7 @@ export function DraftStructureImportPanel({
 
   const handleUpload = async () => {
     if (readOnly) {
-      setPageError("Reopen the draft from Setup before importing a new file.");
+      setPageError(readOnlyMessage);
       return;
     }
 
@@ -360,7 +364,7 @@ export function DraftStructureImportPanel({
 
   const handleStartNewImport = () => {
     if (readOnly) {
-      setPageError("Reopen the draft from Setup before starting a new import.");
+      setPageError(readOnlyMessage);
       return;
     }
 
@@ -372,7 +376,7 @@ export function DraftStructureImportPanel({
 
   const handleValidate = async () => {
     if (readOnly) {
-      setPageError("Reopen the draft from Setup before validating a file.");
+      setPageError(readOnlyMessage);
       return;
     }
 
@@ -394,7 +398,7 @@ export function DraftStructureImportPanel({
 
   const handleApply = async () => {
     if (readOnly) {
-      setPageError("Reopen the draft from Setup before replacing the draft.");
+      setPageError(readOnlyMessage);
       return;
     }
 
@@ -423,8 +427,9 @@ export function DraftStructureImportPanel({
             <div className="space-y-2">
               <DialogTitle>Import structure from template</DialogTitle>
               <DialogDescription>
-                Download the template, fill it offline, upload it, then review
-                the draft before you replace it.
+                {readOnly
+                  ? readOnlyMessage
+                  : "Download the template, fill it offline, upload it, then review the draft before you replace it."}
               </DialogDescription>
             </div>
 
@@ -454,10 +459,8 @@ export function DraftStructureImportPanel({
           {readOnly ? (
             <Alert>
               <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Import is locked</AlertTitle>
-              <AlertDescription>
-                Reopen the draft from Setup before uploading, validating, or applying a file.
-              </AlertDescription>
+              <AlertTitle>{readOnlyTitle}</AlertTitle>
+              <AlertDescription>{readOnlyMessage}</AlertDescription>
             </Alert>
           ) : null}
           {pageError || (sessionId ? sessionError : null) ? (

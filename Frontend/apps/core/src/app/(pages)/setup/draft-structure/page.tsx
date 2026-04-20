@@ -83,6 +83,9 @@ export default function DraftStructurePage() {
     isLoading: isSetupLoading,
     refetch: refetchSetup,
   } = useSetupState(canAccess);
+  const isSetupComplete =
+    setupState?.currentPhase === "structurallyPublished" ||
+    setupState?.currentPhase === "operational";
   const isDraftLocked = setupState?.currentPhase !== "activated";
   const canApproveFromDraft = setupState?.currentPhase === "activated";
   const canReopenFromDraft = setupState?.currentPhase === "structurallyGoverned";
@@ -166,6 +169,31 @@ export default function DraftStructurePage() {
       visibleUnitTypes.length,
     0
   );
+  const pageDescription = !isDraftLocked
+    ? "Build the draft here, then approve it when the first pass is ready."
+    : canReopenFromDraft
+      ? "Review the locked draft here. Reopen it only if more changes are needed before publish."
+      : isSetupComplete
+        ? "Review the published snapshot here. Setup is complete and this page is now read-only."
+        : "Review the locked draft here.";
+  const importReadOnlyTitle = isSetupComplete
+    ? "Import is unavailable after setup is complete"
+    : "Import is locked";
+  const importReadOnlyMessage = canReopenFromDraft
+    ? "Reopen the draft from Setup before uploading, validating, or applying a file."
+    : isSetupComplete
+      ? "This page is now a read-only snapshot of the structure that went live. Use Setup for the completion summary."
+      : "This draft is read-only while later setup steps are in progress.";
+  const unitReadOnlyDescription = canReopenFromDraft
+    ? "Review this approved draft unit here. Reopen the draft before making changes."
+    : isSetupComplete
+      ? "Review this published snapshot here. Setup is complete and this unit is read-only."
+      : "Review this locked draft unit here.";
+  const unitReadOnlyNotice = canReopenFromDraft
+    ? "This draft is locked. Reopen it from Setup before editing or deleting units."
+    : isSetupComplete
+      ? "This page is now a read-only snapshot of the structure that completed setup."
+      : "This draft is locked while later setup steps are in progress.";
 
   useEffect(() => {
     if (!isDraftLocked) {
@@ -307,32 +335,38 @@ export default function DraftStructurePage() {
     <div className="flex flex-col gap-6 p-6">
       <PageHeader
         title="Organization Structure"
-        description={
-          isDraftLocked
-            ? "Review the locked draft here. Reopen it if more changes are needed."
-            : "Build the draft here, then approve it when the first pass is ready."
-        }
+        description={pageDescription}
         actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              variant="outline"
-              onClick={() => handleImportOpenChange(true)}
-              disabled={isDraftLocked}
-            >
-              <FileSpreadsheet className="size-4" />
-              {hasImportSession ? "Resume Import" : "Import from Template"}
-            </Button>
-            <Button
-              onClick={() => {
-                setCreateParentId(null);
-                setCreateOpen(true);
-              }}
-              disabled={isWorkspaceLoading || isDraftLocked}
-            >
-              <Plus className="size-4" />
-              Add Top-Level Unit
-            </Button>
-          </div>
+          !isDraftLocked ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="outline"
+                onClick={() => handleImportOpenChange(true)}
+              >
+                <FileSpreadsheet className="size-4" />
+                {hasImportSession ? "Resume Import" : "Import from Template"}
+              </Button>
+              <Button
+                onClick={() => {
+                  setCreateParentId(null);
+                  setCreateOpen(true);
+                }}
+                disabled={isWorkspaceLoading}
+              >
+                <Plus className="size-4" />
+                Add Top-Level Unit
+              </Button>
+            </div>
+          ) : isSetupComplete ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <Button onClick={() => router.push("/setup")}>Open Setup Summary</Button>
+              <Button variant="outline" onClick={() => router.push("/")}>
+                Go to Home
+              </Button>
+            </div>
+          ) : (
+            <Button variant="outline" onClick={() => router.push("/setup")}>Open Setup</Button>
+          )
         }
       />
 
@@ -364,7 +398,9 @@ export default function DraftStructurePage() {
           <AlertDescription>
             {canReopenFromDraft
               ? "Reopen the draft before adding units, editing details, changing unit types, or importing a new file."
-              : "This draft is now read-only while later setup steps are in progress."}
+              : isSetupComplete
+                ? "This page is now a read-only snapshot of the structure that completed setup."
+                : "This draft is now read-only while later setup steps are in progress."}
           </AlertDescription>
         </Alert>
       ) : null}
@@ -397,15 +433,21 @@ export default function DraftStructurePage() {
           <CardHeader>
             <CardDescription>Planning status</CardDescription>
             <CardTitle>
-              {isDraftLocked
-                ? "Locked"
+              {isSetupComplete
+                ? "Complete"
+                : isDraftLocked
+                  ? "Locked"
                 : workspace?.workspaceStatus === "empty"
                   ? "Empty"
                   : "In Progress"}
             </CardTitle>
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground">
-            {isDraftLocked ? "Review only." : "Build and review the draft here."}
+            {isSetupComplete
+              ? "Published snapshot."
+              : isDraftLocked
+                ? "Review only."
+                : "Build and review the draft here."}
           </CardContent>
         </Card>
         <Card>
@@ -425,7 +467,7 @@ export default function DraftStructurePage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground">
-            Draft only.
+            {isSetupComplete ? "Snapshot from completed setup." : "Draft only."}
           </CardContent>
         </Card>
         <Card>
@@ -450,17 +492,19 @@ export default function DraftStructurePage() {
                 <Badge variant="outline">+{remainingUnitTypeCount} more</Badge>
               ) : null}
             </div>
-            <DraftOrgUnitKindManager
-              schema={
-                workspace?.draftStructureSchema ?? {
-                  orgUnitKinds: [],
-                  attributes: [],
+            {!isDraftLocked ? (
+              <DraftOrgUnitKindManager
+                schema={
+                  workspace?.draftStructureSchema ?? {
+                    orgUnitKinds: [],
+                    attributes: [],
+                  }
                 }
-              }
-              existingUnits={workspace?.units ?? []}
-              onSchemaUpdated={refreshWorkspaceAndReadiness}
-              disabled={!workspace || isDraftLocked}
-            />
+                existingUnits={workspace?.units ?? []}
+                onSchemaUpdated={refreshWorkspaceAndReadiness}
+                disabled={!workspace}
+              />
+            ) : null}
           </CardContent>
         </Card>
       </div>
@@ -472,9 +516,11 @@ export default function DraftStructurePage() {
               <div>
                 <p className="text-sm font-medium">Structure tree</p>
                 <p className="text-sm text-muted-foreground">
-                  {isDraftLocked
-                    ? "Search and review the approved draft tree."
-                    : "Search, review, and edit the draft tree."}
+                  {!isDraftLocked
+                    ? "Search, review, and edit the draft tree."
+                    : canReopenFromDraft
+                      ? "Search and review the approved draft tree."
+                      : "Search and review the published snapshot."}
                 </p>
               </div>
               <Input
@@ -495,7 +541,13 @@ export default function DraftStructurePage() {
                 selectedId={selectedUnitId}
                 onSelect={(node) => setSelectedUnitId(node.id)}
                 emptyTitle="No draft units yet"
-                emptyDescription="Add the first top-level unit or start with a template import to build the planned organization tree."
+                emptyDescription={
+                  isDraftLocked
+                    ? canReopenFromDraft
+                      ? "The approved draft is locked. Reopen it from Setup if changes are needed before publish."
+                      : "This page keeps the read-only snapshot of the structure that completed setup."
+                    : "Add the first top-level unit or start with a template import to build the planned organization tree."
+                }
                 readOnly={isDraftLocked}
                 onAddRoot={() => {
                   setCreateParentId(null);
@@ -529,9 +581,11 @@ export default function DraftStructurePage() {
                   {selectedUnit.displayName}
                 </CardTitle>
                 <CardDescription>
-                  {isDraftLocked
-                    ? "Review the main fields here. Reopen the draft before making changes."
-                    : "Review the main fields here, then edit or add a child."}
+                  {!isDraftLocked
+                    ? "Review the main fields here, then edit or add a child."
+                    : canReopenFromDraft
+                      ? "Review the main fields here. Reopen the draft before making changes."
+                      : "Review the main fields here as the read-only snapshot of what went live."}
                 </CardDescription>
               </CardHeader>
               <CardContent className="min-h-0 flex-1 space-y-6 overflow-y-auto p-6">
@@ -627,9 +681,14 @@ export default function DraftStructurePage() {
                         </Button>
                       </div>
                     ) : (
-                      <Button variant="outline" onClick={() => router.push("/setup")}>
-                        Go to Setup
-                      </Button>
+                      <div className="flex flex-wrap gap-2">
+                        <Button onClick={() => router.push("/setup")}>
+                          Open Setup Summary
+                        </Button>
+                        <Button variant="outline" onClick={() => router.push("/")}>
+                          Go to Home
+                        </Button>
+                      </div>
                     )
                   ) : (
                     <div className="flex flex-wrap gap-2">
@@ -659,9 +718,11 @@ export default function DraftStructurePage() {
               <div className="space-y-1">
                 <p className="font-medium">Select a unit</p>
                 <p className="text-sm text-muted-foreground">
-                  {isDraftLocked
-                    ? "Choose a unit from the tree to inspect the approved draft."
-                    : "Choose a unit from the tree to inspect it, edit its details, or add a child underneath it."}
+                  {!isDraftLocked
+                    ? "Choose a unit from the tree to inspect it, edit its details, or add a child underneath it."
+                    : canReopenFromDraft
+                      ? "Choose a unit from the tree to inspect the approved draft."
+                      : "Choose a unit from the tree to inspect the published snapshot."}
                 </p>
               </div>
               <div className="flex justify-center">
@@ -682,9 +743,14 @@ export default function DraftStructurePage() {
                       </Button>
                     </div>
                   ) : (
-                    <Button variant="outline" onClick={() => router.push("/setup")}>
-                      Go to Setup
-                    </Button>
+                    <div className="flex flex-wrap justify-center gap-2">
+                      <Button onClick={() => router.push("/setup")}>
+                        Open Setup Summary
+                      </Button>
+                      <Button variant="outline" onClick={() => router.push("/")}>
+                        Go to Home
+                      </Button>
+                    </div>
                   )
                 ) : (
                   <Button
@@ -735,6 +801,8 @@ export default function DraftStructurePage() {
           refreshWorkspaceAndReadiness();
         }}
         readOnly={isDraftLocked}
+        readOnlyTitle={importReadOnlyTitle}
+        readOnlyMessage={importReadOnlyMessage}
       />
 
       <DraftUnitSheet
@@ -746,6 +814,8 @@ export default function DraftStructurePage() {
         }}
         onSchemaUpdated={refreshWorkspaceAndReadiness}
         readOnly={isDraftLocked}
+        readOnlyDescription={unitReadOnlyDescription}
+        readOnlyNotice={unitReadOnlyNotice}
         schema={
           workspace?.draftStructureSchema ?? {
             orgUnitKinds: [],
@@ -1012,21 +1082,15 @@ function DraftGovernanceCard({
           <div className="space-y-3">
             <SetupStatusBadge status={phase} />
             <div className="space-y-1">
-              <CardTitle>
-                {phase === "structurallyPublished"
-                  ? "Live structure published"
-                  : "Setup is complete"}
-              </CardTitle>
+              <CardTitle>Published structure snapshot</CardTitle>
               <CardDescription>
-                {phase === "structurallyPublished"
-                  ? "This draft is now the locked record of what was published. Setup is treated as complete in this flow."
-                  : "This draft stays available as a locked snapshot of what went live. Use Setup for the finished milestone view."}
+                This draft stays available as the read-only snapshot of the structure that went live. Use Setup for the completion summary and history.
               </CardDescription>
             </div>
           </div>
 
           <Button variant="outline" onClick={onOpenSetup}>
-            Open Setup
+            Open Setup Summary
           </Button>
         </div>
       </CardHeader>

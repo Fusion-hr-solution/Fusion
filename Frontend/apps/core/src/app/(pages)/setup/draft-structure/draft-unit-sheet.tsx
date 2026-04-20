@@ -58,6 +58,8 @@ interface DraftUnitSheetProps {
   onMutated: () => void;
   onSchemaUpdated?: () => void;
   readOnly?: boolean;
+  readOnlyDescription?: string;
+  readOnlyNotice?: string;
   schema: DraftStructureSchemaDto;
   existingUnits: DraftOrgUnitDto[];
 }
@@ -86,6 +88,8 @@ export function DraftUnitSheet({
   onMutated,
   onSchemaUpdated,
   readOnly = false,
+  readOnlyDescription = "Review this approved draft unit here. Reopen the draft before making changes.",
+  readOnlyNotice = "This draft is locked. Reopen it from Setup before editing or deleting units.",
   schema,
   existingUnits,
 }: DraftUnitSheetProps) {
@@ -255,7 +259,7 @@ export function DraftUnitSheet({
             <SheetTitle>{unit.displayName}</SheetTitle>
             <SheetDescription>
               {readOnly
-                ? "Review this approved draft unit here. Reopen the draft before making changes."
+                ? readOnlyDescription
                 : "Update this unit inside the draft organization without touching the live structure immediately."}
             </SheetDescription>
           </SheetHeader>
@@ -271,7 +275,7 @@ export function DraftUnitSheet({
 
               {readOnly ? (
                 <div className="rounded-xl border bg-muted/20 p-4 text-sm text-muted-foreground">
-                  This draft is locked. Reopen it from Setup before editing or deleting units.
+                  {readOnlyNotice}
                 </div>
               ) : null}
 

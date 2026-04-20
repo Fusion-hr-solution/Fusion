@@ -6,7 +6,6 @@ import {
   AlertCircle,
   AlertTriangle,
   ArrowRight,
-  CheckCircle2,
   ClipboardList,
   Flag,
   History,
@@ -60,8 +59,10 @@ import {
   useSetupState,
 } from "./use-setup";
 
+type SetupMilestoneKey = "activated" | "structurallyGoverned" | "operational";
+
 const SETUP_STEPS: Array<{
-  key: Exclude<CoreSetupPhase, "notStarted">;
+  key: SetupMilestoneKey;
   title: string;
   description: string;
   icon: typeof Flag;
@@ -79,15 +80,9 @@ const SETUP_STEPS: Array<{
     icon: ShieldCheck,
   },
   {
-    key: "structurallyPublished",
-    title: "Published to live",
-    description: "The approved structure has been applied to the live organization.",
-    icon: CheckCircle2,
-  },
-  {
     key: "operational",
     title: "Setup complete",
-    description: "Publishing the approved structure completes setup.",
+    description: "The approved structure is live and ready for the next workflow.",
     icon: Rocket,
   },
 ];
@@ -110,25 +105,57 @@ function formatTimestamp(value: string | null) {
   }).format(new Date(value));
 }
 
-function getStepState(
-  stepKey: Exclude<CoreSetupPhase, "notStarted">,
-  data: TenantSetupStateDto | undefined
-) {
+function getCurrentMilestoneKey(phase: CoreSetupPhase): SetupMilestoneKey | null {
+  switch (phase) {
+    case "activated":
+      return "activated";
+    case "structurallyGoverned":
+      return "structurallyGoverned";
+    case "structurallyPublished":
+    case "operational":
+      return "operational";
+    default:
+      return null;
+  }
+}
+
+function isSetupCompletePhase(phase: CoreSetupPhase) {
+  return phase === "structurallyPublished" || phase === "operational";
+}
+
+function getCompletedMilestoneCount(data: TenantSetupStateDto | undefined) {
+  if (!data || data.canStartSetup) {
+    return 0;
+  }
+
+  const currentStepKey = getCurrentMilestoneKey(data.currentPhase);
+
+  if (!currentStepKey) {
+    return 0;
+  }
+
+  return SETUP_STEPS.findIndex((step) => step.key === currentStepKey) + 1;
+}
+
+function getStepState(stepKey: SetupMilestoneKey, data: TenantSetupStateDto | undefined) {
   if (!data || data.canStartSetup) {
     return "upcoming" as const;
   }
 
   const stepOrder = SETUP_STEPS.map((step) => step.key);
   const stepIndex = stepOrder.indexOf(stepKey);
-  const currentIndex = stepOrder.indexOf(
-    data.currentPhase as Exclude<CoreSetupPhase, "notStarted">
-  );
+  const currentStepKey = getCurrentMilestoneKey(data.currentPhase);
+  const currentIndex = currentStepKey ? stepOrder.indexOf(currentStepKey) : -1;
 
-  if (data.completedSteps.includes(stepKey) || currentIndex > stepIndex) {
+  if (currentIndex > stepIndex) {
     return "complete" as const;
   }
 
   if (currentIndex === stepIndex) {
+    if (stepKey === "operational") {
+      return "complete" as const;
+    }
+
     return "current" as const;
   }
 
@@ -151,15 +178,15 @@ function getReviewCopy(phase: CoreSetupPhase) {
       };
     case "structurallyPublished":
       return {
-        title: "The live structure is already in place",
+        title: "Setup is complete",
         description:
-          "The approved draft has already been applied to the live organization, and setup is treated as complete.",
+          "The live structure is in place. This page now stays available as the completion summary and activity record.",
       };
     case "operational":
       return {
         title: "Setup is complete",
         description:
-          "The live structure is in place and setup is complete.",
+          "The live structure is in place. Use this page as the completion summary and activity record.",
       };
     default:
       return {
@@ -212,7 +239,7 @@ function getActivityCopy(activity: TenantSetupActivityDto) {
     case "completed":
       return {
         title: "Setup completed",
-        description: `${activity.actorFullName} finished setup`,
+        description: `${activity.actorFullName} completed setup`,
       };
     default:
       return {
@@ -334,13 +361,18 @@ export default function SetupPage() {
     return <SetupPageSkeleton />;
   }
 
-  const progressValue = setupState
-    ? Math.round(
-        (setupState.currentStep / Math.max(setupState.totalSteps, 1)) * 100
-      )
-    : 0;
+  const isCoreUnlocked = isSetupCompletePhase(setupState.currentPhase);
+  const completedMilestones = getCompletedMilestoneCount(setupState);
+  const progressValue = Math.round(
+    (completedMilestones / Math.max(SETUP_STEPS.length, 1)) * 100
+  );
   const reviewCopy = getReviewCopy(setupState?.currentPhase ?? "notStarted");
   const pageError = localError ?? null;
+  const pageDescription = isCoreUnlocked
+    ? "Review the completion summary, published structure snapshot, and setup history."
+    : setupState.currentPhase === "structurallyGoverned"
+      ? "Review the approved draft and publish it to live when the structure is ready."
+      : "Review draft readiness here and move the structure through approval when it is ready.";
 
   const handleStartSetup = async () => {
     setLocalError(null);
@@ -449,7 +481,11 @@ export default function SetupPage() {
             </div>
 
             <div className="space-y-6 p-6">
-              <MetricTile label="Progress" value="0/4" hint="Setup roadmap" />
+              <MetricTile
+                label="Progress"
+                value={`0/${SETUP_STEPS.length}`}
+                hint="Setup milestones"
+              />
               <div className="rounded-xl border bg-muted/20 p-4">
                 <p className="text-sm font-medium">What happens next</p>
                 <p className="mt-2 text-sm text-muted-foreground">
@@ -491,15 +527,12 @@ export default function SetupPage() {
     publishStructure.isLoading;
   const reopenDisabled =
     setupState?.currentPhase !== "structurallyGoverned" || reopenStructure.isLoading;
-  const isCoreUnlocked =
-    setupState.currentPhase === "structurallyPublished" ||
-    setupState.currentPhase === "operational";
 
   return (
     <div className="flex flex-col gap-6 p-6">
       <PageHeader
         title="Organization Setup"
-        description="Review the draft and publish it to live when the structure is ready."
+        description={pageDescription}
       />
 
       {pageError ? (
@@ -530,22 +563,18 @@ export default function SetupPage() {
             {isCoreUnlocked ? (
               <div className="mt-6 rounded-xl border bg-muted/20 p-4">
                 <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="secondary">
-                    {setupState.currentPhase === "operational"
-                      ? "Setup complete"
-                      : "Published"}
-                  </Badge>
-                  <Badge variant="outline">Ready to use</Badge>
+                  <Badge variant="secondary">Setup complete</Badge>
+                  <Badge variant="outline">Live structure ready</Badge>
                 </div>
                 <p className="mt-3 text-sm font-medium">
-                  {setupState.currentPhase === "operational"
-                    ? `Finished ${formatTimestamp(setupState.operationalAt)}`
-                    : `Published ${formatTimestamp(setupState.structurallyPublishedAt)}`}
+                  Completed {formatTimestamp(
+                    setupState.currentPhase === "operational"
+                      ? setupState.operationalAt
+                      : setupState.structurallyPublishedAt
+                  )}
                 </p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {setupState.currentPhase === "operational"
-                    ? "The live structure is in place and setup is complete."
-                    : "The live structure is in place and setup is treated as complete."}
+                  The live structure is in place. This page now stays as the completion summary and activity record.
                 </p>
               </div>
             ) : setupState.approvedAt ? (
@@ -626,7 +655,7 @@ export default function SetupPage() {
                     variant="outline"
                     onClick={() => router.push("/setup/draft-structure")}
                   >
-                    View draft snapshot
+                    View published snapshot
                   </Button>
                 </>
               ) : null}
@@ -636,8 +665,8 @@ export default function SetupPage() {
           <div className="grid gap-4 p-6 sm:grid-cols-2">
             <MetricTile
               label="Progress"
-              value={`${setupState.currentStep}/${setupState.totalSteps}`}
-              hint="Setup roadmap"
+              value={`${completedMilestones}/${SETUP_STEPS.length}`}
+              hint="Setup milestones"
             />
             <MetricTile
               label="Units in draft"
@@ -743,7 +772,9 @@ export default function SetupPage() {
           <CardHeader>
             <CardTitle>Recent activity</CardTitle>
             <CardDescription>
-              Approval, publish, reopen, and completion events are recorded here.
+              {isCoreUnlocked
+                ? "This history remains available as the completion record for setup."
+                : "Approval, publish, reopen, and completion events are recorded here."}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -873,7 +904,7 @@ function ReviewSummaryCard({
   const statusLabel = !hasDraftUnits && !isGoverned && !isComplete
     ? "Draft not started"
     : isComplete
-    ? "Complete"
+    ? "Setup complete"
     : isGoverned && !isReadyForApproval
         ? "Needs changes before publish"
         : isGoverned
@@ -885,7 +916,7 @@ function ReviewSummaryCard({
   const summaryText = !hasDraftUnits && !isGoverned && !isComplete
     ? "Add the first unit or import the template before approval checks apply."
     : isComplete
-      ? "The live structure is in place and setup is complete."
+      ? "The live structure is in place. Setup is complete and this page now stays as the completion summary."
       : isGoverned && !isReadyForApproval
         ? "The draft is locked, but it must be reopened and corrected before it can be published."
         : isGoverned
@@ -967,7 +998,7 @@ function RoadmapCard({ data }: { data: TenantSetupStateDto | undefined }) {
           Structure comes first. Once the approved structure is published, setup is complete.
         </CardDescription>
       </CardHeader>
-      <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <CardContent className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
         {SETUP_STEPS.map((step) => (
           <SetupMilestoneCard
             key={step.key}
@@ -992,7 +1023,7 @@ function SetupMilestoneCard({
     state === "complete" ? "Done" : state === "current" ? "Current" : "Later";
 
   return (
-    <div className="rounded-xl border p-4">
+    <div className="flex h-full flex-col rounded-xl border p-4">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">

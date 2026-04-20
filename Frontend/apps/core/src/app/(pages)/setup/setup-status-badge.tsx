@@ -33,7 +33,7 @@ const STATUS_CONFIG: Record<
       "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
   },
   structurallyPublished: {
-    label: "Published To Live",
+    label: "Setup Complete",
     icon: CheckCircle2,
     className:
       "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
