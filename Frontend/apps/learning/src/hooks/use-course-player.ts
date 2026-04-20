@@ -19,7 +19,7 @@ export function useCoursePlayer(initialData: TrainingLearnData) {
   );
 
   // Load chapter content on demand
-  const { data: activeChapterContent, isLoading: isLoadingContent, refetch: refetchContent } = useApiQuery(
+  const { data: activeChapterContent, isLoading: isLoadingContent, error: contentError, refetch: refetchContent } = useApiQuery(
     fetchChapterContent,
     { enabled: Boolean(activeChapterId) },
   );
@@ -92,10 +92,12 @@ export function useCoursePlayer(initialData: TrainingLearnData) {
     allChaptersCompleted,
     isLoading: isMarkingComplete,
     isLoadingContent,
+    contentError,
     setActiveChapterId,
     handleMarkBlockComplete,
     handleNext,
     handlePrevious,
+    refetchContent,
   };
 }
 

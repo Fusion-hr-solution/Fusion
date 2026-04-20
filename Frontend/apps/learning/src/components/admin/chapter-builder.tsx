@@ -146,15 +146,11 @@ export function ChapterBuilder({
       {/* Top bar */}
       <div className="shrink-0 border-b border-border bg-background">
         <PageBreadcrumb
-          backHref={`/admin/trainings/${trainingId}/chapters`}
+          backHref={`/admin/trainings/${trainingId}`}
           backLabel="Chapters"
           items={[
             { label: "Trainings", href: "/admin/trainings" },
             { label: training.title, href: `/admin/trainings/${trainingId}` },
-            {
-              label: "Chapters",
-              href: `/admin/trainings/${trainingId}/chapters`,
-            },
             { label: chapter.title },
           ]}
         />

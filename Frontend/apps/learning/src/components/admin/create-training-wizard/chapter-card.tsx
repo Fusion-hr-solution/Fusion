@@ -2,7 +2,8 @@
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Pencil, Trash2, GripVertical, Layers } from "lucide-react";
+import { Pencil, Trash2, GripVertical, Layers, ExternalLink } from "lucide-react";
+import Link from "next/link";
 import type { WizardChapter } from "@/types/admin";
 
 const LAYOUT_LABELS: Record<string, string> = {
@@ -14,11 +15,13 @@ const LAYOUT_LABELS: Record<string, string> = {
 interface ChapterCardProps {
   chapter: WizardChapter;
   index: number;
+  /** Present in edit mode — clientId equals the real server chapter ID. */
+  trainingId?: string;
   onEdit: () => void;
   onRemove: () => void;
 }
 
-export function ChapterCard({ chapter, index, onEdit, onRemove }: ChapterCardProps) {
+export function ChapterCard({ chapter, index, trainingId, onEdit, onRemove }: ChapterCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: chapter.clientId });
 
   const style = {
@@ -55,6 +58,15 @@ export function ChapterCard({ chapter, index, onEdit, onRemove }: ChapterCardPro
       </div>
 
       <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+        {trainingId && (
+          <Link
+            href={`/admin/trainings/${trainingId}/chapters/${chapter.clientId}`}
+            className="flex items-center gap-1.5 rounded-lg px-2 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+            Open Builder
+          </Link>
+        )}
         <button onClick={onEdit} className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
           <Pencil className="h-4 w-4" />
         </button>

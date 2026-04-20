@@ -21,6 +21,9 @@ public class UpdateContentBlockProgressCommandHandler : ICommandHandler<UpdateCo
         if (!isEnrolled)
             return Result.Failure(new Error("Enrollment.NotFound", "You are not enrolled in this training."));
 
+        // Determine once whether this training has an exam (avoids repeated DB hit per block completion).
+        var hasExam = await _db.Exams.AnyAsync(e => e.TrainingId == request.TrainingId, cancellationToken);
+
         // Verify the content block belongs to the chapter and training
         var block = await _db.ContentBlocks
             .Include(b => b.Chapter)
@@ -50,8 +53,11 @@ public class UpdateContentBlockProgressCommandHandler : ICommandHandler<UpdateCo
         // Auto-complete chapter if all blocks are done
         await AutoCompleteChapterAsync(request.EmployeeId, request.ChapterId, cancellationToken);
 
+        // Flush chapter progress to DB so RecalculateTrainingProgressAsync sees it
+        await _db.SaveChangesAsync(cancellationToken);
+
         // Recalculate overall training progress
-        await RecalculateTrainingProgressAsync(request.EmployeeId, request.TrainingId, cancellationToken);
+        await RecalculateTrainingProgressAsync(request.EmployeeId, request.TrainingId, hasExam, cancellationToken);
 
         await _db.SaveChangesAsync(cancellationToken);
         return Result.Success();
@@ -91,7 +97,7 @@ public class UpdateContentBlockProgressCommandHandler : ICommandHandler<UpdateCo
         }
     }
 
-    private async Task RecalculateTrainingProgressAsync(Guid employeeId, Guid trainingId, CancellationToken cancellationToken)
+    private async Task RecalculateTrainingProgressAsync(Guid employeeId, Guid trainingId, bool hasExam, CancellationToken cancellationToken)
     {
         var totalChapters = await _db.Chapters.CountAsync(c => c.TrainingId == trainingId, cancellationToken);
         if (totalChapters == 0) return;
@@ -120,6 +126,15 @@ public class UpdateContentBlockProgressCommandHandler : ICommandHandler<UpdateCo
             trainingProgress.Start();
         }
 
-        trainingProgress.UpdateProgress(percentage);
+        // When the training has an exam, chapter completion alone does NOT complete the training.
+        // Completion happens only after the exam is passed (see SubmitExamCommandHandler).
+        if (hasExam)
+        {
+            trainingProgress.SetProgressPercentage(percentage);
+        }
+        else
+        {
+            trainingProgress.UpdateProgress(percentage);
+        }
     }
 }

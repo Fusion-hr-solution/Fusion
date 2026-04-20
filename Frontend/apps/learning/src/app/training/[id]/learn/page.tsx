@@ -68,7 +68,7 @@ export default function LearnPage({ params }: LearnPageProps) {
   }
 
   // Non-404 error (network failure, 500, backend not restarted, etc.)
-  if (error || !learnData) {
+  if (error) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-6 max-w-sm text-center px-4">
@@ -97,6 +97,18 @@ export default function LearnPage({ params }: LearnPageProps) {
               Go back
             </button>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Data not yet available — keep showing loading spinner
+  if (!learnData) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-4">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+          <p className="text-sm text-muted-foreground">Loading course...</p>
         </div>
       </div>
     );

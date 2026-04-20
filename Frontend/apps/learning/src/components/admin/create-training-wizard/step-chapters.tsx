@@ -12,9 +12,10 @@ import { ChapterEditorDialog } from "./chapter-editor-dialog";
 
 interface StepChaptersProps {
   wizard: WizardState;
+  trainingId?: string;
 }
 
-export function StepChapters({ wizard }: StepChaptersProps) {
+export function StepChapters({ wizard, trainingId }: StepChaptersProps) {
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingChapter, setEditingChapter] = useState<WizardChapter | null>(null);
 
@@ -101,6 +102,7 @@ export function StepChapters({ wizard }: StepChaptersProps) {
                   key={ch.clientId}
                   chapter={ch}
                   index={index}
+                  trainingId={trainingId}
                   onEdit={() => handleEdit(ch)}
                   onRemove={() => wizard.removeChapter(ch.clientId)}
                 />
