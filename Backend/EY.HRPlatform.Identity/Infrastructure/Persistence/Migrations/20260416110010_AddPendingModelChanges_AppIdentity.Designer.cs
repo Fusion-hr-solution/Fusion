@@ -266,6 +266,11 @@ namespace EY.HRPlatform.Identity.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("IsArchived");
 
+                    b.HasIndex("Name")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Tenants_Name_Active")
+                        .HasFilter("\"IsArchived\" = false");
+
                     b.ToTable("Tenants", "identity");
                 });
 

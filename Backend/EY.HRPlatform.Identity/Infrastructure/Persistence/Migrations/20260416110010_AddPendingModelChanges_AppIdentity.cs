@@ -10,22 +10,17 @@ namespace EY.HRPlatform.Identity.Infrastructure.Persistence.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropIndex(
-                name: "IX_Tenants_Name_Active",
-                schema: "identity",
-                table: "Tenants");
+            migrationBuilder.Sql(
+                "CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS \"IX_Tenants_Name_Active\" ON identity.\"Tenants\" (\"Name\") WHERE \"IsArchived\" = false;",
+                suppressTransaction: true);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.CreateIndex(
-                name: "IX_Tenants_Name_Active",
-                schema: "identity",
-                table: "Tenants",
-                column: "Name",
-                unique: true,
-                filter: "\"IsArchived\" = false");
+            migrationBuilder.Sql(
+                "DROP INDEX CONCURRENTLY IF EXISTS identity.\"IX_Tenants_Name_Active\";",
+                suppressTransaction: true);
         }
     }
 }

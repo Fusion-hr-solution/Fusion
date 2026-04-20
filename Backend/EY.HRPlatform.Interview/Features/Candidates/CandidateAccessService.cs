@@ -82,7 +82,7 @@ public class CandidateAccessService(AppDbContext dbContext) : ICandidateAccessSe
             request.BrowserFingerprint,
             request.UserAgent);
 
-        ApplyAndValidateAccessLocks(invitation, metadata, settings);
+        await ApplyAndValidateAccessLocksAsync(invitation, metadata, settings, cancellationToken);
 
         var attempt = invitation.Attempt;
         if (attempt is null)
@@ -169,7 +169,7 @@ public class CandidateAccessService(AppDbContext dbContext) : ICandidateAccessSe
             request.BrowserFingerprint,
             request.UserAgent);
 
-        ApplyAndValidateAccessLocks(invitation, metadata, settings);
+        await ApplyAndValidateAccessLocksAsync(invitation, metadata, settings, cancellationToken);
 
         var attempt = invitation.Attempt;
         if (attempt is null)
@@ -266,19 +266,15 @@ public class CandidateAccessService(AppDbContext dbContext) : ICandidateAccessSe
         string? userAgent)
     {
         var normalizedIpAddress = NormalizeClientIpAddress(clientIpAddress);
-        var fingerprintSource = !string.IsNullOrWhiteSpace(browserFingerprint)
-            ? browserFingerprint
-            : userAgent;
-
-        var fingerprintHash = NormalizeAndHashFingerprint(fingerprintSource);
-
+        var fingerprintHash = NormalizeAndHashFingerprint(browserFingerprint);
         return new AccessRequestMetadata(normalizedIpAddress, fingerprintHash);
     }
 
-    private static void ApplyAndValidateAccessLocks(
+    private async Task ApplyAndValidateAccessLocksAsync(
         CandidateInvitation invitation,
         AccessRequestMetadata metadata,
-        LinkSecurityRuntimeSettings settings)
+        LinkSecurityRuntimeSettings settings,
+        CancellationToken cancellationToken)
     {
         var requiresFingerprintLock = settings.SingleUseLinkEnabled || settings.BrowserFingerprintEnabled;
         if (requiresFingerprintLock)
@@ -292,9 +288,36 @@ public class CandidateAccessService(AppDbContext dbContext) : ICandidateAccessSe
 
             if (string.IsNullOrWhiteSpace(invitation.AccessFingerprintHash))
             {
-                invitation.AccessFingerprintHash = metadata.FingerprintHash;
+                if (dbContext.Database.IsRelational())
+                {
+                    var updatedRows = await dbContext.CandidateInvitations
+                        .Where(item =>
+                            item.Id == invitation.Id &&
+                            (item.AccessFingerprintHash == null || item.AccessFingerprintHash == string.Empty))
+                        .ExecuteUpdateAsync(
+                            updates => updates.SetProperty(item => item.AccessFingerprintHash, metadata.FingerprintHash),
+                            cancellationToken);
+
+                    if (updatedRows > 0)
+                    {
+                        invitation.AccessFingerprintHash = metadata.FingerprintHash;
+                    }
+                    else
+                    {
+                        invitation.AccessFingerprintHash = await dbContext.CandidateInvitations
+                            .AsNoTracking()
+                            .Where(item => item.Id == invitation.Id)
+                            .Select(item => item.AccessFingerprintHash)
+                            .FirstOrDefaultAsync(cancellationToken);
+                    }
+                }
+                else
+                {
+                    invitation.AccessFingerprintHash = metadata.FingerprintHash;
+                }
             }
-            else if (!string.Equals(invitation.AccessFingerprintHash, metadata.FingerprintHash, StringComparison.Ordinal))
+
+            if (!string.Equals(invitation.AccessFingerprintHash, metadata.FingerprintHash, StringComparison.Ordinal))
             {
                 throw new ApiException(
                     settings.SingleUseLinkEnabled
@@ -315,9 +338,36 @@ public class CandidateAccessService(AppDbContext dbContext) : ICandidateAccessSe
 
             if (string.IsNullOrWhiteSpace(invitation.LockedIpAddress))
             {
-                invitation.LockedIpAddress = metadata.ClientIpAddress;
+                if (dbContext.Database.IsRelational())
+                {
+                    var updatedRows = await dbContext.CandidateInvitations
+                        .Where(item =>
+                            item.Id == invitation.Id &&
+                            (item.LockedIpAddress == null || item.LockedIpAddress == string.Empty))
+                        .ExecuteUpdateAsync(
+                            updates => updates.SetProperty(item => item.LockedIpAddress, metadata.ClientIpAddress),
+                            cancellationToken);
+
+                    if (updatedRows > 0)
+                    {
+                        invitation.LockedIpAddress = metadata.ClientIpAddress;
+                    }
+                    else
+                    {
+                        invitation.LockedIpAddress = await dbContext.CandidateInvitations
+                            .AsNoTracking()
+                            .Where(item => item.Id == invitation.Id)
+                            .Select(item => item.LockedIpAddress)
+                            .FirstOrDefaultAsync(cancellationToken);
+                    }
+                }
+                else
+                {
+                    invitation.LockedIpAddress = metadata.ClientIpAddress;
+                }
             }
-            else if (!string.Equals(invitation.LockedIpAddress, metadata.ClientIpAddress, StringComparison.OrdinalIgnoreCase))
+
+            if (!string.Equals(invitation.LockedIpAddress, metadata.ClientIpAddress, StringComparison.OrdinalIgnoreCase))
             {
                 throw new ApiException(
                     "IP lock validation failed for this invitation.",

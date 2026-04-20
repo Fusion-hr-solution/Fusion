@@ -3,8 +3,6 @@ using EY.HRPlatform.Interview.Models.Candidates;
 using EY.HRPlatform.Interview.Models.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Primitives;
-using System.Linq;
 
 namespace EY.HRPlatform.Interview.Controllers;
 
@@ -45,20 +43,6 @@ public class CandidateAccessController(ICandidateAccessService candidateAccessSe
 
     private string? ResolveClientIpAddress()
     {
-        if (Request.Headers.TryGetValue("X-Forwarded-For", out StringValues forwardedFor))
-        {
-            var raw = forwardedFor.ToString();
-            if (!string.IsNullOrWhiteSpace(raw))
-            {
-                var first = raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                    .FirstOrDefault();
-                if (!string.IsNullOrWhiteSpace(first))
-                {
-                    return first;
-                }
-            }
-        }
-
         return HttpContext.Connection.RemoteIpAddress?.ToString();
     }
 }

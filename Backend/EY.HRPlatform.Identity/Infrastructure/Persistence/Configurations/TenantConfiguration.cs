@@ -29,5 +29,10 @@ public class TenantConfiguration : IEntityTypeConfiguration<Tenant>
 
         builder.HasIndex(t => t.IsActive);
         builder.HasIndex(t => t.IsArchived);
+
+        builder.HasIndex(t => t.Name)
+            .IsUnique()
+            .HasDatabaseName("IX_Tenants_Name_Active")
+            .HasFilter("\"IsArchived\" = false");
     }
 }

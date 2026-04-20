@@ -115,6 +115,10 @@ public class CandidateManagementService(
         invitation.OpensCount = 0;
         invitation.AttemptStartedAtUtc = null;
         invitation.AttemptSubmittedAtUtc = null;
+        invitation.VerifiedEmail = null;
+        invitation.EmailVerifiedAtUtc = null;
+        invitation.LockedIpAddress = null;
+        invitation.AccessFingerprintHash = null;
 
         var existingAttempt = await dbContext.CandidateTestAttempts
             .FirstOrDefaultAsync(item => item.InvitationId == invitation.Id, cancellationToken);
