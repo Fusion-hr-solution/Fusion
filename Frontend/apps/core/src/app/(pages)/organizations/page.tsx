@@ -3,8 +3,9 @@
 import { useState, useCallback } from "react";
 import type { SortingState } from "@tanstack/react-table";
 import type { PlatformOrganizationSummaryDto } from "@repo/api";
-import { DEFAULT_PAGE_SIZE, type PageSize } from "@repo/ui";
-import { Plus } from "lucide-react";
+import { canAccessOrganizations, useAuth } from "@repo/auth";
+import { DEFAULT_PAGE_SIZE, EmptyState, type PageSize } from "@repo/ui";
+import { Building, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { PageHeader } from "@/components/page-header";
@@ -18,6 +19,9 @@ import { CreateOrgDialog } from "./create-org-dialog";
 import { OrgDetailSheet } from "./org-detail-sheet";
 
 export default function OrganizationsPage() {
+  const { user } = useAuth();
+  const canManageOrganizations = canAccessOrganizations(user);
+
   // ---- list query state ----
   const [skip, setSkip] = useState(0);
   const [pageSize, setPageSize] = useState<PageSize>(DEFAULT_PAGE_SIZE);
@@ -61,6 +65,22 @@ export default function OrganizationsPage() {
     setPageSize(size);
     setSkip(0);
   }, []);
+
+  if (!canManageOrganizations) {
+    return (
+      <div className="flex flex-col gap-6 p-6">
+        <PageHeader
+          title="Organizations"
+          description="Organization management is available only to platform administrators."
+        />
+        <EmptyState
+          icon={Building}
+          title="Organization management is not available here"
+          description="Use the administration area to manage organizations."
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6 p-6">

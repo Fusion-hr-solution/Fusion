@@ -1,6 +1,6 @@
 export interface ApiClientConfig {
   baseUrl?: string; // Prefixed to every path, Default: "/api"
-  getToken?: () => string | null; // Called per-request. Null = no auth header.
+  getToken?: () => string | null | Promise<string | null>; // Called per-request. Null = no auth header.
   defaultHeaders?: Record<string, string>; // Merged into every request.
   onAuthError?: (error: ApiError) => void; // Called once on the first 401 response. The error is still thrown.
 }

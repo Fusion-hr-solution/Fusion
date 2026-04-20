@@ -1,5 +1,7 @@
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence.Interceptors;
+using EY.HRPlatform.CoreHR.Features.DraftStructure.Services;
+using EY.HRPlatform.CoreHR.Features.TenantSetup.Services;
 using EY.HRPlatform.SharedKernel.Multitenancy;
 using Microsoft.EntityFrameworkCore;
 
@@ -7,13 +9,31 @@ namespace EY.HRPlatform.CoreHR.Extensions;
 
 public static class ServiceCollectionExtensions
 {
-    public static IServiceCollection AddCoreHRApplication(this IServiceCollection services)
+    public static IServiceCollection AddCoreHRApplication(this IServiceCollection services, IConfiguration configuration)
     {
         // Register MediatR - scans this assembly for all command/query handlers
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<Program>());
+        services.AddHttpContextAccessor();
+
+        services.AddHttpClient<IIdentityTenantStatusReader, IdentityTenantStatusReader>(client =>
+        {
+            var baseUrl = configuration["ServiceUrls:IdentityApiBaseUrl"];
+            if (string.IsNullOrWhiteSpace(baseUrl))
+            {
+                throw new InvalidOperationException(
+                    "ServiceUrls:IdentityApiBaseUrl is not configured. Set it via environment variable or appsettings.");
+            }
+
+            client.BaseAddress = new Uri(EnsureTrailingSlash(baseUrl));
+        });
+
+        services.AddScoped<IDraftStructureImportWorkflowService, DraftStructureImportWorkflowService>();
 
         return services;
     }
+
+    private static string EnsureTrailingSlash(string url)
+        => url.EndsWith('/') ? url : $"{url}/";
 
     public static IServiceCollection AddMultitenancy(this IServiceCollection services)
     {

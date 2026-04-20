@@ -87,7 +87,6 @@ public static class IdentitySeeder
             if (result.Succeeded)
             {
                 await userManager.AddToRoleAsync(admin, PlatformRole.PlatformAdmin);
-                await userManager.AddToRoleAsync(admin, PlatformRole.HRAdmin);
             }
         }
         else
@@ -98,6 +97,16 @@ public static class IdentitySeeder
                 admin.TenantId = demoTenantId;
                 await userManager.UpdateAsync(admin);
             }
+        }
+
+        if (!await userManager.IsInRoleAsync(admin, PlatformRole.PlatformAdmin))
+        {
+            await userManager.AddToRoleAsync(admin, PlatformRole.PlatformAdmin);
+        }
+
+        if (await userManager.IsInRoleAsync(admin, PlatformRole.HRAdmin))
+        {
+            await userManager.RemoveFromRoleAsync(admin, PlatformRole.HRAdmin);
         }
 
         // Seed Platform Admin demo organizations (mature lifecycle states for local UI review).

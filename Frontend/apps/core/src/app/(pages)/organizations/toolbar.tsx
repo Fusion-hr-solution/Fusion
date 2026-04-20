@@ -66,7 +66,7 @@ export function Toolbar({
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm" className="h-9 gap-1">
+          <Button variant="outline" className="gap-1">
             <ListFilter className="size-3.5" />
             Status
             {statusFilter.length > 0 && (

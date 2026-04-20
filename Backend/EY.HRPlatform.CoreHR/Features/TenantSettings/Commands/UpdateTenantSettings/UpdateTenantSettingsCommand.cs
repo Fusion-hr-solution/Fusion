@@ -10,10 +10,12 @@ namespace EY.HRPlatform.CoreHR.Features.TenantSettings.Commands.UpdateTenantSett
 /// </summary>
 /// <param name="ExpectedVersion">Row version for optimistic concurrency. Null for first-time creation.</param>
 /// <param name="OrgUnitTypes">Org unit types to set, or null to keep existing.</param>
+/// <param name="DraftStructureSchema">Draft-structure schema to set, or null to keep existing.</param>
 /// <param name="EmployeeFieldConfig">Field config overrides, or null to keep existing.</param>
 /// <param name="Branding">Branding settings to update, or null to keep existing.</param>
 public sealed record UpdateTenantSettingsCommand(
     uint? ExpectedVersion,
     List<string>? OrgUnitTypes,
     Dictionary<string, FieldConfigInput>? EmployeeFieldConfig,
-    BrandingSettingsInput? Branding) : ICommand<Result<TenantSettingsDto>>;
+    BrandingSettingsInput? Branding,
+    DraftStructureSchemaDto? DraftStructureSchema = null) : ICommand<Result<TenantSettingsDto>>;

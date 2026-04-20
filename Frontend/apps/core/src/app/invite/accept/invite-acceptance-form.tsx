@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { ApiError } from "@repo/api";
 import { login as apiLogin, persistAuth } from "@repo/auth";
@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
@@ -65,10 +66,8 @@ interface AcceptFormValues {
 // Component
 // ---------------------------------------------------------------------------
 
-export function InviteAcceptanceForm() {
-  const searchParams = useSearchParams();
+export function InviteAcceptanceForm({ token }: { token: string | null }) {
   const router = useRouter();
-  const token = searchParams.get("token");
 
   const {
     data: invite,
@@ -170,6 +169,7 @@ export function InviteAcceptanceForm() {
   };
 
   const isSubmitting = accept.isLoading || isAutoLoginning;
+  const isInviteLoading = !!token && (isValidating || (!invite && !validateError));
 
   // ── Missing token ───────────────────────────────────────────────
 
@@ -187,17 +187,10 @@ export function InviteAcceptanceForm() {
 
   // ── Loading ─────────────────────────────────────────────────────
 
-  if (isValidating) {
+  if (isInviteLoading) {
     return (
       <InviteShell>
-        <Card className="w-full max-w-lg">
-          <CardContent className="flex flex-col items-center justify-center gap-3 py-16">
-            <Spinner className="size-6 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">
-              Verifying your invitation…
-            </p>
-          </CardContent>
-        </Card>
+        <InviteAcceptanceSkeleton />
       </InviteShell>
     );
   }
@@ -478,6 +471,54 @@ function ErrorState({
           </p>
         </div>
         {action}
+      </CardContent>
+    </Card>
+  );
+}
+
+function InviteAcceptanceSkeleton() {
+  return (
+    <Card className="w-full max-w-lg">
+      <CardHeader className="space-y-3">
+        <Skeleton className="h-7 w-3/4" />
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-2/3" />
+      </CardHeader>
+      <CardContent className="grid gap-4">
+        <div className="grid gap-2">
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-4 w-40" />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="grid gap-2">
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+          <div className="grid gap-2">
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="grid gap-2">
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+          <div className="grid gap-2">
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+        </div>
+        <div className="grid gap-2">
+          <Skeleton className="h-4 w-32" />
+          <div className="grid gap-2 sm:grid-cols-2">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-full" />
+          </div>
+        </div>
+        <Skeleton className="h-11 w-full" />
       </CardContent>
     </Card>
   );
