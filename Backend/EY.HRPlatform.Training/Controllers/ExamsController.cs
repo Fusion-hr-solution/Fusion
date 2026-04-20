@@ -40,6 +40,8 @@ public class ExamsController : ControllerBase
             {
                 if (result.Error.Code.Contains("Locked"))
                     return StatusCode(StatusCodes.Status403Forbidden, ApiResponse.Failure(result.Error.Message));
+                if (result.Error.Code.Contains("Enrollment"))
+                    return StatusCode(StatusCodes.Status403Forbidden, ApiResponse.Failure(result.Error.Message));
                 return NotFound(ApiResponse.Failure(result.Error.Message));
             }
 

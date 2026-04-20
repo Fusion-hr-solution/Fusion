@@ -23,7 +23,9 @@ public class ReorderExamQuestionsCommandHandler : ICommandHandler<ReorderExamQue
             .Where(q => q.ExamId == request.ExamId)
             .ToListAsync(cancellationToken);
 
-        if (questions.Count != request.QuestionIds.Count || !request.QuestionIds.All(id => questions.Any(q => q.Id == id)))
+        var existingIds = questions.Select(q => q.Id).ToHashSet();
+        var requestIds = request.QuestionIds.ToHashSet();
+        if (request.QuestionIds.Count != requestIds.Count || !requestIds.SetEquals(existingIds))
             return Result.Failure(Error.Validation("Exam.ReorderMismatch",
                 "Provided question ids do not match the exam's current questions."));
 

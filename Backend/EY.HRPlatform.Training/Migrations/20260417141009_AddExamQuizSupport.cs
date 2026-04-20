@@ -66,7 +66,7 @@ namespace EY.HRPlatform.Training.Migrations
                 table: "ExamQuestions",
                 type: "integer",
                 nullable: false,
-                defaultValue: 0);
+                defaultValue: 1);
 
             migrationBuilder.AddColumn<int>(
                 name: "OrderIndex",

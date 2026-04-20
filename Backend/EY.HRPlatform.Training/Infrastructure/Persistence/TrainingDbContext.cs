@@ -163,7 +163,7 @@ public class TrainingDbContext : DbContext
                 .WithMany(x => x.Questions)
                 .HasForeignKey(q => q.ExamId)
                 .OnDelete(DeleteBehavior.Cascade);
-            e.HasIndex(q => new { q.ExamId, q.OrderIndex });
+            e.HasIndex(q => new { q.ExamId, q.OrderIndex }).IsUnique();
         });
 
         // --- ExamOption ---
@@ -175,7 +175,7 @@ public class TrainingDbContext : DbContext
                 .WithMany(q => q.Options)
                 .HasForeignKey(o => o.QuestionId)
                 .OnDelete(DeleteBehavior.Cascade);
-            e.HasIndex(o => new { o.QuestionId, o.OrderIndex });
+            e.HasIndex(o => new { o.QuestionId, o.OrderIndex }).IsUnique();
         });
 
         // --- TrainingAssignment ---
