@@ -126,4 +126,77 @@ public class UpdateContentBlockProgressCommandHandlerTests
         Assert.NotNull(progress);
         Assert.False(progress.Completed);
     }
+
+    // -----------------------------------------------------------------
+    // Exam-gated completion tests
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public async Task Handle_DoesNotCompleteTraining_WhenTrainingHasExamAndAllBlocksDone()
+    {
+        // Arrange: training WITH an exam — completing all chapters must NOT auto-complete training
+        await using var context = await TestDbContextFactory.CreateWithSeedDataAsync();
+        var training = context.Trainings.Include(t => t.Chapters).First();
+        var employeeId = Guid.NewGuid();
+
+        var assignment = new TrainingAssignment(training.Id, employeeId, AssignmentType.SelfEnroll);
+        context.Assignments.Add(assignment);
+
+        // Attach an exam to the training
+        context.Exams.Add(new Exam("Final Exam", 70, training.Id));
+        await context.SaveChangesAsync();
+
+        var handler = new UpdateContentBlockProgressCommandHandler(context);
+
+        // Complete every block in every chapter
+        foreach (var chapter in training.Chapters)
+        {
+            var blocks = context.ContentBlocks.Where(b => b.ChapterId == chapter.Id).ToList();
+            foreach (var block in blocks)
+            {
+                await handler.Handle(
+                    new UpdateContentBlockProgressCommand(employeeId, training.Id, chapter.Id, block.Id, true),
+                    CancellationToken.None);
+            }
+        }
+
+        // Progress percentage should be 100 but status must NOT be Completed
+        var progress = await context.TrainingProgress
+            .FirstOrDefaultAsync(p => p.EmployeeId == employeeId && p.TrainingId == training.Id);
+        Assert.NotNull(progress);
+        Assert.Equal(100, progress.ProgressPercentage);
+        Assert.NotEqual(TrainingStatus.Completed, progress.Status);
+    }
+
+    [Fact]
+    public async Task Handle_CompletesTraining_WhenTrainingHasNoExamAndAllBlocksDone()
+    {
+        // Arrange: training WITHOUT an exam — completing all chapters auto-completes training
+        await using var context = await TestDbContextFactory.CreateWithSeedDataAsync();
+        var training = context.Trainings.Include(t => t.Chapters).First();
+        var employeeId = Guid.NewGuid();
+
+        var assignment = new TrainingAssignment(training.Id, employeeId, AssignmentType.SelfEnroll);
+        context.Assignments.Add(assignment);
+        await context.SaveChangesAsync();
+
+        var handler = new UpdateContentBlockProgressCommandHandler(context);
+
+        // Complete every block in every chapter
+        foreach (var chapter in training.Chapters)
+        {
+            var blocks = context.ContentBlocks.Where(b => b.ChapterId == chapter.Id).ToList();
+            foreach (var block in blocks)
+            {
+                await handler.Handle(
+                    new UpdateContentBlockProgressCommand(employeeId, training.Id, chapter.Id, block.Id, true),
+                    CancellationToken.None);
+            }
+        }
+
+        var progress = await context.TrainingProgress
+            .FirstOrDefaultAsync(p => p.EmployeeId == employeeId && p.TrainingId == training.Id);
+        Assert.NotNull(progress);
+        Assert.Equal(TrainingStatus.Completed, progress.Status);
+    }
 }

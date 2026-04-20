@@ -29,5 +29,12 @@ public class TenantConfiguration : IEntityTypeConfiguration<Tenant>
 
         builder.HasIndex(t => t.IsActive);
         builder.HasIndex(t => t.IsArchived);
+
+        // Partial unique index — tenant names must be unique among active (non-archived) tenants.
+        // Created via raw SQL in AddInviteRevocationSupport migration; reflected here so EF model matches snapshot.
+        builder.HasIndex(t => t.Name)
+            .IsUnique()
+            .HasDatabaseName("IX_Tenants_Name_Active")
+            .HasFilter("\"IsArchived\" = false");
     }
 }

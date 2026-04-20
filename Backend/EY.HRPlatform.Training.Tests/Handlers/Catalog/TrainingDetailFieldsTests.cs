@@ -152,8 +152,8 @@ public class TrainingDetailFieldsTests
         var training = context.Trainings.First();
 
         var exam = new Exam("Certification Exam", 75, training.Id);
-        exam.AddQuestion(new ExamQuestion("Q1?", "multiple-choice", exam.Id));
-        exam.AddQuestion(new ExamQuestion("Q2?", "true-false", exam.Id));
+        exam.AddQuestion(new ExamQuestion("Q1?", QuestionType.MultipleChoice, exam.Id, 0));
+        exam.AddQuestion(new ExamQuestion("Q2?", QuestionType.TrueFalse, exam.Id, 1));
         context.Exams.Add(exam);
         await context.SaveChangesAsync();
 
