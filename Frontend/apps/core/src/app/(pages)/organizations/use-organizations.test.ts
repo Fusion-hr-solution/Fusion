@@ -399,7 +399,7 @@ describe("useResendFirstAdminInvite", () => {
     expect(mockPost).toHaveBeenCalledWith(
       "/identity/platform-admin/organizations/tenant-1/first-admin-invite/resend"
     );
-    expect(result.current.data).toEqual(mockInvite);
+    await waitFor(() => expect(result.current.data).toEqual(mockInvite));
   });
 });
 
