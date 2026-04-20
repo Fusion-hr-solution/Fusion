@@ -3,6 +3,7 @@ using System;
 using EY.HRPlatform.Training.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace EY.HRPlatform.Training.Migrations
 {
     [DbContext(typeof(TrainingDbContext))]
-    partial class TrainingDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260417141009_AddExamQuizSupport")]
+    partial class AddExamQuizSupport
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -410,8 +413,7 @@ namespace EY.HRPlatform.Training.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("QuestionId", "OrderIndex")
-                        .IsUnique();
+                    b.HasIndex("QuestionId", "OrderIndex");
 
                     b.ToTable("ExamOptions", "training");
                 });
@@ -455,8 +457,7 @@ namespace EY.HRPlatform.Training.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ExamId", "OrderIndex")
-                        .IsUnique();
+                    b.HasIndex("ExamId", "OrderIndex");
 
                     b.ToTable("ExamQuestions", "training");
                 });

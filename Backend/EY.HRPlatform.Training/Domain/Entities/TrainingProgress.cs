@@ -39,6 +39,16 @@ public class TrainingProgress : BaseEntity
         }
     }
 
+    /// <summary>
+    /// Sets the progress percentage without auto-completing. Use when training completion
+    /// depends on an additional gate (e.g., passing an exam).
+    /// </summary>
+    public void SetProgressPercentage(int percentage)
+    {
+        ProgressPercentage = percentage;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
     public void Complete()
     {
         Status = TrainingStatus.Completed;
