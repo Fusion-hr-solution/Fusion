@@ -132,6 +132,46 @@ public class TenantSettingsOverrideBuilderTests
     }
 
     [Fact]
+    public void Build_WithDraftStructureSchema_WritesSchemaAndLegacyOrgUnitTypes()
+    {
+        // Act
+        var result = TenantSettingsOverrideBuilder.Build(
+            null,
+            null,
+            null,
+            null,
+            new DraftStructureSchemaDto
+            {
+                OrgUnitKinds =
+                [
+                    new OrgUnitKindDto("division", "Division"),
+                    new OrgUnitKindDto("team", "Team")
+                ],
+                Attributes =
+                [
+                    new DraftStructureAttributeDefinitionDto(
+                        "costCenter",
+                        "Cost Center",
+                        "text",
+                        false,
+                        ["division"])
+                ]
+            });
+
+        // Assert
+        Assert.NotNull(result);
+        var json = JsonDocument.Parse(result);
+
+        var orgTypes = json.RootElement.GetProperty("orgUnitTypes");
+        Assert.Equal(2, orgTypes.GetArrayLength());
+        Assert.Equal("Division", orgTypes[0].GetString());
+
+        var schema = json.RootElement.GetProperty("draftStructureSchema");
+        Assert.Equal("division", schema.GetProperty("orgUnitKinds")[0].GetProperty("key").GetString());
+        Assert.Equal("Cost Center", schema.GetProperty("attributes")[0].GetProperty("displayLabel").GetString());
+    }
+
+    [Fact]
     public void Build_MergesFieldConfigPartially()
     {
         // Arrange - existing has firstName config

@@ -11,6 +11,7 @@ import type {
 const client = createPlatformApiClient();
 
 const AUTH = "/identity/auth";
+export const AUTH_STORAGE_EVENT = "ey_hr_auth:changed";
 
 // ── Public API ───────────────────────────────────────────────────────
 // Resolves with the unwrapped AuthResponse on success; throws ApiError on failure.
@@ -44,6 +45,7 @@ export function persistAuth(auth: StoredAuth): void {
   if (typeof window !== "undefined") {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(auth));
     document.cookie = `ey_hr_authenticated=true; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+    window.dispatchEvent(new CustomEvent(AUTH_STORAGE_EVENT));
   }
 }
 
@@ -62,5 +64,6 @@ export function clearAuth(): void {
   if (typeof window !== "undefined") {
     localStorage.removeItem(STORAGE_KEY);
     document.cookie = "ey_hr_authenticated=; path=/; max-age=0; SameSite=Lax";
+    window.dispatchEvent(new CustomEvent(AUTH_STORAGE_EVENT));
   }
 }

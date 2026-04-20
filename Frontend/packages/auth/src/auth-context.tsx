@@ -11,6 +11,7 @@ import React, {
 import { ApiError } from "@repo/api";
 import type { AuthState, AuthUser, LoginRequest, RegisterRequest } from "./types";
 import {
+  AUTH_STORAGE_EVENT,
   login as apiLogin,
   register as apiRegister,
   logout as apiLogout,
@@ -38,28 +39,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [refreshTokenValue, setRefreshToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const applyStoredAuth = useCallback((stored: ReturnType<typeof loadAuth>) => {
+    if (!stored) {
+      setUser(null);
+      setAccessToken(null);
+      setRefreshToken(null);
+      return;
+    }
+
+    setUser(stored.user);
+    setAccessToken(stored.accessToken);
+    setRefreshToken(stored.refreshToken);
+  }, []);
+
   // Hydrate from localStorage on mount
   useEffect(() => {
     const stored = loadAuth();
     if (stored) {
       const expiry = new Date(stored.accessTokenExpiration);
       if (expiry > new Date()) {
-        setUser(stored.user);
-        setAccessToken(stored.accessToken);
-        setRefreshToken(stored.refreshToken);
+        applyStoredAuth(stored);
         setIsLoading(false);
       } else if (stored.refreshToken) {
         apiRefresh({ refreshToken: stored.refreshToken })
           .then((d) => {
-            setUser({
-              userId: d.userId,
-              email: d.email,
-              fullName: d.fullName,
-              roles: d.roles,
-            });
-            setAccessToken(d.accessToken);
-            setRefreshToken(d.refreshToken);
-            persistAuth({
+            const nextStored = {
               accessToken: d.accessToken,
               refreshToken: d.refreshToken,
               accessTokenExpiration: d.accessTokenExpiration,
@@ -69,18 +73,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 fullName: d.fullName,
                 roles: d.roles,
               },
-            });
+            };
+
+            applyStoredAuth(nextStored);
+            persistAuth(nextStored);
           })
-          .catch(() => clearAuth())
+          .catch(() => {
+            clearAuth();
+            applyStoredAuth(null);
+          })
           .finally(() => setIsLoading(false));
       } else {
         clearAuth();
+        applyStoredAuth(null);
         setIsLoading(false);
       }
     } else {
       setIsLoading(false);
     }
-  }, []);
+  }, [applyStoredAuth]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const syncFromStorage = () => {
+      applyStoredAuth(loadAuth());
+    };
+
+    window.addEventListener(AUTH_STORAGE_EVENT, syncFromStorage);
+    window.addEventListener("storage", syncFromStorage);
+
+    return () => {
+      window.removeEventListener(AUTH_STORAGE_EVENT, syncFromStorage);
+      window.removeEventListener("storage", syncFromStorage);
+    };
+  }, [applyStoredAuth]);
 
   const login = useCallback(
     async (req: LoginRequest): Promise<string[] | null> => {

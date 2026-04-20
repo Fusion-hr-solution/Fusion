@@ -84,7 +84,7 @@ export function createApiClient(config: ApiClientConfig = {}): ApiClient {
     };
 
     if (!options?.skipAuth && config.getToken) {
-      const token = config.getToken();
+      const token = await config.getToken();
       if (token) {
         headers["Authorization"] = `Bearer ${token}`;
       }

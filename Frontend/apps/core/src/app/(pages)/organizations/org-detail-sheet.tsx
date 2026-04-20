@@ -88,15 +88,21 @@ export function OrgDetailSheet({
 
 function DetailSkeleton() {
   return (
-    <div className="space-y-6 p-4 pt-8">
-      <Skeleton className="h-6 w-48" />
-      <Skeleton className="h-4 w-32" />
-      <div className="space-y-3 pt-4">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <Skeleton key={i} className="h-5 w-full" />
-        ))}
+    <>
+      <SheetHeader className="sr-only">
+        <SheetTitle>Organization details</SheetTitle>
+        <SheetDescription>Loading organization details.</SheetDescription>
+      </SheetHeader>
+      <div className="space-y-6 p-4 pt-8">
+        <Skeleton className="h-6 w-48" />
+        <Skeleton className="h-4 w-32" />
+        <div className="space-y-3 pt-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-5 w-full" />
+          ))}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 

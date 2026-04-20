@@ -23,6 +23,15 @@ export {
 // Auth context & hook
 export { AuthProvider, useAuth } from "./auth-context";
 export type { AuthContextValue } from "./auth-context";
+export {
+  PLATFORM_ADMIN_ROLE,
+  HR_ADMIN_ROLE,
+  hasAnyRole,
+  canAccessCoreSetup,
+  canSeeCoreSetupNavigation,
+  canAccessOrganizations,
+  canSeeOrganizationsNavigation,
+} from "./roles";
 
 // Components
 export { SidebarUserPanel } from "./components/sidebar-user-panel";

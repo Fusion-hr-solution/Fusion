@@ -1,0 +1,6 @@
+using EY.HRPlatform.CoreHR.Features.TenantSetup.Dtos;
+using EY.HRPlatform.SharedKernel.CQRS;
+
+namespace EY.HRPlatform.CoreHR.Features.TenantSetup.Queries.GetDraftSetupReadiness;
+
+public sealed record GetDraftSetupReadinessQuery() : IQuery<DraftSetupReadinessDto>;
