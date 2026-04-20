@@ -33,7 +33,7 @@ export function CoursePlayer({ learnData }: CoursePlayerProps) {
     refetchContent,
   } = useCoursePlayer(learnData);
 
-  const hasExam = Boolean(learnData.training.exam);
+  const hasExam = (learnData.training.exam?.questionsCount ?? 0) > 0;
   const examAvailable = hasExam && allChaptersCompleted;
 
   const examPlayer = useExamPlayer(learnData.training.id);

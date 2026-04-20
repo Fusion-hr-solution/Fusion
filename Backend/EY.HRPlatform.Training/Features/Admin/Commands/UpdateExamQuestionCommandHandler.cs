@@ -48,15 +48,19 @@ public class UpdateExamQuestionCommandHandler : ICommandHandler<UpdateExamQuesti
 
         question.Update(request.QuestionText, questionType, request.Points);
 
-        // Replace options wholesale. Materialize first so the navigation collection
-        // is not modified while EF tracks the removals (avoids double-delete via
-        // relationship fixup which causes DbUpdateConcurrencyException).
+        // Replace options wholesale.
+        // Materialize to a snapshot so RemoveRange doesn't iterate a live collection.
+        // Do NOT call question.ClearOptions() after this — that triggers EF relationship
+        // fixup to schedule a second DELETE for the same rows (DbUpdateConcurrencyException).
         _db.ExamOptions.RemoveRange(question.Options.ToList());
 
+        // Re-populate through the aggregate so the in-memory backing field stays
+        // consistent. EF DetectChanges picks up new ExamOption instances added to the
+        // navigation as Added and generates exactly one INSERT per new option.
         for (var i = 0; i < request.Options.Count; i++)
         {
             var opt = request.Options[i];
-            _db.ExamOptions.Add(new ExamOption(opt.OptionText, opt.IsCorrect, question.Id, i));
+            question.AddOption(new ExamOption(opt.OptionText, opt.IsCorrect, question.Id, i));
         }
 
         await _db.SaveChangesAsync(cancellationToken);

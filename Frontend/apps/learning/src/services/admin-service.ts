@@ -1,4 +1,4 @@
-import { createPlatformApiClient } from "@repo/api";
+import { ApiError, createPlatformApiClient } from "@repo/api";
 import type {
   AdminTraining,
   AdminTrainingDetail,
@@ -559,8 +559,9 @@ export async function getAdminExamDetail(trainingId: string): Promise<AdminExamD
       `/training/admin/trainings/${encodeURIComponent(trainingId)}/exam`,
     );
     return mapExamDetail(data);
-  } catch {
-    return null;
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) return null;
+    throw err;
   }
 }
 
