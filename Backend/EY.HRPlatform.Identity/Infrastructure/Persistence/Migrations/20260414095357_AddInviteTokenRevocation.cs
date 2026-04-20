@@ -11,33 +11,22 @@ namespace EY.HRPlatform.Identity.Infrastructure.Persistence.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropIndex(
-                name: "IX_InviteTokens_TenantId_Email_Pending",
-                schema: "identity",
-                table: "InviteTokens");
+            // Use raw SQL with existence guards so this migration is safe regardless of
+            // whether AddInviteRevocationSupport (April-15) was applied first on an
+            // existing database.
+            migrationBuilder.Sql(
+                "DROP INDEX IF EXISTS identity.\"IX_InviteTokens_TenantId_Email_Pending\";");
 
-            migrationBuilder.AddColumn<bool>(
-                name: "IsRevoked",
-                schema: "identity",
-                table: "InviteTokens",
-                type: "boolean",
-                nullable: false,
-                defaultValue: false);
+            migrationBuilder.Sql(
+                "ALTER TABLE identity.\"InviteTokens\" ADD COLUMN IF NOT EXISTS \"IsRevoked\" boolean NOT NULL DEFAULT FALSE;");
 
-            migrationBuilder.AddColumn<DateTime>(
-                name: "RevokedAt",
-                schema: "identity",
-                table: "InviteTokens",
-                type: "timestamp with time zone",
-                nullable: true);
+            migrationBuilder.Sql(
+                "ALTER TABLE identity.\"InviteTokens\" ADD COLUMN IF NOT EXISTS \"RevokedAt\" timestamp with time zone NULL;");
 
-            migrationBuilder.CreateIndex(
-                name: "IX_InviteTokens_TenantId_Email_Pending",
-                schema: "identity",
-                table: "InviteTokens",
-                columns: new[] { "TenantId", "Email" },
-                unique: true,
-                filter: "\"AcceptedAt\" IS NULL AND \"IsRevoked\" = false");
+            migrationBuilder.Sql(
+                "CREATE UNIQUE INDEX IF NOT EXISTS \"IX_InviteTokens_TenantId_Email_Pending\" " +
+                "ON identity.\"InviteTokens\" (\"TenantId\", \"Email\") " +
+                "WHERE \"AcceptedAt\" IS NULL AND \"IsRevoked\" = false;");
         }
 
         /// <inheritdoc />
