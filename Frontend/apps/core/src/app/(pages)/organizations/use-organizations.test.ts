@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
+import { createElement, type PropsWithChildren } from "react";
 
 // ── Mocks ────────────────────────────────────────────────────────────
 // vi.mock is hoisted by Vitest, so mocks must be created via vi.hoisted
@@ -43,6 +44,13 @@ vi.mock("@repo/api", () => ({
     revokeFirstAdmin: (id: string) =>
       `/identity/platform-admin/organizations/${id}/first-admin-invite/revoke`,
   },
+  platformOrganizationsQueryKeys: {
+    all: () => ["platformOrganizations"],
+    lists: () => ["platformOrganizations", "list"],
+    list: (params: unknown) => ["platformOrganizations", "list", params],
+    details: () => ["platformOrganizations", "detail"],
+    detail: (id: string) => ["platformOrganizations", "detail", id],
+  },
 }));
 
 vi.mock("@repo/auth", () => ({
@@ -51,14 +59,13 @@ vi.mock("@repo/auth", () => ({
     !!user?.roles?.includes("PlatformAdmin"),
 }));
 
-// Re-export real implementations from @repo/api/react
-// The hooks are lightweight, so we use the real useApiQuery/useApiMutation
-vi.mock("@repo/api/react", async () => {
-  const actual = await vi.importActual<typeof import("@repo/api/react")>(
-    "@repo/api/react"
-  );
+// Re-export real implementations from @repo/api/query and wrap hooks with a query client.
+vi.mock("@repo/api/query", async () => {
+  const actual = await vi.importActual("@repo/api/query");
   return actual;
 });
+
+import { ApiQueryProvider, createApiQueryClient } from "@repo/api/query";
 
 import {
   useOrganizationList,
@@ -71,6 +78,23 @@ import {
   useResendFirstAdminInvite,
   useRevokeFirstAdminInvite,
 } from "./use-organizations";
+
+function createWrapper() {
+  const client = createApiQueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  });
+
+  function TestQueryProvider({ children }: PropsWithChildren) {
+    return createElement(ApiQueryProvider, { client }, children);
+  }
+
+  TestQueryProvider.displayName = "TestQueryProvider";
+
+  return TestQueryProvider;
+}
 
 // ── Setup ────────────────────────────────────────────────────────────
 
@@ -92,14 +116,16 @@ describe("useOrganizationList", () => {
     const mockData = { items: [], totalCount: 0, stats: {} };
     mockGet.mockResolvedValue(mockData);
 
-    const { result } = renderHook(() =>
-      useOrganizationList({
-        skip: 0,
-        take: 20,
-        search: "acme",
-        orderBy: "name",
-        orderDirection: "asc",
-      })
+    const { result } = renderHook(
+      () =>
+        useOrganizationList({
+          skip: 0,
+          take: 20,
+          search: "acme",
+          orderBy: "name",
+          orderDirection: "asc",
+        }),
+      { wrapper: createWrapper() }
     );
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
@@ -122,12 +148,14 @@ describe("useOrganizationList", () => {
   it("appends filterByStatus as query string params", async () => {
     mockGet.mockResolvedValue({ items: [], totalCount: 0, stats: {} });
 
-    renderHook(() =>
-      useOrganizationList({
-        skip: 0,
-        take: 20,
-        filterByStatus: ["active", "suspended"],
-      })
+    renderHook(
+      () =>
+        useOrganizationList({
+          skip: 0,
+          take: 20,
+          filterByStatus: ["active", "suspended"],
+        }),
+      { wrapper: createWrapper() }
     );
 
     await waitFor(() => expect(mockGet).toHaveBeenCalled());
@@ -140,9 +168,9 @@ describe("useOrganizationList", () => {
   it("omits empty search from params", async () => {
     mockGet.mockResolvedValue({ items: [], totalCount: 0, stats: {} });
 
-    renderHook(() =>
-      useOrganizationList({ skip: 0, take: 20, search: "" })
-    );
+    renderHook(() => useOrganizationList({ skip: 0, take: 20, search: "" }), {
+      wrapper: createWrapper(),
+    });
 
     await waitFor(() => expect(mockGet).toHaveBeenCalled());
 
@@ -153,7 +181,9 @@ describe("useOrganizationList", () => {
   it("defaults orderBy to createdAt desc", async () => {
     mockGet.mockResolvedValue({ items: [], totalCount: 0, stats: {} });
 
-    renderHook(() => useOrganizationList({ skip: 0, take: 20 }));
+    renderHook(() => useOrganizationList({ skip: 0, take: 20 }), {
+      wrapper: createWrapper(),
+    });
 
     await waitFor(() => expect(mockGet).toHaveBeenCalled());
 
@@ -170,8 +200,9 @@ describe("useOrganizationList", () => {
       roles: ["HRAdmin"],
     };
 
-    const { result } = renderHook(() =>
-      useOrganizationList({ skip: 0, take: 20 })
+    const { result } = renderHook(
+      () => useOrganizationList({ skip: 0, take: 20 }),
+      { wrapper: createWrapper() }
     );
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
@@ -185,7 +216,9 @@ describe("useOrganizationDetail", () => {
     const mockDetail = { id: "abc-123", name: "Org" };
     mockGet.mockResolvedValue(mockDetail);
 
-    const { result } = renderHook(() => useOrganizationDetail("abc-123"));
+    const { result } = renderHook(() => useOrganizationDetail("abc-123"), {
+      wrapper: createWrapper(),
+    });
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
@@ -197,7 +230,9 @@ describe("useOrganizationDetail", () => {
   });
 
   it("does not fetch when tenantId is null", async () => {
-    const { result } = renderHook(() => useOrganizationDetail(null));
+    const { result } = renderHook(() => useOrganizationDetail(null), {
+      wrapper: createWrapper(),
+    });
 
     // Give it a tick
     await new Promise((r) => setTimeout(r, 50));
@@ -211,10 +246,15 @@ describe("useOrganizationDetail", () => {
 
 describe("useCreateOrganization", () => {
   it("posts to the create endpoint with request body", async () => {
-    const mockCreated = { organization: { id: "new-id" }, inviteLink: "http://link" };
+    const mockCreated = {
+      organization: { id: "new-id" },
+      inviteLink: "http://link",
+    };
     mockPost.mockResolvedValue(mockCreated);
 
-    const { result } = renderHook(() => useCreateOrganization());
+    const { result } = renderHook(() => useCreateOrganization(), {
+      wrapper: createWrapper(),
+    });
 
     await act(async () => {
       await result.current.mutateAsync({
@@ -234,7 +274,9 @@ describe("useCreateOrganization", () => {
     const onSuccess = vi.fn();
     mockPost.mockResolvedValue({ organization: { id: "x" } });
 
-    const { result } = renderHook(() => useCreateOrganization({ onSuccess }));
+    const { result } = renderHook(() => useCreateOrganization({ onSuccess }), {
+      wrapper: createWrapper(),
+    });
 
     await act(async () => {
       await result.current.mutateAsync({
@@ -252,7 +294,9 @@ describe("useUpdateOrganization", () => {
     const mockUpdated = { id: "tenant-1", name: "Updated" };
     mockPatch.mockResolvedValue(mockUpdated);
 
-    const { result } = renderHook(() => useUpdateOrganization("tenant-1"));
+    const { result } = renderHook(() => useUpdateOrganization("tenant-1"), {
+      wrapper: createWrapper(),
+    });
 
     await act(async () => {
       await result.current.mutateAsync({ name: "Updated" });
@@ -269,7 +313,9 @@ describe("useSuspendOrganization", () => {
   it("posts to the suspend endpoint", async () => {
     mockPost.mockResolvedValue(true);
 
-    const { result } = renderHook(() => useSuspendOrganization());
+    const { result } = renderHook(() => useSuspendOrganization(), {
+      wrapper: createWrapper(),
+    });
 
     await act(async () => {
       await result.current.mutateAsync("tenant-1");
@@ -285,7 +331,9 @@ describe("useReactivateOrganization", () => {
   it("posts to the reactivate endpoint", async () => {
     mockPost.mockResolvedValue(true);
 
-    const { result } = renderHook(() => useReactivateOrganization());
+    const { result } = renderHook(() => useReactivateOrganization(), {
+      wrapper: createWrapper(),
+    });
 
     await act(async () => {
       await result.current.mutateAsync("tenant-1");
@@ -301,7 +349,9 @@ describe("useArchiveOrganization", () => {
   it("posts to the archive endpoint", async () => {
     mockPost.mockResolvedValue(true);
 
-    const { result } = renderHook(() => useArchiveOrganization());
+    const { result } = renderHook(() => useArchiveOrganization(), {
+      wrapper: createWrapper(),
+    });
 
     await act(async () => {
       await result.current.mutateAsync("tenant-1");
@@ -318,7 +368,9 @@ describe("useResendFirstAdminInvite", () => {
     const mockInvite = { status: "pending", email: "a@b.com" };
     mockPost.mockResolvedValue(mockInvite);
 
-    const { result } = renderHook(() => useResendFirstAdminInvite());
+    const { result } = renderHook(() => useResendFirstAdminInvite(), {
+      wrapper: createWrapper(),
+    });
 
     await act(async () => {
       await result.current.mutateAsync("tenant-1");
@@ -335,7 +387,9 @@ describe("useRevokeFirstAdminInvite", () => {
   it("posts to the revoke endpoint", async () => {
     mockPost.mockResolvedValue(true);
 
-    const { result } = renderHook(() => useRevokeFirstAdminInvite());
+    const { result } = renderHook(() => useRevokeFirstAdminInvite(), {
+      wrapper: createWrapper(),
+    });
 
     await act(async () => {
       await result.current.mutateAsync("tenant-1");

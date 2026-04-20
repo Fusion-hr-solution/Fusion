@@ -1,8 +1,18 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentProps,
+} from "react";
 import { PencilLine, Plus, Trash2 } from "lucide-react";
-import { ApiError, type DraftOrgUnitDto, type DraftStructureSchemaDto } from "@repo/api";
+import {
+  ApiError,
+  type DraftOrgUnitDto,
+  type DraftStructureSchemaDto,
+} from "@repo/api";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,7 +28,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { buildDraftOrgUnitKindKey } from "./draft-structure-form-utils";
-import { useTenantSettings, useUpdateTenantSettings } from "./use-tenant-settings";
+import {
+  useTenantSettings,
+  useUpdateTenantSettings,
+} from "./use-tenant-settings";
 
 interface EditableOrgUnitKind {
   id: string;
@@ -30,7 +43,7 @@ interface EditableOrgUnitKind {
 interface DraftOrgUnitKindManagerProps {
   schema: DraftStructureSchemaDto;
   existingUnits: DraftOrgUnitDto[];
-  onSchemaUpdated: (schema: DraftStructureSchemaDto) => void;
+  onSchemaUpdated?: (schema: DraftStructureSchemaDto) => void;
   currentKindKey?: string;
   disabled?: boolean;
   triggerLabel?: string;
@@ -38,7 +51,9 @@ interface DraftOrgUnitKindManagerProps {
   triggerSize?: ComponentProps<typeof Button>["size"];
 }
 
-function createEditableKinds(schema: DraftStructureSchemaDto): EditableOrgUnitKind[] {
+function createEditableKinds(
+  schema: DraftStructureSchemaDto
+): EditableOrgUnitKind[] {
   return schema.orgUnitKinds.map((kind) => ({
     id: kind.key,
     key: kind.key,
@@ -52,7 +67,9 @@ function buildSchemaWithKinds(
   kinds: EditableOrgUnitKind[]
 ): DraftStructureSchemaDto {
   const nextKinds = kinds.map((kind) => {
-    const key = kind.isNew ? buildDraftOrgUnitKindKey(kind.displayLabel) : kind.key;
+    const key = kind.isNew
+      ? buildDraftOrgUnitKindKey(kind.displayLabel)
+      : kind.key;
 
     return {
       key,
@@ -64,12 +81,15 @@ function buildSchemaWithKinds(
   return {
     orgUnitKinds: nextKinds,
     attributes: schema.attributes.flatMap((attribute) => {
-      if (!attribute.appliesToKindKeys || attribute.appliesToKindKeys.length === 0) {
+      if (
+        !attribute.appliesToKindKeys ||
+        attribute.appliesToKindKeys.length === 0
+      ) {
         return [attribute];
       }
 
-      const nextAppliesToKindKeys = attribute.appliesToKindKeys.filter((kindKey) =>
-        validKindKeys.has(kindKey)
+      const nextAppliesToKindKeys = attribute.appliesToKindKeys.filter(
+        (kindKey) => validKindKeys.has(kindKey)
       );
 
       if (nextAppliesToKindKeys.length === 0) {
@@ -113,7 +133,7 @@ export function DraftOrgUnitKindManager({
   const updateSettings = useUpdateTenantSettings({
     onSuccess: (data) => {
       toast.success("Unit types updated");
-      onSchemaUpdated(data.draftStructureSchema);
+      onSchemaUpdated?.(data.draftStructureSchema);
       setOpen(false);
     },
   });
@@ -145,14 +165,17 @@ export function DraftOrgUnitKindManager({
     }
 
     if (!key) {
-      setErrorMessage("Unit type names must include at least one letter or number.");
+      setErrorMessage(
+        "Unit type names must include at least one letter or number."
+      );
       return;
     }
 
     if (
       draftKinds.some((kind) => kind.key.toLowerCase() === key.toLowerCase()) ||
       draftKinds.some(
-        (kind) => kind.displayLabel.trim().toLowerCase() === displayLabel.toLowerCase()
+        (kind) =>
+          kind.displayLabel.trim().toLowerCase() === displayLabel.toLowerCase()
       )
     ) {
       setErrorMessage("That unit type already exists.");
@@ -190,20 +213,26 @@ export function DraftOrgUnitKindManager({
   };
 
   const removeKind = (kindId: string) => {
-    setDraftKinds((currentKinds) => currentKinds.filter((kind) => kind.id !== kindId));
+    setDraftKinds((currentKinds) =>
+      currentKinds.filter((kind) => kind.id !== kindId)
+    );
     setErrorMessage(null);
   };
 
   const saveKinds = async () => {
     const nextSchema = buildSchemaWithKinds(schema, draftKinds);
-    const normalizedLabels = nextSchema.orgUnitKinds.map((kind) => kind.displayLabel.trim());
+    const normalizedLabels = nextSchema.orgUnitKinds.map((kind) =>
+      kind.displayLabel.trim()
+    );
 
     if (nextSchema.orgUnitKinds.length === 0) {
       setErrorMessage("Keep at least one unit type available.");
       return;
     }
 
-    if (nextSchema.orgUnitKinds.some((kind) => !kind.displayLabel || !kind.key)) {
+    if (
+      nextSchema.orgUnitKinds.some((kind) => !kind.displayLabel || !kind.key)
+    ) {
       setErrorMessage("Every unit type needs a valid name.");
       return;
     }
@@ -220,7 +249,8 @@ export function DraftOrgUnitKindManager({
     if (
       normalizedLabels
         .map((label) => label.toLowerCase())
-        .filter((label, index, labels) => labels.indexOf(label) !== index).length > 0
+        .filter((label, index, labels) => labels.indexOf(label) !== index)
+        .length > 0
     ) {
       setErrorMessage("Unit type names must be unique.");
       return;
@@ -273,21 +303,26 @@ export function DraftOrgUnitKindManager({
               {draftKinds.map((kind) => {
                 const usageCount = draftUsageByKind[kind.key] ?? 0;
                 const isCurrentKind = currentKindKey === kind.key;
-                const deleteHint = usageCount > 0
-                  ? `${usageCount} saved draft unit${usageCount === 1 ? " uses" : "s use"} this type`
-                  : isCurrentKind
-                    ? "Currently selected in this form"
-                    : null;
+                const deleteHint =
+                  usageCount > 0
+                    ? `${usageCount} saved draft unit${usageCount === 1 ? " uses" : "s use"} this type`
+                    : isCurrentKind
+                      ? "Currently selected in this form"
+                      : null;
 
                 return (
                   <div key={kind.id} className="rounded-xl border p-3">
                     <div className="flex items-start gap-3">
                       <div className="min-w-0 flex-1 space-y-2">
-                        <Label htmlFor={`unit-kind-${kind.id}`}>Type name</Label>
+                        <Label htmlFor={`unit-kind-${kind.id}`}>
+                          Type name
+                        </Label>
                         <Input
                           id={`unit-kind-${kind.id}`}
                           value={kind.displayLabel}
-                          onChange={(event) => updateKindLabel(kind.id, event.target.value)}
+                          onChange={(event) =>
+                            updateKindLabel(kind.id, event.target.value)
+                          }
                           placeholder="Department"
                         />
                         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -296,7 +331,8 @@ export function DraftOrgUnitKindManager({
                           </span>
                           {usageCount > 0 ? (
                             <Badge variant="outline">
-                              {usageCount} planned unit{usageCount === 1 ? "" : "s"}
+                              {usageCount} planned unit
+                              {usageCount === 1 ? "" : "s"}
                             </Badge>
                           ) : null}
                           {isCurrentKind ? (
@@ -318,7 +354,9 @@ export function DraftOrgUnitKindManager({
                     </div>
 
                     {deleteHint ? (
-                      <p className="mt-2 text-xs text-muted-foreground">{deleteHint}</p>
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        {deleteHint}
+                      </p>
                     ) : null}
                   </div>
                 );
@@ -353,7 +391,12 @@ export function DraftOrgUnitKindManager({
               <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span>{settingsError.message}</span>
-                  <Button type="button" variant="outline" size="sm" onClick={refetchSettings}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={refetchSettings}
+                  >
                     Retry
                   </Button>
                 </div>
@@ -366,15 +409,23 @@ export function DraftOrgUnitKindManager({
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpen(false)}
+            >
               Close
             </Button>
             <Button
               type="button"
               onClick={saveKinds}
-              disabled={isSettingsLoading || updateSettings.isLoading || !!settingsError}
+              disabled={
+                isSettingsLoading || updateSettings.isLoading || !!settingsError
+              }
             >
-              {isSettingsLoading || updateSettings.isLoading ? <Spinner className="mr-1" /> : null}
+              {isSettingsLoading || updateSettings.isLoading ? (
+                <Spinner className="mr-1" />
+              ) : null}
               Save types
             </Button>
           </DialogFooter>
