@@ -33,7 +33,6 @@ import {
 
 interface RowActionsProps {
   org: PlatformOrganizationSummaryDto;
-  onMutated?: () => void;
 }
 
 type ConfirmAction = {
@@ -44,7 +43,7 @@ type ConfirmAction = {
   execute: () => Promise<unknown>;
 };
 
-export function RowActions({ org, onMutated }: RowActionsProps) {
+export function RowActions({ org }: RowActionsProps) {
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(
     null
   );
@@ -53,35 +52,30 @@ export function RowActions({ org, onMutated }: RowActionsProps) {
   const suspend = useSuspendOrganization({
     onSuccess: () => {
       toast.success(`${org.name} suspended`);
-      onMutated?.();
     },
   });
 
   const reactivate = useReactivateOrganization({
     onSuccess: () => {
       toast.success(`${org.name} reactivated`);
-      onMutated?.();
     },
   });
 
   const archive = useArchiveOrganization({
     onSuccess: () => {
       toast.success(`${org.name} archived`);
-      onMutated?.();
     },
   });
 
   const resend = useResendFirstAdminInvite({
     onSuccess: () => {
       toast.success(`Invite re-sent for ${org.name}`);
-      onMutated?.();
     },
   });
 
   const revoke = useRevokeFirstAdminInvite({
     onSuccess: () => {
       toast.success(`Invite revoked for ${org.name}`);
-      onMutated?.();
     },
   });
 

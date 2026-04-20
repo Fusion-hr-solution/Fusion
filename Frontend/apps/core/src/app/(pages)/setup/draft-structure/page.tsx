@@ -81,14 +81,14 @@ export default function DraftStructurePage() {
     data: setupState,
     error: setupError,
     isLoading: isSetupLoading,
-    refetch: refetchSetup,
   } = useSetupState(canAccess);
   const isSetupComplete =
     setupState?.currentPhase === "structurallyPublished" ||
     setupState?.currentPhase === "operational";
   const isDraftLocked = setupState?.currentPhase !== "activated";
   const canApproveFromDraft = setupState?.currentPhase === "activated";
-  const canReopenFromDraft = setupState?.currentPhase === "structurallyGoverned";
+  const canReopenFromDraft =
+    setupState?.currentPhase === "structurallyGoverned";
 
   const workspaceEnabled =
     canAccess && !!setupState && !setupState.canStartSetup;
@@ -110,23 +110,8 @@ export default function DraftStructurePage() {
     isLoading: isTreeLoading,
     refetch: refetchTree,
   } = useDraftStructureTree(workspaceEnabled);
-  const approveStructure = useApproveStructure({
-    onSuccess: () => {
-      setActionError(null);
-      void refetchSetup();
-      void refetchReadiness();
-      void refetch();
-      void refetchTree();
-    },
-  });
-  const reopenStructure = useReopenStructure({
-    onSuccess: () => {
-      setActionError(null);
-      void refetchSetup();
-      void refetch();
-      void refetchTree();
-    },
-  });
+  const approveStructure = useApproveStructure();
+  const reopenStructure = useReopenStructure();
 
   const draftTree = useMemo(() => buildWorkspaceDraftTree(tree ?? []), [tree]);
   const filteredTree = useMemo(
@@ -222,7 +207,9 @@ export default function DraftStructurePage() {
     setActionError(null);
 
     try {
-      await approveStructure.mutateAsync({ expectedVersion: setupState.version });
+      await approveStructure.mutateAsync({
+        expectedVersion: setupState.version,
+      });
     } catch (error) {
       setActionError(getActionErrorMessage(error));
     }
@@ -237,7 +224,9 @@ export default function DraftStructurePage() {
     setActionError(null);
 
     try {
-      await reopenStructure.mutateAsync({ expectedVersion: setupState.version });
+      await reopenStructure.mutateAsync({
+        expectedVersion: setupState.version,
+      });
     } catch (error) {
       setActionError(getActionErrorMessage(error));
     }
@@ -359,13 +348,17 @@ export default function DraftStructurePage() {
             </div>
           ) : isSetupComplete ? (
             <div className="flex flex-wrap items-center gap-2">
-              <Button onClick={() => router.push("/setup")}>Open Setup Summary</Button>
+              <Button onClick={() => router.push("/setup")}>
+                Open Setup Summary
+              </Button>
               <Button variant="outline" onClick={() => router.push("/")}>
                 Go to Home
               </Button>
             </div>
           ) : (
-            <Button variant="outline" onClick={() => router.push("/setup")}>Open Setup</Button>
+            <Button variant="outline" onClick={() => router.push("/setup")}>
+              Open Setup
+            </Button>
           )
         }
       />
@@ -376,7 +369,11 @@ export default function DraftStructurePage() {
           <AlertTitle>Draft workspace could not be loaded</AlertTitle>
           <AlertDescription className="flex items-center justify-between gap-4">
             <span>{workspaceError?.message ?? treeError?.message}</span>
-            <Button variant="outline" size="sm" onClick={refreshWorkspaceAndReadiness}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={refreshWorkspaceAndReadiness}
+            >
               Retry
             </Button>
           </AlertDescription>
@@ -413,7 +410,9 @@ export default function DraftStructurePage() {
         approvedAt={setupState.approvedAt}
         approvedByFullName={setupState.approvedByFullName}
         approvedByRole={setupState.approvedByRole}
-        isApprovedInPlatformAssistMode={setupState.isApprovedInPlatformAssistMode}
+        isApprovedInPlatformAssistMode={
+          setupState.isApprovedInPlatformAssistMode
+        }
         onApprove={() => {
           void handleApprove();
         }}
@@ -437,9 +436,9 @@ export default function DraftStructurePage() {
                 ? "Complete"
                 : isDraftLocked
                   ? "Locked"
-                : workspace?.workspaceStatus === "empty"
-                  ? "Empty"
-                  : "In Progress"}
+                  : workspace?.workspaceStatus === "empty"
+                    ? "Empty"
+                    : "In Progress"}
             </CardTitle>
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground">
@@ -501,7 +500,6 @@ export default function DraftStructurePage() {
                   }
                 }
                 existingUnits={workspace?.units ?? []}
-                onSchemaUpdated={refreshWorkspaceAndReadiness}
                 disabled={!workspace}
               />
             ) : null}
@@ -676,7 +674,10 @@ export default function DraftStructurePage() {
                         >
                           Reopen draft
                         </Button>
-                        <Button variant="outline" onClick={() => router.push("/setup")}>
+                        <Button
+                          variant="outline"
+                          onClick={() => router.push("/setup")}
+                        >
                           Open Setup
                         </Button>
                       </div>
@@ -685,7 +686,10 @@ export default function DraftStructurePage() {
                         <Button onClick={() => router.push("/setup")}>
                           Open Setup Summary
                         </Button>
-                        <Button variant="outline" onClick={() => router.push("/")}>
+                        <Button
+                          variant="outline"
+                          onClick={() => router.push("/")}
+                        >
                           Go to Home
                         </Button>
                       </div>
@@ -738,7 +742,10 @@ export default function DraftStructurePage() {
                       >
                         Reopen draft
                       </Button>
-                      <Button variant="outline" onClick={() => router.push("/setup")}>
+                      <Button
+                        variant="outline"
+                        onClick={() => router.push("/setup")}
+                      >
                         Open Setup
                       </Button>
                     </div>
@@ -747,7 +754,10 @@ export default function DraftStructurePage() {
                       <Button onClick={() => router.push("/setup")}>
                         Open Setup Summary
                       </Button>
-                      <Button variant="outline" onClick={() => router.push("/")}>
+                      <Button
+                        variant="outline"
+                        onClick={() => router.push("/")}
+                      >
                         Go to Home
                       </Button>
                     </div>
@@ -780,9 +790,7 @@ export default function DraftStructurePage() {
         }}
         onCreated={() => {
           setCreateParentId(null);
-          refreshWorkspaceAndReadiness();
         }}
-        onSchemaUpdated={refreshWorkspaceAndReadiness}
         initialParentId={createParentId}
         readOnly={isDraftLocked}
         schema={
@@ -797,9 +805,6 @@ export default function DraftStructurePage() {
       <DraftStructureImportPanel
         open={isImportOpen}
         onOpenChange={handleImportOpenChange}
-        onApplied={() => {
-          refreshWorkspaceAndReadiness();
-        }}
         readOnly={isDraftLocked}
         readOnlyTitle={importReadOnlyTitle}
         readOnlyMessage={importReadOnlyMessage}
@@ -809,10 +814,6 @@ export default function DraftStructurePage() {
         unit={selectedUnit}
         open={editorOpen && !!selectedUnit}
         onOpenChange={setEditorOpen}
-        onMutated={() => {
-          refreshWorkspaceAndReadiness();
-        }}
-        onSchemaUpdated={refreshWorkspaceAndReadiness}
         readOnly={isDraftLocked}
         readOnlyDescription={unitReadOnlyDescription}
         readOnlyNotice={unitReadOnlyNotice}
@@ -849,7 +850,10 @@ function SummaryField({
   );
 }
 
-function formatRoleLabel(role: string | null | undefined, fallback = "Role not recorded") {
+function formatRoleLabel(
+  role: string | null | undefined,
+  fallback = "Role not recorded"
+) {
   switch (role) {
     case "HRAdmin":
       return "HR administrator";
@@ -860,9 +864,7 @@ function formatRoleLabel(role: string | null | undefined, fallback = "Role not r
     case "Employee":
       return "Employee";
     default:
-      return role?.trim()
-        ? role.replace(/([a-z])([A-Z])/g, "$1 $2")
-        : fallback;
+      return role?.trim() ? role.replace(/([a-z])([A-Z])/g, "$1 $2") : fallback;
   }
 }
 
@@ -908,9 +910,12 @@ function DraftGovernanceCard({
             <div className="space-y-3">
               <SetupStatusBadge status="activated" />
               <div className="space-y-1">
-                <CardTitle>Finish the draft here and lock it when ready</CardTitle>
+                <CardTitle>
+                  Finish the draft here and lock it when ready
+                </CardTitle>
                 <CardDescription>
-                  The same person can draft, check readiness, and approve from this flow. Use Setup when you want the broader milestone view.
+                  The same person can draft, check readiness, and approve from
+                  this flow. Use Setup when you want the broader milestone view.
                 </CardDescription>
               </div>
             </div>
@@ -921,7 +926,9 @@ function DraftGovernanceCard({
               </Button>
               <Button
                 onClick={onApprove}
-                disabled={isReadinessLoading || !isReadyForApproval || isApproving}
+                disabled={
+                  isReadinessLoading || !isReadyForApproval || isApproving
+                }
               >
                 Approve and lock draft
               </Button>
@@ -965,13 +972,15 @@ function DraftGovernanceCard({
                 />
                 <ReadinessStat
                   label="Blocking issues"
-                  value={String(isDraftEmpty ? 0 : readiness.blockingIssueCount)}
+                  value={String(
+                    isDraftEmpty ? 0 : readiness.blockingIssueCount
+                  )}
                   hint={
                     isDraftEmpty
                       ? "Shown after the draft takes shape"
                       : readiness.blockingIssueCount === 0
-                      ? "Ready to approve"
-                      : "Clear these first"
+                        ? "Ready to approve"
+                        : "Clear these first"
                   }
                 />
                 <ReadinessStat
@@ -981,15 +990,16 @@ function DraftGovernanceCard({
                     isDraftEmpty
                       ? "Shown after the draft takes shape"
                       : readiness.warningCount === 0
-                      ? "No open warnings"
-                      : "Review before approval"
+                        ? "No open warnings"
+                        : "Review before approval"
                   }
                 />
               </div>
 
               {isDraftEmpty ? (
                 <div className="rounded-xl border bg-muted/20 p-4 text-sm text-muted-foreground">
-                  Add the first unit or import the structure template to start the approval checks.
+                  Add the first unit or import the structure template to start
+                  the approval checks.
                 </div>
               ) : readiness.blockingIssues.length === 0 &&
                 readiness.warnings.length === 0 ? (
@@ -999,7 +1009,8 @@ function DraftGovernanceCard({
                     Draft is ready to approve
                   </div>
                   <p className="mt-2 text-emerald-800 dark:text-emerald-300">
-                    Lock it when this first pass is ready to hand off to the publish step.
+                    Lock it when this first pass is ready to hand off to the
+                    publish step.
                   </p>
                 </div>
               ) : null}
@@ -1038,7 +1049,8 @@ function DraftGovernanceCard({
               <div className="space-y-1">
                 <CardTitle>Draft approved and locked</CardTitle>
                 <CardDescription>
-                  The draft is frozen after approval. Reopen it only if more changes are needed before publish.
+                  The draft is frozen after approval. Reopen it only if more
+                  changes are needed before publish.
                 </CardDescription>
               </div>
             </div>
@@ -1047,7 +1059,11 @@ function DraftGovernanceCard({
               <Button variant="outline" onClick={onOpenSetup}>
                 Open Setup
               </Button>
-              <Button variant="outline" onClick={onReopen} disabled={isReopening}>
+              <Button
+                variant="outline"
+                onClick={onReopen}
+                disabled={isReopening}
+              >
                 Reopen draft
               </Button>
             </div>
@@ -1084,7 +1100,9 @@ function DraftGovernanceCard({
             <div className="space-y-1">
               <CardTitle>Published structure snapshot</CardTitle>
               <CardDescription>
-                This draft stays available as the read-only snapshot of the structure that went live. Use Setup for the completion summary and history.
+                This draft stays available as the read-only snapshot of the
+                structure that went live. Use Setup for the completion summary
+                and history.
               </CardDescription>
             </div>
           </div>
@@ -1141,7 +1159,9 @@ function IssuePreviewList({
       </div>
       <div className="mt-3 space-y-2 text-sm text-muted-foreground">
         {previewItems.map((issue) => (
-          <div key={`${issue.code}-${issue.unitId ?? "global"}-${issue.field ?? "none"}`}>
+          <div
+            key={`${issue.code}-${issue.unitId ?? "global"}-${issue.field ?? "none"}`}
+          >
             {issue.message}
           </div>
         ))}
@@ -1244,7 +1264,6 @@ function DraftStructurePageSkeleton({
   );
 }
 
-
 function DraftStructureTreeSkeleton() {
   return (
     <Card className="xl:h-full">
@@ -1275,7 +1294,10 @@ function DraftStructureDetailSkeleton() {
       <CardContent className="min-h-0 flex-1 space-y-6 overflow-y-auto p-6">
         <div className="grid gap-3 sm:grid-cols-2">
           {Array.from({ length: 4 }).map((_, index) => (
-            <div key={index} className="rounded-xl border bg-background p-3 space-y-2">
+            <div
+              key={index}
+              className="rounded-xl border bg-background p-3 space-y-2"
+            >
               <Skeleton className="h-3 w-20" />
               <Skeleton className="h-5 w-32" />
             </div>
