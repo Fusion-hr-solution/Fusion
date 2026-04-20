@@ -109,7 +109,7 @@ public class GetTrainingByIdQueryHandlerTests
 
         // Add an exam
         var exam = new Exam("Final Exam", 80, training.Id);
-        var question = new ExamQuestion("What is C#?", "multiple-choice", exam.Id);
+        var question = new ExamQuestion("What is C#?", QuestionType.MultipleChoice, exam.Id, 0);
         exam.AddQuestion(question);
         context.Exams.Add(exam);
         await context.SaveChangesAsync();

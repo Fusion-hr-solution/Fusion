@@ -57,7 +57,7 @@ export function EditTrainingWizard({ trainingId }: EditTrainingWizardProps) {
           <div key={wizard.step} className="ey-animate-fade-up">
             {wizard.step === 1 && <StepBasicInfo wizard={wizard} />}
             {wizard.step === 2 && <StepDetails wizard={wizard} />}
-            {wizard.step === 3 && !isOnSite && <StepChapters wizard={wizard} />}
+            {wizard.step === 3 && !isOnSite && <StepChapters wizard={wizard} trainingId={trainingId} />}
             {((wizard.step === 4) || (wizard.step === 3 && isOnSite)) && <StepReview wizard={wizard} />}
           </div>
         </div>

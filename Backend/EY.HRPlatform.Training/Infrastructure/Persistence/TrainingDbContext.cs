@@ -145,10 +145,12 @@ public class TrainingDbContext : DbContext
         {
             e.HasKey(x => x.Id);
             e.Property(x => x.Title).HasMaxLength(300).IsRequired();
+            e.Property(x => x.Description).HasMaxLength(1000);
             e.HasOne(x => x.Training)
                 .WithMany(t => t.Exams)
                 .HasForeignKey(x => x.TrainingId)
                 .OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.TrainingId).IsUnique();
         });
 
         // --- ExamQuestion ---
@@ -156,11 +158,12 @@ public class TrainingDbContext : DbContext
         {
             e.HasKey(q => q.Id);
             e.Property(q => q.QuestionText).HasMaxLength(1000).IsRequired();
-            e.Property(q => q.Type).HasMaxLength(50).IsRequired();
+            e.Property(q => q.Type).HasConversion<string>().HasMaxLength(30).IsRequired();
             e.HasOne(q => q.Exam)
                 .WithMany(x => x.Questions)
                 .HasForeignKey(q => q.ExamId)
                 .OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(q => new { q.ExamId, q.OrderIndex }).IsUnique();
         });
 
         // --- ExamOption ---
@@ -172,6 +175,7 @@ public class TrainingDbContext : DbContext
                 .WithMany(q => q.Options)
                 .HasForeignKey(o => o.QuestionId)
                 .OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(o => new { o.QuestionId, o.OrderIndex }).IsUnique();
         });
 
         // --- TrainingAssignment ---

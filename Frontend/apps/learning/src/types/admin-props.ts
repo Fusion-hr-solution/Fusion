@@ -127,21 +127,14 @@ export interface CategoryFormProps {
   onCancel: () => void;
 }
 
-export interface AdminChapterListProps {
+export interface ChapterManagerListProps {
   chapters: AdminChapter[];
   isDeleted: boolean;
-  onAddChapter: () => void;
-  onEditChapter: (chapter: AdminChapter) => void;
-  onDeleteChapter: (chapter: AdminChapter) => void;
-  onReorder: (chapterIds: string[]) => Promise<void>;
-}
-
-export interface SortableChapterItemProps {
-  chapter: AdminChapter;
-  index: number;
-  isDeleted: boolean;
-  onEdit: () => void;
-  onDelete: () => void;
+  onReorder: (ids: string[]) => Promise<void>;
+  onEdit: (chapter: AdminChapter) => void;
+  onDelete: (chapter: AdminChapter) => void;
+  onDuplicate: (chapter: AdminChapter) => void;
+  onOpen: (chapter: AdminChapter) => void;
 }
 
 /* ── Multi-step wizard ── */

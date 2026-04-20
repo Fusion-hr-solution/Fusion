@@ -288,6 +288,13 @@ namespace EY.HRPlatform.Training.Migrations
                     b.Property<string>("CreatedBy")
                         .HasColumnType("text");
 
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<int?>("DurationMinutes")
+                        .HasColumnType("integer");
+
                     b.Property<int>("PassingScore")
                         .HasColumnType("integer");
 
@@ -307,7 +314,8 @@ namespace EY.HRPlatform.Training.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TrainingId");
+                    b.HasIndex("TrainingId")
+                        .IsUnique();
 
                     b.ToTable("Exams", "training");
                 });
@@ -323,6 +331,9 @@ namespace EY.HRPlatform.Training.Migrations
 
                     b.Property<DateTime>("AttemptedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("CorrectAnswers")
+                        .HasColumnType("integer");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -341,6 +352,12 @@ namespace EY.HRPlatform.Training.Migrations
 
                     b.Property<int>("Score")
                         .HasColumnType("integer");
+
+                    b.Property<int>("TotalQuestions")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("TrainingId")
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -379,6 +396,9 @@ namespace EY.HRPlatform.Training.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
+                    b.Property<int>("OrderIndex")
+                        .HasColumnType("integer");
+
                     b.Property<Guid>("QuestionId")
                         .HasColumnType("uuid");
 
@@ -390,7 +410,8 @@ namespace EY.HRPlatform.Training.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("QuestionId");
+                    b.HasIndex("QuestionId", "OrderIndex")
+                        .IsUnique();
 
                     b.ToTable("ExamOptions", "training");
                 });
@@ -410,6 +431,12 @@ namespace EY.HRPlatform.Training.Migrations
                     b.Property<Guid>("ExamId")
                         .HasColumnType("uuid");
 
+                    b.Property<int>("OrderIndex")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Points")
+                        .HasColumnType("integer");
+
                     b.Property<string>("QuestionText")
                         .IsRequired()
                         .HasMaxLength(1000)
@@ -417,8 +444,8 @@ namespace EY.HRPlatform.Training.Migrations
 
                     b.Property<string>("Type")
                         .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -428,7 +455,8 @@ namespace EY.HRPlatform.Training.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ExamId");
+                    b.HasIndex("ExamId", "OrderIndex")
+                        .IsUnique();
 
                     b.ToTable("ExamQuestions", "training");
                 });

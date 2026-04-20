@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { Button } from "@repo/ui";
 import type { AdminChapter } from "@/types/admin";
+import type { ChapterManagerListProps } from "@/types/admin-props";
 import { CONTENT_TYPES } from "@/data/chapter-templates";
 
 const LAYOUT_LABELS: Record<string, string> = {
@@ -195,16 +196,6 @@ function DragPreview({ chapter, index }: { chapter: AdminChapter; index: number 
 }
 
 /* ── Main list ── */
-
-interface ChapterManagerListProps {
-  chapters: AdminChapter[];
-  isDeleted: boolean;
-  onReorder: (ids: string[]) => Promise<void>;
-  onEdit: (ch: AdminChapter) => void;
-  onDelete: (ch: AdminChapter) => void;
-  onDuplicate: (ch: AdminChapter) => void;
-  onOpen: (ch: AdminChapter) => void;
-}
 
 export function ChapterManagerList({
   chapters,
