@@ -42,3 +42,8 @@ export interface UpdateTenantSettingsRequest {
 export const tenantSettingsPaths = {
   current: () => "/corehr/settings",
 } as const;
+
+export const tenantSettingsQueryKeys = {
+  all: () => ["tenantSettings"] as const,
+  current: () => [...tenantSettingsQueryKeys.all(), "current"] as const,
+} as const;
