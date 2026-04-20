@@ -39,17 +39,19 @@ export function createApiQueryDefaultOptions(): DefaultOptions {
 }
 
 export function createApiQueryClient(config?: QueryClientConfig) {
+  const defaultOptions = createApiQueryDefaultOptions();
+
   return new QueryClient({
     ...config,
     defaultOptions: {
-      ...createApiQueryDefaultOptions(),
+      ...defaultOptions,
       ...config?.defaultOptions,
       queries: {
-        ...createApiQueryDefaultOptions().queries,
+        ...defaultOptions.queries,
         ...config?.defaultOptions?.queries,
       },
       mutations: {
-        ...createApiQueryDefaultOptions().mutations,
+        ...defaultOptions.mutations,
         ...config?.defaultOptions?.mutations,
       },
     },

@@ -153,7 +153,7 @@ describe("useOrganizationList", () => {
         useOrganizationList({
           skip: 0,
           take: 20,
-          filterByStatus: ["active", "suspended"],
+          filterByStatus: ["suspended", "active"],
         }),
       { wrapper: createWrapper() }
     );
@@ -161,21 +161,41 @@ describe("useOrganizationList", () => {
     await waitFor(() => expect(mockGet).toHaveBeenCalled());
 
     const [path] = mockGet.mock.calls[0]!;
-    expect(path).toContain("filterByStatus=active");
-    expect(path).toContain("filterByStatus=suspended");
+    expect(path).toBe(
+      "/identity/platform-admin/organizations?filterByStatus=active&filterByStatus=suspended"
+    );
   });
 
-  it("omits empty search from params", async () => {
+  it("omits blank search from params", async () => {
     mockGet.mockResolvedValue({ items: [], totalCount: 0, stats: {} });
 
-    renderHook(() => useOrganizationList({ skip: 0, take: 20, search: "" }), {
-      wrapper: createWrapper(),
-    });
+    renderHook(
+      () => useOrganizationList({ skip: 0, take: 20, search: "   " }),
+      {
+        wrapper: createWrapper(),
+      }
+    );
 
     await waitFor(() => expect(mockGet).toHaveBeenCalled());
 
     const [, options] = mockGet.mock.calls[0]!;
     expect(options.params.search).toBeUndefined();
+  });
+
+  it("trims search before building request params", async () => {
+    mockGet.mockResolvedValue({ items: [], totalCount: 0, stats: {} });
+
+    renderHook(
+      () => useOrganizationList({ skip: 0, take: 20, search: "  acme  " }),
+      {
+        wrapper: createWrapper(),
+      }
+    );
+
+    await waitFor(() => expect(mockGet).toHaveBeenCalled());
+
+    const [, options] = mockGet.mock.calls[0]!;
+    expect(options.params.search).toBe("acme");
   });
 
   it("defaults orderBy to createdAt desc", async () => {
