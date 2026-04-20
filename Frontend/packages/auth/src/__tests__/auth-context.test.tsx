@@ -150,6 +150,25 @@ describe("AuthProvider – initial state", () => {
     );
     expect(mockedService.clearAuth).toHaveBeenCalled();
   });
+
+  it("syncs auth state when storage changes in the same tab", async () => {
+    const stored = makeStoredAuth();
+    mockedService.loadAuth.mockReturnValue(stored);
+
+    renderWithProvider();
+
+    await waitFor(() =>
+      expect(screen.getByTestId("authenticated").textContent).toBe("true")
+    );
+
+    mockedService.loadAuth.mockReturnValue(null);
+    window.dispatchEvent(new CustomEvent(authService.AUTH_STORAGE_EVENT));
+
+    await waitFor(() =>
+      expect(screen.getByTestId("authenticated").textContent).toBe("false")
+    );
+    expect(screen.getByTestId("user").textContent).toBe("none");
+  });
 });
 
 describe("AuthProvider – login", () => {

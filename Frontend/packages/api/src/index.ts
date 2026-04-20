@@ -9,6 +9,52 @@ export type {
 } from "./types";
 export type { PlatformApiClientConfig } from "./platform";
 export type {
+  CoreSetupPhase,
+  TenantSetupActivityType,
+  DraftSetupIssueSeverity,
+  DraftSetupIssueCategory,
+  TenantSetupActivityDto,
+  DraftSetupIssueDto,
+  DraftSetupReadinessDto,
+  TenantSetupStateDto,
+} from "./core-setup";
+export { coreSetupPaths } from "./core-setup";
+export type {
+  BrandingSettingsDto,
+  BrandingSettingsInputDto,
+  FieldConfigDto,
+  FieldConfigInputDto,
+  TenantSettingsDto,
+  UpdateTenantSettingsRequest,
+} from "./tenant-settings";
+export { tenantSettingsPaths } from "./tenant-settings";
+export type {
+  DraftStructureWorkspaceStatus,
+  DraftStructureAttributeValueType,
+  DraftStructureImportStage,
+  OrgUnitKindDto,
+  DraftStructureAttributeDefinitionDto,
+  DraftStructureSchemaDto,
+  DraftOrgUnitDto,
+  DraftOrgUnitTreeNodeDto,
+  DraftStructureWorkspaceDto,
+  CreateDraftOrgUnitRequest,
+  UpdateDraftOrgUnitRequest,
+  DraftStructureImportCanonicalFieldDto,
+  DraftStructureImportSchemaDto,
+  DraftStructureImportSourceRowDto,
+  DraftStructureImportKindResolutionDto,
+  DraftStructureImportValidationIssueDto,
+  DraftStructureImportValidationSummaryDto,
+  DraftStructureImportPreviewRowDto,
+  DraftStructureImportSessionDto,
+  DraftStructureImportMappingRequest,
+  DraftStructureImportResolveKindInputDto,
+  DraftStructureImportResolveKindsRequest,
+  DraftStructureImportApplyResultDto,
+} from "./draft-structure";
+export { draftStructurePaths } from "./draft-structure";
+export type {
   CreatePlatformOrganizationRequest,
   UpdatePlatformOrganizationRequest,
   PlatformOrganizationCreatedDto,

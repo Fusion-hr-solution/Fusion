@@ -15,14 +15,13 @@ export function useApiQuery<T>(
   queryFn: (signal: AbortSignal) => Promise<T>,
   options?: UseApiQueryOptions
 ): UseApiQueryResult<T> {
+  const enabled = options?.enabled ?? true;
   const [data, setData] = useState<T | undefined>(undefined);
   const [error, setError] = useState<Error | null>(null);
-  const [isLoading, setIsLoading] = useState(() => (options?.enabled ?? true));
+  const [isLoadingState, setIsLoading] = useState(enabled);
   const controllerRef = useRef<AbortController | null>(null);
   const queryFnRef = useRef(queryFn);
   queryFnRef.current = queryFn;
-
-  const enabled = options?.enabled ?? true;
 
   const execute = useCallback(() => {
     // Abort any in-flight request
@@ -68,6 +67,9 @@ export function useApiQuery<T>(
   const refetch = useCallback(() => {
     execute();
   }, [execute]);
+
+  const isLoading =
+    isLoadingState || (enabled && data === undefined && error === null);
 
   return { data, error, isLoading, refetch };
 }

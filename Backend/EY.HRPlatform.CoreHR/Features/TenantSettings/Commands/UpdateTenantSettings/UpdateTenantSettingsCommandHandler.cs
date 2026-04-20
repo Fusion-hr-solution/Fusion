@@ -1,4 +1,5 @@
 using EY.HRPlatform.CoreHR.Domain.Entities;
+using EY.HRPlatform.CoreHR.Features.DraftStructure.Services;
 using EY.HRPlatform.CoreHR.Exceptions;
 using EY.HRPlatform.CoreHR.Features.TenantSettings.Dtos;
 using EY.HRPlatform.CoreHR.Features.TenantSettings.Services;
@@ -29,22 +30,33 @@ public sealed partial class UpdateTenantSettingsCommandHandler(
         CancellationToken cancellationToken)
     {
         ValidateRequest(request);
+        var requestedSchema = BuildRequestedSchema(request);
+
+        if (requestedSchema is not null)
+        {
+            await DraftStructureRules.EnsureDraftEditableAsync(dbContext, cancellationToken);
+        }
 
         // Query settings for current tenant (auto-filtered by global query filter)
         var settings = await dbContext.TenantSettings
             .FirstOrDefaultAsync(cancellationToken);
 
-        // Validate OrgUnitType removal if types are being changed and settings exist
-        if (request.OrgUnitTypes is not null && settings is not null)
+        if (requestedSchema is not null)
         {
-            var currentSettings = TenantSettingsMerger.Merge(settings.SettingsOverrides, settings.Version);
-            await ValidateOrgUnitTypeRemoval(currentSettings.OrgUnitTypes, request.OrgUnitTypes, cancellationToken);
+            var currentSettings = settings is null
+                ? TenantSettingsDto.Defaults
+                : TenantSettingsMerger.Merge(settings.SettingsOverrides, settings.Version);
+
+            await ValidateDraftStructureKindRemoval(
+                currentSettings.DraftStructureSchema,
+                requestedSchema,
+                cancellationToken);
         }
 
         if (settings is null)
         {
             // Create new settings row for this tenant
-            return await CreateSettings(request, cancellationToken);
+            return await CreateSettings(request, requestedSchema, cancellationToken);
         }
 
         // For updates to existing settings, require If-Match header
@@ -63,7 +75,8 @@ public sealed partial class UpdateTenantSettingsCommandHandler(
             settings.SettingsOverrides,
             request.OrgUnitTypes,
             request.EmployeeFieldConfig,
-            request.Branding);
+            request.Branding,
+            requestedSchema);
 
         settings.UpdateOverrides(newOverrides);
 
@@ -81,6 +94,7 @@ public sealed partial class UpdateTenantSettingsCommandHandler(
 
     private async Task<Result<TenantSettingsDto>> CreateSettings(
         UpdateTenantSettingsCommand request,
+        DraftStructureSchemaDto? requestedSchema,
         CancellationToken cancellationToken)
     {
         var tenantId = tenantContext.TenantId;
@@ -90,7 +104,8 @@ public sealed partial class UpdateTenantSettingsCommandHandler(
             null,
             request.OrgUnitTypes,
             request.EmployeeFieldConfig,
-            request.Branding);
+            request.Branding,
+            requestedSchema);
 
         var settings = Domain.Entities.TenantSettings.Create(tenantId, overrides);
 
@@ -119,6 +134,9 @@ public sealed partial class UpdateTenantSettingsCommandHandler(
 
     private static void ValidateRequest(UpdateTenantSettingsCommand request)
     {
+        if (request.OrgUnitTypes is not null && request.DraftStructureSchema is not null)
+            throw new ArgumentException("Provide either OrgUnitTypes or DraftStructureSchema, not both.");
+
         // Validate orgUnitTypes
         if (request.OrgUnitTypes is not null)
         {
@@ -130,6 +148,50 @@ public sealed partial class UpdateTenantSettingsCommandHandler(
 
             if (request.OrgUnitTypes.Distinct(StringComparer.OrdinalIgnoreCase).Count() != request.OrgUnitTypes.Count)
                 throw new ArgumentException("OrgUnitTypes cannot contain duplicates.");
+        }
+
+        if (request.DraftStructureSchema is not null)
+        {
+            if (request.DraftStructureSchema.OrgUnitKinds.Count == 0)
+                throw new ArgumentException("DraftStructureSchema must include at least one org unit kind.");
+
+            if (request.DraftStructureSchema.OrgUnitKinds.Any(kind => string.IsNullOrWhiteSpace(kind.Key)))
+                throw new ArgumentException("DraftStructureSchema org unit kind keys cannot be empty.");
+
+            if (request.DraftStructureSchema.OrgUnitKinds.Any(kind => string.IsNullOrWhiteSpace(kind.DisplayLabel)))
+                throw new ArgumentException("DraftStructureSchema org unit kind labels cannot be empty.");
+
+            var normalizedKeys = request.DraftStructureSchema.OrgUnitKinds
+                .Select(kind => DraftStructureRules.NormalizeKindKey(kind.Key))
+                .ToList();
+
+            if (normalizedKeys.Distinct(StringComparer.OrdinalIgnoreCase).Count() != normalizedKeys.Count)
+                throw new ArgumentException("DraftStructureSchema cannot contain duplicate org unit kind keys.");
+
+            var normalizedLabels = request.DraftStructureSchema.OrgUnitKinds
+                .Select(kind => kind.DisplayLabel.Trim())
+                .ToList();
+
+            if (normalizedLabels.Distinct(StringComparer.OrdinalIgnoreCase).Count() != normalizedLabels.Count)
+                throw new ArgumentException("DraftStructureSchema cannot contain duplicate org unit kind labels.");
+
+            var normalizedSchema = DraftStructureRules.NormalizeDraftStructureSchema(request.DraftStructureSchema);
+            var validKindKeys = normalizedSchema.OrgUnitKinds
+                .Select(kind => kind.Key)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var invalidAttributeReferences = normalizedSchema.Attributes
+                .SelectMany(attribute => (attribute.AppliesToKindKeys ?? [])
+                    .Where(kindKey => !validKindKeys.Contains(kindKey))
+                    .Select(kindKey => (attribute.Key, KindKey: kindKey)))
+                .ToList();
+
+            if (invalidAttributeReferences.Count > 0)
+            {
+                var firstInvalidReference = invalidAttributeReferences[0];
+                throw new ArgumentException(
+                    $"Attribute '{firstInvalidReference.Key}' references unknown org unit kind '{firstInvalidReference.KindKey}'.");
+            }
         }
 
         // Validate employeeFieldConfig
@@ -185,15 +247,59 @@ public sealed partial class UpdateTenantSettingsCommandHandler(
     /// <summary>
     /// Validates that no OrgUnitTypes being removed are in use by active OrgUnits.
     /// </summary>
-    private async Task ValidateOrgUnitTypeRemoval(
-        IList<string> currentTypes,
-        IList<string> requestedTypes,
+    private async Task ValidateDraftStructureKindRemoval(
+        DraftStructureSchemaDto currentSchema,
+        DraftStructureSchemaDto requestedSchema,
         CancellationToken cancellationToken)
     {
-        var removedTypes = currentTypes
-            .Except(requestedTypes, StringComparer.OrdinalIgnoreCase)
+        var currentNormalizedSchema = DraftStructureRules.NormalizeDraftStructureSchema(currentSchema);
+        var requestedNormalizedSchema = DraftStructureRules.NormalizeDraftStructureSchema(requestedSchema);
+
+        var removedTypes = currentNormalizedSchema.OrgUnitKinds
+            .Select(kind => kind.DisplayLabel)
+            .Except(
+                requestedNormalizedSchema.OrgUnitKinds.Select(kind => kind.DisplayLabel),
+                StringComparer.OrdinalIgnoreCase)
             .ToList();
 
+        await ValidateOrgUnitTypeRemoval(removedTypes, cancellationToken);
+
+        var removedKindKeys = currentNormalizedSchema.OrgUnitKinds
+            .Select(kind => kind.Key)
+            .Except(
+                requestedNormalizedSchema.OrgUnitKinds.Select(kind => kind.Key),
+                StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        await ValidateDraftOrgUnitKindRemoval(removedKindKeys, cancellationToken);
+    }
+
+    private static DraftStructureSchemaDto? BuildRequestedSchema(UpdateTenantSettingsCommand request)
+    {
+        if (request.DraftStructureSchema is not null)
+        {
+            return DraftStructureRules.NormalizeDraftStructureSchema(request.DraftStructureSchema);
+        }
+
+        if (request.OrgUnitTypes is null)
+        {
+            return null;
+        }
+
+        return DraftStructureRules.NormalizeDraftStructureSchema(
+            new DraftStructureSchemaDto
+            {
+                OrgUnitKinds = request.OrgUnitTypes
+                    .Select(type => new OrgUnitKindDto(type, type))
+                    .ToList(),
+                Attributes = []
+            });
+    }
+
+    private async Task ValidateOrgUnitTypeRemoval(
+        IList<string> removedTypes,
+        CancellationToken cancellationToken)
+    {
         if (removedTypes.Count == 0)
             return;
 
@@ -220,6 +326,37 @@ public sealed partial class UpdateTenantSettingsCommandHandler(
             throw new ArgumentException(
                 $"Cannot remove org unit type(s) '{string.Join("', '", conflictingOriginal)}' because they are in use by existing org units.");
         }
+    }
+
+    private async Task ValidateDraftOrgUnitKindRemoval(
+        IList<string> removedKindKeys,
+        CancellationToken cancellationToken)
+    {
+        if (removedKindKeys.Count == 0)
+            return;
+
+        var removedKindKeysLower = removedKindKeys
+            .Select(kindKey => DraftStructureRules.NormalizeKindKey(kindKey))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var kindKeysInUse = await dbContext.DraftOrgUnits
+            .Select(draftOrgUnit => draftOrgUnit.OrgUnitKindKey.ToLower())
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        var conflictingKindKeys = kindKeysInUse
+            .Where(kindKey => removedKindKeysLower.Contains(kindKey))
+            .ToList();
+
+        if (conflictingKindKeys.Count == 0)
+            return;
+
+        var conflictingOriginal = removedKindKeys
+            .Where(kindKey => conflictingKindKeys.Contains(DraftStructureRules.NormalizeKindKey(kindKey)))
+            .ToList();
+
+        throw new ArgumentException(
+            $"Cannot remove draft org unit kind(s) '{string.Join("', '", conflictingOriginal)}' because they are in use by existing draft org units.");
     }
 
     [GeneratedRegex("^#[0-9A-Fa-f]{6}$")]

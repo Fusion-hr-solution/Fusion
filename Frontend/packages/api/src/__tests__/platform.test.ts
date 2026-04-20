@@ -90,6 +90,139 @@ describe("createPlatformApiClient", () => {
     const headers = init.headers as Record<string, string>;
     expect(headers["Authorization"]).toBe("Bearer custom-token");
   });
+
+  it("refreshes an expired stored session before sending the request", async () => {
+    vi.stubGlobal("window", { dispatchEvent: vi.fn() });
+    vi.stubGlobal("document", { cookie: "" });
+
+    const storage: Record<string, string> = {
+      ey_hr_auth: JSON.stringify({
+        accessToken: "expired-token",
+        refreshToken: "refresh-token-1",
+        accessTokenExpiration: new Date(Date.now() - 5_000).toISOString(),
+        user: {
+          userId: "user-1",
+          email: "jane@example.com",
+          fullName: "Jane Doe",
+          roles: ["HRAdmin"],
+        },
+      }),
+    };
+
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) => storage[key] ?? null,
+      setItem: (key: string, value: string) => {
+        storage[key] = value;
+      },
+      removeItem: (key: string) => {
+        delete storage[key];
+      },
+    });
+
+    fetchSpy
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: {
+              userId: "user-1",
+              email: "jane@example.com",
+              fullName: "Jane Doe",
+              roles: ["HRAdmin"],
+              accessToken: "fresh-token",
+              refreshToken: "refresh-token-2",
+              accessTokenExpiration: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+            },
+            errors: [],
+            isSuccess: true,
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ data: { ok: true }, errors: [], isSuccess: true }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      );
+
+    const api = createPlatformApiClient();
+    await api.get("/protected");
+
+    const [refreshUrl] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    expect(refreshUrl).toBe("/api/identity/auth/refresh");
+
+    const [, protectedInit] = fetchSpy.mock.calls[1] as [string, RequestInit];
+    const headers = protectedInit.headers as Record<string, string>;
+    expect(headers["Authorization"]).toBe("Bearer fresh-token");
+  });
+
+  it("retries once after a 401 by refreshing the stored session", async () => {
+    vi.stubGlobal("window", { dispatchEvent: vi.fn() });
+    vi.stubGlobal("document", { cookie: "" });
+
+    const storage: Record<string, string> = {
+      ey_hr_auth: JSON.stringify({
+        accessToken: "stale-token",
+        refreshToken: "refresh-token-1",
+        accessTokenExpiration: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        user: {
+          userId: "user-1",
+          email: "jane@example.com",
+          fullName: "Jane Doe",
+          roles: ["HRAdmin"],
+        },
+      }),
+    };
+
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) => storage[key] ?? null,
+      setItem: (key: string, value: string) => {
+        storage[key] = value;
+      },
+      removeItem: (key: string) => {
+        delete storage[key];
+      },
+    });
+
+    fetchSpy
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ data: null, errors: ["Unauthorized"], isSuccess: false }),
+          { status: 401, statusText: "Unauthorized", headers: { "Content-Type": "application/json" } }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: {
+              userId: "user-1",
+              email: "jane@example.com",
+              fullName: "Jane Doe",
+              roles: ["HRAdmin"],
+              accessToken: "fresh-token",
+              refreshToken: "refresh-token-2",
+              accessTokenExpiration: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+            },
+            errors: [],
+            isSuccess: true,
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ data: { ok: true }, errors: [], isSuccess: true }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      );
+
+    const api = createPlatformApiClient();
+    await api.get("/protected");
+
+    const [, retryInit] = fetchSpy.mock.calls[2] as [string, RequestInit];
+    const headers = retryInit.headers as Record<string, string>;
+    expect(headers["Authorization"]).toBe("Bearer fresh-token");
+  });
 });
 
 // ── SSR safety ───────────────────────────────────────────────────────

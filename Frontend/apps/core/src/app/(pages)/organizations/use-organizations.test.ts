@@ -11,6 +11,16 @@ const { mockGet, mockPost, mockPatch } = vi.hoisted(() => ({
   mockPatch: vi.fn(),
 }));
 
+const authState = vi.hoisted(() => ({
+  isAuthenticated: true,
+  user: {
+    userId: "platform-1",
+    email: "platform@example.com",
+    fullName: "Platform Admin",
+    roles: ["PlatformAdmin"],
+  },
+}));
+
 vi.mock("@repo/api", () => ({
   createPlatformApiClient: () => ({
     get: mockGet,
@@ -36,7 +46,9 @@ vi.mock("@repo/api", () => ({
 }));
 
 vi.mock("@repo/auth", () => ({
-  useAuth: () => ({ isAuthenticated: true }),
+  useAuth: () => authState,
+  canAccessOrganizations: (user: { roles?: string[] } | null) =>
+    !!user?.roles?.includes("PlatformAdmin"),
 }));
 
 // Re-export real implementations from @repo/api/react
@@ -64,6 +76,13 @@ import {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  authState.isAuthenticated = true;
+  authState.user = {
+    userId: "platform-1",
+    email: "platform@example.com",
+    fullName: "Platform Admin",
+    roles: ["PlatformAdmin"],
+  };
 });
 
 // ── Query hooks ──────────────────────────────────────────────────────
@@ -141,6 +160,23 @@ describe("useOrganizationList", () => {
     const [, options] = mockGet.mock.calls[0]!;
     expect(options.params.orderBy).toBe("createdAt");
     expect(options.params.orderDirection).toBe("desc");
+  });
+
+  it("does not fetch for users without organizations access", async () => {
+    authState.user = {
+      userId: "hr-1",
+      email: "hr@example.com",
+      fullName: "HR Admin",
+      roles: ["HRAdmin"],
+    };
+
+    const { result } = renderHook(() =>
+      useOrganizationList({ skip: 0, take: 20 })
+    );
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(mockGet).not.toHaveBeenCalled();
   });
 });
 
