@@ -50,6 +50,30 @@ const SORTABLE_COLUMNS: Array<{
   { field: "HireDate", label: "Hire date", className: "text-right" },
 ];
 
+function getAriaSort(
+  field: EmployeeRosterSortField,
+  activeField: EmployeeRosterSortField,
+  direction: EmployeeRosterSortDirection
+): "ascending" | "descending" | "none" {
+  if (field !== activeField) {
+    return "none";
+  }
+
+  return direction === "Asc" ? "ascending" : "descending";
+}
+
+function getSortHint(
+  field: EmployeeRosterSortField,
+  activeField: EmployeeRosterSortField,
+  direction: EmployeeRosterSortDirection
+) {
+  if (field !== activeField) {
+    return "Not sorted";
+  }
+
+  return direction === "Asc" ? "Sorted ascending" : "Sorted descending";
+}
+
 function getSortIcon(
   field: EmployeeRosterSortField,
   activeField: EmployeeRosterSortField,
@@ -122,7 +146,11 @@ export function EmployeesTable({
         <TableHeader>
           <TableRow>
             {SORTABLE_COLUMNS.map((column) => (
-              <TableHead key={column.field} className={column.className}>
+              <TableHead
+                key={column.field}
+                className={column.className}
+                aria-sort={getAriaSort(column.field, sortBy, sortDir)}
+              >
                 <Button
                   variant="ghost"
                   className="-ml-3 h-8 gap-1 px-3"
@@ -130,6 +158,9 @@ export function EmployeesTable({
                 >
                   {column.label}
                   {getSortIcon(column.field, sortBy, sortDir)}
+                  <span className="sr-only">
+                    {getSortHint(column.field, sortBy, sortDir)}
+                  </span>
                 </Button>
               </TableHead>
             ))}
