@@ -23,6 +23,10 @@ public class CandidateInvitation : AggregateRoot
     public int OpensCount { get; set; }
     public DateTime? AttemptStartedAtUtc { get; set; }
     public DateTime? AttemptSubmittedAtUtc { get; set; }
+    public string? VerifiedEmail { get; set; }
+    public DateTime? EmailVerifiedAtUtc { get; set; }
+    public string? LockedIpAddress { get; set; }
+    public string? AccessFingerprintHash { get; set; }
 
     public Test? Test { get; set; }
     public CandidateTestAttempt? Attempt { get; set; }

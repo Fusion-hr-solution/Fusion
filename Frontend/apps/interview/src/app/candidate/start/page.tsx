@@ -87,6 +87,28 @@ function formatUtc(value?: string): string {
   });
 }
 
+async function buildBrowserFingerprint(): Promise<string> {
+  const parts = [
+    navigator.userAgent,
+    navigator.language,
+    Intl.DateTimeFormat().resolvedOptions().timeZone,
+    `${window.screen.width}x${window.screen.height}`,
+    `${window.devicePixelRatio || 1}`,
+  ];
+  const raw = parts.join("|");
+
+  if (window.crypto?.subtle) {
+    const bytes = new TextEncoder().encode(raw);
+    const digest = await window.crypto.subtle.digest("SHA-256", bytes);
+    return Array.from(new Uint8Array(digest))
+      .map((item) => item.toString(16).padStart(2, "0"))
+      .join("")
+      .toUpperCase();
+  }
+
+  return raw;
+}
+
 export default function CandidateStartPage() {
   const searchParams = useSearchParams();
   const token = useMemo(() => searchParams.get("token")?.trim() ?? "", [searchParams]);
@@ -99,6 +121,50 @@ export default function CandidateStartPage() {
   const [starting, setStarting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [browserFingerprint, setBrowserFingerprint] = useState<string>("");
+
+  async function resolveBrowserFingerprint(): Promise<string> {
+    if (browserFingerprint.trim().length > 0) {
+      return browserFingerprint;
+    }
+
+    try {
+      const fingerprint = await buildBrowserFingerprint();
+      setBrowserFingerprint(fingerprint);
+      return fingerprint;
+    } catch {
+      const fallback = navigator.userAgent || "";
+      setBrowserFingerprint(fallback);
+      return fallback;
+    }
+  }
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadFingerprint(): Promise<void> {
+      try {
+        const fingerprint = await buildBrowserFingerprint();
+        if (!active) {
+          return;
+        }
+
+        setBrowserFingerprint(fingerprint);
+      } catch {
+        if (!active) {
+          return;
+        }
+
+        setBrowserFingerprint(navigator.userAgent || "");
+      }
+    }
+
+    void loadFingerprint();
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -110,6 +176,10 @@ export default function CandidateStartPage() {
           canStart: false,
           canResume: false,
           canSubmit: false,
+          requiresEmailVerification: false,
+          requiresIpLock: false,
+          requiresBrowserFingerprint: false,
+          singleUseLinkEnabled: false,
           status: "Invalid",
           message: "A valid invitation token is required.",
         });
@@ -137,6 +207,10 @@ export default function CandidateStartPage() {
           canStart: false,
           canResume: false,
           canSubmit: false,
+          requiresEmailVerification: false,
+          requiresIpLock: false,
+          requiresBrowserFingerprint: false,
+          singleUseLinkEnabled: false,
           status: "Invalid",
           message: err instanceof Error ? err.message : "Invitation validation failed.",
         });
@@ -160,11 +234,21 @@ export default function CandidateStartPage() {
       return;
     }
 
+    const candidateEmail = validation?.candidateEmail?.trim() ?? "";
+    if (validation?.requiresEmailVerification && !candidateEmail) {
+      setError("Invitation email is unavailable. Please request a new invitation.");
+      return;
+    }
+
     setStarting(true);
     setError(null);
 
     try {
-      const data = await startCandidateAttempt(token);
+      const resolvedFingerprint = await resolveBrowserFingerprint();
+      const data = await startCandidateAttempt(token, {
+        candidateEmail: candidateEmail || undefined,
+        browserFingerprint: resolvedFingerprint || undefined,
+      });
       setSession(data);
       setAnswers(parseSavedAnswers(data.answersJson));
       setValidation((prev) =>
@@ -194,6 +278,7 @@ export default function CandidateStartPage() {
     setError(null);
 
     try {
+      const resolvedFingerprint = await resolveBrowserFingerprint();
       const answersPayload = toAnswersPayload(answers);
       const resultPayload = {
         source: "candidate-link",
@@ -201,7 +286,9 @@ export default function CandidateStartPage() {
         totalQuestions: session.questions.length,
       };
 
-      const submitted = await submitCandidateAttempt(token, answersPayload, resultPayload);
+      const submitted = await submitCandidateAttempt(token, answersPayload, resultPayload, {
+        browserFingerprint: resolvedFingerprint || undefined,
+      });
       setSubmission(submitted);
       setValidation((prev) =>
         prev
@@ -212,6 +299,7 @@ export default function CandidateStartPage() {
               canStart: false,
               canResume: false,
               canSubmit: false,
+              message: "This invitation link has already been used for a submitted attempt.",
             }
           : prev
       );
@@ -336,6 +424,23 @@ export default function CandidateStartPage() {
     );
   }
 
+  if (submission) {
+    return (
+      <div className="mx-auto w-full max-w-3xl p-6">
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-900 shadow-sm">
+          <div className="flex items-start gap-2">
+            <CheckCircle2 className="mt-0.5 h-5 w-5" />
+            <div>
+              <h1 className="text-lg font-semibold">Assessment submitted</h1>
+              <p className="mt-1 text-sm">Your responses were successfully recorded and linked to your invitation.</p>
+              <p className="mt-2 text-sm">Submitted at: {formatUtc(submission.submittedAtUtc)}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!validation || !validation.isValid) {
     return (
       <div className="mx-auto w-full max-w-3xl p-6">
@@ -355,23 +460,6 @@ export default function CandidateStartPage() {
               <p>Deadline: {formatUtc(validation.deadlineUtc)}</p>
             </div>
           ) : null}
-        </div>
-      </div>
-    );
-  }
-
-  if (submission) {
-    return (
-      <div className="mx-auto w-full max-w-3xl p-6">
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-900 shadow-sm">
-          <div className="flex items-start gap-2">
-            <CheckCircle2 className="mt-0.5 h-5 w-5" />
-            <div>
-              <h1 className="text-lg font-semibold">Assessment submitted</h1>
-              <p className="mt-1 text-sm">Your responses were successfully recorded and linked to your invitation.</p>
-              <p className="mt-2 text-sm">Submitted at: {formatUtc(submission.submittedAtUtc)}</p>
-            </div>
-          </div>
         </div>
       </div>
     );
@@ -401,6 +489,19 @@ export default function CandidateStartPage() {
       {!session ? (
         <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
           <p className="text-sm text-zinc-700">{validation.message}</p>
+
+          {validation.requiresEmailVerification || validation.requiresIpLock || validation.requiresBrowserFingerprint ? (
+            <div className="mt-3 rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-[12px] text-zinc-600">
+              <p className="font-semibold uppercase tracking-wide text-zinc-500">Access checks enabled</p>
+              <div className="mt-1 flex flex-wrap gap-2">
+                {validation.requiresEmailVerification ? <span className="rounded-full bg-white px-2 py-0.5">Email verification</span> : null}
+                {validation.requiresIpLock ? <span className="rounded-full bg-white px-2 py-0.5">IP lock</span> : null}
+                {validation.requiresBrowserFingerprint ? <span className="rounded-full bg-white px-2 py-0.5">Browser fingerprint</span> : null}
+                {validation.singleUseLinkEnabled ? <span className="rounded-full bg-white px-2 py-0.5">Single-use link</span> : null}
+              </div>
+            </div>
+          ) : null}
+
           {error ? <p className="mt-2 text-sm text-red-700">{error}</p> : null}
           <button
             type="button"

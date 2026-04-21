@@ -27,7 +27,7 @@ public class CandidateInvitationService(
         var test = await ResolveTestAsync(request.TestId, cancellationToken);
         var deadlineUtc = ParseDeadline(request.DeadlineUtc);
         var inviteMethod = NormalizeInviteMethod(request.InviteMethod);
-        var linkExpiryHours = NormalizeLinkExpiryHours(request.LinkExpiryHours);
+        var linkExpiryHours = await ResolveLinkExpiryHoursAsync(test.Id, request.LinkExpiryHours, cancellationToken);
         var timeLimitMinutes = NormalizeTimeLimitMinutes(request.TimeLimitMinutes);
         var customMessage = NormalizeCustomMessage(request.CustomMessage);
 
@@ -87,7 +87,7 @@ public class CandidateInvitationService(
         var test = await ResolveTestAsync(request.TestId, cancellationToken);
         var deadlineUtc = ParseDeadline(request.DeadlineUtc);
         var inviteMethod = NormalizeInviteMethod(request.InviteMethod);
-        var linkExpiryHours = NormalizeLinkExpiryHours(request.LinkExpiryHours);
+        var linkExpiryHours = await ResolveLinkExpiryHoursAsync(test.Id, request.LinkExpiryHours, cancellationToken);
         var timeLimitMinutes = NormalizeTimeLimitMinutes(request.TimeLimitMinutes);
         var customMessage = NormalizeCustomMessage(request.CustomMessage);
         var defaultCandidateName = NormalizeCandidateName(request.CandidateName);
@@ -418,6 +418,40 @@ public class CandidateInvitationService(
         }
 
         return trimmed;
+    }
+
+    private async Task<int> ResolveLinkExpiryHoursAsync(
+        Guid testId,
+        int? requestValue,
+        CancellationToken cancellationToken)
+    {
+        if (requestValue.HasValue)
+        {
+            return NormalizeLinkExpiryHours(requestValue);
+        }
+
+        var settings = await dbContext.CandidateLinkSecuritySettings
+            .AsNoTracking()
+            .FirstOrDefaultAsync(item => item.TestId == testId, cancellationToken);
+
+        if (settings is null)
+        {
+            return NormalizeLinkExpiryHours(null);
+        }
+
+        try
+        {
+            var linkValidity = CandidateLinkSecurityPolicy.ToLinkValidityDuration(
+                settings.LinkValidForValue,
+                settings.LinkValidForUnit);
+
+            var roundedHours = CandidateLinkSecurityPolicy.ToRoundedHours(linkValidity);
+            return NormalizeLinkExpiryHours(roundedHours);
+        }
+        catch (ArgumentException)
+        {
+            return NormalizeLinkExpiryHours(null);
+        }
     }
 
     private int NormalizeLinkExpiryHours(int? value)

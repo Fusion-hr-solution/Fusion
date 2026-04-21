@@ -3,6 +3,7 @@ using System;
 using EY.HRPlatform.Interview.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace EY.HRPlatform.Interview.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260416141357_AddCandidateLinkSecuritySettings")]
+    partial class AddCandidateLinkSecuritySettings
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -27,10 +30,6 @@ namespace EY.HRPlatform.Interview.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
-
-                    b.Property<string>("AccessFingerprintHash")
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
 
                     b.Property<DateTime?>("AttemptStartedAtUtc")
                         .HasColumnType("timestamp with time zone");
@@ -57,9 +56,6 @@ namespace EY.HRPlatform.Interview.Migrations
                         .HasMaxLength(320)
                         .HasColumnType("character varying(320)");
 
-                    b.Property<DateTime?>("EmailVerifiedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
                     b.Property<string>("InviteLink")
                         .IsRequired()
                         .HasMaxLength(1024)
@@ -79,10 +75,6 @@ namespace EY.HRPlatform.Interview.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
                         .HasDefaultValue(72);
-
-                    b.Property<string>("LockedIpAddress")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
 
                     b.Property<int>("OpensCount")
                         .ValueGeneratedOnAdd()
@@ -123,10 +115,6 @@ namespace EY.HRPlatform.Interview.Migrations
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("VerifiedEmail")
-                        .HasMaxLength(320)
-                        .HasColumnType("character varying(320)");
 
                     b.HasKey("Id");
 

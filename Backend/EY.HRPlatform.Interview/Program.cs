@@ -1,8 +1,11 @@
 using EY.HRPlatform.Interview.Extensions;
 using EY.HRPlatform.Interview.Infrastructure;
 using DotNetEnv;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
+using System.Net;
+using System.Net.Sockets;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,11 +19,42 @@ if (File.Exists(envPath))
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+
+    var forwardedHeadersSection = builder.Configuration.GetSection("Networking:ForwardedHeaders");
+
+    var configuredForwardLimit = forwardedHeadersSection.GetValue<int?>("ForwardLimit");
+    if (configuredForwardLimit.HasValue && configuredForwardLimit.Value > 0)
+    {
+        options.ForwardLimit = configuredForwardLimit.Value;
+    }
+
+    var knownProxies = forwardedHeadersSection.GetSection("KnownProxies").Get<string[]>() ?? [];
+    foreach (var knownProxy in knownProxies)
+    {
+        if (IPAddress.TryParse(knownProxy, out var parsedProxy))
+        {
+            options.KnownProxies.Add(parsedProxy);
+        }
+    }
+
+    var knownNetworks = forwardedHeadersSection.GetSection("KnownNetworks").Get<string[]>() ?? [];
+    foreach (var knownNetwork in knownNetworks)
+    {
+        if (TryParseCidr(knownNetwork, out var parsedNetwork))
+        {
+            options.KnownIPNetworks.Add(parsedNetwork);
+        }
+    }
+});
 builder.Services.AddInterviewServices(builder.Configuration);
 
 var autoMigrate = builder.Configuration.GetValue<bool?>("Database:AutoMigrate")
                   ?? builder.Environment.IsDevelopment();
 var app = builder.Build();
+app.UseForwardedHeaders();
 if (autoMigrate)
 {
     var connectionString = builder.Configuration.GetConnectionString("InterviewDb");
@@ -69,6 +103,33 @@ static async Task EnsureDatabaseExistsAsync(string connectionString)
         $"CREATE DATABASE {quotedDatabaseName}",
         connection);
     await createDatabaseCommand.ExecuteNonQueryAsync();
+}
+
+static bool TryParseCidr(string? value, out System.Net.IPNetwork network)
+{
+    network = default;
+
+    if (string.IsNullOrWhiteSpace(value))
+    {
+        return false;
+    }
+
+    var parts = value.Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    if (parts.Length != 2 ||
+        !IPAddress.TryParse(parts[0], out var prefix) ||
+        !int.TryParse(parts[1], out var prefixLength))
+    {
+        return false;
+    }
+
+    var maxPrefixLength = prefix.AddressFamily == AddressFamily.InterNetwork ? 32 : 128;
+    if (prefixLength < 0 || prefixLength > maxPrefixLength)
+    {
+        return false;
+    }
+
+    network = new System.Net.IPNetwork(prefix, prefixLength);
+    return true;
 }
 
 public partial class Program
