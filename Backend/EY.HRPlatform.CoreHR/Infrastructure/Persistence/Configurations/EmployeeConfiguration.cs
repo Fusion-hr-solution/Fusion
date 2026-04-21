@@ -53,6 +53,15 @@ public class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
             .OnDelete(DeleteBehavior.SetNull)
             .IsRequired(false);
 
+        // Org-unit relationship.
+        // SetNull: removing an org unit clears the employee link
+        // rather than cascading a delete or blocking the operation.
+        builder.HasOne(e => e.OrgUnit)
+            .WithMany()
+            .HasForeignKey(e => e.OrgUnitId)
+            .OnDelete(DeleteBehavior.SetNull)
+            .IsRequired(false);
+
         // Tenant-ready indexes (enforcement added in Feature 1.3).
         // The unique composite satisfies US-1.3.2 at the schema level now.
         builder.HasIndex(e => e.TenantId)
@@ -64,6 +73,9 @@ public class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
 
         builder.HasIndex(e => e.ManagerId)
             .HasDatabaseName("IX_Employees_ManagerId");
+
+        builder.HasIndex(e => e.OrgUnitId)
+            .HasDatabaseName("IX_Employees_OrgUnitId");
 
         // FullName is a computed property — not persisted.
         builder.Ignore(e => e.FullName);

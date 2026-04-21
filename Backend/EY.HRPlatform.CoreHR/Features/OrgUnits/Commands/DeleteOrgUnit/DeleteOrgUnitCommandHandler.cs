@@ -1,5 +1,6 @@
 using EY.HRPlatform.CoreHR.Exceptions;
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
+using EY.HRPlatform.CoreHR.Domain.Enums;
 using EY.HRPlatform.SharedKernel.CQRS;
 using EY.HRPlatform.SharedKernel.Results;
 using Microsoft.EntityFrameworkCore;
@@ -52,7 +53,6 @@ public sealed class DeleteOrgUnitCommandHandler(
     /// <summary>
     /// Check for conditions that block deletion.
     /// Returns null if deletion is allowed, otherwise returns the block reason.
-    /// This method is designed to be extensible - Feature 2.8 will add employee check here.
     /// </summary>
     private async Task<string?> GetDeletionBlockReason(Guid orgUnitId, CancellationToken cancellationToken)
     {
@@ -65,11 +65,14 @@ public sealed class DeleteOrgUnitCommandHandler(
             return "Cannot delete org unit with active child units. Reassign or delete children first.";
         }
 
-        // Check 2: Assigned employees (to be added in Feature 2.8)
-        // var hasAssignedEmployees = await dbContext.Employees
-        //     .AnyAsync(e => e.OrgUnitId == orgUnitId && e.Status == EmployeeStatus.Active, cancellationToken);
-        // if (hasAssignedEmployees)
-        //     return "Cannot delete org unit with assigned employees. Reassign employees first.";
+        // Check 2: Assigned active employees
+        var hasAssignedEmployees = await dbContext.Employees
+            .AnyAsync(e => e.OrgUnitId == orgUnitId && e.Status == EmployeeStatus.Active, cancellationToken);
+
+        if (hasAssignedEmployees)
+        {
+            return "Cannot delete org unit with assigned employees. Reassign employees first.";
+        }
 
         return null; // No blockers
     }
