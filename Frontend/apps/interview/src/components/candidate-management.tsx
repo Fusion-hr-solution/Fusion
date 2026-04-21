@@ -5,13 +5,24 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Mail, ShieldCheck, History, RotateCcw, Settings2, UserX, Clock3, Link2, Check, FileUp, Send, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
+  getCandidateLinkSecurityState,
   getCandidateManagementOverview,
   getPendingInvitations,
   inviteCandidates,
+  regenerateCandidateLinkSecurityLink,
   resendInvitation,
+  saveCandidateLinkSecuritySettings,
 } from "@/services/candidate-management-service";
 import { getTests } from "@/services/test-service";
-import type { CandidateInvitation, CandidateManagementOverview, Test } from "@/types";
+import type {
+  CandidateInvitation,
+  CandidateLinkPreview,
+  CandidateLinkSecurityState,
+  CandidateManagementOverview,
+  GracePeriodUnit,
+  LinkValidityUnit,
+  Test,
+} from "@/types";
 
 type CandidateTabKey =
   | "invite"
@@ -435,6 +446,20 @@ export function CandidateManagement() {
   const [csvPreviewRows, setCsvPreviewRows] = useState<CsvCandidateRow[]>([]);
   const [inviteResultPopup, setInviteResultPopup] = useState<InviteResultPopup | null>(null);
   const [csvImportReport, setCsvImportReport] = useState<CsvImportReport | null>(null);
+  const [singleUseLinkEnabled, setSingleUseLinkEnabled] = useState(true);
+  const [emailVerificationEnabled, setEmailVerificationEnabled] = useState(true);
+  const [ipLockEnabled, setIpLockEnabled] = useState(false);
+  const [browserFingerprintEnabled, setBrowserFingerprintEnabled] = useState(false);
+  const [linkValidForValue, setLinkValidForValue] = useState(7);
+  const [linkValidForUnit, setLinkValidForUnit] = useState<LinkValidityUnit>("days");
+  const [gracePeriodValue, setGracePeriodValue] = useState(30);
+  const [gracePeriodUnit, setGracePeriodUnit] = useState<GracePeriodUnit>("minutes");
+  const [linkSecurityLoading, setLinkSecurityLoading] = useState(false);
+  const [linkSecuritySaving, setLinkSecuritySaving] = useState(false);
+  const [linkSecurityRegenerating, setLinkSecurityRegenerating] = useState(false);
+  const [linkSecurityError, setLinkSecurityError] = useState<string | null>(null);
+  const [linkSecuritySuccess, setLinkSecuritySuccess] = useState<string | null>(null);
+  const [linkPreview, setLinkPreview] = useState<CandidateLinkPreview | null>(null);
   const popupTimerRef = useRef<number | null>(null);
   const csvReportTimerRef = useRef<number | null>(null);
 
@@ -539,6 +564,46 @@ export function CandidateManagement() {
     };
   }, [activeTab]);
 
+  useEffect(() => {
+    if (activeTab !== "link-security" || !selectedTestId) {
+      return;
+    }
+
+    let isMounted = true;
+
+    async function loadLinkSecurityState() {
+      setLinkSecurityLoading(true);
+      setLinkSecurityError(null);
+
+      try {
+        const state = await getCandidateLinkSecurityState(selectedTestId);
+        if (!isMounted) {
+          return;
+        }
+
+        applyLinkSecurityState(state);
+      } catch (err) {
+        if (!isMounted) {
+          return;
+        }
+
+        setLinkSecurityError(err instanceof Error ? err.message : "Failed to load link security settings.");
+      } finally {
+        if (!isMounted) {
+          return;
+        }
+
+        setLinkSecurityLoading(false);
+      }
+    }
+
+    void loadLinkSecurityState();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [activeTab, selectedTestId]);
+
   const activeConfig = useMemo(
     () => TAB_CONFIG.find((tab) => tab.key === activeTab) ?? DEFAULT_TAB_CONFIG,
     [activeTab]
@@ -559,6 +624,37 @@ export function CandidateManagement() {
     () => tests.find((item) => item.id === selectedTestId),
     [selectedTestId, tests]
   );
+
+  function applyLinkSecurityState(state: CandidateLinkSecurityState): void {
+    setSingleUseLinkEnabled(state.settings.singleUseLinkEnabled);
+    setEmailVerificationEnabled(state.settings.emailVerificationEnabled);
+    setIpLockEnabled(state.settings.ipLockEnabled);
+    setBrowserFingerprintEnabled(state.settings.browserFingerprintEnabled);
+    setLinkValidForValue(state.settings.linkValidForValue);
+    setLinkValidForUnit(state.settings.linkValidForUnit);
+    setGracePeriodValue(state.settings.gracePeriodValue);
+    setGracePeriodUnit(state.settings.gracePeriodUnit);
+    setLinkPreview(state.preview);
+  }
+
+  function formatUtcForCard(value?: string): string {
+    if (!value) {
+      return "Not generated";
+    }
+
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      return value;
+    }
+
+    return parsed.toLocaleString("en-US", {
+      month: "short",
+      day: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
 
   function switchTab(tab: CandidateTabKey): void {
     router.push(`/candidates?tab=${tab}`);
@@ -866,6 +962,89 @@ export function CandidateManagement() {
     }
   }
 
+  async function handleSaveLinkSecuritySettings(): Promise<void> {
+    if (!selectedTestId) {
+      setLinkSecurityError("Select a test before saving link security settings.");
+      return;
+    }
+
+    setLinkSecuritySaving(true);
+    setLinkSecurityError(null);
+    setLinkSecuritySuccess(null);
+
+    try {
+      const state = await saveCandidateLinkSecuritySettings({
+        testId: selectedTestId,
+        singleUseLinkEnabled,
+        emailVerificationEnabled,
+        ipLockEnabled,
+        browserFingerprintEnabled,
+        linkValidForValue,
+        linkValidForUnit,
+        gracePeriodValue,
+        gracePeriodUnit,
+      });
+
+      applyLinkSecurityState(state);
+      setLinkSecuritySuccess("Link security settings saved.");
+    } catch (err) {
+      setLinkSecurityError(err instanceof Error ? err.message : "Failed to save link security settings.");
+    } finally {
+      setLinkSecuritySaving(false);
+    }
+  }
+
+  async function handleRegenerateLinkSecurity(): Promise<void> {
+    if (!selectedTestId) {
+      setLinkSecurityError("Select a test before regenerating a link.");
+      return;
+    }
+
+    setLinkSecurityRegenerating(true);
+    setLinkSecurityError(null);
+    setLinkSecuritySuccess(null);
+
+    try {
+      const state = await regenerateCandidateLinkSecurityLink(selectedTestId);
+      applyLinkSecurityState(state);
+      setLinkSecuritySuccess("Invite link regenerated.");
+    } catch (err) {
+      setLinkSecurityError(err instanceof Error ? err.message : "Failed to regenerate invite link.");
+    } finally {
+      setLinkSecurityRegenerating(false);
+    }
+  }
+
+  async function handleCopyLinkSecurityPreview(): Promise<void> {
+    const inviteLink = linkPreview?.inviteLink;
+    if (!inviteLink) {
+      setLinkSecurityError("No active invitation link is available to copy.");
+      return;
+    }
+
+    setLinkSecurityError(null);
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(inviteLink);
+      } else {
+        const tempInput = document.createElement("textarea");
+        tempInput.value = inviteLink;
+        tempInput.setAttribute("readonly", "");
+        tempInput.style.position = "absolute";
+        tempInput.style.left = "-9999px";
+        document.body.appendChild(tempInput);
+        tempInput.select();
+        document.execCommand("copy");
+        document.body.removeChild(tempInput);
+      }
+
+      setLinkSecuritySuccess("Invite link copied to clipboard.");
+    } catch {
+      setLinkSecurityError("Failed to copy invite link. Please copy it manually.");
+    }
+  }
+
   function renderResendTab(): React.ReactNode {
     return (
       <div className="mt-5 space-y-4">
@@ -912,7 +1091,6 @@ export function CandidateManagement() {
                   <th className="px-4 py-3 font-semibold">Candidate</th>
                   <th className="px-4 py-3 font-semibold">Test</th>
                   <th className="px-4 py-3 font-semibold">Status</th>
-                  <th className="px-4 py-3 font-semibold">Opens</th>
                   <th className="px-4 py-3 font-semibold">Last Sent</th>
                   <th className="px-4 py-3 text-right font-semibold">Action</th>
                 </tr>
@@ -920,7 +1098,7 @@ export function CandidateManagement() {
               <tbody>
                 {filteredResendInvitations.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-8 text-center text-zinc-500">
+                    <td colSpan={5} className="px-4 py-8 text-center text-zinc-500">
                       No invitations match your filters.
                     </td>
                   </tr>
@@ -951,7 +1129,6 @@ export function CandidateManagement() {
                           {item.status}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-zinc-700">{item.opensCount}</td>
                       <td className="px-4 py-3 text-zinc-700">
                         {new Date(item.lastSentAtUtc || item.createdAtUtc).toLocaleString("en-US")}
                       </td>
@@ -1015,6 +1192,298 @@ export function CandidateManagement() {
             </div>
           </div>
         ) : null}
+      </div>
+    );
+  }
+
+  function renderLinkSecurityTab(): React.ReactNode {
+    const hasPreviewInvitation = Boolean(linkPreview?.hasInvitation && linkPreview.inviteLink);
+    const previewInviteLink =
+      linkPreview?.inviteLink ??
+      "No active invitation link yet. Send an invitation to generate one.";
+    const usesValue = hasPreviewInvitation
+      ? `${linkPreview?.opensCount ?? 0} / ${linkPreview?.allowedUses ?? "Unlimited"}`
+      : `0 / ${singleUseLinkEnabled ? "1" : "Unlimited"}`;
+    const expiresValue = hasPreviewInvitation
+      ? formatUtcForCard(linkPreview?.tokenExpiresAtUtc)
+      : "Not generated";
+    const securityScore =
+      Number(singleUseLinkEnabled) +
+      Number(emailVerificationEnabled) +
+      Number(ipLockEnabled) +
+      Number(browserFingerprintEnabled);
+    const securityLevel =
+      linkPreview?.securityLevel ?? (securityScore >= 3 ? "High" : securityScore === 2 ? "Medium" : "Low");
+
+    const securityRows: Array<{
+      key: string;
+      label: string;
+      helper?: string;
+      enabled: boolean;
+      onToggle: () => void;
+    }> = [
+      {
+        key: "single-use-link",
+        label: "Single-use link (expires after first access)",
+        enabled: singleUseLinkEnabled,
+        onToggle: () => setSingleUseLinkEnabled((prev) => !prev),
+      },
+      {
+        key: "email-verification",
+        label: "Require email verification before test start",
+        enabled: emailVerificationEnabled,
+        onToggle: () => setEmailVerificationEnabled((prev) => !prev),
+      },
+      {
+        key: "ip-lock",
+        label: "IP lock - bind link to first IP address",
+        helper: "Useful for strict environments but can be sensitive to network changes.",
+        enabled: ipLockEnabled,
+        onToggle: () => setIpLockEnabled((prev) => !prev),
+      },
+      {
+        key: "browser-fingerprint",
+        label: "Browser fingerprint check",
+        enabled: browserFingerprintEnabled,
+        onToggle: () => setBrowserFingerprintEnabled((prev) => !prev),
+      },
+    ];
+
+    return (
+      <div className="mt-5 space-y-5">
+        <section className="rounded-2xl border border-zinc-200 bg-white px-5 py-4 shadow-sm">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-[220px,1fr] md:items-end">
+            <div>
+              <label className="mb-1 block text-[12px] font-semibold text-zinc-600">Apply Settings To</label>
+              <select
+                value={selectedTestId}
+                onChange={(e) => setSelectedTestId(e.target.value)}
+                className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[13px] text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+              >
+                <option value="">Select test</option>
+                {tests.map((test) => (
+                  <option key={test.id} value={test.id}>
+                    {test.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <p className="text-[12px] leading-relaxed text-zinc-500">
+              Saved settings are scoped per test and update pending invitation expiry windows.
+            </p>
+          </div>
+        </section>
+
+        {linkSecurityLoading ? <p className="text-[12px] text-zinc-500">Loading link security settings...</p> : null}
+        {linkSecurityError ? <p className="text-[12px] text-red-600">{linkSecurityError}</p> : null}
+        {linkSecuritySuccess ? <p className="text-[12px] text-emerald-700">{linkSecuritySuccess}</p> : null}
+
+        <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+          <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
+            <div className="flex items-center gap-3 border-b border-zinc-100 px-6 py-4">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-100">
+                <ShieldCheck className="h-4 w-4 text-zinc-600" />
+              </div>
+              <div>
+                <p className="text-[15px] font-bold text-zinc-900">Security Settings</p>
+                <p className="text-[12px] text-zinc-500">Define how links are validated before test access.</p>
+              </div>
+            </div>
+
+            <div className="px-6">
+              {securityRows.map((item, index) => (
+                <div
+                  key={item.key}
+                  className={cn(
+                    "flex items-start justify-between gap-4 py-3.5",
+                    index < securityRows.length - 1 ? "border-b border-zinc-100" : ""
+                  )}
+                >
+                  <div className="min-w-0 flex-1 pr-3">
+                    <p className="text-[13px] font-semibold text-zinc-900">{item.label}</p>
+                    {item.helper ? <p className="mt-0.5 text-[12px] leading-relaxed text-zinc-400">{item.helper}</p> : null}
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={item.enabled}
+                    onClick={item.onToggle}
+                    className={cn(
+                      "relative h-5 w-9 shrink-0 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-zinc-900/20 focus:ring-offset-2",
+                      item.enabled ? "bg-zinc-900" : "bg-zinc-200"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "absolute left-0.5 top-0.5 block h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200",
+                        item.enabled ? "translate-x-4" : "translate-x-0"
+                      )}
+                    />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
+            <div className="flex items-center gap-3 border-b border-zinc-100 px-6 py-4">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-100">
+                <Clock3 className="h-4 w-4 text-zinc-600" />
+              </div>
+              <div>
+                <p className="text-[15px] font-bold text-zinc-900">Expiry Rules</p>
+                <p className="text-[12px] text-zinc-500">Control how long links remain active after delivery.</p>
+              </div>
+            </div>
+
+            <div className="divide-y divide-zinc-100 px-6">
+              <div className="py-4">
+                <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-zinc-400">Link valid for</p>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={1}
+                    value={linkValidForValue}
+                    onChange={(e) => setLinkValidForValue(Math.max(1, Number(e.target.value) || 1))}
+                    className="w-20 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-right text-[13px] font-medium text-zinc-900 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+                  />
+                  <select
+                    value={linkValidForUnit}
+                    onChange={(e) => setLinkValidForUnit(e.target.value as LinkValidityUnit)}
+                    className="appearance-none rounded-xl border border-zinc-200 bg-white py-2 pl-3 pr-8 text-[13px] text-zinc-900 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+                  >
+                    <option value="days">days</option>
+                    <option value="hours">hours</option>
+                    <option value="minutes">minutes</option>
+                  </select>
+                </div>
+                <p className="mt-1.5 text-[12px] text-zinc-400">Candidates see a countdown after opening.</p>
+              </div>
+
+              <div className="py-4">
+                <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-zinc-400">Grace period after expiry</p>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={1}
+                    value={gracePeriodValue}
+                    onChange={(e) => setGracePeriodValue(Math.max(1, Number(e.target.value) || 1))}
+                    className="w-20 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-right text-[13px] font-medium text-zinc-900 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+                  />
+                  <select
+                    value={gracePeriodUnit}
+                    onChange={(e) => setGracePeriodUnit(e.target.value as GracePeriodUnit)}
+                    className="appearance-none rounded-xl border border-zinc-200 bg-white py-2 pl-3 pr-8 text-[13px] text-zinc-900 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+                  >
+                    <option value="minutes">minutes</option>
+                    <option value="hours">hours</option>
+                  </select>
+                </div>
+                <p className="mt-1.5 text-[12px] text-zinc-400">Extra time before the session is terminated.</p>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
+          <div className="flex items-center gap-3 border-b border-zinc-100 px-6 py-4">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-100">
+              <Link2 className="h-4 w-4 text-zinc-600" />
+            </div>
+            <div>
+              <p className="text-[15px] font-bold text-zinc-900">Link Preview</p>
+              <p className="text-[12px] text-zinc-500">Inspect generated URL details before sharing with candidates.</p>
+            </div>
+          </div>
+
+          <div className="space-y-4 px-6 py-5">
+            <div className="flex flex-col gap-3 rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-3 md:flex-row md:items-center md:justify-between">
+              <code
+                className={cn(
+                  "overflow-x-auto text-[12px] font-semibold",
+                  hasPreviewInvitation ? "text-blue-700" : "text-zinc-500"
+                )}
+              >
+                {previewInviteLink}
+              </code>
+              <div className="flex shrink-0 items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => void handleCopyLinkSecurityPreview()}
+                  disabled={!hasPreviewInvitation}
+                  className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-[12px] font-semibold text-zinc-700 transition-colors duration-150 hover:bg-zinc-100"
+                >
+                  Copy
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleRegenerateLinkSecurity()}
+                  disabled={linkSecurityRegenerating || !selectedTestId}
+                  className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-[12px] font-semibold text-zinc-700 transition-colors duration-150 hover:bg-zinc-100"
+                >
+                  {linkSecurityRegenerating ? "Regenerating..." : "Regenerate"}
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+              <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2.5">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Uses</p>
+                <p className="mt-0.5 text-[15px] font-bold text-zinc-900">{usesValue}</p>
+              </div>
+              <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2.5">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Expires</p>
+                <p className="mt-0.5 text-[15px] font-bold text-zinc-900">{expiresValue}</p>
+              </div>
+              <div
+                className={cn(
+                  "rounded-xl px-3 py-2.5",
+                  securityLevel === "High"
+                    ? "border border-blue-200 bg-blue-50"
+                    : securityLevel === "Medium"
+                      ? "border border-amber-200 bg-amber-50"
+                      : "border border-zinc-200 bg-zinc-50"
+                )}
+              >
+                <p
+                  className={cn(
+                    "text-[10px] font-bold uppercase tracking-widest",
+                    securityLevel === "High"
+                      ? "text-blue-700"
+                      : securityLevel === "Medium"
+                        ? "text-amber-700"
+                        : "text-zinc-500"
+                  )}
+                >
+                  Security
+                </p>
+                <p
+                  className={cn(
+                    "mt-0.5 text-[15px] font-bold",
+                    securityLevel === "High"
+                      ? "text-blue-800"
+                      : securityLevel === "Medium"
+                        ? "text-amber-800"
+                        : "text-zinc-800"
+                  )}
+                >
+                  {securityLevel}
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div className="flex justify-end border-t border-zinc-100 pt-5">
+          <button
+            type="button"
+            onClick={() => void handleSaveLinkSecuritySettings()}
+            disabled={linkSecuritySaving || linkSecurityLoading || !selectedTestId}
+            className="inline-flex items-center gap-2 rounded-xl bg-zinc-900 px-6 py-2.5 text-[14px] font-semibold text-white shadow-sm transition-all duration-150 hover:bg-zinc-800 active:scale-[0.98]"
+          >
+            {linkSecuritySaving ? "Saving..." : "Save Settings"}
+          </button>
+        </div>
       </div>
     );
   }
@@ -1492,6 +1961,8 @@ export function CandidateManagement() {
               renderInviteTab()
             ) : activeTab === "resend" ? (
               renderResendTab()
+            ) : activeTab === "link-security" ? (
+              renderLinkSecurityTab()
             ) : (
               <div className="mt-5 rounded-xl border border-zinc-200 bg-zinc-50 p-4">
                 <p className="text-[13px] font-medium text-zinc-700">

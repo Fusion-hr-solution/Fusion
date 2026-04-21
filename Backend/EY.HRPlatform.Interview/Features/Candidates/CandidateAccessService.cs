@@ -26,8 +26,10 @@ public class CandidateAccessService(AppDbContext dbContext) : ICandidateAccessSe
             };
         }
 
+        var settings = await GetEffectiveSettingsAsync(invitation.TestId, cancellationToken);
+
         var nowUtc = DateTime.UtcNow;
-        var state = ResolveState(invitation, nowUtc);
+        var state = ResolveState(invitation, settings, nowUtc);
 
         // Count link opens when the invite page is loaded (validate endpoint).
         if (state is InvitationAccessState.Invited or InvitationAccessState.InProgress)
@@ -36,22 +38,26 @@ public class CandidateAccessService(AppDbContext dbContext) : ICandidateAccessSe
             await dbContext.SaveChangesAsync(cancellationToken);
         }
 
-        return MapValidationDto(invitation, state, nowUtc);
+        return MapValidationDto(invitation, state, nowUtc, settings);
     }
 
-    public async Task<CandidateAccessSessionDto> StartOrResumeAsync(string token, CancellationToken cancellationToken)
+    public async Task<CandidateAccessSessionDto> StartOrResumeAsync(
+        StartCandidateAttemptDto request,
+        CancellationToken cancellationToken)
     {
-        var normalizedToken = NormalizeToken(token);
+        var normalizedToken = NormalizeToken(request.Token);
         var invitation = await FindInvitationByTokenAsync(normalizedToken, includeQuestions: true, cancellationToken)
             ?? throw new ApiException("Invitation link is invalid.", StatusCodes.Status404NotFound);
 
+        var settings = await GetEffectiveSettingsAsync(invitation.TestId, cancellationToken);
+
         var nowUtc = DateTime.UtcNow;
-        var state = ResolveState(invitation, nowUtc);
+        var state = ResolveState(invitation, settings, nowUtc);
 
         if (state == InvitationAccessState.Expired)
         {
             throw new ApiException(
-                BuildExpiredMessage(invitation, nowUtc),
+                BuildExpiredMessage(invitation, settings, nowUtc),
                 StatusCodes.Status410Gone);
         }
 
@@ -61,6 +67,22 @@ public class CandidateAccessService(AppDbContext dbContext) : ICandidateAccessSe
                 "This invitation link was already used for a submitted attempt.",
                 StatusCodes.Status409Conflict);
         }
+
+        if (settings.SingleUseLinkEnabled && state == InvitationAccessState.InProgress)
+        {
+            throw new ApiException(
+                "This single-use invitation link has already been opened.",
+                StatusCodes.Status409Conflict);
+        }
+
+        EnforceEmailVerification(invitation, request.CandidateEmail, settings, nowUtc);
+
+        var metadata = BuildAccessMetadata(
+            request.ClientIpAddress,
+            request.BrowserFingerprint,
+            request.UserAgent);
+
+        await ApplyAndValidateAccessLocksAsync(invitation, metadata, settings, cancellationToken);
 
         var attempt = invitation.Attempt;
         if (attempt is null)
@@ -109,13 +131,15 @@ public class CandidateAccessService(AppDbContext dbContext) : ICandidateAccessSe
         var invitation = await FindInvitationByTokenAsync(normalizedToken, includeQuestions: false, cancellationToken)
             ?? throw new ApiException("Invitation link is invalid.", StatusCodes.Status404NotFound);
 
+        var settings = await GetEffectiveSettingsAsync(invitation.TestId, cancellationToken);
+
         var nowUtc = DateTime.UtcNow;
-        var state = ResolveState(invitation, nowUtc);
+        var state = ResolveState(invitation, settings, nowUtc);
 
         if (state == InvitationAccessState.Expired)
         {
             throw new ApiException(
-                BuildExpiredMessage(invitation, nowUtc),
+                BuildExpiredMessage(invitation, settings, nowUtc),
                 StatusCodes.Status410Gone);
         }
 
@@ -126,23 +150,33 @@ public class CandidateAccessService(AppDbContext dbContext) : ICandidateAccessSe
                 StatusCodes.Status409Conflict);
         }
 
+        if (state == InvitationAccessState.Invited || invitation.Attempt is null)
+        {
+            throw new ApiException(
+                "Start the assessment before submitting.",
+                StatusCodes.Status409Conflict);
+        }
+
+        if (settings.EmailVerificationEnabled && !invitation.EmailVerifiedAtUtc.HasValue)
+        {
+            throw new ApiException(
+                "Email verification is required before submitting this assessment.",
+                StatusCodes.Status403Forbidden);
+        }
+
+        var metadata = BuildAccessMetadata(
+            request.ClientIpAddress,
+            request.BrowserFingerprint,
+            request.UserAgent);
+
+        await ApplyAndValidateAccessLocksAsync(invitation, metadata, settings, cancellationToken);
+
         var attempt = invitation.Attempt;
         if (attempt is null)
         {
-            attempt = new CandidateTestAttempt
-            {
-                InvitationId = invitation.Id,
-                TestId = invitation.TestId,
-                CandidateEmail = invitation.Email,
-                CandidateName = invitation.CandidateName,
-                StartedAtUtc = nowUtc,
-                SubmittedAtUtc = null,
-                AnswersJson = "{}",
-                ResultJson = "{}"
-            };
-
-            dbContext.CandidateTestAttempts.Add(attempt);
-            invitation.Attempt = attempt;
+            throw new ApiException(
+                "Start the assessment before submitting.",
+                StatusCodes.Status409Conflict);
         }
 
         if (attempt.StartedAtUtc == default)
@@ -173,6 +207,173 @@ public class CandidateAccessService(AppDbContext dbContext) : ICandidateAccessSe
             AnswersJson = attempt.AnswersJson,
             ResultJson = attempt.ResultJson,
         };
+    }
+
+    private async Task<LinkSecurityRuntimeSettings> GetEffectiveSettingsAsync(
+        Guid testId,
+        CancellationToken cancellationToken)
+    {
+        var settings = await dbContext.CandidateLinkSecuritySettings
+            .AsNoTracking()
+            .FirstOrDefaultAsync(item => item.TestId == testId, cancellationToken);
+
+        if (settings is null)
+        {
+            return new LinkSecurityRuntimeSettings(
+                SingleUseLinkEnabled: true,
+                EmailVerificationEnabled: true,
+                IpLockEnabled: false,
+                BrowserFingerprintEnabled: false,
+                GracePeriodValue: CandidateLinkSecurityPolicy.DefaultGracePeriodValue,
+                GracePeriodUnit: CandidateLinkSecurityPolicy.DefaultGracePeriodUnit);
+        }
+
+        return new LinkSecurityRuntimeSettings(
+            settings.SingleUseLinkEnabled,
+            settings.EmailVerificationEnabled,
+            settings.IpLockEnabled,
+            settings.BrowserFingerprintEnabled,
+            settings.GracePeriodValue,
+            settings.GracePeriodUnit);
+    }
+
+    private static void EnforceEmailVerification(
+        CandidateInvitation invitation,
+        string? candidateEmail,
+        LinkSecurityRuntimeSettings settings,
+        DateTime nowUtc)
+    {
+        if (!settings.EmailVerificationEnabled)
+        {
+            return;
+        }
+
+        var normalizedCandidateEmail = NormalizeVerificationEmail(candidateEmail);
+        if (!string.Equals(normalizedCandidateEmail, invitation.Email, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ApiException(
+                "Email verification failed for this invitation.",
+                StatusCodes.Status403Forbidden);
+        }
+
+        invitation.VerifiedEmail = invitation.Email;
+        invitation.EmailVerifiedAtUtc ??= nowUtc;
+    }
+
+    private static AccessRequestMetadata BuildAccessMetadata(
+        string? clientIpAddress,
+        string? browserFingerprint,
+        string? userAgent)
+    {
+        var normalizedIpAddress = NormalizeClientIpAddress(clientIpAddress);
+        var fingerprintHash = NormalizeAndHashFingerprint(browserFingerprint);
+        return new AccessRequestMetadata(normalizedIpAddress, fingerprintHash);
+    }
+
+    private async Task ApplyAndValidateAccessLocksAsync(
+        CandidateInvitation invitation,
+        AccessRequestMetadata metadata,
+        LinkSecurityRuntimeSettings settings,
+        CancellationToken cancellationToken)
+    {
+        var requiresFingerprintLock = settings.SingleUseLinkEnabled || settings.BrowserFingerprintEnabled;
+        if (requiresFingerprintLock)
+        {
+            if (string.IsNullOrWhiteSpace(metadata.FingerprintHash))
+            {
+                throw new ApiException(
+                    "Browser fingerprint is required for this invitation.",
+                    StatusCodes.Status400BadRequest);
+            }
+
+            if (string.IsNullOrWhiteSpace(invitation.AccessFingerprintHash))
+            {
+                if (dbContext.Database.IsRelational())
+                {
+                    var updatedRows = await dbContext.CandidateInvitations
+                        .Where(item =>
+                            item.Id == invitation.Id &&
+                            (item.AccessFingerprintHash == null || item.AccessFingerprintHash == string.Empty))
+                        .ExecuteUpdateAsync(
+                            updates => updates.SetProperty(item => item.AccessFingerprintHash, metadata.FingerprintHash),
+                            cancellationToken);
+
+                    if (updatedRows > 0)
+                    {
+                        invitation.AccessFingerprintHash = metadata.FingerprintHash;
+                    }
+                    else
+                    {
+                        invitation.AccessFingerprintHash = await dbContext.CandidateInvitations
+                            .AsNoTracking()
+                            .Where(item => item.Id == invitation.Id)
+                            .Select(item => item.AccessFingerprintHash)
+                            .FirstOrDefaultAsync(cancellationToken);
+                    }
+                }
+                else
+                {
+                    invitation.AccessFingerprintHash = metadata.FingerprintHash;
+                }
+            }
+
+            if (!string.Equals(invitation.AccessFingerprintHash, metadata.FingerprintHash, StringComparison.Ordinal))
+            {
+                throw new ApiException(
+                    settings.SingleUseLinkEnabled
+                        ? "This single-use invitation is already active in another browser."
+                        : "Browser fingerprint validation failed for this invitation.",
+                    StatusCodes.Status409Conflict);
+            }
+        }
+
+        if (settings.IpLockEnabled)
+        {
+            if (string.IsNullOrWhiteSpace(metadata.ClientIpAddress))
+            {
+                throw new ApiException(
+                    "Client IP address is required for this invitation.",
+                    StatusCodes.Status400BadRequest);
+            }
+
+            if (string.IsNullOrWhiteSpace(invitation.LockedIpAddress))
+            {
+                if (dbContext.Database.IsRelational())
+                {
+                    var updatedRows = await dbContext.CandidateInvitations
+                        .Where(item =>
+                            item.Id == invitation.Id &&
+                            (item.LockedIpAddress == null || item.LockedIpAddress == string.Empty))
+                        .ExecuteUpdateAsync(
+                            updates => updates.SetProperty(item => item.LockedIpAddress, metadata.ClientIpAddress),
+                            cancellationToken);
+
+                    if (updatedRows > 0)
+                    {
+                        invitation.LockedIpAddress = metadata.ClientIpAddress;
+                    }
+                    else
+                    {
+                        invitation.LockedIpAddress = await dbContext.CandidateInvitations
+                            .AsNoTracking()
+                            .Where(item => item.Id == invitation.Id)
+                            .Select(item => item.LockedIpAddress)
+                            .FirstOrDefaultAsync(cancellationToken);
+                    }
+                }
+                else
+                {
+                    invitation.LockedIpAddress = metadata.ClientIpAddress;
+                }
+            }
+
+            if (!string.Equals(invitation.LockedIpAddress, metadata.ClientIpAddress, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ApiException(
+                    "IP lock validation failed for this invitation.",
+                    StatusCodes.Status409Conflict);
+            }
+        }
     }
 
     private async Task<CandidateInvitation?> FindInvitationByTokenAsync(
@@ -225,6 +426,55 @@ public class CandidateAccessService(AppDbContext dbContext) : ICandidateAccessSe
         return normalized;
     }
 
+    private static string NormalizeVerificationEmail(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new ApiException(
+                "Candidate email is required to verify this invitation.",
+                StatusCodes.Status400BadRequest);
+        }
+
+        var normalized = value.Trim().ToLowerInvariant();
+        if (!normalized.Contains('@'))
+        {
+            throw new ApiException(
+                "Candidate email is invalid.",
+                StatusCodes.Status400BadRequest);
+        }
+
+        return normalized;
+    }
+
+    private static string? NormalizeClientIpAddress(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var normalized = value.Trim();
+        if (normalized.Length <= 64)
+        {
+            return normalized;
+        }
+
+        return normalized[..64];
+    }
+
+    private static string? NormalizeAndHashFingerprint(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var normalized = value.Trim();
+        var bytes = Encoding.UTF8.GetBytes(normalized);
+        var hash = SHA256.HashData(bytes);
+        return Convert.ToHexString(hash);
+    }
+
     private static string HashToken(string token)
     {
         var bytes = Encoding.UTF8.GetBytes(token);
@@ -239,7 +489,10 @@ public class CandidateAccessService(AppDbContext dbContext) : ICandidateAccessSe
         return Convert.ToHexString(hash);
     }
 
-    private static InvitationAccessState ResolveState(CandidateInvitation invitation, DateTime nowUtc)
+    private static InvitationAccessState ResolveState(
+        CandidateInvitation invitation,
+        LinkSecurityRuntimeSettings settings,
+        DateTime nowUtc)
     {
         if (invitation.AttemptSubmittedAtUtc.HasValue ||
             invitation.Attempt?.SubmittedAtUtc.HasValue == true ||
@@ -248,7 +501,7 @@ public class CandidateAccessService(AppDbContext dbContext) : ICandidateAccessSe
             return InvitationAccessState.Submitted;
         }
 
-        if (IsExpired(invitation, nowUtc))
+        if (IsExpired(invitation, settings, nowUtc))
         {
             return InvitationAccessState.Expired;
         }
@@ -263,9 +516,22 @@ public class CandidateAccessService(AppDbContext dbContext) : ICandidateAccessSe
         return InvitationAccessState.Invited;
     }
 
-    private static bool IsExpired(CandidateInvitation invitation, DateTime nowUtc)
+    private static bool IsExpired(
+        CandidateInvitation invitation,
+        LinkSecurityRuntimeSettings settings,
+        DateTime nowUtc)
     {
-        if (invitation.TokenExpiresAtUtc <= nowUtc)
+        var effectiveTokenExpiryUtc = invitation.TokenExpiresAtUtc;
+        var hasStartedAttempt = invitation.AttemptStartedAtUtc.HasValue ||
+            invitation.Attempt is not null ||
+            IsStatus(invitation.Status, "InProgress");
+
+        if (hasStartedAttempt)
+        {
+            effectiveTokenExpiryUtc = effectiveTokenExpiryUtc.Add(GetGracePeriodDuration(settings));
+        }
+
+        if (effectiveTokenExpiryUtc <= nowUtc)
         {
             return true;
         }
@@ -273,14 +539,43 @@ public class CandidateAccessService(AppDbContext dbContext) : ICandidateAccessSe
         return invitation.DeadlineUtc.HasValue && invitation.DeadlineUtc.Value <= nowUtc;
     }
 
-    private static string BuildExpiredMessage(CandidateInvitation invitation, DateTime nowUtc)
+    private static string BuildExpiredMessage(
+        CandidateInvitation invitation,
+        LinkSecurityRuntimeSettings settings,
+        DateTime nowUtc)
     {
         if (invitation.DeadlineUtc.HasValue && invitation.DeadlineUtc.Value <= nowUtc)
         {
             return "This invitation is expired because the assessment deadline has passed.";
         }
 
+        var hasStartedAttempt = invitation.AttemptStartedAtUtc.HasValue ||
+            invitation.Attempt is not null ||
+            IsStatus(invitation.Status, "InProgress");
+        if (hasStartedAttempt)
+        {
+            var gracePeriod = GetGracePeriodDuration(settings);
+            if (invitation.TokenExpiresAtUtc.Add(gracePeriod) <= nowUtc)
+            {
+                return "This invitation expired because the grace period after link expiry has ended.";
+            }
+        }
+
         return "This invitation link has expired.";
+    }
+
+    private static TimeSpan GetGracePeriodDuration(LinkSecurityRuntimeSettings settings)
+    {
+        try
+        {
+            return CandidateLinkSecurityPolicy.ToGracePeriodDuration(
+                settings.GracePeriodValue,
+                settings.GracePeriodUnit);
+        }
+        catch (ArgumentException)
+        {
+            return TimeSpan.FromMinutes(CandidateLinkSecurityPolicy.DefaultGracePeriodValue);
+        }
     }
 
     private static bool IsStatus(string? value, string expected)
@@ -291,21 +586,36 @@ public class CandidateAccessService(AppDbContext dbContext) : ICandidateAccessSe
     private static CandidateAccessValidationDto MapValidationDto(
         CandidateInvitation invitation,
         InvitationAccessState state,
-        DateTime nowUtc)
+        DateTime nowUtc,
+        LinkSecurityRuntimeSettings settings)
     {
+        var singleUseAlreadyOpened =
+            settings.SingleUseLinkEnabled &&
+            state == InvitationAccessState.InProgress;
+
+        var mappedStatus = singleUseAlreadyOpened ? "Invalid" : state.ToString();
+
         return new CandidateAccessValidationDto
         {
-            IsValid = state is InvitationAccessState.Invited or InvitationAccessState.InProgress,
+            IsValid = !singleUseAlreadyOpened && state is InvitationAccessState.Invited or InvitationAccessState.InProgress,
             CanStart = state == InvitationAccessState.Invited,
-            CanResume = state == InvitationAccessState.InProgress,
-            CanSubmit = state == InvitationAccessState.InProgress,
-            Status = state.ToString(),
-            Message = state switch
+            CanResume = !singleUseAlreadyOpened && state == InvitationAccessState.InProgress,
+            CanSubmit = !singleUseAlreadyOpened && state == InvitationAccessState.InProgress,
+            RequiresEmailVerification = settings.EmailVerificationEnabled,
+            RequiresIpLock = settings.IpLockEnabled,
+            RequiresBrowserFingerprint = settings.BrowserFingerprintEnabled || settings.SingleUseLinkEnabled,
+            SingleUseLinkEnabled = settings.SingleUseLinkEnabled,
+            Status = mappedStatus,
+            Message = singleUseAlreadyOpened
+                ? "This single-use invitation link has already been opened."
+                : state switch
             {
-                InvitationAccessState.Invited => "Invitation link is valid.",
+                InvitationAccessState.Invited => settings.EmailVerificationEnabled
+                    ? "Invitation link is valid. Email verification is required before start."
+                    : "Invitation link is valid.",
                 InvitationAccessState.InProgress => "An in-progress attempt was found. You can resume.",
                 InvitationAccessState.Submitted => "This invitation link has already been used for a submitted attempt.",
-                InvitationAccessState.Expired => BuildExpiredMessage(invitation, nowUtc),
+                InvitationAccessState.Expired => BuildExpiredMessage(invitation, settings, nowUtc),
                 _ => "Invitation link is invalid."
             },
             InvitationId = invitation.Id.ToString(),
@@ -390,4 +700,14 @@ public class CandidateAccessService(AppDbContext dbContext) : ICandidateAccessSe
         Submitted,
         Expired,
     }
+
+    private sealed record LinkSecurityRuntimeSettings(
+        bool SingleUseLinkEnabled,
+        bool EmailVerificationEnabled,
+        bool IpLockEnabled,
+        bool BrowserFingerprintEnabled,
+        int GracePeriodValue,
+        string GracePeriodUnit);
+
+    private sealed record AccessRequestMetadata(string? ClientIpAddress, string? FingerprintHash);
 }
