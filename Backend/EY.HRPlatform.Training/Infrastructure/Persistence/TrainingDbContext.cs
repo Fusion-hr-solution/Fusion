@@ -262,7 +262,7 @@ public class TrainingDbContext : DbContext
             e.Property(g => g.Description).HasMaxLength(500);
             e.Property(g => g.Icon).HasMaxLength(50);
             e.HasIndex(g => g.Name).IsUnique();
-            e.HasIndex(g => g.Level);
+            e.HasIndex(g => g.Level).IsUnique();
         });
 
         // --- ServiceLine ---
