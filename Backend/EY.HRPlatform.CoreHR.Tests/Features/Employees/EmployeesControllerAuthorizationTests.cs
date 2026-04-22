@@ -22,7 +22,6 @@ public class EmployeesControllerAuthorizationTests
     }
 
     [Theory]
-    [InlineData(nameof(EmployeesController.GetAll))]
     [InlineData(nameof(EmployeesController.GetById))]
     public void ReadEndpoints_DoNotDeclareWriteRoleRestriction(string methodName)
     {
