@@ -98,7 +98,7 @@ export default function EmployeesPage() {
     <div className="flex flex-col gap-6 p-6">
       <PageHeader
         title="Employees"
-        description="Review the tenant roster by name, email, status, department, job title, and hire date."
+        description="Review the tenant roster with org-unit placement, status, department, job title, and hire date."
       />
 
       <Toolbar

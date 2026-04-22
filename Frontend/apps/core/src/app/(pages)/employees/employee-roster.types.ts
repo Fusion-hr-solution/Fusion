@@ -15,6 +15,8 @@ export interface EmployeeRosterItem {
   lastName: string;
   email: string;
   department: string | null;
+  orgUnitId: string | null;
+  orgUnitName: string | null;
   jobTitle: string | null;
   status: EmployeeRosterStatus;
   hireDate: string;

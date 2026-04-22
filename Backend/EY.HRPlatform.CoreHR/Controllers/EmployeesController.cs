@@ -79,6 +79,7 @@ public class EmployeesController(ISender sender) : ControllerBase
     /// Get an employee by ID.
     /// </summary>
     [HttpGet("{id:guid}")]
+    [Authorize(Roles = PlatformRole.HRAdmin)]
     [ProducesResponseType(typeof(ApiResponseOfEmployeeDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)

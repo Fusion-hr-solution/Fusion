@@ -165,6 +165,7 @@ export function EmployeesTable({
               </TableHead>
             ))}
             <TableHead>Job title</TableHead>
+            <TableHead>Org unit</TableHead>
           </TableRow>
         </TableHeader>
 
@@ -189,6 +190,9 @@ export function EmployeesTable({
                 {formatDate(employee.hireDate)}
               </TableCell>
               <TableCell>{renderValue(employee.jobTitle)}</TableCell>
+              <TableCell className="text-muted-foreground">
+                {employee.orgUnitName ?? "—"}
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>
