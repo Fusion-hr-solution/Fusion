@@ -10,8 +10,29 @@ public static class CoreHRSeeder
 {
     public static async Task SeedAsync(CoreHRDbContext dbContext, Guid tenantId)
     {
+        await SeedSetupState(dbContext, tenantId);
         await SeedOrgUnits(dbContext, tenantId);
         await SeedEmployees(dbContext, tenantId);
+    }
+
+    private static async Task SeedSetupState(CoreHRDbContext dbContext, Guid tenantId)
+    {
+        // Idempotent: skip if a setup state already exists for this tenant
+        if (await dbContext.TenantSetupStates.IgnoreQueryFilters().AnyAsync(s => s.TenantId == tenantId))
+            return;
+
+        // Advance through the state machine to StructurallyPublished so the
+        // frontend setup gate passes and employees/org units are accessible.
+        var setupState = TenantSetupState.CreateActivated(tenantId);
+        setupState.Approve(
+            Guid.Parse("00000000-0000-0000-0000-000000000001"),
+            "System Seeder",
+            "PlatformAdmin",
+            isPlatformAssisted: true);
+        setupState.Publish();
+
+        dbContext.TenantSetupStates.Add(setupState);
+        await dbContext.SaveChangesAsync();
     }
 
     private static async Task SeedOrgUnits(CoreHRDbContext dbContext, Guid tenantId)
@@ -154,6 +175,39 @@ public static class CoreHRSeeder
         formerEmployee.Deactivate();
 
         await db.Employees.AddAsync(formerEmployee);
+        await db.SaveChangesAsync();
+
+        // Assign org units to employees that map to the seeded structure.
+        // Finance/Marketing employees are intentionally left unlinked — their departments
+        // have no matching org unit in the seeded structure, so they render with em-dash.
+        var orgUnits = await db.OrgUnits.IgnoreQueryFilters()
+            .Where(o => o.TenantId == tenantId && new[]
+            {
+                "ENG", "HR", "ENG-PLATFORM", "ENG-FRONTEND", "ENG-BACKEND", "HR-OPS"
+            }.Contains(o.Code))
+            .ToDictionaryAsync(o => o.Code);
+
+        if (orgUnits.TryGetValue("ENG", out var engUnit))
+            vpEng.AssignOrgUnit(engUnit.Id);
+
+        if (orgUnits.TryGetValue("HR", out var hrUnit))
+            hrDirector.AssignOrgUnit(hrUnit.Id);
+
+        if (orgUnits.TryGetValue("ENG-PLATFORM", out var platformUnit))
+            techLead.AssignOrgUnit(platformUnit.Id);
+
+        if (orgUnits.TryGetValue("ENG-BACKEND", out var backendUnit))
+        {
+            seniorDev.AssignOrgUnit(backendUnit.Id);
+            formerEmployee.AssignOrgUnit(backendUnit.Id);
+        }
+
+        if (orgUnits.TryGetValue("ENG-FRONTEND", out var frontendUnit))
+            juniorDev.AssignOrgUnit(frontendUnit.Id);
+
+        if (orgUnits.TryGetValue("HR-OPS", out var peopleOpsUnit))
+            hrSpecialist.AssignOrgUnit(peopleOpsUnit.Id);
+
         await db.SaveChangesAsync();
     }
 }
