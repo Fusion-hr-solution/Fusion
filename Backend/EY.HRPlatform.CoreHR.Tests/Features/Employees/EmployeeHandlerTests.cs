@@ -109,6 +109,97 @@ public class EmployeeHandlerTests
     }
 
     [Fact]
+    public async Task CreateEmployee_WithOrgUnit_AssignsOrgUnitCorrectly()
+    {
+        // Arrange
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+        var orgUnit = OrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null);
+        seedContext.OrgUnits.Add(orgUnit);
+        await seedContext.SaveChangesAsync();
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = new CreateEmployeeCommandHandler(context, tenantContext);
+        var command = new CreateEmployeeCommand(
+            "John",
+            "Doe",
+            "john.doe@example.com",
+            DateTime.UtcNow,
+            OrgUnitId: orgUnit.Id);
+
+        // Act
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.Equal(orgUnit.Id, result.Value.OrgUnitId);
+        Assert.Equal("Engineering", result.Value.OrgUnitName);
+
+        var saved = await context.Employees.IgnoreQueryFilters().FirstAsync(e => e.Id == result.Value.Id);
+        Assert.Equal(orgUnit.Id, saved.OrgUnitId);
+    }
+
+    [Fact]
+    public async Task CreateEmployee_WithInactiveOrgUnit_ThrowsArgumentException()
+    {
+        // Arrange
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+        var orgUnit = OrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null);
+        orgUnit.Deactivate();
+        seedContext.OrgUnits.Add(orgUnit);
+        await seedContext.SaveChangesAsync();
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = new CreateEmployeeCommandHandler(context, tenantContext);
+        var command = new CreateEmployeeCommand(
+            "John",
+            "Doe",
+            "john.doe@example.com",
+            DateTime.UtcNow,
+            OrgUnitId: orgUnit.Id);
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<ArgumentException>(
+            () => handler.Handle(command, CancellationToken.None));
+
+        Assert.Contains("inactive org unit", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task CreateEmployee_WithOrgUnitFromDifferentTenant_ThrowsEntityNotFoundException()
+    {
+        // Arrange
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        var otherTenantId = Guid.NewGuid();
+
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+        var orgUnit = OrgUnit.Create(otherTenantId, "ENG", "Engineering", "Department", null);
+        seedContext.OrgUnits.Add(orgUnit);
+        await seedContext.SaveChangesAsync();
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = new CreateEmployeeCommandHandler(context, tenantContext);
+        var command = new CreateEmployeeCommand(
+            "John",
+            "Doe",
+            "john.doe@example.com",
+            DateTime.UtcNow,
+            OrgUnitId: orgUnit.Id);
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<EntityNotFoundException>(
+            () => handler.Handle(command, CancellationToken.None));
+
+        Assert.Contains("OrgUnit", exception.Message);
+    }
+
+    [Fact]
     public async Task CreateEmployee_WithNonExistentManager_ThrowsEntityNotFoundException()
     {
         // Arrange
@@ -157,6 +248,35 @@ public class EmployeeHandlerTests
         Assert.True(result.IsSuccess);
         Assert.Equal(employee.Id, result.Value.Id);
         Assert.Equal("John", result.Value.FirstName);
+    }
+
+    [Fact]
+    public async Task GetEmployeeById_WhenEmployeeHasOrgUnit_ReturnsOrgUnitLinkage()
+    {
+        // Arrange
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+        var orgUnit = OrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null);
+        seedContext.OrgUnits.Add(orgUnit);
+
+        var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", DateTime.UtcNow);
+        employee.AssignOrgUnit(orgUnit.Id);
+        seedContext.Employees.Add(employee);
+        await seedContext.SaveChangesAsync();
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = new GetEmployeeByIdQueryHandler(context);
+        var query = new GetEmployeeByIdQuery(employee.Id);
+
+        // Act
+        var result = await handler.Handle(query, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.Equal(orgUnit.Id, result.Value.OrgUnitId);
+        Assert.Equal("Engineering", result.Value.OrgUnitName);
     }
 
     [Fact]
@@ -333,6 +453,81 @@ public class EmployeeHandlerTests
         Assert.Equal("john@example.com", result.Value.Email); // Preserved
         Assert.Equal("Engineering", result.Value.Department); // Preserved
         Assert.Equal("Developer", result.Value.JobTitle);     // Preserved
+    }
+
+    [Fact]
+    public async Task UpdateEmployee_WithOrgUnit_AssignsOrgUnitCorrectly()
+    {
+        // Arrange
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+        var orgUnit = OrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null);
+        var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", DateTime.UtcNow);
+        seedContext.OrgUnits.Add(orgUnit);
+        seedContext.Employees.Add(employee);
+        await seedContext.SaveChangesAsync();
+        var version = employee.Version;
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = new UpdateEmployeeCommandHandler(context);
+        var command = new UpdateEmployeeCommand(
+            employee.Id,
+            version,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            orgUnit.Id);
+
+        // Act
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.Equal(orgUnit.Id, result.Value.OrgUnitId);
+        Assert.Equal("Engineering", result.Value.OrgUnitName);
+    }
+
+    [Fact]
+    public async Task UpdateEmployee_WithEmptyOrgUnitId_ClearsOrgUnit()
+    {
+        // Arrange
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+        var orgUnit = OrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null);
+        var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", DateTime.UtcNow);
+        employee.AssignOrgUnit(orgUnit.Id);
+        seedContext.OrgUnits.Add(orgUnit);
+        seedContext.Employees.Add(employee);
+        await seedContext.SaveChangesAsync();
+        var version = employee.Version;
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = new UpdateEmployeeCommandHandler(context);
+        var command = new UpdateEmployeeCommand(
+            employee.Id,
+            version,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            Guid.Empty);
+
+        // Act
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.Null(result.Value.OrgUnitId);
+        Assert.Null(result.Value.OrgUnitName);
     }
 
     #endregion

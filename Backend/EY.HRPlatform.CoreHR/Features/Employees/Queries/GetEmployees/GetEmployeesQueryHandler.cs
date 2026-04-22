@@ -20,6 +20,7 @@ public sealed class GetEmployeesQueryHandler(
         var query = dbContext.Employees
             .AsNoTracking()
             .Include(e => e.Manager)
+            .Include(e => e.OrgUnit)
             .AsQueryable();
 
         // Apply search filter (case-insensitive via ToLower)
@@ -69,6 +70,8 @@ public sealed class GetEmployeesQueryHandler(
                 e.LastName,
                 e.Email,
                 e.Department,
+                e.OrgUnitId,
+                e.OrgUnit != null ? e.OrgUnit.Name : null,
                 e.JobTitle,
                 e.Status,
                 e.HireDate,

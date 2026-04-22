@@ -11,6 +11,8 @@ public sealed record EmployeeListItemDto(
     string LastName,
     string Email,
     string? Department,
+    Guid? OrgUnitId,
+    string? OrgUnitName,
     string? JobTitle,
     EmployeeStatus Status,
     DateTime HireDate,

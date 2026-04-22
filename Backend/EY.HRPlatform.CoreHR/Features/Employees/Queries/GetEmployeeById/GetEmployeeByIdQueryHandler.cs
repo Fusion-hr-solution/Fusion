@@ -14,6 +14,7 @@ public sealed class GetEmployeeByIdQueryHandler(
     {
         var employee = await dbContext.Employees
             .Include(e => e.Manager)
+            .Include(e => e.OrgUnit)
             .FirstOrDefaultAsync(e => e.Id == request.EmployeeId, cancellationToken);
 
         if (employee is null)
@@ -31,6 +32,8 @@ public sealed class GetEmployeeByIdQueryHandler(
         employee.LastName,
         employee.Email,
         employee.Department,
+        employee.OrgUnitId,
+        employee.OrgUnit?.Name,
         employee.JobTitle,
         employee.HireDate,
         employee.Status,
