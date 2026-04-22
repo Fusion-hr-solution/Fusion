@@ -34,7 +34,7 @@ export default function OrganizationsPage() {
   const orderBy = sorting[0]?.id ?? "createdAt";
   const orderDirection = sorting[0]?.desc ? "desc" : "asc";
 
-  const { data, error, isLoading, refetch } = useOrganizationList({
+  const { data, error, isLoading, isFetching, refetch } = useOrganizationList({
     skip,
     take: pageSize,
     search: search || undefined,
@@ -122,12 +122,11 @@ export default function OrganizationsPage() {
       {/* Table */}
       <OrganizationsTable
         data={data?.items ?? []}
-        isLoading={isLoading}
-        isRefetching={isLoading && !!data}
+        isLoading={isLoading && !data}
+        isRefetching={isFetching && !!data}
         sorting={sorting}
         onSortingChange={setSorting}
         onRowClick={handleRowClick}
-        onMutated={refetch}
       />
 
       {/* Pagination */}
@@ -142,17 +141,12 @@ export default function OrganizationsPage() {
       )}
 
       {/* Dialogs */}
-      <CreateOrgDialog
-        open={createOpen}
-        onOpenChange={setCreateOpen}
-        onCreated={refetch}
-      />
+      <CreateOrgDialog open={createOpen} onOpenChange={setCreateOpen} />
 
       <OrgDetailSheet
         tenantId={detailId}
         open={!!detailId}
         onOpenChange={(open) => !open && setDetailId(null)}
-        onMutated={refetch}
       />
     </div>
   );

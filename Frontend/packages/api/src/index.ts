@@ -18,7 +18,7 @@ export type {
   DraftSetupReadinessDto,
   TenantSetupStateDto,
 } from "./core-setup";
-export { coreSetupPaths } from "./core-setup";
+export { coreSetupPaths, coreSetupQueryKeys } from "./core-setup";
 export type {
   BrandingSettingsDto,
   BrandingSettingsInputDto,
@@ -27,7 +27,10 @@ export type {
   TenantSettingsDto,
   UpdateTenantSettingsRequest,
 } from "./tenant-settings";
-export { tenantSettingsPaths } from "./tenant-settings";
+export {
+  tenantSettingsPaths,
+  tenantSettingsQueryKeys,
+} from "./tenant-settings";
 export type {
   DraftStructureWorkspaceStatus,
   DraftStructureAttributeValueType,
@@ -53,10 +56,14 @@ export type {
   DraftStructureImportResolveKindsRequest,
   DraftStructureImportApplyResultDto,
 } from "./draft-structure";
-export { draftStructurePaths } from "./draft-structure";
+export {
+  draftStructurePaths,
+  draftStructureQueryKeys,
+} from "./draft-structure";
 export type {
   CreatePlatformOrganizationRequest,
   UpdatePlatformOrganizationRequest,
+  PlatformOrganizationListQueryParams,
   PlatformOrganizationCreatedDto,
   PlatformOrganizationDetailDto,
   PlatformOrganizationInviteStatusDto,
@@ -64,6 +71,9 @@ export type {
   PlatformOrganizationSummaryDto,
   PlatformOrganizationPagedListDto,
 } from "./platform-organizations";
-export { platformOrganizationsPaths } from "./platform-organizations";
+export {
+  platformOrganizationsPaths,
+  platformOrganizationsQueryKeys,
+} from "./platform-organizations";
 export type { AcceptInviteRequest, InviteDto } from "./invites";
-export { invitePaths } from "./invites";
+export { invitePaths, inviteQueryKeys } from "./invites";

@@ -3,11 +3,17 @@
 import { useCallback, useMemo } from "react";
 import {
   createPlatformApiClient,
+  draftStructureQueryKeys,
+  tenantSettingsQueryKeys,
   tenantSettingsPaths,
   type TenantSettingsDto,
   type UpdateTenantSettingsRequest,
 } from "@repo/api";
-import { useApiMutation, useApiQuery } from "@repo/api/react";
+import {
+  useApiMutation,
+  useApiQuery,
+  useApiQueryClient,
+} from "@repo/api/query";
 import { useAuth } from "@repo/auth";
 
 interface UpdateTenantSettingsArgs {
@@ -27,13 +33,16 @@ export function useTenantSettings(enabled = true) {
     [client]
   );
 
-  return useApiQuery(queryFn, { enabled: isAuthenticated && enabled });
+  return useApiQuery(tenantSettingsQueryKeys.current(), queryFn, {
+    enabled: isAuthenticated && enabled,
+  });
 }
 
 export function useUpdateTenantSettings(opts?: {
   onSuccess?: (data: TenantSettingsDto) => void;
 }) {
   const client = useMemo(() => createPlatformApiClient(), []);
+  const queryClient = useApiQueryClient();
 
   return useApiMutation<TenantSettingsDto, UpdateTenantSettingsArgs>(
     ({ expectedVersion, input }) =>
@@ -43,6 +52,15 @@ export function useUpdateTenantSettings(opts?: {
             ? undefined
             : { "If-Match": `"${expectedVersion}"` },
       }),
-    opts
+    {
+      invalidateQueries: [
+        { queryKey: draftStructureQueryKeys.workspace(), exact: true },
+        { queryKey: draftStructureQueryKeys.importSchema(), exact: true },
+      ],
+      onSuccess: async (data) => {
+        queryClient.setQueryData(tenantSettingsQueryKeys.current(), data);
+        await opts?.onSuccess?.(data);
+      },
+    }
   );
 }

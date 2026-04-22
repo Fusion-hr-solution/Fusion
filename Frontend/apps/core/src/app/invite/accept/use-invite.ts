@@ -3,12 +3,17 @@
 import { useCallback, useMemo } from "react";
 import {
   createPlatformApiClient,
+  inviteQueryKeys,
   invitePaths,
   type InviteDto,
   type AcceptInviteRequest,
 } from "@repo/api";
-import { useApiQuery, type UseApiQueryResult } from "@repo/api/react";
-import { useApiMutation, type UseApiMutationResult } from "@repo/api/react";
+import {
+  useApiMutation,
+  useApiQuery,
+  type UseApiMutationResult,
+  type UseApiQueryResult,
+} from "@repo/api/query";
 
 // ---------------------------------------------------------------------------
 // Validate invite token (anonymous GET)
@@ -31,7 +36,9 @@ export function useValidateInvite(
     [client, token]
   );
 
-  return useApiQuery(queryFn, { enabled: !!token });
+  return useApiQuery(inviteQueryKeys.validate(token ?? "pending"), queryFn, {
+    enabled: !!token,
+  });
 }
 
 // ---------------------------------------------------------------------------

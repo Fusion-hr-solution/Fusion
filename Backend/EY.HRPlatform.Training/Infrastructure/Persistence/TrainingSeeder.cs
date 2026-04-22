@@ -376,5 +376,37 @@ public static class TrainingSeeder
             new ExamOption("struct", false, q1.Id, 3));
         await db.SaveChangesAsync();
 
+        // --- Grades ---
+        if (!await db.Grades.AnyAsync())
+        {
+            var grades = new List<Grade>
+            {
+                new("Staff", 10, "Entry-level associate"),
+                new("Senior", 20, "Senior associate"),
+                new("Manager M1", 30, "Manager level 1"),
+                new("Manager M2", 35, "Manager level 2"),
+                new("Manager M3", 40, "Manager level 3"),
+                new("Manager M4", 45, "Manager level 4"),
+                new("Senior Manager", 50, "Senior manager"),
+                new("Director", 60, "Director"),
+                new("Partner", 70, "Partner"),
+            };
+            await db.Grades.AddRangeAsync(grades);
+            await db.SaveChangesAsync();
+        }
+
+        // --- Service Lines ---
+        if (!await db.ServiceLines.AnyAsync())
+        {
+            var serviceLines = new List<ServiceLine>
+            {
+                new("Assurance", "ASR", "#3B82F6", "Audit and assurance services"),
+                new("Consulting", "CON", "#8B5CF6", "Business consulting services"),
+                new("Tax", "TAX", "#10B981", "Tax advisory services"),
+                new("Strategy and Transactions", "SAR", "#F59E0B", "Strategy, deals, and transactions"),
+            };
+            await db.ServiceLines.AddRangeAsync(serviceLines);
+            await db.SaveChangesAsync();
+        }
     }
 }

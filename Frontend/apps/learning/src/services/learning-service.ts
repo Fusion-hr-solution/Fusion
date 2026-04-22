@@ -1,5 +1,5 @@
 import { createPlatformApiClient } from "@repo/api";
-import type { EnrolledTraining, Training, TrainingCategory, TrainingLevel, BadgeLevel, TrainingLearnData, ContentType, ChapterContent, ChapterLayout, TrainingType, OnSiteCourse } from "@/types";
+import type { EnrolledTraining, Training, TrainingCategory, TrainingLevel, BadgeLevel, TrainingLearnData, ContentType, ChapterContent, ChapterLayout, TrainingType, OnSiteCourse, LearnerExam, LearnerQuestionType, ExamSubmissionResult, ExamAttempt } from "@/types";
 import type {
   BackendTrainingCategoryDto,
   BackendTrainingDto,
@@ -9,6 +9,9 @@ import type {
   BackendTrainingProgressDto,
   BackendChapterContentDto,
   BackendOnSiteCourseDto,
+  BackendExamForLearnerDto,
+  BackendExamSubmissionResultDto,
+  BackendExamAttemptDto,
 } from "@/types/backend-dtos";
 import { CATEGORY_MAP, LEVEL_MAP, BADGE_LEVEL_MAP, CONTENT_TYPE_MAP } from "@/types/backend-dtos";
 
@@ -301,4 +304,72 @@ export async function getTrainingProgress(trainingId: string): Promise<TrainingL
     overallProgress: data.progressPercentage,
     status: mapTrainingStatus(data.status),
   };
+}
+
+/* ── Learner Exam API ── */
+
+function mapExamForLearner(dto: BackendExamForLearnerDto): LearnerExam {
+  return {
+    id: dto.id,
+    trainingId: dto.trainingId,
+    title: dto.title,
+    description: dto.description ?? undefined,
+    passingScore: dto.passingScore,
+    durationMinutes: dto.durationMinutes ?? undefined,
+    questionCount: dto.questionCount,
+    questions: dto.questions
+      .sort((a, b) => a.orderIndex - b.orderIndex)
+      .map((q) => ({
+        id: q.id,
+        questionText: q.questionText,
+        type: q.type as LearnerQuestionType,
+        orderIndex: q.orderIndex,
+        points: q.points,
+        options: q.options
+          .sort((a, b) => a.orderIndex - b.orderIndex)
+          .map((o) => ({ id: o.id, optionText: o.optionText, orderIndex: o.orderIndex })),
+      })),
+  };
+}
+
+export async function getExamForLearner(trainingId: string): Promise<LearnerExam> {
+  const dto = await client.get<BackendExamForLearnerDto>(
+    `/training/my-trainings/${encodeURIComponent(trainingId)}/exam`,
+  );
+  return mapExamForLearner(dto);
+}
+
+export async function submitExam(
+  trainingId: string,
+  answers: { questionId: string; selectedOptionIds: string[] }[],
+): Promise<ExamSubmissionResult> {
+  const dto = await client.post<BackendExamSubmissionResultDto>(
+    `/training/my-trainings/${encodeURIComponent(trainingId)}/exam/submit`,
+    { answers },
+  );
+  return {
+    attemptId: dto.attemptId,
+    score: dto.score,
+    passingScore: dto.passingScore,
+    totalQuestions: dto.totalQuestions,
+    correctAnswers: dto.correctAnswers,
+    passed: dto.passed,
+    attemptedAt: dto.attemptedAt,
+    trainingCompleted: dto.trainingCompleted,
+  };
+}
+
+export async function getExamAttempts(trainingId: string): Promise<ExamAttempt[]> {
+  const dtos = await client.get<BackendExamAttemptDto[]>(
+    `/training/my-trainings/${encodeURIComponent(trainingId)}/exam/attempts`,
+  );
+  return dtos.map((d) => ({
+    id: d.id,
+    examId: d.examId,
+    score: d.score,
+    totalQuestions: d.totalQuestions,
+    correctAnswers: d.correctAnswers,
+    passed: d.passed,
+    attemptedAt: d.attemptedAt,
+  }));
 }
