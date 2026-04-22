@@ -2,7 +2,11 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import type { DraftOrgUnitDto, DraftStructureSchemaDto, UpdateDraftOrgUnitRequest } from "@repo/api";
+import type {
+  DraftOrgUnitDto,
+  DraftStructureSchemaDto,
+  UpdateDraftOrgUnitRequest,
+} from "@repo/api";
 import { ApiError } from "@repo/api";
 import {
   AlertDialog,
@@ -55,7 +59,7 @@ interface DraftUnitSheetProps {
   unit: DraftOrgUnitDto | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onMutated: () => void;
+  onMutated?: () => void;
   onSchemaUpdated?: () => void;
   readOnly?: boolean;
   readOnlyDescription?: string;
@@ -168,7 +172,7 @@ export function DraftUnitSheet({
     onSuccess: (data) => {
       toast.success(`Unit "${data.displayName}" updated`);
       setServerError(null);
-      onMutated();
+      onMutated?.();
     },
   });
 
@@ -178,7 +182,7 @@ export function DraftUnitSheet({
       setDeleteOpen(false);
       setDeleteStrategy("");
       onOpenChange(false);
-      onMutated();
+      onMutated?.();
     },
   });
 
@@ -264,11 +268,16 @@ export function DraftUnitSheet({
             </SheetDescription>
           </SheetHeader>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
+          <form
+            onSubmit={handleSubmit(onSubmit)}
+            className="flex min-h-0 flex-1 flex-col"
+          >
             <div className="flex-1 space-y-5 overflow-y-auto px-4 py-4 sm:px-6">
               <section className="space-y-2 text-sm text-muted-foreground">
                 <p>Unit code: {unit.referenceKey}</p>
-                <p>Parent unit: {unit.parentDisplayName ?? "Organization root"}</p>
+                <p>
+                  Parent unit: {unit.parentDisplayName ?? "Organization root"}
+                </p>
               </section>
 
               <Separator />
@@ -286,11 +295,16 @@ export function DraftUnitSheet({
                   disabled={readOnly}
                   {...register("referenceKey", {
                     required: "Unit code is required",
-                    maxLength: { value: 150, message: "Maximum 150 characters" },
+                    maxLength: {
+                      value: 150,
+                      message: "Maximum 150 characters",
+                    },
                   })}
                 />
                 {errors.referenceKey && (
-                  <p className="text-sm text-destructive">{errors.referenceKey.message}</p>
+                  <p className="text-sm text-destructive">
+                    {errors.referenceKey.message}
+                  </p>
                 )}
               </div>
 
@@ -301,11 +315,16 @@ export function DraftUnitSheet({
                   disabled={readOnly}
                   {...register("displayName", {
                     required: "Unit name is required",
-                    maxLength: { value: 200, message: "Maximum 200 characters" },
+                    maxLength: {
+                      value: 200,
+                      message: "Maximum 200 characters",
+                    },
                   })}
                 />
                 {errors.displayName && (
-                  <p className="text-sm text-destructive">{errors.displayName.message}</p>
+                  <p className="text-sm text-destructive">
+                    {errors.displayName.message}
+                  </p>
                 )}
               </div>
 
@@ -320,9 +339,14 @@ export function DraftUnitSheet({
                     onSchemaUpdated={(nextSchema) => {
                       setEditableSchema(nextSchema);
                       if (
-                        !nextSchema.orgUnitKinds.some((kind) => kind.key === selectedKindKey)
+                        !nextSchema.orgUnitKinds.some(
+                          (kind) => kind.key === selectedKindKey
+                        )
                       ) {
-                        setValue("orgUnitKindKey", nextSchema.orgUnitKinds[0]?.key ?? "");
+                        setValue(
+                          "orgUnitKindKey",
+                          nextSchema.orgUnitKinds[0]?.key ?? ""
+                        );
                       }
                       onSchemaUpdated?.();
                     }}
@@ -334,11 +358,11 @@ export function DraftUnitSheet({
                   name="orgUnitKindKey"
                   rules={{ required: "Unit type is required" }}
                   render={({ field }) => (
-                      <Select
-                        value={field.value}
-                        onValueChange={field.onChange}
-                        disabled={readOnly}
-                      >
+                    <Select
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      disabled={readOnly}
+                    >
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select a unit type" />
                       </SelectTrigger>
@@ -353,7 +377,9 @@ export function DraftUnitSheet({
                   )}
                 />
                 {errors.orgUnitKindKey && (
-                  <p className="text-sm text-destructive">{errors.orgUnitKindKey.message}</p>
+                  <p className="text-sm text-destructive">
+                    {errors.orgUnitKindKey.message}
+                  </p>
                 )}
               </div>
 
@@ -374,7 +400,9 @@ export function DraftUnitSheet({
                         <SelectValue placeholder="Select a parent unit" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value={ROOT_VALUE}>Organization root</SelectItem>
+                        <SelectItem value={ROOT_VALUE}>
+                          Organization root
+                        </SelectItem>
                         {parentCandidates.map((candidate) => (
                           <SelectItem key={candidate.id} value={candidate.id}>
                             {formatUnitOptionLabel(candidate)}
@@ -404,11 +432,16 @@ export function DraftUnitSheet({
                         placeholder="Dubai HQ"
                         disabled={readOnly}
                         {...register("location", {
-                          maxLength: { value: 100, message: "Maximum 100 characters" },
+                          maxLength: {
+                            value: 100,
+                            message: "Maximum 100 characters",
+                          },
                         })}
                       />
                       {errors.location && (
-                        <p className="text-sm text-destructive">{errors.location.message}</p>
+                        <p className="text-sm text-destructive">
+                          {errors.location.message}
+                        </p>
                       )}
                     </div>
                   </div>
@@ -420,11 +453,16 @@ export function DraftUnitSheet({
                       rows={3}
                       disabled={readOnly}
                       {...register("description", {
-                        maxLength: { value: 500, message: "Maximum 500 characters" },
+                        maxLength: {
+                          value: 500,
+                          message: "Maximum 500 characters",
+                        },
                       })}
                     />
                     {errors.description && (
-                      <p className="text-sm text-destructive">{errors.description.message}</p>
+                      <p className="text-sm text-destructive">
+                        {errors.description.message}
+                      </p>
                     )}
                   </div>
 
@@ -454,7 +492,11 @@ export function DraftUnitSheet({
 
             <SheetFooter className="border-t bg-muted/50 sm:flex-row sm:justify-between">
               {readOnly ? (
-                <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => onOpenChange(false)}
+                >
                   Close
                 </Button>
               ) : (
@@ -467,7 +509,10 @@ export function DraftUnitSheet({
                   >
                     Delete Unit
                   </Button>
-                  <Button type="submit" disabled={update.isLoading || remove.isLoading}>
+                  <Button
+                    type="submit"
+                    disabled={update.isLoading || remove.isLoading}
+                  >
                     {update.isLoading && <Spinner className="mr-1" />}
                     Save Changes
                   </Button>
@@ -497,7 +542,9 @@ export function DraftUnitSheet({
                   <SelectValue placeholder="Choose a replacement parent or promote to root" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={ROOT_VALUE}>Promote children to root</SelectItem>
+                  <SelectItem value={ROOT_VALUE}>
+                    Promote children to root
+                  </SelectItem>
                   {parentCandidates.map((candidate) => (
                     <SelectItem key={candidate.id} value={candidate.id}>
                       Reparent to {formatUnitOptionLabel(candidate)}
@@ -509,10 +556,14 @@ export function DraftUnitSheet({
           )}
 
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={remove.isLoading}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={remove.isLoading}>
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
-              disabled={remove.isLoading || (childUnits.length > 0 && !deleteStrategy)}
+              disabled={
+                remove.isLoading || (childUnits.length > 0 && !deleteStrategy)
+              }
               onClick={handleDelete}
             >
               {remove.isLoading && <Spinner className="mr-1" />}

@@ -200,8 +200,24 @@ export const draftStructurePaths = {
   importTemplate: () => "/corehr/setup/draft-structure/import/template",
   importUpload: () => "/corehr/setup/draft-structure/import",
   importSession: (id: string) => `/corehr/setup/draft-structure/import/${id}`,
-  importMapping: (id: string) => `/corehr/setup/draft-structure/import/${id}/mapping`,
-  importKinds: (id: string) => `/corehr/setup/draft-structure/import/${id}/kinds`,
-  importValidate: (id: string) => `/corehr/setup/draft-structure/import/${id}/validate`,
-  importApply: (id: string) => `/corehr/setup/draft-structure/import/${id}/apply`,
+  importMapping: (id: string) =>
+    `/corehr/setup/draft-structure/import/${id}/mapping`,
+  importKinds: (id: string) =>
+    `/corehr/setup/draft-structure/import/${id}/kinds`,
+  importValidate: (id: string) =>
+    `/corehr/setup/draft-structure/import/${id}/validate`,
+  importApply: (id: string) =>
+    `/corehr/setup/draft-structure/import/${id}/apply`,
+} as const;
+
+export const draftStructureQueryKeys = {
+  all: () => ["draftStructure"] as const,
+  workspace: () => [...draftStructureQueryKeys.all(), "workspace"] as const,
+  tree: () => [...draftStructureQueryKeys.all(), "tree"] as const,
+  importSchema: () =>
+    [...draftStructureQueryKeys.all(), "importSchema"] as const,
+  importSessions: () =>
+    [...draftStructureQueryKeys.all(), "importSession"] as const,
+  importSession: (sessionId: string) =>
+    [...draftStructureQueryKeys.importSessions(), sessionId] as const,
 } as const;
