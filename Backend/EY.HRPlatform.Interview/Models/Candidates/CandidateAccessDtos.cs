@@ -8,6 +8,10 @@ public class CandidateAccessValidationDto
     public bool CanStart { get; set; }
     public bool CanResume { get; set; }
     public bool CanSubmit { get; set; }
+    public bool RequiresEmailVerification { get; set; }
+    public bool RequiresIpLock { get; set; }
+    public bool RequiresBrowserFingerprint { get; set; }
+    public bool SingleUseLinkEnabled { get; set; }
     public string Status { get; set; } = "Invalid";
     public string Message { get; set; } = string.Empty;
     public string? InvitationId { get; set; }
@@ -23,11 +27,18 @@ public class CandidateAccessValidationDto
 public class StartCandidateAttemptDto
 {
     public string Token { get; set; } = string.Empty;
+    public string? CandidateEmail { get; set; }
+    public string? BrowserFingerprint { get; set; }
+    public string? ClientIpAddress { get; set; }
+    public string? UserAgent { get; set; }
 }
 
 public class SubmitCandidateAttemptDto
 {
     public string Token { get; set; } = string.Empty;
+    public string? BrowserFingerprint { get; set; }
+    public string? ClientIpAddress { get; set; }
+    public string? UserAgent { get; set; }
     public JsonElement? Answers { get; set; }
     public JsonElement? Result { get; set; }
 }
