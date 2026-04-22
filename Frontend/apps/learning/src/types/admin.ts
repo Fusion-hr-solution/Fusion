@@ -57,12 +57,76 @@ export interface AdminContentBlock {
   updatedAt?: string;
 }
 
-/** Admin Exam (read-only) */
+/** Admin Exam (list / summary view) */
 export interface AdminExam {
   id: string;
   title: string;
   passingScore: number;
   questionCount: number;
+}
+
+/** Question type enum matching backend QuestionType */
+export type QuestionType = "SingleChoice" | "MultipleChoice" | "TrueFalse";
+
+/** Admin Exam full detail (with questions & options) */
+export interface AdminExamDetail {
+  id: string;
+  trainingId: string;
+  title: string;
+  description?: string;
+  passingScore: number;
+  durationMinutes?: number;
+  createdAt: string;
+  updatedAt?: string;
+  questions: AdminExamQuestion[];
+}
+
+/** Exam question */
+export interface AdminExamQuestion {
+  id: string;
+  questionText: string;
+  type: QuestionType;
+  orderIndex: number;
+  points: number;
+  options: AdminExamOption[];
+}
+
+/** Exam option */
+export interface AdminExamOption {
+  id: string;
+  optionText: string;
+  isCorrect: boolean;
+  orderIndex: number;
+}
+
+// --- Exam input types ---
+
+export interface CreateExamInput {
+  title: string;
+  description?: string;
+  passingScore: number;
+  durationMinutes?: number;
+}
+
+export interface UpdateExamInput {
+  title: string;
+  description?: string;
+  passingScore: number;
+  durationMinutes?: number;
+}
+
+export interface CreateExamQuestionInput {
+  questionText: string;
+  type: QuestionType;
+  points: number;
+  options: { optionText: string; isCorrect: boolean }[];
+}
+
+export interface UpdateExamQuestionInput {
+  questionText: string;
+  type: QuestionType;
+  points: number;
+  options: { optionText: string; isCorrect: boolean }[];
 }
 
 /** Admin On-Site Course */
