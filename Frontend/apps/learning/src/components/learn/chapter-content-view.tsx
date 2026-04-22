@@ -114,6 +114,8 @@ export function ChapterContentView({
   onPrevious,
   hasPrevious,
   isLoading,
+  examAvailable,
+  onStartExam,
 }: ChapterContentViewProps) {
   const sortedBlocks = [...chapter.contentBlocks].sort((a, b) => a.orderIndex - b.orderIndex);
   const allBlocksCompleted = sortedBlocks.length > 0 && sortedBlocks.every((b) => completedBlockIds.has(b.id));
@@ -143,6 +145,8 @@ export function ChapterContentView({
         onPrevious={onPrevious}
         hasPrevious={hasPrevious}
         isLoading={isLoading}
+        examAvailable={examAvailable}
+        onStartExam={onStartExam}
       />
     </div>
   );

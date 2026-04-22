@@ -13,6 +13,7 @@ export function ChapterSidebar({
   overallProgress,
   examAvailable,
   onOpenExam,
+  isExamActive,
 }: ChapterSidebarProps) {
   return (
     <aside className="flex w-80 shrink-0 flex-col border-r border-border bg-white">
@@ -100,9 +101,11 @@ export function ChapterSidebar({
               onClick={onOpenExam}
               disabled={!examAvailable}
               className={`flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left transition-all ${
-                examAvailable
-                  ? "hover:bg-[hsl(var(--ey-yellow))]/10"
-                  : "opacity-50 cursor-not-allowed"
+                isExamActive
+                  ? "bg-[hsl(var(--ey-yellow))]/15 border border-[hsl(var(--ey-yellow))]/30"
+                  : examAvailable
+                    ? "hover:bg-[hsl(var(--ey-yellow))]/10"
+                    : "opacity-50 cursor-not-allowed"
               }`}
             >
               <div className="shrink-0">
@@ -113,11 +116,11 @@ export function ChapterSidebar({
                 )}
               </div>
               <div className="flex-1 min-w-0">
-                <p className={`text-sm font-medium ${examAvailable ? "text-foreground" : "text-muted-foreground"}`}>
+                <p className={`text-sm font-medium ${isExamActive ? "text-foreground font-semibold" : examAvailable ? "text-foreground" : "text-muted-foreground"}`}>
                   Final Exam
                 </p>
                 <span className="text-xs text-muted-foreground">
-                  {examAvailable ? "Ready to take" : "Complete all chapters first"}
+                  {isExamActive ? "In progress" : examAvailable ? "Ready to take" : "Complete all chapters first"}
                 </span>
               </div>
             </button>
