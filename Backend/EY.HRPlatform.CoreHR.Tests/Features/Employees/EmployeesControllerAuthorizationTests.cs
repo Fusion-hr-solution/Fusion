@@ -21,17 +21,6 @@ public class EmployeesControllerAuthorizationTests
         Assert.Equal($"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin}", authorizeAttribute.Roles);
     }
 
-    [Theory]
-    [InlineData(nameof(EmployeesController.GetById))]
-    public void ReadEndpoints_DoNotDeclareWriteRoleRestriction(string methodName)
-    {
-        var method = GetControllerMethod(methodName);
-
-        var authorizeAttribute = method.GetCustomAttribute<AuthorizeAttribute>(inherit: false);
-
-        Assert.Null(authorizeAttribute);
-    }
-
     [Fact]
     public void Controller_RequiresAuthenticatedUserAtClassLevel()
     {

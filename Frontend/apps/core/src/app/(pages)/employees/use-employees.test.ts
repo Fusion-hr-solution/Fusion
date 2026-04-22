@@ -26,7 +26,7 @@ vi.mock("@repo/auth", () => ({
   useAuth: () => authState,
   canAccessCoreSetup: (user: { roles?: string[] } | null) =>
     !!user?.roles?.includes("HRAdmin") &&
-    !user.roles.includes("PlatformAdmin"),
+    !user?.roles?.includes("PlatformAdmin"),
 }));
 
 vi.mock("@repo/api/react", async () => {

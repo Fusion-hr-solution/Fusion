@@ -1,4 +1,5 @@
 using EY.HRPlatform.CoreHR.Domain.Entities;
+using EY.HRPlatform.SharedKernel.Auth;
 using Microsoft.EntityFrameworkCore;
 
 namespace EY.HRPlatform.CoreHR.Infrastructure.Persistence;
@@ -8,6 +9,10 @@ namespace EY.HRPlatform.CoreHR.Infrastructure.Persistence;
 /// </summary>
 public static class CoreHRSeeder
 {
+    /// <summary>Deterministic actor id used when seeder calls domain methods that require a user id.</summary>
+    private static readonly Guid SeederActorId = Guid.Parse("00000000-0000-0000-0000-000000000099");
+    private const string SeederDisplayName = "System Seeder";
+
     public static async Task SeedAsync(CoreHRDbContext dbContext, Guid tenantId)
     {
         await SeedSetupState(dbContext, tenantId);
@@ -25,9 +30,9 @@ public static class CoreHRSeeder
         // frontend setup gate passes and employees/org units are accessible.
         var setupState = TenantSetupState.CreateActivated(tenantId);
         setupState.Approve(
-            Guid.Parse("00000000-0000-0000-0000-000000000001"),
-            "System Seeder",
-            "PlatformAdmin",
+            SeederActorId,
+            SeederDisplayName,
+            PlatformRole.PlatformAdmin,
             isPlatformAssisted: true);
         setupState.Publish();
 
