@@ -287,7 +287,7 @@ describe("useCreateOrganization", () => {
       "/identity/platform-admin/organizations",
       { name: "Acme Corp", firstAdminEmail: "admin@acme.com" }
     );
-    expect(result.current.data).toEqual(mockCreated);
+    await waitFor(() => expect(result.current.data).toEqual(mockCreated));
   });
 
   it("calls onSuccess callback", async () => {
