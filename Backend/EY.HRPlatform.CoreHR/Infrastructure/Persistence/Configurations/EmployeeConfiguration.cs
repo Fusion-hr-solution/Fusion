@@ -54,8 +54,9 @@ public class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
             .IsRequired(false);
 
         // Org-unit relationship.
-        // SetNull: removing an org unit clears the employee link
-        // rather than cascading a delete or blocking the operation.
+        // DB FK is SetNull as a defensive fallback (if the constraint fires directly).
+        // Org-unit deletion is guarded at the handler level: active assigned employees
+        // return Conflict before the DB delete is attempted.
         builder.HasOne(e => e.OrgUnit)
             .WithMany()
             .HasForeignKey(e => e.OrgUnitId)

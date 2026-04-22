@@ -43,6 +43,7 @@ namespace EY.HRPlatform.CoreHR.Infrastructure.Persistence.Migrations
                                 SET "OrgUnitId" = o."Id"
                                 FROM corehr."OrgUnits" AS o
                                 WHERE e."OrgUnitId" IS NULL
+                                    AND e."Status" = 'Active'
                                     AND e."Department" IS NOT NULL
                                     AND btrim(e."Department") <> ''
                                     AND o."TenantId" = e."TenantId"
@@ -56,6 +57,7 @@ namespace EY.HRPlatform.CoreHR.Infrastructure.Persistence.Migrations
                                 SET "OrgUnitId" = o."Id"
                                 FROM corehr."OrgUnits" AS o
                                 WHERE e."OrgUnitId" IS NULL
+                                    AND e."Status" = 'Active'
                                     AND e."Department" IS NOT NULL
                                     AND btrim(e."Department") <> ''
                                     AND o."TenantId" = e."TenantId"
