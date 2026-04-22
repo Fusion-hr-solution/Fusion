@@ -11,6 +11,7 @@ import {
 } from "@repo/auth";
 import { PEOPLE_NAV, ADMIN_NAV } from "@/data/sidebar-nav";
 import { useCoreSetupAccess } from "@/components/core-setup-access";
+import { canSeeEmployeeRosterNavigation } from "@/lib/employee-roster-access";
 
 function applySetupLock(section: NavSection, disabledReason: string): NavSection {
   return {
@@ -34,6 +35,14 @@ export function CoreSidebar() {
   const { isNavigationLocked, lockedNavigationReason } = useCoreSetupAccess();
   const canSeeSetup = canSeeCoreSetupNavigation(user);
   const canSeeOrganizations = canSeeOrganizationsNavigation(user);
+  const canSeeEmployeeRoster = canSeeEmployeeRosterNavigation(user);
+  const peopleItems = PEOPLE_NAV.items.filter((item) => {
+    if (item.href === "/employees") {
+      return canSeeEmployeeRoster;
+    }
+
+    return true;
+  });
   const adminItems = ADMIN_NAV.items.filter((item) => {
     if (item.href === "/setup") {
       return canSeeSetup;
@@ -47,8 +56,8 @@ export function CoreSidebar() {
   });
 
   const visibleSections = adminItems.length
-    ? [PEOPLE_NAV, { ...ADMIN_NAV, items: adminItems }]
-    : [PEOPLE_NAV];
+    ? [{ ...PEOPLE_NAV, items: peopleItems }, { ...ADMIN_NAV, items: adminItems }]
+    : [{ ...PEOPLE_NAV, items: peopleItems }];
 
   const sections =
     isNavigationLocked && lockedNavigationReason
