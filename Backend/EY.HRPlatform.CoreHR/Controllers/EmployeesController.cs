@@ -47,6 +47,7 @@ public class EmployeesController(ISender sender) : ControllerBase
     /// Create a new employee within the current tenant.
     /// </summary>
     [HttpPost]
+    [Authorize(Roles = $"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin}")]
     [ProducesResponseType(typeof(ApiResponseOfEmployeeDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status409Conflict)]
@@ -98,6 +99,7 @@ public class EmployeesController(ISender sender) : ControllerBase
     /// Requires If-Match header with current version for optimistic concurrency.
     /// </summary>
     [HttpPut("{id:guid}")]
+    [Authorize(Roles = $"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin}")]
     [ProducesResponseType(typeof(ApiResponseOfEmployeeDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
@@ -138,6 +140,7 @@ public class EmployeesController(ISender sender) : ControllerBase
     /// Requires If-Match header with current version for optimistic concurrency.
     /// </summary>
     [HttpDelete("{id:guid}")]
+    [Authorize(Roles = $"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status409Conflict)]

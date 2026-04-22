@@ -3,7 +3,9 @@
 import { useCallback, useMemo } from "react";
 import {
   createPlatformApiClient,
+  platformOrganizationsQueryKeys,
   platformOrganizationsPaths,
+  type PlatformOrganizationListQueryParams,
   type PlatformOrganizationPagedListDto,
   type PlatformOrganizationDetailDto,
   type PlatformOrganizationCreatedDto,
@@ -12,24 +14,19 @@ import {
   type PlatformOrganizationInviteStatusDto,
 } from "@repo/api";
 import {
+  keepPreviousData,
   useApiQuery,
   useApiMutation,
+  useApiQueryClient,
   type UseApiQueryResult,
   type UseApiMutationResult,
-} from "@repo/api/react";
+} from "@repo/api/query";
 import { canAccessOrganizations, useAuth } from "@repo/auth";
 
 // ---------------------------------------------------------------------------
 // Query params
 // ---------------------------------------------------------------------------
-export interface OrgListParams {
-  skip: number;
-  take: number;
-  search?: string;
-  orderBy?: string;
-  orderDirection?: string;
-  filterByStatus?: string[];
-}
+export type OrgListParams = PlatformOrganizationListQueryParams;
 
 // ---------------------------------------------------------------------------
 // List hook
@@ -43,7 +40,12 @@ export function useOrganizationList(
 
   const { skip, take, search, orderBy, orderDirection, filterByStatus } =
     params;
-  const statusKey = filterByStatus?.join(",") ?? "";
+  const normalizedSearch = search?.trim() || undefined;
+  const normalizedFilterByStatus =
+    filterByStatus && filterByStatus.length > 0
+      ? [...filterByStatus].sort()
+      : undefined;
+  const statusKey = normalizedFilterByStatus?.join(",") ?? "";
 
   const queryFn = useCallback(
     (signal: AbortSignal) => {
@@ -51,7 +53,7 @@ export function useOrganizationList(
         {
           skip,
           take,
-          search: search || undefined,
+          search: normalizedSearch,
           orderBy: orderBy || "createdAt",
           orderDirection: orderDirection || "desc",
         };
@@ -72,11 +74,20 @@ export function useOrganizationList(
         params: queryParams,
       });
     },
-    [client, skip, take, search, orderBy, orderDirection, statusKey]
+    [
+      client,
+      skip,
+      take,
+      normalizedSearch,
+      orderBy,
+      orderDirection,
+      statusKey,
+    ]
   );
 
-  return useApiQuery(queryFn, {
+  return useApiQuery(platformOrganizationsQueryKeys.list(params), queryFn, {
     enabled: isAuthenticated && canManageOrganizations,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -101,9 +112,13 @@ export function useOrganizationDetail(
     [client, tenantId]
   );
 
-  return useApiQuery(queryFn, {
-    enabled: isAuthenticated && canManageOrganizations && !!tenantId,
-  });
+  return useApiQuery(
+    platformOrganizationsQueryKeys.detail(tenantId ?? "pending"),
+    queryFn,
+    {
+      enabled: isAuthenticated && canManageOrganizations && !!tenantId,
+    }
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -126,7 +141,12 @@ export function useCreateOrganization(opts?: {
         platformOrganizationsPaths.create(),
         args
       ),
-    opts
+    {
+      invalidateQueries: [{ queryKey: platformOrganizationsQueryKeys.all() }],
+      onSuccess: async (data) => {
+        await opts?.onSuccess?.(data);
+      },
+    }
   );
 }
 
@@ -138,6 +158,7 @@ export function useUpdateOrganization(
   UpdatePlatformOrganizationRequest
 > {
   const client = useMemo(() => createPlatformApiClient(), []);
+  const queryClient = useApiQueryClient();
 
   return useApiMutation<
     PlatformOrganizationDetailDto,
@@ -148,7 +169,16 @@ export function useUpdateOrganization(
         platformOrganizationsPaths.update(tenantId),
         args
       ),
-    opts
+    {
+      invalidateQueries: [{ queryKey: platformOrganizationsQueryKeys.lists() }],
+      onSuccess: async (data) => {
+        queryClient.setQueryData(
+          platformOrganizationsQueryKeys.detail(tenantId),
+          data
+        );
+        await opts?.onSuccess?.(data);
+      },
+    }
   );
 }
 
@@ -160,7 +190,12 @@ export function useSuspendOrganization(opts?: {
   return useApiMutation<boolean, string>(
     (tenantId) =>
       client.post<boolean>(platformOrganizationsPaths.suspend(tenantId)),
-    opts
+    {
+      invalidateQueries: [{ queryKey: platformOrganizationsQueryKeys.all() }],
+      onSuccess: async () => {
+        await opts?.onSuccess?.();
+      },
+    }
   );
 }
 
@@ -172,7 +207,12 @@ export function useReactivateOrganization(opts?: {
   return useApiMutation<boolean, string>(
     (tenantId) =>
       client.post<boolean>(platformOrganizationsPaths.reactivate(tenantId)),
-    opts
+    {
+      invalidateQueries: [{ queryKey: platformOrganizationsQueryKeys.all() }],
+      onSuccess: async () => {
+        await opts?.onSuccess?.();
+      },
+    }
   );
 }
 
@@ -184,7 +224,12 @@ export function useArchiveOrganization(opts?: {
   return useApiMutation<boolean, string>(
     (tenantId) =>
       client.post<boolean>(platformOrganizationsPaths.archive(tenantId)),
-    opts
+    {
+      invalidateQueries: [{ queryKey: platformOrganizationsQueryKeys.all() }],
+      onSuccess: async () => {
+        await opts?.onSuccess?.();
+      },
+    }
   );
 }
 
@@ -198,7 +243,12 @@ export function useResendFirstAdminInvite(opts?: {
       client.post<PlatformOrganizationInviteStatusDto>(
         platformOrganizationsPaths.resendFirstAdmin(tenantId)
       ),
-    opts
+    {
+      invalidateQueries: [{ queryKey: platformOrganizationsQueryKeys.all() }],
+      onSuccess: async (data) => {
+        await opts?.onSuccess?.(data);
+      },
+    }
   );
 }
 
@@ -212,6 +262,11 @@ export function useRevokeFirstAdminInvite(opts?: {
       client.post<boolean>(
         platformOrganizationsPaths.revokeFirstAdmin(tenantId)
       ),
-    opts
+    {
+      invalidateQueries: [{ queryKey: platformOrganizationsQueryKeys.all() }],
+      onSuccess: async () => {
+        await opts?.onSuccess?.();
+      },
+    }
   );
 }

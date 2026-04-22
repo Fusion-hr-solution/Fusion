@@ -1,6 +1,6 @@
 # @repo/api
 
-Shared HTTP client + React hooks for the EY HR Platform.
+Shared HTTP client plus two React integration paths for the EY HR Platform.
 
 ---
 
@@ -160,6 +160,8 @@ Other `responseType` values: `"text"`, `"arrayBuffer"`.
 
 ## React hooks (`@repo/api/react`)
 
+This is the legacy lightweight path. It remains supported for existing MFEs and for simple local-state fetching, but it does not provide a shared cache or query invalidation.
+
 Lightweight hooks that eliminate `useState`/`useEffect` boilerplate. Import from the `/react` subpath:
 
 ```ts
@@ -249,15 +251,104 @@ export default function CreateCourseForm() {
 | `isLoading`   | `boolean`                     | `true` while in flight      |
 | `reset`       | `() => void`                  | Clear data, error, loading  |
 
-### Future migration to TanStack Query
+## TanStack query integration (`@repo/api/query`)
 
-The hook signatures are designed to be compatible. When the time comes:
+This is the recommended path for apps that need shared cache, keyed invalidation, or more advanced data-fetching behavior.
 
-1. Install `@tanstack/react-query`
-2. Replace `useApiQuery(fn)` with `useQuery({ queryKey: [...], queryFn: fn })`
-3. Replace `useApiMutation(fn)` with `useMutation({ mutationFn: fn })`
+Current rollout status:
 
-Return shapes are nearly identical — minimal code changes required.
+- Core is the first adopter of this integration.
+- `@repo/api/react` stays stable for existing MFEs.
+- Other MFEs can migrate incrementally with no flag day.
+
+### 1. Wrap the app with the provider
+
+```tsx
+import { ApiQueryProvider } from "@repo/api/query";
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return <ApiQueryProvider>{children}</ApiQueryProvider>;
+}
+```
+
+### 2. Define stable query keys
+
+```ts
+const courseQueryKeys = {
+  all: () => ["courses"] as const,
+  detail: (id: string) => ["courses", "detail", id] as const,
+};
+```
+
+### 3. Fetch with keyed queries
+
+```tsx
+"use client";
+
+import { useApiQuery } from "@repo/api/query";
+import { getCourses } from "@/services/courses";
+
+export default function CourseList() {
+  const {
+    data: courses,
+    error,
+    isLoading,
+    isFetching,
+    refetch,
+  } = useApiQuery(courseQueryKeys.all(), getCourses);
+
+  if (isLoading) return <p>Loading…</p>;
+  if (error) return <p className="text-red-500">{error.message}</p>;
+
+  return (
+    <>
+      <button onClick={() => void refetch()} disabled={isFetching}>
+        {isFetching ? "Refreshing…" : "Refresh"}
+      </button>
+      <ul>
+        {courses?.map((c) => (
+          <li key={c.id}>{c.title}</li>
+        ))}
+      </ul>
+    </>
+  );
+}
+```
+
+### 4. Invalidate related data after mutations
+
+```tsx
+"use client";
+
+import { useApiMutation } from "@repo/api/query";
+import { createCourse } from "@/services/courses";
+
+export function CreateCourseForm() {
+  const { mutate, isLoading } = useApiMutation(createCourse, {
+    invalidateQueries: [{ queryKey: courseQueryKeys.all() }],
+  });
+
+  return (
+    <button
+      onClick={() => mutate({ title: "New course" })}
+      disabled={isLoading}
+    >
+      {isLoading ? "Creating…" : "Create"}
+    </button>
+  );
+}
+```
+
+### Migration guidance
+
+1. Keep existing code on `@repo/api/react` unless you need shared cache or invalidation.
+2. New work should prefer `@repo/api/query` when the screen has related queries and mutations.
+3. Migrate one feature area at a time by introducing query keys close to the API surface.
+4. Preserve service functions and transport setup; the query layer should sit above the existing client rather than replacing it.
 
 ---
 
