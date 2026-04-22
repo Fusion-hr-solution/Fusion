@@ -11,6 +11,10 @@ import type {
   ChapterContent,
   ChapterListItem,
   TrainingLearnData,
+  LearnerExam,
+  LearnerExamQuestion,
+  ExamSubmissionResult,
+  ExamAttempt,
 } from "./index";
 import type { NavSection } from "@repo/ui";
 
@@ -193,6 +197,7 @@ export interface ChapterSidebarProps {
   overallProgress: number;
   examAvailable: boolean;
   onOpenExam: () => void;
+  isExamActive?: boolean;
 }
 
 export interface ChapterContentViewProps {
@@ -204,6 +209,8 @@ export interface ChapterContentViewProps {
   onPrevious: () => void;
   hasPrevious: boolean;
   isLoading: boolean;
+  examAvailable?: boolean;
+  onStartExam?: () => void;
 }
 
 export interface ChapterNavigationProps {
@@ -213,6 +220,8 @@ export interface ChapterNavigationProps {
   onPrevious: () => void;
   hasPrevious: boolean;
   isLoading: boolean;
+  examAvailable?: boolean;
+  onStartExam?: () => void;
 }
 
 export interface ExamLockedBannerProps {
@@ -220,4 +229,36 @@ export interface ExamLockedBannerProps {
   totalCount: number;
   examAvailable: boolean;
   onStartExam: () => void;
+}
+
+/* ── Learner Exam components ── */
+
+export type ExamPhase = "idle" | "loading" | "intro" | "taking" | "submitting" | "result";
+
+export interface ExamTakingViewProps {
+  exam: LearnerExam;
+  attempts: ExamAttempt[];
+  phase: ExamPhase;
+  result: ExamSubmissionResult | null;
+  answers: Record<string, string[]>;
+  onSetAnswer: (questionId: string, optionIds: string[]) => void;
+  onStart: () => void;
+  onSubmit: () => void;
+  onRetry: () => void;
+  onBack: () => void;
+  isSubmitting: boolean;
+}
+
+export interface ExamQuestionItemProps {
+  question: LearnerExamQuestion;
+  index: number;
+  selectedOptionIds: string[];
+  onSetAnswer: (questionId: string, optionIds: string[]) => void;
+}
+
+export interface ExamResultViewProps {
+  result: ExamSubmissionResult;
+  attempts: ExamAttempt[];
+  onRetry: () => void;
+  onBack: () => void;
 }

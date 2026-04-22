@@ -162,3 +162,52 @@ export const CONTENT_TYPE_MAP: Record<string, ContentType> = {
   Article: "article",
   Exercise: "exercise",
 };
+
+/* ── Learner Exam DTOs ── */
+
+export interface BackendExamForLearnerDto {
+  id: string;
+  trainingId: string;
+  title: string;
+  description: string | null;
+  passingScore: number;
+  durationMinutes: number | null;
+  questionCount: number;
+  questions: BackendExamQuestionForLearnerDto[];
+}
+
+export interface BackendExamQuestionForLearnerDto {
+  id: string;
+  questionText: string;
+  type: string;
+  orderIndex: number;
+  points: number;
+  options: BackendExamOptionForLearnerDto[];
+}
+
+export interface BackendExamOptionForLearnerDto {
+  id: string;
+  optionText: string;
+  orderIndex: number;
+}
+
+export interface BackendExamSubmissionResultDto {
+  attemptId: string;
+  score: number;
+  passingScore: number;
+  totalQuestions: number;
+  correctAnswers: number;
+  passed: boolean;
+  attemptedAt: string;
+  trainingCompleted: boolean;
+}
+
+export interface BackendExamAttemptDto {
+  id: string;
+  examId: string;
+  score: number;
+  totalQuestions: number;
+  correctAnswers: number;
+  passed: boolean;
+  attemptedAt: string;
+}
