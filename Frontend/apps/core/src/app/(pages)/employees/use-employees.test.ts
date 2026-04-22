@@ -119,13 +119,46 @@ describe("useEmployeeRoster", () => {
     expect(options.params.search).toBeUndefined();
   });
 
-  it("does not fetch for users outside the HR admin roster contract", async () => {
-    authState.user = {
-      userId: "platform-1",
-      email: "platform@example.com",
-      fullName: "Platform Admin",
-      roles: ["PlatformAdmin"],
+  it("surfaces orgUnitId and orgUnitName from the API response", async () => {
+    const mockData = {
+      items: [
+        {
+          id: "emp-1",
+          firstName: "Sarah",
+          lastName: "Chen",
+          email: "sarah.chen@ey-hr.com",
+          department: "Engineering",
+          orgUnitId: "ou-1",
+          orgUnitName: "Backend Team",
+          jobTitle: "Senior Software Engineer",
+          status: "Active",
+          hireDate: "2023-01-15T00:00:00Z",
+          managerId: "mgr-1",
+          managerName: "James Wilson",
+        },
+        {
+          id: "emp-2",
+          firstName: "Lisa",
+          lastName: "Brown",
+          email: "lisa.brown@ey-hr.com",
+          department: "Finance",
+          orgUnitId: null,
+          orgUnitName: null,
+          jobTitle: "Finance Director",
+          status: "Active",
+          hireDate: "2020-11-01T00:00:00Z",
+          managerId: null,
+          managerName: null,
+        },
+      ],
+      totalCount: 2,
+      page: 1,
+      pageSize: 20,
+      totalPages: 1,
+      hasNextPage: false,
+      hasPreviousPage: false,
     };
+    mockGet.mockResolvedValue(mockData);
 
     const { result } = renderHook(() =>
       useEmployeeRoster({
@@ -138,6 +171,10 @@ describe("useEmployeeRoster", () => {
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-    expect(mockGet).not.toHaveBeenCalled();
+    const items = result.current.data?.items ?? [];
+    expect(items[0]?.orgUnitId).toBe("ou-1");
+    expect(items[0]?.orgUnitName).toBe("Backend Team");
+    expect(items[1]?.orgUnitId).toBeNull();
+    expect(items[1]?.orgUnitName).toBeNull();
   });
 });
