@@ -635,6 +635,38 @@ public class OrgUnitHandlerTests
     }
 
     [Fact]
+    public async Task DeleteOrgUnit_WithAssignedActiveEmployees_ReturnsConflict()
+    {
+        // Arrange
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+        var orgUnit = OrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null);
+        seedContext.OrgUnits.Add(orgUnit);
+        await seedContext.SaveChangesAsync();
+
+        var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", DateTime.UtcNow);
+        employee.AssignOrgUnit(orgUnit.Id);
+        seedContext.Employees.Add(employee);
+        await seedContext.SaveChangesAsync();
+
+        var version = orgUnit.Version;
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = new DeleteOrgUnitCommandHandler(context);
+        var command = new DeleteOrgUnitCommand(orgUnit.Id, version);
+
+        // Act
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.IsFailure);
+        Assert.Equal("Conflict", result.Error.Code);
+        Assert.Contains("employees", result.Error.Message.ToLower());
+    }
+
+    [Fact]
     public async Task DeleteOrgUnit_WhenNotExists_ThrowsEntityNotFoundException()
     {
         // Arrange

@@ -627,5 +627,36 @@ public class GetEmployeesQueryHandlerTests
         Assert.Null(result.Value.Items[0].ManagerName);
     }
 
+    [Fact]
+    public async Task GetEmployees_IncludesOrgUnitLinkage()
+    {
+        // Arrange
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+
+        var orgUnit = OrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null);
+        seedContext.OrgUnits.Add(orgUnit);
+        await seedContext.SaveChangesAsync();
+
+        var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", DateTime.UtcNow);
+        employee.AssignOrgUnit(orgUnit.Id);
+        seedContext.Employees.Add(employee);
+        await seedContext.SaveChangesAsync();
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = new GetEmployeesQueryHandler(context);
+        var query = new GetEmployeesQuery();
+
+        // Act
+        var result = await handler.Handle(query, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.Single(result.Value.Items);
+        Assert.Equal(orgUnit.Id, result.Value.Items[0].OrgUnitId);
+        Assert.Equal("Engineering", result.Value.Items[0].OrgUnitName);
+    }
+
     #endregion
 }

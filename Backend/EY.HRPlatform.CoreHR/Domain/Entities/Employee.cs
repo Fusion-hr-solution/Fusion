@@ -23,6 +23,8 @@ public class Employee : AggregateRoot, ITenantEntity
     public EmployeeStatus Status { get; private set; }
     public Guid? ManagerId { get; private set; }
     public Employee? Manager { get; private set; }
+    public Guid? OrgUnitId { get; private set; }
+    public OrgUnit? OrgUnit { get; private set; }
 
     public string FullName => $"{FirstName} {LastName}";
 
@@ -123,6 +125,15 @@ public class Employee : AggregateRoot, ITenantEntity
             throw new ArgumentException("Employee cannot be their own manager.", nameof(managerId));
 
         ManagerId = managerId;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void AssignOrgUnit(Guid? orgUnitId)
+    {
+        if (orgUnitId == Guid.Empty)
+            orgUnitId = null;
+
+        OrgUnitId = orgUnitId;
         UpdatedAt = DateTime.UtcNow;
     }
 }

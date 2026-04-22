@@ -62,7 +62,8 @@ public class EmployeesController(ISender sender) : ControllerBase
             request.HireDate,
             request.Department,
             request.JobTitle,
-            request.ManagerId);
+            request.ManagerId,
+            request.OrgUnitId);
 
         var result = await sender.Send(command, cancellationToken);
 
@@ -126,7 +127,8 @@ public class EmployeesController(ISender sender) : ControllerBase
             request.Email,
             request.Department,
             request.JobTitle,
-            request.ManagerId);
+            request.ManagerId,
+            request.OrgUnitId);
 
         var result = await sender.Send(command, cancellationToken);
 

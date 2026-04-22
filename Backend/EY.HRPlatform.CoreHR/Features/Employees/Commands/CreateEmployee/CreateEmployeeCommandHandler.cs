@@ -39,6 +39,23 @@ public sealed class CreateEmployeeCommandHandler(
             }
         }
 
+        OrgUnit? orgUnit = null;
+        if (request.OrgUnitId.HasValue && request.OrgUnitId.Value != Guid.Empty)
+        {
+            orgUnit = await dbContext.OrgUnits
+                .FirstOrDefaultAsync(o => o.Id == request.OrgUnitId.Value, cancellationToken);
+
+            if (orgUnit is null)
+            {
+                throw new EntityNotFoundException("OrgUnit", request.OrgUnitId.Value);
+            }
+
+            if (!orgUnit.IsActive)
+            {
+                throw new ArgumentException("Cannot assign inactive org unit.");
+            }
+        }
+
         // Create employee using domain factory
         var employee = Employee.Create(
             tenantId,
@@ -53,6 +70,11 @@ public sealed class CreateEmployeeCommandHandler(
         if (request.ManagerId.HasValue)
         {
             employee.AssignManager(request.ManagerId.Value);
+        }
+
+        if (request.OrgUnitId.HasValue)
+        {
+            employee.AssignOrgUnit(request.OrgUnitId.Value);
         }
 
         dbContext.Employees.Add(employee);
@@ -74,16 +96,18 @@ public sealed class CreateEmployeeCommandHandler(
                 .FirstOrDefaultAsync(e => e.Id == employee.ManagerId.Value, cancellationToken);
         }
 
-        return Result.Success(MapToDto(employee, manager));
+        return Result.Success(MapToDto(employee, manager, orgUnit));
     }
 
-    private static EmployeeDto MapToDto(Employee employee, Employee? manager) => new(
+    private static EmployeeDto MapToDto(Employee employee, Employee? manager, OrgUnit? orgUnit) => new(
         employee.Id,
         employee.TenantId,
         employee.FirstName,
         employee.LastName,
         employee.Email,
         employee.Department,
+        employee.OrgUnitId,
+        orgUnit?.Name,
         employee.JobTitle,
         employee.HireDate,
         employee.Status,
