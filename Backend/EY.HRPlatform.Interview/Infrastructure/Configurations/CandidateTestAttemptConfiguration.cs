@@ -14,6 +14,10 @@ public class CandidateTestAttemptConfiguration : IEntityTypeConfiguration<Candid
         builder.Ignore(x => x.CreatedBy);
         builder.Ignore(x => x.UpdatedBy);
 
+        builder.Property(x => x.AttemptNumber)
+            .IsRequired()
+            .HasDefaultValue(1);
+
         builder.Property(x => x.CandidateEmail)
             .IsRequired()
             .HasMaxLength(320);
@@ -35,7 +39,8 @@ public class CandidateTestAttemptConfiguration : IEntityTypeConfiguration<Candid
         builder.Property(x => x.CreatedAt).IsRequired();
         builder.Property(x => x.UpdatedAt).IsRequired(false);
 
-        builder.HasIndex(x => x.InvitationId).IsUnique();
+        builder.HasIndex(x => x.InvitationId);
+        builder.HasIndex(x => new { x.InvitationId, x.AttemptNumber }).IsUnique();
         builder.HasIndex(x => x.TestId);
         builder.HasIndex(x => x.CandidateEmail);
         builder.HasIndex(x => x.SubmittedAtUtc);

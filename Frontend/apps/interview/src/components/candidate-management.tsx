@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Mail, ShieldCheck, History, RotateCcw, Settings2, UserX, Clock3, Link2, Check, FileUp, Send, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
+  getCandidateProgressTimeline,
+  getCandidateTimelineCandidates,
   getCandidateLinkSecurityState,
   getCandidateManagementOverview,
   getPendingInvitations,
@@ -15,6 +17,8 @@ import {
 } from "@/services/candidate-management-service";
 import { getTests } from "@/services/test-service";
 import type {
+  CandidateProgressTimeline,
+  CandidateTimelineCandidate,
   CandidateInvitation,
   CandidateLinkPreview,
   CandidateLinkSecurityState,
@@ -78,6 +82,7 @@ const NAME_HEADER_KEYS = new Set([
   "applicant",
 ]);
 const CSV_DELIMITERS = [",", ";", "\t"] as const;
+const TIMELINE_LIVE_REFRESH_MS = 5000;
 
 const TAB_CONFIG: TabConfig[] = [
   {
@@ -460,6 +465,16 @@ export function CandidateManagement() {
   const [linkSecurityError, setLinkSecurityError] = useState<string | null>(null);
   const [linkSecuritySuccess, setLinkSecuritySuccess] = useState<string | null>(null);
   const [linkPreview, setLinkPreview] = useState<CandidateLinkPreview | null>(null);
+  const [timelineCandidates, setTimelineCandidates] = useState<CandidateTimelineCandidate[]>([]);
+  const [timelineCandidatesForTestId, setTimelineCandidatesForTestId] = useState("");
+  const [timelineCandidatesLoading, setTimelineCandidatesLoading] = useState(false);
+  const [selectedTimelineCandidateEmail, setSelectedTimelineCandidateEmail] = useState("");
+  const [timelineData, setTimelineData] = useState<CandidateProgressTimeline | null>(null);
+  const [timelineLoading, setTimelineLoading] = useState(false);
+  const [timelineLiveEnabled, setTimelineLiveEnabled] = useState(true);
+  const [timelineLiveSyncing, setTimelineLiveSyncing] = useState(false);
+  const [timelineLastUpdatedAtUtc, setTimelineLastUpdatedAtUtc] = useState<string | null>(null);
+  const [timelineError, setTimelineError] = useState<string | null>(null);
   const popupTimerRef = useRef<number | null>(null);
   const csvReportTimerRef = useRef<number | null>(null);
 
@@ -603,6 +618,227 @@ export function CandidateManagement() {
       isMounted = false;
     };
   }, [activeTab, selectedTestId]);
+
+  useEffect(() => {
+    if (activeTab !== "timeline" || !selectedTestId) {
+      return;
+    }
+
+    setTimelineCandidates([]);
+    setTimelineCandidatesForTestId("");
+    setSelectedTimelineCandidateEmail("");
+    setTimelineData(null);
+
+    let isMounted = true;
+
+    async function loadTimelineCandidates() {
+      setTimelineCandidatesLoading(true);
+      setTimelineError(null);
+
+      try {
+        const candidates = await getCandidateTimelineCandidates(selectedTestId);
+        if (!isMounted) {
+          return;
+        }
+
+        setTimelineCandidates(candidates);
+        setTimelineCandidatesForTestId(selectedTestId);
+        setTimelineLastUpdatedAtUtc(new Date().toISOString());
+
+        if (candidates.length === 0) {
+          setSelectedTimelineCandidateEmail("");
+          setTimelineData(null);
+          return;
+        }
+
+        setSelectedTimelineCandidateEmail((prev) =>
+          candidates.some((item) => item.candidateEmail === prev)
+            ? prev
+            : candidates[0]?.candidateEmail ?? ""
+        );
+      } catch (err) {
+        if (!isMounted) {
+          return;
+        }
+
+        setTimelineError(err instanceof Error ? err.message : "Failed to load timeline candidates.");
+      } finally {
+        if (!isMounted) {
+          return;
+        }
+
+        setTimelineCandidatesLoading(false);
+      }
+    }
+
+    void loadTimelineCandidates();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [activeTab, selectedTestId]);
+
+  useEffect(() => {
+    if (
+      activeTab !== "timeline" ||
+      !selectedTestId ||
+      !selectedTimelineCandidateEmail ||
+      timelineCandidatesForTestId != selectedTestId
+    ) {
+      return;
+    }
+
+    let isMounted = true;
+
+    async function loadTimeline() {
+      setTimelineLoading(true);
+      setTimelineError(null);
+
+      try {
+        const data = await getCandidateProgressTimeline(selectedTestId, selectedTimelineCandidateEmail);
+        if (!isMounted) {
+          return;
+        }
+
+        setTimelineData(data);
+        setTimelineLastUpdatedAtUtc(new Date().toISOString());
+      } catch (err) {
+        if (!isMounted) {
+          return;
+        }
+
+        setTimelineData(null);
+        setTimelineError(err instanceof Error ? err.message : "Failed to load candidate timeline.");
+      } finally {
+        if (!isMounted) {
+          return;
+        }
+
+        setTimelineLoading(false);
+      }
+    }
+
+    void loadTimeline();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [
+    activeTab,
+    selectedTestId,
+    selectedTimelineCandidateEmail,
+    timelineCandidatesForTestId,
+  ]);
+
+  useEffect(() => {
+    if (
+      activeTab !== "timeline" ||
+      !selectedTestId ||
+      !timelineLiveEnabled ||
+      timelineCandidatesLoading ||
+      timelineLoading
+    ) {
+      return;
+    }
+
+    let isMounted = true;
+    let refreshInFlight = false;
+
+    async function refreshTimelineLive() {
+      if (refreshInFlight) {
+        return;
+      }
+
+      refreshInFlight = true;
+      if (isMounted) {
+        setTimelineLiveSyncing(true);
+      }
+
+      try {
+        const candidates = await getCandidateTimelineCandidates(selectedTestId);
+        if (!isMounted) {
+          return;
+        }
+
+        setTimelineCandidates(candidates);
+        setTimelineCandidatesForTestId(selectedTestId);
+
+        if (candidates.length === 0) {
+          setSelectedTimelineCandidateEmail("");
+          setTimelineData(null);
+          setTimelineError(null);
+          setTimelineLastUpdatedAtUtc(new Date().toISOString());
+          return;
+        }
+
+        const nextCandidateEmail = candidates.some((item) => item.candidateEmail === selectedTimelineCandidateEmail)
+          ? selectedTimelineCandidateEmail
+          : candidates[0]?.candidateEmail ?? "";
+
+        if (!nextCandidateEmail) {
+          setTimelineLastUpdatedAtUtc(new Date().toISOString());
+          return;
+        }
+
+        if (nextCandidateEmail !== selectedTimelineCandidateEmail) {
+          setSelectedTimelineCandidateEmail(nextCandidateEmail);
+        }
+
+        const data = await getCandidateProgressTimeline(selectedTestId, nextCandidateEmail);
+        if (!isMounted) {
+          return;
+        }
+
+        setTimelineData(data);
+        setTimelineError(null);
+        setTimelineLastUpdatedAtUtc(new Date().toISOString());
+      } catch (err) {
+        if (!isMounted) {
+          return;
+        }
+
+        setTimelineError(err instanceof Error ? err.message : "Failed to refresh candidate timeline.");
+      } finally {
+        refreshInFlight = false;
+        if (isMounted) {
+          setTimelineLiveSyncing(false);
+        }
+      }
+    }
+
+    const intervalId = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        void refreshTimelineLive();
+      }
+    }, TIMELINE_LIVE_REFRESH_MS);
+
+    function handleFocus() {
+      void refreshTimelineLive();
+    }
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") {
+        void refreshTimelineLive();
+      }
+    }
+
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      isMounted = false;
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [
+    activeTab,
+    selectedTestId,
+    selectedTimelineCandidateEmail,
+    timelineCandidatesLoading,
+    timelineLoading,
+    timelineLiveEnabled,
+  ]);
 
   const activeConfig = useMemo(
     () => TAB_CONFIG.find((tab) => tab.key === activeTab) ?? DEFAULT_TAB_CONFIG,
@@ -1488,6 +1724,299 @@ export function CandidateManagement() {
     );
   }
 
+  function renderTimelineTab(): React.ReactNode {
+    function formatTimelineUtc(value?: string): string {
+      if (!value) {
+        return "";
+      }
+
+      const parsed = new Date(value);
+      if (Number.isNaN(parsed.getTime())) {
+        return value;
+      }
+
+      return parsed.toLocaleString("en-US", {
+        month: "short",
+        day: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    }
+
+    function formatRelativeFromNow(value?: string | null): string {
+      if (!value) {
+        return "just now";
+      }
+
+      const parsed = new Date(value);
+      if (Number.isNaN(parsed.getTime())) {
+        return "just now";
+      }
+
+      const deltaMs = parsed.getTime() - Date.now();
+      const deltaSeconds = Math.round(deltaMs / 1000);
+      const absSeconds = Math.abs(deltaSeconds);
+
+      if (absSeconds < 5) {
+        return "just now";
+      }
+
+      if (absSeconds < 60) {
+        return `${absSeconds}s ago`;
+      }
+
+      const absMinutes = Math.round(absSeconds / 60);
+      if (absMinutes < 60) {
+        return `${absMinutes}m ago`;
+      }
+
+      const absHours = Math.round(absMinutes / 60);
+      if (absHours < 24) {
+        return `${absHours}h ago`;
+      }
+
+      const absDays = Math.round(absHours / 24);
+      return `${absDays}d ago`;
+    }
+
+    function prettifyMilestoneName(name: string): string {
+      switch (name) {
+        case "LinkOpened":
+          return "Link Opened";
+        case "InProgress":
+          return "In Progress";
+        default:
+          return name;
+      }
+    }
+
+    function pendingLabel(milestoneName: string): string {
+      switch (milestoneName) {
+        case "LinkOpened":
+          return "Not yet opened";
+        case "Started":
+          return "Not yet started";
+        case "InProgress":
+          return "Not started yet";
+        case "Submitted":
+          return "Not yet submitted";
+        default:
+          return "Pending";
+      }
+    }
+
+    const latestAttemptStatus = timelineData?.attempts[timelineData.attempts.length - 1]?.status ?? "Invited";
+
+    return (
+      <div className="mt-5 space-y-5">
+        <section className="rounded-2xl border border-zinc-200 bg-white px-5 py-4 shadow-sm">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-[220px,1fr] md:items-end">
+            <div>
+              <label className="mb-1 block text-[12px] font-semibold text-zinc-600">Test</label>
+              <select
+                value={selectedTestId}
+                onChange={(e) => setSelectedTestId(e.target.value)}
+                className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[13px] text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+              >
+                <option value="">Select test</option>
+                {tests.map((test) => (
+                  <option key={test.id} value={test.id}>
+                    {test.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-[12px] font-semibold text-zinc-600">Candidate</label>
+              <select
+                value={selectedTimelineCandidateEmail}
+                onChange={(e) => setSelectedTimelineCandidateEmail(e.target.value)}
+                disabled={timelineCandidatesLoading || timelineCandidates.length === 0}
+                className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[13px] text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {timelineCandidates.length === 0 ? (
+                  <option value="">No candidates found</option>
+                ) : (
+                  timelineCandidates.map((candidate) => (
+                    <option key={candidate.candidateEmail} value={candidate.candidateEmail}>
+                      {candidate.candidateName
+                        ? `${candidate.candidateName} (${candidate.candidateEmail})`
+                        : candidate.candidateEmail}
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-zinc-100 pt-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <span
+                className={cn(
+                  "inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-[11px] font-semibold",
+                  timelineLiveEnabled
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                    : "border-zinc-200 bg-zinc-100 text-zinc-600"
+                )}
+              >
+                <span
+                  className={cn(
+                    "h-2 w-2 rounded-full",
+                    timelineLiveEnabled ? "animate-pulse bg-emerald-500" : "bg-zinc-400"
+                  )}
+                />
+                {timelineLiveEnabled ? `Live updates every ${TIMELINE_LIVE_REFRESH_MS / 1000}s` : "Live updates paused"}
+              </span>
+
+              <span
+                className={cn(
+                  "rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-700",
+                  timelineLiveSyncing ? "visible" : "invisible"
+                )}
+              >
+                Syncing...
+              </span>
+
+              <span className="text-[12px] text-zinc-500">
+                {timelineLastUpdatedAtUtc
+                  ? `Last updated ${formatRelativeFromNow(timelineLastUpdatedAtUtc)} (${formatTimelineUtc(timelineLastUpdatedAtUtc)})`
+                  : "Waiting for first sync"}
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setTimelineLiveEnabled((prev) => !prev)}
+              className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-[12px] font-semibold text-zinc-700 transition-colors duration-150 hover:bg-zinc-100"
+            >
+              {timelineLiveEnabled ? "Pause Live" : "Resume Live"}
+            </button>
+          </div>
+        </section>
+
+        {timelineError ? <p className="text-[12px] text-red-600">{timelineError}</p> : null}
+        {timelineCandidatesLoading || (timelineLoading && !timelineData) ? (
+          <p className="text-[12px] text-zinc-500">Loading progress timeline...</p>
+        ) : null}
+
+        {!timelineLoading && !timelineCandidatesLoading && !timelineError && timelineCandidates.length === 0 ? (
+          <section className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+            <p className="text-[13px] font-medium text-zinc-700">No candidate journey available for the selected test yet.</p>
+          </section>
+        ) : null}
+
+        {!timelineCandidatesLoading && timelineData ? (
+          <section className="space-y-4">
+            <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <p className="text-[14px] font-semibold text-zinc-900">
+                    {timelineData.candidateName || timelineData.candidateEmail}
+                  </p>
+                  <p className="text-[12px] text-zinc-500">{timelineData.testTitle}</p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[11px] font-semibold text-zinc-700">
+                    {timelineData.attempts.length} attempt(s)
+                  </span>
+                  <span
+                    className={cn(
+                      "rounded-full px-2.5 py-1 text-[11px] font-semibold",
+                      latestAttemptStatus === "Submitted"
+                        ? "bg-emerald-100 text-emerald-700"
+                        : latestAttemptStatus === "InProgress"
+                          ? "bg-amber-100 text-amber-700"
+                          : "bg-zinc-100 text-zinc-600"
+                    )}
+                  >
+                    {latestAttemptStatus}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {timelineData.attempts.map((attempt) => (
+              <div
+                key={attempt.attemptNumber}
+                className={cn(
+                  "rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm",
+                  attempt.status === "Submitted"
+                    ? "border-l-4 border-l-emerald-400"
+                    : attempt.status === "InProgress"
+                      ? "border-l-4 border-l-amber-400"
+                      : "border-l-4 border-l-zinc-300"
+                )}
+              >
+                <div className="flex items-center justify-between gap-2 border-b border-zinc-100 pb-3">
+                  <p className="text-[14px] font-semibold text-zinc-900">Attempt {attempt.attemptNumber}</p>
+                  <span
+                    className={cn(
+                      "rounded-full px-2.5 py-0.5 text-[11px] font-semibold",
+                      attempt.status === "Submitted"
+                        ? "bg-emerald-100 text-emerald-700"
+                        : attempt.status === "InProgress"
+                          ? "bg-amber-100 text-amber-700"
+                          : "bg-zinc-100 text-zinc-600"
+                    )}
+                  >
+                    {attempt.status}
+                  </span>
+                </div>
+
+                <ol className="mt-4 space-y-3">
+                  {attempt.milestones.map((milestone, milestoneIndex) => {
+                    const completed = milestone.state === "Completed";
+                    const isLastMilestone = milestoneIndex === attempt.milestones.length - 1;
+
+                    return (
+                      <li key={milestone.name} className="flex items-start gap-3">
+                        <div className="flex flex-col items-center">
+                          <span
+                            className={cn(
+                              "mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[10px] font-bold",
+                              completed
+                                ? "border-emerald-300 bg-emerald-100 text-emerald-700"
+                                : "border-zinc-300 bg-zinc-100 text-zinc-400"
+                            )}
+                          >
+                            {completed ? <Check className="h-3 w-3" strokeWidth={3} /> : <Clock3 className="h-3 w-3" strokeWidth={2.5} />}
+                          </span>
+
+                          {!isLastMilestone ? (
+                            <span
+                              className={cn(
+                                "mt-1 h-6 w-px",
+                                completed ? "bg-emerald-200" : "bg-zinc-200"
+                              )}
+                            />
+                          ) : null}
+                        </div>
+
+                        <div className="min-w-0">
+                          <p className={cn("text-[13px] font-semibold", completed ? "text-zinc-900" : "text-zinc-500")}>
+                            {prettifyMilestoneName(milestone.name)}
+                          </p>
+                          <p className={cn("text-[12px]", completed ? "text-zinc-500" : "text-zinc-400")}>
+                            {completed
+                              ? formatTimelineUtc(milestone.occurredAtUtc)
+                              : pendingLabel(milestone.name)}
+                          </p>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ol>
+              </div>
+            ))}
+          </section>
+        ) : null}
+      </div>
+    );
+  }
+
   function renderInviteTab(): React.ReactNode {
     const stepChips: Array<{ id: 1 | 2 | 3; label: string }> = [
       { id: 1, label: "Method" },
@@ -1963,6 +2492,8 @@ export function CandidateManagement() {
               renderResendTab()
             ) : activeTab === "link-security" ? (
               renderLinkSecurityTab()
+            ) : activeTab === "timeline" ? (
+              renderTimelineTab()
             ) : (
               <div className="mt-5 rounded-xl border border-zinc-200 bg-zinc-50 p-4">
                 <p className="text-[13px] font-medium text-zinc-700">

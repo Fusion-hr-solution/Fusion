@@ -6,6 +6,7 @@ using EY.HRPlatform.Interview.Domain.Enums;
 using EY.HRPlatform.Interview.Infrastructure;
 using EY.HRPlatform.Interview.Tests.TestHelpers;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace EY.HRPlatform.Interview.Tests.Features.Integration;
@@ -342,6 +343,98 @@ public class CandidateAccessRoutesIntegrationTests
                 browserFingerprint = "integration-browser-fingerprint",
             });
         Assert.Equal(HttpStatusCode.Conflict, reuseResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task StartAndSubmit_WhenSingleUseDisabled_AllowsReuseWithSameLink()
+    {
+        await using var factory = new InterviewApiFactory();
+        var testId = await SeedTestAsync(factory.Services);
+        var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost")
+        });
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            db.CandidateLinkSecuritySettings.Add(new CandidateLinkSecuritySettings
+            {
+                TestId = testId,
+                SingleUseLinkEnabled = false,
+                EmailVerificationEnabled = true,
+                IpLockEnabled = false,
+                BrowserFingerprintEnabled = false,
+                LinkValidForValue = 7,
+                LinkValidForUnit = "days",
+                GracePeriodValue = 30,
+                GracePeriodUnit = "minutes",
+            });
+            await db.SaveChangesAsync();
+        }
+
+        var invitation = await CreateInvitationAsync(client, testId, "reuse-disabled@example.com");
+        var invitationId = Guid.Parse(invitation.Id);
+        var token = ExtractToken(invitation.InviteLink);
+
+        var firstStartResponse = await client.PostAsJsonAsync(
+            "/api/interview/candidate-access/start",
+            new
+            {
+                token,
+                candidateEmail = "reuse-disabled@example.com",
+                browserFingerprint = "integration-browser-fingerprint",
+            });
+        Assert.Equal(HttpStatusCode.OK, firstStartResponse.StatusCode);
+
+        var submitResponse = await client.PostAsJsonAsync(
+            "/api/interview/candidate-access/submit",
+            new
+            {
+                token,
+                browserFingerprint = "integration-browser-fingerprint",
+                answers = new
+                {
+                    responses = new[]
+                    {
+                        new { questionId = "q1", answerText = "answer" }
+                    }
+                },
+                result = new { score = 81 }
+            });
+        Assert.Equal(HttpStatusCode.OK, submitResponse.StatusCode);
+
+        var reuseResponse = await client.PostAsJsonAsync(
+            "/api/interview/candidate-access/start",
+            new
+            {
+                token,
+                candidateEmail = "reuse-disabled@example.com",
+                browserFingerprint = "integration-browser-fingerprint",
+            });
+        Assert.Equal(HttpStatusCode.OK, reuseResponse.StatusCode);
+
+        using (var reuseJson = JsonDocument.Parse(await reuseResponse.Content.ReadAsStringAsync()))
+        {
+            var status = reuseJson.RootElement
+                .GetProperty("data")
+                .GetProperty("status")
+                .GetString();
+            Assert.Equal("InProgress", status);
+        }
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var attempts = await db.CandidateTestAttempts
+                .Where(item => item.InvitationId == invitationId)
+                .OrderBy(item => item.AttemptNumber)
+                .ToListAsync();
+
+            Assert.Equal(2, attempts.Count);
+            Assert.True(attempts[0].SubmittedAtUtc.HasValue);
+            Assert.False(attempts[1].SubmittedAtUtc.HasValue);
+        }
     }
 
     [Fact]

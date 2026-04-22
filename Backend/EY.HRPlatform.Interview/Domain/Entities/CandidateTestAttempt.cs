@@ -5,6 +5,7 @@ namespace EY.HRPlatform.Interview.Domain.Entities;
 public class CandidateTestAttempt : AggregateRoot
 {
     public Guid InvitationId { get; set; }
+    public int AttemptNumber { get; set; } = 1;
     public Guid TestId { get; set; }
     public string CandidateEmail { get; set; } = string.Empty;
     public string? CandidateName { get; set; }

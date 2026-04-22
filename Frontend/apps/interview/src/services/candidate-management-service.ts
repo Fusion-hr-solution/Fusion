@@ -1,8 +1,10 @@
 import { createPlatformApiClient } from "@repo/api";
 import type {
   CandidateInvitation,
+  CandidateProgressTimeline,
   CandidateLinkSecuritySettings,
   CandidateLinkSecurityState,
+  CandidateTimelineCandidate,
   CandidateManagementOverview,
 } from "@/types";
 
@@ -89,6 +91,34 @@ interface SaveCandidateLinkSecurityInput extends CandidateLinkSecuritySettings {
   testId: string;
 }
 
+interface BackendCandidateTimelineCandidateDto {
+  candidateEmail: string;
+  candidateName?: string;
+  latestStatus: "Invited" | "DeliveryFailed" | "InProgress" | "Submitted" | "Expired";
+  latestActivityAtUtc?: string;
+}
+
+interface BackendCandidateTimelineMilestoneDto {
+  name: "Invited" | "LinkOpened" | "Started" | "InProgress" | "Submitted";
+  state: "Completed" | "Pending";
+  occurredAtUtc?: string;
+}
+
+interface BackendCandidateAttemptTimelineDto {
+  attemptNumber: number;
+  attemptId?: string;
+  status: "Invited" | "InProgress" | "Submitted";
+  milestones: BackendCandidateTimelineMilestoneDto[];
+}
+
+interface BackendCandidateProgressTimelineDto {
+  testId: string;
+  testTitle: string;
+  candidateEmail: string;
+  candidateName?: string;
+  attempts: BackendCandidateAttemptTimelineDto[];
+}
+
 function mapInvitation(dto: BackendCandidateInvitationDto): CandidateInvitation {
   return {
     id: dto.id,
@@ -135,6 +165,34 @@ function mapLinkSecurityState(dto: BackendCandidateLinkSecurityStateDto): Candid
       tokenExpiresAtUtc: dto.preview.tokenExpiresAtUtc,
       securityLevel: dto.preview.securityLevel,
     },
+  };
+}
+
+function mapTimelineCandidate(dto: BackendCandidateTimelineCandidateDto): CandidateTimelineCandidate {
+  return {
+    candidateEmail: dto.candidateEmail,
+    candidateName: dto.candidateName,
+    latestStatus: dto.latestStatus,
+    latestActivityAtUtc: dto.latestActivityAtUtc,
+  };
+}
+
+function mapProgressTimeline(dto: BackendCandidateProgressTimelineDto): CandidateProgressTimeline {
+  return {
+    testId: dto.testId,
+    testTitle: dto.testTitle,
+    candidateEmail: dto.candidateEmail,
+    candidateName: dto.candidateName,
+    attempts: dto.attempts.map((attempt) => ({
+      attemptNumber: attempt.attemptNumber,
+      attemptId: attempt.attemptId,
+      status: attempt.status,
+      milestones: attempt.milestones.map((milestone) => ({
+        name: milestone.name,
+        state: milestone.state,
+        occurredAtUtc: milestone.occurredAtUtc,
+      })),
+    })),
   };
 }
 
@@ -278,4 +336,25 @@ export async function regenerateCandidateLinkSecurityLink(testId: string): Promi
   );
 
   return mapLinkSecurityState(dto);
+}
+
+export async function getCandidateTimelineCandidates(testId: string): Promise<CandidateTimelineCandidate[]> {
+  const dto = await client.get<BackendCandidateTimelineCandidateDto[]>(
+    "/interview/candidates/management/timeline/candidates",
+    { params: { testId } }
+  );
+
+  return dto.map(mapTimelineCandidate);
+}
+
+export async function getCandidateProgressTimeline(
+  testId: string,
+  candidateEmail: string
+): Promise<CandidateProgressTimeline> {
+  const dto = await client.get<BackendCandidateProgressTimelineDto>(
+    "/interview/candidates/management/timeline",
+    { params: { testId, candidateEmail } }
+  );
+
+  return mapProgressTimeline(dto);
 }

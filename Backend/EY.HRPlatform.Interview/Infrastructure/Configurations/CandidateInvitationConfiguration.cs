@@ -99,9 +99,9 @@ public class CandidateInvitationConfiguration : IEntityTypeConfiguration<Candida
             .HasForeignKey(x => x.TestId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        builder.HasOne(x => x.Attempt)
+        builder.HasMany(x => x.Attempts)
             .WithOne(x => x.Invitation)
-            .HasForeignKey<CandidateTestAttempt>(x => x.InvitationId)
+            .HasForeignKey(x => x.InvitationId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }
