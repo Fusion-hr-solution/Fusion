@@ -48,10 +48,15 @@ public class UpdateExamQuestionCommandHandler : ICommandHandler<UpdateExamQuesti
 
         question.Update(request.QuestionText, questionType, request.Points);
 
-        // Replace options wholesale (simpler than diffing; attempts remain with historical snapshot via score/passed).
-        _db.ExamOptions.RemoveRange(question.Options);
-        question.ClearOptions();
+        // Replace options wholesale.
+        // Materialize to a snapshot so RemoveRange doesn't iterate a live collection.
+        // Do NOT call question.ClearOptions() after this — that triggers EF relationship
+        // fixup to schedule a second DELETE for the same rows (DbUpdateConcurrencyException).
+        _db.ExamOptions.RemoveRange(question.Options.ToList());
 
+        // Re-populate through the aggregate so the in-memory backing field stays
+        // consistent. EF DetectChanges picks up new ExamOption instances added to the
+        // navigation as Added and generates exactly one INSERT per new option.
         for (var i = 0; i < request.Options.Count; i++)
         {
             var opt = request.Options[i];

@@ -34,7 +34,6 @@ interface OrganizationsTableProps {
   sorting: SortingState;
   onSortingChange: (sorting: SortingState) => void;
   onRowClick: (org: PlatformOrganizationSummaryDto) => void;
-  onMutated?: () => void;
 }
 
 export function OrganizationsTable({
@@ -44,7 +43,6 @@ export function OrganizationsTable({
   sorting,
   onSortingChange,
   onRowClick,
-  onMutated,
 }: OrganizationsTableProps) {
   const table = useReactTable({
     data,
@@ -120,7 +118,7 @@ export function OrganizationsTable({
                 </TableCell>
               ))}
               <TableCell onClick={(e) => e.stopPropagation()}>
-                <RowActions org={row.original} onMutated={onMutated} />
+                <RowActions org={row.original} />
               </TableCell>
             </TableRow>
           ))}

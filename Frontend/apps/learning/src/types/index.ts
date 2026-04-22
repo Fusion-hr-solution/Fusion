@@ -171,3 +171,54 @@ export interface Employee {
   avatar?: string;
   trainings: EmployeeTrainingRecord[];
 }
+
+/* ── Learner Exam types ── */
+
+export type LearnerQuestionType = "SingleChoice" | "MultipleChoice" | "TrueFalse";
+
+export interface LearnerExam {
+  id: string;
+  trainingId: string;
+  title: string;
+  description?: string;
+  passingScore: number;
+  durationMinutes?: number;
+  questionCount: number;
+  questions: LearnerExamQuestion[];
+}
+
+export interface LearnerExamQuestion {
+  id: string;
+  questionText: string;
+  type: LearnerQuestionType;
+  orderIndex: number;
+  points: number;
+  options: LearnerExamOption[];
+}
+
+export interface LearnerExamOption {
+  id: string;
+  optionText: string;
+  orderIndex: number;
+}
+
+export interface ExamSubmissionResult {
+  attemptId: string;
+  score: number;
+  passingScore: number;
+  totalQuestions: number;
+  correctAnswers: number;
+  passed: boolean;
+  attemptedAt: string;
+  trainingCompleted: boolean;
+}
+
+export interface ExamAttempt {
+  id: string;
+  examId: string;
+  score: number;
+  totalQuestions: number;
+  correctAnswers: number;
+  passed: boolean;
+  attemptedAt: string;
+}

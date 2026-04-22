@@ -58,29 +58,21 @@ interface OrgDetailSheetProps {
   tenantId: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onMutated: () => void;
 }
 
 export function OrgDetailSheet({
   tenantId,
   open,
   onOpenChange,
-  onMutated,
 }: OrgDetailSheetProps) {
-  const {
-    data: org,
-    isLoading,
-    refetch,
-  } = useOrganizationDetail(open ? tenantId : null);
+  const { data: org, isLoading } = useOrganizationDetail(
+    open ? tenantId : null
+  );
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-lg">
-        {isLoading || !org ? (
-          <DetailSkeleton />
-        ) : (
-          <DetailContent org={org} refetch={refetch} onMutated={onMutated} />
-        )}
+        {isLoading || !org ? <DetailSkeleton /> : <DetailContent org={org} />}
       </SheetContent>
     </Sheet>
   );
@@ -106,30 +98,18 @@ function DetailSkeleton() {
   );
 }
 
-function DetailContent({
-  org,
-  refetch,
-  onMutated,
-}: {
-  org: PlatformOrganizationDetailDto;
-  refetch: () => void;
-  onMutated: () => void;
-}) {
+function DetailContent({ org }: { org: PlatformOrganizationDetailDto }) {
   const [editing, setEditing] = useState(false);
 
   const resend = useResendFirstAdminInvite({
     onSuccess: () => {
       toast.success("Invite re-sent successfully");
-      refetch();
-      onMutated();
     },
   });
 
   const revoke = useRevokeFirstAdminInvite({
     onSuccess: () => {
       toast.success("Invite revoked");
-      refetch();
-      onMutated();
     },
   });
 
@@ -393,8 +373,6 @@ function DetailContent({
                 onCancel={() => setEditing(false)}
                 onSaved={() => {
                   setEditing(false);
-                  refetch();
-                  onMutated();
                 }}
               />
             ) : (
@@ -519,7 +497,7 @@ function EditForm({
         <Label htmlFor="edit-notes">Internal Notes</Label>
         <Textarea
           id="edit-notes"
-          className="min-h-[80px]"
+          className="min-h-20"
           {...register("internalNotes", {
             maxLength: { value: 4000, message: "Maximum 4000 characters" },
           })}

@@ -10,13 +10,15 @@ import {
 } from "react";
 import { Lock } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
-import type { TenantSetupStateDto } from "@repo/api";
+import { coreSetupQueryKeys, type TenantSetupStateDto } from "@repo/api";
+import { useApiQueryClient } from "@repo/api/query";
 import { canSeeCoreSetupNavigation, useAuth } from "@repo/auth";
 import { PageHeader } from "@/components/page-header";
 import { Spinner } from "@/components/ui/spinner";
 import { useSetupState } from "@/app/(pages)/setup/use-setup";
 
-const SETUP_LOCK_REASON = "Complete organization setup before using the rest of the workspace.";
+const SETUP_LOCK_REASON =
+  "Complete organization setup before using the rest of the workspace.";
 const SETUP_LOADING_REASON = "Checking setup access...";
 
 interface CoreSetupAccessContextValue {
@@ -63,7 +65,9 @@ function SetupRedirectFallback({ isChecking }: { isChecking: boolean }) {
       <div className="flex flex-1 items-center justify-center">
         <div className="flex items-center gap-3 rounded-lg border bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
           {isChecking ? <Spinner /> : <Lock className="size-4" />}
-          <span>{isChecking ? "Checking setup access..." : "Taking you to Setup..."}</span>
+          <span>
+            {isChecking ? "Checking setup access..." : "Taking you to Setup..."}
+          </span>
         </div>
       </div>
     </div>
@@ -72,13 +76,13 @@ function SetupRedirectFallback({ isChecking }: { isChecking: boolean }) {
 
 export function CoreSetupAccessProvider({ children }: { children: ReactNode }) {
   const { user, isAuthenticated } = useAuth();
+  const queryClient = useApiQueryClient();
   const shouldCheckSetupAccess =
     isAuthenticated && canSeeCoreSetupNavigation(user);
   const {
     data: setupState,
     error: setupError,
     isLoading: isSetupStateLoading,
-    refetch: refetchSetupState,
   } = useSetupState(shouldCheckSetupAccess);
 
   const refreshSetupAccess = useCallback(() => {
@@ -86,8 +90,11 @@ export function CoreSetupAccessProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    refetchSetupState();
-  }, [shouldCheckSetupAccess, refetchSetupState]);
+    void queryClient.invalidateQueries({
+      queryKey: coreSetupQueryKeys.state(),
+      exact: true,
+    });
+  }, [queryClient, shouldCheckSetupAccess]);
 
   const value = useMemo<CoreSetupAccessContextValue>(() => {
     const isSetupLocked =
@@ -100,7 +107,8 @@ export function CoreSetupAccessProvider({ children }: { children: ReactNode }) {
       shouldCheckSetupAccess,
       isSetupStateLoading,
       isSetupLocked,
-      isNavigationLocked: shouldCheckSetupAccess && (isSetupStateLoading || isSetupLocked),
+      isNavigationLocked:
+        shouldCheckSetupAccess && (isSetupStateLoading || isSetupLocked),
       lockedNavigationReason: shouldCheckSetupAccess
         ? isSetupStateLoading
           ? SETUP_LOADING_REASON
@@ -132,11 +140,8 @@ export function useCoreSetupAccess() {
 export function CoreSetupRouteGuard({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const {
-    shouldCheckSetupAccess,
-    isSetupStateLoading,
-    isSetupLocked,
-  } = useCoreSetupAccess();
+  const { shouldCheckSetupAccess, isSetupStateLoading, isSetupLocked } =
+    useCoreSetupAccess();
   const currentPath = getCorePathname(pathname);
   const isSetupPage = isSetupAreaPath(currentPath);
   const shouldHoldRoute =

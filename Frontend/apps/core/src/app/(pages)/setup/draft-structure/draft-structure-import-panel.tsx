@@ -140,7 +140,7 @@ export function DraftStructureImportPanel({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onApplied: () => void;
+  onApplied?: () => void;
   readOnly?: boolean;
   readOnlyTitle?: string;
   readOnlyMessage?: string;
@@ -150,7 +150,9 @@ export function DraftStructureImportPanel({
   const sessionId = searchParams.get("session");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [pageError, setPageError] = useState<string | null>(null);
-  const [selectedPreviewNodeId, setSelectedPreviewNodeId] = useState<string | null>(null);
+  const [selectedPreviewNodeId, setSelectedPreviewNodeId] = useState<
+    string | null
+  >(null);
 
   const {
     data: session,
@@ -164,7 +166,7 @@ export function DraftStructureImportPanel({
   const validateImport = useValidateDraftStructureImport();
   const applyImport = useApplyDraftStructureImport();
   const hasPendingUpload = !!selectedFile;
-  const activeSession = sessionId ? session ?? null : null;
+  const activeSession = sessionId ? (session ?? null) : null;
   const isInitialPanelLoading =
     open &&
     !pageError &&
@@ -202,7 +204,10 @@ export function DraftStructureImportPanel({
     ]
   );
   const newKindResolutions = useMemo(
-    () => activeSession?.kindResolutions.filter((resolution) => resolution.createNewKind) ?? [],
+    () =>
+      activeSession?.kindResolutions.filter(
+        (resolution) => resolution.createNewKind
+      ) ?? [],
     [activeSession?.kindResolutions]
   );
   const sessionUnitTypes = useMemo(() => {
@@ -210,8 +215,10 @@ export function DraftStructureImportPanel({
     const seenKindKeys = new Set(currentUnitTypes.map((kind) => kind.key));
 
     for (const resolution of newKindResolutions) {
-      const key = resolution.resolvedOrgUnitKindKey ?? resolution.suggestedOrgUnitKindKey;
-      const displayLabel = resolution.resolvedDisplayLabel ?? resolution.sourceValue;
+      const key =
+        resolution.resolvedOrgUnitKindKey ?? resolution.suggestedOrgUnitKindKey;
+      const displayLabel =
+        resolution.resolvedDisplayLabel ?? resolution.sourceValue;
 
       if (!key || seenKindKeys.has(key)) {
         continue;
@@ -231,7 +238,8 @@ export function DraftStructureImportPanel({
       new Set(
         newKindResolutions.map(
           (resolution) =>
-            resolution.resolvedOrgUnitKindKey ?? resolution.suggestedOrgUnitKindKey
+            resolution.resolvedOrgUnitKindKey ??
+            resolution.suggestedOrgUnitKindKey
         )
       ),
     [newKindResolutions]
@@ -251,7 +259,9 @@ export function DraftStructureImportPanel({
     !hasPendingUpload &&
     activeSession.stage === "Validated" &&
     activeSession.validationSummary.errorCount > 0;
-  const validateActionLabel = canCheckCurrentReview ? "Check Again" : "Validate File";
+  const validateActionLabel = canCheckCurrentReview
+    ? "Check Again"
+    : "Validate File";
   const pendingUploadMessage = sessionId
     ? "Upload the selected file to start a new review."
     : "Upload the selected file to start the review.";
@@ -341,7 +351,9 @@ export function DraftStructureImportPanel({
     }
 
     if (!selectedFile) {
-      setPageError("Choose the official draft-structure template before uploading.");
+      setPageError(
+        "Choose the official draft-structure template before uploading."
+      );
       return;
     }
 
@@ -388,7 +400,9 @@ export function DraftStructureImportPanel({
 
     try {
       await validateImport.mutateAsync({ sessionId });
-      toast.success(canCheckCurrentReview ? "Review updated" : "File validated");
+      toast.success(
+        canCheckCurrentReview ? "Review updated" : "File validated"
+      );
       setSelectedPreviewNodeId(null);
       await refetchSession();
     } catch (error) {
@@ -410,8 +424,10 @@ export function DraftStructureImportPanel({
 
     try {
       const result = await applyImport.mutateAsync({ sessionId });
-      toast.success(`Replaced draft workspace with ${result.replacedUnitCount} units`);
-      onApplied();
+      toast.success(
+        `Replaced draft workspace with ${result.replacedUnitCount} units`
+      );
+      onApplied?.();
       updateQuery(null);
       onOpenChange(false);
     } catch (error) {
@@ -443,7 +459,11 @@ export function DraftStructureImportPanel({
                 Download Template
               </Button>
               {canStartNewImport ? (
-                <Button variant="outline" onClick={handleStartNewImport} disabled={readOnly}>
+                <Button
+                  variant="outline"
+                  onClick={handleStartNewImport}
+                  disabled={readOnly}
+                >
                   New Import
                 </Button>
               ) : null}
@@ -456,285 +476,349 @@ export function DraftStructureImportPanel({
             <ImportPanelSkeleton />
           ) : (
             <>
-          {readOnly ? (
-            <Alert>
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>{readOnlyTitle}</AlertTitle>
-              <AlertDescription>{readOnlyMessage}</AlertDescription>
-            </Alert>
-          ) : null}
-          {pageError || (sessionId ? sessionError : null) ? (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Import is blocked</AlertTitle>
-              <AlertDescription>
-                {pageError ?? (sessionId ? sessionError?.message : null)}
-              </AlertDescription>
-            </Alert>
-          ) : null}
+              {readOnly ? (
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>{readOnlyTitle}</AlertTitle>
+                  <AlertDescription>{readOnlyMessage}</AlertDescription>
+                </Alert>
+              ) : null}
+              {pageError || (sessionId ? sessionError : null) ? (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Import is blocked</AlertTitle>
+                  <AlertDescription>
+                    {pageError ?? (sessionId ? sessionError?.message : null)}
+                  </AlertDescription>
+                </Alert>
+              ) : null}
 
-          {activeSession ? (
-            <div className="rounded-2xl border p-5">
-              <div className="space-y-3">
-                <div>
-                  <p className="text-sm font-medium">Unit types</p>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    Outlined types are new in this file.
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {sessionUnitTypes.length > 0 ? (
-                    sessionUnitTypes.map((kind) => (
-                      <Badge
-                        key={kind.key}
-                        variant={newKindKeys.has(kind.key) ? "outline" : "secondary"}
-                      >
-                        {kind.displayLabel}
-                      </Badge>
-                    ))
-                  ) : (
-                    <span className="text-sm text-muted-foreground">
-                      Unit types will appear here after the schema loads.
-                    </span>
-                  )}
-                </div>
-                {newKindResolutions.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    This file does not add any new types.
-                  </p>
-                ) : null}
-              </div>
-            </div>
-          ) : (
-            <div className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
-              <div className="rounded-2xl border p-5">
-                <div className="grid gap-2">
-                  <Label htmlFor="draft-structure-import-file">Template file</Label>
-                  <Input
-                    id="draft-structure-import-file"
-                    type="file"
-                    accept=".csv,text/csv"
-                    disabled={readOnly}
-                    onChange={(event) => {
-                      setSelectedFile(event.target.files?.[0] ?? null);
-                    }}
-                  />
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      onClick={handleUpload}
-                      disabled={readOnly || !selectedFile || uploadImport.isLoading}
-                    >
-                      {uploadImport.isLoading ? (
-                        <Spinner className="mr-1" />
+              {activeSession ? (
+                <div className="rounded-2xl border p-5">
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-sm font-medium">Unit types</p>
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        Outlined types are new in this file.
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {sessionUnitTypes.length > 0 ? (
+                        sessionUnitTypes.map((kind) => (
+                          <Badge
+                            key={kind.key}
+                            variant={
+                              newKindKeys.has(kind.key)
+                                ? "outline"
+                                : "secondary"
+                            }
+                          >
+                            {kind.displayLabel}
+                          </Badge>
+                        ))
                       ) : (
-                        <Upload className="size-4" />
+                        <span className="text-sm text-muted-foreground">
+                          Unit types will appear here after the schema loads.
+                        </span>
                       )}
-                      Upload File
-                    </Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Use the downloaded template as-is.
-                  </p>
-                </div>
-              </div>
-
-              <div className="rounded-2xl border p-5">
-                <div className="space-y-3">
-                  <div>
-                    <p className="text-sm font-medium">Unit types</p>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      Current types in the draft.
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {sessionUnitTypes.length > 0 ? (
-                      sessionUnitTypes.map((kind) => (
-                        <Badge key={kind.key} variant="secondary">
-                          {kind.displayLabel}
-                        </Badge>
-                      ))
-                    ) : (
-                      <span className="text-sm text-muted-foreground">
-                        Unit types will appear here after the schema loads.
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeSession ? (
-            <>
-              <div className="grid gap-4 md:grid-cols-4">
-                <Card>
-                  <CardHeader>
-                    <CardDescription>Review status</CardDescription>
-                    <CardTitle>{importProgress?.title ?? "Waiting for file"}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="text-sm text-muted-foreground">
-                    {importProgress?.description ?? `Expires ${formatTimestamp(activeSession.expiresAt)}`}
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader>
-                    <CardDescription>Rows in file</CardDescription>
-                    <CardTitle>{activeSession.sourceRowCount}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="text-sm text-muted-foreground">
-                    File: {activeSession.sourceFileName}
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader>
-                    <CardDescription>Issues to fix</CardDescription>
-                    <CardTitle>{activeSession.validationSummary.errorCount}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="text-sm text-muted-foreground">
-                    {activeSession.stage === "Validated"
-                      ? `${activeSession.validationSummary.validRows} rows are ready`
-                      : "Validate the file to review it."}
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader>
-                    <CardDescription>New unit types</CardDescription>
-                    <CardTitle>
-                      {activeSession.kindResolutions.filter((resolution) => resolution.createNewKind).length}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="text-sm text-muted-foreground">
-                    Created automatically when you replace the draft.
-                  </CardContent>
-                </Card>
-              </div>
-
-              <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-                <div className="space-y-3">
-                  <div>
-                    <p className="text-sm font-medium">Validation issues</p>
-                    <p className="text-sm text-muted-foreground">
-                      Fix these in the file, then upload it again.
-                    </p>
-                  </div>
-
-                  {activeSession.validationIssues.length === 0 ? (
-                    <div className="rounded-xl border border-dashed p-6 text-sm text-muted-foreground">
-                      {activeSession.stage === "Validated"
-                        ? "No issues found."
-                        : "Validate the file to see issues here."}
                     </div>
-                  ) : (
-                    <div className="max-h-96 overflow-auto rounded-xl border">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Row</TableHead>
-                            <TableHead>Field</TableHead>
-                            <TableHead>Issue</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {activeSession.validationIssues.map((issue) => (
-                            <TableRow key={`${issue.rowNumber}-${issue.code}-${issue.field ?? "general"}`}>
-                              <TableCell>{issue.rowNumber}</TableCell>
-                              <TableCell>
-                                {getImportFieldLabel(issue.field, activeSession.importSchema)}
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex flex-col gap-1">
-                                  <Badge variant={issue.severity === "error" ? "destructive" : "secondary"}>
-                                    {issue.severity}
-                                  </Badge>
-                                  <span className="text-sm text-muted-foreground">{issue.message}</span>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  )}
+                    {newKindResolutions.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        This file does not add any new types.
+                      </p>
+                    ) : null}
+                  </div>
                 </div>
-
-                <div className="space-y-3">
-                  <div>
-                    <p className="text-sm font-medium">Staged tree preview</p>
-                    <p className="text-sm text-muted-foreground">
-                      Review the draft before you replace it.
-                    </p>
+              ) : (
+                <div className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
+                  <div className="rounded-2xl border p-5">
+                    <div className="grid gap-2">
+                      <Label htmlFor="draft-structure-import-file">
+                        Template file
+                      </Label>
+                      <Input
+                        id="draft-structure-import-file"
+                        type="file"
+                        accept=".csv,text/csv"
+                        disabled={readOnly}
+                        onChange={(event) => {
+                          setSelectedFile(event.target.files?.[0] ?? null);
+                        }}
+                      />
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          onClick={handleUpload}
+                          disabled={
+                            readOnly || !selectedFile || uploadImport.isLoading
+                          }
+                        >
+                          {uploadImport.isLoading ? (
+                            <Spinner className="mr-1" />
+                          ) : (
+                            <Upload className="size-4" />
+                          )}
+                          Upload File
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Use the downloaded template as-is.
+                      </p>
+                    </div>
                   </div>
 
-                  <DraftStructureTree
-                    nodes={previewTree}
-                    selectedId={selectedPreviewNodeId}
-                    onSelect={(node) => setSelectedPreviewNodeId(node.id)}
-                    emptyTitle="No staged tree yet"
-                    emptyDescription="Validate the uploaded template to generate the staged hierarchy preview."
-                    readOnly
-                  />
+                  <div className="rounded-2xl border p-5">
+                    <div className="space-y-3">
+                      <div>
+                        <p className="text-sm font-medium">Unit types</p>
+                        <p className="mt-2 text-sm text-muted-foreground">
+                          Current types in the draft.
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {sessionUnitTypes.length > 0 ? (
+                          sessionUnitTypes.map((kind) => (
+                            <Badge key={kind.key} variant="secondary">
+                              {kind.displayLabel}
+                            </Badge>
+                          ))
+                        ) : (
+                          <span className="text-sm text-muted-foreground">
+                            Unit types will appear here after the schema loads.
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
-                  {selectedPreviewNode ? (
+              {activeSession ? (
+                <>
+                  <div className="grid gap-4 md:grid-cols-4">
                     <Card>
                       <CardHeader>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Badge variant="secondary">{selectedPreviewNode.orgUnitKindLabel}</Badge>
-                          {newKindKeys.has(selectedPreviewNode.orgUnitKindKey) ? (
-                            <Badge variant="outline">New type from file</Badge>
-                          ) : null}
-                          {selectedPreviewNode.issueSummary.errorCount > 0 ? (
-                            <Badge variant="destructive">
-                              {selectedPreviewNode.issueSummary.errorCount} error
-                              {selectedPreviewNode.issueSummary.errorCount === 1 ? "" : "s"}
-                            </Badge>
-                          ) : null}
-                        </div>
-                        <CardTitle className="mt-2">{selectedPreviewNode.displayName}</CardTitle>
+                        <CardDescription>Review status</CardDescription>
+                        <CardTitle>
+                          {importProgress?.title ?? "Waiting for file"}
+                        </CardTitle>
                       </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="grid gap-3 sm:grid-cols-2">
-                          <ImportField label="Unit Name" value={selectedPreviewNode.displayName} />
-                          <ImportField label="Unit Type" value={selectedPreviewNode.orgUnitKindLabel} />
-                          <ImportField label="Unit Code" value={selectedPreviewNode.referenceKey} mono />
-                          <ImportField
-                            label="Parent Unit Code"
-                            value={selectedPreviewNode.parentReferenceKey ?? "Organization root"}
-                          />
-                        </div>
-
-                        <div className="rounded-xl border bg-muted/20 p-4">
-                          <div className="space-y-1">
-                            <p className="text-sm font-medium">Optional details</p>
-                          </div>
-                          <div className="mt-4 grid gap-3">
-                            <ImportField
-                              label="Location"
-                              value={selectedPreviewNode.location ?? "Not set"}
-                            />
-                            <ImportField
-                              label="Description"
-                              value={selectedPreviewNode.description ?? "Not set"}
-                            />
-                          </div>
-                        </div>
+                      <CardContent className="text-sm text-muted-foreground">
+                        {importProgress?.description ??
+                          `Expires ${formatTimestamp(activeSession.expiresAt)}`}
                       </CardContent>
                     </Card>
-                  ) : null}
-                </div>
-              </div>
-            </>
-          ) : (
-            <div className="rounded-xl border border-dashed p-6 text-sm text-muted-foreground">
-              Upload a template to start the review.
-            </div>
-          )}
+                    <Card>
+                      <CardHeader>
+                        <CardDescription>Rows in file</CardDescription>
+                        <CardTitle>{activeSession.sourceRowCount}</CardTitle>
+                      </CardHeader>
+                      <CardContent className="text-sm text-muted-foreground">
+                        File: {activeSession.sourceFileName}
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader>
+                        <CardDescription>Issues to fix</CardDescription>
+                        <CardTitle>
+                          {activeSession.validationSummary.errorCount}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="text-sm text-muted-foreground">
+                        {activeSession.stage === "Validated"
+                          ? `${activeSession.validationSummary.validRows} rows are ready`
+                          : "Validate the file to review it."}
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader>
+                        <CardDescription>New unit types</CardDescription>
+                        <CardTitle>
+                          {
+                            activeSession.kindResolutions.filter(
+                              (resolution) => resolution.createNewKind
+                            ).length
+                          }
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="text-sm text-muted-foreground">
+                        Created automatically when you replace the draft.
+                      </CardContent>
+                    </Card>
+                  </div>
 
-          {isSessionLoading ? (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Spinner />
-              Loading import session...
-            </div>
-          ) : null}
+                  <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+                    <div className="space-y-3">
+                      <div>
+                        <p className="text-sm font-medium">Validation issues</p>
+                        <p className="text-sm text-muted-foreground">
+                          Fix these in the file, then upload it again.
+                        </p>
+                      </div>
+
+                      {activeSession.validationIssues.length === 0 ? (
+                        <div className="rounded-xl border border-dashed p-6 text-sm text-muted-foreground">
+                          {activeSession.stage === "Validated"
+                            ? "No issues found."
+                            : "Validate the file to see issues here."}
+                        </div>
+                      ) : (
+                        <div className="max-h-96 overflow-auto rounded-xl border">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Row</TableHead>
+                                <TableHead>Field</TableHead>
+                                <TableHead>Issue</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {activeSession.validationIssues.map((issue) => (
+                                <TableRow
+                                  key={`${issue.rowNumber}-${issue.code}-${issue.field ?? "general"}`}
+                                >
+                                  <TableCell>{issue.rowNumber}</TableCell>
+                                  <TableCell>
+                                    {getImportFieldLabel(
+                                      issue.field,
+                                      activeSession.importSchema
+                                    )}
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex flex-col gap-1">
+                                      <Badge
+                                        variant={
+                                          issue.severity === "error"
+                                            ? "destructive"
+                                            : "secondary"
+                                        }
+                                      >
+                                        {issue.severity}
+                                      </Badge>
+                                      <span className="text-sm text-muted-foreground">
+                                        {issue.message}
+                                      </span>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-3">
+                      <div>
+                        <p className="text-sm font-medium">
+                          Staged tree preview
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Review the draft before you replace it.
+                        </p>
+                      </div>
+
+                      <DraftStructureTree
+                        nodes={previewTree}
+                        selectedId={selectedPreviewNodeId}
+                        onSelect={(node) => setSelectedPreviewNodeId(node.id)}
+                        emptyTitle="No staged tree yet"
+                        emptyDescription="Validate the uploaded template to generate the staged hierarchy preview."
+                        readOnly
+                      />
+
+                      {selectedPreviewNode ? (
+                        <Card>
+                          <CardHeader>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Badge variant="secondary">
+                                {selectedPreviewNode.orgUnitKindLabel}
+                              </Badge>
+                              {newKindKeys.has(
+                                selectedPreviewNode.orgUnitKindKey
+                              ) ? (
+                                <Badge variant="outline">
+                                  New type from file
+                                </Badge>
+                              ) : null}
+                              {selectedPreviewNode.issueSummary.errorCount >
+                              0 ? (
+                                <Badge variant="destructive">
+                                  {selectedPreviewNode.issueSummary.errorCount}{" "}
+                                  error
+                                  {selectedPreviewNode.issueSummary
+                                    .errorCount === 1
+                                    ? ""
+                                    : "s"}
+                                </Badge>
+                              ) : null}
+                            </div>
+                            <CardTitle className="mt-2">
+                              {selectedPreviewNode.displayName}
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-4">
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              <ImportField
+                                label="Unit Name"
+                                value={selectedPreviewNode.displayName}
+                              />
+                              <ImportField
+                                label="Unit Type"
+                                value={selectedPreviewNode.orgUnitKindLabel}
+                              />
+                              <ImportField
+                                label="Unit Code"
+                                value={selectedPreviewNode.referenceKey}
+                                mono
+                              />
+                              <ImportField
+                                label="Parent Unit Code"
+                                value={
+                                  selectedPreviewNode.parentReferenceKey ??
+                                  "Organization root"
+                                }
+                              />
+                            </div>
+
+                            <div className="rounded-xl border bg-muted/20 p-4">
+                              <div className="space-y-1">
+                                <p className="text-sm font-medium">
+                                  Optional details
+                                </p>
+                              </div>
+                              <div className="mt-4 grid gap-3">
+                                <ImportField
+                                  label="Location"
+                                  value={
+                                    selectedPreviewNode.location ?? "Not set"
+                                  }
+                                />
+                                <ImportField
+                                  label="Description"
+                                  value={
+                                    selectedPreviewNode.description ?? "Not set"
+                                  }
+                                />
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ) : null}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="rounded-xl border border-dashed p-6 text-sm text-muted-foreground">
+                  Upload a template to start the review.
+                </div>
+              )}
+
+              {isSessionLoading ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Spinner />
+                  Loading import session...
+                </div>
+              ) : null}
             </>
           )}
         </div>
@@ -743,10 +827,16 @@ export function DraftStructureImportPanel({
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex flex-wrap items-center gap-2">
               {hasPendingUpload ? (
-                <p className="text-sm text-muted-foreground">{pendingUploadMessage}</p>
+                <p className="text-sm text-muted-foreground">
+                  {pendingUploadMessage}
+                </p>
               ) : activeSession ? (
                 <>
-                  <Badge variant={activeSession.canValidate ? "default" : "secondary"}>
+                  <Badge
+                    variant={
+                      activeSession.canValidate ? "default" : "secondary"
+                    }
+                  >
                     {activeSession.stage === "Validated"
                       ? activeSession.validationSummary.errorCount > 0
                         ? "Needs a new file"
@@ -778,13 +868,20 @@ export function DraftStructureImportPanel({
                   onClick={handleValidate}
                   disabled={readOnly || validateImport.isLoading}
                 >
-                  {validateImport.isLoading ? <Spinner className="mr-1" /> : null}
+                  {validateImport.isLoading ? (
+                    <Spinner className="mr-1" />
+                  ) : null}
                   {validateActionLabel}
                 </Button>
               ) : null}
               <Button
                 onClick={handleApply}
-                disabled={readOnly || applyImport.isLoading || !session?.canApply || hasPendingUpload}
+                disabled={
+                  readOnly ||
+                  applyImport.isLoading ||
+                  !session?.canApply ||
+                  hasPendingUpload
+                }
               >
                 {applyImport.isLoading ? <Spinner className="mr-1" /> : null}
                 Replace Draft
@@ -811,7 +908,9 @@ function ImportField({
       <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
         {label}
       </p>
-      <p className={mono ? "mt-1 font-mono text-sm" : "mt-1 text-sm"}>{value}</p>
+      <p className={mono ? "mt-1 font-mono text-sm" : "mt-1 text-sm"}>
+        {value}
+      </p>
     </div>
   );
 }
