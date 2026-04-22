@@ -26,6 +26,7 @@ public class EmployeesController(ISender sender) : ControllerBase
     /// List employees with optional search, filtering, sorting, and pagination.
     /// </summary>
     [HttpGet]
+    [Authorize(Roles = PlatformRole.HRAdmin)]
     [ProducesResponseType(typeof(ApiResponseOfPagedEmployeeList), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAll(
         [FromQuery] string? search,

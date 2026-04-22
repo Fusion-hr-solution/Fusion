@@ -1,12 +1,143 @@
+"use client";
+
+import { useCallback, useState } from "react";
+import { Users } from "lucide-react";
+import { useAuth } from "@repo/auth";
+import { DEFAULT_PAGE_SIZE, EmptyState, type PageSize } from "@repo/ui";
+import { PageHeader } from "@/components/page-header";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { canAccessEmployeeRoster } from "@/lib/employee-roster-access";
+import { EmployeesTable } from "./employees-table";
+import { PaginationBar } from "./pagination-bar";
+import { Toolbar } from "./toolbar";
+import type {
+  EmployeeRosterSortDirection,
+  EmployeeRosterSortField,
+  EmployeeRosterStatus,
+} from "./employee-roster.types";
+import { useEmployeeRoster } from "./use-employees";
+
+function getNextSortDirection(
+  nextField: EmployeeRosterSortField,
+  activeField: EmployeeRosterSortField,
+  currentDirection: EmployeeRosterSortDirection
+): EmployeeRosterSortDirection {
+  if (nextField !== activeField) {
+    return nextField === "HireDate" ? "Desc" : "Asc";
+  }
+
+  return currentDirection === "Asc" ? "Desc" : "Asc";
+}
+
 export default function EmployeesPage() {
-  return (
-    <div className="flex h-full items-center justify-center p-8">
-      <div className="text-center">
-        <h1 className="text-2xl font-semibold text-foreground">Employees</h1>
-        <p className="mt-2 text-muted-foreground">
-          Employee directory coming soon.
-        </p>
+  const { user } = useAuth();
+  const canAccess = canAccessEmployeeRoster(user);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<PageSize>(DEFAULT_PAGE_SIZE);
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState<EmployeeRosterStatus | undefined>();
+  const [sortBy, setSortBy] = useState<EmployeeRosterSortField>("Name");
+  const [sortDir, setSortDir] = useState<EmployeeRosterSortDirection>("Asc");
+
+  const { data, error, isLoading, refetch } = useEmployeeRoster({
+    search: search || undefined,
+    status,
+    sortBy,
+    sortDir,
+    page,
+    pageSize,
+  });
+
+  const handleSearchChange = useCallback((value: string) => {
+    setSearch(value);
+    setPage(1);
+  }, []);
+
+  const handleStatusChange = useCallback(
+    (value: EmployeeRosterStatus | undefined) => {
+      setStatus(value);
+      setPage(1);
+    },
+    []
+  );
+
+  const handleSortChange = useCallback(
+    (field: EmployeeRosterSortField) => {
+      setSortDir((currentDirection) =>
+        getNextSortDirection(field, sortBy, currentDirection)
+      );
+      setSortBy(field);
+      setPage(1);
+    },
+    [sortBy]
+  );
+
+  const handlePageSizeChange = useCallback((size: PageSize) => {
+    setPageSize(size);
+    setPage(1);
+  }, []);
+
+  if (!canAccess) {
+    return (
+      <div className="flex flex-col gap-6 p-6">
+        <PageHeader
+          title="Employees"
+          description="The operational roster is available only to tenant HR administrators."
+        />
+        <EmptyState
+          icon={Users}
+          title="Employee roster is not available for this role"
+          description="Ask a tenant HR administrator to manage the operational roster."
+        />
       </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-6 p-6">
+      <PageHeader
+        title="Employees"
+        description="Review the tenant roster by name, email, status, department, job title, and hire date."
+      />
+
+      <Toolbar
+        search={search}
+        onSearchChange={handleSearchChange}
+        status={status}
+        onStatusChange={handleStatusChange}
+      />
+
+      {error && (
+        <Alert variant="destructive">
+          <AlertTitle>Failed to load employees</AlertTitle>
+          <AlertDescription className="flex items-center justify-between gap-4">
+            <span>{error.message || "An unexpected error occurred."}</span>
+            <Button variant="outline" size="sm" onClick={() => refetch()}>
+              Retry
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <EmployeesTable
+        data={data?.items ?? []}
+        isLoading={isLoading}
+        isRefetching={isLoading && !!data}
+        sortBy={sortBy}
+        sortDir={sortDir}
+        onSortChange={handleSortChange}
+      />
+
+      {data && data.totalCount > 0 && (
+        <PaginationBar
+          page={page}
+          pageSize={pageSize}
+          totalCount={data.totalCount}
+          onPageChange={setPage}
+          onPageSizeChange={handlePageSizeChange}
+        />
+      )}
     </div>
   );
 }
