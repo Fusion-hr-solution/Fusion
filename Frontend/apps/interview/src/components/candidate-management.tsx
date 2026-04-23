@@ -4,6 +4,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Mail, ShieldCheck, History, RotateCcw, Settings2, UserX, Clock3, Link2, Check, FileUp, Send, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { InviteResultPopup } from "@/components/candidate-management/invite-result-popup";
+import { CsvImportReportPopup } from "@/components/candidate-management/csv-import-report-popup";
+import { InviteTab } from "@/components/candidate-management/tabs/invite-tab";
+import { ResendTab } from "@/components/candidate-management/tabs/resend-tab";
+import { LinkSecurityTab } from "@/components/candidate-management/tabs/link-security-tab";
+import { TimelineTab } from "@/components/candidate-management/tabs/timeline-tab";
 import {
   getCandidateProgressTimeline,
   getCandidateTimelineCandidates,
@@ -16,6 +22,12 @@ import {
   saveCandidateLinkSecuritySettings,
 } from "@/services/candidate-management-service";
 import { getTests } from "@/services/test-service";
+import { useNetworkStatus } from "@/hooks/use-network-status";
+import {
+  extractEmailsFromCsv,
+  readCsvFileText,
+  type CsvCandidateRow,
+} from "@/lib/candidate-management-utils";
 import type {
   CandidateProgressTimeline,
   CandidateTimelineCandidate,
@@ -47,16 +59,6 @@ interface TabConfig {
 
 type InviteMethod = "email" | "bulk" | "link";
 type InviteResultPopup = { status: "success" | "error"; message: string };
-type CsvCandidateRow = {
-  name: string;
-  email: string;
-};
-type CsvExtractResult = {
-  rows: CsvCandidateRow[];
-  emails: string[];
-  invalidCount: number;
-  duplicateCount: number;
-};
 type CsvImportReport = {
   importedCount: number;
   duplicateCount: number;
@@ -64,24 +66,6 @@ type CsvImportReport = {
 };
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const EMAIL_HEADER_KEYS = new Set([
-  "email",
-  "emailaddress",
-  "emailid",
-  "e-mail",
-  "e-mailaddress",
-  "mail",
-]);
-const NAME_HEADER_KEYS = new Set([
-  "name",
-  "fullname",
-  "full_name",
-  "candidate",
-  "candidatename",
-  "candidate_name",
-  "applicant",
-]);
-const CSV_DELIMITERS = [",", ";", "\t"] as const;
 const TIMELINE_LIVE_REFRESH_MS = 5000;
 
 const TAB_CONFIG: TabConfig[] = [
@@ -150,277 +134,10 @@ function parseTab(input: string | null): CandidateTabKey {
   return "invite";
 }
 
-function decodeWithEncoding(bytes: Uint8Array, encoding: string): string {
-  try {
-    return new TextDecoder(encoding).decode(bytes);
-  } catch {
-    return new TextDecoder("utf-8").decode(bytes);
-  }
-}
-
-async function readCsvFileText(file: File): Promise<string> {
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  if (bytes.length === 0) {
-    return "";
-  }
-
-  if (bytes.length >= 3 && bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) {
-    return decodeWithEncoding(bytes.subarray(3), "utf-8");
-  }
-
-  if (bytes.length >= 2 && bytes[0] === 0xff && bytes[1] === 0xfe) {
-    return decodeWithEncoding(bytes.subarray(2), "utf-16le");
-  }
-
-  if (bytes.length >= 2 && bytes[0] === 0xfe && bytes[1] === 0xff) {
-    return decodeWithEncoding(bytes.subarray(2), "utf-16be");
-  }
-
-  const utf8Text = decodeWithEncoding(bytes, "utf-8");
-  if (utf8Text.includes("\u0000")) {
-    return decodeWithEncoding(bytes, "utf-16le");
-  }
-
-  return utf8Text;
-}
-
-function countUnquotedDelimiter(line: string, delimiter: string): number {
-  let count = 0;
-  let inQuotes = false;
-
-  for (let i = 0; i < line.length; i += 1) {
-    const char = line[i];
-    if (char === '"') {
-      if (inQuotes && line[i + 1] === '"') {
-        i += 1;
-      } else {
-        inQuotes = !inQuotes;
-      }
-      continue;
-    }
-
-    if (!inQuotes && char === delimiter) {
-      count += 1;
-    }
-  }
-
-  return count;
-}
-
-function detectCsvDelimiter(headerLine: string): string {
-  let selected = ",";
-  let maxCount = -1;
-
-  for (const delimiter of CSV_DELIMITERS) {
-    const currentCount = countUnquotedDelimiter(headerLine, delimiter);
-    if (currentCount > maxCount) {
-      maxCount = currentCount;
-      selected = delimiter;
-    }
-  }
-
-  return selected;
-}
-
-function parseCsvRow(line: string, delimiter: string): string[] {
-  const values: string[] = [];
-  let current = "";
-  let inQuotes = false;
-
-  for (let i = 0; i < line.length; i += 1) {
-    const char = line[i];
-    if (char === '"') {
-      if (inQuotes && line[i + 1] === '"') {
-        current += '"';
-        i += 1;
-      } else {
-        inQuotes = !inQuotes;
-      }
-      continue;
-    }
-
-    if (!inQuotes && char === delimiter) {
-      values.push(current);
-      current = "";
-      continue;
-    }
-
-    current += char;
-  }
-
-  values.push(current);
-  return values;
-}
-
-function normalizeHeaderCell(value: string): string {
-  return value
-    .replace(/^\uFEFF/, "")
-    .replace(/^['"]+|['"]+$/g, "")
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, "");
-}
-
-function normalizeEmailValue(value: string): string {
-  const cleaned = value
-    .replace(/\u0000/g, "")
-    .replace(/^\uFEFF/, "")
-    .replace(/^['"]+|['"]+$/g, "")
-    .trim();
-
-  const bracketMatch = cleaned.match(/<([^<>]+)>/);
-  const extracted = bracketMatch?.[1] ?? cleaned;
-  return extracted.trim().toLowerCase();
-}
-
-function normalizeNameValue(value: string): string {
-  return value
-    .replace(/\u0000/g, "")
-    .replace(/^\uFEFF/, "")
-    .replace(/^['"]+|['"]+$/g, "")
-    .trim()
-    .replace(/\s+/g, " ");
-}
-function splitCsvRecords(content: string): string[] {
-  const records: string[] = [];
-  let currentRecord = "";
-  let inQuotes = false;
-  for (let index = 0; index < content.length; index += 1) {
-    const character = content[index];
-    if (character === '"') {
-      if (inQuotes && content[index + 1] === '"') {
-        currentRecord += '""';
-        index += 1;
-        continue;
-      }
-      inQuotes = !inQuotes;
-      currentRecord += character;
-      continue;
-    }
-    if (!inQuotes && (character === "\n" || character === "\r")) {
-      const trimmedRecord = currentRecord.trim();
-      if (trimmedRecord.length > 0) {
-        records.push(trimmedRecord);
-      }
-      currentRecord = "";
-      if (character === "\r" && content[index + 1] === "\n") {
-        index += 1;
-      }
-      continue;
-    }
-    currentRecord += character;
-  }
-  const trimmedRecord = currentRecord.trim();
-  if (trimmedRecord.length > 0) {
-    records.push(trimmedRecord);
-  }
-  return records;
-}
-function extractEmailsFromCsv(content: string): CsvExtractResult {
-  const normalizedContent = content.replace(/\u0000/g, "").replace(/^\uFEFF/, "");
-  const lines = splitCsvRecords(normalizedContent);
-
-  if (lines.length === 0) {
-    return {
-      rows: [],
-      emails: [],
-      invalidCount: 0,
-      duplicateCount: 0,
-    };
-  }
-
-  const delimiter = detectCsvDelimiter(lines[0] ?? "");
-  const rows = lines.map((line) => parseCsvRow(line, delimiter));
-  const header = rows[0]?.map(normalizeHeaderCell) ?? [];
-  const emailColumnIndex = header.findIndex((cell) => EMAIL_HEADER_KEYS.has(cell));
-  const nameColumnIndex = header.findIndex((cell) => NAME_HEADER_KEYS.has(cell));
-  const dataStartIndex = emailColumnIndex >= 0 ? 1 : 0;
-  const uniqueCandidates = new Map<string, CsvCandidateRow>();
-  let invalidCount = 0;
-  let duplicateCount = 0;
-
-  function deriveNameFromRow(row: string[], emailIndex: number): string {
-    if (nameColumnIndex >= 0) {
-      return normalizeNameValue(row[nameColumnIndex] ?? "");
-    }
-
-    for (let i = 0; i < row.length; i += 1) {
-      if (i === emailIndex) {
-        continue;
-      }
-      const nameCandidate = normalizeNameValue(row[i] ?? "");
-      if (!nameCandidate) {
-        continue;
-      }
-      const maybeEmail = normalizeEmailValue(nameCandidate);
-      if (!EMAIL_REGEX.test(maybeEmail)) {
-        return nameCandidate;
-      }
-    }
-
-    return "";
-  }
-
-  function collectCandidate(rawEmail: string, rawName: string, strictEmailColumn: boolean): void {
-    const candidateEmail = normalizeEmailValue(rawEmail);
-    const candidateName = normalizeNameValue(rawName);
-
-    if (!candidateEmail) {
-      return;
-    }
-
-    if (!EMAIL_REGEX.test(candidateEmail)) {
-      if (strictEmailColumn || candidateEmail.includes("@")) {
-        invalidCount += 1;
-      }
-      return;
-    }
-
-    const existing = uniqueCandidates.get(candidateEmail);
-    if (existing) {
-      duplicateCount += 1;
-      if (!existing.name && candidateName) {
-        uniqueCandidates.set(candidateEmail, {
-          email: candidateEmail,
-          name: candidateName,
-        });
-      }
-      return;
-    }
-
-    uniqueCandidates.set(candidateEmail, {
-      email: candidateEmail,
-      name: candidateName,
-    });
-  }
-
-  for (let rowIndex = dataStartIndex; rowIndex < rows.length; rowIndex += 1) {
-    const row = rows[rowIndex] ?? [];
-    if (emailColumnIndex >= 0) {
-      const rowName = deriveNameFromRow(row, emailColumnIndex);
-      collectCandidate(row[emailColumnIndex] ?? "", rowName, true);
-      continue;
-    }
-
-    for (let cellIndex = 0; cellIndex < row.length; cellIndex += 1) {
-      const rowName = deriveNameFromRow(row, cellIndex);
-      collectCandidate(row[cellIndex] ?? "", rowName, false);
-    }
-  }
-
-  const uniqueRows = Array.from(uniqueCandidates.values());
-
-  return {
-    rows: uniqueRows,
-    emails: uniqueRows.map((item) => item.email),
-    invalidCount,
-    duplicateCount,
-  };
-}
-
 export function CandidateManagement() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const timelineNetworkOnline = useNetworkStatus();
   const [overview, setOverview] = useState<CandidateManagementOverview | null>(null);
   const [tests, setTests] = useState<Test[]>([]);
   const [invitations, setInvitations] = useState<CandidateInvitation[]>([]);
@@ -473,9 +190,6 @@ export function CandidateManagement() {
   const [timelineLoading, setTimelineLoading] = useState(false);
   const [timelineLiveEnabled, setTimelineLiveEnabled] = useState(true);
   const [timelineLiveSyncing, setTimelineLiveSyncing] = useState(false);
-  const [timelineNetworkOnline, setTimelineNetworkOnline] = useState(
-    () => (typeof navigator === "undefined" ? true : navigator.onLine)
-  );
   const [timelineLastUpdatedAtUtc, setTimelineLastUpdatedAtUtc] = useState<string | null>(null);
   const [timelineError, setTimelineError] = useState<string | null>(null);
   const popupTimerRef = useRef<number | null>(null);
@@ -526,21 +240,6 @@ export function CandidateManagement() {
       if (csvReportTimerRef.current !== null) {
         window.clearTimeout(csvReportTimerRef.current);
       }
-    };
-  }, []);
-
-  useEffect(() => {
-    function syncNetworkStatus() {
-      setTimelineNetworkOnline(typeof navigator === "undefined" ? true : navigator.onLine);
-    }
-
-    syncNetworkStatus();
-    window.addEventListener("online", syncNetworkStatus);
-    window.addEventListener("offline", syncNetworkStatus);
-
-    return () => {
-      window.removeEventListener("online", syncNetworkStatus);
-      window.removeEventListener("offline", syncNetworkStatus);
     };
   }, []);
 
@@ -1338,1222 +1037,6 @@ export function CandidateManagement() {
     }
   }
 
-  function renderResendTab(): React.ReactNode {
-    return (
-      <div className="mt-5 space-y-4">
-        <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr,170px,220px]">
-            <input
-              id="resend-search"
-              name="resendSearch"
-              aria-label="Search invitations"
-              value={resendSearch}
-              onChange={(e) => setResendSearch(e.target.value)}
-              placeholder="Search candidate, email, or test"
-              className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[13px] text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
-            />
-            <select
-              id="resend-status-filter"
-              name="resendStatusFilter"
-              aria-label="Filter invitations by status"
-              value={resendStatusFilter}
-              onChange={(e) => setResendStatusFilter(e.target.value as "all" | "Invited" | "DeliveryFailed")}
-              className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[13px] text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
-            >
-              <option value="all">All status</option>
-              <option value="Invited">Invited</option>
-              <option value="DeliveryFailed">Delivery Failed</option>
-            </select>
-            <select
-              id="resend-test-filter"
-              name="resendTestFilter"
-              aria-label="Filter invitations by test"
-              value={resendTestFilter}
-              onChange={(e) => setResendTestFilter(e.target.value)}
-              className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[13px] text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
-            >
-              <option value="all">All tests</option>
-              {tests.map((test) => (
-                <option key={test.id} value={test.id}>
-                  {test.title}
-                </option>
-              ))}
-            </select>
-          </div>
-        </section>
-
-        {resendError ? <p className="text-[12px] text-red-600">{resendError}</p> : null}
-        {resendSuccess ? <p className="text-[12px] text-emerald-700">{resendSuccess}</p> : null}
-
-        <section className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-left text-[13px]">
-              <thead className="bg-zinc-50 text-zinc-500">
-                <tr>
-                  <th className="px-4 py-3 font-semibold">Candidate</th>
-                  <th className="px-4 py-3 font-semibold">Test</th>
-                  <th className="px-4 py-3 font-semibold">Status</th>
-                  <th className="px-4 py-3 font-semibold">Last Sent</th>
-                  <th className="px-4 py-3 text-right font-semibold">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredResendInvitations.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-4 py-8 text-center text-zinc-500">
-                      No invitations match your filters.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredResendInvitations.map((item) => (
-                    <tr key={item.id} className="border-t border-zinc-100">
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-3">
-                          <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-zinc-100 text-[11px] font-bold text-zinc-700">
-                            {initialsFromInvitation(item)}
-                          </span>
-                          <div>
-                            <p className="font-semibold text-zinc-900">{item.candidateName || "Unnamed Candidate"}</p>
-                            <p className="text-[12px] text-zinc-500">{item.email}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-zinc-700">{item.testTitle}</td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={cn(
-                            "rounded-full px-2.5 py-0.5 text-[11px] font-semibold",
-                            item.status === "Invited"
-                              ? "bg-emerald-100 text-emerald-700"
-                              : "bg-red-100 text-red-700"
-                          )}
-                        >
-                          {item.status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-zinc-700">
-                        {new Date(item.lastSentAtUtc || item.createdAtUtc).toLocaleString("en-US")}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <button
-                          onClick={() => {
-                            setResendError(null);
-                            setResendModalItem(item);
-                          }}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-[12px] font-semibold text-zinc-700 hover:bg-zinc-50"
-                        >
-                          <Send className="h-3.5 w-3.5" /> Resend
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        {resendModalItem ? (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4">
-            <div className="w-full max-w-lg rounded-2xl border border-zinc-200 bg-white p-5 shadow-2xl">
-              <h3 className="text-[18px] font-semibold text-zinc-900">Resend Invitation</h3>
-              <p className="mt-1 text-[13px] text-zinc-500">Please confirm the candidate details before resending.</p>
-
-              <div className="mt-4 space-y-2 rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-[13px] text-zinc-700">
-                <p>
-                  Candidate: <span className="font-semibold">{resendModalItem.candidateName || "Unnamed Candidate"}</span>
-                </p>
-                <p>
-                  Email: <span className="font-semibold">{resendModalItem.email}</span>
-                </p>
-                <p>
-                  Test: <span className="font-semibold">{resendModalItem.testTitle}</span>
-                </p>
-                <p>
-                  Current status: <span className="font-semibold">{resendModalItem.status}</span>
-                </p>
-              </div>
-
-              <div className="mt-5 flex items-center justify-end gap-2">
-                <button
-                  onClick={() => setResendModalItem(null)}
-                  disabled={resendSubmitting}
-                  className="rounded-lg border border-zinc-200 bg-white px-4 py-2 text-[13px] font-semibold text-zinc-700 hover:bg-zinc-50 disabled:opacity-60"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => void handleConfirmResend()}
-                  disabled={resendSubmitting}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-4 py-2 text-[13px] font-semibold text-white hover:bg-zinc-800 disabled:opacity-60"
-                >
-                  <Send className="h-3.5 w-3.5" />
-                  {resendSubmitting ? "Resending..." : "Confirm Resend"}
-                </button>
-              </div>
-            </div>
-          </div>
-        ) : null}
-      </div>
-    );
-  }
-
-  function renderLinkSecurityTab(): React.ReactNode {
-    const hasPreviewInvitation = Boolean(linkPreview?.hasInvitation && linkPreview.inviteLink);
-    const previewInviteLink =
-      linkPreview?.inviteLink ??
-      "No active invitation link yet. Send an invitation to generate one.";
-    const usesValue = hasPreviewInvitation
-      ? `${linkPreview?.opensCount ?? 0} / ${linkPreview?.allowedUses ?? "Unlimited"}`
-      : `0 / ${singleUseLinkEnabled ? "1" : "Unlimited"}`;
-    const expiresValue = hasPreviewInvitation
-      ? formatUtcForCard(linkPreview?.tokenExpiresAtUtc)
-      : "Not generated";
-    const securityScore =
-      Number(singleUseLinkEnabled) +
-      Number(emailVerificationEnabled) +
-      Number(ipLockEnabled) +
-      Number(browserFingerprintEnabled);
-    const securityLevel =
-      linkPreview?.securityLevel ?? (securityScore >= 3 ? "High" : securityScore === 2 ? "Medium" : "Low");
-
-    const securityRows: Array<{
-      key: string;
-      label: string;
-      helper?: string;
-      enabled: boolean;
-      onToggle: () => void;
-    }> = [
-      {
-        key: "single-use-link",
-        label: "Single-use link (expires after first access)",
-        enabled: singleUseLinkEnabled,
-        onToggle: () => setSingleUseLinkEnabled((prev) => !prev),
-      },
-      {
-        key: "email-verification",
-        label: "Require email verification before test start",
-        enabled: emailVerificationEnabled,
-        onToggle: () => setEmailVerificationEnabled((prev) => !prev),
-      },
-      {
-        key: "ip-lock",
-        label: "IP lock - bind link to first IP address",
-        helper: "Useful for strict environments but can be sensitive to network changes.",
-        enabled: ipLockEnabled,
-        onToggle: () => setIpLockEnabled((prev) => !prev),
-      },
-      {
-        key: "browser-fingerprint",
-        label: "Browser fingerprint check",
-        enabled: browserFingerprintEnabled,
-        onToggle: () => setBrowserFingerprintEnabled((prev) => !prev),
-      },
-    ];
-
-    return (
-      <div className="mt-5 space-y-5">
-        <section className="rounded-2xl border border-zinc-200 bg-white px-5 py-4 shadow-sm">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-[220px,1fr] md:items-end">
-            <div>
-              <label htmlFor="link-security-test" className="mb-1 block text-[12px] font-semibold text-zinc-600">Apply Settings To</label>
-              <select
-                id="link-security-test"
-                name="linkSecurityTestId"
-                value={selectedTestId}
-                onChange={(e) => setSelectedTestId(e.target.value)}
-                className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[13px] text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
-              >
-                <option value="">Select test</option>
-                {tests.map((test) => (
-                  <option key={test.id} value={test.id}>
-                    {test.title}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <p className="text-[12px] leading-relaxed text-zinc-500">
-              Saved settings are scoped per test and update pending invitation expiry windows.
-            </p>
-          </div>
-        </section>
-
-        {linkSecurityLoading ? <p className="text-[12px] text-zinc-500">Loading link security settings...</p> : null}
-        {linkSecurityError ? <p className="text-[12px] text-red-600">{linkSecurityError}</p> : null}
-        {linkSecuritySuccess ? <p className="text-[12px] text-emerald-700">{linkSecuritySuccess}</p> : null}
-
-        <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
-          <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
-            <div className="flex items-center gap-3 border-b border-zinc-100 px-6 py-4">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-100">
-                <ShieldCheck className="h-4 w-4 text-zinc-600" />
-              </div>
-              <div>
-                <p className="text-[15px] font-bold text-zinc-900">Security Settings</p>
-                <p className="text-[12px] text-zinc-500">Define how links are validated before test access.</p>
-              </div>
-            </div>
-
-            <div className="px-6">
-              {securityRows.map((item, index) => (
-                <div
-                  key={item.key}
-                  className={cn(
-                    "flex items-start justify-between gap-4 py-3.5",
-                    index < securityRows.length - 1 ? "border-b border-zinc-100" : ""
-                  )}
-                >
-                  <div className="min-w-0 flex-1 pr-3">
-                    <p className="text-[13px] font-semibold text-zinc-900">{item.label}</p>
-                    {item.helper ? <p className="mt-0.5 text-[12px] leading-relaxed text-zinc-400">{item.helper}</p> : null}
-                  </div>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={item.enabled}
-                    onClick={item.onToggle}
-                    className={cn(
-                      "relative h-5 w-9 shrink-0 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-zinc-900/20 focus:ring-offset-2",
-                      item.enabled ? "bg-zinc-900" : "bg-zinc-200"
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        "absolute left-0.5 top-0.5 block h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200",
-                        item.enabled ? "translate-x-4" : "translate-x-0"
-                      )}
-                    />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
-            <div className="flex items-center gap-3 border-b border-zinc-100 px-6 py-4">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-100">
-                <Clock3 className="h-4 w-4 text-zinc-600" />
-              </div>
-              <div>
-                <p className="text-[15px] font-bold text-zinc-900">Expiry Rules</p>
-                <p className="text-[12px] text-zinc-500">Control how long links remain active after delivery.</p>
-              </div>
-            </div>
-
-            <div className="divide-y divide-zinc-100 px-6">
-              <div className="py-4">
-                <label htmlFor="link-valid-for-value" className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-zinc-400">Link valid for</label>
-                <div className="flex items-center gap-2">
-                  <input
-                    id="link-valid-for-value"
-                    name="linkValidForValue"
-                    type="number"
-                    min={1}
-                    value={linkValidForValue}
-                    onChange={(e) => setLinkValidForValue(Math.max(1, Number(e.target.value) || 1))}
-                    className="w-20 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-right text-[13px] font-medium text-zinc-900 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
-                  />
-                  <select
-                    id="link-valid-for-unit"
-                    name="linkValidForUnit"
-                    aria-label="Link validity unit"
-                    value={linkValidForUnit}
-                    onChange={(e) => setLinkValidForUnit(e.target.value as LinkValidityUnit)}
-                    className="appearance-none rounded-xl border border-zinc-200 bg-white py-2 pl-3 pr-8 text-[13px] text-zinc-900 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
-                  >
-                    <option value="days">days</option>
-                    <option value="hours">hours</option>
-                    <option value="minutes">minutes</option>
-                  </select>
-                </div>
-                <p className="mt-1.5 text-[12px] text-zinc-400">Candidates see a countdown after opening.</p>
-              </div>
-
-              <div className="py-4">
-                <label htmlFor="grace-period-value" className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-zinc-400">Grace period after expiry</label>
-                <div className="flex items-center gap-2">
-                  <input
-                    id="grace-period-value"
-                    name="gracePeriodValue"
-                    type="number"
-                    min={1}
-                    value={gracePeriodValue}
-                    onChange={(e) => setGracePeriodValue(Math.max(1, Number(e.target.value) || 1))}
-                    className="w-20 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-right text-[13px] font-medium text-zinc-900 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
-                  />
-                  <select
-                    id="grace-period-unit"
-                    name="gracePeriodUnit"
-                    aria-label="Grace period unit"
-                    value={gracePeriodUnit}
-                    onChange={(e) => setGracePeriodUnit(e.target.value as GracePeriodUnit)}
-                    className="appearance-none rounded-xl border border-zinc-200 bg-white py-2 pl-3 pr-8 text-[13px] text-zinc-900 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
-                  >
-                    <option value="minutes">minutes</option>
-                    <option value="hours">hours</option>
-                  </select>
-                </div>
-                <p className="mt-1.5 text-[12px] text-zinc-400">Extra time before the session is terminated.</p>
-              </div>
-            </div>
-          </section>
-        </div>
-
-        <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
-          <div className="flex items-center gap-3 border-b border-zinc-100 px-6 py-4">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-100">
-              <Link2 className="h-4 w-4 text-zinc-600" />
-            </div>
-            <div>
-              <p className="text-[15px] font-bold text-zinc-900">Link Preview</p>
-              <p className="text-[12px] text-zinc-500">Inspect generated URL details before sharing with candidates.</p>
-            </div>
-          </div>
-
-          <div className="space-y-4 px-6 py-5">
-            <div className="flex flex-col gap-3 rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-3 md:flex-row md:items-center md:justify-between">
-              <code
-                className={cn(
-                  "overflow-x-auto text-[12px] font-semibold",
-                  hasPreviewInvitation ? "text-blue-700" : "text-zinc-500"
-                )}
-              >
-                {previewInviteLink}
-              </code>
-              <div className="flex shrink-0 items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => void handleCopyLinkSecurityPreview()}
-                  disabled={!hasPreviewInvitation}
-                  className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-[12px] font-semibold text-zinc-700 transition-colors duration-150 hover:bg-zinc-100"
-                >
-                  Copy
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void handleRegenerateLinkSecurity()}
-                  disabled={linkSecurityRegenerating || !selectedTestId}
-                  className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-[12px] font-semibold text-zinc-700 transition-colors duration-150 hover:bg-zinc-100"
-                >
-                  {linkSecurityRegenerating ? "Regenerating..." : "Regenerate"}
-                </button>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-              <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2.5">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Uses</p>
-                <p className="mt-0.5 text-[15px] font-bold text-zinc-900">{usesValue}</p>
-              </div>
-              <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2.5">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Expires</p>
-                <p className="mt-0.5 text-[15px] font-bold text-zinc-900">{expiresValue}</p>
-              </div>
-              <div
-                className={cn(
-                  "rounded-xl px-3 py-2.5",
-                  securityLevel === "High"
-                    ? "border border-blue-200 bg-blue-50"
-                    : securityLevel === "Medium"
-                      ? "border border-amber-200 bg-amber-50"
-                      : "border border-zinc-200 bg-zinc-50"
-                )}
-              >
-                <p
-                  className={cn(
-                    "text-[10px] font-bold uppercase tracking-widest",
-                    securityLevel === "High"
-                      ? "text-blue-700"
-                      : securityLevel === "Medium"
-                        ? "text-amber-700"
-                        : "text-zinc-500"
-                  )}
-                >
-                  Security
-                </p>
-                <p
-                  className={cn(
-                    "mt-0.5 text-[15px] font-bold",
-                    securityLevel === "High"
-                      ? "text-blue-800"
-                      : securityLevel === "Medium"
-                        ? "text-amber-800"
-                        : "text-zinc-800"
-                  )}
-                >
-                  {securityLevel}
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <div className="flex justify-end border-t border-zinc-100 pt-5">
-          <button
-            type="button"
-            onClick={() => void handleSaveLinkSecuritySettings()}
-            disabled={linkSecuritySaving || linkSecurityLoading || !selectedTestId}
-            className="inline-flex items-center gap-2 rounded-xl bg-zinc-900 px-6 py-2.5 text-[14px] font-semibold text-white shadow-sm transition-all duration-150 hover:bg-zinc-800 active:scale-[0.98]"
-          >
-            {linkSecuritySaving ? "Saving..." : "Save Settings"}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  function renderTimelineTab(): React.ReactNode {
-    function formatTimelineUtc(value?: string): string {
-      if (!value) {
-        return "";
-      }
-
-      const parsed = new Date(value);
-      if (Number.isNaN(parsed.getTime())) {
-        return value;
-      }
-
-      return parsed.toLocaleString("en-US", {
-        month: "short",
-        day: "2-digit",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-    }
-
-    function formatRelativeFromNow(value?: string | null): string {
-      if (!value) {
-        return "just now";
-      }
-
-      const parsed = new Date(value);
-      if (Number.isNaN(parsed.getTime())) {
-        return "just now";
-      }
-
-      const deltaMs = parsed.getTime() - Date.now();
-      const deltaSeconds = Math.round(deltaMs / 1000);
-      const absSeconds = Math.abs(deltaSeconds);
-
-      if (absSeconds < 5) {
-        return "just now";
-      }
-
-      if (absSeconds < 60) {
-        return `${absSeconds}s ago`;
-      }
-
-      const absMinutes = Math.round(absSeconds / 60);
-      if (absMinutes < 60) {
-        return `${absMinutes}m ago`;
-      }
-
-      const absHours = Math.round(absMinutes / 60);
-      if (absHours < 24) {
-        return `${absHours}h ago`;
-      }
-
-      const absDays = Math.round(absHours / 24);
-      return `${absDays}d ago`;
-    }
-
-    function prettifyMilestoneName(name: string): string {
-      switch (name) {
-        case "LinkOpened":
-          return "Link Opened";
-        case "InProgress":
-          return "In Progress";
-        default:
-          return name;
-      }
-    }
-
-    function pendingLabel(milestoneName: string): string {
-      switch (milestoneName) {
-        case "LinkOpened":
-          return "Not yet opened";
-        case "Started":
-          return "Not yet started";
-        case "InProgress":
-          return "Not started yet";
-        case "Submitted":
-          return "Not yet submitted";
-        default:
-          return "Pending";
-      }
-    }
-
-    const latestAttemptStatus = timelineData?.attempts[timelineData.attempts.length - 1]?.status ?? "Invited";
-
-    return (
-      <div className="mt-5 space-y-5">
-        <section className="rounded-2xl border border-zinc-200 bg-white px-5 py-4 shadow-sm">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-[220px,1fr] md:items-end">
-            <div>
-              <label htmlFor="timeline-test" className="mb-1 block text-[12px] font-semibold text-zinc-600">Test</label>
-              <select
-                id="timeline-test"
-                name="timelineTestId"
-                value={selectedTestId}
-                onChange={(e) => setSelectedTestId(e.target.value)}
-                className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[13px] text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
-              >
-                <option value="">Select test</option>
-                {tests.map((test) => (
-                  <option key={test.id} value={test.id}>
-                    {test.title}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label htmlFor="timeline-candidate" className="mb-1 block text-[12px] font-semibold text-zinc-600">Candidate</label>
-              <select
-                id="timeline-candidate"
-                name="timelineCandidateEmail"
-                value={selectedTimelineCandidateEmail}
-                onChange={(e) => setSelectedTimelineCandidateEmail(e.target.value)}
-                disabled={timelineCandidatesLoading || timelineCandidates.length === 0}
-                className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[13px] text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {timelineCandidates.length === 0 ? (
-                  <option value="">No candidates found</option>
-                ) : (
-                  timelineCandidates.map((candidate) => (
-                    <option key={candidate.candidateEmail} value={candidate.candidateEmail}>
-                      {candidate.candidateName
-                        ? `${candidate.candidateName} (${candidate.candidateEmail})`
-                        : candidate.candidateEmail}
-                    </option>
-                  ))
-                )}
-              </select>
-            </div>
-          </div>
-
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-zinc-100 pt-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <span
-                className={cn(
-                  "inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-[11px] font-semibold",
-                  timelineLiveEnabled && timelineNetworkOnline
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                    : timelineLiveEnabled
-                      ? "border-amber-200 bg-amber-50 text-amber-700"
-                    : "border-zinc-200 bg-zinc-100 text-zinc-600"
-                )}
-              >
-                <span
-                  className={cn(
-                    "h-2 w-2 rounded-full",
-                    timelineLiveEnabled && timelineNetworkOnline
-                      ? "animate-pulse bg-emerald-500"
-                      : timelineLiveEnabled
-                        ? "bg-amber-500"
-                        : "bg-zinc-400"
-                  )}
-                />
-                {timelineLiveEnabled
-                  ? timelineNetworkOnline
-                    ? `Live updates every ${TIMELINE_LIVE_REFRESH_MS / 1000}s`
-                    : "Offline, waiting for connection"
-                  : "Live updates paused"}
-              </span>
-
-              <span
-                className={cn(
-                  "rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-700",
-                  timelineLiveSyncing ? "visible" : "invisible"
-                )}
-              >
-                Syncing...
-              </span>
-
-              <span className="text-[12px] text-zinc-500">
-                {timelineLastUpdatedAtUtc
-                  ? `Last updated ${formatRelativeFromNow(timelineLastUpdatedAtUtc)} (${formatTimelineUtc(timelineLastUpdatedAtUtc)})`
-                  : "Waiting for first sync"}
-              </span>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setTimelineLiveEnabled((prev) => !prev)}
-              className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-[12px] font-semibold text-zinc-700 transition-colors duration-150 hover:bg-zinc-100"
-            >
-              {timelineLiveEnabled ? "Pause Live" : "Resume Live"}
-            </button>
-          </div>
-        </section>
-
-        {timelineError ? <p className="text-[12px] text-red-600">{timelineError}</p> : null}
-        {timelineCandidatesLoading || (timelineLoading && !timelineData) ? (
-          <p className="text-[12px] text-zinc-500">Loading progress timeline...</p>
-        ) : null}
-
-        {!timelineLoading && !timelineCandidatesLoading && !timelineError && timelineCandidates.length === 0 ? (
-          <section className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-            <p className="text-[13px] font-medium text-zinc-700">No candidate journey available for the selected test yet.</p>
-          </section>
-        ) : null}
-
-        {!timelineCandidatesLoading && timelineData ? (
-          <section className="space-y-4">
-            <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div>
-                  <p className="text-[14px] font-semibold text-zinc-900">
-                    {timelineData.candidateName || timelineData.candidateEmail}
-                  </p>
-                  <p className="text-[12px] text-zinc-500">{timelineData.testTitle}</p>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[11px] font-semibold text-zinc-700">
-                    {timelineData.attempts.length} attempt(s)
-                  </span>
-                  <span
-                    className={cn(
-                      "rounded-full px-2.5 py-1 text-[11px] font-semibold",
-                      latestAttemptStatus === "Submitted"
-                        ? "bg-emerald-100 text-emerald-700"
-                        : latestAttemptStatus === "InProgress"
-                          ? "bg-amber-100 text-amber-700"
-                          : "bg-zinc-100 text-zinc-600"
-                    )}
-                  >
-                    {latestAttemptStatus}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {timelineData.attempts.map((attempt) => (
-              <div
-                key={attempt.attemptNumber}
-                className={cn(
-                  "rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm",
-                  attempt.status === "Submitted"
-                    ? "border-l-4 border-l-emerald-400"
-                    : attempt.status === "InProgress"
-                      ? "border-l-4 border-l-amber-400"
-                      : "border-l-4 border-l-zinc-300"
-                )}
-              >
-                <div className="flex items-center justify-between gap-2 border-b border-zinc-100 pb-3">
-                  <p className="text-[14px] font-semibold text-zinc-900">Attempt {attempt.attemptNumber}</p>
-                  <span
-                    className={cn(
-                      "rounded-full px-2.5 py-0.5 text-[11px] font-semibold",
-                      attempt.status === "Submitted"
-                        ? "bg-emerald-100 text-emerald-700"
-                        : attempt.status === "InProgress"
-                          ? "bg-amber-100 text-amber-700"
-                          : "bg-zinc-100 text-zinc-600"
-                    )}
-                  >
-                    {attempt.status}
-                  </span>
-                </div>
-
-                <ol className="mt-4 space-y-3">
-                  {attempt.milestones.map((milestone, milestoneIndex) => {
-                    const completed = milestone.state === "Completed";
-                    const isLastMilestone = milestoneIndex === attempt.milestones.length - 1;
-
-                    return (
-                      <li key={milestone.name} className="flex items-start gap-3">
-                        <div className="flex flex-col items-center">
-                          <span
-                            className={cn(
-                              "mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[10px] font-bold",
-                              completed
-                                ? "border-emerald-300 bg-emerald-100 text-emerald-700"
-                                : "border-zinc-300 bg-zinc-100 text-zinc-400"
-                            )}
-                          >
-                            {completed ? <Check className="h-3 w-3" strokeWidth={3} /> : <Clock3 className="h-3 w-3" strokeWidth={2.5} />}
-                          </span>
-
-                          {!isLastMilestone ? (
-                            <span
-                              className={cn(
-                                "mt-1 h-6 w-px",
-                                completed ? "bg-emerald-200" : "bg-zinc-200"
-                              )}
-                            />
-                          ) : null}
-                        </div>
-
-                        <div className="min-w-0">
-                          <p className={cn("text-[13px] font-semibold", completed ? "text-zinc-900" : "text-zinc-500")}>
-                            {prettifyMilestoneName(milestone.name)}
-                          </p>
-                          <p className={cn("text-[12px]", completed ? "text-zinc-500" : "text-zinc-400")}>
-                            {completed
-                              ? formatTimelineUtc(milestone.occurredAtUtc)
-                              : pendingLabel(milestone.name)}
-                          </p>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ol>
-              </div>
-            ))}
-          </section>
-        ) : null}
-      </div>
-    );
-  }
-
-  function renderInviteTab(): React.ReactNode {
-    const stepChips: Array<{ id: 1 | 2 | 3; label: string }> = [
-      { id: 1, label: "Method" },
-      { id: 2, label: "Candidates" },
-      { id: 3, label: "Configure" },
-    ];
-
-    const methodCards: Array<{ key: InviteMethod; label: string; helper: string; icon: React.ElementType }> = [
-      {
-        key: "email",
-        label: "Email",
-        helper: "Individual invites by entering emails",
-        icon: Mail,
-      },
-      {
-        key: "bulk",
-        label: "Bulk CSV",
-        helper: "Mass upload recipients from CSV",
-        icon: FileUp,
-      },
-      {
-        key: "link",
-        label: "Link Invite",
-        helper: "Generate and send a secure candidate link",
-        icon: Link2,
-      },
-    ];
-
-    const stepTitle =
-      inviteStep === 1
-        ? "Step 1: Choose Method"
-        : inviteStep === 2
-          ? "Step 2: Add Candidates"
-          : "Step 3: Configure & Send";
-
-    const stepHint =
-      inviteStep === 1
-        ? "Select how invitations will be delivered."
-        : inviteStep === 2
-          ? "Add recipients and verify candidate count before moving on."
-          : "Finalize delivery settings and review before sending.";
-
-    const stepSubtitle =
-      inviteStep === 1
-        ? "Choose one invitation channel to continue."
-        : inviteStep === 2
-          ? "Select recipients and confirm candidate count."
-          : "Set invitation options and review before sending.";
-
-    return (
-      <div className="mt-5 space-y-5">
-        <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
-          <div className="border-b border-zinc-100 px-6 py-5">
-            <div>
-              <p className="text-[18px] font-semibold text-zinc-900">{stepTitle}</p>
-              <p className="mt-1 text-[12px] text-zinc-500">{stepHint}</p>
-            </div>
-            <div className="mt-3 flex items-center justify-between gap-4">
-              <p className="text-[12px] text-zinc-400">{stepSubtitle}</p>
-              {inviteStep === 2 ? (
-                <div className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-[11px] font-semibold text-zinc-700">
-                {recipients.length} candidate(s) ready
-                </div>
-              ) : null}
-            </div>
-          </div>
-
-          <div className="px-6 py-5">
-            <div className="mb-6">
-              <div className="mx-auto flex w-full max-w-3xl items-center">
-                {stepChips.map((step, i) => {
-                  const isActive = inviteStep === step.id;
-                  const isDone = inviteStep > step.id;
-
-                  return (
-                    <div key={step.id} className="flex flex-1 items-center">
-                      {i > 0 ? (
-                        <div className={cn("h-[2px] flex-1 rounded-full", inviteStep > i ? "bg-zinc-900" : "bg-zinc-100")} />
-                      ) : null}
-
-                      <div className="flex flex-col items-center gap-1.5 px-2">
-                        <div
-                          className={cn(
-                            "relative flex h-9 w-9 items-center justify-center rounded-full text-[13px] font-bold transition-all duration-300",
-                            isDone
-                              ? "bg-zinc-900 text-white"
-                              : isActive
-                                ? "scale-110 bg-zinc-900 text-white shadow-[0_0_0_4px_rgba(0,0,0,0.08)]"
-                                : "border-2 border-zinc-200 bg-white text-zinc-300"
-                          )}
-                        >
-                          {isDone ? <Check className="h-4 w-4" strokeWidth={2.5} /> : step.id}
-                          {isActive ? <span className="absolute inset-0 animate-ping rounded-full bg-zinc-900 opacity-10" /> : null}
-                        </div>
-                        <div className="text-center" style={{ minWidth: 84 }}>
-                          <p className={cn("text-[12px] font-semibold leading-tight", isActive ? "text-zinc-900" : isDone ? "text-zinc-500" : "text-zinc-400")}>
-                            {step.label}
-                          </p>
-                          <p className={cn("mt-0.5 text-[10px]", isDone ? "text-zinc-400" : isActive ? "text-zinc-400" : "text-zinc-300")}>
-                            {isDone ? "Complete" : isActive ? "In progress" : "Pending"}
-                          </p>
-                        </div>
-                      </div>
-
-                      {i < stepChips.length - 1 ? (
-                        <div
-                          className={cn(
-                            "h-[2px] flex-1 rounded-full",
-                            inviteStep > step.id ? "bg-zinc-900" : "bg-zinc-100"
-                          )}
-                        />
-                      ) : null}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {inviteStep === 1 ? (
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-              {methodCards.map((method) => {
-                const active = inviteMethod === method.key;
-                return (
-                  <button
-                    key={method.key}
-                    type="button"
-                    onClick={() => selectMethod(method.key)}
-                    className={cn(
-                      "rounded-xl border-2 bg-white p-4 text-left shadow-sm transition-colors",
-                      active ? "border-zinc-900" : "border-zinc-200 hover:border-zinc-300"
-                    )}
-                  >
-                    <div className="mb-2 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-100">
-                      <method.icon className="h-4 w-4 text-zinc-700" />
-                    </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-[13px] font-semibold text-zinc-900">{method.label}</p>
-                      {active ? <Check className="h-4 w-4 text-zinc-900" /> : null}
-                    </div>
-                    <p className="mt-1 text-[12px] text-zinc-500">{method.helper}</p>
-                  </button>
-                );
-              })}
-              </div>
-            ) : null}
-
-            {inviteStep === 2 ? (
-              <div className="space-y-4">
-                {inviteMethod === "bulk" ? (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <p className="text-[12px] font-semibold text-zinc-600">Bulk Candidate Import</p>
-                      <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-semibold text-zinc-700">
-                        {recipients.length} candidates added
-                      </span>
-                    </div>
-
-                    <label htmlFor="bulk-csv-file" className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[12px] font-semibold text-zinc-700 hover:bg-zinc-50">
-                      <FileUp className="h-3.5 w-3.5" /> Import CSV
-                      <input
-                        id="bulk-csv-file"
-                        name="bulkCsvFile"
-                        type="file"
-                        accept=".csv,text/csv"
-                        className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            void importCsvEmails(file);
-                          }
-                          e.currentTarget.value = "";
-                        }}
-                      />
-                    </label>
-
-                    {csvPreviewRows.length > 0 ? (
-                      <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
-                        <div className="flex items-center justify-between border-b border-zinc-100 bg-zinc-50 px-3 py-2">
-                          <p className="text-[12px] font-semibold text-zinc-700">
-                            Imported candidates ({csvPreviewRows.length})
-                          </p>
-                          <button
-                            type="button"
-                            onClick={clearAllEmailChips}
-                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-zinc-500 hover:text-zinc-700"
-                          >
-                            <X className="h-3 w-3" /> Clear all
-                          </button>
-                        </div>
-                        <div className="max-h-64 overflow-auto">
-                          <table className="min-w-full text-left text-[12px]">
-                            <thead className="bg-white text-zinc-500">
-                              <tr>
-                                <th className="px-3 py-2 font-semibold">Name</th>
-                                <th className="px-3 py-2 font-semibold">Email</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {csvPreviewRows.map((item) => (
-                                <tr key={item.email} className="border-t border-zinc-100">
-                                  <td className="px-3 py-2 text-zinc-700">{item.name || "-"}</td>
-                                  <td className="px-3 py-2 font-medium text-zinc-900">{item.email}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    ) : null}
-                  </div>
-                ) : (
-                  <>
-                    <div>
-                      <label htmlFor="invite-candidate-name" className="mb-1 block text-[12px] font-semibold text-zinc-600">Candidate Name (optional)</label>
-                      <input
-                        id="invite-candidate-name"
-                        name="candidateName"
-                        value={candidateName}
-                        onChange={(e) => setCandidateName(e.target.value)}
-                        placeholder="Ex: Alex Smith"
-                        className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[13px] text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
-                      />
-                    </div>
-
-                    <div>
-                      <div className="mb-1 flex items-center justify-between">
-                        <label htmlFor="invite-candidate-emails" className="block text-[12px] font-semibold text-zinc-600">Candidate Emails</label>
-                        <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-semibold text-zinc-700">
-                          {recipients.length} candidates added
-                        </span>
-                      </div>
-                      <div className="min-h-[44px] rounded-xl border border-zinc-200 bg-white px-2 py-2 focus-within:border-zinc-400 focus-within:ring-2 focus-within:ring-zinc-900/10">
-                        <div className="flex flex-wrap items-center gap-2">
-                          {emailChips.map((email) => (
-                            <span
-                              key={email}
-                              className="inline-flex items-center gap-1 rounded-full bg-zinc-900 px-2.5 py-1 text-[11px] font-semibold text-white"
-                            >
-                              {email}
-                              <button
-                                type="button"
-                                onClick={() => removeEmailChip(email)}
-                                className="text-white/80 hover:text-white"
-                              >
-                                x
-                              </button>
-                            </span>
-                          ))}
-                          <input
-                            id="invite-candidate-emails"
-                            name="candidateEmails"
-                            value={emailInput}
-                            onChange={(e) => setEmailInput(e.target.value)}
-                            onKeyDown={handleEmailKeyDown}
-                            onBlur={() => {
-                              if (emailInput.trim()) {
-                                addEmailChip(emailInput);
-                                setEmailInput("");
-                              }
-                            }}
-                            placeholder="Type email and press Enter"
-                            className="min-w-[220px] flex-1 border-0 bg-transparent px-1 py-1 text-[13px] text-zinc-900 outline-none"
-                          />
-                        </div>
-                      </div>
-                      <div className="mt-1 flex items-center justify-between gap-3">
-                        <p className="text-[11px] text-zinc-500">Use Enter or comma to add each email chip.</p>
-                        {emailChips.length > 0 ? (
-                          <button
-                            type="button"
-                            onClick={clearAllEmailChips}
-                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-zinc-500 hover:text-zinc-700"
-                          >
-                            <X className="h-3 w-3" /> Clear all
-                          </button>
-                        ) : null}
-                      </div>
-                    </div>
-                  </>
-                )}
-
-              {inviteMethod === "link" ? (
-                <div>
-                  <p className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-[12px] text-zinc-600">
-                    Share Link mode still tracks entered recipients for audit and delivery reporting.
-                  </p>
-                </div>
-              ) : null}
-              </div>
-            ) : null}
-
-            {inviteStep === 3 ? (
-              <div className="space-y-4">
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div>
-                  <label htmlFor="invite-test" className="mb-1 block text-[12px] font-semibold text-zinc-600">Test</label>
-                  <select
-                    id="invite-test"
-                    name="inviteTestId"
-                    value={selectedTestId}
-                    onChange={(e) => setSelectedTestId(e.target.value)}
-                    className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[13px] text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
-                  >
-                    <option value="">Select a test</option>
-                    {tests.map((test) => (
-                      <option key={test.id} value={test.id}>
-                        {test.title}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label htmlFor="invite-deadline" className="mb-1 block text-[12px] font-semibold text-zinc-600">Deadline (optional)</label>
-                  <input
-                    id="invite-deadline"
-                    name="deadlineDate"
-                    type="date"
-                    value={deadlineDate}
-                    onChange={(e) => setDeadlineDate(e.target.value)}
-                    className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[13px] text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                <div>
-                  <label htmlFor="invite-time-limit" className="mb-1 block text-[12px] font-semibold text-zinc-600">Time Limit (minutes)</label>
-                  <input
-                    id="invite-time-limit"
-                    name="timeLimitMinutes"
-                    type="number"
-                    min={1}
-                    value={timeLimitMinutes}
-                    onChange={(e) => setTimeLimitMinutes(Math.max(1, Number(e.target.value) || 1))}
-                    className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[13px] text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="invite-link-expiry" className="mb-1 block text-[12px] font-semibold text-zinc-600">Link Expiry (hours)</label>
-                  <input
-                    id="invite-link-expiry"
-                    name="linkExpiryHours"
-                    type="number"
-                    min={1}
-                    max={720}
-                    value={linkExpiryHours}
-                    onChange={(e) => setLinkExpiryHours(Math.min(720, Math.max(1, Number(e.target.value) || 1)))}
-                    className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[13px] text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
-                  />
-                </div>
-
-                <div className="space-y-2 pt-6">
-                  <label htmlFor="invite-send-now" className="flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-[12px] text-zinc-700">
-                    <input
-                      id="invite-send-now"
-                      name="sendNowNotification"
-                      type="checkbox"
-                      checked={sendNowNotification}
-                      onChange={(e) => setSendNowNotification(e.target.checked)}
-                    />
-                    Send immediate notification email
-                  </label>
-
-                </div>
-              </div>
-
-              <div>
-                <label htmlFor="invite-custom-message" className="mb-1 block text-[12px] font-semibold text-zinc-600">Custom Message</label>
-                <textarea
-                  id="invite-custom-message"
-                  name="customMessage"
-                  value={customMessage}
-                  onChange={(e) => setCustomMessage(e.target.value)}
-                  placeholder="Add a personalized note for candidates..."
-                  className="min-h-[100px] w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[13px] text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
-                />
-              </div>
-
-              <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
-                <p className="text-[12px] font-semibold uppercase tracking-wide text-zinc-500">Pre-send Summary</p>
-                <div className="mt-2 grid grid-cols-1 gap-2 text-[13px] text-zinc-700 md:grid-cols-2">
-                  <p>Method: <span className="font-semibold capitalize">{inviteMethod}</span></p>
-                  <p>Recipients: <span className="font-semibold">{recipients.length}</span></p>
-                  <p>Test: <span className="font-semibold">{selectedTest?.title || "Not selected"}</span></p>
-                  <p>Deadline: <span className="font-semibold">{deadlineDate || "None"}</span></p>
-                  <p>Link expiry: <span className="font-semibold">{linkExpiryHours} hour(s)</span></p>
-                  <p>Time limit: <span className="font-semibold">{timeLimitMinutes} min</span></p>
-
-                  <p className="md:col-span-2">
-                    Candidate Name: <span className="font-semibold">{candidateName.trim() || "Not provided"}</span>
-                  </p>
-                  <p className="md:col-span-2">
-                    Notifications: <span className="font-semibold">{sendNowNotification ? "Send immediately" : "Draft only"}</span>
-                  </p>
-                  {customMessage.trim() ? (
-                    <p className="md:col-span-2 text-zinc-600">
-                      Message preview: <span className="font-medium">{customMessage.trim().slice(0, 140)}{customMessage.trim().length > 140 ? "..." : ""}</span>
-                    </p>
-                  ) : null}
-                </div>
-              </div>
-              </div>
-            ) : null}
-
-            <div className="mt-6 flex items-center justify-between gap-3 border-t border-zinc-100 pt-5">
-              <div>
-                {inviteError ? <p className="text-[12px] text-red-600">{inviteError}</p> : null}
-                {inviteSuccess ? <p className="text-[12px] text-emerald-700">{inviteSuccess}</p> : null}
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={goPrevStep}
-                  disabled={inviteStep === 1 || submitting}
-                  className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-[13px] font-semibold text-zinc-700 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  Back
-                </button>
-                {inviteStep < 3 ? (
-                  <button
-                    onClick={goNextStep}
-                    disabled={submitting || (inviteStep === 2 && !canProceedFromStep(2))}
-                    className="rounded-xl bg-zinc-900 px-4 py-2 text-[13px] font-semibold text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    Continue
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => void handleSendInvitations()}
-                    disabled={submitting}
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-zinc-900 px-4 py-2 text-[13px] font-semibold text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    <Send className="h-3.5 w-3.5" />
-                    {submitting ? "Sending..." : "Send Invitations"}
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        </section>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-zinc-50">
       <div className="border-b border-zinc-200 bg-white px-8 py-5">
@@ -2597,13 +1080,114 @@ export function CandidateManagement() {
             <p className="mt-1 text-[13px] text-zinc-500">{activeConfig.description}</p>
 
             {activeTab === "invite" ? (
-              renderInviteTab()
+              <InviteTab
+                inviteStep={inviteStep}
+                inviteMethod={inviteMethod}
+                recipients={recipients}
+                csvPreviewRows={csvPreviewRows}
+                candidateName={candidateName}
+                setCandidateName={setCandidateName}
+                emailChips={emailChips}
+                removeEmailChip={removeEmailChip}
+                emailInput={emailInput}
+                setEmailInput={setEmailInput}
+                handleEmailKeyDown={handleEmailKeyDown}
+                addEmailChip={addEmailChip}
+                clearAllEmailChips={clearAllEmailChips}
+                importCsvEmails={importCsvEmails}
+                selectedTestId={selectedTestId}
+                setSelectedTestId={setSelectedTestId}
+                tests={tests}
+                deadlineDate={deadlineDate}
+                setDeadlineDate={setDeadlineDate}
+                timeLimitMinutes={timeLimitMinutes}
+                setTimeLimitMinutes={setTimeLimitMinutes}
+                linkExpiryHours={linkExpiryHours}
+                setLinkExpiryHours={setLinkExpiryHours}
+                sendNowNotification={sendNowNotification}
+                setSendNowNotification={setSendNowNotification}
+                customMessage={customMessage}
+                setCustomMessage={setCustomMessage}
+                selectedTest={selectedTest}
+                inviteError={inviteError}
+                inviteSuccess={inviteSuccess}
+                goPrevStep={goPrevStep}
+                goNextStep={goNextStep}
+                canProceedFromStep={canProceedFromStep}
+                submitting={submitting}
+                handleSendInvitations={handleSendInvitations}
+                selectMethod={selectMethod}
+              />
             ) : activeTab === "resend" ? (
-              renderResendTab()
+              <ResendTab
+                resendSearch={resendSearch}
+                setResendSearch={setResendSearch}
+                resendStatusFilter={resendStatusFilter}
+                setResendStatusFilter={setResendStatusFilter}
+                resendTestFilter={resendTestFilter}
+                setResendTestFilter={setResendTestFilter}
+                tests={tests}
+                resendError={resendError}
+                resendSuccess={resendSuccess}
+                filteredResendInvitations={filteredResendInvitations}
+                initialsFromInvitation={initialsFromInvitation}
+                setResendError={setResendError}
+                setResendModalItem={setResendModalItem}
+                resendModalItem={resendModalItem}
+                resendSubmitting={resendSubmitting}
+                onConfirmResend={handleConfirmResend}
+              />
             ) : activeTab === "link-security" ? (
-              renderLinkSecurityTab()
+              <LinkSecurityTab
+                selectedTestId={selectedTestId}
+                setSelectedTestId={setSelectedTestId}
+                tests={tests}
+                linkSecurityLoading={linkSecurityLoading}
+                linkSecurityError={linkSecurityError}
+                linkSecuritySuccess={linkSecuritySuccess}
+                singleUseLinkEnabled={singleUseLinkEnabled}
+                setSingleUseLinkEnabled={setSingleUseLinkEnabled}
+                emailVerificationEnabled={emailVerificationEnabled}
+                setEmailVerificationEnabled={setEmailVerificationEnabled}
+                ipLockEnabled={ipLockEnabled}
+                setIpLockEnabled={setIpLockEnabled}
+                browserFingerprintEnabled={browserFingerprintEnabled}
+                setBrowserFingerprintEnabled={setBrowserFingerprintEnabled}
+                linkValidForValue={linkValidForValue}
+                setLinkValidForValue={setLinkValidForValue}
+                linkValidForUnit={linkValidForUnit}
+                setLinkValidForUnit={setLinkValidForUnit}
+                gracePeriodValue={gracePeriodValue}
+                setGracePeriodValue={setGracePeriodValue}
+                gracePeriodUnit={gracePeriodUnit}
+                setGracePeriodUnit={setGracePeriodUnit}
+                linkPreview={linkPreview}
+                formatUtcForCard={formatUtcForCard}
+                onCopyLinkSecurityPreview={handleCopyLinkSecurityPreview}
+                onRegenerateLinkSecurity={handleRegenerateLinkSecurity}
+                linkSecurityRegenerating={linkSecurityRegenerating}
+                onSaveLinkSecuritySettings={handleSaveLinkSecuritySettings}
+                linkSecuritySaving={linkSecuritySaving}
+              />
             ) : activeTab === "timeline" ? (
-              renderTimelineTab()
+              <TimelineTab
+                selectedTestId={selectedTestId}
+                setSelectedTestId={setSelectedTestId}
+                tests={tests}
+                selectedTimelineCandidateEmail={selectedTimelineCandidateEmail}
+                setSelectedTimelineCandidateEmail={setSelectedTimelineCandidateEmail}
+                timelineCandidatesLoading={timelineCandidatesLoading}
+                timelineCandidates={timelineCandidates}
+                timelineLiveEnabled={timelineLiveEnabled}
+                timelineNetworkOnline={timelineNetworkOnline}
+                timelineLiveSyncing={timelineLiveSyncing}
+                timelineLastUpdatedAtUtc={timelineLastUpdatedAtUtc}
+                setTimelineLiveEnabled={setTimelineLiveEnabled}
+                timelineError={timelineError}
+                timelineLoading={timelineLoading}
+                timelineData={timelineData}
+                refreshMs={TIMELINE_LIVE_REFRESH_MS}
+              />
             ) : (
               <div className="mt-5 rounded-xl border border-zinc-200 bg-zinc-50 p-4">
                 <p className="text-[13px] font-medium text-zinc-700">
@@ -2626,73 +1210,10 @@ export function CandidateManagement() {
         </div>
       </div>
 
-      {inviteResultPopup ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4">
-          <div className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-5 shadow-2xl">
-            <div className="flex items-start gap-3">
-              <span
-                className={cn(
-                  "inline-flex h-8 w-8 items-center justify-center rounded-full",
-                  inviteResultPopup.status === "success"
-                    ? "bg-emerald-100 text-emerald-700"
-                    : "bg-red-100 text-red-700"
-                )}
-              >
-                {inviteResultPopup.status === "success" ? (
-                  <Check className="h-4 w-4" />
-                ) : (
-                  <X className="h-4 w-4" />
-                )}
-              </span>
-              <div>
-                <p className="text-[15px] font-semibold text-zinc-900">Invitation status</p>
-                <p className="mt-1 text-[13px] text-zinc-600">{inviteResultPopup.message}</p>
-                <p className="mt-2 text-[12px] text-zinc-400">Returning to Step 1...</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {csvImportReport ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4">
-          <div className="w-full max-w-sm rounded-2xl border border-zinc-200 bg-white p-4 shadow-2xl">
-            <div className="flex items-start gap-3">
-              <span
-                className={cn(
-                  "inline-flex h-8 w-8 items-center justify-center rounded-full",
-                  csvImportReport.importedCount > 0
-                    ? "bg-emerald-100 text-emerald-700"
-                    : "bg-amber-100 text-amber-700"
-                )}
-              >
-                {csvImportReport.importedCount > 0 ? (
-                  <Check className="h-4 w-4" />
-                ) : (
-                  <FileUp className="h-4 w-4" />
-                )}
-              </span>
-              <div className="flex-1">
-                <p className="text-[14px] font-semibold text-zinc-900">CSV import summary</p>
-                <div className="mt-2 grid grid-cols-3 gap-2">
-                  <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1.5 text-center">
-                    <p className="text-[14px] font-semibold text-zinc-900">{csvImportReport.importedCount}</p>
-                    <p className="text-[10px] uppercase tracking-wide text-zinc-500">Imported</p>
-                  </div>
-                  <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1.5 text-center">
-                    <p className="text-[14px] font-semibold text-zinc-900">{csvImportReport.duplicateCount}</p>
-                    <p className="text-[10px] uppercase tracking-wide text-zinc-500">Duplicates</p>
-                  </div>
-                  <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1.5 text-center">
-                    <p className="text-[14px] font-semibold text-zinc-900">{csvImportReport.invalidCount}</p>
-                    <p className="text-[10px] uppercase tracking-wide text-zinc-500">Invalid</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <InviteResultPopup result={inviteResultPopup} />
+      <CsvImportReportPopup report={csvImportReport} />
     </div>
   );
 }
+
+
