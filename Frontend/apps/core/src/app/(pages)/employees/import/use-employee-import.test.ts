@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
-import type * as ApiReactModule from "@repo/api/react";
+
+type ApiReactModule = typeof import("@repo/api/react");
 
 const { mockGet, mockPost } = vi.hoisted(() => ({
   mockGet: vi.fn(),
