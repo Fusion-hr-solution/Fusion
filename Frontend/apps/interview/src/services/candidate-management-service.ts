@@ -2,122 +2,36 @@ import { createPlatformApiClient } from "@repo/api";
 import type {
   CandidateInvitation,
   CandidateProgressTimeline,
-  CandidateLinkSecuritySettings,
   CandidateLinkSecurityState,
   CandidateTimelineCandidate,
   CandidateManagementOverview,
 } from "@/types";
+import type {
+  BackendCandidateManagementOverviewDto,
+  BackendCandidateInvitationDto,
+  InviteCandidateInput,
+  BackendCandidateLinkSecurityStateDto,
+  SaveCandidateLinkSecurityInput,
+  BackendCandidateTimelineCandidateDto,
+  BackendCandidateProgressTimelineDto,
+} from "./models/candidate-management-models";
 
 const client = createPlatformApiClient();
 
-interface BackendCandidateManagementOverviewDto {
-  pendingInvitations: number;
-  deliveryFailed: number;
-  expiringLinks: number;
-  inProgressCandidates: number;
-  retakeRequests: number;
-  pendingDeletion: number;
-  generatedAtUtc: string;
-}
+const CANDIDATE_INVITATIONS_API = "/interview/candidates/invitations";
+const CANDIDATE_MANAGEMENT_API = "/interview/candidates/management";
 
-interface BackendCandidateInvitationDto {
-  id: string;
-  testId: string;
-  testTitle: string;
-  email: string;
-  candidateName?: string;
-  status: "Invited" | "DeliveryFailed" | "InProgress" | "Submitted" | "Expired";
-  deadlineUtc?: string;
-  inviteMethod?: "email" | "bulk" | "link";
-  linkExpiryHours?: number;
-  tokenCreatedAtUtc?: string;
-  tokenExpiresAtUtc?: string;
-  timeLimitMinutes?: number;
-  customMessage?: string;
-  inviteLink: string;
-  createdAtUtc: string;
-  lastSentAtUtc: string;
-  resendCount: number;
-  opensCount: number;
-}
+const CANDIDATE_INVITATIONS_PENDING_ENDPOINT = `${CANDIDATE_INVITATIONS_API}/pending`;
+const CANDIDATE_INVITATIONS_BULK_ENDPOINT = `${CANDIDATE_INVITATIONS_API}/bulk`;
 
-interface InviteCandidateEntryInput {
-  email: string;
-  candidateName?: string;
-}
+const CANDIDATE_MANAGEMENT_OVERVIEW_PATH = "/overview";
+const CANDIDATE_MANAGEMENT_LINK_SECURITY_PATH = "/link-security";
+const CANDIDATE_MANAGEMENT_TIMELINE_PATH = "/timeline";
 
-interface InviteCandidateInput {
-  testId: string;
-  emails: string[];
-  candidateEntries?: InviteCandidateEntryInput[];
-  inviteMethod: "email" | "bulk" | "link";
-  candidateName?: string;
-  deadlineUtc?: string;
-  linkExpiryHours?: number;
-  timeLimitMinutes?: number;
-  customMessage?: string;
-  sendNowNotification?: boolean;
-}
-
-interface BackendCandidateLinkSecuritySettingsDto {
-  singleUseLinkEnabled: boolean;
-  emailVerificationEnabled: boolean;
-  ipLockEnabled: boolean;
-  browserFingerprintEnabled: boolean;
-  linkValidForValue: number;
-  linkValidForUnit: "days" | "hours" | "minutes";
-  gracePeriodValue: number;
-  gracePeriodUnit: "minutes" | "hours";
-}
-
-interface BackendCandidateLinkPreviewDto {
-  hasInvitation: boolean;
-  invitationId?: string;
-  inviteLink?: string;
-  opensCount: number;
-  allowedUses?: number;
-  tokenExpiresAtUtc?: string;
-  securityLevel: "Low" | "Medium" | "High";
-}
-
-interface BackendCandidateLinkSecurityStateDto {
-  testId: string;
-  testTitle: string;
-  settings: BackendCandidateLinkSecuritySettingsDto;
-  preview: BackendCandidateLinkPreviewDto;
-}
-
-interface SaveCandidateLinkSecurityInput extends CandidateLinkSecuritySettings {
-  testId: string;
-}
-
-interface BackendCandidateTimelineCandidateDto {
-  candidateEmail: string;
-  candidateName?: string;
-  latestStatus: "Invited" | "DeliveryFailed" | "InProgress" | "Submitted" | "Expired";
-  latestActivityAtUtc?: string;
-}
-
-interface BackendCandidateTimelineMilestoneDto {
-  name: "Invited" | "LinkOpened" | "Started" | "InProgress" | "Submitted";
-  state: "Completed" | "Pending";
-  occurredAtUtc?: string;
-}
-
-interface BackendCandidateAttemptTimelineDto {
-  attemptNumber: number;
-  attemptId?: string;
-  status: "Invited" | "InProgress" | "Submitted";
-  milestones: BackendCandidateTimelineMilestoneDto[];
-}
-
-interface BackendCandidateProgressTimelineDto {
-  testId: string;
-  testTitle: string;
-  candidateEmail: string;
-  candidateName?: string;
-  attempts: BackendCandidateAttemptTimelineDto[];
-}
+const CANDIDATE_MANAGEMENT_OVERVIEW_ENDPOINT = `${CANDIDATE_MANAGEMENT_API}${CANDIDATE_MANAGEMENT_OVERVIEW_PATH}`;
+const CANDIDATE_MANAGEMENT_LINK_SECURITY_ENDPOINT = `${CANDIDATE_MANAGEMENT_API}${CANDIDATE_MANAGEMENT_LINK_SECURITY_PATH}`;
+const CANDIDATE_MANAGEMENT_TIMELINE_CANDIDATES_ENDPOINT = `${CANDIDATE_MANAGEMENT_API}${CANDIDATE_MANAGEMENT_TIMELINE_PATH}/candidates`;
+const CANDIDATE_MANAGEMENT_TIMELINE_ENDPOINT = `${CANDIDATE_MANAGEMENT_API}${CANDIDATE_MANAGEMENT_TIMELINE_PATH}`;
 
 function mapInvitation(dto: BackendCandidateInvitationDto): CandidateInvitation {
   return {
@@ -198,7 +112,7 @@ function mapProgressTimeline(dto: BackendCandidateProgressTimelineDto): Candidat
 
 export async function getCandidateManagementOverview(): Promise<CandidateManagementOverview> {
   const dto = await client.get<BackendCandidateManagementOverviewDto>(
-    "/interview/candidates/management/overview"
+    CANDIDATE_MANAGEMENT_OVERVIEW_ENDPOINT
   );
 
   return {
@@ -214,7 +128,7 @@ export async function getCandidateManagementOverview(): Promise<CandidateManagem
 
 export async function getPendingInvitations(testId?: string): Promise<CandidateInvitation[]> {
   const data = await client.get<BackendCandidateInvitationDto[]>(
-    "/interview/candidates/invitations/pending",
+    CANDIDATE_INVITATIONS_PENDING_ENDPOINT,
     { params: testId ? { testId } : undefined }
   );
 
@@ -257,7 +171,7 @@ export async function inviteCandidates(input: InviteCandidateInput): Promise<Can
       candidateEntriesByEmail.get(singleEmail.toLowerCase())?.candidateName ?? input.candidateName;
 
     const created = await client.post<BackendCandidateInvitationDto>(
-      "/interview/candidates/invitations",
+      CANDIDATE_INVITATIONS_API,
       {
         testId: input.testId,
         email: singleEmail,
@@ -274,7 +188,7 @@ export async function inviteCandidates(input: InviteCandidateInput): Promise<Can
   }
 
   const created = await client.post<BackendCandidateInvitationDto[]>(
-    "/interview/candidates/invitations/bulk",
+    CANDIDATE_INVITATIONS_BULK_ENDPOINT,
     {
       testId: input.testId,
       emails: cleanedEmails,
@@ -294,7 +208,7 @@ export async function inviteCandidates(input: InviteCandidateInput): Promise<Can
 
 export async function resendInvitation(invitationId: string): Promise<CandidateInvitation> {
   const dto = await client.post<BackendCandidateInvitationDto>(
-    `/interview/candidates/invitations/${encodeURIComponent(invitationId)}/resend`
+    `${CANDIDATE_INVITATIONS_API}/${encodeURIComponent(invitationId)}/resend`
   );
 
   return mapInvitation(dto);
@@ -302,7 +216,7 @@ export async function resendInvitation(invitationId: string): Promise<CandidateI
 
 export async function getCandidateLinkSecurityState(testId: string): Promise<CandidateLinkSecurityState> {
   const dto = await client.get<BackendCandidateLinkSecurityStateDto>(
-    "/interview/candidates/management/link-security",
+    CANDIDATE_MANAGEMENT_LINK_SECURITY_ENDPOINT,
     { params: { testId } }
   );
 
@@ -313,7 +227,7 @@ export async function saveCandidateLinkSecuritySettings(
   input: SaveCandidateLinkSecurityInput
 ): Promise<CandidateLinkSecurityState> {
   const dto = await client.put<BackendCandidateLinkSecurityStateDto>(
-    "/interview/candidates/management/link-security",
+    CANDIDATE_MANAGEMENT_LINK_SECURITY_ENDPOINT,
     {
       testId: input.testId,
       singleUseLinkEnabled: input.singleUseLinkEnabled,
@@ -332,7 +246,7 @@ export async function saveCandidateLinkSecuritySettings(
 
 export async function regenerateCandidateLinkSecurityLink(testId: string): Promise<CandidateLinkSecurityState> {
   const dto = await client.post<BackendCandidateLinkSecurityStateDto>(
-    `/interview/candidates/management/link-security/${encodeURIComponent(testId)}/regenerate`
+    `${CANDIDATE_MANAGEMENT_LINK_SECURITY_ENDPOINT}/${encodeURIComponent(testId)}/regenerate`
   );
 
   return mapLinkSecurityState(dto);
@@ -340,7 +254,7 @@ export async function regenerateCandidateLinkSecurityLink(testId: string): Promi
 
 export async function getCandidateTimelineCandidates(testId: string): Promise<CandidateTimelineCandidate[]> {
   const dto = await client.get<BackendCandidateTimelineCandidateDto[]>(
-    "/interview/candidates/management/timeline/candidates",
+    CANDIDATE_MANAGEMENT_TIMELINE_CANDIDATES_ENDPOINT,
     { params: { testId } }
   );
 
@@ -352,7 +266,7 @@ export async function getCandidateProgressTimeline(
   candidateEmail: string
 ): Promise<CandidateProgressTimeline> {
   const dto = await client.get<BackendCandidateProgressTimelineDto>(
-    "/interview/candidates/management/timeline",
+    CANDIDATE_MANAGEMENT_TIMELINE_ENDPOINT,
     { params: { testId, candidateEmail } }
   );
 

@@ -473,6 +473,9 @@ export function CandidateManagement() {
   const [timelineLoading, setTimelineLoading] = useState(false);
   const [timelineLiveEnabled, setTimelineLiveEnabled] = useState(true);
   const [timelineLiveSyncing, setTimelineLiveSyncing] = useState(false);
+  const [timelineNetworkOnline, setTimelineNetworkOnline] = useState(
+    () => (typeof navigator === "undefined" ? true : navigator.onLine)
+  );
   const [timelineLastUpdatedAtUtc, setTimelineLastUpdatedAtUtc] = useState<string | null>(null);
   const [timelineError, setTimelineError] = useState<string | null>(null);
   const popupTimerRef = useRef<number | null>(null);
@@ -523,6 +526,21 @@ export function CandidateManagement() {
       if (csvReportTimerRef.current !== null) {
         window.clearTimeout(csvReportTimerRef.current);
       }
+    };
+  }, []);
+
+  useEffect(() => {
+    function syncNetworkStatus() {
+      setTimelineNetworkOnline(typeof navigator === "undefined" ? true : navigator.onLine);
+    }
+
+    syncNetworkStatus();
+    window.addEventListener("online", syncNetworkStatus);
+    window.addEventListener("offline", syncNetworkStatus);
+
+    return () => {
+      window.removeEventListener("online", syncNetworkStatus);
+      window.removeEventListener("offline", syncNetworkStatus);
     };
   }, []);
 
@@ -743,11 +761,27 @@ export function CandidateManagement() {
 
     let isMounted = true;
     let refreshInFlight = false;
+    let offlineMessageShown = false;
+
+    function isOffline(): boolean {
+      return typeof navigator !== "undefined" && !navigator.onLine;
+    }
 
     async function refreshTimelineLive() {
       if (refreshInFlight) {
         return;
       }
+
+      if (isOffline()) {
+        if (isMounted && !offlineMessageShown) {
+          setTimelineError("Internet disconnected. Live updates will resume automatically when connection returns.");
+          setTimelineLiveSyncing(false);
+        }
+        offlineMessageShown = true;
+        return;
+      }
+
+      offlineMessageShown = false;
 
       refreshInFlight = true;
       if (isMounted) {
@@ -797,7 +831,13 @@ export function CandidateManagement() {
           return;
         }
 
-        setTimelineError(err instanceof Error ? err.message : "Failed to refresh candidate timeline.");
+        const offlineNow = isOffline();
+        if (offlineNow) {
+          offlineMessageShown = true;
+          setTimelineError("Internet disconnected. Live updates will resume automatically when connection returns.");
+        } else {
+          setTimelineError(err instanceof Error ? err.message : "Failed to refresh candidate timeline.");
+        }
       } finally {
         refreshInFlight = false;
         if (isMounted) {
@@ -822,14 +862,31 @@ export function CandidateManagement() {
       }
     }
 
+    function handleOnline() {
+      offlineMessageShown = false;
+      void refreshTimelineLive();
+    }
+
+    function handleOffline() {
+      offlineMessageShown = true;
+      if (isMounted) {
+        setTimelineError("Internet disconnected. Live updates will resume automatically when connection returns.");
+        setTimelineLiveSyncing(false);
+      }
+    }
+
     window.addEventListener("focus", handleFocus);
     document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
 
     return () => {
       isMounted = false;
       window.clearInterval(intervalId);
       window.removeEventListener("focus", handleFocus);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
     };
   }, [
     activeTab,
@@ -1287,12 +1344,18 @@ export function CandidateManagement() {
         <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
           <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr,170px,220px]">
             <input
+              id="resend-search"
+              name="resendSearch"
+              aria-label="Search invitations"
               value={resendSearch}
               onChange={(e) => setResendSearch(e.target.value)}
               placeholder="Search candidate, email, or test"
               className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[13px] text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
             />
             <select
+              id="resend-status-filter"
+              name="resendStatusFilter"
+              aria-label="Filter invitations by status"
               value={resendStatusFilter}
               onChange={(e) => setResendStatusFilter(e.target.value as "all" | "Invited" | "DeliveryFailed")}
               className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[13px] text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
@@ -1302,6 +1365,9 @@ export function CandidateManagement() {
               <option value="DeliveryFailed">Delivery Failed</option>
             </select>
             <select
+              id="resend-test-filter"
+              name="resendTestFilter"
+              aria-label="Filter invitations by test"
               value={resendTestFilter}
               onChange={(e) => setResendTestFilter(e.target.value)}
               className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[13px] text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
@@ -1490,8 +1556,10 @@ export function CandidateManagement() {
         <section className="rounded-2xl border border-zinc-200 bg-white px-5 py-4 shadow-sm">
           <div className="grid grid-cols-1 gap-3 md:grid-cols-[220px,1fr] md:items-end">
             <div>
-              <label className="mb-1 block text-[12px] font-semibold text-zinc-600">Apply Settings To</label>
+              <label htmlFor="link-security-test" className="mb-1 block text-[12px] font-semibold text-zinc-600">Apply Settings To</label>
               <select
+                id="link-security-test"
+                name="linkSecurityTestId"
                 value={selectedTestId}
                 onChange={(e) => setSelectedTestId(e.target.value)}
                 className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[13px] text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
@@ -1574,9 +1642,11 @@ export function CandidateManagement() {
 
             <div className="divide-y divide-zinc-100 px-6">
               <div className="py-4">
-                <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-zinc-400">Link valid for</p>
+                <label htmlFor="link-valid-for-value" className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-zinc-400">Link valid for</label>
                 <div className="flex items-center gap-2">
                   <input
+                    id="link-valid-for-value"
+                    name="linkValidForValue"
                     type="number"
                     min={1}
                     value={linkValidForValue}
@@ -1584,6 +1654,9 @@ export function CandidateManagement() {
                     className="w-20 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-right text-[13px] font-medium text-zinc-900 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
                   />
                   <select
+                    id="link-valid-for-unit"
+                    name="linkValidForUnit"
+                    aria-label="Link validity unit"
                     value={linkValidForUnit}
                     onChange={(e) => setLinkValidForUnit(e.target.value as LinkValidityUnit)}
                     className="appearance-none rounded-xl border border-zinc-200 bg-white py-2 pl-3 pr-8 text-[13px] text-zinc-900 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
@@ -1597,9 +1670,11 @@ export function CandidateManagement() {
               </div>
 
               <div className="py-4">
-                <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-zinc-400">Grace period after expiry</p>
+                <label htmlFor="grace-period-value" className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-zinc-400">Grace period after expiry</label>
                 <div className="flex items-center gap-2">
                   <input
+                    id="grace-period-value"
+                    name="gracePeriodValue"
                     type="number"
                     min={1}
                     value={gracePeriodValue}
@@ -1607,6 +1682,9 @@ export function CandidateManagement() {
                     className="w-20 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-right text-[13px] font-medium text-zinc-900 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
                   />
                   <select
+                    id="grace-period-unit"
+                    name="gracePeriodUnit"
+                    aria-label="Grace period unit"
                     value={gracePeriodUnit}
                     onChange={(e) => setGracePeriodUnit(e.target.value as GracePeriodUnit)}
                     className="appearance-none rounded-xl border border-zinc-200 bg-white py-2 pl-3 pr-8 text-[13px] text-zinc-900 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
@@ -1813,8 +1891,10 @@ export function CandidateManagement() {
         <section className="rounded-2xl border border-zinc-200 bg-white px-5 py-4 shadow-sm">
           <div className="grid grid-cols-1 gap-3 md:grid-cols-[220px,1fr] md:items-end">
             <div>
-              <label className="mb-1 block text-[12px] font-semibold text-zinc-600">Test</label>
+              <label htmlFor="timeline-test" className="mb-1 block text-[12px] font-semibold text-zinc-600">Test</label>
               <select
+                id="timeline-test"
+                name="timelineTestId"
                 value={selectedTestId}
                 onChange={(e) => setSelectedTestId(e.target.value)}
                 className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[13px] text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
@@ -1829,8 +1909,10 @@ export function CandidateManagement() {
             </div>
 
             <div>
-              <label className="mb-1 block text-[12px] font-semibold text-zinc-600">Candidate</label>
+              <label htmlFor="timeline-candidate" className="mb-1 block text-[12px] font-semibold text-zinc-600">Candidate</label>
               <select
+                id="timeline-candidate"
+                name="timelineCandidateEmail"
                 value={selectedTimelineCandidateEmail}
                 onChange={(e) => setSelectedTimelineCandidateEmail(e.target.value)}
                 disabled={timelineCandidatesLoading || timelineCandidates.length === 0}
@@ -1856,18 +1938,28 @@ export function CandidateManagement() {
               <span
                 className={cn(
                   "inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-[11px] font-semibold",
-                  timelineLiveEnabled
+                  timelineLiveEnabled && timelineNetworkOnline
                     ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                    : timelineLiveEnabled
+                      ? "border-amber-200 bg-amber-50 text-amber-700"
                     : "border-zinc-200 bg-zinc-100 text-zinc-600"
                 )}
               >
                 <span
                   className={cn(
                     "h-2 w-2 rounded-full",
-                    timelineLiveEnabled ? "animate-pulse bg-emerald-500" : "bg-zinc-400"
+                    timelineLiveEnabled && timelineNetworkOnline
+                      ? "animate-pulse bg-emerald-500"
+                      : timelineLiveEnabled
+                        ? "bg-amber-500"
+                        : "bg-zinc-400"
                   )}
                 />
-                {timelineLiveEnabled ? `Live updates every ${TIMELINE_LIVE_REFRESH_MS / 1000}s` : "Live updates paused"}
+                {timelineLiveEnabled
+                  ? timelineNetworkOnline
+                    ? `Live updates every ${TIMELINE_LIVE_REFRESH_MS / 1000}s`
+                    : "Offline, waiting for connection"
+                  : "Live updates paused"}
               </span>
 
               <span
@@ -2174,9 +2266,11 @@ export function CandidateManagement() {
                       </span>
                     </div>
 
-                    <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[12px] font-semibold text-zinc-700 hover:bg-zinc-50">
+                    <label htmlFor="bulk-csv-file" className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[12px] font-semibold text-zinc-700 hover:bg-zinc-50">
                       <FileUp className="h-3.5 w-3.5" /> Import CSV
                       <input
+                        id="bulk-csv-file"
+                        name="bulkCsvFile"
                         type="file"
                         accept=".csv,text/csv"
                         className="hidden"
@@ -2228,8 +2322,10 @@ export function CandidateManagement() {
                 ) : (
                   <>
                     <div>
-                      <label className="mb-1 block text-[12px] font-semibold text-zinc-600">Candidate Name (optional)</label>
+                      <label htmlFor="invite-candidate-name" className="mb-1 block text-[12px] font-semibold text-zinc-600">Candidate Name (optional)</label>
                       <input
+                        id="invite-candidate-name"
+                        name="candidateName"
                         value={candidateName}
                         onChange={(e) => setCandidateName(e.target.value)}
                         placeholder="Ex: Alex Smith"
@@ -2239,7 +2335,7 @@ export function CandidateManagement() {
 
                     <div>
                       <div className="mb-1 flex items-center justify-between">
-                        <label className="block text-[12px] font-semibold text-zinc-600">Candidate Emails</label>
+                        <label htmlFor="invite-candidate-emails" className="block text-[12px] font-semibold text-zinc-600">Candidate Emails</label>
                         <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-semibold text-zinc-700">
                           {recipients.length} candidates added
                         </span>
@@ -2262,6 +2358,8 @@ export function CandidateManagement() {
                             </span>
                           ))}
                           <input
+                            id="invite-candidate-emails"
+                            name="candidateEmails"
                             value={emailInput}
                             onChange={(e) => setEmailInput(e.target.value)}
                             onKeyDown={handleEmailKeyDown}
@@ -2306,8 +2404,10 @@ export function CandidateManagement() {
               <div className="space-y-4">
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
-                  <label className="mb-1 block text-[12px] font-semibold text-zinc-600">Test</label>
+                  <label htmlFor="invite-test" className="mb-1 block text-[12px] font-semibold text-zinc-600">Test</label>
                   <select
+                    id="invite-test"
+                    name="inviteTestId"
                     value={selectedTestId}
                     onChange={(e) => setSelectedTestId(e.target.value)}
                     className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[13px] text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
@@ -2322,8 +2422,10 @@ export function CandidateManagement() {
                 </div>
 
                 <div>
-                  <label className="mb-1 block text-[12px] font-semibold text-zinc-600">Deadline (optional)</label>
+                  <label htmlFor="invite-deadline" className="mb-1 block text-[12px] font-semibold text-zinc-600">Deadline (optional)</label>
                   <input
+                    id="invite-deadline"
+                    name="deadlineDate"
                     type="date"
                     value={deadlineDate}
                     onChange={(e) => setDeadlineDate(e.target.value)}
@@ -2334,8 +2436,10 @@ export function CandidateManagement() {
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <div>
-                  <label className="mb-1 block text-[12px] font-semibold text-zinc-600">Time Limit (minutes)</label>
+                  <label htmlFor="invite-time-limit" className="mb-1 block text-[12px] font-semibold text-zinc-600">Time Limit (minutes)</label>
                   <input
+                    id="invite-time-limit"
+                    name="timeLimitMinutes"
                     type="number"
                     min={1}
                     value={timeLimitMinutes}
@@ -2345,8 +2449,10 @@ export function CandidateManagement() {
                 </div>
 
                 <div>
-                  <label className="mb-1 block text-[12px] font-semibold text-zinc-600">Link Expiry (hours)</label>
+                  <label htmlFor="invite-link-expiry" className="mb-1 block text-[12px] font-semibold text-zinc-600">Link Expiry (hours)</label>
                   <input
+                    id="invite-link-expiry"
+                    name="linkExpiryHours"
                     type="number"
                     min={1}
                     max={720}
@@ -2357,8 +2463,10 @@ export function CandidateManagement() {
                 </div>
 
                 <div className="space-y-2 pt-6">
-                  <label className="flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-[12px] text-zinc-700">
+                  <label htmlFor="invite-send-now" className="flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-[12px] text-zinc-700">
                     <input
+                      id="invite-send-now"
+                      name="sendNowNotification"
                       type="checkbox"
                       checked={sendNowNotification}
                       onChange={(e) => setSendNowNotification(e.target.checked)}
@@ -2370,8 +2478,10 @@ export function CandidateManagement() {
               </div>
 
               <div>
-                <label className="mb-1 block text-[12px] font-semibold text-zinc-600">Custom Message</label>
+                <label htmlFor="invite-custom-message" className="mb-1 block text-[12px] font-semibold text-zinc-600">Custom Message</label>
                 <textarea
+                  id="invite-custom-message"
+                  name="customMessage"
                   value={customMessage}
                   onChange={(e) => setCustomMessage(e.target.value)}
                   placeholder="Add a personalized note for candidates..."
