@@ -1,5 +1,5 @@
-import { createPlatformApiClient } from "@repo/api";
-import type { EnrolledTraining, Training, TrainingCategory, TrainingLevel, BadgeLevel, TrainingLearnData, ContentType, ChapterContent, ChapterLayout, TrainingType, OnSiteCourse, LearnerExam, LearnerQuestionType, ExamSubmissionResult, ExamAttempt } from "@/types";
+import { ApiError, createPlatformApiClient } from "@repo/api";
+import type { EnrolledTraining, Training, TrainingCategory, TrainingLevel, BadgeLevel, TrainingLearnData, ContentType, ChapterContent, ChapterLayout, TrainingType, OnSiteCourse, LearnerExam, LearnerQuestionType, ExamSubmissionResult, ExamAttempt, MyCursus } from "@/types";
 import type {
   BackendTrainingCategoryDto,
   BackendTrainingDto,
@@ -357,6 +357,17 @@ export async function submitExam(
     attemptedAt: dto.attemptedAt,
     trainingCompleted: dto.trainingCompleted,
   };
+}
+
+// --- My Cursus ---
+
+export async function getMyCursus(): Promise<MyCursus | null> {
+  try {
+    return await client.get<MyCursus>("/training/cursus/me");
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) return null;
+    throw err;
+  }
 }
 
 export async function getExamAttempts(trainingId: string): Promise<ExamAttempt[]> {

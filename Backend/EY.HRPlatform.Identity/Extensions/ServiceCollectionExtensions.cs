@@ -105,6 +105,19 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ITenantService, TenantService>();
         services.AddScoped<IPlatformOrganizationService, PlatformOrganizationService>();
 
+        // 5. Training service client (service-to-service)
+        var trainingBaseUrl = configuration["Services:TrainingUrl"]
+            ?? throw new InvalidOperationException("Services:TrainingUrl is not configured.");
+        var serviceApiKey = configuration["ServiceIntegration:ApiKey"]
+            ?? throw new InvalidOperationException("ServiceIntegration:ApiKey is not configured.");
+
+        services.AddHttpClient<ITrainingServiceClient, HttpTrainingServiceClient>(client =>
+        {
+            client.BaseAddress = new Uri(trainingBaseUrl);
+            client.DefaultRequestHeaders.Add("X-Service-Key", serviceApiKey);
+            client.Timeout = TimeSpan.FromSeconds(5);
+        });
+
         return services;
     }
 }
