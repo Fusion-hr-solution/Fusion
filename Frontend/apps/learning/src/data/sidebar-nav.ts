@@ -21,12 +21,7 @@ export const EMPLOYEE_NAV: NavSection = {
   items: [
     { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { label: "Catalog", href: "/", icon: BookOpen },
-    {
-      label: "My Trainings",
-      href: "/my-trainings",
-      icon: GraduationCap,
-      badge: "3",
-    },
+    { label: "My Trainings", href: "/my-trainings", icon: GraduationCap },
     { label: "Mon Cursus", href: "/cursus", icon: Route },
     { label: "Certificates", href: "/certificates", icon: Award },
     { label: "Badges", href: "/badges", icon: Trophy },
@@ -36,7 +31,7 @@ export const EMPLOYEE_NAV: NavSection = {
 export const ADMIN_NAV: NavSection = {
   title: "Administration",
   items: [
-    { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
+    { label: "Dashboard", href: "/admin", icon: LayoutDashboard, exact: true },
     {
       label: "Manage Trainings",
       href: "/admin/trainings",

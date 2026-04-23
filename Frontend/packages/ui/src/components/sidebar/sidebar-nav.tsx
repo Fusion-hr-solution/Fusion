@@ -17,9 +17,9 @@ interface SidebarNavProps {
   basePath?: string;
 }
 
-function isItemActive(activePath: string, itemHref: string) {
-  if (itemHref === "/") {
-    return activePath === "/";
+function isItemActive(activePath: string, itemHref: string, exact?: boolean) {
+  if (itemHref === "/" || exact) {
+    return activePath === itemHref;
   }
 
   return activePath === itemHref || activePath.startsWith(`${itemHref}/`);
@@ -41,7 +41,7 @@ export function SidebarNav({
         )}
         <ul className="space-y-0.5">
           {section.items.map((item) => {
-            const isActive = isItemActive(activePath, item.href);
+            const isActive = isItemActive(activePath, item.href, item.exact);
             const Icon = item.icon;
             const itemClasses = cn(
               "relative flex items-center gap-3 rounded-lg px-2.5 py-2 text-sm font-medium transition-all duration-200",
@@ -49,14 +49,14 @@ export function SidebarNav({
               item.disabled
                 ? "cursor-not-allowed text-muted-foreground/55"
                 : isActive
-                  ? "bg-foreground text-background shadow-sm"
+                  ? "bg-foreground text-primary shadow-sm"
                   : "text-muted-foreground hover:bg-accent hover:text-foreground"
             );
 
             const itemContent = (
               <>
                 {isActive && !item.disabled ? (
-                  <span className="absolute left-0 top-1/2 h-5 w-0.75 -translate-y-1/2 rounded-r-full bg-background" />
+                  <span className="absolute left-0 top-1/2 h-5 w-0.75 -translate-y-1/2 rounded-r-full bg-primary" />
                 ) : null}
                 <Icon
                   className="h-4 w-4 shrink-0 transition-colors"
@@ -73,8 +73,8 @@ export function SidebarNav({
                         className={cn(
                           "flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-bold transition-colors",
                           isActive && !item.disabled
-                            ? "bg-background text-foreground"
-                            : "bg-muted text-muted-foreground"
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-foreground/[0.08] text-foreground"
                         )}
                       >
                         {item.badge}
