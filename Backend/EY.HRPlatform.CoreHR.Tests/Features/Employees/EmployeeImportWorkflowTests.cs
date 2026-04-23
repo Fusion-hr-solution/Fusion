@@ -80,6 +80,27 @@ public class EmployeeImportWorkflowTests
     }
 
     [Fact]
+    public async Task UploadAsync_RejectsFileNamesLongerThanConfiguredLimit()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        await SeedPublishedSetupAsync(dbName);
+
+        await using var context = TestDbContextFactory.Create(TestTenantContext.WithTenant(TenantId), dbName);
+        var service = new EmployeeImportWorkflowService(context, TestTenantContext.WithTenant(TenantId));
+        var file = CreateCsvFile(
+            $"{new string('a', 257)}.csv",
+            """
+            firstName,lastName,email,hireDate,jobTitle,orgUnitCode,managerEmail
+            Sarah,Chen,sarah.chen@contoso.com,2024-01-15,Senior Engineer,ENG-PLATFORM,alex.manager@contoso.com
+            """);
+
+        var exception = await Assert.ThrowsAsync<ArgumentException>(() =>
+            service.UploadAsync(file, CancellationToken.None));
+
+        Assert.Contains("260 characters or fewer", exception.Message);
+    }
+
+    [Fact]
     public async Task UploadAsync_RequiresSetupToBeComplete()
     {
         var dbName = Guid.NewGuid().ToString();
@@ -96,6 +117,42 @@ public class EmployeeImportWorkflowTests
 
         await Assert.ThrowsAsync<InvalidTenantSetupStateException>(() =>
             service.UploadAsync(file, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task GetSessionAsync_MarksExpiredSessionsAndPersistsStage()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        await SeedPublishedSetupAsync(dbName);
+
+        Guid sessionId;
+        await using (var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName))
+        {
+            var session = EmployeeImportSession.CreatePreviewReady(
+                TenantId,
+                "employees.csv",
+                128,
+                "[]",
+                "[]",
+                "[]",
+                DateTime.UtcNow.AddMinutes(-5));
+
+            seedContext.EmployeeImportSessions.Add(session);
+            await seedContext.SaveChangesAsync();
+            sessionId = session.Id;
+        }
+
+        await using var context = TestDbContextFactory.Create(TestTenantContext.WithTenant(TenantId), dbName);
+        var service = new EmployeeImportWorkflowService(context, TestTenantContext.WithTenant(TenantId));
+
+        var sessionDto = await service.GetSessionAsync(sessionId, CancellationToken.None);
+
+        Assert.Equal(EmployeeImportStage.Expired, sessionDto.Stage);
+
+        await using var verificationContext = TestDbContextFactory.Create(TestTenantContext.WithTenant(TenantId), dbName);
+        var persistedSession = await verificationContext.EmployeeImportSessions.FindAsync(sessionId);
+        Assert.NotNull(persistedSession);
+        Assert.Equal(EmployeeImportStage.Expired, persistedSession!.Stage);
     }
 
     private static async Task SeedPublishedSetupAsync(string dbName)

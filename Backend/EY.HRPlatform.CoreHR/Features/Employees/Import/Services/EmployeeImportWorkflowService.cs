@@ -25,6 +25,7 @@ public sealed class EmployeeImportWorkflowService(
     CoreHRDbContext dbContext,
     ITenantContext tenantContext) : IEmployeeImportWorkflowService
 {
+    private const int MaxSourceFileNameLength = 260;
     private const int MaxRowCount = 5000;
     private const int SampleRowCount = 12;
     private const int PreviewRowCount = 25;
@@ -93,7 +94,7 @@ public sealed class EmployeeImportWorkflowService(
     public async Task<EmployeeImportSessionDto> UploadAsync(IFormFile file, CancellationToken cancellationToken)
     {
         await EnsureImportAvailableAsync(cancellationToken);
-        ValidateUpload(file);
+        var sourceFileName = ValidateUpload(file);
 
         var parsedFile = await ParseCsvAsync(file, cancellationToken);
         EnsureTemplateHeaders(parsedFile.Headers);
@@ -109,7 +110,7 @@ public sealed class EmployeeImportWorkflowService(
 
         var session = EmployeeImportSession.CreatePreviewReady(
             tenantContext.TenantId,
-            file.FileName,
+            sourceFileName,
             file.Length,
             JsonSerializer.Serialize(parsedFile.Headers, JsonOptions),
             JsonSerializer.Serialize(parsedFile.Rows, JsonOptions),
@@ -158,7 +159,7 @@ public sealed class EmployeeImportWorkflowService(
 
     private static EmployeeImportSchemaDto BuildSchema() => new(CanonicalFields);
 
-    private static void ValidateUpload(IFormFile? file)
+    private static string ValidateUpload(IFormFile? file)
     {
         if (file is null)
         {
@@ -170,10 +171,25 @@ public sealed class EmployeeImportWorkflowService(
             throw new ArgumentException("Attach a non-empty employee import CSV.", nameof(file));
         }
 
-        if (!file.FileName.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
+        var sourceFileName = System.IO.Path.GetFileName(file.FileName).Trim();
+        if (sourceFileName.Length == 0)
+        {
+            throw new ArgumentException("Attach an employee import CSV with a valid file name.", nameof(file));
+        }
+
+        if (sourceFileName.Length > MaxSourceFileNameLength)
+        {
+            throw new ArgumentException(
+                $"Employee import file names must be {MaxSourceFileNameLength} characters or fewer.",
+                nameof(file));
+        }
+
+        if (!sourceFileName.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
         {
             throw new ArgumentException("Employee import only accepts CSV files.", nameof(file));
         }
+
+        return sourceFileName;
     }
 
     private static void EnsureTemplateHeaders(IReadOnlyList<string> actualHeaders)

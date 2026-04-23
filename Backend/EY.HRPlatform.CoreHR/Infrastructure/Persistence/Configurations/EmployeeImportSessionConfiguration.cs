@@ -39,6 +39,9 @@ public class EmployeeImportSessionConfiguration : IEntityTypeConfiguration<Emplo
             .HasColumnType("jsonb")
             .IsRequired();
 
+        builder.Property(session => session.CreatedBy).HasMaxLength(256);
+        builder.Property(session => session.UpdatedBy).HasMaxLength(256);
+
         builder.HasIndex(session => session.TenantId)
             .HasDatabaseName("IX_EmployeeImportSessions_TenantId");
 

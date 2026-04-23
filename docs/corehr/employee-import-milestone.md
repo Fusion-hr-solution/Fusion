@@ -3,7 +3,7 @@
 Last updated: 2026-04-23.
 Milestone: Employee Foundation & Import.
 Current branch slice: PR 1 / employee import foundation.
-Branch status: ready to open PR and pending review.
+Branch status: PR opened and under review.
 
 ## What This Milestone Is For
 

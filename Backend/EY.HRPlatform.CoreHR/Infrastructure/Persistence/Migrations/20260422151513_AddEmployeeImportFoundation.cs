@@ -28,8 +28,8 @@ namespace EY.HRPlatform.CoreHR.Infrastructure.Persistence.Migrations
                     ExpiresAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    CreatedBy = table.Column<string>(type: "text", nullable: true),
-                    UpdatedBy = table.Column<string>(type: "text", nullable: true)
+                    CreatedBy = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
+                    UpdatedBy = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true)
                 },
                 constraints: table =>
                 {
