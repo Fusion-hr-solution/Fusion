@@ -153,6 +153,84 @@ public class CandidateAccessServiceTests
     }
 
     [Fact]
+    public async Task StartOrResumeAsync_WhenSingleUseDisabled_AllowsReuseAfterSubmission()
+    {
+        await using var db = TestDbContextFactory.Create();
+        var test = await SeedTestAsync(db);
+        var invitationService = CreateInvitationService(db);
+        var accessService = new CandidateAccessService(db);
+
+        db.CandidateLinkSecuritySettings.Add(new CandidateLinkSecuritySettings
+        {
+            TestId = test.Id,
+            SingleUseLinkEnabled = false,
+            EmailVerificationEnabled = true,
+            IpLockEnabled = false,
+            BrowserFingerprintEnabled = false,
+            LinkValidForValue = 7,
+            LinkValidForUnit = "days",
+            GracePeriodValue = 30,
+            GracePeriodUnit = "minutes",
+        });
+        await db.SaveChangesAsync();
+
+        var created = await invitationService.CreateAsync(
+            new CreateCandidateInvitationDto
+            {
+                TestId = test.Id.ToString(),
+                Email = "candidate.reuse@example.com",
+                CandidateName = "Candidate Reuse",
+                SendNotification = false,
+            },
+            CancellationToken.None);
+
+        var token = ExtractToken(created.InviteLink);
+
+        await accessService.StartOrResumeAsync(
+            new StartCandidateAttemptDto
+            {
+                Token = token,
+                CandidateEmail = "candidate.reuse@example.com",
+                BrowserFingerprint = DefaultFingerprint,
+            },
+            CancellationToken.None);
+
+        var answers = JsonDocument.Parse("{\"responses\":[{\"questionId\":\"q1\",\"answerText\":\"answer\"}]}").RootElement.Clone();
+        var result = JsonDocument.Parse("{\"score\":90}").RootElement.Clone();
+
+        await accessService.SubmitAsync(
+            new SubmitCandidateAttemptDto
+            {
+                Token = token,
+                BrowserFingerprint = DefaultFingerprint,
+                Answers = answers,
+                Result = result,
+            },
+            CancellationToken.None);
+
+        var resumed = await accessService.StartOrResumeAsync(
+            new StartCandidateAttemptDto
+            {
+                Token = token,
+                CandidateEmail = "candidate.reuse@example.com",
+                BrowserFingerprint = DefaultFingerprint,
+            },
+            CancellationToken.None);
+
+        Assert.Equal("InProgress", resumed.Status);
+
+        var invitationId = Guid.Parse(created.Id);
+        var attempts = await db.CandidateTestAttempts
+            .Where(item => item.InvitationId == invitationId)
+            .OrderBy(item => item.AttemptNumber)
+            .ToListAsync();
+
+        Assert.Equal(2, attempts.Count);
+        Assert.True(attempts[0].SubmittedAtUtc.HasValue);
+        Assert.False(attempts[1].SubmittedAtUtc.HasValue);
+    }
+
+    [Fact]
     public async Task ValidateAsync_WhenInvitationExpired_ReturnsExpiredState()
     {
         await using var db = TestDbContextFactory.Create();

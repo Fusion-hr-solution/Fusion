@@ -17,6 +17,25 @@ public class CandidateManagementController(ICandidateManagementService candidate
         return Ok(ApiResponse<CandidateManagementOverviewDto>.Success(data));
     }
 
+    [HttpGet("timeline/candidates")]
+    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<CandidateTimelineCandidateDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetTimelineCandidates([FromQuery] string testId, CancellationToken cancellationToken)
+    {
+        var data = await candidateManagementService.GetTimelineCandidatesAsync(testId, cancellationToken);
+        return Ok(ApiResponse<IReadOnlyList<CandidateTimelineCandidateDto>>.Success(data));
+    }
+
+    [HttpGet("timeline")]
+    [ProducesResponseType(typeof(ApiResponse<CandidateProgressTimelineDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetTimeline(
+        [FromQuery] string testId,
+        [FromQuery] string candidateEmail,
+        CancellationToken cancellationToken)
+    {
+        var data = await candidateManagementService.GetTimelineAsync(testId, candidateEmail, cancellationToken);
+        return Ok(ApiResponse<CandidateProgressTimelineDto>.Success(data));
+    }
+
     [HttpGet("link-security")]
     [ProducesResponseType(typeof(ApiResponse<CandidateLinkSecurityStateDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetLinkSecurity([FromQuery] string testId, CancellationToken cancellationToken)
