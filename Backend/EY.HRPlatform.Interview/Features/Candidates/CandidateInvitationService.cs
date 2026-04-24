@@ -44,6 +44,7 @@ public class CandidateInvitationService(
             cancellationToken);
 
         dbContext.CandidateInvitations.Add(invitation);
+        dbContext.CandidateProgressEvents.Add(BuildInvitedEvent(invitation, attemptNumber: 1, DateTime.UtcNow));
         await dbContext.SaveChangesAsync(cancellationToken);
 
         LogCandidateInvited(invitation);
@@ -114,6 +115,11 @@ public class CandidateInvitationService(
         }
 
         dbContext.CandidateInvitations.AddRange(invitations);
+        var invitedAtUtc = DateTime.UtcNow;
+        foreach (var invitation in invitations)
+        {
+            dbContext.CandidateProgressEvents.Add(BuildInvitedEvent(invitation, attemptNumber: 1, invitedAtUtc));
+        }
         await dbContext.SaveChangesAsync(cancellationToken);
 
         foreach (var invitation in invitations)
@@ -242,13 +248,16 @@ public class CandidateInvitationService(
         invitation.TokenExpiresAtUtc = now.AddHours(invitation.LinkExpiryHours);
         invitation.AttemptStartedAtUtc = null;
         invitation.AttemptSubmittedAtUtc = null;
+        invitation.VerifiedEmail = null;
+        invitation.EmailVerifiedAtUtc = null;
+        invitation.LockedIpAddress = null;
+        invitation.AccessFingerprintHash = null;
 
-        var existingAttempt = await dbContext.CandidateTestAttempts
-            .FirstOrDefaultAsync(item => item.InvitationId == invitation.Id, cancellationToken);
-        if (existingAttempt is not null)
-        {
-            dbContext.CandidateTestAttempts.Remove(existingAttempt);
-        }
+        var nextAttemptNumber = await dbContext.CandidateTestAttempts
+            .Where(item => item.InvitationId == invitation.Id)
+            .Select(item => (int?)item.AttemptNumber)
+            .MaxAsync(cancellationToken) ?? 0;
+        nextAttemptNumber += 1;
 
         try
         {
@@ -272,6 +281,8 @@ public class CandidateInvitationService(
                     invitation.Id.ToString(),
                 invitation.Email);
         }
+
+            dbContext.CandidateProgressEvents.Add(BuildInvitedEvent(invitation, nextAttemptNumber, now));
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
@@ -533,5 +544,22 @@ public class CandidateInvitationService(
         }
 
         return $"{baseUrl}?token={token}";
+    }
+
+    private static CandidateProgressEvent BuildInvitedEvent(
+        CandidateInvitation invitation,
+        int attemptNumber,
+        DateTime occurredAtUtc)
+    {
+        return new CandidateProgressEvent
+        {
+            InvitationId = invitation.Id,
+            TestId = invitation.TestId,
+            CandidateEmail = invitation.Email,
+            CandidateName = invitation.CandidateName,
+            AttemptNumber = attemptNumber,
+            Milestone = CandidateProgressMilestones.Invited,
+            OccurredAtUtc = occurredAtUtc,
+        };
     }
 }
