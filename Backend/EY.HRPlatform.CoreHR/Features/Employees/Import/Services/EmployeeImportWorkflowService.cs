@@ -371,6 +371,8 @@ public sealed class EmployeeImportWorkflowService(
     {
         var issues = new List<StoredValidationIssue>();
         var issueKeys = new HashSet<ValidationIssueKey>();
+        var rowErrorNumbers = new HashSet<int>();
+        var issueCodesByRow = new Dictionary<int, HashSet<string>>();
         var candidates = new List<CandidateRow>(sourceRows.Count);
         var emailOccurrences = new Dictionary<string, List<int>>(StringComparer.OrdinalIgnoreCase);
         var orgUnitCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -388,31 +390,31 @@ public sealed class EmployeeImportWorkflowService(
 
             if (string.IsNullOrWhiteSpace(firstName))
             {
-                AddIssue(issues, issueKeys, sourceRow.RowNumber, "firstName", "missingFirstName", "First name is required.");
+                AddIssue(issues, issueKeys, sourceRow.RowNumber, "firstName", "missingFirstName", "First name is required.", rowErrorNumbers: rowErrorNumbers, issueCodesByRow: issueCodesByRow);
             }
 
             if (string.IsNullOrWhiteSpace(lastName))
             {
-                AddIssue(issues, issueKeys, sourceRow.RowNumber, "lastName", "missingLastName", "Last name is required.");
+                AddIssue(issues, issueKeys, sourceRow.RowNumber, "lastName", "missingLastName", "Last name is required.", rowErrorNumbers: rowErrorNumbers, issueCodesByRow: issueCodesByRow);
             }
 
             if (string.IsNullOrWhiteSpace(email))
             {
-                AddIssue(issues, issueKeys, sourceRow.RowNumber, "email", "missingEmail", "Email is required.");
+                AddIssue(issues, issueKeys, sourceRow.RowNumber, "email", "missingEmail", "Email is required.", rowErrorNumbers: rowErrorNumbers, issueCodesByRow: issueCodesByRow);
             }
             else if (!IsValidEmail(email))
             {
-                AddIssue(issues, issueKeys, sourceRow.RowNumber, "email", "invalidEmail", "Email must be a valid work email address.", value: email);
+                AddIssue(issues, issueKeys, sourceRow.RowNumber, "email", "invalidEmail", "Email must be a valid work email address.", value: email, rowErrorNumbers: rowErrorNumbers, issueCodesByRow: issueCodesByRow);
             }
 
             DateTime? hireDate = null;
             if (string.IsNullOrWhiteSpace(hireDateText))
             {
-                AddIssue(issues, issueKeys, sourceRow.RowNumber, "hireDate", "missingHireDate", "Hire date is required.");
+                AddIssue(issues, issueKeys, sourceRow.RowNumber, "hireDate", "missingHireDate", "Hire date is required.", rowErrorNumbers: rowErrorNumbers, issueCodesByRow: issueCodesByRow);
             }
             else if (!TryParseHireDate(hireDateText, out var parsedHireDate))
             {
-                AddIssue(issues, issueKeys, sourceRow.RowNumber, "hireDate", "invalidHireDate", "Hire date must use YYYY-MM-DD format.", value: hireDateText);
+                AddIssue(issues, issueKeys, sourceRow.RowNumber, "hireDate", "invalidHireDate", "Hire date must use YYYY-MM-DD format.", value: hireDateText, rowErrorNumbers: rowErrorNumbers, issueCodesByRow: issueCodesByRow);
             }
             else
             {
@@ -421,14 +423,14 @@ public sealed class EmployeeImportWorkflowService(
 
             if (!string.IsNullOrWhiteSpace(managerEmail) && !IsValidEmail(managerEmail))
             {
-                AddIssue(issues, issueKeys, sourceRow.RowNumber, "managerEmail", "invalidManagerEmail", "Manager email must be a valid email address.", value: managerEmail);
+                AddIssue(issues, issueKeys, sourceRow.RowNumber, "managerEmail", "invalidManagerEmail", "Manager email must be a valid email address.", value: managerEmail, rowErrorNumbers: rowErrorNumbers, issueCodesByRow: issueCodesByRow);
             }
 
             if (!string.IsNullOrWhiteSpace(email)
                 && !string.IsNullOrWhiteSpace(managerEmail)
                 && email.Equals(managerEmail, StringComparison.OrdinalIgnoreCase))
             {
-                AddIssue(issues, issueKeys, sourceRow.RowNumber, "managerEmail", "selfManager", "An employee cannot be their own manager.", value: email);
+                AddIssue(issues, issueKeys, sourceRow.RowNumber, "managerEmail", "selfManager", "An employee cannot be their own manager.", value: email, rowErrorNumbers: rowErrorNumbers, issueCodesByRow: issueCodesByRow);
             }
 
             if (!string.IsNullOrWhiteSpace(email))
@@ -475,7 +477,9 @@ public sealed class EmployeeImportWorkflowService(
                     "email",
                     "duplicateEmailInFile",
                     $"Email '{occurrence.Key}' is duplicated in the uploaded file.",
-                    value: occurrence.Key);
+                    value: occurrence.Key,
+                    rowErrorNumbers: rowErrorNumbers,
+                    issueCodesByRow: issueCodesByRow);
             }
         }
 
@@ -501,7 +505,9 @@ public sealed class EmployeeImportWorkflowService(
                     "email",
                     "duplicateEmailInTenant",
                     $"Email '{candidate.Email}' already exists in this tenant.",
-                    value: candidate.Email);
+                    value: candidate.Email,
+                    rowErrorNumbers: rowErrorNumbers,
+                    issueCodesByRow: issueCodesByRow);
             }
         }
 
@@ -528,7 +534,9 @@ public sealed class EmployeeImportWorkflowService(
                     "orgUnitCode",
                     "orgUnitNotFound",
                     $"Org unit code '{candidate.OrgUnitCode}' was not found in the current tenant.",
-                    value: candidate.OrgUnitCode);
+                    value: candidate.OrgUnitCode,
+                    rowErrorNumbers: rowErrorNumbers,
+                    issueCodesByRow: issueCodesByRow);
                 continue;
             }
 
@@ -541,7 +549,9 @@ public sealed class EmployeeImportWorkflowService(
                     "orgUnitCode",
                     "orgUnitInactive",
                     $"Org unit code '{candidate.OrgUnitCode}' is inactive.",
-                    value: candidate.OrgUnitCode);
+                    value: candidate.OrgUnitCode,
+                    rowErrorNumbers: rowErrorNumbers,
+                    issueCodesByRow: issueCodesByRow);
                 continue;
             }
 
@@ -564,12 +574,14 @@ public sealed class EmployeeImportWorkflowService(
                 existingEmployeeIdsByEmail,
                 issues,
                 issueKeys,
+                rowErrorNumbers,
+                issueCodesByRow,
                 validationState,
                 []);
         }
 
         var normalizedRows = candidates
-            .Where(candidate => !HasErrors(issues, candidate.RowNumber)
+            .Where(candidate => !HasErrors(rowErrorNumbers, candidate.RowNumber)
                 && !string.IsNullOrWhiteSpace(candidate.FirstName)
                 && !string.IsNullOrWhiteSpace(candidate.LastName)
                 && !string.IsNullOrWhiteSpace(candidate.Email)
@@ -604,6 +616,8 @@ public sealed class EmployeeImportWorkflowService(
         IReadOnlyDictionary<string, Guid> existingEmployeeIdsByEmail,
         List<StoredValidationIssue> issues,
         HashSet<ValidationIssueKey> issueKeys,
+        ISet<int> rowErrorNumbers,
+        IReadOnlyDictionary<int, HashSet<string>> issueCodesByRow,
         Dictionary<string, ManagerValidationState> validationState,
         List<string> chain)
     {
@@ -612,7 +626,7 @@ public sealed class EmployeeImportWorkflowService(
             return true;
         }
 
-        if (string.IsNullOrWhiteSpace(candidate.Email) || HasErrors(issues, candidate.RowNumber))
+        if (string.IsNullOrWhiteSpace(candidate.Email) || HasErrors(rowErrorNumbers, candidate.RowNumber))
         {
             return false;
         }
@@ -632,7 +646,9 @@ public sealed class EmployeeImportWorkflowService(
                 "managerEmail",
                 "ambiguousManagerEmail",
                 $"Manager email '{candidate.ManagerEmail}' is duplicated in the uploaded file and cannot be resolved.",
-                value: candidate.ManagerEmail);
+                value: candidate.ManagerEmail,
+                rowErrorNumbers: rowErrorNumbers,
+                issueCodesByRow: issueCodesByRow);
             return false;
         }
 
@@ -645,7 +661,9 @@ public sealed class EmployeeImportWorkflowService(
                 "managerEmail",
                 "managerNotFound",
                 $"Manager email '{candidate.ManagerEmail}' was not found in this tenant or the uploaded file.",
-                value: candidate.ManagerEmail);
+                value: candidate.ManagerEmail,
+                rowErrorNumbers: rowErrorNumbers,
+                issueCodesByRow: issueCodesByRow);
             return false;
         }
 
@@ -654,7 +672,7 @@ public sealed class EmployeeImportWorkflowService(
         {
             if (state == ManagerValidationState.Visiting)
             {
-                AddManagerCycleIssues(chain, employeeEmail, uniqueRowsByEmail, issues, issueKeys);
+                AddManagerCycleIssues(chain, employeeEmail, uniqueRowsByEmail, issues, issueKeys, rowErrorNumbers, issueCodesByRow);
                 validationState[employeeEmail] = ManagerValidationState.Invalid;
                 return false;
             }
@@ -664,7 +682,7 @@ public sealed class EmployeeImportWorkflowService(
 
         if (chain.Contains(employeeEmail, StringComparer.OrdinalIgnoreCase))
         {
-            AddManagerCycleIssues(chain, employeeEmail, uniqueRowsByEmail, issues, issueKeys);
+            AddManagerCycleIssues(chain, employeeEmail, uniqueRowsByEmail, issues, issueKeys, rowErrorNumbers, issueCodesByRow);
             validationState[employeeEmail] = ManagerValidationState.Invalid;
             return false;
         }
@@ -672,7 +690,7 @@ public sealed class EmployeeImportWorkflowService(
         validationState[employeeEmail] = ManagerValidationState.Visiting;
         chain.Add(employeeEmail);
 
-        var isValid = !HasErrors(issues, managerRow.RowNumber)
+        var isValid = !HasErrors(rowErrorNumbers, managerRow.RowNumber)
             && ValidateManagerReference(
                 managerRow,
                 uniqueRowsByEmail,
@@ -680,12 +698,14 @@ public sealed class EmployeeImportWorkflowService(
                 existingEmployeeIdsByEmail,
                 issues,
                 issueKeys,
+                rowErrorNumbers,
+                issueCodesByRow,
                 validationState,
                 chain);
 
         chain.RemoveAt(chain.Count - 1);
 
-        if (!isValid && !HasIssue(issues, candidate.RowNumber, "managerCycle"))
+        if (!isValid && !HasIssue(issueCodesByRow, candidate.RowNumber, "managerCycle"))
         {
             AddIssue(
                 issues,
@@ -694,7 +714,9 @@ public sealed class EmployeeImportWorkflowService(
                 "managerEmail",
                 "managerInvalidInBatch",
                 $"Manager email '{candidate.ManagerEmail}' must resolve to a valid employee in this tenant or this upload.",
-                value: candidate.ManagerEmail);
+            value: candidate.ManagerEmail,
+            rowErrorNumbers: rowErrorNumbers,
+            issueCodesByRow: issueCodesByRow);
         }
 
         validationState[employeeEmail] = isValid ? ManagerValidationState.Valid : ManagerValidationState.Invalid;
@@ -706,7 +728,9 @@ public sealed class EmployeeImportWorkflowService(
         string repeatedEmail,
         IReadOnlyDictionary<string, CandidateRow> uniqueRowsByEmail,
         List<StoredValidationIssue> issues,
-        HashSet<ValidationIssueKey> issueKeys)
+        HashSet<ValidationIssueKey> issueKeys,
+        ISet<int> rowErrorNumbers,
+        IReadOnlyDictionary<int, HashSet<string>> issueCodesByRow)
     {
         var cycleStart = chain
             .Select((email, index) => new { email, index })
@@ -735,7 +759,9 @@ public sealed class EmployeeImportWorkflowService(
                 "managerEmail",
                 "managerCycle",
                 "Manager references in the uploaded file contain a cycle.",
-                groupKey: groupKey);
+                groupKey: groupKey,
+                rowErrorNumbers: rowErrorNumbers,
+                issueCodesByRow: issueCodesByRow);
         }
     }
 
@@ -869,11 +895,15 @@ public sealed class EmployeeImportWorkflowService(
         return NormalizeOptional(value);
     }
 
-    private static bool HasErrors(IEnumerable<StoredValidationIssue> issues, int rowNumber)
-        => issues.Any(issue => issue.RowNumber == rowNumber && issue.Severity.Equals("error", StringComparison.OrdinalIgnoreCase));
+    private static bool HasErrors(ISet<int> rowErrorNumbers, int rowNumber)
+        => rowErrorNumbers.Contains(rowNumber);
 
-    private static bool HasIssue(IEnumerable<StoredValidationIssue> issues, int rowNumber, string code)
-        => issues.Any(issue => issue.RowNumber == rowNumber && issue.Code.Equals(code, StringComparison.OrdinalIgnoreCase));
+    private static bool HasIssue(
+        IReadOnlyDictionary<int, HashSet<string>> issueCodesByRow,
+        int rowNumber,
+        string code)
+        => issueCodesByRow.TryGetValue(rowNumber, out var issueCodes)
+            && issueCodes.Contains(code);
 
     private static void AddIssue(
         ICollection<StoredValidationIssue> issues,
@@ -885,12 +915,27 @@ public sealed class EmployeeImportWorkflowService(
         string? value = null,
         string? groupKey = null,
         string? category = null,
-        string? fixHint = null)
+        string? fixHint = null,
+        ISet<int>? rowErrorNumbers = null,
+        IReadOnlyDictionary<int, HashSet<string>>? issueCodesByRow = null)
     {
         var issueKey = new ValidationIssueKey(rowNumber, field, code);
         if (!issueKeys.Add(issueKey))
         {
             return;
+        }
+
+        rowErrorNumbers?.Add(rowNumber);
+
+        if (issueCodesByRow is Dictionary<int, HashSet<string>> mutableIssueCodesByRow)
+        {
+            if (!mutableIssueCodesByRow.TryGetValue(rowNumber, out var issueCodes))
+            {
+                issueCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                mutableIssueCodesByRow[rowNumber] = issueCodes;
+            }
+
+            issueCodes.Add(code);
         }
 
         issues.Add(new StoredValidationIssue(

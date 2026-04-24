@@ -75,8 +75,13 @@ function downloadBlob(blob: Blob, fileName: string) {
   const anchor = document.createElement("a");
   anchor.href = url;
   anchor.download = fileName;
+  document.body.appendChild(anchor);
   anchor.click();
-  window.URL.revokeObjectURL(url);
+  anchor.remove();
+  // Defer revocation to avoid cancelling download before navigation starts.
+  setTimeout(() => {
+    window.URL.revokeObjectURL(url);
+  }, 0);
 }
 
 function buildDraftStructureExportFields(schema: DraftStructureSchemaDto) {

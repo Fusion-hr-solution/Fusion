@@ -1032,7 +1032,7 @@ export default function EmployeeImportPage() {
       }
 
       setActiveIssueGroupKey(group.key);
-      const firstPreviewRow = group.previewRowNumbers[0];
+      const firstPreviewRow = group.rowNumbers[0];
 
       if (firstPreviewRow !== undefined) {
         setPendingScrollRowNumber(firstPreviewRow);
@@ -1044,10 +1044,13 @@ export default function EmployeeImportPage() {
   const handleJumpToRow = useCallback(
     (rowNumber: number) => {
       const pageSize = session?.previewPageSize ?? 25;
+      const sortedRowNumbers = focusedGroup?.rowNumbers
+        ? [...focusedGroup.rowNumbers].sort((left, right) => left - right)
+        : [];
       const targetRowIndex =
-        focusedGroup?.previewRowNumbers.findIndex(
+        sortedRowNumbers.findIndex(
           (candidateRowNumber) => candidateRowNumber === rowNumber
-        ) ?? -1;
+        );
 
       if (targetRowIndex >= 0) {
         setCurrentPreviewPage(Math.floor(targetRowIndex / pageSize) + 1);
