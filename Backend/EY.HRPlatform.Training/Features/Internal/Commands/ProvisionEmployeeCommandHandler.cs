@@ -21,7 +21,22 @@ public class ProvisionEmployeeCommandHandler : ICommandHandler<ProvisionEmployee
             return Result.Success(); // already provisioned — idempotent
 
         _db.EmployeeProfiles.Add(new EmployeeProfile(request.EmployeeId, gradeId: null, serviceLineId: null));
-        await _db.SaveChangesAsync(cancellationToken);
+
+        try
+        {
+            await _db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            // Concurrent provision — check if profile was inserted by the other request
+            var alreadyProvisioned = await _db.EmployeeProfiles
+                .AnyAsync(p => p.EmployeeId == request.EmployeeId, cancellationToken);
+
+            if (alreadyProvisioned)
+                return Result.Success();
+
+            throw;
+        }
 
         return Result.Success();
     }

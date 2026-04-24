@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { X, Trash2, GripVertical, Plus, Loader2, Check } from "lucide-react";
+import { X, Trash2, Plus, Loader2, Check } from "lucide-react";
 import {
   Button,
   Badge,
@@ -123,7 +123,6 @@ export function CurriculumCellDrawer({
             sorted.map((m) => (
               <Card key={m.id} className="border-border/60">
                 <CardContent className="p-3 flex items-start gap-2">
-                  <GripVertical className="h-4 w-4 text-muted-foreground/40 mt-0.5 flex-shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{m.trainingTitle}</p>
                     <div className="flex items-center gap-2 mt-1">

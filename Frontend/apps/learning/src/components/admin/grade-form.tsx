@@ -40,9 +40,11 @@ export function GradeForm({ grade, onSaved, onCancel }: GradeFormProps) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const levelNum = Number(level);
+    if (!Number.isInteger(levelNum) || levelNum < 1) return;
     const payload = {
       name,
-      level: parseInt(level, 10),
+      level: levelNum,
       description: description || undefined,
       icon: icon || undefined,
     };
@@ -73,6 +75,7 @@ export function GradeForm({ grade, onSaved, onCancel }: GradeFormProps) {
                 required
                 type="number"
                 min={1}
+                step={1}
                 value={level}
                 onChange={(e) => setLevel(e.target.value)}
                 placeholder="1"

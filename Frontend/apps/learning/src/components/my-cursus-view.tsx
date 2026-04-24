@@ -224,7 +224,7 @@ export function MyCursusView() {
       {/* Remaining time */}
       {summary.estimatedRemainingMinutes > 0 && (
         <p className="text-xs text-muted-foreground text-center">
-          Estimated remaining time: {Math.round(summary.estimatedRemainingMinutes / 60)}h {summary.estimatedRemainingMinutes % 60}min
+          Estimated remaining time: {Math.floor(summary.estimatedRemainingMinutes / 60)}h {summary.estimatedRemainingMinutes % 60}min
         </p>
       )}
     </div>

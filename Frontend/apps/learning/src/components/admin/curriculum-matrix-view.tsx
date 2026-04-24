@@ -102,6 +102,11 @@ export function CurriculumMatrixView() {
                           <td key={sl.id} className="px-4 py-3 text-center">
                             <button
                               onClick={() => setOpenCell({ gradeId: grade.id, serviceLineId: sl.id })}
+                              aria-label={
+                                count > 0
+                                  ? `${grade.name}, ${sl.name}: ${count} formation${count === 1 ? "" : "s"}${required > 0 ? `, ${required} required` : ""}`
+                                  : `${grade.name}, ${sl.name}: no formations`
+                              }
                               className="inline-flex flex-col items-center gap-0.5 rounded-md px-3 py-2 transition-colors hover:bg-muted/40 cursor-pointer"
                             >
                               {count > 0 ? (
