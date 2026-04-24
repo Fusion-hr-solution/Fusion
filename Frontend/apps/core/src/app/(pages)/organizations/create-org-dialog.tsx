@@ -23,14 +23,9 @@ import { useCreateOrganization } from "./use-organizations";
 interface CreateOrgDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreated: () => void;
 }
 
-export function CreateOrgDialog({
-  open,
-  onOpenChange,
-  onCreated,
-}: CreateOrgDialogProps) {
+export function CreateOrgDialog({ open, onOpenChange }: CreateOrgDialogProps) {
   const [serverError, setServerError] = useState<string | null>(null);
 
   const {
@@ -56,7 +51,6 @@ export function CreateOrgDialog({
       reset();
       setServerError(null);
       onOpenChange(false);
-      onCreated();
     },
   });
 
@@ -155,7 +149,7 @@ export function CreateOrgDialog({
             <Textarea
               id="internalNotes"
               placeholder="Optional notes visible only to platform admins…"
-              className="min-h-[60px]"
+              className="min-h-15"
               {...register("internalNotes", {
                 maxLength: { value: 4000, message: "Maximum 4000 characters" },
               })}

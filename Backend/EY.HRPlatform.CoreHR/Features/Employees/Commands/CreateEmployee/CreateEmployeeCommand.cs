@@ -14,4 +14,5 @@ public sealed record CreateEmployeeCommand(
     DateTime HireDate,
     string? Department = null,
     string? JobTitle = null,
-    Guid? ManagerId = null) : ICommand<Result<EmployeeDto>>;
+    Guid? ManagerId = null,
+    Guid? OrgUnitId = null) : ICommand<Result<EmployeeDto>>;

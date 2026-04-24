@@ -67,6 +67,31 @@ export interface UpdatePlatformOrganizationRequest {
   internalNotes?: string | null;
 }
 
+export interface PlatformOrganizationListQueryParams {
+  skip: number;
+  take: number;
+  search?: string | null;
+  orderBy?: string | null;
+  orderDirection?: string | null;
+  filterByStatus?: readonly string[] | null;
+}
+
+function normalizePlatformOrganizationListQueryParams(
+  params: PlatformOrganizationListQueryParams
+) {
+  return {
+    skip: params.skip,
+    take: params.take,
+    search: params.search?.trim() || undefined,
+    orderBy: params.orderBy || "createdAt",
+    orderDirection: params.orderDirection || "desc",
+    filterByStatus:
+      params.filterByStatus && params.filterByStatus.length > 0
+        ? [...params.filterByStatus].sort()
+        : undefined,
+  };
+}
+
 export const platformOrganizationsPaths = {
   list: () => "/identity/platform-admin/organizations",
   detail: (tenantId: string) =>
@@ -84,4 +109,17 @@ export const platformOrganizationsPaths = {
     `/identity/platform-admin/organizations/${tenantId}/first-admin-invite/resend`,
   revokeFirstAdmin: (tenantId: string) =>
     `/identity/platform-admin/organizations/${tenantId}/first-admin-invite/revoke`,
+} as const;
+
+export const platformOrganizationsQueryKeys = {
+  all: () => ["platformOrganizations"] as const,
+  lists: () => [...platformOrganizationsQueryKeys.all(), "list"] as const,
+  list: (params: PlatformOrganizationListQueryParams) =>
+    [
+      ...platformOrganizationsQueryKeys.lists(),
+      normalizePlatformOrganizationListQueryParams(params),
+    ] as const,
+  details: () => [...platformOrganizationsQueryKeys.all(), "detail"] as const,
+  detail: (tenantId: string) =>
+    [...platformOrganizationsQueryKeys.details(), tenantId] as const,
 } as const;

@@ -27,3 +27,9 @@ export const invitePaths = {
   accept: (token: string) =>
     `/identity/invites/${encodeURIComponent(token)}/accept`,
 } as const;
+
+export const inviteQueryKeys = {
+  all: () => ["invites"] as const,
+  validate: (token: string) =>
+    [...inviteQueryKeys.all(), "validate", token] as const,
+} as const;
