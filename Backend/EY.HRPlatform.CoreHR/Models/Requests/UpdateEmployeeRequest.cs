@@ -7,6 +7,7 @@ namespace EY.HRPlatform.CoreHR.Models.Requests;
 /// Supports partial updates - only provided fields are updated.
 /// Null fields are ignored (existing values preserved).
 /// To clear ManagerId, send Guid.Empty.
+/// To clear OrgUnitId, send Guid.Empty.
 /// </summary>
 public sealed record UpdateEmployeeRequest(
     [StringLength(100, MinimumLength = 1)] string? FirstName,
@@ -14,4 +15,5 @@ public sealed record UpdateEmployeeRequest(
     [EmailAddress] string? Email,
     [StringLength(100)] string? Department,
     [StringLength(100)] string? JobTitle,
-    Guid? ManagerId);
+    Guid? ManagerId,
+    Guid? OrgUnitId = null);

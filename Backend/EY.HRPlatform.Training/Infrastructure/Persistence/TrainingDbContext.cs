@@ -24,6 +24,10 @@ public class TrainingDbContext : DbContext
     public DbSet<Badge> Badges => Set<Badge>();
     public DbSet<EmployeeBadge> EmployeeBadges => Set<EmployeeBadge>();
     public DbSet<Certification> Certifications => Set<Certification>();
+    public DbSet<Grade> Grades => Set<Grade>();
+    public DbSet<ServiceLine> ServiceLines => Set<ServiceLine>();
+    public DbSet<CurriculumMapping> CurriculumMappings => Set<CurriculumMapping>();
+    public DbSet<EmployeeProfile> EmployeeProfiles => Set<EmployeeProfile>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -248,6 +252,64 @@ public class TrainingDbContext : DbContext
                 .HasForeignKey(c => c.TrainingId)
                 .OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(c => new { c.EmployeeId, c.TrainingId }).IsUnique();
+        });
+
+        // --- Grade ---
+        modelBuilder.Entity<Grade>(e =>
+        {
+            e.HasKey(g => g.Id);
+            e.Property(g => g.Name).HasMaxLength(100).IsRequired();
+            e.Property(g => g.Description).HasMaxLength(500);
+            e.Property(g => g.Icon).HasMaxLength(50);
+            e.HasIndex(g => g.Name).IsUnique();
+            e.HasIndex(g => g.Level).IsUnique();
+        });
+
+        // --- ServiceLine ---
+        modelBuilder.Entity<ServiceLine>(e =>
+        {
+            e.HasKey(s => s.Id);
+            e.Property(s => s.Name).HasMaxLength(100).IsRequired();
+            e.Property(s => s.Code).HasMaxLength(20).IsRequired();
+            e.Property(s => s.Description).HasMaxLength(500);
+            e.Property(s => s.Color).HasMaxLength(20).IsRequired();
+            e.HasIndex(s => s.Name).IsUnique();
+            e.HasIndex(s => s.Code).IsUnique();
+        });
+
+        // --- CurriculumMapping ---
+        modelBuilder.Entity<CurriculumMapping>(e =>
+        {
+            e.HasKey(m => m.Id);
+            e.HasOne(m => m.Grade)
+                .WithMany()
+                .HasForeignKey(m => m.GradeId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(m => m.ServiceLine)
+                .WithMany()
+                .HasForeignKey(m => m.ServiceLineId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(m => m.Training)
+                .WithMany()
+                .HasForeignKey(m => m.TrainingId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(m => new { m.GradeId, m.ServiceLineId, m.TrainingId }).IsUnique();
+            e.HasIndex(m => new { m.GradeId, m.ServiceLineId, m.OrderIndex }).IsUnique();
+        });
+
+        // --- EmployeeProfile ---
+        modelBuilder.Entity<EmployeeProfile>(e =>
+        {
+            e.HasKey(p => p.Id);
+            e.HasOne(p => p.Grade)
+                .WithMany()
+                .HasForeignKey(p => p.GradeId)
+                .OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(p => p.ServiceLine)
+                .WithMany()
+                .HasForeignKey(p => p.ServiceLineId)
+                .OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(p => p.EmployeeId).IsUnique();
         });
     }
 }

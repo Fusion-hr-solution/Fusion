@@ -60,6 +60,23 @@ public sealed class UpdateEmployeeCommandHandler(
             }
         }
 
+        OrgUnit? orgUnit = null;
+        if (request.OrgUnitId.HasValue && request.OrgUnitId.Value != Guid.Empty)
+        {
+            orgUnit = await dbContext.OrgUnits
+                .FirstOrDefaultAsync(o => o.Id == request.OrgUnitId.Value, cancellationToken);
+
+            if (orgUnit is null)
+            {
+                throw new EntityNotFoundException("OrgUnit", request.OrgUnitId.Value);
+            }
+
+            if (!orgUnit.IsActive)
+            {
+                throw new ArgumentException("Cannot assign inactive org unit.");
+            }
+        }
+
         // Update employee details
         employee.UpdateDetails(firstName, lastName, email, department, jobTitle);
 
@@ -67,6 +84,11 @@ public sealed class UpdateEmployeeCommandHandler(
         if (request.ManagerId.HasValue)
         {
             employee.AssignManager(request.ManagerId.Value);
+        }
+
+        if (request.OrgUnitId.HasValue)
+        {
+            employee.AssignOrgUnit(request.OrgUnitId.Value);
         }
 
         try
@@ -90,16 +112,24 @@ public sealed class UpdateEmployeeCommandHandler(
                 .FirstOrDefaultAsync(e => e.Id == employee.ManagerId.Value, cancellationToken);
         }
 
-        return Result.Success(MapToDto(employee, manager));
+        if (employee.OrgUnitId.HasValue)
+        {
+            orgUnit ??= await dbContext.OrgUnits
+                .FirstOrDefaultAsync(o => o.Id == employee.OrgUnitId.Value, cancellationToken);
+        }
+
+        return Result.Success(MapToDto(employee, manager, orgUnit));
     }
 
-    private static EmployeeDto MapToDto(Employee employee, Employee? manager) => new(
+    private static EmployeeDto MapToDto(Employee employee, Employee? manager, OrgUnit? orgUnit) => new(
         employee.Id,
         employee.TenantId,
         employee.FirstName,
         employee.LastName,
         employee.Email,
         employee.Department,
+        employee.OrgUnitId,
+        orgUnit?.Name,
         employee.JobTitle,
         employee.HireDate,
         employee.Status,

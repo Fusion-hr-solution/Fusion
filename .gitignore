@@ -65,6 +65,9 @@ Backend/**/[Pp]ackages/*
 *.nupkg
 Backend/**/packages/repositories.config
 
+# Uploaded chapter files (local dev uploads — not for version control)
+Backend/**/wwwroot/uploads/
+
 # ========================
 # Node.js / Frontend
 # ========================

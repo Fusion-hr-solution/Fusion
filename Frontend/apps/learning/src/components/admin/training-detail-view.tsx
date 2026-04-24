@@ -215,7 +215,7 @@ export function TrainingDetailView({ trainingId }: TrainingDetailViewProps) {
           />
 
           {/* Exams */}
-          <AdminExamList exams={training.exams} />
+          <AdminExamList trainingId={trainingId} exams={training.exams} isDeleted={training.isDeleted} />
 
           <ChapterFormDialog trainingId={trainingId} chapter={editingChapter} open={chapterDialogOpen} onOpenChange={setChapterDialogOpen} onSaved={refetch} />
         </>

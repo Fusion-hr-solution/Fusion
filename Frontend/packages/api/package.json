@@ -5,7 +5,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./react": "./src/react/index.ts"
+    "./react": "./src/react/index.ts",
+    "./query": "./src/query/index.ts"
   },
   "scripts": {
     "lint": "eslint . --max-warnings 0",
@@ -14,16 +15,21 @@
     "test": "vitest run"
   },
   "peerDependencies": {
-    "react": ">=18"
+    "react": ">=18",
+    "@tanstack/react-query": ">=5"
   },
   "peerDependenciesMeta": {
     "react": {
+      "optional": true
+    },
+    "@tanstack/react-query": {
       "optional": true
     }
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",
     "@repo/tsconfig": "workspace:*",
+    "@tanstack/react-query": "^5.90.5",
     "@testing-library/react": "^16.3.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

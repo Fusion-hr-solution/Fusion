@@ -45,7 +45,7 @@ const ROOT_VALUE = "__root__";
 interface CreateDraftUnitDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreated: () => void;
+  onCreated?: () => void;
   onSchemaUpdated?: () => void;
   readOnly?: boolean;
   schema: DraftStructureSchemaDto;
@@ -120,7 +120,7 @@ export function CreateDraftUnitDialog({
       toast.success(`Unit "${data.displayName}" created`);
       setServerError(null);
       onOpenChange(false);
-      onCreated();
+      onCreated?.();
     },
   });
 
@@ -177,7 +177,10 @@ export function CreateDraftUnitDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          className="flex min-h-0 flex-1 flex-col"
+        >
           <div className="flex-1 space-y-4 overflow-y-auto p-6">
             <div className="grid gap-2">
               <Label htmlFor="draft-reference-key">Unit Code</Label>
@@ -191,7 +194,9 @@ export function CreateDraftUnitDialog({
                 })}
               />
               {errors.referenceKey ? (
-                <p className="text-sm text-destructive">{errors.referenceKey.message}</p>
+                <p className="text-sm text-destructive">
+                  {errors.referenceKey.message}
+                </p>
               ) : null}
             </div>
 
@@ -207,7 +212,9 @@ export function CreateDraftUnitDialog({
                 })}
               />
               {errors.displayName ? (
-                <p className="text-sm text-destructive">{errors.displayName.message}</p>
+                <p className="text-sm text-destructive">
+                  {errors.displayName.message}
+                </p>
               ) : null}
             </div>
 
@@ -222,11 +229,14 @@ export function CreateDraftUnitDialog({
                   onSchemaUpdated={(nextSchema) => {
                     setEditableSchema(nextSchema);
                     if (
-                      !nextSchema.orgUnitKinds.some((kind) => kind.key === selectedKindKey)
+                      !nextSchema.orgUnitKinds.some(
+                        (kind) => kind.key === selectedKindKey
+                      )
                     ) {
                       setValue(
                         "orgUnitKindKey",
-                        nextSchema.orgUnitKinds[0]?.key ?? buildDraftOrgUnitKindKey("")
+                        nextSchema.orgUnitKinds[0]?.key ??
+                          buildDraftOrgUnitKindKey("")
                       );
                     }
                     onSchemaUpdated?.();
@@ -258,7 +268,9 @@ export function CreateDraftUnitDialog({
                 )}
               />
               {errors.orgUnitKindKey ? (
-                <p className="text-sm text-destructive">{errors.orgUnitKindKey.message}</p>
+                <p className="text-sm text-destructive">
+                  {errors.orgUnitKindKey.message}
+                </p>
               ) : null}
             </div>
 
@@ -279,7 +291,9 @@ export function CreateDraftUnitDialog({
                       <SelectValue placeholder="Select a parent unit" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value={ROOT_VALUE}>Organization root</SelectItem>
+                      <SelectItem value={ROOT_VALUE}>
+                        Organization root
+                      </SelectItem>
                       {existingUnits.map((unit) => (
                         <SelectItem key={unit.id} value={unit.id}>
                           {formatUnitOptionLabel(unit)}
@@ -295,8 +309,8 @@ export function CreateDraftUnitDialog({
               <div className="mb-4 space-y-1">
                 <p className="text-sm font-medium">Optional details</p>
                 <p className="text-sm text-muted-foreground">
-                  Keep the first pass focused on the hierarchy. Add these details
-                  only if they help right now.
+                  Keep the first pass focused on the hierarchy. Add these
+                  details only if they help right now.
                 </p>
               </div>
 
@@ -309,11 +323,16 @@ export function CreateDraftUnitDialog({
                       placeholder="Dubai HQ"
                       disabled={readOnly}
                       {...register("location", {
-                        maxLength: { value: 100, message: "Maximum 100 characters" },
+                        maxLength: {
+                          value: 100,
+                          message: "Maximum 100 characters",
+                        },
                       })}
                     />
                     {errors.location ? (
-                      <p className="text-sm text-destructive">{errors.location.message}</p>
+                      <p className="text-sm text-destructive">
+                        {errors.location.message}
+                      </p>
                     ) : null}
                   </div>
                 </div>
@@ -326,11 +345,16 @@ export function CreateDraftUnitDialog({
                     rows={3}
                     disabled={readOnly}
                     {...register("description", {
-                      maxLength: { value: 500, message: "Maximum 500 characters" },
+                      maxLength: {
+                        value: 500,
+                        message: "Maximum 500 characters",
+                      },
                     })}
                   />
                   {errors.description ? (
-                    <p className="text-sm text-destructive">{errors.description.message}</p>
+                    <p className="text-sm text-destructive">
+                      {errors.description.message}
+                    </p>
                   ) : null}
                 </div>
 
@@ -351,7 +375,11 @@ export function CreateDraftUnitDialog({
 
           <DialogFooter className="mx-0 mb-0 rounded-none border-t bg-muted/50 px-6 py-4">
             {readOnly ? (
-              <Button type="button" variant="outline" onClick={() => handleClose(false)}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => handleClose(false)}
+              >
                 Close
               </Button>
             ) : (

@@ -235,6 +235,9 @@ namespace EY.HRPlatform.CoreHR.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("ManagerId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("OrgUnitId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -262,6 +265,9 @@ namespace EY.HRPlatform.CoreHR.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ManagerId")
                         .HasDatabaseName("IX_Employees_ManagerId");
+
+                    b.HasIndex("OrgUnitId")
+                        .HasDatabaseName("IX_Employees_OrgUnitId");
 
                     b.HasIndex("TenantId")
                         .HasDatabaseName("IX_Employees_TenantId");
@@ -532,7 +538,14 @@ namespace EY.HRPlatform.CoreHR.Infrastructure.Persistence.Migrations
                         .HasForeignKey("ManagerId")
                         .OnDelete(DeleteBehavior.SetNull);
 
+                    b.HasOne("EY.HRPlatform.CoreHR.Domain.Entities.OrgUnit", "OrgUnit")
+                        .WithMany()
+                        .HasForeignKey("OrgUnitId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("Manager");
+
+                    b.Navigation("OrgUnit");
                 });
 
             modelBuilder.Entity("EY.HRPlatform.CoreHR.Domain.Entities.OrgUnit", b =>

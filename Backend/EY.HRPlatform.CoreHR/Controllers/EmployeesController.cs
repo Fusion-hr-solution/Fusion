@@ -7,6 +7,7 @@ using EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployeeById;
 using EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployees;
 using EY.HRPlatform.CoreHR.Models.Requests;
 using EY.HRPlatform.CoreHR.Models.Responses;
+using EY.HRPlatform.SharedKernel.Auth;
 using ApiResponse = EY.HRPlatform.SharedKernel.Api.ApiResponse;
 using ApiResponseOfEmployeeDto = EY.HRPlatform.SharedKernel.Api.ApiResponse<EY.HRPlatform.CoreHR.Features.Employees.Dtos.EmployeeDto>;
 using ApiResponseOfPagedEmployeeList = EY.HRPlatform.SharedKernel.Api.ApiResponse<EY.HRPlatform.CoreHR.Models.Responses.PagedResponse<EY.HRPlatform.CoreHR.Features.Employees.Dtos.EmployeeListItemDto>>;
@@ -25,6 +26,7 @@ public class EmployeesController(ISender sender) : ControllerBase
     /// List employees with optional search, filtering, sorting, and pagination.
     /// </summary>
     [HttpGet]
+    [Authorize(Roles = PlatformRole.HRAdmin)]
     [ProducesResponseType(typeof(ApiResponseOfPagedEmployeeList), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAll(
         [FromQuery] string? search,
@@ -45,6 +47,7 @@ public class EmployeesController(ISender sender) : ControllerBase
     /// Create a new employee within the current tenant.
     /// </summary>
     [HttpPost]
+    [Authorize(Roles = $"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin}")]
     [ProducesResponseType(typeof(ApiResponseOfEmployeeDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status409Conflict)]
@@ -59,7 +62,8 @@ public class EmployeesController(ISender sender) : ControllerBase
             request.HireDate,
             request.Department,
             request.JobTitle,
-            request.ManagerId);
+            request.ManagerId,
+            request.OrgUnitId);
 
         var result = await sender.Send(command, cancellationToken);
 
@@ -75,6 +79,7 @@ public class EmployeesController(ISender sender) : ControllerBase
     /// Get an employee by ID.
     /// </summary>
     [HttpGet("{id:guid}")]
+    [Authorize(Roles = PlatformRole.HRAdmin)]
     [ProducesResponseType(typeof(ApiResponseOfEmployeeDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
@@ -96,6 +101,7 @@ public class EmployeesController(ISender sender) : ControllerBase
     /// Requires If-Match header with current version for optimistic concurrency.
     /// </summary>
     [HttpPut("{id:guid}")]
+    [Authorize(Roles = $"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin}")]
     [ProducesResponseType(typeof(ApiResponseOfEmployeeDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
@@ -122,7 +128,8 @@ public class EmployeesController(ISender sender) : ControllerBase
             request.Email,
             request.Department,
             request.JobTitle,
-            request.ManagerId);
+            request.ManagerId,
+            request.OrgUnitId);
 
         var result = await sender.Send(command, cancellationToken);
 
@@ -136,6 +143,7 @@ public class EmployeesController(ISender sender) : ControllerBase
     /// Requires If-Match header with current version for optimistic concurrency.
     /// </summary>
     [HttpDelete("{id:guid}")]
+    [Authorize(Roles = $"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status409Conflict)]

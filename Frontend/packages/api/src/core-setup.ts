@@ -79,3 +79,9 @@ export const coreSetupPaths = {
   publish: () => "/corehr/setup/publish",
   complete: () => "/corehr/setup/complete",
 } as const;
+
+export const coreSetupQueryKeys = {
+  all: () => ["coreSetup"] as const,
+  state: () => [...coreSetupQueryKeys.all(), "state"] as const,
+  readiness: () => [...coreSetupQueryKeys.all(), "readiness"] as const,
+} as const;

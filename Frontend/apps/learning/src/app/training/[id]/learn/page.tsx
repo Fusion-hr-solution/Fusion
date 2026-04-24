@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useCallback, useEffect } from "react";
+import { use, useCallback, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useApiQuery } from "@repo/api/react";
 import { ApiError } from "@repo/api";
@@ -50,6 +50,15 @@ export default function LearnPage({ params }: LearnPageProps) {
       router.replace(`/training/${encodeURIComponent(id)}`);
     }
   }, [notEnrolled, id, router]);
+
+  // Merge exam info from training detail into learn data (progress endpoint omits it)
+  const enrichedLearnData = useMemo(() => {
+    if (!learnData || !training) return null;
+    return {
+      ...learnData,
+      training: { ...learnData.training, exam: training.exam },
+    };
+  }, [learnData, training]);
 
   if (isLoading || notEnrolled) {
     return (
@@ -103,7 +112,7 @@ export default function LearnPage({ params }: LearnPageProps) {
   }
 
   // Data not yet available — keep showing loading spinner
-  if (!learnData) {
+  if (!enrichedLearnData) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
@@ -114,5 +123,5 @@ export default function LearnPage({ params }: LearnPageProps) {
     );
   }
 
-  return <CoursePlayer learnData={learnData} />;
+  return <CoursePlayer learnData={enrichedLearnData} />;
 }

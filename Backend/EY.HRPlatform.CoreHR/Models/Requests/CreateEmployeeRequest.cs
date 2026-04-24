@@ -12,4 +12,5 @@ public sealed record CreateEmployeeRequest(
     [Required] DateTime HireDate,
     string? Department = null,
     string? JobTitle = null,
-    Guid? ManagerId = null);
+    Guid? ManagerId = null,
+    Guid? OrgUnitId = null);
