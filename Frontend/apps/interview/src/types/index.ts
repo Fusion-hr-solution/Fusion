@@ -188,3 +188,31 @@ export interface CandidateLinkSecurityState {
   settings: CandidateLinkSecuritySettings;
   preview: CandidateLinkPreview;
 }
+
+export interface CandidateTimelineCandidate {
+  candidateEmail: string;
+  candidateName?: string;
+  latestStatus: "Invited" | "DeliveryFailed" | "InProgress" | "Submitted" | "Expired";
+  latestActivityAtUtc?: string;
+}
+
+export interface CandidateTimelineMilestone {
+  name: "Invited" | "LinkOpened" | "Started" | "InProgress" | "Submitted";
+  state: "Completed" | "Pending";
+  occurredAtUtc?: string;
+}
+
+export interface CandidateAttemptTimeline {
+  attemptNumber: number;
+  attemptId?: string;
+  status: "Invited" | "InProgress" | "Submitted";
+  milestones: CandidateTimelineMilestone[];
+}
+
+export interface CandidateProgressTimeline {
+  testId: string;
+  testTitle: string;
+  candidateEmail: string;
+  candidateName?: string;
+  attempts: CandidateAttemptTimeline[];
+}
