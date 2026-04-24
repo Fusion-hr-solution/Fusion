@@ -498,16 +498,16 @@ function IssueNavigatorPanel({
               <button
                 key={group.key}
                 type="button"
-                className={`cursor-pointer rounded-md border px-3 py-2 text-left transition-colors ${getNavigatorItemClassName(group.category, isActive)}`}
+                className={`w-full max-w-full overflow-hidden cursor-pointer rounded-md border px-3 py-2 text-left transition-colors ${getNavigatorItemClassName(group.category, isActive)}`}
                 onClick={() => onSelectGroup(group)}
                 aria-pressed={isActive}
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 space-y-0.5">
-                    <p className="text-sm font-medium leading-5">
+                <div className="flex min-w-0 flex-wrap items-start gap-2 sm:flex-nowrap sm:justify-between">
+                  <div className="min-w-0 flex-1 space-y-0.5">
+                    <p className="truncate text-sm font-medium leading-5">
                       {group.title}
                     </p>
-                    <p className="line-clamp-1 text-xs text-muted-foreground">
+                    <p className="line-clamp-2 wrap-break-word text-xs text-muted-foreground">
                       {group.fixHint}
                     </p>
                     {group.value ? (
@@ -516,7 +516,7 @@ function IssueNavigatorPanel({
                       </p>
                     ) : null}
                   </div>
-                  <Badge variant="outline">
+                  <Badge variant="outline" className="shrink-0 self-start whitespace-nowrap">
                     {group.rowNumbers.length} row
                     {group.rowNumbers.length === 1 ? "" : "s"}
                   </Badge>
