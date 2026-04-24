@@ -16,6 +16,23 @@ public sealed record EmployeeImportSourceRowDto(
     int RowNumber,
     IReadOnlyDictionary<string, string?> Values);
 
+public sealed record EmployeeImportValidationIssueDto(
+    int RowNumber,
+    string? Field,
+    string Severity,
+    string Code,
+    string Message,
+    string Category,
+    string GroupKey,
+    string? Value,
+    string FixHint);
+
+public sealed record EmployeeImportValidationSummaryDto(
+    int TotalRows,
+    int ValidRows,
+    int ErrorCount,
+    int WarningCount);
+
 public sealed record EmployeeImportPreviewRowDto(
     int RowNumber,
     string? FirstName,
@@ -36,6 +53,13 @@ public sealed record EmployeeImportSessionDto(
     IReadOnlyList<string> SourceHeaders,
     IReadOnlyList<EmployeeImportSourceRowDto> SampleRows,
     IReadOnlyList<EmployeeImportPreviewRowDto> PreviewRows,
+    int PreviewPageNumber,
+    int PreviewPageSize,
+    int PreviewPageCount,
+    int TotalPreviewRowCount,
     bool HasMorePreviewRows,
+    EmployeeImportValidationSummaryDto ValidationSummary,
+    IReadOnlyList<EmployeeImportValidationIssueDto> ValidationIssues,
     DateTime ExpiresAt,
-    EmployeeImportSchemaDto EmployeeImportSchema);
+    EmployeeImportSchemaDto EmployeeImportSchema,
+    bool CanValidate);

@@ -23,6 +23,10 @@ public class EmployeeImportSession : BaseEntity, ITenantEntity
 
     public string PreviewRowsJson { get; private set; } = "[]";
 
+    public string? NormalizedRowsJson { get; private set; }
+
+    public string? ValidationIssuesJson { get; private set; }
+
     public DateTime ExpiresAt { get; private set; }
 
     public static EmployeeImportSession CreatePreviewReady(
@@ -62,15 +66,34 @@ public class EmployeeImportSession : BaseEntity, ITenantEntity
         };
     }
 
+    public void SetValidationResult(string normalizedRowsJson, string validationIssuesJson)
+    {
+        NormalizedRowsJson = RequireJson(normalizedRowsJson, nameof(normalizedRowsJson));
+        ValidationIssuesJson = RequireJson(validationIssuesJson, nameof(validationIssuesJson));
+        Stage = EmployeeImportStage.Validated;
+        Touch();
+    }
+
     public void MarkExpired()
     {
         Stage = EmployeeImportStage.Expired;
-        UpdatedAt = DateTime.UtcNow;
+        Touch();
+    }
+
+    private void Touch() => UpdatedAt = DateTime.UtcNow;
+
+    private static string RequireJson(string value, string paramName)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            throw new ArgumentException($"{paramName} cannot be empty.", paramName);
+
+        return value;
     }
 }
 
 public enum EmployeeImportStage
 {
     PreviewReady,
+    Validated,
     Expired
 }

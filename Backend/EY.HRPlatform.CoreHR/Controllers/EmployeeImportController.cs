@@ -39,11 +39,39 @@ public class EmployeeImportController(
         return Ok(ApiResponse<EmployeeImportSessionDto>.Success(session));
     }
 
+    [HttpPost("{sessionId:guid}/validate")]
+    [ProducesResponseType(typeof(ApiResponse<EmployeeImportSessionDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> Validate(
+        Guid sessionId,
+        [FromQuery] int previewPageNumber = 1,
+        [FromQuery] string previewFilter = "all",
+        [FromQuery] string? groupKey = null,
+        CancellationToken cancellationToken = default)
+    {
+        var session = await workflowService.ValidateAsync(
+            sessionId,
+            previewPageNumber,
+            previewFilter,
+            groupKey,
+            cancellationToken);
+        return Ok(ApiResponse<EmployeeImportSessionDto>.Success(session));
+    }
+
     [HttpGet("{sessionId:guid}")]
     [ProducesResponseType(typeof(ApiResponse<EmployeeImportSessionDto>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetSession(Guid sessionId, CancellationToken cancellationToken)
+    public async Task<IActionResult> GetSession(
+        Guid sessionId,
+        [FromQuery] int previewPageNumber = 1,
+        [FromQuery] string previewFilter = "all",
+        [FromQuery] string? groupKey = null,
+        CancellationToken cancellationToken = default)
     {
-        var session = await workflowService.GetSessionAsync(sessionId, cancellationToken);
+        var session = await workflowService.GetSessionAsync(
+            sessionId,
+            previewPageNumber,
+            previewFilter,
+            groupKey,
+            cancellationToken);
         return Ok(ApiResponse<EmployeeImportSessionDto>.Success(session));
     }
 }
