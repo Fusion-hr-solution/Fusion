@@ -1,9 +1,6 @@
 import { Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-interface InviteResultPopupProps {
-  result: { status: "success" | "error"; message: string } | null;
-}
+import type { InviteResultPopupProps } from "@/services/models/invite_result_popup_model";
 
 export function InviteResultPopup({ result }: InviteResultPopupProps) {
   if (!result) {

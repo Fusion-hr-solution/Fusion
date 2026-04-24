@@ -1,15 +1,6 @@
 import { Check, FileUp } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-type CsvImportReport = {
-  importedCount: number;
-  duplicateCount: number;
-  invalidCount: number;
-};
-
-interface CsvImportReportPopupProps {
-  report: CsvImportReport | null;
-}
+import type { CsvImportReportPopupProps } from "@/services/models/csv_import_report_popup_model";
 
 export function CsvImportReportPopup({ report }: CsvImportReportPopupProps) {
   if (!report) {

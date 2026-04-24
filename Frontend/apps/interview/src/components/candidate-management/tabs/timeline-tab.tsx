@@ -1,25 +1,6 @@
 import { Check, Clock3 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { CandidateProgressTimeline, CandidateTimelineCandidate, Test } from "@/types";
-
-interface TimelineTabProps {
-  selectedTestId: string;
-  setSelectedTestId: (value: string) => void;
-  tests: Test[];
-  selectedTimelineCandidateEmail: string;
-  setSelectedTimelineCandidateEmail: (value: string) => void;
-  timelineCandidatesLoading: boolean;
-  timelineCandidates: CandidateTimelineCandidate[];
-  timelineLiveEnabled: boolean;
-  timelineNetworkOnline: boolean;
-  timelineLiveSyncing: boolean;
-  timelineLastUpdatedAtUtc: string | null;
-  setTimelineLiveEnabled: (fn: (prev: boolean) => boolean) => void;
-  timelineError: string | null;
-  timelineLoading: boolean;
-  timelineData: CandidateProgressTimeline | null;
-  refreshMs: number;
-}
+import type { TimelineTabProps } from "@/services/models/timeline_tab_model";
 
 export function TimelineTab({
   selectedTestId,

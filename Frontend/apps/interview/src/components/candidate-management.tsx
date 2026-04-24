@@ -10,6 +10,10 @@ import { InviteTab } from "@/components/candidate-management/tabs/invite-tab";
 import { ResendTab } from "@/components/candidate-management/tabs/resend-tab";
 import { LinkSecurityTab } from "@/components/candidate-management/tabs/link-security-tab";
 import { TimelineTab } from "@/components/candidate-management/tabs/timeline-tab";
+import type { CsvImportReport } from "@/services/models/csv_import_report_popup_model";
+import type { InviteResult } from "@/services/models/invite_result_popup_model";
+import type { InviteMethod } from "@/services/models/invite_tab_model";
+import type { ResendStatusFilter } from "@/services/models/resend_tab_model";
 import {
   getCandidateProgressTimeline,
   getCandidateTimelineCandidates,
@@ -56,14 +60,6 @@ interface TabConfig {
   icon: React.ElementType;
   description: string;
 }
-
-type InviteMethod = "email" | "bulk" | "link";
-type InviteResultPopup = { status: "success" | "error"; message: string };
-type CsvImportReport = {
-  importedCount: number;
-  duplicateCount: number;
-  invalidCount: number;
-};
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const TIMELINE_LIVE_REFRESH_MS = 5000;
@@ -148,7 +144,7 @@ export function CandidateManagement() {
   const [resendError, setResendError] = useState<string | null>(null);
   const [resendSuccess, setResendSuccess] = useState<string | null>(null);
   const [resendSearch, setResendSearch] = useState("");
-  const [resendStatusFilter, setResendStatusFilter] = useState<"all" | "Invited" | "DeliveryFailed">("all");
+  const [resendStatusFilter, setResendStatusFilter] = useState<ResendStatusFilter>("all");
   const [resendTestFilter, setResendTestFilter] = useState("all");
   const [resendModalItem, setResendModalItem] = useState<CandidateInvitation | null>(null);
   const [inviteError, setInviteError] = useState<string | null>(null);
@@ -166,7 +162,7 @@ export function CandidateManagement() {
   const [emailInput, setEmailInput] = useState("");
   const [emailChips, setEmailChips] = useState<string[]>([]);
   const [csvPreviewRows, setCsvPreviewRows] = useState<CsvCandidateRow[]>([]);
-  const [inviteResultPopup, setInviteResultPopup] = useState<InviteResultPopup | null>(null);
+  const [inviteResultPopup, setInviteResultPopup] = useState<InviteResult | null>(null);
   const [csvImportReport, setCsvImportReport] = useState<CsvImportReport | null>(null);
   const [singleUseLinkEnabled, setSingleUseLinkEnabled] = useState(true);
   const [emailVerificationEnabled, setEmailVerificationEnabled] = useState(true);

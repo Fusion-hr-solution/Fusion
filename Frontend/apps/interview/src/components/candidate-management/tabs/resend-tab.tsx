@@ -1,25 +1,6 @@
 import { Send } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { CandidateInvitation, Test } from "@/types";
-
-interface ResendTabProps {
-  resendSearch: string;
-  setResendSearch: (value: string) => void;
-  resendStatusFilter: "all" | "Invited" | "DeliveryFailed";
-  setResendStatusFilter: (value: "all" | "Invited" | "DeliveryFailed") => void;
-  resendTestFilter: string;
-  setResendTestFilter: (value: string) => void;
-  tests: Test[];
-  resendError: string | null;
-  resendSuccess: string | null;
-  filteredResendInvitations: CandidateInvitation[];
-  initialsFromInvitation: (item: CandidateInvitation) => string;
-  setResendError: (value: string | null) => void;
-  setResendModalItem: (item: CandidateInvitation | null) => void;
-  resendModalItem: CandidateInvitation | null;
-  resendSubmitting: boolean;
-  onConfirmResend: () => Promise<void>;
-}
+import type { ResendStatusFilter, ResendTabProps } from "@/services/models/resend_tab_model";
 
 export function ResendTab({
   resendSearch,
@@ -57,7 +38,7 @@ export function ResendTab({
             name="resendStatusFilter"
             aria-label="Filter invitations by status"
             value={resendStatusFilter}
-            onChange={(e) => setResendStatusFilter(e.target.value as "all" | "Invited" | "DeliveryFailed")}
+            onChange={(e) => setResendStatusFilter(e.target.value as ResendStatusFilter)}
             className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[13px] text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
           >
             <option value="all">All status</option>
