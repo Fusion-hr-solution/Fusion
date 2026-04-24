@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Diagnostics;
+using System.Text;
 using EY.HRPlatform.Identity.Domain.Entities;
 using EY.HRPlatform.Identity.Features.PlatformOrganizations.Services;
 using EY.HRPlatform.Identity.Features.Tenants.Services;
@@ -117,7 +118,6 @@ public static class ServiceCollectionExtensions
             client.DefaultRequestHeaders.Add("X-Service-Key", serviceApiKey);
             client.Timeout = TimeSpan.FromSeconds(5);
         });
-
         return services;
     }
 }
