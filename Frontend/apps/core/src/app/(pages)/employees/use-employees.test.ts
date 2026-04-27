@@ -30,9 +30,8 @@ vi.mock("@repo/auth", () => ({
 }));
 
 vi.mock("@repo/api/react", async () => {
-  const actual = await vi.importActual<typeof import("@repo/api/react")>(
-    "@repo/api/react"
-  );
+  const actual =
+    await vi.importActual<typeof import("@repo/api/react")>("@repo/api/react");
   return actual;
 });
 
@@ -127,7 +126,6 @@ describe("useEmployeeRoster", () => {
           firstName: "Sarah",
           lastName: "Chen",
           email: "sarah.chen@ey-hr.com",
-          department: "Engineering",
           orgUnitId: "ou-1",
           orgUnitName: "Backend Team",
           jobTitle: "Senior Software Engineer",
@@ -141,7 +139,6 @@ describe("useEmployeeRoster", () => {
           firstName: "Lisa",
           lastName: "Brown",
           email: "lisa.brown@ey-hr.com",
-          department: "Finance",
           orgUnitId: null,
           orgUnitName: null,
           jobTitle: "Finance Director",

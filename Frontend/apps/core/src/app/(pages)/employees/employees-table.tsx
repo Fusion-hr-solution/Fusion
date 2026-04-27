@@ -45,7 +45,6 @@ const SORTABLE_COLUMNS: Array<{
 }> = [
   { field: "Name", label: "Name" },
   { field: "Email", label: "Email" },
-  { field: "Department", label: "Department" },
   { field: "Status", label: "Status" },
   { field: "HireDate", label: "Hire date", className: "text-right" },
 ];
@@ -176,7 +175,6 @@ export function EmployeesTable({
                 {getEmployeeName(employee)}
               </TableCell>
               <TableCell>{employee.email}</TableCell>
-              <TableCell>{renderValue(employee.department)}</TableCell>
               <TableCell>
                 <Badge
                   variant={
