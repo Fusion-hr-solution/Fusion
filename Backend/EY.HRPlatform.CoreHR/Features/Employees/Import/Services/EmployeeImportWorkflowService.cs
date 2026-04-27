@@ -1013,6 +1013,12 @@ public sealed class EmployeeImportWorkflowService(
             .Skip((currentPreviewPage - 1) * PreviewRowCount)
             .Take(PreviewRowCount)
             .ToList();
+        var canValidate =
+            session.Stage != EmployeeImportStage.Expired &&
+            session.Stage != EmployeeImportStage.Applied;
+        var canApply =
+            session.Stage == EmployeeImportStage.Validated &&
+            validationSummary.ErrorCount == 0;
 
         return new EmployeeImportSessionDto(
             session.Id,
@@ -1031,11 +1037,11 @@ public sealed class EmployeeImportWorkflowService(
             currentPreviewPage < previewPageCount,
             validationSummary,
             validationIssues,
-                session.AppliedAt,
+            session.AppliedAt,
             session.ExpiresAt,
             BuildSchema(),
-                session.Stage != EmployeeImportStage.Expired && session.Stage != EmployeeImportStage.Applied,
-                session.Stage == EmployeeImportStage.Validated && validationSummary.ErrorCount == 0);
+            canValidate,
+            canApply);
     }
 
     private static List<EmployeeImportPreviewRowDto> FilterPreviewRows(

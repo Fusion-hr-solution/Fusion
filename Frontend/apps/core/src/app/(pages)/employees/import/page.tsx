@@ -1564,17 +1564,29 @@ export default function EmployeeImportPage() {
       setApplyError(null);
       const result = await applyImport.mutateAsync({ sessionId: session.id });
       setLastApplyResult(result);
+      const shouldRefetchCurrentHistoryPage = historyPageNumber === 1;
       setHistoryPageNumber(1);
       setSelectedHistoryId(result.historyId);
 
-      await Promise.all([refetchSession(), refetchHistoryPage()]);
+      await refetchSession();
+
+      if (shouldRefetchCurrentHistoryPage) {
+        await refetchHistoryPage();
+      }
+
       toast.success("Employee import applied.");
     } catch (error) {
       const message = getErrorMessage(error);
       setApplyError(message);
       toast.error(message);
     }
-  }, [applyImport, refetchHistoryPage, refetchSession, session]);
+  }, [
+    applyImport,
+    historyPageNumber,
+    refetchHistoryPage,
+    refetchSession,
+    session,
+  ]);
 
   const scrollToPreviewRow = useCallback((rowNumber: number) => {
     requestAnimationFrame(() => {

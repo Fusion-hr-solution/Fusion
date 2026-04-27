@@ -112,8 +112,6 @@ public class EmployeeImportController(
         return Ok(ApiResponse<EmployeeImportSessionDto>.Success(session));
     }
 
-    private string GetActorRole()
-        => User.IsInRole(PlatformRole.PlatformAdmin)
-            ? PlatformRole.PlatformAdmin
-            : PlatformRole.HRAdmin;
+    private static string GetActorRole()
+        => PlatformRole.HRAdmin;
 }
