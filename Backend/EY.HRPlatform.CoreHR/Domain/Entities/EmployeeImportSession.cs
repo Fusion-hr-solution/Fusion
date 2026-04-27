@@ -27,6 +27,8 @@ public class EmployeeImportSession : BaseEntity, ITenantEntity
 
     public string? ValidationIssuesJson { get; private set; }
 
+    public DateTime? AppliedAt { get; private set; }
+
     public DateTime ExpiresAt { get; private set; }
 
     public static EmployeeImportSession CreatePreviewReady(
@@ -70,6 +72,7 @@ public class EmployeeImportSession : BaseEntity, ITenantEntity
     {
         NormalizedRowsJson = RequireJson(normalizedRowsJson, nameof(normalizedRowsJson));
         ValidationIssuesJson = RequireJson(validationIssuesJson, nameof(validationIssuesJson));
+        AppliedAt = null;
         Stage = EmployeeImportStage.Validated;
         Touch();
     }
@@ -77,6 +80,24 @@ public class EmployeeImportSession : BaseEntity, ITenantEntity
     public void MarkExpired()
     {
         Stage = EmployeeImportStage.Expired;
+        Touch();
+    }
+
+    public void MarkApplied(DateTime appliedAtUtc)
+    {
+        if (appliedAtUtc == default)
+            throw new ArgumentException("AppliedAt must be a valid date.", nameof(appliedAtUtc));
+
+        AppliedAt = appliedAtUtc.Kind switch
+        {
+            DateTimeKind.Utc => appliedAtUtc,
+            DateTimeKind.Local => appliedAtUtc.ToUniversalTime(),
+            _ => throw new ArgumentException(
+                "AppliedAt must have DateTimeKind.Utc or DateTimeKind.Local; Unspecified is not allowed.",
+                nameof(appliedAtUtc))
+        };
+
+        Stage = EmployeeImportStage.Applied;
         Touch();
     }
 
@@ -95,5 +116,6 @@ public enum EmployeeImportStage
 {
     PreviewReady,
     Validated,
+    Applied,
     Expired
 }

@@ -1,4 +1,8 @@
-export type EmployeeImportStage = "PreviewReady" | "Validated" | "Expired";
+export type EmployeeImportStage =
+  | "PreviewReady"
+  | "Validated"
+  | "Applied"
+  | "Expired";
 
 export type EmployeeImportPreviewFilter = "all" | "affected";
 
@@ -57,6 +61,60 @@ export interface EmployeeImportPreviewRowDto {
   managerEmail: string | null;
 }
 
+export interface EmployeeImportApplyResultDto {
+  sessionId: string;
+  historyId: string;
+  sourceFileName: string;
+  sourceRowCount: number;
+  validRowCount: number;
+  createdCount: number;
+  skippedCount: number;
+  appliedAt: string;
+  stage: EmployeeImportStage;
+}
+
+export interface EmployeeImportHistoryListItemDto {
+  id: string;
+  sessionId: string;
+  sourceFileName: string;
+  sourceFileSizeBytes: number;
+  sourceRowCount: number;
+  validRowCount: number;
+  createdCount: number;
+  skippedCount: number;
+  status: string;
+  appliedAt: string;
+  actorUserId: string;
+  actorFullName: string;
+  actorRole: string;
+}
+
+export interface EmployeeImportHistoryDetailDto {
+  id: string;
+  sessionId: string;
+  version: number;
+  sourceFileName: string;
+  sourceFileSizeBytes: number;
+  sourceRowCount: number;
+  validRowCount: number;
+  createdCount: number;
+  skippedCount: number;
+  status: string;
+  appliedAt: string;
+  actorUserId: string;
+  actorFullName: string;
+  actorRole: string;
+  failureReason: string | null;
+}
+
+export interface EmployeeImportHistoryPageDto {
+  items: EmployeeImportHistoryListItemDto[];
+  pageNumber: number;
+  pageSize: number;
+  totalCount: number;
+  pageCount: number;
+}
+
 export interface EmployeeImportSessionDto {
   id: string;
   stage: EmployeeImportStage;
@@ -74,7 +132,9 @@ export interface EmployeeImportSessionDto {
   hasMorePreviewRows: boolean;
   validationSummary: EmployeeImportValidationSummaryDto;
   validationIssues: EmployeeImportValidationIssueDto[];
+  appliedAt: string | null;
   expiresAt: string;
   employeeImportSchema: EmployeeImportSchemaDto;
   canValidate: boolean;
+  canApply: boolean;
 }

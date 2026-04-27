@@ -57,6 +57,43 @@ public class EmployeeImportController(
         return Ok(ApiResponse<EmployeeImportSessionDto>.Success(session));
     }
 
+    [HttpPost("{sessionId:guid}/apply")]
+    [ProducesResponseType(typeof(ApiResponse<EmployeeImportApplyResultDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> Apply(
+        Guid sessionId,
+        CancellationToken cancellationToken)
+    {
+        var result = await workflowService.ApplyAsync(
+            sessionId,
+            new EmployeeImportActorDto(
+                User.GetUserId(),
+                User.GetFullName(),
+                GetActorRole()),
+            cancellationToken);
+        return Ok(ApiResponse<EmployeeImportApplyResultDto>.Success(result));
+    }
+
+    [HttpGet("history")]
+    [ProducesResponseType(typeof(ApiResponse<EmployeeImportHistoryPageDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetHistory(
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 10,
+        CancellationToken cancellationToken = default)
+    {
+        var history = await workflowService.GetHistoryAsync(pageNumber, pageSize, cancellationToken);
+        return Ok(ApiResponse<EmployeeImportHistoryPageDto>.Success(history));
+    }
+
+    [HttpGet("history/{historyId:guid}")]
+    [ProducesResponseType(typeof(ApiResponse<EmployeeImportHistoryDetailDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetHistoryDetail(
+        Guid historyId,
+        CancellationToken cancellationToken = default)
+    {
+        var history = await workflowService.GetHistoryDetailAsync(historyId, cancellationToken);
+        return Ok(ApiResponse<EmployeeImportHistoryDetailDto>.Success(history));
+    }
+
     [HttpGet("{sessionId:guid}")]
     [ProducesResponseType(typeof(ApiResponse<EmployeeImportSessionDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetSession(
@@ -74,4 +111,9 @@ public class EmployeeImportController(
             cancellationToken);
         return Ok(ApiResponse<EmployeeImportSessionDto>.Success(session));
     }
+
+    private string GetActorRole()
+        => User.IsInRole(PlatformRole.PlatformAdmin)
+            ? PlatformRole.PlatformAdmin
+            : PlatformRole.HRAdmin;
 }

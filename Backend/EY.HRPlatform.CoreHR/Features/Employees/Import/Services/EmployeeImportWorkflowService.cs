@@ -33,6 +33,17 @@ public interface IEmployeeImportWorkflowService
         string previewFilter,
         string? groupKey,
         CancellationToken cancellationToken);
+    Task<EmployeeImportApplyResultDto> ApplyAsync(
+        Guid sessionId,
+        EmployeeImportActorDto actor,
+        CancellationToken cancellationToken);
+    Task<EmployeeImportHistoryPageDto> GetHistoryAsync(
+        int pageNumber,
+        int pageSize,
+        CancellationToken cancellationToken);
+    Task<EmployeeImportHistoryDetailDto> GetHistoryDetailAsync(
+        Guid historyId,
+        CancellationToken cancellationToken);
 }
 
 public sealed class EmployeeImportWorkflowService(
@@ -43,6 +54,7 @@ public sealed class EmployeeImportWorkflowService(
     private const int MaxRowCount = 5000;
     private const int SampleRowCount = 12;
     private const int PreviewRowCount = 25;
+    private const int MaxHistoryPageSize = 50;
     private static readonly TimeSpan SessionLifetime = TimeSpan.FromHours(2);
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private static readonly IReadOnlyList<EmployeeImportCanonicalFieldDto> CanonicalFields =
@@ -187,6 +199,11 @@ public sealed class EmployeeImportWorkflowService(
 
         await MarkExpiredIfNeededAsync(session, cancellationToken);
 
+        if (session.Stage == EmployeeImportStage.Applied)
+        {
+            throw new ArgumentException("This employee import session has already been applied.", nameof(sessionId));
+        }
+
         if (session.Stage == EmployeeImportStage.Expired)
         {
             throw new ArgumentException("Upload expired. Upload the file again to continue.", nameof(sessionId));
@@ -214,6 +231,197 @@ public sealed class EmployeeImportWorkflowService(
             groupKey);
     }
 
+    public async Task<EmployeeImportApplyResultDto> ApplyAsync(
+        Guid sessionId,
+        EmployeeImportActorDto actor,
+        CancellationToken cancellationToken)
+    {
+        await EnsureImportAvailableAsync(cancellationToken);
+
+        var session = await dbContext.EmployeeImportSessions
+            .FirstOrDefaultAsync(current => current.Id == sessionId, cancellationToken)
+            ?? throw new EntityNotFoundException(nameof(EmployeeImportSession), sessionId);
+
+        await MarkExpiredIfNeededAsync(session, cancellationToken);
+
+        if (session.Stage == EmployeeImportStage.Applied)
+        {
+            throw new ArgumentException("This employee import session has already been applied.", nameof(sessionId));
+        }
+
+        if (session.Stage == EmployeeImportStage.Expired)
+        {
+            throw new ArgumentException("Upload expired. Upload the file again to continue.", nameof(sessionId));
+        }
+
+        if (session.Stage != EmployeeImportStage.Validated)
+        {
+            throw new ArgumentException("Validate the import before applying it.", nameof(sessionId));
+        }
+
+        var validationIssues = ReadRequiredValidationIssues(session);
+        if (validationIssues.Any(issue => issue.Severity.Equals("error", StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new ArgumentException("The import contains validation errors. Fix them before applying.", nameof(sessionId));
+        }
+
+        var normalizedRows = ReadNormalizedRows(session);
+        if (normalizedRows.Count == 0)
+        {
+            throw new ArgumentException("The import does not contain any valid employee rows to apply.", nameof(sessionId));
+        }
+
+        var sourceRows = ReadSourceRows(session);
+        var importedEmails = normalizedRows
+            .Select(row => row.Email)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var duplicateEmails = await dbContext.Employees
+            .AsNoTracking()
+            .Where(employee => importedEmails.Contains(employee.Email))
+            .Select(employee => employee.Email)
+            .OrderBy(email => email)
+            .ToListAsync(cancellationToken);
+
+        if (duplicateEmails.Count > 0)
+        {
+            throw new ArgumentException(
+                "One or more employee emails already exist in this tenant. Validate the file again before applying.",
+                nameof(sessionId));
+        }
+
+        var useTransaction = !string.Equals(
+            dbContext.Database.ProviderName,
+            "Microsoft.EntityFrameworkCore.InMemory",
+            StringComparison.OrdinalIgnoreCase);
+        await using var transaction = useTransaction
+            ? await dbContext.Database.BeginTransactionAsync(cancellationToken)
+            : null;
+
+        var employeesByEmail = new Dictionary<string, Employee>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var row in normalizedRows)
+        {
+            var employee = Employee.Create(
+                tenantContext.TenantId,
+                row.FirstName,
+                row.LastName,
+                row.Email,
+                row.HireDate,
+                null,
+                row.JobTitle);
+
+            if (row.OrgUnitId.HasValue)
+            {
+                employee.AssignOrgUnit(row.OrgUnitId);
+            }
+
+            employeesByEmail.Add(row.Email, employee);
+            dbContext.Employees.Add(employee);
+        }
+
+        foreach (var row in normalizedRows.Where(current => !string.IsNullOrWhiteSpace(current.ManagerEmail)))
+        {
+            var employee = employeesByEmail[row.Email];
+            var managerId = row.ExistingManagerId;
+
+            if (!managerId.HasValue)
+            {
+                if (!employeesByEmail.TryGetValue(row.ManagerEmail!, out var sameFileManager))
+                {
+                    throw new ArgumentException(
+                        "The saved import session is no longer valid. Validate the file again before applying.",
+                        nameof(sessionId));
+                }
+
+                managerId = sameFileManager.Id;
+            }
+
+            employee.AssignManager(managerId);
+        }
+
+        var appliedAt = DateTime.UtcNow;
+        var history = EmployeeImportHistory.CreateApplied(
+            tenantContext.TenantId,
+            session.Id,
+            session.SourceFileName,
+            session.SourceFileSizeBytes,
+            sourceRows.Count,
+            normalizedRows.Count,
+            normalizedRows.Count,
+            0,
+            appliedAt,
+            actor.UserId,
+            actor.FullName,
+            actor.Role);
+
+        dbContext.EmployeeImportHistories.Add(history);
+        session.MarkApplied(appliedAt);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        if (transaction is not null)
+        {
+            await transaction.CommitAsync(cancellationToken);
+        }
+
+        return new EmployeeImportApplyResultDto(
+            session.Id,
+            history.Id,
+            session.SourceFileName,
+            sourceRows.Count,
+            normalizedRows.Count,
+            normalizedRows.Count,
+            0,
+            appliedAt,
+            session.Stage);
+    }
+
+    public async Task<EmployeeImportHistoryPageDto> GetHistoryAsync(
+        int pageNumber,
+        int pageSize,
+        CancellationToken cancellationToken)
+    {
+        await EnsureImportAvailableAsync(cancellationToken);
+
+        var currentPageSize = Math.Clamp(pageSize, 1, MaxHistoryPageSize);
+        var query = dbContext.EmployeeImportHistories
+            .AsNoTracking()
+            .OrderByDescending(history => history.AppliedAt)
+            .ThenByDescending(history => history.CreatedAt);
+
+        var totalCount = await query.CountAsync(cancellationToken);
+        var pageCount = Math.Max(1, (int)Math.Ceiling(totalCount / (double)currentPageSize));
+        var currentPageNumber = Math.Min(Math.Max(pageNumber, 1), pageCount);
+
+        var items = await query
+            .Skip((currentPageNumber - 1) * currentPageSize)
+            .Take(currentPageSize)
+            .Select(history => BuildHistoryListItemDto(history))
+            .ToListAsync(cancellationToken);
+
+        return new EmployeeImportHistoryPageDto(
+            items,
+            currentPageNumber,
+            currentPageSize,
+            totalCount,
+            pageCount);
+    }
+
+    public async Task<EmployeeImportHistoryDetailDto> GetHistoryDetailAsync(
+        Guid historyId,
+        CancellationToken cancellationToken)
+    {
+        await EnsureImportAvailableAsync(cancellationToken);
+
+        var history = await dbContext.EmployeeImportHistories
+            .AsNoTracking()
+            .FirstOrDefaultAsync(current => current.Id == historyId, cancellationToken)
+            ?? throw new EntityNotFoundException(nameof(EmployeeImportHistory), historyId);
+
+        return BuildHistoryDetailDto(history);
+    }
+
     private async Task EnsureImportAvailableAsync(CancellationToken cancellationToken)
     {
         var setupState = await dbContext.TenantSetupStates
@@ -229,7 +437,9 @@ public sealed class EmployeeImportWorkflowService(
 
     private async Task MarkExpiredIfNeededAsync(EmployeeImportSession session, CancellationToken cancellationToken)
     {
-        if (session.Stage == EmployeeImportStage.Expired || session.ExpiresAt > DateTime.UtcNow)
+        if (session.Stage == EmployeeImportStage.Expired
+            || session.Stage == EmployeeImportStage.Applied
+            || session.ExpiresAt > DateTime.UtcNow)
         {
             return;
         }
@@ -789,7 +999,7 @@ public sealed class EmployeeImportWorkflowService(
         var validationSummary = BuildValidationSummary(
             sourceRows.Count,
             validationIssues,
-            session.Stage == EmployeeImportStage.Validated);
+            session.Stage is EmployeeImportStage.Validated or EmployeeImportStage.Applied);
         var filteredPreviewRows = FilterPreviewRows(
             previewRows,
             validationIssues,
@@ -821,9 +1031,11 @@ public sealed class EmployeeImportWorkflowService(
             currentPreviewPage < previewPageCount,
             validationSummary,
             validationIssues,
+                session.AppliedAt,
             session.ExpiresAt,
             BuildSchema(),
-            session.Stage != EmployeeImportStage.Expired);
+                session.Stage != EmployeeImportStage.Expired && session.Stage != EmployeeImportStage.Applied,
+                session.Stage == EmployeeImportStage.Validated && validationSummary.ErrorCount == 0);
     }
 
     private static List<EmployeeImportPreviewRowDto> FilterPreviewRows(
@@ -884,10 +1096,77 @@ public sealed class EmployeeImportWorkflowService(
     private static T? Deserialize<T>(string json)
         => JsonSerializer.Deserialize<T>(json, JsonOptions);
 
+    private static List<EmployeeImportSourceRowDto> ReadSourceRows(EmployeeImportSession session)
+        => ReadRequiredPayload<List<EmployeeImportSourceRowDto>>(
+            session.SourceRowsJson,
+            "The saved import session is no longer valid. Upload the file again.");
+
+    private static List<StoredNormalizedRow> ReadNormalizedRows(EmployeeImportSession session)
+        => ReadRequiredPayload<List<StoredNormalizedRow>>(
+            session.NormalizedRowsJson,
+            "The saved import session is no longer valid. Validate the file again before applying.");
+
     private static List<StoredValidationIssue> ReadValidationIssues(EmployeeImportSession session)
         => string.IsNullOrWhiteSpace(session.ValidationIssuesJson)
             ? []
             : Deserialize<List<StoredValidationIssue>>(session.ValidationIssuesJson) ?? [];
+
+    private static List<StoredValidationIssue> ReadRequiredValidationIssues(EmployeeImportSession session)
+        => ReadRequiredPayload<List<StoredValidationIssue>>(
+            session.ValidationIssuesJson,
+            "The saved import session is no longer valid. Validate the file again before applying.");
+
+    private static T ReadRequiredPayload<T>(string? json, string invalidMessage)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            throw new ArgumentException(invalidMessage);
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<T>(json, JsonOptions)
+                ?? throw new ArgumentException(invalidMessage);
+        }
+        catch (JsonException ex)
+        {
+            throw new ArgumentException(invalidMessage, ex);
+        }
+    }
+
+    private static EmployeeImportHistoryListItemDto BuildHistoryListItemDto(EmployeeImportHistory history)
+        => new(
+            history.Id,
+            history.SessionId,
+            history.SourceFileName,
+            history.SourceFileSizeBytes,
+            history.SourceRowCount,
+            history.ValidRowCount,
+            history.CreatedCount,
+            history.SkippedCount,
+            history.Status,
+            history.AppliedAt,
+            history.ActorUserId,
+            history.ActorFullName,
+            history.ActorRole);
+
+    private static EmployeeImportHistoryDetailDto BuildHistoryDetailDto(EmployeeImportHistory history)
+        => new(
+            history.Id,
+            history.SessionId,
+            history.Version,
+            history.SourceFileName,
+            history.SourceFileSizeBytes,
+            history.SourceRowCount,
+            history.ValidRowCount,
+            history.CreatedCount,
+            history.SkippedCount,
+            history.Status,
+            history.AppliedAt,
+            history.ActorUserId,
+            history.ActorFullName,
+            history.ActorRole,
+            history.FailureReason);
 
     private static string? ReadValue(EmployeeImportSourceRowDto row, string key)
     {
