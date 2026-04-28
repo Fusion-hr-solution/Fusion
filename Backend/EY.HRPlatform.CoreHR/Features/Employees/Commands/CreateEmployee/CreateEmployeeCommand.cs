@@ -12,7 +12,6 @@ public sealed record CreateEmployeeCommand(
     string LastName,
     string Email,
     DateTime HireDate,
-    string? Department = null,
     string? JobTitle = null,
     Guid? ManagerId = null,
     Guid? OrgUnitId = null) : ICommand<Result<EmployeeDto>>;

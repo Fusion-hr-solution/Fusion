@@ -11,14 +11,14 @@ public class EmployeesControllerAuthorizationTests
     [InlineData(nameof(EmployeesController.Create))]
     [InlineData(nameof(EmployeesController.Update))]
     [InlineData(nameof(EmployeesController.Deactivate))]
-    public void WriteEndpoints_RequirePlatformAdminOrHrAdmin(string methodName)
+    public void WriteEndpoints_RequireHrAdmin(string methodName)
     {
         var method = GetControllerMethod(methodName);
 
         var authorizeAttribute = method.GetCustomAttribute<AuthorizeAttribute>(inherit: false);
 
         Assert.NotNull(authorizeAttribute);
-        Assert.Equal($"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin}", authorizeAttribute.Roles);
+        Assert.Equal(PlatformRole.HRAdmin, authorizeAttribute.Roles);
     }
 
     [Fact]

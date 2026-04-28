@@ -1,7 +1,6 @@
 import {
   LayoutDashboard,
   Users,
-  Building2,
   Briefcase,
   Building,
   ClipboardList,
@@ -14,7 +13,6 @@ export const PEOPLE_NAV: NavSection = {
   items: [
     { label: "Dashboard", href: "/", icon: LayoutDashboard },
     { label: "Employees", href: "/employees", icon: Users },
-    { label: "Departments", href: "/departments", icon: Building2 },
     { label: "Positions", href: "/positions", icon: Briefcase },
   ],
 };

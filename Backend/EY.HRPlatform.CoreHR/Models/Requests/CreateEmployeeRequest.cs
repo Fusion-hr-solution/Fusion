@@ -10,7 +10,6 @@ public sealed record CreateEmployeeRequest(
     [Required] string LastName,
     [Required, EmailAddress] string Email,
     [Required] DateTime HireDate,
-    string? Department = null,
     string? JobTitle = null,
     Guid? ManagerId = null,
     Guid? OrgUnitId = null);

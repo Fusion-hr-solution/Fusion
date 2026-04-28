@@ -4,7 +4,10 @@ using EY.HRPlatform.CoreHR.Exceptions;
 using EY.HRPlatform.CoreHR.Features.Employees.Commands.CreateEmployee;
 using EY.HRPlatform.CoreHR.Features.Employees.Commands.DeactivateEmployee;
 using EY.HRPlatform.CoreHR.Features.Employees.Commands.UpdateEmployee;
+using EY.HRPlatform.CoreHR.Features.Employees.Services;
 using EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployeeById;
+using EY.HRPlatform.CoreHR.Features.TenantSettings.Services;
+using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
 using EY.HRPlatform.CoreHR.Tests.TestHelpers;
 using Microsoft.EntityFrameworkCore;
 
@@ -29,7 +32,6 @@ public class EmployeeHandlerTests
             "Doe",
             "john.doe@example.com",
             DateTime.UtcNow.AddDays(-30),
-            "Engineering",
             "Developer");
 
         // Act
@@ -238,7 +240,7 @@ public class EmployeeHandlerTests
         await seedContext.SaveChangesAsync();
 
         await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new GetEmployeeByIdQueryHandler(context);
+        var handler = CreateGetEmployeeByIdHandler(context);
         var query = new GetEmployeeByIdQuery(employee.Id);
 
         // Act
@@ -267,7 +269,7 @@ public class EmployeeHandlerTests
         await seedContext.SaveChangesAsync();
 
         await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new GetEmployeeByIdQueryHandler(context);
+        var handler = CreateGetEmployeeByIdHandler(context);
         var query = new GetEmployeeByIdQuery(employee.Id);
 
         // Act
@@ -286,7 +288,7 @@ public class EmployeeHandlerTests
         var tenantContext = TestTenantContext.WithTenant(TenantId);
         await using var context = TestDbContextFactory.Create(tenantContext);
 
-        var handler = new GetEmployeeByIdQueryHandler(context);
+        var handler = CreateGetEmployeeByIdHandler(context);
         var query = new GetEmployeeByIdQuery(Guid.NewGuid());
 
         // Act
@@ -312,7 +314,7 @@ public class EmployeeHandlerTests
 
         var tenantContext = TestTenantContext.WithTenant(tenantB); // Different tenant
         await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new GetEmployeeByIdQueryHandler(context);
+        var handler = CreateGetEmployeeByIdHandler(context);
         var query = new GetEmployeeByIdQuery(employee.Id);
 
         // Act
@@ -347,7 +349,6 @@ public class EmployeeHandlerTests
             "Jane",
             "Smith",
             "jane.smith@example.com",
-            "HR",
             "Manager",
             null);
 
@@ -359,7 +360,7 @@ public class EmployeeHandlerTests
         Assert.Equal("Jane", result.Value.FirstName);
         Assert.Equal("Smith", result.Value.LastName);
         Assert.Equal("jane.smith@example.com", result.Value.Email);
-        Assert.Equal("HR", result.Value.Department);
+        Assert.Equal("Manager", result.Value.JobTitle);
     }
 
     [Fact]
@@ -376,7 +377,6 @@ public class EmployeeHandlerTests
             "Jane",
             "Smith",
             "jane@example.com",
-            null,
             null,
             null);
 
@@ -408,7 +408,6 @@ public class EmployeeHandlerTests
             "Smith",
             "jane@example.com",
             null,
-            null,
             null);
 
         // Act & Assert
@@ -439,7 +438,6 @@ public class EmployeeHandlerTests
             "Jane",  // New first name
             null,    // Keep existing last name
             null,    // Keep existing email
-            null,    // Keep existing department
             null,    // Keep existing job title
             null);   // Keep existing manager
 
@@ -451,7 +449,6 @@ public class EmployeeHandlerTests
         Assert.Equal("Jane", result.Value.FirstName);        // Changed
         Assert.Equal("Doe", result.Value.LastName);          // Preserved
         Assert.Equal("john@example.com", result.Value.Email); // Preserved
-        Assert.Equal("Engineering", result.Value.Department); // Preserved
         Assert.Equal("Developer", result.Value.JobTitle);     // Preserved
     }
 
@@ -475,7 +472,6 @@ public class EmployeeHandlerTests
         var command = new UpdateEmployeeCommand(
             employee.Id,
             version,
-            null,
             null,
             null,
             null,
@@ -518,7 +514,6 @@ public class EmployeeHandlerTests
             null,
             null,
             null,
-            null,
             Guid.Empty);
 
         // Act
@@ -528,6 +523,40 @@ public class EmployeeHandlerTests
         Assert.True(result.IsSuccess);
         Assert.Null(result.Value.OrgUnitId);
         Assert.Null(result.Value.OrgUnitName);
+    }
+
+    [Fact]
+    public async Task UpdateEmployee_WhenManagerAssignmentWouldCreateCycle_ThrowsArgumentException()
+    {
+        // Arrange
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+        var manager = Employee.Create(TenantId, "Alex", "Manager", "alex.manager@example.com", DateTime.UtcNow);
+        var report = Employee.Create(TenantId, "Sarah", "Report", "sarah.report@example.com", DateTime.UtcNow);
+        report.AssignManager(manager.Id);
+        seedContext.Employees.AddRange(manager, report);
+        await seedContext.SaveChangesAsync();
+        var managerVersion = manager.Version;
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = new UpdateEmployeeCommandHandler(context);
+        var command = new UpdateEmployeeCommand(
+            manager.Id,
+            managerVersion,
+            null,
+            null,
+            null,
+            null,
+            report.Id,
+            null);
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<ArgumentException>(
+            () => handler.Handle(command, CancellationToken.None));
+
+        Assert.Contains("cycle", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     #endregion
@@ -599,5 +628,34 @@ public class EmployeeHandlerTests
             () => handler.Handle(command, CancellationToken.None));
     }
 
+    [Fact]
+    public async Task DeactivateEmployee_WithActiveDirectReports_ThrowsArgumentException()
+    {
+        // Arrange
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+        var manager = Employee.Create(TenantId, "Alex", "Manager", "alex.manager@example.com", DateTime.UtcNow);
+        var report = Employee.Create(TenantId, "Sarah", "Report", "sarah.report@example.com", DateTime.UtcNow);
+        report.AssignManager(manager.Id);
+        seedContext.Employees.AddRange(manager, report);
+        await seedContext.SaveChangesAsync();
+        var managerVersion = manager.Version;
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = new DeactivateEmployeeCommandHandler(context);
+        var command = new DeactivateEmployeeCommand(manager.Id, managerVersion);
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<ArgumentException>(
+            () => handler.Handle(command, CancellationToken.None));
+
+        Assert.Contains("direct reports", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
     #endregion
+
+    private static GetEmployeeByIdQueryHandler CreateGetEmployeeByIdHandler(CoreHRDbContext context)
+        => new(context, new EmployeeReadModelPolicy(), new TenantSettingsReadService(context));
 }

@@ -1,8 +1,12 @@
 "use client";
 
-import { ArrowDown, ArrowUp, ArrowUpDown, Users } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import {
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+  type SortingState,
+} from "@tanstack/react-table";
+import { Users } from "lucide-react";
 import {
   Empty,
   EmptyDescription,
@@ -19,97 +23,36 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type {
-  EmployeeRosterItem,
-  EmployeeRosterSortDirection,
-  EmployeeRosterSortField,
-} from "./employee-roster.types";
+import { employeeColumns } from "./columns";
+import type { EmployeeRosterItem } from "./employee-roster.types";
 
 interface EmployeesTableProps {
   data: EmployeeRosterItem[];
   isLoading: boolean;
   isRefetching: boolean;
-  sortBy: EmployeeRosterSortField;
-  sortDir: EmployeeRosterSortDirection;
-  onSortChange: (field: EmployeeRosterSortField) => void;
-}
-
-const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
-  dateStyle: "medium",
-});
-
-const SORTABLE_COLUMNS: Array<{
-  field: EmployeeRosterSortField;
-  label: string;
-  className?: string;
-}> = [
-  { field: "Name", label: "Name" },
-  { field: "Email", label: "Email" },
-  { field: "Department", label: "Department" },
-  { field: "Status", label: "Status" },
-  { field: "HireDate", label: "Hire date", className: "text-right" },
-];
-
-function getAriaSort(
-  field: EmployeeRosterSortField,
-  activeField: EmployeeRosterSortField,
-  direction: EmployeeRosterSortDirection
-): "ascending" | "descending" | "none" {
-  if (field !== activeField) {
-    return "none";
-  }
-
-  return direction === "Asc" ? "ascending" : "descending";
-}
-
-function getSortHint(
-  field: EmployeeRosterSortField,
-  activeField: EmployeeRosterSortField,
-  direction: EmployeeRosterSortDirection
-) {
-  if (field !== activeField) {
-    return "Not sorted";
-  }
-
-  return direction === "Asc" ? "Sorted ascending" : "Sorted descending";
-}
-
-function getSortIcon(
-  field: EmployeeRosterSortField,
-  activeField: EmployeeRosterSortField,
-  direction: EmployeeRosterSortDirection
-) {
-  if (field !== activeField) {
-    return <ArrowUpDown className="size-3.5" />;
-  }
-
-  return direction === "Asc" ? (
-    <ArrowUp className="size-3.5" />
-  ) : (
-    <ArrowDown className="size-3.5" />
-  );
-}
-
-function formatDate(value: string) {
-  return DATE_FORMATTER.format(new Date(value));
-}
-
-function getEmployeeName(employee: EmployeeRosterItem) {
-  return `${employee.firstName} ${employee.lastName}`;
-}
-
-function renderValue(value: string | null) {
-  return value?.trim() || "Not set";
+  sorting: SortingState;
+  onSortingChange: (sorting: SortingState) => void;
 }
 
 export function EmployeesTable({
   data,
   isLoading,
   isRefetching,
-  sortBy,
-  sortDir,
-  onSortChange,
+  sorting,
+  onSortingChange,
 }: EmployeesTableProps) {
+  const table = useReactTable({
+    data,
+    columns: employeeColumns,
+    state: { sorting },
+    onSortingChange: (updater) => {
+      const next = typeof updater === "function" ? updater(sorting) : updater;
+      onSortingChange(next);
+    },
+    getCoreRowModel: getCoreRowModel(),
+    manualSorting: true,
+  });
+
   if (isLoading && !isRefetching) {
     return (
       <div className="space-y-2">
@@ -144,55 +87,35 @@ export function EmployeesTable({
 
       <Table>
         <TableHeader>
-          <TableRow>
-            {SORTABLE_COLUMNS.map((column) => (
-              <TableHead
-                key={column.field}
-                className={column.className}
-                aria-sort={getAriaSort(column.field, sortBy, sortDir)}
-              >
-                <Button
-                  variant="ghost"
-                  className="-ml-3 h-8 gap-1 px-3"
-                  onClick={() => onSortChange(column.field)}
+          {table.getHeaderGroups().map((headerGroup) => (
+            <TableRow key={headerGroup.id}>
+              {headerGroup.headers.map((header) => (
+                <TableHead
+                  key={header.id}
+                  className={
+                    header.column.id === "HireDate" ? "text-right" : undefined
+                  }
                 >
-                  {column.label}
-                  {getSortIcon(column.field, sortBy, sortDir)}
-                  <span className="sr-only">
-                    {getSortHint(column.field, sortBy, sortDir)}
-                  </span>
-                </Button>
-              </TableHead>
-            ))}
-            <TableHead>Job title</TableHead>
-            <TableHead>Org unit</TableHead>
-          </TableRow>
+                  {header.isPlaceholder
+                    ? null
+                    : flexRender(
+                        header.column.columnDef.header,
+                        header.getContext()
+                      )}
+                </TableHead>
+              ))}
+            </TableRow>
+          ))}
         </TableHeader>
 
         <TableBody>
-          {data.map((employee) => (
-            <TableRow key={employee.id}>
-              <TableCell className="font-medium">
-                {getEmployeeName(employee)}
-              </TableCell>
-              <TableCell>{employee.email}</TableCell>
-              <TableCell>{renderValue(employee.department)}</TableCell>
-              <TableCell>
-                <Badge
-                  variant={
-                    employee.status === "Active" ? "secondary" : "outline"
-                  }
-                >
-                  {employee.status}
-                </Badge>
-              </TableCell>
-              <TableCell className="text-right tabular-nums">
-                {formatDate(employee.hireDate)}
-              </TableCell>
-              <TableCell>{renderValue(employee.jobTitle)}</TableCell>
-              <TableCell className="text-muted-foreground">
-                {employee.orgUnitName ?? "—"}
-              </TableCell>
+          {table.getRowModel().rows.map((row) => (
+            <TableRow key={row.id}>
+              {row.getVisibleCells().map((cell) => (
+                <TableCell key={cell.id}>
+                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                </TableCell>
+              ))}
             </TableRow>
           ))}
         </TableBody>

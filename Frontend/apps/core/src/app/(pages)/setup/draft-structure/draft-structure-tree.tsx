@@ -6,6 +6,7 @@ import {
   Building2,
   ChevronDown,
   ChevronRight,
+  Download,
   FolderTree,
   Plus,
 } from "lucide-react";
@@ -23,6 +24,8 @@ interface DraftStructureTreeProps {
   emptyTitle: string;
   emptyDescription: string;
   readOnly?: boolean;
+  onDownloadCsv?: () => void;
+  isDownloadDisabled?: boolean;
   onAddRoot?: () => void;
   onAddChild?: (node: DraftStructureTreeNodeModel) => void;
 }
@@ -34,6 +37,8 @@ export function DraftStructureTree({
   emptyTitle,
   emptyDescription,
   readOnly = false,
+  onDownloadCsv,
+  isDownloadDisabled = false,
   onAddRoot,
   onAddChild,
 }: DraftStructureTreeProps) {
@@ -60,7 +65,7 @@ export function DraftStructureTree({
   return (
     <div className="flex h-full min-h-128 flex-col overflow-hidden rounded-2xl border bg-card">
       <div className="border-b p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
               Structure
@@ -71,12 +76,27 @@ export function DraftStructureTree({
             </div>
           </div>
 
-          {!readOnly && onAddRoot ? (
-            <Button size="sm" onClick={onAddRoot}>
-              <Plus className="size-4" />
-              Add top-level unit
-            </Button>
-          ) : null}
+          <div className="flex flex-wrap gap-2">
+            {onDownloadCsv ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={onDownloadCsv}
+                disabled={isDownloadDisabled}
+              >
+                <Download className="size-4" />
+                Download CSV
+              </Button>
+            ) : null}
+
+            {!readOnly && onAddRoot ? (
+              <Button type="button" size="sm" onClick={onAddRoot}>
+                <Plus className="size-4" />
+                Add top-level unit
+              </Button>
+            ) : null}
+          </div>
         </div>
 
         <p className="mt-3 text-sm text-muted-foreground">
@@ -178,9 +198,13 @@ function TreeBranch({
             onClick={() => onSelect(node)}
           >
             <div className="flex flex-wrap items-center gap-2">
-              <span className="font-medium text-foreground">{node.displayName}</span>
+              <span className="font-medium text-foreground">
+                {node.displayName}
+              </span>
               <Badge variant="secondary">{node.orgUnitKindLabel}</Badge>
-              {node.isOrphaned ? <Badge variant="outline">Missing parent</Badge> : null}
+              {node.isOrphaned ? (
+                <Badge variant="outline">Missing parent</Badge>
+              ) : null}
               {node.issueSummary.errorCount > 0 ? (
                 <Badge variant="destructive">
                   <AlertTriangle className="size-3" />

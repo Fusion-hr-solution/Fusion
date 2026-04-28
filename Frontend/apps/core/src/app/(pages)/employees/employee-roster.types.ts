@@ -1,11 +1,6 @@
 export type EmployeeRosterStatus = "Active" | "Inactive";
 
-export type EmployeeRosterSortField =
-  | "Name"
-  | "Email"
-  | "Department"
-  | "HireDate"
-  | "Status";
+export type EmployeeRosterSortField = "Name" | "Email" | "HireDate" | "Status";
 
 export type EmployeeRosterSortDirection = "Asc" | "Desc";
 
@@ -14,7 +9,6 @@ export interface EmployeeRosterItem {
   firstName: string;
   lastName: string;
   email: string;
-  department: string | null;
   orgUnitId: string | null;
   orgUnitName: string | null;
   jobTitle: string | null;

@@ -1,6 +1,7 @@
 using EY.HRPlatform.CoreHR.Domain.Entities;
 using EY.HRPlatform.CoreHR.Exceptions;
 using EY.HRPlatform.CoreHR.Features.Employees.Dtos;
+using EY.HRPlatform.CoreHR.Features.Employees.Services;
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
 using EY.HRPlatform.SharedKernel.CQRS;
 using EY.HRPlatform.SharedKernel.Results;
@@ -9,8 +10,11 @@ using Microsoft.EntityFrameworkCore;
 namespace EY.HRPlatform.CoreHR.Features.Employees.Commands.UpdateEmployee;
 
 public sealed class UpdateEmployeeCommandHandler(
-    CoreHRDbContext dbContext) : ICommandHandler<UpdateEmployeeCommand, Result<EmployeeDto>>
+    CoreHRDbContext dbContext,
+    IEmployeeHierarchyService? employeeHierarchyService = null) : ICommandHandler<UpdateEmployeeCommand, Result<EmployeeDto>>
 {
+    private readonly IEmployeeHierarchyService employeeHierarchyService = employeeHierarchyService ?? new EmployeeHierarchyService(dbContext);
+
     public async Task<Result<EmployeeDto>> Handle(UpdateEmployeeCommand request, CancellationToken cancellationToken)
     {
         var employee = await dbContext.Employees
@@ -31,7 +35,6 @@ public sealed class UpdateEmployeeCommandHandler(
         var firstName = request.FirstName ?? employee.FirstName;
         var lastName = request.LastName ?? employee.LastName;
         var email = request.Email ?? employee.Email;
-        var department = request.Department ?? employee.Department;
         var jobTitle = request.JobTitle ?? employee.JobTitle;
 
         var normalizedEmail = email.Trim().ToLowerInvariant();
@@ -45,18 +48,6 @@ public sealed class UpdateEmployeeCommandHandler(
             if (emailExists)
             {
                 throw new DuplicateEntityException("Employee", "email", normalizedEmail);
-            }
-        }
-
-        // Validate manager exists (only if manager is being changed)
-        if (request.ManagerId.HasValue && request.ManagerId.Value != Guid.Empty)
-        {
-            var managerExists = await dbContext.Employees
-                .AnyAsync(e => e.Id == request.ManagerId.Value, cancellationToken);
-
-            if (!managerExists)
-            {
-                throw new EntityNotFoundException("Manager", request.ManagerId.Value);
             }
         }
 
@@ -78,11 +69,15 @@ public sealed class UpdateEmployeeCommandHandler(
         }
 
         // Update employee details
-        employee.UpdateDetails(firstName, lastName, email, department, jobTitle);
+        employee.UpdateDetails(firstName, lastName, email, employee.Department, jobTitle);
 
         // Update manager only if explicitly provided in request
         if (request.ManagerId.HasValue)
         {
+            await employeeHierarchyService.EnsureManagerAssignmentIsValidAsync(
+                employee.Id,
+                request.ManagerId,
+                cancellationToken);
             employee.AssignManager(request.ManagerId.Value);
         }
 
@@ -127,7 +122,6 @@ public sealed class UpdateEmployeeCommandHandler(
         employee.FirstName,
         employee.LastName,
         employee.Email,
-        employee.Department,
         employee.OrgUnitId,
         orgUnit?.Name,
         employee.JobTitle,

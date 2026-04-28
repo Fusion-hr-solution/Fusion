@@ -24,9 +24,7 @@ build
 .env.production.local
 
 # IDE
-.vscode/*
-!.vscode/settings.json
-!.vscode/extensions.json
+.vscode/
 .idea
 
 # OS

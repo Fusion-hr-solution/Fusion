@@ -1,6 +1,7 @@
 ﻿using System.Security.Cryptography;
 using EY.HRPlatform.Identity.Domain.Entities;
 using EY.HRPlatform.Identity.Infrastructure.Persistence;
+using EY.HRPlatform.Identity.Infrastructure.Services;
 using EY.HRPlatform.Identity.Models.Requests;
 using EY.HRPlatform.Identity.Models.Responses;
 using EY.HRPlatform.SharedKernel.Auth;
@@ -18,11 +19,16 @@ public class UsersController : ControllerBase
 {
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly AppIdentityDbContext _dbContext;
+    private readonly ITrainingServiceClient _trainingClient;
 
-    public UsersController(UserManager<ApplicationUser> userManager, AppIdentityDbContext dbContext)
+    public UsersController(
+        UserManager<ApplicationUser> userManager,
+        AppIdentityDbContext dbContext,
+        ITrainingServiceClient trainingClient)
     {
         _userManager = userManager;
         _dbContext = dbContext;
+        _trainingClient = trainingClient;
     }
 
     /// <summary>
@@ -180,6 +186,10 @@ public class UsersController : ControllerBase
             TemporaryPassword = temporaryPassword // Only returned on creation
         };
 
+        // Fire-and-forget: provision empty EmployeeProfile in Training service
+        if (role == PlatformRole.Employee)
+            _ = _trainingClient.ProvisionEmployeeAsync(user.Id);
+
         return CreatedAtAction(nameof(GetById), new { id = user.Id },
             ApiResponse<UserDto>.Success(dto));
     }
@@ -218,6 +228,10 @@ public class UsersController : ControllerBase
         if (!result.Succeeded)
             return BadRequest(ApiResponse.Failure(
                 result.Errors.Select(e => e.Description).ToArray()));
+
+        // Fire-and-forget: provision empty EmployeeProfile in Training service
+        if (role == PlatformRole.Employee)
+            _ = _trainingClient.ProvisionEmployeeAsync(id);
 
         return Ok(ApiResponse.Success());
     }

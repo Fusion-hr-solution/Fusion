@@ -13,11 +13,14 @@ import {
 import {
   ApiError,
   type CoreSetupPhase,
+  type DraftOrgUnitDto,
   type DraftSetupIssueDto,
   type DraftSetupReadinessDto,
+  type DraftStructureSchemaDto,
 } from "@repo/api";
 import { canAccessCoreSetup, useAuth } from "@repo/auth";
 import { EmptyState } from "@repo/ui";
+import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -48,12 +51,15 @@ import {
   filterDraftTree,
   findDraftTreeNodeById,
   getFirstDraftTreeNodeId,
+  type DraftStructureTreeNodeModel,
 } from "./draft-structure-tree-utils";
 import { DraftUnitSheet } from "./draft-unit-sheet";
 import {
   useDraftStructureTree,
   useDraftStructureWorkspace,
 } from "./use-draft-structure";
+
+const DRAFT_STRUCTURE_EXPORT_FILE_NAME = "draft-structure-export.csv";
 
 function formatTimestamp(value: string | null) {
   if (!value) return "No draft changes yet";
@@ -62,6 +68,154 @@ function formatTimestamp(value: string | null) {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));
+}
+
+function downloadBlob(blob: Blob, fileName: string) {
+  const url = window.URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = fileName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  // Defer revocation to avoid cancelling download before navigation starts.
+  setTimeout(() => {
+    window.URL.revokeObjectURL(url);
+  }, 0);
+}
+
+function buildDraftStructureExportFields(schema: DraftStructureSchemaDto) {
+  return [
+    { key: "referenceKey", label: "Unit Code" },
+    { key: "displayName", label: "Unit Name" },
+    { key: "orgUnitKindKey", label: "Unit Type" },
+    { key: "parentReferenceKey", label: "Parent Unit Code" },
+    { key: "location", label: "Location" },
+    { key: "description", label: "Description" },
+    ...schema.attributes
+      .slice()
+      .sort((left, right) =>
+        left.displayLabel.localeCompare(right.displayLabel, undefined, {
+          sensitivity: "base",
+        })
+      )
+      .map((attribute) => ({
+        key: `attributes.${attribute.key}`,
+        label: attribute.displayLabel,
+      })),
+  ];
+}
+
+function flattenDraftTreeNodeIds(
+  nodes: DraftStructureTreeNodeModel[]
+): string[] {
+  return nodes.flatMap((node) => [node.id, ...flattenDraftTreeNodeIds(node.children)]);
+}
+
+function stringifyDraftStructureExportValue(value: unknown) {
+  if (value == null) {
+    return "";
+  }
+
+  if (
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean" ||
+    typeof value === "bigint"
+  ) {
+    return String(value);
+  }
+
+  return JSON.stringify(value);
+}
+
+function getDraftStructureExportValue(unit: DraftOrgUnitDto, fieldKey: string) {
+  switch (fieldKey) {
+    case "referenceKey":
+      return unit.referenceKey;
+    case "displayName":
+      return unit.displayName;
+    case "orgUnitKindKey":
+      return unit.orgUnitKindLabel;
+    case "parentReferenceKey":
+      return unit.parentReferenceKey ?? "";
+    case "location":
+      return unit.location ?? "";
+    case "description":
+      return unit.description ?? "";
+    default:
+      if (fieldKey.startsWith("attributes.")) {
+        return stringifyDraftStructureExportValue(
+          unit.attributes[fieldKey.slice("attributes.".length)]
+        );
+      }
+
+      return "";
+  }
+}
+
+function escapeCsvValue(value: string) {
+  if (!/[",\r\n]/.test(value)) {
+    return value;
+  }
+
+  return `"${value.replace(/"/g, '""')}"`;
+}
+
+function buildDraftStructureExportCsv({
+  units,
+  schema,
+  orderedUnitIds,
+}: {
+  units: DraftOrgUnitDto[];
+  schema: DraftStructureSchemaDto;
+  orderedUnitIds: string[];
+}) {
+  const exportFields = buildDraftStructureExportFields(schema);
+  const unitsById = new Map(units.map((unit) => [unit.id, unit]));
+  const seenIds = new Set<string>();
+  const orderedUnits: DraftOrgUnitDto[] = [];
+
+  for (const unitId of orderedUnitIds) {
+    const unit = unitsById.get(unitId);
+    if (!unit || seenIds.has(unitId)) {
+      continue;
+    }
+
+    orderedUnits.push(unit);
+    seenIds.add(unitId);
+  }
+
+  const remainingUnits = units
+    .filter((unit) => !seenIds.has(unit.id))
+    .sort((left, right) => {
+      const displayNameResult = left.displayName.localeCompare(
+        right.displayName,
+        undefined,
+        { sensitivity: "base" }
+      );
+
+      if (displayNameResult !== 0) {
+        return displayNameResult;
+      }
+
+      return left.referenceKey.localeCompare(right.referenceKey, undefined, {
+        sensitivity: "base",
+      });
+    });
+
+  const rows = [
+    exportFields.map((field) => escapeCsvValue(field.label)).join(","),
+    ...[...orderedUnits, ...remainingUnits].map((unit) =>
+      exportFields
+        .map((field) =>
+          escapeCsvValue(getDraftStructureExportValue(unit, field.key))
+        )
+        .join(",")
+    ),
+  ];
+
+  return rows.join("\r\n");
 }
 
 export default function DraftStructurePage() {
@@ -114,6 +268,7 @@ export default function DraftStructurePage() {
   const reopenStructure = useReopenStructure();
 
   const draftTree = useMemo(() => buildWorkspaceDraftTree(tree ?? []), [tree]);
+  const draftTreeNodeIds = useMemo(() => flattenDraftTreeNodeIds(draftTree), [draftTree]);
   const filteredTree = useMemo(
     () => filterDraftTree(draftTree, deferredSearch),
     [deferredSearch, draftTree]
@@ -195,6 +350,33 @@ export default function DraftStructurePage() {
 
     if (canApproveFromDraft) {
       void refetchReadiness();
+    }
+  };
+
+  const handleDownloadStructureCsv = () => {
+    if (!workspace || workspace.units.length === 0) {
+      toast.error("There are no planned units to export yet.");
+      return;
+    }
+
+    try {
+      const csv = buildDraftStructureExportCsv({
+        units: workspace.units,
+        schema: workspace.draftStructureSchema,
+        orderedUnitIds: draftTreeNodeIds,
+      });
+
+      downloadBlob(
+        new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" }),
+        DRAFT_STRUCTURE_EXPORT_FILE_NAME
+      );
+    } catch (error) {
+      toast.error("The structure export failed.", {
+        description:
+          error instanceof Error
+            ? error.message
+            : "Try downloading the CSV again.",
+      });
     }
   };
 
@@ -547,6 +729,8 @@ export default function DraftStructurePage() {
                     : "Add the first top-level unit or start with a template import to build the planned organization tree."
                 }
                 readOnly={isDraftLocked}
+                onDownloadCsv={handleDownloadStructureCsv}
+                isDownloadDisabled={(workspace?.units.length ?? 0) === 0}
                 onAddRoot={() => {
                   setCreateParentId(null);
                   setCreateOpen(true);

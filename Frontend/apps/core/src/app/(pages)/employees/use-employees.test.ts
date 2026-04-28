@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
+import { createElement, type PropsWithChildren } from "react";
 
 const { mockGet } = vi.hoisted(() => ({
   mockGet: vi.fn(),
@@ -24,19 +25,36 @@ vi.mock("@repo/api", () => ({
 
 vi.mock("@repo/auth", () => ({
   useAuth: () => authState,
-  canAccessCoreSetup: (user: { roles?: string[] } | null) =>
+  canAccessCorePeople: (user: { roles?: string[] } | null) =>
     !!user?.roles?.includes("HRAdmin") &&
     !user?.roles?.includes("PlatformAdmin"),
 }));
 
-vi.mock("@repo/api/react", async () => {
-  const actual = await vi.importActual<typeof import("@repo/api/react")>(
-    "@repo/api/react"
-  );
+vi.mock("@repo/api/query", async () => {
+  const actual =
+    await vi.importActual<typeof import("@repo/api/query")>("@repo/api/query");
   return actual;
 });
 
+import { ApiQueryProvider, createApiQueryClient } from "@repo/api/query";
 import { useEmployeeRoster } from "./use-employees";
+
+function createWrapper() {
+  const client = createApiQueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  });
+
+  function TestQueryProvider({ children }: PropsWithChildren) {
+    return createElement(ApiQueryProvider, { client }, children);
+  }
+
+  TestQueryProvider.displayName = "TestQueryProvider";
+
+  return TestQueryProvider;
+}
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -62,15 +80,17 @@ describe("useEmployeeRoster", () => {
     };
     mockGet.mockResolvedValue(mockData);
 
-    const { result } = renderHook(() =>
-      useEmployeeRoster({
-        search: "pat",
-        status: "Active",
-        sortBy: "HireDate",
-        sortDir: "Desc",
-        page: 2,
-        pageSize: 25,
-      })
+    const { result } = renderHook(
+      () =>
+        useEmployeeRoster({
+          search: "pat",
+          status: "Active",
+          sortBy: "HireDate",
+          sortDir: "Desc",
+          page: 2,
+          pageSize: 25,
+        }),
+      { wrapper: createWrapper() }
     );
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
@@ -103,14 +123,16 @@ describe("useEmployeeRoster", () => {
       hasPreviousPage: false,
     });
 
-    renderHook(() =>
-      useEmployeeRoster({
-        search: "   ",
-        sortBy: "Name",
-        sortDir: "Asc",
-        page: 1,
-        pageSize: 20,
-      })
+    renderHook(
+      () =>
+        useEmployeeRoster({
+          search: "   ",
+          sortBy: "Name",
+          sortDir: "Asc",
+          page: 1,
+          pageSize: 20,
+        }),
+      { wrapper: createWrapper() }
     );
 
     await waitFor(() => expect(mockGet).toHaveBeenCalled());
@@ -127,7 +149,6 @@ describe("useEmployeeRoster", () => {
           firstName: "Sarah",
           lastName: "Chen",
           email: "sarah.chen@ey-hr.com",
-          department: "Engineering",
           orgUnitId: "ou-1",
           orgUnitName: "Backend Team",
           jobTitle: "Senior Software Engineer",
@@ -141,7 +162,6 @@ describe("useEmployeeRoster", () => {
           firstName: "Lisa",
           lastName: "Brown",
           email: "lisa.brown@ey-hr.com",
-          department: "Finance",
           orgUnitId: null,
           orgUnitName: null,
           jobTitle: "Finance Director",
@@ -160,13 +180,15 @@ describe("useEmployeeRoster", () => {
     };
     mockGet.mockResolvedValue(mockData);
 
-    const { result } = renderHook(() =>
-      useEmployeeRoster({
-        sortBy: "Name",
-        sortDir: "Asc",
-        page: 1,
-        pageSize: 20,
-      })
+    const { result } = renderHook(
+      () =>
+        useEmployeeRoster({
+          sortBy: "Name",
+          sortDir: "Asc",
+          page: 1,
+          pageSize: 20,
+        }),
+      { wrapper: createWrapper() }
     );
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
