@@ -41,14 +41,14 @@ export default function DashboardPage() {
       title: "Setup",
       description:
         "Tenant structure, draft workspace progress, and publish readiness.",
-      href: "/core/setup",
+      href: "/setup",
       icon: ClipboardList,
       available: canSeeCoreSetupNavigation(user),
     },
     {
       title: "Organizations",
       description: "Tenant organization records and lifecycle administration.",
-      href: "/core/organizations",
+      href: "/organizations",
       icon: Building,
       available: canSeeOrganizationsNavigation(user),
     },
@@ -56,7 +56,7 @@ export default function DashboardPage() {
       title: "Employees",
       description:
         "Roster operations, import workflow, and employee history surfaces.",
-      href: "/core/employees",
+      href: "/employees",
       icon: Users,
       available: canSeeEmployeeRosterNavigation(user),
     },
