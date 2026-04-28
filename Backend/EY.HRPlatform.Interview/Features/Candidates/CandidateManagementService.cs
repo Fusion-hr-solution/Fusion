@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using System.Net.Mail;
 using System.Text;
 using EY.HRPlatform.Interview.Domain.Entities;
 using EY.HRPlatform.Interview.Infrastructure;
@@ -12,7 +13,9 @@ namespace EY.HRPlatform.Interview.Features.Candidates;
 public class CandidateManagementService(
     AppDbContext dbContext,
     ICandidateInvitationService invitationService,
-    IConfiguration configuration)
+    ICandidateInvitationEmailSender emailSender,
+    IConfiguration configuration,
+    ILogger<CandidateManagementService> logger)
     : ICandidateManagementService
 {
     private const int DefaultTimelineEventRetentionDays = 90;
@@ -121,12 +124,22 @@ public class CandidateManagementService(
             var linkOpenedAtUtc = attemptEvents
                 .FirstOrDefault(item => item.Milestone == CandidateProgressMilestones.LinkOpened)
                 ?.OccurredAtUtc;
-            var startedAtUtc = attempt?.StartedAtUtc == default
-                ? null
-                : attempt?.StartedAtUtc;
-            startedAtUtc ??= attemptEvents
+            var startedAtUtc = attemptEvents
                 .FirstOrDefault(item => item.Milestone == CandidateProgressMilestones.Started)
                 ?.OccurredAtUtc;
+
+            if (!startedAtUtc.HasValue && attempt is not null && attempt.StartedAtUtc != default)
+            {
+                var hasAttemptProgressEvidence =
+                    attempt.SubmittedAtUtc.HasValue ||
+                    linkOpenedAtUtc.HasValue ||
+                    attemptEvents.Any(item => item.Milestone == CandidateProgressMilestones.Submitted);
+
+                if (hasAttemptProgressEvidence)
+                {
+                    startedAtUtc = attempt.StartedAtUtc;
+                }
+            }
 
             var submittedAtUtc = attempt?.SubmittedAtUtc;
             submittedAtUtc ??= attemptEvents
@@ -141,7 +154,9 @@ public class CandidateManagementService(
                 ? "Submitted"
                 : startedAtUtc.HasValue
                     ? "InProgress"
-                    : "Invited";
+                    : attempt is not null
+                        ? "PendingStart"
+                        : "Invited";
 
             attempts.Add(new CandidateAttemptTimelineDto
             {
@@ -169,6 +184,119 @@ public class CandidateManagementService(
         };
     }
 
+    public async Task<CandidateRetakeGrantResultDto> GrantRetakeAsync(
+        GrantCandidateRetakeRequestDto request,
+        CancellationToken cancellationToken)
+    {
+        var parsedTestId = ParseTestId(request.TestId);
+        var normalizedCandidateEmail = NormalizeCandidateEmail(request.CandidateEmail);
+
+        var invitation = await FindLatestTrackedInvitationByNormalizedEmailAsync(
+                parsedTestId,
+                normalizedCandidateEmail,
+                cancellationToken)
+            ?? throw new ApiException("Candidate invitation was not found.", StatusCodes.Status404NotFound);
+
+        var settings = await GetEffectiveSettingsAsync(parsedTestId, cancellationToken);
+        var nowUtc = DateTime.UtcNow;
+        var token = GenerateToken();
+        var linkValidity = CandidateLinkSecurityPolicy.ToLinkValidityDuration(
+            settings.LinkValidForValue,
+            settings.LinkValidForUnit);
+
+        invitation.LinkExpiryHours = CandidateLinkSecurityPolicy.ToRoundedHours(linkValidity);
+        invitation.InviteLink = BuildInviteLink(token);
+        invitation.TokenHash = HashToken(token);
+        invitation.TokenCreatedAtUtc = nowUtc;
+        invitation.TokenExpiresAtUtc = nowUtc.Add(linkValidity);
+        invitation.OpensCount = 0;
+        invitation.AttemptStartedAtUtc = null;
+        invitation.AttemptSubmittedAtUtc = null;
+        invitation.VerifiedEmail = null;
+        invitation.EmailVerifiedAtUtc = null;
+        invitation.LockedIpAddress = null;
+        invitation.AccessFingerprintHash = null;
+        invitation.LastSentAtUtc = nowUtc;
+
+        var nextAttemptNumber = invitation.Attempts.Count == 0
+            ? 1
+            : invitation.Attempts.Max(item => item.AttemptNumber) + 1;
+
+        var pendingAttempt = new CandidateTestAttempt
+        {
+            InvitationId = invitation.Id,
+            AttemptNumber = nextAttemptNumber,
+            TestId = invitation.TestId,
+            CandidateEmail = invitation.Email,
+            CandidateName = invitation.CandidateName,
+            StartedAtUtc = default,
+            SubmittedAtUtc = null,
+            AnswersJson = "{}",
+            ResultJson = "{}",
+        };
+
+        dbContext.CandidateTestAttempts.Add(pendingAttempt);
+        invitation.Attempts.Add(pendingAttempt);
+
+        var notificationSent = false;
+        if (request.SendNotification)
+        {
+            try
+            {
+                await emailSender.SendInvitationAsync(MapInvitationDto(invitation), cancellationToken);
+                notificationSent = true;
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (ApiException)
+            {
+                throw;
+            }
+            catch (SmtpException ex)
+            {
+                logger.LogWarning(
+                    ex,
+                    "Candidate retake notification failed. InvitationId={InvitationId} | Email={Email}",
+                    invitation.Id,
+                    invitation.Email);
+            }
+        }
+
+        invitation.Status = notificationSent || !request.SendNotification
+            ? "Invited"
+            : "DeliveryFailed";
+
+        dbContext.CandidateProgressEvents.Add(new CandidateProgressEvent
+        {
+            InvitationId = invitation.Id,
+            TestId = invitation.TestId,
+            CandidateEmail = invitation.Email,
+            CandidateName = invitation.CandidateName,
+            AttemptId = pendingAttempt.Id,
+            AttemptNumber = nextAttemptNumber,
+            Milestone = CandidateProgressMilestones.Invited,
+            OccurredAtUtc = nowUtc,
+        });
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return new CandidateRetakeGrantResultDto
+        {
+            TestId = invitation.TestId.ToString(),
+            CandidateEmail = NormalizeStoredEmailForLookup(invitation.Email),
+            CandidateName = invitation.CandidateName ?? string.Empty,
+            InvitationId = invitation.Id.ToString(),
+            AttemptId = pendingAttempt.Id.ToString(),
+            AttemptNumber = nextAttemptNumber,
+            Status = "PendingStart",
+            NotificationSent = notificationSent,
+            InviteLink = invitation.InviteLink,
+            TokenExpiresAtUtc = invitation.TokenExpiresAtUtc.ToString("O"),
+        };
+    }
+
     private async Task<CandidateInvitation?> FindLatestInvitationByNormalizedEmailAsync(
         Guid testId,
         string normalizedCandidateEmail,
@@ -191,6 +319,33 @@ public class CandidateManagementService(
 
         // Some legacy rows may contain non-space outer whitespace (for example tabs/newlines)
         // that SQL TRIM does not remove by default, so retry with in-memory normalization.
+        var invitations = await invitationQuery
+            .OrderByDescending(item => item.CreatedAt)
+            .ToListAsync(cancellationToken);
+
+        return invitations.FirstOrDefault(item =>
+            NormalizeStoredEmailForLookup(item.Email) == normalizedCandidateEmail);
+    }
+
+    private async Task<CandidateInvitation?> FindLatestTrackedInvitationByNormalizedEmailAsync(
+        Guid testId,
+        string normalizedCandidateEmail,
+        CancellationToken cancellationToken)
+    {
+        var invitationQuery = dbContext.CandidateInvitations
+            .Include(item => item.Attempts)
+            .Where(item => item.TestId == testId);
+
+        var directMatch = await invitationQuery
+            .Where(item => item.Email.Trim().ToLower() == normalizedCandidateEmail)
+            .OrderByDescending(item => item.CreatedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (directMatch is not null)
+        {
+            return directMatch;
+        }
+
         var invitations = await invitationQuery
             .OrderByDescending(item => item.CreatedAt)
             .ToListAsync(cancellationToken);
@@ -597,6 +752,31 @@ public class CandidateManagementService(
             ?? invitation.LastSentAtUtc;
 
         return latest.ToString("O");
+    }
+
+    private static CandidateInvitationDto MapInvitationDto(CandidateInvitation invitation)
+    {
+        return new CandidateInvitationDto
+        {
+            Id = invitation.Id.ToString(),
+            TestId = invitation.TestId.ToString(),
+            TestTitle = invitation.TestTitle,
+            Email = invitation.Email,
+            CandidateName = invitation.CandidateName,
+            Status = invitation.Status,
+            DeadlineUtc = invitation.DeadlineUtc?.ToString("O"),
+            InviteMethod = invitation.InviteMethod,
+            LinkExpiryHours = invitation.LinkExpiryHours,
+            TokenCreatedAtUtc = invitation.TokenCreatedAtUtc.ToString("O"),
+            TokenExpiresAtUtc = invitation.TokenExpiresAtUtc.ToString("O"),
+            TimeLimitMinutes = invitation.TimeLimitMinutes,
+            CustomMessage = invitation.CustomMessage,
+            InviteLink = invitation.InviteLink,
+            CreatedAtUtc = invitation.CreatedAt.ToString("O"),
+            LastSentAtUtc = invitation.LastSentAtUtc.ToString("O"),
+            ResendCount = invitation.ResendCount,
+            OpensCount = invitation.OpensCount,
+        };
     }
 
     private string BuildInviteLink(string token)

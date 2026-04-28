@@ -4,6 +4,7 @@ import { MonitorPlay, Timer, Lock, Award, Info, Mail, Link2, ArrowLeft, ArrowRig
 import { useWizardStore } from "@/store/wizard-store";
 import { TEAM_MEMBERS } from "@/config/constants";
 import { cn } from "@/lib/utils";
+import { DropdownSelect } from "@/components/candidate-management/dropdown-select";
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -44,11 +45,15 @@ function SwitchRow({ label, helper, checked, onChange, children }: {
   );
 }
 
-function Card({ icon: Icon, title, description, children }: {
-  icon: React.ElementType; title: string; description?: string; children: React.ReactNode;
+function Card({ icon: Icon, title, description, children, containerClassName }: {
+  icon: React.ElementType;
+  title: string;
+  description?: string;
+  children: React.ReactNode;
+  containerClassName?: string;
 }) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
+    <div className={cn("overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm", containerClassName)}>
       <div className="flex items-center gap-3 border-b border-zinc-100 px-6 py-4">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-100">
           <Icon className="h-4 w-4 text-zinc-600" />
@@ -284,7 +289,12 @@ export function StepConfig() {
           </Card>
 
           {/* Card 4 — Scoring */}
-          <Card icon={Award} title="Scoring" description="Pass thresholds and grading behaviour">
+          <Card
+            icon={Award}
+            title="Scoring"
+            description="Pass thresholds and grading behaviour"
+            containerClassName="overflow-visible"
+          >
 
             <div className="flex items-center justify-between gap-4 py-3.5">
               <div>
@@ -312,21 +322,18 @@ export function StepConfig() {
                 <p className="text-[13px] font-semibold text-zinc-900">Assign reviewer</p>
                 <p className="mt-0.5 text-[12px] text-zinc-400">Notified when manual questions need grading</p>
               </div>
-              <div className="relative">
-                <select
-                  value={config.assignedReviewer}
-                  onChange={(e) => updateConfig({ assignedReviewer: e.target.value })}
-                  className="appearance-none rounded-xl border border-zinc-200 bg-white py-2 pl-3 pr-8 text-[13px] text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 transition-all duration-150"
-                >
-                  <option value="">Unassigned</option>
-                  {TEAM_MEMBERS.map((m) => <option key={m} value={m}>{m}</option>)}
-                </select>
-                <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400">
-                  <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none">
-                    <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </div>
-              </div>
+              <DropdownSelect
+                id="assigned-reviewer"
+                ariaLabel="Assign reviewer"
+                value={config.assignedReviewer}
+                placeholder="Unassigned"
+                options={[
+                  { value: "", label: "Unassigned" },
+                  ...TEAM_MEMBERS.map((member) => ({ value: member, label: member })),
+                ]}
+                onChange={(value) => updateConfig({ assignedReviewer: value })}
+                className="w-48"
+              />
             </div>
 
           </Card>

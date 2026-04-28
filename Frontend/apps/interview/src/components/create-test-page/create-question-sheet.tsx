@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { X, Plus, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { QUESTION_TYPES, CODING_LANGUAGES, GRADING_METHODS } from "@/config/constants";
+import { DropdownSelect } from "@/components/candidate-management/dropdown-select";
 import type { NewQuestionForm, QuestionType, Difficulty, GradingMethod } from "@/types";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -64,16 +65,6 @@ function FieldLabel({ children, required }: { children: React.ReactNode; require
       {children}
       {required && <span className="ml-0.5 text-red-400">*</span>}
     </label>
-  );
-}
-
-function SelectChevron() {
-  return (
-    <div className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400">
-      <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none">
-        <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    </div>
   );
 }
 
@@ -276,31 +267,24 @@ export function CreateQuestionSheet({
               {/* Question Type */}
               <div>
                 <FieldLabel required>Question Type</FieldLabel>
-                <div className="relative">
-                  <select
-                    value={form.type}
-                    onChange={(e) => {
-                      const nextType = e.target.value as QuestionType | "";
-                      setForm((prev) => ({
-                        ...prev,
-                        type: nextType,
-                        options:
-                          nextType === "Multiple Choice" || nextType === "True/False"
-                            ? defaultOptionsForType(nextType)
-                            : prev.options,
-                      }));
-                    }}
-                    className={cn(
-                      "w-full appearance-none rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-[13px] shadow-sm transition-all duration-150",
-                      "focus:border-zinc-300 focus:outline-none focus:ring-2 focus:ring-zinc-900/10",
-                      !form.type ? "text-zinc-400" : "text-zinc-900"
-                    )}
-                  >
-                    <option value="">Select type…</option>
-                    {QUESTION_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                  <SelectChevron />
-                </div>
+                <DropdownSelect
+                  id="question-type"
+                  ariaLabel="Question type"
+                  value={form.type}
+                  placeholder="Select type…"
+                  options={QUESTION_TYPES.map((value) => ({ value, label: value }))}
+                  onChange={(value) => {
+                    const nextType = value as QuestionType | "";
+                    setForm((prev) => ({
+                      ...prev,
+                      type: nextType,
+                      options:
+                        nextType === "Multiple Choice" || nextType === "True/False"
+                          ? defaultOptionsForType(nextType)
+                          : prev.options,
+                    }));
+                  }}
+                />
               </div>
 
               {/* Title */}
@@ -505,16 +489,14 @@ export function CreateQuestionSheet({
                 <div className="flex flex-col gap-4 border-t border-zinc-100 pt-5">
                   <div>
                     <FieldLabel>Language</FieldLabel>
-                    <div className="relative">
-                      <select
-                        value={form.language}
-                        onChange={(e) => update("language", e.target.value)}
-                        className="w-full appearance-none rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-[13px] text-zinc-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10 transition-all duration-150"
-                      >
-                        {CODING_LANGUAGES.map((l) => <option key={l} value={l}>{l}</option>)}
-                      </select>
-                      <SelectChevron />
-                    </div>
+                    <DropdownSelect
+                      id="question-language"
+                      ariaLabel="Question language"
+                      value={form.language}
+                      placeholder="Select language"
+                      options={CODING_LANGUAGES.map((value) => ({ value, label: value }))}
+                      onChange={(value) => update("language", value)}
+                    />
                   </div>
                   <div>
                     <FieldLabel>Starter Code</FieldLabel>

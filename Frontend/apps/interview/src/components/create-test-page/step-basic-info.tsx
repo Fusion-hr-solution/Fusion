@@ -4,6 +4,7 @@ import { FileUp, Upload, Layers, ArrowRight, Sparkles } from "lucide-react";
 import { useWizardStore } from "@/store/wizard-store";
 import { DISCIPLINES, DIFFICULTY_LEVELS } from "@/config/constants";
 import { cn } from "@/lib/utils";
+import { DropdownSelect } from "@/components/candidate-management/dropdown-select";
 import type { Discipline, DifficultyLevel } from "@/types";
 
 function Label({ children, required, hint }: { children: React.ReactNode; required?: boolean; hint?: string }) {
@@ -38,33 +39,6 @@ function InputField(props: React.InputHTMLAttributes<HTMLInputElement>) {
         props.className
       )}
     />
-  );
-}
-
-function SelectField(props: React.SelectHTMLAttributes<HTMLSelectElement> & { placeholder?: string; options: string[] }) {
-  const { placeholder, options, ...rest } = props;
-  return (
-    <div className="relative">
-      <select
-        {...rest}
-        className={cn(
-          "w-full appearance-none rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-[13px] shadow-sm",
-          "transition-all duration-150 hover:border-zinc-300",
-          "focus:border-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900/10",
-          !rest.value && "text-zinc-400",
-          rest.value  && "text-zinc-900",
-          rest.className
-        )}
-      >
-        {placeholder && <option value="">{placeholder}</option>}
-        {options.map((o) => <option key={o} value={o}>{o}</option>)}
-      </select>
-      <div className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400">
-        <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none">
-          <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </div>
-    </div>
   );
 }
 
@@ -142,11 +116,13 @@ export function StepBasicInfo() {
                 </FieldGroup>
                 <FieldGroup>
                   <Label required>Discipline</Label>
-                  <SelectField
+                  <DropdownSelect
+                    id="basic-discipline"
+                    ariaLabel="Select discipline"
                     value={basicInfo.discipline}
-                    onChange={(e) => updateBasicInfo({ discipline: e.target.value as Discipline | "" })}
                     placeholder="Select discipline…"
-                    options={DISCIPLINES}
+                    options={DISCIPLINES.map((value) => ({ value, label: value }))}
+                    onChange={(value) => updateBasicInfo({ discipline: value as Discipline | "" })}
                   />
                 </FieldGroup>
               </div>
@@ -204,11 +180,13 @@ export function StepBasicInfo() {
 
               <FieldGroup>
                 <Label>Difficulty Level</Label>
-                <SelectField
+                <DropdownSelect
+                  id="basic-difficulty"
+                  ariaLabel="Select difficulty level"
                   value={basicInfo.difficultyLevel}
-                  onChange={(e) => updateBasicInfo({ difficultyLevel: e.target.value as DifficultyLevel | "" })}
                   placeholder="Select level…"
-                  options={DIFFICULTY_LEVELS}
+                  options={DIFFICULTY_LEVELS.map((value) => ({ value, label: value }))}
+                  onChange={(value) => updateBasicInfo({ difficultyLevel: value as DifficultyLevel | "" })}
                 />
               </FieldGroup>
             </div>

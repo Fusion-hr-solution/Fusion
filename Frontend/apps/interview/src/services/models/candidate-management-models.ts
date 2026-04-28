@@ -97,7 +97,7 @@ export interface BackendCandidateTimelineMilestoneDto {
 export interface BackendCandidateAttemptTimelineDto {
   attemptNumber: number;
   attemptId?: string;
-  status: "Invited" | "InProgress" | "Submitted";
+  status: "Invited" | "PendingStart" | "InProgress" | "Submitted";
   milestones: BackendCandidateTimelineMilestoneDto[];
 }
 
@@ -107,4 +107,22 @@ export interface BackendCandidateProgressTimelineDto {
   candidateEmail: string;
   candidateName?: string;
   attempts: BackendCandidateAttemptTimelineDto[];
+}
+
+export interface GrantCandidateRetakeInput {
+  testId: string;
+  candidateEmail: string;
+}
+
+export interface BackendCandidateRetakeGrantResultDto {
+  testId: string;
+  candidateEmail: string;
+  candidateName?: string;
+  invitationId: string;
+  attemptId: string;
+  attemptNumber: number;
+  status: "PendingStart";
+  notificationSent: boolean;
+  inviteLink: string;
+  tokenExpiresAtUtc: string;
 }

@@ -1,5 +1,6 @@
 import { Check, Clock3 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { DropdownSelect } from "@/components/candidate-management/dropdown-select";
 import type { TimelineTabProps } from "@/services/models/timeline_tab_model";
 
 export function TimelineTab({
@@ -107,47 +108,29 @@ export function TimelineTab({
     <div className="mt-5 space-y-5">
       <section className="rounded-2xl border border-zinc-200 bg-white px-5 py-4 shadow-sm">
         <div className="grid grid-cols-1 gap-3 md:grid-cols-[220px,1fr] md:items-end">
-          <div>
-            <label htmlFor="timeline-test" className="mb-1 block text-[12px] font-semibold text-zinc-600">Test</label>
-            <select
-              id="timeline-test"
-              name="timelineTestId"
-              value={selectedTestId}
-              onChange={(e) => setSelectedTestId(e.target.value)}
-              className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[13px] text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
-            >
-              <option value="">Select test</option>
-              {tests.map((test) => (
-                <option key={test.id} value={test.id}>
-                  {test.title}
-                </option>
-              ))}
-            </select>
-          </div>
+          <DropdownSelect
+            id="timeline-test"
+            label="Test"
+            placeholder="Select test"
+            value={selectedTestId}
+            options={tests.map((test) => ({ value: test.id, label: test.title }))}
+            onChange={setSelectedTestId}
+          />
 
-          <div>
-            <label htmlFor="timeline-candidate" className="mb-1 block text-[12px] font-semibold text-zinc-600">Candidate</label>
-            <select
-              id="timeline-candidate"
-              name="timelineCandidateEmail"
-              value={selectedTimelineCandidateEmail}
-              onChange={(e) => setSelectedTimelineCandidateEmail(e.target.value)}
-              disabled={timelineCandidatesLoading || timelineCandidates.length === 0}
-              className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[13px] text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {timelineCandidates.length === 0 ? (
-                <option value="">No candidates found</option>
-              ) : (
-                timelineCandidates.map((candidate) => (
-                  <option key={candidate.candidateEmail} value={candidate.candidateEmail}>
-                    {candidate.candidateName
-                      ? `${candidate.candidateName} (${candidate.candidateEmail})`
-                      : candidate.candidateEmail}
-                  </option>
-                ))
-              )}
-            </select>
-          </div>
+          <DropdownSelect
+            id="timeline-candidate"
+            label="Candidate"
+            placeholder={timelineCandidates.length === 0 ? "No candidates found" : "Select candidate"}
+            value={selectedTimelineCandidateEmail}
+            options={timelineCandidates.map((candidate) => ({
+              value: candidate.candidateEmail,
+              label: candidate.candidateName
+                ? `${candidate.candidateName} (${candidate.candidateEmail})`
+                : candidate.candidateEmail,
+            }))}
+            onChange={setSelectedTimelineCandidateEmail}
+            disabled={timelineCandidatesLoading || timelineCandidates.length === 0}
+          />
         </div>
 
         <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-zinc-100 pt-3">
@@ -266,6 +249,8 @@ export function TimelineTab({
                     "rounded-full px-2.5 py-0.5 text-[11px] font-semibold",
                     attempt.status === "Submitted"
                       ? "bg-emerald-100 text-emerald-700"
+                      : attempt.status === "PendingStart"
+                        ? "bg-sky-100 text-sky-700"
                       : attempt.status === "InProgress"
                         ? "bg-amber-100 text-amber-700"
                         : "bg-zinc-100 text-zinc-600"

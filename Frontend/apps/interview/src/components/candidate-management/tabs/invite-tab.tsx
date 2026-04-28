@@ -1,6 +1,7 @@
 import type { ElementType } from "react";
 import { Check, FileUp, Link2, Mail, Send, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { DropdownSelect } from "@/components/candidate-management/dropdown-select";
 import type { InviteMethod, InviteTabProps } from "../../../services/models/invite_tab_model";
 
 export function InviteTab({
@@ -334,23 +335,14 @@ export function InviteTab({
           {inviteStep === 3 ? (
             <div className="space-y-4">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div>
-                <label htmlFor="invite-test" className="mb-1 block text-[12px] font-semibold text-zinc-600">Test</label>
-                <select
-                  id="invite-test"
-                  name="inviteTestId"
-                  value={selectedTestId}
-                  onChange={(e) => setSelectedTestId(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[13px] text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
-                >
-                  <option value="">Select a test</option>
-                  {tests.map((test) => (
-                    <option key={test.id} value={test.id}>
-                      {test.title}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <DropdownSelect
+                id="invite-test"
+                label="Test"
+                placeholder="Select a test"
+                value={selectedTestId}
+                options={tests.map((test) => ({ value: test.id, label: test.title }))}
+                onChange={setSelectedTestId}
+              />
 
               <div>
                 <label htmlFor="invite-deadline" className="mb-1 block text-[12px] font-semibold text-zinc-600">Deadline (optional)</label>

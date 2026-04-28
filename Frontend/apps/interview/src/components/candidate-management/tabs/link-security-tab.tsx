@@ -1,5 +1,6 @@
 import { Clock3, Link2, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { DropdownSelect } from "@/components/candidate-management/dropdown-select";
 import type { GracePeriodUnit, LinkValidityUnit } from "@/types";
 import type { LinkSecurityTabProps } from "@/services/models/link_security_tab_model";
 
@@ -90,23 +91,14 @@ export function LinkSecurityTab({
     <div className="mt-5 space-y-5">
       <section className="rounded-2xl border border-zinc-200 bg-white px-5 py-4 shadow-sm">
         <div className="grid grid-cols-1 gap-3 md:grid-cols-[220px,1fr] md:items-end">
-          <div>
-            <label htmlFor="link-security-test" className="mb-1 block text-[12px] font-semibold text-zinc-600">Apply Settings To</label>
-            <select
-              id="link-security-test"
-              name="linkSecurityTestId"
-              value={selectedTestId}
-              onChange={(e) => setSelectedTestId(e.target.value)}
-              className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[13px] text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
-            >
-              <option value="">Select test</option>
-              {tests.map((test) => (
-                <option key={test.id} value={test.id}>
-                  {test.title}
-                </option>
-              ))}
-            </select>
-          </div>
+          <DropdownSelect
+            id="link-security-test"
+            label="Apply Settings To"
+            placeholder="Select test"
+            value={selectedTestId}
+            options={tests.map((test) => ({ value: test.id, label: test.title }))}
+            onChange={setSelectedTestId}
+          />
           <p className="text-[12px] leading-relaxed text-zinc-500">
             Saved settings are scoped per test and update pending invitation expiry windows.
           </p>
@@ -188,18 +180,20 @@ export function LinkSecurityTab({
                   onChange={(e) => setLinkValidForValue(Math.max(1, Number(e.target.value) || 1))}
                   className="w-20 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-right text-[13px] font-medium text-zinc-900 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
                 />
-                <select
+                <DropdownSelect
                   id="link-valid-for-unit"
-                  name="linkValidForUnit"
-                  aria-label="Link validity unit"
+                  ariaLabel="Link validity unit"
                   value={linkValidForUnit}
-                  onChange={(e) => setLinkValidForUnit(e.target.value as LinkValidityUnit)}
-                  className="appearance-none rounded-xl border border-zinc-200 bg-white py-2 pl-3 pr-8 text-[13px] text-zinc-900 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
-                >
-                  <option value="days">days</option>
-                  <option value="hours">hours</option>
-                  <option value="minutes">minutes</option>
-                </select>
+                  placeholder="Unit"
+                  options={[
+                    { value: "days", label: "days" },
+                    { value: "hours", label: "hours" },
+                    { value: "minutes", label: "minutes" },
+                  ]}
+                  onChange={(value) => setLinkValidForUnit(value as LinkValidityUnit)}
+                  className="w-32"
+                  buttonClassName="py-2"
+                />
               </div>
               <p className="mt-1.5 text-[12px] text-zinc-400">Candidates see a countdown after opening.</p>
             </div>
@@ -216,17 +210,19 @@ export function LinkSecurityTab({
                   onChange={(e) => setGracePeriodValue(Math.max(1, Number(e.target.value) || 1))}
                   className="w-20 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-right text-[13px] font-medium text-zinc-900 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
                 />
-                <select
+                <DropdownSelect
                   id="grace-period-unit"
-                  name="gracePeriodUnit"
-                  aria-label="Grace period unit"
+                  ariaLabel="Grace period unit"
                   value={gracePeriodUnit}
-                  onChange={(e) => setGracePeriodUnit(e.target.value as GracePeriodUnit)}
-                  className="appearance-none rounded-xl border border-zinc-200 bg-white py-2 pl-3 pr-8 text-[13px] text-zinc-900 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
-                >
-                  <option value="minutes">minutes</option>
-                  <option value="hours">hours</option>
-                </select>
+                  placeholder="Unit"
+                  options={[
+                    { value: "minutes", label: "minutes" },
+                    { value: "hours", label: "hours" },
+                  ]}
+                  onChange={(value) => setGracePeriodUnit(value as GracePeriodUnit)}
+                  className="w-32"
+                  buttonClassName="py-2"
+                />
               </div>
               <p className="mt-1.5 text-[12px] text-zinc-400">Extra time before the session is terminated.</p>
             </div>

@@ -7,6 +7,7 @@ using EY.HRPlatform.Interview.Domain.Enums;
 using EY.HRPlatform.Interview.Infrastructure;
 using EY.HRPlatform.Interview.Tests.TestHelpers;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace EY.HRPlatform.Interview.Tests.Features.Integration;
@@ -196,6 +197,78 @@ public class CandidateManagementRoutesIntegrationTests
         using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         Assert.True(json.RootElement.GetProperty("success").GetBoolean());
         Assert.Equal("space@example.com", json.RootElement.GetProperty("data").GetProperty("candidateEmail").GetString());
+    }
+
+    [Fact]
+    public async Task GrantRetake_WhenCandidateExists_CreatesPendingAttemptAndShowsItInTimeline()
+    {
+        await using var factory = new InterviewApiFactory();
+        var testId = await SeedTestAsync(factory.Services);
+        var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost")
+        });
+
+        const string candidateEmail = "retake@example.com";
+        var invitation = await CreateInvitationAsync(client, testId, candidateEmail, "Retake Candidate");
+        var firstToken = ExtractToken(invitation.InviteLink);
+
+        var startResponse = await StartAttemptAsync(client, firstToken, candidateEmail, "retake-fingerprint-1");
+        Assert.Equal(HttpStatusCode.OK, startResponse.StatusCode);
+
+        var submitResponse = await SubmitAttemptAsync(client, firstToken, "retake-fingerprint-1");
+        Assert.Equal(HttpStatusCode.OK, submitResponse.StatusCode);
+
+        var response = await client.PostAsJsonAsync(
+            "/api/interview/candidates/management/retake",
+            new
+            {
+                testId = testId.ToString(),
+                candidateEmail,
+                sendNotification = false,
+            });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        using var grantJson = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.True(grantJson.RootElement.GetProperty("success").GetBoolean());
+        var grantData = grantJson.RootElement.GetProperty("data");
+        Assert.Equal(2, grantData.GetProperty("attemptNumber").GetInt32());
+        Assert.Equal("PendingStart", grantData.GetProperty("status").GetString());
+        Assert.False(grantData.GetProperty("notificationSent").GetBoolean());
+        Assert.False(string.IsNullOrWhiteSpace(grantData.GetProperty("inviteLink").GetString()));
+
+        var timelineResponse = await client.GetAsync(
+            $"/api/interview/candidates/management/timeline?testId={testId}&candidateEmail={Uri.EscapeDataString(candidateEmail)}");
+
+        Assert.Equal(HttpStatusCode.OK, timelineResponse.StatusCode);
+
+        using var timelineJson = JsonDocument.Parse(await timelineResponse.Content.ReadAsStringAsync());
+        Assert.True(timelineJson.RootElement.GetProperty("success").GetBoolean());
+
+        var attempts = timelineJson.RootElement.GetProperty("data").GetProperty("attempts");
+        Assert.Equal(2, attempts.GetArrayLength());
+
+        var latestAttempt = attempts[1];
+        Assert.Equal(2, latestAttempt.GetProperty("attemptNumber").GetInt32());
+        Assert.Equal("PendingStart", latestAttempt.GetProperty("status").GetString());
+
+        var milestones = latestAttempt.GetProperty("milestones");
+        Assert.Equal("Completed", GetMilestone(milestones, "Invited").GetProperty("state").GetString());
+        Assert.Equal("Pending", GetMilestone(milestones, "Started").GetProperty("state").GetString());
+        Assert.Equal("Pending", GetMilestone(milestones, "Submitted").GetProperty("state").GetString());
+
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var invitationId = Guid.Parse(invitation.Id);
+
+        var createdAttempt = await db.CandidateTestAttempts
+            .AsNoTracking()
+            .FirstOrDefaultAsync(item => item.InvitationId == invitationId && item.AttemptNumber == 2);
+
+        Assert.NotNull(createdAttempt);
+        Assert.Equal(default, createdAttempt!.StartedAtUtc);
+        Assert.False(createdAttempt.SubmittedAtUtc.HasValue);
     }
 
     private static void AssertMilestoneOrder(JsonElement milestones)
