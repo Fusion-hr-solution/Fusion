@@ -30,11 +30,28 @@ public class CandidateAccessService(AppDbContext dbContext) : ICandidateAccessSe
 
         var nowUtc = DateTime.UtcNow;
         var state = ResolveState(invitation, settings, nowUtc);
+        var reusableSubmittedState = !settings.SingleUseLinkEnabled && state == InvitationAccessState.Submitted;
 
         // Count link opens when the invite page is loaded (validate endpoint).
-        if (state is InvitationAccessState.Invited or InvitationAccessState.InProgress)
+        if (state is InvitationAccessState.Invited or InvitationAccessState.InProgress || reusableSubmittedState)
         {
             invitation.OpensCount += 1;
+
+            var activeAttempt = GetActiveAttempt(invitation);
+            var attemptNumber = activeAttempt?.AttemptNumber ?? GetNextAttemptNumber(invitation);
+
+            dbContext.CandidateProgressEvents.Add(new CandidateProgressEvent
+            {
+                InvitationId = invitation.Id,
+                TestId = invitation.TestId,
+                CandidateEmail = invitation.Email,
+                CandidateName = invitation.CandidateName,
+                AttemptId = activeAttempt?.Id,
+                AttemptNumber = attemptNumber,
+                Milestone = CandidateProgressMilestones.LinkOpened,
+                OccurredAtUtc = nowUtc,
+            });
+
             await dbContext.SaveChangesAsync(cancellationToken);
         }
 
@@ -63,9 +80,12 @@ public class CandidateAccessService(AppDbContext dbContext) : ICandidateAccessSe
 
         if (state == InvitationAccessState.Submitted)
         {
-            throw new ApiException(
-                "This invitation link was already used for a submitted attempt.",
-                StatusCodes.Status409Conflict);
+            if (settings.SingleUseLinkEnabled)
+            {
+                throw new ApiException(
+                    "This invitation link was already used for a submitted attempt.",
+                    StatusCodes.Status409Conflict);
+            }
         }
 
         if (settings.SingleUseLinkEnabled && state == InvitationAccessState.InProgress)
@@ -84,12 +104,15 @@ public class CandidateAccessService(AppDbContext dbContext) : ICandidateAccessSe
 
         await ApplyAndValidateAccessLocksAsync(invitation, metadata, settings, cancellationToken);
 
-        var attempt = invitation.Attempt;
+        var attempt = GetActiveAttempt(invitation);
         if (attempt is null)
         {
+            var nextAttemptNumber = GetNextAttemptNumber(invitation);
+
             attempt = new CandidateTestAttempt
             {
                 InvitationId = invitation.Id,
+                AttemptNumber = nextAttemptNumber,
                 TestId = invitation.TestId,
                 CandidateEmail = invitation.Email,
                 CandidateName = invitation.CandidateName,
@@ -100,7 +123,22 @@ public class CandidateAccessService(AppDbContext dbContext) : ICandidateAccessSe
             };
 
             dbContext.CandidateTestAttempts.Add(attempt);
-            invitation.Attempt = attempt;
+            invitation.Attempts.Add(attempt);
+
+            dbContext.CandidateProgressEvents.Add(new CandidateProgressEvent
+            {
+                InvitationId = invitation.Id,
+                TestId = invitation.TestId,
+                CandidateEmail = invitation.Email,
+                CandidateName = invitation.CandidateName,
+                AttemptId = attempt.Id,
+                AttemptNumber = attempt.AttemptNumber,
+                Milestone = CandidateProgressMilestones.Started,
+                OccurredAtUtc = nowUtc,
+                ClientIpAddress = metadata.ClientIpAddress,
+                BrowserFingerprintHash = metadata.FingerprintHash,
+                UserAgent = request.UserAgent,
+            });
         }
 
         if (attempt.StartedAtUtc == default)
@@ -108,12 +146,28 @@ public class CandidateAccessService(AppDbContext dbContext) : ICandidateAccessSe
             attempt.StartedAtUtc = nowUtc;
         }
 
-        invitation.AttemptStartedAtUtc ??= attempt.StartedAtUtc;
+        invitation.AttemptStartedAtUtc = attempt.StartedAtUtc;
+        invitation.AttemptSubmittedAtUtc = null;
 
         // Keep first direct start counted if a client bypasses validate.
         if (state == InvitationAccessState.Invited && invitation.OpensCount == 0)
         {
             invitation.OpensCount = 1;
+
+            dbContext.CandidateProgressEvents.Add(new CandidateProgressEvent
+            {
+                InvitationId = invitation.Id,
+                TestId = invitation.TestId,
+                CandidateEmail = invitation.Email,
+                CandidateName = invitation.CandidateName,
+                AttemptId = attempt.Id,
+                AttemptNumber = attempt.AttemptNumber,
+                Milestone = CandidateProgressMilestones.LinkOpened,
+                OccurredAtUtc = nowUtc,
+                ClientIpAddress = metadata.ClientIpAddress,
+                BrowserFingerprintHash = metadata.FingerprintHash,
+                UserAgent = request.UserAgent,
+            });
         }
 
         invitation.Status = "InProgress";
@@ -150,7 +204,7 @@ public class CandidateAccessService(AppDbContext dbContext) : ICandidateAccessSe
                 StatusCodes.Status409Conflict);
         }
 
-        if (state == InvitationAccessState.Invited || invitation.Attempt is null)
+        if (state == InvitationAccessState.Invited)
         {
             throw new ApiException(
                 "Start the assessment before submitting.",
@@ -171,7 +225,7 @@ public class CandidateAccessService(AppDbContext dbContext) : ICandidateAccessSe
 
         await ApplyAndValidateAccessLocksAsync(invitation, metadata, settings, cancellationToken);
 
-        var attempt = invitation.Attempt;
+        var attempt = GetActiveAttempt(invitation);
         if (attempt is null)
         {
             throw new ApiException(
@@ -188,9 +242,24 @@ public class CandidateAccessService(AppDbContext dbContext) : ICandidateAccessSe
         attempt.ResultJson = SerializeJsonPayload(request.Result, "{}");
         attempt.SubmittedAtUtc = nowUtc;
 
-        invitation.AttemptStartedAtUtc ??= attempt.StartedAtUtc;
+        invitation.AttemptStartedAtUtc = attempt.StartedAtUtc;
         invitation.AttemptSubmittedAtUtc = nowUtc;
         invitation.Status = "Submitted";
+
+        dbContext.CandidateProgressEvents.Add(new CandidateProgressEvent
+        {
+            InvitationId = invitation.Id,
+            TestId = invitation.TestId,
+            CandidateEmail = invitation.Email,
+            CandidateName = invitation.CandidateName,
+            AttemptId = attempt.Id,
+            AttemptNumber = attempt.AttemptNumber,
+            Milestone = CandidateProgressMilestones.Submitted,
+            OccurredAtUtc = nowUtc,
+            ClientIpAddress = metadata.ClientIpAddress,
+            BrowserFingerprintHash = metadata.FingerprintHash,
+            UserAgent = request.UserAgent,
+        });
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
@@ -385,7 +454,7 @@ public class CandidateAccessService(AppDbContext dbContext) : ICandidateAccessSe
         var legacyTokenHash = LegacyHashToken(token);
 
         IQueryable<CandidateInvitation> query = dbContext.CandidateInvitations
-            .Include(item => item.Attempt);
+            .Include(item => item.Attempts);
 
         if (includeQuestions)
         {
@@ -494,9 +563,7 @@ public class CandidateAccessService(AppDbContext dbContext) : ICandidateAccessSe
         LinkSecurityRuntimeSettings settings,
         DateTime nowUtc)
     {
-        if (invitation.AttemptSubmittedAtUtc.HasValue ||
-            invitation.Attempt?.SubmittedAtUtc.HasValue == true ||
-            IsStatus(invitation.Status, "Submitted"))
+        if (invitation.AttemptSubmittedAtUtc.HasValue || IsStatus(invitation.Status, "Submitted"))
         {
             return InvitationAccessState.Submitted;
         }
@@ -506,9 +573,7 @@ public class CandidateAccessService(AppDbContext dbContext) : ICandidateAccessSe
             return InvitationAccessState.Expired;
         }
 
-        if (invitation.AttemptStartedAtUtc.HasValue ||
-            invitation.Attempt is not null ||
-            IsStatus(invitation.Status, "InProgress"))
+        if (invitation.AttemptStartedAtUtc.HasValue || IsStatus(invitation.Status, "InProgress"))
         {
             return InvitationAccessState.InProgress;
         }
@@ -523,7 +588,6 @@ public class CandidateAccessService(AppDbContext dbContext) : ICandidateAccessSe
     {
         var effectiveTokenExpiryUtc = invitation.TokenExpiresAtUtc;
         var hasStartedAttempt = invitation.AttemptStartedAtUtc.HasValue ||
-            invitation.Attempt is not null ||
             IsStatus(invitation.Status, "InProgress");
 
         if (hasStartedAttempt)
@@ -550,7 +614,6 @@ public class CandidateAccessService(AppDbContext dbContext) : ICandidateAccessSe
         }
 
         var hasStartedAttempt = invitation.AttemptStartedAtUtc.HasValue ||
-            invitation.Attempt is not null ||
             IsStatus(invitation.Status, "InProgress");
         if (hasStartedAttempt)
         {
@@ -589,6 +652,10 @@ public class CandidateAccessService(AppDbContext dbContext) : ICandidateAccessSe
         DateTime nowUtc,
         LinkSecurityRuntimeSettings settings)
     {
+        var reusableSubmittedState =
+            !settings.SingleUseLinkEnabled &&
+            state == InvitationAccessState.Submitted;
+
         var singleUseAlreadyOpened =
             settings.SingleUseLinkEnabled &&
             state == InvitationAccessState.InProgress;
@@ -597,8 +664,9 @@ public class CandidateAccessService(AppDbContext dbContext) : ICandidateAccessSe
 
         return new CandidateAccessValidationDto
         {
-            IsValid = !singleUseAlreadyOpened && state is InvitationAccessState.Invited or InvitationAccessState.InProgress,
-            CanStart = state == InvitationAccessState.Invited,
+            IsValid = !singleUseAlreadyOpened &&
+                (state is InvitationAccessState.Invited or InvitationAccessState.InProgress || reusableSubmittedState),
+            CanStart = state == InvitationAccessState.Invited || reusableSubmittedState,
             CanResume = !singleUseAlreadyOpened && state == InvitationAccessState.InProgress,
             CanSubmit = !singleUseAlreadyOpened && state == InvitationAccessState.InProgress,
             RequiresEmailVerification = settings.EmailVerificationEnabled,
@@ -614,7 +682,9 @@ public class CandidateAccessService(AppDbContext dbContext) : ICandidateAccessSe
                     ? "Invitation link is valid. Email verification is required before start."
                     : "Invitation link is valid.",
                 InvitationAccessState.InProgress => "An in-progress attempt was found. You can resume.",
-                InvitationAccessState.Submitted => "This invitation link has already been used for a submitted attempt.",
+                InvitationAccessState.Submitted => reusableSubmittedState
+                    ? "A previous attempt was submitted. You can start a new attempt with this link."
+                    : "This invitation link has already been used for a submitted attempt.",
                 InvitationAccessState.Expired => BuildExpiredMessage(invitation, settings, nowUtc),
                 _ => "Invitation link is invalid."
             },
@@ -691,6 +761,22 @@ public class CandidateAccessService(AppDbContext dbContext) : ICandidateAccessSe
         }
 
         return payload.Value.GetRawText();
+    }
+
+    private static CandidateTestAttempt? GetActiveAttempt(CandidateInvitation invitation)
+    {
+        return invitation.Attempts
+            .Where(item => !item.SubmittedAtUtc.HasValue)
+            .OrderByDescending(item => item.AttemptNumber)
+            .ThenByDescending(item => item.CreatedAt)
+            .FirstOrDefault();
+    }
+
+    private static int GetNextAttemptNumber(CandidateInvitation invitation)
+    {
+        return invitation.Attempts.Count == 0
+            ? 1
+            : invitation.Attempts.Max(item => item.AttemptNumber) + 1;
     }
 
     private enum InvitationAccessState

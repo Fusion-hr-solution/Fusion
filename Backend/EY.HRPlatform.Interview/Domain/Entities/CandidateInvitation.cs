@@ -29,7 +29,7 @@ public class CandidateInvitation : AggregateRoot
     public string? AccessFingerprintHash { get; set; }
 
     public Test? Test { get; set; }
-    public CandidateTestAttempt? Attempt { get; set; }
+    public ICollection<CandidateTestAttempt> Attempts { get; set; } = new List<CandidateTestAttempt>();
 
     public void SetCreatedAt(DateTime createdAt)
     {

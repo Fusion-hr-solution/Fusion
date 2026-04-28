@@ -270,3 +270,128 @@ export interface ArticleTemplateSection {
   placeholder: string;
   orderIndex: number;
 }
+
+/* ── Admin Grade / ServiceLine / Curriculum / EmployeeProfile types ── */
+
+export interface AdminGrade {
+  id: string;
+  name: string;
+  level: number;
+  description?: string;
+  icon?: string;
+}
+
+export interface AdminServiceLine {
+  id: string;
+  name: string;
+  code: string;
+  color: string;
+  description?: string;
+  isSharedAcrossAllServiceLines: boolean;
+}
+
+export interface AdminCurriculumMapping {
+  id: string;
+  gradeId: string;
+  serviceLineId: string;
+  trainingId: string;
+  trainingTitle: string;
+  trainingDescription: string;
+  trainingCredits: number;
+  trainingType: string;
+  trainingDuration: number;
+  isRequired: boolean;
+  orderIndex: number;
+}
+
+export interface AdminCurriculumCell {
+  gradeId: string;
+  serviceLineId: string;
+  formationCount: number;
+  isRequiredCount: number;
+}
+
+export interface AdminCurriculumMatrix {
+  grades: AdminGrade[];
+  serviceLines: AdminServiceLine[];
+  cells: AdminCurriculumCell[];
+}
+
+export interface AdminEmployeeProfile {
+  id: string;
+  employeeId: string;
+  gradeId: string | null;
+  gradeName: string | null;
+  serviceLineId: string | null;
+  serviceLineName: string | null;
+  serviceLineColor: string | null;
+}
+
+// --- Admin Grade/SL/Curriculum input types ---
+
+export interface CreateGradeInput {
+  name: string;
+  level: number;
+  description?: string;
+  icon?: string;
+}
+
+export interface UpdateGradeInput {
+  name: string;
+  level: number;
+  description?: string;
+  icon?: string;
+}
+
+export interface CreateServiceLineInput {
+  name: string;
+  code: string;
+  color: string;
+  description?: string;
+  isSharedAcrossAllServiceLines?: boolean;
+}
+
+export interface UpdateServiceLineInput {
+  name: string;
+  code: string;
+  color: string;
+  description?: string;
+  isSharedAcrossAllServiceLines?: boolean;
+}
+
+export interface AddCurriculumMappingInput {
+  gradeId: string;
+  serviceLineId: string;
+  trainingId: string;
+  isRequired?: boolean;
+  orderIndex?: number;
+}
+
+export interface BulkAssignCurriculumInput {
+  trainingId: string;
+  isRequired?: boolean;
+  gradeIds?: string[];
+  serviceLineIds?: string[];
+}
+
+export interface ReorderCurriculumCellInput {
+  gradeId: string;
+  serviceLineId: string;
+  mappingIds: string[];
+}
+
+export interface UpsertEmployeeProfileInput {
+  gradeId?: string | null;
+  serviceLineId?: string | null;
+}
+
+/** Identity user — returned by GET /api/identity/users */
+export interface IdentityUser {
+  id: string;
+  email: string;
+  fullName: string;
+  department?: string | null;
+  jobTitle?: string | null;
+  hireDate?: string | null;
+  tenantId: string;
+}
