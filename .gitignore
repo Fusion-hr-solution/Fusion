@@ -101,3 +101,7 @@ coverage/
 Frontend/.github/
 PROJECT_SUMMARY.md
 *.postman_collection.json
+
+#opencode
+opencode.json
+.opencode/

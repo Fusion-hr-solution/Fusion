@@ -222,3 +222,57 @@ export interface ExamAttempt {
   passed: boolean;
   attemptedAt: string;
 }
+
+/* ── Grade / ServiceLine / Curriculum types ── */
+
+export interface Grade {
+  id: string;
+  name: string;
+  level: number;
+  description?: string;
+  icon?: string;
+}
+
+export interface ServiceLine {
+  id: string;
+  name: string;
+  code: string;
+  color: string;
+  description?: string;
+  isSharedAcrossAllServiceLines: boolean;
+}
+
+export type CursusItemStatus = "not-started" | "in-progress" | "completed";
+
+export interface MyCursusSummary {
+  totalCount: number;
+  completedCount: number;
+  inProgressCount: number;
+  notStartedCount: number;
+  requiredCreditsTotal: number;
+  requiredCreditsEarned: number;
+  estimatedRemainingMinutes: number;
+}
+
+export interface MyCursusItem {
+  mappingId: string;
+  trainingId: string;
+  trainingTitle: string;
+  trainingDescription: string;
+  trainingType: TrainingType;
+  credits: number;
+  duration: number;
+  badgeLevel: BadgeLevel;
+  scheduledDate?: string;
+  isRequired: boolean;
+  orderIndex: number;
+  status: CursusItemStatus;
+  progressPercentage: number;
+  lastActivityAt?: string;
+  isFromSharedServiceLine: boolean;
+}
+
+export interface MyCursus {
+  summary: MyCursusSummary;
+  items: MyCursusItem[];
+}

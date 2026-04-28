@@ -213,6 +213,74 @@ namespace EY.HRPlatform.Interview.Migrations
                     b.ToTable("CandidateLinkSecuritySettings", (string)null);
                 });
 
+            modelBuilder.Entity("EY.HRPlatform.Interview.Domain.Entities.CandidateProgressEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("AttemptId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("AttemptNumber")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("BrowserFingerprintHash")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("CandidateEmail")
+                        .IsRequired()
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)");
+
+                    b.Property<string>("CandidateName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("ClientIpAddress")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("InvitationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Milestone")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("TestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AttemptId");
+
+                    b.HasIndex("InvitationId");
+
+                    b.HasIndex("TestId");
+
+                    b.HasIndex("Milestone", "OccurredAtUtc");
+
+                    b.HasIndex("InvitationId", "AttemptNumber", "OccurredAtUtc");
+
+                    b.ToTable("CandidateProgressEvents", (string)null);
+                });
+
             modelBuilder.Entity("EY.HRPlatform.Interview.Domain.Entities.CandidateTestAttempt", b =>
                 {
                     b.Property<Guid>("Id")
@@ -222,6 +290,11 @@ namespace EY.HRPlatform.Interview.Migrations
                     b.Property<string>("AnswersJson")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<int>("AttemptNumber")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1);
 
                     b.Property<string>("CandidateEmail")
                         .IsRequired()
@@ -258,12 +331,14 @@ namespace EY.HRPlatform.Interview.Migrations
 
                     b.HasIndex("CandidateEmail");
 
-                    b.HasIndex("InvitationId")
-                        .IsUnique();
+                    b.HasIndex("InvitationId");
 
                     b.HasIndex("SubmittedAtUtc");
 
                     b.HasIndex("TestId");
+
+                    b.HasIndex("InvitationId", "AttemptNumber")
+                        .IsUnique();
 
                     b.ToTable("CandidateTestAttempts", (string)null);
                 });
@@ -468,11 +543,37 @@ namespace EY.HRPlatform.Interview.Migrations
                     b.Navigation("Test");
                 });
 
+            modelBuilder.Entity("EY.HRPlatform.Interview.Domain.Entities.CandidateProgressEvent", b =>
+                {
+                    b.HasOne("EY.HRPlatform.Interview.Domain.Entities.CandidateTestAttempt", "Attempt")
+                        .WithMany()
+                        .HasForeignKey("AttemptId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("EY.HRPlatform.Interview.Domain.Entities.CandidateInvitation", "Invitation")
+                        .WithMany()
+                        .HasForeignKey("InvitationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("EY.HRPlatform.Interview.Domain.Entities.Test", "Test")
+                        .WithMany()
+                        .HasForeignKey("TestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Attempt");
+
+                    b.Navigation("Invitation");
+
+                    b.Navigation("Test");
+                });
+
             modelBuilder.Entity("EY.HRPlatform.Interview.Domain.Entities.CandidateTestAttempt", b =>
                 {
                     b.HasOne("EY.HRPlatform.Interview.Domain.Entities.CandidateInvitation", "Invitation")
-                        .WithOne("Attempt")
-                        .HasForeignKey("EY.HRPlatform.Interview.Domain.Entities.CandidateTestAttempt", "InvitationId")
+                        .WithMany("Attempts")
+                        .HasForeignKey("InvitationId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -519,7 +620,7 @@ namespace EY.HRPlatform.Interview.Migrations
 
             modelBuilder.Entity("EY.HRPlatform.Interview.Domain.Entities.CandidateInvitation", b =>
                 {
-                    b.Navigation("Attempt");
+                    b.Navigation("Attempts");
                 });
 
             modelBuilder.Entity("EY.HRPlatform.Interview.Domain.Entities.Question", b =>
