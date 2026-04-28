@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { Users } from "lucide-react";
+import Link from "next/link";
+import { Upload, Users } from "lucide-react";
 import { useAuth } from "@repo/auth";
 import { DEFAULT_PAGE_SIZE, EmptyState, type PageSize } from "@repo/ui";
 import { PageHeader } from "@/components/page-header";
@@ -98,7 +99,15 @@ export default function EmployeesPage() {
     <div className="flex flex-col gap-6 p-6">
       <PageHeader
         title="Employees"
-        description="Review the tenant roster with org-unit placement, status, department, job title, and hire date."
+        description="Review the tenant roster and launch repeatable bulk employee imports from the official workflow."
+        actions={
+          <Button asChild>
+            <Link href="/employees/import">
+              <Upload />
+              Import employees
+            </Link>
+          </Button>
+        }
       />
 
       <Toolbar
