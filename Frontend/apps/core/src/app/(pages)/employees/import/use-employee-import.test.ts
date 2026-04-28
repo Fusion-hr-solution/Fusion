@@ -43,6 +43,7 @@ import {
   useEmployeeImportSchema,
   useEmployeeImportSession,
   useUploadEmployeeImport,
+  useValidateEmployeeImport,
 } from "./use-employee-import";
 
 beforeEach(() => {
@@ -83,9 +84,21 @@ describe("useEmployeeImportSession", () => {
       sourceHeaders: [],
       sampleRows: [],
       previewRows: [],
+      previewPageNumber: 1,
+      previewPageSize: 25,
+      previewPageCount: 1,
+      totalPreviewRowCount: 1,
       hasMorePreviewRows: false,
+      validationSummary: {
+        totalRows: 1,
+        validRows: 0,
+        errorCount: 0,
+        warningCount: 0,
+      },
+      validationIssues: [],
       expiresAt: "2026-04-22T00:00:00Z",
       employeeImportSchema: { canonicalFields: [] },
+      canValidate: true,
     });
 
     const { result } = renderHook(() => useEmployeeImportSession("session-1"));
@@ -94,6 +107,50 @@ describe("useEmployeeImportSession", () => {
 
     expect(mockGet).toHaveBeenCalledWith(
       "/corehr/employees/import/session-1",
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
+  });
+
+  it("passes pagination and filter query parameters when requested", async () => {
+    mockGet.mockResolvedValue({
+      id: "session-1",
+      stage: "Validated",
+      version: 1,
+      sourceFileName: "employees.csv",
+      sourceFileSizeBytes: 1234,
+      sourceRowCount: 30,
+      sourceHeaders: [],
+      sampleRows: [],
+      previewRows: [],
+      previewPageNumber: 2,
+      previewPageSize: 25,
+      previewPageCount: 2,
+      totalPreviewRowCount: 30,
+      hasMorePreviewRows: false,
+      validationSummary: {
+        totalRows: 30,
+        validRows: 25,
+        errorCount: 5,
+        warningCount: 0,
+      },
+      validationIssues: [],
+      expiresAt: "2026-04-22T00:00:00Z",
+      employeeImportSchema: { canonicalFields: [] },
+      canValidate: true,
+    });
+
+    const { result } = renderHook(() =>
+      useEmployeeImportSession("session-1", {
+        pageNumber: 2,
+        previewFilter: "affected",
+        groupKey: "missingRequiredData:email",
+      })
+    );
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(mockGet).toHaveBeenCalledWith(
+      "/corehr/employees/import/session-1?previewPageNumber=2&previewFilter=affected&groupKey=missingRequiredData%3Aemail",
       expect.objectContaining({ signal: expect.any(AbortSignal) })
     );
   });
@@ -133,6 +190,43 @@ describe("useDownloadEmployeeImportTemplate", () => {
     expect(mockGet).toHaveBeenCalledWith(
       "/corehr/employees/import/template",
       expect.objectContaining({ responseType: "blob" })
+    );
+  });
+});
+
+describe("useValidateEmployeeImport", () => {
+  it("posts to validate endpoint for a session", async () => {
+    mockPost.mockResolvedValue({ id: "session-1" });
+
+    const { result } = renderHook(() => useValidateEmployeeImport());
+
+    await act(async () => {
+      await result.current.mutateAsync({ sessionId: "session-1" });
+    });
+
+    expect(mockPost).toHaveBeenCalledWith(
+      "/corehr/employees/import/session-1/validate",
+      undefined
+    );
+  });
+
+  it("includes preview query parameters when validating", async () => {
+    mockPost.mockResolvedValue({ id: "session-1" });
+
+    const { result } = renderHook(() => useValidateEmployeeImport());
+
+    await act(async () => {
+      await result.current.mutateAsync({
+        sessionId: "session-1",
+        pageNumber: 2,
+        previewFilter: "affected",
+        groupKey: "missingRequiredData:email",
+      });
+    });
+
+    expect(mockPost).toHaveBeenCalledWith(
+      "/corehr/employees/import/session-1/validate?previewPageNumber=2&previewFilter=affected&groupKey=missingRequiredData%3Aemail",
+      undefined
     );
   });
 });

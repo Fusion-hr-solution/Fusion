@@ -39,6 +39,14 @@ public class EmployeeImportSessionConfiguration : IEntityTypeConfiguration<Emplo
             .HasColumnType("jsonb")
             .IsRequired();
 
+        builder.Property(session => session.NormalizedRowsJson)
+            .HasColumnType("jsonb")
+            .IsRequired(false);
+
+        builder.Property(session => session.ValidationIssuesJson)
+            .HasColumnType("jsonb")
+            .IsRequired(false);
+
         builder.Property(session => session.CreatedBy).HasMaxLength(256);
         builder.Property(session => session.UpdatedBy).HasMaxLength(256);
 

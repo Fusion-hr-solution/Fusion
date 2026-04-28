@@ -1,4 +1,14 @@
-export type EmployeeImportStage = "PreviewReady" | "Expired";
+export type EmployeeImportStage = "PreviewReady" | "Validated" | "Expired";
+
+export type EmployeeImportPreviewFilter = "all" | "affected";
+
+export type EmployeeImportIssueCategory =
+  | "missingRequiredData"
+  | "invalidFormat"
+  | "duplicateIdentity"
+  | "invalidStructureReference"
+  | "invalidReportingReference"
+  | "invalidRelationship";
 
 export interface EmployeeImportCanonicalFieldDto {
   key: string;
@@ -15,6 +25,25 @@ export interface EmployeeImportSchemaDto {
 export interface EmployeeImportSourceRowDto {
   rowNumber: number;
   values: Record<string, string | null>;
+}
+
+export interface EmployeeImportValidationIssueDto {
+  rowNumber: number;
+  field: string | null;
+  severity: string;
+  code: string;
+  message: string;
+  category: EmployeeImportIssueCategory;
+  groupKey: string;
+  value: string | null;
+  fixHint: string;
+}
+
+export interface EmployeeImportValidationSummaryDto {
+  totalRows: number;
+  validRows: number;
+  errorCount: number;
+  warningCount: number;
 }
 
 export interface EmployeeImportPreviewRowDto {
@@ -38,7 +67,14 @@ export interface EmployeeImportSessionDto {
   sourceHeaders: string[];
   sampleRows: EmployeeImportSourceRowDto[];
   previewRows: EmployeeImportPreviewRowDto[];
+  previewPageNumber: number;
+  previewPageSize: number;
+  previewPageCount: number;
+  totalPreviewRowCount: number;
   hasMorePreviewRows: boolean;
+  validationSummary: EmployeeImportValidationSummaryDto;
+  validationIssues: EmployeeImportValidationIssueDto[];
   expiresAt: string;
   employeeImportSchema: EmployeeImportSchemaDto;
+  canValidate: boolean;
 }
