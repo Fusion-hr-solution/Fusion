@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
+import { createElement, type PropsWithChildren } from "react";
 
 const { mockGet, mockPost } = vi.hoisted(() => ({
   mockGet: vi.fn(),
@@ -26,16 +27,17 @@ vi.mock("@repo/api", () => ({
 
 vi.mock("@repo/auth", () => ({
   useAuth: () => authState,
-  canAccessCoreSetup: (user: { roles?: string[] } | null) =>
+  canAccessCorePeople: (user: { roles?: string[] } | null) =>
     !!user?.roles?.includes("HRAdmin") &&
     !user?.roles?.includes("PlatformAdmin"),
 }));
 
-vi.mock("@repo/api/react", async () => {
-  const actual = await vi.importActual("@repo/api/react");
+vi.mock("@repo/api/query", async () => {
+  const actual = await vi.importActual("@repo/api/query");
   return actual;
 });
 
+import { ApiQueryProvider, createApiQueryClient } from "@repo/api/query";
 import {
   useApplyEmployeeImport,
   useDownloadEmployeeImportTemplate,
@@ -46,6 +48,23 @@ import {
   useUploadEmployeeImport,
   useValidateEmployeeImport,
 } from "./use-employee-import";
+
+function createWrapper() {
+  const client = createApiQueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  });
+
+  function TestQueryProvider({ children }: PropsWithChildren) {
+    return createElement(ApiQueryProvider, { client }, children);
+  }
+
+  TestQueryProvider.displayName = "TestQueryProvider";
+
+  return TestQueryProvider;
+}
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -62,7 +81,9 @@ describe("useEmployeeImportSchema", () => {
   it("loads the employee import schema endpoint", async () => {
     mockGet.mockResolvedValue({ canonicalFields: [] });
 
-    const { result } = renderHook(() => useEmployeeImportSchema());
+    const { result } = renderHook(() => useEmployeeImportSchema(), {
+      wrapper: createWrapper(),
+    });
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
@@ -104,7 +125,9 @@ describe("useEmployeeImportSession", () => {
       canApply: false,
     });
 
-    const { result } = renderHook(() => useEmployeeImportSession("session-1"));
+    const { result } = renderHook(() => useEmployeeImportSession("session-1"), {
+      wrapper: createWrapper(),
+    });
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
@@ -144,12 +167,14 @@ describe("useEmployeeImportSession", () => {
       canApply: false,
     });
 
-    const { result } = renderHook(() =>
-      useEmployeeImportSession("session-1", {
-        pageNumber: 2,
-        previewFilter: "affected",
-        groupKey: "missingRequiredData:email",
-      })
+    const { result } = renderHook(
+      () =>
+        useEmployeeImportSession("session-1", {
+          pageNumber: 2,
+          previewFilter: "affected",
+          groupKey: "missingRequiredData:email",
+        }),
+      { wrapper: createWrapper() }
     );
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
@@ -165,7 +190,9 @@ describe("useUploadEmployeeImport", () => {
   it("posts the selected csv file as form data", async () => {
     mockPost.mockResolvedValue({ id: "session-1" });
 
-    const { result } = renderHook(() => useUploadEmployeeImport());
+    const { result } = renderHook(() => useUploadEmployeeImport(), {
+      wrapper: createWrapper(),
+    });
     const file = new File(["csv"], "employees.csv", { type: "text/csv" });
 
     await act(async () => {
@@ -186,7 +213,9 @@ describe("useDownloadEmployeeImportTemplate", () => {
   it("requests the csv template as a blob", async () => {
     mockGet.mockResolvedValue(new Blob(["template"]));
 
-    const { result } = renderHook(() => useDownloadEmployeeImportTemplate());
+    const { result } = renderHook(() => useDownloadEmployeeImportTemplate(), {
+      wrapper: createWrapper(),
+    });
 
     await act(async () => {
       await result.current.mutateAsync(undefined);
@@ -203,7 +232,9 @@ describe("useValidateEmployeeImport", () => {
   it("posts to validate endpoint for a session", async () => {
     mockPost.mockResolvedValue({ id: "session-1" });
 
-    const { result } = renderHook(() => useValidateEmployeeImport());
+    const { result } = renderHook(() => useValidateEmployeeImport(), {
+      wrapper: createWrapper(),
+    });
 
     await act(async () => {
       await result.current.mutateAsync({ sessionId: "session-1" });
@@ -218,7 +249,9 @@ describe("useValidateEmployeeImport", () => {
   it("includes preview query parameters when validating", async () => {
     mockPost.mockResolvedValue({ id: "session-1" });
 
-    const { result } = renderHook(() => useValidateEmployeeImport());
+    const { result } = renderHook(() => useValidateEmployeeImport(), {
+      wrapper: createWrapper(),
+    });
 
     await act(async () => {
       await result.current.mutateAsync({
@@ -240,7 +273,9 @@ describe("useApplyEmployeeImport", () => {
   it("posts to the apply endpoint for a session", async () => {
     mockPost.mockResolvedValue({ historyId: "history-1" });
 
-    const { result } = renderHook(() => useApplyEmployeeImport());
+    const { result } = renderHook(() => useApplyEmployeeImport(), {
+      wrapper: createWrapper(),
+    });
 
     await act(async () => {
       await result.current.mutateAsync({ sessionId: "session-1" });
@@ -263,8 +298,9 @@ describe("useEmployeeImportHistory", () => {
       pageCount: 1,
     });
 
-    const { result } = renderHook(() =>
-      useEmployeeImportHistory({ pageNumber: 2, pageSize: 5 })
+    const { result } = renderHook(
+      () => useEmployeeImportHistory({ pageNumber: 2, pageSize: 5 }),
+      { wrapper: createWrapper() }
     );
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
@@ -280,8 +316,9 @@ describe("useEmployeeImportHistoryDetail", () => {
   it("loads a selected import history record", async () => {
     mockGet.mockResolvedValue({ id: "history-1" });
 
-    const { result } = renderHook(() =>
-      useEmployeeImportHistoryDetail("history-1")
+    const { result } = renderHook(
+      () => useEmployeeImportHistoryDetail("history-1"),
+      { wrapper: createWrapper() }
     );
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));

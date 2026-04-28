@@ -3,35 +3,31 @@
 import { useCallback, useMemo } from "react";
 import { createPlatformApiClient } from "@repo/api";
 import {
+  keepPreviousData,
   useApiMutation,
   useApiQuery,
   type UseApiMutationResult,
   type UseApiQueryResult,
-} from "@repo/api/react";
+} from "@repo/api/query";
 import { useAuth } from "@repo/auth";
 import { canAccessEmployeeRoster } from "@/lib/employee-roster-access";
+import {
+  employeeImportQueryKeys,
+  employeeRosterQueryKeys,
+  normalizeEmployeeImportHistoryQuery,
+  normalizeEmployeeImportPreviewQuery,
+  type EmployeeImportHistoryQuery,
+  type EmployeeImportPreviewQuery,
+} from "../employee-query-keys";
 import type {
   EmployeeImportApplyResultDto,
   EmployeeImportHistoryDetailDto,
   EmployeeImportHistoryPageDto,
-  EmployeeImportPreviewFilter,
   EmployeeImportSchemaDto,
   EmployeeImportSessionDto,
 } from "./employee-import.types";
 
 const EMPLOYEE_IMPORT_BASE_PATH = "/corehr/employees/import";
-const DEFAULT_HISTORY_PAGE_SIZE = 10;
-
-type EmployeeImportPreviewQuery = {
-  pageNumber?: number;
-  previewFilter?: EmployeeImportPreviewFilter;
-  groupKey?: string | null;
-};
-
-type EmployeeImportHistoryQuery = {
-  pageNumber?: number;
-  pageSize?: number;
-};
 
 type ValidateEmployeeImportInput = {
   sessionId: string;
@@ -62,15 +58,14 @@ function buildPreviewQueryString(query?: EmployeeImportPreviewQuery) {
 
 function buildHistoryQueryString(query?: EmployeeImportHistoryQuery) {
   const params = new URLSearchParams();
+  const normalizedQuery = normalizeEmployeeImportHistoryQuery(query);
 
-  if ((query?.pageNumber ?? 1) > 1) {
-    params.set("pageNumber", String(query?.pageNumber));
+  if (normalizedQuery.pageNumber > 1) {
+    params.set("pageNumber", String(normalizedQuery.pageNumber));
   }
 
-  if (
-    (query?.pageSize ?? DEFAULT_HISTORY_PAGE_SIZE) !== DEFAULT_HISTORY_PAGE_SIZE
-  ) {
-    params.set("pageSize", String(query?.pageSize));
+  if (normalizedQuery.pageSize !== 10) {
+    params.set("pageSize", String(normalizedQuery.pageSize));
   }
 
   const queryString = params.toString();
@@ -93,7 +88,7 @@ export function useEmployeeImportSchema(): UseApiQueryResult<EmployeeImportSchem
     [client]
   );
 
-  return useApiQuery(queryFn, {
+  return useApiQuery(employeeImportQueryKeys.schema(), queryFn, {
     enabled: isAuthenticated && canAccess,
   });
 }
@@ -105,6 +100,14 @@ export function useEmployeeImportSession(
   const { user, isAuthenticated } = useAuth();
   const client = useMemo(() => createPlatformApiClient(), []);
   const canAccess = canAccessEmployeeRoster(user);
+  const normalizedPreviewQuery = useMemo(
+    () => normalizeEmployeeImportPreviewQuery(previewQuery),
+    [
+      previewQuery?.groupKey,
+      previewQuery?.pageNumber,
+      previewQuery?.previewFilter,
+    ]
+  );
   const previewQueryString = buildPreviewQueryString(previewQuery);
 
   const queryFn = useCallback(
@@ -123,9 +126,17 @@ export function useEmployeeImportSession(
     [client, previewQueryString, sessionId]
   );
 
-  return useApiQuery(queryFn, {
-    enabled: isAuthenticated && canAccess && !!sessionId,
-  });
+  return useApiQuery(
+    employeeImportQueryKeys.sessionView(
+      sessionId ?? "pending",
+      normalizedPreviewQuery
+    ),
+    queryFn,
+    {
+      enabled: isAuthenticated && canAccess && !!sessionId,
+      placeholderData: keepPreviousData,
+    }
+  );
 }
 
 export function useUploadEmployeeImport(): UseApiMutationResult<
@@ -156,7 +167,12 @@ export function useValidateEmployeeImport(): UseApiMutationResult<
       client.post<EmployeeImportSessionDto>(
         `${EMPLOYEE_IMPORT_BASE_PATH}/${sessionId}/validate${buildPreviewQueryString(previewQuery)}`,
         undefined
-      )
+      ),
+    {
+      invalidateQueries: (_data, args) => [
+        { queryKey: employeeImportQueryKeys.session(args.sessionId) },
+      ],
+    }
   );
 }
 
@@ -166,11 +182,19 @@ export function useApplyEmployeeImport(): UseApiMutationResult<
 > {
   const client = useMemo(() => createPlatformApiClient(), []);
 
-  return useApiMutation(({ sessionId }: ApplyEmployeeImportInput) =>
-    client.post<EmployeeImportApplyResultDto>(
-      `${EMPLOYEE_IMPORT_BASE_PATH}/${sessionId}/apply`,
-      undefined
-    )
+  return useApiMutation(
+    ({ sessionId }: ApplyEmployeeImportInput) =>
+      client.post<EmployeeImportApplyResultDto>(
+        `${EMPLOYEE_IMPORT_BASE_PATH}/${sessionId}/apply`,
+        undefined
+      ),
+    {
+      invalidateQueries: (_data, args) => [
+        { queryKey: employeeImportQueryKeys.session(args.sessionId) },
+        { queryKey: employeeImportQueryKeys.history() },
+        { queryKey: employeeRosterQueryKeys.all() },
+      ],
+    }
   );
 }
 
@@ -180,6 +204,10 @@ export function useEmployeeImportHistory(
   const { user, isAuthenticated } = useAuth();
   const client = useMemo(() => createPlatformApiClient(), []);
   const canAccess = canAccessEmployeeRoster(user);
+  const normalizedHistoryQuery = useMemo(
+    () => normalizeEmployeeImportHistoryQuery(query),
+    [query?.pageNumber, query?.pageSize]
+  );
   const historyQueryString = buildHistoryQueryString(query);
 
   const queryFn = useCallback(
@@ -193,9 +221,14 @@ export function useEmployeeImportHistory(
     [client, historyQueryString]
   );
 
-  return useApiQuery(queryFn, {
-    enabled: isAuthenticated && canAccess,
-  });
+  return useApiQuery(
+    employeeImportQueryKeys.historyPage(normalizedHistoryQuery),
+    queryFn,
+    {
+      enabled: isAuthenticated && canAccess,
+      placeholderData: keepPreviousData,
+    }
+  );
 }
 
 export function useEmployeeImportHistoryDetail(
@@ -221,9 +254,13 @@ export function useEmployeeImportHistoryDetail(
     [client, historyId]
   );
 
-  return useApiQuery(queryFn, {
-    enabled: isAuthenticated && canAccess && !!historyId,
-  });
+  return useApiQuery(
+    employeeImportQueryKeys.historyDetail(historyId ?? "pending"),
+    queryFn,
+    {
+      enabled: isAuthenticated && canAccess && !!historyId,
+    }
+  );
 }
 
 export function useDownloadEmployeeImportTemplate(): UseApiMutationResult<
