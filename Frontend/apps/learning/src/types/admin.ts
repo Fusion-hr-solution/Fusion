@@ -395,3 +395,73 @@ export interface IdentityUser {
   hireDate?: string | null;
   tenantId: string;
 }
+
+/* ── Programme Dashboard types ── */
+
+export interface ProgrammeMatrixCell {
+  gradeId: string;
+  serviceLineId: string;
+  employeeCount: number;
+  avgCompletionRate: number;
+  totalFormations: number;
+  completedFormations: number;
+}
+
+export interface ProgrammeMatrix {
+  grades: AdminGrade[];
+  serviceLines: AdminServiceLine[];
+  cells: ProgrammeMatrixCell[];
+}
+
+export interface CompletionByGrade {
+  gradeId: string;
+  gradeName: string;
+  level: number;
+  employeeCount: number;
+  avgCompletionRate: number;
+}
+
+export interface CompletionByServiceLine {
+  serviceLineId: string;
+  serviceLineName: string;
+  color: string;
+  employeeCount: number;
+  avgCompletionRate: number;
+}
+
+export interface CompletionTrendPoint {
+  year: number;
+  month: number;
+  label: string;
+  completionRate: number;
+  completedCount: number;
+  totalCount: number;
+}
+
+export interface CompletionTrend {
+  points: CompletionTrendPoint[];
+}
+
+export interface CellEmployeeTrainingProgress {
+  trainingId: string;
+  trainingTitle: string;
+  trainingType: string;
+  credits: number;
+  isRequired: boolean;
+  orderIndex: number;
+  /** "not-started" | "in-progress" | "completed" | "failed" */
+  status: string;
+  progressPercentage: number;
+  lastActivityAt?: string;
+}
+
+export interface CellEmployee {
+  employeeId: string;
+  gradeName: string;
+  serviceLineName: string;
+  completedFormations: number;
+  totalFormations: number;
+  completionPercentage: number;
+  lastActivityAt?: string;
+  trainingBreakdown: CellEmployeeTrainingProgress[];
+}
