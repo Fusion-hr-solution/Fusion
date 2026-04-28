@@ -25,6 +25,7 @@ public class GetEmployeeProfilesQueryHandler
                 Error.Validation("Pagination.InvalidPageSize", "PageSize must be 1 or greater."));
 
         var query = _db.EmployeeProfiles
+            .AsNoTracking()
             .Include(p => p.Grade)
             .Include(p => p.ServiceLine)
             .AsQueryable();

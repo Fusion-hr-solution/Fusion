@@ -23,6 +23,7 @@ public class GetTrainingAssignmentsQueryHandler : IQueryHandler<GetTrainingAssig
             return Result.Failure<List<AssignmentDto>>(Error.NotFound("Training", request.TrainingId));
 
         var assignments = await _db.Assignments
+            .AsNoTracking()
             .Where(a => a.TrainingId == request.TrainingId)
             .Include(a => a.Training)
             .Select(a => new AssignmentDto

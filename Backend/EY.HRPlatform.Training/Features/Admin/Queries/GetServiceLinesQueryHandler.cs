@@ -15,6 +15,7 @@ public class GetServiceLinesQueryHandler : IQueryHandler<GetServiceLinesQuery, R
     public async Task<Result<List<ServiceLineDto>>> Handle(GetServiceLinesQuery request, CancellationToken cancellationToken)
     {
         var serviceLines = await _db.ServiceLines
+            .AsNoTracking()
             .OrderBy(s => s.Name)
             .Select(s => new ServiceLineDto
             {
