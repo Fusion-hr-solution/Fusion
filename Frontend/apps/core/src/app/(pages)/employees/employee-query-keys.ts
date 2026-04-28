@@ -2,9 +2,11 @@ import type { EmployeeImportPreviewFilter } from "./import/employee-import.types
 import type { EmployeeRosterQueryParams } from "./employee-roster.types";
 
 export const DEFAULT_EMPLOYEE_IMPORT_HISTORY_PAGE_SIZE = 10;
+export const DEFAULT_EMPLOYEE_IMPORT_PREVIEW_PAGE_SIZE = 25;
 
 export type EmployeeImportPreviewQuery = {
   pageNumber?: number;
+  pageSize?: number;
   previewFilter?: EmployeeImportPreviewFilter;
   groupKey?: string | null;
 };
@@ -47,6 +49,7 @@ export function normalizeEmployeeImportPreviewQuery(
 ) {
   return {
     pageNumber: query?.pageNumber ?? 1,
+    pageSize: query?.pageSize ?? DEFAULT_EMPLOYEE_IMPORT_PREVIEW_PAGE_SIZE,
     previewFilter: query?.previewFilter ?? "all",
     groupKey: query?.groupKey ?? null,
   };

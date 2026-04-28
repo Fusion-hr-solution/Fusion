@@ -171,6 +171,7 @@ describe("useEmployeeImportSession", () => {
       () =>
         useEmployeeImportSession("session-1", {
           pageNumber: 2,
+          pageSize: 50,
           previewFilter: "affected",
           groupKey: "missingRequiredData:email",
         }),
@@ -180,7 +181,7 @@ describe("useEmployeeImportSession", () => {
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     expect(mockGet).toHaveBeenCalledWith(
-      "/corehr/employees/import/session-1?previewPageNumber=2&previewFilter=affected&groupKey=missingRequiredData%3Aemail",
+      "/corehr/employees/import/session-1?previewPageNumber=2&previewPageSize=50&previewFilter=affected&groupKey=missingRequiredData%3Aemail",
       expect.objectContaining({ signal: expect.any(AbortSignal) })
     );
   });
@@ -257,13 +258,14 @@ describe("useValidateEmployeeImport", () => {
       await result.current.mutateAsync({
         sessionId: "session-1",
         pageNumber: 2,
+        pageSize: 10,
         previewFilter: "affected",
         groupKey: "missingRequiredData:email",
       });
     });
 
     expect(mockPost).toHaveBeenCalledWith(
-      "/corehr/employees/import/session-1/validate?previewPageNumber=2&previewFilter=affected&groupKey=missingRequiredData%3Aemail",
+      "/corehr/employees/import/session-1/validate?previewPageNumber=2&previewPageSize=10&previewFilter=affected&groupKey=missingRequiredData%3Aemail",
       undefined
     );
   });
