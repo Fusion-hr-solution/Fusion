@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import type { SortingState } from "@tanstack/react-table";
 import Link from "next/link";
 import { Upload, Users } from "lucide-react";
 import { useAuth } from "@repo/auth";
@@ -19,16 +20,31 @@ import type {
 } from "./employee-roster.types";
 import { useEmployeeRoster } from "./use-employees";
 
-function getNextSortDirection(
-  nextField: EmployeeRosterSortField,
-  activeField: EmployeeRosterSortField,
-  currentDirection: EmployeeRosterSortDirection
-): EmployeeRosterSortDirection {
-  if (nextField !== activeField) {
-    return nextField === "HireDate" ? "Desc" : "Asc";
-  }
+const DEFAULT_EMPLOYEE_SORTING: SortingState = [{ id: "Name", desc: false }];
 
-  return currentDirection === "Asc" ? "Desc" : "Asc";
+function isEmployeeRosterSortField(
+  value: string | undefined
+): value is EmployeeRosterSortField {
+  return (
+    value === "Name" ||
+    value === "Email" ||
+    value === "Status" ||
+    value === "HireDate"
+  );
+}
+
+function getRosterSortParams(sorting: SortingState): {
+  sortBy: EmployeeRosterSortField;
+  sortDir: EmployeeRosterSortDirection;
+} {
+  const primarySort = sorting[0];
+
+  return {
+    sortBy: isEmployeeRosterSortField(primarySort?.id)
+      ? primarySort.id
+      : "Name",
+    sortDir: primarySort?.desc ? "Desc" : "Asc",
+  };
 }
 
 export default function EmployeesPage() {
@@ -38,10 +54,12 @@ export default function EmployeesPage() {
   const [pageSize, setPageSize] = useState<PageSize>(DEFAULT_PAGE_SIZE);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<EmployeeRosterStatus | undefined>();
-  const [sortBy, setSortBy] = useState<EmployeeRosterSortField>("Name");
-  const [sortDir, setSortDir] = useState<EmployeeRosterSortDirection>("Asc");
+  const [sorting, setSorting] = useState<SortingState>(
+    DEFAULT_EMPLOYEE_SORTING
+  );
+  const { sortBy, sortDir } = getRosterSortParams(sorting);
 
-  const { data, error, isLoading, refetch } = useEmployeeRoster({
+  const { data, error, isLoading, isFetching, refetch } = useEmployeeRoster({
     search: search || undefined,
     status,
     sortBy,
@@ -63,16 +81,12 @@ export default function EmployeesPage() {
     []
   );
 
-  const handleSortChange = useCallback(
-    (field: EmployeeRosterSortField) => {
-      setSortDir((currentDirection) =>
-        getNextSortDirection(field, sortBy, currentDirection)
-      );
-      setSortBy(field);
-      setPage(1);
-    },
-    [sortBy]
-  );
+  const handleSortingChange = useCallback((nextSorting: SortingState) => {
+    setSorting(
+      nextSorting.length > 0 ? [nextSorting[0]!] : DEFAULT_EMPLOYEE_SORTING
+    );
+    setPage(1);
+  }, []);
 
   const handlePageSizeChange = useCallback((size: PageSize) => {
     setPageSize(size);
@@ -132,10 +146,9 @@ export default function EmployeesPage() {
       <EmployeesTable
         data={data?.items ?? []}
         isLoading={isLoading}
-        isRefetching={isLoading && !!data}
-        sortBy={sortBy}
-        sortDir={sortDir}
-        onSortChange={handleSortChange}
+        isRefetching={isFetching && !!data}
+        sorting={sorting}
+        onSortingChange={handleSortingChange}
       />
 
       {data && data.totalCount > 0 && (
