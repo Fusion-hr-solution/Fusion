@@ -1,5 +1,7 @@
 using EY.HRPlatform.CoreHR.Domain.Entities;
 using EY.HRPlatform.CoreHR.Features.Employees.Dtos;
+using EY.HRPlatform.CoreHR.Features.Employees.Services;
+using EY.HRPlatform.CoreHR.Features.TenantSettings.Services;
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
 using EY.HRPlatform.CoreHR.Models.Responses;
 using EY.HRPlatform.SharedKernel.CQRS;
@@ -9,14 +11,17 @@ using Microsoft.EntityFrameworkCore;
 namespace EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployees;
 
 public sealed class GetEmployeesQueryHandler(
-    CoreHRDbContext dbContext) : IQueryHandler<GetEmployeesQuery, Result<PagedResponse<EmployeeListItemDto>>>
+    CoreHRDbContext dbContext,
+    IEmployeeReadModelPolicy? employeeReadModelPolicy = null) : IQueryHandler<GetEmployeesQuery, Result<PagedResponse<EmployeeListItemDto>>>
 {
     private const int MaxPageSize = 100;
+    private readonly IEmployeeReadModelPolicy employeeReadModelPolicy = employeeReadModelPolicy ?? new EmployeeReadModelPolicy();
 
     public async Task<Result<PagedResponse<EmployeeListItemDto>>> Handle(
         GetEmployeesQuery request,
         CancellationToken cancellationToken)
     {
+        var settings = await GetReadSettingsAsync(cancellationToken);
         var query = dbContext.Employees
             .AsNoTracking()
             .Include(e => e.Manager)
@@ -34,14 +39,6 @@ public sealed class GetEmployeesQueryHandler(
                 e.LastName.ToLower().Contains(searchTerm) ||
                 e.Email.ToLower().Contains(searchTerm) ||
                 (e.FirstName + " " + e.LastName).ToLower().Contains(searchTerm));
-        }
-
-        // Apply department filter (case-insensitive)
-        if (!string.IsNullOrWhiteSpace(request.Department))
-        {
-            var department = request.Department.Trim().ToLowerInvariant();
-            query = query.Where(e => e.Department != null &&
-                e.Department.ToLower() == department);
         }
 
         // Apply status filter
@@ -64,24 +61,15 @@ public sealed class GetEmployeesQueryHandler(
         var employees = await query
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .Select(e => new EmployeeListItemDto(
-                e.Id,
-                e.FirstName,
-                e.LastName,
-                e.Email,
-                e.Department,
-                e.OrgUnitId,
-                e.OrgUnit != null ? e.OrgUnit.Name : null,
-                e.JobTitle,
-                e.Status,
-                e.HireDate,
-                e.ManagerId,
-                e.Manager != null ? e.Manager.FirstName + " " + e.Manager.LastName : null))
             .ToListAsync(cancellationToken);
+
+        var items = employees
+            .Select(employee => employeeReadModelPolicy.MapListItem(employee, settings, EmployeeReadAudience.HrAdmin))
+            .ToList();
 
         return Result.Success(new PagedResponse<EmployeeListItemDto>
         {
-            Items = employees,
+            Items = items,
             TotalCount = totalCount,
             Page = page,
             PageSize = pageSize
@@ -103,10 +91,6 @@ public sealed class GetEmployeesQueryHandler(
                 query.OrderBy(e => e.Email),
             (EmployeeSortField.Email, SortDirection.Desc) =>
                 query.OrderByDescending(e => e.Email),
-            (EmployeeSortField.Department, SortDirection.Asc) =>
-                query.OrderBy(e => e.Department),
-            (EmployeeSortField.Department, SortDirection.Desc) =>
-                query.OrderByDescending(e => e.Department),
             (EmployeeSortField.HireDate, SortDirection.Asc) =>
                 query.OrderBy(e => e.HireDate),
             (EmployeeSortField.HireDate, SortDirection.Desc) =>
@@ -117,5 +101,14 @@ public sealed class GetEmployeesQueryHandler(
                 query.OrderByDescending(e => e.Status),
             _ => query.OrderBy(e => e.LastName).ThenBy(e => e.FirstName)
         };
+    }
+
+    private async Task<Features.TenantSettings.Dtos.TenantSettingsDto> GetReadSettingsAsync(CancellationToken cancellationToken)
+    {
+        var settings = await dbContext.TenantSettings
+            .AsNoTracking()
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return TenantSettingsMerger.Merge(settings?.SettingsOverrides, settings?.Version);
     }
 }

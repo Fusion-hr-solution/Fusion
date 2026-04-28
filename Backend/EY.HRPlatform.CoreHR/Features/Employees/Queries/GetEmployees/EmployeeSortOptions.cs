@@ -9,8 +9,6 @@ public enum EmployeeSortField
     Name,
     /// <summary>Sort by email address.</summary>
     Email,
-    /// <summary>Sort by department.</summary>
-    Department,
     /// <summary>Sort by hire date.</summary>
     HireDate,
     /// <summary>Sort by employee status.</summary>

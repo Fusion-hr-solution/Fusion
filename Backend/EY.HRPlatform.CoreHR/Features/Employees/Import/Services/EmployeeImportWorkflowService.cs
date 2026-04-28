@@ -7,6 +7,7 @@ using CsvHelper.Configuration;
 using EY.HRPlatform.CoreHR.Domain.Entities;
 using EY.HRPlatform.CoreHR.Exceptions;
 using EY.HRPlatform.CoreHR.Features.Employees.Import.Dtos;
+using EY.HRPlatform.CoreHR.Features.Employees.Services;
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
 using EY.HRPlatform.SharedKernel.Multitenancy;
 using Microsoft.AspNetCore.Http;
@@ -48,8 +49,11 @@ public interface IEmployeeImportWorkflowService
 
 public sealed class EmployeeImportWorkflowService(
     CoreHRDbContext dbContext,
-    ITenantContext tenantContext) : IEmployeeImportWorkflowService
+    ITenantContext tenantContext,
+    IEmployeeHierarchyService? employeeHierarchyService = null) : IEmployeeImportWorkflowService
 {
+    private readonly IEmployeeHierarchyService employeeHierarchyService = employeeHierarchyService ?? new EmployeeHierarchyService(dbContext);
+
     private const int MaxSourceFileNameLength = 260;
     private const int MaxRowCount = 5000;
     private const int SampleRowCount = 12;
@@ -320,6 +324,9 @@ public sealed class EmployeeImportWorkflowService(
             dbContext.Employees.Add(employee);
         }
 
+        var pendingEmployeesById = employeesByEmail.Values
+            .ToDictionary(employee => employee.Id);
+
         foreach (var row in normalizedRows.Where(current => !string.IsNullOrWhiteSpace(current.ManagerEmail)))
         {
             var employee = employeesByEmail[row.Email];
@@ -337,6 +344,11 @@ public sealed class EmployeeImportWorkflowService(
                 managerId = sameFileManager.Id;
             }
 
+            await employeeHierarchyService.EnsureManagerAssignmentIsValidAsync(
+                employee.Id,
+                managerId,
+                cancellationToken,
+                pendingEmployeesById);
             employee.AssignManager(managerId);
         }
 

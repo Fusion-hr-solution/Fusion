@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json;
 using EY.HRPlatform.CoreHR.Domain.Entities;
 using EY.HRPlatform.CoreHR.Exceptions;
 using EY.HRPlatform.CoreHR.Features.Employees.Import.Dtos;
@@ -422,6 +423,81 @@ public class EmployeeImportWorkflowTests
         var report = Assert.Single(employees, employee => employee.Email == "sarah.chen@contoso.com");
 
         Assert.Equal(manager.Id, report.ManagerId);
+    }
+
+    [Fact]
+    public async Task ApplyAsync_BlocksTamperedValidatedSessionWhenManagerCycleWouldBeCreated()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        await SeedPublishedSetupAsync(dbName);
+
+        Guid sessionId;
+        await using (var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName))
+        {
+            var session = EmployeeImportSession.CreatePreviewReady(
+                TenantId,
+                "employees.csv",
+                128,
+                JsonSerializer.Serialize(new[] { "firstName", "lastName", "email", "hireDate", "jobTitle", "orgUnitCode", "managerEmail" }),
+                JsonSerializer.Serialize(new object[]
+                {
+                    new { rowNumber = 1, values = new Dictionary<string, string?>() },
+                    new { rowNumber = 2, values = new Dictionary<string, string?>() },
+                }),
+                "[]",
+                DateTime.UtcNow.AddHours(1));
+
+            session.SetValidationResult(
+                JsonSerializer.Serialize(new object[]
+                {
+                    new
+                    {
+                        rowNumber = 1,
+                        firstName = "Alex",
+                        lastName = "Manager",
+                        email = "alex.manager@contoso.com",
+                        hireDate = DateTime.SpecifyKind(new DateTime(2024, 1, 15), DateTimeKind.Utc),
+                        jobTitle = "Engineering Manager",
+                        orgUnitCode = (string?)null,
+                        orgUnitId = (Guid?)null,
+                        managerEmail = "sarah.chen@contoso.com",
+                        existingManagerId = (Guid?)null,
+                    },
+                    new
+                    {
+                        rowNumber = 2,
+                        firstName = "Sarah",
+                        lastName = "Chen",
+                        email = "sarah.chen@contoso.com",
+                        hireDate = DateTime.SpecifyKind(new DateTime(2024, 1, 15), DateTimeKind.Utc),
+                        jobTitle = "Senior Engineer",
+                        orgUnitCode = (string?)null,
+                        orgUnitId = (Guid?)null,
+                        managerEmail = "alex.manager@contoso.com",
+                        existingManagerId = (Guid?)null,
+                    },
+                }),
+                "[]");
+
+            seedContext.EmployeeImportSessions.Add(session);
+            await seedContext.SaveChangesAsync();
+            sessionId = session.Id;
+        }
+
+        await using var context = TestDbContextFactory.Create(TestTenantContext.WithTenant(TenantId), dbName);
+        var service = new EmployeeImportWorkflowService(context, TestTenantContext.WithTenant(TenantId));
+
+        var exception = await Assert.ThrowsAsync<ArgumentException>(() =>
+            service.ApplyAsync(sessionId, CreateActor(), CancellationToken.None));
+
+        Assert.Contains("cycle", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(context.Employees);
+        Assert.Empty(context.EmployeeImportHistories);
+
+        var persistedSession = await context.EmployeeImportSessions.FindAsync(sessionId);
+        Assert.NotNull(persistedSession);
+        Assert.Equal(EmployeeImportStage.Validated, persistedSession!.Stage);
+        Assert.Null(persistedSession.AppliedAt);
     }
 
     [Fact]

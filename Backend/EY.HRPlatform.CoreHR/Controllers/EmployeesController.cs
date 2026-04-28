@@ -23,14 +23,13 @@ namespace EY.HRPlatform.CoreHR.Controllers;
 public class EmployeesController(ISender sender) : ControllerBase
 {
     /// <summary>
-    /// List employees with optional search, filtering, sorting, and pagination.
+    /// List employees with optional search, status filtering, sorting, and pagination.
     /// </summary>
     [HttpGet]
     [Authorize(Roles = PlatformRole.HRAdmin)]
     [ProducesResponseType(typeof(ApiResponseOfPagedEmployeeList), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAll(
         [FromQuery] string? search,
-        [FromQuery] string? department,
         [FromQuery] EmployeeStatus? status,
         [FromQuery] EmployeeSortField sortBy = EmployeeSortField.Name,
         [FromQuery] SortDirection sortDir = SortDirection.Asc,
@@ -38,7 +37,7 @@ public class EmployeesController(ISender sender) : ControllerBase
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        var query = new GetEmployeesQuery(search, department, status, sortBy, sortDir, page, pageSize);
+        var query = new GetEmployeesQuery(search, status, sortBy, sortDir, page, pageSize);
         var result = await sender.Send(query, cancellationToken);
         return Ok(ApiResponseOfPagedEmployeeList.Success(result.Value));
     }
@@ -47,7 +46,7 @@ public class EmployeesController(ISender sender) : ControllerBase
     /// Create a new employee within the current tenant.
     /// </summary>
     [HttpPost]
-    [Authorize(Roles = $"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin}")]
+    [Authorize(Roles = PlatformRole.HRAdmin)]
     [ProducesResponseType(typeof(ApiResponseOfEmployeeDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status409Conflict)]
@@ -60,7 +59,7 @@ public class EmployeesController(ISender sender) : ControllerBase
             request.LastName,
             request.Email,
             request.HireDate,
-            request.Department,
+            null,
             request.JobTitle,
             request.ManagerId,
             request.OrgUnitId);
@@ -101,7 +100,7 @@ public class EmployeesController(ISender sender) : ControllerBase
     /// Requires If-Match header with current version for optimistic concurrency.
     /// </summary>
     [HttpPut("{id:guid}")]
-    [Authorize(Roles = $"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin}")]
+    [Authorize(Roles = PlatformRole.HRAdmin)]
     [ProducesResponseType(typeof(ApiResponseOfEmployeeDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
@@ -126,7 +125,7 @@ public class EmployeesController(ISender sender) : ControllerBase
             request.FirstName,
             request.LastName,
             request.Email,
-            request.Department,
+            null,
             request.JobTitle,
             request.ManagerId,
             request.OrgUnitId);
@@ -143,7 +142,7 @@ public class EmployeesController(ISender sender) : ControllerBase
     /// Requires If-Match header with current version for optimistic concurrency.
     /// </summary>
     [HttpDelete("{id:guid}")]
-    [Authorize(Roles = $"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin}")]
+    [Authorize(Roles = PlatformRole.HRAdmin)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status409Conflict)]

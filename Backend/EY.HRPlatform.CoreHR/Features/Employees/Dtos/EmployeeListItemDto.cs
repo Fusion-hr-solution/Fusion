@@ -10,7 +10,6 @@ public sealed record EmployeeListItemDto(
     string FirstName,
     string LastName,
     string Email,
-    string? Department,
     Guid? OrgUnitId,
     string? OrgUnitName,
     string? JobTitle,

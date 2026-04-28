@@ -270,55 +270,6 @@ public class GetEmployeesQueryHandlerTests
     #region Filter Tests
 
     [Fact]
-    public async Task GetEmployees_FilterByDepartment_ReturnsMatchingEmployees()
-    {
-        // Arrange
-        var dbName = Guid.NewGuid().ToString();
-        var tenantContext = TestTenantContext.WithTenant(TenantId);
-        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
-
-        seedContext.Employees.Add(Employee.Create(TenantId, "John", "Doe", "john@example.com", DateTime.UtcNow, "Engineering"));
-        seedContext.Employees.Add(Employee.Create(TenantId, "Jane", "Smith", "jane@example.com", DateTime.UtcNow, "Engineering"));
-        seedContext.Employees.Add(Employee.Create(TenantId, "Bob", "Jones", "bob@example.com", DateTime.UtcNow, "Marketing"));
-        await seedContext.SaveChangesAsync();
-
-        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new GetEmployeesQueryHandler(context);
-        var query = new GetEmployeesQuery(Department: "Engineering");
-
-        // Act
-        var result = await handler.Handle(query, CancellationToken.None);
-
-        // Assert
-        Assert.True(result.IsSuccess);
-        Assert.Equal(2, result.Value.TotalCount);
-        Assert.All(result.Value.Items, e => Assert.Equal("Engineering", e.Department));
-    }
-
-    [Fact]
-    public async Task GetEmployees_FilterByDepartment_CaseInsensitive()
-    {
-        // Arrange
-        var dbName = Guid.NewGuid().ToString();
-        var tenantContext = TestTenantContext.WithTenant(TenantId);
-        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
-
-        seedContext.Employees.Add(Employee.Create(TenantId, "John", "Doe", "john@example.com", DateTime.UtcNow, "ENGINEERING"));
-        await seedContext.SaveChangesAsync();
-
-        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new GetEmployeesQueryHandler(context);
-        var query = new GetEmployeesQuery(Department: "engineering");
-
-        // Act
-        var result = await handler.Handle(query, CancellationToken.None);
-
-        // Assert
-        Assert.True(result.IsSuccess);
-        Assert.Single(result.Value.Items);
-    }
-
-    [Fact]
     public async Task GetEmployees_FilterByStatusActive_ReturnsOnlyActiveEmployees()
     {
         // Arrange
@@ -375,21 +326,23 @@ public class GetEmployeesQueryHandlerTests
     }
 
     [Fact]
-    public async Task GetEmployees_CombinedSearchAndFilter_AppliesBoth()
+    public async Task GetEmployees_CombinedSearchAndStatus_AppliesBoth()
     {
         // Arrange
         var dbName = Guid.NewGuid().ToString();
         var tenantContext = TestTenantContext.WithTenant(TenantId);
         await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
 
-        seedContext.Employees.Add(Employee.Create(TenantId, "John", "Doe", "john@example.com", DateTime.UtcNow, "Engineering"));
-        seedContext.Employees.Add(Employee.Create(TenantId, "John", "Smith", "johns@example.com", DateTime.UtcNow, "Marketing"));
-        seedContext.Employees.Add(Employee.Create(TenantId, "Jane", "Doe", "jane@example.com", DateTime.UtcNow, "Engineering"));
+        seedContext.Employees.Add(Employee.Create(TenantId, "John", "Doe", "john@example.com", DateTime.UtcNow));
+        var inactiveJohn = Employee.Create(TenantId, "John", "Smith", "johns@example.com", DateTime.UtcNow);
+        inactiveJohn.Deactivate();
+        seedContext.Employees.Add(inactiveJohn);
+        seedContext.Employees.Add(Employee.Create(TenantId, "Jane", "Doe", "jane@example.com", DateTime.UtcNow));
         await seedContext.SaveChangesAsync();
 
         await using var context = TestDbContextFactory.Create(tenantContext, dbName);
         var handler = new GetEmployeesQueryHandler(context);
-        var query = new GetEmployeesQuery(Search: "john", Department: "Engineering");
+        var query = new GetEmployeesQuery(Search: "john", Status: EmployeeStatus.Active);
 
         // Act
         var result = await handler.Handle(query, CancellationToken.None);
@@ -398,7 +351,7 @@ public class GetEmployeesQueryHandlerTests
         Assert.True(result.IsSuccess);
         Assert.Single(result.Value.Items);
         Assert.Equal("John", result.Value.Items[0].FirstName);
-        Assert.Equal("Engineering", result.Value.Items[0].Department);
+        Assert.Equal(EmployeeStatus.Active, result.Value.Items[0].Status);
     }
 
     #endregion
@@ -506,31 +459,6 @@ public class GetEmployeesQueryHandlerTests
         Assert.True(result.IsSuccess);
         Assert.Equal("Older", result.Value.Items[0].FirstName);  // Hired 5 years ago
         Assert.Equal("Newer", result.Value.Items[1].FirstName);  // Hired today
-    }
-
-    [Fact]
-    public async Task GetEmployees_SortByDepartment_SortsCorrectly()
-    {
-        // Arrange
-        var dbName = Guid.NewGuid().ToString();
-        var tenantContext = TestTenantContext.WithTenant(TenantId);
-        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
-
-        seedContext.Employees.Add(Employee.Create(TenantId, "John", "Doe", "john@example.com", DateTime.UtcNow, "Zulu"));
-        seedContext.Employees.Add(Employee.Create(TenantId, "Jane", "Smith", "jane@example.com", DateTime.UtcNow, "Alpha"));
-        await seedContext.SaveChangesAsync();
-
-        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new GetEmployeesQueryHandler(context);
-        var query = new GetEmployeesQuery(SortBy: EmployeeSortField.Department, SortDir: SortDirection.Asc);
-
-        // Act
-        var result = await handler.Handle(query, CancellationToken.None);
-
-        // Assert
-        Assert.True(result.IsSuccess);
-        Assert.Equal("Alpha", result.Value.Items[0].Department);
-        Assert.Equal("Zulu", result.Value.Items[1].Department);
     }
 
     #endregion
@@ -656,6 +584,32 @@ public class GetEmployeesQueryHandlerTests
         Assert.Single(result.Value.Items);
         Assert.Equal(orgUnit.Id, result.Value.Items[0].OrgUnitId);
         Assert.Equal("Engineering", result.Value.Items[0].OrgUnitName);
+    }
+
+    [Fact]
+    public async Task GetEmployees_HidesJobTitle_WhenTenantSettingsDisableItForHrAdmin()
+    {
+        // Arrange
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+
+        seedContext.TenantSettings.Add(EY.HRPlatform.CoreHR.Domain.Entities.TenantSettings.Create(
+            TenantId,
+            """{"employeeFieldConfig":{"jobTitle":{"visible":false}}}"""));
+        seedContext.Employees.Add(Employee.Create(TenantId, "Sarah", "Chen", "sarah@example.com", DateTime.UtcNow, null, "Senior Engineer"));
+        await seedContext.SaveChangesAsync();
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = new GetEmployeesQueryHandler(context);
+
+        // Act
+        var result = await handler.Handle(new GetEmployeesQuery(), CancellationToken.None);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.Single(result.Value.Items);
+        Assert.Null(result.Value.Items[0].JobTitle);
     }
 
     #endregion

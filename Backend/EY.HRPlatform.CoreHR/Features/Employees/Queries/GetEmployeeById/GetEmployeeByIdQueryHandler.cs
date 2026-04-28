@@ -1,5 +1,7 @@
 using EY.HRPlatform.CoreHR.Domain.Entities;
 using EY.HRPlatform.CoreHR.Features.Employees.Dtos;
+using EY.HRPlatform.CoreHR.Features.Employees.Services;
+using EY.HRPlatform.CoreHR.Features.TenantSettings.Services;
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
 using EY.HRPlatform.SharedKernel.CQRS;
 using EY.HRPlatform.SharedKernel.Results;
@@ -8,8 +10,11 @@ using Microsoft.EntityFrameworkCore;
 namespace EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployeeById;
 
 public sealed class GetEmployeeByIdQueryHandler(
-    CoreHRDbContext dbContext) : IQueryHandler<GetEmployeeByIdQuery, Result<EmployeeDto>>
+    CoreHRDbContext dbContext,
+    IEmployeeReadModelPolicy? employeeReadModelPolicy = null) : IQueryHandler<GetEmployeeByIdQuery, Result<EmployeeDto>>
 {
+    private readonly IEmployeeReadModelPolicy employeeReadModelPolicy = employeeReadModelPolicy ?? new EmployeeReadModelPolicy();
+
     public async Task<Result<EmployeeDto>> Handle(GetEmployeeByIdQuery request, CancellationToken cancellationToken)
     {
         var employee = await dbContext.Employees
@@ -22,26 +27,16 @@ public sealed class GetEmployeeByIdQueryHandler(
             return Result.Failure<EmployeeDto>(Error.NotFound("Employee", request.EmployeeId));
         }
 
-        return Result.Success(MapToDto(employee));
+        var settings = await GetReadSettingsAsync(cancellationToken);
+        return Result.Success(employeeReadModelPolicy.MapDetail(employee, settings, EmployeeReadAudience.HrAdmin));
     }
 
-    private static EmployeeDto MapToDto(Employee employee) => new(
-        employee.Id,
-        employee.TenantId,
-        employee.FirstName,
-        employee.LastName,
-        employee.Email,
-        employee.Department,
-        employee.OrgUnitId,
-        employee.OrgUnit?.Name,
-        employee.JobTitle,
-        employee.HireDate,
-        employee.Status,
-        employee.ManagerId,
-        employee.Manager is not null
-            ? new ManagerDto(employee.Manager.Id, employee.Manager.FirstName, employee.Manager.LastName, employee.Manager.Email)
-            : null,
-        employee.CreatedAt,
-        employee.UpdatedAt,
-        employee.Version);
+    private async Task<Features.TenantSettings.Dtos.TenantSettingsDto> GetReadSettingsAsync(CancellationToken cancellationToken)
+    {
+        var settings = await dbContext.TenantSettings
+            .AsNoTracking()
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return TenantSettingsMerger.Merge(settings?.SettingsOverrides, settings?.Version);
+    }
 }

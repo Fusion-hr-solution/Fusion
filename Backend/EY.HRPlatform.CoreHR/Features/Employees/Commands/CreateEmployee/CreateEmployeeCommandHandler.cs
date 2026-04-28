@@ -1,6 +1,7 @@
 using EY.HRPlatform.CoreHR.Domain.Entities;
 using EY.HRPlatform.CoreHR.Exceptions;
 using EY.HRPlatform.CoreHR.Features.Employees.Dtos;
+using EY.HRPlatform.CoreHR.Features.Employees.Services;
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
 using EY.HRPlatform.SharedKernel.CQRS;
 using EY.HRPlatform.SharedKernel.Multitenancy;
@@ -11,8 +12,11 @@ namespace EY.HRPlatform.CoreHR.Features.Employees.Commands.CreateEmployee;
 
 public sealed class CreateEmployeeCommandHandler(
     CoreHRDbContext dbContext,
-    ITenantContext tenantContext) : ICommandHandler<CreateEmployeeCommand, Result<EmployeeDto>>
+    ITenantContext tenantContext,
+    IEmployeeHierarchyService? employeeHierarchyService = null) : ICommandHandler<CreateEmployeeCommand, Result<EmployeeDto>>
 {
+    private readonly IEmployeeHierarchyService employeeHierarchyService = employeeHierarchyService ?? new EmployeeHierarchyService(dbContext);
+
     public async Task<Result<EmployeeDto>> Handle(CreateEmployeeCommand request, CancellationToken cancellationToken)
     {
         var tenantId = tenantContext.TenantId;
@@ -25,18 +29,6 @@ public sealed class CreateEmployeeCommandHandler(
         if (emailExists)
         {
             throw new DuplicateEntityException("Employee", "email", normalizedEmail);
-        }
-
-        // Validate manager exists and belongs to same tenant (if specified)
-        if (request.ManagerId.HasValue && request.ManagerId.Value != Guid.Empty)
-        {
-            var managerExists = await dbContext.Employees
-                .AnyAsync(e => e.Id == request.ManagerId.Value, cancellationToken);
-
-            if (!managerExists)
-            {
-                throw new EntityNotFoundException("Manager", request.ManagerId.Value);
-            }
         }
 
         OrgUnit? orgUnit = null;
@@ -69,6 +61,10 @@ public sealed class CreateEmployeeCommandHandler(
         // Assign manager if specified
         if (request.ManagerId.HasValue)
         {
+            await employeeHierarchyService.EnsureManagerAssignmentIsValidAsync(
+                employee.Id,
+                request.ManagerId,
+                cancellationToken);
             employee.AssignManager(request.ManagerId.Value);
         }
 
@@ -105,7 +101,6 @@ public sealed class CreateEmployeeCommandHandler(
         employee.FirstName,
         employee.LastName,
         employee.Email,
-        employee.Department,
         employee.OrgUnitId,
         orgUnit?.Name,
         employee.JobTitle,

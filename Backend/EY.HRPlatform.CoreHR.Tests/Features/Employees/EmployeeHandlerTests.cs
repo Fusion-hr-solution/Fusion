@@ -359,7 +359,7 @@ public class EmployeeHandlerTests
         Assert.Equal("Jane", result.Value.FirstName);
         Assert.Equal("Smith", result.Value.LastName);
         Assert.Equal("jane.smith@example.com", result.Value.Email);
-        Assert.Equal("HR", result.Value.Department);
+        Assert.Equal("Manager", result.Value.JobTitle);
     }
 
     [Fact]
@@ -451,7 +451,6 @@ public class EmployeeHandlerTests
         Assert.Equal("Jane", result.Value.FirstName);        // Changed
         Assert.Equal("Doe", result.Value.LastName);          // Preserved
         Assert.Equal("john@example.com", result.Value.Email); // Preserved
-        Assert.Equal("Engineering", result.Value.Department); // Preserved
         Assert.Equal("Developer", result.Value.JobTitle);     // Preserved
     }
 
@@ -530,6 +529,41 @@ public class EmployeeHandlerTests
         Assert.Null(result.Value.OrgUnitName);
     }
 
+    [Fact]
+    public async Task UpdateEmployee_WhenManagerAssignmentWouldCreateCycle_ThrowsArgumentException()
+    {
+        // Arrange
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+        var manager = Employee.Create(TenantId, "Alex", "Manager", "alex.manager@example.com", DateTime.UtcNow);
+        var report = Employee.Create(TenantId, "Sarah", "Report", "sarah.report@example.com", DateTime.UtcNow);
+        report.AssignManager(manager.Id);
+        seedContext.Employees.AddRange(manager, report);
+        await seedContext.SaveChangesAsync();
+        var managerVersion = manager.Version;
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = new UpdateEmployeeCommandHandler(context);
+        var command = new UpdateEmployeeCommand(
+            manager.Id,
+            managerVersion,
+            null,
+            null,
+            null,
+            null,
+            null,
+            report.Id,
+            null);
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<ArgumentException>(
+            () => handler.Handle(command, CancellationToken.None));
+
+        Assert.Contains("cycle", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
     #endregion
 
     #region DeactivateEmployeeCommandHandler Tests
@@ -597,6 +631,32 @@ public class EmployeeHandlerTests
         // Act & Assert
         await Assert.ThrowsAsync<ConcurrencyException>(
             () => handler.Handle(command, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task DeactivateEmployee_WithActiveDirectReports_ThrowsArgumentException()
+    {
+        // Arrange
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+        var manager = Employee.Create(TenantId, "Alex", "Manager", "alex.manager@example.com", DateTime.UtcNow);
+        var report = Employee.Create(TenantId, "Sarah", "Report", "sarah.report@example.com", DateTime.UtcNow);
+        report.AssignManager(manager.Id);
+        seedContext.Employees.AddRange(manager, report);
+        await seedContext.SaveChangesAsync();
+        var managerVersion = manager.Version;
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = new DeactivateEmployeeCommandHandler(context);
+        var command = new DeactivateEmployeeCommand(manager.Id, managerVersion);
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<ArgumentException>(
+            () => handler.Handle(command, CancellationToken.None));
+
+        Assert.Contains("direct reports", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     #endregion
