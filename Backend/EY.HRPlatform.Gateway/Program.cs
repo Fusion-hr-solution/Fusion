@@ -5,6 +5,11 @@ using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Increase Kestrel limit to handle large file uploads proxied to downstream services
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxRequestBodySize = 524_288_000; // 500 MB
+});
 var jwtSecret = builder.Configuration["Jwt:Secret"];
 if (string.IsNullOrEmpty(jwtSecret))
     throw new InvalidOperationException("Jwt:Secret is not configured. Set it via environment variable or appsettings.");

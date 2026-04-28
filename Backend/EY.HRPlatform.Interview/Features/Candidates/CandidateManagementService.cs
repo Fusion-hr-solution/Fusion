@@ -15,6 +15,8 @@ public class CandidateManagementService(
     IConfiguration configuration)
     : ICandidateManagementService
 {
+    private const int DefaultTimelineEventRetentionDays = 90;
+
     public async Task<CandidateManagementOverviewDto> GetOverviewAsync(CancellationToken cancellationToken)
     {
         var pendingInvitations = await invitationService.GetPendingAsync(null, cancellationToken);
@@ -33,6 +35,168 @@ public class CandidateManagementService(
         };
 
         return overview;
+    }
+
+    public async Task<IReadOnlyList<CandidateTimelineCandidateDto>> GetTimelineCandidatesAsync(
+        string testId,
+        CancellationToken cancellationToken)
+    {
+        var parsedTestId = ParseTestId(testId);
+        await PurgeExpiredProgressEventsAsync(cancellationToken);
+
+        var invitations = await dbContext.CandidateInvitations
+            .AsNoTracking()
+            .Where(item => item.TestId == parsedTestId)
+            .OrderByDescending(item => item.CreatedAt)
+            .ToListAsync(cancellationToken);
+
+        var grouped = invitations
+            .GroupBy(item => NormalizeStoredEmailForLookup(item.Email), StringComparer.Ordinal)
+            .Where(group => !string.IsNullOrWhiteSpace(group.Key))
+            .Select(group => group.OrderByDescending(item => item.CreatedAt).First())
+            .OrderBy(item => NormalizeStoredEmailForLookup(item.Email))
+            .ToList();
+
+        return grouped
+            .Select(item => new CandidateTimelineCandidateDto
+            {
+                CandidateEmail = NormalizeStoredEmailForLookup(item.Email),
+                CandidateName = item.CandidateName,
+                LatestStatus = item.Status,
+                LatestActivityAtUtc = ResolveLatestActivityUtc(item),
+            })
+            .ToList();
+    }
+
+    public async Task<CandidateProgressTimelineDto> GetTimelineAsync(
+        string testId,
+        string candidateEmail,
+        CancellationToken cancellationToken)
+    {
+        var parsedTestId = ParseTestId(testId);
+        var normalizedCandidateEmail = NormalizeCandidateEmail(candidateEmail);
+        await PurgeExpiredProgressEventsAsync(cancellationToken);
+
+        var invitation = await FindLatestInvitationByNormalizedEmailAsync(
+                parsedTestId,
+                normalizedCandidateEmail,
+                cancellationToken)
+            ?? throw new ApiException("Candidate timeline not found.", StatusCodes.Status404NotFound);
+
+        var events = await dbContext.CandidateProgressEvents
+            .AsNoTracking()
+            .Where(item => item.InvitationId == invitation.Id)
+            .OrderBy(item => item.OccurredAtUtc)
+            .ToListAsync(cancellationToken);
+
+        var attemptNumbers = invitation.Attempts
+            .Select(item => item.AttemptNumber)
+            .Concat(events.Select(item => item.AttemptNumber))
+            .Where(item => item > 0)
+            .Distinct()
+            .OrderBy(item => item)
+            .ToList();
+
+        if (attemptNumbers.Count == 0)
+        {
+            attemptNumbers.Add(1);
+        }
+
+        var attempts = new List<CandidateAttemptTimelineDto>(attemptNumbers.Count);
+        foreach (var attemptNumber in attemptNumbers)
+        {
+            var attempt = invitation.Attempts
+                .OrderByDescending(item => item.AttemptNumber)
+                .ThenByDescending(item => item.CreatedAt)
+                .FirstOrDefault(item => item.AttemptNumber == attemptNumber);
+
+            var attemptEvents = events
+                .Where(item => item.AttemptNumber == attemptNumber)
+                .OrderBy(item => item.OccurredAtUtc)
+                .ToList();
+
+            var invitedAtUtc = attemptEvents
+                .FirstOrDefault(item => item.Milestone == CandidateProgressMilestones.Invited)
+                ?.OccurredAtUtc;
+            var linkOpenedAtUtc = attemptEvents
+                .FirstOrDefault(item => item.Milestone == CandidateProgressMilestones.LinkOpened)
+                ?.OccurredAtUtc;
+            var startedAtUtc = attempt?.StartedAtUtc == default
+                ? null
+                : attempt?.StartedAtUtc;
+            startedAtUtc ??= attemptEvents
+                .FirstOrDefault(item => item.Milestone == CandidateProgressMilestones.Started)
+                ?.OccurredAtUtc;
+
+            var submittedAtUtc = attempt?.SubmittedAtUtc;
+            submittedAtUtc ??= attemptEvents
+                .FirstOrDefault(item => item.Milestone == CandidateProgressMilestones.Submitted)
+                ?.OccurredAtUtc;
+
+            var inProgressAtUtc = startedAtUtc.HasValue
+                ? startedAtUtc
+                : null;
+
+            var status = submittedAtUtc.HasValue
+                ? "Submitted"
+                : startedAtUtc.HasValue
+                    ? "InProgress"
+                    : "Invited";
+
+            attempts.Add(new CandidateAttemptTimelineDto
+            {
+                AttemptNumber = attemptNumber,
+                AttemptId = attempt?.Id.ToString(),
+                Status = status,
+                Milestones =
+                [
+                    BuildMilestone(CandidateProgressMilestones.Invited, invitedAtUtc),
+                    BuildMilestone(CandidateProgressMilestones.LinkOpened, linkOpenedAtUtc),
+                    BuildMilestone(CandidateProgressMilestones.Started, startedAtUtc),
+                    BuildMilestone(CandidateProgressMilestones.InProgress, inProgressAtUtc),
+                    BuildMilestone(CandidateProgressMilestones.Submitted, submittedAtUtc),
+                ],
+            });
+        }
+
+        return new CandidateProgressTimelineDto
+        {
+            TestId = invitation.TestId.ToString(),
+            TestTitle = invitation.TestTitle,
+            CandidateEmail = NormalizeStoredEmailForLookup(invitation.Email),
+            CandidateName = invitation.CandidateName,
+            Attempts = attempts,
+        };
+    }
+
+    private async Task<CandidateInvitation?> FindLatestInvitationByNormalizedEmailAsync(
+        Guid testId,
+        string normalizedCandidateEmail,
+        CancellationToken cancellationToken)
+    {
+        var invitationQuery = dbContext.CandidateInvitations
+            .AsNoTracking()
+            .Include(item => item.Attempts)
+            .Where(item => item.TestId == testId);
+
+        var directMatch = await invitationQuery
+            .Where(item => item.Email.Trim().ToLower() == normalizedCandidateEmail)
+            .OrderByDescending(item => item.CreatedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (directMatch is not null)
+        {
+            return directMatch;
+        }
+
+        // Some legacy rows may contain non-space outer whitespace (for example tabs/newlines)
+        // that SQL TRIM does not remove by default, so retry with in-memory normalization.
+        var invitations = await invitationQuery
+            .OrderByDescending(item => item.CreatedAt)
+            .ToListAsync(cancellationToken);
+
+        return invitations.FirstOrDefault(item =>
+            NormalizeStoredEmailForLookup(item.Email) == normalizedCandidateEmail);
     }
 
     public Task<CandidateLinkSecurityStateDto> GetLinkSecurityAsync(
@@ -120,12 +284,22 @@ public class CandidateManagementService(
         invitation.LockedIpAddress = null;
         invitation.AccessFingerprintHash = null;
 
-        var existingAttempt = await dbContext.CandidateTestAttempts
-            .FirstOrDefaultAsync(item => item.InvitationId == invitation.Id, cancellationToken);
-        if (existingAttempt is not null)
+        var nextAttemptNumber = await dbContext.CandidateTestAttempts
+            .Where(item => item.InvitationId == invitation.Id)
+            .Select(item => (int?)item.AttemptNumber)
+            .MaxAsync(cancellationToken) ?? 0;
+        nextAttemptNumber += 1;
+
+        dbContext.CandidateProgressEvents.Add(new CandidateProgressEvent
         {
-            dbContext.CandidateTestAttempts.Remove(existingAttempt);
-        }
+            InvitationId = invitation.Id,
+            TestId = invitation.TestId,
+            CandidateEmail = invitation.Email,
+            CandidateName = invitation.CandidateName,
+            AttemptNumber = nextAttemptNumber,
+            Milestone = CandidateProgressMilestones.Invited,
+            OccurredAtUtc = nowUtc,
+        });
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
@@ -350,6 +524,79 @@ public class CandidateManagementService(
     private static bool IsStatus(string? value, string expected)
     {
         return string.Equals(value?.Trim(), expected, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private async Task PurgeExpiredProgressEventsAsync(CancellationToken cancellationToken)
+    {
+        var retentionDays = configuration.GetValue<int?>("CandidateTimeline:EventRetentionDays")
+            ?? DefaultTimelineEventRetentionDays;
+
+        if (retentionDays <= 0)
+        {
+            return;
+        }
+
+        var cutoffUtc = DateTime.UtcNow.AddDays(-retentionDays);
+
+        if (dbContext.Database.IsRelational())
+        {
+            await dbContext.CandidateProgressEvents
+                .Where(item => item.OccurredAtUtc < cutoffUtc)
+                .ExecuteDeleteAsync(cancellationToken);
+            return;
+        }
+
+        var staleEvents = await dbContext.CandidateProgressEvents
+            .Where(item => item.OccurredAtUtc < cutoffUtc)
+            .ToListAsync(cancellationToken);
+
+        if (staleEvents.Count == 0)
+        {
+            return;
+        }
+
+        dbContext.CandidateProgressEvents.RemoveRange(staleEvents);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private static CandidateTimelineMilestoneDto BuildMilestone(string name, DateTime? occurredAtUtc)
+    {
+        return new CandidateTimelineMilestoneDto
+        {
+            Name = name,
+            State = occurredAtUtc.HasValue ? "Completed" : "Pending",
+            OccurredAtUtc = occurredAtUtc?.ToString("O"),
+        };
+    }
+
+    private static string NormalizeCandidateEmail(string value)
+    {
+        var normalized = value.Trim().ToLowerInvariant();
+        if (!normalized.Contains('@'))
+        {
+            throw new ApiException("Valid candidateEmail is required.", StatusCodes.Status400BadRequest);
+        }
+
+        return normalized;
+    }
+
+    private static string NormalizeStoredEmailForLookup(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        return value.Trim().ToLowerInvariant();
+    }
+
+    private static string? ResolveLatestActivityUtc(CandidateInvitation invitation)
+    {
+        var latest = invitation.AttemptSubmittedAtUtc
+            ?? invitation.AttemptStartedAtUtc
+            ?? invitation.LastSentAtUtc;
+
+        return latest.ToString("O");
     }
 
     private string BuildInviteLink(string token)

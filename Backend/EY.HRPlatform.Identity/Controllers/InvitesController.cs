@@ -1,5 +1,6 @@
 using EY.HRPlatform.Identity.Domain.Entities;
 using EY.HRPlatform.Identity.Infrastructure.Persistence;
+using EY.HRPlatform.Identity.Infrastructure.Services;
 using EY.HRPlatform.Identity.Models.Requests;
 using EY.HRPlatform.Identity.Models.Responses;
 using EY.HRPlatform.SharedKernel.Auth;
@@ -17,15 +18,18 @@ public class InvitesController : ControllerBase
     private readonly AppIdentityDbContext _dbContext;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IConfiguration _configuration;
+    private readonly ITrainingServiceClient _trainingClient;
 
     public InvitesController(
         AppIdentityDbContext dbContext,
         UserManager<ApplicationUser> userManager,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        ITrainingServiceClient trainingClient)
     {
         _dbContext = dbContext;
         _userManager = userManager;
         _configuration = configuration;
+        _trainingClient = trainingClient;
     }
 
     /// <summary>
@@ -277,6 +281,10 @@ public class InvitesController : ControllerBase
             await _dbContext.SaveChangesAsync();
 
             await transaction.CommitAsync();
+
+            // Fire-and-forget: provision empty EmployeeProfile in Training service
+            if (invite.Role == PlatformRole.Employee)
+                _ = _trainingClient.ProvisionEmployeeAsync(user.Id);
 
             var dto = new UserDto
             {

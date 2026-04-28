@@ -7,6 +7,8 @@ export interface NavItem {
   badge?: string;
   disabled?: boolean;
   disabledReason?: string;
+  /** When true, only exact path match activates this item */
+  exact?: boolean;
 }
 
 export interface NavSection {
