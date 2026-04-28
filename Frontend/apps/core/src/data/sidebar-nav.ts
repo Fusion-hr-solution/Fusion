@@ -1,11 +1,4 @@
-import {
-  LayoutDashboard,
-  Users,
-  Briefcase,
-  Building,
-  ClipboardList,
-  Settings,
-} from "lucide-react";
+import { LayoutDashboard, Users, Building, ClipboardList } from "lucide-react";
 import { type NavSection } from "@repo/ui";
 
 export const PEOPLE_NAV: NavSection = {
@@ -13,7 +6,6 @@ export const PEOPLE_NAV: NavSection = {
   items: [
     { label: "Dashboard", href: "/", icon: LayoutDashboard },
     { label: "Employees", href: "/employees", icon: Users },
-    { label: "Positions", href: "/positions", icon: Briefcase },
   ],
 };
 
@@ -22,6 +14,5 @@ export const ADMIN_NAV: NavSection = {
   items: [
     { label: "Setup", href: "/setup", icon: ClipboardList },
     { label: "Organizations", href: "/organizations", icon: Building },
-    { label: "Settings", href: "/settings", icon: Settings },
   ],
 };
