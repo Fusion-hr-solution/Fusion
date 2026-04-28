@@ -37,6 +37,11 @@ import type {
   ReorderCurriculumCellInput,
   UpsertEmployeeProfileInput,
   IdentityUser,
+  ProgrammeMatrix,
+  CompletionByGrade,
+  CompletionByServiceLine,
+  CompletionTrend,
+  CellEmployee,
 } from "@/types/admin";
 import type { ChapterLayout, TrainingType } from "@/types";
 
@@ -745,4 +750,30 @@ export async function getIdentityUsers(): Promise<IdentityUser[]> {
   return client.get<IdentityUser[]>("/identity/users");
 }
 
+// --- Programme Dashboard ---
+
+export async function getProgrammeMatrix(): Promise<ProgrammeMatrix> {
+  return client.get<ProgrammeMatrix>("/training/admin/dashboard/programme-matrix");
+}
+
+export async function getCompletionByGrade(): Promise<CompletionByGrade[]> {
+  return client.get<CompletionByGrade[]>("/training/admin/dashboard/completion-by-grade");
+}
+
+export async function getCompletionByServiceLine(): Promise<CompletionByServiceLine[]> {
+  return client.get<CompletionByServiceLine[]>("/training/admin/dashboard/completion-by-service-line");
+}
+
+export async function getCompletionTrend(): Promise<CompletionTrend> {
+  return client.get<CompletionTrend>("/training/admin/dashboard/completion-trend");
+}
+
+export async function getCellEmployees(
+  gradeId: string,
+  serviceLineId: string,
+): Promise<CellEmployee[]> {
+  return client.get<CellEmployee[]>(
+    `/training/admin/dashboard/cell-employees?gradeId=${encodeURIComponent(gradeId)}&serviceLineId=${encodeURIComponent(serviceLineId)}`,
+  );
+}
 
