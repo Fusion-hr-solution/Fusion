@@ -4,7 +4,10 @@ using EY.HRPlatform.CoreHR.Exceptions;
 using EY.HRPlatform.CoreHR.Features.Employees.Commands.CreateEmployee;
 using EY.HRPlatform.CoreHR.Features.Employees.Commands.DeactivateEmployee;
 using EY.HRPlatform.CoreHR.Features.Employees.Commands.UpdateEmployee;
+using EY.HRPlatform.CoreHR.Features.Employees.Services;
 using EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployeeById;
+using EY.HRPlatform.CoreHR.Features.TenantSettings.Services;
+using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
 using EY.HRPlatform.CoreHR.Tests.TestHelpers;
 using Microsoft.EntityFrameworkCore;
 
@@ -29,7 +32,6 @@ public class EmployeeHandlerTests
             "Doe",
             "john.doe@example.com",
             DateTime.UtcNow.AddDays(-30),
-            "Engineering",
             "Developer");
 
         // Act
@@ -238,7 +240,7 @@ public class EmployeeHandlerTests
         await seedContext.SaveChangesAsync();
 
         await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new GetEmployeeByIdQueryHandler(context);
+        var handler = CreateGetEmployeeByIdHandler(context);
         var query = new GetEmployeeByIdQuery(employee.Id);
 
         // Act
@@ -267,7 +269,7 @@ public class EmployeeHandlerTests
         await seedContext.SaveChangesAsync();
 
         await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new GetEmployeeByIdQueryHandler(context);
+        var handler = CreateGetEmployeeByIdHandler(context);
         var query = new GetEmployeeByIdQuery(employee.Id);
 
         // Act
@@ -286,7 +288,7 @@ public class EmployeeHandlerTests
         var tenantContext = TestTenantContext.WithTenant(TenantId);
         await using var context = TestDbContextFactory.Create(tenantContext);
 
-        var handler = new GetEmployeeByIdQueryHandler(context);
+        var handler = CreateGetEmployeeByIdHandler(context);
         var query = new GetEmployeeByIdQuery(Guid.NewGuid());
 
         // Act
@@ -312,7 +314,7 @@ public class EmployeeHandlerTests
 
         var tenantContext = TestTenantContext.WithTenant(tenantB); // Different tenant
         await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new GetEmployeeByIdQueryHandler(context);
+        var handler = CreateGetEmployeeByIdHandler(context);
         var query = new GetEmployeeByIdQuery(employee.Id);
 
         // Act
@@ -347,7 +349,6 @@ public class EmployeeHandlerTests
             "Jane",
             "Smith",
             "jane.smith@example.com",
-            "HR",
             "Manager",
             null);
 
@@ -376,7 +377,6 @@ public class EmployeeHandlerTests
             "Jane",
             "Smith",
             "jane@example.com",
-            null,
             null,
             null);
 
@@ -408,7 +408,6 @@ public class EmployeeHandlerTests
             "Smith",
             "jane@example.com",
             null,
-            null,
             null);
 
         // Act & Assert
@@ -439,7 +438,6 @@ public class EmployeeHandlerTests
             "Jane",  // New first name
             null,    // Keep existing last name
             null,    // Keep existing email
-            null,    // Keep existing department
             null,    // Keep existing job title
             null);   // Keep existing manager
 
@@ -474,7 +472,6 @@ public class EmployeeHandlerTests
         var command = new UpdateEmployeeCommand(
             employee.Id,
             version,
-            null,
             null,
             null,
             null,
@@ -517,7 +514,6 @@ public class EmployeeHandlerTests
             null,
             null,
             null,
-            null,
             Guid.Empty);
 
         // Act
@@ -549,7 +545,6 @@ public class EmployeeHandlerTests
         var command = new UpdateEmployeeCommand(
             manager.Id,
             managerVersion,
-            null,
             null,
             null,
             null,
@@ -660,4 +655,7 @@ public class EmployeeHandlerTests
     }
 
     #endregion
+
+    private static GetEmployeeByIdQueryHandler CreateGetEmployeeByIdHandler(CoreHRDbContext context)
+        => new(context, new EmployeeReadModelPolicy(), new TenantSettingsReadService(context));
 }

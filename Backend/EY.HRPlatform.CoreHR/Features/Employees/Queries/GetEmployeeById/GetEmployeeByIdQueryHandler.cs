@@ -11,9 +11,10 @@ namespace EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployeeById;
 
 public sealed class GetEmployeeByIdQueryHandler(
     CoreHRDbContext dbContext,
-    IEmployeeReadModelPolicy? employeeReadModelPolicy = null) : IQueryHandler<GetEmployeeByIdQuery, Result<EmployeeDto>>
+    IEmployeeReadModelPolicy employeeReadModelPolicy,
+    ITenantSettingsReadService tenantSettingsReadService) : IQueryHandler<GetEmployeeByIdQuery, Result<EmployeeDto>>
 {
-    private readonly IEmployeeReadModelPolicy employeeReadModelPolicy = employeeReadModelPolicy ?? new EmployeeReadModelPolicy();
+    private readonly IEmployeeReadModelPolicy employeeReadModelPolicy = employeeReadModelPolicy;
 
     public async Task<Result<EmployeeDto>> Handle(GetEmployeeByIdQuery request, CancellationToken cancellationToken)
     {
@@ -27,16 +28,7 @@ public sealed class GetEmployeeByIdQueryHandler(
             return Result.Failure<EmployeeDto>(Error.NotFound("Employee", request.EmployeeId));
         }
 
-        var settings = await GetReadSettingsAsync(cancellationToken);
+        var settings = await tenantSettingsReadService.GetCurrentAsync(cancellationToken);
         return Result.Success(employeeReadModelPolicy.MapDetail(employee, settings, EmployeeReadAudience.HrAdmin));
-    }
-
-    private async Task<Features.TenantSettings.Dtos.TenantSettingsDto> GetReadSettingsAsync(CancellationToken cancellationToken)
-    {
-        var settings = await dbContext.TenantSettings
-            .AsNoTracking()
-            .FirstOrDefaultAsync(cancellationToken);
-
-        return TenantSettingsMerger.Merge(settings?.SettingsOverrides, settings?.Version);
     }
 }

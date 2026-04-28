@@ -35,7 +35,6 @@ public sealed class UpdateEmployeeCommandHandler(
         var firstName = request.FirstName ?? employee.FirstName;
         var lastName = request.LastName ?? employee.LastName;
         var email = request.Email ?? employee.Email;
-        var department = request.Department ?? employee.Department;
         var jobTitle = request.JobTitle ?? employee.JobTitle;
 
         var normalizedEmail = email.Trim().ToLowerInvariant();
@@ -70,7 +69,7 @@ public sealed class UpdateEmployeeCommandHandler(
         }
 
         // Update employee details
-        employee.UpdateDetails(firstName, lastName, email, department, jobTitle);
+        employee.UpdateDetails(firstName, lastName, email, employee.Department, jobTitle);
 
         // Update manager only if explicitly provided in request
         if (request.ManagerId.HasValue)

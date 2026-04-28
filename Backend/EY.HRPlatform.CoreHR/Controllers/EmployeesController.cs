@@ -59,7 +59,6 @@ public class EmployeesController(ISender sender) : ControllerBase
             request.LastName,
             request.Email,
             request.HireDate,
-            null,
             request.JobTitle,
             request.ManagerId,
             request.OrgUnitId);
@@ -125,7 +124,6 @@ public class EmployeesController(ISender sender) : ControllerBase
             request.FirstName,
             request.LastName,
             request.Email,
-            null,
             request.JobTitle,
             request.ManagerId,
             request.OrgUnitId);

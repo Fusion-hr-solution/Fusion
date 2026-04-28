@@ -1,6 +1,9 @@
 using EY.HRPlatform.CoreHR.Domain.Entities;
 using EY.HRPlatform.CoreHR.Domain.Enums;
+using EY.HRPlatform.CoreHR.Features.Employees.Services;
 using EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployees;
+using EY.HRPlatform.CoreHR.Features.TenantSettings.Services;
+using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
 using EY.HRPlatform.CoreHR.Tests.TestHelpers;
 using Microsoft.EntityFrameworkCore;
 
@@ -29,7 +32,7 @@ public class GetEmployeesQueryHandlerTests
         await seedContext.SaveChangesAsync();
 
         await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new GetEmployeesQueryHandler(context);
+        var handler = CreateHandler(context);
         var query = new GetEmployeesQuery();
 
         // Act
@@ -62,7 +65,7 @@ public class GetEmployeesQueryHandlerTests
         await seedContext.SaveChangesAsync();
 
         await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new GetEmployeesQueryHandler(context);
+        var handler = CreateHandler(context);
         var query = new GetEmployeesQuery(Page: 2, PageSize: 5);
 
         // Act
@@ -85,7 +88,7 @@ public class GetEmployeesQueryHandlerTests
         // Arrange
         var tenantContext = TestTenantContext.WithTenant(TenantId);
         await using var context = TestDbContextFactory.Create(tenantContext);
-        var handler = new GetEmployeesQueryHandler(context);
+        var handler = CreateHandler(context);
         var query = new GetEmployeesQuery();
 
         // Act
@@ -107,7 +110,7 @@ public class GetEmployeesQueryHandlerTests
         // Arrange
         var tenantContext = TestTenantContext.WithTenant(TenantId);
         await using var context = TestDbContextFactory.Create(tenantContext);
-        var handler = new GetEmployeesQueryHandler(context);
+        var handler = CreateHandler(context);
         var query = new GetEmployeesQuery(PageSize: 500);
 
         // Act
@@ -124,7 +127,7 @@ public class GetEmployeesQueryHandlerTests
         // Arrange
         var tenantContext = TestTenantContext.WithTenant(TenantId);
         await using var context = TestDbContextFactory.Create(tenantContext);
-        var handler = new GetEmployeesQueryHandler(context);
+        var handler = CreateHandler(context);
         var query = new GetEmployeesQuery(Page: -5);
 
         // Act
@@ -153,7 +156,7 @@ public class GetEmployeesQueryHandlerTests
         await seedContext.SaveChangesAsync();
 
         await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new GetEmployeesQueryHandler(context);
+        var handler = CreateHandler(context);
         var query = new GetEmployeesQuery(Search: "john");
 
         // Act
@@ -180,7 +183,7 @@ public class GetEmployeesQueryHandlerTests
         await seedContext.SaveChangesAsync();
 
         await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new GetEmployeesQueryHandler(context);
+        var handler = CreateHandler(context);
         var query = new GetEmployeesQuery(Search: "smith");
 
         // Act
@@ -205,7 +208,7 @@ public class GetEmployeesQueryHandlerTests
         await seedContext.SaveChangesAsync();
 
         await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new GetEmployeesQueryHandler(context);
+        var handler = CreateHandler(context);
         var query = new GetEmployeesQuery(Search: "acme");
 
         // Act
@@ -229,7 +232,7 @@ public class GetEmployeesQueryHandlerTests
         await seedContext.SaveChangesAsync();
 
         await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new GetEmployeesQueryHandler(context);
+        var handler = CreateHandler(context);
         var query = new GetEmployeesQuery(Search: "john doe");
 
         // Act
@@ -254,7 +257,7 @@ public class GetEmployeesQueryHandlerTests
         await seedContext.SaveChangesAsync();
 
         await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new GetEmployeesQueryHandler(context);
+        var handler = CreateHandler(context);
         var query = new GetEmployeesQuery(Search: "xyz123");
 
         // Act
@@ -285,7 +288,7 @@ public class GetEmployeesQueryHandlerTests
         await seedContext.SaveChangesAsync();
 
         await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new GetEmployeesQueryHandler(context);
+        var handler = CreateHandler(context);
         var query = new GetEmployeesQuery(Status: EmployeeStatus.Active);
 
         // Act
@@ -313,7 +316,7 @@ public class GetEmployeesQueryHandlerTests
         await seedContext.SaveChangesAsync();
 
         await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new GetEmployeesQueryHandler(context);
+        var handler = CreateHandler(context);
         var query = new GetEmployeesQuery(Status: EmployeeStatus.Inactive);
 
         // Act
@@ -341,7 +344,7 @@ public class GetEmployeesQueryHandlerTests
         await seedContext.SaveChangesAsync();
 
         await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new GetEmployeesQueryHandler(context);
+        var handler = CreateHandler(context);
         var query = new GetEmployeesQuery(Search: "john", Status: EmployeeStatus.Active);
 
         // Act
@@ -372,7 +375,7 @@ public class GetEmployeesQueryHandlerTests
         await seedContext.SaveChangesAsync();
 
         await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new GetEmployeesQueryHandler(context);
+        var handler = CreateHandler(context);
         var query = new GetEmployeesQuery(SortBy: EmployeeSortField.Name, SortDir: SortDirection.Asc);
 
         // Act
@@ -399,7 +402,7 @@ public class GetEmployeesQueryHandlerTests
         await seedContext.SaveChangesAsync();
 
         await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new GetEmployeesQueryHandler(context);
+        var handler = CreateHandler(context);
         var query = new GetEmployeesQuery(SortBy: EmployeeSortField.Name, SortDir: SortDirection.Desc);
 
         // Act
@@ -424,7 +427,7 @@ public class GetEmployeesQueryHandlerTests
         await seedContext.SaveChangesAsync();
 
         await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new GetEmployeesQueryHandler(context);
+        var handler = CreateHandler(context);
         var query = new GetEmployeesQuery(SortBy: EmployeeSortField.Email, SortDir: SortDirection.Asc);
 
         // Act
@@ -449,7 +452,7 @@ public class GetEmployeesQueryHandlerTests
         await seedContext.SaveChangesAsync();
 
         await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new GetEmployeesQueryHandler(context);
+        var handler = CreateHandler(context);
         var query = new GetEmployeesQuery(SortBy: EmployeeSortField.HireDate, SortDir: SortDirection.Asc);
 
         // Act
@@ -482,7 +485,7 @@ public class GetEmployeesQueryHandlerTests
 
         var tenantContext = TestTenantContext.WithTenant(tenantA);
         await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new GetEmployeesQueryHandler(context);
+        var handler = CreateHandler(context);
         var query = new GetEmployeesQuery();
 
         // Act
@@ -517,7 +520,7 @@ public class GetEmployeesQueryHandlerTests
         await seedContext.SaveChangesAsync();
 
         await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new GetEmployeesQueryHandler(context);
+        var handler = CreateHandler(context);
         var query = new GetEmployeesQuery();
 
         // Act
@@ -542,7 +545,7 @@ public class GetEmployeesQueryHandlerTests
         await seedContext.SaveChangesAsync();
 
         await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new GetEmployeesQueryHandler(context);
+        var handler = CreateHandler(context);
         var query = new GetEmployeesQuery();
 
         // Act
@@ -573,7 +576,7 @@ public class GetEmployeesQueryHandlerTests
         await seedContext.SaveChangesAsync();
 
         await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new GetEmployeesQueryHandler(context);
+        var handler = CreateHandler(context);
         var query = new GetEmployeesQuery();
 
         // Act
@@ -601,7 +604,7 @@ public class GetEmployeesQueryHandlerTests
         await seedContext.SaveChangesAsync();
 
         await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new GetEmployeesQueryHandler(context);
+        var handler = CreateHandler(context);
 
         // Act
         var result = await handler.Handle(new GetEmployeesQuery(), CancellationToken.None);
@@ -613,4 +616,7 @@ public class GetEmployeesQueryHandlerTests
     }
 
     #endregion
+
+    private static GetEmployeesQueryHandler CreateHandler(CoreHRDbContext context)
+        => new(context, new EmployeeReadModelPolicy(), new TenantSettingsReadService(context));
 }

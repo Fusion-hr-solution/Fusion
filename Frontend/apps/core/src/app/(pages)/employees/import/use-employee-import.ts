@@ -12,6 +12,7 @@ import {
 import { useAuth } from "@repo/auth";
 import { canAccessEmployeeRoster } from "@/lib/employee-roster-access";
 import {
+  DEFAULT_EMPLOYEE_IMPORT_HISTORY_PAGE_SIZE,
   employeeImportQueryKeys,
   employeeRosterQueryKeys,
   normalizeEmployeeImportHistoryQuery,
@@ -64,7 +65,7 @@ function buildHistoryQueryString(query?: EmployeeImportHistoryQuery) {
     params.set("pageNumber", String(normalizedQuery.pageNumber));
   }
 
-  if (normalizedQuery.pageSize !== 10) {
+  if (normalizedQuery.pageSize !== DEFAULT_EMPLOYEE_IMPORT_HISTORY_PAGE_SIZE) {
     params.set("pageSize", String(normalizedQuery.pageSize));
   }
 

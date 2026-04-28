@@ -1,7 +1,7 @@
 import type { EmployeeImportPreviewFilter } from "./import/employee-import.types";
 import type { EmployeeRosterQueryParams } from "./employee-roster.types";
 
-const DEFAULT_EMPLOYEE_IMPORT_HISTORY_PAGE_SIZE = 10;
+export const DEFAULT_EMPLOYEE_IMPORT_HISTORY_PAGE_SIZE = 10;
 
 export type EmployeeImportPreviewQuery = {
   pageNumber?: number;

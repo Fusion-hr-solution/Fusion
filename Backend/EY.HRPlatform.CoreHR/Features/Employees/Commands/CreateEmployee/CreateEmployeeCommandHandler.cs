@@ -55,8 +55,7 @@ public sealed class CreateEmployeeCommandHandler(
             request.LastName,
             request.Email,
             request.HireDate,
-            request.Department,
-            request.JobTitle);
+            jobTitle: request.JobTitle);
 
         // Assign manager if specified
         if (request.ManagerId.HasValue)

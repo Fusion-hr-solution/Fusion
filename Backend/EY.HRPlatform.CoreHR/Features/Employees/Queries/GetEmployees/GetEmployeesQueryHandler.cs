@@ -12,16 +12,17 @@ namespace EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployees;
 
 public sealed class GetEmployeesQueryHandler(
     CoreHRDbContext dbContext,
-    IEmployeeReadModelPolicy? employeeReadModelPolicy = null) : IQueryHandler<GetEmployeesQuery, Result<PagedResponse<EmployeeListItemDto>>>
+    IEmployeeReadModelPolicy employeeReadModelPolicy,
+    ITenantSettingsReadService tenantSettingsReadService) : IQueryHandler<GetEmployeesQuery, Result<PagedResponse<EmployeeListItemDto>>>
 {
     private const int MaxPageSize = 100;
-    private readonly IEmployeeReadModelPolicy employeeReadModelPolicy = employeeReadModelPolicy ?? new EmployeeReadModelPolicy();
+    private readonly IEmployeeReadModelPolicy employeeReadModelPolicy = employeeReadModelPolicy;
 
     public async Task<Result<PagedResponse<EmployeeListItemDto>>> Handle(
         GetEmployeesQuery request,
         CancellationToken cancellationToken)
     {
-        var settings = await GetReadSettingsAsync(cancellationToken);
+        var settings = await tenantSettingsReadService.GetCurrentAsync(cancellationToken);
         var query = dbContext.Employees
             .AsNoTracking()
             .Include(e => e.Manager)
@@ -101,14 +102,5 @@ public sealed class GetEmployeesQueryHandler(
                 query.OrderByDescending(e => e.Status),
             _ => query.OrderBy(e => e.LastName).ThenBy(e => e.FirstName)
         };
-    }
-
-    private async Task<Features.TenantSettings.Dtos.TenantSettingsDto> GetReadSettingsAsync(CancellationToken cancellationToken)
-    {
-        var settings = await dbContext.TenantSettings
-            .AsNoTracking()
-            .FirstOrDefaultAsync(cancellationToken);
-
-        return TenantSettingsMerger.Merge(settings?.SettingsOverrides, settings?.Version);
     }
 }
