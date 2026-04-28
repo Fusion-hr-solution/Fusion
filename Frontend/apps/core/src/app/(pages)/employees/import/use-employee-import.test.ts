@@ -2,8 +2,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
 
-type ApiReactModule = typeof import("@repo/api/react");
-
 const { mockGet, mockPost } = vi.hoisted(() => ({
   mockGet: vi.fn(),
   mockPost: vi.fn(),
@@ -34,12 +32,15 @@ vi.mock("@repo/auth", () => ({
 }));
 
 vi.mock("@repo/api/react", async () => {
-  const actual = await vi.importActual<ApiReactModule>("@repo/api/react");
+  const actual = await vi.importActual("@repo/api/react");
   return actual;
 });
 
 import {
+  useApplyEmployeeImport,
   useDownloadEmployeeImportTemplate,
+  useEmployeeImportHistory,
+  useEmployeeImportHistoryDetail,
   useEmployeeImportSchema,
   useEmployeeImportSession,
   useUploadEmployeeImport,
@@ -96,9 +97,11 @@ describe("useEmployeeImportSession", () => {
         warningCount: 0,
       },
       validationIssues: [],
+      appliedAt: null,
       expiresAt: "2026-04-22T00:00:00Z",
       employeeImportSchema: { canonicalFields: [] },
       canValidate: true,
+      canApply: false,
     });
 
     const { result } = renderHook(() => useEmployeeImportSession("session-1"));
@@ -134,9 +137,11 @@ describe("useEmployeeImportSession", () => {
         warningCount: 0,
       },
       validationIssues: [],
+      appliedAt: null,
       expiresAt: "2026-04-22T00:00:00Z",
       employeeImportSchema: { canonicalFields: [] },
       canValidate: true,
+      canApply: false,
     });
 
     const { result } = renderHook(() =>
@@ -227,6 +232,63 @@ describe("useValidateEmployeeImport", () => {
     expect(mockPost).toHaveBeenCalledWith(
       "/corehr/employees/import/session-1/validate?previewPageNumber=2&previewFilter=affected&groupKey=missingRequiredData%3Aemail",
       undefined
+    );
+  });
+});
+
+describe("useApplyEmployeeImport", () => {
+  it("posts to the apply endpoint for a session", async () => {
+    mockPost.mockResolvedValue({ historyId: "history-1" });
+
+    const { result } = renderHook(() => useApplyEmployeeImport());
+
+    await act(async () => {
+      await result.current.mutateAsync({ sessionId: "session-1" });
+    });
+
+    expect(mockPost).toHaveBeenCalledWith(
+      "/corehr/employees/import/session-1/apply",
+      undefined
+    );
+  });
+});
+
+describe("useEmployeeImportHistory", () => {
+  it("loads import history with paging query parameters", async () => {
+    mockGet.mockResolvedValue({
+      items: [],
+      pageNumber: 2,
+      pageSize: 5,
+      totalCount: 0,
+      pageCount: 1,
+    });
+
+    const { result } = renderHook(() =>
+      useEmployeeImportHistory({ pageNumber: 2, pageSize: 5 })
+    );
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(mockGet).toHaveBeenCalledWith(
+      "/corehr/employees/import/history?pageNumber=2&pageSize=5",
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
+  });
+});
+
+describe("useEmployeeImportHistoryDetail", () => {
+  it("loads a selected import history record", async () => {
+    mockGet.mockResolvedValue({ id: "history-1" });
+
+    const { result } = renderHook(() =>
+      useEmployeeImportHistoryDetail("history-1")
+    );
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(mockGet).toHaveBeenCalledWith(
+      "/corehr/employees/import/history/history-1",
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
     );
   });
 });

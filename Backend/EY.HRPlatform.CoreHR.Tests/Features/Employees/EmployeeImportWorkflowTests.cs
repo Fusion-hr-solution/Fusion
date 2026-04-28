@@ -1,9 +1,11 @@
 using System.Text;
 using EY.HRPlatform.CoreHR.Domain.Entities;
 using EY.HRPlatform.CoreHR.Exceptions;
+using EY.HRPlatform.CoreHR.Features.Employees.Import.Dtos;
 using EY.HRPlatform.CoreHR.Features.Employees.Import.Services;
 using EY.HRPlatform.CoreHR.Tests.TestHelpers;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 
 namespace EY.HRPlatform.CoreHR.Tests.Features.Employees;
 
@@ -203,6 +205,308 @@ public class EmployeeImportWorkflowTests
     }
 
     [Fact]
+    public async Task ApplyAsync_CreatesEmployeesMarksSessionAppliedAndReturnsResult()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        await SeedPublishedSetupAsync(dbName);
+        await SeedOrgUnitAsync(dbName, "ENG-PLATFORM");
+
+        await using var context = TestDbContextFactory.Create(TestTenantContext.WithTenant(TenantId), dbName);
+        var service = new EmployeeImportWorkflowService(context, TestTenantContext.WithTenant(TenantId));
+        var actor = CreateActor();
+        var file = CreateCsvFile(
+            "employees.csv",
+            """
+            firstName,lastName,email,hireDate,jobTitle,orgUnitCode,managerEmail
+            Sarah,Chen,sarah.chen@contoso.com,2024-01-15,Senior Engineer,ENG-PLATFORM,
+            """);
+
+        var uploadedSession = await service.UploadAsync(file, CancellationToken.None);
+        await service.ValidateAsync(uploadedSession.Id, CancellationToken.None);
+
+        var result = await service.ApplyAsync(uploadedSession.Id, actor, CancellationToken.None);
+
+        Assert.Equal(EmployeeImportStage.Applied, result.Stage);
+        Assert.Equal(uploadedSession.Id, result.SessionId);
+        Assert.Equal(1, result.CreatedCount);
+        Assert.Equal(1, result.ValidRowCount);
+        Assert.NotEqual(Guid.Empty, result.HistoryId);
+
+        var employee = await context.Employees.SingleAsync();
+        Assert.Equal("sarah.chen@contoso.com", employee.Email);
+        Assert.NotNull(employee.OrgUnitId);
+
+        var persistedSession = await context.EmployeeImportSessions.FindAsync(uploadedSession.Id);
+        Assert.NotNull(persistedSession);
+        Assert.Equal(EmployeeImportStage.Applied, persistedSession!.Stage);
+        Assert.NotNull(persistedSession.AppliedAt);
+    }
+
+    [Fact]
+    public async Task ApplyAsync_IsBlockedWhenSessionHasNotBeenValidated()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        await SeedPublishedSetupAsync(dbName);
+        await SeedOrgUnitAsync(dbName, "ENG-PLATFORM");
+
+        await using var context = TestDbContextFactory.Create(TestTenantContext.WithTenant(TenantId), dbName);
+        var service = new EmployeeImportWorkflowService(context, TestTenantContext.WithTenant(TenantId));
+        var file = CreateCsvFile(
+            "employees.csv",
+            """
+            firstName,lastName,email,hireDate,jobTitle,orgUnitCode,managerEmail
+            Sarah,Chen,sarah.chen@contoso.com,2024-01-15,Senior Engineer,ENG-PLATFORM,
+            """);
+
+        var uploadedSession = await service.UploadAsync(file, CancellationToken.None);
+
+        var exception = await Assert.ThrowsAsync<ArgumentException>(() =>
+            service.ApplyAsync(uploadedSession.Id, CreateActor(), CancellationToken.None));
+
+        Assert.Contains("Validate the import before applying it", exception.Message);
+    }
+
+    [Fact]
+    public async Task ApplyAsync_IsBlockedWhenValidationErrorsExist()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        await SeedPublishedSetupAsync(dbName);
+
+        await using var context = TestDbContextFactory.Create(TestTenantContext.WithTenant(TenantId), dbName);
+        var service = new EmployeeImportWorkflowService(context, TestTenantContext.WithTenant(TenantId));
+        var file = CreateCsvFile(
+            "employees.csv",
+            """
+            firstName,lastName,email,hireDate,jobTitle,orgUnitCode,managerEmail
+            Sarah,Chen,sarah.chen@contoso.com,2024-01-15,Senior Engineer,UNKNOWN,
+            """);
+
+        var uploadedSession = await service.UploadAsync(file, CancellationToken.None);
+        await service.ValidateAsync(uploadedSession.Id, CancellationToken.None);
+
+        var exception = await Assert.ThrowsAsync<ArgumentException>(() =>
+            service.ApplyAsync(uploadedSession.Id, CreateActor(), CancellationToken.None));
+
+        Assert.Contains("validation errors", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ApplyAsync_IsBlockedWhenSessionExpired()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        await SeedPublishedSetupAsync(dbName);
+
+        Guid sessionId;
+        await using (var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName))
+        {
+            var session = EmployeeImportSession.CreatePreviewReady(
+                TenantId,
+                "employees.csv",
+                128,
+                "[]",
+                "[]",
+                "[]",
+                DateTime.UtcNow.AddMinutes(-5));
+            session.SetValidationResult("[]", "[]");
+
+            seedContext.EmployeeImportSessions.Add(session);
+            await seedContext.SaveChangesAsync();
+            sessionId = session.Id;
+        }
+
+        await using var context = TestDbContextFactory.Create(TestTenantContext.WithTenant(TenantId), dbName);
+        var service = new EmployeeImportWorkflowService(context, TestTenantContext.WithTenant(TenantId));
+
+        var exception = await Assert.ThrowsAsync<ArgumentException>(() =>
+            service.ApplyAsync(sessionId, CreateActor(), CancellationToken.None));
+
+        Assert.Contains("Upload expired", exception.Message);
+    }
+
+    [Fact]
+    public async Task ApplyAsync_IsAtomicWhenFailureOccursBeforeSave()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        await SeedPublishedSetupAsync(dbName);
+        await SeedOrgUnitAsync(dbName, "ENG-PLATFORM");
+
+        await using var context = TestDbContextFactory.Create(TestTenantContext.WithTenant(TenantId), dbName);
+        var service = new EmployeeImportWorkflowService(context, TestTenantContext.WithTenant(TenantId));
+        var file = CreateCsvFile(
+            "employees.csv",
+            """
+            firstName,lastName,email,hireDate,jobTitle,orgUnitCode,managerEmail
+            Sarah,Chen,sarah.chen@contoso.com,2024-01-15,Senior Engineer,ENG-PLATFORM,
+            """);
+
+        var uploadedSession = await service.UploadAsync(file, CancellationToken.None);
+        await service.ValidateAsync(uploadedSession.Id, CancellationToken.None);
+
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            service.ApplyAsync(
+                uploadedSession.Id,
+                new EmployeeImportActorDto(Guid.Empty, "HR Admin", "HRAdmin"),
+                CancellationToken.None));
+
+        Assert.Empty(context.Employees);
+        Assert.Empty(context.EmployeeImportHistories);
+
+        var persistedSession = await context.EmployeeImportSessions.FindAsync(uploadedSession.Id);
+        Assert.NotNull(persistedSession);
+        Assert.Equal(EmployeeImportStage.Validated, persistedSession!.Stage);
+        Assert.Null(persistedSession.AppliedAt);
+    }
+
+    [Fact]
+    public async Task ApplyAsync_RechecksTenantDuplicateEmailsBeforeWriting()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        await SeedPublishedSetupAsync(dbName);
+        await SeedOrgUnitAsync(dbName, "ENG-PLATFORM");
+
+        Guid uploadedSessionId;
+        await using (var validateContext = TestDbContextFactory.Create(TestTenantContext.WithTenant(TenantId), dbName))
+        {
+            var validateService = new EmployeeImportWorkflowService(validateContext, TestTenantContext.WithTenant(TenantId));
+            var file = CreateCsvFile(
+                "employees.csv",
+                """
+                firstName,lastName,email,hireDate,jobTitle,orgUnitCode,managerEmail
+                Sarah,Chen,sarah.chen@contoso.com,2024-01-15,Senior Engineer,ENG-PLATFORM,
+                """);
+
+            var uploadedSession = await validateService.UploadAsync(file, CancellationToken.None);
+            await validateService.ValidateAsync(uploadedSession.Id, CancellationToken.None);
+            uploadedSessionId = uploadedSession.Id;
+        }
+
+        await SeedEmployeeAsync(dbName, "sarah.chen@contoso.com");
+
+        await using var applyContext = TestDbContextFactory.Create(TestTenantContext.WithTenant(TenantId), dbName);
+        var applyService = new EmployeeImportWorkflowService(applyContext, TestTenantContext.WithTenant(TenantId));
+
+        var exception = await Assert.ThrowsAsync<ArgumentException>(() =>
+            applyService.ApplyAsync(uploadedSessionId, CreateActor(), CancellationToken.None));
+
+        Assert.Contains("Validate the file again before applying", exception.Message);
+        Assert.Single(applyContext.Employees);
+        Assert.Empty(applyContext.EmployeeImportHistories);
+    }
+
+    [Fact]
+    public async Task ApplyAsync_AssignsManagersForSameFileReferences()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        await SeedPublishedSetupAsync(dbName);
+        await SeedOrgUnitAsync(dbName, "ENG-PLATFORM");
+
+        await using var context = TestDbContextFactory.Create(TestTenantContext.WithTenant(TenantId), dbName);
+        var service = new EmployeeImportWorkflowService(context, TestTenantContext.WithTenant(TenantId));
+        var file = CreateCsvFile(
+            "employees.csv",
+            """
+            firstName,lastName,email,hireDate,jobTitle,orgUnitCode,managerEmail
+            Alex,Manager,alex.manager@contoso.com,2024-01-15,Engineering Manager,ENG-PLATFORM,
+            Sarah,Chen,sarah.chen@contoso.com,2024-01-15,Senior Engineer,ENG-PLATFORM,alex.manager@contoso.com
+            """);
+
+        var uploadedSession = await service.UploadAsync(file, CancellationToken.None);
+        await service.ValidateAsync(uploadedSession.Id, CancellationToken.None);
+        await service.ApplyAsync(uploadedSession.Id, CreateActor(), CancellationToken.None);
+
+        var employees = await context.Employees
+            .OrderBy(employee => employee.Email)
+            .ToListAsync();
+
+        var manager = Assert.Single(employees, employee => employee.Email == "alex.manager@contoso.com");
+        var report = Assert.Single(employees, employee => employee.Email == "sarah.chen@contoso.com");
+
+        Assert.Equal(manager.Id, report.ManagerId);
+    }
+
+    [Fact]
+    public async Task ApplyAsync_WritesHistoryWithActorMetadata()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        await SeedPublishedSetupAsync(dbName);
+        await SeedOrgUnitAsync(dbName, "ENG-PLATFORM");
+
+        var actor = new EmployeeImportActorDto(
+            Guid.Parse("22222222-2222-2222-2222-222222222222"),
+            "HR Admin",
+            "HRAdmin");
+
+        await using var context = TestDbContextFactory.Create(TestTenantContext.WithTenant(TenantId), dbName);
+        var service = new EmployeeImportWorkflowService(context, TestTenantContext.WithTenant(TenantId));
+        var file = CreateCsvFile(
+            "employees.csv",
+            """
+            firstName,lastName,email,hireDate,jobTitle,orgUnitCode,managerEmail
+            Sarah,Chen,sarah.chen@contoso.com,2024-01-15,Senior Engineer,ENG-PLATFORM,
+            """);
+
+        var uploadedSession = await service.UploadAsync(file, CancellationToken.None);
+        await service.ValidateAsync(uploadedSession.Id, CancellationToken.None);
+        await service.ApplyAsync(uploadedSession.Id, actor, CancellationToken.None);
+
+        var history = await context.EmployeeImportHistories.SingleAsync();
+
+        Assert.Equal(uploadedSession.Id, history.SessionId);
+        Assert.Equal("employees.csv", history.SourceFileName);
+        Assert.Equal(1, history.SourceRowCount);
+        Assert.Equal(1, history.ValidRowCount);
+        Assert.Equal(1, history.CreatedCount);
+        Assert.Equal(0, history.SkippedCount);
+        Assert.Equal("Applied", history.Status);
+        Assert.Equal(actor.UserId, history.ActorUserId);
+        Assert.Equal(actor.FullName, history.ActorFullName);
+        Assert.Equal(actor.Role, history.ActorRole);
+    }
+
+    [Fact]
+    public async Task HistoryQueries_AreTenantScopedAndOrderedNewestFirst()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        await SeedPublishedSetupAsync(dbName);
+
+        var oldestHistoryId = await SeedAppliedHistoryAsync(
+            dbName,
+            TenantId,
+            Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+            "employees-old.csv",
+            DateTime.UtcNow.AddMinutes(-20));
+        var newestHistoryId = await SeedAppliedHistoryAsync(
+            dbName,
+            TenantId,
+            Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
+            "employees-new.csv",
+            DateTime.UtcNow.AddMinutes(-5));
+        await SeedAppliedHistoryAsync(
+            dbName,
+            Guid.Parse("33333333-3333-3333-3333-333333333333"),
+            Guid.Parse("cccccccc-cccc-cccc-cccc-cccccccccccc"),
+            "employees-other-tenant.csv",
+            DateTime.UtcNow.AddMinutes(-1));
+
+        await using var context = TestDbContextFactory.Create(TestTenantContext.WithTenant(TenantId), dbName);
+        var service = new EmployeeImportWorkflowService(context, TestTenantContext.WithTenant(TenantId));
+
+        var page = await service.GetHistoryAsync(1, 10, CancellationToken.None);
+
+        Assert.Equal(2, page.TotalCount);
+        Assert.Equal([newestHistoryId, oldestHistoryId], page.Items.Select(item => item.Id).ToArray());
+
+        var detail = await service.GetHistoryDetailAsync(newestHistoryId, CancellationToken.None);
+
+        Assert.Equal("employees-new.csv", detail.SourceFileName);
+
+        await Assert.ThrowsAsync<EntityNotFoundException>(() =>
+            service.GetHistoryDetailAsync(
+                Guid.Parse("cccccccc-cccc-cccc-cccc-cccccccccccc"),
+                CancellationToken.None));
+    }
+
+    [Fact]
     public async Task ValidateAsync_ReturnsIssuesForDuplicateTenantEmailAndInactiveOrgUnit()
     {
         var dbName = Guid.NewGuid().ToString();
@@ -224,7 +528,9 @@ public class EmployeeImportWorkflowTests
 
         Assert.Equal(EmployeeImportStage.Validated, validatedSession.Stage);
         Assert.Equal(0, validatedSession.ValidationSummary.ValidRows);
-        var duplicateEmailIssue = Assert.Single(validatedSession.ValidationIssues.Where(issue => issue.Code == "duplicateEmailInTenant"));
+        var duplicateEmailIssue = Assert.Single(
+            validatedSession.ValidationIssues,
+            issue => issue.Code == "duplicateEmailInTenant");
         Assert.Equal("duplicateIdentity", duplicateEmailIssue.Category);
         Assert.Equal("duplicateEmailInTenant:sarah.chen@contoso.com", duplicateEmailIssue.GroupKey);
         Assert.Equal("sarah.chen@contoso.com", duplicateEmailIssue.Value);
@@ -232,7 +538,9 @@ public class EmployeeImportWorkflowTests
             "Use a different email for this new employee or remove the row from the import.",
             duplicateEmailIssue.FixHint);
 
-        var orgUnitIssue = Assert.Single(validatedSession.ValidationIssues.Where(issue => issue.Code == "orgUnitInactive"));
+        var orgUnitIssue = Assert.Single(
+            validatedSession.ValidationIssues,
+            issue => issue.Code == "orgUnitInactive");
         Assert.Equal("invalidStructureReference", orgUnitIssue.Category);
         Assert.Equal("orgUnitInactive:ENG-PLATFORM", orgUnitIssue.GroupKey);
         Assert.Equal("ENG-PLATFORM", orgUnitIssue.Value);
@@ -370,6 +678,40 @@ public class EmployeeImportWorkflowTests
         seedContext.OrgUnits.Add(orgUnit);
         await seedContext.SaveChangesAsync();
     }
+
+    private static async Task<Guid> SeedAppliedHistoryAsync(
+        string dbName,
+        Guid tenantId,
+        Guid sessionId,
+        string sourceFileName,
+        DateTime appliedAtUtc)
+    {
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+        var history = EmployeeImportHistory.CreateApplied(
+            tenantId,
+            sessionId,
+            sourceFileName,
+            128,
+            4,
+            4,
+            4,
+            0,
+            appliedAtUtc,
+            Guid.Parse("44444444-4444-4444-4444-444444444444"),
+            "HR Admin",
+            "HRAdmin");
+
+        seedContext.EmployeeImportHistories.Add(history);
+        await seedContext.SaveChangesAsync();
+
+        return history.Id;
+    }
+
+    private static EmployeeImportActorDto CreateActor()
+        => new(
+            Guid.Parse("22222222-2222-2222-2222-222222222222"),
+            "HR Admin",
+            "HRAdmin");
 
     private static IFormFile CreateCsvFile(string fileName, string content)
     {

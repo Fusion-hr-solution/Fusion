@@ -9,10 +9,13 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  ClipboardCheck,
   Download,
   Eye,
   FileSpreadsheet,
+  History,
   RefreshCcw,
+  ShieldCheck,
   Upload,
   Users,
 } from "lucide-react";
@@ -22,6 +25,18 @@ import { EmptyState } from "@repo/ui";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -43,6 +58,9 @@ import {
 } from "@/components/ui/table";
 import { canAccessEmployeeRoster } from "@/lib/employee-roster-access";
 import type {
+  EmployeeImportApplyResultDto,
+  EmployeeImportHistoryDetailDto,
+  EmployeeImportHistoryPageDto,
   EmployeeImportPreviewFilter,
   EmployeeImportPreviewRowDto,
   EmployeeImportSessionDto,
@@ -53,7 +71,10 @@ import {
   type EmployeeImportValidationUiModel,
 } from "./employee-import-validation";
 import {
+  useApplyEmployeeImport,
   useDownloadEmployeeImportTemplate,
+  useEmployeeImportHistory,
+  useEmployeeImportHistoryDetail,
   useEmployeeImportSchema,
   useEmployeeImportSession,
   useUploadEmployeeImport,
@@ -74,6 +95,7 @@ const PREVIEW_COLUMNS: Array<{
 ];
 
 const MAX_VISIBLE_SELECTED_ROWS = 12;
+const HISTORY_PAGE_SIZE = 5;
 
 type SessionPresentation = {
   statusLabel: string;
@@ -254,6 +276,10 @@ function getBatchMetaItems(
 }
 
 function getPreviewDescription(session: EmployeeImportSessionDto) {
+  if (session.stage === "Applied") {
+    return "Open the applied batch preview only if you need to double-check the normalized rows that were created.";
+  }
+
   if (
     session.stage === "Validated" &&
     session.validationSummary.errorCount > 0
@@ -390,6 +416,468 @@ function BatchStatusPanel({
   );
 }
 
+function ApplyReadinessPanel({
+  session,
+  isApplying,
+  applyError,
+  onApply,
+}: {
+  session: EmployeeImportSessionDto;
+  isApplying: boolean;
+  applyError: string | null;
+  onApply: () => Promise<void>;
+}) {
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+
+  if (!session.canApply) {
+    return null;
+  }
+
+  const handleConfirm = async () => {
+    await onApply();
+    setIsConfirmOpen(false);
+  };
+
+  return (
+    <Card className="border-amber-200 bg-amber-50/70">
+      <CardHeader>
+        <div className="flex items-start gap-3">
+          <div className="rounded-lg border border-amber-200 bg-background/90 p-2">
+            <ClipboardCheck className="size-5 text-amber-700" />
+          </div>
+          <div className="space-y-1">
+            <CardTitle>Ready to apply this batch</CardTitle>
+            <CardDescription>
+              This step creates employees only. Existing employee emails are
+              never updated or skipped in this MVP flow.
+            </CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {applyError ? (
+          <Alert variant="destructive">
+            <AlertTitle>Apply failed</AlertTitle>
+            <AlertDescription>
+              <div className="space-y-1">
+                <p>{applyError}</p>
+                <p>
+                  Validate the current file again if tenant data changed, or
+                  upload a corrected CSV before retrying.
+                </p>
+              </div>
+            </AlertDescription>
+          </Alert>
+        ) : null}
+
+        <div className="flex flex-wrap gap-2">
+          <BatchMetaPill label="File" value={session.sourceFileName} />
+          <BatchMetaPill label="Source rows" value={session.sourceRowCount} />
+          <BatchMetaPill
+            label="Rows to create"
+            value={session.validationSummary.validRows}
+          />
+          <BatchMetaPill
+            label="File size"
+            value={formatBytes(session.sourceFileSizeBytes)}
+          />
+        </div>
+
+        <div className="rounded-lg border border-amber-200/80 bg-background/85 p-3 text-sm text-muted-foreground">
+          Apply runs atomically in one operation. If any conflict is detected,
+          no employee rows are created.
+        </div>
+
+        <div className="flex justify-end">
+          <AlertDialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
+            <AlertDialogTrigger asChild>
+              <Button type="button" disabled={!session.canApply || isApplying}>
+                {isApplying ? <Spinner /> : <ClipboardCheck />}
+                Apply import
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogMedia>
+                  <ShieldCheck className="size-5 text-amber-700" />
+                </AlertDialogMedia>
+                <AlertDialogTitle>Apply this employee import?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will create {session.validationSummary.validRows}{" "}
+                  employee
+                  {session.validationSummary.validRows === 1
+                    ? ""
+                    : "s"} from {session.sourceFileName}. The import is
+                  create-only and will succeed only if the whole batch can be
+                  written.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={isApplying}>
+                  Cancel
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  disabled={isApplying}
+                  onClick={handleConfirm}
+                >
+                  {isApplying ? <Spinner /> : <ClipboardCheck />}
+                  Apply import
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function AppliedResultPanel({
+  session,
+  applyResult,
+  onUpload,
+  onReviewHistory,
+}: {
+  session: EmployeeImportSessionDto;
+  applyResult: EmployeeImportApplyResultDto | null;
+  onUpload: () => void;
+  onReviewHistory: () => void;
+}) {
+  if (session.stage !== "Applied") {
+    return null;
+  }
+
+  const createdCount =
+    applyResult?.createdCount ?? session.validationSummary.validRows;
+  const sourceRowCount = applyResult?.sourceRowCount ?? session.sourceRowCount;
+  const appliedAt = applyResult?.appliedAt ?? session.appliedAt;
+
+  return (
+    <Card className="border-emerald-200 bg-emerald-50/70">
+      <CardHeader>
+        <div className="flex items-start gap-3">
+          <div className="rounded-lg border border-emerald-200 bg-background/90 p-2">
+            <CheckCircle2 className="size-5 text-emerald-600" />
+          </div>
+          <div className="space-y-1">
+            <CardTitle>Import completed</CardTitle>
+            <CardDescription>
+              {createdCount} employee{createdCount === 1 ? "" : "s"} were
+              created from {session.sourceFileName}.
+            </CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex flex-wrap gap-2">
+          <BatchMetaPill label="File" value={session.sourceFileName} />
+          <BatchMetaPill label="Created" value={createdCount} />
+          <BatchMetaPill label="Source rows" value={sourceRowCount} />
+          <BatchMetaPill
+            label="Applied"
+            value={appliedAt ? formatTimestamp(appliedAt) : "Recorded"}
+          />
+        </div>
+
+        <div className="grid gap-3 rounded-lg border border-emerald-200/80 bg-background/85 p-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+          <div className="space-y-1 text-sm text-muted-foreground">
+            <p className="font-medium text-foreground">What next</p>
+            <p>
+              Review the live roster now, start another batch, or scroll to the
+              history section below when you need the operational record later.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild>
+              <Link href="/employees">
+                <Users />
+                View employees
+              </Link>
+            </Button>
+            <Button type="button" variant="outline" onClick={onUpload}>
+              <Upload />
+              Upload next CSV
+            </Button>
+            <Button type="button" variant="ghost" onClick={onReviewHistory}>
+              <History />
+              Review history
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function HistoryPagination({
+  pageNumber,
+  pageCount,
+  totalCount,
+  onPageChange,
+}: {
+  pageNumber: number;
+  pageCount: number;
+  totalCount: number;
+  onPageChange: (pageNumber: number) => void;
+}) {
+  if (pageCount <= 1) {
+    return (
+      <p className="text-xs text-muted-foreground">
+        {totalCount} import record{totalCount === 1 ? "" : "s"}
+      </p>
+    );
+  }
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-3">
+      <p className="text-xs text-muted-foreground">
+        Page {pageNumber} of {pageCount}
+      </p>
+      <div className="flex items-center gap-2">
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={() => onPageChange(pageNumber - 1)}
+          disabled={pageNumber === 1}
+        >
+          <ChevronLeft />
+          Previous
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={() => onPageChange(pageNumber + 1)}
+          disabled={pageNumber === pageCount}
+        >
+          Next
+          <ChevronRight />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function HistoryMetric({ label, value }: BatchMetaItem) {
+  return (
+    <div className="rounded-lg border bg-background/80 px-3 py-2">
+      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+        {label}
+      </p>
+      <p className="mt-1 text-sm font-medium text-foreground">{value}</p>
+    </div>
+  );
+}
+
+function ImportHistoryPanel({
+  historyPage,
+  historyDetail,
+  selectedHistoryId,
+  isHistoryLoading,
+  isHistoryDetailLoading,
+  historyError,
+  historyDetailError,
+  onSelectHistory,
+  onPageChange,
+}: {
+  historyPage?: EmployeeImportHistoryPageDto;
+  historyDetail?: EmployeeImportHistoryDetailDto;
+  selectedHistoryId: string | null;
+  isHistoryLoading: boolean;
+  isHistoryDetailLoading: boolean;
+  historyError: unknown;
+  historyDetailError: unknown;
+  onSelectHistory: (historyId: string) => void;
+  onPageChange: (pageNumber: number) => void;
+}) {
+  return (
+    <Card id="employee-import-history" className="border-dashed">
+      <CardHeader>
+        <div className="flex items-start gap-3">
+          <div className="rounded-lg border bg-muted/20 p-2">
+            <History className="size-5 text-muted-foreground" />
+          </div>
+          <div className="space-y-1">
+            <CardTitle>Import history</CardTitle>
+            <CardDescription>
+              Recent applied batches stay here as lightweight operational
+              reference.
+            </CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {historyError ? (
+          <Alert variant="destructive">
+            <AlertTitle>Import history failed to load</AlertTitle>
+            <AlertDescription>{getErrorMessage(historyError)}</AlertDescription>
+          </Alert>
+        ) : null}
+
+        {isHistoryLoading && !historyPage ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Spinner />
+            Loading import history...
+          </div>
+        ) : historyPage && historyPage.items.length > 0 ? (
+          <div className="space-y-3">
+            <div className="grid gap-2">
+              {historyPage.items.map((item, index) => {
+                const isSelected = selectedHistoryId === item.id;
+                const isLatest = index === 0 && historyPage.pageNumber === 1;
+                const selectedDetail =
+                  isSelected && historyDetail?.id === item.id
+                    ? historyDetail
+                    : null;
+
+                return (
+                  <div
+                    key={item.id}
+                    className={`overflow-hidden rounded-xl border transition-colors ${
+                      isSelected
+                        ? "border-foreground/20 bg-muted/25"
+                        : "border-border bg-background"
+                    }`}
+                  >
+                    <button
+                      type="button"
+                      className={`w-full cursor-pointer p-3 text-left transition-colors ${
+                        isSelected
+                          ? "bg-muted/20"
+                          : "hover:border-foreground/15 hover:bg-muted/20"
+                      }`}
+                      onClick={() => onSelectHistory(item.id)}
+                      aria-pressed={isSelected}
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div className="space-y-1">
+                          <p className="font-medium text-foreground">
+                            {item.sourceFileName}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {formatTimestamp(item.appliedAt)} by{" "}
+                            {item.actorFullName}
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {isLatest ? (
+                            <Badge
+                              variant="outline"
+                              className="border-emerald-300 text-[10px] text-emerald-700"
+                            >
+                              Latest
+                            </Badge>
+                          ) : null}
+                          <Badge variant={isSelected ? "secondary" : "outline"}>
+                            {item.status}
+                          </Badge>
+                        </div>
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                        <span>{item.createdCount} created</span>
+                        <span>{item.sourceRowCount} source rows</span>
+                      </div>
+                    </button>
+
+                    {isSelected ? (
+                      <div className="border-t bg-background/70 px-4 py-4">
+                        {historyDetailError ? (
+                          <Alert variant="destructive">
+                            <AlertTitle>
+                              History details failed to load
+                            </AlertTitle>
+                            <AlertDescription>
+                              {getErrorMessage(historyDetailError)}
+                            </AlertDescription>
+                          </Alert>
+                        ) : isHistoryDetailLoading || !selectedDetail ? (
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Spinner />
+                            Loading import details...
+                          </div>
+                        ) : (
+                          <div className="space-y-4">
+                            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                              <span>
+                                Applied{" "}
+                                {formatTimestamp(selectedDetail.appliedAt)}
+                              </span>
+                              <span>by {selectedDetail.actorFullName}</span>
+                              <Badge
+                                variant="outline"
+                                className="py-0 text-[10px]"
+                              >
+                                {selectedDetail.actorRole}
+                              </Badge>
+                            </div>
+
+                            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                              <HistoryMetric
+                                label="Valid rows"
+                                value={selectedDetail.validRowCount}
+                              />
+                              <HistoryMetric
+                                label="File size"
+                                value={formatBytes(
+                                  selectedDetail.sourceFileSizeBytes
+                                )}
+                              />
+                              <HistoryMetric
+                                label="Session ref"
+                                value={selectedDetail.sessionId.slice(0, 8)}
+                              />
+                              <HistoryMetric
+                                label="Version"
+                                value={selectedDetail.version}
+                              />
+                            </div>
+
+                            {selectedDetail.skippedCount > 0 ? (
+                              <p className="text-xs text-muted-foreground">
+                                {selectedDetail.skippedCount} row
+                                {selectedDetail.skippedCount === 1
+                                  ? " was"
+                                  : "s were"}{" "}
+                                skipped due to duplicate emails.
+                              </p>
+                            ) : null}
+
+                            {selectedDetail.failureReason ? (
+                              <Alert variant="destructive">
+                                <AlertTitle>Failure reason</AlertTitle>
+                                <AlertDescription>
+                                  {selectedDetail.failureReason}
+                                </AlertDescription>
+                              </Alert>
+                            ) : null}
+                          </div>
+                        )}
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+
+            <HistoryPagination
+              pageNumber={historyPage.pageNumber}
+              pageCount={historyPage.pageCount}
+              totalCount={historyPage.totalCount}
+              onPageChange={onPageChange}
+            />
+          </div>
+        ) : (
+          <div className="rounded-xl border border-dashed p-6 text-sm text-muted-foreground">
+            No applied employee imports yet. Validate a clean batch and apply it
+            to start building operational history.
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function EmptyImportState({
   isUploading,
   isDownloadingTemplate,
@@ -516,7 +1004,10 @@ function IssueNavigatorPanel({
                       </p>
                     ) : null}
                   </div>
-                  <Badge variant="outline" className="shrink-0 self-start whitespace-nowrap">
+                  <Badge
+                    variant="outline"
+                    className="shrink-0 self-start whitespace-nowrap"
+                  >
                     {group.rowNumbers.length} row
                     {group.rowNumbers.length === 1 ? "" : "s"}
                   </Badge>
@@ -729,17 +1220,32 @@ function SecondaryDetailsPanel({
   activeSchema?: EmployeeImportSessionDto["employeeImportSchema"];
   isSchemaLoading: boolean;
 }) {
+  const [isRawRowsOpen, setIsRawRowsOpen] = useState(false);
+  const [isFieldReferenceOpen, setIsFieldReferenceOpen] = useState(false);
+  const shouldExpandSecondaryDetailsByDefault =
+    !!session && session.stage !== "Applied";
+
+  useEffect(() => {
+    setIsRawRowsOpen(shouldExpandSecondaryDetailsByDefault);
+    setIsFieldReferenceOpen(shouldExpandSecondaryDetailsByDefault);
+  }, [session?.id, shouldExpandSecondaryDetailsByDefault]);
+
   return (
     <Card className="border-dashed">
       <CardHeader>
-        <CardTitle>Secondary details</CardTitle>
+        <CardTitle>Reference details</CardTitle>
         <CardDescription>
-          Inspect the original upload or the template field definitions.
+          Reopen the raw upload or template reference only when you need to
+          inspect the source material.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {session ? (
-          <details className="rounded-lg border bg-muted/10" open>
+          <details
+            className="rounded-lg border bg-muted/10"
+            open={isRawRowsOpen}
+            onToggle={(event) => setIsRawRowsOpen(event.currentTarget.open)}
+          >
             <summary className="cursor-pointer list-none px-4 py-3 text-sm font-medium">
               Raw uploaded rows ({session.sampleRows.length} shown)
             </summary>
@@ -780,7 +1286,13 @@ function SecondaryDetailsPanel({
             Loading employee import schema...
           </div>
         ) : (
-          <details className="rounded-lg border bg-muted/10" open>
+          <details
+            className="rounded-lg border bg-muted/10"
+            open={isFieldReferenceOpen}
+            onToggle={(event) =>
+              setIsFieldReferenceOpen(event.currentTarget.open)
+            }
+          >
             <summary className="cursor-pointer list-none px-4 py-3 text-sm font-medium">
               Template field reference (
               {activeSchema?.canonicalFields.length ?? 0})
@@ -841,6 +1353,14 @@ export default function EmployeeImportPage() {
     null
   );
   const [currentPreviewPage, setCurrentPreviewPage] = useState(1);
+  const [historyPageNumber, setHistoryPageNumber] = useState(1);
+  const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(
+    null
+  );
+  const [applyError, setApplyError] = useState<string | null>(null);
+  const [lastApplyResult, setLastApplyResult] =
+    useState<EmployeeImportApplyResultDto | null>(null);
+  const [isAppliedPreviewOpen, setIsAppliedPreviewOpen] = useState(false);
   const [pendingScrollRowNumber, setPendingScrollRowNumber] = useState<
     number | null
   >(null);
@@ -862,7 +1382,22 @@ export default function EmployeeImportPage() {
   });
   const uploadImport = useUploadEmployeeImport();
   const validateImport = useValidateEmployeeImport();
+  const applyImport = useApplyEmployeeImport();
   const downloadTemplate = useDownloadEmployeeImportTemplate();
+  const {
+    data: historyPage,
+    error: historyError,
+    isLoading: isHistoryLoading,
+    refetch: refetchHistoryPage,
+  } = useEmployeeImportHistory({
+    pageNumber: historyPageNumber,
+    pageSize: HISTORY_PAGE_SIZE,
+  });
+  const {
+    data: historyDetail,
+    error: historyDetailError,
+    isLoading: isHistoryDetailLoading,
+  } = useEmployeeImportHistoryDetail(selectedHistoryId);
 
   const activeSchema = session?.employeeImportSchema ?? schema;
   const canonicalFieldKeys =
@@ -921,6 +1456,17 @@ export default function EmployeeImportPage() {
         ? "All matching rows are visible on one page."
         : "Adjust the filter to inspect a different row set."
     : "";
+  const isAppliedSession = session?.stage === "Applied";
+  const isPreviewExpanded = !isAppliedSession || isAppliedPreviewOpen;
+
+  useEffect(() => {
+    setApplyError(null);
+    setLastApplyResult(null);
+  }, [session?.id]);
+
+  useEffect(() => {
+    setIsAppliedPreviewOpen(!isAppliedSession);
+  }, [isAppliedSession, session?.id]);
 
   useEffect(() => {
     setPreviewFilter(hasGroupedIssues ? "affected" : "all");
@@ -928,6 +1474,20 @@ export default function EmployeeImportPage() {
     setCurrentPreviewPage(1);
     setPendingScrollRowNumber(null);
   }, [hasGroupedIssues, session?.id]);
+
+  useEffect(() => {
+    if (!historyPage?.items.length) {
+      if (!isHistoryLoading) {
+        setSelectedHistoryId(null);
+      }
+
+      return;
+    }
+
+    if (!selectedHistoryId) {
+      setSelectedHistoryId(historyPage.items[0]?.id ?? null);
+    }
+  }, [historyPage?.items, isHistoryLoading, selectedHistoryId]);
 
   const handleBrowse = useCallback(() => {
     fileInputRef.current?.click();
@@ -976,6 +1536,7 @@ export default function EmployeeImportPage() {
         groupKey: activeIssueGroupKey,
       });
       await refetchSession();
+      setApplyError(null);
 
       if (session.stage === "Validated") {
         toast.success("Employee import validation refreshed.");
@@ -992,6 +1553,39 @@ export default function EmployeeImportPage() {
     refetchSession,
     session,
     validateImport,
+  ]);
+
+  const handleApplySession = useCallback(async () => {
+    if (!session) {
+      return;
+    }
+
+    try {
+      setApplyError(null);
+      const result = await applyImport.mutateAsync({ sessionId: session.id });
+      setLastApplyResult(result);
+      const shouldRefetchCurrentHistoryPage = historyPageNumber === 1;
+      setHistoryPageNumber(1);
+      setSelectedHistoryId(result.historyId);
+
+      await refetchSession();
+
+      if (shouldRefetchCurrentHistoryPage) {
+        await refetchHistoryPage();
+      }
+
+      toast.success("Employee import applied.");
+    } catch (error) {
+      const message = getErrorMessage(error);
+      setApplyError(message);
+      toast.error(message);
+    }
+  }, [
+    applyImport,
+    historyPageNumber,
+    refetchHistoryPage,
+    refetchSession,
+    session,
   ]);
 
   const scrollToPreviewRow = useCallback((rowNumber: number) => {
@@ -1047,10 +1641,9 @@ export default function EmployeeImportPage() {
       const sortedRowNumbers = focusedGroup?.rowNumbers
         ? [...focusedGroup.rowNumbers].sort((left, right) => left - right)
         : [];
-      const targetRowIndex =
-        sortedRowNumbers.findIndex(
-          (candidateRowNumber) => candidateRowNumber === rowNumber
-        );
+      const targetRowIndex = sortedRowNumbers.findIndex(
+        (candidateRowNumber) => candidateRowNumber === rowNumber
+      );
 
       if (targetRowIndex >= 0) {
         setCurrentPreviewPage(Math.floor(targetRowIndex / pageSize) + 1);
@@ -1098,6 +1691,35 @@ export default function EmployeeImportPage() {
     },
     [currentPreviewPage, session]
   );
+
+  const handleHistoryPageChange = useCallback(
+    (nextPageNumber: number) => {
+      if (!historyPage) {
+        return;
+      }
+
+      const clampedPageNumber = Math.min(
+        Math.max(nextPageNumber, 1),
+        historyPage.pageCount
+      );
+
+      if (clampedPageNumber === historyPageNumber) {
+        return;
+      }
+
+      setHistoryPageNumber(clampedPageNumber);
+      setSelectedHistoryId(null);
+    },
+    [historyPage, historyPageNumber]
+  );
+
+  const handleReviewHistory = useCallback(() => {
+    requestAnimationFrame(() => {
+      document
+        .getElementById("employee-import-history")
+        ?.scrollIntoView({ block: "start", behavior: "smooth" });
+    });
+  }, []);
 
   if (!canAccess) {
     return (
@@ -1168,16 +1790,46 @@ export default function EmployeeImportPage() {
 
       {session ? (
         <>
-          <BatchStatusPanel
+          {isAppliedSession ? (
+            <AppliedResultPanel
+              session={session}
+              applyResult={lastApplyResult}
+              onUpload={handleBrowse}
+              onReviewHistory={handleReviewHistory}
+            />
+          ) : (
+            <BatchStatusPanel
+              session={session}
+              isValidating={validateImport.isLoading}
+              isUploading={uploadImport.isLoading}
+              isDownloadingTemplate={downloadTemplate.isLoading}
+              issueSummary={issueSummary}
+              onValidate={handleValidateSession}
+              onUpload={handleBrowse}
+              onDownloadTemplate={handleDownloadTemplate}
+            />
+          )}
+
+          <ApplyReadinessPanel
             session={session}
-            isValidating={validateImport.isLoading}
-            isUploading={uploadImport.isLoading}
-            isDownloadingTemplate={downloadTemplate.isLoading}
-            issueSummary={issueSummary}
-            onValidate={handleValidateSession}
-            onUpload={handleBrowse}
-            onDownloadTemplate={handleDownloadTemplate}
+            isApplying={applyImport.isLoading}
+            applyError={applyError}
+            onApply={handleApplySession}
           />
+
+          {isAppliedSession ? (
+            <ImportHistoryPanel
+              historyPage={historyPage}
+              historyDetail={historyDetail}
+              selectedHistoryId={selectedHistoryId}
+              isHistoryLoading={isHistoryLoading}
+              isHistoryDetailLoading={isHistoryDetailLoading}
+              historyError={historyError}
+              historyDetailError={historyDetailError}
+              onSelectHistory={setSelectedHistoryId}
+              onPageChange={handleHistoryPageChange}
+            />
+          ) : null}
 
           <div
             className={
@@ -1203,7 +1855,18 @@ export default function EmployeeImportPage() {
                       {getPreviewDescription(session)}
                     </CardDescription>
                   </div>
-                  {hasGroupedIssues ? (
+                  {isAppliedSession ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() =>
+                        setIsAppliedPreviewOpen((current) => !current)
+                      }
+                    >
+                      {isAppliedPreviewOpen ? "Hide preview" : "Show preview"}
+                    </Button>
+                  ) : hasGroupedIssues ? (
                     <div className="flex flex-wrap gap-2">
                       <Button
                         type="button"
@@ -1229,156 +1892,176 @@ export default function EmployeeImportPage() {
                   ) : null}
                 </div>
               </CardHeader>
-              <CardContent>
-                {hasGroupedIssues ? (
-                  <div className="mb-4">
-                    <SelectedIssueStrip
-                      group={focusedGroup}
-                      onJumpToRow={handleJumpToRow}
-                    />
-                  </div>
-                ) : null}
+              {isPreviewExpanded ? (
+                <CardContent>
+                  {hasGroupedIssues ? (
+                    <div className="mb-4">
+                      <SelectedIssueStrip
+                        group={focusedGroup}
+                        onJumpToRow={handleJumpToRow}
+                      />
+                    </div>
+                  ) : null}
 
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Row</TableHead>
-                        {hasGroupedIssues ? (
-                          <TableHead>Issues</TableHead>
-                        ) : null}
-                        {PREVIEW_COLUMNS.map((column) => (
-                          <TableHead
-                            key={column.key}
-                            className={
-                              focusedGroup?.fieldKeys.includes(column.key)
-                                ? "bg-destructive/10"
-                                : undefined
-                            }
-                          >
-                            {column.label}
-                          </TableHead>
-                        ))}
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {displayedPreviewRows.length > 0 ? (
-                        displayedPreviewRows.map((row) => {
-                          const rowGroups =
-                            validationUi?.groupsByRowNumber.get(
-                              row.rowNumber
-                            ) ?? [];
-                          const hasRowIssues = rowGroups.length > 0;
-                          const isActiveRow =
-                            !!activeIssueGroupKey &&
-                            rowGroups.some(
-                              (group) => group.key === activeIssueGroupKey
-                            );
-
-                          return (
-                            <TableRow
-                              key={row.rowNumber}
-                              id={`employee-import-preview-row-${row.rowNumber}`}
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Row</TableHead>
+                          {hasGroupedIssues ? (
+                            <TableHead>Issues</TableHead>
+                          ) : null}
+                          {PREVIEW_COLUMNS.map((column) => (
+                            <TableHead
+                              key={column.key}
                               className={
-                                hasRowIssues
-                                  ? isActiveRow
-                                    ? "bg-destructive/10"
-                                    : "bg-destructive/5"
+                                focusedGroup?.fieldKeys.includes(column.key)
+                                  ? "bg-destructive/10"
                                   : undefined
                               }
                             >
-                              <TableCell>
-                                <div className="flex items-center gap-2">
-                                  {hasRowIssues ? (
-                                    <span className="size-2 rounded-full bg-destructive" />
-                                  ) : null}
-                                  <span>{row.rowNumber}</span>
-                                </div>
-                              </TableCell>
-                              {hasGroupedIssues ? (
-                                <TableCell className="max-w-56">
-                                  <div className="flex flex-wrap gap-1">
-                                    {rowGroups.length > 0 ? (
-                                      rowGroups.map((group) => (
-                                        <button
-                                          key={`${row.rowNumber}-${group.key}`}
-                                          type="button"
-                                          className={`cursor-pointer rounded-full border px-2 py-0.5 text-xs ${
-                                            activeIssueGroupKey === group.key
-                                              ? "border-destructive bg-destructive/10 text-destructive"
-                                              : "border-destructive/20 bg-background text-destructive/80 hover:bg-destructive/5"
-                                          }`}
-                                          onClick={() =>
-                                            handleSelectGroup(group)
-                                          }
-                                          aria-pressed={
-                                            activeIssueGroupKey === group.key
-                                          }
-                                        >
-                                          {group.shortLabel}
-                                        </button>
-                                      ))
-                                    ) : (
+                              {column.label}
+                            </TableHead>
+                          ))}
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {displayedPreviewRows.length > 0 ? (
+                          displayedPreviewRows.map((row) => {
+                            const rowGroups =
+                              validationUi?.groupsByRowNumber.get(
+                                row.rowNumber
+                              ) ?? [];
+                            const hasRowIssues = rowGroups.length > 0;
+                            const isActiveRow =
+                              !!activeIssueGroupKey &&
+                              rowGroups.some(
+                                (group) => group.key === activeIssueGroupKey
+                              );
+
+                            return (
+                              <TableRow
+                                key={row.rowNumber}
+                                id={`employee-import-preview-row-${row.rowNumber}`}
+                                className={
+                                  hasRowIssues
+                                    ? isActiveRow
+                                      ? "bg-destructive/10"
+                                      : "bg-destructive/5"
+                                    : undefined
+                                }
+                              >
+                                <TableCell>
+                                  <div className="flex items-center gap-2">
+                                    {hasRowIssues ? (
+                                      <span className="size-2 rounded-full bg-destructive" />
+                                    ) : null}
+                                    <span>{row.rowNumber}</span>
+                                  </div>
+                                </TableCell>
+                                {hasGroupedIssues ? (
+                                  <TableCell className="max-w-56">
+                                    <div className="flex flex-wrap gap-1">
+                                      {rowGroups.length > 0 ? (
+                                        rowGroups.map((group) => (
+                                          <button
+                                            key={`${row.rowNumber}-${group.key}`}
+                                            type="button"
+                                            className={`cursor-pointer rounded-full border px-2 py-0.5 text-xs ${
+                                              activeIssueGroupKey === group.key
+                                                ? "border-destructive bg-destructive/10 text-destructive"
+                                                : "border-destructive/20 bg-background text-destructive/80 hover:bg-destructive/5"
+                                            }`}
+                                            onClick={() =>
+                                              handleSelectGroup(group)
+                                            }
+                                            aria-pressed={
+                                              activeIssueGroupKey === group.key
+                                            }
+                                          >
+                                            {group.shortLabel}
+                                          </button>
+                                        ))
+                                      ) : (
+                                        <span className="text-muted-foreground">
+                                          -
+                                        </span>
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                ) : null}
+                                {PREVIEW_COLUMNS.map((column) => (
+                                  <TableCell
+                                    key={`${row.rowNumber}-${column.key}`}
+                                    className={
+                                      focusedGroup?.fieldKeys.includes(
+                                        column.key
+                                      )
+                                        ? isActiveRow
+                                          ? "bg-destructive/10"
+                                          : "bg-destructive/5"
+                                        : undefined
+                                    }
+                                  >
+                                    {row[column.key] ?? (
                                       <span className="text-muted-foreground">
                                         -
                                       </span>
                                     )}
-                                  </div>
-                                </TableCell>
-                              ) : null}
-                              {PREVIEW_COLUMNS.map((column) => (
-                                <TableCell
-                                  key={`${row.rowNumber}-${column.key}`}
-                                  className={
-                                    focusedGroup?.fieldKeys.includes(column.key)
-                                      ? isActiveRow
-                                        ? "bg-destructive/10"
-                                        : "bg-destructive/5"
-                                      : undefined
-                                  }
-                                >
-                                  {row[column.key] ?? (
-                                    <span className="text-muted-foreground">
-                                      -
-                                    </span>
-                                  )}
-                                </TableCell>
-                              ))}
-                            </TableRow>
-                          );
-                        })
-                      ) : (
-                        <TableRow>
-                          <TableCell
-                            colSpan={
-                              PREVIEW_COLUMNS.length +
-                              1 +
-                              (hasGroupedIssues ? 1 : 0)
-                            }
-                            className="py-8 text-center text-sm text-muted-foreground"
-                          >
-                            No rows match the current preview filter.
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
+                                  </TableCell>
+                                ))}
+                              </TableRow>
+                            );
+                          })
+                        ) : (
+                          <TableRow>
+                            <TableCell
+                              colSpan={
+                                PREVIEW_COLUMNS.length +
+                                1 +
+                                (hasGroupedIssues ? 1 : 0)
+                              }
+                              className="py-8 text-center text-sm text-muted-foreground"
+                            >
+                              No rows match the current preview filter.
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
 
-                <PreviewPagination
-                  pageNumber={session.previewPageNumber}
-                  pageSize={session.previewPageSize}
-                  pageCount={session.previewPageCount}
-                  totalRows={session.totalPreviewRowCount}
-                  onPageChange={handlePreviewPageChange}
-                />
-              </CardContent>
-              <CardFooter className="justify-between gap-4 text-xs text-muted-foreground">
-                <span>{previewFooterPrimary}</span>
-                <span>{previewFooterSecondary}</span>
-              </CardFooter>
+                  <PreviewPagination
+                    pageNumber={session.previewPageNumber}
+                    pageSize={session.previewPageSize}
+                    pageCount={session.previewPageCount}
+                    totalRows={session.totalPreviewRowCount}
+                    onPageChange={handlePreviewPageChange}
+                  />
+                </CardContent>
+              ) : null}
+              {isPreviewExpanded ? (
+                <CardFooter className="justify-between gap-4 text-xs text-muted-foreground">
+                  <span>{previewFooterPrimary}</span>
+                  <span>{previewFooterSecondary}</span>
+                </CardFooter>
+              ) : null}
             </Card>
           </div>
+
+          {!isAppliedSession ? (
+            <ImportHistoryPanel
+              historyPage={historyPage}
+              historyDetail={historyDetail}
+              selectedHistoryId={selectedHistoryId}
+              isHistoryLoading={isHistoryLoading}
+              isHistoryDetailLoading={isHistoryDetailLoading}
+              historyError={historyError}
+              historyDetailError={historyDetailError}
+              onSelectHistory={setSelectedHistoryId}
+              onPageChange={handleHistoryPageChange}
+            />
+          ) : null}
 
           <SecondaryDetailsPanel
             session={session}
@@ -1394,6 +2077,18 @@ export default function EmployeeImportPage() {
             isDownloadingTemplate={downloadTemplate.isLoading}
             onUpload={handleBrowse}
             onDownloadTemplate={handleDownloadTemplate}
+          />
+
+          <ImportHistoryPanel
+            historyPage={historyPage}
+            historyDetail={historyDetail}
+            selectedHistoryId={selectedHistoryId}
+            isHistoryLoading={isHistoryLoading}
+            isHistoryDetailLoading={isHistoryDetailLoading}
+            historyError={historyError}
+            historyDetailError={historyDetailError}
+            onSelectHistory={setSelectedHistoryId}
+            onPageChange={handleHistoryPageChange}
           />
 
           <SecondaryDetailsPanel

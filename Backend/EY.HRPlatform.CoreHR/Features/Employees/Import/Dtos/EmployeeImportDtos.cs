@@ -43,6 +43,61 @@ public sealed record EmployeeImportPreviewRowDto(
     string? OrgUnitCode,
     string? ManagerEmail);
 
+public sealed record EmployeeImportActorDto(
+    Guid UserId,
+    string FullName,
+    string Role);
+
+public sealed record EmployeeImportApplyResultDto(
+    Guid SessionId,
+    Guid HistoryId,
+    string SourceFileName,
+    int SourceRowCount,
+    int ValidRowCount,
+    int CreatedCount,
+    int SkippedCount,
+    DateTime AppliedAt,
+    EmployeeImportStage Stage);
+
+public sealed record EmployeeImportHistoryListItemDto(
+    Guid Id,
+    Guid SessionId,
+    string SourceFileName,
+    long SourceFileSizeBytes,
+    int SourceRowCount,
+    int ValidRowCount,
+    int CreatedCount,
+    int SkippedCount,
+    string Status,
+    DateTime AppliedAt,
+    Guid ActorUserId,
+    string ActorFullName,
+    string ActorRole);
+
+public sealed record EmployeeImportHistoryDetailDto(
+    Guid Id,
+    Guid SessionId,
+    uint Version,
+    string SourceFileName,
+    long SourceFileSizeBytes,
+    int SourceRowCount,
+    int ValidRowCount,
+    int CreatedCount,
+    int SkippedCount,
+    string Status,
+    DateTime AppliedAt,
+    Guid ActorUserId,
+    string ActorFullName,
+    string ActorRole,
+    string? FailureReason);
+
+public sealed record EmployeeImportHistoryPageDto(
+    IReadOnlyList<EmployeeImportHistoryListItemDto> Items,
+    int PageNumber,
+    int PageSize,
+    int TotalCount,
+    int PageCount);
+
 public sealed record EmployeeImportSessionDto(
     Guid Id,
     EmployeeImportStage Stage,
@@ -60,6 +115,8 @@ public sealed record EmployeeImportSessionDto(
     bool HasMorePreviewRows,
     EmployeeImportValidationSummaryDto ValidationSummary,
     IReadOnlyList<EmployeeImportValidationIssueDto> ValidationIssues,
+    DateTime? AppliedAt,
     DateTime ExpiresAt,
     EmployeeImportSchemaDto EmployeeImportSchema,
-    bool CanValidate);
+    bool CanValidate,
+    bool CanApply);

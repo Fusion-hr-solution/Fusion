@@ -39,6 +39,7 @@ public class CoreHRDbContext : DbContext
     public DbSet<DraftOrgUnit> DraftOrgUnits => Set<DraftOrgUnit>();
     public DbSet<DraftStructureImportSession> DraftStructureImportSessions => Set<DraftStructureImportSession>();
     public DbSet<EmployeeImportSession> EmployeeImportSessions => Set<EmployeeImportSession>();
+    public DbSet<EmployeeImportHistory> EmployeeImportHistories => Set<EmployeeImportHistory>();
     public DbSet<TenantSetupState> TenantSetupStates => Set<TenantSetupState>();
     public DbSet<TenantSetupActivity> TenantSetupActivities => Set<TenantSetupActivity>();
 
@@ -77,6 +78,9 @@ public class CoreHRDbContext : DbContext
 
         modelBuilder.Entity<EmployeeImportSession>()
             .HasQueryFilter(session => CurrentTenantId != Guid.Empty && session.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<EmployeeImportHistory>()
+            .HasQueryFilter(history => CurrentTenantId != Guid.Empty && history.TenantId == CurrentTenantId);
 
         modelBuilder.Entity<TenantSetupState>()
             .HasQueryFilter(ts => CurrentTenantId != Guid.Empty && ts.TenantId == CurrentTenantId);
