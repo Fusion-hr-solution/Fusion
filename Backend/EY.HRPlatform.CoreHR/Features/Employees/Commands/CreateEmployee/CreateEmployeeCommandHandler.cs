@@ -13,9 +13,9 @@ namespace EY.HRPlatform.CoreHR.Features.Employees.Commands.CreateEmployee;
 public sealed class CreateEmployeeCommandHandler(
     CoreHRDbContext dbContext,
     ITenantContext tenantContext,
-    IEmployeeHierarchyService? employeeHierarchyService = null) : ICommandHandler<CreateEmployeeCommand, Result<EmployeeDto>>
+    IEmployeeHierarchyService hierarchyService) : ICommandHandler<CreateEmployeeCommand, Result<EmployeeDto>>
 {
-    private readonly IEmployeeHierarchyService employeeHierarchyService = employeeHierarchyService ?? new EmployeeHierarchyService(dbContext);
+    private readonly IEmployeeHierarchyService employeeHierarchyService = hierarchyService;
 
     public async Task<Result<EmployeeDto>> Handle(CreateEmployeeCommand request, CancellationToken cancellationToken)
     {

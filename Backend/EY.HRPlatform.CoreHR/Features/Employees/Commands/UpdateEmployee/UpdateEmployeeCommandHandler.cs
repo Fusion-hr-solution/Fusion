@@ -11,9 +11,9 @@ namespace EY.HRPlatform.CoreHR.Features.Employees.Commands.UpdateEmployee;
 
 public sealed class UpdateEmployeeCommandHandler(
     CoreHRDbContext dbContext,
-    IEmployeeHierarchyService? employeeHierarchyService = null) : ICommandHandler<UpdateEmployeeCommand, Result<EmployeeDto>>
+    IEmployeeHierarchyService hierarchyService) : ICommandHandler<UpdateEmployeeCommand, Result<EmployeeDto>>
 {
-    private readonly IEmployeeHierarchyService employeeHierarchyService = employeeHierarchyService ?? new EmployeeHierarchyService(dbContext);
+    private readonly IEmployeeHierarchyService employeeHierarchyService = hierarchyService;
 
     public async Task<Result<EmployeeDto>> Handle(UpdateEmployeeCommand request, CancellationToken cancellationToken)
     {
