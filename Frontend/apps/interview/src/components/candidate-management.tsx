@@ -10,11 +10,13 @@ import { InviteTab } from "@/components/candidate-management/tabs/invite-tab";
 import { ResendTab } from "@/components/candidate-management/tabs/resend-tab";
 import { LinkSecurityTab } from "@/components/candidate-management/tabs/link-security-tab";
 import { TimelineTab } from "@/components/candidate-management/tabs/timeline-tab";
+import { RetakeTab } from "@/components/candidate-management/tabs/retake-tab";
 import type { CsvImportReport } from "@/services/models/csv_import_report_popup_model";
 import type { InviteResult } from "@/services/models/invite_result_popup_model";
 import type { InviteMethod } from "@/services/models/invite_tab_model";
 import type { ResendStatusFilter } from "@/services/models/resend_tab_model";
 import {
+  grantCandidateRetake,
   getCandidateProgressTimeline,
   getCandidateTimelineCandidates,
   getCandidateLinkSecurityState,
@@ -188,6 +190,9 @@ export function CandidateManagement() {
   const [timelineLiveSyncing, setTimelineLiveSyncing] = useState(false);
   const [timelineLastUpdatedAtUtc, setTimelineLastUpdatedAtUtc] = useState<string | null>(null);
   const [timelineError, setTimelineError] = useState<string | null>(null);
+  const [grantRetakeSending, setGrantRetakeSending] = useState(false);
+  const [grantRetakeError, setGrantRetakeError] = useState<string | null>(null);
+  const [grantRetakeSuccess, setGrantRetakeSuccess] = useState<string | null>(null);
   const popupTimerRef = useRef<number | null>(null);
   const csvReportTimerRef = useRef<number | null>(null);
 
@@ -333,7 +338,7 @@ export function CandidateManagement() {
   }, [activeTab, selectedTestId]);
 
   useEffect(() => {
-    if (activeTab !== "timeline" || !selectedTestId) {
+    if ((activeTab !== "timeline" && activeTab !== "retake") || !selectedTestId) {
       return;
     }
 
@@ -393,7 +398,7 @@ export function CandidateManagement() {
 
   useEffect(() => {
     if (
-      activeTab !== "timeline" ||
+      (activeTab !== "timeline" && activeTab !== "retake") ||
       !selectedTestId ||
       !selectedTimelineCandidateEmail ||
       timelineCandidatesForTestId != selectedTestId
@@ -442,6 +447,11 @@ export function CandidateManagement() {
     selectedTimelineCandidateEmail,
     timelineCandidatesForTestId,
   ]);
+
+  useEffect(() => {
+    setGrantRetakeError(null);
+    setGrantRetakeSuccess(null);
+  }, [selectedTestId, selectedTimelineCandidateEmail]);
 
   useEffect(() => {
     if (
@@ -1033,6 +1043,48 @@ export function CandidateManagement() {
     }
   }
 
+  async function handleGrantRetake(): Promise<void> {
+    if (!selectedTestId) {
+      setGrantRetakeError("Select a test before granting a retake.");
+      return;
+    }
+
+    if (!selectedTimelineCandidateEmail) {
+      setGrantRetakeError("Select a candidate before granting a retake.");
+      return;
+    }
+
+    setGrantRetakeSending(true);
+    setGrantRetakeError(null);
+    setGrantRetakeSuccess(null);
+
+    try {
+      const result = await grantCandidateRetake({
+        testId: selectedTestId,
+        candidateEmail: selectedTimelineCandidateEmail,
+      });
+
+      const [candidates, timeline] = await Promise.all([
+        getCandidateTimelineCandidates(selectedTestId),
+        getCandidateProgressTimeline(selectedTestId, selectedTimelineCandidateEmail),
+      ]);
+
+      setTimelineCandidates(candidates);
+      setTimelineCandidatesForTestId(selectedTestId);
+      setTimelineData(timeline);
+      setTimelineLastUpdatedAtUtc(new Date().toISOString());
+      setTimelineError(null);
+
+      setGrantRetakeSuccess(
+        `Granted attempt ${result.attemptNumber} for ${result.candidateEmail}. Email delivery was triggered.`
+      );
+    } catch (err) {
+      setGrantRetakeError(err instanceof Error ? err.message : "Failed to grant retake.");
+    } finally {
+      setGrantRetakeSending(false);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-zinc-50">
       <div className="border-b border-zinc-200 bg-white px-8 py-5">
@@ -1183,6 +1235,24 @@ export function CandidateManagement() {
                 timelineLoading={timelineLoading}
                 timelineData={timelineData}
                 refreshMs={TIMELINE_LIVE_REFRESH_MS}
+              />
+            ) : activeTab === "retake" ? (
+              <RetakeTab
+                selectedTestId={selectedTestId}
+                setSelectedTestId={setSelectedTestId}
+                tests={tests}
+                selectedTimelineCandidateEmail={selectedTimelineCandidateEmail}
+                setSelectedTimelineCandidateEmail={setSelectedTimelineCandidateEmail}
+                timelineCandidatesLoading={timelineCandidatesLoading}
+                timelineCandidates={timelineCandidates}
+                timelineError={timelineError}
+                timelineLoading={timelineLoading}
+                timelineData={timelineData}
+                timelineLastUpdatedAtUtc={timelineLastUpdatedAtUtc}
+                grantRetakeSending={grantRetakeSending}
+                grantRetakeError={grantRetakeError}
+                grantRetakeSuccess={grantRetakeSuccess}
+                onGrantRetake={handleGrantRetake}
               />
             ) : (
               <div className="mt-5 rounded-xl border border-zinc-200 bg-zinc-50 p-4">

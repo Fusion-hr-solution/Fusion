@@ -36,6 +36,16 @@ public class CandidateManagementController(ICandidateManagementService candidate
         return Ok(ApiResponse<CandidateProgressTimelineDto>.Success(data));
     }
 
+    [HttpPost("retake")]
+    [ProducesResponseType(typeof(ApiResponse<CandidateRetakeGrantResultDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GrantRetake(
+        [FromBody] GrantCandidateRetakeRequestDto request,
+        CancellationToken cancellationToken)
+    {
+        var data = await candidateManagementService.GrantRetakeAsync(request, cancellationToken);
+        return Ok(ApiResponse<CandidateRetakeGrantResultDto>.Success(data));
+    }
+
     [HttpGet("link-security")]
     [ProducesResponseType(typeof(ApiResponse<CandidateLinkSecurityStateDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetLinkSecurity([FromQuery] string testId, CancellationToken cancellationToken)

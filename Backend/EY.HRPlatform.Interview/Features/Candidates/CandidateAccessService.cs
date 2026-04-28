@@ -105,6 +105,7 @@ public class CandidateAccessService(AppDbContext dbContext) : ICandidateAccessSe
         await ApplyAndValidateAccessLocksAsync(invitation, metadata, settings, cancellationToken);
 
         var attempt = GetActiveAttempt(invitation);
+        var startedFromPendingAttempt = false;
         if (attempt is null)
         {
             var nextAttemptNumber = GetNextAttemptNumber(invitation);
@@ -144,6 +145,25 @@ public class CandidateAccessService(AppDbContext dbContext) : ICandidateAccessSe
         if (attempt.StartedAtUtc == default)
         {
             attempt.StartedAtUtc = nowUtc;
+            startedFromPendingAttempt = true;
+        }
+
+        if (startedFromPendingAttempt)
+        {
+            dbContext.CandidateProgressEvents.Add(new CandidateProgressEvent
+            {
+                InvitationId = invitation.Id,
+                TestId = invitation.TestId,
+                CandidateEmail = invitation.Email,
+                CandidateName = invitation.CandidateName,
+                AttemptId = attempt.Id,
+                AttemptNumber = attempt.AttemptNumber,
+                Milestone = CandidateProgressMilestones.Started,
+                OccurredAtUtc = nowUtc,
+                ClientIpAddress = metadata.ClientIpAddress,
+                BrowserFingerprintHash = metadata.FingerprintHash,
+                UserAgent = request.UserAgent,
+            });
         }
 
         invitation.AttemptStartedAtUtc = attempt.StartedAtUtc;

@@ -421,6 +421,77 @@ public class CandidateAccessServiceTests
         Assert.Equal(409, ex.StatusCode);
     }
 
+    [Fact]
+    public async Task StartOrResumeAsync_WhenPendingRetakeExists_StartsExistingAttemptWithoutCreatingNewAttempt()
+    {
+        await using var db = TestDbContextFactory.Create();
+        var test = await SeedTestAsync(db);
+        var invitationService = CreateInvitationService(db);
+        var accessService = new CandidateAccessService(db);
+
+        var created = await invitationService.CreateAsync(
+            new CreateCandidateInvitationDto
+            {
+                TestId = test.Id.ToString(),
+                Email = "candidate.pending@example.com",
+                CandidateName = "Candidate Pending",
+                SendNotification = false,
+            },
+            CancellationToken.None);
+
+        var invitationId = Guid.Parse(created.Id);
+        var invitation = await db.CandidateInvitations
+            .Include(item => item.Attempts)
+            .FirstAsync(item => item.Id == invitationId);
+
+        var pendingAttempt = new CandidateTestAttempt
+        {
+            InvitationId = invitation.Id,
+            AttemptNumber = 2,
+            TestId = invitation.TestId,
+            CandidateEmail = invitation.Email,
+            CandidateName = invitation.CandidateName,
+            StartedAtUtc = default,
+            SubmittedAtUtc = null,
+            AnswersJson = "{}",
+            ResultJson = "{}",
+        };
+
+        db.CandidateTestAttempts.Add(pendingAttempt);
+        invitation.Attempts.Add(pendingAttempt);
+        await db.SaveChangesAsync();
+
+        var token = ExtractToken(created.InviteLink);
+        var session = await accessService.StartOrResumeAsync(
+            new StartCandidateAttemptDto
+            {
+                Token = token,
+                CandidateEmail = "candidate.pending@example.com",
+                BrowserFingerprint = DefaultFingerprint,
+            },
+            CancellationToken.None);
+
+        Assert.Equal(pendingAttempt.Id.ToString(), session.AttemptId);
+
+        var attempts = await db.CandidateTestAttempts
+            .Where(item => item.InvitationId == invitation.Id)
+            .OrderBy(item => item.AttemptNumber)
+            .ToListAsync();
+
+        var startedAttempt = Assert.Single(attempts);
+        Assert.Equal(2, startedAttempt.AttemptNumber);
+        Assert.NotEqual(default, startedAttempt.StartedAtUtc);
+
+        var startedEvents = await db.CandidateProgressEvents
+            .Where(item =>
+                item.InvitationId == invitation.Id &&
+                item.AttemptNumber == 2 &&
+                item.Milestone == CandidateProgressMilestones.Started)
+            .ToListAsync();
+
+        Assert.Single(startedEvents);
+    }
+
     private static CandidateInvitationService CreateInvitationService(AppDbContext db)
     {
         var configuration = new ConfigurationBuilder()

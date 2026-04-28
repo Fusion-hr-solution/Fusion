@@ -205,7 +205,7 @@ export interface CandidateTimelineMilestone {
 export interface CandidateAttemptTimeline {
   attemptNumber: number;
   attemptId?: string;
-  status: "Invited" | "InProgress" | "Submitted";
+  status: "Invited" | "PendingStart" | "InProgress" | "Submitted";
   milestones: CandidateTimelineMilestone[];
 }
 

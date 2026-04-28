@@ -14,6 +14,8 @@ import type {
   SaveCandidateLinkSecurityInput,
   BackendCandidateTimelineCandidateDto,
   BackendCandidateProgressTimelineDto,
+  BackendCandidateRetakeGrantResultDto,
+  GrantCandidateRetakeInput,
 } from "./models/candidate-management-models";
 
 const client = createPlatformApiClient();
@@ -32,6 +34,7 @@ const CANDIDATE_MANAGEMENT_OVERVIEW_ENDPOINT = `${CANDIDATE_MANAGEMENT_API}${CAN
 const CANDIDATE_MANAGEMENT_LINK_SECURITY_ENDPOINT = `${CANDIDATE_MANAGEMENT_API}${CANDIDATE_MANAGEMENT_LINK_SECURITY_PATH}`;
 const CANDIDATE_MANAGEMENT_TIMELINE_CANDIDATES_ENDPOINT = `${CANDIDATE_MANAGEMENT_API}${CANDIDATE_MANAGEMENT_TIMELINE_PATH}/candidates`;
 const CANDIDATE_MANAGEMENT_TIMELINE_ENDPOINT = `${CANDIDATE_MANAGEMENT_API}${CANDIDATE_MANAGEMENT_TIMELINE_PATH}`;
+const CANDIDATE_MANAGEMENT_RETAKE_ENDPOINT = `${CANDIDATE_MANAGEMENT_API}/retake`;
 
 function mapInvitation(dto: BackendCandidateInvitationDto): CandidateInvitation {
   return {
@@ -271,4 +274,15 @@ export async function getCandidateProgressTimeline(
   );
 
   return mapProgressTimeline(dto);
+}
+
+export async function grantCandidateRetake(input: GrantCandidateRetakeInput): Promise<BackendCandidateRetakeGrantResultDto> {
+  return client.post<BackendCandidateRetakeGrantResultDto>(
+    CANDIDATE_MANAGEMENT_RETAKE_ENDPOINT,
+    {
+      testId: input.testId,
+      candidateEmail: input.candidateEmail,
+      sendNotification: true,
+    }
+  );
 }

@@ -1,5 +1,6 @@
 import { Send } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { DropdownSelect } from "@/components/candidate-management/dropdown-select";
 import type { ResendStatusFilter, ResendTabProps } from "@/services/models/resend_tab_model";
 
 export function ResendTab({
@@ -33,33 +34,26 @@ export function ResendTab({
             placeholder="Search candidate, email, or test"
             className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[13px] text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
           />
-          <select
+          <DropdownSelect
             id="resend-status-filter"
-            name="resendStatusFilter"
-            aria-label="Filter invitations by status"
+            ariaLabel="Filter invitations by status"
             value={resendStatusFilter}
-            onChange={(e) => setResendStatusFilter(e.target.value as ResendStatusFilter)}
-            className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[13px] text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
-          >
-            <option value="all">All status</option>
-            <option value="Invited">Invited</option>
-            <option value="DeliveryFailed">Delivery Failed</option>
-          </select>
-          <select
+            placeholder="All status"
+            options={[
+              { value: "all", label: "All status" },
+              { value: "Invited", label: "Invited" },
+              { value: "DeliveryFailed", label: "Delivery Failed" },
+            ]}
+            onChange={(value) => setResendStatusFilter(value as ResendStatusFilter)}
+          />
+          <DropdownSelect
             id="resend-test-filter"
-            name="resendTestFilter"
-            aria-label="Filter invitations by test"
+            ariaLabel="Filter invitations by test"
             value={resendTestFilter}
-            onChange={(e) => setResendTestFilter(e.target.value)}
-            className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[13px] text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
-          >
-            <option value="all">All tests</option>
-            {tests.map((test) => (
-              <option key={test.id} value={test.id}>
-                {test.title}
-              </option>
-            ))}
-          </select>
+            placeholder="All tests"
+            options={[{ value: "all", label: "All tests" }, ...tests.map((test) => ({ value: test.id, label: test.title }))]}
+            onChange={setResendTestFilter}
+          />
         </div>
       </section>
 
