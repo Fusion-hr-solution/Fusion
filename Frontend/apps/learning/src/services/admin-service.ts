@@ -9,6 +9,11 @@ import type {
   AdminOnSiteCourse,
   AdminExamDetail,
   ArticleTemplate,
+  AdminGrade,
+  AdminServiceLine,
+  AdminCurriculumMatrix,
+  AdminCurriculumMapping,
+  AdminEmployeeProfile,
   CreateTrainingInput,
   UpdateTrainingInput,
   CreateChapterInput,
@@ -23,6 +28,15 @@ import type {
   UpdateExamInput,
   CreateExamQuestionInput,
   UpdateExamQuestionInput,
+  CreateGradeInput,
+  UpdateGradeInput,
+  CreateServiceLineInput,
+  UpdateServiceLineInput,
+  AddCurriculumMappingInput,
+  BulkAssignCurriculumInput,
+  ReorderCurriculumCellInput,
+  UpsertEmployeeProfileInput,
+  IdentityUser,
 } from "@/types/admin";
 import type { ChapterLayout, TrainingType } from "@/types";
 
@@ -628,3 +642,107 @@ export async function reorderExamQuestions(
     { questionIds },
   );
 }
+
+// --- Grade CRUD ---
+
+export async function getGrades(): Promise<AdminGrade[]> {
+  return client.get<AdminGrade[]>("/training/admin/grades");
+}
+
+export async function createGrade(input: CreateGradeInput): Promise<string> {
+  return client.post<string>("/training/admin/grades", input);
+}
+
+export async function updateGrade(gradeId: string, input: UpdateGradeInput): Promise<void> {
+  await client.put("/training/admin/grades/" + encodeURIComponent(gradeId), input);
+}
+
+export async function deleteGrade(gradeId: string): Promise<void> {
+  await client.delete("/training/admin/grades/" + encodeURIComponent(gradeId));
+}
+
+// --- Service Line CRUD ---
+
+export async function getServiceLines(): Promise<AdminServiceLine[]> {
+  return client.get<AdminServiceLine[]>("/training/admin/service-lines");
+}
+
+export async function createServiceLine(input: CreateServiceLineInput): Promise<string> {
+  return client.post<string>("/training/admin/service-lines", input);
+}
+
+export async function updateServiceLine(serviceLineId: string, input: UpdateServiceLineInput): Promise<void> {
+  await client.put("/training/admin/service-lines/" + encodeURIComponent(serviceLineId), input);
+}
+
+export async function deleteServiceLine(serviceLineId: string): Promise<void> {
+  await client.delete("/training/admin/service-lines/" + encodeURIComponent(serviceLineId));
+}
+
+// --- Curriculum ---
+
+export async function getCurriculumMatrix(): Promise<AdminCurriculumMatrix> {
+  return client.get<AdminCurriculumMatrix>("/training/admin/curriculum/matrix");
+}
+
+export async function getCurriculumCell(gradeId: string, serviceLineId: string): Promise<AdminCurriculumMapping[]> {
+  return client.get<AdminCurriculumMapping[]>(
+    `/training/admin/curriculum?gradeId=${encodeURIComponent(gradeId)}&serviceLineId=${encodeURIComponent(serviceLineId)}`,
+  );
+}
+
+export async function addCurriculumMapping(input: AddCurriculumMappingInput): Promise<string> {
+  return client.post<string>("/training/admin/curriculum", input);
+}
+
+export async function updateCurriculumMapping(mappingId: string, isRequired: boolean): Promise<void> {
+  await client.put("/training/admin/curriculum/" + encodeURIComponent(mappingId), { isRequired });
+}
+
+export async function removeCurriculumMapping(mappingId: string): Promise<void> {
+  await client.delete("/training/admin/curriculum/" + encodeURIComponent(mappingId));
+}
+
+export async function reorderCurriculumCell(input: ReorderCurriculumCellInput): Promise<void> {
+  await client.put("/training/admin/curriculum/cell/reorder", input);
+}
+
+export async function bulkAssignCurriculum(input: BulkAssignCurriculumInput): Promise<number> {
+  return client.post<number>("/training/admin/curriculum/bulk", input);
+}
+
+// --- Employee Profiles ---
+
+interface BackendPagedEmployeeProfiles {
+  items: AdminEmployeeProfile[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+}
+
+export async function getEmployeeProfiles(
+  page = 1,
+  pageSize = 20,
+): Promise<BackendPagedEmployeeProfiles> {
+  return client.get<BackendPagedEmployeeProfiles>(
+    `/training/admin/employee-profiles?page=${page}&pageSize=${pageSize}`,
+  );
+}
+
+export async function upsertEmployeeProfile(
+  employeeId: string,
+  input: UpsertEmployeeProfileInput,
+): Promise<void> {
+  await client.put(
+    "/training/admin/employee-profiles/" + encodeURIComponent(employeeId),
+    input,
+  );
+}
+
+// --- Identity Users (for display purposes) ---
+
+export async function getIdentityUsers(): Promise<IdentityUser[]> {
+  return client.get<IdentityUser[]>("/identity/users");
+}
+
+
