@@ -14,12 +14,27 @@ export function hasAnyRole(
   return roles.some((role) => user.roles.includes(role));
 }
 
+function isTenantHrAdminOnly(user: AuthUser | null): boolean {
+  return (
+    hasAnyRole(user, [HR_ADMIN_ROLE]) &&
+    !hasAnyRole(user, [PLATFORM_ADMIN_ROLE])
+  );
+}
+
 export function canAccessCoreSetup(user: AuthUser | null): boolean {
-  return hasAnyRole(user, [HR_ADMIN_ROLE]) && !hasAnyRole(user, [PLATFORM_ADMIN_ROLE]);
+  return isTenantHrAdminOnly(user);
 }
 
 export function canSeeCoreSetupNavigation(user: AuthUser | null): boolean {
   return canAccessCoreSetup(user);
+}
+
+export function canAccessCorePeople(user: AuthUser | null): boolean {
+  return isTenantHrAdminOnly(user);
+}
+
+export function canSeeCorePeopleNavigation(user: AuthUser | null): boolean {
+  return canAccessCorePeople(user);
 }
 
 export function canAccessOrganizations(user: AuthUser | null): boolean {
