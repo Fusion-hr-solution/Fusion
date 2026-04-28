@@ -29,6 +29,8 @@ export {
   hasAnyRole,
   canAccessCoreSetup,
   canSeeCoreSetupNavigation,
+  canAccessCorePeople,
+  canSeeCorePeopleNavigation,
   canAccessOrganizations,
   canSeeOrganizationsNavigation,
 } from "./roles";

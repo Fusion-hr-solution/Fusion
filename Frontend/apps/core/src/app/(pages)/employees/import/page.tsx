@@ -70,6 +70,7 @@ import {
   type EmployeeImportIssueGroup,
   type EmployeeImportValidationUiModel,
 } from "./employee-import-validation";
+import { EmployeeImportPreviewTable } from "./preview-table";
 import {
   useApplyEmployeeImport,
   useDownloadEmployeeImportTemplate,
@@ -80,19 +81,6 @@ import {
   useUploadEmployeeImport,
   useValidateEmployeeImport,
 } from "./use-employee-import";
-
-const PREVIEW_COLUMNS: Array<{
-  key: keyof EmployeeImportPreviewRowDto;
-  label: string;
-}> = [
-  { key: "firstName", label: "First name" },
-  { key: "lastName", label: "Last name" },
-  { key: "email", label: "Email" },
-  { key: "hireDate", label: "Hire date" },
-  { key: "jobTitle", label: "Job title" },
-  { key: "orgUnitCode", label: "Org unit code" },
-  { key: "managerEmail", label: "Manager email" },
-];
 
 const MAX_VISIBLE_SELECTED_ROWS = 12;
 const HISTORY_PAGE_SIZE = 5;
@@ -1108,15 +1096,11 @@ function getVisiblePreviewPageNumbers(currentPage: number, pageCount: number) {
 
 function PreviewPagination({
   pageNumber,
-  pageSize,
   pageCount,
-  totalRows,
   onPageChange,
 }: {
   pageNumber: number;
-  pageSize: number;
   pageCount: number;
-  totalRows: number;
   onPageChange: (pageNumber: number) => void;
 }) {
   if (pageCount <= 1) {
@@ -1126,85 +1110,76 @@ function PreviewPagination({
   const pageNumbers = getVisiblePreviewPageNumbers(pageNumber, pageCount);
   const firstVisiblePage = pageNumbers[0] ?? 1;
   const lastVisiblePage = pageNumbers[pageNumbers.length - 1] ?? pageCount;
-  const startRow = totalRows === 0 ? 0 : (pageNumber - 1) * pageSize + 1;
-  const endRow =
-    totalRows === 0 ? 0 : Math.min(pageNumber * pageSize, totalRows);
 
   return (
-    <div className="mt-4 flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
-      <p className="text-xs text-muted-foreground">
-        Rows {startRow}-{endRow} of {totalRows}
-      </p>
+    <div className="flex flex-wrap items-center gap-1">
+      <Button
+        type="button"
+        size="sm"
+        variant="ghost"
+        onClick={() => onPageChange(pageNumber - 1)}
+        disabled={pageNumber === 1}
+      >
+        <ChevronLeft />
+        Previous
+      </Button>
 
-      <div className="flex flex-wrap items-center gap-1">
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          onClick={() => onPageChange(pageNumber - 1)}
-          disabled={pageNumber === 1}
-        >
-          <ChevronLeft />
-          Previous
-        </Button>
+      {firstVisiblePage > 1 ? (
+        <>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            onClick={() => onPageChange(1)}
+          >
+            1
+          </Button>
+          <span className="px-1 text-xs text-muted-foreground">...</span>
+        </>
+      ) : null}
 
-        {firstVisiblePage > 1 ? (
-          <>
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              onClick={() => onPageChange(1)}
-            >
-              1
-            </Button>
-            <span className="px-1 text-xs text-muted-foreground">...</span>
-          </>
-        ) : null}
+      {pageNumbers.map((page) => {
+        const isCurrentPage = page === pageNumber;
 
-        {pageNumbers.map((page) => {
-          const isCurrentPage = page === pageNumber;
+        return (
+          <Button
+            key={page}
+            type="button"
+            size="sm"
+            variant={isCurrentPage ? "secondary" : "ghost"}
+            className="min-w-8"
+            onClick={() => onPageChange(page)}
+            aria-current={isCurrentPage ? "page" : undefined}
+          >
+            {page}
+          </Button>
+        );
+      })}
 
-          return (
-            <Button
-              key={page}
-              type="button"
-              size="sm"
-              variant={isCurrentPage ? "secondary" : "ghost"}
-              className="min-w-8"
-              onClick={() => onPageChange(page)}
-              aria-current={isCurrentPage ? "page" : undefined}
-            >
-              {page}
-            </Button>
-          );
-        })}
+      {lastVisiblePage < pageCount ? (
+        <>
+          <span className="px-1 text-xs text-muted-foreground">...</span>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            onClick={() => onPageChange(pageCount)}
+          >
+            {pageCount}
+          </Button>
+        </>
+      ) : null}
 
-        {lastVisiblePage < pageCount ? (
-          <>
-            <span className="px-1 text-xs text-muted-foreground">...</span>
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              onClick={() => onPageChange(pageCount)}
-            >
-              {pageCount}
-            </Button>
-          </>
-        ) : null}
-
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          onClick={() => onPageChange(pageNumber + 1)}
-          disabled={pageNumber === pageCount}
-        >
-          Next
-          <ChevronRight />
-        </Button>
-      </div>
+      <Button
+        type="button"
+        size="sm"
+        variant="ghost"
+        onClick={() => onPageChange(pageNumber + 1)}
+        disabled={pageNumber === pageCount}
+      >
+        Next
+        <ChevronRight />
+      </Button>
     </div>
   );
 }
@@ -1220,15 +1195,14 @@ function SecondaryDetailsPanel({
   activeSchema?: EmployeeImportSessionDto["employeeImportSchema"];
   isSchemaLoading: boolean;
 }) {
-  const [isRawRowsOpen, setIsRawRowsOpen] = useState(false);
-  const [isFieldReferenceOpen, setIsFieldReferenceOpen] = useState(false);
   const shouldExpandSecondaryDetailsByDefault =
     !!session && session.stage !== "Applied";
-
-  useEffect(() => {
-    setIsRawRowsOpen(shouldExpandSecondaryDetailsByDefault);
-    setIsFieldReferenceOpen(shouldExpandSecondaryDetailsByDefault);
-  }, [session?.id, shouldExpandSecondaryDetailsByDefault]);
+  const [isRawRowsOpen, setIsRawRowsOpen] = useState(
+    shouldExpandSecondaryDetailsByDefault
+  );
+  const [isFieldReferenceOpen, setIsFieldReferenceOpen] = useState(
+    shouldExpandSecondaryDetailsByDefault
+  );
 
   return (
     <Card className="border-dashed">
@@ -1418,6 +1392,9 @@ export default function EmployeeImportPage() {
     : null;
   const hasGroupedIssues =
     session?.stage === "Validated" && (validationUi?.groupCount ?? 0) > 0;
+  const sessionViewResetKey = session
+    ? `${session.id}:${session.stage}:${session.version}`
+    : null;
   const focusedGroup = useMemo(
     () =>
       activeIssueGroupKey && validationUi
@@ -1458,6 +1435,8 @@ export default function EmployeeImportPage() {
     : "";
   const isAppliedSession = session?.stage === "Applied";
   const isPreviewExpanded = !isAppliedSession || isAppliedPreviewOpen;
+  const historyItemCount = historyPage?.items.length ?? 0;
+  const firstHistoryItemId = historyPage?.items[0]?.id ?? null;
 
   useEffect(() => {
     setApplyError(null);
@@ -1469,25 +1448,44 @@ export default function EmployeeImportPage() {
   }, [isAppliedSession, session?.id]);
 
   useEffect(() => {
-    setPreviewFilter(hasGroupedIssues ? "affected" : "all");
+    // Parse stage from the stable key so this effect does not depend on the
+    // session object reference, which changes whenever the query re-fetches
+    // (e.g. after activeIssueGroupKey is set and the URL changes).
+    // sessionViewResetKey is null when there is no session, so the early
+    // return from the null check is equivalent to the previous !session guard.
+    if (!sessionViewResetKey) {
+      return;
+    }
+
+    const stagePart = sessionViewResetKey.split(":")[1];
+    const shouldDefaultToAffectedRows =
+      stagePart === "Validated" && (validationUi?.groupCount ?? 0) > 0;
+
+    setPreviewFilter(shouldDefaultToAffectedRows ? "affected" : "all");
     setActiveIssueGroupKey(null);
     setCurrentPreviewPage(1);
     setPendingScrollRowNumber(null);
-  }, [hasGroupedIssues, session?.id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionViewResetKey]);
 
   useEffect(() => {
-    if (!historyPage?.items.length) {
-      if (!isHistoryLoading) {
+    if (historyItemCount === 0) {
+      if (!isHistoryLoading && selectedHistoryId !== null) {
         setSelectedHistoryId(null);
       }
 
       return;
     }
 
-    if (!selectedHistoryId) {
-      setSelectedHistoryId(historyPage.items[0]?.id ?? null);
+    if (!selectedHistoryId && firstHistoryItemId) {
+      setSelectedHistoryId(firstHistoryItemId);
     }
-  }, [historyPage?.items, isHistoryLoading, selectedHistoryId]);
+  }, [
+    firstHistoryItemId,
+    historyItemCount,
+    isHistoryLoading,
+    selectedHistoryId,
+  ]);
 
   const handleBrowse = useCallback(() => {
     fileInputRef.current?.click();
@@ -1903,147 +1901,32 @@ export default function EmployeeImportPage() {
                     </div>
                   ) : null}
 
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Row</TableHead>
-                          {hasGroupedIssues ? (
-                            <TableHead>Issues</TableHead>
-                          ) : null}
-                          {PREVIEW_COLUMNS.map((column) => (
-                            <TableHead
-                              key={column.key}
-                              className={
-                                focusedGroup?.fieldKeys.includes(column.key)
-                                  ? "bg-destructive/10"
-                                  : undefined
-                              }
-                            >
-                              {column.label}
-                            </TableHead>
-                          ))}
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {displayedPreviewRows.length > 0 ? (
-                          displayedPreviewRows.map((row) => {
-                            const rowGroups =
-                              validationUi?.groupsByRowNumber.get(
-                                row.rowNumber
-                              ) ?? [];
-                            const hasRowIssues = rowGroups.length > 0;
-                            const isActiveRow =
-                              !!activeIssueGroupKey &&
-                              rowGroups.some(
-                                (group) => group.key === activeIssueGroupKey
-                              );
-
-                            return (
-                              <TableRow
-                                key={row.rowNumber}
-                                id={`employee-import-preview-row-${row.rowNumber}`}
-                                className={
-                                  hasRowIssues
-                                    ? isActiveRow
-                                      ? "bg-destructive/10"
-                                      : "bg-destructive/5"
-                                    : undefined
-                                }
-                              >
-                                <TableCell>
-                                  <div className="flex items-center gap-2">
-                                    {hasRowIssues ? (
-                                      <span className="size-2 rounded-full bg-destructive" />
-                                    ) : null}
-                                    <span>{row.rowNumber}</span>
-                                  </div>
-                                </TableCell>
-                                {hasGroupedIssues ? (
-                                  <TableCell className="max-w-56">
-                                    <div className="flex flex-wrap gap-1">
-                                      {rowGroups.length > 0 ? (
-                                        rowGroups.map((group) => (
-                                          <button
-                                            key={`${row.rowNumber}-${group.key}`}
-                                            type="button"
-                                            className={`cursor-pointer rounded-full border px-2 py-0.5 text-xs ${
-                                              activeIssueGroupKey === group.key
-                                                ? "border-destructive bg-destructive/10 text-destructive"
-                                                : "border-destructive/20 bg-background text-destructive/80 hover:bg-destructive/5"
-                                            }`}
-                                            onClick={() =>
-                                              handleSelectGroup(group)
-                                            }
-                                            aria-pressed={
-                                              activeIssueGroupKey === group.key
-                                            }
-                                          >
-                                            {group.shortLabel}
-                                          </button>
-                                        ))
-                                      ) : (
-                                        <span className="text-muted-foreground">
-                                          -
-                                        </span>
-                                      )}
-                                    </div>
-                                  </TableCell>
-                                ) : null}
-                                {PREVIEW_COLUMNS.map((column) => (
-                                  <TableCell
-                                    key={`${row.rowNumber}-${column.key}`}
-                                    className={
-                                      focusedGroup?.fieldKeys.includes(
-                                        column.key
-                                      )
-                                        ? isActiveRow
-                                          ? "bg-destructive/10"
-                                          : "bg-destructive/5"
-                                        : undefined
-                                    }
-                                  >
-                                    {row[column.key] ?? (
-                                      <span className="text-muted-foreground">
-                                        -
-                                      </span>
-                                    )}
-                                  </TableCell>
-                                ))}
-                              </TableRow>
-                            );
-                          })
-                        ) : (
-                          <TableRow>
-                            <TableCell
-                              colSpan={
-                                PREVIEW_COLUMNS.length +
-                                1 +
-                                (hasGroupedIssues ? 1 : 0)
-                              }
-                              className="py-8 text-center text-sm text-muted-foreground"
-                            >
-                              No rows match the current preview filter.
-                            </TableCell>
-                          </TableRow>
-                        )}
-                      </TableBody>
-                    </Table>
-                  </div>
-
-                  <PreviewPagination
-                    pageNumber={session.previewPageNumber}
-                    pageSize={session.previewPageSize}
-                    pageCount={session.previewPageCount}
-                    totalRows={session.totalPreviewRowCount}
-                    onPageChange={handlePreviewPageChange}
+                  <EmployeeImportPreviewTable
+                    rows={displayedPreviewRows}
+                    hasGroupedIssues={hasGroupedIssues}
+                    validationUi={validationUi}
+                    focusedGroup={focusedGroup}
+                    activeIssueGroupKey={activeIssueGroupKey}
+                    onSelectGroup={handleSelectGroup}
                   />
                 </CardContent>
               ) : null}
               {isPreviewExpanded ? (
-                <CardFooter className="justify-between gap-4 text-xs text-muted-foreground">
+                <CardFooter className="flex flex-col gap-3 text-xs text-muted-foreground lg:flex-row lg:items-center lg:justify-between">
                   <span>{previewFooterPrimary}</span>
-                  <span>{previewFooterSecondary}</span>
+
+                  {session.previewPageCount > 1 ? (
+                    <div className="flex flex-wrap items-center gap-3 self-start lg:self-auto">
+                      <span>{previewFooterSecondary}</span>
+                      <PreviewPagination
+                        pageNumber={session.previewPageNumber}
+                        pageCount={session.previewPageCount}
+                        onPageChange={handlePreviewPageChange}
+                      />
+                    </div>
+                  ) : (
+                    <span>{previewFooterSecondary}</span>
+                  )}
                 </CardFooter>
               ) : null}
             </Card>
@@ -2064,6 +1947,7 @@ export default function EmployeeImportPage() {
           ) : null}
 
           <SecondaryDetailsPanel
+            key={session ? `${session.id}:${session.stage}` : "empty-session"}
             session={session}
             activeHeaders={activeHeaders}
             activeSchema={activeSchema}
@@ -2092,6 +1976,7 @@ export default function EmployeeImportPage() {
           />
 
           <SecondaryDetailsPanel
+            key="empty-session"
             activeHeaders={activeHeaders}
             activeSchema={activeSchema}
             isSchemaLoading={isSchemaLoading}

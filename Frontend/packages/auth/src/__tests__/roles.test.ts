@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  canAccessCorePeople,
   canAccessCoreSetup,
   canAccessOrganizations,
+  canSeeCorePeopleNavigation,
   canSeeCoreSetupNavigation,
   canSeeOrganizationsNavigation,
 } from "../roles";
@@ -20,7 +22,9 @@ describe("role helpers", () => {
   it("allows tenant HR admins to access setup and setup navigation", () => {
     const user = makeUser(["HRAdmin"]);
 
+    expect(canAccessCorePeople(user)).toBe(true);
     expect(canAccessCoreSetup(user)).toBe(true);
+    expect(canSeeCorePeopleNavigation(user)).toBe(true);
     expect(canSeeCoreSetupNavigation(user)).toBe(true);
     expect(canAccessOrganizations(user)).toBe(false);
     expect(canSeeOrganizationsNavigation(user)).toBe(false);
@@ -31,7 +35,9 @@ describe("role helpers", () => {
 
     expect(canAccessOrganizations(user)).toBe(true);
     expect(canSeeOrganizationsNavigation(user)).toBe(true);
+    expect(canAccessCorePeople(user)).toBe(false);
     expect(canAccessCoreSetup(user)).toBe(false);
+    expect(canSeeCorePeopleNavigation(user)).toBe(false);
     expect(canSeeCoreSetupNavigation(user)).toBe(false);
   });
 
@@ -39,8 +45,10 @@ describe("role helpers", () => {
     const user = makeUser(["PlatformAdmin", "HRAdmin"]);
 
     expect(canAccessOrganizations(user)).toBe(true);
+    expect(canAccessCorePeople(user)).toBe(false);
     expect(canAccessCoreSetup(user)).toBe(false);
     expect(canSeeOrganizationsNavigation(user)).toBe(true);
+    expect(canSeeCorePeopleNavigation(user)).toBe(false);
     expect(canSeeCoreSetupNavigation(user)).toBe(false);
   });
 });
