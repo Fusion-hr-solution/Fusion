@@ -117,6 +117,58 @@ public class EmployeeImportWorkflowTests
     }
 
     [Fact]
+    public async Task GetSessionAsync_ClampsPreviewPageSizeToMinimum()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        await SeedPublishedSetupAsync(dbName);
+
+        await using var context = TestDbContextFactory.Create(TestTenantContext.WithTenant(TenantId), dbName);
+        var service = new EmployeeImportWorkflowService(context, TestTenantContext.WithTenant(TenantId), new EmployeeHierarchyService(context));
+        var file = CreateCsvFile("employees.csv", BuildEmployeeCsv(rowCount: 30));
+
+        var uploadedSession = await service.UploadAsync(file, CancellationToken.None);
+        var normalizedPage = await service.GetSessionAsync(
+            uploadedSession.Id,
+            1,
+            0,
+            "all",
+            null,
+            CancellationToken.None);
+
+        Assert.Equal(1, normalizedPage.PreviewPageNumber);
+        Assert.Equal(1, normalizedPage.PreviewPageSize);
+        Assert.Equal(30, normalizedPage.PreviewPageCount);
+        Assert.True(normalizedPage.HasMorePreviewRows);
+        Assert.Equal([1], normalizedPage.PreviewRows.Select(row => row.RowNumber).ToArray());
+    }
+
+    [Fact]
+    public async Task GetSessionAsync_ClampsOutOfRangePreviewPagingInputs()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        await SeedPublishedSetupAsync(dbName);
+
+        await using var context = TestDbContextFactory.Create(TestTenantContext.WithTenant(TenantId), dbName);
+        var service = new EmployeeImportWorkflowService(context, TestTenantContext.WithTenant(TenantId), new EmployeeHierarchyService(context));
+        var file = CreateCsvFile("employees.csv", BuildEmployeeCsv(rowCount: 30));
+
+        var uploadedSession = await service.UploadAsync(file, CancellationToken.None);
+        var normalizedPage = await service.GetSessionAsync(
+            uploadedSession.Id,
+            0,
+            500,
+            "all",
+            null,
+            CancellationToken.None);
+
+        Assert.Equal(1, normalizedPage.PreviewPageNumber);
+        Assert.Equal(100, normalizedPage.PreviewPageSize);
+        Assert.Equal(1, normalizedPage.PreviewPageCount);
+        Assert.False(normalizedPage.HasMorePreviewRows);
+        Assert.Equal(Enumerable.Range(1, 30).ToArray(), normalizedPage.PreviewRows.Select(row => row.RowNumber).ToArray());
+    }
+
+    [Fact]
     public async Task UploadAsync_RejectsUnexpectedHeaders()
     {
         var dbName = Guid.NewGuid().ToString();

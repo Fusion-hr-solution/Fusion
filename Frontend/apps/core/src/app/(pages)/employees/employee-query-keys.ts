@@ -3,6 +3,8 @@ import type { EmployeeRosterQueryParams } from "./employee-roster.types";
 
 export const DEFAULT_EMPLOYEE_IMPORT_HISTORY_PAGE_SIZE = 10;
 export const DEFAULT_EMPLOYEE_IMPORT_PREVIEW_PAGE_SIZE = 25;
+export const MIN_EMPLOYEE_IMPORT_PREVIEW_PAGE_SIZE = 1;
+export const MAX_EMPLOYEE_IMPORT_PREVIEW_PAGE_SIZE = 100;
 
 export type EmployeeImportPreviewQuery = {
   pageNumber?: number;
@@ -47,9 +49,16 @@ export const employeeRosterQueryKeys = {
 export function normalizeEmployeeImportPreviewQuery(
   query?: EmployeeImportPreviewQuery
 ) {
+  const rawPageNumber = query?.pageNumber ?? 1;
+  const rawPageSize =
+    query?.pageSize ?? DEFAULT_EMPLOYEE_IMPORT_PREVIEW_PAGE_SIZE;
+
   return {
-    pageNumber: query?.pageNumber ?? 1,
-    pageSize: query?.pageSize ?? DEFAULT_EMPLOYEE_IMPORT_PREVIEW_PAGE_SIZE,
+    pageNumber: Math.max(rawPageNumber, 1),
+    pageSize: Math.min(
+      Math.max(rawPageSize, MIN_EMPLOYEE_IMPORT_PREVIEW_PAGE_SIZE),
+      MAX_EMPLOYEE_IMPORT_PREVIEW_PAGE_SIZE
+    ),
     previewFilter: query?.previewFilter ?? "all",
     groupKey: query?.groupKey ?? null,
   };

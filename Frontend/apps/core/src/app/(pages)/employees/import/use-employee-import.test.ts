@@ -185,6 +185,54 @@ describe("useEmployeeImportSession", () => {
       expect.objectContaining({ signal: expect.any(AbortSignal) })
     );
   });
+
+  it("clamps out-of-range preview paging inputs to the current contract", async () => {
+    mockGet.mockResolvedValue({
+      id: "session-1",
+      stage: "Validated",
+      version: 1,
+      sourceFileName: "employees.csv",
+      sourceFileSizeBytes: 1234,
+      sourceRowCount: 30,
+      sourceHeaders: [],
+      sampleRows: [],
+      previewRows: [],
+      previewPageNumber: 1,
+      previewPageSize: 100,
+      previewPageCount: 1,
+      totalPreviewRowCount: 30,
+      hasMorePreviewRows: false,
+      validationSummary: {
+        totalRows: 30,
+        validRows: 25,
+        errorCount: 5,
+        warningCount: 0,
+      },
+      validationIssues: [],
+      appliedAt: null,
+      expiresAt: "2026-04-22T00:00:00Z",
+      employeeImportSchema: { canonicalFields: [] },
+      canValidate: true,
+      canApply: false,
+    });
+
+    const { result } = renderHook(
+      () =>
+        useEmployeeImportSession("session-1", {
+          pageNumber: 0,
+          pageSize: 999,
+          previewFilter: "affected",
+        }),
+      { wrapper: createWrapper() }
+    );
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(mockGet).toHaveBeenCalledWith(
+      "/corehr/employees/import/session-1?previewPageSize=100&previewFilter=affected",
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
+  });
 });
 
 describe("useUploadEmployeeImport", () => {
@@ -266,6 +314,28 @@ describe("useValidateEmployeeImport", () => {
 
     expect(mockPost).toHaveBeenCalledWith(
       "/corehr/employees/import/session-1/validate?previewPageNumber=2&previewPageSize=10&previewFilter=affected&groupKey=missingRequiredData%3Aemail",
+      undefined
+    );
+  });
+
+  it("clamps invalid preview query parameters when validating", async () => {
+    mockPost.mockResolvedValue({ id: "session-1" });
+
+    const { result } = renderHook(() => useValidateEmployeeImport(), {
+      wrapper: createWrapper(),
+    });
+
+    await act(async () => {
+      await result.current.mutateAsync({
+        sessionId: "session-1",
+        pageNumber: -4,
+        pageSize: 0,
+        previewFilter: "affected",
+      });
+    });
+
+    expect(mockPost).toHaveBeenCalledWith(
+      "/corehr/employees/import/session-1/validate?previewPageSize=1&previewFilter=affected",
       undefined
     );
   });
