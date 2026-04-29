@@ -340,7 +340,7 @@ function getErrorMessage(error: unknown) {
 
 export default function SetupPage() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const canAccess = canAccessCoreSetup(user);
   const [localError, setLocalError] = useState<string | null>(null);
   const [publishDialogOpen, setPublishDialogOpen] = useState(false);
@@ -367,6 +367,10 @@ export default function SetupPage() {
     },
   });
   const reopenStructure = useReopenStructure();
+
+  if (isAuthLoading && !user) {
+    return <SetupPageSkeleton />;
+  }
 
   if (!canAccess) {
     return (

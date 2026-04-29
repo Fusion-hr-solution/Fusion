@@ -22,6 +22,7 @@ import {
 import { useAuth } from "@repo/auth";
 import { EmptyState, type PageSize } from "@repo/ui";
 import { toast } from "sonner";
+import { CorePageLoadingState } from "@/components/core-page-loading-state";
 import { PageHeader } from "@/components/page-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -46,7 +47,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Spinner } from "@/components/ui/spinner";
 import { canAccessEmployeeRoster } from "@/lib/employee-roster-access";
 import type {
   EmployeeImportApplyResultDto,
@@ -90,7 +90,7 @@ const MAX_VISIBLE_SELECTED_ROWS = 12;
 const HISTORY_PAGE_SIZE = 5;
 
 export default function EmployeeImportPage() {
-  const { user } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const canAccess = canAccessEmployeeRoster(user);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -216,6 +216,15 @@ export default function EmployeeImportPage() {
   const isPreviewExpanded = !isAppliedSession || isAppliedPreviewOpen;
   const historyItemCount = historyPage?.items.length ?? 0;
   const firstHistoryItemId = historyPage?.items[0]?.id ?? null;
+  const isInitialSessionLoading =
+    !!sessionId && isSessionLoading && !session && !sessionError;
+  const isInitialImportPageLoading =
+    !sessionId && !session && !schema && !schemaError && isSchemaLoading;
+  const isInitialPageLoading =
+    (isAuthLoading && !user) ||
+    (!isAuthLoading &&
+      canAccess &&
+      (isInitialImportPageLoading || isInitialSessionLoading));
 
   useEffect(() => {
     setApplyError(null);
@@ -513,6 +522,17 @@ export default function EmployeeImportPage() {
     });
   }, []);
 
+  if (isInitialPageLoading) {
+    return (
+      <CorePageLoadingState
+        title="Import employees"
+        description="Upload and validate employees in bulk with the official CSV template."
+        message="Loading employee import..."
+        variant="workspace"
+      />
+    );
+  }
+
   if (!canAccess) {
     return (
       <div className="flex flex-col gap-6 p-6">
@@ -570,15 +590,6 @@ export default function EmployeeImportPage() {
           </AlertDescription>
         </Alert>
       )}
-
-      {isSessionLoading && sessionId && !session ? (
-        <Card>
-          <CardContent className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
-            <Spinner />
-            Loading employee import session...
-          </CardContent>
-        </Card>
-      ) : null}
 
       {session ? (
         <>

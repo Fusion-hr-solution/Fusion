@@ -14,6 +14,7 @@ import {
   canSeeOrganizationsNavigation,
   useAuth,
 } from "@repo/auth";
+import { CorePageLoadingState } from "@/components/core-page-loading-state";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -34,7 +35,18 @@ interface WorkspaceArea {
 }
 
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
+
+  if (isAuthLoading && !user) {
+    return (
+      <CorePageLoadingState
+        title="Core workspace"
+        description="Use Dashboard as the operational summary for the Core workspaces that are live today."
+        message="Loading dashboard..."
+        variant="dashboard"
+      />
+    );
+  }
 
   const workspaceAreas: WorkspaceArea[] = [
     {
