@@ -11,6 +11,7 @@ import { CorePageLoadingState } from "@/components/core-page-loading-state";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { canAccessEmployeeRoster } from "@/lib/employee-roster-access";
+import { EmployeeReportingLinesSheet } from "./employee-reporting-lines-sheet";
 import { EmployeesTable } from "./employees-table";
 import { PaginationBar } from "./pagination-bar";
 import { Toolbar } from "./toolbar";
@@ -18,6 +19,7 @@ import type {
   EmployeeRosterSortDirection,
   EmployeeRosterSortField,
   EmployeeRosterStatus,
+  EmployeeRosterItem,
 } from "./employee-roster.types";
 import { useEmployeeRoster } from "./use-employees";
 
@@ -58,6 +60,9 @@ export default function EmployeesPage() {
   const [sorting, setSorting] = useState<SortingState>(
     DEFAULT_EMPLOYEE_SORTING
   );
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(
+    null
+  );
   const { sortBy, sortDir } = getRosterSortParams(sorting);
 
   const { data, error, isLoading, isFetching, refetch } = useEmployeeRoster({
@@ -92,6 +97,10 @@ export default function EmployeesPage() {
   const handlePageSizeChange = useCallback((size: PageSize) => {
     setPageSize(size);
     setPage(1);
+  }, []);
+
+  const handleRowClick = useCallback((employee: EmployeeRosterItem) => {
+    setSelectedEmployeeId(employee.id);
   }, []);
 
   const isInitialPageLoading =
@@ -165,6 +174,7 @@ export default function EmployeesPage() {
         isRefetching={isFetching && !!data}
         sorting={sorting}
         onSortingChange={handleSortingChange}
+        onRowClick={handleRowClick}
       />
 
       {data && data.totalCount > 0 && (
@@ -176,6 +186,16 @@ export default function EmployeesPage() {
           onPageSizeChange={handlePageSizeChange}
         />
       )}
+
+      <EmployeeReportingLinesSheet
+        employeeId={selectedEmployeeId}
+        open={selectedEmployeeId !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedEmployeeId(null);
+          }
+        }}
+      />
     </div>
   );
 }

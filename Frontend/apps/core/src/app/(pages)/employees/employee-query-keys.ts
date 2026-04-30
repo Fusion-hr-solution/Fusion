@@ -44,6 +44,14 @@ export const employeeRosterQueryKeys = {
       "list",
       normalizeEmployeeRosterQuery(params),
     ] as const,
+  managerOptions: (search: string) =>
+    [
+      ...employeeRosterQueryKeys.all(),
+      "manager-options",
+      normalizeEmployeeRosterSearch(search),
+    ] as const,
+  reportingLines: (employeeId: string) =>
+    [...employeeRosterQueryKeys.all(), "reporting-lines", employeeId] as const,
 };
 
 export function normalizeEmployeeImportPreviewQuery(

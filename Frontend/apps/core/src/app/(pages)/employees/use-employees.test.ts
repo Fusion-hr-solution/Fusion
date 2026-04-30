@@ -3,8 +3,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 import { createElement, type PropsWithChildren } from "react";
 
-const { mockGet } = vi.hoisted(() => ({
+const { mockGet, mockPut } = vi.hoisted(() => ({
   mockGet: vi.fn(),
+  mockPut: vi.fn(),
 }));
 
 const authState = vi.hoisted(() => ({
@@ -20,6 +21,7 @@ const authState = vi.hoisted(() => ({
 vi.mock("@repo/api", () => ({
   createPlatformApiClient: () => ({
     get: mockGet,
+    put: mockPut,
   }),
 }));
 
@@ -37,7 +39,12 @@ vi.mock("@repo/api/query", async () => {
 });
 
 import { ApiQueryProvider, createApiQueryClient } from "@repo/api/query";
-import { useEmployeeRoster } from "./use-employees";
+import {
+  useEmployeeManagerOptions,
+  useEmployeeReportingLines,
+  useEmployeeRoster,
+  useUpdateEmployeeManager,
+} from "./use-employees";
 
 function createWrapper() {
   const client = createApiQueryClient({
@@ -156,6 +163,7 @@ describe("useEmployeeRoster", () => {
           hireDate: "2023-01-15T00:00:00Z",
           managerId: "mgr-1",
           managerName: "James Wilson",
+          version: 3,
         },
         {
           id: "emp-2",
@@ -169,6 +177,7 @@ describe("useEmployeeRoster", () => {
           hireDate: "2020-11-01T00:00:00Z",
           managerId: null,
           managerName: null,
+          version: 7,
         },
       ],
       totalCount: 2,
@@ -198,5 +207,116 @@ describe("useEmployeeRoster", () => {
     expect(items[0]?.orgUnitName).toBe("Backend Team");
     expect(items[1]?.orgUnitId).toBeNull();
     expect(items[1]?.orgUnitName).toBeNull();
+  });
+});
+
+describe("useEmployeeReportingLines", () => {
+  it("calls the reporting-lines endpoint for the selected employee", async () => {
+    const mockData = {
+      employee: {
+        id: "emp-1",
+        firstName: "Sarah",
+        lastName: "Chen",
+        email: "sarah.chen@ey-hr.com",
+        orgUnitId: "ou-1",
+        orgUnitName: "Backend Team",
+        jobTitle: "Senior Software Engineer",
+        status: "Active",
+        hireDate: "2023-01-15T00:00:00Z",
+        managerId: "mgr-1",
+        managerName: "James Wilson",
+        hierarchyStatus: "Healthy",
+        directReportCount: 2,
+        version: 11,
+      },
+      managerChain: [],
+      directReports: [],
+      downline: [],
+      directReportCount: 2,
+      downlineCount: 2,
+    };
+    mockGet.mockResolvedValue(mockData);
+
+    const { result } = renderHook(() => useEmployeeReportingLines("emp-1"), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(mockGet).toHaveBeenCalledWith(
+      "/corehr/employees/emp-1/reporting-lines",
+      expect.objectContaining({
+        signal: expect.any(AbortSignal),
+      })
+    );
+    expect(result.current.data).toEqual(mockData);
+  });
+});
+
+describe("useEmployeeManagerOptions", () => {
+  it("searches active employees for manager options", async () => {
+    mockGet.mockResolvedValue({
+      items: [],
+      totalCount: 0,
+      page: 1,
+      pageSize: 8,
+      totalPages: 0,
+      hasNextPage: false,
+      hasPreviousPage: false,
+    });
+
+    renderHook(
+      () =>
+        useEmployeeManagerOptions({
+          employeeId: "emp-1",
+          search: "jam",
+        }),
+      { wrapper: createWrapper() }
+    );
+
+    await waitFor(() => expect(mockGet).toHaveBeenCalled());
+
+    expect(mockGet).toHaveBeenCalledWith(
+      "/corehr/employees",
+      expect.objectContaining({
+        params: expect.objectContaining({
+          search: "jam",
+          status: "Active",
+          sortBy: "Name",
+          sortDir: "Asc",
+          page: 1,
+          pageSize: 8,
+        }),
+        signal: expect.any(AbortSignal),
+      })
+    );
+  });
+});
+
+describe("useUpdateEmployeeManager", () => {
+  it("sends the manager update with If-Match and clear semantics", async () => {
+    mockPut.mockResolvedValue({});
+
+    const { result } = renderHook(() => useUpdateEmployeeManager(), {
+      wrapper: createWrapper(),
+    });
+
+    await result.current.mutateAsync({
+      employeeId: "emp-1",
+      expectedVersion: 11,
+      managerId: null,
+    });
+
+    expect(mockPut).toHaveBeenCalledWith(
+      "/corehr/employees/emp-1",
+      {
+        managerId: "00000000-0000-0000-0000-000000000000",
+      },
+      {
+        headers: {
+          "If-Match": '"11"',
+        },
+      }
+    );
   });
 });
