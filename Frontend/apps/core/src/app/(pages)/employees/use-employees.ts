@@ -473,7 +473,7 @@ export function useUpdateEmployeeManager() {
       ),
     {
       invalidateQueries: (_data, args) => [
-        { queryKey: employeeRosterQueryKeys.all() },
+        { queryKey: employeeRosterQueryKeys.lists() },
         {
           queryKey: employeeRosterQueryKeys.reportingLines(args.employeeId),
           exact: true,
