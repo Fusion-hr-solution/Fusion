@@ -22,36 +22,37 @@ public sealed class GetEmployeeReportingLinesQueryHandler(
         CancellationToken cancellationToken)
     {
         var settings = await tenantSettingsReadService.GetCurrentAsync(cancellationToken);
-        var employees = await dbContext.Employees
-            .AsNoTracking()
-            .Include(employee => employee.Manager)
-            .Include(employee => employee.OrgUnit)
-            .ToListAsync(cancellationToken);
-
-        var employeeById = employees.ToDictionary(employee => employee.Id);
-        if (!employeeById.TryGetValue(request.EmployeeId, out var employee))
+        var employee = await LoadEmployeeAsync(request.EmployeeId, cancellationToken);
+        if (employee is null)
         {
             return Result.Failure<EmployeeReportingLinesDto>(Error.NotFound("Employee", request.EmployeeId));
         }
 
-        var directReportsLookup = employees
-            .Where(current => current.ManagerId.HasValue)
-            .GroupBy(current => current.ManagerId!.Value)
-            .ToDictionary(
-                group => group.Key,
-                group => group
-                    .OrderBy(current => current.LastName)
-                    .ThenBy(current => current.FirstName)
-                    .ToList());
-        var directReportCounts = directReportsLookup
-            .ToDictionary(group => group.Key, group => group.Value.Count);
+        var managerChainEmployees = await BuildManagerChainAsync(employee, cancellationToken);
+        var downlineEmployees = await BuildDownlineAsync(employee.Id, cancellationToken);
+        var relevantEmployeeIds = new HashSet<Guid> { employee.Id };
 
-        var managerChain = BuildManagerChain(employee, employeeById, settings, directReportCounts);
-        var directReports = directReportsLookup
-            .GetValueOrDefault(employee.Id, [])
-            .Select(current => MapNode(current, settings, directReportCounts, depth: 1))
+        foreach (var manager in managerChainEmployees)
+        {
+            relevantEmployeeIds.Add(manager.Id);
+        }
+
+        foreach (var (downlineEmployee, _) in downlineEmployees)
+        {
+            relevantEmployeeIds.Add(downlineEmployee.Id);
+        }
+
+        var directReportCounts = await LoadDirectReportCountsAsync(relevantEmployeeIds, cancellationToken);
+        var managerChain = managerChainEmployees
+            .Select((manager, index) => MapNode(manager, settings, directReportCounts, index + 1))
             .ToList();
-        var downline = BuildDownline(employee.Id, directReportsLookup, settings, directReportCounts);
+        var directReports = downlineEmployees
+            .Where(node => node.Depth == 1)
+            .Select(node => MapNode(node.Employee, settings, directReportCounts, node.Depth))
+            .ToList();
+        var downline = downlineEmployees
+            .Select(node => MapNode(node.Employee, settings, directReportCounts, node.Depth))
+            .ToList();
 
         return Result.Success(new EmployeeReportingLinesDto(
             MapListItem(employee, settings, directReportCounts),
@@ -62,62 +63,104 @@ public sealed class GetEmployeeReportingLinesQueryHandler(
             downline.Count));
     }
 
-    private List<EmployeeHierarchyNodeDto> BuildManagerChain(
+    private async Task<List<Employee>> BuildManagerChainAsync(
         Employee employee,
-        IReadOnlyDictionary<Guid, Employee> employeeById,
-        TenantSettingsDto settings,
-        IReadOnlyDictionary<Guid, int> directReportCounts)
+        CancellationToken cancellationToken)
     {
-        var managerChain = new List<EmployeeHierarchyNodeDto>();
+        var managerChain = new List<Employee>();
         var visitedEmployeeIds = new HashSet<Guid> { employee.Id };
         var currentManagerId = employee.ManagerId;
-        var depth = 1;
 
-        while (currentManagerId.HasValue
-            && employeeById.TryGetValue(currentManagerId.Value, out var manager)
-            && visitedEmployeeIds.Add(manager.Id))
+        while (currentManagerId.HasValue && visitedEmployeeIds.Add(currentManagerId.Value))
         {
-            managerChain.Add(MapNode(manager, settings, directReportCounts, depth));
+            var manager = await LoadEmployeeAsync(currentManagerId.Value, cancellationToken);
+            if (manager is null)
+            {
+                break;
+            }
+
+            managerChain.Add(manager);
             currentManagerId = manager.ManagerId;
-            depth++;
         }
 
         return managerChain;
     }
 
-    private List<EmployeeHierarchyNodeDto> BuildDownline(
+    private async Task<List<(Employee Employee, int Depth)>> BuildDownlineAsync(
         Guid employeeId,
-        IReadOnlyDictionary<Guid, List<Employee>> directReportsLookup,
-        TenantSettingsDto settings,
-        IReadOnlyDictionary<Guid, int> directReportCounts)
+        CancellationToken cancellationToken)
     {
-        var downline = new List<EmployeeHierarchyNodeDto>();
-        var queue = new Queue<(Employee Employee, int Depth)>();
+        var downline = new List<(Employee Employee, int Depth)>();
+        var currentManagerIds = new List<Guid> { employeeId };
         var visitedEmployeeIds = new HashSet<Guid> { employeeId };
+        var depth = 1;
 
-        foreach (var directReport in directReportsLookup.GetValueOrDefault(employeeId, []))
+        while (currentManagerIds.Count > 0)
         {
-            queue.Enqueue((directReport, 1));
-        }
+            var directReports = await dbContext.Employees
+                .AsNoTracking()
+                .Include(current => current.Manager)
+                .Include(current => current.OrgUnit)
+                .Where(current => current.ManagerId.HasValue && currentManagerIds.Contains(current.ManagerId.Value))
+                .OrderBy(current => current.LastName)
+                .ThenBy(current => current.FirstName)
+                .ToListAsync(cancellationToken);
 
-        while (queue.Count > 0)
-        {
-            var (employee, depth) = queue.Dequeue();
-            if (!visitedEmployeeIds.Add(employee.Id))
+            if (directReports.Count == 0)
             {
-                continue;
+                break;
             }
 
-            downline.Add(MapNode(employee, settings, directReportCounts, depth));
+            var nextManagerIds = new List<Guid>();
 
-            foreach (var report in directReportsLookup.GetValueOrDefault(employee.Id, []))
+            foreach (var directReport in directReports)
             {
-                queue.Enqueue((report, depth + 1));
+                if (!visitedEmployeeIds.Add(directReport.Id))
+                {
+                    continue;
+                }
+
+                downline.Add((directReport, depth));
+                nextManagerIds.Add(directReport.Id);
             }
+
+            if (nextManagerIds.Count == 0)
+            {
+                break;
+            }
+
+            currentManagerIds = nextManagerIds;
+            depth++;
         }
 
         return downline;
     }
+
+    private async Task<Dictionary<Guid, int>> LoadDirectReportCountsAsync(
+        IReadOnlyCollection<Guid> employeeIds,
+        CancellationToken cancellationToken)
+    {
+        if (employeeIds.Count == 0)
+        {
+            return [];
+        }
+
+        return await dbContext.Employees
+            .AsNoTracking()
+            .Where(employee => employee.ManagerId.HasValue && employeeIds.Contains(employee.ManagerId.Value))
+            .GroupBy(employee => employee.ManagerId!.Value)
+            .Select(group => new { ManagerId = group.Key, Count = group.Count() })
+            .ToDictionaryAsync(group => group.ManagerId, group => group.Count, cancellationToken);
+    }
+
+    private Task<Employee?> LoadEmployeeAsync(
+        Guid employeeId,
+        CancellationToken cancellationToken)
+        => dbContext.Employees
+            .AsNoTracking()
+            .Include(employee => employee.Manager)
+            .Include(employee => employee.OrgUnit)
+            .FirstOrDefaultAsync(employee => employee.Id == employeeId, cancellationToken);
 
     private EmployeeHierarchyNodeDto MapNode(
         Employee employee,
