@@ -52,6 +52,13 @@ public sealed class EmployeeHierarchyService(CoreHRDbContext dbContext) : IEmplo
             var manager = await ResolveEmployeeAsync(resolvedManagerId, pendingEmployees, cancellationToken)
                 ?? throw new EntityNotFoundException("Manager", resolvedManagerId);
 
+            if (!manager.IsActive)
+            {
+                throw new ArgumentException(
+                    "Cannot assign an inactive employee as manager.",
+                    nameof(managerId));
+            }
+
             currentManagerId = NormalizeManagerId(manager.ManagerId);
         }
     }
@@ -80,18 +87,24 @@ public sealed class EmployeeHierarchyService(CoreHRDbContext dbContext) : IEmplo
         if (pendingEmployees is not null
             && pendingEmployees.TryGetValue(employeeId, out var pendingEmployee))
         {
-            return new EmployeeHierarchyNode(pendingEmployee.Id, NormalizeManagerId(pendingEmployee.ManagerId));
+            return new EmployeeHierarchyNode(
+                pendingEmployee.Id,
+                NormalizeManagerId(pendingEmployee.ManagerId),
+                pendingEmployee.Status == EmployeeStatus.Active);
         }
 
         return await dbContext.Employees
             .AsNoTracking()
             .Where(employee => employee.Id == employeeId)
-            .Select(employee => new EmployeeHierarchyNode(employee.Id, NormalizeManagerId(employee.ManagerId)))
+            .Select(employee => new EmployeeHierarchyNode(
+                employee.Id,
+                NormalizeManagerId(employee.ManagerId),
+                employee.Status == EmployeeStatus.Active))
             .FirstOrDefaultAsync(cancellationToken);
     }
 
     private static Guid? NormalizeManagerId(Guid? managerId)
         => managerId == Guid.Empty ? null : managerId;
 
-    private sealed record EmployeeHierarchyNode(Guid Id, Guid? ManagerId);
+    private sealed record EmployeeHierarchyNode(Guid Id, Guid? ManagerId, bool IsActive);
 }
