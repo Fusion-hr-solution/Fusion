@@ -33,7 +33,6 @@ interface UpdateEmployeeManagerInput {
   expectedVersion: number;
   managerId: string | null;
 }
-
 interface UpdateEmployeeRecordInput {
   employeeId: string;
   expectedVersion: number;
@@ -376,6 +375,110 @@ export function useEmployeeProfile(
     queryFn,
     {
       enabled: isAuthenticated && canAccess && !!employeeId,
+    }
+  );
+}
+
+export function useEmployeeReportingLines(
+  employeeId: string | null
+): UseApiQueryResult<EmployeeReportingLinesDto> {
+  const { user, isAuthenticated } = useAuth();
+  const client = useMemo(() => createPlatformApiClient(), []);
+  const canAccess = canAccessEmployeeRoster(user);
+
+  const queryFn = useCallback(
+    (signal: AbortSignal) => {
+      if (!employeeId) {
+        throw new Error("Employee ID is required to load reporting lines.");
+      }
+
+      return client.get<EmployeeReportingLinesDto>(
+        `${EMPLOYEE_ROSTER_PATH}/${employeeId}/reporting-lines`,
+        {
+          signal,
+        }
+      );
+    },
+    [client, employeeId]
+  );
+
+  return useApiQuery(
+    employeeRosterQueryKeys.reportingLines(employeeId ?? "pending"),
+    queryFn,
+    {
+      enabled: isAuthenticated && canAccess && !!employeeId,
+    }
+  );
+}
+
+export function useEmployeeManagerOptions({
+  employeeId,
+  search,
+  enabled = true,
+}: {
+  employeeId: string | null;
+  search: string;
+  enabled?: boolean;
+}): UseApiQueryResult<EmployeeRosterPageDto> {
+  const { user, isAuthenticated } = useAuth();
+  const client = useMemo(() => createPlatformApiClient(), []);
+  const canAccess = canAccessEmployeeRoster(user);
+  const normalizedSearch = search.trim();
+
+  const queryFn = useCallback(
+    (signal: AbortSignal) =>
+      client.get<EmployeeRosterPageDto>(EMPLOYEE_ROSTER_PATH, {
+        signal,
+        params: {
+          search: normalizedSearch,
+          status: "Active",
+          sortBy: "Name",
+          sortDir: "Asc",
+          page: 1,
+          pageSize: MANAGER_OPTIONS_PAGE_SIZE,
+        },
+      }),
+    [client, normalizedSearch]
+  );
+
+  return useApiQuery(
+    employeeRosterQueryKeys.managerOptions(normalizedSearch),
+    queryFn,
+    {
+      enabled:
+        isAuthenticated &&
+        canAccess &&
+        enabled &&
+        !!employeeId &&
+        normalizedSearch.length >= 2,
+    }
+  );
+}
+
+export function useUpdateEmployeeManager() {
+  const client = useMemo(() => createPlatformApiClient(), []);
+
+  return useApiMutation<unknown, UpdateEmployeeManagerInput>(
+    ({ employeeId, expectedVersion, managerId }) =>
+      client.put(
+        `${EMPLOYEE_ROSTER_PATH}/${employeeId}`,
+        {
+          managerId: managerId ?? EMPTY_GUID,
+        },
+        {
+          headers: {
+            "If-Match": `"${expectedVersion}"`,
+          },
+        }
+      ),
+    {
+      invalidateQueries: (_data, args) => [
+        { queryKey: employeeRosterQueryKeys.all() },
+        {
+          queryKey: employeeRosterQueryKeys.reportingLines(args.employeeId),
+          exact: true,
+        },
+      ],
     }
   );
 }

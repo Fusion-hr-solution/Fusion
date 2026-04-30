@@ -59,7 +59,6 @@ export interface EmployeeReportingLinesDto {
   directReportCount: number;
   downlineCount: number;
 }
-
 export interface EmployeeOrgUnitOption {
   id: string;
   code: string;
