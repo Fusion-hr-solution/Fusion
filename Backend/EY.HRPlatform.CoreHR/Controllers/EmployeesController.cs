@@ -125,7 +125,6 @@ public class EmployeesController(ISender sender) : ControllerBase
         return Ok(ApiResponseOfEmployeeDto.Success(result.Value));
     }
 
-    /// <summary>
     /// Get the profile read model for an employee, combining identity, employment, org context,
     /// direct-report count, and hierarchy status in a single response.
     /// </summary>

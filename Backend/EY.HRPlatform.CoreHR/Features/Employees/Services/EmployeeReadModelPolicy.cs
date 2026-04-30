@@ -58,7 +58,6 @@ public sealed class EmployeeReadModelPolicy : IEmployeeReadModelPolicy
             ResolveHierarchyStatus(employee),
             0,
             employee.Version);
-
     public EmployeeProfileDto MapProfile(Employee employee, TenantSettingsDto settings, EmployeeReadAudience audience, int directReportCount)
         => new(
             employee.Id,
