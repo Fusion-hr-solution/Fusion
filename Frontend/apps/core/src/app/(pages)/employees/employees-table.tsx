@@ -115,7 +115,16 @@ export function EmployeesTable({
             <TableRow
               key={row.id}
               className="cursor-pointer hover:bg-muted/40"
+              role="button"
+              tabIndex={0}
+              aria-label={`Open reporting relationship for ${row.original.firstName} ${row.original.lastName}`}
               onClick={() => onRowClick(row.original)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  onRowClick(row.original);
+                }
+              }}
             >
               {row.getVisibleCells().map((cell) => (
                 <TableCell key={cell.id}>

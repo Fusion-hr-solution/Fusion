@@ -38,10 +38,10 @@ export function normalizeEmployeeRosterQuery(
 
 export const employeeRosterQueryKeys = {
   all: () => ["corehr", "employees", "roster"] as const,
+  lists: () => [...employeeRosterQueryKeys.all(), "list"] as const,
   list: (params: EmployeeRosterQueryParams) =>
     [
-      ...employeeRosterQueryKeys.all(),
-      "list",
+      ...employeeRosterQueryKeys.lists(),
       normalizeEmployeeRosterQuery(params),
     ] as const,
   managerOptions: (search: string) =>
