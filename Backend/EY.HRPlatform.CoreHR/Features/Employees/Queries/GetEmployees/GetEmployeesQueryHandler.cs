@@ -64,8 +64,20 @@ public sealed class GetEmployeesQueryHandler(
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
+        var directReportCounts = await dbContext.Employees
+            .AsNoTracking()
+            .Where(employee => employee.ManagerId.HasValue)
+            .GroupBy(employee => employee.ManagerId!.Value)
+            .Select(group => new { ManagerId = group.Key, Count = group.Count() })
+            .ToDictionaryAsync(group => group.ManagerId, group => group.Count, cancellationToken);
+
         var items = employees
-            .Select(employee => employeeReadModelPolicy.MapListItem(employee, settings, EmployeeReadAudience.HrAdmin))
+            .Select(employee => employeeReadModelPolicy
+                .MapListItem(employee, settings, EmployeeReadAudience.HrAdmin)
+                with
+                {
+                    DirectReportCount = directReportCounts.GetValueOrDefault(employee.Id)
+                })
             .ToList();
 
         return Result.Success(new PagedResponse<EmployeeListItemDto>

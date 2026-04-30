@@ -1,5 +1,6 @@
 using EY.HRPlatform.CoreHR.Domain.Entities;
 using EY.HRPlatform.CoreHR.Domain.Enums;
+using EY.HRPlatform.CoreHR.Features.Employees.Dtos;
 using EY.HRPlatform.CoreHR.Features.Employees.Services;
 using EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployees;
 using EY.HRPlatform.CoreHR.Features.TenantSettings.Services;
@@ -531,6 +532,7 @@ public class GetEmployeesQueryHandlerTests
         var johnDoe = result.Value.Items.First(e => e.FirstName == "John");
         Assert.Equal(manager.Id, johnDoe.ManagerId);
         Assert.Equal("Manager Person", johnDoe.ManagerName);
+        Assert.Equal(EmployeeHierarchyStatuses.Healthy, johnDoe.HierarchyStatus);
     }
 
     [Fact]
@@ -556,6 +558,54 @@ public class GetEmployeesQueryHandlerTests
         Assert.Single(result.Value.Items);
         Assert.Null(result.Value.Items[0].ManagerId);
         Assert.Null(result.Value.Items[0].ManagerName);
+        Assert.Equal(EmployeeHierarchyStatuses.NoManagerAssigned, result.Value.Items[0].HierarchyStatus);
+    }
+
+    [Fact]
+    public async Task GetEmployees_IncludesDirectReportCount()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+
+        var manager = Employee.Create(TenantId, "Alex", "Manager", "alex.manager@example.com", DateTime.UtcNow);
+        var reportOne = Employee.Create(TenantId, "Sarah", "Chen", "sarah.chen@example.com", DateTime.UtcNow);
+        var reportTwo = Employee.Create(TenantId, "Jordan", "Ray", "jordan.ray@example.com", DateTime.UtcNow);
+        reportOne.AssignManager(manager.Id);
+        reportTwo.AssignManager(manager.Id);
+        seedContext.Employees.AddRange(manager, reportOne, reportTwo);
+        await seedContext.SaveChangesAsync();
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = CreateHandler(context);
+
+        var result = await handler.Handle(new GetEmployeesQuery(), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var managerItem = result.Value.Items.First(item => item.Id == manager.Id);
+        Assert.Equal(2, managerItem.DirectReportCount);
+    }
+
+    [Fact]
+    public async Task GetEmployees_WithMissingManager_SurfacesManagerMissingStatus()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+
+        var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", DateTime.UtcNow);
+        employee.AssignManager(Guid.Parse("99999999-9999-9999-9999-999999999999"));
+        seedContext.Employees.Add(employee);
+        await seedContext.SaveChangesAsync();
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = CreateHandler(context);
+
+        var result = await handler.Handle(new GetEmployeesQuery(), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Single(result.Value.Items);
+        Assert.Equal(EmployeeHierarchyStatuses.ManagerMissing, result.Value.Items[0].HierarchyStatus);
     }
 
     [Fact]

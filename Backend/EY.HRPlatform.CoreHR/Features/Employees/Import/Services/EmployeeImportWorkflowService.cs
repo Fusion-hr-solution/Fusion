@@ -6,6 +6,7 @@ using CsvHelper;
 using CsvHelper.Configuration;
 using EY.HRPlatform.CoreHR.Domain.Entities;
 using EY.HRPlatform.CoreHR.Exceptions;
+using EY.HRPlatform.CoreHR.Domain.Enums;
 using EY.HRPlatform.CoreHR.Features.Employees.Import.Dtos;
 using EY.HRPlatform.CoreHR.Features.Employees.Services;
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
@@ -727,17 +728,17 @@ public sealed class EmployeeImportWorkflowService(
         var existingEmployeesByEmail = await dbContext.Employees
             .AsNoTracking()
             .Where(employee => emailOccurrences.Keys.Contains(employee.Email) || referencedManagerEmails.Contains(employee.Email))
-            .Select(employee => new { employee.Email, employee.Id })
+            .Select(employee => new ExistingEmployeeReference(employee.Email, employee.Id, employee.Status == EmployeeStatus.Active))
             .ToListAsync(cancellationToken);
 
-        var existingEmployeeIdsByEmail = existingEmployeesByEmail
+        var existingEmployeesByEmailLookup = existingEmployeesByEmail
             .GroupBy(employee => employee.Email, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(group => group.Key, group => group.First().Id, StringComparer.OrdinalIgnoreCase);
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
 
         foreach (var candidate in candidates)
         {
             if (!string.IsNullOrWhiteSpace(candidate.Email)
-                && existingEmployeeIdsByEmail.ContainsKey(candidate.Email))
+                && existingEmployeesByEmailLookup.ContainsKey(candidate.Email))
             {
                 AddIssue(
                     issues,
@@ -812,7 +813,7 @@ public sealed class EmployeeImportWorkflowService(
                 candidate,
                 uniqueRowsByEmail,
                 emailOccurrences,
-                existingEmployeeIdsByEmail,
+                existingEmployeesByEmailLookup,
                 issues,
                 issueKeys,
                 rowErrorNumbers,
@@ -854,7 +855,7 @@ public sealed class EmployeeImportWorkflowService(
         CandidateRow candidate,
         IReadOnlyDictionary<string, CandidateRow> uniqueRowsByEmail,
         IReadOnlyDictionary<string, List<int>> emailOccurrences,
-        IReadOnlyDictionary<string, Guid> existingEmployeeIdsByEmail,
+        IReadOnlyDictionary<string, ExistingEmployeeReference> existingEmployeesByEmail,
         List<StoredValidationIssue> issues,
         HashSet<ValidationIssueKey> issueKeys,
         ISet<int> rowErrorNumbers,
@@ -872,9 +873,24 @@ public sealed class EmployeeImportWorkflowService(
             return false;
         }
 
-        if (existingEmployeeIdsByEmail.TryGetValue(candidate.ManagerEmail, out var existingManagerId))
+        if (existingEmployeesByEmail.TryGetValue(candidate.ManagerEmail, out var existingManager))
         {
-            candidate.ResolvedExistingManagerId = existingManagerId;
+            if (!existingManager.IsActive)
+            {
+                AddIssue(
+                    issues,
+                    issueKeys,
+                    candidate.RowNumber,
+                    "managerEmail",
+                    "managerInactive",
+                    $"Manager email '{candidate.ManagerEmail}' belongs to an inactive employee in this tenant.",
+                    value: candidate.ManagerEmail,
+                    rowErrorNumbers: rowErrorNumbers,
+                    issueCodesByRow: issueCodesByRow);
+                return false;
+            }
+
+            candidate.ResolvedExistingManagerId = existingManager.Id;
             return true;
         }
 
@@ -936,7 +952,7 @@ public sealed class EmployeeImportWorkflowService(
                 managerRow,
                 uniqueRowsByEmail,
                 emailOccurrences,
-                existingEmployeeIdsByEmail,
+                existingEmployeesByEmail,
                 issues,
                 issueKeys,
                 rowErrorNumbers,
@@ -1292,7 +1308,7 @@ public sealed class EmployeeImportWorkflowService(
             "missingFirstName" or "missingLastName" or "missingEmail" or "missingHireDate"
                 => $"missingRequiredData:row:{rowNumber}",
             "duplicateEmailInFile" or "duplicateEmailInTenant" or "orgUnitNotFound" or "orgUnitInactive"
-                or "ambiguousManagerEmail" or "managerNotFound" or "managerInvalidInBatch"
+                or "ambiguousManagerEmail" or "managerNotFound" or "managerInvalidInBatch" or "managerInactive"
                 => string.IsNullOrWhiteSpace(value)
                     ? $"{code}:row:{rowNumber}"
                     : $"{code}:{value}",
@@ -1312,6 +1328,8 @@ public sealed class EmployeeImportWorkflowService(
                 => "invalidStructureReference",
             "selfManager" or "managerCycle"
                 => "invalidRelationship",
+            "ambiguousManagerEmail" or "managerNotFound" or "managerInvalidInBatch" or "managerInactive"
+                => "invalidReportingReference",
             _ => "invalidReportingReference"
         };
 
@@ -1331,11 +1349,14 @@ public sealed class EmployeeImportWorkflowService(
             "orgUnitInactive" => "Replace this with an active org unit code that already exists in the tenant.",
             "ambiguousManagerEmail" => "Ensure the manager email appears only once in the uploaded file or references an existing employee.",
             "managerNotFound" => "Use a manager email that already exists in the tenant or appears as a valid unique employee in this upload.",
+                "managerInactive" => "Use a manager email that belongs to an active employee in this tenant or leave it blank.",
             "selfManager" => "Replace the manager email with another employee or leave it blank.",
             "managerInvalidInBatch" => "Fix the referenced manager row first so this manager email resolves to a valid employee.",
             "managerCycle" => "Update the manager chain so it does not loop back to any employee in the same upload.",
             _ => "Fix the CSV data for this row and validate the batch again."
         };
+
+            private sealed record ExistingEmployeeReference(string Email, Guid Id, bool IsActive);
 
     private static bool IsValidEmail(string value)
     {
