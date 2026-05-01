@@ -34,6 +34,7 @@ public sealed class GetEmployeeOrgChartQueryHandler(
 
         var employeesById = employees.ToDictionary(employee => employee.Id);
 
+        var childrenMap = employees
             .Where(employee => employee.ManagerId.HasValue && employeesById.ContainsKey(employee.ManagerId.Value))
             .GroupBy(employee => employee.ManagerId!.Value)
             .ToDictionary(group => group.Key, group => group.OrderBy(employee => employee.LastName).ThenBy(employee => employee.FirstName).ToList());
