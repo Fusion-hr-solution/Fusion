@@ -20,33 +20,19 @@ public sealed class GetEmployeeOrgChartQueryHandler(
     {
         var settings = await tenantSettingsReadService.GetCurrentAsync(cancellationToken);
         var maxDepth = Math.Clamp(request.MaxDepth, 1, 10);
-        var query = dbContext.Employees
-            .AsNoTracking()
-            .Include(employee => employee.Manager)
-            .Include(employee => employee.OrgUnit)
-            .AsQueryable();
+        var query = CreateVisibleEmployeesQuery(request.IncludeInactive);
+        var (employees, requestedRoot) = await LoadEmployeesForRequestAsync(
+            query,
+            request.RootEmployeeId,
+            maxDepth,
+            cancellationToken);
 
-        if (!request.IncludeInactive)
+        if (request.RootEmployeeId.HasValue && requestedRoot is null)
         {
-            query = query.Where(employee => employee.Status == Domain.Enums.EmployeeStatus.Active);
+            return Result.Failure<EmployeeOrgChartDto>(Error.NotFound("Employee", request.RootEmployeeId.Value));
         }
-
-        var employees = await query
-            .OrderBy(employee => employee.LastName)
-            .ThenBy(employee => employee.FirstName)
-            .ToListAsync(cancellationToken);
 
         var employeesById = employees.ToDictionary(employee => employee.Id);
-
-        Employee? requestedRoot = null;
-
-        if (request.RootEmployeeId.HasValue)
-        {
-            if (!employeesById.TryGetValue(request.RootEmployeeId.Value, out requestedRoot))
-            {
-                return Result.Failure<EmployeeOrgChartDto>(Error.NotFound("Employee", request.RootEmployeeId.Value));
-            }
-        }
 
         var childrenMap = employees
             .Where(employee => employee.ManagerId.HasValue && employeesById.ContainsKey(employee.ManagerId.Value))
@@ -87,6 +73,79 @@ public sealed class GetEmployeeOrgChartQueryHandler(
                 request.IncludeInactive,
                 visibleNodeCount,
                 isTruncated));
+    }
+
+    private IQueryable<Employee> CreateVisibleEmployeesQuery(bool includeInactive)
+    {
+        var query = dbContext.Employees
+            .AsNoTracking()
+            .Include(employee => employee.Manager)
+            .Include(employee => employee.OrgUnit)
+            .AsQueryable();
+
+        if (!includeInactive)
+        {
+            query = query.Where(employee => employee.Status == Domain.Enums.EmployeeStatus.Active);
+        }
+
+        return query;
+    }
+
+    private static IOrderedQueryable<Employee> OrderEmployees(IQueryable<Employee> query)
+        => query
+            .OrderBy(employee => employee.LastName)
+            .ThenBy(employee => employee.FirstName);
+
+    private async Task<(List<Employee> Employees, Employee? RequestedRoot)> LoadEmployeesForRequestAsync(
+        IQueryable<Employee> query,
+        Guid? rootEmployeeId,
+        int maxDepth,
+        CancellationToken cancellationToken)
+    {
+        if (!rootEmployeeId.HasValue)
+        {
+            return (await OrderEmployees(query).ToListAsync(cancellationToken), null);
+        }
+
+        var requestedRoot = await query.SingleOrDefaultAsync(
+            employee => employee.Id == rootEmployeeId.Value,
+            cancellationToken);
+
+        if (requestedRoot is null)
+        {
+            return ([], null);
+        }
+
+        var employeesById = new Dictionary<Guid, Employee>
+        {
+            [requestedRoot.Id] = requestedRoot
+        };
+        var frontierIds = new HashSet<Guid> { requestedRoot.Id };
+
+        for (var level = 1; level <= maxDepth + 1 && frontierIds.Count > 0; level++)
+        {
+            var currentFrontierIds = frontierIds.ToArray();
+            frontierIds.Clear();
+
+            var directReports = await OrderEmployees(query.Where(
+                    employee => employee.ManagerId.HasValue && currentFrontierIds.Contains(employee.ManagerId.Value)))
+                .ToListAsync(cancellationToken);
+
+            foreach (var directReport in directReports)
+            {
+                if (!employeesById.TryAdd(directReport.Id, directReport))
+                {
+                    continue;
+                }
+
+                if (level <= maxDepth)
+                {
+                    frontierIds.Add(directReport.Id);
+                }
+            }
+        }
+
+        return ([.. employeesById.Values], requestedRoot);
     }
 
     private EmployeeOrgChartNodeDto BuildTreeNode(

@@ -146,8 +146,7 @@ export function OrgChartCanvas({
 
   return (
     <div className="h-full w-full">
-      <ReactFlow
-        <OrgChartFlowNode, Edge>
+      <ReactFlow<OrgChartFlowNode, Edge>
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}

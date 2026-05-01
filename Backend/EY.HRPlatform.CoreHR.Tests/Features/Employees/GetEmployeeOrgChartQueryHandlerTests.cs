@@ -125,6 +125,50 @@ public class GetEmployeeOrgChartQueryHandlerTests
     }
 
     [Fact]
+    public async Task GetEmployeeOrgChart_WithRootEmployeeIdAndMaxDepth_KeepsSubtreeTruncationState()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        Guid managerId;
+
+        await using (var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName))
+        {
+            var executive = Employee.Create(TenantId, "Emma", "Executive", "emma.executive@example.com", DateTime.UtcNow);
+            var manager = Employee.Create(TenantId, "Alex", "Manager", "alex.manager@example.com", DateTime.UtcNow);
+            manager.AssignManager(executive.Id);
+
+            var report = Employee.Create(TenantId, "Sarah", "Chen", "sarah.chen@example.com", DateTime.UtcNow);
+            report.AssignManager(manager.Id);
+
+            var deeperReport = Employee.Create(TenantId, "Nina", "Stone", "nina.stone@example.com", DateTime.UtcNow);
+            deeperReport.AssignManager(report.Id);
+
+            seedContext.Employees.AddRange(executive, manager, report, deeperReport);
+            await seedContext.SaveChangesAsync();
+            managerId = manager.Id;
+        }
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = CreateHandler(context);
+
+        var result = await handler.Handle(
+            new GetEmployeeOrgChartQuery(managerId, MaxDepth: 1),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.True(result.Value.IsTruncated);
+        Assert.Equal(2, result.Value.TotalVisibleNodeCount);
+
+        var root = Assert.Single(result.Value.Roots);
+        Assert.Equal(managerId, root.EmployeeId);
+
+        var reportNode = Assert.Single(root.Children);
+        Assert.True(reportNode.HasChildren);
+        Assert.Empty(reportNode.Children);
+        Assert.Equal(1, reportNode.DirectReportCount);
+    }
+
+    [Fact]
     public async Task GetEmployeeOrgChart_WithoutInactiveManagers_SurfacesActiveReportsAsOrphanRoots()
     {
         var dbName = Guid.NewGuid().ToString();
