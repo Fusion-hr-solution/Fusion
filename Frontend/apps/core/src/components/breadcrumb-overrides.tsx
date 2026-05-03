@@ -1,9 +1,11 @@
 "use client";
 
 import {
+  useCallback,
   createContext,
   useContext,
   useEffect,
+  useMemo,
   useState,
   type ReactNode,
 } from "react";
@@ -26,22 +28,25 @@ export function BreadcrumbOverridesProvider({
 }) {
   const [overrides, setOverrides] = useState<OverridesMap>(new Map());
 
-  function setOverride(segment: string, label: string) {
+  const setOverride = useCallback((segment: string, label: string) => {
     setOverrides((prev) => new Map(prev).set(segment, label));
-  }
+  }, []);
 
-  function clearOverride(segment: string) {
+  const clearOverride = useCallback((segment: string) => {
     setOverrides((prev) => {
       const next = new Map(prev);
       next.delete(segment);
       return next;
     });
-  }
+  }, []);
+
+  const value = useMemo(
+    () => ({ overrides, setOverride, clearOverride }),
+    [overrides, setOverride, clearOverride]
+  );
 
   return (
-    <BreadcrumbOverridesContext.Provider
-      value={{ overrides, setOverride, clearOverride }}
-    >
+    <BreadcrumbOverridesContext.Provider value={value}>
       {children}
     </BreadcrumbOverridesContext.Provider>
   );
@@ -64,11 +69,10 @@ export function useBreadcrumbLabel(segment: string, label: string | undefined) {
   const { setOverride, clearOverride } = useBreadcrumbOverrides();
 
   useEffect(() => {
-    if (!label) return;
+    if (!segment || !label) return;
     setOverride(segment, label);
     return () => clearOverride(segment);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [segment, label]);
+  }, [clearOverride, label, segment, setOverride]);
 }
 
 export function useBreadcrumbOverridesMap(): OverridesMap {

@@ -197,7 +197,10 @@ export default function EmployeeProfilePage() {
   const { user, isLoading: isAuthLoading } = useAuth();
   const router = useRouter();
   const params = useParams<{ id: string }>();
-  const employeeId = params.id;
+  const employeeId =
+    typeof params.id === "string" && params.id.trim().length > 0
+      ? params.id
+      : null;
   const canAccess = canAccessEmployeeRoster(user);
   const [sheetOpen, setSheetOpen] = useState(false);
 
@@ -205,14 +208,14 @@ export default function EmployeeProfilePage() {
     data: profile,
     error,
     isLoading,
-  } = useEmployeeProfile(canAccess ? employeeId : null);
+  } = useEmployeeProfile(canAccess && employeeId ? employeeId : null);
 
   const { data: reportingLines } = useEmployeeReportingLines(
-    canAccess ? employeeId : null
+    canAccess && employeeId ? employeeId : null
   );
 
   // Register employee name in the top breadcrumb (Core > Employees > Jane Smith)
-  useBreadcrumbLabel(employeeId, profile?.fullName);
+  useBreadcrumbLabel(employeeId ?? "", profile?.fullName);
 
   const isInitialLoading =
     (isAuthLoading && !user) ||
@@ -247,6 +250,15 @@ export default function EmployeeProfilePage() {
 
     return (
       <div className="flex flex-col gap-6 p-6">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="-ml-2 w-fit gap-1.5 text-muted-foreground hover:text-foreground"
+          onClick={() => router.push("/employees")}
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to employees
+        </Button>
         {isNotFound ? (
           <EmptyState
             icon={User}
@@ -281,6 +293,16 @@ export default function EmployeeProfilePage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
+      <Button
+        variant="ghost"
+        size="sm"
+        className="-ml-2 w-fit gap-1.5 text-muted-foreground hover:text-foreground"
+        onClick={() => router.push("/employees")}
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back to employees
+      </Button>
+
       {/* ── Data quality alert — only when issues exist ──────────────────── */}
       {attentionItems.length > 0 && (
         <Alert variant="destructive">
