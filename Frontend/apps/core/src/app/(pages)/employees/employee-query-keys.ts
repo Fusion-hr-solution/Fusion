@@ -52,6 +52,8 @@ export const employeeRosterQueryKeys = {
     ] as const,
   reportingLines: (employeeId: string) =>
     [...employeeRosterQueryKeys.all(), "reporting-lines", employeeId] as const,
+  profile: (employeeId: string) =>
+    [...employeeRosterQueryKeys.all(), "profile", employeeId] as const,
 };
 
 export function normalizeEmployeeImportPreviewQuery(

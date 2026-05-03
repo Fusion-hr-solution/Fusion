@@ -59,3 +59,24 @@ export interface EmployeeReportingLinesDto {
   directReportCount: number;
   downlineCount: number;
 }
+
+export interface EmployeeProfileDto {
+  id: string;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  email: string;
+  jobTitle: string | null;
+  hireDate: string;
+  status: EmployeeRosterStatus;
+  orgUnitId: string | null;
+  orgUnitName: string | null;
+  managerId: string | null;
+  managerFirstName: string | null;
+  managerLastName: string | null;
+  managerEmail: string | null;
+  managerFullName: string | null;
+  hierarchyStatus: EmployeeHierarchyStatus;
+  directReportCount: number;
+  version: number;
+}

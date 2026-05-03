@@ -41,6 +41,7 @@ vi.mock("@repo/api/query", async () => {
 import { ApiQueryProvider, createApiQueryClient } from "@repo/api/query";
 import {
   useEmployeeManagerOptions,
+  useEmployeeProfile,
   useEmployeeReportingLines,
   useEmployeeRoster,
   useUpdateEmployeeManager,
@@ -318,5 +319,59 @@ describe("useUpdateEmployeeManager", () => {
         },
       }
     );
+  });
+});
+
+describe("useEmployeeProfile", () => {
+  it("calls the profile endpoint for the given employee", async () => {
+    const mockProfile = {
+      id: "emp-1",
+      firstName: "Alice",
+      lastName: "Smith",
+      fullName: "Alice Smith",
+      email: "alice@example.com",
+      jobTitle: "Senior Engineer",
+      hireDate: "2021-06-01T00:00:00Z",
+      status: "Active",
+      orgUnitId: "org-1",
+      orgUnitName: "Engineering",
+      managerId: "mgr-1",
+      managerFirstName: "Bob",
+      managerLastName: "Jones",
+      managerEmail: "bob@example.com",
+      managerFullName: "Bob Jones",
+      hierarchyStatus: "Healthy",
+      directReportCount: 3,
+      version: 7,
+    };
+
+    mockGet.mockResolvedValue(mockProfile);
+
+    const { result } = renderHook(() => useEmployeeProfile("emp-1"), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(mockGet).toHaveBeenCalledWith(
+      "/corehr/employees/emp-1/profile",
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
+    expect(result.current.data).toMatchObject({
+      id: "emp-1",
+      fullName: "Alice Smith",
+      hierarchyStatus: "Healthy",
+      directReportCount: 3,
+    });
+  });
+
+  it("does not fetch when employeeId is null", async () => {
+    const { result } = renderHook(() => useEmployeeProfile(null), {
+      wrapper: createWrapper(),
+    });
+
+    await new Promise((r) => setTimeout(r, 50));
+    expect(mockGet).not.toHaveBeenCalled();
+    expect(result.current.data).toBeUndefined();
   });
 });

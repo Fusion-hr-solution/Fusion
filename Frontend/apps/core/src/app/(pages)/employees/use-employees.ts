@@ -15,6 +15,7 @@ import {
   normalizeEmployeeRosterQuery,
 } from "./employee-query-keys";
 import type {
+  EmployeeProfileDto,
   EmployeeReportingLinesDto,
   EmployeeRosterPageDto,
   EmployeeRosterQueryParams,
@@ -177,7 +178,41 @@ export function useUpdateEmployeeManager() {
           queryKey: employeeRosterQueryKeys.reportingLines(args.employeeId),
           exact: true,
         },
+        {
+          queryKey: employeeRosterQueryKeys.profile(args.employeeId),
+          exact: true,
+        },
       ],
+    }
+  );
+}
+
+export function useEmployeeProfile(
+  employeeId: string | null
+): UseApiQueryResult<EmployeeProfileDto> {
+  const { user, isAuthenticated } = useAuth();
+  const client = useMemo(() => createPlatformApiClient(), []);
+  const canAccess = canAccessEmployeeRoster(user);
+
+  const queryFn = useCallback(
+    (signal: AbortSignal) => {
+      if (!employeeId) {
+        throw new Error("Employee ID is required to load profile.");
+      }
+
+      return client.get<EmployeeProfileDto>(
+        `${EMPLOYEE_ROSTER_PATH}/${employeeId}/profile`,
+        { signal }
+      );
+    },
+    [client, employeeId]
+  );
+
+  return useApiQuery(
+    employeeRosterQueryKeys.profile(employeeId ?? "pending"),
+    queryFn,
+    {
+      enabled: isAuthenticated && canAccess && !!employeeId,
     }
   );
 }
