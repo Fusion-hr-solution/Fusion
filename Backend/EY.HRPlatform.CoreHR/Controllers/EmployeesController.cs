@@ -6,6 +6,7 @@ using EY.HRPlatform.CoreHR.Features.Employees.Dtos;
 using EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployeeById;
 using EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployees;
 using EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployeeReportingLines;
+using EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployeeProfile;
 using EY.HRPlatform.CoreHR.Models.Requests;
 using EY.HRPlatform.CoreHR.Models.Responses;
 using EY.HRPlatform.SharedKernel.Auth;
@@ -13,6 +14,7 @@ using ApiResponse = EY.HRPlatform.SharedKernel.Api.ApiResponse;
 using ApiResponseOfEmployeeDto = EY.HRPlatform.SharedKernel.Api.ApiResponse<EY.HRPlatform.CoreHR.Features.Employees.Dtos.EmployeeDto>;
 using ApiResponseOfPagedEmployeeList = EY.HRPlatform.SharedKernel.Api.ApiResponse<EY.HRPlatform.CoreHR.Models.Responses.PagedResponse<EY.HRPlatform.CoreHR.Features.Employees.Dtos.EmployeeListItemDto>>;
 using ApiResponseOfEmployeeReportingLinesDto = EY.HRPlatform.SharedKernel.Api.ApiResponse<EY.HRPlatform.CoreHR.Features.Employees.Dtos.EmployeeReportingLinesDto>;
+using ApiResponseOfEmployeeProfileDto = EY.HRPlatform.SharedKernel.Api.ApiResponse<EY.HRPlatform.CoreHR.Features.Employees.Dtos.EmployeeProfileDto>;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -94,6 +96,28 @@ public class EmployeesController(ISender sender) : ControllerBase
         Response.Headers.ETag = $"\"{result.Value.Version}\"";
 
         return Ok(ApiResponseOfEmployeeDto.Success(result.Value));
+    }
+
+    /// <summary>
+    /// Get the profile read model for an employee, combining identity, employment, org context,
+    /// direct-report count, and hierarchy status in a single response.
+    /// </summary>
+    [HttpGet("{id:guid}/profile")]
+    [Authorize(Roles = PlatformRole.HRAdmin)]
+    [ProducesResponseType(typeof(ApiResponseOfEmployeeProfileDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetProfile(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new GetEmployeeProfileQuery(id), cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return NotFound(ApiResponse.Failure(result.Error.Message));
+        }
+
+        Response.Headers.ETag = $"\"{ result.Value.Version}\"";
+
+        return Ok(ApiResponseOfEmployeeProfileDto.Success(result.Value));
     }
 
     /// <summary>
