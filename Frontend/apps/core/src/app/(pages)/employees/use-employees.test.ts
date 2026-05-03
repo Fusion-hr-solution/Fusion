@@ -360,6 +360,7 @@ describe("useUpdateEmployeeManager", () => {
     );
   });
 });
+
 describe("useUpdateEmployeeRecord", () => {
   it("sends targeted profile updates with optimistic concurrency headers", async () => {
     mockPut.mockResolvedValue({});

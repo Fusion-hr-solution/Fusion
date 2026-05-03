@@ -12,7 +12,6 @@ import { CorePageLoadingState } from "@/components/core-page-loading-state";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { canAccessEmployeeRoster } from "@/lib/employee-roster-access";
-import { EmployeeReportingLinesSheet } from "./employee-reporting-lines-sheet";
 import { EmployeesTable } from "./employees-table";
 import { PaginationBar } from "./pagination-bar";
 import { Toolbar } from "./toolbar";
@@ -61,9 +60,6 @@ export default function EmployeesPage() {
   const [status, setStatus] = useState<EmployeeRosterStatus | undefined>();
   const [sorting, setSorting] = useState<SortingState>(
     DEFAULT_EMPLOYEE_SORTING
-  );
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(
-    null
   );
   const { sortBy, sortDir } = getRosterSortParams(sorting);
 
@@ -191,16 +187,6 @@ export default function EmployeesPage() {
           onPageSizeChange={handlePageSizeChange}
         />
       )}
-
-      <EmployeeReportingLinesSheet
-        employeeId={selectedEmployeeId}
-        open={selectedEmployeeId !== null}
-        onOpenChange={(open) => {
-          if (!open) {
-            setSelectedEmployeeId(null);
-          }
-        }}
-      />
     </div>
   );
 }
