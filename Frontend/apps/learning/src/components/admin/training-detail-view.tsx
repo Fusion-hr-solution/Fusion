@@ -21,6 +21,7 @@ import { MetaCard } from "./meta-card";
 import { ChapterManagerList } from "./chapter-manager-list";
 import { AdminExamList } from "./admin-exam-list";
 import { AdminOnSiteCourseList } from "./admin-onsite-course-list";
+import { PartsManagerSection } from "./sessions/parts-manager-section";
 import { TrainingStatCard } from "./training-stat-card";
 import { PageBreadcrumb } from "../page-breadcrumb";
 
@@ -179,6 +180,9 @@ export function TrainingDetailView({ trainingId }: TrainingDetailViewProps) {
 
       {training.trainingType === "OnSite" ? (
         <>
+          {/* Parts (séances) and Sessions */}
+          <PartsManagerSection trainingId={trainingId} isDeleted={training.isDeleted} />
+
           {/* On-Site Courses */}
           <h2 className="text-base font-semibold text-foreground">Course Materials</h2>
           <AdminOnSiteCourseList

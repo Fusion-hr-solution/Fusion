@@ -62,6 +62,16 @@ export { AssignmentsView } from "./admin/assignments-view";
 export { SummaryCard } from "./admin/summary-card";
 export { CreateTrainingWizard } from "./admin/create-training-wizard";
 export { EditTrainingWizard } from "./admin/edit-training-wizard";
+export {
+  PartsManagerSection,
+  SessionStatusBadge,
+  PartFormDialog,
+  SessionFormDialog,
+  CancelSessionDialog,
+  SessionListTable,
+  SessionDetailView,
+  SessionsPage as AdminSessionsPage,
+} from "./admin/sessions";
 export { TrainingDetailPage } from "./training-detail-page";
 export { ExamCard } from "./exam-card";
 export {
