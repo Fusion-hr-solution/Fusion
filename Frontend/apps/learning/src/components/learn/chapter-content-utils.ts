@@ -1,3 +1,5 @@
+import DOMPurify from "dompurify";
+
 /**
  * Resolve a backend asset path to a full URL.
  * In dev the frontend and backend run on different ports.
@@ -23,7 +25,7 @@ export function toEmbedUrl(url: string): string {
 }
 
 export function renderMarkdown(text: string): string {
-  return text
+  const raw = text
     .replace(/^### (.+)$/gm, "<h3>$1</h3>")
     .replace(/^## (.+)$/gm, "<h2>$1</h2>")
     .replace(/^# (.+)$/gm, "<h1>$1</h1>")
@@ -33,4 +35,8 @@ export function renderMarkdown(text: string): string {
     .replace(/(<li>.*<\/li>\n?)+/g, "<ul>$&</ul>")
     .replace(/\n\n/g, "</p><p>")
     .replace(/^(?!<[hul])(.+)$/gm, "<p>$1</p>");
+  if (typeof window !== "undefined") {
+    return DOMPurify.sanitize(raw);
+  }
+  return raw;
 }

@@ -8,6 +8,15 @@ export function useChapterTitle(
   const [isSavingTitle, setIsSavingTitle] = useState(false);
   const [titleSaved, setTitleSaved] = useState(false);
   const titleTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      if (titleTimeout.current) clearTimeout(titleTimeout.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (initialTitle) setTitleValue(initialTitle);
@@ -20,11 +29,20 @@ export function useChapterTitle(
       if (titleTimeout.current) clearTimeout(titleTimeout.current);
       titleTimeout.current = setTimeout(async () => {
         if (value.trim()) {
+          if (!mountedRef.current) return;
           setIsSavingTitle(true);
-          await onSave(value.trim());
-          setIsSavingTitle(false);
-          setTitleSaved(true);
-          setTimeout(() => setTitleSaved(false), 2000);
+          try {
+            await onSave(value.trim());
+            if (!mountedRef.current) return;
+            setTitleSaved(true);
+            setTimeout(() => {
+              if (mountedRef.current) setTitleSaved(false);
+            }, 2000);
+          } catch {
+            // Save failed — silently ignore, user can retry
+          } finally {
+            if (mountedRef.current) setIsSavingTitle(false);
+          }
         }
       }, 800);
     },

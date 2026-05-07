@@ -1,7 +1,10 @@
 import type { Training, SortOption, TrainingType } from "@/types";
 
 export function sortTrainings(trainings: Training[], sort: SortOption): Training[] {
-  const parseDuration = (d: string) => parseInt(d.replace(/\D/g, ""));
+  const parseDuration = (d: string) => {
+    const n = parseInt(d.replace(/\D/g, ""), 10);
+    return Number.isFinite(n) ? n : 0;
+  };
   return [...trainings].sort((a, b) => {
     switch (sort) {
       case "rating": return b.rating - a.rating;
