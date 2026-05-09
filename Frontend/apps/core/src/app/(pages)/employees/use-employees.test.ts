@@ -3,7 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 import { createElement, type PropsWithChildren } from "react";
 
-const { mockGet, mockPut } = vi.hoisted(() => ({
+const { mockDelete, mockGet, mockPut } = vi.hoisted(() => ({
+  mockDelete: vi.fn(),
   mockGet: vi.fn(),
   mockPut: vi.fn(),
 }));
@@ -20,6 +21,7 @@ const authState = vi.hoisted(() => ({
 
 vi.mock("@repo/api", () => ({
   createPlatformApiClient: () => ({
+    delete: mockDelete,
     get: mockGet,
     put: mockPut,
   }),
@@ -33,17 +35,19 @@ vi.mock("@repo/auth", () => ({
 }));
 
 vi.mock("@repo/api/query", async () => {
-  const actual =
-    await vi.importActual<typeof import("@repo/api/query")>("@repo/api/query");
+  const actual = await vi.importActual("@repo/api/query");
   return actual;
 });
 
 import { ApiQueryProvider, createApiQueryClient } from "@repo/api/query";
 import {
+  useDeactivateEmployee,
+  useEmployeeOrgUnitOptions,
   useEmployeeManagerOptions,
   useEmployeeProfile,
   useEmployeeReportingLines,
   useEmployeeRoster,
+  useUpdateEmployeeRecord,
   useUpdateEmployeeManager,
 } from "./use-employees";
 
@@ -294,6 +298,41 @@ describe("useEmployeeManagerOptions", () => {
   });
 });
 
+describe("useEmployeeOrgUnitOptions", () => {
+  it("loads active org units for the profile workspace", async () => {
+    mockGet.mockResolvedValue({
+      items: [],
+      totalCount: 0,
+      page: 1,
+      pageSize: 100,
+      totalPages: 0,
+      hasNextPage: false,
+      hasPreviousPage: false,
+    });
+
+    renderHook(() => useEmployeeOrgUnitOptions({ search: "Eng" }), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => expect(mockGet).toHaveBeenCalled());
+
+    expect(mockGet).toHaveBeenCalledWith(
+      "/corehr/org-units",
+      expect.objectContaining({
+        params: expect.objectContaining({
+          search: "Eng",
+          isActive: true,
+          sortBy: "Name",
+          sortDir: "Asc",
+          page: 1,
+          pageSize: 100,
+        }),
+        signal: expect.any(AbortSignal),
+      })
+    );
+  });
+});
+
 describe("useUpdateEmployeeManager", () => {
   it("sends the manager update with If-Match and clear semantics", async () => {
     mockPut.mockResolvedValue({});
@@ -319,6 +358,121 @@ describe("useUpdateEmployeeManager", () => {
         },
       }
     );
+  });
+});
+
+describe("useUpdateEmployeeRecord", () => {
+  it("sends targeted profile updates with optimistic concurrency headers", async () => {
+    mockPut.mockResolvedValue({});
+
+    const { result } = renderHook(() => useUpdateEmployeeRecord(), {
+      wrapper: createWrapper(),
+    });
+
+    await result.current.mutateAsync({
+      employeeId: "emp-1",
+      expectedVersion: 7,
+      firstName: "Alice",
+      lastName: "Smith",
+      email: "alice@example.com",
+      jobTitle: "Principal Engineer",
+      orgUnitId: null,
+      hireDate: "2024-05-01T00:00:00.000Z",
+    });
+
+    expect(mockPut).toHaveBeenCalledWith(
+      "/corehr/employees/emp-1",
+      {
+        firstName: "Alice",
+        lastName: "Smith",
+        email: "alice@example.com",
+        jobTitle: "Principal Engineer",
+        orgUnitId: "00000000-0000-0000-0000-000000000000",
+        hireDate: "2024-05-01T00:00:00.000Z",
+      },
+      {
+        headers: {
+          "If-Match": '"7"',
+        },
+      }
+    );
+  });
+
+  it("omits fields that are not part of the current sheet update", async () => {
+    mockPut.mockResolvedValue({});
+
+    const { result } = renderHook(() => useUpdateEmployeeRecord(), {
+      wrapper: createWrapper(),
+    });
+
+    await result.current.mutateAsync({
+      employeeId: "emp-1",
+      expectedVersion: 8,
+      firstName: "Alice",
+      lastName: "Smith",
+      email: "alice@example.com",
+    });
+
+    expect(mockPut).toHaveBeenCalledWith(
+      "/corehr/employees/emp-1",
+      {
+        firstName: "Alice",
+        lastName: "Smith",
+        email: "alice@example.com",
+      },
+      {
+        headers: {
+          "If-Match": '"8"',
+        },
+      }
+    );
+  });
+
+  it("only sends the organization field when updating org assignment", async () => {
+    mockPut.mockResolvedValue({});
+
+    const { result } = renderHook(() => useUpdateEmployeeRecord(), {
+      wrapper: createWrapper(),
+    });
+
+    await result.current.mutateAsync({
+      employeeId: "emp-1",
+      expectedVersion: 9,
+      orgUnitId: "org-7",
+    });
+
+    expect(mockPut).toHaveBeenCalledWith(
+      "/corehr/employees/emp-1",
+      {
+        orgUnitId: "org-7",
+      },
+      {
+        headers: {
+          "If-Match": '"9"',
+        },
+      }
+    );
+  });
+});
+
+describe("useDeactivateEmployee", () => {
+  it("sends the deactivate request with optimistic concurrency headers", async () => {
+    mockDelete.mockResolvedValue(undefined);
+
+    const { result } = renderHook(() => useDeactivateEmployee(), {
+      wrapper: createWrapper(),
+    });
+
+    await result.current.mutateAsync({
+      employeeId: "emp-1",
+      expectedVersion: 11,
+    });
+
+    expect(mockDelete).toHaveBeenCalledWith("/corehr/employees/emp-1", {
+      headers: {
+        "If-Match": '"11"',
+      },
+    });
   });
 });
 
