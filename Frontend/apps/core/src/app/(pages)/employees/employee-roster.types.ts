@@ -79,6 +79,26 @@ export interface EmployeeOrgUnitPageDto {
   hasPreviousPage: boolean;
 }
 
+export interface EmployeeOrgUnitOption {
+  id: string;
+  code: string;
+  name: string;
+  type: string;
+  parentId: string | null;
+  parentName: string | null;
+  isActive: boolean;
+}
+
+export interface EmployeeOrgUnitPageDto {
+  items: EmployeeOrgUnitOption[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+}
+
 export interface EmployeeProfileDto {
   id: string;
   firstName: string;
