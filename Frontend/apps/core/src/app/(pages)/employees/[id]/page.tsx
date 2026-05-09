@@ -5,12 +5,10 @@ import { useParams, useRouter } from "next/navigation";
 import {
   AlertTriangle,
   ArrowLeft,
-  BookOpen,
   Building2,
   Calendar,
   CheckCircle2,
   ChevronRight,
-  GraduationCap,
   Mail,
   ShieldAlert,
   Star,
@@ -24,10 +22,23 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useBreadcrumbLabel } from "@/components/breadcrumb-overrides";
 import { canAccessEmployeeRoster } from "@/lib/employee-roster-access";
+import {
+  EmployeeEmploymentEditSheet,
+  EmployeeIdentityEditSheet,
+  EmployeeOrganizationEditSheet,
+  EmployeeStatusSheet,
+} from "./employee-profile-workspace-sheets";
 import { EmployeeReportingLinesSheet } from "../employee-reporting-lines-sheet";
 import {
   useEmployeeProfile,
@@ -71,9 +82,13 @@ function HierarchyBadge({ status }: { status: EmployeeHierarchyStatus }) {
   }
 }
 
+const WORKSPACE_CARD_CLASS_NAME = "gap-0 py-0";
+const WORKSPACE_CARD_HEADER_CLASS_NAME = "px-5 pb-4 pt-5";
+const WORKSPACE_CARD_CONTENT_CLASS_NAME = "space-y-4 px-5 pb-5";
+
 function SnapshotCard({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <Card>
+    <Card className={WORKSPACE_CARD_CLASS_NAME}>
       <CardContent className="space-y-1 p-4">
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
           {label}
@@ -146,11 +161,15 @@ function formatDirectReportsCount(count: number): string {
   return `${count} direct reports`;
 }
 
+function hasTextValue(value: string | null | undefined): boolean {
+  return !!value?.trim();
+}
+
 function getManagerDisplay(profile: {
   managerFullName: string | null;
   managerId: string | null;
 }): string {
-  if (profile.managerFullName) return profile.managerFullName;
+  if (hasTextValue(profile.managerFullName)) return profile.managerFullName!;
   return profile.managerId ? "Manager record not found" : "No manager assigned";
 }
 
@@ -183,7 +202,7 @@ function buildAttentionItems(profile: {
   if (profile.hierarchyStatus === "ManagerInactive")
     issues.push("The assigned manager is inactive and should be updated.");
   if (!profile.orgUnitId) issues.push("Organization unit is not assigned.");
-  if (!profile.jobTitle) issues.push("Job title is missing.");
+  if (!hasTextValue(profile.jobTitle)) issues.push("Job title is missing.");
   return issues;
 }
 
@@ -203,6 +222,9 @@ export default function EmployeeProfilePage() {
       : null;
   const canAccess = canAccessEmployeeRoster(user);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [activeWorkspaceSheet, setActiveWorkspaceSheet] = useState<
+    "identity" | "employment" | "organization" | "status" | null
+  >(null);
 
   const {
     data: profile,
@@ -281,7 +303,7 @@ export default function EmployeeProfilePage() {
 
   const hireDate = formatDate(profile.hireDate);
   const tenure = getTenure(profile.hireDate);
-  const email = profile.email?.trim() ? profile.email : "Not set";
+  const email = hasTextValue(profile.email) ? profile.email : "Not set";
   const managerEmail = profile.managerEmail?.trim()
     ? profile.managerEmail
     : "Not set";
@@ -319,7 +341,7 @@ export default function EmployeeProfilePage() {
       )}
 
       {/* ── Profile hero ─────────────────────────────────────────────────── */}
-      <Card>
+      <Card className={WORKSPACE_CARD_CLASS_NAME}>
         <CardContent className="p-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex items-start gap-4">
@@ -340,7 +362,7 @@ export default function EmployeeProfilePage() {
                 </div>
 
                 <p className="text-sm text-muted-foreground">
-                  {profile.jobTitle ?? (
+                  {hasTextValue(profile.jobTitle) ? profile.jobTitle : (
                     <span className="italic">Job title not set</span>
                   )}
                 </p>
@@ -422,13 +444,24 @@ export default function EmployeeProfilePage() {
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Left */}
         <div className="flex flex-col gap-6">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">
-                Identity &amp; Contact
-              </CardTitle>
+          <Card className={WORKSPACE_CARD_CLASS_NAME}>
+            <CardHeader className={WORKSPACE_CARD_HEADER_CLASS_NAME}>
+              <CardTitle className="text-base">Identity &amp; Contact</CardTitle>
+              <CardDescription>
+                Maintain the employee&apos;s primary identity fields used across
+                Core.
+              </CardDescription>
+              <CardAction>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setActiveWorkspaceSheet("identity")}
+                >
+                  Edit
+                </Button>
+              </CardAction>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className={WORKSPACE_CARD_CONTENT_CLASS_NAME}>
               <DetailRow
                 icon={User}
                 label="Full name"
@@ -436,29 +469,39 @@ export default function EmployeeProfilePage() {
               />
               <Separator />
               <DetailRow icon={Mail} label="Work email" value={email} />
-              <Separator />
-              <DetailRow
-                icon={Star}
-                label="Phone"
-                value={
-                  <span className="font-normal text-muted-foreground">
-                    Not set
-                  </span>
-                }
-              />
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="pb-3">
+          <Card className={WORKSPACE_CARD_CLASS_NAME}>
+            <CardHeader className={WORKSPACE_CARD_HEADER_CLASS_NAME}>
               <CardTitle className="text-base">Employment</CardTitle>
+              <CardDescription>
+                Keep core role, hire-date, and status details current from the
+                profile.
+              </CardDescription>
+              <CardAction className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setActiveWorkspaceSheet("employment")}
+                >
+                  Edit
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setActiveWorkspaceSheet("status")}
+                >
+                  Manage status
+                </Button>
+              </CardAction>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className={WORKSPACE_CARD_CONTENT_CLASS_NAME}>
               <DetailRow
                 icon={Star}
                 label="Job title"
                 value={
-                  profile.jobTitle ?? (
+                  hasTextValue(profile.jobTitle) ? profile.jobTitle : (
                     <span className="font-normal text-muted-foreground">
                       Not set
                     </span>
@@ -485,11 +528,24 @@ export default function EmployeeProfilePage() {
 
         {/* Right */}
         <div className="flex flex-col gap-6">
-          <Card>
-            <CardHeader className="pb-3">
+          <Card className={WORKSPACE_CARD_CLASS_NAME}>
+            <CardHeader className={WORKSPACE_CARD_HEADER_CLASS_NAME}>
               <CardTitle className="text-base">Organization</CardTitle>
+              <CardDescription>
+                Maintain the employee&apos;s org placement and manager context from
+                one workspace.
+              </CardDescription>
+              <CardAction>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setActiveWorkspaceSheet("organization")}
+                >
+                  Edit
+                </Button>
+              </CardAction>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className={WORKSPACE_CARD_CONTENT_CLASS_NAME}>
               <DetailRow
                 icon={Building2}
                 label="Org unit"
@@ -528,11 +584,11 @@ export default function EmployeeProfilePage() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="pb-3">
+          <Card className={WORKSPACE_CARD_CLASS_NAME}>
+            <CardHeader className={WORKSPACE_CARD_HEADER_CLASS_NAME}>
               <CardTitle className="text-base">Reporting</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className={WORKSPACE_CARD_CONTENT_CLASS_NAME}>
               <DetailRow
                 icon={Users}
                 label="Direct reports"
@@ -549,7 +605,7 @@ export default function EmployeeProfilePage() {
                 }
               />
               <Separator />
-              <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
+              <div className="flex flex-col gap-3 rounded-xl border bg-muted/20 p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="space-y-0.5">
                   <p className="text-sm font-medium">Reporting relationship</p>
                   <p className="text-xs text-muted-foreground">
@@ -569,63 +625,41 @@ export default function EmployeeProfilePage() {
         </div>
       </div>
 
-      {/* ── Connected work — future modules ──────────────────────────────── */}
-      <div className="space-y-3">
-        <div className="flex items-baseline justify-between">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            Connected work
-          </h2>
-          <span className="text-xs text-muted-foreground">
-            Modules connect here as they are activated
-          </span>
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-3">
-          {(
-            [
-              {
-                icon: Star,
-                title: "Performance",
-                description:
-                  "Future reviews and goals will use this employee's manager and org context.",
-              },
-              {
-                icon: GraduationCap,
-                title: "Learning",
-                description:
-                  "Learning records and skills can connect to this profile later.",
-              },
-              {
-                icon: BookOpen,
-                title: "Interviews & Talent",
-                description:
-                  "Talent workflows can reference this employee record later.",
-              },
-            ] as const
-          ).map(({ icon: Icon, title, description }) => (
-            <div
-              key={title}
-              className="flex items-start gap-3 rounded-lg border border-dashed p-4 text-muted-foreground/70"
-            >
-              <Icon className="mt-0.5 h-4 w-4 shrink-0" />
-              <div className="space-y-1">
-                <p className="text-xs font-semibold text-muted-foreground">
-                  {title}
-                </p>
-                <p className="text-xs leading-relaxed">{description}</p>
-                <Badge variant="outline" className="mt-0.5 text-[10px]">
-                  Coming soon
-                </Badge>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
       <EmployeeReportingLinesSheet
         employeeId={employeeId}
         open={sheetOpen}
         onOpenChange={setSheetOpen}
+      />
+
+      <EmployeeIdentityEditSheet
+        profile={profile}
+        open={activeWorkspaceSheet === "identity"}
+        onOpenChange={(open) =>
+          setActiveWorkspaceSheet(open ? "identity" : null)
+        }
+      />
+
+      <EmployeeEmploymentEditSheet
+        profile={profile}
+        open={activeWorkspaceSheet === "employment"}
+        onOpenChange={(open) =>
+          setActiveWorkspaceSheet(open ? "employment" : null)
+        }
+      />
+
+      <EmployeeOrganizationEditSheet
+        profile={profile}
+        open={activeWorkspaceSheet === "organization"}
+        onOpenChange={(open) =>
+          setActiveWorkspaceSheet(open ? "organization" : null)
+        }
+      />
+
+      <EmployeeStatusSheet
+        profile={profile}
+        open={activeWorkspaceSheet === "status"}
+        onOpenChange={(open) => setActiveWorkspaceSheet(open ? "status" : null)}
+        onManageReportingRelationship={() => setSheetOpen(true)}
       />
     </div>
   );

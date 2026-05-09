@@ -15,6 +15,7 @@ namespace EY.HRPlatform.CoreHR.Features.Employees.Commands.UpdateEmployee;
 /// <param name="JobTitle">New job title, or null to keep existing.</param>
 /// <param name="ManagerId">New manager ID, Guid.Empty to clear, or null to keep existing.</param>
 /// <param name="OrgUnitId">New org unit ID, Guid.Empty to clear, or null to keep existing.</param>
+/// <param name="HireDate">New hire date, or null to keep existing.</param>
 public sealed record UpdateEmployeeCommand(
     Guid EmployeeId,
     uint ExpectedVersion,
@@ -23,4 +24,5 @@ public sealed record UpdateEmployeeCommand(
     string? Email,
     string? JobTitle,
     Guid? ManagerId,
-    Guid? OrgUnitId = null) : ICommand<Result<EmployeeDto>>;
+    Guid? OrgUnitId = null,
+    DateTime? HireDate = null) : ICommand<Result<EmployeeDto>>;

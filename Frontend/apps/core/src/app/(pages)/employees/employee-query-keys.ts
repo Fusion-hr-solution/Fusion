@@ -50,6 +50,12 @@ export const employeeRosterQueryKeys = {
       "manager-options",
       normalizeEmployeeRosterSearch(search),
     ] as const,
+  orgUnitOptions: (search: string) =>
+    [
+      ...employeeRosterQueryKeys.all(),
+      "org-unit-options",
+      normalizeEmployeeRosterSearch(search),
+    ] as const,
   reportingLines: (employeeId: string) =>
     [...employeeRosterQueryKeys.all(), "reporting-lines", employeeId] as const,
   profile: (employeeId: string) =>
