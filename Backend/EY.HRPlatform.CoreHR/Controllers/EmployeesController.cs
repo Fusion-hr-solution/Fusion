@@ -50,6 +50,7 @@ public class EmployeesController(ISender sender) : ControllerBase
 
     /// <summary>
     /// Get a hierarchy tree for org chart rendering.
+    /// Supports focus-employee root resolution, org unit scoping, and inactive visibility.
     /// </summary>
     [HttpGet("org-chart")]
     [Authorize(Roles = PlatformRole.HRAdmin)]
@@ -57,12 +58,14 @@ public class EmployeesController(ISender sender) : ControllerBase
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetOrgChart(
         [FromQuery] Guid? rootEmployeeId,
+        [FromQuery] Guid? focusEmployeeId,
+        [FromQuery] Guid? orgUnitId,
         [FromQuery] int maxDepth = 10,
         [FromQuery] bool includeInactive = false,
         CancellationToken cancellationToken = default)
     {
         var result = await sender.Send(
-            new GetEmployeeOrgChartQuery(rootEmployeeId, maxDepth, includeInactive),
+            new GetEmployeeOrgChartQuery(rootEmployeeId, focusEmployeeId, orgUnitId, maxDepth, includeInactive),
             cancellationToken);
 
         if (result.IsFailure)
