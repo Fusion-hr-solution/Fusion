@@ -1,18 +1,26 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Background,
   BackgroundVariant,
   Controls,
   ReactFlow,
   type Edge,
+  type OnNodeDrag,
   type NodeTypes,
   type ReactFlowInstance,
+  type XYPosition,
 } from "@xyflow/react";
-import { createOrgChartFlow, type OrgChartFlowNode } from "./org-chart-layout";
+import {
+  createOrgChartFlow,
+  type OrgChartFlowNode,
+  ORG_CHART_NODE_WIDTH,
+  ORG_CHART_NODE_HEIGHT,
+} from "./org-chart-layout";
 import { OrgChartNode } from "./org-chart-node";
 import type { EmployeeOrgChartNodeDto } from "./org-chart.types";
+import type { ManagerReassignProposal } from "./manager-reassign-dialog";
 
 const nodeTypes = {
   employeeOrgChart: OrgChartNode,
@@ -21,6 +29,7 @@ const nodeTypes = {
 export interface OrgChartCanvasApi {
   fitToScreen: () => void;
   resetView: () => void;
+  focusNode: (nodeId: string) => void;
 }
 
 interface OrgChartCanvasProps {
@@ -35,6 +44,20 @@ interface OrgChartCanvasProps {
   fitViewKey: string;
   isOverviewMode: boolean;
   onCanvasApiReady?: (api: OrgChartCanvasApi | null) => void;
+  onReassignProposal?: (proposal: ManagerReassignProposal) => void;
+}
+
+function rectsOverlap(
+  ax: number,
+  ay: number,
+  aw: number,
+  ah: number,
+  bx: number,
+  by: number,
+  bw: number,
+  bh: number
+): boolean {
+  return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
 }
 
 export function OrgChartCanvas({
@@ -49,6 +72,7 @@ export function OrgChartCanvas({
   fitViewKey,
   isOverviewMode,
   onCanvasApiReady,
+  onReassignProposal,
 }: OrgChartCanvasProps) {
   const { nodes, edges } = useMemo(
     () =>
@@ -69,9 +93,12 @@ export function OrgChartCanvas({
       selectedEmployeeId,
     ]
   );
-  const [instance, setInstance] = useState<
-    ReactFlowInstance<OrgChartFlowNode, Edge> | null
-  >(null);
+  const [instance, setInstance] = useState<ReactFlowInstance<
+    OrgChartFlowNode,
+    Edge
+  > | null>(null);
+  // Store original position at drag-start so we can snap back on drop
+  const dragStartPositionRef = useRef<XYPosition | null>(null);
 
   const fitDefaultView = useCallback(() => {
     if (!instance || nodes.length === 0) {
@@ -82,7 +109,8 @@ export function OrgChartCanvas({
       const overviewLevel = nodes.length > 80 ? 0 : 1;
       const overviewNodes = nodes.filter(
         (node) =>
-          node.data.employee.level <= overviewLevel || node.id === selectedEmployeeId
+          node.data.employee.level <= overviewLevel ||
+          node.id === selectedEmployeeId
       );
 
       instance.fitView({
@@ -102,6 +130,33 @@ export function OrgChartCanvas({
     });
   }, [instance, isOverviewMode, nodes, selectedEmployeeId]);
 
+  const fitDefaultViewRef = useRef(fitDefaultView);
+  fitDefaultViewRef.current = fitDefaultView;
+
+  const centerNode = useCallback(
+    (nodeId: string, options?: { yOffset?: number; duration?: number }) => {
+      if (!instance) {
+        return;
+      }
+
+      const node = instance.getNode(nodeId);
+      if (!node) {
+        return;
+      }
+
+      const currentZoom = instance.getZoom();
+      instance.setCenter(
+        node.position.x + ORG_CHART_NODE_WIDTH / 2,
+        node.position.y + ORG_CHART_NODE_HEIGHT / 2 + (options?.yOffset ?? 0),
+        {
+          zoom: currentZoom,
+          duration: options?.duration ?? 220,
+        }
+      );
+    },
+    [instance]
+  );
+
   useEffect(() => {
     if (!onCanvasApiReady) {
       return;
@@ -117,14 +172,20 @@ export function OrgChartCanvas({
         instance.fitView({ duration: 250, padding: 0.2 });
       },
       resetView: () => {
-        fitDefaultView();
+        fitDefaultViewRef.current();
+      },
+      focusNode: (nodeId: string) => {
+        centerNode(nodeId, {
+          yOffset: ORG_CHART_NODE_HEIGHT * 0.2,
+          duration: 240,
+        });
       },
     });
-  }, [fitDefaultView, instance, onCanvasApiReady]);
+  }, [centerNode, fitDefaultView, instance, onCanvasApiReady]);
 
   useEffect(() => {
-    fitDefaultView();
-  }, [fitDefaultView, fitViewKey]);
+    fitDefaultViewRef.current();
+  }, [fitViewKey]);
 
   useEffect(() => {
     if (!instance || !focusEmployeeId) {
@@ -136,13 +197,80 @@ export function OrgChartCanvas({
       return;
     }
 
-    instance.fitView({
-      nodes: [targetNode],
-      duration: 300,
-      maxZoom: 1.1,
-      padding: 0.35,
+    centerNode(focusEmployeeId, {
+      yOffset: ORG_CHART_NODE_HEIGHT * 0.2,
+      duration: 240,
     });
-  }, [focusEmployeeId, focusRequestKey, instance, nodes]);
+  }, [centerNode, focusEmployeeId, focusRequestKey, instance, nodes]);
+
+  const handleNodeDragStart: OnNodeDrag<OrgChartFlowNode> = useCallback(
+    (_event, draggedNode) => {
+      dragStartPositionRef.current = { ...draggedNode.position };
+    },
+    []
+  );
+
+  const handleNodeDragStop: OnNodeDrag<OrgChartFlowNode> = useCallback(
+    (_event, draggedNode) => {
+      if (!instance || !onReassignProposal) {
+        // Snap back immediately since we don't handle drag without a handler
+        if (instance && dragStartPositionRef.current) {
+          const snapPos = dragStartPositionRef.current;
+          instance.setNodes((currentNodes) =>
+            (currentNodes as OrgChartFlowNode[]).map((n) =>
+              n.id === draggedNode.id ? { ...n, position: snapPos } : n
+            )
+          );
+        }
+        return;
+      }
+
+      const originalPos = dragStartPositionRef.current;
+
+      // Always snap the dragged node back to its original layout position
+      const snapPos = originalPos;
+      instance.setNodes((currentNodes) =>
+        (currentNodes as OrgChartFlowNode[]).map((n) =>
+          n.id === draggedNode.id
+            ? { ...n, position: snapPos ?? n.position }
+            : n
+        )
+      );
+
+      // Bounding-box hit test: find the topmost node that overlaps the dropped position
+      const draggedX = draggedNode.position.x;
+      const draggedY = draggedNode.position.y;
+      const allNodes = instance.getNodes() as OrgChartFlowNode[];
+
+      const target = allNodes.find((candidate) => {
+        if (candidate.id === draggedNode.id) return false;
+        return rectsOverlap(
+          draggedX,
+          draggedY,
+          ORG_CHART_NODE_WIDTH,
+          ORG_CHART_NODE_HEIGHT,
+          candidate.position.x,
+          candidate.position.y,
+          ORG_CHART_NODE_WIDTH,
+          ORG_CHART_NODE_HEIGHT
+        );
+      });
+
+      if (!target) return;
+
+      const draggedEmployee = (draggedNode as OrgChartFlowNode).data.employee;
+      const targetEmployee = target.data.employee;
+
+      // Skip trivial no-ops (dropping onto current manager)
+      if (targetEmployee.employeeId === draggedEmployee.managerId) return;
+
+      onReassignProposal({
+        employee: draggedEmployee,
+        proposedManager: targetEmployee,
+      });
+    },
+    [instance, onReassignProposal]
+  );
 
   return (
     <div className="h-full w-full">
@@ -154,7 +282,8 @@ export function OrgChartCanvas({
         maxZoom={1.5}
         fitView
         proOptions={{ hideAttribution: true }}
-        nodesDraggable={false}
+        nodesDraggable={!!onReassignProposal}
+        nodeDragThreshold={8}
         nodesConnectable={false}
         elementsSelectable={false}
         panOnDrag
@@ -163,13 +292,16 @@ export function OrgChartCanvas({
         zoomOnPinch
         zoomOnDoubleClick={false}
         onInit={setInstance}
-        className="bg-muted/20"
+        onNodeClick={(_event, node) => onSelectEmployee(node.id)}
+        onNodeDragStart={handleNodeDragStart}
+        onNodeDragStop={handleNodeDragStop}
+        className="bg-background"
       >
         <Background
           variant={BackgroundVariant.Dots}
-          gap={18}
-          size={1}
-          color="hsl(var(--border))"
+          gap={24}
+          size={0.75}
+          color="var(--color-border)"
         />
         <Controls showInteractive={false} position="bottom-right" />
       </ReactFlow>
