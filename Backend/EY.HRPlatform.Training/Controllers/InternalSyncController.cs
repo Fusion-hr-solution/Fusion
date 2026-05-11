@@ -1,4 +1,5 @@
 using EY.HRPlatform.Training.Features.Internal.Commands;
+using EY.HRPlatform.Training.Models.Requests;
 using EY.HRPlatform.Training.Models.Responses;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
@@ -57,9 +58,7 @@ public class InternalSyncController : ControllerBase
             return BadRequest(ApiResponse.Failure(result.Error.Message));
         }
 
-        return Ok();
+        return Ok(ApiResponse.Success());
     }
 }
 
-/// <summary>Request body for the employee provision endpoint.</summary>
-public sealed record ProvisionEmployeeRequest(Guid EmployeeId);

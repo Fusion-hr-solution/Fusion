@@ -16,6 +16,7 @@ public class GetMyCursusQueryHandler : IQueryHandler<GetMyCursusQuery, Result<My
     public async Task<Result<MyCursusDto>> Handle(GetMyCursusQuery request, CancellationToken cancellationToken)
     {
         var profile = await _db.EmployeeProfiles
+            .AsNoTracking()
             .FirstOrDefaultAsync(p => p.EmployeeId == request.EmployeeId, cancellationToken);
 
         if (profile is null)
@@ -27,12 +28,14 @@ public class GetMyCursusQueryHandler : IQueryHandler<GetMyCursusQuery, Result<My
 
         // Get IDs of shared service lines
         var sharedServiceLineIds = await _db.ServiceLines
+            .AsNoTracking()
             .Where(s => s.IsSharedAcrossAllServiceLines)
             .Select(s => s.Id)
             .ToListAsync(cancellationToken);
 
         // Fetch mappings: employee's (grade, SL) + any shared SLs
         var mappings = await _db.CurriculumMappings
+            .AsNoTracking()
             .Include(m => m.Training)
             .Include(m => m.ServiceLine)
             .Where(m => m.GradeId == profile.GradeId
@@ -46,6 +49,7 @@ public class GetMyCursusQueryHandler : IQueryHandler<GetMyCursusQuery, Result<My
         // Load the employee's training progress for matched trainings
         var trainingIds = mappings.Select(m => m.TrainingId).Distinct().ToList();
         var progressRecords = await _db.TrainingProgress
+            .AsNoTracking()
             .Where(p => p.EmployeeId == request.EmployeeId && trainingIds.Contains(p.TrainingId))
             .ToDictionaryAsync(p => p.TrainingId, cancellationToken);
 

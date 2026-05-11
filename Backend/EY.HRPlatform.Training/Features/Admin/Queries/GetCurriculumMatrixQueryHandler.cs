@@ -17,6 +17,7 @@ public class GetCurriculumMatrixQueryHandler
         GetCurriculumMatrixQuery request, CancellationToken cancellationToken)
     {
         var grades = await _db.Grades
+            .AsNoTracking()
             .OrderBy(g => g.Level)
             .Select(g => new GradeDto
             {
@@ -29,6 +30,7 @@ public class GetCurriculumMatrixQueryHandler
             .ToListAsync(cancellationToken);
 
         var serviceLines = await _db.ServiceLines
+            .AsNoTracking()
             .OrderBy(s => s.Name)
             .Select(s => new ServiceLineDto
             {
@@ -42,6 +44,7 @@ public class GetCurriculumMatrixQueryHandler
             .ToListAsync(cancellationToken);
 
         var cells = await _db.CurriculumMappings
+            .AsNoTracking()
             .GroupBy(m => new { m.GradeId, m.ServiceLineId })
             .Select(g => new CurriculumCellDto
             {

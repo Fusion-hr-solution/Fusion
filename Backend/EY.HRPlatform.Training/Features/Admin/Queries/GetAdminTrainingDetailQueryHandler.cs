@@ -16,6 +16,7 @@ public class GetAdminTrainingDetailQueryHandler : IQueryHandler<GetAdminTraining
         GetAdminTrainingDetailQuery request, CancellationToken cancellationToken)
     {
         var training = await _db.Trainings
+            .AsNoTracking()
             .IgnoreQueryFilters()
             .Include(t => t.Category)
             .Include(t => t.Chapters.OrderBy(c => c.OrderIndex))
