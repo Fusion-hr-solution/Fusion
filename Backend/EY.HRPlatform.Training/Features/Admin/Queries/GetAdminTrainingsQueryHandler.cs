@@ -17,8 +17,8 @@ public class GetAdminTrainingsQueryHandler : IQueryHandler<GetAdminTrainingsQuer
         GetAdminTrainingsQuery request, CancellationToken cancellationToken)
     {
         var query = request.IncludeDeleted
-            ? _db.Trainings.IgnoreQueryFilters()
-            : _db.Trainings.AsQueryable();
+            ? _db.Trainings.AsNoTracking().IgnoreQueryFilters()
+            : _db.Trainings.AsNoTracking();
 
         if (request.CategoryId.HasValue)
             query = query.Where(t => t.CategoryId == request.CategoryId.Value);

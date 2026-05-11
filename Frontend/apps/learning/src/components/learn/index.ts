@@ -6,3 +6,7 @@ export { ExamLockedBanner } from "./exam-locked-banner";
 export { ExamTakingView } from "./exam-taking-view";
 export { ExamQuestionItem } from "./exam-question-item";
 export { ExamResultView } from "./exam-result-view";
+export { OnSiteLearnView } from "./onsite-learn-view";
+export { ExamPlayerContent } from "./exam-player-content";
+export { ChapterContent } from "./chapter-content-section";
+export { ContentBlockView } from "./content-block-view";
