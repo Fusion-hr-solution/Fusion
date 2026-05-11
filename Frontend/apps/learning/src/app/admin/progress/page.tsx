@@ -1,5 +1,5 @@
-import { AdminDashboard } from "@/components/admin/admin-dashboard";
+import { redirect } from "next/navigation";
 
 export default function EmployeeProgressPage() {
-  return <AdminDashboard />;
+  redirect("/admin");
 }

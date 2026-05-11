@@ -62,6 +62,17 @@ export { AssignmentsView } from "./admin/assignments-view";
 export { SummaryCard } from "./admin/summary-card";
 export { CreateTrainingWizard } from "./admin/create-training-wizard";
 export { EditTrainingWizard } from "./admin/edit-training-wizard";
+export { ExamBuilder } from "./admin/exam-builder";
+export { QuestionFormDialog } from "./admin/question-form-dialog";
+export { ChapterPreview } from "./admin/chapter-preview";
+export { GradesManager } from "./admin/grades-manager";
+export { GradeForm } from "./admin/grade-form";
+export { ServiceLinesManager } from "./admin/service-lines-manager";
+export { ServiceLineForm } from "./admin/service-line-form";
+export { EmployeeProfilesManager } from "./admin/employee-profiles-manager";
+export { EmployeeProfileForm } from "./admin/employee-profile-form";
+export { CurriculumMatrixView } from "./admin/curriculum-matrix-view";
+export { CurriculumCellDrawer } from "./admin/curriculum-cell-drawer";
 export {
   PartsManagerSection,
   SessionStatusBadge,
@@ -72,6 +83,10 @@ export {
   SessionDetailView,
   SessionsPage as AdminSessionsPage,
 } from "./admin/sessions";
+export { MyCursusView } from "./my-cursus-view";
+export { CursusItemCard } from "./cursus-item-card";
+export { CursusSummaryCards } from "./cursus-summary-cards";
+export { TrainingEnrollCta } from "./training-enroll-cta";
 export { TrainingDetailPage } from "./training-detail-page";
 export { ExamCard } from "./exam-card";
 export {
@@ -88,4 +103,5 @@ export {
   ChapterContentView,
   ChapterNavigation,
   ExamLockedBanner,
+  OnSiteLearnView,
 } from "./learn";

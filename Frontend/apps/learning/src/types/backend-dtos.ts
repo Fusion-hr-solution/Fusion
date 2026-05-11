@@ -211,3 +211,112 @@ export interface BackendExamAttemptDto {
   passed: boolean;
   attemptedAt: string;
 }
+
+/* ── Admin Backend DTOs ── */
+
+export interface BackendAdminTrainingDto {
+  id: string;
+  title: string;
+  description: string | null;
+  credits: number;
+  isMandatory: boolean;
+  badgeLevel: string;
+  duration: string | null;
+  categoryId: string;
+  categoryName: string;
+  chapterCount: number;
+  enrollmentCount: number;
+  trainingType: string;
+  scheduledDate: string | null;
+  isDeleted: boolean;
+  createdAt: string;
+  updatedAt: string | null;
+}
+
+export interface BackendAdminChapterDto {
+  id: string;
+  title: string;
+  layout: string;
+  orderIndex: number;
+  createdAt: string;
+  updatedAt: string | null;
+  contentBlocks: BackendAdminContentBlockDto[];
+}
+
+export interface BackendAdminContentBlockDto {
+  id: string;
+  type: string;
+  orderIndex: number;
+  title: string | null;
+  textContent: string | null;
+  contentUri: string | null;
+  videoUrl: string | null;
+  estimatedDurationMinutes: number | null;
+  createdAt: string;
+  updatedAt: string | null;
+}
+
+export interface BackendAdminExamDto {
+  id: string;
+  title: string;
+  passingScore: number;
+  questionCount: number;
+}
+
+export interface BackendAdminExamDetailDto {
+  id: string;
+  trainingId: string;
+  title: string;
+  description: string | null;
+  passingScore: number;
+  durationMinutes: number | null;
+  createdAt: string;
+  updatedAt: string | null;
+  questions: BackendAdminExamQuestionDto[];
+}
+
+export interface BackendAdminExamQuestionDto {
+  id: string;
+  questionText: string;
+  type: string;
+  orderIndex: number;
+  points: number;
+  options: BackendAdminExamOptionDto[];
+}
+
+export interface BackendAdminExamOptionDto {
+  id: string;
+  optionText: string;
+  isCorrect: boolean;
+  orderIndex: number;
+}
+
+export interface BackendAdminTrainingDetailDto extends BackendAdminTrainingDto {
+  chapters: BackendAdminChapterDto[];
+  exams: BackendAdminExamDto[];
+  onSiteCourses: BackendOnSiteCourseDto[];
+}
+
+export interface BackendAssignmentDto {
+  id: string;
+  trainingId: string;
+  trainingTitle: string;
+  employeeId: string;
+  assignmentType: string;
+  assignedAt: string;
+  dueDate: string | null;
+  status: string | null;
+  progressPercentage: number;
+}
+
+export interface BackendArticleTemplateDto {
+  id: string;
+  name: string;
+  description: string | null;
+  sections: {
+    id: string;
+    label: string;
+    placeholder: string | null;
+    orderIndex: number;
+  }[];
+}

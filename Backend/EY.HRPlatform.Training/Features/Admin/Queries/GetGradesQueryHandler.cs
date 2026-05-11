@@ -15,6 +15,7 @@ public class GetGradesQueryHandler : IQueryHandler<GetGradesQuery, Result<List<G
     public async Task<Result<List<GradeDto>>> Handle(GetGradesQuery request, CancellationToken cancellationToken)
     {
         var grades = await _db.Grades
+            .AsNoTracking()
             .OrderBy(g => g.Level)
             .Select(g => new GradeDto
             {

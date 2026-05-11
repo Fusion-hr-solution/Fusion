@@ -17,6 +17,7 @@ public class GetCurriculumCellQueryHandler
         GetCurriculumCellQuery request, CancellationToken cancellationToken)
     {
         var mappings = await _db.CurriculumMappings
+            .AsNoTracking()
             .Where(m => m.GradeId == request.GradeId && m.ServiceLineId == request.ServiceLineId)
             .Include(m => m.Training)
             .OrderBy(m => m.OrderIndex)
