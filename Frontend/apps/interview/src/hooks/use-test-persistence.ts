@@ -39,7 +39,7 @@ export function useTestPersistence() {
       discipline: basicInfo.discipline,
       status,
       questionIds: selectedQuestions.map((question) => question.id),
-        maxAttempts: config.maxAttempts,
+      maxAttempts: config.maxAttempts,
     });
 
     // Guard against any backend fallback to Draft when publishing.

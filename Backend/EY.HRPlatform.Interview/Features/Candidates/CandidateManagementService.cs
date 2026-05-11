@@ -19,6 +19,7 @@ public class CandidateManagementService(
     : ICandidateManagementService
 {
     private const int DefaultTimelineEventRetentionDays = 90;
+    private static readonly Guid AttemptSettingsId = Guid.Parse("1f8197d0-4b62-4b54-8ed9-7ebf2fb02a51");
 
     public async Task<CandidateManagementOverviewDto> GetOverviewAsync(CancellationToken cancellationToken)
     {
@@ -307,7 +308,15 @@ public class CandidateManagementService(
     {
         var settings = await dbContext.CandidateAttemptSettings
             .AsNoTracking()
-            .FirstOrDefaultAsync(cancellationToken);
+            .FirstOrDefaultAsync(item => item.Id == AttemptSettingsId, cancellationToken);
+
+        if (settings is null)
+        {
+            settings = await dbContext.CandidateAttemptSettings
+                .AsNoTracking()
+                .OrderByDescending(item => item.CreatedAt)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
 
         if (settings is null)
         {
@@ -327,16 +336,34 @@ public class CandidateManagementService(
         var normalized = NormalizeAttemptSettings(request);
 
         var settings = await dbContext.CandidateAttemptSettings
-            .FirstOrDefaultAsync(cancellationToken);
+            .FirstOrDefaultAsync(item => item.Id == AttemptSettingsId, cancellationToken);
 
         if (settings is null)
         {
             settings = new CandidateAttemptSettings();
+            // Force singleton key without exposing a public setter on the entity.
+            dbContext.Entry(settings).Property(item => item.Id).CurrentValue = AttemptSettingsId;
             dbContext.CandidateAttemptSettings.Add(settings);
         }
 
         settings.DefaultMaxAttempts = normalized.DefaultMaxAttempts;
-        await dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            dbContext.ChangeTracker.Clear();
+            var reloaded = await dbContext.CandidateAttemptSettings
+                .AsNoTracking()
+                .FirstOrDefaultAsync(item => item.Id == AttemptSettingsId, cancellationToken);
+            if (reloaded is null)
+            {
+                throw;
+            }
+
+            return MapAttemptSettings(reloaded);
+        }
 
         return MapAttemptSettings(settings);
     }
@@ -615,7 +642,15 @@ public class CandidateManagementService(
     {
         var settings = await dbContext.CandidateAttemptSettings
             .AsNoTracking()
-            .FirstOrDefaultAsync(cancellationToken);
+            .FirstOrDefaultAsync(item => item.Id == AttemptSettingsId, cancellationToken);
+
+        if (settings is null)
+        {
+            settings = await dbContext.CandidateAttemptSettings
+                .AsNoTracking()
+                .OrderByDescending(item => item.CreatedAt)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
 
         return settings?.DefaultMaxAttempts ?? CandidateAttemptPolicy.DefaultMaxAttempts;
     }

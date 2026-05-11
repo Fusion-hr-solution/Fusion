@@ -116,10 +116,7 @@ public class TestService(AppDbContext dbContext) : ITestService
         test.Description = string.IsNullOrWhiteSpace(request.Description) ? string.Empty : request.Description.Trim();
         test.Discipline = ParseDiscipline(request.Discipline);
         test.Status = string.IsNullOrWhiteSpace(request.Status) ? test.Status : ParseStatus(request.Status);
-        if (request.MaxAttempts.HasValue)
-        {
-            test.MaxAttempts = request.MaxAttempts;
-        }
+        test.MaxAttempts = request.MaxAttempts;
 
         await dbContext.SaveChangesAsync(cancellationToken);
 

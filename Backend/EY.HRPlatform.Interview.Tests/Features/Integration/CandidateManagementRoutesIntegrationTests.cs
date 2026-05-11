@@ -200,6 +200,73 @@ public class CandidateManagementRoutesIntegrationTests
     }
 
     [Fact]
+    public async Task GetAttemptSettings_WhenUnset_ReturnsDefault()
+    {
+        await using var factory = new InterviewApiFactory();
+        var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost")
+        });
+
+        var response = await client.GetAsync("/api/interview/candidates/management/attempt-settings");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.True(json.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal(0, json.RootElement.GetProperty("data").GetProperty("defaultMaxAttempts").GetInt32());
+    }
+
+    [Fact]
+    public async Task SaveAttemptSettings_WhenValid_PersistsAndCanBeRetrieved()
+    {
+        await using var factory = new InterviewApiFactory();
+        var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost")
+        });
+
+        var saveResponse = await client.PutAsJsonAsync(
+            "/api/interview/candidates/management/attempt-settings",
+            new { defaultMaxAttempts = 3 });
+
+        Assert.Equal(HttpStatusCode.OK, saveResponse.StatusCode);
+
+        using var saveJson = JsonDocument.Parse(await saveResponse.Content.ReadAsStringAsync());
+        Assert.True(saveJson.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal(3, saveJson.RootElement.GetProperty("data").GetProperty("defaultMaxAttempts").GetInt32());
+
+        var getResponse = await client.GetAsync("/api/interview/candidates/management/attempt-settings");
+
+        Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
+
+        using var getJson = JsonDocument.Parse(await getResponse.Content.ReadAsStringAsync());
+        Assert.True(getJson.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal(3, getJson.RootElement.GetProperty("data").GetProperty("defaultMaxAttempts").GetInt32());
+    }
+
+    [Fact]
+    public async Task SaveAttemptSettings_WhenNegative_ReturnsBadRequest()
+    {
+        await using var factory = new InterviewApiFactory();
+        var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost")
+        });
+
+        var response = await client.PutAsJsonAsync(
+            "/api/interview/candidates/management/attempt-settings",
+            new { defaultMaxAttempts = -1 });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.False(json.RootElement.GetProperty("success").GetBoolean());
+        var message = json.RootElement.GetProperty("message").GetString() ?? string.Empty;
+        Assert.Contains("defaultMaxAttempts must be 0 or greater", message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task GrantRetake_WhenCandidateExists_CreatesPendingAttemptAndShowsItInTimeline()
     {
         await using var factory = new InterviewApiFactory();
