@@ -19,6 +19,7 @@ public class GetCellEmployeesQueryHandler
     {
         // 1 — profiles for this cell
         var profiles = await _db.EmployeeProfiles
+            .AsNoTracking()
             .Include(ep => ep.Grade)
             .Include(ep => ep.ServiceLine)
             .Where(ep => ep.GradeId == request.GradeId && ep.ServiceLineId == request.ServiceLineId)
@@ -29,6 +30,7 @@ public class GetCellEmployeesQueryHandler
 
         // 2 — curriculum mappings for this cell WITH training details
         var mappings = await _db.CurriculumMappings
+            .AsNoTracking()
             .Include(m => m.Training)
             .Where(m => m.GradeId == request.GradeId && m.ServiceLineId == request.ServiceLineId)
             .OrderBy(m => m.OrderIndex)
@@ -42,6 +44,7 @@ public class GetCellEmployeesQueryHandler
 
         var progressRows = curriculumTrainingIds.Count > 0 && employeeIds.Count > 0
             ? await _db.TrainingProgress
+                .AsNoTracking()
                 .Where(tp =>
                     employeeIds.Contains(tp.EmployeeId)
                     && curriculumTrainingIds.Contains(tp.TrainingId))

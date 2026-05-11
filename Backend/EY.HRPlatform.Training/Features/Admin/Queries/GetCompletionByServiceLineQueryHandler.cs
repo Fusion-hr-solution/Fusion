@@ -18,11 +18,13 @@ public class GetCompletionByServiceLineQueryHandler
         GetCompletionByServiceLineQuery request, CancellationToken cancellationToken)
     {
         var serviceLines = await _db.ServiceLines
+            .AsNoTracking()
             .OrderBy(s => s.Name)
             .ToListAsync(cancellationToken);
 
         // Batch 1: all profiles with grade + service line
         var profiles = await _db.EmployeeProfiles
+            .AsNoTracking()
             .Where(ep => ep.GradeId != null && ep.ServiceLineId != null)
             .Select(ep => new
             {
@@ -34,6 +36,7 @@ public class GetCompletionByServiceLineQueryHandler
 
         // Batch 2: all curriculum mappings
         var mappings = await _db.CurriculumMappings
+            .AsNoTracking()
             .Select(m => new { m.GradeId, m.ServiceLineId, m.TrainingId })
             .ToListAsync(cancellationToken);
 
@@ -48,6 +51,7 @@ public class GetCompletionByServiceLineQueryHandler
 
         var completedProgressRaw = profiledEmployeeIds.Count > 0 && allCurriculumTrainingIds.Count > 0
             ? await _db.TrainingProgress
+                .AsNoTracking()
                 .Where(tp =>
                     profiledEmployeeIds.Contains(tp.EmployeeId)
                     && allCurriculumTrainingIds.Contains(tp.TrainingId)

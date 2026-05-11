@@ -18,6 +18,7 @@ public class GetProgrammeMatrixQueryHandler
         GetProgrammeMatrixQuery request, CancellationToken cancellationToken)
     {
         var grades = await _db.Grades
+            .AsNoTracking()
             .OrderBy(g => g.Level)
             .Select(g => new GradeDto
             {
@@ -30,6 +31,7 @@ public class GetProgrammeMatrixQueryHandler
             .ToListAsync(cancellationToken);
 
         var serviceLines = await _db.ServiceLines
+            .AsNoTracking()
             .OrderBy(s => s.Name)
             .Select(s => new ServiceLineDto
             {
@@ -44,6 +46,7 @@ public class GetProgrammeMatrixQueryHandler
 
         // Get employee profiles grouped by grade + service line
         var profileGroups = await _db.EmployeeProfiles
+            .AsNoTracking()
             .Where(ep => ep.GradeId != null && ep.ServiceLineId != null)
             .GroupBy(ep => new { ep.GradeId, ep.ServiceLineId })
             .Select(g => new
@@ -56,6 +59,7 @@ public class GetProgrammeMatrixQueryHandler
 
         // Get curriculum mapping counts per cell
         var mappingCounts = await _db.CurriculumMappings
+            .AsNoTracking()
             .GroupBy(m => new { m.GradeId, m.ServiceLineId })
             .Select(g => new
             {
@@ -78,6 +82,7 @@ public class GetProgrammeMatrixQueryHandler
 
             // Get training IDs for this cell's curriculum
             var curriculumTrainingIds = await _db.CurriculumMappings
+                .AsNoTracking()
                 .Where(m => m.GradeId == group.GradeId && m.ServiceLineId == group.ServiceLineId)
                 .Select(m => m.TrainingId)
                 .ToListAsync(cancellationToken);
@@ -98,6 +103,7 @@ public class GetProgrammeMatrixQueryHandler
 
             // Count completed trainings for employees in this cell
             var progressStats = await _db.TrainingProgress
+                .AsNoTracking()
                 .Where(tp => group.EmployeeIds.Contains(tp.EmployeeId)
                     && curriculumTrainingIds.Contains(tp.TrainingId))
                 .GroupBy(_ => 1)

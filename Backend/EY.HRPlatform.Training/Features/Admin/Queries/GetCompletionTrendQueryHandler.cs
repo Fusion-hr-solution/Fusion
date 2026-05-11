@@ -20,6 +20,7 @@ public class GetCompletionTrendQueryHandler
         var cutoff = DateTime.UtcNow.AddMonths(-12);
 
         var monthlyData = await _db.TrainingProgress
+            .AsNoTracking()
             .Where(tp => tp.CreatedAt >= cutoff)
             .GroupBy(tp => new { tp.CreatedAt.Year, tp.CreatedAt.Month })
             .Select(g => new
