@@ -27,6 +27,7 @@ interface BackendTestDto {
   discipline: string;
   status: string;
   questionTypes: string[];
+  maxAttempts?: number | null;
   candidateCount: number;
   questionCount: number;
   createdAt: string;
@@ -36,6 +37,7 @@ interface UpsertTestRequest {
   description: string;
   discipline: Discipline;
   status: TestStatus;
+  maxAttempts?: number | null;
 }
 
 interface BackendQuestionDto {
@@ -133,6 +135,7 @@ function mapTest(dto: BackendTestDto): Test {
     discipline: asDiscipline(dto.discipline),
     status: asStatus(dto.status),
     questionTypes: dto.questionTypes.map(asQuestionType),
+    maxAttempts: dto.maxAttempts ?? null,
     candidateCount: dto.candidateCount,
     questionCount: dto.questionCount,
     createdAt: dto.createdAt,
@@ -247,6 +250,7 @@ interface PersistTestInput {
   discipline: Discipline;
   status: TestStatus;
   questionIds: string[];
+  maxAttempts?: number | null;
 }
 
 function toUpsertTestRequest(input: PersistTestInput): UpsertTestRequest {
@@ -255,6 +259,7 @@ function toUpsertTestRequest(input: PersistTestInput): UpsertTestRequest {
     description: input.description.trim(),
     discipline: input.discipline,
     status: input.status,
+    maxAttempts: input.maxAttempts ?? null,
   };
 }
 
@@ -333,5 +338,6 @@ export async function duplicateTest(test: Test): Promise<Test> {
     discipline: test.discipline,
     status: "Draft",
     questionIds,
+    maxAttempts: test.maxAttempts ?? null,
   });
 }

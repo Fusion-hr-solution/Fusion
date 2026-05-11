@@ -5,12 +5,15 @@ import type {
   CandidateLinkSecurityState,
   CandidateTimelineCandidate,
   CandidateManagementOverview,
+  CandidateAttemptSettings,
 } from "@/types";
 import type {
   BackendCandidateManagementOverviewDto,
   BackendCandidateInvitationDto,
   InviteCandidateInput,
   BackendCandidateLinkSecurityStateDto,
+  BackendCandidateAttemptSettingsDto,
+  SaveCandidateAttemptSettingsInput,
   SaveCandidateLinkSecurityInput,
   BackendCandidateTimelineCandidateDto,
   BackendCandidateProgressTimelineDto,
@@ -27,10 +30,12 @@ const CANDIDATE_INVITATIONS_PENDING_ENDPOINT = `${CANDIDATE_INVITATIONS_API}/pen
 const CANDIDATE_INVITATIONS_BULK_ENDPOINT = `${CANDIDATE_INVITATIONS_API}/bulk`;
 
 const CANDIDATE_MANAGEMENT_OVERVIEW_PATH = "/overview";
+const CANDIDATE_MANAGEMENT_ATTEMPT_SETTINGS_PATH = "/attempt-settings";
 const CANDIDATE_MANAGEMENT_LINK_SECURITY_PATH = "/link-security";
 const CANDIDATE_MANAGEMENT_TIMELINE_PATH = "/timeline";
 
 const CANDIDATE_MANAGEMENT_OVERVIEW_ENDPOINT = `${CANDIDATE_MANAGEMENT_API}${CANDIDATE_MANAGEMENT_OVERVIEW_PATH}`;
+const CANDIDATE_MANAGEMENT_ATTEMPT_SETTINGS_ENDPOINT = `${CANDIDATE_MANAGEMENT_API}${CANDIDATE_MANAGEMENT_ATTEMPT_SETTINGS_PATH}`;
 const CANDIDATE_MANAGEMENT_LINK_SECURITY_ENDPOINT = `${CANDIDATE_MANAGEMENT_API}${CANDIDATE_MANAGEMENT_LINK_SECURITY_PATH}`;
 const CANDIDATE_MANAGEMENT_TIMELINE_CANDIDATES_ENDPOINT = `${CANDIDATE_MANAGEMENT_API}${CANDIDATE_MANAGEMENT_TIMELINE_PATH}/candidates`;
 const CANDIDATE_MANAGEMENT_TIMELINE_ENDPOINT = `${CANDIDATE_MANAGEMENT_API}${CANDIDATE_MANAGEMENT_TIMELINE_PATH}`;
@@ -85,6 +90,12 @@ function mapLinkSecurityState(dto: BackendCandidateLinkSecurityStateDto): Candid
   };
 }
 
+function mapAttemptSettings(dto: BackendCandidateAttemptSettingsDto): CandidateAttemptSettings {
+  return {
+    defaultMaxAttempts: dto.defaultMaxAttempts,
+  };
+}
+
 function mapTimelineCandidate(dto: BackendCandidateTimelineCandidateDto): CandidateTimelineCandidate {
   return {
     candidateEmail: dto.candidateEmail,
@@ -127,6 +138,27 @@ export async function getCandidateManagementOverview(): Promise<CandidateManagem
     pendingDeletion: dto.pendingDeletion,
     generatedAtUtc: dto.generatedAtUtc,
   };
+}
+
+export async function getCandidateAttemptSettings(): Promise<CandidateAttemptSettings> {
+  const dto = await client.get<BackendCandidateAttemptSettingsDto>(
+    CANDIDATE_MANAGEMENT_ATTEMPT_SETTINGS_ENDPOINT
+  );
+
+  return mapAttemptSettings(dto);
+}
+
+export async function saveCandidateAttemptSettings(
+  input: SaveCandidateAttemptSettingsInput
+): Promise<CandidateAttemptSettings> {
+  const dto = await client.put<BackendCandidateAttemptSettingsDto>(
+    CANDIDATE_MANAGEMENT_ATTEMPT_SETTINGS_ENDPOINT,
+    {
+      defaultMaxAttempts: input.defaultMaxAttempts,
+    }
+  );
+
+  return mapAttemptSettings(dto);
 }
 
 export async function getPendingInvitations(testId?: string): Promise<CandidateInvitation[]> {

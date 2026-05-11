@@ -6,6 +6,7 @@ namespace EY.HRPlatform.Interview.Infrastructure;
 public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
     public DbSet<CandidateInvitation> CandidateInvitations => Set<CandidateInvitation>();
+    public DbSet<CandidateAttemptSettings> CandidateAttemptSettings => Set<CandidateAttemptSettings>();
     public DbSet<CandidateLinkSecuritySettings> CandidateLinkSecuritySettings => Set<CandidateLinkSecuritySettings>();
     public DbSet<CandidateProgressEvent> CandidateProgressEvents => Set<CandidateProgressEvent>();
     public DbSet<CandidateTestAttempt> CandidateTestAttempts => Set<CandidateTestAttempt>();
@@ -56,6 +57,21 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         }
 
         foreach (var entry in ChangeTracker.Entries<CandidateInvitation>())
+        {
+            if (entry.State == EntityState.Added)
+            {
+                entry.Property(x => x.CreatedAt).CurrentValue = utcNow;
+                entry.Property(x => x.UpdatedAt).CurrentValue = utcNow;
+            }
+
+            if (entry.State == EntityState.Modified)
+            {
+                entry.Property(x => x.UpdatedAt).CurrentValue = utcNow;
+                entry.Property(x => x.CreatedAt).IsModified = false;
+            }
+        }
+
+        foreach (var entry in ChangeTracker.Entries<CandidateAttemptSettings>())
         {
             if (entry.State == EntityState.Added)
             {

@@ -14,4 +14,6 @@ public class CreateTestDto
     public string Discipline { get; set; } = string.Empty;
 
     public string? Status { get; set; }
+
+    public int? MaxAttempts { get; set; }
 }

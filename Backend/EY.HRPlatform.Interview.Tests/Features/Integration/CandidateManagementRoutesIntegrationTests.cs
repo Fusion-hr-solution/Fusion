@@ -271,6 +271,80 @@ public class CandidateManagementRoutesIntegrationTests
         Assert.False(createdAttempt.SubmittedAtUtc.HasValue);
     }
 
+
+    [Fact]
+    public async Task GrantRetake_WhenMaxAttemptsReached_ReturnsConflict()
+    {
+        await using var factory = new InterviewApiFactory();
+        var testId = await SeedTestAsync(factory.Services);
+        await SetGlobalMaxAttemptsAsync(factory.Services, 1);
+
+        var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost")
+        });
+
+        const string candidateEmail = "retake-limit@example.com";
+        var invitation = await CreateInvitationAsync(client, testId, candidateEmail, "Retake Limit");
+        var token = ExtractToken(invitation.InviteLink);
+
+        var startResponse = await StartAttemptAsync(client, token, candidateEmail, "retake-limit-fp-1");
+        Assert.Equal(HttpStatusCode.OK, startResponse.StatusCode);
+
+        var submitResponse = await SubmitAttemptAsync(client, token, "retake-limit-fp-1");
+        Assert.Equal(HttpStatusCode.OK, submitResponse.StatusCode);
+
+        var response = await client.PostAsJsonAsync(
+            "/api/interview/candidates/management/retake",
+            new
+            {
+                testId = testId.ToString(),
+                candidateEmail,
+                sendNotification = false,
+            });
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var message = json.RootElement.GetProperty("message").GetString() ?? string.Empty;
+        Assert.Contains("Maximum attempts reached", message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task RegenerateLink_WhenMaxAttemptsReached_ReturnsConflict()
+    {
+        await using var factory = new InterviewApiFactory();
+        var testId = await SeedTestAsync(factory.Services);
+        await SetGlobalMaxAttemptsAsync(factory.Services, 1);
+
+        var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost")
+        });
+
+        const string candidateEmail = "regen-limit@example.com";
+        var invitation = await CreateInvitationAsync(client, testId, candidateEmail, "Regen Limit");
+        var token = ExtractToken(invitation.InviteLink);
+
+        var startResponse = await StartAttemptAsync(client, token, candidateEmail, "regen-limit-fp-1");
+        Assert.Equal(HttpStatusCode.OK, startResponse.StatusCode);
+
+        var submitResponse = await SubmitAttemptAsync(client, token, "regen-limit-fp-1");
+        Assert.Equal(HttpStatusCode.OK, submitResponse.StatusCode);
+
+        await SetInvitationStatusAsync(factory.Services, invitation.Id, "Invited");
+
+        var response = await client.PostAsync(
+            $"/api/interview/candidates/management/link-security/{testId}/regenerate",
+            content: null);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var message = json.RootElement.GetProperty("message").GetString() ?? string.Empty;
+        Assert.Contains("Maximum attempts reached", message, StringComparison.OrdinalIgnoreCase);
+    }
+
     private static void AssertMilestoneOrder(JsonElement milestones)
     {
         var names = milestones
@@ -410,6 +484,19 @@ public class CandidateManagementRoutesIntegrationTests
         Assert.NotNull(invitation);
 
         invitation!.Email = email;
+        await db.SaveChangesAsync();
+    }
+
+    private static async Task SetGlobalMaxAttemptsAsync(IServiceProvider services, int defaultMaxAttempts)
+    {
+        using var scope = services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        db.CandidateAttemptSettings.Add(new CandidateAttemptSettings
+        {
+            DefaultMaxAttempts = defaultMaxAttempts,
+        });
+
         await db.SaveChangesAsync();
     }
 
