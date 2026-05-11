@@ -119,18 +119,21 @@ public sealed class GetEmployeeOrgChartQueryHandler(
     /// Walk the manager chain from the given employee upward (with cycle guard) to find
     /// the topmost ancestor in the visible employee set. Returns the root's ID, or null
     /// if the focus employee does not exist.
+    /// Uses a single query to load all {Id, ManagerId} pairs, then walks in memory
+    /// to avoid an N+1 pattern on deep hierarchies.
     /// </summary>
     private async Task<Guid?> ResolveChainRootAsync(
         IQueryable<Employee> baseQuery,
         Guid focusEmployeeId,
         CancellationToken cancellationToken)
     {
-        var focusEmployee = await baseQuery
+        // One round-trip: load the full visible manager map up front.
+        var managerMap = await baseQuery
             .AsNoTracking()
             .Select(e => new { e.Id, e.ManagerId })
-            .FirstOrDefaultAsync(e => e.Id == focusEmployeeId, cancellationToken);
+            .ToDictionaryAsync(e => e.Id, cancellationToken);
 
-        if (focusEmployee is null)
+        if (!managerMap.TryGetValue(focusEmployeeId, out var focusEmployee))
         {
             return null;
         }
@@ -147,12 +150,7 @@ public sealed class GetEmployeeOrgChartQueryHandler(
                 break;
             }
 
-            var manager = await baseQuery
-                .AsNoTracking()
-                .Select(e => new { e.Id, e.ManagerId })
-                .FirstOrDefaultAsync(e => e.Id == currentId.Value, cancellationToken);
-
-            if (manager is null)
+            if (!managerMap.TryGetValue(currentId.Value, out var manager))
             {
                 // Manager is outside the visible set — rootId stays as the last valid ancestor
                 break;

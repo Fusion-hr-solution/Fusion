@@ -74,7 +74,7 @@ export function OrgChartCanvas({
   onCanvasApiReady,
   onReassignProposal,
 }: OrgChartCanvasProps) {
-  const { nodes, edges } = useMemo(
+  const { nodes: layoutNodes, edges } = useMemo(
     () =>
       createOrgChartFlow({
         roots,
@@ -92,6 +92,16 @@ export function OrgChartCanvas({
       roots,
       selectedEmployeeId,
     ]
+  );
+
+  // Per-node draggable: false in the layout overrides the global nodesDraggable flag in XYFlow,
+  // so we need to lift it to true when drag-to-reassign is enabled.
+  const nodes = useMemo(
+    () =>
+      onReassignProposal
+        ? layoutNodes.map((n) => ({ ...n, draggable: true }))
+        : layoutNodes,
+    [layoutNodes, onReassignProposal]
   );
   const [instance, setInstance] = useState<ReactFlowInstance<
     OrgChartFlowNode,

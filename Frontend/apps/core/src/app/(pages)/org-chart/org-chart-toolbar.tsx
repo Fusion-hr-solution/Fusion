@@ -73,6 +73,7 @@ interface OrgChartToolbarProps {
   searchIndex: OrgChartSearchItem[];
   selectedEmployee: EmployeeOrgChartNodeDto | null;
   focusedRootEmployeeId: string | null;
+  focusEmployeeId: string | null;
   maxDepth: number;
   totalVisibleNodeCount: number;
   isRefreshing: boolean;
@@ -93,6 +94,7 @@ export function OrgChartToolbar({
   searchIndex,
   selectedEmployee,
   focusedRootEmployeeId,
+  focusEmployeeId,
   maxDepth,
   totalVisibleNodeCount,
   isRefreshing,
@@ -112,6 +114,9 @@ export function OrgChartToolbar({
   const [searchQuery, setSearchQuery] = useState("");
   const [orgUnitOpen, setOrgUnitOpen] = useState(false);
   const [orgUnitSearch, setOrgUnitSearch] = useState("");
+  // Cache the selected org unit name so it remains visible when the user types
+  // a different search term and the selected unit is no longer in the results page.
+  const [orgUnitNameCache, setOrgUnitNameCache] = useState<string | null>(null);
 
   const { data: orgUnitOptions } = useEmployeeOrgUnitOptions({ search: orgUnitSearch });
 
@@ -142,6 +147,11 @@ export function OrgChartToolbar({
     () => orgUnitOptions?.items.find((u) => u.id === selectedOrgUnitId)?.name ?? null,
     [orgUnitOptions?.items, selectedOrgUnitId]
   );
+
+  // Prefer the name resolved from the current results page; fall back to the cached
+  // name from when the user last made a selection (covers the case where the selected
+  // unit has scrolled/searched out of the current results page).
+  const displayOrgUnitName = selectedOrgUnitName ?? (selectedOrgUnitId ? orgUnitNameCache : null);
 
   const totalIssues = issueCounts
     ? issueCounts.noManagerAssigned +
@@ -212,7 +222,7 @@ export function OrgChartToolbar({
 
             <Button
               variant="outline"
-              disabled={focusedRootEmployeeId === null && selectedOrgUnitId === null}
+              disabled={focusedRootEmployeeId === null && selectedOrgUnitId === null && focusEmployeeId === null}
               onClick={onShowFullOrganization}
             >
               <Undo2 />
@@ -243,7 +253,7 @@ export function OrgChartToolbar({
                   size="sm"
                 >
                   <Building2 />
-                  {selectedOrgUnitName ?? "All org units"}
+                  {displayOrgUnitName ?? "All org units"}
                 </Button>
               </PopoverTrigger>
               <PopoverContent align="end" className="w-72 p-0">
@@ -260,6 +270,7 @@ export function OrgChartToolbar({
                         value="__all__"
                         onSelect={() => {
                           onOrgUnitChange(null);
+                          setOrgUnitNameCache(null);
                           setOrgUnitOpen(false);
                         }}
                       >
@@ -271,6 +282,7 @@ export function OrgChartToolbar({
                           value={unit.name}
                           onSelect={() => {
                             onOrgUnitChange(unit.id);
+                            setOrgUnitNameCache(unit.name);
                             setOrgUnitOpen(false);
                           }}
                         >

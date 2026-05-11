@@ -217,7 +217,7 @@ export default function OrgChartPage() {
   const handlePreviewViewDirectReports = useCallback(
     (employeeId: string) => {
       setCollapsedEmployeeIds(new Set());
-      updateParams({ rootEmployeeId: employeeId, maxDepth: "2" });
+      updateParams({ rootEmployeeId: employeeId, maxDepth: "4" });
       setFocusRequestKey((k) => k + 1);
     },
     [updateParams]
@@ -317,6 +317,7 @@ export default function OrgChartPage() {
         searchIndex={searchIndex}
         selectedEmployee={selectedEmployee}
         focusedRootEmployeeId={rootEmployeeId}
+        focusEmployeeId={focusEmployeeId}
         maxDepth={maxDepth}
         totalVisibleNodeCount={data?.totalVisibleNodeCount ?? 0}
         isRefreshing={isFetching}
