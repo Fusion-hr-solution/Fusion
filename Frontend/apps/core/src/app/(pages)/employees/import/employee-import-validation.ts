@@ -276,6 +276,8 @@ function getGroupTitle(
       return "Manager email is duplicated in uploaded file";
     case "managerNotFound":
       return "Manager email could not be resolved";
+    case "managerInactive":
+      return "Manager is inactive";
     case "managerInvalidInBatch":
       return "Manager row must be fixed first";
     case "selfManager":
@@ -311,6 +313,8 @@ function getGroupShortLabel(issue: EmployeeImportValidationIssueDto) {
       return "Duplicate manager";
     case "managerNotFound":
       return "Unknown manager";
+    case "managerInactive":
+      return "Inactive manager";
     case "managerInvalidInBatch":
       return "Fix manager row";
     case "selfManager":
@@ -332,6 +336,7 @@ function getGroupValueLabel(issue: EmployeeImportValidationIssueDto) {
       return "Org unit code";
     case "ambiguousManagerEmail":
     case "managerNotFound":
+    case "managerInactive":
     case "managerInvalidInBatch":
       return "Manager email";
     case "invalidEmail":
@@ -395,6 +400,8 @@ function getRowDetails(rowIssues: EmployeeImportValidationIssueDto[]) {
         return [
           "This row references a manager email that appears multiple times in the uploaded file.",
         ];
+      case "managerInactive":
+        return ["This row references a manager who is inactive in the tenant."];
       case "managerInvalidInBatch":
         return [
           "This row depends on a manager record that is invalid in this upload.",

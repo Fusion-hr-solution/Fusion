@@ -729,6 +729,45 @@ public class EmployeeImportWorkflowTests
     }
 
     [Fact]
+    public async Task ValidateAsync_ReturnsErrorsForInactiveManager()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        await SeedPublishedSetupAsync(dbName);
+        await SeedOrgUnitAsync(dbName, "ENG-PLATFORM");
+
+        await using (var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName))
+        {
+            var inactiveManager = Employee.Create(
+                TenantId,
+                "Inactive",
+                "Manager",
+                "inactive.manager@contoso.com",
+                DateTime.SpecifyKind(new DateTime(2024, 1, 15), DateTimeKind.Utc),
+                null,
+                "Engineering Manager");
+            inactiveManager.Deactivate();
+            seedContext.Employees.Add(inactiveManager);
+            await seedContext.SaveChangesAsync();
+        }
+
+        await using var context = TestDbContextFactory.Create(TestTenantContext.WithTenant(TenantId), dbName);
+        var service = new EmployeeImportWorkflowService(context, TestTenantContext.WithTenant(TenantId), new EmployeeHierarchyService(context));
+        var file = CreateCsvFile(
+            "employees.csv",
+            """
+            firstName,lastName,email,hireDate,jobTitle,orgUnitCode,managerEmail
+            Sarah,Chen,sarah.chen@contoso.com,2024-01-15,Senior Engineer,ENG-PLATFORM,inactive.manager@contoso.com
+            """);
+
+        var uploadedSession = await service.UploadAsync(file, CancellationToken.None);
+        var validatedSession = await service.ValidateAsync(uploadedSession.Id, CancellationToken.None);
+
+        var issue = Assert.Single(validatedSession.ValidationIssues, current => current.Code == "managerInactive");
+        Assert.Equal("invalidReportingReference", issue.Category);
+        Assert.Equal("inactive.manager@contoso.com", issue.Value);
+    }
+
+    [Fact]
     public async Task ValidateAsync_ReturnsErrorsForSameFileManagerCycles()
     {
         var dbName = Guid.NewGuid().ToString();

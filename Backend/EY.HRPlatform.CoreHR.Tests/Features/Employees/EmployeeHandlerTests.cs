@@ -111,6 +111,64 @@ public class EmployeeHandlerTests
     }
 
     [Fact]
+    public async Task CreateEmployee_WithInactiveManager_ThrowsArgumentException()
+    {
+        // Arrange
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+        var manager = Employee.Create(TenantId, "Manager", "Person", "manager@example.com", DateTime.UtcNow);
+        manager.Deactivate();
+        seedContext.Employees.Add(manager);
+        await seedContext.SaveChangesAsync();
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = new CreateEmployeeCommandHandler(context, tenantContext, new EmployeeHierarchyService(context));
+        var command = new CreateEmployeeCommand(
+            "John",
+            "Doe",
+            "john.doe@example.com",
+            DateTime.UtcNow,
+            ManagerId: manager.Id);
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<ArgumentException>(
+            () => handler.Handle(command, CancellationToken.None));
+
+        Assert.Contains("inactive employee as manager", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task CreateEmployee_WithManagerFromDifferentTenant_ThrowsEntityNotFoundException()
+    {
+        // Arrange
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        var otherTenantId = Guid.NewGuid();
+
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+        var manager = Employee.Create(otherTenantId, "Manager", "Person", "manager@example.com", DateTime.UtcNow);
+        seedContext.Employees.Add(manager);
+        await seedContext.SaveChangesAsync();
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = new CreateEmployeeCommandHandler(context, tenantContext, new EmployeeHierarchyService(context));
+        var command = new CreateEmployeeCommand(
+            "John",
+            "Doe",
+            "john.doe@example.com",
+            DateTime.UtcNow,
+            ManagerId: manager.Id);
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<EntityNotFoundException>(
+            () => handler.Handle(command, CancellationToken.None));
+
+        Assert.Contains("Manager", exception.Message);
+    }
+
+    [Fact]
     public async Task CreateEmployee_WithOrgUnit_AssignsOrgUnitCorrectly()
     {
         // Arrange
@@ -453,6 +511,78 @@ public class EmployeeHandlerTests
     }
 
     [Fact]
+    public async Task UpdateEmployee_WithHireDate_UpdatesHireDate()
+    {
+        // Arrange
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        var originalHireDate = DateTime.UtcNow.AddYears(-2);
+        var updatedHireDate = DateTime.UtcNow.AddYears(-1);
+
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+        var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", originalHireDate);
+        seedContext.Employees.Add(employee);
+        await seedContext.SaveChangesAsync();
+        var version = employee.Version;
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = new UpdateEmployeeCommandHandler(context, new EmployeeHierarchyService(context));
+        var command = new UpdateEmployeeCommand(
+            employee.Id,
+            version,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            updatedHireDate);
+
+        // Act
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.Equal(updatedHireDate, result.Value.HireDate);
+
+        var saved = await context.Employees.IgnoreQueryFilters().FirstAsync(e => e.Id == employee.Id);
+        Assert.Equal(updatedHireDate, saved.HireDate);
+    }
+
+    [Fact]
+    public async Task UpdateEmployee_WithHireDateUsingUnspecifiedKind_ThrowsArgumentException()
+    {
+        // Arrange
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+        var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", DateTime.UtcNow.AddYears(-1));
+        seedContext.Employees.Add(employee);
+        await seedContext.SaveChangesAsync();
+        var version = employee.Version;
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = new UpdateEmployeeCommandHandler(context, new EmployeeHierarchyService(context));
+        var command = new UpdateEmployeeCommand(
+            employee.Id,
+            version,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Unspecified));
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<ArgumentException>(
+            () => handler.Handle(command, CancellationToken.None));
+
+        Assert.Contains("HireDate", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task UpdateEmployee_WithOrgUnit_AssignsOrgUnitCorrectly()
     {
         // Arrange
@@ -526,6 +656,41 @@ public class EmployeeHandlerTests
     }
 
     [Fact]
+    public async Task UpdateEmployee_WithInactiveOrgUnit_ThrowsArgumentException()
+    {
+        // Arrange
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+        var orgUnit = OrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null);
+        orgUnit.Deactivate();
+        var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", DateTime.UtcNow);
+        seedContext.OrgUnits.Add(orgUnit);
+        seedContext.Employees.Add(employee);
+        await seedContext.SaveChangesAsync();
+        var version = employee.Version;
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = new UpdateEmployeeCommandHandler(context, new EmployeeHierarchyService(context));
+        var command = new UpdateEmployeeCommand(
+            employee.Id,
+            version,
+            null,
+            null,
+            null,
+            null,
+            null,
+            orgUnit.Id);
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<ArgumentException>(
+            () => handler.Handle(command, CancellationToken.None));
+
+        Assert.Contains("inactive org unit", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task UpdateEmployee_WhenManagerAssignmentWouldCreateCycle_ThrowsArgumentException()
     {
         // Arrange
@@ -557,6 +722,40 @@ public class EmployeeHandlerTests
             () => handler.Handle(command, CancellationToken.None));
 
         Assert.Contains("cycle", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task UpdateEmployee_WithInactiveManager_ThrowsArgumentException()
+    {
+        // Arrange
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+        var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", DateTime.UtcNow);
+        var inactiveManager = Employee.Create(TenantId, "Inactive", "Manager", "inactive.manager@example.com", DateTime.UtcNow);
+        inactiveManager.Deactivate();
+        seedContext.Employees.AddRange(employee, inactiveManager);
+        await seedContext.SaveChangesAsync();
+        var employeeVersion = employee.Version;
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = new UpdateEmployeeCommandHandler(context, new EmployeeHierarchyService(context));
+        var command = new UpdateEmployeeCommand(
+            employee.Id,
+            employeeVersion,
+            null,
+            null,
+            null,
+            null,
+            inactiveManager.Id,
+            null);
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<ArgumentException>(
+            () => handler.Handle(command, CancellationToken.None));
+
+        Assert.Contains("inactive employee as manager", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     #endregion

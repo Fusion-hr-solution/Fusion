@@ -686,6 +686,57 @@ namespace EY.HRPlatform.Training.Migrations
                     b.ToTable("ServiceLines", "training");
                 });
 
+            modelBuilder.Entity("EY.HRPlatform.Training.Domain.Entities.SessionEnrollment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("AttendedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("CancelledAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("SessionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<int>("WaitlistPosition")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.HasIndex("SessionId");
+
+                    b.HasIndex("EmployeeId", "SessionId")
+                        .IsUnique()
+                        .HasFilter("\"Status\" != 'Cancelled'");
+
+                    b.ToTable("SessionEnrollments", "training");
+                });
+
             modelBuilder.Entity("EY.HRPlatform.Training.Domain.Entities.TrainingAssignment", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1200,6 +1251,17 @@ namespace EY.HRPlatform.Training.Migrations
                         .IsRequired();
 
                     b.Navigation("Training");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Training.Domain.Entities.SessionEnrollment", b =>
+                {
+                    b.HasOne("EY.HRPlatform.Training.Domain.Entities.TrainingSession", "Session")
+                        .WithMany()
+                        .HasForeignKey("SessionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Session");
                 });
 
             modelBuilder.Entity("EY.HRPlatform.Training.Domain.Entities.TrainingAssignment", b =>
