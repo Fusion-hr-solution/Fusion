@@ -52,7 +52,7 @@ public class GetEmployeeProfileQueryHandlerTests
     }
 
     [Fact]
-    public async Task GetEmployeeProfile_EmployeeWithNoManager_ReturnsNoManagerAssignedStatus()
+    public async Task GetEmployeeProfile_IsolatedEmployeeWithNoManager_ReturnsNoManagerAssignedStatus()
     {
         var dbName = Guid.NewGuid().ToString();
         var tenantContext = TestTenantContext.WithTenant(TenantId);
@@ -72,6 +72,31 @@ public class GetEmployeeProfileQueryHandlerTests
         Assert.Null(result.Value.ManagerFullName);
         Assert.Equal(EmployeeHierarchyStatuses.NoManagerAssigned, result.Value.HierarchyStatus);
         Assert.Equal(0, result.Value.DirectReportCount);
+    }
+
+    [Fact]
+    public async Task GetEmployeeProfile_TopLevelLeaderWithoutManager_ReturnsRootStatus()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+
+        var leader = Employee.Create(TenantId, "Emma", "Executive", "emma.executive@example.com", new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+        var directReport = Employee.Create(TenantId, "Sarah", "Chen", "sarah.chen@example.com", new DateTime(2021, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+        directReport.AssignManager(leader.Id);
+
+        seedContext.Employees.AddRange(leader, directReport);
+        await seedContext.SaveChangesAsync();
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = CreateHandler(context);
+
+        var result = await handler.Handle(new GetEmployeeProfileQuery(leader.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Null(result.Value.ManagerId);
+        Assert.Equal(EmployeeHierarchyStatuses.Root, result.Value.HierarchyStatus);
+        Assert.Equal(1, result.Value.DirectReportCount);
     }
 
     [Fact]

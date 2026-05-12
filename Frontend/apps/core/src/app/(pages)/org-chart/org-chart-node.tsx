@@ -17,6 +17,7 @@ function getStatusVariant(
 
 export const OrgChartNode = memo(function OrgChartNode({
   data,
+  dragging,
 }: NodeProps<OrgChartFlowNode>) {
   const issueMeta = getHierarchyIssueMeta(data.employee.hierarchyStatus);
   const handleClassName = cn(
@@ -37,14 +38,20 @@ export const OrgChartNode = memo(function OrgChartNode({
       <Card
         size="sm"
         className={cn(
-          "w-[288px] cursor-pointer border border-border/70 shadow-sm transition-all duration-200 hover:border-border hover:shadow-md",
+          "w-[288px] border border-border/70 shadow-sm transition-all duration-200 hover:border-border hover:shadow-md",
+          data.isReassignMode ? "cursor-grab" : "cursor-pointer",
           data.isOnSelectedPath && "border-primary/35 bg-primary/5 shadow-md",
           data.isDeemphasized && "border-border/50 opacity-50",
           data.isSelected &&
             "border-primary bg-primary/5 ring-2 ring-primary/40 shadow-lg opacity-100",
           data.isHighlighted &&
             !data.isSelected &&
-            "ring-2 ring-primary/60 shadow-lg"
+            "ring-2 ring-primary/60 shadow-lg",
+          data.isDropTarget &&
+            !dragging &&
+            "border-emerald-500/60 ring-2 ring-emerald-500/50 shadow-lg",
+          dragging &&
+            "cursor-grabbing border-primary/70 shadow-2xl opacity-95 scale-[1.02]"
         )}
       >
         <CardHeader className="border-b">
@@ -52,9 +59,11 @@ export const OrgChartNode = memo(function OrgChartNode({
             <CardTitle className="truncate leading-snug">
               {data.employee.fullName}
             </CardTitle>
-            <p className="mt-0.5 truncate text-xs text-muted-foreground">
-              {data.employee.jobTitle ?? "Job title not set"}
-            </p>
+            {data.showJobTitle && data.employee.jobTitle ? (
+              <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                {data.employee.jobTitle}
+              </p>
+            ) : null}
           </div>
         </CardHeader>
         <CardContent>

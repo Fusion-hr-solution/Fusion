@@ -562,6 +562,31 @@ public class GetEmployeesQueryHandlerTests
     }
 
     [Fact]
+    public async Task GetEmployees_TopLevelLeaderWithDirectReports_ReturnsRootStatus()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+
+        var leader = Employee.Create(TenantId, "Emma", "Executive", "emma.executive@example.com", DateTime.UtcNow);
+        var directReport = Employee.Create(TenantId, "Sarah", "Chen", "sarah.chen@example.com", DateTime.UtcNow);
+        directReport.AssignManager(leader.Id);
+
+        seedContext.Employees.AddRange(leader, directReport);
+        await seedContext.SaveChangesAsync();
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = CreateHandler(context);
+
+        var result = await handler.Handle(new GetEmployeesQuery(), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var leaderItem = result.Value.Items.Single(item => item.Id == leader.Id);
+        Assert.Equal(EmployeeHierarchyStatuses.Root, leaderItem.HierarchyStatus);
+        Assert.Equal(1, leaderItem.DirectReportCount);
+    }
+
+    [Fact]
     public async Task GetEmployees_IncludesDirectReportCount()
     {
         var dbName = Guid.NewGuid().ToString();

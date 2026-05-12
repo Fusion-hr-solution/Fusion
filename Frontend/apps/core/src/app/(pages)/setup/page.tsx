@@ -69,21 +69,19 @@ const SETUP_STEPS: Array<{
   {
     key: "activated",
     title: "Setup started",
-    description:
-      "The draft workspace is open and protected from the live structure.",
+    description: "The draft workspace is open and isolated from live.",
     icon: Flag,
   },
   {
     key: "structurallyGoverned",
     title: "Structure approved",
-    description: "The draft has been reviewed and locked for the next step.",
+    description: "The draft is reviewed and locked for the next step.",
     icon: ShieldCheck,
   },
   {
     key: "operational",
     title: "Setup complete",
-    description:
-      "The approved structure is live and ready for the next workflow.",
+    description: "The approved structure is live.",
     icon: Rocket,
   },
 ];
@@ -172,33 +170,31 @@ function getReviewCopy(phase: CoreSetupPhase) {
   switch (phase) {
     case "activated":
       return {
-        title: "Review the draft and approve it when ready",
-        description:
-          "Approval freezes the draft until it is reopened. Use it here or directly from the draft workspace once the remaining issues are clear.",
+        title: "Review the draft and approve when ready",
+        description: "Approval locks the draft until it is reopened.",
       };
     case "structurallyGoverned":
       return {
         title: "The structure is approved and ready to publish",
         description:
-          "Publishing moves the locked draft into the live structure and completes setup. Reopen it only if more changes are needed first.",
+          "Publishing moves the locked draft into live and completes setup.",
       };
     case "structurallyPublished":
       return {
         title: "Setup is complete",
         description:
-          "The live structure is in place. This page now stays available as the completion summary and activity record.",
+          "The live structure is in place. This page stays as the summary and activity record.",
       };
     case "operational":
       return {
         title: "Setup is complete",
         description:
-          "The live structure is in place. Use this page as the completion summary and activity record.",
+          "The live structure is in place. Use this page as the summary and activity record.",
       };
     default:
       return {
         title: "Start setup to open the draft workspace",
-        description:
-          "Create the first draft before review and approval can begin.",
+        description: "Create the first draft before review can begin.",
       };
   }
 }
@@ -206,12 +202,12 @@ function getReviewCopy(phase: CoreSetupPhase) {
 function getReadinessReviewDescription(phase: CoreSetupPhase) {
   switch (phase) {
     case "structurallyGoverned":
-      return "Publishing stays blocked until the locked draft has no blocking issues.";
+      return "Publishing stays blocked until the locked draft has no blockers.";
     case "structurallyPublished":
     case "operational":
-      return "These review results stay here as the final record of the checks that completed setup.";
+      return "These results remain as the final review record.";
     default:
-      return "Approval and publish stay blocked until the draft has no blocking issues.";
+      return "Approval and publish stay blocked until the draft has no blockers.";
   }
 }
 
@@ -264,12 +260,12 @@ function getWarningHint(
 function getCleanDraftMessage(phase: CoreSetupPhase) {
   switch (phase) {
     case "structurallyGoverned":
-      return "The draft is clean and locked. Publish it when you are ready, or reopen it if more changes are needed.";
+      return "The draft is clean and locked. Publish it when ready, or reopen it for more changes.";
     case "structurallyPublished":
     case "operational":
-      return "The final review checks passed and the live structure is now in place.";
+      return "The final review passed and the live structure is in place.";
     default:
-      return "The draft is clean. You can approve it when you are ready.";
+      return "The draft is clean. You can approve it when ready.";
   }
 }
 
@@ -425,10 +421,10 @@ export default function SetupPage() {
   const reviewCopy = getReviewCopy(setupState?.currentPhase ?? "notStarted");
   const pageError = localError ?? null;
   const pageDescription = isCoreUnlocked
-    ? "Review the completion summary, published structure snapshot, and setup history."
+    ? "Review the completion summary, published snapshot, and setup history."
     : setupState.currentPhase === "structurallyGoverned"
-      ? "Review the approved draft and publish it to live when the structure is ready."
-      : "Review draft readiness here and move the structure through approval when it is ready.";
+      ? "Review the approved draft and publish it when ready."
+      : "Review draft readiness and move the structure through approval.";
 
   const handleStartSetup = async () => {
     setLocalError(null);
@@ -497,7 +493,7 @@ export default function SetupPage() {
       <div className="flex flex-col gap-6 p-6">
         <PageHeader
           title="Organization Setup"
-          description="Start with the draft structure. When the first pass is ready, approve it there or from this review page."
+          description="Start with the draft structure. Approve it from there or from this review page when ready."
         />
 
         {pageError ? (
@@ -524,9 +520,8 @@ export default function SetupPage() {
                 Open the draft workspace
               </h2>
               <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-                Build the organization structure in a protected draft first.
-                Nothing touches the live structure until later steps are
-                complete.
+                Build the organization structure in a protected draft first. The
+                live structure stays untouched until later steps are complete.
               </p>
 
               <div className="mt-6 grid gap-3 md:grid-cols-3">
@@ -536,11 +531,11 @@ export default function SetupPage() {
                 />
                 <SummaryTile
                   title="Import when useful"
-                  description="Use the template if the structure already exists outside the system."
+                  description="Use the template if the structure already exists elsewhere."
                 />
                 <SummaryTile
                   title="Review before lock"
-                  description="Approve from the draft flow or from this page when the first pass is ready."
+                  description="Approve from the draft flow or from this page when ready."
                 />
               </div>
             </div>
@@ -554,8 +549,7 @@ export default function SetupPage() {
               <div className="rounded-xl border bg-muted/20 p-4">
                 <p className="text-sm font-medium">What happens next</p>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  Starting setup takes you straight into the draft structure
-                  workspace.
+                  Starting setup opens the draft structure workspace.
                 </p>
               </div>
               <Button
@@ -643,8 +637,8 @@ export default function SetupPage() {
                   )}
                 </p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  The live structure is in place. This page now stays as the
-                  completion summary and activity record.
+                  The live structure is in place. This page stays as the summary
+                  and activity record.
                 </p>
               </div>
             ) : setupState.approvedAt ? (
@@ -671,7 +665,7 @@ export default function SetupPage() {
                     <p className="text-sm font-medium">Approval lock</p>
                     <p className="mt-1 text-sm text-muted-foreground">
                       After approval, the draft becomes read-only until it is
-                      reopened from this page.
+                      reopened here.
                     </p>
                   </div>
                 </div>
@@ -823,7 +817,7 @@ export default function SetupPage() {
                 {hasDraftUnits && readiness.blockingIssues.length > 0 ? (
                   <IssueSection
                     title="Blocking issues"
-                    description="These must be cleared before approval."
+                    description="Clear these before approval."
                     issues={readiness.blockingIssues}
                   />
                 ) : null}
@@ -839,7 +833,7 @@ export default function SetupPage() {
                 {isDraftEmpty ? (
                   <div className="rounded-xl border bg-muted/20 p-4 text-sm text-muted-foreground">
                     Add the first unit or import the structure template before
-                    approval checks kick in.
+                    approval checks begin.
                   </div>
                 ) : readiness.blockingIssues.length === 0 &&
                   readiness.warnings.length === 0 ? (
@@ -857,8 +851,8 @@ export default function SetupPage() {
             <CardTitle>Recent activity</CardTitle>
             <CardDescription>
               {isCoreUnlocked
-                ? "This history remains available as the completion record for setup."
-                : "Approval, publish, reopen, and completion events are recorded here."}
+                ? "This history remains as the completion record for setup."
+                : "Approval, publish, reopen, and completion events appear here."}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -916,8 +910,7 @@ export default function SetupPage() {
             <AlertDialogTitle>Publish this structure to live?</AlertDialogTitle>
             <AlertDialogDescription>
               This publishes the approved draft to your live organization and
-              completes setup. If live units already exist, they will be
-              replaced in one step.
+              completes setup. Existing live units will be replaced in one step.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

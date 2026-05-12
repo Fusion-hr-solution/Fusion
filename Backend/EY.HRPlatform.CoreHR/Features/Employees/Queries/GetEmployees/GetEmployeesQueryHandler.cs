@@ -79,11 +79,11 @@ public sealed class GetEmployeesQueryHandler(
 
         var items = employees
             .Select(employee => employeeReadModelPolicy
-                .MapListItem(employee, settings, EmployeeReadAudience.HrAdmin)
-                with
-                {
-                    DirectReportCount = directReportCounts.GetValueOrDefault(employee.Id)
-                })
+                .MapListItem(
+                    employee,
+                    settings,
+                    EmployeeReadAudience.HrAdmin,
+                    directReportCounts.GetValueOrDefault(employee.Id)))
             .ToList();
 
         return Result.Success(new PagedResponse<EmployeeListItemDto>

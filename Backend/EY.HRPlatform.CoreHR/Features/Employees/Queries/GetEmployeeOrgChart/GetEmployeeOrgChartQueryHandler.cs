@@ -84,7 +84,7 @@ public sealed class GetEmployeeOrgChartQueryHandler(
                 []))
             .ToList();
 
-        var issueCounts = ComputeIssueCounts(employees);
+        var issueCounts = ComputeIssueCounts(employees, directReportCounts);
 
         return Result.Success(
             new EmployeeOrgChartDto(
@@ -192,7 +192,9 @@ public sealed class GetEmployeeOrgChartQueryHandler(
         return [.. result.Values];
     }
 
-    private static OrgChartIssueCountsDto ComputeIssueCounts(List<Employee> employees)
+    private static OrgChartIssueCountsDto ComputeIssueCounts(
+        List<Employee> employees,
+        IReadOnlyDictionary<Guid, int> directReportCounts)
     {
         int noManagerAssigned = 0, managerInactive = 0, managerMissing = 0, missingOrgUnit = 0;
 
@@ -205,7 +207,10 @@ public sealed class GetEmployeeOrgChartQueryHandler(
 
             if (employee.ManagerId is null)
             {
-                noManagerAssigned++;
+                if (directReportCounts.GetValueOrDefault(employee.Id) == 0)
+                {
+                    noManagerAssigned++;
+                }
             }
             else if (employee.Manager is null)
             {
@@ -325,12 +330,11 @@ public sealed class GetEmployeeOrgChartQueryHandler(
             }
         }
 
-        var listItem = employeeReadModelPolicy
-            .MapListItem(employee, settings, EmployeeReadAudience.HrAdmin)
-            with
-            {
-                DirectReportCount = directReportCounts.GetValueOrDefault(employee.Id)
-            };
+        var listItem = employeeReadModelPolicy.MapListItem(
+            employee,
+            settings,
+            EmployeeReadAudience.HrAdmin,
+            directReportCounts.GetValueOrDefault(employee.Id));
 
         return new EmployeeOrgChartNodeDto(
             listItem.Id,

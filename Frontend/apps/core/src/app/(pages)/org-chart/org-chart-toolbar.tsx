@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import {
   AlertTriangle,
+  ArrowRightLeft,
   Building2,
   CircleHelp,
   LocateFixed,
@@ -55,17 +56,20 @@ const CHART_GUIDE_ITEMS = [
   {
     label: "Needs reassignment",
     variant: "destructive" as const,
-    description: "The employee's current manager is inactive and should be replaced.",
+    description:
+      "The employee's current manager is inactive and should be replaced.",
   },
   {
     label: "Needs attention",
     variant: "destructive" as const,
-    description: "The manager reference no longer resolves in governed employee data.",
+    description:
+      "The manager reference no longer resolves in governed employee data.",
   },
   {
     label: "Detached branch",
     variant: "outline" as const,
-    description: "This branch is shown at the chart root because its visible manager is missing from the current chart.",
+    description:
+      "This branch is shown at the chart root because its visible manager is missing from the current chart.",
   },
 ];
 
@@ -76,6 +80,9 @@ interface OrgChartToolbarProps {
   focusEmployeeId: string | null;
   maxDepth: number;
   totalVisibleNodeCount: number;
+  isCanvasReady: boolean;
+  isNavigating: boolean;
+  isReassignMode: boolean;
   isRefreshing: boolean;
   includeInactive: boolean;
   selectedOrgUnitId: string | null;
@@ -84,6 +91,7 @@ interface OrgChartToolbarProps {
   onSelectSearchResult: (employeeId: string) => void;
   onFocusSelectedBranch: () => void;
   onShowFullOrganization: () => void;
+  onToggleReassignMode: () => void;
   onFitToScreen: () => void;
   onResetView: () => void;
   onIncludeInactiveChange: (include: boolean) => void;
@@ -97,6 +105,9 @@ export function OrgChartToolbar({
   focusEmployeeId,
   maxDepth,
   totalVisibleNodeCount,
+  isCanvasReady,
+  isNavigating,
+  isReassignMode,
   isRefreshing,
   includeInactive,
   selectedOrgUnitId,
@@ -105,6 +116,7 @@ export function OrgChartToolbar({
   onSelectSearchResult,
   onFocusSelectedBranch,
   onShowFullOrganization,
+  onToggleReassignMode,
   onFitToScreen,
   onResetView,
   onIncludeInactiveChange,
@@ -118,7 +130,9 @@ export function OrgChartToolbar({
   // a different search term and the selected unit is no longer in the results page.
   const [orgUnitNameCache, setOrgUnitNameCache] = useState<string | null>(null);
 
-  const { data: orgUnitOptions } = useEmployeeOrgUnitOptions({ search: orgUnitSearch });
+  const { data: orgUnitOptions } = useEmployeeOrgUnitOptions({
+    search: orgUnitSearch,
+  });
 
   const searchResults = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -144,14 +158,17 @@ export function OrgChartToolbar({
   }, [searchIndex, searchQuery]);
 
   const selectedOrgUnitName = useMemo(
-    () => orgUnitOptions?.items.find((u) => u.id === selectedOrgUnitId)?.name ?? null,
+    () =>
+      orgUnitOptions?.items.find((u) => u.id === selectedOrgUnitId)?.name ??
+      null,
     [orgUnitOptions?.items, selectedOrgUnitId]
   );
 
   // Prefer the name resolved from the current results page; fall back to the cached
   // name from when the user last made a selection (covers the case where the selected
   // unit has scrolled/searched out of the current results page).
-  const displayOrgUnitName = selectedOrgUnitName ?? (selectedOrgUnitId ? orgUnitNameCache : null);
+  const displayOrgUnitName =
+    selectedOrgUnitName ?? (selectedOrgUnitId ? orgUnitNameCache : null);
 
   const totalIssues = issueCounts
     ? issueCounts.noManagerAssigned +
@@ -159,6 +176,7 @@ export function OrgChartToolbar({
       issueCounts.managerMissing +
       issueCounts.missingOrgUnit
     : 0;
+  const isBusy = isNavigating || isRefreshing;
 
   return (
     <TooltipProvider>
@@ -182,7 +200,9 @@ export function OrgChartToolbar({
                     placeholder="Search loaded chart"
                   />
                   <CommandList>
-                    <CommandEmpty>No matching employee in the loaded chart.</CommandEmpty>
+                    <CommandEmpty>
+                      No matching employee in the loaded chart.
+                    </CommandEmpty>
                     <CommandGroup heading="People">
                       {searchResults.map((employee) => (
                         <CommandItem
@@ -195,7 +215,9 @@ export function OrgChartToolbar({
                           }}
                         >
                           <span className="flex min-w-0 flex-col gap-0.5">
-                            <span className="truncate font-medium">{employee.fullName}</span>
+                            <span className="truncate font-medium">
+                              {employee.fullName}
+                            </span>
                             <span className="truncate text-xs text-muted-foreground">
                               {[employee.jobTitle, employee.orgUnitName]
                                 .filter(Boolean)
@@ -213,7 +235,11 @@ export function OrgChartToolbar({
             {/* Focus/Return nav */}
             <Button
               variant="outline"
-              disabled={!selectedEmployee || selectedEmployee.employeeId === focusedRootEmployeeId}
+              disabled={
+                isBusy ||
+                !selectedEmployee ||
+                selectedEmployee.employeeId === focusedRootEmployeeId
+              }
               onClick={onFocusSelectedBranch}
             >
               <TreePine />
@@ -222,7 +248,12 @@ export function OrgChartToolbar({
 
             <Button
               variant="outline"
-              disabled={focusedRootEmployeeId === null && selectedOrgUnitId === null && focusEmployeeId === null}
+              disabled={
+                isBusy ||
+                (focusedRootEmployeeId === null &&
+                  selectedOrgUnitId === null &&
+                  focusEmployeeId === null)
+              }
               onClick={onShowFullOrganization}
             >
               <Undo2 />
@@ -231,8 +262,18 @@ export function OrgChartToolbar({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant={isReassignMode ? "secondary" : "outline"}
+              size="sm"
+              disabled={!isCanvasReady || totalVisibleNodeCount === 0}
+              onClick={onToggleReassignMode}
+            >
+              <ArrowRightLeft />
+              {isReassignMode ? "Reassign mode on" : "Reassign by drag"}
+            </Button>
+
             {/* Include inactive toggle */}
-            <div className="flex items-center gap-2 rounded-lg border px-3 py-2">
+            <div className="flex items-center gap-2 rounded-md border px-2 py-1">
               <Checkbox
                 id="include-inactive"
                 checked={includeInactive}
@@ -240,7 +281,10 @@ export function OrgChartToolbar({
                   onIncludeInactiveChange(checked === true)
                 }
               />
-              <Label htmlFor="include-inactive" className="cursor-pointer text-sm">
+              <Label
+                htmlFor="include-inactive"
+                className="cursor-pointer text-sm"
+              >
                 Include inactive
               </Label>
             </div>
@@ -296,15 +340,22 @@ export function OrgChartToolbar({
             </Popover>
 
             {/* Refresh indicator */}
-            {isRefreshing ? <Badge variant="secondary">Refreshing</Badge> : null}
+            {isBusy ? (
+              <Badge variant="secondary">
+                {isNavigating ? "Updating chart" : "Refreshing"}
+              </Badge>
+            ) : null}
             <Tooltip>
               <TooltipTrigger asChild>
                 <span>
-                  <Badge variant="outline">{totalVisibleNodeCount} loaded</Badge>
+                  <Badge variant="outline">
+                    {totalVisibleNodeCount} loaded
+                  </Badge>
                 </span>
               </TooltipTrigger>
               <TooltipContent side="bottom">
-                Loaded people in the current chart query. Collapsing a branch only hides it locally.
+                Loaded people in the current chart query. Collapsing a branch
+                only hides it locally.
               </TooltipContent>
             </Tooltip>
 
@@ -320,14 +371,20 @@ export function OrgChartToolbar({
                 <div className="space-y-1">
                   <p className="text-sm font-medium">Chart guide</p>
                   <p className="text-sm text-muted-foreground">
-                    Use these badges to spot reporting problems without leaving the chart.
+                    Use these badges to spot reporting problems without leaving
+                    the chart.
                   </p>
                 </div>
                 <div className="space-y-2">
                   {CHART_GUIDE_ITEMS.map((item) => (
-                    <div key={item.label} className="flex items-start gap-3 rounded-lg border p-3">
+                    <div
+                      key={item.label}
+                      className="flex items-start gap-3 rounded-lg border p-3"
+                    >
                       <Badge variant={item.variant}>{item.label}</Badge>
-                      <p className="text-sm text-muted-foreground">{item.description}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {item.description}
+                      </p>
                     </div>
                   ))}
                 </div>
@@ -365,7 +422,12 @@ export function OrgChartToolbar({
 
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="outline" size="sm" onClick={onResetView}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!isCanvasReady || isBusy}
+                  onClick={onResetView}
+                >
                   <LocateFixed />
                   Reset view
                 </Button>
@@ -376,6 +438,13 @@ export function OrgChartToolbar({
             </Tooltip>
           </div>
         </div>
+
+        {isReassignMode ? (
+          <div className="flex flex-wrap items-center gap-2 border-t border-border/50 pt-3 text-xs text-muted-foreground">
+            <Badge variant="secondary">Reassign mode</Badge>
+            <span>Drag one employee onto the new manager.</span>
+          </div>
+        ) : null}
 
         {/* Row 2: issue buckets (only shown when there are issues) */}
         {issueCounts && totalIssues > 0 ? (
@@ -416,7 +485,9 @@ export function OrgChartToolbar({
             <span className="text-muted-foreground">
               {selectedEmployee.managerName
                 ? `Reports to ${selectedEmployee.managerName}`
-                : "Top-level leader"}
+                : selectedEmployee.hierarchyStatus === "Root"
+                  ? "Top-level leader"
+                  : "No manager assigned"}
             </span>
             <span className="text-muted-foreground">
               {selectedEmployee.directReportCount > 0

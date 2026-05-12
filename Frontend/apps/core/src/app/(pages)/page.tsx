@@ -41,7 +41,7 @@ export default function DashboardPage() {
     return (
       <CorePageLoadingState
         title="Core workspace"
-        description="Use Dashboard as the operational summary for the Core workspaces that are live today."
+        description="Summary of active Core workspaces."
         message="Loading dashboard..."
         variant="dashboard"
       />
@@ -79,7 +79,7 @@ export default function DashboardPage() {
     <div className="flex min-h-full flex-col gap-6 p-6">
       <PageHeader
         title="Core workspace"
-        description="Use Dashboard as the operational summary for the Core workspaces that are live today."
+        description="Summary of active Core workspaces."
       />
 
       <Card className="py-0">
@@ -92,14 +92,8 @@ export default function DashboardPage() {
               </div>
               <div>
                 <h2 className="text-2xl font-semibold tracking-tight text-foreground">
-                  Core is intentionally centered on setup, organizations, and
-                  employee operations.
+                  Setup, organizations, and employee operations.
                 </h2>
-                <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-                  Navigation stays narrow on purpose. Placeholder areas stay out
-                  of the primary path until they have real workflows and backend
-                  support behind them.
-                </p>
               </div>
             </div>
 
@@ -171,8 +165,7 @@ export default function DashboardPage() {
                 })
               ) : (
                 <div className="rounded-xl border border-dashed bg-background p-4 text-sm text-muted-foreground">
-                  Your current role does not expose any primary Core workflows
-                  from Dashboard.
+                  No workspaces are available for your current role.
                 </div>
               )}
             </CardContent>

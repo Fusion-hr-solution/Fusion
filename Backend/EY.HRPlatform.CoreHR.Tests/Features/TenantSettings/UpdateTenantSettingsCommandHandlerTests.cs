@@ -651,6 +651,29 @@ public class UpdateTenantSettingsCommandHandlerTests
     }
 
     [Fact]
+    public async Task Handle_WithHireDateRequiredFalse_ThrowsArgumentException()
+    {
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        await using var context = TestDbContextFactory.Create(tenantContext);
+        var handler = new UpdateTenantSettingsCommandHandler(context, tenantContext);
+
+        var command = new UpdateTenantSettingsCommand(
+            ExpectedVersion: null,
+            OrgUnitTypes: null,
+            EmployeeFieldConfig: new Dictionary<string, FieldConfigInput>
+            {
+                ["hireDate"] = new FieldConfigInput(Visible: null, Required: false, VisibleToEmployee: null, VisibleToManager: null)
+            },
+            Branding: null);
+
+        var ex = await Assert.ThrowsAsync<ArgumentException>(
+            () => handler.Handle(command, CancellationToken.None));
+
+        Assert.Contains("hireDate", ex.Message);
+        Assert.Contains("optional", ex.Message);
+    }
+
+    [Fact]
     public async Task Handle_WithCoreFieldVisibleToEmployeeFalse_ThrowsArgumentException()
     {
         // Arrange

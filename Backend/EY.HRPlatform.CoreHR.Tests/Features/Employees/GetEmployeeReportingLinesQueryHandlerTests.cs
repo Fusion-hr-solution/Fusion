@@ -82,6 +82,32 @@ public class GetEmployeeReportingLinesQueryHandlerTests
     }
 
     [Fact]
+    public async Task GetEmployeeReportingLines_TopLevelLeaderWithoutManager_ReturnsRootStatus()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+
+        var leader = Employee.Create(TenantId, "Emma", "Executive", "emma.executive@example.com", DateTime.UtcNow);
+        var directReport = Employee.Create(TenantId, "Sarah", "Chen", "sarah.chen@example.com", DateTime.UtcNow);
+        directReport.AssignManager(leader.Id);
+
+        seedContext.Employees.AddRange(leader, directReport);
+        await seedContext.SaveChangesAsync();
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = CreateHandler(context);
+
+        var result = await handler.Handle(new GetEmployeeReportingLinesQuery(leader.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(EmployeeHierarchyStatuses.Root, result.Value.Employee.HierarchyStatus);
+        Assert.Empty(result.Value.ManagerChain);
+        Assert.Single(result.Value.DirectReports);
+        Assert.Single(result.Value.Downline);
+    }
+
+    [Fact]
     public async Task GetEmployeeReportingLines_FromDifferentTenant_ReturnsNotFound()
     {
         var dbName = Guid.NewGuid().ToString();

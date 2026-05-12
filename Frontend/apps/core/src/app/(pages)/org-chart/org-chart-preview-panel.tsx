@@ -18,6 +18,7 @@ import type { EmployeeOrgChartNodeDto } from "./org-chart.types";
 
 interface OrgChartPreviewPanelProps {
   employee: EmployeeOrgChartNodeDto | null;
+  showJobTitle: boolean;
   onClose: () => void;
   onOpenProfile: (employeeId: string) => void;
   onManageReportingRelationship: (employeeId: string) => void;
@@ -32,8 +33,19 @@ function getStatusVariant(
   return status === "Active" ? "secondary" : "outline";
 }
 
+function getManagerSummary(employee: EmployeeOrgChartNodeDto) {
+  if (employee.managerName) {
+    return `Reports to ${employee.managerName}`;
+  }
+
+  return employee.hierarchyStatus === "Root"
+    ? "Top-level leader"
+    : "No manager assigned";
+}
+
 export function OrgChartPreviewPanel({
   employee,
+  showJobTitle,
   onClose,
   onOpenProfile,
   onManageReportingRelationship,
@@ -59,9 +71,11 @@ export function OrgChartPreviewPanel({
           <p className="truncate font-semibold leading-tight">
             {employee.fullName}
           </p>
-          <p className="mt-0.5 truncate text-xs text-muted-foreground">
-            {employee.jobTitle ?? "Job title not set"}
-          </p>
+          {showJobTitle && employee.jobTitle ? (
+            <p className="mt-0.5 truncate text-xs text-muted-foreground">
+              {employee.jobTitle}
+            </p>
+          ) : null}
         </div>
         <Button
           variant="ghost"
@@ -98,11 +112,7 @@ export function OrgChartPreviewPanel({
         </div>
         <div className="flex items-center gap-2">
           <GitBranch className="size-3.5 shrink-0" />
-          <span className="truncate">
-            {employee.managerName
-              ? `Reports to ${employee.managerName}`
-              : "No manager assigned"}
-          </span>
+          <span className="truncate">{getManagerSummary(employee)}</span>
         </div>
         <div className="flex items-center gap-2">
           <Users className="size-3.5 shrink-0" />
@@ -129,7 +139,7 @@ export function OrgChartPreviewPanel({
           <div className="min-w-0">
             <p className="text-sm font-medium leading-none">Open profile</p>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              View full employee details
+              Full employee record
             </p>
           </div>
         </button>
@@ -176,7 +186,7 @@ export function OrgChartPreviewPanel({
                     Focus this branch
                   </p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    Narrow chart to just this team
+                    Show this team only
                   </p>
                 </div>
               </button>
@@ -195,7 +205,7 @@ export function OrgChartPreviewPanel({
                     {employee.managerName ?? "Go to manager"}
                   </p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    Select and pan to manager
+                    Select and center manager
                   </p>
                 </div>
               </button>
@@ -215,7 +225,7 @@ export function OrgChartPreviewPanel({
                     {employee.directReportCount !== 1 ? "s" : ""}
                   </p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    Zoom to this person&apos;s direct team
+                    Zoom to the direct team
                   </p>
                 </div>
               </button>

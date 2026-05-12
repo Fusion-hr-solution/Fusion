@@ -81,8 +81,14 @@ describe("org-chart-layout", () => {
     expect(flattened).toHaveLength(3);
     expect(searchIndex).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ employeeId: "root-1", fullName: "Emma Executive" }),
-        expect.objectContaining({ employeeId: "report-1", orgUnitName: "Engineering" }),
+        expect.objectContaining({
+          employeeId: "root-1",
+          fullName: "Emma Executive",
+        }),
+        expect.objectContaining({
+          employeeId: "report-1",
+          orgUnitName: "Engineering",
+        }),
       ])
     );
   });
@@ -104,6 +110,9 @@ describe("org-chart-layout", () => {
       collapsedEmployeeIds: new Set(),
       selectedEmployeeId: "manager-1",
       highlightedEmployeeId: "report-1",
+      showJobTitle: true,
+      isReassignMode: false,
+      dropTargetEmployeeId: null,
       onSelectEmployee,
       onToggleCollapse,
     });
@@ -111,25 +120,32 @@ describe("org-chart-layout", () => {
     expect(expandedFlow.nodes).toHaveLength(3);
     expect(expandedFlow.edges).toHaveLength(2);
     expect(
-      expandedFlow.nodes.find((node) => node.id === "manager-1")?.data.isSelected
+      expandedFlow.nodes.find((node) => node.id === "manager-1")?.data
+        .isSelected
     ).toBe(true);
     expect(
-      expandedFlow.nodes.find((node) => node.id === "root-1")?.data.isOnSelectedPath
+      expandedFlow.nodes.find((node) => node.id === "root-1")?.data
+        .isOnSelectedPath
     ).toBe(true);
     expect(
-      expandedFlow.nodes.find((node) => node.id === "root-1")?.data.hasVisibleParent
+      expandedFlow.nodes.find((node) => node.id === "root-1")?.data
+        .hasVisibleParent
     ).toBe(false);
     expect(
-      expandedFlow.nodes.find((node) => node.id === "manager-1")?.data.hasVisibleChildren
+      expandedFlow.nodes.find((node) => node.id === "manager-1")?.data
+        .hasVisibleChildren
     ).toBe(true);
     expect(
-      expandedFlow.nodes.find((node) => node.id === "report-1")?.data.hasVisibleChildren
+      expandedFlow.nodes.find((node) => node.id === "report-1")?.data
+        .hasVisibleChildren
     ).toBe(false);
     expect(
-      expandedFlow.nodes.find((node) => node.id === "report-1")?.data.isHighlighted
+      expandedFlow.nodes.find((node) => node.id === "report-1")?.data
+        .isHighlighted
     ).toBe(true);
     expect(
-      expandedFlow.edges.find((edge) => edge.id === "root-1-manager-1")?.style?.strokeWidth
+      expandedFlow.edges.find((edge) => edge.id === "root-1-manager-1")?.style
+        ?.strokeWidth
     ).toBe(2.5);
 
     const collapsedFlow = createOrgChartFlow({
@@ -137,13 +153,21 @@ describe("org-chart-layout", () => {
       collapsedEmployeeIds: new Set(["manager-1"]),
       selectedEmployeeId: null,
       highlightedEmployeeId: null,
+      showJobTitle: true,
+      isReassignMode: false,
+      dropTargetEmployeeId: null,
       onSelectEmployee,
       onToggleCollapse,
     });
 
     expect(collapsedFlow.nodes).toHaveLength(2);
     expect(collapsedFlow.edges).toHaveLength(1);
-    expect(collapsedFlow.nodes.find((node) => node.id === "manager-1")?.data.isCollapsed).toBe(true);
-    expect(collapsedFlow.nodes.find((node) => node.id === "report-1")).toBeUndefined();
+    expect(
+      collapsedFlow.nodes.find((node) => node.id === "manager-1")?.data
+        .isCollapsed
+    ).toBe(true);
+    expect(
+      collapsedFlow.nodes.find((node) => node.id === "report-1")
+    ).toBeUndefined();
   });
 });

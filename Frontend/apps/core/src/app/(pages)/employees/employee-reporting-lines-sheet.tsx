@@ -44,12 +44,14 @@ interface EmployeeReportingLinesSheetProps {
   employeeId: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  showJobTitle?: boolean;
 }
 
 export function EmployeeReportingLinesSheet({
   employeeId,
   open,
   onOpenChange,
+  showJobTitle = true,
 }: EmployeeReportingLinesSheetProps) {
   const { data, error, isLoading, refetch } = useEmployeeReportingLines(
     open ? employeeId : null
@@ -63,7 +65,7 @@ export function EmployeeReportingLinesSheet({
         ) : error ? (
           <ErrorState message={error.message} onRetry={() => refetch()} />
         ) : data ? (
-          <DetailContent data={data} />
+          <DetailContent data={data} showJobTitle={showJobTitle} />
         ) : (
           <EmptyState />
         )}
@@ -174,7 +176,13 @@ function EmptyState() {
   );
 }
 
-function DetailContent({ data }: { data: EmployeeReportingLinesDto }) {
+function DetailContent({
+  data,
+  showJobTitle,
+}: {
+  data: EmployeeReportingLinesDto;
+  showJobTitle: boolean;
+}) {
   const statusMeta = getRelationshipStatusMeta(data.employee.hierarchyStatus);
   const managerSummary = getCurrentManagerValue(data.employee);
   const [managerSearch, setManagerSearch] = useState("");
@@ -434,6 +442,7 @@ function DetailContent({ data }: { data: EmployeeReportingLinesDto }) {
             <RelationshipList
               items={data.directReports}
               emptyMessage="No immediate reports are linked to this employee."
+              showJobTitle={showJobTitle}
             />
           </section>
 
@@ -443,6 +452,7 @@ function DetailContent({ data }: { data: EmployeeReportingLinesDto }) {
               <RelationshipList
                 items={data.managerChain}
                 emptyMessage="No manager assigned."
+                showJobTitle={showJobTitle}
               />
             </section>
           ) : null}
@@ -637,9 +647,11 @@ function SectionHeader({
 function RelationshipList({
   items,
   emptyMessage,
+  showJobTitle,
 }: {
   items: EmployeeHierarchyNodeDto[];
   emptyMessage: string;
+  showJobTitle: boolean;
 }) {
   if (items.length === 0) {
     return (
@@ -669,9 +681,10 @@ function RelationshipList({
                 </p>
               </div>
             </div>
-            {node.employee.jobTitle || node.employee.orgUnitName ? (
+            {(showJobTitle && node.employee.jobTitle) ||
+            node.employee.orgUnitName ? (
               <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
-                {node.employee.jobTitle ? (
+                {showJobTitle && node.employee.jobTitle ? (
                   <span>{node.employee.jobTitle}</span>
                 ) : null}
                 {node.employee.orgUnitName ? (
@@ -697,6 +710,8 @@ function getRelationshipStatusMeta(status: EmployeeHierarchyStatus): {
   switch (status) {
     case "Healthy":
       return { label: "Manager assigned", variant: "secondary" };
+    case "Root":
+      return { label: "Top-level leader", variant: "secondary" };
     case "NoManagerAssigned":
       return { label: "No manager assigned", variant: "outline" };
     case "ManagerInactive":
@@ -707,6 +722,10 @@ function getRelationshipStatusMeta(status: EmployeeHierarchyStatus): {
 }
 
 function getCurrentManagerValue(employee: EmployeeRosterItem) {
+  if (employee.hierarchyStatus === "Root") {
+    return "Top-level leader";
+  }
+
   if (employee.hierarchyStatus === "NoManagerAssigned") {
     return "No manager assigned";
   }
@@ -716,8 +735,10 @@ function getCurrentManagerValue(employee: EmployeeRosterItem) {
 
 function getCurrentManagerSupportingText(employee: EmployeeRosterItem) {
   switch (employee.hierarchyStatus) {
+    case "Root":
+      return "No manager assignment needed.";
     case "NoManagerAssigned":
-      return "Top-level until a manager is assigned.";
+      return "Assign a manager to place this employee in the hierarchy.";
   }
 }
 

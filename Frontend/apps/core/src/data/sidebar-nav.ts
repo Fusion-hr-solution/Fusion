@@ -1,4 +1,11 @@
-import { LayoutDashboard, Users, Building, ClipboardList, Network } from "lucide-react";
+import {
+  Building,
+  ClipboardList,
+  LayoutDashboard,
+  Network,
+  Settings2,
+  Users,
+} from "lucide-react";
 import { type NavSection } from "@repo/ui";
 
 export const PEOPLE_NAV: NavSection = {
@@ -14,6 +21,7 @@ export const ADMIN_NAV: NavSection = {
   title: "Administration",
   items: [
     { label: "Setup", href: "/setup", icon: ClipboardList },
+    { label: "Settings", href: "/settings", icon: Settings2 },
     { label: "Organizations", href: "/organizations", icon: Building },
   ],
 };

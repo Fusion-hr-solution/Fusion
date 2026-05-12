@@ -52,6 +52,13 @@ interface OrganizationFormValues {
   orgUnitId: string;
 }
 
+interface EmployeeEmploymentEditSheetProps extends EmployeeProfileSheetProps {
+  showJobTitle: boolean;
+  showHireDate: boolean;
+  requireJobTitle: boolean;
+  requireHireDate: boolean;
+}
+
 function getMutationErrorMessage(error: unknown) {
   if (error instanceof ApiError) {
     if (error.status === 409 || error.status === 412) {
@@ -286,7 +293,11 @@ export function EmployeeEmploymentEditSheet({
   profile,
   open,
   onOpenChange,
-}: EmployeeProfileSheetProps) {
+  showJobTitle,
+  showHireDate,
+  requireJobTitle,
+  requireHireDate,
+}: EmployeeEmploymentEditSheetProps) {
   const updateEmployeeRecord = useUpdateEmployeeRecord();
   const [submitError, setSubmitError] = useState<string | null>(null);
   const form = useForm<EmploymentFormValues>({
@@ -312,11 +323,15 @@ export function EmployeeEmploymentEditSheet({
     setSubmitError(null);
 
     try {
-      await updateEmployeeRecord.mutateAsync({
+      const updatePayload = {
         employeeId: profile.id,
         expectedVersion: profile.version,
-        jobTitle: values.jobTitle.trim(),
-        hireDate: toApiHireDate(values.hireDate),
+        ...(showJobTitle ? { jobTitle: values.jobTitle.trim() } : {}),
+        ...(showHireDate ? { hireDate: toApiHireDate(values.hireDate) } : {}),
+      };
+
+      await updateEmployeeRecord.mutateAsync({
+        ...updatePayload,
       });
 
       toast.success("Employment details updated.");
@@ -337,34 +352,52 @@ export function EmployeeEmploymentEditSheet({
         className="space-y-6"
         onSubmit={form.handleSubmit((values) => void handleSubmit(values))}
       >
-        <div className="space-y-2">
-          <Label htmlFor="employment-job-title">Job title</Label>
-          <Input
-            id="employment-job-title"
-            placeholder="e.g. Senior HR Manager"
-            {...form.register("jobTitle")}
-          />
-          <p className="text-xs text-muted-foreground">
-            Leave blank if the role title is not yet assigned in the workforce
-            record.
-          </p>
-        </div>
+        {showJobTitle ? (
+          <div className="space-y-2">
+            <Label htmlFor="employment-job-title">Job title</Label>
+            <Input
+              id="employment-job-title"
+              placeholder="e.g. Senior HR Manager"
+              {...form.register(
+                "jobTitle",
+                requireJobTitle
+                  ? {
+                      validate: (value) =>
+                        value.trim().length > 0 || "Job title is required.",
+                    }
+                  : undefined
+              )}
+            />
+            {form.formState.errors.jobTitle ? (
+              <p className="text-sm text-destructive">
+                {form.formState.errors.jobTitle.message}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
 
-        <div className="space-y-2">
-          <Label htmlFor="employment-hire-date">Hire date</Label>
-          <Input
-            id="employment-hire-date"
-            type="date"
-            {...form.register("hireDate", {
-              required: "Hire date is required.",
-            })}
-          />
-          {form.formState.errors.hireDate ? (
-            <p className="text-sm text-destructive">
-              {form.formState.errors.hireDate.message}
-            </p>
-          ) : null}
-        </div>
+        {showHireDate ? (
+          <div className="space-y-2">
+            <Label htmlFor="employment-hire-date">Hire date</Label>
+            <Input
+              id="employment-hire-date"
+              type="date"
+              {...form.register(
+                "hireDate",
+                showHireDate && requireHireDate
+                  ? {
+                      required: "Hire date is required.",
+                    }
+                  : undefined
+              )}
+            />
+            {form.formState.errors.hireDate ? (
+              <p className="text-sm text-destructive">
+                {form.formState.errors.hireDate.message}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
 
         {submitError ? (
           <Alert variant="destructive">
@@ -493,7 +526,9 @@ export function EmployeeOrganizationEditSheet({
                 </p>
               </div>
               {selectedOrgUnitId === "" ? (
-                <span className="text-xs font-medium text-foreground">Selected</span>
+                <span className="text-xs font-medium text-foreground">
+                  Selected
+                </span>
               ) : null}
             </button>
 
@@ -687,7 +722,8 @@ export function EmployeeStatusSheet({
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>Deactivate this employee</AlertTitle>
             <AlertDescription>
-              Deactivation keeps the employee record intact, but marks the employee inactive for Core workforce operations.
+              Deactivation keeps the employee record intact, but marks the
+              employee inactive for Core workforce operations.
             </AlertDescription>
           </Alert>
         )}

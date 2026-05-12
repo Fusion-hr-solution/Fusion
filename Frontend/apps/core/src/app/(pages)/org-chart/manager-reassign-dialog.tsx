@@ -23,11 +23,13 @@ export interface ManagerReassignProposal {
 
 interface ManagerReassignDialogProps {
   proposal: ManagerReassignProposal | null;
+  showJobTitle: boolean;
   onClose: () => void;
 }
 
 export function ManagerReassignDialog({
   proposal,
+  showJobTitle,
   onClose,
 }: ManagerReassignDialogProps) {
   const [error, setError] = useState<string | null>(null);
@@ -63,8 +65,7 @@ export function ManagerReassignDialog({
   if (!proposal) return null;
 
   const { employee, proposedManager } = proposal;
-  const isDowngrade =
-    proposedManager.employmentStatus !== "Active";
+  const isDowngrade = proposedManager.employmentStatus !== "Active";
   const hasDirectReports = employee.directReportCount > 0;
 
   return (
@@ -73,9 +74,9 @@ export function ManagerReassignDialog({
         <DialogHeader>
           <DialogTitle>Reassign manager</DialogTitle>
           <DialogDescription>
-            Review the proposed reporting change before confirming. Backend rules
-            still apply — cycles, inactive managers, and self-assignment will be
-            rejected.
+            Review the proposed reporting change before confirming. Backend
+            rules still apply — cycles, inactive managers, and self-assignment
+            will be rejected.
           </DialogDescription>
         </DialogHeader>
 
@@ -85,7 +86,7 @@ export function ManagerReassignDialog({
             Employee being moved
           </p>
           <p className="font-semibold">{employee.fullName}</p>
-          {employee.jobTitle ? (
+          {showJobTitle && employee.jobTitle ? (
             <p className="text-sm text-muted-foreground">{employee.jobTitle}</p>
           ) : null}
           {hasDirectReports ? (
@@ -119,7 +120,7 @@ export function ManagerReassignDialog({
               Proposed manager
             </p>
             <p className="font-medium">{proposedManager.fullName}</p>
-            {proposedManager.jobTitle ? (
+            {showJobTitle && proposedManager.jobTitle ? (
               <p className="text-xs text-muted-foreground">
                 {proposedManager.jobTitle}
               </p>
@@ -163,10 +164,7 @@ export function ManagerReassignDialog({
           <Button variant="outline" onClick={onClose} disabled={isLoading}>
             Cancel
           </Button>
-          <Button
-            onClick={handleConfirm}
-            disabled={isLoading || isDowngrade}
-          >
+          <Button onClick={handleConfirm} disabled={isLoading || isDowngrade}>
             {isLoading ? "Reassigning…" : "Confirm reassignment"}
           </Button>
         </DialogFooter>

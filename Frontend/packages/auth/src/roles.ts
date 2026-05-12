@@ -29,6 +29,14 @@ export function canSeeCoreSetupNavigation(user: AuthUser | null): boolean {
   return canAccessCoreSetup(user);
 }
 
+export function canAccessCoreSettings(user: AuthUser | null): boolean {
+  return isTenantHrAdminOnly(user);
+}
+
+export function canSeeCoreSettingsNavigation(user: AuthUser | null): boolean {
+  return canAccessCoreSettings(user);
+}
+
 export function canAccessCorePeople(user: AuthUser | null): boolean {
   return isTenantHrAdminOnly(user);
 }
