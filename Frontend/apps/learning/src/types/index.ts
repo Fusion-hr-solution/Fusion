@@ -276,3 +276,76 @@ export interface MyCursus {
   summary: MyCursusSummary;
   items: MyCursusItem[];
 }
+
+/* ── Session Enrollment types (US-5.2.2) ── */
+
+export type EnrollmentStatus = "Enrolled" | "Waitlisted" | "Cancelled" | "Attended" | "NotEnrolled";
+
+export interface AvailableSession {
+  sessionId: string;
+  startUtc: string;
+  endUtc: string;
+  room: string;
+  trainerName: string | null;
+  trainerEmail: string | null;
+  maxCapacity: number;
+  enrolledCount: number;
+  availableSpots: number;
+  isFull: boolean;
+  status: string;
+}
+
+export interface PartWithSessions {
+  partId: string;
+  title: string;
+  description: string | null;
+  orderIndex: number;
+  durationHours: number;
+  sessions: AvailableSession[];
+}
+
+export interface AvailableSessionsForEnrollment {
+  trainingId: string;
+  trainingTitle: string;
+  parts: PartWithSessions[];
+}
+
+export interface SessionSelection {
+  partId: string;
+  sessionId: string;
+}
+
+export interface EnrollmentResultItem {
+  partId: string;
+  sessionId: string;
+  enrollmentId: string;
+  status: EnrollmentStatus;
+  waitlistPosition: number;
+}
+
+export interface EnrollInSessionsResult {
+  trainingId: string;
+  enrollments: EnrollmentResultItem[];
+}
+
+export interface MyPartEnrollment {
+  partId: string;
+  partTitle: string;
+  orderIndex: number;
+  sessionId: string | null;
+  sessionStartUtc: string | null;
+  sessionEndUtc: string | null;
+  room: string | null;
+  trainerName: string | null;
+  enrollmentStatus: EnrollmentStatus;
+  isAttended: boolean;
+}
+
+export interface MySessionEnrollments {
+  trainingId: string;
+  trainingTitle: string;
+  totalParts: number;
+  completedParts: number;
+  isTrainingCompleted: boolean;
+  parts: MyPartEnrollment[];
+}

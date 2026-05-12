@@ -320,3 +320,69 @@ export interface BackendArticleTemplateDto {
     orderIndex: number;
   }[];
 }
+
+/* ── Session Enrollment DTOs (US-5.2.2) ── */
+
+export interface BackendAvailableSessionDto {
+  sessionId: string;
+  startUtc: string;
+  endUtc: string;
+  room: string;
+  trainerName: string | null;
+  trainerEmail: string | null;
+  maxCapacity: number;
+  enrolledCount: number;
+  availableSpots: number;
+  isFull: boolean;
+  status: string;
+}
+
+export interface BackendPartWithSessionsDto {
+  partId: string;
+  title: string;
+  description: string | null;
+  orderIndex: number;
+  durationHours: number;
+  sessions: BackendAvailableSessionDto[];
+}
+
+export interface BackendAvailableSessionsForEnrollmentDto {
+  trainingId: string;
+  trainingTitle: string;
+  parts: BackendPartWithSessionsDto[];
+}
+
+export interface BackendEnrollmentResultItemDto {
+  partId: string;
+  sessionId: string;
+  enrollmentId: string;
+  status: string;
+  waitlistPosition: number;
+}
+
+export interface BackendEnrollInSessionsResultDto {
+  trainingId: string;
+  enrollments: BackendEnrollmentResultItemDto[];
+}
+
+export interface BackendMyPartEnrollmentDto {
+  partId: string;
+  partTitle: string;
+  orderIndex: number;
+  sessionId: string | null;
+  sessionStartUtc: string | null;
+  sessionEndUtc: string | null;
+  room: string | null;
+  trainerName: string | null;
+  enrollmentStatus: string;
+  isAttended: boolean;
+}
+
+export interface BackendMySessionEnrollmentsDto {
+  trainingId: string;
+  trainingTitle: string;
+  totalParts: number;
+  completedParts: number;
+  isTrainingCompleted: boolean;
+  parts: BackendMyPartEnrollmentDto[];
+}

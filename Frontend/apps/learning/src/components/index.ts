@@ -97,6 +97,7 @@ export {
   InstructorCard,
   TrainingTagsCard,
 } from "./training-detail";
+export { SessionEnrollmentPanel } from "./training-detail/session-enrollment";
 export {
   CoursePlayer,
   ChapterSidebar,
