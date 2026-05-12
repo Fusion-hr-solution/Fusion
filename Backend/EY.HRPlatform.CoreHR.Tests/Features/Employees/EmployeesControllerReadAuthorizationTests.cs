@@ -71,7 +71,8 @@ public class EmployeesControllerReadAuthorizationTests
     public void GetProfile_RequiresHrAdminRole()
     {
         // Arrange
-        var method = typeof(EmployeesController).GetMethod(nameof(EmployeesController.GetProfile));
+        // Use string name to avoid compile-time resolution issues in CI
+        var method = typeof(EmployeesController).GetMethod("GetProfile");
 
         // Act
         var authorize = method?.GetCustomAttribute<AuthorizeAttribute>(inherit: false);
