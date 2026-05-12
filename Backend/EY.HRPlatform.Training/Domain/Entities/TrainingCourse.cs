@@ -35,6 +35,9 @@ public class TrainingCourse : AggregateRoot
     private readonly List<OnSiteCourse> _onSiteCourses = [];
     public IReadOnlyCollection<OnSiteCourse> OnSiteCourses => _onSiteCourses.AsReadOnly();
 
+    private readonly List<TrainingPart> _parts = [];
+    public IReadOnlyCollection<TrainingPart> Parts => _parts.AsReadOnly();
+
     private TrainingCourse() { }
 
     public TrainingCourse(
