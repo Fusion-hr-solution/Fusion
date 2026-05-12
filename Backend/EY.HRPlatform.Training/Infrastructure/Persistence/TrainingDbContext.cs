@@ -15,6 +15,7 @@ public class TrainingDbContext : DbContext
     public DbSet<OnSiteCourse> OnSiteCourses => Set<OnSiteCourse>();
     public DbSet<TrainingPart> TrainingParts => Set<TrainingPart>();
     public DbSet<TrainingSession> TrainingSessions => Set<TrainingSession>();
+    public DbSet<SessionEnrollment> SessionEnrollments => Set<SessionEnrollment>();
     public DbSet<ChapterProgress> ChapterProgress => Set<ChapterProgress>();
     public DbSet<ContentBlockProgress> ContentBlockProgress => Set<ContentBlockProgress>();
     public DbSet<Exam> Exams => Set<Exam>();
@@ -155,6 +156,21 @@ public class TrainingDbContext : DbContext
             e.HasIndex(s => new { s.PartId, s.StartUtc });
             e.HasIndex(s => new { s.Room, s.StartUtc });
             e.HasIndex(s => s.TrainerEmployeeId);
+        });
+
+        // --- SessionEnrollment ---
+        modelBuilder.Entity<SessionEnrollment>(e =>
+        {
+            e.HasKey(se => se.Id);
+            e.Property(se => se.Status).HasConversion<string>().HasMaxLength(20);
+            e.HasOne(se => se.Session)
+                .WithMany()
+                .HasForeignKey(se => se.SessionId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(se => new { se.EmployeeId, se.SessionId }).IsUnique()
+                .HasFilter("\"Status\" != 'Cancelled'");
+            e.HasIndex(se => se.SessionId);
+            e.HasIndex(se => se.EmployeeId);
         });
 
         // --- ChapterProgress ---
