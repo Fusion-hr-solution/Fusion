@@ -57,10 +57,15 @@ export function useSessionEnrollment(trainingId: string) {
     setSelections((prev) => ({ ...prev, [partId]: sessionId }));
   }, []);
 
+  const selectableParts = useMemo(
+    () => (available ? available.parts.filter((p) => p.sessions.length > 0) : []),
+    [available],
+  );
+
   const allPartsSelected = useMemo(() => {
-    if (!available) return false;
-    return available.parts.every((p) => selections[p.partId]);
-  }, [available, selections]);
+    if (selectableParts.length === 0) return false;
+    return selectableParts.every((p) => selections[p.partId]);
+  }, [selectableParts, selections]);
 
   const selectionsList: SessionSelection[] = useMemo(
     () => Object.entries(selections).map(([partId, sessionId]) => ({ partId, sessionId })),
@@ -123,6 +128,7 @@ export function useSessionEnrollment(trainingId: string) {
     hasActiveEnrollments,
     selections,
     selectSession,
+    selectableParts,
     allPartsSelected,
     doEnroll,
     enrolling,

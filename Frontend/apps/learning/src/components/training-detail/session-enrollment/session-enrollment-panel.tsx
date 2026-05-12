@@ -18,6 +18,7 @@ export function SessionEnrollmentPanel({ trainingId }: SessionEnrollmentPanelPro
     hasActiveEnrollments,
     selections,
     selectSession,
+    selectableParts,
     allPartsSelected,
     doEnroll,
     enrolling,
@@ -84,7 +85,7 @@ export function SessionEnrollmentPanel({ trainingId }: SessionEnrollmentPanelPro
       <div className="flex items-center justify-between rounded-lg border border-primary/20 bg-primary/5 px-4 py-2.5">
         <p className="text-xs text-primary">
           <span className="font-semibold">
-            {Object.keys(selections).length}/{available.parts.length}
+            {Object.keys(selections).length}/{selectableParts.length}
           </span>{" "}
           parts selected
         </p>
