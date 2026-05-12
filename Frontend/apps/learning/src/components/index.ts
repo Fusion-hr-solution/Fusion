@@ -73,6 +73,16 @@ export { EmployeeProfilesManager } from "./admin/employee-profiles-manager";
 export { EmployeeProfileForm } from "./admin/employee-profile-form";
 export { CurriculumMatrixView } from "./admin/curriculum-matrix-view";
 export { CurriculumCellDrawer } from "./admin/curriculum-cell-drawer";
+export {
+  PartsManagerSection,
+  SessionStatusBadge,
+  PartFormDialog,
+  SessionFormDialog,
+  CancelSessionDialog,
+  SessionListTable,
+  SessionDetailView,
+  SessionsPage as AdminSessionsPage,
+} from "./admin/sessions";
 export { MyCursusView } from "./my-cursus-view";
 export { CursusItemCard } from "./cursus-item-card";
 export { CursusSummaryCards } from "./cursus-summary-cards";
