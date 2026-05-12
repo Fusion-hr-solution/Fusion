@@ -53,17 +53,39 @@ public class EnrollInSessionsCommandHandler : ICommandHandler<EnrollInSessionsCo
             return Result.Failure<EnrollInSessionsResultDto>(
                 Error.Validation("Enrollment.DuplicatePartSelection", "Each part must have exactly one session selection."));
 
-        if (!partIds.SetEquals(selectedPartIds.ToHashSet()))
+        // Only require selections for parts that have at least one non-cancelled/non-completed session
+        var nowUtc = DateTime.UtcNow;
+
+        var allPartSessions = await _db.TrainingSessions
+            .AsNoTracking()
+            .Where(s => partIds.Contains(s.PartId))
+            .ToListAsync(cancellationToken);
+
+        var enrollablePartIds = allPartSessions
+            .Where(s => s.EffectiveStatus(nowUtc) is not (SessionStatus.Cancelled or SessionStatus.Completed))
+            .Select(s => s.PartId)
+            .Distinct()
+            .ToHashSet();
+
+        if (enrollablePartIds.Count == 0)
             return Result.Failure<EnrollInSessionsResultDto>(
-                Error.Validation("Enrollment.IncompleteSelection", "You must select a session for each part of the training."));
+                Error.Validation("Enrollment.NoAvailableSessions", "No sessions are currently available for enrollment."));
+
+        // All selected parts must belong to this training
+        if (!selectedPartIds.ToHashSet().IsSubsetOf(partIds))
+            return Result.Failure<EnrollInSessionsResultDto>(
+                Error.Validation("Enrollment.InvalidPart", "One or more selected parts do not belong to this training."));
+
+        // All parts with available sessions must be covered
+        if (!enrollablePartIds.IsSubsetOf(selectedPartIds.ToHashSet()))
+            return Result.Failure<EnrollInSessionsResultDto>(
+                Error.Validation("Enrollment.IncompleteSelection", "You must select a session for each part that has available sessions."));
 
         // Validate each selected session belongs to its part and is valid
         var selectedSessionIds = request.Selections.Select(s => s.SessionId).ToList();
         var sessions = await _db.TrainingSessions
             .Where(s => selectedSessionIds.Contains(s.Id))
             .ToListAsync(cancellationToken);
-
-        var nowUtc = DateTime.UtcNow;
 
         foreach (var selection in request.Selections)
         {
