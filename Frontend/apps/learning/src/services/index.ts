@@ -8,3 +8,4 @@ export {
 } from "./learning-service";
 
 export * from "./admin-service";
+export * from "./admin-sessions-service";

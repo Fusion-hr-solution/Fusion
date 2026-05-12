@@ -11,12 +11,14 @@ import { ResendTab } from "@/components/candidate-management/tabs/resend-tab";
 import { LinkSecurityTab } from "@/components/candidate-management/tabs/link-security-tab";
 import { TimelineTab } from "@/components/candidate-management/tabs/timeline-tab";
 import { RetakeTab } from "@/components/candidate-management/tabs/retake-tab";
+import { AttemptLimitsTab } from "@/components/candidate-management/tabs/attempt-limits-tab";
 import type { CsvImportReport } from "@/services/models/csv_import_report_popup_model";
 import type { InviteResult } from "@/services/models/invite_result_popup_model";
 import type { InviteMethod } from "@/services/models/invite_tab_model";
 import type { ResendStatusFilter } from "@/services/models/resend_tab_model";
 import {
   grantCandidateRetake,
+  getCandidateAttemptSettings,
   getCandidateProgressTimeline,
   getCandidateTimelineCandidates,
   getCandidateLinkSecurityState,
@@ -25,6 +27,7 @@ import {
   inviteCandidates,
   regenerateCandidateLinkSecurityLink,
   resendInvitation,
+  saveCandidateAttemptSettings,
   saveCandidateLinkSecuritySettings,
 } from "@/services/candidate-management-service";
 import { getTests } from "@/services/test-service";
@@ -180,6 +183,11 @@ export function CandidateManagement() {
   const [linkSecurityError, setLinkSecurityError] = useState<string | null>(null);
   const [linkSecuritySuccess, setLinkSecuritySuccess] = useState<string | null>(null);
   const [linkPreview, setLinkPreview] = useState<CandidateLinkPreview | null>(null);
+  const [attemptSettingsLoading, setAttemptSettingsLoading] = useState(false);
+  const [attemptSettingsSaving, setAttemptSettingsSaving] = useState(false);
+  const [attemptSettingsError, setAttemptSettingsError] = useState<string | null>(null);
+  const [attemptSettingsSuccess, setAttemptSettingsSuccess] = useState<string | null>(null);
+  const [globalMaxAttempts, setGlobalMaxAttempts] = useState(0);
   const [timelineCandidates, setTimelineCandidates] = useState<CandidateTimelineCandidate[]>([]);
   const [timelineCandidatesForTestId, setTimelineCandidatesForTestId] = useState("");
   const [timelineCandidatesLoading, setTimelineCandidatesLoading] = useState(false);
@@ -338,6 +346,43 @@ export function CandidateManagement() {
   }, [activeTab, selectedTestId]);
 
   useEffect(() => {
+    if (activeTab !== "limits") {
+      return;
+    }
+
+    let isMounted = true;
+
+    async function loadAttemptSettings() {
+      setAttemptSettingsLoading(true);
+      setAttemptSettingsError(null);
+
+      try {
+        const settings = await getCandidateAttemptSettings();
+        if (!isMounted) {
+          return;
+        }
+        setGlobalMaxAttempts(settings.defaultMaxAttempts);
+      } catch (err) {
+        if (!isMounted) {
+          return;
+        }
+        setAttemptSettingsError(err instanceof Error ? err.message : "Failed to load attempt settings.");
+      } finally {
+        if (!isMounted) {
+          return;
+        }
+        setAttemptSettingsLoading(false);
+      }
+    }
+
+    void loadAttemptSettings();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [activeTab]);
+
+  useEffect(() => {
     if ((activeTab !== "timeline" && activeTab !== "retake") || !selectedTestId) {
       return;
     }
@@ -452,6 +497,15 @@ export function CandidateManagement() {
     setGrantRetakeError(null);
     setGrantRetakeSuccess(null);
   }, [selectedTestId, selectedTimelineCandidateEmail]);
+
+  useEffect(() => {
+    if (activeTab !== "limits") {
+      return;
+    }
+
+    setAttemptSettingsError(null);
+    setAttemptSettingsSuccess(null);
+  }, [activeTab, globalMaxAttempts]);
 
   useEffect(() => {
     if (
@@ -652,6 +706,24 @@ export function CandidateManagement() {
       hour: "2-digit",
       minute: "2-digit",
     });
+  }
+
+  async function handleSaveAttemptSettings(): Promise<void> {
+    setAttemptSettingsSaving(true);
+    setAttemptSettingsError(null);
+    setAttemptSettingsSuccess(null);
+
+    try {
+      const saved = await saveCandidateAttemptSettings({
+        defaultMaxAttempts: globalMaxAttempts,
+      });
+      setGlobalMaxAttempts(saved.defaultMaxAttempts);
+      setAttemptSettingsSuccess("Attempt policy saved.");
+    } catch (err) {
+      setAttemptSettingsError(err instanceof Error ? err.message : "Failed to save attempt settings.");
+    } finally {
+      setAttemptSettingsSaving(false);
+    }
   }
 
   function switchTab(tab: CandidateTabKey): void {
@@ -1253,6 +1325,19 @@ export function CandidateManagement() {
                 grantRetakeError={grantRetakeError}
                 grantRetakeSuccess={grantRetakeSuccess}
                 onGrantRetake={handleGrantRetake}
+              />
+            ) : activeTab === "limits" ? (
+              <AttemptLimitsTab
+                selectedTestId={selectedTestId}
+                setSelectedTestId={setSelectedTestId}
+                tests={tests}
+                globalMaxAttempts={globalMaxAttempts}
+                setGlobalMaxAttempts={setGlobalMaxAttempts}
+                attemptSettingsLoading={attemptSettingsLoading}
+                attemptSettingsSaving={attemptSettingsSaving}
+                attemptSettingsError={attemptSettingsError}
+                attemptSettingsSuccess={attemptSettingsSuccess}
+                onSaveAttemptSettings={handleSaveAttemptSettings}
               />
             ) : (
               <div className="mt-5 rounded-xl border border-zinc-200 bg-zinc-50 p-4">

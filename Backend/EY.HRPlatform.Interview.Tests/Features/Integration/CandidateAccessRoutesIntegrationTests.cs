@@ -438,6 +438,81 @@ public class CandidateAccessRoutesIntegrationTests
     }
 
     [Fact]
+    public async Task StartAndSubmit_WhenMaxAttemptsReached_ReturnsConflict()
+    {
+        await using var factory = new InterviewApiFactory();
+        var testId = await SeedTestAsync(factory.Services);
+        var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost")
+        });
+
+        await SetGlobalMaxAttemptsAsync(factory.Services, 1);
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            db.CandidateLinkSecuritySettings.Add(new CandidateLinkSecuritySettings
+            {
+                TestId = testId,
+                SingleUseLinkEnabled = false,
+                EmailVerificationEnabled = true,
+                IpLockEnabled = false,
+                BrowserFingerprintEnabled = false,
+                LinkValidForValue = 7,
+                LinkValidForUnit = "days",
+                GracePeriodValue = 30,
+                GracePeriodUnit = "minutes",
+            });
+            await db.SaveChangesAsync();
+        }
+
+        var invitation = await CreateInvitationAsync(client, testId, "reuse-limited@example.com");
+        var token = ExtractToken(invitation.InviteLink);
+
+        var startResponse = await client.PostAsJsonAsync(
+            "/api/interview/candidate-access/start",
+            new
+            {
+                token,
+                candidateEmail = "reuse-limited@example.com",
+                browserFingerprint = "integration-browser-fingerprint",
+            });
+        Assert.Equal(HttpStatusCode.OK, startResponse.StatusCode);
+
+        var submitResponse = await client.PostAsJsonAsync(
+            "/api/interview/candidate-access/submit",
+            new
+            {
+                token,
+                browserFingerprint = "integration-browser-fingerprint",
+                answers = new
+                {
+                    responses = new[]
+                    {
+                        new { questionId = "q1", answerText = "answer" }
+                    }
+                },
+                result = new { score = 80 }
+            });
+        Assert.Equal(HttpStatusCode.OK, submitResponse.StatusCode);
+
+        var reuseResponse = await client.PostAsJsonAsync(
+            "/api/interview/candidate-access/start",
+            new
+            {
+                token,
+                candidateEmail = "reuse-limited@example.com",
+                browserFingerprint = "integration-browser-fingerprint",
+            });
+        Assert.Equal(HttpStatusCode.Conflict, reuseResponse.StatusCode);
+
+        using var reuseJson = JsonDocument.Parse(await reuseResponse.Content.ReadAsStringAsync());
+        var message = reuseJson.RootElement.GetProperty("message").GetString() ?? string.Empty;
+        Assert.Contains("Maximum attempts reached", message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task Start_WhenTokenExpired_ReturnsGone()
     {
         await using var factory = new InterviewApiFactory();
@@ -514,6 +589,19 @@ public class CandidateAccessRoutesIntegrationTests
         await db.SaveChangesAsync();
 
         return test.Id;
+    }
+
+    private static async Task SetGlobalMaxAttemptsAsync(IServiceProvider services, int defaultMaxAttempts)
+    {
+        using var scope = services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        db.CandidateAttemptSettings.Add(new CandidateAttemptSettings
+        {
+            DefaultMaxAttempts = defaultMaxAttempts,
+        });
+
+        await db.SaveChangesAsync();
     }
 
     private static string ExtractToken(string inviteLink)

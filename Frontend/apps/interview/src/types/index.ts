@@ -36,6 +36,7 @@ export interface Test {
   discipline: Discipline;
   status: TestStatus;
   questionTypes: QuestionType[];
+  maxAttempts?: number | null;
   candidateCount: number;
   questionCount: number;
   createdAt: string;
@@ -170,6 +171,10 @@ export interface CandidateLinkSecuritySettings {
   linkValidForUnit: LinkValidityUnit;
   gracePeriodValue: number;
   gracePeriodUnit: GracePeriodUnit;
+}
+
+export interface CandidateAttemptSettings {
+  defaultMaxAttempts: number;
 }
 
 export interface CandidateLinkPreview {

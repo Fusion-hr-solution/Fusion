@@ -29,6 +29,9 @@ public class TestConfiguration : IEntityTypeConfiguration<Test>
             .IsRequired()
             .HasDefaultValue(TestStatus.Draft);
 
+        builder.Property(t => t.MaxAttempts)
+            .IsRequired(false);
+
         builder.Property(t => t.CandidateCount)
             .HasDefaultValue(0)
             .IsRequired();

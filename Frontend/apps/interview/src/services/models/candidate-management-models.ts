@@ -77,6 +77,14 @@ export interface BackendCandidateLinkSecurityStateDto {
   preview: BackendCandidateLinkPreviewDto;
 }
 
+export interface BackendCandidateAttemptSettingsDto {
+  defaultMaxAttempts: number;
+}
+
+export interface SaveCandidateAttemptSettingsInput {
+  defaultMaxAttempts: number;
+}
+
 export interface SaveCandidateLinkSecurityInput extends CandidateLinkSecuritySettings {
   testId: string;
 }

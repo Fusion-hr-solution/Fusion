@@ -200,6 +200,73 @@ public class CandidateManagementRoutesIntegrationTests
     }
 
     [Fact]
+    public async Task GetAttemptSettings_WhenUnset_ReturnsDefault()
+    {
+        await using var factory = new InterviewApiFactory();
+        var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost")
+        });
+
+        var response = await client.GetAsync("/api/interview/candidates/management/attempt-settings");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.True(json.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal(0, json.RootElement.GetProperty("data").GetProperty("defaultMaxAttempts").GetInt32());
+    }
+
+    [Fact]
+    public async Task SaveAttemptSettings_WhenValid_PersistsAndCanBeRetrieved()
+    {
+        await using var factory = new InterviewApiFactory();
+        var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost")
+        });
+
+        var saveResponse = await client.PutAsJsonAsync(
+            "/api/interview/candidates/management/attempt-settings",
+            new { defaultMaxAttempts = 3 });
+
+        Assert.Equal(HttpStatusCode.OK, saveResponse.StatusCode);
+
+        using var saveJson = JsonDocument.Parse(await saveResponse.Content.ReadAsStringAsync());
+        Assert.True(saveJson.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal(3, saveJson.RootElement.GetProperty("data").GetProperty("defaultMaxAttempts").GetInt32());
+
+        var getResponse = await client.GetAsync("/api/interview/candidates/management/attempt-settings");
+
+        Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
+
+        using var getJson = JsonDocument.Parse(await getResponse.Content.ReadAsStringAsync());
+        Assert.True(getJson.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal(3, getJson.RootElement.GetProperty("data").GetProperty("defaultMaxAttempts").GetInt32());
+    }
+
+    [Fact]
+    public async Task SaveAttemptSettings_WhenNegative_ReturnsBadRequest()
+    {
+        await using var factory = new InterviewApiFactory();
+        var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost")
+        });
+
+        var response = await client.PutAsJsonAsync(
+            "/api/interview/candidates/management/attempt-settings",
+            new { defaultMaxAttempts = -1 });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.False(json.RootElement.GetProperty("success").GetBoolean());
+        var message = json.RootElement.GetProperty("message").GetString() ?? string.Empty;
+        Assert.Contains("defaultMaxAttempts must be 0 or greater", message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task GrantRetake_WhenCandidateExists_CreatesPendingAttemptAndShowsItInTimeline()
     {
         await using var factory = new InterviewApiFactory();
@@ -269,6 +336,80 @@ public class CandidateManagementRoutesIntegrationTests
         Assert.NotNull(createdAttempt);
         Assert.Equal(default, createdAttempt!.StartedAtUtc);
         Assert.False(createdAttempt.SubmittedAtUtc.HasValue);
+    }
+
+
+    [Fact]
+    public async Task GrantRetake_WhenMaxAttemptsReached_ReturnsConflict()
+    {
+        await using var factory = new InterviewApiFactory();
+        var testId = await SeedTestAsync(factory.Services);
+        await SetGlobalMaxAttemptsAsync(factory.Services, 1);
+
+        var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost")
+        });
+
+        const string candidateEmail = "retake-limit@example.com";
+        var invitation = await CreateInvitationAsync(client, testId, candidateEmail, "Retake Limit");
+        var token = ExtractToken(invitation.InviteLink);
+
+        var startResponse = await StartAttemptAsync(client, token, candidateEmail, "retake-limit-fp-1");
+        Assert.Equal(HttpStatusCode.OK, startResponse.StatusCode);
+
+        var submitResponse = await SubmitAttemptAsync(client, token, "retake-limit-fp-1");
+        Assert.Equal(HttpStatusCode.OK, submitResponse.StatusCode);
+
+        var response = await client.PostAsJsonAsync(
+            "/api/interview/candidates/management/retake",
+            new
+            {
+                testId = testId.ToString(),
+                candidateEmail,
+                sendNotification = false,
+            });
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var message = json.RootElement.GetProperty("message").GetString() ?? string.Empty;
+        Assert.Contains("Maximum attempts reached", message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task RegenerateLink_WhenMaxAttemptsReached_ReturnsConflict()
+    {
+        await using var factory = new InterviewApiFactory();
+        var testId = await SeedTestAsync(factory.Services);
+        await SetGlobalMaxAttemptsAsync(factory.Services, 1);
+
+        var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost")
+        });
+
+        const string candidateEmail = "regen-limit@example.com";
+        var invitation = await CreateInvitationAsync(client, testId, candidateEmail, "Regen Limit");
+        var token = ExtractToken(invitation.InviteLink);
+
+        var startResponse = await StartAttemptAsync(client, token, candidateEmail, "regen-limit-fp-1");
+        Assert.Equal(HttpStatusCode.OK, startResponse.StatusCode);
+
+        var submitResponse = await SubmitAttemptAsync(client, token, "regen-limit-fp-1");
+        Assert.Equal(HttpStatusCode.OK, submitResponse.StatusCode);
+
+        await SetInvitationStatusAsync(factory.Services, invitation.Id, "Invited");
+
+        var response = await client.PostAsync(
+            $"/api/interview/candidates/management/link-security/{testId}/regenerate",
+            content: null);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var message = json.RootElement.GetProperty("message").GetString() ?? string.Empty;
+        Assert.Contains("Maximum attempts reached", message, StringComparison.OrdinalIgnoreCase);
     }
 
     private static void AssertMilestoneOrder(JsonElement milestones)
@@ -410,6 +551,19 @@ public class CandidateManagementRoutesIntegrationTests
         Assert.NotNull(invitation);
 
         invitation!.Email = email;
+        await db.SaveChangesAsync();
+    }
+
+    private static async Task SetGlobalMaxAttemptsAsync(IServiceProvider services, int defaultMaxAttempts)
+    {
+        using var scope = services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        db.CandidateAttemptSettings.Add(new CandidateAttemptSettings
+        {
+            DefaultMaxAttempts = defaultMaxAttempts,
+        });
+
         await db.SaveChangesAsync();
     }
 

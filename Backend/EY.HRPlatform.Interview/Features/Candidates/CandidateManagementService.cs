@@ -19,6 +19,7 @@ public class CandidateManagementService(
     : ICandidateManagementService
 {
     private const int DefaultTimelineEventRetentionDays = 90;
+    private static readonly Guid AttemptSettingsId = Guid.Parse("1f8197d0-4b62-4b54-8ed9-7ebf2fb02a51");
 
     public async Task<CandidateManagementOverviewDto> GetOverviewAsync(CancellationToken cancellationToken)
     {
@@ -197,6 +198,12 @@ public class CandidateManagementService(
                 cancellationToken)
             ?? throw new ApiException("Candidate invitation was not found.", StatusCodes.Status404NotFound);
 
+        var effectiveMaxAttempts = await GetEffectiveMaxAttemptsAsync(parsedTestId, cancellationToken);
+        if (CandidateAttemptPolicy.IsLimitReached(effectiveMaxAttempts, invitation.Attempts.Count))
+        {
+            throw new ApiException("Maximum attempts reached.", StatusCodes.Status409Conflict);
+        }
+
         var settings = await GetEffectiveSettingsAsync(parsedTestId, cancellationToken);
         var nowUtc = DateTime.UtcNow;
         var token = GenerateToken();
@@ -295,6 +302,70 @@ public class CandidateManagementService(
             InviteLink = invitation.InviteLink,
             TokenExpiresAtUtc = invitation.TokenExpiresAtUtc.ToString("O"),
         };
+    }
+
+    public async Task<CandidateAttemptSettingsDto> GetAttemptSettingsAsync(CancellationToken cancellationToken)
+    {
+        var settings = await dbContext.CandidateAttemptSettings
+            .AsNoTracking()
+            .FirstOrDefaultAsync(item => item.Id == AttemptSettingsId, cancellationToken);
+
+        if (settings is null)
+        {
+            settings = await dbContext.CandidateAttemptSettings
+                .AsNoTracking()
+                .OrderByDescending(item => item.CreatedAt)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+
+        if (settings is null)
+        {
+            return new CandidateAttemptSettingsDto
+            {
+                DefaultMaxAttempts = CandidateAttemptPolicy.DefaultMaxAttempts,
+            };
+        }
+
+        return MapAttemptSettings(settings);
+    }
+
+    public async Task<CandidateAttemptSettingsDto> SaveAttemptSettingsAsync(
+        UpdateCandidateAttemptSettingsDto request,
+        CancellationToken cancellationToken)
+    {
+        var normalized = NormalizeAttemptSettings(request);
+
+        var settings = await dbContext.CandidateAttemptSettings
+            .FirstOrDefaultAsync(item => item.Id == AttemptSettingsId, cancellationToken);
+
+        if (settings is null)
+        {
+            settings = new CandidateAttemptSettings();
+            // Force singleton key without exposing a public setter on the entity.
+            dbContext.Entry(settings).Property(item => item.Id).CurrentValue = AttemptSettingsId;
+            dbContext.CandidateAttemptSettings.Add(settings);
+        }
+
+        settings.DefaultMaxAttempts = normalized.DefaultMaxAttempts;
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            dbContext.ChangeTracker.Clear();
+            var reloaded = await dbContext.CandidateAttemptSettings
+                .AsNoTracking()
+                .FirstOrDefaultAsync(item => item.Id == AttemptSettingsId, cancellationToken);
+            if (reloaded is null)
+            {
+                throw;
+            }
+
+            return MapAttemptSettings(reloaded);
+        }
+
+        return MapAttemptSettings(settings);
     }
 
     private async Task<CandidateInvitation?> FindLatestInvitationByNormalizedEmailAsync(
@@ -420,6 +491,13 @@ public class CandidateManagementService(
                 StatusCodes.Status404NotFound);
         }
 
+        var effectiveMaxAttempts = await GetEffectiveMaxAttemptsAsync(parsedTestId, cancellationToken);
+        var attemptCount = await GetAttemptCountAsync(invitation.Id, cancellationToken);
+        if (CandidateAttemptPolicy.IsLimitReached(effectiveMaxAttempts, attemptCount))
+        {
+            throw new ApiException("Maximum attempts reached.", StatusCodes.Status409Conflict);
+        }
+
         var nowUtc = DateTime.UtcNow;
         var token = GenerateToken();
         var linkValidity = CandidateLinkSecurityPolicy.ToLinkValidityDuration(
@@ -535,6 +613,69 @@ public class CandidateManagementService(
             invitation.LinkExpiryHours = roundedHours;
             invitation.TokenExpiresAtUtc = invitation.TokenCreatedAtUtc.Add(linkValidity);
         }
+    }
+
+    private async Task<int> GetAttemptCountAsync(Guid invitationId, CancellationToken cancellationToken)
+    {
+        return await dbContext.CandidateTestAttempts
+            .CountAsync(item => item.InvitationId == invitationId, cancellationToken);
+    }
+
+    private async Task<int> GetEffectiveMaxAttemptsAsync(Guid testId, CancellationToken cancellationToken)
+    {
+        var test = await dbContext.Tests
+            .AsNoTracking()
+            .Where(item => item.Id == testId)
+            .Select(item => new { item.MaxAttempts })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (test is null)
+        {
+            throw new ApiException("Test not found.", StatusCodes.Status404NotFound);
+        }
+
+        var globalDefault = await GetGlobalDefaultMaxAttemptsAsync(cancellationToken);
+        return CandidateAttemptPolicy.ResolveEffectiveMaxAttempts(test.MaxAttempts, globalDefault);
+    }
+
+    private async Task<int> GetGlobalDefaultMaxAttemptsAsync(CancellationToken cancellationToken)
+    {
+        var settings = await dbContext.CandidateAttemptSettings
+            .AsNoTracking()
+            .FirstOrDefaultAsync(item => item.Id == AttemptSettingsId, cancellationToken);
+
+        if (settings is null)
+        {
+            settings = await dbContext.CandidateAttemptSettings
+                .AsNoTracking()
+                .OrderByDescending(item => item.CreatedAt)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+
+        return settings?.DefaultMaxAttempts ?? CandidateAttemptPolicy.DefaultMaxAttempts;
+    }
+
+    private static CandidateAttemptSettingsDto MapAttemptSettings(CandidateAttemptSettings settings)
+    {
+        return new CandidateAttemptSettingsDto
+        {
+            DefaultMaxAttempts = settings.DefaultMaxAttempts,
+        };
+    }
+
+    private static CandidateAttemptSettingsDto NormalizeAttemptSettings(UpdateCandidateAttemptSettingsDto request)
+    {
+        if (request.DefaultMaxAttempts < 0)
+        {
+            throw new ApiException(
+                "defaultMaxAttempts must be 0 or greater.",
+                StatusCodes.Status400BadRequest);
+        }
+
+        return new CandidateAttemptSettingsDto
+        {
+            DefaultMaxAttempts = request.DefaultMaxAttempts,
+        };
     }
 
     private async Task EnsureTestExistsAsync(Guid testId, CancellationToken cancellationToken)

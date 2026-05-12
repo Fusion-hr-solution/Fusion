@@ -46,6 +46,24 @@ public class CandidateManagementController(ICandidateManagementService candidate
         return Ok(ApiResponse<CandidateRetakeGrantResultDto>.Success(data));
     }
 
+    [HttpGet("attempt-settings")]
+    [ProducesResponseType(typeof(ApiResponse<CandidateAttemptSettingsDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAttemptSettings(CancellationToken cancellationToken)
+    {
+        var data = await candidateManagementService.GetAttemptSettingsAsync(cancellationToken);
+        return Ok(ApiResponse<CandidateAttemptSettingsDto>.Success(data));
+    }
+
+    [HttpPut("attempt-settings")]
+    [ProducesResponseType(typeof(ApiResponse<CandidateAttemptSettingsDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> SaveAttemptSettings(
+        [FromBody] UpdateCandidateAttemptSettingsDto request,
+        CancellationToken cancellationToken)
+    {
+        var data = await candidateManagementService.SaveAttemptSettingsAsync(request, cancellationToken);
+        return Ok(ApiResponse<CandidateAttemptSettingsDto>.Success(data));
+    }
+
     [HttpGet("link-security")]
     [ProducesResponseType(typeof(ApiResponse<CandidateLinkSecurityStateDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetLinkSecurity([FromQuery] string testId, CancellationToken cancellationToken)
