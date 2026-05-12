@@ -3,7 +3,7 @@
 import { Calendar, MapPin, User, CheckCircle2, Clock, XCircle, Loader2 } from "lucide-react";
 import { Badge } from "@repo/ui";
 import { Button } from "@repo/ui";
-import { Tooltip, TooltipTrigger, TooltipContent } from "@repo/ui";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@repo/ui";
 import type { EnrollmentPartRowProps } from "@/types/component-props";
 
 const STATUS_CONFIG = {
@@ -68,20 +68,22 @@ export function EnrollmentPartRow({ part, onCancel, isCancelling }: EnrollmentPa
         </Badge>
 
         {canCancel && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive"
-                onClick={() => part.sessionId && onCancel(part.sessionId)}
-                disabled={isCancelling}
-              >
-                {isCancelling ? <Loader2 className="h-3 w-3 animate-spin" /> : <XCircle className="h-3.5 w-3.5" />}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Cancel this session</TooltipContent>
-          </Tooltip>
+          <TooltipProvider delayDuration={200}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive"
+                  onClick={() => part.sessionId && onCancel(part.sessionId)}
+                  disabled={isCancelling}
+                >
+                  {isCancelling ? <Loader2 className="h-3 w-3 animate-spin" /> : <XCircle className="h-3.5 w-3.5" />}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Cancel this session</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         )}
       </div>
     </div>

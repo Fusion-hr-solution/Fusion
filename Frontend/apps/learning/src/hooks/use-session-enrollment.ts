@@ -2,6 +2,8 @@
 
 import { useState, useCallback, useMemo } from "react";
 import { useApiQuery, useApiMutation } from "@repo/api/react";
+import { ApiError } from "@repo/api";
+import { toast } from "sonner";
 import type { SessionSelection, EnrollInSessionsResult } from "@/types";
 import {
   getAvailableSessionsForEnrollment,
@@ -9,6 +11,13 @@ import {
   getMySessionEnrollments,
   cancelSessionEnrollment,
 } from "@/services/enrollment-service";
+
+function extractErrorMessage(err: Error, fallback: string): string {
+  if (err instanceof ApiError) {
+    return err.errors.length > 0 ? err.errors.join(". ") : fallback;
+  }
+  return fallback;
+}
 
 export function useSessionEnrollment(trainingId: string) {
   const [selections, setSelections] = useState<Record<string, string>>({});
@@ -65,6 +74,22 @@ export function useSessionEnrollment(trainingId: string) {
         setEnrollResult(result);
         refetchMyEnrollments();
         refetchAvailable();
+
+        const waitlisted = result.enrollments.filter((e) => e.status === "Waitlisted");
+        if (waitlisted.length === 0) {
+          toast.success("Enrollment confirmed", {
+            description: "You're enrolled in all sessions.",
+          });
+        } else {
+          toast.warning("Enrollment submitted", {
+            description: `${waitlisted.length} ${waitlisted.length === 1 ? "session is" : "sessions are"} on the waitlist.`,
+          });
+        }
+      },
+      onError: (err) => {
+        toast.error("Enrollment failed", {
+          description: extractErrorMessage(err, "Could not complete your enrollment. Please try again."),
+        });
       },
     },
   );
@@ -73,8 +98,16 @@ export function useSessionEnrollment(trainingId: string) {
     (sessionId: string) => cancelSessionEnrollment(sessionId),
     {
       onSuccess: () => {
+        toast.success("Session cancelled", {
+          description: "Your booking has been cancelled successfully.",
+        });
         refetchMyEnrollments();
         refetchAvailable();
+      },
+      onError: (err) => {
+        toast.error("Cancellation failed", {
+          description: extractErrorMessage(err, "Could not cancel this session. Please try again."),
+        });
       },
     },
   );
