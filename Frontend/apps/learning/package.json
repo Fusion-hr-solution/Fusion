@@ -18,9 +18,11 @@
     "@repo/api": "workspace:*",
     "@repo/auth": "workspace:*",
     "@repo/ui": "workspace:*",
+    "dompurify": "^3.4.2",
     "next": "^15.1.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "recharts": "^2.15.4"
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",

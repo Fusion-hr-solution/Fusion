@@ -1,7 +1,5 @@
-import { AdminDashboard } from "@/components/admin/admin-dashboard";
-import { MOCK_EMPLOYEES } from "@/data/employees";
-import { MOCK_TRAININGS } from "@/data/trainings";
+import { redirect } from "next/navigation";
 
 export default function EmployeeProgressPage() {
-  return <AdminDashboard employees={MOCK_EMPLOYEES} trainings={MOCK_TRAININGS} />;
+  redirect("/admin");
 }

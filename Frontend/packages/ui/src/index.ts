@@ -82,6 +82,17 @@ export {
   DropdownMenuSubTrigger,
   DropdownMenuRadioGroup,
 } from "./components/primitives/dropdown-menu";
+export {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+  PopoverAnchor,
+} from "./components/primitives/popover";
+export { Calendar } from "./components/primitives/calendar";
+export {
+  DateTimePicker,
+  type DateTimePickerProps,
+} from "./components/primitives/date-time-picker";
 
 // ── Custom EY components ─────────────────────────────────────────────
 export {

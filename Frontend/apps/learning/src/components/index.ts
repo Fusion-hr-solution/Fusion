@@ -35,6 +35,11 @@ export { EmployeeRow } from "./admin/employee-row";
 export { CompletionFunnel } from "./admin/completion-funnel";
 export { CategoryPerformance } from "./admin/category-performance";
 export { TopTrainings } from "./admin/top-trainings";
+export { ProgrammeMatrixTable } from "./admin/programme-matrix-table";
+export { CompletionBarChart } from "./admin/completion-bar-chart";
+export { CompletionTrendChart } from "./admin/completion-trend-chart";
+export { CellDrillDownDialog } from "./admin/cell-drill-down-dialog";
+export { CellEmployeesPage } from "./admin/cell-employees-page";
 export { TrainingsList } from "./admin/trainings-list";
 export { TrainingRow } from "./admin/training-row";
 export { TrainingForm } from "./admin/training-form";
@@ -57,6 +62,31 @@ export { AssignmentsView } from "./admin/assignments-view";
 export { SummaryCard } from "./admin/summary-card";
 export { CreateTrainingWizard } from "./admin/create-training-wizard";
 export { EditTrainingWizard } from "./admin/edit-training-wizard";
+export { ExamBuilder } from "./admin/exam-builder";
+export { QuestionFormDialog } from "./admin/question-form-dialog";
+export { ChapterPreview } from "./admin/chapter-preview";
+export { GradesManager } from "./admin/grades-manager";
+export { GradeForm } from "./admin/grade-form";
+export { ServiceLinesManager } from "./admin/service-lines-manager";
+export { ServiceLineForm } from "./admin/service-line-form";
+export { EmployeeProfilesManager } from "./admin/employee-profiles-manager";
+export { EmployeeProfileForm } from "./admin/employee-profile-form";
+export { CurriculumMatrixView } from "./admin/curriculum-matrix-view";
+export { CurriculumCellDrawer } from "./admin/curriculum-cell-drawer";
+export {
+  PartsManagerSection,
+  SessionStatusBadge,
+  PartFormDialog,
+  SessionFormDialog,
+  CancelSessionDialog,
+  SessionListTable,
+  SessionDetailView,
+  SessionsPage as AdminSessionsPage,
+} from "./admin/sessions";
+export { MyCursusView } from "./my-cursus-view";
+export { CursusItemCard } from "./cursus-item-card";
+export { CursusSummaryCards } from "./cursus-summary-cards";
+export { TrainingEnrollCta } from "./training-enroll-cta";
 export { TrainingDetailPage } from "./training-detail-page";
 export { ExamCard } from "./exam-card";
 export {
@@ -73,4 +103,5 @@ export {
   ChapterContentView,
   ChapterNavigation,
   ExamLockedBanner,
+  OnSiteLearnView,
 } from "./learn";

@@ -13,6 +13,8 @@ public class TrainingDbContext : DbContext
     public DbSet<TrainingChapter> Chapters => Set<TrainingChapter>();
     public DbSet<ContentBlock> ContentBlocks => Set<ContentBlock>();
     public DbSet<OnSiteCourse> OnSiteCourses => Set<OnSiteCourse>();
+    public DbSet<TrainingPart> TrainingParts => Set<TrainingPart>();
+    public DbSet<TrainingSession> TrainingSessions => Set<TrainingSession>();
     public DbSet<ChapterProgress> ChapterProgress => Set<ChapterProgress>();
     public DbSet<ContentBlockProgress> ContentBlockProgress => Set<ContentBlockProgress>();
     public DbSet<Exam> Exams => Set<Exam>();
@@ -122,6 +124,39 @@ public class TrainingDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(c => new { c.TrainingId, c.OrderIndex }).IsUnique();
         });
+        // --- TrainingPart ---
+        modelBuilder.Entity<TrainingPart>(e =>
+        {
+            e.HasKey(p => p.Id);
+            e.Property(p => p.Title).HasMaxLength(300).IsRequired();
+            e.Property(p => p.Description).HasMaxLength(2000);
+            e.Property(p => p.DurationHours).HasPrecision(5, 2);
+            e.HasOne(p => p.Training)
+                .WithMany(t => t.Parts)
+                .HasForeignKey(p => p.TrainingId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(p => new { p.TrainingId, p.OrderIndex }).IsUnique();
+        });
+
+        // --- TrainingSession ---
+        modelBuilder.Entity<TrainingSession>(e =>
+        {
+            e.HasKey(s => s.Id);
+            e.Property(s => s.Room).HasMaxLength(200).IsRequired();
+            e.Property(s => s.Notes).HasMaxLength(2000);
+            e.Property(s => s.TrainerName).HasMaxLength(200);
+            e.Property(s => s.TrainerEmail).HasMaxLength(320);
+            e.Property(s => s.CancelReason).HasMaxLength(1000);
+            e.Property(s => s.Status).HasConversion<string>().HasMaxLength(20);
+            e.HasOne(s => s.Part)
+                .WithMany(p => p.Sessions)
+                .HasForeignKey(s => s.PartId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(s => new { s.PartId, s.StartUtc });
+            e.HasIndex(s => new { s.Room, s.StartUtc });
+            e.HasIndex(s => s.TrainerEmployeeId);
+        });
+
         // --- ChapterProgress ---
         modelBuilder.Entity<ChapterProgress>(e =>
         {

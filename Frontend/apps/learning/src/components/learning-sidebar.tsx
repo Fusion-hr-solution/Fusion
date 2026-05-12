@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { useCallback, useMemo } from "react";
 import { GraduationCap, BarChart3 } from "lucide-react";
 import { AppSidebar } from "@repo/ui";
-import { SidebarUserPanel } from "@repo/auth";
+import { SidebarUserPanel, useAuth, hasAnyRole, HR_ADMIN_ROLE } from "@repo/auth";
 import { useApiQuery } from "@repo/api/react";
 import { EMPLOYEE_NAV, ADMIN_NAV } from "@/data/sidebar-nav";
 import { getMyTrainings } from "@/services/learning-service";
@@ -54,6 +54,9 @@ export function LearningSidebar() {
   const pathname = usePathname();
   const activePath = pathname.replace(/^\/learning/, "") || "/";
 
+  const { user } = useAuth();
+  const isAdmin = hasAnyRole(user, [HR_ADMIN_ROLE]);
+
   const fetchMyTrainings = useCallback(() => getMyTrainings(), []);
   const { data: myTrainings } = useApiQuery(fetchMyTrainings, { enabled: true });
   const myTrainingsCount = myTrainings?.length ?? 0;
@@ -67,11 +70,16 @@ export function LearningSidebar() {
     ),
   }), [myTrainingsCount]);
 
+  const sections = useMemo(
+    () => isAdmin ? [ADMIN_NAV] : [employeeNavWithCount],
+    [isAdmin, employeeNavWithCount],
+  );
+
   return (
     <AppSidebar
       activeModule="Learning"
       activePath={activePath}
-      sections={[employeeNavWithCount, ADMIN_NAV]}
+      sections={sections}
       brandIcon={GraduationCap}
       brandTitle="EY Academy"
       brandSubtitle="Learning Platform"

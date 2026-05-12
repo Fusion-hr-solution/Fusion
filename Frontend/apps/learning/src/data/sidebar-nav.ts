@@ -13,6 +13,7 @@ import {
   Building2,
   UserCog,
   Grid3X3,
+  CalendarClock,
 } from "lucide-react";
 import type { NavSection } from "@repo/ui";
 
@@ -43,6 +44,7 @@ export const ADMIN_NAV: NavSection = {
     { label: "Service Lines", href: "/admin/service-lines", icon: Building2 },
     { label: "Employee Profiles", href: "/admin/employee-profiles", icon: UserCog },
     { label: "Curriculum", href: "/admin/curriculum", icon: Grid3X3 },
+    { label: "Sessions", href: "/admin/sessions", icon: CalendarClock },
     { label: "Settings", href: "/admin/settings", icon: Settings },
   ],
 };

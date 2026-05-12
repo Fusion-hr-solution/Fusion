@@ -385,6 +385,129 @@ export interface UpsertEmployeeProfileInput {
   serviceLineId?: string | null;
 }
 
+/* ── Training Parts & Sessions (in-person) ── */
+
+export type SessionStatus = "Planned" | "InProgress" | "Completed" | "Cancelled";
+
+export interface AdminTrainingSession {
+  id: string;
+  partId: string;
+  startUtc: string;
+  endUtc: string;
+  room: string;
+  maxCapacity: number;
+  enrolledCount: number;
+  notes?: string | null;
+  trainerEmployeeId?: string | null;
+  trainerName?: string | null;
+  trainerEmail?: string | null;
+  status: SessionStatus;
+  cancelReason?: string | null;
+  cancelledAt?: string | null;
+  createdAt: string;
+  updatedAt?: string | null;
+}
+
+export interface AdminTrainingPart {
+  id: string;
+  trainingId: string;
+  title: string;
+  description?: string | null;
+  orderIndex: number;
+  durationHours: number;
+  sessionCount: number;
+  createdAt: string;
+  updatedAt?: string | null;
+  sessions: AdminTrainingSession[];
+}
+
+export interface AdminSessionListItem {
+  id: string;
+  partId: string;
+  partTitle: string;
+  trainingId: string;
+  trainingTitle: string;
+  startUtc: string;
+  endUtc: string;
+  room: string;
+  maxCapacity: number;
+  enrolledCount: number;
+  trainerName?: string | null;
+  trainerEmployeeId?: string | null;
+  status: SessionStatus;
+}
+
+export interface AdminSessionAttendee {
+  employeeId: string;
+  fullName?: string | null;
+  email?: string | null;
+}
+
+export interface AdminSessionDetail extends AdminSessionListItem {
+  notes?: string | null;
+  trainerEmail?: string | null;
+  cancelReason?: string | null;
+  cancelledAt?: string | null;
+  capacityRatio: number;
+  capacityWarning: boolean;
+  createdAt: string;
+  updatedAt?: string | null;
+  attendees: AdminSessionAttendee[];
+}
+
+export interface RoomConflict {
+  sessionId: string;
+  partId: string;
+  trainingId: string;
+  trainingTitle: string;
+  partTitle: string;
+  room: string;
+  startUtc: string;
+  endUtc: string;
+}
+
+export interface CreatePartInput {
+  title: string;
+  description?: string;
+  durationHours: number;
+}
+
+export interface UpdatePartInput extends CreatePartInput {}
+
+export interface CreateSessionInput {
+  startUtc: string;
+  endUtc: string;
+  room: string;
+  maxCapacity: number;
+  notes?: string;
+  trainerEmployeeId?: string;
+  trainerName?: string;
+  trainerEmail?: string;
+}
+
+export interface UpdateSessionInput extends CreateSessionInput {}
+
+export interface CancelSessionInput {
+  reason: string;
+}
+
+export interface DuplicateSessionInput {
+  newStartUtc: string;
+  occurrences: number;
+  intervalDays: number;
+}
+
+export interface SessionsListFilters {
+  trainingId?: string;
+  fromUtc?: string;
+  toUtc?: string;
+  status?: SessionStatus;
+  trainerEmployeeId?: string;
+  search?: string;
+  page?: number;
+  pageSize?: number;
+}
+
 /** Identity user — returned by GET /api/identity/users */
 export interface IdentityUser {
   id: string;
@@ -394,4 +517,74 @@ export interface IdentityUser {
   jobTitle?: string | null;
   hireDate?: string | null;
   tenantId: string;
+}
+
+/* ── Programme Dashboard types ── */
+
+export interface ProgrammeMatrixCell {
+  gradeId: string;
+  serviceLineId: string;
+  employeeCount: number;
+  avgCompletionRate: number;
+  totalFormations: number;
+  completedFormations: number;
+}
+
+export interface ProgrammeMatrix {
+  grades: AdminGrade[];
+  serviceLines: AdminServiceLine[];
+  cells: ProgrammeMatrixCell[];
+}
+
+export interface CompletionByGrade {
+  gradeId: string;
+  gradeName: string;
+  level: number;
+  employeeCount: number;
+  avgCompletionRate: number;
+}
+
+export interface CompletionByServiceLine {
+  serviceLineId: string;
+  serviceLineName: string;
+  color: string;
+  employeeCount: number;
+  avgCompletionRate: number;
+}
+
+export interface CompletionTrendPoint {
+  year: number;
+  month: number;
+  label: string;
+  completionRate: number;
+  completedCount: number;
+  totalCount: number;
+}
+
+export interface CompletionTrend {
+  points: CompletionTrendPoint[];
+}
+
+export interface CellEmployeeTrainingProgress {
+  trainingId: string;
+  trainingTitle: string;
+  trainingType: string;
+  credits: number;
+  isRequired: boolean;
+  orderIndex: number;
+  /** "not-started" | "in-progress" | "completed" | "failed" */
+  status: string;
+  progressPercentage: number;
+  lastActivityAt?: string;
+}
+
+export interface CellEmployee {
+  employeeId: string;
+  gradeName: string;
+  serviceLineName: string;
+  completedFormations: number;
+  totalFormations: number;
+  completionPercentage: number;
+  lastActivityAt?: string;
+  trainingBreakdown: CellEmployeeTrainingProgress[];
 }
