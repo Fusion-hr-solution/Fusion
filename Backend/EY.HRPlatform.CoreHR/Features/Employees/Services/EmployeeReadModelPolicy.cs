@@ -16,6 +16,8 @@ public interface IEmployeeReadModelPolicy
     EmployeeDto MapDetail(Employee employee, TenantSettingsDto settings, EmployeeReadAudience audience);
 
     EmployeeListItemDto MapListItem(Employee employee, TenantSettingsDto settings, EmployeeReadAudience audience);
+
+    EmployeeProfileDto MapProfile(Employee employee, TenantSettingsDto settings, EmployeeReadAudience audience, int directReportCount);
 }
 
 public sealed class EmployeeReadModelPolicy : IEmployeeReadModelPolicy
@@ -55,6 +57,43 @@ public sealed class EmployeeReadModelPolicy : IEmployeeReadModelPolicy
             employee.Manager is not null ? employee.Manager.FirstName + " " + employee.Manager.LastName : null,
             ResolveHierarchyStatus(employee),
             0,
+            employee.Version);
+    public EmployeeProfileDto MapProfile(Employee employee, TenantSettingsDto settings, EmployeeReadAudience audience, int directReportCount)
+        => new(
+            employee.Id,
+            employee.FirstName,
+            employee.LastName,
+            employee.Email,
+            CanViewField(settings, "jobTitle", audience) ? employee.JobTitle : null,
+            employee.HireDate,
+            employee.Status,
+            employee.OrgUnitId,
+            employee.OrgUnit?.Name,
+            employee.ManagerId,
+            employee.Manager?.FirstName,
+            employee.Manager?.LastName,
+            employee.Manager?.Email,
+            ResolveHierarchyStatus(employee),
+            directReportCount,
+            employee.Version);
+
+    public EmployeeProfileDto MapProfile(Employee employee, TenantSettingsDto settings, EmployeeReadAudience audience, int directReportCount)
+        => new(
+            employee.Id,
+            employee.FirstName,
+            employee.LastName,
+            employee.Email,
+            CanViewField(settings, "jobTitle", audience) ? employee.JobTitle : null,
+            employee.HireDate,
+            employee.Status,
+            employee.OrgUnitId,
+            employee.OrgUnit?.Name,
+            employee.ManagerId,
+            employee.Manager?.FirstName,
+            employee.Manager?.LastName,
+            employee.Manager?.Email,
+            ResolveHierarchyStatus(employee),
+            directReportCount,
             employee.Version);
 
     private static bool CanViewField(

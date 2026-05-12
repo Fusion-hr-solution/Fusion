@@ -15,4 +15,5 @@ public sealed record UpdateEmployeeRequest(
     [EmailAddress] string? Email,
     [StringLength(100)] string? JobTitle,
     Guid? ManagerId,
-    Guid? OrgUnitId = null);
+    Guid? OrgUnitId = null,
+    DateTime? HireDate = null);

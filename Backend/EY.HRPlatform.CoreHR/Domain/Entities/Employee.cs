@@ -49,17 +49,7 @@ public class Employee : AggregateRoot, ITenantEntity
         if (string.IsNullOrWhiteSpace(email))
             throw new ArgumentException("Email cannot be empty.", nameof(email));
 
-        if (hireDate == default)
-            throw new ArgumentException("HireDate must be a valid date.", nameof(hireDate));
-
-        hireDate = hireDate.Kind switch
-        {
-            DateTimeKind.Utc => hireDate,
-            DateTimeKind.Local => hireDate.ToUniversalTime(),
-            _ => throw new ArgumentException(
-                "HireDate must have DateTimeKind.Utc or DateTimeKind.Local; Unspecified is not allowed.",
-                nameof(hireDate))
-        };
+        hireDate = NormalizeHireDate(hireDate, nameof(hireDate));
 
         return new Employee
         {
@@ -116,6 +106,12 @@ public class Employee : AggregateRoot, ITenantEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
+    public void UpdateHireDate(DateTime hireDate)
+    {
+        HireDate = NormalizeHireDate(hireDate, nameof(hireDate));
+        UpdatedAt = DateTime.UtcNow;
+    }
+
     public void AssignManager(Guid? managerId)
     {
         if (managerId == Guid.Empty)
@@ -135,5 +131,20 @@ public class Employee : AggregateRoot, ITenantEntity
 
         OrgUnitId = orgUnitId;
         UpdatedAt = DateTime.UtcNow;
+    }
+
+    private static DateTime NormalizeHireDate(DateTime hireDate, string paramName)
+    {
+        if (hireDate == default)
+            throw new ArgumentException("HireDate must be a valid date.", paramName);
+
+        return hireDate.Kind switch
+        {
+            DateTimeKind.Utc => hireDate,
+            DateTimeKind.Local => hireDate.ToUniversalTime(),
+            _ => throw new ArgumentException(
+                "HireDate must have DateTimeKind.Utc or DateTimeKind.Local; Unspecified is not allowed.",
+                paramName)
+        };
     }
 }

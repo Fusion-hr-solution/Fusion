@@ -4,10 +4,8 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { ArrowUpDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type {
-  EmployeeHierarchyStatus,
-  EmployeeRosterItem,
-} from "./employee-roster.types";
+import { getHierarchyIssueMeta } from "./employee-hierarchy-status";
+import type { EmployeeRosterItem } from "./employee-roster.types";
 
 const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
   dateStyle: "medium",
@@ -62,20 +60,6 @@ function getManagerLabel(employee: EmployeeRosterItem) {
   return employee.managerName ?? "Manager needs attention";
 }
 
-function getRelationshipIssueMeta(status: EmployeeHierarchyStatus): {
-  label: string;
-  variant: "destructive";
-} | null {
-  switch (status) {
-    case "ManagerInactive":
-      return { label: "Needs reassignment", variant: "destructive" };
-    case "ManagerMissing":
-      return { label: "Needs attention", variant: "destructive" };
-    default:
-      return null;
-  }
-}
-
 export const employeeColumns: ColumnDef<EmployeeRosterItem>[] = [
   {
     id: "Name",
@@ -97,7 +81,7 @@ export const employeeColumns: ColumnDef<EmployeeRosterItem>[] = [
     accessorKey: "managerName",
     header: "Manager",
     cell: ({ row }) => {
-      const issueMeta = getRelationshipIssueMeta(row.original.hierarchyStatus);
+      const issueMeta = getHierarchyIssueMeta(row.original.hierarchyStatus);
       const isUnassigned = row.original.hierarchyStatus === "NoManagerAssigned";
 
       return (
