@@ -125,20 +125,20 @@ function SettingsPageSkeleton() {
     <div className="space-y-6 p-6">
       <div className="space-y-2">
         <Skeleton className="h-8 w-56" />
-        <Skeleton className="h-4 w-136 max-w-full" />
+        <Skeleton className="h-4 w-[34rem] max-w-full" />
       </div>
       <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
         <div className="space-y-6">
           <Card>
             <CardHeader className="space-y-2">
               <Skeleton className="h-6 w-48" />
-              <Skeleton className="h-4 w-md max-w-full" />
+              <Skeleton className="h-4 w-[20rem] max-w-full" />
             </CardHeader>
             <CardContent className="space-y-4">
               {Array.from({ length: 4 }).map((_, index) => (
                 <div key={index} className="rounded-xl border p-4">
                   <Skeleton className="h-5 w-40" />
-                  <Skeleton className="mt-2 h-4 w-104 max-w-full" />
+                  <Skeleton className="mt-2 h-4 w-[26rem] max-w-full" />
                   <div className="mt-4 grid gap-3 sm:grid-cols-4">
                     {Array.from({ length: 4 }).map((__, switchIndex) => (
                       <Skeleton key={switchIndex} className="h-16 rounded-xl" />
