@@ -8,6 +8,7 @@ public class TestDto
     public string Discipline { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
     public List<string> QuestionTypes { get; set; } = [];
+    public int? MaxAttempts { get; set; }
     public int CandidateCount { get; set; }
     public int QuestionCount { get; set; }
     public string CreatedAt { get; set; } = string.Empty;

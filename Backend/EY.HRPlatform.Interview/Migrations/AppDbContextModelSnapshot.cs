@@ -146,6 +146,28 @@ namespace EY.HRPlatform.Interview.Migrations
                     b.ToTable("CandidateInvitations", (string)null);
                 });
 
+            modelBuilder.Entity("EY.HRPlatform.Interview.Domain.Entities.CandidateAttemptSettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("DefaultMaxAttempts")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("CandidateAttemptSettings", (string)null);
+                });
+
             modelBuilder.Entity("EY.HRPlatform.Interview.Domain.Entities.CandidateLinkSecuritySettings", b =>
                 {
                     b.Property<Guid>("Id")
@@ -450,6 +472,9 @@ namespace EY.HRPlatform.Interview.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
+
+                    b.Property<int?>("MaxAttempts")
+                        .HasColumnType("integer");
 
                     b.Property<int>("CandidateCount")
                         .ValueGeneratedOnAdd()

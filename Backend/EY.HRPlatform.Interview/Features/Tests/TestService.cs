@@ -92,6 +92,7 @@ public class TestService(AppDbContext dbContext) : ITestService
             Description = string.IsNullOrWhiteSpace(request.Description) ? string.Empty : request.Description.Trim(),
             Discipline = ParseDiscipline(request.Discipline),
             Status = string.IsNullOrWhiteSpace(request.Status) ? TestStatus.Draft : ParseStatus(request.Status),
+            MaxAttempts = request.MaxAttempts,
             CandidateCount = 0
         };
 
@@ -115,6 +116,7 @@ public class TestService(AppDbContext dbContext) : ITestService
         test.Description = string.IsNullOrWhiteSpace(request.Description) ? string.Empty : request.Description.Trim();
         test.Discipline = ParseDiscipline(request.Discipline);
         test.Status = string.IsNullOrWhiteSpace(request.Status) ? test.Status : ParseStatus(request.Status);
+        test.MaxAttempts = request.MaxAttempts;
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
@@ -150,6 +152,9 @@ public class TestService(AppDbContext dbContext) : ITestService
         if (string.IsNullOrWhiteSpace(request.Discipline))
             errors.Add("discipline is required.");
 
+        if (request.MaxAttempts.HasValue && request.MaxAttempts.Value < 0)
+            errors.Add("maxAttempts must be 0 or greater.");
+
         if (errors.Count > 0)
             throw new ApiException("Validation failed.", StatusCodes.Status400BadRequest, errors);
     }
@@ -170,6 +175,7 @@ public class TestService(AppDbContext dbContext) : ITestService
             Discipline = test.Discipline.ToString(),
             Status = test.Status.ToString(),
             QuestionTypes = questionTypes,
+            MaxAttempts = test.MaxAttempts,
             CandidateCount = test.CandidateCount,
             QuestionCount = test.TestQuestions.Count,
             CreatedAt = test.CreatedAt == default ? DateTime.UtcNow.ToString("O") : test.CreatedAt.ToString("O")

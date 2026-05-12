@@ -30,14 +30,20 @@ public class CandidateAccessService(AppDbContext dbContext) : ICandidateAccessSe
 
         var nowUtc = DateTime.UtcNow;
         var state = ResolveState(invitation, settings, nowUtc);
-        var reusableSubmittedState = !settings.SingleUseLinkEnabled && state == InvitationAccessState.Submitted;
+        var activeAttempt = GetActiveAttempt(invitation);
+        var effectiveMaxAttempts = await GetEffectiveMaxAttemptsAsync(invitation.TestId, cancellationToken);
+        var attemptLimitReached = activeAttempt is null &&
+            CandidateAttemptPolicy.IsLimitReached(effectiveMaxAttempts, invitation.Attempts.Count);
+
+        var reusableSubmittedState = !settings.SingleUseLinkEnabled &&
+            state == InvitationAccessState.Submitted &&
+            !attemptLimitReached;
 
         // Count link opens when the invite page is loaded (validate endpoint).
         if (state is InvitationAccessState.Invited or InvitationAccessState.InProgress || reusableSubmittedState)
         {
             invitation.OpensCount += 1;
 
-            var activeAttempt = GetActiveAttempt(invitation);
             var attemptNumber = activeAttempt?.AttemptNumber ?? GetNextAttemptNumber(invitation);
 
             dbContext.CandidateProgressEvents.Add(new CandidateProgressEvent
@@ -55,7 +61,7 @@ public class CandidateAccessService(AppDbContext dbContext) : ICandidateAccessSe
             await dbContext.SaveChangesAsync(cancellationToken);
         }
 
-        return MapValidationDto(invitation, state, nowUtc, settings);
+        return MapValidationDto(invitation, state, nowUtc, settings, attemptLimitReached);
     }
 
     public async Task<CandidateAccessSessionDto> StartOrResumeAsync(
@@ -97,14 +103,22 @@ public class CandidateAccessService(AppDbContext dbContext) : ICandidateAccessSe
 
         EnforceEmailVerification(invitation, request.CandidateEmail, settings, nowUtc);
 
+        var attempt = GetActiveAttempt(invitation);
+        if (attempt is null)
+        {
+            var effectiveMaxAttempts = await GetEffectiveMaxAttemptsAsync(invitation.TestId, cancellationToken);
+            if (CandidateAttemptPolicy.IsLimitReached(effectiveMaxAttempts, invitation.Attempts.Count))
+            {
+                throw new ApiException("Maximum attempts reached.", StatusCodes.Status409Conflict);
+            }
+        }
+
         var metadata = BuildAccessMetadata(
             request.ClientIpAddress,
             request.BrowserFingerprint,
             request.UserAgent);
 
         await ApplyAndValidateAccessLocksAsync(invitation, metadata, settings, cancellationToken);
-
-        var attempt = GetActiveAttempt(invitation);
         var startedFromPendingAttempt = false;
         if (attempt is null)
         {
@@ -324,6 +338,32 @@ public class CandidateAccessService(AppDbContext dbContext) : ICandidateAccessSe
             settings.BrowserFingerprintEnabled,
             settings.GracePeriodValue,
             settings.GracePeriodUnit);
+    }
+
+    private async Task<int> GetEffectiveMaxAttemptsAsync(Guid testId, CancellationToken cancellationToken)
+    {
+        var test = await dbContext.Tests
+            .AsNoTracking()
+            .Where(item => item.Id == testId)
+            .Select(item => new { item.MaxAttempts })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (test is null)
+        {
+            throw new ApiException("Test not found.", StatusCodes.Status404NotFound);
+        }
+
+        var globalDefault = await GetGlobalDefaultMaxAttemptsAsync(cancellationToken);
+        return CandidateAttemptPolicy.ResolveEffectiveMaxAttempts(test.MaxAttempts, globalDefault);
+    }
+
+    private async Task<int> GetGlobalDefaultMaxAttemptsAsync(CancellationToken cancellationToken)
+    {
+        var settings = await dbContext.CandidateAttemptSettings
+            .AsNoTracking()
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return settings?.DefaultMaxAttempts ?? CandidateAttemptPolicy.DefaultMaxAttempts;
     }
 
     private static void EnforceEmailVerification(
@@ -670,7 +710,8 @@ public class CandidateAccessService(AppDbContext dbContext) : ICandidateAccessSe
         CandidateInvitation invitation,
         InvitationAccessState state,
         DateTime nowUtc,
-        LinkSecurityRuntimeSettings settings)
+        LinkSecurityRuntimeSettings settings,
+        bool attemptLimitReached)
     {
         var reusableSubmittedState =
             !settings.SingleUseLinkEnabled &&
@@ -682,7 +723,7 @@ public class CandidateAccessService(AppDbContext dbContext) : ICandidateAccessSe
 
         var mappedStatus = singleUseAlreadyOpened ? "Invalid" : state.ToString();
 
-        return new CandidateAccessValidationDto
+        var mapped = new CandidateAccessValidationDto
         {
             IsValid = !singleUseAlreadyOpened &&
                 (state is InvitationAccessState.Invited or InvitationAccessState.InProgress || reusableSubmittedState),
@@ -717,6 +758,18 @@ public class CandidateAccessService(AppDbContext dbContext) : ICandidateAccessSe
             TokenExpiresAtUtc = invitation.TokenExpiresAtUtc.ToString("O"),
             TimeLimitMinutes = invitation.TimeLimitMinutes,
         };
+
+        if (attemptLimitReached)
+        {
+            mapped.IsValid = false;
+            mapped.CanStart = false;
+            mapped.CanResume = false;
+            mapped.CanSubmit = false;
+            mapped.Status = "Invalid";
+            mapped.Message = "Maximum attempts reached.";
+        }
+
+        return mapped;
     }
 
     private static CandidateAccessSessionDto MapSessionDto(

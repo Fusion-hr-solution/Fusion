@@ -9,6 +9,7 @@ public class Test : AggregateRoot
     public string Description { get; set; } = string.Empty;
     public Discipline Discipline { get; set; }
     public TestStatus Status { get; set; } = TestStatus.Draft;
+    public int? MaxAttempts { get; set; }
     public int CandidateCount { get; set; }
     public ICollection<TestQuestion> TestQuestions { get; set; } = new List<TestQuestion>();
 
