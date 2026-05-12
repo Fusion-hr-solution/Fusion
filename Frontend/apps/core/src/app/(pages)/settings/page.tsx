@@ -4,7 +4,11 @@ export default function SettingsPage() {
       <div className="text-center">
         <h1 className="text-2xl font-semibold text-foreground">Settings</h1>
         <p className="mt-2 text-muted-foreground">
-          Platform settings coming soon.
+          This route is not part of the active Core workspace surface.
+        </p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Current Core workflows are centered on Setup, Organizations, and
+          Employees while this area remains unproductized.
         </p>
       </div>
     </div>

@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { PageHeader } from "@/components/page-header";
+import { CorePageLoadingState } from "@/components/core-page-loading-state";
 
 export default function DraftStructureImportRedirectPage() {
   const router = useRouter();
@@ -15,11 +15,11 @@ export default function DraftStructureImportRedirectPage() {
   }, [router, searchParams]);
 
   return (
-    <div className="flex flex-col gap-6 p-6">
-      <PageHeader
-        title="Draft Structure Import"
-        description="Redirecting to the draft workspace..."
-      />
-    </div>
+    <CorePageLoadingState
+      title="Draft Structure Import"
+      description="Redirecting to the draft workspace..."
+      message="Opening the draft structure import workspace..."
+      variant="redirect"
+    />
   );
 }

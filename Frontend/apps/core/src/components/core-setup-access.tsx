@@ -13,13 +13,12 @@ import { usePathname, useRouter } from "next/navigation";
 import { coreSetupQueryKeys, type TenantSetupStateDto } from "@repo/api";
 import { useApiQueryClient } from "@repo/api/query";
 import { canSeeCoreSetupNavigation, useAuth } from "@repo/auth";
-import { PageHeader } from "@/components/page-header";
-import { Spinner } from "@/components/ui/spinner";
+import { CorePageLoadingState } from "@/components/core-page-loading-state";
 import { useSetupState } from "@/app/(pages)/setup/use-setup";
 
 const SETUP_LOCK_REASON =
   "Complete organization setup before using the rest of the workspace.";
-const SETUP_LOADING_REASON = "Checking setup access...";
+const SETUP_LOADING_REASON = "Loading setup...";
 
 interface CoreSetupAccessContextValue {
   shouldCheckSetupAccess: boolean;
@@ -57,20 +56,12 @@ function isSetupComplete(setupState: TenantSetupStateDto | undefined): boolean {
 
 function SetupRedirectFallback({ isChecking }: { isChecking: boolean }) {
   return (
-    <div className="flex min-h-full flex-col gap-6 p-6">
-      <PageHeader
-        title="Setup required"
-        description="Complete organization setup before using the rest of the workspace."
-      />
-      <div className="flex flex-1 items-center justify-center">
-        <div className="flex items-center gap-3 rounded-lg border bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
-          {isChecking ? <Spinner /> : <Lock className="size-4" />}
-          <span>
-            {isChecking ? "Checking setup access..." : "Taking you to Setup..."}
-          </span>
-        </div>
-      </div>
-    </div>
+    <CorePageLoadingState
+      title="Setup required"
+      description="Complete organization setup before using the rest of the workspace."
+      message={isChecking ? "Loading setup..." : "Redirecting to setup..."}
+      variant="redirect"
+    />
   );
 }
 

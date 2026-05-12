@@ -8,6 +8,7 @@ import { DEFAULT_PAGE_SIZE, EmptyState, type PageSize } from "@repo/ui";
 import { Building, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { CorePageLoadingState } from "@/components/core-page-loading-state";
 import { PageHeader } from "@/components/page-header";
 
 import { useOrganizationList } from "./use-organizations";
@@ -19,7 +20,7 @@ import { CreateOrgDialog } from "./create-org-dialog";
 import { OrgDetailSheet } from "./org-detail-sheet";
 
 export default function OrganizationsPage() {
-  const { user } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const canManageOrganizations = canAccessOrganizations(user);
 
   // ---- list query state ----
@@ -66,6 +67,21 @@ export default function OrganizationsPage() {
     setSkip(0);
   }, []);
 
+  const isInitialPageLoading =
+    (isAuthLoading && !user) ||
+    (!isAuthLoading && canManageOrganizations && isLoading && !data && !error);
+
+  if (isInitialPageLoading) {
+    return (
+      <CorePageLoadingState
+        title="Organizations"
+        description="Organization management is available only to platform administrators."
+        message="Loading organizations..."
+        variant="summary-list"
+      />
+    );
+  }
+
   if (!canManageOrganizations) {
     return (
       <div className="flex flex-col gap-6 p-6">
@@ -96,7 +112,7 @@ export default function OrganizationsPage() {
       />
 
       {/* Stats */}
-      <StatsCards stats={data?.stats} isLoading={isLoading} />
+      <StatsCards stats={data?.stats} isLoading={isLoading && !data} />
 
       {/* Toolbar */}
       <Toolbar

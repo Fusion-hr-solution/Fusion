@@ -24,6 +24,7 @@ public interface IEmployeeImportWorkflowService
     Task<EmployeeImportSessionDto> ValidateAsync(
         Guid sessionId,
         int previewPageNumber,
+        int previewPageSize,
         string previewFilter,
         string? groupKey,
         CancellationToken cancellationToken);
@@ -31,6 +32,7 @@ public interface IEmployeeImportWorkflowService
     Task<EmployeeImportSessionDto> GetSessionAsync(
         Guid sessionId,
         int previewPageNumber,
+        int previewPageSize,
         string previewFilter,
         string? groupKey,
         CancellationToken cancellationToken);
@@ -50,14 +52,15 @@ public interface IEmployeeImportWorkflowService
 public sealed class EmployeeImportWorkflowService(
     CoreHRDbContext dbContext,
     ITenantContext tenantContext,
-    IEmployeeHierarchyService? employeeHierarchyService = null) : IEmployeeImportWorkflowService
+    IEmployeeHierarchyService hierarchyService) : IEmployeeImportWorkflowService
 {
-    private readonly IEmployeeHierarchyService employeeHierarchyService = employeeHierarchyService ?? new EmployeeHierarchyService(dbContext);
+    private readonly IEmployeeHierarchyService employeeHierarchyService = hierarchyService;
 
     private const int MaxSourceFileNameLength = 260;
     private const int MaxRowCount = 5000;
     private const int SampleRowCount = 12;
-    private const int PreviewRowCount = 25;
+    private const int DefaultPreviewPageSize = 25;
+    private const int MaxPreviewPageSize = 100;
     private const int MaxHistoryPageSize = 50;
     private static readonly TimeSpan SessionLifetime = TimeSpan.FromHours(2);
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
@@ -154,11 +157,18 @@ public sealed class EmployeeImportWorkflowService(
     }
 
     public async Task<EmployeeImportSessionDto> GetSessionAsync(Guid sessionId, CancellationToken cancellationToken)
-        => await GetSessionAsync(sessionId, 1, "all", null, cancellationToken);
+        => await GetSessionAsync(
+            sessionId,
+            1,
+            DefaultPreviewPageSize,
+            "all",
+            null,
+            cancellationToken);
 
     public async Task<EmployeeImportSessionDto> GetSessionAsync(
         Guid sessionId,
         int previewPageNumber,
+        int previewPageSize,
         string previewFilter,
         string? groupKey,
         CancellationToken cancellationToken)
@@ -181,16 +191,24 @@ public sealed class EmployeeImportWorkflowService(
             sourceRows,
             previewRows,
             previewPageNumber,
+            previewPageSize,
             previewFilter,
             groupKey);
     }
 
     public async Task<EmployeeImportSessionDto> ValidateAsync(Guid sessionId, CancellationToken cancellationToken)
-        => await ValidateAsync(sessionId, 1, "all", null, cancellationToken);
+        => await ValidateAsync(
+            sessionId,
+            1,
+            DefaultPreviewPageSize,
+            "all",
+            null,
+            cancellationToken);
 
     public async Task<EmployeeImportSessionDto> ValidateAsync(
         Guid sessionId,
         int previewPageNumber,
+        int previewPageSize,
         string previewFilter,
         string? groupKey,
         CancellationToken cancellationToken)
@@ -231,6 +249,7 @@ public sealed class EmployeeImportWorkflowService(
             sourceRows,
             previewRows,
             previewPageNumber,
+            previewPageSize,
             previewFilter,
             groupKey);
     }
@@ -993,6 +1012,7 @@ public sealed class EmployeeImportWorkflowService(
         IReadOnlyList<EmployeeImportSourceRowDto> sourceRows,
         IReadOnlyList<EmployeeImportPreviewRowDto> previewRows,
         int previewPageNumber = 1,
+        int previewPageSize = DefaultPreviewPageSize,
         string previewFilter = "all",
         string? groupKey = null)
     {
@@ -1017,13 +1037,17 @@ public sealed class EmployeeImportWorkflowService(
             validationIssues,
             previewFilter,
             groupKey);
+        var normalizedPreviewPageSize = Math.Clamp(
+            previewPageSize,
+            1,
+            MaxPreviewPageSize);
         var previewPageCount = Math.Max(
             1,
-            (int)Math.Ceiling(filteredPreviewRows.Count / (double)PreviewRowCount));
+            (int)Math.Ceiling(filteredPreviewRows.Count / (double)normalizedPreviewPageSize));
         var currentPreviewPage = Math.Min(Math.Max(previewPageNumber, 1), previewPageCount);
         var previewWindow = filteredPreviewRows
-            .Skip((currentPreviewPage - 1) * PreviewRowCount)
-            .Take(PreviewRowCount)
+            .Skip((currentPreviewPage - 1) * normalizedPreviewPageSize)
+            .Take(normalizedPreviewPageSize)
             .ToList();
         var canValidate =
             session.Stage != EmployeeImportStage.Expired &&
@@ -1043,7 +1067,7 @@ public sealed class EmployeeImportWorkflowService(
             sourceRows.Take(SampleRowCount).ToList(),
             previewWindow,
             currentPreviewPage,
-            PreviewRowCount,
+            normalizedPreviewPageSize,
             previewPageCount,
             filteredPreviewRows.Count,
             currentPreviewPage < previewPageCount,
