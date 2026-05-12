@@ -77,25 +77,6 @@ public sealed class EmployeeReadModelPolicy : IEmployeeReadModelPolicy
             directReportCount,
             employee.Version);
 
-    public EmployeeProfileDto MapProfile(Employee employee, TenantSettingsDto settings, EmployeeReadAudience audience, int directReportCount)
-        => new(
-            employee.Id,
-            employee.FirstName,
-            employee.LastName,
-            employee.Email,
-            CanViewField(settings, "jobTitle", audience) ? employee.JobTitle : null,
-            employee.HireDate,
-            employee.Status,
-            employee.OrgUnitId,
-            employee.OrgUnit?.Name,
-            employee.ManagerId,
-            employee.Manager?.FirstName,
-            employee.Manager?.LastName,
-            employee.Manager?.Email,
-            ResolveHierarchyStatus(employee),
-            directReportCount,
-            employee.Version);
-
     private static bool CanViewField(
         TenantSettingsDto settings,
         string fieldName,
