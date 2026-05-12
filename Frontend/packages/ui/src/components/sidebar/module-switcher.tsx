@@ -1,5 +1,6 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import * as Popover from "@radix-ui/react-popover";
@@ -20,6 +21,7 @@ import type { SidebarModule } from "./types";
 
 /** Sibling Fusion apps (not served under this Next module’s basePath) — use full-page `<a>`. */
 const EXTERNAL_MODULE_PREFIXES = [
+  "/core",
   "/learning",
   "/performance",
   "/recruitment",
@@ -49,6 +51,10 @@ interface ModuleSwitcherProps {
   collapsed?: boolean;
   /** Stitch executive-console styling (stone + EY yellow accents) */
   variant?: "default" | "stitch";
+  /** Optional local theme override for the trigger surface. */
+  triggerStyle?: CSSProperties;
+  /** Optional local theme override for the portal content surface. */
+  contentStyle?: CSSProperties;
 }
 
 export function ModuleSwitcher({
@@ -56,6 +62,8 @@ export function ModuleSwitcher({
   modules = DEFAULT_MODULES,
   collapsed = false,
   variant = "default",
+  triggerStyle,
+  contentStyle,
 }: ModuleSwitcherProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -81,7 +89,8 @@ export function ModuleSwitcher({
     "border-stone-300 bg-white text-stone-900 shadow-sm",
     "hover:bg-stone-50 dark:border-stone-600 dark:bg-stone-800 dark:text-stone-100 dark:hover:bg-stone-800/80",
     "focus:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(48_95%_48%)] focus-visible:ring-offset-2 focus-visible:ring-offset-stone-100 dark:focus-visible:ring-offset-stone-900",
-    open && "border-stone-400 bg-stone-50 dark:border-stone-500 dark:bg-stone-800"
+    open &&
+      "border-stone-400 bg-stone-50 dark:border-stone-500 dark:bg-stone-800"
   );
   const defaultTrigger = cn(
     "flex w-full items-center gap-2 rounded-lg border border-border px-3 py-2",
@@ -120,6 +129,7 @@ export function ModuleSwitcher({
     <Popover.Root open={open} onOpenChange={setOpen}>
       <Popover.Trigger asChild>
         <button
+          style={triggerStyle}
           className={variant === "stitch" ? stitchTrigger : defaultTrigger}
         >
           <LayoutGrid
@@ -147,7 +157,10 @@ export function ModuleSwitcher({
               variant === "stitch"
                 ? "text-stone-500 dark:text-stone-400"
                 : "text-muted-foreground/60",
-              open && (variant === "stitch" ? "text-stone-800 dark:text-stone-100" : "text-foreground")
+              open &&
+                (variant === "stitch"
+                  ? "text-stone-800 dark:text-stone-100"
+                  : "text-foreground")
             )}
           />
         </button>
@@ -158,7 +171,10 @@ export function ModuleSwitcher({
           align="start"
           side="bottom"
           sideOffset={6}
-          style={{ width: "var(--radix-popover-trigger-width)" }}
+          style={{
+            width: "var(--radix-popover-trigger-width)",
+            ...contentStyle,
+          }}
           className={cn(
             "z-[100] overflow-hidden shadow-lg",
             variant === "stitch"
@@ -267,22 +283,14 @@ export function ModuleSwitcher({
 
                 if (isExternalModuleHref(mod.href)) {
                   return (
-                    <a
-                      key={mod.label}
-                      href={mod.href}
-                      className={itemClass}
-                    >
+                    <a key={mod.label} href={mod.href} className={itemClass}>
                       {inner}
                     </a>
                   );
                 }
 
                 return (
-                  <Link
-                    key={mod.label}
-                    href={mod.href}
-                    className={itemClass}
-                  >
+                  <Link key={mod.label} href={mod.href} className={itemClass}>
                     {inner}
                   </Link>
                 );

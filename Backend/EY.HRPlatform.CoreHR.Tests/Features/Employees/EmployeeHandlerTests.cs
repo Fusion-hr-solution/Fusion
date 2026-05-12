@@ -26,7 +26,7 @@ public class EmployeeHandlerTests
         var tenantContext = TestTenantContext.WithTenant(TenantId);
         await using var context = TestDbContextFactory.Create(tenantContext);
 
-        var handler = new CreateEmployeeCommandHandler(context, tenantContext);
+        var handler = new CreateEmployeeCommandHandler(context, tenantContext, new EmployeeHierarchyService(context));
         var command = new CreateEmployeeCommand(
             "John",
             "Doe",
@@ -64,7 +64,7 @@ public class EmployeeHandlerTests
         await seedContext.SaveChangesAsync();
 
         await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new CreateEmployeeCommandHandler(context, tenantContext);
+        var handler = new CreateEmployeeCommandHandler(context, tenantContext, new EmployeeHierarchyService(context));
         var command = new CreateEmployeeCommand(
             "John",
             "Doe",
@@ -92,7 +92,7 @@ public class EmployeeHandlerTests
         await seedContext.SaveChangesAsync();
 
         await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new CreateEmployeeCommandHandler(context, tenantContext);
+        var handler = new CreateEmployeeCommandHandler(context, tenantContext, new EmployeeHierarchyService(context));
         var command = new CreateEmployeeCommand(
             "John",
             "Doe",
@@ -123,7 +123,7 @@ public class EmployeeHandlerTests
         await seedContext.SaveChangesAsync();
 
         await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new CreateEmployeeCommandHandler(context, tenantContext);
+        var handler = new CreateEmployeeCommandHandler(context, tenantContext, new EmployeeHierarchyService(context));
         var command = new CreateEmployeeCommand(
             "John",
             "Doe",
@@ -157,7 +157,7 @@ public class EmployeeHandlerTests
         await seedContext.SaveChangesAsync();
 
         await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new CreateEmployeeCommandHandler(context, tenantContext);
+        var handler = new CreateEmployeeCommandHandler(context, tenantContext, new EmployeeHierarchyService(context));
         var command = new CreateEmployeeCommand(
             "John",
             "Doe",
@@ -186,7 +186,7 @@ public class EmployeeHandlerTests
         await seedContext.SaveChangesAsync();
 
         await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new CreateEmployeeCommandHandler(context, tenantContext);
+        var handler = new CreateEmployeeCommandHandler(context, tenantContext, new EmployeeHierarchyService(context));
         var command = new CreateEmployeeCommand(
             "John",
             "Doe",
@@ -208,7 +208,7 @@ public class EmployeeHandlerTests
         var tenantContext = TestTenantContext.WithTenant(TenantId);
         await using var context = TestDbContextFactory.Create(tenantContext);
 
-        var handler = new CreateEmployeeCommandHandler(context, tenantContext);
+        var handler = new CreateEmployeeCommandHandler(context, tenantContext, new EmployeeHierarchyService(context));
         var command = new CreateEmployeeCommand(
             "John",
             "Doe",
@@ -342,7 +342,7 @@ public class EmployeeHandlerTests
         var version = employee.Version;
 
         await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new UpdateEmployeeCommandHandler(context);
+        var handler = new UpdateEmployeeCommandHandler(context, new EmployeeHierarchyService(context));
         var command = new UpdateEmployeeCommand(
             employee.Id,
             version,
@@ -370,7 +370,7 @@ public class EmployeeHandlerTests
         var tenantContext = TestTenantContext.WithTenant(TenantId);
         await using var context = TestDbContextFactory.Create(tenantContext);
 
-        var handler = new UpdateEmployeeCommandHandler(context);
+        var handler = new UpdateEmployeeCommandHandler(context, new EmployeeHierarchyService(context));
         var command = new UpdateEmployeeCommand(
             Guid.NewGuid(),
             0,
@@ -398,7 +398,7 @@ public class EmployeeHandlerTests
         await seedContext.SaveChangesAsync();
 
         await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new UpdateEmployeeCommandHandler(context);
+        var handler = new UpdateEmployeeCommandHandler(context, new EmployeeHierarchyService(context));
 
         // Use a stale (incorrect) version - real version is 0, we pass 999
         var command = new UpdateEmployeeCommand(
@@ -429,7 +429,7 @@ public class EmployeeHandlerTests
         var version = employee.Version;
 
         await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new UpdateEmployeeCommandHandler(context);
+        var handler = new UpdateEmployeeCommandHandler(context, new EmployeeHierarchyService(context));
 
         // Only update firstName, leave everything else null (unchanged)
         var command = new UpdateEmployeeCommand(
@@ -468,7 +468,7 @@ public class EmployeeHandlerTests
         var version = employee.Version;
 
         await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new UpdateEmployeeCommandHandler(context);
+        var handler = new UpdateEmployeeCommandHandler(context, new EmployeeHierarchyService(context));
         var command = new UpdateEmployeeCommand(
             employee.Id,
             version,
@@ -505,7 +505,7 @@ public class EmployeeHandlerTests
         var version = employee.Version;
 
         await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new UpdateEmployeeCommandHandler(context);
+        var handler = new UpdateEmployeeCommandHandler(context, new EmployeeHierarchyService(context));
         var command = new UpdateEmployeeCommand(
             employee.Id,
             version,
@@ -541,7 +541,7 @@ public class EmployeeHandlerTests
         var managerVersion = manager.Version;
 
         await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new UpdateEmployeeCommandHandler(context);
+        var handler = new UpdateEmployeeCommandHandler(context, new EmployeeHierarchyService(context));
         var command = new UpdateEmployeeCommand(
             manager.Id,
             managerVersion,
@@ -577,7 +577,7 @@ public class EmployeeHandlerTests
         var version = employee.Version;
 
         await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new DeactivateEmployeeCommandHandler(context);
+        var handler = new DeactivateEmployeeCommandHandler(context, new EmployeeHierarchyService(context));
         var command = new DeactivateEmployeeCommand(employee.Id, version);
 
         // Act
@@ -597,7 +597,7 @@ public class EmployeeHandlerTests
         var tenantContext = TestTenantContext.WithTenant(TenantId);
         await using var context = TestDbContextFactory.Create(tenantContext);
 
-        var handler = new DeactivateEmployeeCommandHandler(context);
+        var handler = new DeactivateEmployeeCommandHandler(context, new EmployeeHierarchyService(context));
         var command = new DeactivateEmployeeCommand(Guid.NewGuid(), 0);
 
         // Act & Assert
@@ -618,7 +618,7 @@ public class EmployeeHandlerTests
         await seedContext.SaveChangesAsync();
 
         await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new DeactivateEmployeeCommandHandler(context);
+        var handler = new DeactivateEmployeeCommandHandler(context, new EmployeeHierarchyService(context));
 
         // Use a stale version
         var command = new DeactivateEmployeeCommand(employee.Id, 999);
@@ -644,7 +644,7 @@ public class EmployeeHandlerTests
         var managerVersion = manager.Version;
 
         await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new DeactivateEmployeeCommandHandler(context);
+        var handler = new DeactivateEmployeeCommandHandler(context, new EmployeeHierarchyService(context));
         var command = new DeactivateEmployeeCommand(manager.Id, managerVersion);
 
         // Act & Assert

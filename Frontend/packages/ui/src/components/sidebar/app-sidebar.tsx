@@ -18,11 +18,15 @@ export function AppSidebar({
   footer,
   userPanel,
   modules,
+  style,
+  moduleSwitcherContentStyle,
+  moduleSwitcherTriggerStyle,
 }: AppSidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
 
   return (
     <aside
+      style={style}
       className={cn(
         "group/sidebar relative flex h-full shrink-0 flex-col border-r border-sidebar-border bg-sidebar transition-[width] duration-300 ease-in-out",
         collapsed ? "w-[68px]" : "w-[260px]"
@@ -76,6 +80,8 @@ export function AppSidebar({
           activeModule={activeModule}
           modules={modules}
           collapsed={collapsed}
+          contentStyle={moduleSwitcherContentStyle}
+          triggerStyle={moduleSwitcherTriggerStyle}
         />
       </div>
 

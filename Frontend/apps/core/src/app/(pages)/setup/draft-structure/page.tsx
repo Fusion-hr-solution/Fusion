@@ -109,7 +109,10 @@ function buildDraftStructureExportFields(schema: DraftStructureSchemaDto) {
 function flattenDraftTreeNodeIds(
   nodes: DraftStructureTreeNodeModel[]
 ): string[] {
-  return nodes.flatMap((node) => [node.id, ...flattenDraftTreeNodeIds(node.children)]);
+  return nodes.flatMap((node) => [
+    node.id,
+    ...flattenDraftTreeNodeIds(node.children),
+  ]);
 }
 
 function stringifyDraftStructureExportValue(value: unknown) {
@@ -221,7 +224,7 @@ function buildDraftStructureExportCsv({
 export default function DraftStructurePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const canAccess = canAccessCoreSetup(user);
   const [actionError, setActionError] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -268,7 +271,10 @@ export default function DraftStructurePage() {
   const reopenStructure = useReopenStructure();
 
   const draftTree = useMemo(() => buildWorkspaceDraftTree(tree ?? []), [tree]);
-  const draftTreeNodeIds = useMemo(() => flattenDraftTreeNodeIds(draftTree), [draftTree]);
+  const draftTreeNodeIds = useMemo(
+    () => flattenDraftTreeNodeIds(draftTree),
+    [draftTree]
+  );
   const filteredTree = useMemo(
     () => filterDraftTree(draftTree, deferredSearch),
     [deferredSearch, draftTree]
@@ -334,6 +340,10 @@ export default function DraftStructurePage() {
     : isSetupComplete
       ? "This page is now a read-only snapshot of the structure that completed setup."
       : "This draft is locked while later setup steps are in progress.";
+
+  if (isAuthLoading && !user) {
+    return <DraftStructurePageSkeleton hasImportSession={hasImportSession} />;
+  }
 
   useEffect(() => {
     if (!isDraftLocked) {
@@ -445,15 +455,8 @@ export default function DraftStructurePage() {
     );
   }
 
-  if (isSetupLoading) {
-    return (
-      <div className="flex flex-col gap-6 p-6">
-        <PageHeader
-          title="Organization Structure"
-          description="Loading setup state..."
-        />
-      </div>
-    );
+  if (isSetupLoading && !setupState) {
+    return <DraftStructurePageSkeleton hasImportSession={hasImportSession} />;
   }
 
   if (setupError) {

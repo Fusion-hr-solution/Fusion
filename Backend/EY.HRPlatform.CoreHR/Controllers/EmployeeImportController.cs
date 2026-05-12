@@ -44,6 +44,7 @@ public class EmployeeImportController(
     public async Task<IActionResult> Validate(
         Guid sessionId,
         [FromQuery] int previewPageNumber = 1,
+        [FromQuery] int previewPageSize = 25,
         [FromQuery] string previewFilter = "all",
         [FromQuery] string? groupKey = null,
         CancellationToken cancellationToken = default)
@@ -51,6 +52,7 @@ public class EmployeeImportController(
         var session = await workflowService.ValidateAsync(
             sessionId,
             previewPageNumber,
+            previewPageSize,
             previewFilter,
             groupKey,
             cancellationToken);
@@ -99,6 +101,7 @@ public class EmployeeImportController(
     public async Task<IActionResult> GetSession(
         Guid sessionId,
         [FromQuery] int previewPageNumber = 1,
+        [FromQuery] int previewPageSize = 25,
         [FromQuery] string previewFilter = "all",
         [FromQuery] string? groupKey = null,
         CancellationToken cancellationToken = default)
@@ -106,6 +109,7 @@ public class EmployeeImportController(
         var session = await workflowService.GetSessionAsync(
             sessionId,
             previewPageNumber,
+            previewPageSize,
             previewFilter,
             groupKey,
             cancellationToken);

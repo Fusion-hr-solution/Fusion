@@ -13,6 +13,7 @@ import { useAuth } from "@repo/auth";
 import { canAccessEmployeeRoster } from "@/lib/employee-roster-access";
 import {
   DEFAULT_EMPLOYEE_IMPORT_HISTORY_PAGE_SIZE,
+  DEFAULT_EMPLOYEE_IMPORT_PREVIEW_PAGE_SIZE,
   employeeImportQueryKeys,
   employeeRosterQueryKeys,
   normalizeEmployeeImportHistoryQuery,
@@ -40,17 +41,22 @@ type ApplyEmployeeImportInput = {
 
 function buildPreviewQueryString(query?: EmployeeImportPreviewQuery) {
   const params = new URLSearchParams();
+  const normalizedQuery = normalizeEmployeeImportPreviewQuery(query);
 
-  if ((query?.pageNumber ?? 1) > 1) {
-    params.set("previewPageNumber", String(query?.pageNumber));
+  if (normalizedQuery.pageNumber > 1) {
+    params.set("previewPageNumber", String(normalizedQuery.pageNumber));
   }
 
-  if (query?.previewFilter === "affected") {
-    params.set("previewFilter", query.previewFilter);
+  if (normalizedQuery.pageSize !== DEFAULT_EMPLOYEE_IMPORT_PREVIEW_PAGE_SIZE) {
+    params.set("previewPageSize", String(normalizedQuery.pageSize));
   }
 
-  if (query?.groupKey) {
-    params.set("groupKey", query.groupKey);
+  if (normalizedQuery.previewFilter === "affected") {
+    params.set("previewFilter", normalizedQuery.previewFilter);
+  }
+
+  if (normalizedQuery.groupKey) {
+    params.set("groupKey", normalizedQuery.groupKey);
   }
 
   const queryString = params.toString();
@@ -106,10 +112,11 @@ export function useEmployeeImportSession(
     [
       previewQuery?.groupKey,
       previewQuery?.pageNumber,
+      previewQuery?.pageSize,
       previewQuery?.previewFilter,
     ]
   );
-  const previewQueryString = buildPreviewQueryString(previewQuery);
+  const previewQueryString = buildPreviewQueryString(normalizedPreviewQuery);
 
   const queryFn = useCallback(
     (signal: AbortSignal) => {

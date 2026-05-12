@@ -107,17 +107,25 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IPlatformOrganizationService, PlatformOrganizationService>();
 
         // 5. Training service client (service-to-service)
-        var trainingBaseUrl = configuration["Services:TrainingUrl"]
-            ?? throw new InvalidOperationException("Services:TrainingUrl is not configured.");
-        var serviceApiKey = configuration["ServiceIntegration:ApiKey"]
-            ?? throw new InvalidOperationException("ServiceIntegration:ApiKey is not configured.");
+        // This integration is fire-and-forget only. When local config is blank,
+        // keep Identity endpoints working and skip downstream provisioning.
+        var trainingBaseUrl = configuration["Services:TrainingUrl"]?.Trim();
+        var serviceApiKey = configuration["ServiceIntegration:ApiKey"]?.Trim();
 
-        services.AddHttpClient<ITrainingServiceClient, HttpTrainingServiceClient>(client =>
+        if (string.IsNullOrWhiteSpace(trainingBaseUrl) || string.IsNullOrWhiteSpace(serviceApiKey))
         {
-            client.BaseAddress = new Uri(trainingBaseUrl);
-            client.DefaultRequestHeaders.Add("X-Service-Key", serviceApiKey);
-            client.Timeout = TimeSpan.FromSeconds(5);
-        });
+            services.AddSingleton<ITrainingServiceClient, NoOpTrainingServiceClient>();
+        }
+        else
+        {
+            services.AddHttpClient<ITrainingServiceClient, HttpTrainingServiceClient>(client =>
+            {
+                client.BaseAddress = new Uri(trainingBaseUrl);
+                client.DefaultRequestHeaders.Add("X-Service-Key", serviceApiKey);
+                client.Timeout = TimeSpan.FromSeconds(5);
+            });
+        }
+
         return services;
     }
 }
