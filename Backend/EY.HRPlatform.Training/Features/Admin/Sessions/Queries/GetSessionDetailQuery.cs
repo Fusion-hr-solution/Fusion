@@ -1,5 +1,6 @@
 using EY.HRPlatform.SharedKernel.CQRS;
 using EY.HRPlatform.SharedKernel.Results;
+using EY.HRPlatform.Training.Domain.Enums;
 using EY.HRPlatform.Training.Infrastructure.Persistence;
 using EY.HRPlatform.Training.Models.Responses;
 using Microsoft.EntityFrameworkCore;
@@ -30,7 +31,9 @@ public class GetSessionDetailQueryHandler : IQueryHandler<GetSessionDetailQuery,
                 EndUtc = x.EndUtc,
                 Room = x.Room,
                 MaxCapacity = x.MaxCapacity,
-                EnrolledCount = 0,
+                EnrolledCount = _db.SessionEnrollments.Count(e =>
+                    e.SessionId == x.Id &&
+                    (e.Status == EnrollmentStatus.Enrolled || e.Status == EnrollmentStatus.Attended)),
                 Notes = x.Notes,
                 TrainerEmployeeId = x.TrainerEmployeeId,
                 TrainerName = x.TrainerName,

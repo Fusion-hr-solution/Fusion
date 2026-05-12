@@ -79,7 +79,10 @@ public class GetSessionsQueryHandler : IQueryHandler<GetSessionsQuery, Result<Pa
                 s.MaxCapacity,
                 s.TrainerName,
                 s.TrainerEmployeeId,
-                s.Status
+                s.Status,
+                EnrolledCount = _db.SessionEnrollments.Count(e =>
+                    e.SessionId == s.Id &&
+                    (e.Status == EnrollmentStatus.Enrolled || e.Status == EnrollmentStatus.Attended))
             })
             .ToListAsync(cancellationToken);
 
@@ -95,7 +98,7 @@ public class GetSessionsQueryHandler : IQueryHandler<GetSessionsQuery, Result<Pa
             EndUtc = s.EndUtc,
             Room = s.Room,
             MaxCapacity = s.MaxCapacity,
-            EnrolledCount = 0,
+            EnrolledCount = s.EnrolledCount,
             TrainerName = s.TrainerName,
             TrainerEmployeeId = s.TrainerEmployeeId,
             Status = ProjectStatus(s.Status, s.StartUtc, s.EndUtc, nowUtc).ToString()
