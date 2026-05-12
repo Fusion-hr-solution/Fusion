@@ -9,9 +9,9 @@ namespace EY.HRPlatform.CoreHR.Features.Employees.Commands.DeactivateEmployee;
 
 public sealed class DeactivateEmployeeCommandHandler(
     CoreHRDbContext dbContext,
-    IEmployeeHierarchyService? employeeHierarchyService = null) : ICommandHandler<DeactivateEmployeeCommand, Result>
+    IEmployeeHierarchyService hierarchyService) : ICommandHandler<DeactivateEmployeeCommand, Result>
 {
-    private readonly IEmployeeHierarchyService employeeHierarchyService = employeeHierarchyService ?? new EmployeeHierarchyService(dbContext);
+    private readonly IEmployeeHierarchyService employeeHierarchyService = hierarchyService;
 
     public async Task<Result> Handle(DeactivateEmployeeCommand request, CancellationToken cancellationToken)
     {

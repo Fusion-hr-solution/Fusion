@@ -16,7 +16,18 @@ public sealed record EmployeeListItemDto(
     EmployeeStatus Status,
     DateTime HireDate,
     Guid? ManagerId,
-    string? ManagerName)
+    string? ManagerName,
+    string HierarchyStatus,
+    int DirectReportCount,
+    uint Version)
 {
     public string FullName => $"{FirstName} {LastName}";
+}
+
+public static class EmployeeHierarchyStatuses
+{
+    public const string Healthy = "Healthy";
+    public const string NoManagerAssigned = "NoManagerAssigned";
+    public const string ManagerInactive = "ManagerInactive";
+    public const string ManagerMissing = "ManagerMissing";
 }

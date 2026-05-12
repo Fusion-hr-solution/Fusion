@@ -1,5 +1,11 @@
 export type EmployeeRosterStatus = "Active" | "Inactive";
 
+export type EmployeeHierarchyStatus =
+  | "Healthy"
+  | "NoManagerAssigned"
+  | "ManagerInactive"
+  | "ManagerMissing";
+
 export type EmployeeRosterSortField = "Name" | "Email" | "HireDate" | "Status";
 
 export type EmployeeRosterSortDirection = "Asc" | "Desc";
@@ -16,6 +22,9 @@ export interface EmployeeRosterItem {
   hireDate: string;
   managerId: string | null;
   managerName: string | null;
+  hierarchyStatus: EmployeeHierarchyStatus;
+  directReportCount: number;
+  version: number;
 }
 
 export interface EmployeeRosterPageDto {
@@ -35,4 +44,18 @@ export interface EmployeeRosterQueryParams {
   sortDir: EmployeeRosterSortDirection;
   page: number;
   pageSize: number;
+}
+
+export interface EmployeeHierarchyNodeDto {
+  employee: EmployeeRosterItem;
+  depth: number;
+}
+
+export interface EmployeeReportingLinesDto {
+  employee: EmployeeRosterItem;
+  managerChain: EmployeeHierarchyNodeDto[];
+  directReports: EmployeeHierarchyNodeDto[];
+  downline: EmployeeHierarchyNodeDto[];
+  directReportCount: number;
+  downlineCount: number;
 }

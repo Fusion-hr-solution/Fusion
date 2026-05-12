@@ -7,9 +7,11 @@ import { Upload, Users } from "lucide-react";
 import { useAuth } from "@repo/auth";
 import { DEFAULT_PAGE_SIZE, EmptyState, type PageSize } from "@repo/ui";
 import { PageHeader } from "@/components/page-header";
+import { CorePageLoadingState } from "@/components/core-page-loading-state";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { canAccessEmployeeRoster } from "@/lib/employee-roster-access";
+import { EmployeeReportingLinesSheet } from "./employee-reporting-lines-sheet";
 import { EmployeesTable } from "./employees-table";
 import { PaginationBar } from "./pagination-bar";
 import { Toolbar } from "./toolbar";
@@ -17,6 +19,7 @@ import type {
   EmployeeRosterSortDirection,
   EmployeeRosterSortField,
   EmployeeRosterStatus,
+  EmployeeRosterItem,
 } from "./employee-roster.types";
 import { useEmployeeRoster } from "./use-employees";
 
@@ -48,7 +51,7 @@ function getRosterSortParams(sorting: SortingState): {
 }
 
 export default function EmployeesPage() {
-  const { user } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const canAccess = canAccessEmployeeRoster(user);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<PageSize>(DEFAULT_PAGE_SIZE);
@@ -56,6 +59,9 @@ export default function EmployeesPage() {
   const [status, setStatus] = useState<EmployeeRosterStatus | undefined>();
   const [sorting, setSorting] = useState<SortingState>(
     DEFAULT_EMPLOYEE_SORTING
+  );
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(
+    null
   );
   const { sortBy, sortDir } = getRosterSortParams(sorting);
 
@@ -92,6 +98,25 @@ export default function EmployeesPage() {
     setPageSize(size);
     setPage(1);
   }, []);
+
+  const handleRowClick = useCallback((employee: EmployeeRosterItem) => {
+    setSelectedEmployeeId(employee.id);
+  }, []);
+
+  const isInitialPageLoading =
+    (isAuthLoading && !user) ||
+    (!isAuthLoading && canAccess && isLoading && !data && !error);
+
+  if (isInitialPageLoading) {
+    return (
+      <CorePageLoadingState
+        title="Employees"
+        description="The operational roster is available only to tenant HR administrators."
+        message="Loading employees..."
+        variant="list"
+      />
+    );
+  }
 
   if (!canAccess) {
     return (
@@ -145,10 +170,11 @@ export default function EmployeesPage() {
 
       <EmployeesTable
         data={data?.items ?? []}
-        isLoading={isLoading}
+        isLoading={isLoading && !data}
         isRefetching={isFetching && !!data}
         sorting={sorting}
         onSortingChange={handleSortingChange}
+        onRowClick={handleRowClick}
       />
 
       {data && data.totalCount > 0 && (
@@ -160,6 +186,16 @@ export default function EmployeesPage() {
           onPageSizeChange={handlePageSizeChange}
         />
       )}
+
+      <EmployeeReportingLinesSheet
+        employeeId={selectedEmployeeId}
+        open={selectedEmployeeId !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedEmployeeId(null);
+          }
+        }}
+      />
     </div>
   );
 }

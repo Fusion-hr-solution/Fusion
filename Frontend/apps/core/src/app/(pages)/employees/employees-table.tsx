@@ -32,6 +32,7 @@ interface EmployeesTableProps {
   isRefetching: boolean;
   sorting: SortingState;
   onSortingChange: (sorting: SortingState) => void;
+  onRowClick: (employee: EmployeeRosterItem) => void;
 }
 
 export function EmployeesTable({
@@ -40,6 +41,7 @@ export function EmployeesTable({
   isRefetching,
   sorting,
   onSortingChange,
+  onRowClick,
 }: EmployeesTableProps) {
   const table = useReactTable({
     data,
@@ -110,7 +112,20 @@ export function EmployeesTable({
 
         <TableBody>
           {table.getRowModel().rows.map((row) => (
-            <TableRow key={row.id}>
+            <TableRow
+              key={row.id}
+              className="cursor-pointer hover:bg-muted/40"
+              role="button"
+              tabIndex={0}
+              aria-label={`Open reporting relationship for ${row.original.firstName} ${row.original.lastName}`}
+              onClick={() => onRowClick(row.original)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  onRowClick(row.original);
+                }
+              }}
+            >
               {row.getVisibleCells().map((cell) => (
                 <TableCell key={cell.id}>
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}

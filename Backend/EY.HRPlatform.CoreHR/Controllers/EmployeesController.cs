@@ -5,12 +5,14 @@ using EY.HRPlatform.CoreHR.Features.Employees.Commands.UpdateEmployee;
 using EY.HRPlatform.CoreHR.Features.Employees.Dtos;
 using EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployeeById;
 using EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployees;
+using EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployeeReportingLines;
 using EY.HRPlatform.CoreHR.Models.Requests;
 using EY.HRPlatform.CoreHR.Models.Responses;
 using EY.HRPlatform.SharedKernel.Auth;
 using ApiResponse = EY.HRPlatform.SharedKernel.Api.ApiResponse;
 using ApiResponseOfEmployeeDto = EY.HRPlatform.SharedKernel.Api.ApiResponse<EY.HRPlatform.CoreHR.Features.Employees.Dtos.EmployeeDto>;
 using ApiResponseOfPagedEmployeeList = EY.HRPlatform.SharedKernel.Api.ApiResponse<EY.HRPlatform.CoreHR.Models.Responses.PagedResponse<EY.HRPlatform.CoreHR.Features.Employees.Dtos.EmployeeListItemDto>>;
+using ApiResponseOfEmployeeReportingLinesDto = EY.HRPlatform.SharedKernel.Api.ApiResponse<EY.HRPlatform.CoreHR.Features.Employees.Dtos.EmployeeReportingLinesDto>;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -92,6 +94,25 @@ public class EmployeesController(ISender sender) : ControllerBase
         Response.Headers.ETag = $"\"{result.Value.Version}\"";
 
         return Ok(ApiResponseOfEmployeeDto.Success(result.Value));
+    }
+
+    /// <summary>
+    /// Get reporting-line summary for an employee, including manager chain, direct reports, and flat downline.
+    /// </summary>
+    [HttpGet("{id:guid}/reporting-lines")]
+    [Authorize(Roles = PlatformRole.HRAdmin)]
+    [ProducesResponseType(typeof(ApiResponseOfEmployeeReportingLinesDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetReportingLines(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new GetEmployeeReportingLinesQuery(id), cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return NotFound(ApiResponse.Failure(result.Error.Message));
+        }
+
+        return Ok(ApiResponseOfEmployeeReportingLinesDto.Success(result.Value));
     }
 
     /// <summary>
