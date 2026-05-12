@@ -9,3 +9,4 @@ export {
 
 export * from "./admin-service";
 export * from "./admin-sessions-service";
+export * from "./enrollment-service";
