@@ -20,16 +20,35 @@ public sealed class GetEmployeeOrgChartQueryHandler(
     {
         var settings = await tenantSettingsReadService.GetCurrentAsync(cancellationToken);
         var maxDepth = Math.Clamp(request.MaxDepth, 1, 10);
-        var query = CreateVisibleEmployeesQuery(request.IncludeInactive);
+        var baseQuery = CreateVisibleEmployeesQuery(request.IncludeInactive);
+
+        // Resolve effective root: explicit RootEmployeeId → focus-derived root → full org
+        Guid? effectiveRootId = request.RootEmployeeId;
+        if (!effectiveRootId.HasValue && request.FocusEmployeeId.HasValue)
+        {
+            effectiveRootId = await ResolveChainRootAsync(baseQuery, request.FocusEmployeeId.Value, cancellationToken);
+            if (!effectiveRootId.HasValue)
+            {
+                return Result.Failure<EmployeeOrgChartDto>(Error.NotFound("Employee", request.FocusEmployeeId.Value));
+            }
+        }
+
         var (employees, requestedRoot) = await LoadEmployeesForRequestAsync(
-            query,
-            request.RootEmployeeId,
+            baseQuery,
+            effectiveRootId,
             maxDepth,
             cancellationToken);
 
-        if (request.RootEmployeeId.HasValue && requestedRoot is null)
+        if (effectiveRootId.HasValue && requestedRoot is null)
         {
-            return Result.Failure<EmployeeOrgChartDto>(Error.NotFound("Employee", request.RootEmployeeId.Value));
+            return Result.Failure<EmployeeOrgChartDto>(Error.NotFound("Employee", effectiveRootId.Value));
+        }
+
+        // Apply org unit filter: keep employees in the requested org unit plus their
+        // visible ancestors so the chart hierarchy remains coherent and not misleading.
+        if (request.OrgUnitId.HasValue)
+        {
+            employees = FilterByOrgUnitWithAncestors(employees, request.OrgUnitId.Value);
         }
 
         var employeesById = employees.ToDictionary(employee => employee.Id);
@@ -40,7 +59,7 @@ public sealed class GetEmployeeOrgChartQueryHandler(
             .ToDictionary(group => group.Key, group => group.OrderBy(employee => employee.LastName).ThenBy(employee => employee.FirstName).ToList());
 
         var directReportCounts = childrenMap.ToDictionary(group => group.Key, group => group.Value.Count);
-        var roots = request.RootEmployeeId.HasValue
+        var roots = effectiveRootId.HasValue
             ? new List<(Employee Employee, bool IsOrphaned)> { (requestedRoot!, false) }
             : employees
                 .Where(employee => !employee.ManagerId.HasValue || !employeesById.ContainsKey(employee.ManagerId.Value))
@@ -65,14 +84,19 @@ public sealed class GetEmployeeOrgChartQueryHandler(
                 []))
             .ToList();
 
+        var issueCounts = ComputeIssueCounts(employees);
+
         return Result.Success(
             new EmployeeOrgChartDto(
                 tree,
                 request.RootEmployeeId,
+                request.FocusEmployeeId,
+                request.OrgUnitId,
                 maxDepth,
                 request.IncludeInactive,
                 visibleNodeCount,
-                isTruncated));
+                isTruncated,
+                issueCounts));
     }
 
     private IQueryable<Employee> CreateVisibleEmployeesQuery(bool includeInactive)
@@ -89,6 +113,111 @@ public sealed class GetEmployeeOrgChartQueryHandler(
         }
 
         return query;
+    }
+
+    /// <summary>
+    /// Walk the manager chain from the given employee upward (with cycle guard) to find
+    /// the topmost ancestor in the visible employee set. Returns the root's ID, or null
+    /// if the focus employee does not exist.
+    /// Uses a single query to load all {Id, ManagerId} pairs, then walks in memory
+    /// to avoid an N+1 pattern on deep hierarchies.
+    /// </summary>
+    private async Task<Guid?> ResolveChainRootAsync(
+        IQueryable<Employee> baseQuery,
+        Guid focusEmployeeId,
+        CancellationToken cancellationToken)
+    {
+        // One round-trip: load the full visible manager map up front.
+        var managerMap = await baseQuery
+            .AsNoTracking()
+            .Select(e => new { e.Id, e.ManagerId })
+            .ToDictionaryAsync(e => e.Id, cancellationToken);
+
+        if (!managerMap.TryGetValue(focusEmployeeId, out var focusEmployee))
+        {
+            return null;
+        }
+
+        var visited = new HashSet<Guid> { focusEmployee.Id };
+        var currentId = focusEmployee.ManagerId;
+        var rootId = focusEmployee.Id;
+
+        while (currentId.HasValue)
+        {
+            if (!visited.Add(currentId.Value))
+            {
+                // Cycle detected — stop here; rootId is the last clean ancestor
+                break;
+            }
+
+            if (!managerMap.TryGetValue(currentId.Value, out var manager))
+            {
+                // Manager is outside the visible set — rootId stays as the last valid ancestor
+                break;
+            }
+
+            rootId = manager.Id;
+            currentId = manager.ManagerId;
+        }
+
+        return rootId;
+    }
+
+    /// <summary>
+    /// Filter the loaded employee list to those belonging to the requested org unit,
+    /// plus all their manager-chain ancestors needed to keep the hierarchy coherent.
+    /// </summary>
+    private static List<Employee> FilterByOrgUnitWithAncestors(
+        List<Employee> employees,
+        Guid orgUnitId)
+    {
+        var allById = employees.ToDictionary(e => e.Id);
+        var result = new Dictionary<Guid, Employee>();
+
+        foreach (var employee in employees.Where(e => e.OrgUnitId == orgUnitId))
+        {
+            // Include the employee
+            result.TryAdd(employee.Id, employee);
+
+            // Walk up and include all managers so the chart stays connected
+            var managerId = employee.ManagerId;
+            var seen = new HashSet<Guid> { employee.Id };
+            while (managerId.HasValue && seen.Add(managerId.Value) && allById.TryGetValue(managerId.Value, out var manager))
+            {
+                result.TryAdd(manager.Id, manager);
+                managerId = manager.ManagerId;
+            }
+        }
+
+        return [.. result.Values];
+    }
+
+    private static OrgChartIssueCountsDto ComputeIssueCounts(List<Employee> employees)
+    {
+        int noManagerAssigned = 0, managerInactive = 0, managerMissing = 0, missingOrgUnit = 0;
+
+        foreach (var employee in employees)
+        {
+            if (employee.OrgUnitId is null)
+            {
+                missingOrgUnit++;
+            }
+
+            if (employee.ManagerId is null)
+            {
+                noManagerAssigned++;
+            }
+            else if (employee.Manager is null)
+            {
+                managerMissing++;
+            }
+            else if (employee.Manager.Status != Domain.Enums.EmployeeStatus.Active)
+            {
+                managerInactive++;
+            }
+        }
+
+        return new OrgChartIssueCountsDto(noManagerAssigned, managerInactive, managerMissing, missingOrgUnit);
     }
 
     private static IOrderedQueryable<Employee> OrderEmployees(IQueryable<Employee> query)

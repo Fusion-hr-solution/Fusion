@@ -1,10 +1,5 @@
 import dagre from "dagre";
-import {
-  MarkerType,
-  Position,
-  type Edge,
-  type Node,
-} from "@xyflow/react";
+import { Position, type Edge, type Node } from "@xyflow/react";
 import type {
   EmployeeOrgChartNodeDto,
   OrgChartSearchItem,
@@ -180,7 +175,9 @@ export function createOrgChartFlow({
     };
     const isSelected = selectedEmployeeId === node.employeeId;
     const isOnSelectedPath =
-      !isSelected && hasVisibleSelection && selectedPathIds.has(node.employeeId);
+      !isSelected &&
+      hasVisibleSelection &&
+      selectedPathIds.has(node.employeeId);
     const isInSelectedNeighborhood =
       hasVisibleSelection && selectedNeighborhoodIds.has(node.employeeId);
 
@@ -213,48 +210,27 @@ export function createOrgChartFlow({
     };
   });
 
-  const edges: Edge[] = visibleEdges.map((edge) => ({
-    id: `${edge.source}-${edge.target}`,
-    source: edge.source,
-    target: edge.target,
-    type: "smoothstep",
-    animated: false,
-    markerEnd: {
-      type: MarkerType.ArrowClosed,
-      color:
-        hasVisibleSelection &&
-        ((selectedEmployeeId !== null && edge.source === selectedEmployeeId) ||
-          (selectedEmployeeId !== null && edge.target === selectedEmployeeId) ||
-          (selectedPathIds.has(edge.source) && selectedPathIds.has(edge.target)))
-          ? "hsl(var(--primary))"
-          : "hsl(var(--border))",
-    },
-    style: {
-      stroke:
-        hasVisibleSelection &&
-        ((selectedEmployeeId !== null && edge.source === selectedEmployeeId) ||
-          (selectedEmployeeId !== null && edge.target === selectedEmployeeId) ||
-          (selectedPathIds.has(edge.source) && selectedPathIds.has(edge.target)))
-          ? "hsl(var(--primary))"
-          : "hsl(var(--border))",
-      strokeWidth:
-        hasVisibleSelection &&
-        ((selectedEmployeeId !== null && edge.source === selectedEmployeeId) ||
-          (selectedEmployeeId !== null && edge.target === selectedEmployeeId) ||
-          (selectedPathIds.has(edge.source) && selectedPathIds.has(edge.target)))
-          ? 2.5
-          : 1.25,
-      opacity:
-        hasVisibleSelection &&
-        !(
-          (selectedEmployeeId !== null && edge.source === selectedEmployeeId) ||
-          (selectedEmployeeId !== null && edge.target === selectedEmployeeId) ||
-          (selectedPathIds.has(edge.source) && selectedPathIds.has(edge.target))
-        )
-          ? 0.3
-          : 1,
-    },
-  }));
+  const edges: Edge[] = visibleEdges.map((edge) => {
+    const onPath =
+      hasVisibleSelection &&
+      selectedPathIds.has(edge.source) &&
+      selectedPathIds.has(edge.target);
+
+    return {
+      id: `${edge.source}-${edge.target}`,
+      source: edge.source,
+      target: edge.target,
+      type: "step",
+      animated: false,
+      style: {
+        stroke: onPath ? "var(--color-primary)" : "var(--color-border)",
+        strokeWidth: onPath ? 2.5 : 1.75,
+        strokeLinecap: "round",
+        strokeLinejoin: "round",
+        opacity: onPath ? 0.95 : hasVisibleSelection ? 0.45 : 0.9,
+      },
+    };
+  });
 
   return { nodes, edges };
 }

@@ -50,6 +50,7 @@ public class EmployeesController(ISender sender) : ControllerBase
 
     /// <summary>
     /// Get a hierarchy tree for org chart rendering.
+    /// Supports focus-employee root resolution, org unit scoping, and inactive visibility.
     /// </summary>
     [HttpGet("org-chart")]
     [Authorize(Roles = PlatformRole.HRAdmin)]
@@ -57,12 +58,14 @@ public class EmployeesController(ISender sender) : ControllerBase
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetOrgChart(
         [FromQuery] Guid? rootEmployeeId,
+        [FromQuery] Guid? focusEmployeeId,
+        [FromQuery] Guid? orgUnitId,
         [FromQuery] int maxDepth = 10,
         [FromQuery] bool includeInactive = false,
         CancellationToken cancellationToken = default)
     {
         var result = await sender.Send(
-            new GetEmployeeOrgChartQuery(rootEmployeeId, maxDepth, includeInactive),
+            new GetEmployeeOrgChartQuery(rootEmployeeId, focusEmployeeId, orgUnitId, maxDepth, includeInactive),
             cancellationToken);
 
         if (result.IsFailure)
@@ -123,6 +126,27 @@ public class EmployeesController(ISender sender) : ControllerBase
         Response.Headers.ETag = $"\"{result.Value.Version}\"";
 
         return Ok(ApiResponseOfEmployeeDto.Success(result.Value));
+    }
+
+    /// Get the profile read model for an employee, combining identity, employment, org context,
+    /// direct-report count, and hierarchy status in a single response.
+    /// </summary>
+    [HttpGet("{id:guid}/profile")]
+    [Authorize(Roles = PlatformRole.HRAdmin)]
+    [ProducesResponseType(typeof(ApiResponseOfEmployeeProfileDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetProfile(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new GetEmployeeProfileQuery(id), cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return NotFound(ApiResponse.Failure(result.Error.Message));
+        }
+
+        Response.Headers.ETag = $"\"{ result.Value.Version}\"";
+
+        return Ok(ApiResponseOfEmployeeProfileDto.Success(result.Value));
     }
 
     /// <summary>

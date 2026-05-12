@@ -3,10 +3,19 @@ namespace EY.HRPlatform.CoreHR.Features.Employees.Dtos;
 public sealed record EmployeeOrgChartDto(
     IReadOnlyList<EmployeeOrgChartNodeDto> Roots,
     Guid? RequestedRootEmployeeId,
+    Guid? FocusedEmployeeId,
+    Guid? SelectedOrgUnitId,
     int MaxDepthApplied,
     bool IncludeInactive,
     int TotalVisibleNodeCount,
-    bool IsTruncated);
+    bool IsTruncated,
+    OrgChartIssueCountsDto IssueCounts);
+
+public sealed record OrgChartIssueCountsDto(
+    int NoManagerAssigned,
+    int ManagerInactive,
+    int ManagerMissing,
+    int MissingOrgUnit);
 
 public sealed record EmployeeOrgChartNodeDto(
     Guid EmployeeId,

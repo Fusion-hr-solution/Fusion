@@ -81,20 +81,51 @@ function DetailSkeleton() {
           Loading reporting relationship details.
         </SheetDescription>
       </SheetHeader>
-      <div className="space-y-6 p-6 pt-10">
-        <Skeleton className="h-7 w-56" />
-        <Skeleton className="h-4 w-72" />
-        <div className="grid gap-3 sm:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, index) => (
-            <Skeleton key={index} className="h-24 rounded-xl" />
-          ))}
+      {/* Mirrors SheetHeader className="border-b px-6 pt-6" */}
+      <div className="border-b px-6 pb-5 pt-6">
+        <div className="flex flex-wrap items-center gap-2">
+          <Skeleton className="h-6 w-40" />
+          <Skeleton className="h-5 w-20 rounded-full" />
         </div>
-        {Array.from({ length: 3 }).map((_, index) => (
-          <div key={index} className="space-y-3">
-            <Skeleton className="h-5 w-40" />
-            <Skeleton className="h-20 rounded-xl" />
+        <Skeleton className="mt-1.5 h-4 w-52" />
+      </div>
+      {/* Mirrors flex-1 overflow-y-auto px-6 pb-6 > space-y-6 pt-6 */}
+      <div className="space-y-6 px-6 py-6">
+        {/* Manager assignment section */}
+        <div className="space-y-3">
+          <Skeleton className="h-5 w-36" />
+          <div className="space-y-4 rounded-xl border p-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Skeleton className="h-14" />
+              <Skeleton className="h-14" />
+            </div>
+            <div className="space-y-3 border-t pt-4">
+              <Skeleton className="h-5 w-32" />
+              <Skeleton className="h-9 w-full rounded-md" />
+              <div className="flex gap-2">
+                <Skeleton className="h-9 w-32 rounded-md" />
+                <Skeleton className="h-9 w-28 rounded-md" />
+              </div>
+            </div>
           </div>
-        ))}
+        </div>
+        {/* Direct reports section */}
+        <div className="space-y-3">
+          <Skeleton className="h-5 w-28" />
+          <div className="divide-y overflow-hidden rounded-xl border">
+            <Skeleton className="h-18 rounded-none" />
+            <Skeleton className="h-18 rounded-none" />
+          </div>
+        </div>
+        {/* Reporting chain section */}
+        <div className="space-y-3">
+          <Skeleton className="h-5 w-28" />
+          <div className="divide-y overflow-hidden rounded-xl border">
+            <Skeleton className="h-18 rounded-none" />
+            <Skeleton className="h-18 rounded-none" />
+            <Skeleton className="h-18 rounded-none" />
+          </div>
+        </div>
       </div>
     </>
   );

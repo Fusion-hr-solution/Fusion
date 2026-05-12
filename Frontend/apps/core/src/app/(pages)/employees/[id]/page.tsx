@@ -536,13 +536,22 @@ export default function EmployeeProfilePage() {
                 one workspace.
               </CardDescription>
               <CardAction>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setActiveWorkspaceSheet("organization")}
-                >
-                  Edit
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => router.push(`/org-chart?focusEmployeeId=${profile.id}`)}
+                  >
+                    View in org chart
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setActiveWorkspaceSheet("organization")}
+                  >
+                    Edit
+                  </Button>
+                </div>
               </CardAction>
             </CardHeader>
             <CardContent className={WORKSPACE_CARD_CONTENT_CLASS_NAME}>

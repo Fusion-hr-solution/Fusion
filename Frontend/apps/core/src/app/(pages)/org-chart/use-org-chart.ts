@@ -28,11 +28,20 @@ export function useOrgChart(
         signal,
         params: {
           rootEmployeeId: normalizedQuery.rootEmployeeId ?? undefined,
+          focusEmployeeId: normalizedQuery.focusEmployeeId ?? undefined,
+          orgUnitId: normalizedQuery.orgUnitId ?? undefined,
           maxDepth: normalizedQuery.maxDepth,
           includeInactive: normalizedQuery.includeInactive || undefined,
         },
       }),
-    [client, normalizedQuery.includeInactive, normalizedQuery.maxDepth, normalizedQuery.rootEmployeeId]
+    [
+      client,
+      normalizedQuery.focusEmployeeId,
+      normalizedQuery.includeInactive,
+      normalizedQuery.maxDepth,
+      normalizedQuery.orgUnitId,
+      normalizedQuery.rootEmployeeId,
+    ]
   );
 
   return useApiQuery(orgChartQueryKeys.chart(normalizedQuery), queryFn, {
