@@ -129,6 +129,28 @@ public class EmployeesController(ISender sender) : ControllerBase
     }
 
     /// <summary>
+    /// Get the profile read model for an employee, combining identity, employment, org context,
+    /// direct-report count, and hierarchy status in a single response.
+    /// </summary>
+    [HttpGet("{id:guid}/profile")]
+    [Authorize(Roles = PlatformRole.HRAdmin)]
+    [ProducesResponseType(typeof(ApiResponseOfEmployeeProfileDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetProfile(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new GetEmployeeProfileQuery(id), cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return NotFound(ApiResponse.Failure(result.Error.Message));
+        }
+
+        Response.Headers.ETag = $"\"{result.Value.Version}\"";
+
+        return Ok(ApiResponseOfEmployeeProfileDto.Success(result.Value));
+    }
+
+    /// <summary>
     /// Get reporting-line summary for an employee, including manager chain, direct reports, and flat downline.
     /// </summary>
     [HttpGet("{id:guid}/reporting-lines")]
