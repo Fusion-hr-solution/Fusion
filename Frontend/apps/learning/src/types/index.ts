@@ -349,3 +349,30 @@ export interface MySessionEnrollments {
   isTrainingCompleted: boolean;
   parts: MyPartEnrollment[];
 }
+
+/* ── All My Enrollments (cross-training) ── */
+
+export interface MyEnrollmentSession {
+  enrollmentId: string;
+  sessionId: string;
+  partId: string;
+  partTitle: string;
+  partOrderIndex: number;
+  startUtc: string;
+  endUtc: string;
+  room: string;
+  trainerName: string | null;
+  trainerEmail: string | null;
+  status: EnrollmentStatus;
+  waitlistPosition: number;
+  maxCapacity: number;
+  enrolledAt: string;
+}
+
+export interface MyEnrollmentSummary {
+  trainingId: string;
+  trainingTitle: string;
+  totalEnrolledParts: number;
+  nextSessionUtc: string | null;
+  sessions: MyEnrollmentSession[];
+}

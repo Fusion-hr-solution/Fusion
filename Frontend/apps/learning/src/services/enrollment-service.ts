@@ -5,11 +5,13 @@ import type {
   MySessionEnrollments,
   SessionSelection,
   EnrollmentStatus,
+  MyEnrollmentSummary,
 } from "@/types";
 import type {
   BackendAvailableSessionsForEnrollmentDto,
   BackendEnrollInSessionsResultDto,
   BackendMySessionEnrollmentsDto,
+  BackendMyEnrollmentSummaryDto,
 } from "@/types/backend-dtos";
 
 const client = createPlatformApiClient();
@@ -126,4 +128,32 @@ export async function getMySessionEnrollments(
 
 export async function cancelSessionEnrollment(sessionId: string): Promise<void> {
   await client.post("/training/session-enrollments/cancel", { sessionId });
+}
+
+export async function getAllMyEnrollments(): Promise<MyEnrollmentSummary[]> {
+  const dtos = await client.get<BackendMyEnrollmentSummaryDto[]>(
+    "/training/session-enrollments/my",
+  );
+  return dtos.map((dto) => ({
+    trainingId: dto.trainingId,
+    trainingTitle: dto.trainingTitle,
+    totalEnrolledParts: dto.totalEnrolledParts,
+    nextSessionUtc: dto.nextSessionUtc,
+    sessions: dto.sessions.map((s) => ({
+      enrollmentId: s.enrollmentId,
+      sessionId: s.sessionId,
+      partId: s.partId,
+      partTitle: s.partTitle,
+      partOrderIndex: s.partOrderIndex,
+      startUtc: s.startUtc,
+      endUtc: s.endUtc,
+      room: s.room,
+      trainerName: s.trainerName,
+      trainerEmail: s.trainerEmail,
+      status: mapEnrollmentStatus(s.status),
+      waitlistPosition: s.waitlistPosition,
+      maxCapacity: s.maxCapacity,
+      enrolledAt: s.enrolledAt,
+    })),
+  }));
 }
