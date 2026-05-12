@@ -124,4 +124,19 @@ public class SessionEnrollmentsController : ControllerBase
 
         return Ok(ApiResponse.Success());
     }
+
+    /// <summary>Get all session enrollments for the current employee across all trainings.</summary>
+    [HttpGet("my")]
+    [ProducesResponseType(typeof(ApiResponse<List<MyEnrollmentSummaryDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAllMyEnrollments(CancellationToken cancellationToken)
+    {
+        var employeeId = User.GetUserId();
+        var result = await _sender.Send(
+            new GetAllMyEnrollmentsQuery(employeeId), cancellationToken);
+
+        if (result.IsFailure)
+            return BadRequest(ApiResponse.Failure(result.Error.Message));
+
+        return Ok(ApiResponse<List<MyEnrollmentSummaryDto>>.Success(result.Value));
+    }
 }
