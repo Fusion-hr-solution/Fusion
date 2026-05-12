@@ -2,7 +2,7 @@
 
 import { Clock, MapPin, User, Users, AlertCircle } from "lucide-react";
 import { Badge } from "@repo/ui";
-import { Tooltip, TooltipTrigger, TooltipContent } from "@repo/ui";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@repo/ui";
 import type { SessionPickerCardProps } from "@/types/component-props";
 
 function formatSessionTime(startUtc: string, endUtc: string) {
@@ -67,15 +67,17 @@ export function SessionPickerCard({ session, isSelected, onSelect }: SessionPick
 
         <div className="shrink-0 text-right">
           {session.isFull ? (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Badge variant="destructive" className="text-xs">
-                  <AlertCircle className="mr-1 h-3 w-3" />
-                  Full
-                </Badge>
-              </TooltipTrigger>
-              <TooltipContent>Selecting this session will place you on the waitlist</TooltipContent>
-            </Tooltip>
+            <TooltipProvider delayDuration={200}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge variant="destructive" className="text-xs">
+                    <AlertCircle className="mr-1 h-3 w-3" />
+                    Full
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent>Selecting this session will place you on the waitlist</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           ) : (
             <div className="space-y-1">
               <div className="flex items-center gap-1 text-xs text-muted-foreground">
