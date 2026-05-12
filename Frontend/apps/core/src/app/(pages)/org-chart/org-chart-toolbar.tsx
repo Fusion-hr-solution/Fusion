@@ -64,12 +64,7 @@ const CHART_GUIDE_ITEMS = [
     variant: "destructive" as const,
     description:
       "The manager reference no longer resolves in governed employee data.",
-  },
-  {
-    label: "Missing org unit",
-    variant: "outline" as const,
-    description:
-      "The employee still needs organization placement in the workforce record.",
+
   },
   {
     label: "Detached branch",
@@ -187,84 +182,116 @@ export function OrgChartToolbar({
   return (
     <TooltipProvider>
       <div className="flex flex-col gap-3 rounded-2xl border bg-card p-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <Popover open={searchOpen} onOpenChange={setSearchOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="outline">
-                <Search />
-                Find person
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent align="start" className="w-[24rem] p-0">
-              <Command>
-                <CommandInput
-                  value={searchQuery}
-                  onValueChange={setSearchQuery}
-                  placeholder="Search loaded chart"
-                />
-                <CommandList>
-                  <CommandEmpty>
-                    No matching employee in the loaded chart.
-                  </CommandEmpty>
-                  <CommandGroup heading="People">
-                    {searchResults.map((employee) => (
-                      <CommandItem
-                        key={employee.employeeId}
-                        value={`${employee.fullName} ${employee.jobTitle ?? ""} ${employee.orgUnitName ?? ""}`}
-                        onSelect={() => {
-                          onSelectSearchResult(employee.employeeId);
-                          setSearchQuery("");
-                          setSearchOpen(false);
-                        }}
-                      >
-                        <span className="flex min-w-0 flex-col gap-0.5">
-                          <span className="truncate font-medium">
-                            {employee.fullName}
+        {/* Row 1: primary nav + filters */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Search */}
+            <Popover open={searchOpen} onOpenChange={setSearchOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline">
+                  <Search />
+                  Find person
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-[24rem] p-0">
+                <Command>
+                  <CommandInput
+                    value={searchQuery}
+                    onValueChange={setSearchQuery}
+                    placeholder="Search loaded chart"
+                  />
+                  <CommandList>
+                    <CommandEmpty>
+                      No matching employee in the loaded chart.
+                    </CommandEmpty>
+                    <CommandGroup heading="People">
+                      {searchResults.map((employee) => (
+                        <CommandItem
+                          key={employee.employeeId}
+                          value={`${employee.fullName} ${employee.jobTitle ?? ""} ${employee.orgUnitName ?? ""}`}
+                          onSelect={() => {
+                            onSelectSearchResult(employee.employeeId);
+                            setSearchQuery("");
+                            setSearchOpen(false);
+                          }}
+                        >
+                          <span className="flex min-w-0 flex-col gap-0.5">
+                            <span className="truncate font-medium">
+                              {employee.fullName}
+                            </span>
+                            <span className="truncate text-xs text-muted-foreground">
+                              {[employee.jobTitle, employee.orgUnitName]
+                                .filter(Boolean)
+                                .join(" • ") || "Employee summary"}
+                            </span>
                           </span>
-                          <span className="truncate text-xs text-muted-foreground">
-                            {[employee.jobTitle, employee.orgUnitName]
-                              .filter(Boolean)
-                              .join(" • ") || "Employee summary"}
-                          </span>
-                        </span>
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
 
-          <Button
-            variant="outline"
-            disabled={
-              isBusy ||
-              !selectedEmployee ||
-              selectedEmployee.employeeId === focusedRootEmployeeId
-            }
-            onClick={onFocusSelectedBranch}
-          >
-            <TreePine />
-            Focus selected branch
-          </Button>
+            {/* Focus/Return nav */}
+            <Button
+              variant="outline"
+              disabled={
+                isBusy ||
+                !selectedEmployee ||
+                selectedEmployee.employeeId === focusedRootEmployeeId
+              }
+              onClick={onFocusSelectedBranch}
+            >
+              <TreePine />
+              Focus selected branch
+            </Button>
 
-          <Button
-            variant="outline"
-            disabled={
-              isBusy ||
-              (focusedRootEmployeeId === null &&
-                selectedOrgUnitId === null &&
-                focusEmployeeId === null)
-            }
-            onClick={onShowFullOrganization}
-          >
-            <Undo2 />
-            Return to overview
-          </Button>
-        </div>
+            <Button
+              variant="outline"
+              disabled={
+                isBusy ||
+                (focusedRootEmployeeId === null &&
+                  selectedOrgUnitId === null &&
+                  focusEmployeeId === null)
+              }
+              onClick={onShowFullOrganization}
+            >
+              <Undo2 />
+              Return to overview
+            </Button>
+          </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/50 pt-3">
           <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant={isReassignMode ? "secondary" : "outline"}
+              size="sm"
+              disabled={!isCanvasReady || totalVisibleNodeCount === 0}
+              onClick={onToggleReassignMode}
+            >
+              <ArrowRightLeft />
+              {isReassignMode ? "Reassign mode on" : "Reassign by drag"}
+            </Button>
+
+            {/* Include inactive toggle */}
+            <div className="flex items-center gap-2 rounded-md border px-2 py-1">
+              <Checkbox
+                id="include-inactive"
+                checked={includeInactive}
+                onCheckedChange={(checked) =>
+                  onIncludeInactiveChange(checked === true)
+                }
+              />
+              <Label
+                htmlFor="include-inactive"
+                className="cursor-pointer text-sm"
+              >
+                Include inactive
+              </Label>
+            </div>
+
+            {/* Org unit filter */}
             <Popover open={orgUnitOpen} onOpenChange={setOrgUnitOpen}>
               <PopoverTrigger asChild>
                 <Button
@@ -314,19 +341,59 @@ export function OrgChartToolbar({
               </PopoverContent>
             </Popover>
 
-            <div className="flex items-center gap-2 rounded-md border px-2 py-1">
-              <Checkbox
-                id="include-inactive"
-                checked={includeInactive}
-                onCheckedChange={(checked) =>
-                  onIncludeInactiveChange(checked === true)
-                }
-              />
-              <Label htmlFor="include-inactive" className="cursor-pointer text-sm">
-                Include inactive
-              </Label>
-            </div>
+            {/* Refresh indicator */}
+            {isBusy ? (
+              <Badge variant="secondary">
+                {isNavigating ? "Updating chart" : "Refreshing"}
+              </Badge>
+            ) : null}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <Badge variant="outline">
+                    {totalVisibleNodeCount} loaded
+                  </Badge>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                Loaded people in the current chart query. Collapsing a branch
+                only hides it locally.
+              </TooltipContent>
+            </Tooltip>
 
+            {/* Chart guide */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <CircleHelp />
+                  Chart guide
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-80 space-y-3">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Chart guide</p>
+                  <p className="text-sm text-muted-foreground">
+                    Use these badges to spot reporting problems without leaving
+                    the chart.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  {CHART_GUIDE_ITEMS.map((item) => (
+                    <div
+                      key={item.label}
+                      className="flex items-start gap-3 rounded-lg border p-3"
+                    >
+                      <Badge variant={item.variant}>{item.label}</Badge>
+                      <p className="text-sm text-muted-foreground">
+                        {item.description}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            {/* Depth selector */}
             <Select
               value={String(maxDepth)}
               onValueChange={(value) => onMaxDepthChange(Number(value))}

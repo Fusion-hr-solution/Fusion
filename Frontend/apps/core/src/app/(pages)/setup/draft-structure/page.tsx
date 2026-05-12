@@ -21,7 +21,6 @@ import {
 import { canAccessCoreSetup, useAuth } from "@repo/auth";
 import { EmptyState } from "@repo/ui";
 import { toast } from "sonner";
-import { useCoreSetupAccess } from "@/components/core-setup-access";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -40,6 +39,7 @@ import {
   useApproveStructure,
   useReopenStructure,
   useSetupReadiness,
+  useSetupState,
 } from "../use-setup";
 import { CreateDraftUnitDialog } from "./create-draft-unit-dialog";
 import { DraftOrgUnitKindManager } from "./draft-org-unit-kind-manager";
@@ -224,7 +224,7 @@ function buildDraftStructureExportCsv({
 export default function DraftStructurePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const canAccess = canAccessCoreSetup(user);
   const [actionError, setActionError] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -235,10 +235,10 @@ export default function DraftStructurePage() {
   const deferredSearch = useDeferredValue(search);
 
   const {
-    setupState,
-    setupError,
-    isSetupStateLoading: isSetupLoading,
-  } = useCoreSetupAccess();
+    data: setupState,
+    error: setupError,
+    isLoading: isSetupLoading,
+  } = useSetupState(canAccess);
   const isSetupComplete =
     setupState?.currentPhase === "structurallyPublished" ||
     setupState?.currentPhase === "operational";
@@ -246,11 +246,6 @@ export default function DraftStructurePage() {
   const canApproveFromDraft = setupState?.currentPhase === "activated";
   const canReopenFromDraft =
     setupState?.currentPhase === "structurallyGoverned";
-  const pageTitle = !isDraftLocked
-    ? "Draft structure"
-    : isSetupComplete
-      ? "Published structure"
-      : "Organization structure";
 
   const workspaceEnabled =
     canAccess && !!setupState && !setupState.canStartSetup;
@@ -321,30 +316,34 @@ export default function DraftStructurePage() {
     0
   );
   const pageDescription = !isDraftLocked
-    ? "Build the structure draft here, review readiness, and approve when it is ready."
+    ? "Build and approve the structure draft here."
     : canReopenFromDraft
-      ? "This approved draft is ready for review. Reopen it from Setup if another round of changes is needed."
+      ? "Draft is locked. Reopen it if more changes are needed before publish."
       : isSetupComplete
-        ? "Use this page as the published structure reference while Setup holds the summary and history."
-        : "Review the structure here while editing is unavailable in the current setup phase.";
+        ? "Published snapshot — setup is complete and the page is read-only."
+        : "Review the locked draft here.";
   const importReadOnlyTitle = isSetupComplete
-    ? "Import is unavailable on the published structure"
-    : "Import is unavailable while the structure is locked";
+    ? "Import is unavailable after setup is complete"
+    : "Import is locked";
   const importReadOnlyMessage = canReopenFromDraft
-    ? "Reopen the draft from Setup to upload, validate, or apply a structure file."
+    ? "Reopen the draft from Setup to upload, validate, or apply a file."
     : isSetupComplete
-      ? "Use this page to review the published structure. Start a new setup cycle for structural changes."
-      : "Import becomes available again when the draft returns to an editable state.";
+      ? "Read-only snapshot of the published structure."
+      : "This draft is read-only while later setup steps are in progress.";
   const unitReadOnlyDescription = canReopenFromDraft
-    ? "Approved unit. Reopen the draft from Setup to make structural changes."
+    ? "Approved unit — reopen the draft to make changes."
     : isSetupComplete
-      ? "Published unit. Use this page as the live structure reference."
-      : "Review this unit while structural editing is unavailable.";
+      ? "Published — setup is complete and this unit is read-only."
+      : "Review this locked draft unit here.";
   const unitReadOnlyNotice = canReopenFromDraft
-    ? "Structural editing is paused on the approved draft. Reopen it from Setup before editing or deleting units."
+    ? "This draft is locked. Reopen it from Setup before editing or deleting units."
     : isSetupComplete
-      ? "This view shows the live structure for reference."
-      : "Structural editing is unavailable during the current setup phase.";
+      ? "Read-only snapshot of the published structure."
+      : "This draft is locked while later setup steps are in progress.";
+
+  if (isAuthLoading && !user) {
+    return <DraftStructurePageSkeleton hasImportSession={hasImportSession} />;
+  }
 
   useEffect(() => {
     if (!isDraftLocked) {
@@ -444,7 +443,7 @@ export default function DraftStructurePage() {
     return (
       <div className="flex flex-col gap-6 p-6">
         <PageHeader
-          title={pageTitle}
+          title="Organization Structure"
           description="Organization structure is limited to tenant HR administrators."
         />
         <EmptyState
@@ -464,7 +463,7 @@ export default function DraftStructurePage() {
     return (
       <div className="flex flex-col gap-6 p-6">
         <PageHeader
-          title={pageTitle}
+          title="Organization Structure"
           description="Setup state is required to load the workspace."
         />
         <Alert variant="destructive">
@@ -484,7 +483,7 @@ export default function DraftStructurePage() {
     return (
       <div className="flex flex-col gap-6 p-6">
         <PageHeader
-          title={pageTitle}
+          title="Organization Structure"
           description="Activate setup to access organization structure."
         />
         <EmptyState
@@ -509,7 +508,7 @@ export default function DraftStructurePage() {
   return (
     <div className="flex flex-col gap-6 p-6">
       <PageHeader
-        title={pageTitle}
+        title="Organization Structure"
         description={pageDescription}
         actions={
           !isDraftLocked ? (
@@ -538,7 +537,7 @@ export default function DraftStructurePage() {
                 Open Setup Summary
               </Button>
               <Button variant="outline" onClick={() => router.push("/")}>
-                Open Dashboard
+                Go to Home
               </Button>
             </div>
           ) : (
@@ -574,14 +573,16 @@ export default function DraftStructurePage() {
         </Alert>
       ) : null}
 
-      {isDraftLocked && !isSetupComplete ? (
+      {isDraftLocked ? (
         <Alert>
           <LockKeyhole className="h-4 w-4" />
           <AlertTitle>Draft is locked</AlertTitle>
           <AlertDescription>
             {canReopenFromDraft
-              ? "Reopen the draft from Setup to add, edit, or import units."
-              : "This structure is locked during the current setup phase."}
+              ? "Reopen the draft to add, edit, or import units."
+              : isSetupComplete
+                ? "Read-only snapshot of the published structure."
+                : "This draft is now read-only while later setup steps are in progress."}
           </AlertDescription>
         </Alert>
       ) : null}
@@ -627,7 +628,7 @@ export default function DraftStructurePage() {
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground">
             {isSetupComplete
-              ? "Published structure."
+              ? "Published snapshot."
               : isDraftLocked
                 ? "Review only."
                 : "Build and review the draft here."}
@@ -702,7 +703,7 @@ export default function DraftStructurePage() {
                     ? "Search, review, and edit the draft tree."
                     : canReopenFromDraft
                       ? "Search and review the approved draft tree."
-                      : "Search and review the published structure."}
+                      : "Search and review the published snapshot."}
                 </p>
               </div>
               <Input
@@ -726,8 +727,8 @@ export default function DraftStructurePage() {
                 emptyDescription={
                   isDraftLocked
                     ? canReopenFromDraft
-                      ? "The approved structure is locked. Reopen it from Setup if organizational changes are needed."
-                      : "This page keeps the published structure available for read-only review."
+                      ? "The approved draft is locked. Reopen it from Setup if changes are needed before publish."
+                      : "This page keeps the read-only snapshot of the structure that completed setup."
                     : "Add the first top-level unit or start with a template import to build the planned organization tree."
                 }
                 readOnly={isDraftLocked}
@@ -768,8 +769,8 @@ export default function DraftStructurePage() {
                   {!isDraftLocked
                     ? "Review the main fields here, then edit or add a child."
                     : canReopenFromDraft
-                      ? "Review the unit here. Reopen the draft from Setup before making structural changes."
-                      : "Review the fields here as part of the live structure reference."}
+                      ? "Review the main fields here. Reopen the draft before making changes."
+                      : "Review the main fields here as the read-only snapshot of what went live."}
                 </CardDescription>
               </CardHeader>
               <CardContent className="min-h-0 flex-1 space-y-6 overflow-y-auto p-6">
@@ -876,7 +877,7 @@ export default function DraftStructurePage() {
                           variant="outline"
                           onClick={() => router.push("/")}
                         >
-                          Open Dashboard
+                          Go to Home
                         </Button>
                       </div>
                     )
@@ -912,7 +913,7 @@ export default function DraftStructurePage() {
                     ? "Choose a unit from the tree to inspect it, edit its details, or add a child underneath it."
                     : canReopenFromDraft
                       ? "Choose a unit from the tree to inspect the approved draft."
-                      : "Choose a unit from the tree to inspect the published structure."}
+                      : "Choose a unit from the tree to inspect the published snapshot."}
                 </p>
               </div>
               <div className="flex justify-center">
@@ -944,7 +945,7 @@ export default function DraftStructurePage() {
                         variant="outline"
                         onClick={() => router.push("/")}
                       >
-                        Open Dashboard
+                        Go to Home
                       </Button>
                     </div>
                   )
@@ -1284,10 +1285,11 @@ function DraftGovernanceCard({
           <div className="space-y-3">
             <SetupStatusBadge status={phase} />
             <div className="space-y-1">
-              <CardTitle>Published structure</CardTitle>
+              <CardTitle>Published structure snapshot</CardTitle>
               <CardDescription>
-                This page keeps the live structure available for reference.
-                Use Setup for the completion summary and history.
+                This draft stays available as the read-only snapshot of the
+                structure that went live. Use Setup for the completion summary
+                and history.
               </CardDescription>
             </div>
           </div>

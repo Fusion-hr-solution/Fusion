@@ -19,7 +19,6 @@ import { ApiError, type FieldConfigDto } from "@repo/api";
 import { canAccessCoreSettings, useAuth } from "@repo/auth";
 import { EmptyState } from "@repo/ui";
 import { toast } from "sonner";
-import { useCoreSetupAccess } from "@/components/core-setup-access";
 import { PageHeader } from "@/components/page-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -37,12 +36,14 @@ import {
 } from "@/components/ui/table";
 import { DraftOrgUnitKindManager } from "../setup/draft-structure/draft-org-unit-kind-manager";
 import { SetupStatusBadge } from "../setup/setup-status-badge";
+import { useSetupState } from "../setup/use-setup";
 import {
   useTenantSettings,
   useUpdateTenantSettings,
 } from "../setup/draft-structure/use-tenant-settings";
 import {
   ACTIVE_EMPLOYEE_FIELD_DEFINITIONS,
+  PREPARED_EMPLOYEE_FIELD_DEFINITIONS,
   buildEmployeeFieldConfigDraft,
   buildEmployeeFieldConfigInput,
   type EmployeeFieldConfigMap,
@@ -82,9 +83,10 @@ function getFieldRuleBadges(
 
   if (field.requiredLocked) {
     badges.push({
-      label: "Required",
-      variant: "secondary",
-      title: "This field is required for the current Core workforce record.",
+      label: "Required locked",
+      variant: "outline",
+      title:
+        "Required until import and manual create flows support records without a hire date.",
     });
   } else if (config.required) {
     badges.push({ label: "Required", variant: "secondary" });
@@ -123,20 +125,20 @@ function SettingsPageSkeleton() {
     <div className="space-y-6 p-6">
       <div className="space-y-2">
         <Skeleton className="h-8 w-56" />
-        <Skeleton className="h-4 w-[34rem] max-w-full" />
+        <Skeleton className="h-4 w-136 max-w-full" />
       </div>
       <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
         <div className="space-y-6">
           <Card>
             <CardHeader className="space-y-2">
               <Skeleton className="h-6 w-48" />
-              <Skeleton className="h-4 w-[20rem] max-w-full" />
+              <Skeleton className="h-4 w-md max-w-full" />
             </CardHeader>
             <CardContent className="space-y-4">
               {Array.from({ length: 4 }).map((_, index) => (
                 <div key={index} className="rounded-xl border p-4">
                   <Skeleton className="h-5 w-40" />
-                  <Skeleton className="mt-2 h-4 w-[26rem] max-w-full" />
+                  <Skeleton className="mt-2 h-4 w-104 max-w-full" />
                   <div className="mt-4 grid gap-3 sm:grid-cols-4">
                     {Array.from({ length: 4 }).map((__, switchIndex) => (
                       <Skeleton key={switchIndex} className="h-16 rounded-xl" />
@@ -176,7 +178,7 @@ export default function SettingsPage() {
   const router = useRouter();
   const { user } = useAuth();
   const canAccess = canAccessCoreSettings(user);
-  const { setupState } = useCoreSetupAccess();
+  const { data: setupState } = useSetupState(canAccess);
   const {
     data: settings,
     error,
@@ -304,7 +306,11 @@ export default function SettingsPage() {
     );
   }
 
-  if (error && !settings) {
+  if (isLoading || !settings) {
+    return <SettingsPageSkeleton />;
+  }
+
+  if (error) {
     return (
       <div className="space-y-6 p-6">
         <PageHeader title="Core Configuration" />
@@ -320,14 +326,6 @@ export default function SettingsPage() {
         </Alert>
       </div>
     );
-  }
-
-  if (isLoading && !settings) {
-    return <SettingsPageSkeleton />;
-  }
-
-  if (!settings) {
-    return <SettingsPageSkeleton />;
   }
 
   return (
@@ -349,8 +347,8 @@ export default function SettingsPage() {
                 <div className="space-y-1">
                   <CardTitle>Employee field configuration</CardTitle>
                   <p className="text-sm text-muted-foreground">
-                    Configure the supported employee fields used across Core
-                    records, imports, and profile editing.
+                    Configure which employee fields are required and visible
+                    across Core.
                   </p>
                 </div>
                 {hasChanges ? (
@@ -388,10 +386,12 @@ export default function SettingsPage() {
                     <TableRow>
                       <TableHead className="min-w-48">Field</TableHead>
                       <TableHead className="min-w-40">Status / rule</TableHead>
-                      <TableHead className="text-center">
-                        Visible in Core
-                      </TableHead>
+                      <TableHead className="text-center">HRAdmin</TableHead>
                       <TableHead className="text-center">Required</TableHead>
+                      <TableHead className="text-center">Manager</TableHead>
+                      <TableHead className="text-center">
+                        Collaborateur
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -428,7 +428,7 @@ export default function SettingsPage() {
                             <MatrixSwitch
                               checked={config.visible}
                               disabled={hrAdminLocked}
-                              ariaLabel={`${field.label} visible in Core`}
+                              ariaLabel={`${field.label} visible to HRAdmin`}
                               onCheckedChange={(checked) =>
                                 handleToggle(field.key, "visible", checked)
                               }
@@ -448,12 +448,48 @@ export default function SettingsPage() {
                               }
                             />
                           </TableCell>
+                          <TableCell>
+                            <MatrixSwitch
+                              checked={config.visibleToManager}
+                              ariaLabel={`${field.label} visible to Manager`}
+                              onCheckedChange={(checked) =>
+                                handleToggle(
+                                  field.key,
+                                  "visibleToManager",
+                                  checked
+                                )
+                              }
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <MatrixSwitch
+                              checked={config.visibleToEmployee}
+                              ariaLabel={`${field.label} visible to Collaborateur`}
+                              onCheckedChange={(checked) =>
+                                handleToggle(
+                                  field.key,
+                                  "visibleToEmployee",
+                                  checked
+                                )
+                              }
+                            />
+                          </TableCell>
                         </TableRow>
                       );
                     })}
                   </TableBody>
                 </Table>
               </div>
+
+              {PREPARED_EMPLOYEE_FIELD_DEFINITIONS.length > 0 ? (
+                <div className="rounded-xl border border-dashed bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
+                  Prepared for later:{" "}
+                  {PREPARED_EMPLOYEE_FIELD_DEFINITIONS.map(
+                    (field) => field.label
+                  ).join(", ")}{" "}
+                  is not collected or enforced in Core yet.
+                </div>
+              ) : null}
 
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-muted/20 px-4 py-3">
                 <p className="text-sm text-muted-foreground">
@@ -487,22 +523,12 @@ export default function SettingsPage() {
                     Org-unit kinds used across Setup and Core.
                   </p>
                 </div>
-                {isOrgStructureEditable ? (
-                  <DraftOrgUnitKindManager
-                    schema={settings.draftStructureSchema}
-                    existingUnits={[]}
-                    disabled={false}
-                    triggerLabel="Manage org-unit kinds"
-                  />
-                ) : (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => router.push("/setup")}
-                  >
-                    Open setup
-                  </Button>
-                )}
+                <DraftOrgUnitKindManager
+                  schema={settings.draftStructureSchema}
+                  existingUnits={[]}
+                  disabled={!isOrgStructureEditable}
+                  triggerLabel="Manage org-unit kinds"
+                />
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -511,16 +537,23 @@ export default function SettingsPage() {
                   <SetupStatusBadge status={setupState.currentPhase} />
                 ) : null}
                 {!isOrgStructureEditable ? (
-                  <Badge variant="outline">Managed in Setup</Badge>
+                  <Badge variant="outline">Editing follows Setup</Badge>
                 ) : (
                   <Badge variant="secondary">Editable now</Badge>
                 )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-auto px-0"
+                  onClick={() => router.push("/setup")}
+                >
+                  Open setup
+                </Button>
               </div>
 
               {!isOrgStructureEditable ? (
                 <div className="rounded-xl border border-dashed bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
-                  Org-unit kinds are managed from the active setup draft. Open
-                  Setup to make changes.
+                  Reopen the draft in Setup to edit org-unit kinds.
                 </div>
               ) : null}
 
@@ -552,19 +585,33 @@ export default function SettingsPage() {
 
         <Card>
           <CardHeader className="space-y-2">
-            <CardTitle>Live access</CardTitle>
+            <CardTitle>Access policy</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="rounded-xl border bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
+              Manager and Collaborateur rules prepare future surfaces. HRAdmin
+              is the only live audience today.
+            </div>
             {[
               {
                 title: "PlatformAdmin",
                 icon: ShieldCheck,
-                body: "Tenant and platform lifecycle oversight.",
+                body: "Tenant and platform lifecycle.",
               },
               {
                 title: "HRAdmin",
                 icon: Users,
-                body: "Workforce configuration, imports, employee records, and org chart operations.",
+                body: "Workforce configuration, imports, employees, and org chart.",
+              },
+              {
+                title: "Manager",
+                icon: UserRound,
+                body: "Team visibility — configurable now, surface not yet built.",
+              },
+              {
+                title: "Collaborateur",
+                icon: LockKeyhole,
+                body: "Self-profile visibility — configurable now, surface not yet built.",
               },
             ].map((role) => {
               const Icon = role.icon;
