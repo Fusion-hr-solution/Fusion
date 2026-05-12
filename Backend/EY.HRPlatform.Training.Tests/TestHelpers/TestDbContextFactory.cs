@@ -1,5 +1,6 @@
 using EY.HRPlatform.Training.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace EY.HRPlatform.Training.Tests.TestHelpers;
 
@@ -9,6 +10,7 @@ public static class TestDbContextFactory
     {
         var options = new DbContextOptionsBuilder<TrainingDbContext>()
             .UseInMemoryDatabase(databaseName ?? Guid.NewGuid().ToString())
+            .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning))
             .Options;
 
         var context = new TrainingDbContext(options);

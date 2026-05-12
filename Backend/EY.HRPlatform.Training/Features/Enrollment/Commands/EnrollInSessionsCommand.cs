@@ -45,11 +45,15 @@ public class EnrollInSessionsCommandHandler : ICommandHandler<EnrollInSessionsCo
             return Result.Failure<EnrollInSessionsResultDto>(
                 Error.Validation("Enrollment.NoParts", "This training has no parts configured."));
 
-        // Validate selections cover all parts
+        // Validate selections: exactly one per part, no duplicates
         var partIds = parts.Select(p => p.Id).ToHashSet();
-        var selectedPartIds = request.Selections.Select(s => s.PartId).ToHashSet();
+        var selectedPartIds = request.Selections.Select(s => s.PartId).ToList();
 
-        if (!partIds.SetEquals(selectedPartIds))
+        if (selectedPartIds.Count != selectedPartIds.Distinct().Count())
+            return Result.Failure<EnrollInSessionsResultDto>(
+                Error.Validation("Enrollment.DuplicatePartSelection", "Each part must have exactly one session selection."));
+
+        if (!partIds.SetEquals(selectedPartIds.ToHashSet()))
             return Result.Failure<EnrollInSessionsResultDto>(
                 Error.Validation("Enrollment.IncompleteSelection", "You must select a session for each part of the training."));
 
@@ -85,14 +89,7 @@ public class EnrollInSessionsCommandHandler : ICommandHandler<EnrollInSessionsCo
                         $"Session '{selection.SessionId}' has already ended."));
         }
 
-        // Check employee is not already enrolled in sessions for these parts
-        var existingEnrollments = await _db.SessionEnrollments
-            .Where(e => e.EmployeeId == request.EmployeeId
-                && selectedSessionIds.Contains(e.SessionId)
-                && e.Status != EnrollmentStatus.Cancelled)
-            .ToListAsync(cancellationToken);
-
-        // Also check if already enrolled in other sessions for the same parts
+        // Check if already enrolled in other sessions for the same parts
         var sessionIdsForParts = await _db.TrainingSessions
             .Where(s => partIds.Contains(s.PartId))
             .Select(s => s.Id)
@@ -110,7 +107,7 @@ public class EnrollInSessionsCommandHandler : ICommandHandler<EnrollInSessionsCo
                 Error.Conflict("Enrollment.AlreadyEnrolled",
                     "You are already enrolled in sessions for this training. Cancel existing enrollments first."));
 
-        // Count current enrollments for capacity check
+        // Count current enrollments for capacity check + precompute waitlist positions
         var enrollmentCounts = await _db.SessionEnrollments
             .Where(e => selectedSessionIds.Contains(e.SessionId) && e.Status == EnrollmentStatus.Enrolled)
             .GroupBy(e => e.SessionId)
@@ -119,9 +116,20 @@ public class EnrollInSessionsCommandHandler : ICommandHandler<EnrollInSessionsCo
 
         var countMap = enrollmentCounts.ToDictionary(x => x.SessionId, x => x.Count);
 
+        var maxWaitlistPositions = await _db.SessionEnrollments
+            .Where(e => selectedSessionIds.Contains(e.SessionId) && e.Status == EnrollmentStatus.Waitlisted)
+            .GroupBy(e => e.SessionId)
+            .Select(g => new { SessionId = g.Key, MaxPos = g.Max(e => e.WaitlistPosition) })
+            .ToListAsync(cancellationToken);
+
+        var waitlistPosMap = maxWaitlistPositions.ToDictionary(x => x.SessionId, x => x.MaxPos);
+
+        // Use a transaction for concurrency safety on capacity/waitlist
+        await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
+
         // Create enrollments
         var enrollments = new List<SessionEnrollment>();
-        var resultItems = new List<EnrollmentResultItem>();
+        var resultItems = new List<EnrollmentResultItemDto>();
 
         foreach (var selection in request.Selections)
         {
@@ -137,19 +145,16 @@ public class EnrollInSessionsCommandHandler : ICommandHandler<EnrollInSessionsCo
             }
             else
             {
-                // Add to waitlist
-                var maxWaitlistPos = await _db.SessionEnrollments
-                    .Where(e => e.SessionId == selection.SessionId && e.Status == EnrollmentStatus.Waitlisted)
-                    .MaxAsync(e => (int?)e.WaitlistPosition, cancellationToken) ?? 0;
-
+                var maxWaitlistPos = waitlistPosMap.GetValueOrDefault(selection.SessionId, 0);
                 waitlistPosition = maxWaitlistPos + 1;
+                waitlistPosMap[selection.SessionId] = waitlistPosition;
                 status = EnrollmentStatus.Waitlisted;
             }
 
             var enrollment = new SessionEnrollment(selection.SessionId, request.EmployeeId, status, waitlistPosition);
             enrollments.Add(enrollment);
 
-            resultItems.Add(new EnrollmentResultItem
+            resultItems.Add(new EnrollmentResultItemDto
             {
                 PartId = selection.PartId,
                 SessionId = selection.SessionId,
@@ -172,6 +177,7 @@ public class EnrollInSessionsCommandHandler : ICommandHandler<EnrollInSessionsCo
         }
 
         await _db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         return Result.Success(new EnrollInSessionsResultDto
         {

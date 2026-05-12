@@ -27,7 +27,9 @@ public class MarkAttendanceCommandHandler : ICommandHandler<MarkAttendanceComman
                 cancellationToken);
 
         if (enrollment is null)
-            return Result.Failure(Error.NotFound("SessionEnrollment", request.SessionId));
+            return Result.Failure(Error.Validation(
+                "SessionEnrollment.NotFound",
+                $"No active enrollment found for EmployeeId '{request.EmployeeId}' and SessionId '{request.SessionId}'."));
 
         enrollment.MarkAttended();
         await _db.SaveChangesAsync(cancellationToken);

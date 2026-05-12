@@ -15,12 +15,12 @@ namespace EY.HRPlatform.Training.Controllers;
 public class SessionEnrollmentsController : ControllerBase
 {
     private readonly ISender _sender;
-    private readonly ILogger<SessionEnrollmentsController> _logger;
+    private readonly int _cancellationDeadlineHours;
 
-    public SessionEnrollmentsController(ISender sender, ILogger<SessionEnrollmentsController> logger)
+    public SessionEnrollmentsController(ISender sender, IConfiguration configuration)
     {
         _sender = sender;
-        _logger = logger;
+        _cancellationDeadlineHours = configuration.GetValue("Enrollment:CancellationDeadlineHours", 24);
     }
 
     /// <summary>Get available sessions for enrollment in a training (part-by-part).</summary>
@@ -96,7 +96,7 @@ public class SessionEnrollmentsController : ControllerBase
     {
         var employeeId = User.GetUserId();
         var result = await _sender.Send(
-            new CancelSessionEnrollmentCommand(employeeId, request.SessionId), cancellationToken);
+            new CancelSessionEnrollmentCommand(employeeId, request.SessionId, _cancellationDeadlineHours), cancellationToken);
 
         if (result.IsFailure)
         {

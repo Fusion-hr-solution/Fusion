@@ -28,7 +28,9 @@ public class CancelSessionEnrollmentCommandHandler : ICommandHandler<CancelSessi
                 cancellationToken);
 
         if (enrollment is null)
-            return Result.Failure(Error.NotFound("SessionEnrollment", request.SessionId));
+            return Result.Failure(Error.Validation(
+                "SessionEnrollment.NotFound",
+                $"No active enrollment found for EmployeeId '{request.EmployeeId}' and SessionId '{request.SessionId}'."));
 
         // Check cancellation deadline
         var nowUtc = DateTime.UtcNow;
