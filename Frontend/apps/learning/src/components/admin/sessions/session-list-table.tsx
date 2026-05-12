@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Calendar, MapPin, Users, User, ExternalLink } from "lucide-react";
 import {
   Table,
   TableHeader,
@@ -25,51 +26,91 @@ interface SessionListTableProps {
 export function SessionListTable({ sessions, emptyMessage = "No sessions found." }: SessionListTableProps) {
   if (sessions.length === 0) {
     return (
-      <div className="rounded-md border border-dashed border-border/60 p-8 text-center text-sm text-muted-foreground">
-        {emptyMessage}
+      <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/50 py-12 text-center">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted/60">
+          <Calendar className="h-6 w-6 text-muted-foreground/50" />
+        </div>
+        <p className="mt-3 text-sm font-medium text-foreground">No sessions</p>
+        <p className="mt-1 text-xs text-muted-foreground">{emptyMessage}</p>
       </div>
     );
   }
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Training</TableHead>
-          <TableHead>Part</TableHead>
-          <TableHead>Date</TableHead>
-          <TableHead>Time</TableHead>
-          <TableHead>Room</TableHead>
-          <TableHead>Trainer</TableHead>
-          <TableHead className="text-right">Capacity</TableHead>
-          <TableHead>Status</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {sessions.map((s) => {
-          const warn = isCapacityWarning(s.enrolledCount, s.maxCapacity);
-          return (
-            <TableRow key={s.id} className="hover:bg-muted/50">
-              <TableCell className="font-medium">
-                <Link href={`/admin/sessions/${s.id}`} className="hover:underline">
-                  {s.trainingTitle}
-                </Link>
-              </TableCell>
-              <TableCell className="text-muted-foreground">{s.partTitle}</TableCell>
-              <TableCell>{formatSessionDate(s.startUtc)}</TableCell>
-              <TableCell className="font-mono text-xs">{formatSessionTimeRange(s.startUtc, s.endUtc)}</TableCell>
-              <TableCell>{s.room}</TableCell>
-              <TableCell className="text-muted-foreground">{s.trainerName ?? "—"}</TableCell>
-              <TableCell className={`text-right ${warn ? "font-semibold text-[hsl(var(--ey-orange-500))]" : ""}`}>
-                {s.enrolledCount}/{s.maxCapacity}
-              </TableCell>
-              <TableCell>
-                <SessionStatusBadge status={s.status} />
-              </TableCell>
-            </TableRow>
-          );
-        })}
-      </TableBody>
-    </Table>
+    <div className="rounded-xl border border-border/50 overflow-hidden">
+      <Table>
+        <TableHeader>
+          <TableRow className="bg-muted/30 hover:bg-muted/30">
+            <TableHead className="font-semibold">Training</TableHead>
+            <TableHead className="font-semibold">Part</TableHead>
+            <TableHead className="font-semibold">
+              <span className="flex items-center gap-1.5">
+                <Calendar className="h-3.5 w-3.5" /> Date & Time
+              </span>
+            </TableHead>
+            <TableHead className="font-semibold">
+              <span className="flex items-center gap-1.5">
+                <MapPin className="h-3.5 w-3.5" /> Room
+              </span>
+            </TableHead>
+            <TableHead className="font-semibold">
+              <span className="flex items-center gap-1.5">
+                <User className="h-3.5 w-3.5" /> Trainer
+              </span>
+            </TableHead>
+            <TableHead className="font-semibold text-right">
+              <span className="flex items-center justify-end gap-1.5">
+                <Users className="h-3.5 w-3.5" /> Capacity
+              </span>
+            </TableHead>
+            <TableHead className="font-semibold">Status</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {sessions.map((s) => {
+            const warn = isCapacityWarning(s.enrolledCount, s.maxCapacity);
+            const ratio = s.maxCapacity > 0 ? Math.round((s.enrolledCount / s.maxCapacity) * 100) : 0;
+            return (
+              <TableRow key={s.id} className="group transition-colors hover:bg-muted/30">
+                <TableCell>
+                  <Link
+                    href={`/admin/sessions/${s.id}`}
+                    className="inline-flex items-center gap-1.5 font-medium text-foreground hover:text-[hsl(var(--learning-blue-500))] transition-colors"
+                  >
+                    {s.trainingTitle}
+                    <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </Link>
+                </TableCell>
+                <TableCell className="text-muted-foreground text-sm">{s.partTitle}</TableCell>
+                <TableCell>
+                  <div className="text-sm">
+                    <p className="font-medium">{formatSessionDate(s.startUtc)}</p>
+                    <p className="text-xs text-muted-foreground font-mono">{formatSessionTimeRange(s.startUtc, s.endUtc)}</p>
+                  </div>
+                </TableCell>
+                <TableCell className="text-sm">{s.room}</TableCell>
+                <TableCell className="text-sm text-muted-foreground">{s.trainerName ?? "—"}</TableCell>
+                <TableCell className="text-right">
+                  <div className="flex flex-col items-end gap-1">
+                    <span className={`text-sm font-medium ${warn ? "text-[hsl(var(--ey-orange-500))]" : "text-foreground"}`}>
+                      {s.enrolledCount}/{s.maxCapacity}
+                    </span>
+                    <div className="h-1 w-12 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${warn ? "bg-[hsl(var(--ey-orange-500))]" : "bg-[hsl(var(--ey-green-500))]"}`}
+                        style={{ width: `${Math.min(100, ratio)}%` }}
+                      />
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <SessionStatusBadge status={s.status} />
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </div>
   );
 }

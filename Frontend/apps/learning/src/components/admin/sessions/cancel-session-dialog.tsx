@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { AlertTriangle } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -48,30 +49,37 @@ export function CancelSessionDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Cancel Session</DialogTitle>
+          <DialogTitle className="flex items-center gap-2 text-destructive">
+            <AlertTriangle className="h-5 w-5" />
+            Cancel Session
+          </DialogTitle>
         </DialogHeader>
-        <div className="space-y-3">
-          <p className="text-sm text-muted-foreground">
-            Cancelling will mark the session as cancelled. Enrolled employees will need to be notified separately.
-          </p>
-          <div className="space-y-1.5">
-            <Label htmlFor="cancelReason">Reason *</Label>
+        <div className="space-y-4">
+          <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3">
+            <p className="text-sm text-foreground">
+              This will permanently mark the session as <strong>cancelled</strong>. Enrolled employees will need to be notified separately.
+            </p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="cancelReason" className="text-sm font-medium">Cancellation Reason *</Label>
             <Input
               id="cancelReason"
               value={reason}
-              onChange={(e) => setReason(e.target.value)}
+              onChange={(e) => { setReason(e.target.value); setError(null); }}
               maxLength={1000}
-              placeholder="e.g. Trainer unavailable"
+              placeholder="e.g. Trainer unavailable, room conflict..."
+              className="h-10"
             />
+            <p className="text-xs text-muted-foreground">This reason will be visible to admins.</p>
           </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
         </div>
-        <DialogFooter>
+        <DialogFooter className="gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>
-            Back
+            Keep Session
           </Button>
           <Button variant="destructive" onClick={handleConfirm} disabled={isLoading}>
-            {isLoading ? "Cancelling..." : "Confirm Cancel"}
+            {isLoading ? "Cancelling..." : "Confirm Cancellation"}
           </Button>
         </DialogFooter>
       </DialogContent>
