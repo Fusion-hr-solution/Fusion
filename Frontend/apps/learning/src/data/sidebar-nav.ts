@@ -14,6 +14,7 @@ import {
   UserCog,
   Grid3X3,
   CalendarClock,
+  CalendarCheck2,
 } from "lucide-react";
 import type { NavSection } from "@repo/ui";
 
@@ -23,6 +24,7 @@ export const EMPLOYEE_NAV: NavSection = {
     { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { label: "Catalog", href: "/", icon: BookOpen },
     { label: "My Trainings", href: "/my-trainings", icon: GraduationCap },
+    { label: "My Sessions", href: "/my-sessions", icon: CalendarCheck2 },
     { label: "Mon Cursus", href: "/cursus", icon: Route },
     { label: "Certificates", href: "/certificates", icon: Award },
     { label: "Badges", href: "/badges", icon: Trophy },
