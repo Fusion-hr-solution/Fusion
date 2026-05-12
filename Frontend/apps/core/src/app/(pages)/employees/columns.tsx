@@ -94,7 +94,7 @@ export function buildEmployeeColumns(
           row.original.hierarchyStatus === "NoManagerAssigned";
 
         return (
-          <div className="min-w-45 space-y-1">
+          <div className="min-w-[180px] space-y-1">
             <div
               className={isUnassigned ? "text-muted-foreground" : "font-medium"}
             >
