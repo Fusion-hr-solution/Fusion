@@ -6,7 +6,7 @@ import { CATEGORY_CONFIG, LEVEL_CONFIG } from "@/data/categories";
 import { BADGE_LEVEL_CONFIG } from "@/data/badge-config";
 import { PageHeader } from "./page-header";
 import { PageBreadcrumb } from "./page-breadcrumb";
-import { TrainingStatsGrid, ChapterList, ExamSection, InstructorCard, TrainingTagsCard, OnSiteCoursesList } from "./training-detail";
+import { TrainingStatsGrid, ChapterList, ExamSection, InstructorCard, TrainingTagsCard, OnSiteCoursesList, SessionEnrollmentPanel } from "./training-detail";
 import { TrainingEnrollCta } from "./training-enroll-cta";
 
 export function TrainingDetailPage({ training }: TrainingDetailPageProps) {
@@ -36,7 +36,10 @@ export function TrainingDetailPage({ training }: TrainingDetailPageProps) {
           <div className="space-y-8">
             <TrainingStatsGrid training={training} />
             {training.trainingType === "OnSite" ? (
-              <OnSiteCoursesList courses={training.onSiteCourses ?? []} scheduledDate={training.scheduledDate} />
+              <>
+                <SessionEnrollmentPanel trainingId={training.id} />
+                <OnSiteCoursesList courses={training.onSiteCourses ?? []} scheduledDate={training.scheduledDate} />
+              </>
             ) : (
               <>
                 <ChapterList chapters={training.chapters} chaptersCount={training.chaptersCount} />

@@ -5,3 +5,4 @@ export { ExamSection } from "./exam-section";
 export { InstructorCard } from "./instructor-card";
 export { TrainingTagsCard } from "./training-tags-card";
 export { OnSiteCoursesList } from "./onsite-courses-list";
+export { SessionEnrollmentPanel } from "./session-enrollment";

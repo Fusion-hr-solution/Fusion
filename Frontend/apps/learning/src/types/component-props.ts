@@ -15,6 +15,10 @@ import type {
   LearnerExamQuestion,
   ExamSubmissionResult,
   ExamAttempt,
+  PartWithSessions,
+  AvailableSession,
+  MySessionEnrollments,
+  MyPartEnrollment,
 } from "./index";
 import type { NavSection } from "@repo/ui";
 
@@ -261,4 +265,34 @@ export interface ExamResultViewProps {
   attempts: ExamAttempt[];
   onRetry: () => void;
   onBack: () => void;
+}
+
+/* ── Session Enrollment components (US-5.2.2) ── */
+
+export interface SessionEnrollmentPanelProps {
+  trainingId: string;
+}
+
+export interface SessionPickerPartProps {
+  part: PartWithSessions;
+  selectedSessionId: string | null;
+  onSelect: (sessionId: string) => void;
+}
+
+export interface SessionPickerCardProps {
+  session: AvailableSession;
+  isSelected: boolean;
+  onSelect: () => void;
+}
+
+export interface EnrollmentStatusPanelProps {
+  enrollments: MySessionEnrollments;
+  onCancelSession: (sessionId: string) => void;
+  isCancelling: boolean;
+}
+
+export interface EnrollmentPartRowProps {
+  part: MyPartEnrollment;
+  onCancel: (sessionId: string) => void;
+  isCancelling: boolean;
 }

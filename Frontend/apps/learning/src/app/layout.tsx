@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { AuthProvider } from "@repo/auth";
 import { ModuleLayout } from "@repo/ui";
+import { Toaster } from "sonner";
 import { LearningSidebar } from "@/components/learning-sidebar";
 import "@repo/ui/src/ey-brand.css";
 import "./globals.css";
@@ -22,6 +23,7 @@ export default function RootLayout({
           <ModuleLayout sidebar={<LearningSidebar />}>
             {children}
           </ModuleLayout>
+          <Toaster richColors closeButton position="top-right" />
         </AuthProvider>
       </body>
     </html>
