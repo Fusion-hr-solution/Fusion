@@ -10,6 +10,10 @@ public class Test : AggregateRoot
     public Discipline Discipline { get; set; }
     public TestStatus Status { get; set; } = TestStatus.Draft;
     public int? MaxAttempts { get; set; }
+    public bool AllowSkipping { get; set; }
+    public bool AllowBacktracking { get; set; } = true;
+    public bool ShowProgressBar { get; set; } = true;
+    public bool RandomizeOrder { get; set; }
     public int CandidateCount { get; set; }
     public ICollection<TestQuestion> TestQuestions { get; set; } = new List<TestQuestion>();
 

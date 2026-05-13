@@ -6,6 +6,7 @@ import type {
   CandidateTimelineCandidate,
   CandidateManagementOverview,
   CandidateAttemptSettings,
+  CandidatePrivacyActionResult,
 } from "@/types";
 import type {
   BackendCandidateManagementOverviewDto,
@@ -13,6 +14,9 @@ import type {
   InviteCandidateInput,
   BackendCandidateLinkSecurityStateDto,
   BackendCandidateAttemptSettingsDto,
+  BackendCandidatePrivacyActionResultDto,
+  CandidatePrivacyActionInput,
+  CandidatePrivacyActionBatchInput,
   SaveCandidateAttemptSettingsInput,
   SaveCandidateLinkSecurityInput,
   BackendCandidateTimelineCandidateDto,
@@ -31,11 +35,14 @@ const CANDIDATE_INVITATIONS_BULK_ENDPOINT = `${CANDIDATE_INVITATIONS_API}/bulk`;
 
 const CANDIDATE_MANAGEMENT_OVERVIEW_PATH = "/overview";
 const CANDIDATE_MANAGEMENT_ATTEMPT_SETTINGS_PATH = "/attempt-settings";
+const CANDIDATE_MANAGEMENT_PRIVACY_ACTIONS_PATH = "/privacy-actions";
 const CANDIDATE_MANAGEMENT_LINK_SECURITY_PATH = "/link-security";
 const CANDIDATE_MANAGEMENT_TIMELINE_PATH = "/timeline";
 
 const CANDIDATE_MANAGEMENT_OVERVIEW_ENDPOINT = `${CANDIDATE_MANAGEMENT_API}${CANDIDATE_MANAGEMENT_OVERVIEW_PATH}`;
 const CANDIDATE_MANAGEMENT_ATTEMPT_SETTINGS_ENDPOINT = `${CANDIDATE_MANAGEMENT_API}${CANDIDATE_MANAGEMENT_ATTEMPT_SETTINGS_PATH}`;
+const CANDIDATE_MANAGEMENT_PRIVACY_ACTIONS_ENDPOINT = `${CANDIDATE_MANAGEMENT_API}${CANDIDATE_MANAGEMENT_PRIVACY_ACTIONS_PATH}`;
+const CANDIDATE_MANAGEMENT_PRIVACY_ACTIONS_BATCH_ENDPOINT = `${CANDIDATE_MANAGEMENT_PRIVACY_ACTIONS_ENDPOINT}/batch`;
 const CANDIDATE_MANAGEMENT_LINK_SECURITY_ENDPOINT = `${CANDIDATE_MANAGEMENT_API}${CANDIDATE_MANAGEMENT_LINK_SECURITY_PATH}`;
 const CANDIDATE_MANAGEMENT_TIMELINE_CANDIDATES_ENDPOINT = `${CANDIDATE_MANAGEMENT_API}${CANDIDATE_MANAGEMENT_TIMELINE_PATH}/candidates`;
 const CANDIDATE_MANAGEMENT_TIMELINE_ENDPOINT = `${CANDIDATE_MANAGEMENT_API}${CANDIDATE_MANAGEMENT_TIMELINE_PATH}`;
@@ -93,6 +100,23 @@ function mapLinkSecurityState(dto: BackendCandidateLinkSecurityStateDto): Candid
 function mapAttemptSettings(dto: BackendCandidateAttemptSettingsDto): CandidateAttemptSettings {
   return {
     defaultMaxAttempts: dto.defaultMaxAttempts,
+  };
+}
+
+function mapPrivacyAction(dto: BackendCandidatePrivacyActionResultDto): CandidatePrivacyActionResult {
+  return {
+    action: dto.action,
+    testId: dto.testId,
+    adminId: dto.adminId,
+    triggerSource: dto.triggerSource,
+    candidateAliasEmail: dto.candidateAliasEmail,
+    candidateAliasName: dto.candidateAliasName,
+    candidateEmailHash: dto.candidateEmailHash,
+    invitationIds: dto.invitationIds,
+    invitationsUpdated: dto.invitationsUpdated,
+    attemptsUpdated: dto.attemptsUpdated,
+    eventsUpdated: dto.eventsUpdated,
+    loggedAtUtc: dto.loggedAtUtc,
   };
 }
 
@@ -159,6 +183,42 @@ export async function saveCandidateAttemptSettings(
   );
 
   return mapAttemptSettings(dto);
+}
+
+export async function applyCandidatePrivacyAction(
+  input: CandidatePrivacyActionInput
+): Promise<CandidatePrivacyActionResult> {
+  const dto = await client.post<BackendCandidatePrivacyActionResultDto>(
+    CANDIDATE_MANAGEMENT_PRIVACY_ACTIONS_ENDPOINT,
+    {
+      testId: input.testId,
+      candidateEmail: input.candidateEmail,
+      invitationId: input.invitationId,
+      action: input.action,
+      adminId: input.adminId,
+      triggerSource: input.triggerSource ?? "UI",
+    }
+  );
+
+  return mapPrivacyAction(dto);
+}
+
+export async function applyCandidatePrivacyActionBatch(
+  input: CandidatePrivacyActionBatchInput
+): Promise<CandidatePrivacyActionResult[]> {
+  const dto = await client.post<BackendCandidatePrivacyActionResultDto[]>(
+    CANDIDATE_MANAGEMENT_PRIVACY_ACTIONS_BATCH_ENDPOINT,
+    {
+      testId: input.testId,
+      candidateEmails: input.candidateEmails,
+      invitationIds: input.invitationIds,
+      action: input.action,
+      adminId: input.adminId,
+      triggerSource: input.triggerSource ?? "UI",
+    }
+  );
+
+  return dto.map(mapPrivacyAction);
 }
 
 export async function getPendingInvitations(testId?: string): Promise<CandidateInvitation[]> {

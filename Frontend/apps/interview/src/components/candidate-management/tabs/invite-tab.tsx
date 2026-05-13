@@ -1,4 +1,4 @@
-import type { ElementType } from "react";
+import { useState, type DragEvent, type ElementType } from "react";
 import { Check, FileUp, Link2, Mail, Send, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DropdownSelect } from "@/components/candidate-management/dropdown-select";
@@ -42,6 +42,7 @@ export function InviteTab({
   handleSendInvitations,
   selectMethod,
 }: InviteTabProps) {
+  const [isCsvDragging, setIsCsvDragging] = useState(false);
   const stepChips: Array<{ id: 1 | 2 | 3; label: string }> = [
     { id: 1, label: "Method" },
     { id: 2, label: "Candidates" },
@@ -89,6 +90,15 @@ export function InviteTab({
       : inviteStep === 2
         ? "Select recipients and confirm candidate count."
         : "Set invitation options and review before sending.";
+
+    function handleCsvDrop(event: DragEvent<HTMLLabelElement>): void {
+      event.preventDefault();
+      setIsCsvDragging(false);
+      const file = event.dataTransfer.files?.[0];
+      if (file) {
+        void importCsvEmails(file);
+      }
+    }
 
   return (
     <div className="mt-5 space-y-5">
@@ -198,8 +208,35 @@ export function InviteTab({
                     </span>
                   </div>
 
-                  <label htmlFor="bulk-csv-file" className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[12px] font-semibold text-zinc-700 hover:bg-zinc-50">
-                    <FileUp className="h-3.5 w-3.5" /> Import CSV
+                  <label
+                    htmlFor="bulk-csv-file"
+                    className={cn(
+                      "flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed bg-white px-4 py-6 text-center transition-colors",
+                      isCsvDragging
+                        ? "border-zinc-900 bg-zinc-50"
+                        : "border-zinc-200 hover:border-zinc-300"
+                    )}
+                    onDragEnter={(event) => {
+                      event.preventDefault();
+                      setIsCsvDragging(true);
+                    }}
+                    onDragOver={(event) => {
+                      event.preventDefault();
+                      setIsCsvDragging(true);
+                    }}
+                    onDragLeave={() => setIsCsvDragging(false)}
+                    onDrop={handleCsvDrop}
+                  >
+                    <div className="flex h-11 w-11 items-center justify-center rounded-full bg-zinc-100">
+                      <FileUp className="h-5 w-5 text-zinc-700" />
+                    </div>
+                    <div>
+                      <p className="text-[13px] font-semibold text-zinc-900">Drag and drop your Excel CSV file</p>
+                      <p className="mt-1 text-[11px] text-zinc-500">or click to browse for a .csv file</p>
+                    </div>
+                    <span className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-[11px] font-semibold text-zinc-700">
+                      Choose file
+                    </span>
                     <input
                       id="bulk-csv-file"
                       name="bulkCsvFile"

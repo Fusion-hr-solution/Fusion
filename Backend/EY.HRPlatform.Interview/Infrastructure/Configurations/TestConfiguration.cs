@@ -32,6 +32,22 @@ public class TestConfiguration : IEntityTypeConfiguration<Test>
         builder.Property(t => t.MaxAttempts)
             .IsRequired(false);
 
+        builder.Property(t => t.AllowSkipping)
+            .HasDefaultValue(false)
+            .IsRequired();
+
+        builder.Property(t => t.AllowBacktracking)
+            .HasDefaultValue(true)
+            .IsRequired();
+
+        builder.Property(t => t.ShowProgressBar)
+            .HasDefaultValue(true)
+            .IsRequired();
+
+        builder.Property(t => t.RandomizeOrder)
+            .HasDefaultValue(false)
+            .IsRequired();
+
         builder.Property(t => t.CandidateCount)
             .HasDefaultValue(0)
             .IsRequired();

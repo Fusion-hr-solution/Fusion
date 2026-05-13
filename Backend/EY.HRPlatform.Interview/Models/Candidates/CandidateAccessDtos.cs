@@ -22,6 +22,10 @@ public class CandidateAccessValidationDto
     public string? DeadlineUtc { get; set; }
     public string? TokenExpiresAtUtc { get; set; }
     public int? TimeLimitMinutes { get; set; }
+    public bool AllowSkipping { get; set; }
+    public bool AllowBacktracking { get; set; }
+    public bool ShowProgressBar { get; set; }
+    public bool RandomizeOrder { get; set; }
 }
 
 public class StartCandidateAttemptDto
@@ -59,6 +63,10 @@ public class CandidateAccessSessionDto
     public string? SubmittedAtUtc { get; set; }
     public string AnswersJson { get; set; } = "{}";
     public string ResultJson { get; set; } = "{}";
+    public bool AllowSkipping { get; set; }
+    public bool AllowBacktracking { get; set; }
+    public bool ShowProgressBar { get; set; }
+    public bool RandomizeOrder { get; set; }
     public List<CandidateAccessQuestionDto> Questions { get; set; } = [];
 }
 
