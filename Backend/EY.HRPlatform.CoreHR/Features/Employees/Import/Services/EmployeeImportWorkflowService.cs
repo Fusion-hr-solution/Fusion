@@ -310,6 +310,8 @@ public sealed class EmployeeImportWorkflowService(
             throw new ArgumentException("The import does not contain any valid employee rows to apply.", nameof(sessionId));
         }
 
+        var settings = await tenantSettingsReader.GetCurrentAsync(cancellationToken);
+
         var sourceRows = ReadSourceRows(session);
         var importedEmails = normalizedRows
             .Select(row => row.Email)
@@ -402,7 +404,17 @@ public sealed class EmployeeImportWorkflowService(
             actor.FullName,
             actor.Role);
 
+        var importFollowUpIssues = BuildImportFollowUpIssues(
+            history.Id,
+            employeesByEmail,
+            normalizedRows,
+            settings);
+
         dbContext.EmployeeImportHistories.Add(history);
+        if (importFollowUpIssues.Count > 0)
+        {
+            dbContext.EmployeeImportFollowUpIssues.AddRange(importFollowUpIssues);
+        }
         session.MarkApplied(appliedAt);
 
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -466,7 +478,9 @@ public sealed class EmployeeImportWorkflowService(
             .FirstOrDefaultAsync(current => current.Id == historyId, cancellationToken)
             ?? throw new EntityNotFoundException(nameof(EmployeeImportHistory), historyId);
 
-        return BuildHistoryDetailDto(history);
+        var unresolvedFollowUpIssues = await BuildUnresolvedFollowUpIssuesAsync(historyId, cancellationToken);
+
+        return BuildHistoryDetailDto(history, unresolvedFollowUpIssues);
     }
 
     private async Task EnsureImportAvailableAsync(CancellationToken cancellationToken)
@@ -1296,7 +1310,9 @@ public sealed class EmployeeImportWorkflowService(
             history.ActorFullName,
             history.ActorRole);
 
-    private static EmployeeImportHistoryDetailDto BuildHistoryDetailDto(EmployeeImportHistory history)
+    private static EmployeeImportHistoryDetailDto BuildHistoryDetailDto(
+        EmployeeImportHistory history,
+        IReadOnlyList<EmployeeImportFollowUpIssueDto> unresolvedFollowUpIssues)
         => new(
             history.Id,
             history.SessionId,
@@ -1312,7 +1328,133 @@ public sealed class EmployeeImportWorkflowService(
             history.ActorUserId,
             history.ActorFullName,
             history.ActorRole,
-            history.FailureReason);
+            history.FailureReason)
+        {
+            UnresolvedFollowUpIssues = unresolvedFollowUpIssues
+        };
+
+    private List<EmployeeImportFollowUpIssue> BuildImportFollowUpIssues(
+        Guid historyId,
+        IReadOnlyDictionary<string, Employee> employeesByEmail,
+        IReadOnlyCollection<StoredNormalizedRow> normalizedRows,
+        TenantSettingsDto settings)
+    {
+        var normalizedRowsByEmail = normalizedRows.ToDictionary(row => row.Email, StringComparer.OrdinalIgnoreCase);
+        var directReportCounts = employeesByEmail.Values
+            .Where(employee => employee.ManagerId.HasValue)
+            .GroupBy(employee => employee.ManagerId!.Value)
+            .ToDictionary(group => group.Key, group => group.Count());
+
+        var followUpIssues = new List<EmployeeImportFollowUpIssue>();
+
+        foreach (var (email, employee) in employeesByEmail)
+        {
+            var row = normalizedRowsByEmail[email];
+            var directReportCount = directReportCounts.GetValueOrDefault(employee.Id);
+            var hierarchyStatus = EmployeeReadModelPolicy.ResolveHierarchyStatus(employee, directReportCount);
+            var readiness = EmployeeReadinessPolicy.BuildSummary(employee, settings, hierarchyStatus, directReportCount);
+
+            foreach (var issue in readiness.EmployeeStateIssues)
+            {
+                followUpIssues.Add(EmployeeImportFollowUpIssue.Create(
+                    tenantContext.TenantId,
+                    historyId,
+                    employee.Id,
+                    row.RowNumber,
+                    issue.Code,
+                    issue.FieldKey));
+            }
+        }
+
+        return followUpIssues;
+    }
+
+    private async Task<IReadOnlyList<EmployeeImportFollowUpIssueDto>> BuildUnresolvedFollowUpIssuesAsync(
+        Guid historyId,
+        CancellationToken cancellationToken)
+    {
+        var storedIssues = await dbContext.EmployeeImportFollowUpIssues
+            .AsNoTracking()
+            .Where(issue => issue.EmployeeImportHistoryId == historyId)
+            .OrderBy(issue => issue.SourceRowNumber)
+            .ThenBy(issue => issue.IssueCode)
+            .ToListAsync(cancellationToken);
+
+        if (storedIssues.Count == 0)
+        {
+            return Array.Empty<EmployeeImportFollowUpIssueDto>();
+        }
+
+        var employeeIds = storedIssues
+            .Select(issue => issue.EmployeeId)
+            .Distinct()
+            .ToList();
+
+        var employees = await dbContext.Employees
+            .AsNoTracking()
+            .Include(employee => employee.Manager)
+            .Include(employee => employee.OrgUnit)
+            .Where(employee => employeeIds.Contains(employee.Id))
+            .ToListAsync(cancellationToken);
+
+        if (employees.Count == 0)
+        {
+            return Array.Empty<EmployeeImportFollowUpIssueDto>();
+        }
+
+        var settings = await tenantSettingsReader.GetCurrentAsync(cancellationToken);
+        var directReportCounts = await dbContext.Employees
+            .AsNoTracking()
+            .Where(employee => employee.ManagerId.HasValue
+                && employee.Status == EmployeeStatus.Active
+                && employeeIds.Contains(employee.ManagerId.Value))
+            .GroupBy(employee => employee.ManagerId!.Value)
+            .Select(group => new { ManagerId = group.Key, Count = group.Count() })
+            .ToDictionaryAsync(group => group.ManagerId, group => group.Count, cancellationToken);
+
+        var readinessByEmployeeId = employees.ToDictionary(
+            employee => employee.Id,
+            employee =>
+            {
+                var directReportCount = directReportCounts.GetValueOrDefault(employee.Id);
+                var hierarchyStatus = EmployeeReadModelPolicy.ResolveHierarchyStatus(employee, directReportCount);
+                return EmployeeReadinessPolicy.BuildSummary(employee, settings, hierarchyStatus, directReportCount);
+            });
+
+        var employeesById = employees.ToDictionary(employee => employee.Id);
+        var unresolvedIssues = new List<EmployeeImportFollowUpIssueDto>();
+
+        foreach (var storedIssue in storedIssues)
+        {
+            if (!employeesById.TryGetValue(storedIssue.EmployeeId, out var employee)
+                || !readinessByEmployeeId.TryGetValue(storedIssue.EmployeeId, out var readiness))
+            {
+                continue;
+            }
+
+            var currentIssue = readiness.EmployeeStateIssues.FirstOrDefault(issue =>
+                issue.Code == storedIssue.IssueCode
+                && string.Equals(issue.FieldKey, storedIssue.FieldKey, StringComparison.Ordinal));
+
+            if (currentIssue is null)
+            {
+                continue;
+            }
+
+            unresolvedIssues.Add(new EmployeeImportFollowUpIssueDto(
+                storedIssue.Id,
+                storedIssue.SourceRowNumber,
+                employee.Id,
+                employee.FullName,
+                employee.Email,
+                currentIssue.Code,
+                currentIssue.Label,
+                currentIssue.FieldKey,
+                currentIssue.FixTarget));
+        }
+
+        return unresolvedIssues;
+    }
 
     private static string? ReadValue(EmployeeImportSourceRowDto row, string key)
     {

@@ -150,6 +150,41 @@ public class GetEmployeeProfileQueryHandlerTests
     }
 
     [Fact]
+    public async Task GetEmployeeProfile_ValidRoot_SurfacesDeactivationBlockerOutsideReadinessIssues()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+
+        var orgUnit = OrgUnit.Create(TenantId, "EXEC", "Executive", "Department", null);
+        var leader = Employee.Create(TenantId, "Emma", "Executive", "emma.executive@example.com", new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc), null, "Chief People Officer");
+        leader.AssignOrgUnit(orgUnit.Id);
+
+        var directReport = Employee.Create(TenantId, "Sarah", "Chen", "sarah.chen@example.com", new DateTime(2021, 1, 1, 0, 0, 0, DateTimeKind.Utc), null, "HR Manager");
+        directReport.AssignManager(leader.Id);
+        directReport.AssignOrgUnit(orgUnit.Id);
+
+        seedContext.OrgUnits.Add(orgUnit);
+        seedContext.Employees.AddRange(leader, directReport);
+        await seedContext.SaveChangesAsync();
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = CreateHandler(context);
+
+        var result = await handler.Handle(new GetEmployeeProfileQuery(leader.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(EmployeeHierarchyStatuses.Root, result.Value.HierarchyStatus);
+        Assert.Equal(0, result.Value.Readiness.EmployeeStateIssueCount);
+        Assert.Equal(1, result.Value.Readiness.BlockingIssueCount);
+
+        var blocker = Assert.Single(result.Value.Readiness.BlockingIssues);
+        Assert.Equal(EmployeeReadinessIssueCodes.DeactivationBlocked, blocker.Code);
+        Assert.Equal(EmployeeReadinessFixTargetKinds.ProfileStatus, blocker.FixTarget.Kind);
+        Assert.Equal(leader.Id, blocker.FixTarget.EmployeeId);
+    }
+
+    [Fact]
     public async Task GetEmployeeProfile_NotFound_ReturnsFailure()
     {
         var dbName = Guid.NewGuid().ToString();

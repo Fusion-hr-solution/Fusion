@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using EY.HRPlatform.CoreHR.Domain.Entities;
 using EY.HRPlatform.CoreHR.Exceptions;
+using EY.HRPlatform.CoreHR.Features.Employees.Dtos;
 using EY.HRPlatform.CoreHR.Features.Employees.Import.Dtos;
 using EY.HRPlatform.CoreHR.Features.Employees.Import.Services;
 using EY.HRPlatform.CoreHR.Features.Employees.Services;
@@ -649,6 +650,88 @@ public class EmployeeImportWorkflowTests
         Assert.Equal(actor.UserId, history.ActorUserId);
         Assert.Equal(actor.FullName, history.ActorFullName);
         Assert.Equal(actor.Role, history.ActorRole);
+    }
+
+    [Fact]
+    public async Task ApplyAsync_PersistsBatchFollowUpIssuesForImportedEmployeesNeedingAttention()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        await SeedPublishedSetupAsync(dbName);
+
+        await using var context = TestDbContextFactory.Create(TestTenantContext.WithTenant(TenantId), dbName);
+        var service = new EmployeeImportWorkflowService(context, TestTenantContext.WithTenant(TenantId), new EmployeeHierarchyService(context));
+        var file = CreateCsvFile(
+            "employees.csv",
+            """
+            firstName,lastName,email,hireDate,jobTitle,orgUnitCode,managerEmail
+            Sarah,Chen,sarah.chen@contoso.com,2024-01-15,Senior Engineer,,
+            """);
+
+        var uploadedSession = await service.UploadAsync(file, CancellationToken.None);
+        await service.ValidateAsync(uploadedSession.Id, CancellationToken.None);
+        var applyResult = await service.ApplyAsync(uploadedSession.Id, CreateActor(), CancellationToken.None);
+
+        var storedIssues = await context.EmployeeImportFollowUpIssues
+            .OrderBy(issue => issue.IssueCode)
+            .ToListAsync();
+
+        Assert.Equal(2, storedIssues.Count);
+        Assert.Equal(
+            [EmployeeReadinessIssueCodes.MissingOrgUnit, EmployeeReadinessIssueCodes.NoManagerAssigned],
+            storedIssues.Select(issue => issue.IssueCode).ToArray());
+
+        var detail = await service.GetHistoryDetailAsync(applyResult.HistoryId, CancellationToken.None);
+
+        Assert.Equal(2, detail.UnresolvedFollowUpIssues.Count);
+        Assert.Contains(detail.UnresolvedFollowUpIssues, issue => issue.Code == EmployeeReadinessIssueCodes.MissingOrgUnit && issue.FixTarget.Kind == EmployeeReadinessFixTargetKinds.ProfileOrganization);
+        Assert.Contains(detail.UnresolvedFollowUpIssues, issue => issue.Code == EmployeeReadinessIssueCodes.NoManagerAssigned && issue.FixTarget.Kind == EmployeeReadinessFixTargetKinds.ReportingRelationships);
+    }
+
+    [Fact]
+    public async Task GetHistoryDetailAsync_OmitsFollowUpIssuesOnceTheyAreResolved()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        await SeedPublishedSetupAsync(dbName);
+        await SeedOrgUnitAsync(dbName, "ENG-PLATFORM");
+        await SeedEmployeeAsync(dbName, "alex.manager@contoso.com");
+
+        Guid historyId;
+        Guid employeeId;
+
+        await using (var context = TestDbContextFactory.Create(TestTenantContext.WithTenant(TenantId), dbName))
+        {
+            var service = new EmployeeImportWorkflowService(context, TestTenantContext.WithTenant(TenantId), new EmployeeHierarchyService(context));
+            var file = CreateCsvFile(
+                "employees.csv",
+                """
+                firstName,lastName,email,hireDate,jobTitle,orgUnitCode,managerEmail
+                Sarah,Chen,sarah.chen@contoso.com,2024-01-15,Senior Engineer,,alex.manager@contoso.com
+                """);
+
+            var uploadedSession = await service.UploadAsync(file, CancellationToken.None);
+            await service.ValidateAsync(uploadedSession.Id, CancellationToken.None);
+            var applyResult = await service.ApplyAsync(uploadedSession.Id, CreateActor(), CancellationToken.None);
+            historyId = applyResult.HistoryId;
+            employeeId = await context.Employees
+                .Where(employee => employee.Email == "sarah.chen@contoso.com")
+                .Select(employee => employee.Id)
+                .SingleAsync();
+        }
+
+        await using (var fixContext = TestDbContextFactory.Create(TestTenantContext.WithTenant(TenantId), dbName))
+        {
+            var employee = await fixContext.Employees.SingleAsync(current => current.Id == employeeId);
+            var orgUnit = await fixContext.OrgUnits.SingleAsync(current => current.Code == "ENG-PLATFORM");
+            employee.AssignOrgUnit(orgUnit.Id);
+            await fixContext.SaveChangesAsync();
+        }
+
+        await using var verificationContext = TestDbContextFactory.Create(TestTenantContext.WithTenant(TenantId), dbName);
+        var verificationService = new EmployeeImportWorkflowService(verificationContext, TestTenantContext.WithTenant(TenantId), new EmployeeHierarchyService(verificationContext));
+
+        var detail = await verificationService.GetHistoryDetailAsync(historyId, CancellationToken.None);
+
+        Assert.Empty(detail.UnresolvedFollowUpIssues);
     }
 
     [Fact]
