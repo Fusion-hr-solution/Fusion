@@ -1,2 +1,3 @@
 export const APP_NAME = "Core";
-export const APP_DESCRIPTION = "Core platform features, settings, and administration tools.";
+export const APP_DESCRIPTION =
+  "Core workflows for setup, organizations, and employee operations.";

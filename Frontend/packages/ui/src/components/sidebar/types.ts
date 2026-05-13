@@ -1,3 +1,4 @@
+import type { CSSProperties, ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 
 export interface NavItem {
@@ -38,9 +39,15 @@ export interface AppSidebarProps {
   /** Next.js basePath for the module (e.g. "/learning"), prepended to nav hrefs */
   basePath?: string;
   /** Optional custom footer rendered at the bottom of the sidebar, receives collapsed state */
-  footer?: (collapsed: boolean) => React.ReactNode;
+  footer?: (collapsed: boolean) => ReactNode;
   /** User panel at the very bottom, receives collapsed state */
-  userPanel?: (collapsed: boolean) => React.ReactNode;
+  userPanel?: (collapsed: boolean) => ReactNode;
   /** List of available modules for the switcher (defaults to all platform modules) */
   modules?: SidebarModule[];
+  /** Optional local theme override for the sidebar surface. */
+  style?: CSSProperties;
+  /** Optional local theme override for the module switcher popover content. */
+  moduleSwitcherContentStyle?: CSSProperties;
+  /** Optional local theme override for the module switcher trigger surface. */
+  moduleSwitcherTriggerStyle?: CSSProperties;
 }

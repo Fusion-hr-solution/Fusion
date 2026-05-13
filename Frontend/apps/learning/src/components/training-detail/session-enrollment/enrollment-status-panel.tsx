@@ -1,0 +1,59 @@
+"use client";
+
+import { CheckCircle2, BarChart3 } from "lucide-react";
+import { Progress } from "@repo/ui";
+import type { EnrollmentStatusPanelProps } from "@/types/component-props";
+import { EnrollmentPartRow } from "./enrollment-part-row";
+
+export function EnrollmentStatusPanel({
+  enrollments,
+  onCancelSession,
+  isCancelling,
+}: EnrollmentStatusPanelProps) {
+  const progressPct =
+    enrollments.totalParts > 0
+      ? Math.round((enrollments.completedParts / enrollments.totalParts) * 100)
+      : 0;
+
+  return (
+    <div className="space-y-5">
+      {/* Progress header */}
+      <div className="rounded-xl border border-border/50 bg-white p-5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-semibold text-foreground">Session Progress</h3>
+          </div>
+          {enrollments.isTrainingCompleted && (
+            <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600">
+              <CheckCircle2 className="h-4 w-4" />
+              Completed
+            </span>
+          )}
+        </div>
+
+        <div className="mt-3 space-y-2">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>
+              {enrollments.completedParts} of {enrollments.totalParts} parts attended
+            </span>
+            <span className="font-medium">{progressPct}%</span>
+          </div>
+          <Progress value={progressPct} className="h-2" />
+        </div>
+      </div>
+
+      {/* Part-by-part rows */}
+      <div className="space-y-2">
+        {enrollments.parts.map((part) => (
+          <EnrollmentPartRow
+            key={part.partId}
+            part={part}
+            onCancel={onCancelSession}
+            isCancelling={isCancelling}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}

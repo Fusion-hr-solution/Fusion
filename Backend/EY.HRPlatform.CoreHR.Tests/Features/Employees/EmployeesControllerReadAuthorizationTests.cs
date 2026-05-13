@@ -36,4 +36,49 @@ public class EmployeesControllerReadAuthorizationTests
         Assert.NotNull(authorize);
         Assert.Equal(PlatformRole.HRAdmin, authorize!.Roles);
     }
+
+    [Fact]
+    public void GetReportingLines_RequiresHrAdminRole()
+    {
+        // Arrange
+        var method = typeof(EmployeesController).GetMethod(nameof(EmployeesController.GetReportingLines));
+
+        // Act
+        var authorize = method?.GetCustomAttribute<AuthorizeAttribute>(inherit: false);
+
+        // Assert
+        Assert.NotNull(method);
+        Assert.NotNull(authorize);
+        Assert.Equal(PlatformRole.HRAdmin, authorize!.Roles);
+    }
+
+    [Fact]
+    public void GetOrgChart_RequiresHrAdminRole()
+    {
+        // Arrange
+        var method = typeof(EmployeesController).GetMethod(nameof(EmployeesController.GetOrgChart));
+
+        // Act
+        var authorize = method?.GetCustomAttribute<AuthorizeAttribute>(inherit: false);
+
+        // Assert
+        Assert.NotNull(method);
+        Assert.NotNull(authorize);
+        Assert.Equal(PlatformRole.HRAdmin, authorize!.Roles);
+    }
+
+    [Fact]
+    public void GetProfile_RequiresHrAdminRole()
+    {
+        // Arrange
+        var method = typeof(EmployeesController).GetMethod(nameof(EmployeesController.GetProfile));
+
+        // Act
+        var authorize = method?.GetCustomAttribute<AuthorizeAttribute>(inherit: false);
+
+        // Assert
+        Assert.NotNull(method);
+        Assert.NotNull(authorize);
+        Assert.Equal(PlatformRole.HRAdmin, authorize!.Roles);
+    }
 }

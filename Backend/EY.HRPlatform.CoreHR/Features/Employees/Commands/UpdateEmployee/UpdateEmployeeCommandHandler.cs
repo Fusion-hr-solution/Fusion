@@ -11,9 +11,9 @@ namespace EY.HRPlatform.CoreHR.Features.Employees.Commands.UpdateEmployee;
 
 public sealed class UpdateEmployeeCommandHandler(
     CoreHRDbContext dbContext,
-    IEmployeeHierarchyService? employeeHierarchyService = null) : ICommandHandler<UpdateEmployeeCommand, Result<EmployeeDto>>
+    IEmployeeHierarchyService hierarchyService) : ICommandHandler<UpdateEmployeeCommand, Result<EmployeeDto>>
 {
-    private readonly IEmployeeHierarchyService employeeHierarchyService = employeeHierarchyService ?? new EmployeeHierarchyService(dbContext);
+    private readonly IEmployeeHierarchyService employeeHierarchyService = hierarchyService;
 
     public async Task<Result<EmployeeDto>> Handle(UpdateEmployeeCommand request, CancellationToken cancellationToken)
     {
@@ -70,6 +70,11 @@ public sealed class UpdateEmployeeCommandHandler(
 
         // Update employee details
         employee.UpdateDetails(firstName, lastName, email, employee.Department, jobTitle);
+
+        if (request.HireDate.HasValue)
+        {
+            employee.UpdateHireDate(request.HireDate.Value);
+        }
 
         // Update manager only if explicitly provided in request
         if (request.ManagerId.HasValue)

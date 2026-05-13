@@ -3,8 +3,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 import { createElement, type PropsWithChildren } from "react";
 
-const { mockGet } = vi.hoisted(() => ({
+const { mockDelete, mockGet, mockPut } = vi.hoisted(() => ({
+  mockDelete: vi.fn(),
   mockGet: vi.fn(),
+  mockPut: vi.fn(),
 }));
 
 const authState = vi.hoisted(() => ({
@@ -19,7 +21,9 @@ const authState = vi.hoisted(() => ({
 
 vi.mock("@repo/api", () => ({
   createPlatformApiClient: () => ({
+    delete: mockDelete,
     get: mockGet,
+    put: mockPut,
   }),
 }));
 
@@ -31,13 +35,21 @@ vi.mock("@repo/auth", () => ({
 }));
 
 vi.mock("@repo/api/query", async () => {
-  const actual =
-    await vi.importActual<typeof import("@repo/api/query")>("@repo/api/query");
+  const actual = await vi.importActual("@repo/api/query");
   return actual;
 });
 
 import { ApiQueryProvider, createApiQueryClient } from "@repo/api/query";
-import { useEmployeeRoster } from "./use-employees";
+import {
+  useDeactivateEmployee,
+  useEmployeeOrgUnitOptions,
+  useEmployeeManagerOptions,
+  useEmployeeProfile,
+  useEmployeeReportingLines,
+  useEmployeeRoster,
+  useUpdateEmployeeRecord,
+  useUpdateEmployeeManager,
+} from "./use-employees";
 
 function createWrapper() {
   const client = createApiQueryClient({
@@ -156,6 +168,7 @@ describe("useEmployeeRoster", () => {
           hireDate: "2023-01-15T00:00:00Z",
           managerId: "mgr-1",
           managerName: "James Wilson",
+          version: 3,
         },
         {
           id: "emp-2",
@@ -169,6 +182,7 @@ describe("useEmployeeRoster", () => {
           hireDate: "2020-11-01T00:00:00Z",
           managerId: null,
           managerName: null,
+          version: 7,
         },
       ],
       totalCount: 2,
@@ -198,5 +212,320 @@ describe("useEmployeeRoster", () => {
     expect(items[0]?.orgUnitName).toBe("Backend Team");
     expect(items[1]?.orgUnitId).toBeNull();
     expect(items[1]?.orgUnitName).toBeNull();
+  });
+});
+
+describe("useEmployeeReportingLines", () => {
+  it("calls the reporting-lines endpoint for the selected employee", async () => {
+    const mockData = {
+      employee: {
+        id: "emp-1",
+        firstName: "Sarah",
+        lastName: "Chen",
+        email: "sarah.chen@ey-hr.com",
+        orgUnitId: "ou-1",
+        orgUnitName: "Backend Team",
+        jobTitle: "Senior Software Engineer",
+        status: "Active",
+        hireDate: "2023-01-15T00:00:00Z",
+        managerId: "mgr-1",
+        managerName: "James Wilson",
+        hierarchyStatus: "Healthy",
+        directReportCount: 2,
+        version: 11,
+      },
+      managerChain: [],
+      directReports: [],
+      downline: [],
+      directReportCount: 2,
+      downlineCount: 2,
+    };
+    mockGet.mockResolvedValue(mockData);
+
+    const { result } = renderHook(() => useEmployeeReportingLines("emp-1"), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(mockGet).toHaveBeenCalledWith(
+      "/corehr/employees/emp-1/reporting-lines",
+      expect.objectContaining({
+        signal: expect.any(AbortSignal),
+      })
+    );
+    expect(result.current.data).toEqual(mockData);
+  });
+});
+
+describe("useEmployeeManagerOptions", () => {
+  it("searches active employees for manager options", async () => {
+    mockGet.mockResolvedValue({
+      items: [],
+      totalCount: 0,
+      page: 1,
+      pageSize: 8,
+      totalPages: 0,
+      hasNextPage: false,
+      hasPreviousPage: false,
+    });
+
+    renderHook(
+      () =>
+        useEmployeeManagerOptions({
+          employeeId: "emp-1",
+          search: "jam",
+        }),
+      { wrapper: createWrapper() }
+    );
+
+    await waitFor(() => expect(mockGet).toHaveBeenCalled());
+
+    expect(mockGet).toHaveBeenCalledWith(
+      "/corehr/employees",
+      expect.objectContaining({
+        params: expect.objectContaining({
+          search: "jam",
+          status: "Active",
+          sortBy: "Name",
+          sortDir: "Asc",
+          page: 1,
+          pageSize: 8,
+        }),
+        signal: expect.any(AbortSignal),
+      })
+    );
+  });
+});
+
+describe("useEmployeeOrgUnitOptions", () => {
+  it("loads active org units for the profile workspace", async () => {
+    mockGet.mockResolvedValue({
+      items: [],
+      totalCount: 0,
+      page: 1,
+      pageSize: 100,
+      totalPages: 0,
+      hasNextPage: false,
+      hasPreviousPage: false,
+    });
+
+    renderHook(() => useEmployeeOrgUnitOptions({ search: "Eng" }), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => expect(mockGet).toHaveBeenCalled());
+
+    expect(mockGet).toHaveBeenCalledWith(
+      "/corehr/org-units",
+      expect.objectContaining({
+        params: expect.objectContaining({
+          search: "Eng",
+          isActive: true,
+          sortBy: "Name",
+          sortDir: "Asc",
+          page: 1,
+          pageSize: 100,
+        }),
+        signal: expect.any(AbortSignal),
+      })
+    );
+  });
+});
+
+describe("useUpdateEmployeeManager", () => {
+  it("sends the manager update with If-Match and clear semantics", async () => {
+    mockPut.mockResolvedValue({});
+
+    const { result } = renderHook(() => useUpdateEmployeeManager(), {
+      wrapper: createWrapper(),
+    });
+
+    await result.current.mutateAsync({
+      employeeId: "emp-1",
+      expectedVersion: 11,
+      managerId: null,
+    });
+
+    expect(mockPut).toHaveBeenCalledWith(
+      "/corehr/employees/emp-1",
+      {
+        managerId: "00000000-0000-0000-0000-000000000000",
+      },
+      {
+        headers: {
+          "If-Match": '"11"',
+        },
+      }
+    );
+  });
+});
+
+describe("useUpdateEmployeeRecord", () => {
+  it("sends targeted profile updates with optimistic concurrency headers", async () => {
+    mockPut.mockResolvedValue({});
+
+    const { result } = renderHook(() => useUpdateEmployeeRecord(), {
+      wrapper: createWrapper(),
+    });
+
+    await result.current.mutateAsync({
+      employeeId: "emp-1",
+      expectedVersion: 7,
+      firstName: "Alice",
+      lastName: "Smith",
+      email: "alice@example.com",
+      jobTitle: "Principal Engineer",
+      orgUnitId: null,
+      hireDate: "2024-05-01T00:00:00.000Z",
+    });
+
+    expect(mockPut).toHaveBeenCalledWith(
+      "/corehr/employees/emp-1",
+      {
+        firstName: "Alice",
+        lastName: "Smith",
+        email: "alice@example.com",
+        jobTitle: "Principal Engineer",
+        orgUnitId: "00000000-0000-0000-0000-000000000000",
+        hireDate: "2024-05-01T00:00:00.000Z",
+      },
+      {
+        headers: {
+          "If-Match": '"7"',
+        },
+      }
+    );
+  });
+
+  it("omits fields that are not part of the current sheet update", async () => {
+    mockPut.mockResolvedValue({});
+
+    const { result } = renderHook(() => useUpdateEmployeeRecord(), {
+      wrapper: createWrapper(),
+    });
+
+    await result.current.mutateAsync({
+      employeeId: "emp-1",
+      expectedVersion: 8,
+      firstName: "Alice",
+      lastName: "Smith",
+      email: "alice@example.com",
+    });
+
+    expect(mockPut).toHaveBeenCalledWith(
+      "/corehr/employees/emp-1",
+      {
+        firstName: "Alice",
+        lastName: "Smith",
+        email: "alice@example.com",
+      },
+      {
+        headers: {
+          "If-Match": '"8"',
+        },
+      }
+    );
+  });
+
+  it("only sends the organization field when updating org assignment", async () => {
+    mockPut.mockResolvedValue({});
+
+    const { result } = renderHook(() => useUpdateEmployeeRecord(), {
+      wrapper: createWrapper(),
+    });
+
+    await result.current.mutateAsync({
+      employeeId: "emp-1",
+      expectedVersion: 9,
+      orgUnitId: "org-7",
+    });
+
+    expect(mockPut).toHaveBeenCalledWith(
+      "/corehr/employees/emp-1",
+      {
+        orgUnitId: "org-7",
+      },
+      {
+        headers: {
+          "If-Match": '"9"',
+        },
+      }
+    );
+  });
+});
+
+describe("useDeactivateEmployee", () => {
+  it("sends the deactivate request with optimistic concurrency headers", async () => {
+    mockDelete.mockResolvedValue(undefined);
+
+    const { result } = renderHook(() => useDeactivateEmployee(), {
+      wrapper: createWrapper(),
+    });
+
+    await result.current.mutateAsync({
+      employeeId: "emp-1",
+      expectedVersion: 11,
+    });
+
+    expect(mockDelete).toHaveBeenCalledWith("/corehr/employees/emp-1", {
+      headers: {
+        "If-Match": '"11"',
+      },
+    });
+  });
+});
+
+describe("useEmployeeProfile", () => {
+  it("calls the profile endpoint for the given employee", async () => {
+    const mockProfile = {
+      id: "emp-1",
+      firstName: "Alice",
+      lastName: "Smith",
+      fullName: "Alice Smith",
+      email: "alice@example.com",
+      jobTitle: "Senior Engineer",
+      hireDate: "2021-06-01T00:00:00Z",
+      status: "Active",
+      orgUnitId: "org-1",
+      orgUnitName: "Engineering",
+      managerId: "mgr-1",
+      managerFirstName: "Bob",
+      managerLastName: "Jones",
+      managerEmail: "bob@example.com",
+      managerFullName: "Bob Jones",
+      hierarchyStatus: "Healthy",
+      directReportCount: 3,
+      version: 7,
+    };
+
+    mockGet.mockResolvedValue(mockProfile);
+
+    const { result } = renderHook(() => useEmployeeProfile("emp-1"), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(mockGet).toHaveBeenCalledWith(
+      "/corehr/employees/emp-1/profile",
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
+    expect(result.current.data).toMatchObject({
+      id: "emp-1",
+      fullName: "Alice Smith",
+      hierarchyStatus: "Healthy",
+      directReportCount: 3,
+    });
+  });
+
+  it("does not fetch when employeeId is null", async () => {
+    const { result } = renderHook(() => useEmployeeProfile(null), {
+      wrapper: createWrapper(),
+    });
+
+    await new Promise((r) => setTimeout(r, 50));
+    expect(mockGet).not.toHaveBeenCalled();
+    expect(result.current.data).toBeUndefined();
   });
 });

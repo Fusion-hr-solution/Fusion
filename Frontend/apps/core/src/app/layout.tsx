@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import "@repo/ui/src/ey-brand.css";
 import "./globals.css";
 import { Providers } from "./providers";
 
