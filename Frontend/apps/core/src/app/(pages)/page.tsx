@@ -150,123 +150,123 @@ export default function DashboardPage() {
                         </Badge>
                       </div>
 
-                    <div className="mt-4 grid gap-2">
-                      <Link
-                        href="/employees?readiness=NeedsAttention"
-                        className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
-                      >
-                        <span>Employees needing attention</span>
-                        <span className="font-medium">
-                          {readinessSummary.employeesNeedingAttention}
-                        </span>
-                      </Link>
-                      <Link
-                        href="/employees?readiness=MissingRequiredField"
-                        className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
-                      >
-                        <span>Missing required fields</span>
-                        <span className="font-medium">
-                          {readinessSummary.issueCounts.missingRequiredFields}
-                        </span>
-                      </Link>
-                      <Link
-                        href="/employees?readiness=MissingOrgUnit"
-                        className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
-                      >
-                        <span>Missing org units</span>
-                        <span className="font-medium">
-                          {readinessSummary.issueCounts.missingOrgUnit}
-                        </span>
-                      </Link>
-                      <Link
-                        href={buildImportHistoryHref()}
-                        className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
-                      >
-                        <span>Unresolved import follow-up</span>
-                        <span className="font-medium">
-                          {readinessSummary.issueCounts.unresolvedImportIssues}
-                        </span>
-                      </Link>
-                      <Link
-                        href="/employees?readiness=DeactivationBlocked"
-                        className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
-                      >
-                        <span>Deactivation blockers</span>
-                        <span className="font-medium">
-                          {readinessSummary.issueCounts.deactivationBlocked}
-                        </span>
-                      </Link>
-                    </div>
-                  </div>
-                ) : isReadinessLoading ? (
-                  <div className="space-y-3 rounded-xl border bg-background p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="space-y-2">
-                        <Skeleton className="h-4 w-32" />
-                        <Skeleton className="h-4 w-56" />
+                      <div className="mt-4 grid gap-2">
+                        <Link
+                          href="/employees?readiness=NeedsAttention"
+                          className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
+                        >
+                          <span>Employees needing attention</span>
+                          <span className="font-medium">
+                            {readinessSummary.employeesNeedingAttention}
+                          </span>
+                        </Link>
+                        <Link
+                          href="/employees?readiness=MissingRequiredField"
+                          className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
+                        >
+                          <span>Missing required fields</span>
+                          <span className="font-medium">
+                            {readinessSummary.issueCounts.missingRequiredFields}
+                          </span>
+                        </Link>
+                        <Link
+                          href="/employees?readiness=MissingOrgUnit"
+                          className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
+                        >
+                          <span>Missing org units</span>
+                          <span className="font-medium">
+                            {readinessSummary.issueCounts.missingOrgUnit}
+                          </span>
+                        </Link>
+                        <Link
+                          href={buildImportHistoryHref()}
+                          className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
+                        >
+                          <span>Unresolved import follow-up</span>
+                          <span className="font-medium">
+                            {readinessSummary.issueCounts.unresolvedImportIssues}
+                          </span>
+                        </Link>
+                        <Link
+                          href="/employees?readiness=DeactivationBlocked"
+                          className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
+                        >
+                          <span>Deactivation blockers</span>
+                          <span className="font-medium">
+                            {readinessSummary.issueCounts.deactivationBlocked}
+                          </span>
+                        </Link>
                       </div>
-                      <Skeleton className="h-6 w-20 rounded-full" />
                     </div>
-                    <div className="grid gap-2">
-                      {Array.from({ length: 5 }).map((_, index) => (
-                        <Skeleton key={index} className="h-10 w-full rounded-lg" />
-                      ))}
+                  ) : isReadinessLoading ? (
+                    <div className="space-y-3 rounded-xl border bg-background p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="space-y-2">
+                          <Skeleton className="h-4 w-32" />
+                          <Skeleton className="h-4 w-56" />
+                        </div>
+                        <Skeleton className="h-6 w-20 rounded-full" />
+                      </div>
+                      <div className="grid gap-2">
+                        {Array.from({ length: 5 }).map((_, index) => (
+                          <Skeleton key={index} className="h-10 w-full rounded-lg" />
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ) : readinessError ? (
+                  ) : readinessError ? (
+                    <div className="rounded-xl border border-dashed bg-background p-4 text-sm text-muted-foreground">
+                      Workforce health is temporarily unavailable.
+                    </div>
+                  ) : null}
+                </CardContent>
+              </Card>
+            ) : null}
+
+            <Card className="border-dashed bg-muted/10 shadow-none">
+              <CardHeader>
+                <CardTitle>Workspace actions</CardTitle>
+                <CardDescription>
+                  Launch the live Core workspaces available to your current role.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-3">
+                {availableAreas.length > 0 ? (
+                  availableAreas.map((area) => {
+                    const Icon = area.icon;
+
+                    return (
+                      <Link
+                        key={area.href}
+                        href={area.href}
+                        className="group rounded-xl border bg-background p-4 transition-colors hover:border-primary/40 hover:bg-muted/10"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-start gap-3">
+                            <div className="mt-0.5 flex size-9 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors group-hover:bg-primary/10 group-hover:text-primary">
+                              <Icon className="size-4" />
+                            </div>
+                            <div>
+                              <p className="font-medium text-foreground">
+                                {area.title}
+                              </p>
+                              <p className="mt-1 text-sm text-muted-foreground">
+                                {area.description}
+                              </p>
+                            </div>
+                          </div>
+                          <ArrowRight className="mt-1 size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
+                        </div>
+                      </Link>
+                    );
+                  })
+                ) : (
                   <div className="rounded-xl border border-dashed bg-background p-4 text-sm text-muted-foreground">
-                    Workforce health is temporarily unavailable.
+                    No workspaces are available for your current role.
                   </div>
-                ) : null}
+                )}
               </CardContent>
             </Card>
-          ) : null}
-
-          <Card className="border-dashed bg-muted/10 shadow-none">
-            <CardHeader>
-              <CardTitle>Workspace actions</CardTitle>
-              <CardDescription>
-                Launch the live Core workspaces available to your current role.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-3">
-              {availableAreas.length > 0 ? (
-                availableAreas.map((area) => {
-                  const Icon = area.icon;
-
-                  return (
-                    <Link
-                      key={area.href}
-                      href={area.href}
-                      className="group rounded-xl border bg-background p-4 transition-colors hover:border-primary/40 hover:bg-muted/10"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-start gap-3">
-                          <div className="mt-0.5 flex size-9 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors group-hover:bg-primary/10 group-hover:text-primary">
-                            <Icon className="size-4" />
-                          </div>
-                          <div>
-                            <p className="font-medium text-foreground">
-                              {area.title}
-                            </p>
-                            <p className="mt-1 text-sm text-muted-foreground">
-                              {area.description}
-                            </p>
-                          </div>
-                        </div>
-                        <ArrowRight className="mt-1 size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
-                      </div>
-                    </Link>
-                  );
-                })
-              ) : (
-                <div className="rounded-xl border border-dashed bg-background p-4 text-sm text-muted-foreground">
-                  No workspaces are available for your current role.
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+          </div>
         </CardContent>
       </Card>
     </div>

@@ -422,7 +422,7 @@ export default function SetupPage() {
   const reviewCopy = getReviewCopy(setupState?.currentPhase ?? "notStarted");
   const pageError = localError ?? null;
   const pageDescription = isCoreUnlocked
-    ? "Review the completion summary, published snapshot, and setup history."
+    ? "Review the completion summary, published structure, and setup history."
     : setupState.currentPhase === "structurallyGoverned"
       ? "Review the approved draft and publish it when ready."
       : "Review draft readiness and move the structure through approval.";
