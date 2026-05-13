@@ -43,7 +43,7 @@ export default function OrgChartPage() {
     DEFAULT_MAX_DEPTH;
 
   // Local UI state (not URL-backed)
-  const { user, isLoading: isAuthLoading } = useAuth();
+  const { user } = useAuth();
   const canAccess = canAccessEmployeeRoster(user);
   const fieldVisibility = useEmployeeFieldVisibility(canAccess);
   const [isCanvasReady, setIsCanvasReady] = useState(false);
@@ -310,9 +310,7 @@ export default function OrgChartPage() {
     sheetEmployeeId,
   ]);
 
-  const isInitialPageLoading =
-    (isAuthLoading && !user) ||
-    (!isAuthLoading && canAccess && isLoading && !data && !error);
+  const isInitialPageLoading = canAccess && isLoading && !data && !error;
 
   if (isInitialPageLoading) {
     return (

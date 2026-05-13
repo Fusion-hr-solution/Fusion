@@ -386,7 +386,10 @@ describe("useEmployeeImportHistory", () => {
 
 describe("useEmployeeImportHistoryDetail", () => {
   it("loads a selected import history record", async () => {
-    mockGet.mockResolvedValue({ id: "history-1" });
+    mockGet.mockResolvedValue({
+      id: "history-1",
+      unresolvedFollowUpIssues: [],
+    });
 
     const { result } = renderHook(
       () => useEmployeeImportHistoryDetail("history-1"),

@@ -1,3 +1,5 @@
+import type { EmployeeReadinessFixTargetDto } from "../employee-roster.types";
+
 export type EmployeeImportStage =
   | "PreviewReady"
   | "Validated"
@@ -105,6 +107,25 @@ export interface EmployeeImportHistoryDetailDto {
   actorFullName: string;
   actorRole: string;
   failureReason: string | null;
+  unresolvedFollowUpIssues: EmployeeImportFollowUpIssueDto[];
+}
+
+export interface EmployeeImportFollowUpIssueDto {
+  id: string;
+  sourceRowNumber: number;
+  employeeId: string;
+  employeeFullName: string;
+  employeeEmail: string;
+  code:
+    | "MissingRequiredField"
+    | "MissingOrgUnit"
+    | "NoManagerAssigned"
+    | "ManagerInactive"
+    | "ManagerMissing"
+    | "DeactivationBlocked";
+  label: string;
+  fieldKey: string | null;
+  fixTarget: EmployeeReadinessFixTargetDto;
 }
 
 export interface EmployeeImportHistoryPageDto {
