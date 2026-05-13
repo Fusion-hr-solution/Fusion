@@ -268,6 +268,10 @@ export default function CandidateStartPage() {
           requiresIpLock: false,
           requiresBrowserFingerprint: false,
           singleUseLinkEnabled: false,
+          allowSkipping: false,
+          allowBacktracking: false,
+          showProgressBar: false,
+          randomizeOrder: false,
           status: "Invalid",
           message: "A valid invitation token is required.",
         });
@@ -299,6 +303,10 @@ export default function CandidateStartPage() {
           requiresIpLock: false,
           requiresBrowserFingerprint: false,
           singleUseLinkEnabled: false,
+          allowSkipping: false,
+          allowBacktracking: false,
+          showProgressBar: false,
+          randomizeOrder: false,
           status: "Invalid",
           message: err instanceof Error ? err.message : "Invitation validation failed.",
         });
