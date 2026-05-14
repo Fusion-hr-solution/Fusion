@@ -168,7 +168,7 @@ export function CreateDraftUnitDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="flex h-[min(90vh,52rem)] max-w-[calc(100%-2rem)] flex-col gap-0 p-0 sm:max-w-xl">
+      <DialogContent className="flex h-[min(90vh,52rem)] max-w-[calc(100%-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
         <DialogHeader className="border-b p-6 pr-14">
           <DialogTitle>Add unit</DialogTitle>
           <DialogDescription>

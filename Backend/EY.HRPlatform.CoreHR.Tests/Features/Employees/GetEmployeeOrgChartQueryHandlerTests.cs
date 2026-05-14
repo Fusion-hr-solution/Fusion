@@ -380,19 +380,22 @@ public class GetEmployeeOrgChartQueryHandlerTests
 
         await using (var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName))
         {
-            // 1 employee with no manager
+            // legitimate top-level leader should not count as a no-manager issue
             var topLevel = Employee.Create(TenantId, "Emma", "Executive", "emma@example.com", DateTime.UtcNow);
+            var topLevelReport = Employee.Create(TenantId, "Casey", "Report", "casey@example.com", DateTime.UtcNow);
+            topLevelReport.AssignManager(topLevel.Id);
+
+            // 1 isolated employee with no manager should still count
+            var isolated = Employee.Create(TenantId, "Jordan", "Solo", "jordan@example.com", DateTime.UtcNow);
 
             // 1 employee with an inactive manager
             var inactiveManager = Employee.Create(TenantId, "Inactive", "Manager", "inactive@example.com", DateTime.UtcNow);
+            inactiveManager.AssignManager(topLevel.Id);
             inactiveManager.Deactivate();
             var reportOfInactive = Employee.Create(TenantId, "Robin", "Active", "robin@example.com", DateTime.UtcNow);
             reportOfInactive.AssignManager(inactiveManager.Id);
 
-            // 1 employee with no org unit
-            var noOrgUnit = Employee.Create(TenantId, "Alex", "NoUnit", "alex@example.com", DateTime.UtcNow);
-
-            seedContext.Employees.AddRange(topLevel, inactiveManager, reportOfInactive, noOrgUnit);
+            seedContext.Employees.AddRange(topLevel, topLevelReport, isolated, inactiveManager, reportOfInactive);
             await seedContext.SaveChangesAsync();
         }
 
@@ -403,8 +406,13 @@ public class GetEmployeeOrgChartQueryHandlerTests
         var result = await handler.Handle(new GetEmployeeOrgChartQuery(IncludeInactive: true), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
+        var topLevelNode = result.Value.Roots.SelectMany(FlattenNodes).Single(node => node.Email == "emma@example.com");
+        var isolatedNode = result.Value.Roots.SelectMany(FlattenNodes).Single(node => node.Email == "jordan@example.com");
+
+        Assert.Equal(EmployeeHierarchyStatuses.Root, topLevelNode.HierarchyStatus);
+        Assert.Equal(EmployeeHierarchyStatuses.NoManagerAssigned, isolatedNode.HierarchyStatus);
         Assert.Equal(1, result.Value.IssueCounts.ManagerInactive);
-        Assert.True(result.Value.IssueCounts.NoManagerAssigned >= 1);
+        Assert.Equal(1, result.Value.IssueCounts.NoManagerAssigned);
         Assert.True(result.Value.IssueCounts.MissingOrgUnit >= 1);
     }
 

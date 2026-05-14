@@ -33,6 +33,7 @@ interface UpdateEmployeeManagerInput {
   expectedVersion: number;
   managerId: string | null;
 }
+
 interface UpdateEmployeeRecordInput {
   employeeId: string;
   expectedVersion: number;

@@ -10,6 +10,9 @@ export const ORG_CHART_NODE_HEIGHT = 184;
 
 export type OrgChartFlowNodeData = Record<string, unknown> & {
   employee: EmployeeOrgChartNodeDto;
+  showJobTitle: boolean;
+  isReassignMode: boolean;
+  isDropTarget: boolean;
   isCollapsed: boolean;
   isSelected: boolean;
   isHighlighted: boolean;
@@ -29,6 +32,9 @@ interface CreateOrgChartFlowOptions {
   collapsedEmployeeIds: Set<string>;
   selectedEmployeeId: string | null;
   highlightedEmployeeId: string | null;
+  showJobTitle: boolean;
+  isReassignMode: boolean;
+  dropTargetEmployeeId: string | null;
   onSelectEmployee: (employeeId: string) => void;
   onToggleCollapse: (employeeId: string) => void;
 }
@@ -48,12 +54,13 @@ export function flattenOrgChart(
 }
 
 export function buildOrgChartSearchIndex(
-  roots: EmployeeOrgChartNodeDto[]
+  roots: EmployeeOrgChartNodeDto[],
+  showJobTitle = true
 ): OrgChartSearchItem[] {
   return flattenOrgChart(roots).map((employee) => ({
     employeeId: employee.employeeId,
     fullName: employee.fullName,
-    jobTitle: employee.jobTitle,
+    jobTitle: showJobTitle ? employee.jobTitle : null,
     orgUnitName: employee.orgUnitName,
   }));
 }
@@ -97,6 +104,9 @@ export function createOrgChartFlow({
   collapsedEmployeeIds,
   selectedEmployeeId,
   highlightedEmployeeId,
+  showJobTitle,
+  isReassignMode,
+  dropTargetEmployeeId,
   onSelectEmployee,
   onToggleCollapse,
 }: CreateOrgChartFlowOptions): {
@@ -194,6 +204,9 @@ export function createOrgChartFlow({
       selectable: false,
       data: {
         employee: node,
+        showJobTitle,
+        isReassignMode,
+        isDropTarget: dropTargetEmployeeId === node.employeeId,
         isCollapsed: collapsedEmployeeIds.has(node.employeeId),
         isSelected,
         isHighlighted: highlightedEmployeeId === node.employeeId,

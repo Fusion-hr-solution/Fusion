@@ -5,6 +5,7 @@ import { ArrowUpDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getHierarchyIssueMeta } from "./employee-hierarchy-status";
+import type { EmployeeFieldVisibility } from "./employee-field-visibility";
 import type { EmployeeRosterItem } from "./employee-roster.types";
 
 const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
@@ -53,6 +54,10 @@ function getManagerLabel(employee: EmployeeRosterItem) {
     return employee.managerName ?? "Manager needs attention";
   }
 
+  if (employee.hierarchyStatus === "Root") {
+    return "Top-level leader";
+  }
+
   if (employee.hierarchyStatus === "NoManagerAssigned") {
     return "No manager assigned";
   }
@@ -60,80 +65,92 @@ function getManagerLabel(employee: EmployeeRosterItem) {
   return employee.managerName ?? "Manager needs attention";
 }
 
-export const employeeColumns: ColumnDef<EmployeeRosterItem>[] = [
-  {
-    id: "Name",
-    accessorFn: getEmployeeName,
-    header: ({ column }) => <SortHeader label="Name" column={column} />,
-    cell: ({ row }) => (
-      <span className="font-medium">{getEmployeeName(row.original)}</span>
-    ),
-    enableSorting: true,
-  },
-  {
-    id: "Email",
-    accessorKey: "email",
-    header: ({ column }) => <SortHeader label="Email" column={column} />,
-    enableSorting: true,
-  },
-  {
-    id: "Manager",
-    accessorKey: "managerName",
-    header: "Manager",
-    cell: ({ row }) => {
-      const issueMeta = getHierarchyIssueMeta(row.original.hierarchyStatus);
-      const isUnassigned = row.original.hierarchyStatus === "NoManagerAssigned";
-
-      return (
-        <div className="min-w-[180px] space-y-1">
-          <div
-            className={isUnassigned ? "text-muted-foreground" : "font-medium"}
-          >
-            {getManagerLabel(row.original)}
-          </div>
-          {issueMeta ? (
-            <Badge variant={issueMeta.variant}>{issueMeta.label}</Badge>
-          ) : null}
-        </div>
-      );
+export function buildEmployeeColumns(
+  fieldVisibility: EmployeeFieldVisibility
+): ColumnDef<EmployeeRosterItem>[] {
+  const columns: ColumnDef<EmployeeRosterItem>[] = [
+    {
+      id: "Name",
+      accessorFn: getEmployeeName,
+      header: ({ column }) => <SortHeader label="Name" column={column} />,
+      cell: ({ row }) => (
+        <span className="font-medium">{getEmployeeName(row.original)}</span>
+      ),
+      enableSorting: true,
     },
-    enableSorting: false,
-  },
-  {
-    id: "Status",
-    accessorKey: "status",
-    header: ({ column }) => <SortHeader label="Status" column={column} />,
-    cell: ({ row }) => (
-      <Badge
-        variant={row.original.status === "Active" ? "secondary" : "outline"}
-      >
-        {row.original.status}
-      </Badge>
-    ),
-    enableSorting: true,
-  },
-  {
-    id: "HireDate",
-    accessorKey: "hireDate",
-    header: ({ column }) => (
-      <div className="text-right">
-        <SortHeader label="Hire date" column={column} />
-      </div>
-    ),
-    cell: ({ row }) => (
-      <span className="block text-right tabular-nums">
-        {formatDate(row.original.hireDate)}
-      </span>
-    ),
-    enableSorting: true,
-  },
-  {
-    accessorKey: "jobTitle",
-    header: "Job title",
-    cell: ({ row }) => renderValue(row.original.jobTitle),
-    enableSorting: false,
-  },
-  {
+    {
+      id: "Email",
+      accessorKey: "email",
+      header: ({ column }) => <SortHeader label="Email" column={column} />,
+      enableSorting: true,
+    },
+    {
+      id: "Manager",
+      accessorKey: "managerName",
+      header: "Manager",
+      cell: ({ row }) => {
+        const issueMeta = getHierarchyIssueMeta(row.original.hierarchyStatus);
+        const isUnassigned =
+          row.original.hierarchyStatus === "NoManagerAssigned";
+
+        return (
+          <div className="min-w-[180px] space-y-1">
+            <div
+              className={isUnassigned ? "text-muted-foreground" : "font-medium"}
+            >
+              {getManagerLabel(row.original)}
+            </div>
+            {issueMeta ? (
+              <Badge variant={issueMeta.variant}>{issueMeta.label}</Badge>
+            ) : null}
+          </div>
+        );
+      },
+      enableSorting: false,
+    },
+    {
+      id: "Status",
+      accessorKey: "status",
+      header: ({ column }) => <SortHeader label="Status" column={column} />,
+      cell: ({ row }) => (
+        <Badge
+          variant={row.original.status === "Active" ? "secondary" : "outline"}
+        >
+          {row.original.status}
+        </Badge>
+      ),
+      enableSorting: true,
+    },
+  ];
+
+  if (fieldVisibility.showHireDate) {
+    columns.push({
+      id: "HireDate",
+      accessorKey: "hireDate",
+      header: ({ column }) => (
+        <div className="text-right">
+          <SortHeader label="Hire date" column={column} />
+        </div>
+      ),
+      cell: ({ row }) => (
+        <span className="block text-right tabular-nums">
+          {formatDate(row.original.hireDate)}
+        </span>
+      ),
+      enableSorting: true,
+    });
+  }
+
+  if (fieldVisibility.showJobTitle) {
+    columns.push({
+      accessorKey: "jobTitle",
+      header: "Job title",
+      cell: ({ row }) => renderValue(row.original.jobTitle),
+      enableSorting: false,
+    });
+  }
+
+  columns.push({
     accessorKey: "orgUnitName",
     header: "Org unit",
     cell: ({ row }) => (
@@ -142,5 +159,7 @@ export const employeeColumns: ColumnDef<EmployeeRosterItem>[] = [
       </span>
     ),
     enableSorting: false,
-  },
-];
+  });
+
+  return columns;
+}

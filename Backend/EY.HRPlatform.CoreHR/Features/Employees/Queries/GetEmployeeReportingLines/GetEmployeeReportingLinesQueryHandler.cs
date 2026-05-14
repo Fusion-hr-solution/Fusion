@@ -173,10 +173,9 @@ public sealed class GetEmployeeReportingLinesQueryHandler(
         Employee employee,
         TenantSettingsDto settings,
         IReadOnlyDictionary<Guid, int> directReportCounts)
-        => employeeReadModelPolicy
-            .MapListItem(employee, settings, EmployeeReadAudience.HrAdmin)
-            with
-            {
-                DirectReportCount = directReportCounts.GetValueOrDefault(employee.Id)
-            };
+        => employeeReadModelPolicy.MapListItem(
+            employee,
+            settings,
+            EmployeeReadAudience.HrAdmin,
+            directReportCounts.GetValueOrDefault(employee.Id));
 }

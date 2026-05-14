@@ -11,6 +11,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { canAccessEmployeeRoster } from "@/lib/employee-roster-access";
 import { cn } from "@/lib/utils";
+import { useEmployeeFieldVisibility } from "../employees/employee-field-visibility";
 import { EmployeeReportingLinesSheet } from "../employees/employee-reporting-lines-sheet";
 import {
   ManagerReassignDialog,
@@ -44,6 +45,10 @@ export default function OrgChartPage() {
   // Local UI state (not URL-backed)
   const { user, isLoading: isAuthLoading } = useAuth();
   const canAccess = canAccessEmployeeRoster(user);
+  const fieldVisibility = useEmployeeFieldVisibility(canAccess);
+  const [isCanvasReady, setIsCanvasReady] = useState(false);
+  const [isNavigating, setIsNavigating] = useState(false);
+  const [isReassignMode, setIsReassignMode] = useState(false);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(
     null
   );
@@ -88,7 +93,10 @@ export default function OrgChartPage() {
 
   const roots = useMemo(() => data?.roots ?? [], [data?.roots]);
   const flattenedNodes = useMemo(() => flattenOrgChart(roots), [roots]);
-  const searchIndex = useMemo(() => buildOrgChartSearchIndex(roots), [roots]);
+  const searchIndex = useMemo(
+    () => buildOrgChartSearchIndex(roots, fieldVisibility.showJobTitle),
+    [fieldVisibility.showJobTitle, roots]
+  );
 
   const selectedEmployee = useMemo(
     () =>
@@ -115,10 +123,12 @@ export default function OrgChartPage() {
 
   const handleCanvasApiReady = useCallback((api: OrgChartCanvasApi | null) => {
     canvasApiRef.current = api;
+    setIsCanvasReady(api !== null);
   }, []);
 
   const requestFocus = useCallback(
     (employeeId: string) => {
+      setIsNavigating(true);
       setFocusRequestKey((current) => current + 1);
       updateParams({ focusEmployeeId: employeeId });
     },
@@ -152,6 +162,7 @@ export default function OrgChartPage() {
         return next;
       });
       setSelectedEmployeeId(employeeId);
+      setPreviewEmployeeId(employeeId);
       setHighlightedEmployeeId(employeeId);
       requestFocus(employeeId);
     },
@@ -160,6 +171,8 @@ export default function OrgChartPage() {
 
   const handleFocusSelectedBranch = useCallback(() => {
     if (!selectedEmployeeId) return;
+
+    setIsNavigating(true);
     setCollapsedEmployeeIds(new Set());
     setHighlightedEmployeeId(selectedEmployeeId);
     updateParams({ rootEmployeeId: selectedEmployeeId, focusEmployeeId: null });
@@ -167,6 +180,7 @@ export default function OrgChartPage() {
   }, [selectedEmployeeId, updateParams]);
 
   const handleShowFullOrganization = useCallback(() => {
+    setIsNavigating(true);
     setCollapsedEmployeeIds(new Set());
     updateParams({
       rootEmployeeId: null,
@@ -192,6 +206,7 @@ export default function OrgChartPage() {
 
   const handlePreviewFocusBranch = useCallback(
     (employeeId: string) => {
+      setIsNavigating(true);
       setCollapsedEmployeeIds(new Set());
       updateParams({ rootEmployeeId: employeeId, focusEmployeeId: null });
       setFocusRequestKey((k) => k + 1);
@@ -208,6 +223,7 @@ export default function OrgChartPage() {
         return next;
       });
       setSelectedEmployeeId(managerId);
+      setPreviewEmployeeId(managerId);
       setHighlightedEmployeeId(managerId);
       requestFocus(managerId);
     },
@@ -216,12 +232,49 @@ export default function OrgChartPage() {
 
   const handlePreviewViewDirectReports = useCallback(
     (employeeId: string) => {
+      setIsNavigating(true);
       setCollapsedEmployeeIds(new Set());
+      setSelectedEmployeeId(employeeId);
+      setPreviewEmployeeId(employeeId);
+      setHighlightedEmployeeId(employeeId);
       updateParams({ rootEmployeeId: employeeId, maxDepth: "4" });
       setFocusRequestKey((k) => k + 1);
     },
     [updateParams]
   );
+
+  const handleOrgUnitChange = useCallback(
+    (nextOrgUnitId: string | null) => {
+      setIsNavigating(true);
+      setSelectedEmployeeId(null);
+      setPreviewEmployeeId(null);
+      setHighlightedEmployeeId(null);
+      updateParams({ orgUnitId: nextOrgUnitId });
+    },
+    [updateParams]
+  );
+
+  const handleMaxDepthChange = useCallback(
+    (nextDepth: number) => {
+      setIsNavigating(true);
+      updateParams({ maxDepth: String(nextDepth) });
+    },
+    [updateParams]
+  );
+
+  const handleIncludeInactiveChange = useCallback(
+    (include: boolean) => {
+      setIsNavigating(true);
+      updateParams({ includeInactive: include ? "true" : null });
+    },
+    [updateParams]
+  );
+
+  useEffect(() => {
+    if (!isFetching) {
+      setIsNavigating(false);
+    }
+  }, [isFetching]);
 
   // Clear selection when nodes are no longer visible in the chart
   useEffect(() => {
@@ -320,20 +373,22 @@ export default function OrgChartPage() {
         focusEmployeeId={focusEmployeeId}
         maxDepth={maxDepth}
         totalVisibleNodeCount={data?.totalVisibleNodeCount ?? 0}
+        isCanvasReady={isCanvasReady}
+        isNavigating={isNavigating}
+        isReassignMode={isReassignMode}
         isRefreshing={isFetching}
         includeInactive={includeInactive}
         selectedOrgUnitId={orgUnitId}
         issueCounts={data?.issueCounts ?? null}
-        onMaxDepthChange={(d) => updateParams({ maxDepth: String(d) })}
+        onMaxDepthChange={handleMaxDepthChange}
         onSelectSearchResult={handleSelectSearchResult}
         onFocusSelectedBranch={handleFocusSelectedBranch}
         onShowFullOrganization={handleShowFullOrganization}
+        onToggleReassignMode={() => setIsReassignMode((current) => !current)}
         onFitToScreen={() => canvasApiRef.current?.fitToScreen()}
         onResetView={() => canvasApiRef.current?.resetView()}
-        onIncludeInactiveChange={(v) =>
-          updateParams({ includeInactive: v ? "true" : null })
-        }
-        onOrgUnitChange={(id) => updateParams({ orgUnitId: id })}
+        onIncludeInactiveChange={handleIncludeInactiveChange}
+        onOrgUnitChange={handleOrgUnitChange}
       />
 
       {error ? (
@@ -380,6 +435,8 @@ export default function OrgChartPage() {
           <div className="min-w-0 flex-1">
             <OrgChartCanvas
               roots={roots}
+              showJobTitle={fieldVisibility.showJobTitle}
+              isReassignMode={isReassignMode}
               collapsedEmployeeIds={collapsedEmployeeIds}
               selectedEmployeeId={selectedEmployeeId}
               highlightedEmployeeId={highlightedEmployeeId}
@@ -403,6 +460,7 @@ export default function OrgChartPage() {
             {previewEmployee ? (
               <OrgChartPreviewPanel
                 employee={previewEmployee}
+                showJobTitle={fieldVisibility.showJobTitle}
                 onClose={() => setPreviewEmployeeId(null)}
                 onOpenProfile={handlePreviewOpenProfile}
                 onManageReportingRelationship={handlePreviewManageReporting}
@@ -418,6 +476,7 @@ export default function OrgChartPage() {
       <EmployeeReportingLinesSheet
         employeeId={sheetEmployeeId}
         open={sheetEmployeeId !== null}
+        showJobTitle={fieldVisibility.showJobTitle}
         onOpenChange={(open) => {
           if (!open) setSheetEmployeeId(null);
         }}
@@ -425,6 +484,7 @@ export default function OrgChartPage() {
 
       <ManagerReassignDialog
         proposal={reassignProposal}
+        showJobTitle={fieldVisibility.showJobTitle}
         onClose={() => setReassignProposal(null)}
       />
     </div>

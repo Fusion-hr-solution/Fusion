@@ -4,6 +4,7 @@ import {
   flexRender,
   getCoreRowModel,
   useReactTable,
+  type ColumnDef,
   type SortingState,
 } from "@tanstack/react-table";
 import { Users } from "lucide-react";
@@ -23,10 +24,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { employeeColumns } from "./columns";
 import type { EmployeeRosterItem } from "./employee-roster.types";
 
 interface EmployeesTableProps {
+  columns: ColumnDef<EmployeeRosterItem>[];
   data: EmployeeRosterItem[];
   isLoading: boolean;
   isRefetching: boolean;
@@ -36,6 +37,7 @@ interface EmployeesTableProps {
 }
 
 export function EmployeesTable({
+  columns,
   data,
   isLoading,
   isRefetching,
@@ -45,7 +47,7 @@ export function EmployeesTable({
 }: EmployeesTableProps) {
   const table = useReactTable({
     data,
-    columns: employeeColumns,
+    columns,
     state: { sorting },
     onSortingChange: (updater) => {
       const next = typeof updater === "function" ? updater(sorting) : updater;

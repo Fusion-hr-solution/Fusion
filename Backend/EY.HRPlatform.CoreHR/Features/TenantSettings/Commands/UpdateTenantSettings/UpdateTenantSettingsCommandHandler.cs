@@ -22,8 +22,11 @@ public sealed partial class UpdateTenantSettingsCommandHandler(
     private static readonly HashSet<string> KnownFieldNames = 
         TenantSettingsDto.DefaultEmployeeFieldConfig.Keys.ToHashSet();
 
-    // Core identity fields that cannot have any visibility flag set to false
-    private static readonly HashSet<string> CoreFields = ["firstName", "lastName", "email"];
+    // Identity fields cannot have visibility flags set to false and stay required.
+    private static readonly HashSet<string> CoreIdentityFields = ["firstName", "lastName", "email"];
+
+    // Hire date remains required until create/import flows support records without it.
+    private static readonly HashSet<string> OperationallyRequiredFields = ["firstName", "lastName", "email", "hireDate"];
 
     public async Task<Result<TenantSettingsDto>> Handle(
         UpdateTenantSettingsCommand request,
@@ -207,20 +210,27 @@ public sealed partial class UpdateTenantSettingsCommandHandler(
             // Core fields cannot be hidden or made optional for any role
             foreach (var (fieldName, config) in request.EmployeeFieldConfig)
             {
-                if (!CoreFields.Contains(fieldName))
-                    continue;
+                if (CoreIdentityFields.Contains(fieldName))
+                {
+                    if (config.Visible.HasValue && !config.Visible.Value)
+                        throw new ArgumentException($"'{fieldName}' is a core field and cannot be hidden.");
 
-                if (config.Visible.HasValue && !config.Visible.Value)
-                    throw new ArgumentException($"'{fieldName}' is a core field and cannot be hidden.");
+                    if (config.VisibleToEmployee.HasValue && !config.VisibleToEmployee.Value)
+                        throw new ArgumentException($"'{fieldName}' is a core field and must remain visible to employees.");
 
-                if (config.Required.HasValue && !config.Required.Value)
-                    throw new ArgumentException($"'{fieldName}' is a core field and cannot be made optional.");
+                    if (config.VisibleToManager.HasValue && !config.VisibleToManager.Value)
+                        throw new ArgumentException($"'{fieldName}' is a core field and must remain visible to managers.");
+                }
 
-                if (config.VisibleToEmployee.HasValue && !config.VisibleToEmployee.Value)
-                    throw new ArgumentException($"'{fieldName}' is a core field and must remain visible to employees.");
-
-                if (config.VisibleToManager.HasValue && !config.VisibleToManager.Value)
-                    throw new ArgumentException($"'{fieldName}' is a core field and must remain visible to managers.");
+                if (OperationallyRequiredFields.Contains(fieldName)
+                    && config.Required.HasValue
+                    && !config.Required.Value)
+                {
+                    throw new ArgumentException(
+                        CoreIdentityFields.Contains(fieldName)
+                            ? $"'{fieldName}' is a core field and cannot be made optional."
+                            : $"'{fieldName}' is operationally required and cannot be made optional.");
+                }
             }
         }
 

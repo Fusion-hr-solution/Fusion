@@ -5,6 +5,7 @@ using EY.HRPlatform.CoreHR.Exceptions;
 using EY.HRPlatform.CoreHR.Features.Employees.Import.Dtos;
 using EY.HRPlatform.CoreHR.Features.Employees.Import.Services;
 using EY.HRPlatform.CoreHR.Features.Employees.Services;
+using EY.HRPlatform.CoreHR.Features.TenantSettings.Services;
 using EY.HRPlatform.CoreHR.Tests.TestHelpers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -31,6 +32,36 @@ public class EmployeeImportWorkflowTests
         Assert.Equal(
             "firstName,lastName,email,hireDate,jobTitle,orgUnitCode,managerEmail\r\n",
             csv);
+    }
+
+    [Fact]
+    public async Task GetSchemaAsync_UsesTenantRequirednessForJobTitle()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        await SeedPublishedSetupAsync(dbName);
+        await SeedTenantSettingsAsync(
+            dbName,
+            """
+            {
+                "employeeFieldConfig": {
+                    "jobTitle": { "required": true },
+                    "hireDate": { "required": false }
+                }
+            }
+            """);
+
+        await using var context = TestDbContextFactory.Create(TestTenantContext.WithTenant(TenantId), dbName);
+        var service = new EmployeeImportWorkflowService(
+            context,
+            TestTenantContext.WithTenant(TenantId),
+            new EmployeeHierarchyService(context),
+            new TenantSettingsReadService(context));
+
+        var schema = await service.GetSchemaAsync(CancellationToken.None);
+
+        Assert.True(schema.CanonicalFields.Single(field => field.Key == "jobTitle").Required);
+        Assert.True(schema.CanonicalFields.Single(field => field.Key == "firstName").Required);
+        Assert.True(schema.CanonicalFields.Single(field => field.Key == "hireDate").Required);
     }
 
     [Fact]
@@ -707,6 +738,82 @@ public class EmployeeImportWorkflowTests
     }
 
     [Fact]
+    public async Task ValidateAsync_ReturnsMissingJobTitle_WhenTenantSettingsRequireIt()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        await SeedPublishedSetupAsync(dbName);
+        await SeedTenantSettingsAsync(
+            dbName,
+            """
+            {
+                "employeeFieldConfig": {
+                    "jobTitle": { "required": true }
+                }
+            }
+            """);
+        await SeedOrgUnitAsync(dbName, "ENG-PLATFORM");
+
+        await using var context = TestDbContextFactory.Create(TestTenantContext.WithTenant(TenantId), dbName);
+        var service = new EmployeeImportWorkflowService(
+            context,
+            TestTenantContext.WithTenant(TenantId),
+            new EmployeeHierarchyService(context),
+            new TenantSettingsReadService(context));
+        var file = CreateCsvFile(
+            "employees.csv",
+            """
+            firstName,lastName,email,hireDate,jobTitle,orgUnitCode,managerEmail
+            Sarah,Chen,sarah.chen@contoso.com,2024-01-15,,ENG-PLATFORM,
+            """);
+
+        var uploadedSession = await service.UploadAsync(file, CancellationToken.None);
+        var validatedSession = await service.ValidateAsync(uploadedSession.Id, CancellationToken.None);
+
+        var issue = Assert.Single(validatedSession.ValidationIssues, current => current.Code == "missingJobTitle");
+        Assert.Equal("missingRequiredData", issue.Category);
+        Assert.Equal("jobTitle", issue.Field);
+        Assert.Equal("Add a job title for this row.", issue.FixHint);
+        Assert.True(validatedSession.EmployeeImportSchema.CanonicalFields.Single(field => field.Key == "jobTitle").Required);
+        Assert.Equal(0, validatedSession.ValidationSummary.ValidRows);
+    }
+
+    [Fact]
+    public async Task ValidateAsync_StillRequiresHireDate_WhenStoredOverrideMarksItOptional()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        await SeedPublishedSetupAsync(dbName);
+        await SeedTenantSettingsAsync(
+            dbName,
+            """
+            {
+                "employeeFieldConfig": {
+                    "hireDate": { "required": false }
+                }
+            }
+            """);
+
+        await using var context = TestDbContextFactory.Create(TestTenantContext.WithTenant(TenantId), dbName);
+        var service = new EmployeeImportWorkflowService(
+            context,
+            TestTenantContext.WithTenant(TenantId),
+            new EmployeeHierarchyService(context),
+            new TenantSettingsReadService(context));
+        var file = CreateCsvFile(
+            "employees.csv",
+            """
+            firstName,lastName,email,hireDate,jobTitle,orgUnitCode,managerEmail
+            Sarah,Chen,sarah.chen@contoso.com,,Senior Engineer,,
+            """);
+
+        var uploadedSession = await service.UploadAsync(file, CancellationToken.None);
+        var validatedSession = await service.ValidateAsync(uploadedSession.Id, CancellationToken.None);
+
+        var issue = Assert.Single(validatedSession.ValidationIssues, current => current.Code == "missingHireDate");
+        Assert.Equal("missingRequiredData", issue.Category);
+        Assert.True(validatedSession.EmployeeImportSchema.CanonicalFields.Single(field => field.Key == "hireDate").Required);
+    }
+
+    [Fact]
     public async Task ValidateAsync_ReturnsErrorsForManagerSelfReference()
     {
         var dbName = Guid.NewGuid().ToString();
@@ -835,6 +942,13 @@ public class EmployeeImportWorkflowTests
         setupState.Approve(Guid.NewGuid(), "HR Admin", "HRAdmin", false);
         setupState.Publish();
         seedContext.TenantSetupStates.Add(setupState);
+        await seedContext.SaveChangesAsync();
+    }
+
+    private static async Task SeedTenantSettingsAsync(string dbName, string overridesJson)
+    {
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+        seedContext.TenantSettings.Add(EY.HRPlatform.CoreHR.Domain.Entities.TenantSettings.Create(TenantId, overridesJson));
         await seedContext.SaveChangesAsync();
     }
 

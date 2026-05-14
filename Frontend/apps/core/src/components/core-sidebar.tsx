@@ -7,6 +7,7 @@ import { AppSidebar, type NavSection } from "@repo/ui";
 import {
   SidebarUserPanel,
   useAuth,
+  canSeeCoreSettingsNavigation,
   canSeeCoreSetupNavigation,
   canSeeOrganizationsNavigation,
 } from "@repo/auth";
@@ -73,6 +74,7 @@ export function CoreSidebar() {
   const { user, isLoading: isAuthLoading } = useAuth();
   const { isNavigationLocked, lockedNavigationReason } = useCoreSetupAccess();
   const canSeeSetup = canSeeCoreSetupNavigation(user);
+  const canSeeSettings = canSeeCoreSettingsNavigation(user);
   const canSeeOrganizations = canSeeOrganizationsNavigation(user);
   const canSeeEmployeeRoster = canSeeEmployeeRosterNavigation(user);
   const loadingSections: NavSection[] = [
@@ -101,6 +103,10 @@ export function CoreSidebar() {
   const adminItems = ADMIN_NAV.items.filter((item) => {
     if (item.href === "/setup") {
       return canSeeSetup;
+    }
+
+    if (item.href === "/settings") {
+      return canSeeSettings;
     }
 
     if (item.href === "/organizations") {

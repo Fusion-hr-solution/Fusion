@@ -4,7 +4,6 @@ import { useState, type ReactNode } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   AlertTriangle,
-  ArrowLeft,
   Building2,
   Calendar,
   CheckCircle2,
@@ -33,6 +32,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { useBreadcrumbLabel } from "@/components/breadcrumb-overrides";
 import { canAccessEmployeeRoster } from "@/lib/employee-roster-access";
+import { useEmployeeFieldPolicy } from "../employee-field-visibility";
 import {
   EmployeeEmploymentEditSheet,
   EmployeeIdentityEditSheet,
@@ -168,15 +168,23 @@ function hasTextValue(value: string | null | undefined): boolean {
 function getManagerDisplay(profile: {
   managerFullName: string | null;
   managerId: string | null;
+  hierarchyStatus: EmployeeHierarchyStatus;
 }): string {
   if (hasTextValue(profile.managerFullName)) return profile.managerFullName!;
+  if (profile.hierarchyStatus === "Root") return "Top-level leader";
   return profile.managerId ? "Manager record not found" : "No manager assigned";
 }
 
 function getManagerChainSummary(
-  managerChain: EmployeeHierarchyNodeDto[]
+  managerChain: EmployeeHierarchyNodeDto[],
+  hierarchyStatus: EmployeeHierarchyStatus
 ): string {
-  if (managerChain.length === 0) return "No manager chain available.";
+  if (managerChain.length === 0) {
+    return hierarchyStatus === "Root"
+      ? "Top-level leader."
+      : "No manager chain available.";
+  }
+
   const direct = managerChain[0]?.employee;
   const top = managerChain[managerChain.length - 1]?.employee;
   if (!direct || !top) return "No manager chain available.";
@@ -187,22 +195,24 @@ function getManagerChainSummary(
     : `${managerChain.length} levels to ${topName}; direct manager is ${directName}.`;
 }
 
-function buildAttentionItems(profile: {
-  hierarchyStatus: EmployeeHierarchyStatus;
-  orgUnitId: string | null;
-  jobTitle: string | null;
-}): string[] {
+function buildAttentionItems(
+  profile: {
+    hierarchyStatus: EmployeeHierarchyStatus;
+    orgUnitId: string | null;
+    jobTitle: string | null;
+  },
+  requireJobTitle: boolean
+): string[] {
   const issues: string[] = [];
   if (profile.hierarchyStatus === "NoManagerAssigned")
     issues.push("No manager is assigned.");
   if (profile.hierarchyStatus === "ManagerMissing")
-    issues.push(
-      "The manager reference no longer resolves to an active employee record."
-    );
+    issues.push("Manager record is missing.");
   if (profile.hierarchyStatus === "ManagerInactive")
-    issues.push("The assigned manager is inactive and should be updated.");
-  if (!profile.orgUnitId) issues.push("Organization unit is not assigned.");
-  if (!hasTextValue(profile.jobTitle)) issues.push("Job title is missing.");
+    issues.push("Assigned manager is inactive.");
+  if (!profile.orgUnitId) issues.push("Org unit is not assigned.");
+  if (requireJobTitle && !hasTextValue(profile.jobTitle))
+    issues.push("Job title is missing.");
   return issues;
 }
 
@@ -221,6 +231,7 @@ export default function EmployeeProfilePage() {
       ? params.id
       : null;
   const canAccess = canAccessEmployeeRoster(user);
+  const fieldPolicy = useEmployeeFieldPolicy(canAccess);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [activeWorkspaceSheet, setActiveWorkspaceSheet] = useState<
     "identity" | "employment" | "organization" | "status" | null
@@ -272,15 +283,6 @@ export default function EmployeeProfilePage() {
 
     return (
       <div className="flex flex-col gap-6 p-6">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="-ml-2 w-fit gap-1.5 text-muted-foreground hover:text-foreground"
-          onClick={() => router.push("/employees")}
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to employees
-        </Button>
         {isNotFound ? (
           <EmptyState
             icon={User}
@@ -303,33 +305,32 @@ export default function EmployeeProfilePage() {
 
   const hireDate = formatDate(profile.hireDate);
   const tenure = getTenure(profile.hireDate);
+  const showHireDate = fieldPolicy.showHireDate;
+  const showJobTitle = fieldPolicy.showJobTitle;
+  const requireHireDate = fieldPolicy.requireHireDate;
+  const requireJobTitle = fieldPolicy.requireJobTitle;
+  const canEditEmploymentDetails = showHireDate || showJobTitle;
   const email = hasTextValue(profile.email) ? profile.email : "Not set";
-  const managerEmail = profile.managerEmail?.trim()
-    ? profile.managerEmail
-    : "Not set";
-  const attentionItems = buildAttentionItems(profile);
+  const managerSupportingText =
+    profile.hierarchyStatus === "Root"
+      ? null
+      : profile.managerEmail?.trim()
+        ? profile.managerEmail
+        : "Not set";
+  const attentionItems = buildAttentionItems(profile, requireJobTitle);
   const managerChainSummary = getManagerChainSummary(
-    reportingLines?.managerChain ?? []
+    reportingLines?.managerChain ?? [],
+    profile.hierarchyStatus
   );
   const hierarchyIsHealthy = profile.hierarchyStatus === "Healthy";
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <Button
-        variant="ghost"
-        size="sm"
-        className="-ml-2 w-fit gap-1.5 text-muted-foreground hover:text-foreground"
-        onClick={() => router.push("/employees")}
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Back to employees
-      </Button>
-
       {/* ── Data quality alert — only when issues exist ──────────────────── */}
       {attentionItems.length > 0 && (
         <Alert variant="destructive">
           <ShieldAlert className="h-4 w-4" />
-          <AlertTitle>Profile requires attention</AlertTitle>
+          <AlertTitle>Profile needs attention</AlertTitle>
           <AlertDescription>
             <ul className="mt-1 space-y-0.5 list-disc pl-5">
               {attentionItems.map((item) => (
@@ -361,11 +362,11 @@ export default function EmployeeProfilePage() {
                   <HierarchyBadge status={profile.hierarchyStatus} />
                 </div>
 
-                <p className="text-sm text-muted-foreground">
-                  {hasTextValue(profile.jobTitle) ? profile.jobTitle : (
-                    <span className="italic">Job title not set</span>
-                  )}
-                </p>
+                {showJobTitle && hasTextValue(profile.jobTitle) ? (
+                  <p className="text-sm text-muted-foreground">
+                    {profile.jobTitle}
+                  </p>
+                ) : null}
 
                 <div className="flex flex-wrap gap-x-5 gap-y-1.5 text-sm text-muted-foreground">
                   {profile.orgUnitName && (
@@ -400,17 +401,19 @@ export default function EmployeeProfilePage() {
 
       {/* ── Snapshot strip — 4 quick-scan signals ────────────────────────── */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <SnapshotCard
-          label="Tenure"
-          value={
-            <>
-              {tenure}
-              <span className="block text-xs font-normal text-muted-foreground">
-                Hired {hireDate}
-              </span>
-            </>
-          }
-        />
+        {showHireDate ? (
+          <SnapshotCard
+            label="Tenure"
+            value={
+              <>
+                {tenure}
+                <span className="block text-xs font-normal text-muted-foreground">
+                  Hired {hireDate}
+                </span>
+              </>
+            }
+          />
+        ) : null}
         <SnapshotCard
           label="Reporting"
           value={
@@ -446,10 +449,11 @@ export default function EmployeeProfilePage() {
         <div className="flex flex-col gap-6">
           <Card className={WORKSPACE_CARD_CLASS_NAME}>
             <CardHeader className={WORKSPACE_CARD_HEADER_CLASS_NAME}>
-              <CardTitle className="text-base">Identity &amp; Contact</CardTitle>
+              <CardTitle className="text-base">
+                Identity &amp; Contact
+              </CardTitle>
               <CardDescription>
-                Maintain the employee&apos;s primary identity fields used across
-                Core.
+                Maintain the employee&apos;s primary identity fields.
               </CardDescription>
               <CardAction>
                 <Button
@@ -476,17 +480,18 @@ export default function EmployeeProfilePage() {
             <CardHeader className={WORKSPACE_CARD_HEADER_CLASS_NAME}>
               <CardTitle className="text-base">Employment</CardTitle>
               <CardDescription>
-                Keep core role, hire-date, and status details current from the
-                profile.
+                Keep role, hire date, and status details current.
               </CardDescription>
               <CardAction className="flex flex-wrap gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setActiveWorkspaceSheet("employment")}
-                >
-                  Edit
-                </Button>
+                {canEditEmploymentDetails ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setActiveWorkspaceSheet("employment")}
+                  >
+                    Edit
+                  </Button>
+                ) : null}
                 <Button
                   size="sm"
                   variant="outline"
@@ -497,20 +502,26 @@ export default function EmployeeProfilePage() {
               </CardAction>
             </CardHeader>
             <CardContent className={WORKSPACE_CARD_CONTENT_CLASS_NAME}>
-              <DetailRow
-                icon={Star}
-                label="Job title"
-                value={
-                  hasTextValue(profile.jobTitle) ? profile.jobTitle : (
-                    <span className="font-normal text-muted-foreground">
-                      Not set
-                    </span>
-                  )
-                }
-              />
-              <Separator />
-              <DetailRow icon={Calendar} label="Hire date" value={hireDate} />
-              <Separator />
+              {showJobTitle ? (
+                <DetailRow
+                  icon={Star}
+                  label="Job title"
+                  value={
+                    hasTextValue(profile.jobTitle) ? (
+                      profile.jobTitle
+                    ) : (
+                      <span className="font-normal text-muted-foreground">
+                        Not set
+                      </span>
+                    )
+                  }
+                />
+              ) : null}
+              {showJobTitle && showHireDate ? <Separator /> : null}
+              {showHireDate ? (
+                <DetailRow icon={Calendar} label="Hire date" value={hireDate} />
+              ) : null}
+              {showJobTitle || showHireDate ? <Separator /> : null}
               <DetailRow
                 icon={User}
                 label="Employment status"
@@ -532,15 +543,16 @@ export default function EmployeeProfilePage() {
             <CardHeader className={WORKSPACE_CARD_HEADER_CLASS_NAME}>
               <CardTitle className="text-base">Organization</CardTitle>
               <CardDescription>
-                Maintain the employee&apos;s org placement and manager context from
-                one workspace.
+                Maintain org placement and manager context from one workspace.
               </CardDescription>
               <CardAction>
                 <div className="flex items-center gap-2">
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={() => router.push(`/org-chart?focusEmployeeId=${profile.id}`)}
+                    onClick={() =>
+                      router.push(`/org-chart?focusEmployeeId=${profile.id}`)
+                    }
                   >
                     View in org chart
                   </Button>
@@ -573,9 +585,11 @@ export default function EmployeeProfilePage() {
                 value={
                   <>
                     {getManagerDisplay(profile)}
-                    <span className="block text-xs font-normal text-muted-foreground">
-                      {managerEmail}
-                    </span>
+                    {managerSupportingText ? (
+                      <span className="block text-xs font-normal text-muted-foreground">
+                        {managerSupportingText}
+                      </span>
+                    ) : null}
                   </>
                 }
               />
@@ -618,7 +632,7 @@ export default function EmployeeProfilePage() {
                 <div className="space-y-0.5">
                   <p className="text-sm font-medium">Reporting relationship</p>
                   <p className="text-xs text-muted-foreground">
-                    Update manager and inspect the reporting-line chain.
+                    Update the manager and review the chain.
                   </p>
                 </div>
                 <Button
@@ -638,6 +652,7 @@ export default function EmployeeProfilePage() {
         employeeId={employeeId}
         open={sheetOpen}
         onOpenChange={setSheetOpen}
+        showJobTitle={showJobTitle}
       />
 
       <EmployeeIdentityEditSheet
@@ -651,6 +666,10 @@ export default function EmployeeProfilePage() {
       <EmployeeEmploymentEditSheet
         profile={profile}
         open={activeWorkspaceSheet === "employment"}
+        showJobTitle={showJobTitle}
+        showHireDate={showHireDate}
+        requireJobTitle={requireJobTitle}
+        requireHireDate={requireHireDate}
         onOpenChange={(open) =>
           setActiveWorkspaceSheet(open ? "employment" : null)
         }

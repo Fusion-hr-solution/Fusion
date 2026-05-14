@@ -133,7 +133,7 @@ function getSessionPresentation(
       statusVariant: "secondary",
       title: "Validation passed",
       description:
-        "This batch is clean. Keep it unless the source data changes and you need to upload a replacement.",
+        "All rows passed. Upload a replacement if the source data changes.",
       cardClassName: "border-emerald-200 bg-emerald-50/70",
     };
   }
@@ -363,8 +363,7 @@ export function ApplyReadinessPanel({
           <div className="space-y-1">
             <CardTitle>Ready to apply this batch</CardTitle>
             <CardDescription>
-              This step creates employees only. Existing employee emails are
-              never updated or skipped in this MVP flow.
+              Creates new employees only. Existing records are not updated.
             </CardDescription>
           </div>
         </div>
@@ -376,10 +375,7 @@ export function ApplyReadinessPanel({
             <AlertDescription>
               <div className="space-y-1">
                 <p>{applyError}</p>
-                <p>
-                  Validate the current file again if tenant data changed, or
-                  upload a corrected CSV before retrying.
-                </p>
+                <p>Revalidate or upload a corrected CSV before retrying.</p>
               </div>
             </AlertDescription>
           </Alert>
@@ -399,8 +395,7 @@ export function ApplyReadinessPanel({
         </div>
 
         <div className="rounded-lg border border-amber-200/80 bg-background/85 p-3 text-sm text-muted-foreground">
-          Apply runs atomically in one operation. If any conflict is detected,
-          no employee rows are created.
+          All rows are created together or none at all.
         </div>
 
         <div className="flex justify-end">
@@ -418,13 +413,11 @@ export function ApplyReadinessPanel({
                 </AlertDialogMedia>
                 <AlertDialogTitle>Apply this employee import?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This will create {session.validationSummary.validRows}{" "}
-                  employee
+                  Creates {session.validationSummary.validRows} employee
                   {session.validationSummary.validRows === 1
                     ? ""
-                    : "s"} from {session.sourceFileName}. The import is
-                  create-only and will succeed only if the whole batch can be
-                  written.
+                    : "s"} from {session.sourceFileName}. Succeeds only if every
+                  row can be written.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -497,10 +490,7 @@ export function AppliedResultPanel({
         <div className="grid gap-3 rounded-lg border border-emerald-200/80 bg-background/85 p-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
           <div className="space-y-1 text-sm text-muted-foreground">
             <p className="font-medium text-foreground">What next</p>
-            <p>
-              Review the live roster now, start another batch, or scroll to the
-              history section below when you need the operational record later.
-            </p>
+            <p>View the roster, start another batch, or check history below.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button asChild>
@@ -616,8 +606,7 @@ export function ImportHistoryPanel({
           <div className="space-y-1">
             <CardTitle>Import history</CardTitle>
             <CardDescription>
-              Recent applied batches stay here as lightweight operational
-              reference.
+              Applied batches for operational reference.
             </CardDescription>
           </div>
         </div>
@@ -784,8 +773,8 @@ export function ImportHistoryPanel({
           </div>
         ) : (
           <div className="rounded-xl border border-dashed p-6 text-sm text-muted-foreground">
-            No applied employee imports yet. Validate a clean batch and apply it
-            to start building operational history.
+            No imports applied yet. Validate a clean batch and apply it to get
+            started.
           </div>
         )}
       </CardContent>
@@ -817,8 +806,8 @@ export function EmptyImportState({
                 Upload your employee CSV
               </h2>
               <p className="text-sm text-muted-foreground">
-                Start with the official template, upload the file, and validate
-                the batch before you rely on it.
+                Download the template, upload the file, and validate before
+                applying.
               </p>
             </div>
           </div>
@@ -840,7 +829,7 @@ export function EmptyImportState({
           </div>
 
           <p className="text-xs text-muted-foreground">
-            Use the official template only and keep the header order unchanged.
+            Use the official template and keep column headers unchanged.
           </p>
         </div>
       </CardContent>
@@ -946,8 +935,7 @@ export function SelectedIssueStrip({
   if (!group) {
     return (
       <div className="rounded-lg border bg-muted/10 p-3 text-sm text-muted-foreground">
-        Select a problem from the navigator to narrow the preview and inspect
-        the affected rows.
+        Select a problem to filter the preview to affected rows.
       </div>
     );
   }
@@ -1170,8 +1158,7 @@ export function SecondaryDetailsPanel({
       <CardHeader>
         <CardTitle>Reference details</CardTitle>
         <CardDescription>
-          Reopen the raw upload or template reference only when you need to
-          inspect the source material.
+          Raw upload preview and template field reference.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { SortingState } from "@tanstack/react-table";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -12,6 +12,8 @@ import { CorePageLoadingState } from "@/components/core-page-loading-state";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { canAccessEmployeeRoster } from "@/lib/employee-roster-access";
+import { buildEmployeeColumns } from "./columns";
+import { useEmployeeFieldVisibility } from "./employee-field-visibility";
 import { EmployeesTable } from "./employees-table";
 import { PaginationBar } from "./pagination-bar";
 import { Toolbar } from "./toolbar";
@@ -61,7 +63,12 @@ export default function EmployeesPage() {
   const [sorting, setSorting] = useState<SortingState>(
     DEFAULT_EMPLOYEE_SORTING
   );
+  const fieldVisibility = useEmployeeFieldVisibility(canAccess);
   const { sortBy, sortDir } = getRosterSortParams(sorting);
+  const columns = useMemo(
+    () => buildEmployeeColumns(fieldVisibility),
+    [fieldVisibility]
+  );
 
   const { data, error, isLoading, isFetching, refetch } = useEmployeeRoster({
     search: search || undefined,
@@ -104,6 +111,14 @@ export default function EmployeesPage() {
     [router]
   );
 
+  useEffect(() => {
+    if (!fieldVisibility.showHireDate) {
+      setSorting((current) =>
+        current[0]?.id === "HireDate" ? DEFAULT_EMPLOYEE_SORTING : current
+      );
+    }
+  }, [fieldVisibility.showHireDate]);
+
   const isInitialPageLoading =
     (isAuthLoading && !user) ||
     (!isAuthLoading && canAccess && isLoading && !data && !error);
@@ -139,7 +154,7 @@ export default function EmployeesPage() {
     <div className="flex flex-col gap-6 p-6">
       <PageHeader
         title="Employees"
-        description="Review the tenant roster and launch repeatable bulk employee imports from the official workflow."
+        description="Manage the tenant roster and bulk employee imports."
         actions={
           <Button asChild>
             <Link href="/employees/import">
@@ -170,6 +185,7 @@ export default function EmployeesPage() {
       )}
 
       <EmployeesTable
+        columns={columns}
         data={data?.items ?? []}
         isLoading={isLoading && !data}
         isRefetching={isFetching && !!data}

@@ -128,6 +128,7 @@ public class EmployeesController(ISender sender) : ControllerBase
         return Ok(ApiResponseOfEmployeeDto.Success(result.Value));
     }
 
+    /// <summary>
     /// Get the profile read model for an employee, combining identity, employment, org context,
     /// direct-report count, and hierarchy status in a single response.
     /// </summary>
@@ -144,7 +145,7 @@ public class EmployeesController(ISender sender) : ControllerBase
             return NotFound(ApiResponse.Failure(result.Error.Message));
         }
 
-        Response.Headers.ETag = $"\"{ result.Value.Version}\"";
+        Response.Headers.ETag = $"\"{result.Value.Version}\"";
 
         return Ok(ApiResponseOfEmployeeProfileDto.Success(result.Value));
     }

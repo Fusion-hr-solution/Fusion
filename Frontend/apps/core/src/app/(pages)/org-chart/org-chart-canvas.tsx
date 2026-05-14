@@ -34,6 +34,8 @@ export interface OrgChartCanvasApi {
 
 interface OrgChartCanvasProps {
   roots: EmployeeOrgChartNodeDto[];
+  showJobTitle: boolean;
+  isReassignMode: boolean;
   collapsedEmployeeIds: Set<string>;
   selectedEmployeeId: string | null;
   highlightedEmployeeId: string | null;
@@ -62,6 +64,8 @@ function rectsOverlap(
 
 export function OrgChartCanvas({
   roots,
+  showJobTitle,
+  isReassignMode,
   collapsedEmployeeIds,
   selectedEmployeeId,
   highlightedEmployeeId,
@@ -74,6 +78,9 @@ export function OrgChartCanvas({
   onCanvasApiReady,
   onReassignProposal,
 }: OrgChartCanvasProps) {
+  const [dropTargetEmployeeId, setDropTargetEmployeeId] = useState<
+    string | null
+  >(null);
   const { nodes: layoutNodes, edges } = useMemo(
     () =>
       createOrgChartFlow({
@@ -81,16 +88,22 @@ export function OrgChartCanvas({
         collapsedEmployeeIds,
         selectedEmployeeId,
         highlightedEmployeeId,
+        showJobTitle,
+        isReassignMode,
+        dropTargetEmployeeId,
         onSelectEmployee,
         onToggleCollapse,
       }),
     [
       collapsedEmployeeIds,
+      dropTargetEmployeeId,
       highlightedEmployeeId,
+      isReassignMode,
       onSelectEmployee,
       onToggleCollapse,
       roots,
       selectedEmployeeId,
+      showJobTitle,
     ]
   );
 
@@ -98,10 +111,10 @@ export function OrgChartCanvas({
   // so we need to lift it to true when drag-to-reassign is enabled.
   const nodes = useMemo(
     () =>
-      onReassignProposal
+      isReassignMode && onReassignProposal
         ? layoutNodes.map((n) => ({ ...n, draggable: true }))
         : layoutNodes,
-    [layoutNodes, onReassignProposal]
+    [isReassignMode, layoutNodes, onReassignProposal]
   );
   const [instance, setInstance] = useState<ReactFlowInstance<
     OrgChartFlowNode,
@@ -142,6 +155,12 @@ export function OrgChartCanvas({
 
   const fitDefaultViewRef = useRef(fitDefaultView);
   fitDefaultViewRef.current = fitDefaultView;
+
+  useEffect(() => {
+    if (!isReassignMode) {
+      setDropTargetEmployeeId(null);
+    }
+  }, [isReassignMode]);
 
   const centerNode = useCallback(
     (nodeId: string, options?: { yOffset?: number; duration?: number }) => {
@@ -216,13 +235,30 @@ export function OrgChartCanvas({
   const handleNodeDragStart: OnNodeDrag<OrgChartFlowNode> = useCallback(
     (_event, draggedNode) => {
       dragStartPositionRef.current = { ...draggedNode.position };
+      setDropTargetEmployeeId(null);
     },
     []
   );
 
+  const handleNodeDrag: OnNodeDrag<OrgChartFlowNode> = useCallback(
+    (_event, draggedNode) => {
+      if (!instance || !isReassignMode || !onReassignProposal) {
+        return;
+      }
+
+      const target = findDropTarget(
+        instance.getNodes() as OrgChartFlowNode[],
+        draggedNode
+      );
+
+      setDropTargetEmployeeId(target?.id ?? null);
+    },
+    [instance, isReassignMode, onReassignProposal]
+  );
+
   const handleNodeDragStop: OnNodeDrag<OrgChartFlowNode> = useCallback(
     (_event, draggedNode) => {
-      if (!instance || !onReassignProposal) {
+      if (!instance || !onReassignProposal || !isReassignMode) {
         // Snap back immediately since we don't handle drag without a handler
         if (instance && dragStartPositionRef.current) {
           const snapPos = dragStartPositionRef.current;
@@ -232,6 +268,7 @@ export function OrgChartCanvas({
             )
           );
         }
+        setDropTargetEmployeeId(null);
         return;
       }
 
@@ -247,24 +284,14 @@ export function OrgChartCanvas({
         )
       );
 
-      // Bounding-box hit test: find the topmost node that overlaps the dropped position
-      const draggedX = draggedNode.position.x;
-      const draggedY = draggedNode.position.y;
       const allNodes = instance.getNodes() as OrgChartFlowNode[];
+      const target =
+        (dropTargetEmployeeId
+          ? allNodes.find((candidate) => candidate.id === dropTargetEmployeeId)
+          : undefined) ?? findDropTarget(allNodes, draggedNode);
 
-      const target = allNodes.find((candidate) => {
-        if (candidate.id === draggedNode.id) return false;
-        return rectsOverlap(
-          draggedX,
-          draggedY,
-          ORG_CHART_NODE_WIDTH,
-          ORG_CHART_NODE_HEIGHT,
-          candidate.position.x,
-          candidate.position.y,
-          ORG_CHART_NODE_WIDTH,
-          ORG_CHART_NODE_HEIGHT
-        );
-      });
+      setDropTargetEmployeeId(null);
+      dragStartPositionRef.current = null;
 
       if (!target) return;
 
@@ -279,7 +306,7 @@ export function OrgChartCanvas({
         proposedManager: targetEmployee,
       });
     },
-    [instance, onReassignProposal]
+    [dropTargetEmployeeId, instance, isReassignMode, onReassignProposal]
   );
 
   return (
@@ -292,7 +319,7 @@ export function OrgChartCanvas({
         maxZoom={1.5}
         fitView
         proOptions={{ hideAttribution: true }}
-        nodesDraggable={!!onReassignProposal}
+        nodesDraggable={isReassignMode && !!onReassignProposal}
         nodeDragThreshold={8}
         nodesConnectable={false}
         elementsSelectable={false}
@@ -304,6 +331,7 @@ export function OrgChartCanvas({
         onInit={setInstance}
         onNodeClick={(_event, node) => onSelectEmployee(node.id)}
         onNodeDragStart={handleNodeDragStart}
+        onNodeDrag={handleNodeDrag}
         onNodeDragStop={handleNodeDragStop}
         className="bg-background"
       >
@@ -313,8 +341,34 @@ export function OrgChartCanvas({
           size={0.75}
           color="var(--color-border)"
         />
-        <Controls showInteractive={false} position="bottom-right" />
+        <Controls showInteractive position="bottom-right" />
       </ReactFlow>
     </div>
   );
+}
+
+function findDropTarget(
+  nodes: OrgChartFlowNode[],
+  draggedNode: OrgChartFlowNode
+) {
+  const draggedX = draggedNode.position.x;
+  const draggedY = draggedNode.position.y;
+  const currentManagerId = draggedNode.data.employee.managerId;
+
+  return nodes.find((candidate) => {
+    if (candidate.id === draggedNode.id || candidate.id === currentManagerId) {
+      return false;
+    }
+
+    return rectsOverlap(
+      draggedX,
+      draggedY,
+      ORG_CHART_NODE_WIDTH,
+      ORG_CHART_NODE_HEIGHT,
+      candidate.position.x,
+      candidate.position.y,
+      ORG_CHART_NODE_WIDTH,
+      ORG_CHART_NODE_HEIGHT
+    );
+  });
 }

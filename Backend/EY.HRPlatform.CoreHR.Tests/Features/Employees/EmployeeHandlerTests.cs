@@ -583,6 +583,87 @@ public class EmployeeHandlerTests
     }
 
     [Fact]
+    public async Task UpdateEmployee_WithBlankJobTitleWhenRequired_ThrowsArgumentException()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+
+        await SeedTenantSettingsAsync(
+            dbName,
+            """
+            {
+                "employeeFieldConfig": {
+                    "jobTitle": { "required": true }
+                }
+            }
+            """);
+
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+        var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", DateTime.UtcNow, null, "Developer");
+        seedContext.Employees.Add(employee);
+        await seedContext.SaveChangesAsync();
+        var version = employee.Version;
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = new UpdateEmployeeCommandHandler(context, new EmployeeHierarchyService(context));
+        var command = new UpdateEmployeeCommand(
+            employee.Id,
+            version,
+            null,
+            null,
+            null,
+            "   ",
+            null);
+
+        var exception = await Assert.ThrowsAsync<ArgumentException>(
+            () => handler.Handle(command, CancellationToken.None));
+
+        Assert.Contains("Job title is required", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task UpdateEmployee_AllowsUnrelatedUpdates_WhenRequiredJobTitleIsMissingButNotEdited()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+
+        await SeedTenantSettingsAsync(
+            dbName,
+            """
+            {
+                "employeeFieldConfig": {
+                    "jobTitle": { "required": true }
+                }
+            }
+            """);
+
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+        var orgUnit = OrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null);
+        var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", DateTime.UtcNow);
+        seedContext.OrgUnits.Add(orgUnit);
+        seedContext.Employees.Add(employee);
+        await seedContext.SaveChangesAsync();
+        var version = employee.Version;
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = new UpdateEmployeeCommandHandler(context, new EmployeeHierarchyService(context));
+        var command = new UpdateEmployeeCommand(
+            employee.Id,
+            version,
+            null,
+            null,
+            null,
+            null,
+            null,
+            orgUnit.Id);
+
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(orgUnit.Id, result.Value.OrgUnitId);
+    }
+
+    [Fact]
     public async Task UpdateEmployee_WithOrgUnit_AssignsOrgUnitCorrectly()
     {
         // Arrange
@@ -857,4 +938,11 @@ public class EmployeeHandlerTests
 
     private static GetEmployeeByIdQueryHandler CreateGetEmployeeByIdHandler(CoreHRDbContext context)
         => new(context, new EmployeeReadModelPolicy(), new TenantSettingsReadService(context));
+
+    private static async Task SeedTenantSettingsAsync(string dbName, string overridesJson)
+    {
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+        seedContext.TenantSettings.Add(EY.HRPlatform.CoreHR.Domain.Entities.TenantSettings.Create(TenantId, overridesJson));
+        await seedContext.SaveChangesAsync();
+    }
 }

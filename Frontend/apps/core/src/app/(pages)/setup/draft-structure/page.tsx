@@ -316,29 +316,29 @@ export default function DraftStructurePage() {
     0
   );
   const pageDescription = !isDraftLocked
-    ? "Build the draft here, then approve it when the first pass is ready."
+    ? "Build and approve the structure draft here."
     : canReopenFromDraft
-      ? "Review the locked draft here. Reopen it only if more changes are needed before publish."
+      ? "Draft is locked. Reopen it if more changes are needed before publish."
       : isSetupComplete
-        ? "Review the published snapshot here. Setup is complete and this page is now read-only."
+        ? "Published snapshot — setup is complete and the page is read-only."
         : "Review the locked draft here.";
   const importReadOnlyTitle = isSetupComplete
     ? "Import is unavailable after setup is complete"
     : "Import is locked";
   const importReadOnlyMessage = canReopenFromDraft
-    ? "Reopen the draft from Setup before uploading, validating, or applying a file."
+    ? "Reopen the draft from Setup to upload, validate, or apply a file."
     : isSetupComplete
-      ? "This page is now a read-only snapshot of the structure that went live. Use Setup for the completion summary."
+      ? "Read-only snapshot of the published structure."
       : "This draft is read-only while later setup steps are in progress.";
   const unitReadOnlyDescription = canReopenFromDraft
-    ? "Review this approved draft unit here. Reopen the draft before making changes."
+    ? "Approved unit — reopen the draft to make changes."
     : isSetupComplete
-      ? "Review this published snapshot here. Setup is complete and this unit is read-only."
+      ? "Published — setup is complete and this unit is read-only."
       : "Review this locked draft unit here.";
   const unitReadOnlyNotice = canReopenFromDraft
     ? "This draft is locked. Reopen it from Setup before editing or deleting units."
     : isSetupComplete
-      ? "This page is now a read-only snapshot of the structure that completed setup."
+      ? "Read-only snapshot of the published structure."
       : "This draft is locked while later setup steps are in progress.";
 
   if (isAuthLoading && !user) {
@@ -449,7 +449,7 @@ export default function DraftStructurePage() {
         <EmptyState
           icon={FolderTree}
           title="Organization structure is not available for this role"
-          description="Ask a tenant HR administrator to manage the draft workspace."
+          description="Contact a tenant HR administrator."
         />
       </div>
     );
@@ -464,7 +464,7 @@ export default function DraftStructurePage() {
       <div className="flex flex-col gap-6 p-6">
         <PageHeader
           title="Organization Structure"
-          description="Setup state must be available before the draft workspace can load."
+          description="Setup state is required to load the workspace."
         />
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
@@ -484,12 +484,12 @@ export default function DraftStructurePage() {
       <div className="flex flex-col gap-6 p-6">
         <PageHeader
           title="Organization Structure"
-          description="Activate setup first, then continue into the organization structure area."
+          description="Activate setup to access organization structure."
         />
         <EmptyState
           icon={FolderTree}
           title="Setup has not been activated"
-          description="The organization structure area opens after setup is activated."
+          description="Organization structure opens after setup is activated."
           action={{
             label: "Go to Setup",
             onClick: () => router.push("/setup"),
@@ -579,9 +579,9 @@ export default function DraftStructurePage() {
           <AlertTitle>Draft is locked</AlertTitle>
           <AlertDescription>
             {canReopenFromDraft
-              ? "Reopen the draft before adding units, editing details, changing unit types, or importing a new file."
+              ? "Reopen the draft to add, edit, or import units."
               : isSetupComplete
-                ? "This page is now a read-only snapshot of the structure that completed setup."
+                ? "Read-only snapshot of the published structure."
                 : "This draft is now read-only while later setup steps are in progress."}
           </AlertDescription>
         </Alert>

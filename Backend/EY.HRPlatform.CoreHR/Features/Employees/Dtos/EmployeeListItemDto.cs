@@ -27,6 +27,7 @@ public sealed record EmployeeListItemDto(
 public static class EmployeeHierarchyStatuses
 {
     public const string Healthy = "Healthy";
+    public const string Root = "Root";
     public const string NoManagerAssigned = "NoManagerAssigned";
     public const string ManagerInactive = "ManagerInactive";
     public const string ManagerMissing = "ManagerMissing";

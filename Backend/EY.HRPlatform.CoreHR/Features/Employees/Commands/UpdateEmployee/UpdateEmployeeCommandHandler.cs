@@ -2,6 +2,8 @@ using EY.HRPlatform.CoreHR.Domain.Entities;
 using EY.HRPlatform.CoreHR.Exceptions;
 using EY.HRPlatform.CoreHR.Features.Employees.Dtos;
 using EY.HRPlatform.CoreHR.Features.Employees.Services;
+using EY.HRPlatform.CoreHR.Features.TenantSettings.Dtos;
+using EY.HRPlatform.CoreHR.Features.TenantSettings.Services;
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
 using EY.HRPlatform.SharedKernel.CQRS;
 using EY.HRPlatform.SharedKernel.Results;
@@ -11,9 +13,14 @@ namespace EY.HRPlatform.CoreHR.Features.Employees.Commands.UpdateEmployee;
 
 public sealed class UpdateEmployeeCommandHandler(
     CoreHRDbContext dbContext,
-    IEmployeeHierarchyService hierarchyService) : ICommandHandler<UpdateEmployeeCommand, Result<EmployeeDto>>
+    IEmployeeHierarchyService hierarchyService,
+    ITenantSettingsReadService? tenantSettingsReadService = null) : ICommandHandler<UpdateEmployeeCommand, Result<EmployeeDto>>
 {
     private readonly IEmployeeHierarchyService employeeHierarchyService = hierarchyService;
+    private readonly ITenantSettingsReadService tenantSettingsReader =
+        tenantSettingsReadService ?? new TenantSettingsReadService(dbContext);
+    private static readonly HashSet<string> OperationallyRequiredFields =
+        ["firstName", "lastName", "email", "hireDate"];
 
     public async Task<Result<EmployeeDto>> Handle(UpdateEmployeeCommand request, CancellationToken cancellationToken)
     {
@@ -30,6 +37,12 @@ public sealed class UpdateEmployeeCommandHandler(
         {
             throw new ConcurrencyException("Employee", request.EmployeeId);
         }
+
+        var settings = await tenantSettingsReader.GetCurrentAsync(cancellationToken);
+        ValidateConfiguredRequiredField(request.FirstName, "firstName", "First name", settings, true);
+        ValidateConfiguredRequiredField(request.LastName, "lastName", "Last name", settings, true);
+        ValidateConfiguredRequiredField(request.Email, "email", "Email", settings, true);
+        ValidateConfiguredRequiredField(request.JobTitle, "jobTitle", "Job title", settings, false);
 
         // Merge request values with existing (partial update support)
         var firstName = request.FirstName ?? employee.FirstName;
@@ -145,4 +158,28 @@ public sealed class UpdateEmployeeCommandHandler(
             || ex.InnerException?.Message.Contains("unique constraint") == true
             || ex.InnerException?.Message.Contains("duplicate key") == true;
     }
+
+    private static void ValidateConfiguredRequiredField(
+        string? requestedValue,
+        string fieldKey,
+        string displayName,
+        TenantSettingsDto settings,
+        bool fallbackRequired)
+    {
+        if (requestedValue is null || !IsFieldRequired(settings, fieldKey, fallbackRequired))
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(requestedValue))
+        {
+            throw new ArgumentException($"{displayName} is required.", fieldKey);
+        }
+    }
+
+    private static bool IsFieldRequired(TenantSettingsDto settings, string fieldKey, bool fallbackRequired)
+        => OperationallyRequiredFields.Contains(fieldKey)
+            || (settings.EmployeeFieldConfig.TryGetValue(fieldKey, out var fieldConfig)
+            ? fieldConfig.Required
+            : fallbackRequired);
 }

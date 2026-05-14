@@ -15,7 +15,7 @@ public interface IEmployeeReadModelPolicy
 {
     EmployeeDto MapDetail(Employee employee, TenantSettingsDto settings, EmployeeReadAudience audience);
 
-    EmployeeListItemDto MapListItem(Employee employee, TenantSettingsDto settings, EmployeeReadAudience audience);
+    EmployeeListItemDto MapListItem(Employee employee, TenantSettingsDto settings, EmployeeReadAudience audience, int directReportCount = 0);
 
     EmployeeProfileDto MapProfile(Employee employee, TenantSettingsDto settings, EmployeeReadAudience audience, int directReportCount);
 }
@@ -42,7 +42,7 @@ public sealed class EmployeeReadModelPolicy : IEmployeeReadModelPolicy
             employee.UpdatedAt,
             employee.Version);
 
-    public EmployeeListItemDto MapListItem(Employee employee, TenantSettingsDto settings, EmployeeReadAudience audience)
+    public EmployeeListItemDto MapListItem(Employee employee, TenantSettingsDto settings, EmployeeReadAudience audience, int directReportCount = 0)
         => new(
             employee.Id,
             employee.FirstName,
@@ -55,9 +55,10 @@ public sealed class EmployeeReadModelPolicy : IEmployeeReadModelPolicy
             employee.HireDate,
             employee.ManagerId,
             employee.Manager is not null ? employee.Manager.FirstName + " " + employee.Manager.LastName : null,
-            ResolveHierarchyStatus(employee),
-            0,
+            ResolveHierarchyStatus(employee, directReportCount),
+            directReportCount,
             employee.Version);
+
     public EmployeeProfileDto MapProfile(Employee employee, TenantSettingsDto settings, EmployeeReadAudience audience, int directReportCount)
         => new(
             employee.Id,
@@ -73,7 +74,7 @@ public sealed class EmployeeReadModelPolicy : IEmployeeReadModelPolicy
             employee.Manager?.FirstName,
             employee.Manager?.LastName,
             employee.Manager?.Email,
-            ResolveHierarchyStatus(employee),
+            ResolveHierarchyStatus(employee, directReportCount),
             directReportCount,
             employee.Version);
 
@@ -96,11 +97,13 @@ public sealed class EmployeeReadModelPolicy : IEmployeeReadModelPolicy
         };
     }
 
-    private static string ResolveHierarchyStatus(Employee employee)
+    private static string ResolveHierarchyStatus(Employee employee, int directReportCount)
     {
         if (!employee.ManagerId.HasValue)
         {
-            return EmployeeHierarchyStatuses.NoManagerAssigned;
+            return directReportCount > 0
+                ? EmployeeHierarchyStatuses.Root
+                : EmployeeHierarchyStatuses.NoManagerAssigned;
         }
 
         if (employee.Manager is null)
