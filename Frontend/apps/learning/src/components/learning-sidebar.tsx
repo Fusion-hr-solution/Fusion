@@ -10,6 +10,21 @@ import { EMPLOYEE_NAV, ADMIN_NAV } from "@/data/sidebar-nav";
 import { getMyTrainings } from "@/services/learning-service";
 import { StatRow } from "./stat-row";
 
+function SidebarNavSkeleton() {
+  const widths = ["75%", "60%", "85%", "50%", "70%"];
+  return (
+    <div className="px-3 py-4 space-y-3 animate-pulse">
+      <div className="h-3 w-20 rounded bg-muted" />
+      {widths.map((w, i) => (
+        <div key={i} className="flex items-center gap-2.5 px-2 py-1.5">
+          <div className="h-4 w-4 rounded bg-muted" />
+          <div className="h-3 rounded bg-muted" style={{ width: w }} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function QuickStatsFooter({ collapsed }: { collapsed: boolean }) {
   if (collapsed) {
     return (
@@ -54,11 +69,11 @@ export function LearningSidebar() {
   const pathname = usePathname();
   const activePath = pathname.replace(/^\/learning/, "") || "/";
 
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
   const isAdmin = hasAnyRole(user, [HR_ADMIN_ROLE]);
 
   const fetchMyTrainings = useCallback(() => getMyTrainings(), []);
-  const { data: myTrainings } = useApiQuery(fetchMyTrainings, { enabled: true });
+  const { data: myTrainings } = useApiQuery(fetchMyTrainings, { enabled: !isAdmin && !isLoading });
   const myTrainingsCount = myTrainings?.length ?? 0;
 
   const employeeNavWithCount = useMemo(() => ({
@@ -70,10 +85,27 @@ export function LearningSidebar() {
     ),
   }), [myTrainingsCount]);
 
-  const sections = useMemo(
-    () => isAdmin ? [ADMIN_NAV] : [employeeNavWithCount],
-    [isAdmin, employeeNavWithCount],
-  );
+  const sections = useMemo(() => {
+    if (isLoading) return [];
+    return isAdmin ? [ADMIN_NAV] : [employeeNavWithCount];
+  }, [isLoading, isAdmin, employeeNavWithCount]);
+
+  if (isLoading) {
+    return (
+      <aside className="group/sidebar relative flex h-full shrink-0 flex-col border-r border-sidebar-border bg-sidebar w-[260px]">
+        <div className="flex items-center gap-2.5 border-b border-sidebar-border px-5 py-4">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-foreground shadow-sm">
+            <GraduationCap className="h-4 w-4 text-primary" />
+          </div>
+          <div>
+            <p className="text-sm font-bold leading-none text-foreground">EY Academy</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">Learning Platform</p>
+          </div>
+        </div>
+        <SidebarNavSkeleton />
+      </aside>
+    );
+  }
 
   return (
     <AppSidebar

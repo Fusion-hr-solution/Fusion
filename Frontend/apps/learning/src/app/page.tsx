@@ -3,6 +3,7 @@ import { MOCK_TRAININGS } from "@/data/trainings";
 import { getTrainings, getCategories } from "@/services/learning-service";
 import { CATEGORY_MAP } from "@/types/backend-dtos";
 import type { TrainingCategory } from "@/types";
+import { AdminRedirectGuard } from "@/components/admin-redirect-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -38,23 +39,27 @@ export default async function LearningPage({
       categoryId,
     });
     return (
-      <TrainingCatalog
-        trainings={result.trainings}
-        totalCount={result.totalCount}
-        page={page}
-        pageSize={PAGE_SIZE}
-      />
+      <AdminRedirectGuard>
+        <TrainingCatalog
+          trainings={result.trainings}
+          totalCount={result.totalCount}
+          page={page}
+          pageSize={PAGE_SIZE}
+        />
+      </AdminRedirectGuard>
     );
   } catch (err) {
     console.warn("[LearningPage] Backend unavailable, using mock data:", err);
     const start = (page - 1) * PAGE_SIZE;
     return (
-      <TrainingCatalog
-        trainings={MOCK_TRAININGS.slice(start, start + PAGE_SIZE)}
-        totalCount={MOCK_TRAININGS.length}
-        page={page}
-        pageSize={PAGE_SIZE}
-      />
+      <AdminRedirectGuard>
+        <TrainingCatalog
+          trainings={MOCK_TRAININGS.slice(start, start + PAGE_SIZE)}
+          totalCount={MOCK_TRAININGS.length}
+          page={page}
+          pageSize={PAGE_SIZE}
+        />
+      </AdminRedirectGuard>
     );
   }
 }

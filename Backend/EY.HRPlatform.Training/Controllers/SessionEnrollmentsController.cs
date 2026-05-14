@@ -48,12 +48,14 @@ public class SessionEnrollmentsController : ControllerBase
     public async Task<IActionResult> Enroll([FromBody] EnrollInSessionsRequest request, CancellationToken cancellationToken)
     {
         var employeeId = User.GetUserId();
+        var employeeName = User.GetFullName();
+        var employeeEmail = User.GetEmail();
         var selections = request.Selections
             .Select(s => new SessionSelectionItem(s.PartId, s.SessionId))
             .ToList();
 
         var result = await _sender.Send(
-            new EnrollInSessionsCommand(employeeId, request.TrainingId, selections), cancellationToken);
+            new EnrollInSessionsCommand(employeeId, employeeName, employeeEmail, request.TrainingId, selections), cancellationToken);
 
         if (result.IsFailure)
         {

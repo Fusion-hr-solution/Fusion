@@ -74,7 +74,7 @@ public class EnrollmentQueryHandlerTests
         // Enroll an employee
         var enrollHandler = new EnrollInSessionsCommandHandler(ctx);
         await enrollHandler.Handle(new EnrollInSessionsCommand(
-            Guid.NewGuid(), trainingId, [
+            Guid.NewGuid(), "Test User", "test@test.com", trainingId, [
                 new SessionSelectionItem(part1Id, session1Id),
                 new SessionSelectionItem(part2Id, session2Id)
             ]), CancellationToken.None);
@@ -133,8 +133,7 @@ public class EnrollmentQueryHandlerTests
 
         // Enroll
         var enrollHandler = new EnrollInSessionsCommandHandler(ctx);
-        await enrollHandler.Handle(new EnrollInSessionsCommand(
-            employeeId, trainingId, [
+        await enrollHandler.Handle(new EnrollInSessionsCommand(employeeId, "Test User", "test@test.com", trainingId, [
                 new SessionSelectionItem(part1Id, session1Id),
                 new SessionSelectionItem(part2Id, session2Id)
             ]), CancellationToken.None);
@@ -159,8 +158,7 @@ public class EnrollmentQueryHandlerTests
 
         // Enroll
         var enrollHandler = new EnrollInSessionsCommandHandler(ctx);
-        await enrollHandler.Handle(new EnrollInSessionsCommand(
-            employeeId, trainingId, [
+        await enrollHandler.Handle(new EnrollInSessionsCommand(employeeId, "Test User", "test@test.com", trainingId, [
                 new SessionSelectionItem(part1Id, session1Id),
                 new SessionSelectionItem(part2Id, session2Id)
             ]), CancellationToken.None);
@@ -189,8 +187,7 @@ public class EnrollmentQueryHandlerTests
         var employeeId = Guid.NewGuid();
 
         var enrollHandler = new EnrollInSessionsCommandHandler(ctx);
-        await enrollHandler.Handle(new EnrollInSessionsCommand(
-            employeeId, trainingId, [
+        await enrollHandler.Handle(new EnrollInSessionsCommand(employeeId, "Test User", "test@test.com", trainingId, [
                 new SessionSelectionItem(part1Id, session1Id),
                 new SessionSelectionItem(part2Id, session2Id)
             ]), CancellationToken.None);
@@ -223,3 +220,5 @@ public class EnrollmentQueryHandlerTests
         Assert.All(result.Value.Parts, p => Assert.Equal("NotEnrolled", p.EnrollmentStatus));
     }
 }
+
+

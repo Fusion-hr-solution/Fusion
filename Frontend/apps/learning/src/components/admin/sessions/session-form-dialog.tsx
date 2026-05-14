@@ -21,7 +21,7 @@ import {
   Input,
   Label,
   Separator,
-  DateTimePicker,
+  Calendar as CalendarWidget,
 } from "@repo/ui";
 import { useApiMutation } from "@repo/api/react";
 import {
@@ -59,8 +59,9 @@ export function SessionFormDialog({
   const isEditing = !!session;
   const [step, setStep] = useState(0);
 
-  const [start, setStart] = useState<Date | undefined>(undefined);
-  const [end, setEnd] = useState<Date | undefined>(undefined);
+  const [sessionDate, setSessionDate] = useState<Date | undefined>(undefined);
+  const [startTime, setStartTime] = useState("09:00");
+  const [endTime, setEndTime] = useState("10:00");
   const [room, setRoom] = useState("");
   const [capacity, setCapacity] = useState("20");
   const [trainerName, setTrainerName] = useState("");
@@ -69,13 +70,29 @@ export function SessionFormDialog({
   const [error, setError] = useState<string | null>(null);
   const [conflicts, setConflicts] = useState<RoomConflict[]>([]);
 
+  // Derive full Date objects from sessionDate + time strings
+  function buildDateTime(date: Date | undefined, time: string): Date | undefined {
+    if (!date) return undefined;
+    const parts = time.split(":").map(Number);
+    const h = parts[0] ?? 0;
+    const m = parts[1] ?? 0;
+    const d = new Date(date);
+    d.setHours(h, m, 0, 0);
+    return d;
+  }
+  const start = buildDateTime(sessionDate, startTime);
+  const end = buildDateTime(sessionDate, endTime);
+
   const totalSteps = isEditing ? 1 : 2;
 
   useEffect(() => {
     if (open) {
       setStep(0);
-      setStart(parseIsoToLocal(session?.startUtc));
-      setEnd(parseIsoToLocal(session?.endUtc));
+      const existingStart = parseIsoToLocal(session?.startUtc);
+      const existingEnd = parseIsoToLocal(session?.endUtc);
+      setSessionDate(existingStart);
+      setStartTime(existingStart ? `${String(existingStart.getHours()).padStart(2, "0")}:${String(existingStart.getMinutes()).padStart(2, "0")}` : "09:00");
+      setEndTime(existingEnd ? `${String(existingEnd.getHours()).padStart(2, "0")}:${String(existingEnd.getMinutes()).padStart(2, "0")}` : "10:00");
       setRoom(session?.room ?? "");
       setCapacity(String(session?.maxCapacity ?? 20));
       setTrainerName(session?.trainerName ?? "");
@@ -109,8 +126,9 @@ export function SessionFormDialog({
   );
 
   function validateFields(): boolean {
+    if (!sessionDate) { setError("Session date is required."); return false; }
     if (!start || !end) { setError("Start and end times are required."); return false; }
-    if (end <= start) { setError("End must be after start."); return false; }
+    if (end <= start) { setError("End time must be after start time."); return false; }
     if (!room.trim()) { setError("Room is required."); return false; }
     const cap = Number(capacity);
     if (!Number.isFinite(cap) || cap <= 0) { setError("Capacity must be > 0."); return false; }
@@ -148,10 +166,12 @@ export function SessionFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl">
-        <DialogHeader>
+      <DialogContent className="max-w-xl max-h-[85vh] flex flex-col">
+        <DialogHeader className="shrink-0">
           <DialogTitle>{isEditing ? "Edit Session" : "Schedule New Session"}</DialogTitle>
         </DialogHeader>
+
+        <div className="flex-1 overflow-y-auto min-h-0 pr-1">
 
         {/* Step indicator for create mode */}
         {!isEditing && (
@@ -201,21 +221,34 @@ export function SessionFormDialog({
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Start *</Label>
-                  <DateTimePicker
-                    value={start}
-                    onChange={(d) => { setStart(d); setError(null); }}
-                    placeholder="Pick start date & time"
+                  <Label className="text-xs">Date *</Label>
+                  <CalendarWidget
+                    mode="single"
+                    selected={sessionDate}
+                    onSelect={(d) => { setSessionDate(d ?? undefined); setError(null); }}
+                    disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                    className="rounded-md border"
                   />
                 </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">End *</Label>
-                  <DateTimePicker
-                    value={end}
-                    onChange={(d) => { setEnd(d); setError(null); }}
-                    placeholder="Pick end date & time"
-                    minDate={start}
-                  />
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Start Time *</Label>
+                    <Input
+                      type="time"
+                      value={startTime}
+                      onChange={(e) => { setStartTime(e.target.value); setError(null); }}
+                      className="h-10"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">End Time *</Label>
+                    <Input
+                      type="time"
+                      value={endTime}
+                      onChange={(e) => { setEndTime(e.target.value); setError(null); }}
+                      className="h-10"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -371,8 +404,9 @@ export function SessionFormDialog({
         )}
 
         {error && <p className="text-sm text-destructive mt-2">{error}</p>}
+        </div>
 
-        <DialogFooter className="gap-2 pt-2">
+        <DialogFooter className="shrink-0 gap-2 pt-2">
           {step > 0 && !isEditing && (
             <Button variant="outline" onClick={() => setStep(0)} disabled={isLoading} className="mr-auto">
               Back

@@ -1,5 +1,6 @@
 using EY.HRPlatform.SharedKernel.CQRS;
 using EY.HRPlatform.SharedKernel.Results;
+using EY.HRPlatform.Training.Domain.Enums;
 using EY.HRPlatform.Training.Infrastructure.Persistence;
 using EY.HRPlatform.Training.Models.Responses;
 using Microsoft.EntityFrameworkCore;
@@ -49,7 +50,9 @@ public class GetPartsForTrainingQueryHandler : IQueryHandler<GetPartsForTraining
                         EndUtc = s.EndUtc,
                         Room = s.Room,
                         MaxCapacity = s.MaxCapacity,
-                        EnrolledCount = 0,
+                        EnrolledCount = _db.SessionEnrollments.Count(e =>
+                            e.SessionId == s.Id &&
+                            (e.Status == EnrollmentStatus.Enrolled || e.Status == EnrollmentStatus.Attended)),
                         Notes = s.Notes,
                         TrainerEmployeeId = s.TrainerEmployeeId,
                         TrainerName = s.TrainerName,
