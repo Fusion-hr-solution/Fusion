@@ -20,6 +20,12 @@ public class CandidateManagementService(
 {
     private const int DefaultTimelineEventRetentionDays = 90;
     private static readonly Guid AttemptSettingsId = Guid.Parse("1f8197d0-4b62-4b54-8ed9-7ebf2fb02a51");
+    private const string PrivacyActionAnonymize = "anonymize";
+    private const string PrivacyActionDeletePii = "delete-pii";
+    private const string PrivacyHashSecretConfigKey = "CandidatePrivacy:HashSecret";
+    private const string PrivacyAliasDomainConfigKey = "CandidatePrivacy:AliasDomain";
+    private const string DefaultPrivacyAliasDomain = "anonymized.invalid";
+    private const string DefaultPrivacyHashSecret = "development-privacy-secret";
 
     public async Task<CandidateManagementOverviewDto> GetOverviewAsync(CancellationToken cancellationToken)
     {
@@ -368,6 +374,113 @@ public class CandidateManagementService(
         return MapAttemptSettings(settings);
     }
 
+    public async Task<CandidatePrivacyActionResultDto> ApplyPrivacyActionAsync(
+        CandidatePrivacyActionRequestDto request,
+        CancellationToken cancellationToken)
+    {
+        var parsedTestId = ParseTestId(request.TestId);
+        var action = NormalizePrivacyAction(request.Action);
+        var adminId = NormalizeAdminId(request.AdminId);
+        var triggerSource = NormalizeTriggerSource(request.TriggerSource);
+
+        var (invitations, normalizedEmail) = await ResolvePrivacyInvitationsAsync(
+            parsedTestId,
+            request.CandidateEmail,
+            request.InvitationId,
+            cancellationToken);
+
+        return await ApplyPrivacyActionInternalAsync(
+            parsedTestId,
+            normalizedEmail,
+            action,
+            adminId,
+            triggerSource,
+            invitations,
+            cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<CandidatePrivacyActionResultDto>> ApplyPrivacyActionBatchAsync(
+        CandidatePrivacyActionBatchRequestDto request,
+        CancellationToken cancellationToken)
+    {
+        var parsedTestId = ParseTestId(request.TestId);
+        var action = NormalizePrivacyAction(request.Action);
+        var adminId = NormalizeAdminId(request.AdminId);
+        var triggerSource = NormalizeTriggerSource(request.TriggerSource);
+
+        var normalizedEmails = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var email in request.CandidateEmails ?? [])
+        {
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                continue;
+            }
+
+            normalizedEmails.Add(NormalizeCandidateEmail(email));
+        }
+
+        foreach (var invitationId in request.InvitationIds ?? [])
+        {
+            if (string.IsNullOrWhiteSpace(invitationId))
+            {
+                continue;
+            }
+
+            if (!Guid.TryParse(invitationId, out var parsedInvitationId))
+            {
+                throw new ApiException("Valid invitationId is required.", StatusCodes.Status400BadRequest);
+            }
+
+            var invitation = await dbContext.CandidateInvitations
+                .AsNoTracking()
+                .FirstOrDefaultAsync(item => item.Id == parsedInvitationId, cancellationToken);
+
+            if (invitation is null || invitation.TestId != parsedTestId)
+            {
+                throw new ApiException("Candidate invitation was not found.", StatusCodes.Status404NotFound);
+            }
+
+            var normalizedEmail = NormalizeStoredEmailForLookup(invitation.Email);
+            if (!string.IsNullOrWhiteSpace(normalizedEmail))
+            {
+                normalizedEmails.Add(normalizedEmail);
+            }
+        }
+
+        if (normalizedEmails.Count == 0)
+        {
+            throw new ApiException(
+                "Provide at least one candidateEmail or invitationId.",
+                StatusCodes.Status400BadRequest);
+        }
+
+        var results = new List<CandidatePrivacyActionResultDto>(normalizedEmails.Count);
+        foreach (var normalizedEmail in normalizedEmails)
+        {
+            var invitations = await FindTrackedInvitationsByNormalizedEmailAsync(
+                parsedTestId,
+                normalizedEmail,
+                cancellationToken);
+
+            if (invitations.Count == 0)
+            {
+                throw new ApiException("Candidate invitation was not found.", StatusCodes.Status404NotFound);
+            }
+
+            var result = await ApplyPrivacyActionInternalAsync(
+                parsedTestId,
+                normalizedEmail,
+                action,
+                adminId,
+                triggerSource,
+                invitations,
+                cancellationToken);
+            results.Add(result);
+        }
+
+        return results;
+    }
+
     private async Task<CandidateInvitation?> FindLatestInvitationByNormalizedEmailAsync(
         Guid testId,
         string normalizedCandidateEmail,
@@ -676,6 +789,254 @@ public class CandidateManagementService(
         {
             DefaultMaxAttempts = request.DefaultMaxAttempts,
         };
+    }
+
+    private async Task<(IReadOnlyList<CandidateInvitation> Invitations, string NormalizedEmail)>
+        ResolvePrivacyInvitationsAsync(
+            Guid testId,
+            string? candidateEmail,
+            string? invitationId,
+            CancellationToken cancellationToken)
+    {
+        string normalizedEmail;
+
+        if (!string.IsNullOrWhiteSpace(invitationId))
+        {
+            if (!Guid.TryParse(invitationId, out var parsedInvitationId))
+            {
+                throw new ApiException("Valid invitationId is required.", StatusCodes.Status400BadRequest);
+            }
+
+            var invitation = await dbContext.CandidateInvitations
+                .AsNoTracking()
+                .FirstOrDefaultAsync(item => item.Id == parsedInvitationId, cancellationToken);
+
+            if (invitation is null || invitation.TestId != testId)
+            {
+                throw new ApiException("Candidate invitation was not found.", StatusCodes.Status404NotFound);
+            }
+
+            normalizedEmail = NormalizeStoredEmailForLookup(invitation.Email);
+            if (string.IsNullOrWhiteSpace(normalizedEmail))
+            {
+                throw new ApiException("Candidate email was not found for the invitation.", StatusCodes.Status400BadRequest);
+            }
+        }
+        else if (!string.IsNullOrWhiteSpace(candidateEmail))
+        {
+            normalizedEmail = NormalizeCandidateEmail(candidateEmail);
+        }
+        else
+        {
+            throw new ApiException(
+                "Provide candidateEmail or invitationId.",
+                StatusCodes.Status400BadRequest);
+        }
+
+        var invitations = await FindTrackedInvitationsByNormalizedEmailAsync(
+            testId,
+            normalizedEmail,
+            cancellationToken);
+
+        if (invitations.Count == 0)
+        {
+            throw new ApiException("Candidate invitation was not found.", StatusCodes.Status404NotFound);
+        }
+
+        return (invitations, normalizedEmail);
+    }
+
+    private async Task<IReadOnlyList<CandidateInvitation>> FindTrackedInvitationsByNormalizedEmailAsync(
+        Guid testId,
+        string normalizedCandidateEmail,
+        CancellationToken cancellationToken)
+    {
+        var invitationQuery = dbContext.CandidateInvitations
+            .Where(item => item.TestId == testId);
+
+        var directMatches = await invitationQuery
+            .Where(item => item.Email.Trim().ToLower() == normalizedCandidateEmail)
+            .OrderByDescending(item => item.CreatedAt)
+            .ToListAsync(cancellationToken);
+
+        if (directMatches.Count > 0)
+        {
+            return directMatches;
+        }
+
+        var invitations = await invitationQuery
+            .OrderByDescending(item => item.CreatedAt)
+            .ToListAsync(cancellationToken);
+
+        return invitations
+            .Where(item => NormalizeStoredEmailForLookup(item.Email) == normalizedCandidateEmail)
+            .ToList();
+    }
+
+    private async Task<CandidatePrivacyActionResultDto> ApplyPrivacyActionInternalAsync(
+        Guid testId,
+        string normalizedEmail,
+        string action,
+        string adminId,
+        string triggerSource,
+        IReadOnlyList<CandidateInvitation> invitations,
+        CancellationToken cancellationToken)
+    {
+        var (emailHash, aliasEmail, aliasName) = BuildCandidateAlias(testId, normalizedEmail);
+        var invitationIds = invitations.Select(item => item.Id).ToList();
+
+        foreach (var invitation in invitations)
+        {
+            invitation.Email = aliasEmail;
+            invitation.CandidateName = aliasName;
+            invitation.VerifiedEmail = null;
+            invitation.EmailVerifiedAtUtc = null;
+            invitation.LockedIpAddress = null;
+            invitation.AccessFingerprintHash = null;
+            invitation.InviteLink = string.Empty;
+            invitation.TokenHash = string.Empty;
+        }
+
+        var attempts = await dbContext.CandidateTestAttempts
+            .Where(item => invitationIds.Contains(item.InvitationId))
+            .ToListAsync(cancellationToken);
+
+        foreach (var attempt in attempts)
+        {
+            attempt.CandidateEmail = aliasEmail;
+            attempt.CandidateName = aliasName;
+        }
+
+        var events = await dbContext.CandidateProgressEvents
+            .Where(item => invitationIds.Contains(item.InvitationId))
+            .ToListAsync(cancellationToken);
+
+        foreach (var progressEvent in events)
+        {
+            progressEvent.CandidateEmail = aliasEmail;
+            progressEvent.CandidateName = aliasName;
+            progressEvent.ClientIpAddress = null;
+            progressEvent.BrowserFingerprintHash = null;
+            progressEvent.UserAgent = null;
+        }
+
+        var logEntry = new CandidatePrivacyAction
+        {
+            TestId = testId,
+            InvitationId = invitationIds[0],
+            ActionType = action,
+            TriggerSource = triggerSource,
+            AdminId = adminId,
+            CandidateEmailHash = emailHash,
+            CandidateAliasEmail = aliasEmail,
+            CandidateAliasName = aliasName,
+            InvitationsUpdated = invitations.Count,
+            AttemptsUpdated = attempts.Count,
+            EventsUpdated = events.Count,
+        };
+
+        dbContext.CandidatePrivacyActions.Add(logEntry);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation(
+            "Audit Event: CandidatePrivacyAction | Action={Action} | TestId={TestId} | InvitationIds={InvitationIds} | AdminId={AdminId} | EmailHash={EmailHash} | InvitationsUpdated={InvitationsUpdated} | AttemptsUpdated={AttemptsUpdated} | EventsUpdated={EventsUpdated}",
+            action,
+            testId.ToString(),
+            string.Join(',', invitationIds),
+            adminId,
+            emailHash,
+            invitations.Count,
+            attempts.Count,
+            events.Count);
+
+        return new CandidatePrivacyActionResultDto
+        {
+            Action = action,
+            TestId = testId.ToString(),
+            AdminId = adminId,
+            TriggerSource = triggerSource,
+            CandidateAliasEmail = aliasEmail,
+            CandidateAliasName = aliasName,
+            CandidateEmailHash = emailHash,
+            InvitationIds = invitationIds.Select(item => item.ToString()).ToList(),
+            InvitationsUpdated = invitations.Count,
+            AttemptsUpdated = attempts.Count,
+            EventsUpdated = events.Count,
+            LoggedAtUtc = logEntry.CreatedAt.ToString("O"),
+        };
+    }
+
+    private (string EmailHash, string AliasEmail, string AliasName) BuildCandidateAlias(
+        Guid testId,
+        string normalizedEmail)
+    {
+        var secret = ResolvePrivacyHashSecret();
+        var aliasDomain = ResolvePrivacyAliasDomain();
+        var input = $"{testId:N}:{normalizedEmail}";
+
+        using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(secret));
+        var hashBytes = hmac.ComputeHash(Encoding.UTF8.GetBytes(input));
+        var hashHex = Convert.ToHexString(hashBytes).ToLowerInvariant();
+        var aliasSuffix = hashHex[..12];
+        var aliasEmail = $"candidate+{aliasSuffix}@{aliasDomain}".ToLowerInvariant();
+        var aliasNumber = (int)(BitConverter.ToUInt32(hashBytes, 0) % 90000) + 10000;
+        var aliasName = $"Candidate #{aliasNumber}";
+
+        return (hashHex, aliasEmail, aliasName);
+    }
+
+    private string ResolvePrivacyHashSecret()
+    {
+        var secret = configuration.GetValue<string>(PrivacyHashSecretConfigKey);
+        if (!string.IsNullOrWhiteSpace(secret))
+        {
+            return secret;
+        }
+
+        logger.LogWarning(
+            "Candidate privacy hash secret is not configured. Using a development fallback.");
+        return DefaultPrivacyHashSecret;
+    }
+
+    private string ResolvePrivacyAliasDomain()
+    {
+        var aliasDomain = configuration.GetValue<string>(PrivacyAliasDomainConfigKey);
+        return string.IsNullOrWhiteSpace(aliasDomain)
+            ? DefaultPrivacyAliasDomain
+            : aliasDomain.Trim().ToLowerInvariant();
+    }
+
+    private static string NormalizePrivacyAction(string? action)
+    {
+        var normalized = action?.Trim().ToLowerInvariant();
+        return normalized switch
+        {
+            PrivacyActionAnonymize => PrivacyActionAnonymize,
+            PrivacyActionDeletePii => PrivacyActionDeletePii,
+            "delete" => PrivacyActionDeletePii,
+            "deletepii" => PrivacyActionDeletePii,
+            _ => throw new ApiException(
+                "Valid action is required. Use 'anonymize' or 'delete-pii'.",
+                StatusCodes.Status400BadRequest)
+        };
+    }
+
+    private static string NormalizeAdminId(string? adminId)
+    {
+        var normalized = adminId?.Trim();
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            throw new ApiException("Valid adminId is required.", StatusCodes.Status400BadRequest);
+        }
+
+        return normalized;
+    }
+
+    private static string NormalizeTriggerSource(string? triggerSource)
+    {
+        return string.IsNullOrWhiteSpace(triggerSource)
+            ? "UI"
+            : triggerSource.Trim();
     }
 
     private async Task EnsureTestExistsAsync(Guid testId, CancellationToken cancellationToken)

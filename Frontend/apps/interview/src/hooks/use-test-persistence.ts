@@ -40,6 +40,10 @@ export function useTestPersistence() {
       status,
       questionIds: selectedQuestions.map((question) => question.id),
       maxAttempts: config.maxAttempts,
+      allowSkipping: config.allowSkipping,
+      allowBacktracking: config.allowBacktracking,
+      showProgressBar: config.showProgressBar,
+      randomizeOrder: config.randomizeOrder,
     });
 
     // Guard against any backend fallback to Draft when publishing.
@@ -54,6 +58,10 @@ export function useTestPersistence() {
             status: "Active",
             questionIds: selectedQuestions.map((question) => question.id),
             maxAttempts: config.maxAttempts,
+            allowSkipping: config.allowSkipping,
+            allowBacktracking: config.allowBacktracking,
+            showProgressBar: config.showProgressBar,
+            randomizeOrder: config.randomizeOrder,
           })
         : saved;
 

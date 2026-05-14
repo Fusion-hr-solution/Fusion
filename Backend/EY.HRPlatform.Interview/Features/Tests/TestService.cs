@@ -93,6 +93,10 @@ public class TestService(AppDbContext dbContext) : ITestService
             Discipline = ParseDiscipline(request.Discipline),
             Status = string.IsNullOrWhiteSpace(request.Status) ? TestStatus.Draft : ParseStatus(request.Status),
             MaxAttempts = request.MaxAttempts,
+            AllowSkipping = request.AllowSkipping ?? false,
+            AllowBacktracking = request.AllowBacktracking ?? true,
+            ShowProgressBar = request.ShowProgressBar ?? true,
+            RandomizeOrder = request.RandomizeOrder ?? false,
             CandidateCount = 0
         };
 
@@ -117,6 +121,10 @@ public class TestService(AppDbContext dbContext) : ITestService
         test.Discipline = ParseDiscipline(request.Discipline);
         test.Status = string.IsNullOrWhiteSpace(request.Status) ? test.Status : ParseStatus(request.Status);
         test.MaxAttempts = request.MaxAttempts;
+        test.AllowSkipping = request.AllowSkipping ?? test.AllowSkipping;
+        test.AllowBacktracking = request.AllowBacktracking ?? test.AllowBacktracking;
+        test.ShowProgressBar = request.ShowProgressBar ?? test.ShowProgressBar;
+        test.RandomizeOrder = request.RandomizeOrder ?? test.RandomizeOrder;
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
@@ -176,6 +184,10 @@ public class TestService(AppDbContext dbContext) : ITestService
             Status = test.Status.ToString(),
             QuestionTypes = questionTypes,
             MaxAttempts = test.MaxAttempts,
+            AllowSkipping = test.AllowSkipping,
+            AllowBacktracking = test.AllowBacktracking,
+            ShowProgressBar = test.ShowProgressBar,
+            RandomizeOrder = test.RandomizeOrder,
             CandidateCount = test.CandidateCount,
             QuestionCount = test.TestQuestions.Count,
             CreatedAt = test.CreatedAt == default ? DateTime.UtcNow.ToString("O") : test.CreatedAt.ToString("O")

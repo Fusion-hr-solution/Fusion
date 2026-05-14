@@ -28,6 +28,10 @@ interface BackendTestDto {
   status: string;
   questionTypes: string[];
   maxAttempts?: number | null;
+  allowSkipping: boolean;
+  allowBacktracking: boolean;
+  showProgressBar: boolean;
+  randomizeOrder: boolean;
   candidateCount: number;
   questionCount: number;
   createdAt: string;
@@ -38,6 +42,10 @@ interface UpsertTestRequest {
   discipline: Discipline;
   status: TestStatus;
   maxAttempts?: number | null;
+  allowSkipping: boolean;
+  allowBacktracking: boolean;
+  showProgressBar: boolean;
+  randomizeOrder: boolean;
 }
 
 interface BackendQuestionDto {
@@ -136,6 +144,10 @@ function mapTest(dto: BackendTestDto): Test {
     status: asStatus(dto.status),
     questionTypes: dto.questionTypes.map(asQuestionType),
     maxAttempts: dto.maxAttempts ?? null,
+    allowSkipping: dto.allowSkipping ?? false,
+    allowBacktracking: dto.allowBacktracking ?? true,
+    showProgressBar: dto.showProgressBar ?? true,
+    randomizeOrder: dto.randomizeOrder ?? false,
     candidateCount: dto.candidateCount,
     questionCount: dto.questionCount,
     createdAt: dto.createdAt,
@@ -251,6 +263,10 @@ interface PersistTestInput {
   status: TestStatus;
   questionIds: string[];
   maxAttempts?: number | null;
+  allowSkipping: boolean;
+  allowBacktracking: boolean;
+  showProgressBar: boolean;
+  randomizeOrder: boolean;
 }
 
 function toUpsertTestRequest(input: PersistTestInput): UpsertTestRequest {
@@ -260,6 +276,10 @@ function toUpsertTestRequest(input: PersistTestInput): UpsertTestRequest {
     discipline: input.discipline,
     status: input.status,
     maxAttempts: input.maxAttempts ?? null,
+    allowSkipping: input.allowSkipping,
+    allowBacktracking: input.allowBacktracking,
+    showProgressBar: input.showProgressBar,
+    randomizeOrder: input.randomizeOrder,
   };
 }
 
@@ -319,6 +339,11 @@ export async function setTestStatus(test: Test, status: TestStatus): Promise<Tes
     discipline: test.discipline,
     status,
     questionIds: [],
+    maxAttempts: test.maxAttempts ?? null,
+    allowSkipping: test.allowSkipping,
+    allowBacktracking: test.allowBacktracking,
+    showProgressBar: test.showProgressBar,
+    randomizeOrder: test.randomizeOrder,
   });
 }
 
@@ -339,5 +364,9 @@ export async function duplicateTest(test: Test): Promise<Test> {
     status: "Draft",
     questionIds,
     maxAttempts: test.maxAttempts ?? null,
+    allowSkipping: test.allowSkipping,
+    allowBacktracking: test.allowBacktracking,
+    showProgressBar: test.showProgressBar,
+    randomizeOrder: test.randomizeOrder,
   });
 }
