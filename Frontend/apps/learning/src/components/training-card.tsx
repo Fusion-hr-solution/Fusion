@@ -4,6 +4,7 @@ import { Clock, BookOpen, Users, Star, ArrowUpRight, AlertTriangle, Award } from
 import type { Training } from "@/types";
 import { CATEGORY_CONFIG, LEVEL_CONFIG } from "@/data/categories";
 import { BADGE_LEVEL_CONFIG } from "@/data/badge-config";
+import { FormatBadge } from "./format-badge";
 
 export function TrainingCard({ training }: { training: Training }) {
   const category = CATEGORY_CONFIG[training.category];
@@ -31,11 +32,7 @@ export function TrainingCard({ training }: { training: Training }) {
                 Mandatory
               </span>
             )}
-            {training.trainingType === "OnSite" && (
-              <span className="inline-flex items-center rounded-full bg-blue-50 border border-blue-200 px-2 py-0.5 text-xs font-semibold text-blue-700 shrink-0">
-                On-Site
-              </span>
-            )}
+            <FormatBadge type={training.trainingType} />
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <span className="flex items-center gap-1.5 text-xs text-muted-foreground">

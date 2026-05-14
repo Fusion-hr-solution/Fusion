@@ -7,11 +7,12 @@ import type { EnrollInSessionsResult } from "@/types";
 
 interface EnrollmentResultDialogProps {
   result: EnrollInSessionsResult | null;
+  trainingTitle?: string;
   open: boolean;
   onClose: () => void;
 }
 
-export function EnrollmentResultDialog({ result, open, onClose }: EnrollmentResultDialogProps) {
+export function EnrollmentResultDialog({ result, trainingTitle, open, onClose }: EnrollmentResultDialogProps) {
   if (!result) return null;
 
   const enrolled = result.enrollments.filter((e) => e.status === "Enrolled");
@@ -37,6 +38,10 @@ export function EnrollmentResultDialog({ result, open, onClose }: EnrollmentResu
         </DialogHeader>
 
         <div className="space-y-3 py-2">
+          {trainingTitle && (
+            <p className="text-sm text-foreground font-medium">{trainingTitle}</p>
+          )}
+
           {enrolled.length > 0 && (
             <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
               <div className="flex items-center gap-2 text-sm font-medium text-emerald-800">

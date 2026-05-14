@@ -58,6 +58,7 @@ public class GetSessionDetailQueryHandler : IQueryHandler<GetSessionDetailQuery,
                 EmployeeId = e.EmployeeId,
                 FullName = e.EmployeeName,
                 Email = e.EmployeeEmail,
+                Status = e.Status.ToString(),
             })
             .ToListAsync(cancellationToken);
 
