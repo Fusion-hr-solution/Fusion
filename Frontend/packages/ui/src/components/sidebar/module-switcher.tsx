@@ -1,7 +1,7 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useId } from "react";
 import Link from "next/link";
 import * as Popover from "@radix-ui/react-popover";
 import {
@@ -65,9 +65,13 @@ export function ModuleSwitcher({
   triggerStyle,
   contentStyle,
 }: ModuleSwitcherProps) {
+  const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const _popoverId = useId();
+
+  useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
     if (open) {
@@ -122,6 +126,45 @@ export function ModuleSwitcher({
           />
         </div>
       </div>
+    );
+  }
+
+  // Render a static button before hydration to avoid Radix ID mismatch
+  if (!mounted) {
+    return (
+      <button
+        style={triggerStyle}
+        className={variant === "stitch" ? stitchTrigger : defaultTrigger}
+        type="button"
+      >
+        <LayoutGrid
+          className={cn(
+            "h-4 w-4 shrink-0",
+            variant === "stitch"
+              ? "text-stone-500 dark:text-stone-400"
+              : "text-muted-foreground"
+          )}
+        />
+        <span className="flex min-w-0 flex-1 items-center gap-1.5">
+          <ActiveIcon
+            className={cn(
+              "h-4 w-4 shrink-0",
+              variant === "stitch"
+                ? "text-stone-600 dark:text-stone-300"
+                : "text-muted-foreground/60"
+            )}
+          />
+          <span className="truncate">{activeModule}</span>
+        </span>
+        <ChevronsUpDown
+          className={cn(
+            "h-4 w-4 shrink-0",
+            variant === "stitch"
+              ? "text-stone-500 dark:text-stone-400"
+              : "text-muted-foreground/60"
+          )}
+        />
+      </button>
     );
   }
 
