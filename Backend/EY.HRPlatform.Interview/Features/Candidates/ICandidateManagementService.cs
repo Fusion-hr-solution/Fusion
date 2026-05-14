@@ -10,6 +10,8 @@ public interface ICandidateManagementService
     Task<CandidateRetakeGrantResultDto> GrantRetakeAsync(GrantCandidateRetakeRequestDto request, CancellationToken cancellationToken);
     Task<CandidateAttemptSettingsDto> GetAttemptSettingsAsync(CancellationToken cancellationToken);
     Task<CandidateAttemptSettingsDto> SaveAttemptSettingsAsync(UpdateCandidateAttemptSettingsDto request, CancellationToken cancellationToken);
+    Task<CandidatePrivacyActionResultDto> ApplyPrivacyActionAsync(CandidatePrivacyActionRequestDto request, CancellationToken cancellationToken);
+    Task<IReadOnlyList<CandidatePrivacyActionResultDto>> ApplyPrivacyActionBatchAsync(CandidatePrivacyActionBatchRequestDto request, CancellationToken cancellationToken);
     Task<CandidateLinkSecurityStateDto> GetLinkSecurityAsync(string testId, CancellationToken cancellationToken);
     Task<CandidateLinkSecurityStateDto> SaveLinkSecurityAsync(UpdateCandidateLinkSecuritySettingsDto request, CancellationToken cancellationToken);
     Task<CandidateLinkSecurityStateDto> RegenerateLinkAsync(string testId, CancellationToken cancellationToken);

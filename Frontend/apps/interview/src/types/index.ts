@@ -37,6 +37,10 @@ export interface Test {
   status: TestStatus;
   questionTypes: QuestionType[];
   maxAttempts?: number | null;
+  allowSkipping: boolean;
+  allowBacktracking: boolean;
+  showProgressBar: boolean;
+  randomizeOrder: boolean;
   candidateCount: number;
   questionCount: number;
   createdAt: string;
@@ -175,6 +179,23 @@ export interface CandidateLinkSecuritySettings {
 
 export interface CandidateAttemptSettings {
   defaultMaxAttempts: number;
+}
+
+export type CandidatePrivacyActionType = "anonymize" | "delete-pii";
+
+export interface CandidatePrivacyActionResult {
+  action: CandidatePrivacyActionType;
+  testId: string;
+  adminId: string;
+  triggerSource: string;
+  candidateAliasEmail: string;
+  candidateAliasName: string;
+  candidateEmailHash: string;
+  invitationIds: string[];
+  invitationsUpdated: number;
+  attemptsUpdated: number;
+  eventsUpdated: number;
+  loggedAtUtc: string;
 }
 
 export interface CandidateLinkPreview {

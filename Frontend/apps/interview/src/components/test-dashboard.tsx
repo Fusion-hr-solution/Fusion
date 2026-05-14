@@ -32,6 +32,7 @@ export function TestDashboard() {
   const resetWizard = useWizardStore((state) => state.reset);
   const setPersistedTestId = useWizardStore((state) => state.setPersistedTestId);
   const updateBasicInfo = useWizardStore((state) => state.updateBasicInfo);
+  const updateConfig = useWizardStore((state) => state.updateConfig);
   const reorderQuestions = useWizardStore((state) => state.reorderQuestions);
   const setStep = useWizardStore((state) => state.setStep);
   const markSaved = useWizardStore((state) => state.markSaved);
@@ -93,6 +94,13 @@ export function TestDashboard() {
       title: test.title,
       description: test.description,
       discipline: test.discipline,
+    });
+    updateConfig({
+      maxAttempts: test.maxAttempts ?? 1,
+      allowSkipping: test.allowSkipping,
+      allowBacktracking: test.allowBacktracking,
+      showProgressBar: test.showProgressBar,
+      randomizeOrder: test.randomizeOrder,
     });
     reorderQuestions(selectedQuestions);
     setStep(targetStep);

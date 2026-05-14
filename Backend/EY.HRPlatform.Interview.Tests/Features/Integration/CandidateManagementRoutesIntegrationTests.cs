@@ -267,6 +267,95 @@ public class CandidateManagementRoutesIntegrationTests
     }
 
     [Fact]
+    public async Task ApplyPrivacyAction_WhenCandidateMatches_AnonymizesPiiAndLogs()
+    {
+        await using var factory = new InterviewApiFactory();
+        var testId = await SeedTestAsync(factory.Services);
+        var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost")
+        });
+
+        const string candidateEmail = "privacy@example.com";
+        const string candidateName = "Privacy Candidate";
+
+        var invitation = await CreateInvitationAsync(client, testId, candidateEmail, candidateName);
+        var token = ExtractToken(invitation.InviteLink);
+
+        var startResponse = await StartAttemptAsync(client, token, candidateEmail, "privacy-fingerprint");
+        Assert.Equal(HttpStatusCode.OK, startResponse.StatusCode);
+
+        var response = await client.PostAsJsonAsync(
+            "/api/interview/candidates/management/privacy-actions",
+            new
+            {
+                testId = testId.ToString(),
+                candidateEmail,
+                action = "anonymize",
+                adminId = "admin-123",
+                triggerSource = "UI"
+            });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.True(json.RootElement.GetProperty("success").GetBoolean());
+
+        var data = json.RootElement.GetProperty("data");
+        var aliasEmail = data.GetProperty("candidateAliasEmail").GetString();
+        var aliasName = data.GetProperty("candidateAliasName").GetString();
+
+        Assert.False(string.IsNullOrWhiteSpace(aliasEmail));
+        Assert.False(string.IsNullOrWhiteSpace(aliasName));
+        Assert.NotEqual(candidateEmail, aliasEmail);
+        Assert.NotEqual(candidateName, aliasName);
+
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var updatedInvitation = await db.CandidateInvitations
+            .AsNoTracking()
+            .FirstOrDefaultAsync(item => item.Id == Guid.Parse(invitation.Id));
+
+        Assert.NotNull(updatedInvitation);
+        Assert.Equal(aliasEmail, updatedInvitation!.Email);
+        Assert.Equal(aliasName, updatedInvitation.CandidateName);
+        Assert.Null(updatedInvitation.VerifiedEmail);
+        Assert.Null(updatedInvitation.EmailVerifiedAtUtc);
+        Assert.Null(updatedInvitation.LockedIpAddress);
+        Assert.Null(updatedInvitation.AccessFingerprintHash);
+        Assert.True(string.IsNullOrEmpty(updatedInvitation.InviteLink));
+        Assert.True(string.IsNullOrEmpty(updatedInvitation.TokenHash));
+
+        var attempt = await db.CandidateTestAttempts
+            .AsNoTracking()
+            .FirstOrDefaultAsync(item => item.InvitationId == updatedInvitation.Id);
+
+        Assert.NotNull(attempt);
+        Assert.Equal(aliasEmail, attempt!.CandidateEmail);
+        Assert.Equal(aliasName, attempt.CandidateName);
+        Assert.False(string.IsNullOrWhiteSpace(attempt.AnswersJson));
+        Assert.False(string.IsNullOrWhiteSpace(attempt.ResultJson));
+
+        var progressEvent = await db.CandidateProgressEvents
+            .AsNoTracking()
+            .FirstOrDefaultAsync(item => item.InvitationId == updatedInvitation.Id);
+
+        Assert.NotNull(progressEvent);
+        Assert.Equal(aliasEmail, progressEvent!.CandidateEmail);
+        Assert.Equal(aliasName, progressEvent.CandidateName);
+        Assert.Null(progressEvent.ClientIpAddress);
+        Assert.Null(progressEvent.BrowserFingerprintHash);
+        Assert.Null(progressEvent.UserAgent);
+
+        var audit = await db.CandidatePrivacyActions.AsNoTracking().FirstOrDefaultAsync();
+        Assert.NotNull(audit);
+        Assert.Equal(testId, audit!.TestId);
+        Assert.Equal(updatedInvitation.Id, audit.InvitationId);
+        Assert.Equal("admin-123", audit.AdminId);
+    }
+
+    [Fact]
     public async Task GrantRetake_WhenCandidateExists_CreatesPendingAttemptAndShowsItInTimeline()
     {
         await using var factory = new InterviewApiFactory();
