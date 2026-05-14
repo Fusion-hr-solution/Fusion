@@ -43,12 +43,23 @@ public class GetSessionDetailQueryHandler : IQueryHandler<GetSessionDetailQuery,
                 CancelledAt = x.CancelledAt,
                 CreatedAt = x.CreatedAt,
                 UpdatedAt = x.UpdatedAt,
-                Attendees = new List<SessionAttendeeDto>()
             })
             .FirstOrDefaultAsync(cancellationToken);
 
         if (s is null)
             return Result.Failure<TrainingSessionDetailDto>(Error.NotFound("TrainingSession", request.SessionId));
+
+        s.Attendees = await _db.SessionEnrollments
+            .AsNoTracking()
+            .Where(e => e.SessionId == request.SessionId &&
+                (e.Status == EnrollmentStatus.Enrolled || e.Status == EnrollmentStatus.Attended))
+            .Select(e => new SessionAttendeeDto
+            {
+                EmployeeId = e.EmployeeId,
+                FullName = e.EmployeeName,
+                Email = e.EmployeeEmail,
+            })
+            .ToListAsync(cancellationToken);
 
         return Result.Success(s);
     }
