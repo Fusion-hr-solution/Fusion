@@ -56,14 +56,14 @@ describe("AppliedResultPanel", () => {
       name: "Review access invitations",
     });
     expect(reviewLink.getAttribute("href")).toBe(
-      "/employees?access=NeedsAccess&review=access"
+      "/employees?access=NotInvited&review=access"
     );
 
     const rosterLink = screen.getByRole("link", {
       name: "Open employee roster",
     });
     expect(rosterLink.getAttribute("href")).toBe(
-      "/employees?access=NeedsAccess"
+      "/employees?access=NotInvited"
     );
   });
 });

@@ -54,6 +54,11 @@ public class TokenService : ITokenService
         }
         claims.Add(new Claim(CustomClaimTypes.TenantId, user.TenantId.ToString()));
 
+        if (user.EmployeeId.HasValue)
+        {
+            claims.Add(new Claim(CustomClaimTypes.EmployeeId, user.EmployeeId.Value.ToString()));
+        }
+
         // Step 5: Create the signing key from our secret
         var key = new SymmetricSecurityKey(
             Encoding.UTF8.GetBytes(_configuration["Jwt:Secret"]!));

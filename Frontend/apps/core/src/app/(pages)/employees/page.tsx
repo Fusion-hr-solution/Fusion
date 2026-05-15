@@ -185,13 +185,12 @@ function getOutcomeBadgeLabel(
     case "Created":
       return "Invitation created";
     case "Pending":
-      return "Invite pending";
+      return "Invited";
     case "Active":
       return "Account active";
     case "Inactive":
-      return "Account inactive";
     case "Conflict":
-      return "Access conflict";
+      return "Needs review";
     default:
       return outcome;
   }
@@ -299,7 +298,7 @@ function getDeliveryBadgeLabel(
   switch (status) {
     case "Suppressed":
     case "Skipped":
-      return "Email disabled";
+      return "Fallback link available";
     case "Failed":
       return "Email failed";
     case "NotAttempted":
@@ -1206,10 +1205,10 @@ export default function EmployeesPage() {
 
       setBulkResults(results);
       if (
-        access === "NeedsAccess" &&
+        access === "NotInvited" &&
         results.some((result) => result.outcome === "Created")
       ) {
-        setAccess("InvitePending");
+        setAccess("Invited");
       }
       setIsResultDetailsOpen(false);
       setIsAccessWorkflowOpen(false);
@@ -1281,7 +1280,7 @@ export default function EmployeesPage() {
 
     if (
       hasAppliedReviewHandoff ||
-      access !== "NeedsAccess" ||
+      access !== "NotInvited" ||
       isLoadingAccessRows ||
       !allMatchingAccessRows
     ) {
@@ -1504,7 +1503,7 @@ export default function EmployeesPage() {
         rowSelection={rowSelection}
         onRowSelectionChange={handleRowSelectionChange}
         emptyTitle={
-          access === "NeedsAccess"
+          access === "NotInvited"
             ? "No employees need access"
             : "No employees found"
         }

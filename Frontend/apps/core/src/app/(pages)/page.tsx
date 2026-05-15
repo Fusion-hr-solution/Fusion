@@ -51,6 +51,11 @@ export default function DashboardPage() {
     error: readinessError,
     isLoading: isReadinessLoading,
   } = useWorkforceReadinessSummary();
+  const reportingIssueCount = readinessSummary
+    ? readinessSummary.issueCounts.noManagerAssigned +
+      readinessSummary.issueCounts.managerInactive +
+      readinessSummary.issueCounts.managerMissing
+    : 0;
 
   const workspaceAreas: WorkspaceArea[] = [
     {
@@ -217,13 +222,11 @@ export default function DashboardPage() {
                           </span>
                         </Link>
                         <Link
-                          href="/employees?readiness=DeactivationBlocked"
+                          href="/employees?readiness=ReportingIssue"
                           className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
                         >
-                          <span>Deactivation blockers</span>
-                          <span className="font-medium">
-                            {readinessSummary.issueCounts.deactivationBlocked}
-                          </span>
+                          <span>Reporting issues</span>
+                          <span className="font-medium">{reportingIssueCount}</span>
                         </Link>
                       </div>
                     </div>

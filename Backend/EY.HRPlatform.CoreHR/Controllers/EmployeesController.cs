@@ -9,6 +9,7 @@ using EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployees;
 using EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployeeReportingLines;
 using EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployeeProfile;
 using EY.HRPlatform.CoreHR.Features.Employees.Queries.GetWorkforceReadinessSummary;
+using EY.HRPlatform.CoreHR.Features.Employees.Services;
 using EY.HRPlatform.CoreHR.Models.Requests;
 using EY.HRPlatform.CoreHR.Models.Responses;
 using EY.HRPlatform.SharedKernel.Auth;
@@ -30,6 +31,8 @@ namespace EY.HRPlatform.CoreHR.Controllers;
 [Authorize]
 public class EmployeesController(ISender sender) : ControllerBase
 {
+    private const string LinkedEmployeeReadRoles = PlatformRole.HRAdmin + "," + PlatformRole.Employee + "," + PlatformRole.Manager;
+
     /// <summary>
     /// List employees with optional search, status filtering, sorting, and pagination.
     /// </summary>
@@ -145,16 +148,23 @@ public class EmployeesController(ISender sender) : ControllerBase
     /// direct-report count, and hierarchy status in a single response.
     /// </summary>
     [HttpGet("{id:guid}/profile")]
-    [Authorize(Roles = PlatformRole.HRAdmin)]
+    [Authorize(Roles = LinkedEmployeeReadRoles)]
     [ProducesResponseType(typeof(ApiResponseOfEmployeeProfileDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> GetProfile(Guid id, CancellationToken cancellationToken)
     {
-        var result = await sender.Send(new GetEmployeeProfileQuery(id), cancellationToken);
+        var audience = GetCurrentReadAudience();
+        var result = await sender.Send(new GetEmployeeProfileQuery(id, audience), cancellationToken);
 
         if (result.IsFailure)
         {
             return NotFound(ApiResponse.Failure(result.Error.Message));
+        }
+
+        if (!CanReadProfile(result.Value))
+        {
+            return Forbid();
         }
 
         Response.Headers.ETag = $"\"{result.Value.Version}\"";
@@ -166,19 +176,26 @@ public class EmployeesController(ISender sender) : ControllerBase
     /// Get reporting-line summary for an employee, including manager chain, direct reports, and flat downline.
     /// </summary>
     [HttpGet("{id:guid}/reporting-lines")]
-    [Authorize(Roles = PlatformRole.HRAdmin)]
+    [Authorize(Roles = LinkedEmployeeReadRoles)]
     [ProducesResponseType(typeof(ApiResponseOfEmployeeReportingLinesDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> GetReportingLines(Guid id, CancellationToken cancellationToken)
     {
-        var result = await sender.Send(new GetEmployeeReportingLinesQuery(id), cancellationToken);
+        if (!CanReadReportingLines(id))
+        {
+            return Forbid();
+        }
+
+        var audience = GetCurrentReadAudience();
+        var result = await sender.Send(new GetEmployeeReportingLinesQuery(id, audience), cancellationToken);
 
         if (result.IsFailure)
         {
             return NotFound(ApiResponse.Failure(result.Error.Message));
         }
 
-        return Ok(ApiResponseOfEmployeeReportingLinesDto.Success(result.Value));
+        return Ok(ApiResponseOfEmployeeReportingLinesDto.Success(ApplyReportingScope(result.Value)));
     }
 
     /// <summary>
@@ -261,5 +278,74 @@ public class EmployeesController(ISender sender) : ControllerBase
         var trimmed = ifMatch.Trim().Trim('"');
 
         return uint.TryParse(trimmed, out version);
+    }
+
+    private EmployeeReadAudience GetCurrentReadAudience()
+    {
+        if (User.IsInRole(PlatformRole.HRAdmin))
+        {
+            return EmployeeReadAudience.HrAdmin;
+        }
+
+        return User.IsInRole(PlatformRole.Manager)
+            ? EmployeeReadAudience.Manager
+            : EmployeeReadAudience.Employee;
+    }
+
+    private bool CanReadProfile(EmployeeProfileDto profile)
+    {
+        if (User.IsInRole(PlatformRole.HRAdmin))
+        {
+            return true;
+        }
+
+        var linkedEmployeeId = User.GetEmployeeId();
+        if (!linkedEmployeeId.HasValue)
+        {
+            return false;
+        }
+
+        if (profile.Id == linkedEmployeeId.Value)
+        {
+            return true;
+        }
+
+        return User.IsInRole(PlatformRole.Manager) && profile.ManagerId == linkedEmployeeId.Value;
+    }
+
+    private bool CanReadReportingLines(Guid employeeId)
+    {
+        if (User.IsInRole(PlatformRole.HRAdmin))
+        {
+            return true;
+        }
+
+        var linkedEmployeeId = User.GetEmployeeId();
+        return linkedEmployeeId.HasValue && employeeId == linkedEmployeeId.Value;
+    }
+
+    private EmployeeReportingLinesDto ApplyReportingScope(EmployeeReportingLinesDto reportingLines)
+    {
+        if (User.IsInRole(PlatformRole.HRAdmin))
+        {
+            return reportingLines;
+        }
+
+        if (User.IsInRole(PlatformRole.Manager))
+        {
+            return reportingLines with
+            {
+                Downline = reportingLines.DirectReports,
+                DownlineCount = reportingLines.DirectReports.Count
+            };
+        }
+
+        return reportingLines with
+        {
+            DirectReports = Array.Empty<EmployeeHierarchyNodeDto>(),
+            Downline = Array.Empty<EmployeeHierarchyNodeDto>(),
+            DirectReportCount = 0,
+            DownlineCount = 0
+        };
     }
 }

@@ -32,6 +32,10 @@ vi.mock("@repo/auth", () => ({
   canAccessCorePeople: (user: { roles?: string[] } | null) =>
     !!user?.roles?.includes("HRAdmin") &&
     !user?.roles?.includes("PlatformAdmin"),
+  canAccessCoreTeam: (user: { employeeId?: string | null; roles?: string[] } | null) =>
+    !!user?.employeeId && !!user.roles?.includes("Manager"),
+  canAccessOwnCoreProfile: (user: { employeeId?: string | null } | null) =>
+    !!user?.employeeId,
 }));
 
 vi.mock("@repo/api/query", async () => {
