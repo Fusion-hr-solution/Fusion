@@ -67,6 +67,9 @@ export function Toolbar({
   const selectedAccessOption = access
     ? EMPLOYEE_ACCESS_FILTER_OPTIONS.find((option) => option.value === access)
     : null;
+  const selectedReadinessOption = readiness
+    ? EMPLOYEE_READINESS_FILTER_OPTIONS.find((option) => option.value === readiness)
+    : null;
   const hasFilters =
     localSearch.trim().length > 0 || !!status || !!access || !!readiness;
 
@@ -163,12 +166,14 @@ export function Toolbar({
         <DropdownMenuTrigger asChild>
           <Button variant="outline" className="gap-1">
             <ListFilter className="size-3.5" />
-            Needs attention
+            {selectedReadinessOption
+              ? `Readiness: ${selectedReadinessOption.label}`
+              : "Readiness"}
             {readiness ? <ActiveFilterBadge /> : null}
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">
-          <DropdownMenuLabel>Filter needs-attention state</DropdownMenuLabel>
+          <DropdownMenuLabel>Filter roster readiness</DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuRadioGroup
             value={readiness ?? "all"}
@@ -179,7 +184,7 @@ export function Toolbar({
             }
           >
             <DropdownMenuRadioItem value="all">
-              All needs-attention states
+              All records
             </DropdownMenuRadioItem>
             {EMPLOYEE_READINESS_FILTER_OPTIONS.map((option) => (
               <DropdownMenuRadioItem key={option.value} value={option.value}>

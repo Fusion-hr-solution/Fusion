@@ -138,11 +138,15 @@ public sealed class GetEmployeesQueryHandler(
         var requiresJobTitle = settings.EmployeeFieldConfig.TryGetValue("jobTitle", out var jobTitleField)
             && jobTitleField.Required;
 
-        bool NeedsMissingRequiredField(Employee employee)
-            => requiresJobTitle && (employee.JobTitle == null || employee.JobTitle == string.Empty);
-
         return readiness switch
         {
+            EmployeeReadinessFilter.Ready => query.Where(employee =>
+                !(requiresJobTitle && (employee.JobTitle == null || employee.JobTitle == string.Empty))
+                && employee.OrgUnitId != null
+                && (employee.ManagerId.HasValue
+                    || dbContext.Employees.Any(report => report.ManagerId == employee.Id && report.Status == Domain.Enums.EmployeeStatus.Active))
+                && (!employee.ManagerId.HasValue || employee.Manager != null)
+                && (!employee.ManagerId.HasValue || employee.Manager == null || employee.Manager.Status == Domain.Enums.EmployeeStatus.Active)),
             EmployeeReadinessFilter.NeedsAttention => query.Where(employee =>
                 (requiresJobTitle && (employee.JobTitle == null || employee.JobTitle == string.Empty))
                 || employee.OrgUnitId == null
@@ -153,6 +157,10 @@ public sealed class GetEmployeesQueryHandler(
                 ? query.Where(employee => employee.JobTitle == null || employee.JobTitle == string.Empty)
                 : query.Where(_ => false),
             EmployeeReadinessFilter.MissingOrgUnit => query.Where(employee => employee.OrgUnitId == null),
+            EmployeeReadinessFilter.ReportingIssue => query.Where(employee =>
+                (!employee.ManagerId.HasValue && !dbContext.Employees.Any(report => report.ManagerId == employee.Id && report.Status == Domain.Enums.EmployeeStatus.Active))
+                || (employee.ManagerId.HasValue && employee.Manager == null)
+                || (employee.ManagerId.HasValue && employee.Manager != null && employee.Manager.Status != Domain.Enums.EmployeeStatus.Active)),
             EmployeeReadinessFilter.NoManagerAssigned => query.Where(employee =>
                 !employee.ManagerId.HasValue
                 && !dbContext.Employees.Any(report => report.ManagerId == employee.Id && report.Status == Domain.Enums.EmployeeStatus.Active)),

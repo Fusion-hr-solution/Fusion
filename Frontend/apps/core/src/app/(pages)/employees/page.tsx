@@ -19,12 +19,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -697,6 +691,7 @@ function SelectedAccessActionBar({
 
 export default function EmployeesPage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const queryClient = useApiQueryClient();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -972,89 +967,61 @@ export default function EmployeesPage() {
         cellClassName: "w-[10rem] min-[1700px]:w-[11rem]",
       },
       cell: ({ row }) => {
-            const account = row.original.workforceAccount;
-            const accessState = getAccessDisplayState(account);
-            const eligibility = getInvitationEligibility(account);
-            const showManualLinkIndicator =
-              account?.provisioningState === "InvitePending" &&
-              !!account?.inviteLink &&
-              (account.deliveryStatus === "Suppressed" ||
-                account.deliveryStatus === "Skipped" ||
-                account.deliveryStatus === "NotAttempted");
+        const account = row.original.workforceAccount;
+        const accessState = getAccessDisplayState(account);
+        const eligibility = getInvitationEligibility(account);
 
-            const { toast } = useToast();
+        const handleCopyAndToast = async (
+          key: string,
+          inviteLink: string | null
+        ) => {
+          await handleCopyInviteLink(key, inviteLink);
+          if (inviteLink) {
+            toast({ title: "Invite link copied" });
+          }
+        };
 
-            const handleCopyAndToast = async (key: string, inviteLink: string | null) => {
-              await handleCopyInviteLink(key, inviteLink);
-              if (inviteLink) {
-                toast({ title: "Invite link copied" });
-              }
-            };
+        return (
+          <div className="min-w-0">
+            <div className="flex min-w-0 items-center gap-1.5">
+              <Badge
+                variant={getAccessBadgeTone(accessState)}
+                className="max-w-[7.4rem] truncate px-2 min-[1700px]:max-w-[9.4rem]"
+              >
+                {isLoadingWorkforceAccounts && !access
+                  ? "Loading..."
+                  : accessState}
+              </Badge>
 
-            return (
-              <div className="min-w-0">
-                <div className="flex min-w-0 items-center gap-1.5">
-                  <Badge
-                    variant={getAccessBadgeTone(accessState)}
-                    className="max-w-[7.4rem] truncate px-2 min-[1700px]:max-w-[9.4rem]"
-                  >
-                    {isLoadingWorkforceAccounts && !access
-                      ? "Loading..."
-                      : accessState}
-                  </Badge>
-
-                  {showManualLinkIndicator ? (
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            size="icon-xs"
-                            variant="ghost"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              void handleCopyAndToast(
-                                `table:${row.original.id}`,
-                                account?.inviteLink ?? null
-                              );
-                            }}
-                            aria-label="Copy invite link"
-                            className="px-1.5"
-                          >
-                            <LinkIcon className="size-3" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent sideOffset={6}>Copy invite link</TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  ) : null}
-
-                  {eligibility.canCopyInviteLink ? (
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            size="icon-xs"
-                            variant="ghost"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              void handleCopyAndToast(
-                                `table:${row.original.id}`,
-                                eligibility.inviteLink
-                              );
-                            }}
-                            aria-label="Copy invite link"
-                            className="opacity-0 transition-opacity focus-visible:opacity-100 group-hover/employee-row:opacity-100"
-                          >
-                            <Copy className="size-3.5" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent sideOffset={6}>Copy invite link</TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  ) : null}
-                </div>
-              </div>
-            );
+              {eligibility.canCopyInviteLink ? (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        size="icon-xs"
+                        variant="ghost"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void handleCopyAndToast(
+                            `table:${row.original.id}`,
+                            eligibility.inviteLink
+                          );
+                        }}
+                        aria-label="Copy invite link"
+                        className="px-1.5"
+                      >
+                        <LinkIcon className="size-3" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent sideOffset={6}>
+                      Copy invite link
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              ) : null}
+            </div>
+          </div>
+        );
       },
       enableSorting: false,
     };
@@ -1068,10 +1035,10 @@ export default function EmployeesPage() {
     ];
   }, [
     access,
-    copiedLinkKey,
     fieldVisibility,
     handleCopyInviteLink,
     isLoadingWorkforceAccounts,
+    toast,
   ]);
 
   const handleCopyAllInviteLinks = useCallback(async () => {

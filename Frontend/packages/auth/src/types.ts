@@ -29,6 +29,7 @@ export interface AuthResponse {
   accessToken: string;
   refreshToken: string;
   accessTokenExpiration: string; // ISO date string
+  employeeId?: string | null;
 }
 
 // ── Client-side auth state ───────────────────────────────────────────
@@ -38,6 +39,7 @@ export interface AuthUser {
   email: string;
   fullName: string;
   roles: string[];
+  employeeId?: string | null;
 }
 
 export interface AuthState {

@@ -20,6 +20,10 @@ import type {
   EmployeeReportingLinesDto,
   EmployeeRosterPageDto,
   EmployeeRosterQueryParams,
+  EmployeeRosterSortDirection,
+  EmployeeRosterSortField,
+  EmployeeRosterStatus,
+  EmployeeReadinessFilter,
   WorkforceReadinessSummaryDto,
 } from "./employee-roster.types";
 
@@ -40,6 +44,7 @@ interface UpdateEmployeeRecordInput {
   expectedVersion: number;
   firstName?: string;
   lastName?: string;
+  preferredName?: string | null;
   email?: string;
   jobTitle?: string;
   orgUnitId?: string | null;
@@ -254,6 +259,7 @@ export function useEmployeeOrgUnitOptions({
 function buildEmployeeUpdatePayload({
   firstName,
   lastName,
+  preferredName,
   email,
   jobTitle,
   orgUnitId,
@@ -281,11 +287,44 @@ function buildEmployeeUpdatePayload({
     payload.orgUnitId = orgUnitId ?? EMPTY_GUID;
   }
 
+  if (preferredName !== undefined) {
+    payload.preferredName = preferredName;
+  }
+
   if (hireDate !== undefined) {
     payload.hireDate = hireDate;
   }
 
   return payload;
+}
+
+export function useResolveEmployeeRoster() {
+  const client = useMemo(() => createPlatformApiClient(), []);
+
+  return useCallback(
+    async (params: {
+      search?: string;
+      status?: EmployeeRosterStatus;
+      readiness?: EmployeeReadinessFilter;
+      sortBy?: EmployeeRosterSortField;
+      sortDir?: EmployeeRosterSortDirection;
+    }) => {
+      const response = await client.get<EmployeeRosterPageDto>(EMPLOYEE_ROSTER_PATH, {
+        params: {
+          search: params.search,
+          status: params.status,
+          readiness: params.readiness,
+          sortBy: params.sortBy,
+          sortDir: params.sortDir,
+          page: 1,
+          pageSize: 1000,
+        },
+      });
+
+      return response.items;
+    },
+    [client]
+  );
 }
 
 export function useUpdateEmployeeManager() {
@@ -348,6 +387,10 @@ export function useUpdateEmployeeRecord() {
       ],
     }
   );
+}
+
+export function useUpdateMyProfile() {
+  return useUpdateEmployeeRecord();
 }
 
 export function useDeactivateEmployee() {
