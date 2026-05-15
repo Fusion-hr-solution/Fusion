@@ -256,6 +256,7 @@ public class InvitesController : ControllerBase
                 FirstName = firstName.Trim(),
                 LastName = lastName.Trim(),
                 TenantId = invite.TenantId,
+                EmployeeId = invite.EmployeeId,
                 EmailConfirmed = true, // Invited users are pre-verified
                 HireDate = DateTime.UtcNow
             };
@@ -295,6 +296,7 @@ public class InvitesController : ControllerBase
                 JobTitle = user.JobTitle,
                 HireDate = user.HireDate,
                 TenantId = user.TenantId,
+                EmployeeId = user.EmployeeId,
                 Roles = [invite.Role]
             };
 
