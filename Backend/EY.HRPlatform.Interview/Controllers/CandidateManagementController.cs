@@ -64,6 +64,26 @@ public class CandidateManagementController(ICandidateManagementService candidate
         return Ok(ApiResponse<CandidateAttemptSettingsDto>.Success(data));
     }
 
+    [HttpPost("privacy-actions")]
+    [ProducesResponseType(typeof(ApiResponse<CandidatePrivacyActionResultDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ApplyPrivacyAction(
+        [FromBody] CandidatePrivacyActionRequestDto request,
+        CancellationToken cancellationToken)
+    {
+        var data = await candidateManagementService.ApplyPrivacyActionAsync(request, cancellationToken);
+        return Ok(ApiResponse<CandidatePrivacyActionResultDto>.Success(data));
+    }
+
+    [HttpPost("privacy-actions/batch")]
+    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<CandidatePrivacyActionResultDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ApplyPrivacyActionBatch(
+        [FromBody] CandidatePrivacyActionBatchRequestDto request,
+        CancellationToken cancellationToken)
+    {
+        var data = await candidateManagementService.ApplyPrivacyActionBatchAsync(request, cancellationToken);
+        return Ok(ApiResponse<IReadOnlyList<CandidatePrivacyActionResultDto>>.Success(data));
+    }
+
     [HttpGet("link-security")]
     [ProducesResponseType(typeof(ApiResponse<CandidateLinkSecurityStateDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetLinkSecurity([FromQuery] string testId, CancellationToken cancellationToken)

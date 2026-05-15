@@ -12,6 +12,7 @@ import { LinkSecurityTab } from "@/components/candidate-management/tabs/link-sec
 import { TimelineTab } from "@/components/candidate-management/tabs/timeline-tab";
 import { RetakeTab } from "@/components/candidate-management/tabs/retake-tab";
 import { AttemptLimitsTab } from "@/components/candidate-management/tabs/attempt-limits-tab";
+import { AnonymizeTab } from "@/components/candidate-management/tabs/anonymize-tab";
 import type { CsvImportReport } from "@/services/models/csv_import_report_popup_model";
 import type { InviteResult } from "@/services/models/invite_result_popup_model";
 import type { InviteMethod } from "@/services/models/invite_tab_model";
@@ -25,6 +26,7 @@ import {
   getCandidateManagementOverview,
   getPendingInvitations,
   inviteCandidates,
+  applyCandidatePrivacyAction,
   regenerateCandidateLinkSecurityLink,
   resendInvitation,
   saveCandidateAttemptSettings,
@@ -44,6 +46,7 @@ import type {
   CandidateLinkPreview,
   CandidateLinkSecurityState,
   CandidateManagementOverview,
+  CandidatePrivacyActionType,
   GracePeriodUnit,
   LinkValidityUnit,
   Test,
@@ -201,6 +204,11 @@ export function CandidateManagement() {
   const [grantRetakeSending, setGrantRetakeSending] = useState(false);
   const [grantRetakeError, setGrantRetakeError] = useState<string | null>(null);
   const [grantRetakeSuccess, setGrantRetakeSuccess] = useState<string | null>(null);
+  const [privacyAction, setPrivacyAction] = useState<CandidatePrivacyActionType>("anonymize");
+  const [privacyAdminId, setPrivacyAdminId] = useState("");
+  const [privacySubmitting, setPrivacySubmitting] = useState(false);
+  const [privacyError, setPrivacyError] = useState<string | null>(null);
+  const [privacySuccess, setPrivacySuccess] = useState<string | null>(null);
   const popupTimerRef = useRef<number | null>(null);
   const csvReportTimerRef = useRef<number | null>(null);
 
@@ -383,7 +391,7 @@ export function CandidateManagement() {
   }, [activeTab]);
 
   useEffect(() => {
-    if ((activeTab !== "timeline" && activeTab !== "retake") || !selectedTestId) {
+    if ((activeTab !== "timeline" && activeTab !== "retake" && activeTab !== "anonymize") || !selectedTestId) {
       return;
     }
 
@@ -497,6 +505,15 @@ export function CandidateManagement() {
     setGrantRetakeError(null);
     setGrantRetakeSuccess(null);
   }, [selectedTestId, selectedTimelineCandidateEmail]);
+
+  useEffect(() => {
+    if (activeTab !== "anonymize") {
+      return;
+    }
+
+    setPrivacyError(null);
+    setPrivacySuccess(null);
+  }, [activeTab, selectedTestId, selectedTimelineCandidateEmail, privacyAction, privacyAdminId]);
 
   useEffect(() => {
     if (activeTab !== "limits") {
@@ -1157,6 +1174,58 @@ export function CandidateManagement() {
     }
   }
 
+  async function handlePrivacyAction(): Promise<void> {
+    if (!selectedTestId) {
+      setPrivacyError("Select a test before applying a privacy action.");
+      return;
+    }
+
+    if (!selectedTimelineCandidateEmail) {
+      setPrivacyError("Select a candidate before applying a privacy action.");
+      return;
+    }
+
+    const trimmedAdminId = privacyAdminId.trim();
+    if (!trimmedAdminId) {
+      setPrivacyError("Enter an admin ID before continuing.");
+      return;
+    }
+
+    setPrivacySubmitting(true);
+    setPrivacyError(null);
+    setPrivacySuccess(null);
+
+    try {
+      const result = await applyCandidatePrivacyAction({
+        testId: selectedTestId,
+        candidateEmail: selectedTimelineCandidateEmail,
+        action: privacyAction,
+        adminId: trimmedAdminId,
+        triggerSource: "UI",
+      });
+
+      const candidates = await getCandidateTimelineCandidates(selectedTestId);
+      setTimelineCandidates(candidates);
+      setTimelineCandidatesForTestId(selectedTestId);
+      setTimelineData(null);
+      setTimelineLastUpdatedAtUtc(new Date().toISOString());
+
+      const nextCandidateEmail = candidates.some(
+        (item) => item.candidateEmail === result.candidateAliasEmail
+      )
+        ? result.candidateAliasEmail
+        : candidates[0]?.candidateEmail ?? "";
+      setSelectedTimelineCandidateEmail(nextCandidateEmail);
+
+      const actionLabel = privacyAction === "anonymize" ? "Anonymized" : "PII deleted";
+      setPrivacySuccess(`${actionLabel} for ${result.candidateAliasEmail}.`);
+    } catch (err) {
+      setPrivacyError(err instanceof Error ? err.message : "Failed to apply privacy action.");
+    } finally {
+      setPrivacySubmitting(false);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-zinc-50">
       <div className="border-b border-zinc-200 bg-white px-8 py-5">
@@ -1338,6 +1407,23 @@ export function CandidateManagement() {
                 attemptSettingsError={attemptSettingsError}
                 attemptSettingsSuccess={attemptSettingsSuccess}
                 onSaveAttemptSettings={handleSaveAttemptSettings}
+              />
+            ) : activeTab === "anonymize" ? (
+              <AnonymizeTab
+                selectedTestId={selectedTestId}
+                setSelectedTestId={setSelectedTestId}
+                tests={tests}
+                timelineCandidates={timelineCandidates}
+                selectedCandidateEmail={selectedTimelineCandidateEmail}
+                setSelectedCandidateEmail={setSelectedTimelineCandidateEmail}
+                adminId={privacyAdminId}
+                setAdminId={setPrivacyAdminId}
+                action={privacyAction}
+                setAction={setPrivacyAction}
+                submitting={privacySubmitting}
+                error={privacyError}
+                success={privacySuccess}
+                onConfirm={handlePrivacyAction}
               />
             ) : (
               <div className="mt-5 rounded-xl border border-zinc-200 bg-zinc-50 p-4">

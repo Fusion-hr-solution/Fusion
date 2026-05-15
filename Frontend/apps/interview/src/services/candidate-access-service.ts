@@ -29,6 +29,10 @@ export interface CandidateAccessValidation {
   requiresIpLock: boolean;
   requiresBrowserFingerprint: boolean;
   singleUseLinkEnabled: boolean;
+  allowSkipping: boolean;
+  allowBacktracking: boolean;
+  showProgressBar: boolean;
+  randomizeOrder: boolean;
   status: "Invalid" | "Invited" | "InProgress" | "Submitted" | "Expired";
   message: string;
   invitationId?: string;
@@ -65,6 +69,10 @@ export interface CandidateAccessSession {
   submittedAtUtc?: string;
   answersJson: string;
   resultJson: string;
+  allowSkipping: boolean;
+  allowBacktracking: boolean;
+  showProgressBar: boolean;
+  randomizeOrder: boolean;
   questions: CandidateAccessQuestion[];
 }
 

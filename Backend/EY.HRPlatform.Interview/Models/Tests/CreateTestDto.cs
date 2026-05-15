@@ -16,4 +16,12 @@ public class CreateTestDto
     public string? Status { get; set; }
 
     public int? MaxAttempts { get; set; }
+
+    public bool? AllowSkipping { get; set; }
+
+    public bool? AllowBacktracking { get; set; }
+
+    public bool? ShowProgressBar { get; set; }
+
+    public bool? RandomizeOrder { get; set; }
 }

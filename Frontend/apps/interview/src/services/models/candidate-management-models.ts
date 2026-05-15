@@ -81,6 +81,41 @@ export interface BackendCandidateAttemptSettingsDto {
   defaultMaxAttempts: number;
 }
 
+export type BackendCandidatePrivacyActionType = "anonymize" | "delete-pii";
+
+export interface BackendCandidatePrivacyActionResultDto {
+  action: BackendCandidatePrivacyActionType;
+  testId: string;
+  adminId: string;
+  triggerSource: string;
+  candidateAliasEmail: string;
+  candidateAliasName: string;
+  candidateEmailHash: string;
+  invitationIds: string[];
+  invitationsUpdated: number;
+  attemptsUpdated: number;
+  eventsUpdated: number;
+  loggedAtUtc: string;
+}
+
+export interface CandidatePrivacyActionInput {
+  testId: string;
+  candidateEmail?: string;
+  invitationId?: string;
+  action: BackendCandidatePrivacyActionType;
+  adminId: string;
+  triggerSource?: string;
+}
+
+export interface CandidatePrivacyActionBatchInput {
+  testId: string;
+  candidateEmails?: string[];
+  invitationIds?: string[];
+  action: BackendCandidatePrivacyActionType;
+  adminId: string;
+  triggerSource?: string;
+}
+
 export interface SaveCandidateAttemptSettingsInput {
   defaultMaxAttempts: number;
 }

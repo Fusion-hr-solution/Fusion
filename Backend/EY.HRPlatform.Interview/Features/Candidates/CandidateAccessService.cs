@@ -514,7 +514,8 @@ public class CandidateAccessService(AppDbContext dbContext) : ICandidateAccessSe
         var legacyTokenHash = LegacyHashToken(token);
 
         IQueryable<CandidateInvitation> query = dbContext.CandidateInvitations
-            .Include(item => item.Attempts);
+            .Include(item => item.Attempts)
+            .Include(item => item.Test);
 
         if (includeQuestions)
         {
@@ -757,6 +758,10 @@ public class CandidateAccessService(AppDbContext dbContext) : ICandidateAccessSe
             DeadlineUtc = invitation.DeadlineUtc?.ToString("O"),
             TokenExpiresAtUtc = invitation.TokenExpiresAtUtc.ToString("O"),
             TimeLimitMinutes = invitation.TimeLimitMinutes,
+            AllowSkipping = invitation.Test?.AllowSkipping ?? false,
+            AllowBacktracking = invitation.Test?.AllowBacktracking ?? true,
+            ShowProgressBar = invitation.Test?.ShowProgressBar ?? true,
+            RandomizeOrder = invitation.Test?.RandomizeOrder ?? false,
         };
 
         if (attemptLimitReached)
@@ -798,6 +803,10 @@ public class CandidateAccessService(AppDbContext dbContext) : ICandidateAccessSe
             SubmittedAtUtc = attempt.SubmittedAtUtc?.ToString("O"),
             AnswersJson = attempt.AnswersJson,
             ResultJson = attempt.ResultJson,
+            AllowSkipping = invitation.Test?.AllowSkipping ?? false,
+            AllowBacktracking = invitation.Test?.AllowBacktracking ?? true,
+            ShowProgressBar = invitation.Test?.ShowProgressBar ?? true,
+            RandomizeOrder = invitation.Test?.RandomizeOrder ?? false,
             Questions = questions,
         };
     }
