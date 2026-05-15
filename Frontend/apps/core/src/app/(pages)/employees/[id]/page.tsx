@@ -37,7 +37,6 @@ import {
   getEmployeeActionIssues,
   getEmployeeFixSheet,
 } from "../employee-readiness";
-import { useEmployeeFieldPolicy } from "../employee-field-visibility";
 import {
   EmployeeEmploymentEditSheet,
   EmployeeIdentityEditSheet,
