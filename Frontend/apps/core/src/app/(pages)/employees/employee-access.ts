@@ -7,13 +7,10 @@ export const EMPLOYEE_ACCESS_FILTER_OPTIONS: Array<{
   value: EmployeeAccessFilter;
   label: string;
 }> = [
-  { value: "NeedsAccess", label: "Not invited" },
-  { value: "InvitePending", label: "Invite pending" },
+  { value: "NotInvited", label: "Not invited" },
+  { value: "Invited", label: "Invited" },
   { value: "AccountActive", label: "Account active" },
-  { value: "AccountInactive", label: "Account inactive" },
-  { value: "Conflict", label: "Access conflict" },
-  { value: "InviteExpired", label: "Invite expired" },
-  { value: "InviteRevoked", label: "Invite revoked" },
+  { value: "NeedsReview", label: "Needs review" },
 ];
 
 export type AccessInviteRole = "Employee" | "Manager";
@@ -54,21 +51,18 @@ export function getAccessDisplayState(
     case "Unprovisioned":
       return "Not invited";
     case "InvitePending":
-      return "Invite pending";
+      return "Invited";
     case "InviteExpired":
-      return "Invite expired";
     case "InviteRevoked":
-      return "Invite revoked";
     case "InviteAccepted":
-      return "Invite accepted";
+      return "Needs review";
     case "Active":
       return "Account active";
     case "Inactive":
-      return "Account inactive";
     case "Conflict":
-      return "Access conflict";
+      return "Needs review";
     default:
-      return "Unknown";
+      return "Needs review";
   }
 }
 
@@ -76,21 +70,12 @@ export function getAccessBadgeTone(
   accessState: string
 ): "default" | "secondary" | "destructive" | "outline" {
   switch (accessState) {
-    case "Active":
     case "Account active":
       return "default";
-    case "Invite pending":
-    case "Invite accepted":
-    case "Invite expired":
-    case "Invite revoked":
+    case "Invited":
       return "secondary";
-    case "Inactive":
-    case "Account inactive":
-      return "outline";
-    case "Conflict":
-    case "Access conflict":
+    case "Needs review":
       return "destructive";
-    case "Needs access":
     case "Not invited":
     default:
       return "outline";
@@ -106,24 +91,24 @@ export function matchesEmployeeAccessFilter(
   }
 
   if (!account) {
-    return access === "NeedsAccess";
+    return access === "NotInvited";
   }
 
   switch (access) {
-    case "NeedsAccess":
+    case "NotInvited":
       return account.provisioningState === "Unprovisioned";
-    case "InvitePending":
+    case "Invited":
       return account.provisioningState === "InvitePending";
     case "AccountActive":
       return account.provisioningState === "Active";
-    case "AccountInactive":
-      return account.provisioningState === "Inactive";
-    case "Conflict":
-      return account.provisioningState === "Conflict";
-    case "InviteExpired":
-      return account.provisioningState === "InviteExpired";
-    case "InviteRevoked":
-      return account.provisioningState === "InviteRevoked";
+    case "NeedsReview":
+      return (
+        account.provisioningState === "InviteAccepted" ||
+        account.provisioningState === "InviteExpired" ||
+        account.provisioningState === "InviteRevoked" ||
+        account.provisioningState === "Inactive" ||
+        account.provisioningState === "Conflict"
+      );
     default:
       return false;
   }

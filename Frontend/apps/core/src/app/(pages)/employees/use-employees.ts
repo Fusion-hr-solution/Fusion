@@ -9,7 +9,10 @@ import {
   type UseApiQueryResult,
 } from "@repo/api/query";
 import { useAuth } from "@repo/auth";
-import { canAccessEmployeeRoster } from "@/lib/employee-roster-access";
+import {
+  canAccessEmployeeProfile,
+  canAccessEmployeeRoster,
+} from "@/lib/employee-roster-access";
 import {
   employeeRosterQueryKeys,
   normalizeEmployeeRosterQuery,
@@ -147,7 +150,8 @@ export function useEmployeeReportingLines(
 ): UseApiQueryResult<EmployeeReportingLinesDto> {
   const { user, isAuthenticated } = useAuth();
   const client = useMemo(() => createPlatformApiClient(), []);
-  const canAccess = canAccessEmployeeRoster(user);
+  const canAccess =
+    canAccessEmployeeRoster(user) || user?.employeeId === employeeId;
 
   const queryFn = useCallback(
     (signal: AbortSignal) => {
@@ -424,7 +428,7 @@ export function useEmployeeProfile(
 ): UseApiQueryResult<EmployeeProfileDto> {
   const { user, isAuthenticated } = useAuth();
   const client = useMemo(() => createPlatformApiClient(), []);
-  const canAccess = canAccessEmployeeRoster(user);
+  const canAccess = canAccessEmployeeProfile(user);
 
   const queryFn = useCallback(
     (signal: AbortSignal) => {

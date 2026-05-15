@@ -505,13 +505,13 @@ export function AppliedResultPanel({
           </div>
           <div className="flex flex-wrap gap-2">
             <Button asChild>
-              <Link href="/employees?access=NeedsAccess&review=access">
+              <Link href="/employees?access=NotInvited&review=access">
                 <Users />
                 Review access invitations
               </Link>
             </Button>
             <Button asChild type="button" variant="outline">
-              <Link href="/employees?access=NeedsAccess">
+              <Link href="/employees?access=NotInvited">
                 <Eye />
                 Open employee roster
               </Link>

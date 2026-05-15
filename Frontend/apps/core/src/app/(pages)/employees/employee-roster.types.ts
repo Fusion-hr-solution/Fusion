@@ -12,13 +12,10 @@ export type EmployeeReadinessFilter =
   | "DeactivationBlocked";
 
 export type EmployeeAccessFilter =
-  | "NeedsAccess"
-  | "InvitePending"
+  | "NotInvited"
+  | "Invited"
   | "AccountActive"
-  | "AccountInactive"
-  | "Conflict"
-  | "InviteExpired"
-  | "InviteRevoked";
+  | "NeedsReview";
 
 export type EmployeeReadinessSeverity = "Attention" | "Blocker";
 

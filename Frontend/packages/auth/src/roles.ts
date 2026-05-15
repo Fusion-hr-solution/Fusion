@@ -44,7 +44,7 @@ export function canAccessCorePeople(user: AuthUser | null): boolean {
 }
 
 export function canAccessCoreTeam(user: AuthUser | null): boolean {
-  return canAccessCorePeople(user) || (!!user?.employeeId && hasAnyRole(user, [MANAGER_ROLE]));
+  return !!user?.employeeId && hasAnyRole(user, [MANAGER_ROLE]);
 }
 
 export function canAccessOwnCoreProfile(user: AuthUser | null): boolean {

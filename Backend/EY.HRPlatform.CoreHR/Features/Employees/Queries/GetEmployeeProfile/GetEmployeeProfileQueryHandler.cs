@@ -31,6 +31,6 @@ public sealed class GetEmployeeProfileQueryHandler(
 
         var settings = await tenantSettingsReadService.GetCurrentAsync(cancellationToken);
 
-        return Result.Success(employeeReadModelPolicy.MapProfile(employee, settings, EmployeeReadAudience.HrAdmin, directReportCount));
+        return Result.Success(employeeReadModelPolicy.MapProfile(employee, settings, request.Audience, directReportCount));
     }
 }
