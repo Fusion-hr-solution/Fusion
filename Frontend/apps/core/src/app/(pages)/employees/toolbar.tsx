@@ -15,10 +15,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import {
-  EMPLOYEE_READINESS_FILTER_OPTIONS,
-} from "./employee-readiness";
+import { EMPLOYEE_ACCESS_FILTER_OPTIONS } from "./employee-access";
+import { EMPLOYEE_READINESS_FILTER_OPTIONS } from "./employee-readiness";
 import type {
+  EmployeeAccessFilter,
   EmployeeReadinessFilter,
   EmployeeRosterStatus,
 } from "./employee-roster.types";
@@ -36,8 +36,21 @@ interface ToolbarProps {
   onSearchChange: (value: string) => void;
   status: EmployeeRosterStatus | undefined;
   onStatusChange: (value: EmployeeRosterStatus | undefined) => void;
+  access: EmployeeAccessFilter | undefined;
+  onAccessChange: (value: EmployeeAccessFilter | undefined) => void;
   readiness: EmployeeReadinessFilter | undefined;
   onReadinessChange: (value: EmployeeReadinessFilter | undefined) => void;
+}
+
+function ActiveFilterBadge() {
+  return (
+    <Badge
+      variant="secondary"
+      className="ml-1 rounded-full px-1.5 text-[10px] font-semibold uppercase tracking-wide"
+    >
+      On
+    </Badge>
+  );
 }
 
 export function Toolbar({
@@ -45,12 +58,17 @@ export function Toolbar({
   onSearchChange,
   status,
   onStatusChange,
+  access,
+  onAccessChange,
   readiness,
   onReadinessChange,
 }: ToolbarProps) {
   const [localSearch, setLocalSearch] = useState(search);
-  const hasFilters = localSearch.trim().length > 0 || !!status || !!readiness;
-  const activeFilterCount = (status ? 1 : 0) + (readiness ? 1 : 0);
+  const selectedAccessOption = access
+    ? EMPLOYEE_ACCESS_FILTER_OPTIONS.find((option) => option.value === access)
+    : null;
+  const hasFilters =
+    localSearch.trim().length > 0 || !!status || !!access || !!readiness;
 
   useEffect(() => {
     setLocalSearch(search);
@@ -68,7 +86,7 @@ export function Toolbar({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <div className="relative min-w-[200px] max-w-sm flex-1">
+      <div className="relative min-w-50 max-w-sm flex-1">
         <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
         <Input
           value={localSearch}
@@ -83,11 +101,7 @@ export function Toolbar({
           <Button variant="outline" className="gap-1">
             <ListFilter className="size-3.5" />
             Status
-            {activeFilterCount > 0 ? (
-              <Badge variant="secondary" className="ml-1 rounded-full px-1.5">
-                {activeFilterCount}
-              </Badge>
-            ) : null}
+            {status ? <ActiveFilterBadge /> : null}
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">
@@ -117,12 +131,40 @@ export function Toolbar({
         <DropdownMenuTrigger asChild>
           <Button variant="outline" className="gap-1">
             <ListFilter className="size-3.5" />
+            {selectedAccessOption
+              ? `Access: ${selectedAccessOption.label}`
+              : "Access"}
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start">
+          <DropdownMenuLabel>Filter platform access state</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuRadioGroup
+            value={access ?? "all"}
+            onValueChange={(value) =>
+              onAccessChange(
+                value === "all" ? undefined : (value as EmployeeAccessFilter)
+              )
+            }
+          >
+            <DropdownMenuRadioItem value="all">
+              All access states
+            </DropdownMenuRadioItem>
+            {EMPLOYEE_ACCESS_FILTER_OPTIONS.map((option) => (
+              <DropdownMenuRadioItem key={option.value} value={option.value}>
+                {option.label}
+              </DropdownMenuRadioItem>
+            ))}
+          </DropdownMenuRadioGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline" className="gap-1">
+            <ListFilter className="size-3.5" />
             Needs attention
-            {readiness ? (
-              <Badge variant="secondary" className="ml-1 rounded-full px-1.5">
-                1
-              </Badge>
-            ) : null}
+            {readiness ? <ActiveFilterBadge /> : null}
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">
@@ -156,6 +198,7 @@ export function Toolbar({
             setLocalSearch("");
             onSearchChange("");
             onStatusChange(undefined);
+            onAccessChange(undefined);
             onReadinessChange(undefined);
           }}
         >

@@ -13,7 +13,11 @@ import {
 } from "@repo/auth";
 import { PEOPLE_NAV, ADMIN_NAV } from "@/data/sidebar-nav";
 import { useCoreSetupAccess } from "@/components/core-setup-access";
-import { canSeeEmployeeRosterNavigation } from "@/lib/employee-roster-access";
+import {
+  canSeeEmployeeRosterNavigation,
+  canSeeSelfEmployeeProfileNavigation,
+  canSeeTeamWorkspaceNavigation,
+} from "@/lib/employee-roster-access";
 
 type CSSVariableStyle = CSSProperties & Record<`--${string}`, string>;
 
@@ -77,8 +81,22 @@ export function CoreSidebar() {
   const canSeeSettings = canSeeCoreSettingsNavigation(user);
   const canSeeOrganizations = canSeeOrganizationsNavigation(user);
   const canSeeEmployeeRoster = canSeeEmployeeRosterNavigation(user);
+  const canSeeMyProfile = canSeeSelfEmployeeProfileNavigation(user);
+  const canSeeMyTeam = canSeeTeamWorkspaceNavigation(user);
   const peopleItems = PEOPLE_NAV.items.filter((item) => {
+    if (item.href === "/profile") {
+      return canSeeMyProfile;
+    }
+
+    if (item.href === "/team") {
+      return canSeeMyTeam;
+    }
+
     if (item.href === "/employees") {
+      return canSeeEmployeeRoster;
+    }
+
+    if (item.href === "/org-chart") {
       return canSeeEmployeeRoster;
     }
 

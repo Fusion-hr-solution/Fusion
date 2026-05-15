@@ -9,6 +9,15 @@ export type EmployeeReadinessFilter =
   | "ManagerMissing"
   | "DeactivationBlocked";
 
+export type EmployeeAccessFilter =
+  | "NeedsAccess"
+  | "InvitePending"
+  | "AccountActive"
+  | "AccountInactive"
+  | "Conflict"
+  | "InviteExpired"
+  | "InviteRevoked";
+
 export type EmployeeReadinessSeverity = "Attention" | "Blocker";
 
 export type EmployeeReadinessFixTargetKind =
@@ -154,6 +163,7 @@ export interface EmployeeProfileDto {
   id: string;
   firstName: string;
   lastName: string;
+  preferredName: string | null;
   fullName: string;
   email: string;
   jobTitle: string | null;
@@ -170,4 +180,73 @@ export interface EmployeeProfileDto {
   directReportCount: number;
   readiness: EmployeeReadinessSummaryDto;
   version: number;
+}
+
+export type WorkforceAccountProvisioningState =
+  | "Unprovisioned"
+  | "InvitePending"
+  | "InviteExpired"
+  | "InviteRevoked"
+  | "InviteAccepted"
+  | "Active"
+  | "Inactive"
+  | "Conflict";
+
+export type WorkforceAccountConflictKind =
+  | "PendingInviteExists"
+  | "EmailAlreadyRegistered"
+  | "EmployeeEmailMismatch";
+
+export type WorkforceInvitationDeliveryState =
+  | "NotAttempted"
+  | "Suppressed"
+  | "Skipped"
+  | "Sent"
+  | "Failed";
+
+export interface WorkforceAccountConflictDto {
+  kind: WorkforceAccountConflictKind;
+  message: string;
+  blocking: boolean;
+  suggestedAction: string | null;
+}
+
+export interface WorkforceAccountStatusDto {
+  employeeId: string;
+  email: string;
+  fullName: string | null;
+  role: string;
+  provisioningState: WorkforceAccountProvisioningState;
+  userId: string | null;
+  isActive: boolean | null;
+  lastLoginAt: string | null;
+  inviteId: string | null;
+  inviteCreatedAt: string | null;
+  inviteExpiresAt: string | null;
+  inviteLink: string | null;
+  deliveryStatus: WorkforceInvitationDeliveryState | null;
+  deliveryMessage: string | null;
+  deliveryRecordedAt?: string | null;
+  conflict: WorkforceAccountConflictDto | null;
+}
+
+export interface WorkforceAccountSubject {
+  employeeId: string;
+  email: string;
+  firstName?: string | null;
+  lastName?: string | null;
+}
+
+export type WorkforceAccountBulkProvisionOutcome =
+  | "Created"
+  | "Pending"
+  | "Active"
+  | "Inactive"
+  | "Conflict";
+
+export interface WorkforceAccountBulkProvisionResultDto {
+  employeeId: string;
+  outcome: WorkforceAccountBulkProvisionOutcome;
+  message: string;
+  account: WorkforceAccountStatusDto;
 }
