@@ -11,6 +11,7 @@ public class UserDto
     public string? JobTitle { get; set; }
     public DateTime HireDate { get; set; }
     public Guid TenantId { get; set; }
+    public Guid? EmployeeId { get; set; }
     public List<string> Roles { get; set; } = [];
 
     /// <summary>
