@@ -6,6 +6,7 @@ import {
   Building,
   ClipboardList,
   LayoutDashboard,
+  User,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -24,7 +25,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { canSeeEmployeeRosterNavigation } from "@/lib/employee-roster-access";
+import {
+  canSeeEmployeeRosterNavigation,
+  canSeeSelfEmployeeProfileNavigation,
+  canSeeTeamWorkspaceNavigation,
+} from "@/lib/employee-roster-access";
 import { buildImportHistoryHref } from "./employees/employee-readiness";
 import { useWorkforceReadinessSummary } from "./employees/use-employees";
 
@@ -39,6 +44,8 @@ interface WorkspaceArea {
 export default function DashboardPage() {
   const { user } = useAuth();
   const canSeeEmployees = canSeeEmployeeRosterNavigation(user);
+  const canSeeMyProfile = canSeeSelfEmployeeProfileNavigation(user);
+  const canSeeMyTeam = canSeeTeamWorkspaceNavigation(user);
   const {
     data: readinessSummary,
     error: readinessError,
@@ -46,6 +53,21 @@ export default function DashboardPage() {
   } = useWorkforceReadinessSummary();
 
   const workspaceAreas: WorkspaceArea[] = [
+    {
+      title: "My Profile",
+      description:
+        "Your linked employee record, status, and reporting context.",
+      href: "/profile",
+      icon: User,
+      available: canSeeMyProfile,
+    },
+    {
+      title: "My Team",
+      description: "Direct reports and their current reporting context.",
+      href: "/team",
+      icon: Users,
+      available: canSeeMyTeam,
+    },
     {
       title: "Setup",
       description:
@@ -127,7 +149,8 @@ export default function DashboardPage() {
                 <CardHeader>
                   <CardTitle>Workforce health</CardTitle>
                   <CardDescription>
-                    Review the current employee record issues and operational blockers.
+                    Review the current employee record issues and operational
+                    blockers.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="grid gap-3">
@@ -139,9 +162,12 @@ export default function DashboardPage() {
                             Workforce readiness
                           </p>
                           <p className="mt-1 text-sm text-muted-foreground">
-                            {readinessSummary.readyEmployeeCount} of {" "}
-                            {readinessSummary.activeEmployeeCount} active employee
-                            {readinessSummary.activeEmployeeCount === 1 ? "" : "s"}{" "}
+                            {readinessSummary.readyEmployeeCount} of{" "}
+                            {readinessSummary.activeEmployeeCount} active
+                            employee
+                            {readinessSummary.activeEmployeeCount === 1
+                              ? ""
+                              : "s"}{" "}
                             are clean.
                           </p>
                         </div>
@@ -184,7 +210,10 @@ export default function DashboardPage() {
                         >
                           <span>Unresolved import follow-up</span>
                           <span className="font-medium">
-                            {readinessSummary.issueCounts.unresolvedImportIssues}
+                            {
+                              readinessSummary.issueCounts
+                                .unresolvedImportIssues
+                            }
                           </span>
                         </Link>
                         <Link
@@ -209,7 +238,10 @@ export default function DashboardPage() {
                       </div>
                       <div className="grid gap-2">
                         {Array.from({ length: 5 }).map((_, index) => (
-                          <Skeleton key={index} className="h-10 w-full rounded-lg" />
+                          <Skeleton
+                            key={index}
+                            className="h-10 w-full rounded-lg"
+                          />
                         ))}
                       </div>
                     </div>
@@ -226,7 +258,8 @@ export default function DashboardPage() {
               <CardHeader>
                 <CardTitle>Workspace actions</CardTitle>
                 <CardDescription>
-                  Launch the live Core workspaces available to your current role.
+                  Launch the live Core workspaces available to your current
+                  role.
                 </CardDescription>
               </CardHeader>
               <CardContent className="grid gap-3">

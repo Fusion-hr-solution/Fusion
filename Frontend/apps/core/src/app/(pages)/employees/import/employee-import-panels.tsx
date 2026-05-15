@@ -461,6 +461,7 @@ export function AppliedResultPanel({
     applyResult?.createdCount ?? session.validationSummary.validRows;
   const sourceRowCount = applyResult?.sourceRowCount ?? session.sourceRowCount;
   const appliedAt = applyResult?.appliedAt ?? session.appliedAt;
+  const needsAccessCount = createdCount;
 
   return (
     <Card className="border-emerald-200 bg-emerald-50/70">
@@ -473,7 +474,8 @@ export function AppliedResultPanel({
             <CardTitle>Import completed</CardTitle>
             <CardDescription>
               {createdCount} employee{createdCount === 1 ? "" : "s"} were
-              created from {session.sourceFileName}.
+              created from {session.sourceFileName}. {needsAccessCount} need
+              platform access.
             </CardDescription>
           </div>
         </div>
@@ -482,6 +484,7 @@ export function AppliedResultPanel({
         <div className="flex flex-wrap gap-2">
           <BatchMetaPill label="File" value={session.sourceFileName} />
           <BatchMetaPill label="Created" value={createdCount} />
+          <BatchMetaPill label="Need access" value={needsAccessCount} />
           <BatchMetaPill label="Source rows" value={sourceRowCount} />
           <BatchMetaPill
             label="Applied"
@@ -491,17 +494,29 @@ export function AppliedResultPanel({
 
         <div className="grid gap-3 rounded-lg border border-emerald-200/80 bg-background/85 p-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
           <div className="space-y-1 text-sm text-muted-foreground">
-            <p className="font-medium text-foreground">What next</p>
-            <p>View the roster, start another batch, or check history below.</p>
+            <p className="font-medium text-foreground">
+              Next step: access invitations
+            </p>
+            <p>
+              {needsAccessCount} imported employee
+              {needsAccessCount === 1 ? "" : "s"} are ready for access
+              activation.
+            </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button asChild>
-              <Link href="/employees">
+              <Link href="/employees?access=NeedsAccess&review=access">
                 <Users />
-                View employees
+                Review access invitations
               </Link>
             </Button>
-            <Button type="button" variant="outline" onClick={onUpload}>
+            <Button asChild type="button" variant="outline">
+              <Link href="/employees?access=NeedsAccess">
+                <Eye />
+                Open employee roster
+              </Link>
+            </Button>
+            <Button type="button" variant="ghost" onClick={onUpload}>
               <Upload />
               Upload next CSV
             </Button>
@@ -806,15 +821,17 @@ export function ImportHistoryPanel({
                               </Alert>
                             ) : null}
 
-                            {selectedDetail.unresolvedFollowUpIssues.length > 0 ? (
+                            {selectedDetail.unresolvedFollowUpIssues.length >
+                            0 ? (
                               <div className="space-y-3 rounded-xl border bg-muted/20 p-4">
                                 <div className="space-y-1">
                                   <p className="text-sm font-medium">
                                     Unresolved follow-up items
                                   </p>
                                   <p className="text-xs text-muted-foreground">
-                                    Review the imported employees that still need
-                                    attention and open the existing fixing surface.
+                                    Review the imported employees that still
+                                    need attention and open the existing fixing
+                                    surface.
                                   </p>
                                 </div>
 
@@ -839,15 +856,21 @@ export function ImportHistoryPanel({
                                               {issue.label}
                                             </p>
                                             <p className="text-xs text-muted-foreground">
-                                              Row {issue.sourceRowNumber} • {" "}
+                                              Row {issue.sourceRowNumber} •{" "}
                                               {issue.employeeFullName} ({" "}
                                               {issue.employeeEmail})
                                             </p>
                                           </div>
 
                                           {fixHref ? (
-                                            <Button asChild size="sm" variant="outline">
-                                              <Link href={fixHref}>Open fix</Link>
+                                            <Button
+                                              asChild
+                                              size="sm"
+                                              variant="outline"
+                                            >
+                                              <Link href={fixHref}>
+                                                Open fix
+                                              </Link>
                                             </Button>
                                           ) : null}
                                         </div>

@@ -141,6 +141,7 @@ export function InviteAcceptanceForm({ token }: { token: string | null }) {
       // 3. Persist session (localStorage + cookie)
       const user: AuthUser = {
         userId: authResponse.userId,
+        employeeId: authResponse.employeeId ?? null,
         email: authResponse.email,
         fullName: authResponse.fullName,
         roles: authResponse.roles,
@@ -169,7 +170,8 @@ export function InviteAcceptanceForm({ token }: { token: string | null }) {
   };
 
   const isSubmitting = accept.isLoading || isAutoLoginning;
-  const isInviteLoading = !!token && (isValidating || (!invite && !validateError));
+  const isInviteLoading =
+    !!token && (isValidating || (!invite && !validateError));
 
   // ── Missing token ───────────────────────────────────────────────
 

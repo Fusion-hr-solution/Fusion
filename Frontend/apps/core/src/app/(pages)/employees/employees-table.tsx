@@ -5,6 +5,7 @@ import {
   getCoreRowModel,
   useReactTable,
   type ColumnDef,
+  type RowSelectionState,
   type SortingState,
 } from "@tanstack/react-table";
 import { Users } from "lucide-react";
@@ -26,17 +27,26 @@ import {
 } from "@/components/ui/table";
 import type { EmployeeRosterItem } from "./employee-roster.types";
 
-interface EmployeesTableProps {
-  columns: ColumnDef<EmployeeRosterItem>[];
-  data: EmployeeRosterItem[];
+interface EmployeeTableColumnMeta {
+  headerClassName?: string;
+  cellClassName?: string;
+}
+
+interface EmployeesTableProps<TRow extends EmployeeRosterItem> {
+  columns: ColumnDef<TRow>[];
+  data: TRow[];
   isLoading: boolean;
   isRefetching: boolean;
   sorting: SortingState;
   onSortingChange: (sorting: SortingState) => void;
-  onRowClick: (employee: EmployeeRosterItem) => void;
+  onRowClick: (employee: TRow) => void;
+  rowSelection?: RowSelectionState;
+  onRowSelectionChange?: (selection: RowSelectionState) => void;
+  emptyTitle?: string;
+  emptyDescription?: string;
 }
 
-export function EmployeesTable({
+export function EmployeesTable<TRow extends EmployeeRosterItem>({
   columns,
   data,
   isLoading,
@@ -44,17 +54,35 @@ export function EmployeesTable({
   sorting,
   onSortingChange,
   onRowClick,
-}: EmployeesTableProps) {
+  rowSelection,
+  onRowSelectionChange,
+  emptyTitle = "No employees found",
+  emptyDescription = "Try a different search or status filter.",
+}: EmployeesTableProps<TRow>) {
   const table = useReactTable({
     data,
     columns,
-    state: { sorting },
+    state: {
+      sorting,
+      rowSelection,
+    },
     onSortingChange: (updater) => {
       const next = typeof updater === "function" ? updater(sorting) : updater;
       onSortingChange(next);
     },
+    onRowSelectionChange: (updater) => {
+      if (!onRowSelectionChange) {
+        return;
+      }
+
+      const next =
+        typeof updater === "function" ? updater(rowSelection ?? {}) : updater;
+      onRowSelectionChange(next);
+    },
     getCoreRowModel: getCoreRowModel(),
     manualSorting: true,
+    enableRowSelection: !!onRowSelectionChange,
+    getRowId: (row) => row.id,
   });
 
   if (isLoading && !isRefetching) {
@@ -74,40 +102,49 @@ export function EmployeesTable({
           <EmptyMedia variant="icon">
             <Users />
           </EmptyMedia>
-          <EmptyTitle>No employees found</EmptyTitle>
-          <EmptyDescription>
-            Try a different search or status filter.
-          </EmptyDescription>
+          <EmptyTitle>{emptyTitle}</EmptyTitle>
+          <EmptyDescription>{emptyDescription}</EmptyDescription>
         </EmptyHeader>
       </Empty>
     );
   }
 
   return (
-    <div className="relative rounded-xl border">
+    <div className="relative overflow-x-auto rounded-xl border">
       {isRefetching && (
         <div className="bg-background/50 absolute inset-0 z-10 rounded-xl" />
       )}
 
-      <Table>
+      <Table className="min-w-[840px] table-fixed min-[1500px]:min-w-[980px] min-[1800px]:min-w-[1120px]">
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>
-              {headerGroup.headers.map((header) => (
-                <TableHead
-                  key={header.id}
-                  className={
-                    header.column.id === "HireDate" ? "text-right" : undefined
-                  }
-                >
-                  {header.isPlaceholder
-                    ? null
-                    : flexRender(
-                        header.column.columnDef.header,
-                        header.getContext()
-                      )}
-                </TableHead>
-              ))}
+              {headerGroup.headers.map((header) => {
+                const meta = header.column.columnDef.meta as
+                  | EmployeeTableColumnMeta
+                  | undefined;
+
+                return (
+                  <TableHead
+                    key={header.id}
+                    className={
+                      [
+                        header.column.id === "HireDate" ? "text-right" : null,
+                        meta?.headerClassName ?? null,
+                      ]
+                        .filter(Boolean)
+                        .join(" ") || undefined
+                    }
+                  >
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
+                  </TableHead>
+                );
+              })}
             </TableRow>
           ))}
         </TableHeader>
@@ -116,10 +153,11 @@ export function EmployeesTable({
           {table.getRowModel().rows.map((row) => (
             <TableRow
               key={row.id}
-              className="cursor-pointer hover:bg-muted/40"
+              data-state={row.getIsSelected() ? "selected" : undefined}
+              className="group/employee-row data-[state=selected]:bg-muted/55 cursor-pointer hover:bg-muted/40"
               role="button"
               tabIndex={0}
-              aria-label={`Open reporting relationship for ${row.original.firstName} ${row.original.lastName}`}
+              aria-label={`Open employee profile for ${row.original.firstName} ${row.original.lastName}`}
               onClick={() => onRowClick(row.original)}
               onKeyDown={(event) => {
                 if (event.key === "Enter" || event.key === " ") {
@@ -128,11 +166,25 @@ export function EmployeesTable({
                 }
               }}
             >
-              {row.getVisibleCells().map((cell) => (
-                <TableCell key={cell.id}>
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                </TableCell>
-              ))}
+              {row.getVisibleCells().map((cell) => {
+                const meta = cell.column.columnDef.meta as
+                  | EmployeeTableColumnMeta
+                  | undefined;
+
+                return (
+                  <TableCell
+                    key={cell.id}
+                    className={[
+                      "overflow-hidden align-middle whitespace-normal py-3",
+                      meta?.cellClassName ?? null,
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                  >
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </TableCell>
+                );
+              })}
             </TableRow>
           ))}
         </TableBody>

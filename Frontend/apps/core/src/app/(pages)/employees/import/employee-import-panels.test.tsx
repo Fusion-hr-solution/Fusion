@@ -1,7 +1,72 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { ImportHistoryPanel } from "./employee-import-panels";
+import {
+  AppliedResultPanel,
+  ImportHistoryPanel,
+} from "./employee-import-panels";
+import type { EmployeeImportSessionDto } from "./employee-import.types";
+
+function buildAppliedImportSession(
+  overrides: Partial<EmployeeImportSessionDto> = {}
+): EmployeeImportSessionDto {
+  return {
+    id: "session-1",
+    stage: "Applied",
+    version: 1,
+    sourceFileName: "employees.csv",
+    sourceFileSizeBytes: 512,
+    sourceRowCount: 12,
+    sourceHeaders: ["first_name", "last_name", "email"],
+    sampleRows: [],
+    previewRows: [],
+    previewPageNumber: 1,
+    previewPageSize: 10,
+    previewPageCount: 1,
+    totalPreviewRowCount: 12,
+    hasMorePreviewRows: false,
+    validationSummary: {
+      totalRows: 12,
+      validRows: 12,
+      errorCount: 0,
+      warningCount: 0,
+    },
+    validationIssues: [],
+    appliedAt: "2026-05-13T09:00:00Z",
+    expiresAt: "2026-05-14T09:00:00Z",
+    employeeImportSchema: { canonicalFields: [] },
+    canValidate: false,
+    canApply: false,
+    ...overrides,
+  };
+}
+
+describe("AppliedResultPanel", () => {
+  it("routes import completion into access review", () => {
+    render(
+      <AppliedResultPanel
+        session={buildAppliedImportSession()}
+        applyResult={null}
+        onUpload={() => undefined}
+        onReviewHistory={() => undefined}
+      />
+    );
+
+    const reviewLink = screen.getByRole("link", {
+      name: "Review access invitations",
+    });
+    expect(reviewLink.getAttribute("href")).toBe(
+      "/employees?access=NeedsAccess&review=access"
+    );
+
+    const rosterLink = screen.getByRole("link", {
+      name: "Open employee roster",
+    });
+    expect(rosterLink.getAttribute("href")).toBe(
+      "/employees?access=NeedsAccess"
+    );
+  });
+});
 
 describe("ImportHistoryPanel", () => {
   it("renders unresolved follow-up items with fix links", () => {
