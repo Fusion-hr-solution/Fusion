@@ -11,57 +11,26 @@ namespace EY.HRPlatform.Identity.Infrastructure.Persistence.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<Guid>(
-                name: "EmployeeId",
-                schema: "identity",
-                table: "InviteTokens",
-                type: "uuid",
-                nullable: true);
-
-            migrationBuilder.AddColumn<Guid>(
-                name: "EmployeeId",
-                schema: "identity",
-                table: "AspNetUsers",
-                type: "uuid",
-                nullable: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_InviteTokens_TenantId_EmployeeId",
-                schema: "identity",
-                table: "InviteTokens",
-                columns: new[] { "TenantId", "EmployeeId" });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_AspNetUsers_TenantId_EmployeeId",
-                schema: "identity",
-                table: "AspNetUsers",
-                columns: new[] { "TenantId", "EmployeeId" },
-                unique: true,
-                filter: "\"EmployeeId\" IS NOT NULL");
+            migrationBuilder.Sql("""
+                ALTER TABLE identity."InviteTokens" ADD COLUMN IF NOT EXISTS "EmployeeId" uuid;
+                ALTER TABLE identity."AspNetUsers" ADD COLUMN IF NOT EXISTS "EmployeeId" uuid;
+                CREATE INDEX IF NOT EXISTS "IX_InviteTokens_TenantId_EmployeeId"
+                    ON identity."InviteTokens" ("TenantId", "EmployeeId");
+                CREATE UNIQUE INDEX IF NOT EXISTS "IX_AspNetUsers_TenantId_EmployeeId"
+                    ON identity."AspNetUsers" ("TenantId", "EmployeeId")
+                    WHERE "EmployeeId" IS NOT NULL;
+                """);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropIndex(
-                name: "IX_InviteTokens_TenantId_EmployeeId",
-                schema: "identity",
-                table: "InviteTokens");
-
-            migrationBuilder.DropIndex(
-                name: "IX_AspNetUsers_TenantId_EmployeeId",
-                schema: "identity",
-                table: "AspNetUsers");
-
-            migrationBuilder.DropColumn(
-                name: "EmployeeId",
-                schema: "identity",
-                table: "InviteTokens");
-
-            migrationBuilder.DropColumn(
-                name: "EmployeeId",
-                schema: "identity",
-                table: "AspNetUsers");
+            migrationBuilder.Sql("""
+                DROP INDEX IF EXISTS identity."IX_InviteTokens_TenantId_EmployeeId";
+                DROP INDEX IF EXISTS identity."IX_AspNetUsers_TenantId_EmployeeId";
+                ALTER TABLE identity."InviteTokens" DROP COLUMN IF EXISTS "EmployeeId";
+                ALTER TABLE identity."AspNetUsers" DROP COLUMN IF EXISTS "EmployeeId";
+                """);
         }
     }
 }
