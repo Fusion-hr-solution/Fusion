@@ -168,7 +168,9 @@ export function CurriculumCellDrawer({
                 >
                   <option value="">— Choose a training —</option>
                   {availableTrainings.map((t) => (
-                    <option key={t.id} value={t.id}>{t.title}</option>
+                    <option key={t.id} value={t.id}>
+                      {t.title} ({t.trainingType === "OnSite" ? "On-Site" : "E-Learning"})
+                    </option>
                   ))}
                 </select>
                 <div className="flex items-center gap-2">

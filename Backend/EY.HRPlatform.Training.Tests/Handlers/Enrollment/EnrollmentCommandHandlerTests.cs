@@ -58,8 +58,7 @@ public class EnrollmentCommandHandlerTests
         var handler = new EnrollInSessionsCommandHandler(ctx);
         var employeeId = Guid.NewGuid();
 
-        var result = await handler.Handle(new EnrollInSessionsCommand(
-            employeeId, trainingId, [
+        var result = await handler.Handle(new EnrollInSessionsCommand(employeeId, "Test User", "test@test.com", trainingId, [
                 new SessionSelectionItem(part1Id, session1Id),
                 new SessionSelectionItem(part2Id, session2Id)
             ]), CancellationToken.None);
@@ -83,7 +82,7 @@ public class EnrollmentCommandHandlerTests
 
         var handler = new EnrollInSessionsCommandHandler(ctx);
         var result = await handler.Handle(new EnrollInSessionsCommand(
-            Guid.NewGuid(), eLearning.Id, []), CancellationToken.None);
+            Guid.NewGuid(), "Test User", "test@test.com", eLearning.Id, []), CancellationToken.None);
 
         Assert.True(result.IsFailure);
         Assert.Contains("NotOnSite", result.Error.Code);
@@ -97,7 +96,7 @@ public class EnrollmentCommandHandlerTests
 
         // Only select session for part 1, missing part 2
         var result = await handler.Handle(new EnrollInSessionsCommand(
-            Guid.NewGuid(), trainingId, [
+            Guid.NewGuid(), "Test User", "test@test.com", trainingId, [
                 new SessionSelectionItem(part1Id, session1Id)
             ]), CancellationToken.None);
 
@@ -113,7 +112,7 @@ public class EnrollmentCommandHandlerTests
 
         // Swap sessions (session1 belongs to part1, not part2)
         var result = await handler.Handle(new EnrollInSessionsCommand(
-            Guid.NewGuid(), trainingId, [
+            Guid.NewGuid(), "Test User", "test@test.com", trainingId, [
                 new SessionSelectionItem(part1Id, session2Id),
                 new SessionSelectionItem(part2Id, session1Id)
             ]), CancellationToken.None);
@@ -130,15 +129,13 @@ public class EnrollmentCommandHandlerTests
         var employeeId = Guid.NewGuid();
 
         // First enrollment succeeds
-        await handler.Handle(new EnrollInSessionsCommand(
-            employeeId, trainingId, [
+        await handler.Handle(new EnrollInSessionsCommand(employeeId, "Test User", "test@test.com", trainingId, [
                 new SessionSelectionItem(part1Id, session1Id),
                 new SessionSelectionItem(part2Id, session2Id)
             ]), CancellationToken.None);
 
         // Second enrollment for same employee fails
-        var result = await handler.Handle(new EnrollInSessionsCommand(
-            employeeId, trainingId, [
+        var result = await handler.Handle(new EnrollInSessionsCommand(employeeId, "Test User", "test@test.com", trainingId, [
                 new SessionSelectionItem(part1Id, session1Id),
                 new SessionSelectionItem(part2Id, session2Id)
             ]), CancellationToken.None);
@@ -172,7 +169,7 @@ public class EnrollmentCommandHandlerTests
 
         // First employee fills the session
         var result1 = await handler.Handle(new EnrollInSessionsCommand(
-            Guid.NewGuid(), training.Id, [
+            Guid.NewGuid(), "Test User", "test@test.com", training.Id, [
                 new SessionSelectionItem(partResult.Value, sessionResult.Value.SessionId)
             ]), CancellationToken.None);
 
@@ -181,7 +178,7 @@ public class EnrollmentCommandHandlerTests
 
         // Second employee gets waitlisted
         var result2 = await handler.Handle(new EnrollInSessionsCommand(
-            Guid.NewGuid(), training.Id, [
+            Guid.NewGuid(), "Test User", "test@test.com", training.Id, [
                 new SessionSelectionItem(partResult.Value, sessionResult.Value.SessionId)
             ]), CancellationToken.None);
 
@@ -197,8 +194,7 @@ public class EnrollmentCommandHandlerTests
         var handler = new EnrollInSessionsCommandHandler(ctx);
         var employeeId = Guid.NewGuid();
 
-        await handler.Handle(new EnrollInSessionsCommand(
-            employeeId, trainingId, [
+        await handler.Handle(new EnrollInSessionsCommand(employeeId, "Test User", "test@test.com", trainingId, [
                 new SessionSelectionItem(part1Id, session1Id),
                 new SessionSelectionItem(part2Id, session2Id)
             ]), CancellationToken.None);
@@ -221,7 +217,7 @@ public class EnrollmentCommandHandlerTests
 
         var handler = new EnrollInSessionsCommandHandler(ctx);
         var result = await handler.Handle(new EnrollInSessionsCommand(
-            Guid.NewGuid(), trainingId, [
+            Guid.NewGuid(), "Test User", "test@test.com", trainingId, [
                 new SessionSelectionItem(part1Id, session1Id),
                 new SessionSelectionItem(part2Id, session2Id)
             ]), CancellationToken.None);
@@ -237,8 +233,7 @@ public class EnrollmentCommandHandlerTests
         var enrollHandler = new EnrollInSessionsCommandHandler(ctx);
         var employeeId = Guid.NewGuid();
 
-        await enrollHandler.Handle(new EnrollInSessionsCommand(
-            employeeId, trainingId, [
+        await enrollHandler.Handle(new EnrollInSessionsCommand(employeeId, "Test User", "test@test.com", trainingId, [
                 new SessionSelectionItem(part1Id, session1Id),
                 new SessionSelectionItem(part2Id, session2Id)
             ]), CancellationToken.None);
@@ -261,8 +256,7 @@ public class EnrollmentCommandHandlerTests
         var enrollHandler = new EnrollInSessionsCommandHandler(ctx);
         var employeeId = Guid.NewGuid();
 
-        await enrollHandler.Handle(new EnrollInSessionsCommand(
-            employeeId, trainingId, [
+        await enrollHandler.Handle(new EnrollInSessionsCommand(employeeId, "Test User", "test@test.com", trainingId, [
                 new SessionSelectionItem(part1Id, session1Id),
                 new SessionSelectionItem(part2Id, session2Id)
             ]), CancellationToken.None);
@@ -306,12 +300,12 @@ public class EnrollmentCommandHandlerTests
 
         // Employee 1 enrolled
         await enrollHandler.Handle(new EnrollInSessionsCommand(
-            employee1, training.Id, [new SessionSelectionItem(partResult.Value, sessionId)]),
+            employee1, "Test User", "test@test.com", training.Id, [new SessionSelectionItem(partResult.Value, sessionId)]),
             CancellationToken.None);
 
         // Employee 2 waitlisted
         await enrollHandler.Handle(new EnrollInSessionsCommand(
-            employee2, training.Id, [new SessionSelectionItem(partResult.Value, sessionId)]),
+            employee2, "Test User 2", "test2@test.com", training.Id, [new SessionSelectionItem(partResult.Value, sessionId)]),
             CancellationToken.None);
 
         // Employee 1 cancels
@@ -346,8 +340,7 @@ public class EnrollmentCommandHandlerTests
         var enrollHandler = new EnrollInSessionsCommandHandler(ctx);
         var employeeId = Guid.NewGuid();
 
-        await enrollHandler.Handle(new EnrollInSessionsCommand(
-            employeeId, trainingId, [
+        await enrollHandler.Handle(new EnrollInSessionsCommand(employeeId, "Test User", "test@test.com", trainingId, [
                 new SessionSelectionItem(part1Id, session1Id),
                 new SessionSelectionItem(part2Id, session2Id)
             ]), CancellationToken.None);
@@ -376,3 +369,5 @@ public class EnrollmentCommandHandlerTests
         Assert.Contains("NotFound", result.Error.Code);
     }
 }
+
+

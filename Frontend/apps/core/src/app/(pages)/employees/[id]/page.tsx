@@ -32,6 +32,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { useBreadcrumbLabel } from "@/components/breadcrumb-overrides";
 import { canAccessEmployeeRoster } from "@/lib/employee-roster-access";
+import { useEmployeeFieldPolicy } from "../employee-field-visibility";
 import {
   getEmployeeActionIssues,
   getEmployeeFixSheet,

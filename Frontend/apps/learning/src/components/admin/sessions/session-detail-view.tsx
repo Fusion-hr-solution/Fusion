@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   ArrowLeft,
   AlertTriangle,
@@ -21,6 +21,7 @@ import {
   getSessionDetail,
   duplicateSession,
 } from "@/services/admin-sessions-service";
+import { getIdentityUsers } from "@/services/admin-dashboard-service";
 import { SessionStatusBadge } from "./session-status-badge";
 import { CancelSessionDialog } from "./cancel-session-dialog";
 import {
@@ -35,8 +36,22 @@ interface SessionDetailViewProps {
 export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
   const fetcher = useCallback(() => getSessionDetail(sessionId), [sessionId]);
   const { data: session, isLoading, refetch } = useApiQuery(fetcher);
+  const identityFetcher = useCallback(() => getIdentityUsers(), []);
+  const { data: identityUsers } = useApiQuery(identityFetcher);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [duplicateNew, setDuplicateNew] = useState("");
+
+  // Resolve attendee names from identity service for enrollments missing names
+  const resolvedAttendees = useMemo(() => {
+    if (!session?.attendees) return [];
+    if (!identityUsers?.length) return session.attendees;
+    const userMap = new Map(identityUsers.map((u) => [u.id, u]));
+    return session.attendees.map((a) => {
+      if (a.fullName) return a;
+      const user = userMap.get(a.employeeId);
+      return user ? { ...a, fullName: user.fullName, email: a.email ?? user.email } : a;
+    });
+  }, [session?.attendees, identityUsers]);
 
   const { mutateAsync: doDuplicate, isLoading: dupPending } = useApiMutation(
     () => duplicateSession(sessionId, {
@@ -94,10 +109,10 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
               <h2 className="text-base font-semibold text-foreground">Session Details</h2>
               {session.status !== "Cancelled" && (
                 <Button
-                  variant="destructive"
+                  variant="outline"
                   size="sm"
                   onClick={() => setCancelOpen(true)}
-                  className="gap-1.5"
+                  className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
                 >
                   <X className="h-3.5 w-3.5" />
                   Cancel Session
@@ -244,16 +259,16 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
                   <Users className="h-4 w-4 text-muted-foreground" />
                   <h3 className="text-sm font-semibold text-foreground">Enrolled</h3>
                 </div>
-                <span className="text-xs text-muted-foreground">{session.attendees.length} people</span>
+                <span className="text-xs text-muted-foreground">{resolvedAttendees.length} people</span>
               </div>
-              {session.attendees.length === 0 ? (
+              {resolvedAttendees.length === 0 ? (
                 <div className="flex flex-col items-center py-4 text-center">
                   <Users className="h-6 w-6 text-muted-foreground/40" />
                   <p className="mt-1.5 text-xs text-muted-foreground">No enrolled employees yet.</p>
                 </div>
               ) : (
                 <div className="space-y-1.5 max-h-[280px] overflow-y-auto">
-                  {session.attendees.map((a) => (
+                  {resolvedAttendees.map((a) => (
                     <div key={a.employeeId} className="flex items-center gap-2 rounded-lg bg-muted/30 px-3 py-2">
                       <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground">
                         {(a.fullName ?? a.employeeId).charAt(0).toUpperCase()}
