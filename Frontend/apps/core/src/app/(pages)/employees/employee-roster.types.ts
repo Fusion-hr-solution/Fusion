@@ -1,9 +1,11 @@
 export type EmployeeRosterStatus = "Active" | "Inactive";
 
 export type EmployeeReadinessFilter =
+  | "Ready"
   | "NeedsAttention"
   | "MissingRequiredField"
   | "MissingOrgUnit"
+  | "ReportingIssue"
   | "NoManagerAssigned"
   | "ManagerInactive"
   | "ManagerMissing"
@@ -235,6 +237,7 @@ export interface WorkforceAccountSubject {
   email: string;
   firstName?: string | null;
   lastName?: string | null;
+  role?: string | null;
 }
 
 export type WorkforceAccountBulkProvisionOutcome =
