@@ -1,6 +1,7 @@
 using EY.HRPlatform.CoreHR.Domain.Enums;
 using EY.HRPlatform.CoreHR.Features.Employees.Commands.CreateEmployee;
 using EY.HRPlatform.CoreHR.Features.Employees.Commands.DeactivateEmployee;
+using EY.HRPlatform.CoreHR.Features.Employees.Commands.UpdateOwnEmployeeProfile;
 using EY.HRPlatform.CoreHR.Features.Employees.Commands.UpdateEmployee;
 using EY.HRPlatform.CoreHR.Features.Employees.Dtos;
 using EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployeeById;
@@ -42,6 +43,7 @@ public class EmployeesController(ISender sender) : ControllerBase
     public async Task<IActionResult> GetAll(
         [FromQuery] string? search,
         [FromQuery] EmployeeStatus? status,
+        [FromQuery] EmployeeAccessFilter? access,
         [FromQuery] EmployeeReadinessFilter? readiness,
         [FromQuery] EmployeeSortField sortBy = EmployeeSortField.Name,
         [FromQuery] SortDirection sortDir = SortDirection.Asc,
@@ -49,7 +51,7 @@ public class EmployeesController(ISender sender) : ControllerBase
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        var query = new GetEmployeesQuery(search, status, readiness, sortBy, sortDir, page, pageSize);
+        var query = new GetEmployeesQuery(search, status, access, readiness, sortBy, sortDir, page, pageSize);
         var result = await sender.Send(query, cancellationToken);
         return Ok(ApiResponseOfPagedEmployeeList.Success(result.Value));
     }
@@ -240,6 +242,36 @@ public class EmployeesController(ISender sender) : ControllerBase
         return Ok(ApiResponseOfEmployeeDto.Success(result.Value));
     }
 
+    [HttpPut("{id:guid}/self-profile")]
+    [Authorize(Roles = LinkedEmployeeReadRoles)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status412PreconditionFailed)]
+    public async Task<IActionResult> UpdateSelfProfile(
+        Guid id,
+        [FromBody] UpdateOwnEmployeeProfileRequest request,
+        [FromHeader(Name = "If-Match")] string? ifMatch,
+        CancellationToken cancellationToken)
+    {
+        if (!CanUpdateOwnProfile(id))
+        {
+            return Forbid();
+        }
+
+        if (!TryParseVersion(ifMatch, out var expectedVersion))
+        {
+            return StatusCode(
+                StatusCodes.Status412PreconditionFailed,
+                ApiResponse.Failure("If-Match header with valid version is required for updates."));
+        }
+
+        await sender.Send(
+            new UpdateOwnEmployeeProfileCommand(id, expectedVersion, request.PreferredName),
+            cancellationToken);
+
+        return NoContent();
+    }
+
     /// <summary>
     /// Deactivate an employee (soft delete).
     /// Requires If-Match header with current version for optimistic concurrency.
@@ -322,6 +354,12 @@ public class EmployeesController(ISender sender) : ControllerBase
 
         var linkedEmployeeId = User.GetEmployeeId();
         return linkedEmployeeId.HasValue && employeeId == linkedEmployeeId.Value;
+    }
+
+    private bool CanUpdateOwnProfile(Guid employeeId)
+    {
+        var linkedEmployeeId = User.GetEmployeeId();
+        return linkedEmployeeId.HasValue && linkedEmployeeId.Value == employeeId;
     }
 
     private EmployeeReportingLinesDto ApplyReportingScope(EmployeeReportingLinesDto reportingLines)

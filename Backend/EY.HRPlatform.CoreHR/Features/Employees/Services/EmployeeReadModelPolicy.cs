@@ -67,6 +67,7 @@ public sealed class EmployeeReadModelPolicy : IEmployeeReadModelPolicy
             employee.Id,
             employee.FirstName,
             employee.LastName,
+            employee.PreferredName,
             employee.Email,
             CanViewField(settings, "jobTitle", audience) ? employee.JobTitle : null,
             employee.HireDate,
