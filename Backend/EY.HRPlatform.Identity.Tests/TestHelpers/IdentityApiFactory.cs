@@ -22,7 +22,6 @@ public class IdentityApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("Database:Provider", "inmemory");
         builder.UseSetting("Database:InMemoryName", _databaseName);
         builder.UseSetting("Application:PublicBaseUrl", "http://localhost:3000");
-        builder.UseSetting("Application:InviteAcceptPath", "/core/invite/accept");
     }
 }
 
