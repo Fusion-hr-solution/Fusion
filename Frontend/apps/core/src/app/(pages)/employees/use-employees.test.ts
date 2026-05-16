@@ -51,6 +51,7 @@ import {
   useEmployeeProfile,
   useEmployeeReportingLines,
   useEmployeeRoster,
+  useUpdateMyProfile,
   useWorkforceReadinessSummary,
   useUpdateEmployeeRecord,
   useUpdateEmployeeManager,
@@ -102,6 +103,7 @@ describe("useEmployeeRoster", () => {
         useEmployeeRoster({
           search: "pat",
           status: "Active",
+          access: "NotInvited",
           readiness: "MissingOrgUnit",
           sortBy: "HireDate",
           sortDir: "Desc",
@@ -119,6 +121,7 @@ describe("useEmployeeRoster", () => {
         params: expect.objectContaining({
           search: "pat",
           status: "Active",
+          access: "NotInvited",
           readiness: "MissingOrgUnit",
           sortBy: "HireDate",
           sortDir: "Desc",
@@ -526,6 +529,34 @@ describe("useUpdateEmployeeRecord", () => {
   });
 });
 
+describe("useUpdateMyProfile", () => {
+  it("sends preferred-name updates to the dedicated self-profile endpoint", async () => {
+    mockPut.mockResolvedValue(undefined);
+
+    const { result } = renderHook(() => useUpdateMyProfile(), {
+      wrapper: createWrapper(),
+    });
+
+    await result.current.mutateAsync({
+      employeeId: "emp-1",
+      expectedVersion: 12,
+      preferredName: "Sally",
+    });
+
+    expect(mockPut).toHaveBeenCalledWith(
+      "/corehr/employees/emp-1/self-profile",
+      {
+        preferredName: "Sally",
+      },
+      {
+        headers: {
+          "If-Match": '"12"',
+        },
+      }
+    );
+  });
+});
+
 describe("useDeactivateEmployee", () => {
   it("sends the deactivate request with optimistic concurrency headers", async () => {
     mockDelete.mockResolvedValue(undefined);
@@ -553,6 +584,7 @@ describe("useEmployeeProfile", () => {
       id: "emp-1",
       firstName: "Alice",
       lastName: "Smith",
+      preferredName: "Ali",
       fullName: "Alice Smith",
       email: "alice@example.com",
       jobTitle: "Senior Engineer",

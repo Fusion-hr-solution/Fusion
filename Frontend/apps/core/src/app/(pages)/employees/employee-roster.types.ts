@@ -117,6 +117,7 @@ export interface EmployeeRosterPageDto {
 export interface EmployeeRosterQueryParams {
   search?: string;
   status?: EmployeeRosterStatus;
+  access?: EmployeeAccessFilter;
   readiness?: EmployeeReadinessFilter;
   sortBy: EmployeeRosterSortField;
   sortDir: EmployeeRosterSortDirection;

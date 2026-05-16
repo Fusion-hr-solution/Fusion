@@ -65,7 +65,6 @@ import {
   getInvitationEligibility,
   getReviewDrawerRows,
   getSuggestedInviteRole,
-  matchesEmployeeAccessFilter,
   parseEmployeeAccessFilter,
 } from "./employee-access";
 import { buildEmployeeColumns } from "./columns";
@@ -728,11 +727,6 @@ export default function EmployeesPage() {
   const [bulkActionError, setBulkActionError] = useState<string | null>(null);
   const [hasAppliedReviewHandoff, setHasAppliedReviewHandoff] = useState(false);
   const [isSelectingAllMatching, setIsSelectingAllMatching] = useState(false);
-  const [allMatchingAccessRows, setAllMatchingAccessRows] = useState<
-    EmployeeRosterRow[] | null
-  >(null);
-  const [isLoadingAccessRows, setIsLoadingAccessRows] = useState(false);
-  const [accessRowsError, setAccessRowsError] = useState<string | null>(null);
   const [localAccountOverrides, setLocalAccountOverrides] = useState<
     Record<string, WorkforceAccountStatusDto>
   >({});
@@ -742,6 +736,7 @@ export default function EmployeesPage() {
   const { data, error, isLoading, isFetching, refetch } = useEmployeeRoster({
     search: search || undefined,
     status,
+    access,
     readiness,
     sortBy,
     sortDir,
@@ -752,12 +747,8 @@ export default function EmployeesPage() {
   const resolveWorkforceAccountStatuses = useResolveWorkforceAccountStatuses();
   const workforceAccountSubjects = useMemo<WorkforceAccountSubject[]>(
     () =>
-      access
-        ? []
-        : (data?.items ?? []).map((employee) =>
-            buildWorkforceAccountSubject(employee)
-          ),
-    [access, data?.items]
+      (data?.items ?? []).map((employee) => buildWorkforceAccountSubject(employee)),
+    [data?.items]
   );
   const {
     data: workforceAccounts,
@@ -781,12 +772,13 @@ export default function EmployeesPage() {
   const resolveMatchingRows = useCallback(async (): Promise<
     EmployeeRosterRow[]
   > => {
-    const employees = await resolveEmployeeRoster({
-      search: search || undefined,
-      status,
-      readiness,
-      sortBy,
-      sortDir,
+      const employees = await resolveEmployeeRoster({
+        search: search || undefined,
+        status,
+        access,
+        readiness,
+        sortBy,
+        sortDir,
     });
     const accounts = await resolveWorkforceAccountStatuses(
       employees.map((employee) => buildWorkforceAccountSubject(employee))
@@ -798,6 +790,7 @@ export default function EmployeesPage() {
     }));
   }, [
     localAccountOverrides,
+    access,
     readiness,
     resolveEmployeeRoster,
     resolveWorkforceAccountStatuses,
@@ -823,64 +816,8 @@ export default function EmployeesPage() {
     []
   );
 
-  useEffect(() => {
-    if (!access) {
-      setAllMatchingAccessRows(null);
-      setIsLoadingAccessRows(false);
-      setAccessRowsError(null);
-      return;
-    }
-
-    let isCancelled = false;
-
-    const loadAccessRows = async () => {
-      setIsLoadingAccessRows(true);
-      setAccessRowsError(null);
-
-      try {
-        const rows = await resolveMatchingRows();
-        if (isCancelled) {
-          return;
-        }
-
-        setAllMatchingAccessRows(
-          rows.filter((row) =>
-            matchesEmployeeAccessFilter(row.workforceAccount, access)
-          )
-        );
-      } catch (nextError) {
-        if (!isCancelled) {
-          setAccessRowsError(getErrorMessage(nextError));
-        }
-      } finally {
-        if (!isCancelled) {
-          setIsLoadingAccessRows(false);
-        }
-      }
-    };
-
-    void loadAccessRows();
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [access, resolveMatchingRows]);
-
-  const totalMatchingCount = access
-    ? (allMatchingAccessRows?.length ?? 0)
-    : (data?.totalCount ?? 0);
-  const tableRows = useMemo<EmployeeRosterRow[]>(() => {
-    if (!access) {
-      return baseRows;
-    }
-
-    if (!allMatchingAccessRows) {
-      return [];
-    }
-
-    const startIndex = (page - 1) * pageSize;
-    return allMatchingAccessRows.slice(startIndex, startIndex + pageSize);
-  }, [access, allMatchingAccessRows, baseRows, page, pageSize]);
+  const totalMatchingCount = data?.totalCount ?? 0;
+  const tableRows = useMemo<EmployeeRosterRow[]>(() => baseRows, [baseRows]);
   const selectedPageEmployees = useMemo(
     () => tableRows.filter((employee) => rowSelection[employee.id]),
     [rowSelection, tableRows]
@@ -907,12 +844,8 @@ export default function EmployeesPage() {
     allVisibleRowsSelected &&
     totalMatchingCount > tableRows.length;
 
-  const currentTableLoading = access
-    ? isLoadingAccessRows && allMatchingAccessRows === null && !accessRowsError
-    : isLoading && !data;
-  const currentTableRefetching = access
-    ? isLoadingAccessRows && !!allMatchingAccessRows
-    : isFetching && !!data;
+  const currentTableLoading = isLoading && !data;
+  const currentTableRefetching = isFetching && !!data;
 
   const columns = useMemo<ColumnDef<EmployeeRosterRow>[]>(() => {
     const baseColumns =
@@ -987,9 +920,7 @@ export default function EmployeesPage() {
                 variant={getAccessBadgeTone(accessState)}
                 className="max-w-[7.4rem] truncate px-2 min-[1700px]:max-w-[9.4rem]"
               >
-                {isLoadingWorkforceAccounts && !access
-                  ? "Loading..."
-                  : accessState}
+                {isLoadingWorkforceAccounts ? "Loading..." : accessState}
               </Badge>
 
               {eligibility.canCopyInviteLink ? (
@@ -1033,7 +964,6 @@ export default function EmployeesPage() {
       ...primaryColumns,
     ];
   }, [
-    access,
     fieldVisibility,
     handleCopyInviteLink,
     isLoadingWorkforceAccounts,
@@ -1137,24 +1067,21 @@ export default function EmployeesPage() {
     setIsSelectingAllMatching(true);
 
     try {
-      const matchingRows = access
-        ? (allMatchingAccessRows ??
-          (await resolveMatchingRows()).filter((row) =>
-            matchesEmployeeAccessFilter(row.workforceAccount, access)
-          ))
-        : await resolveMatchingRows();
+      const matchingRows = await resolveMatchingRows();
 
       setAllMatchingSelectionRows(matchingRows);
       setSelectionScope("allMatching");
       setRowSelection(
         Object.fromEntries(matchingRows.map((employee) => [employee.id, true]))
       );
+      return matchingRows.length > 0;
     } catch (nextError) {
       setSelectionError(getErrorMessage(nextError));
+      return false;
     } finally {
       setIsSelectingAllMatching(false);
     }
-  }, [access, allMatchingAccessRows, resolveMatchingRows]);
+  }, [resolveMatchingRows]);
 
   const handleBulkProvision = useCallback(async () => {
     const inviteableEmployees = reviewRows.inviteableRows.map(
@@ -1190,17 +1117,11 @@ export default function EmployeesPage() {
         ...nextOverrides,
       }));
 
-      setAllMatchingAccessRows((current) =>
-        current
-          ? current.map((row) => ({
-              ...row,
-              workforceAccount: nextOverrides[row.id] ?? row.workforceAccount,
-            }))
-          : current
-      );
-
       await queryClient.invalidateQueries({
         queryKey: employeeRosterQueryKeys.workforceAccounts(),
+      });
+      await queryClient.invalidateQueries({
+        queryKey: employeeRosterQueryKeys.lists(),
       });
 
       setBulkResults(results);
@@ -1281,29 +1202,38 @@ export default function EmployeesPage() {
     if (
       hasAppliedReviewHandoff ||
       access !== "NotInvited" ||
-      isLoadingAccessRows ||
-      !allMatchingAccessRows
+      isLoading ||
+      !data
     ) {
       return;
     }
 
     setHasAppliedReviewHandoff(true);
 
-    if (allMatchingAccessRows.length === 0) {
+    if (data.totalCount === 0) {
       return;
     }
 
-    setAllMatchingSelectionRows(allMatchingAccessRows);
-    setSelectionScope("allMatching");
-    setRowSelection(
-      Object.fromEntries(allMatchingAccessRows.map((row) => [row.id, true]))
-    );
-    setIsAccessWorkflowOpen(true);
+    let isCancelled = false;
+
+    const applyReviewSelection = async () => {
+      const hasMatchingRows = await handleSelectAllMatching();
+      if (!isCancelled && hasMatchingRows) {
+        setIsAccessWorkflowOpen(true);
+      }
+    };
+
+    void applyReviewSelection();
+
+    return () => {
+      isCancelled = true;
+    };
   }, [
     access,
-    allMatchingAccessRows,
+    data,
+    handleSelectAllMatching,
     hasAppliedReviewHandoff,
-    isLoadingAccessRows,
+    isLoading,
     shouldAutoReviewAccess,
   ]);
 
@@ -1356,8 +1286,7 @@ export default function EmployeesPage() {
     canAccess &&
     currentTableLoading &&
     !error &&
-    !accessRowsError &&
-    (!data || access);
+    !data;
 
   if (isInitialPageLoading) {
     return (
@@ -1438,14 +1367,7 @@ export default function EmployeesPage() {
         </Alert>
       ) : null}
 
-      {accessRowsError ? (
-        <Alert variant="destructive">
-          <AlertTitle>Failed to load access-filtered roster</AlertTitle>
-          <AlertDescription>{accessRowsError}</AlertDescription>
-        </Alert>
-      ) : null}
-
-      {!access && workforceAccountsError ? (
+      {workforceAccountsError ? (
         <Alert variant="destructive">
           <AlertTitle>Failed to load account states</AlertTitle>
           <AlertDescription>
@@ -1680,7 +1602,6 @@ export default function EmployeesPage() {
                 disabled={
                   reviewRows.inviteableRows.length === 0 ||
                   bulkProvision.isLoading ||
-                  isLoadingAccessRows ||
                   isSelectingAllMatching
                 }
               >

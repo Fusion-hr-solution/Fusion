@@ -927,7 +927,7 @@ export default function EmployeeProfilePage() {
 
   if (!profile) return null;
 
-  const canEditOwnPreferredName = false;
+  const canEditOwnPreferredName = user?.employeeId === profile.id;
   const hireDate = formatDate(profile.hireDate);
   const tenure = getTenure(profile.hireDate);
   const showHireDate = fieldPolicy.showHireDate;

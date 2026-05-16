@@ -18,6 +18,7 @@ import {
   normalizeEmployeeRosterQuery,
 } from "./employee-query-keys";
 import type {
+  EmployeeAccessFilter,
   EmployeeOrgUnitPageDto,
   EmployeeProfileDto,
   EmployeeReportingLinesDto,
@@ -47,11 +48,16 @@ interface UpdateEmployeeRecordInput {
   expectedVersion: number;
   firstName?: string;
   lastName?: string;
-  preferredName?: string | null;
   email?: string;
   jobTitle?: string;
   orgUnitId?: string | null;
   hireDate?: string;
+}
+
+interface UpdateMyProfileInput {
+  employeeId: string;
+  expectedVersion: number;
+  preferredName?: string | null;
 }
 
 interface DeactivateEmployeeInput {
@@ -65,10 +71,11 @@ export function useEmployeeRoster(
   const { user, isAuthenticated } = useAuth();
   const client = useMemo(() => createPlatformApiClient(), []);
   const canAccess = canAccessEmployeeRoster(user);
-  const { page, pageSize, readiness, search, sortBy, sortDir, status } = params;
+  const { access, page, pageSize, readiness, search, sortBy, sortDir, status } = params;
   const normalizedQuery = useMemo(
     () =>
       normalizeEmployeeRosterQuery({
+        access,
         page,
         pageSize,
         readiness,
@@ -77,7 +84,7 @@ export function useEmployeeRoster(
         sortDir,
         status,
       }),
-    [page, pageSize, readiness, search, sortBy, sortDir, status]
+    [access, page, pageSize, readiness, search, sortBy, sortDir, status]
   );
 
   const queryFn = useCallback(
@@ -87,6 +94,7 @@ export function useEmployeeRoster(
         params: {
           search: normalizedQuery.search ?? undefined,
           status: normalizedQuery.status ?? undefined,
+          access: normalizedQuery.access ?? undefined,
           readiness: normalizedQuery.readiness ?? undefined,
           sortBy: normalizedQuery.sortBy,
           sortDir: normalizedQuery.sortDir,
@@ -98,6 +106,7 @@ export function useEmployeeRoster(
       client,
       normalizedQuery.page,
       normalizedQuery.pageSize,
+      normalizedQuery.access,
       normalizedQuery.readiness,
       normalizedQuery.search,
       normalizedQuery.sortBy,
@@ -110,6 +119,7 @@ export function useEmployeeRoster(
     employeeRosterQueryKeys.list({
       search: normalizedQuery.search ?? undefined,
       status: normalizedQuery.status ?? undefined,
+      access: normalizedQuery.access ?? undefined,
       readiness: normalizedQuery.readiness ?? undefined,
       sortBy: normalizedQuery.sortBy,
       sortDir: normalizedQuery.sortDir,
@@ -263,7 +273,6 @@ export function useEmployeeOrgUnitOptions({
 function buildEmployeeUpdatePayload({
   firstName,
   lastName,
-  preferredName,
   email,
   jobTitle,
   orgUnitId,
@@ -291,10 +300,6 @@ function buildEmployeeUpdatePayload({
     payload.orgUnitId = orgUnitId ?? EMPTY_GUID;
   }
 
-  if (preferredName !== undefined) {
-    payload.preferredName = preferredName;
-  }
-
   if (hireDate !== undefined) {
     payload.hireDate = hireDate;
   }
@@ -309,23 +314,38 @@ export function useResolveEmployeeRoster() {
     async (params: {
       search?: string;
       status?: EmployeeRosterStatus;
+      access?: EmployeeAccessFilter;
       readiness?: EmployeeReadinessFilter;
       sortBy?: EmployeeRosterSortField;
       sortDir?: EmployeeRosterSortDirection;
     }) => {
-      const response = await client.get<EmployeeRosterPageDto>(EMPLOYEE_ROSTER_PATH, {
-        params: {
-          search: params.search,
-          status: params.status,
-          readiness: params.readiness,
-          sortBy: params.sortBy,
-          sortDir: params.sortDir,
-          page: 1,
-          pageSize: 1000,
-        },
-      });
+      const items: EmployeeRosterPageDto["items"] = [];
+      let page = 1;
+      let hasNextPage = true;
 
-      return response.items;
+      while (hasNextPage) {
+        const response = await client.get<EmployeeRosterPageDto>(
+          EMPLOYEE_ROSTER_PATH,
+          {
+            params: {
+              search: params.search,
+              status: params.status,
+              access: params.access,
+              readiness: params.readiness,
+              sortBy: params.sortBy,
+              sortDir: params.sortDir,
+              page,
+              pageSize: 100,
+            },
+          }
+        );
+
+        items.push(...response.items);
+        hasNextPage = response.hasNextPage;
+        page += 1;
+      }
+
+      return items;
     },
     [client]
   );
@@ -394,7 +414,30 @@ export function useUpdateEmployeeRecord() {
 }
 
 export function useUpdateMyProfile() {
-  return useUpdateEmployeeRecord();
+  const client = useMemo(() => createPlatformApiClient(), []);
+
+  return useApiMutation<void, UpdateMyProfileInput>(
+    ({ employeeId, expectedVersion, preferredName }) =>
+      client.put<void>(
+        `${EMPLOYEE_ROSTER_PATH}/${employeeId}/self-profile`,
+        {
+          preferredName,
+        },
+        {
+          headers: {
+            "If-Match": `"${expectedVersion}"`,
+          },
+        }
+      ),
+    {
+      invalidateQueries: (_data, args) => [
+        {
+          queryKey: employeeRosterQueryKeys.profile(args.employeeId),
+          exact: true,
+        },
+      ],
+    }
+  );
 }
 
 export function useDeactivateEmployee() {
