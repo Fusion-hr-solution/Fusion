@@ -1,4 +1,5 @@
 using EY.HRPlatform.Identity.Domain.Entities;
+using EY.HRPlatform.Identity.Infrastructure.Services;
 using EY.HRPlatform.Identity.Infrastructure.Persistence;
 using EY.HRPlatform.Identity.Models.Responses;
 using EY.HRPlatform.Identity.Models.WorkforceAccounts;
@@ -13,7 +14,7 @@ namespace EY.HRPlatform.Identity.Controllers;
 
 [ApiController]
 [Route("api/corehr/employees/workforce-accounts")]
-[Authorize(Roles = $"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin}")]
+[Authorize(Roles = PlatformRole.HRAdmin)]
 public sealed class WorkforceAccountsController(
     AppIdentityDbContext dbContext,
     UserManager<ApplicationUser> userManager,
@@ -454,14 +455,7 @@ public sealed class WorkforceAccountsController(
         };
 
     private string BuildInviteLink(string token)
-    {
-        var publicBase = configuration["Application:PublicBaseUrl"] ?? "http://localhost:3000";
-        var path = configuration["Application:InviteAcceptPath"] ?? "/core/invite/accept";
-        publicBase = publicBase.TrimEnd('/');
-        if (!path.StartsWith('/'))
-            path = "/" + path;
-        return $"{publicBase}{path}?token={Uri.EscapeDataString(token)}";
-    }
+        => InvitationLinkBuilder.Build(configuration, token);
 
     private bool TryGetTenantId(out Guid tenantId, out string error)
     {
