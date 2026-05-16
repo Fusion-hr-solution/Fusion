@@ -16,6 +16,7 @@ public class Employee : AggregateRoot, ITenantEntity
     public uint Version { get; private set; }
     public string FirstName { get; private set; } = string.Empty;
     public string LastName { get; private set; } = string.Empty;
+    public string? PreferredName { get; private set; }
     public string Email { get; private set; } = string.Empty;
     public string? Department { get; private set; }
     public string? JobTitle { get; private set; }
@@ -112,6 +113,12 @@ public class Employee : AggregateRoot, ITenantEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
+    public void UpdatePreferredName(string? preferredName)
+    {
+        PreferredName = NormalizePreferredName(preferredName);
+        UpdatedAt = DateTime.UtcNow;
+    }
+
     public void AssignManager(Guid? managerId)
     {
         if (managerId == Guid.Empty)
@@ -146,5 +153,13 @@ public class Employee : AggregateRoot, ITenantEntity
                 "HireDate must have DateTimeKind.Utc or DateTimeKind.Local; Unspecified is not allowed.",
                 paramName)
         };
+    }
+
+    private static string? NormalizePreferredName(string? preferredName)
+    {
+        if (string.IsNullOrWhiteSpace(preferredName))
+            return null;
+
+        return preferredName.Trim();
     }
 }

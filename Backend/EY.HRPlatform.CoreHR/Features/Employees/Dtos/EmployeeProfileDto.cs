@@ -11,6 +11,7 @@ public sealed record EmployeeProfileDto(
     Guid Id,
     string FirstName,
     string LastName,
+    string? PreferredName,
     string Email,
     string? JobTitle,
     DateTime HireDate,
