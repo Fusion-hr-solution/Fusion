@@ -12,6 +12,7 @@ import type {
 
 const WORKFORCE_ACCOUNTS_PATH = "/corehr/employees/workforce-accounts";
 const WORKFORCE_ACCOUNT_STATUSES_PATH = `${WORKFORCE_ACCOUNTS_PATH}/statuses`;
+const WORKFORCE_ACCOUNT_STATUS_BATCH_SIZE = 200;
 
 export function useWorkforceAccountStatuses(
   subjects: WorkforceAccountSubject[]
@@ -50,10 +51,23 @@ export function useResolveWorkforceAccountStatuses() {
         return [] as WorkforceAccountStatusDto[];
       }
 
-      return client.post<WorkforceAccountStatusDto[]>(
-        WORKFORCE_ACCOUNT_STATUSES_PATH,
-        { subjects }
-      );
+      const results: WorkforceAccountStatusDto[] = [];
+
+      for (let index = 0; index < subjects.length; index += WORKFORCE_ACCOUNT_STATUS_BATCH_SIZE) {
+        const batch = subjects.slice(
+          index,
+          index + WORKFORCE_ACCOUNT_STATUS_BATCH_SIZE
+        );
+
+        const batchResults = await client.post<WorkforceAccountStatusDto[]>(
+          WORKFORCE_ACCOUNT_STATUSES_PATH,
+          { subjects: batch }
+        );
+
+        results.push(...batchResults);
+      }
+
+      return results;
     },
     [client]
   );

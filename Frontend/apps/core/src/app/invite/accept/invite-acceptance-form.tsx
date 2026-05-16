@@ -24,6 +24,7 @@ import {
   useAcceptInvite,
   type AcceptInvitePayload,
 } from "./use-invite";
+import { resolveInviteAcceptanceDestination } from "./invite-acceptance-routing";
 import {
   CheckCircle2Icon,
   CircleIcon,
@@ -153,8 +154,8 @@ export function InviteAcceptanceForm({ token }: { token: string | null }) {
         user,
       } satisfies StoredAuth);
 
-      // 4. Redirect to the authenticated app
-      router.push("/");
+      // 4. Redirect to the role-scoped app entry.
+      router.push(resolveInviteAcceptanceDestination(user));
     } catch (err) {
       setIsAutoLoginning(false);
       if (err instanceof ApiError) {
