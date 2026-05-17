@@ -38,6 +38,7 @@ interface EmployeeStatusSheetProps extends EmployeeProfileSheetProps {
 }
 
 interface IdentityFormValues {
+  employeeNumber: string;
   firstName: string;
   lastName: string;
   email: string;
@@ -153,6 +154,7 @@ export function EmployeeIdentityEditSheet({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const form = useForm<IdentityFormValues>({
     defaultValues: {
+      employeeNumber: profile.employeeNumber ?? "",
       firstName: profile.firstName,
       lastName: profile.lastName,
       email: profile.email,
@@ -165,12 +167,13 @@ export function EmployeeIdentityEditSheet({
     }
 
     form.reset({
+      employeeNumber: profile.employeeNumber ?? "",
       firstName: profile.firstName,
       lastName: profile.lastName,
       email: profile.email,
     });
     setSubmitError(null);
-  }, [form, open, profile.email, profile.firstName, profile.lastName]);
+  }, [form, open, profile.email, profile.employeeNumber, profile.firstName, profile.lastName]);
 
   async function handleSubmit(values: IdentityFormValues) {
     setSubmitError(null);
@@ -179,6 +182,7 @@ export function EmployeeIdentityEditSheet({
       await updateEmployeeRecord.mutateAsync({
         employeeId: profile.id,
         expectedVersion: profile.version,
+        employeeNumber: values.employeeNumber.trim() || null,
         firstName: values.firstName.trim(),
         lastName: values.lastName.trim(),
         email: values.email.trim().toLowerCase(),
@@ -203,6 +207,17 @@ export function EmployeeIdentityEditSheet({
         onSubmit={form.handleSubmit((values) => void handleSubmit(values))}
       >
         <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2 sm:col-span-2">
+            <Label htmlFor="identity-employee-number">Employee number</Label>
+            <Input
+              id="identity-employee-number"
+              autoComplete="off"
+              maxLength={64}
+              placeholder="Optional stable employee reference"
+              {...form.register("employeeNumber")}
+            />
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="identity-first-name">First name</Label>
             <Input
