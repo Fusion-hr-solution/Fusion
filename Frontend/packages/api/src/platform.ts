@@ -28,6 +28,7 @@ interface BrowserStoredAuth {
     email: string;
     fullName: string;
     roles: string[];
+    employeeId?: string | null;
   };
 }
 
@@ -36,6 +37,7 @@ interface RefreshResponse {
   email: string;
   fullName: string;
   roles: string[];
+  employeeId?: string | null;
   accessToken: string;
   refreshToken: string;
   accessTokenExpiration: string;
@@ -71,6 +73,7 @@ function persistBrowserAuth(auth: RefreshResponse): void {
       email: auth.email,
       fullName: auth.fullName,
       roles: auth.roles,
+      employeeId: auth.employeeId ?? null,
     },
   };
 
