@@ -21,6 +21,7 @@ import type {
 } from "./employee-import-validation";
 
 const PREVIEW_FIELD_COLUMNS = [
+  { key: "employeeNumber", label: "Employee number" },
   { key: "firstName", label: "First name" },
   { key: "lastName", label: "Last name" },
   { key: "email", label: "Email" },
