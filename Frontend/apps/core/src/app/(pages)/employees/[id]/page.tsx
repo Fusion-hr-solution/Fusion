@@ -29,6 +29,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { useBreadcrumbLabel } from "@/components/breadcrumb-overrides";
 import {
@@ -41,6 +42,13 @@ import {
   getEmployeeFixSheet,
 } from "../employee-readiness";
 import {
+  getAccessBadgeTone,
+  getAccessDisplayState,
+  getInvitationEligibility,
+  getSuggestedInviteRole,
+  type AccessInviteRole,
+} from "../employee-access";
+import {
   EmployeeEmploymentEditSheet,
   EmployeeIdentityEditSheet,
   EmployeeOrganizationEditSheet,
@@ -50,10 +58,19 @@ import { EmployeeReportingLinesSheet } from "../employee-reporting-lines-sheet";
 import {
   useEmployeeProfile,
   useEmployeeReportingLines,
+  useUpdateMyProfile,
 } from "../use-employees";
+import {
+  useDeactivateWorkforceAccount,
+  useProvisionWorkforceAccountInvite,
+  useReactivateWorkforceAccount,
+  useResendWorkforceAccountInvite,
+  useWorkforceAccountStatus,
+} from "../use-workforce-accounts";
 import type {
   EmployeeHierarchyNodeDto,
   EmployeeHierarchyStatus,
+  WorkforceAccountStatusDto,
 } from "../employee-roster.types";
 
 // ── Small display helpers ──────────────────────────────────────────────────
