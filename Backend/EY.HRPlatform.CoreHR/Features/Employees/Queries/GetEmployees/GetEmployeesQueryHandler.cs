@@ -41,6 +41,7 @@ public sealed class GetEmployeesQueryHandler(
                 e.FirstName.ToLower().Contains(searchTerm) ||
                 e.LastName.ToLower().Contains(searchTerm) ||
                 e.Email.ToLower().Contains(searchTerm) ||
+                (e.EmployeeNumber != null && e.EmployeeNumber.ToLower().Contains(searchTerm)) ||
                 (e.FirstName + " " + e.LastName).ToLower().Contains(searchTerm));
         }
 

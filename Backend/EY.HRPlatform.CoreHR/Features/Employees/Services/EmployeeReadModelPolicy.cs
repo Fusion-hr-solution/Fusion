@@ -26,8 +26,10 @@ public sealed class EmployeeReadModelPolicy : IEmployeeReadModelPolicy
         => new(
             employee.Id,
             employee.TenantId,
+            employee.EmployeeNumber,
             employee.FirstName,
             employee.LastName,
+            employee.PreferredName,
             employee.Email,
             employee.OrgUnitId,
             employee.OrgUnit?.Name,
@@ -45,8 +47,10 @@ public sealed class EmployeeReadModelPolicy : IEmployeeReadModelPolicy
     public EmployeeListItemDto MapListItem(Employee employee, TenantSettingsDto settings, EmployeeReadAudience audience, int directReportCount = 0)
         => new(
             employee.Id,
+            employee.EmployeeNumber,
             employee.FirstName,
             employee.LastName,
+            employee.PreferredName,
             employee.Email,
             employee.OrgUnitId,
             employee.OrgUnit?.Name,
@@ -65,6 +69,7 @@ public sealed class EmployeeReadModelPolicy : IEmployeeReadModelPolicy
     public EmployeeProfileDto MapProfile(Employee employee, TenantSettingsDto settings, EmployeeReadAudience audience, int directReportCount)
         => new(
             employee.Id,
+            employee.EmployeeNumber,
             employee.FirstName,
             employee.LastName,
             employee.PreferredName,
