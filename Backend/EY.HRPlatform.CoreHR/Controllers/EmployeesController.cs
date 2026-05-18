@@ -113,7 +113,10 @@ public class EmployeesController(ISender sender) : ControllerBase
             request.JobTitle,
             request.ManagerId,
             request.OrgUnitId,
-            request.EmployeeNumber);
+            request.EmployeeNumber,
+            request.Phone,
+            request.WorkLocation,
+            request.EmploymentType);
 
         var result = await sender.Send(command, cancellationToken);
 
@@ -185,17 +188,17 @@ public class EmployeesController(ISender sender) : ControllerBase
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> GetReportingLines(Guid id, CancellationToken cancellationToken)
     {
-        if (!CanReadReportingLines(id))
-        {
-            return Forbid();
-        }
-
         var audience = GetCurrentReadAudience();
         var result = await sender.Send(new GetEmployeeReportingLinesQuery(id, audience), cancellationToken);
 
         if (result.IsFailure)
         {
             return NotFound(ApiResponse.Failure(result.Error.Message));
+        }
+
+        if (!CanReadReportingLines(result.Value.Employee))
+        {
+            return Forbid();
         }
 
         return Ok(ApiResponseOfEmployeeReportingLinesDto.Success(ApplyReportingScope(result.Value)));
@@ -235,7 +238,10 @@ public class EmployeesController(ISender sender) : ControllerBase
             request.ManagerId,
             request.OrgUnitId,
             request.HireDate,
-            request.EmployeeNumber);
+            request.EmployeeNumber,
+            request.Phone,
+            request.WorkLocation,
+            request.EmploymentType);
 
         var result = await sender.Send(command, cancellationToken);
 
@@ -268,7 +274,7 @@ public class EmployeesController(ISender sender) : ControllerBase
         }
 
         await sender.Send(
-            new UpdateOwnEmployeeProfileCommand(id, expectedVersion, request.PreferredName),
+            new UpdateOwnEmployeeProfileCommand(id, expectedVersion, request.PreferredName, request.Phone),
             cancellationToken);
 
         return NoContent();
@@ -347,7 +353,7 @@ public class EmployeesController(ISender sender) : ControllerBase
         return User.IsInRole(PlatformRole.Manager) && profile.ManagerId == linkedEmployeeId.Value;
     }
 
-    private bool CanReadReportingLines(Guid employeeId)
+    private bool CanReadReportingLines(EmployeeListItemDto employee)
     {
         if (User.IsInRole(PlatformRole.HRAdmin) || User.IsInRole(PlatformRole.PlatformAdmin))
         {
@@ -355,7 +361,17 @@ public class EmployeesController(ISender sender) : ControllerBase
         }
 
         var linkedEmployeeId = User.GetEmployeeId();
-        return linkedEmployeeId.HasValue && employeeId == linkedEmployeeId.Value;
+        if (!linkedEmployeeId.HasValue)
+        {
+            return false;
+        }
+
+        if (employee.Id == linkedEmployeeId.Value)
+        {
+            return true;
+        }
+
+        return User.IsInRole(PlatformRole.Manager) && employee.ManagerId == linkedEmployeeId.Value;
     }
 
     private bool CanUpdateOwnProfile(Guid employeeId)

@@ -70,7 +70,10 @@ public sealed class CreateEmployeeCommandHandler(
             request.Email,
             request.HireDate,
             jobTitle: request.JobTitle,
-            employeeNumber: request.EmployeeNumber);
+            employeeNumber: request.EmployeeNumber,
+            phone: request.Phone,
+            workLocation: request.WorkLocation,
+            employmentType: request.EmploymentType);
 
         // Assign manager if specified
         if (request.ManagerId.HasValue)
@@ -117,9 +120,12 @@ public sealed class CreateEmployeeCommandHandler(
         employee.LastName,
         employee.PreferredName,
         employee.Email,
+        employee.Phone,
         employee.OrgUnitId,
         orgUnit?.Name,
         employee.JobTitle,
+        employee.WorkLocation,
+        employee.EmploymentType,
         employee.HireDate,
         employee.Status,
         employee.ManagerId,
