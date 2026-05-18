@@ -156,7 +156,7 @@ describe("createPlatformApiClient", () => {
     const [, protectedInit] = fetchSpy.mock.calls[1] as [string, RequestInit];
     const headers = protectedInit.headers as Record<string, string>;
     expect(headers["Authorization"]).toBe("Bearer fresh-token");
-    expect(JSON.parse(storage.ey_hr_auth).user.employeeId).toBe("employee-1");
+    expect(JSON.parse(storage.ey_hr_auth!).user.employeeId).toBe("employee-1");
   });
 
   it("retries once after a 401 by refreshing the stored session", async () => {
