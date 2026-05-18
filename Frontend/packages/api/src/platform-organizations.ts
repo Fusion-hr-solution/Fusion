@@ -4,6 +4,9 @@ export interface PlatformOrganizationStatsDto {
   totalOrganizations: number;
   invitedPending: number;
   activeOrganizations: number;
+  draftOrganizations: number;
+  suspendedOrganizations: number;
+  archivedOrganizations: number;
 }
 
 export interface PlatformOrganizationInviteStatusDto {
