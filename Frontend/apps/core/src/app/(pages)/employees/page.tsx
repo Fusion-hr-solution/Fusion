@@ -58,6 +58,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useToast } from "@/components/ui/use-toast";
 import { canAccessEmployeeRoster } from "@/lib/employee-roster-access";
+import { buildTenantContextHref } from "@/lib/tenant-navigation";
 import {
   type AccessInviteRole,
   getAccessBadgeTone,
@@ -1048,9 +1049,9 @@ export default function EmployeesPage() {
 
   const handleRowClick = useCallback(
     (employee: EmployeeRosterRow) => {
-      router.push(`/employees/${employee.id}`);
+      router.push(buildTenantContextHref(`/employees/${employee.id}`, tenantId));
     },
-    [router]
+    [router, tenantId]
   );
 
   const handleRowSelectionChange = useCallback(

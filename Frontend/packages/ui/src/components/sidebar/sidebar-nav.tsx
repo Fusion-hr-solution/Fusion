@@ -111,7 +111,7 @@ export function SidebarNav({
                   </Tooltip>
                 ) : (
                   <Link
-                    href={`${basePath}${item.navigateHref ?? item.href}`}
+                    href={item.navigateHref ?? item.href}
                     className={itemClasses}
                     title={collapsed ? item.label : undefined}
                   >

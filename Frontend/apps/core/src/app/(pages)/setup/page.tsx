@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { ApiError } from "@repo/api";
 import { useTenantContext } from "@/components/core-tenant-context-provider";
+import { buildTenantContextHref } from "@/lib/tenant-navigation";
 import type {
   CoreSetupPhase,
   DraftSetupIssueCategory,
@@ -339,6 +340,11 @@ export default function SetupPage() {
   const router = useRouter();
   const { user } = useAuth();
   const { tenantId } = useTenantContext();
+  const dashboardHref = buildTenantContextHref("/", tenantId);
+  const draftStructureHref = buildTenantContextHref(
+    "/setup/draft-structure",
+    tenantId
+  );
   const isTenantContextReadOnly = !!tenantId;
   const canAccess = canAccessCoreSetup(user) || isTenantContextReadOnly;
   const [localError, setLocalError] = useState<string | null>(null);
@@ -686,7 +692,7 @@ export default function SetupPage() {
               {setupState.currentPhase === "activated" ? (
                 <>
                   {!isTenantContextReadOnly ? (
-                    <Button onClick={() => router.push("/setup/draft-structure")}>
+                    <Button onClick={() => router.push(draftStructureHref)}>
                       Open draft workspace
                     </Button>
                   ) : null}
@@ -727,7 +733,7 @@ export default function SetupPage() {
                   {!isTenantContextReadOnly ? (
                     <Button
                       variant="outline"
-                      onClick={() => router.push("/setup/draft-structure")}
+                      onClick={() => router.push(draftStructureHref)}
                     >
                       View draft workspace
                     </Button>
@@ -736,11 +742,11 @@ export default function SetupPage() {
               ) : null}
               {isCoreUnlocked ? (
                 <>
-                  <Button onClick={() => router.push("/")}>Open dashboard</Button>
+                  <Button onClick={() => router.push(dashboardHref)}>Open dashboard</Button>
                   {!isTenantContextReadOnly ? (
                     <Button
                       variant="outline"
-                      onClick={() => router.push("/setup/draft-structure")}
+                      onClick={() => router.push(draftStructureHref)}
                     >
                       View published structure
                     </Button>
