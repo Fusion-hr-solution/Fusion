@@ -10,6 +10,7 @@ import {
   ChevronRight,
   Hash,
   Mail,
+  Phone,
   ShieldAlert,
   Star,
   User,
@@ -39,6 +40,7 @@ import {
   canAccessEmployeeRoster,
 } from "@/lib/employee-roster-access";
 import { buildTenantContextHref } from "@/lib/tenant-navigation";
+import { useTenantSettings } from "../../setup/draft-structure/use-tenant-settings";
 import { useEmployeeFieldPolicy } from "../employee-field-visibility";
 import {
   getEmployeeActionIssues,
@@ -73,6 +75,7 @@ import {
 import type {
   EmployeeHierarchyNodeDto,
   EmployeeHierarchyStatus,
+  EmployeeProfileDto,
   WorkforceAccountStatusDto,
 } from "../employee-roster.types";
 
@@ -107,6 +110,18 @@ function HierarchyBadge({ status }: { status: EmployeeHierarchyStatus }) {
     default:
       return null;
   }
+}
+
+function ChecklistStatusBadge({
+  status,
+}: {
+  status: "Complete" | "Pending";
+}) {
+  return (
+    <Badge variant={status === "Complete" ? "secondary" : "outline"}>
+      {status}
+    </Badge>
+  );
 }
 
 const WORKSPACE_CARD_CLASS_NAME = "gap-0 py-0";
@@ -226,6 +241,60 @@ function getInitials(firstName: string, lastName: string): string {
   return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
 }
 
+function getEmployeeFileChecklist({
+  profile,
+  showPhone,
+}: {
+  profile: EmployeeProfileDto;
+  showPhone: boolean;
+}) {
+  const hireDate = new Date(profile.hireDate);
+  const hasFutureHireDate =
+    !Number.isNaN(hireDate.getTime()) && hireDate.getTime() > Date.now();
+  const identityComplete = hasTextValue(profile.email) && (!showPhone || hasTextValue(profile.phone));
+  const orgAssignmentComplete =
+    !!profile.orgUnitId &&
+    (profile.hierarchyStatus === "Healthy" || profile.hierarchyStatus === "Root");
+  const readinessComplete =
+    !profile.readiness.hasEmployeeStateIssues &&
+    !profile.readiness.hasBlockingIssues;
+
+  return [
+    {
+      key: "contract",
+      label: "Contract packet",
+      detail: hasFutureHireDate
+        ? "Start-date paperwork still needs final confirmation."
+        : "Core hire date is set and the employment record is live.",
+      status: hasFutureHireDate ? "Pending" : "Complete",
+    },
+    {
+      key: "identity",
+      label: "Identity verification",
+      detail: identityComplete
+        ? "Primary contact details are present on the employee file."
+        : "Add the remaining contact information to complete the employee file.",
+      status: identityComplete ? "Complete" : "Pending",
+    },
+    {
+      key: "organization",
+      label: "Organization assignment",
+      detail: orgAssignmentComplete
+        ? "Org unit and reporting placement are ready for workforce operations."
+        : "Assign the employee to an org unit and valid reporting line.",
+      status: orgAssignmentComplete ? "Complete" : "Pending",
+    },
+    {
+      key: "readiness",
+      label: "Start readiness",
+      detail: readinessComplete
+        ? "No current record issues are blocking this employee."
+        : "Resolve readiness issues before treating this employee as fully operational.",
+      status: readinessComplete ? "Complete" : "Pending",
+    },
+  ] as const;
+}
+
 function WorkforceAccountStateBadge({
   account,
 }: {
@@ -300,14 +369,22 @@ function PersonalProfileCard({
   employeeId,
   fullName,
   workEmail,
+  phone,
+  showPhone,
   preferredName,
   expectedVersion,
+  canEditPreferredName,
+  canEditPhone,
 }: {
   employeeId: string;
   fullName: string;
   workEmail: string;
+  phone: string | null;
+  showPhone: boolean;
   preferredName: string | null;
   expectedVersion: number;
+  canEditPreferredName: boolean;
+  canEditPhone: boolean;
 }) {
   const { tenantId } = useTenantContext();
   const isTenantContextReadOnly = !!tenantId;
@@ -316,15 +393,24 @@ function PersonalProfileCard({
   const [draftPreferredName, setDraftPreferredName] = useState(
     preferredName ?? ""
   );
+  const [draftPhone, setDraftPhone] = useState(phone ?? "");
   const [actionError, setActionError] = useState<string | null>(null);
+  const canEditAnyField =
+    canEditPreferredName || (showPhone && canEditPhone);
 
   useEffect(() => {
     setDraftPreferredName(preferredName ?? "");
-  }, [employeeId, expectedVersion, preferredName]);
+    setDraftPhone(phone ?? "");
+  }, [employeeId, expectedVersion, phone, preferredName]);
 
   const normalizedDraftPreferredName = draftPreferredName.trim() || null;
-  const hasChanges =
+  const normalizedDraftPhone = draftPhone.trim() || null;
+  const hasPreferredNameChanges =
+    canEditPreferredName &&
     (preferredName ?? "") !== (normalizedDraftPreferredName ?? "");
+  const hasPhoneChanges =
+    showPhone && canEditPhone && (phone ?? "") !== (normalizedDraftPhone ?? "");
+  const hasChanges = hasPreferredNameChanges || hasPhoneChanges;
 
   async function handleSave() {
     setActionError(null);
@@ -333,7 +419,8 @@ function PersonalProfileCard({
       await updateMyProfile.mutateAsync({
         employeeId,
         expectedVersion,
-        preferredName: normalizedDraftPreferredName,
+        preferredName: canEditPreferredName ? normalizedDraftPreferredName : undefined,
+        phone: showPhone && canEditPhone ? normalizedDraftPhone : undefined,
       });
       setIsEditing(false);
     } catch (error) {
@@ -350,7 +437,7 @@ function PersonalProfileCard({
           in daily use.
         </CardDescription>
         <CardAction>
-          {!isEditing && !isTenantContextReadOnly ? (
+          {!isEditing && !isTenantContextReadOnly && canEditAnyField ? (
             <Button
               size="sm"
               variant="outline"
@@ -365,6 +452,22 @@ function PersonalProfileCard({
         <DetailRow icon={User} label="Full name" value={fullName} />
         <Separator />
         <DetailRow icon={Mail} label="Work email" value={workEmail} />
+        {showPhone ? <Separator /> : null}
+        {showPhone ? (
+          <DetailRow
+            icon={Phone}
+            label="Phone"
+            value={
+              phone ? (
+                phone
+              ) : (
+                <span className="font-normal text-muted-foreground">
+                  Not set
+                </span>
+              )
+            }
+          />
+        ) : null}
         <Separator />
         {!isEditing ? (
           <DetailRow
@@ -382,19 +485,39 @@ function PersonalProfileCard({
           />
         ) : (
           <div className="space-y-3 rounded-xl border bg-muted/10 p-4">
-            <div className="space-y-1">
-              <p className="text-sm font-medium">Preferred name</p>
-              <p className="text-xs text-muted-foreground">
-                Leave empty to clear your preferred name. Legal name and work
-                email remain HR-managed.
-              </p>
-            </div>
-            <Input
-              value={draftPreferredName}
-              maxLength={100}
-              placeholder="Preferred name"
-              onChange={(event) => setDraftPreferredName(event.target.value)}
-            />
+            {canEditPreferredName ? (
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Preferred name</p>
+                  <p className="text-xs text-muted-foreground">
+                    Leave empty to clear your preferred name. Legal name and work
+                    email remain HR-managed.
+                  </p>
+                </div>
+                <Input
+                  value={draftPreferredName}
+                  maxLength={100}
+                  placeholder="Preferred name"
+                  onChange={(event) => setDraftPreferredName(event.target.value)}
+                />
+              </div>
+            ) : null}
+            {showPhone && canEditPhone ? (
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Phone</p>
+                  <p className="text-xs text-muted-foreground">
+                    Keep your preferred contact number up to date for HR and manager visibility.
+                  </p>
+                </div>
+                <Input
+                  value={draftPhone}
+                  maxLength={50}
+                  placeholder="Phone"
+                  onChange={(event) => setDraftPhone(event.target.value)}
+                />
+              </div>
+            ) : null}
             <div className="flex flex-wrap gap-2">
               <Button
                 size="sm"
@@ -408,6 +531,7 @@ function PersonalProfileCard({
                 variant="outline"
                 onClick={() => {
                   setDraftPreferredName(preferredName ?? "");
+                  setDraftPhone(phone ?? "");
                   setActionError(null);
                   setIsEditing(false);
                 }}
@@ -436,12 +560,14 @@ function WorkforceAccountCard({
   lastName,
   email,
   directReportCount,
+  canManageAccess,
 }: {
   employeeId: string;
   firstName: string;
   lastName: string;
   email: string;
   directReportCount: number;
+  canManageAccess: boolean;
 }) {
   const { tenantId } = useTenantContext();
   const isTenantContextReadOnly = !!tenantId;
@@ -696,7 +822,7 @@ function WorkforceAccountCard({
               </>
             ) : null}
 
-            {!isTenantContextReadOnly && (canDeactivate || canReactivate) ? (
+            {!isTenantContextReadOnly && canManageAccess && (canDeactivate || canReactivate) ? (
               <>
                 <Separator />
                 <div className="flex flex-wrap gap-2">
@@ -728,7 +854,7 @@ function WorkforceAccountCard({
               </>
             ) : null}
 
-            {!isTenantContextReadOnly && canSendInvite ? (
+            {!isTenantContextReadOnly && canManageAccess && canSendInvite ? (
               <>
                 <Separator />
                 <div className="space-y-3 rounded-xl border bg-muted/20 p-4">
@@ -778,7 +904,7 @@ function WorkforceAccountCard({
               </>
             ) : null}
 
-            {!isTenantContextReadOnly && canResendInvite ? (
+            {!isTenantContextReadOnly && canManageAccess && canResendInvite ? (
               <>
                 <Separator />
                 <div className="flex flex-wrap gap-2">
@@ -841,21 +967,35 @@ export default function EmployeeProfilePage() {
   const searchParams = useSearchParams();
   const { tenantId } = useTenantContext();
   const isTenantContextReadOnly = !!tenantId;
+  const canManageEmployee = canAccessEmployeeRoster(user) && !isTenantContextReadOnly;
+  const canViewProfile = canAccessEmployeeProfile(user);
   const requestedSheet = searchParams.get("sheet");
   const params = useParams<{ id: string }>();
   const employeeId =
     typeof params.id === "string" && params.id.trim().length > 0
       ? params.id
       : null;
-  const canAccess = canAccessEmployeeRoster(user);
-  const fieldPolicy = useEmployeeFieldPolicy(canAccess || isTenantContextReadOnly);
+  const isOwnProfile = !!employeeId && user?.employeeId === employeeId;
+  const fieldAudience = canManageEmployee || isTenantContextReadOnly
+    ? "hrAdmin"
+    : isOwnProfile
+      ? "employee"
+      : "manager";
+  const fieldPolicy = useEmployeeFieldPolicy(
+    canViewProfile || isTenantContextReadOnly,
+    fieldAudience
+  );
+  const { data: settings } = useTenantSettings(
+    canViewProfile || isTenantContextReadOnly
+  );
   const [sheetOpen, setSheetOpen] = useState(false);
   const [activeWorkspaceSheet, setActiveWorkspaceSheet] = useState<
     "identity" | "employment" | "organization" | "status" | null
   >(null);
   const lastHandledSheetRef = useRef<string | null>(null);
 
-  const effectiveEmployeeId = (canAccess || isTenantContextReadOnly) && employeeId ? employeeId : null;
+  const effectiveEmployeeId =
+    (canViewProfile || isTenantContextReadOnly) && employeeId ? employeeId : null;
 
   const {
     data: profile,
@@ -887,7 +1027,7 @@ export default function EmployeeProfilePage() {
       requestedSheet === "organization" ||
       requestedSheet === "status";
 
-    if (isTenantContextReadOnly && (isReportingSheetRequest || isWorkspaceSheetRequest)) {
+    if (!canManageEmployee && (isReportingSheetRequest || isWorkspaceSheetRequest)) {
       lastHandledSheetRef.current = requestedSheet;
     } else if (isReportingSheetRequest) {
       setSheetOpen(true);
@@ -906,9 +1046,10 @@ export default function EmployeeProfilePage() {
     const nextUrl = nextSearch ? `${nextPath}?${nextSearch}` : nextPath;
 
     window.history.replaceState(window.history.state, "", nextUrl);
-  }, [isTenantContextReadOnly, profile, requestedSheet, searchParams]);
+  }, [canManageEmployee, profile, requestedSheet, searchParams]);
 
-  const isInitialLoading = (canAccess || isTenantContextReadOnly) && isLoading && !profile && !error;
+  const isInitialLoading =
+    (canViewProfile || isTenantContextReadOnly) && isLoading && !profile && !error;
 
   if (isInitialLoading) {
     return (
@@ -921,7 +1062,7 @@ export default function EmployeeProfilePage() {
     );
   }
 
-  const isViewable = canAccess || isTenantContextReadOnly;
+  const isViewable = canViewProfile || isTenantContextReadOnly;
 
   if (!isViewable) {
     return (
@@ -938,14 +1079,20 @@ export default function EmployeeProfilePage() {
   if (error) {
     const isNotFound =
       "status" in error && (error as { status?: number }).status === 404;
+    const isForbidden =
+      "status" in error && (error as { status?: number }).status === 403;
 
     return (
       <div className="flex flex-col gap-6 p-6">
-        {isNotFound ? (
+        {isNotFound || isForbidden ? (
           <EmptyState
             icon={User}
-            title="Employee not found"
-            description="This employee may have been removed or is outside your current scope."
+            title={isForbidden ? "Employee is outside your scope" : "Employee not found"}
+            description={
+              isForbidden
+                ? "This employee is not available in your current Core access scope."
+                : "This employee may have been removed or is outside your current scope."
+            }
           />
         ) : (
           <Alert variant="destructive">
@@ -961,14 +1108,25 @@ export default function EmployeeProfilePage() {
 
   if (!profile) return null;
 
-  const canEditOwnPreferredName = user?.employeeId === profile.id;
+  const canEditOwnPreferredName =
+    user?.employeeId === profile.id && settings?.selfService.canEditPreferredName !== false;
+  const canEditOwnPhone =
+    user?.employeeId === profile.id && settings?.selfService.canEditPhone !== false;
   const hireDate = formatDate(profile.hireDate);
   const tenure = getTenure(profile.hireDate);
   const showHireDate = fieldPolicy.showHireDate;
   const showJobTitle = fieldPolicy.showJobTitle;
+  const showPhone = fieldPolicy.showPhone;
+  const showWorkLocation = fieldPolicy.showWorkLocation;
+  const showEmploymentType = fieldPolicy.showEmploymentType;
   const requireHireDate = fieldPolicy.requireHireDate;
   const requireJobTitle = fieldPolicy.requireJobTitle;
-  const canEditEmploymentDetails = showHireDate || showJobTitle;
+  const requirePhone = fieldPolicy.requirePhone;
+  const requireWorkLocation = fieldPolicy.requireWorkLocation;
+  const requireEmploymentType = fieldPolicy.requireEmploymentType;
+  const canEditEmploymentDetails =
+    canManageEmployee &&
+    (showHireDate || showJobTitle || showWorkLocation || showEmploymentType);
   const email = hasTextValue(profile.email) ? profile.email : "Not set";
   const managerSupportingText =
     profile.hierarchyStatus === "Root"
@@ -982,9 +1140,13 @@ export default function EmployeeProfilePage() {
     profile.hierarchyStatus
   );
   const hierarchyIsHealthy = profile.hierarchyStatus === "Healthy";
+  const fileChecklist = getEmployeeFileChecklist({
+    profile,
+    showPhone,
+  });
 
   const handleOpenReadinessIssue = (issue: (typeof attentionItems)[number]) => {
-    if (isTenantContextReadOnly) {
+    if (!canManageEmployee) {
       return;
     }
 
@@ -1111,6 +1273,20 @@ export default function EmployeeProfilePage() {
         />
       </div>
 
+      {user?.employeeId === profile.id ? (
+        <PersonalProfileCard
+          employeeId={profile.id}
+          fullName={profile.fullName}
+          workEmail={email}
+          phone={profile.phone}
+          showPhone={showPhone}
+          preferredName={profile.preferredName}
+          expectedVersion={profile.version}
+          canEditPreferredName={canEditOwnPreferredName}
+          canEditPhone={canEditOwnPhone}
+        />
+      ) : null}
+
       {/* ── Main record — two-column ──────────────────────────────────────── */}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Left */}
@@ -1157,6 +1333,22 @@ export default function EmployeeProfilePage() {
               />
               <Separator />
               <DetailRow icon={Mail} label="Work email" value={email} />
+              {showPhone ? <Separator /> : null}
+              {showPhone ? (
+                <DetailRow
+                  icon={Phone}
+                  label="Phone"
+                  value={
+                    hasTextValue(profile.phone) ? (
+                      profile.phone
+                    ) : (
+                      <span className="font-normal text-muted-foreground">
+                        Not set
+                      </span>
+                    )
+                  }
+                />
+              ) : null}
             </CardContent>
           </Card>
 
@@ -1167,7 +1359,7 @@ export default function EmployeeProfilePage() {
                 Keep role, hire date, and status details current.
               </CardDescription>
               <CardAction className="flex flex-wrap gap-2">
-                {canEditEmploymentDetails && !isTenantContextReadOnly ? (
+                {canEditEmploymentDetails ? (
                   <Button
                     size="sm"
                     variant="outline"
@@ -1176,7 +1368,7 @@ export default function EmployeeProfilePage() {
                     Edit
                   </Button>
                 ) : null}
-                {!isTenantContextReadOnly ? (
+                {canManageEmployee ? (
                   <Button
                     size="sm"
                     variant="outline"
@@ -1203,11 +1395,45 @@ export default function EmployeeProfilePage() {
                   }
                 />
               ) : null}
-              {showJobTitle && showHireDate ? <Separator /> : null}
+              {showJobTitle && (showHireDate || showWorkLocation || showEmploymentType) ? <Separator /> : null}
               {showHireDate ? (
                 <DetailRow icon={Calendar} label="Hire date" value={hireDate} />
               ) : null}
-              {showJobTitle || showHireDate ? <Separator /> : null}
+              {showHireDate && (showWorkLocation || showEmploymentType) ? <Separator /> : null}
+              {showWorkLocation ? (
+                <>
+                  <DetailRow
+                    icon={Building2}
+                    label="Work location"
+                    value={
+                      hasTextValue(profile.workLocation) ? (
+                        profile.workLocation
+                      ) : (
+                        <span className="font-normal text-muted-foreground">
+                          Not set
+                        </span>
+                      )
+                    }
+                  />
+                  {showEmploymentType ? <Separator /> : null}
+                </>
+              ) : null}
+              {showEmploymentType ? (
+                <DetailRow
+                  icon={Star}
+                  label="Employment type"
+                  value={
+                    hasTextValue(profile.employmentType) ? (
+                      profile.employmentType
+                    ) : (
+                      <span className="font-normal text-muted-foreground">
+                        Not set
+                      </span>
+                    )
+                  }
+                />
+              ) : null}
+              {showJobTitle || showHireDate || showWorkLocation || showEmploymentType ? <Separator /> : null}
               <DetailRow
                 icon={User}
                 label="Employment status"
@@ -1252,7 +1478,7 @@ export default function EmployeeProfilePage() {
                             : "Open the linked workforce surface to fix this issue."}
                         </p>
                       </div>
-                      {!isTenantContextReadOnly ? (
+                      {canManageEmployee ? (
                         <Button
                           size="sm"
                           variant="outline"
@@ -1274,6 +1500,42 @@ export default function EmployeeProfilePage() {
                   </p>
                 </div>
               )}
+            </CardContent>
+          </Card>
+
+          {canManageEmployee ? (
+            <WorkforceAccountCard
+              employeeId={profile.id}
+              firstName={profile.firstName}
+              lastName={profile.lastName}
+              email={profile.email}
+              directReportCount={profile.directReportCount}
+              canManageAccess={canManageEmployee}
+            />
+          ) : null}
+
+          <Card className={WORKSPACE_CARD_CLASS_NAME}>
+            <CardHeader className={WORKSPACE_CARD_HEADER_CLASS_NAME}>
+              <CardTitle className="text-base">Employee file &amp; readiness</CardTitle>
+              <CardDescription>
+                Lightweight employee file checkpoints for a cleaner Core demo story.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className={WORKSPACE_CARD_CONTENT_CLASS_NAME}>
+              <div className="space-y-3">
+                {fileChecklist.map((item) => (
+                  <div
+                    key={item.key}
+                    className="flex flex-col gap-2 rounded-xl border bg-muted/10 p-4 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div className="space-y-0.5">
+                      <p className="text-sm font-medium">{item.label}</p>
+                      <p className="text-xs text-muted-foreground">{item.detail}</p>
+                    </div>
+                    <ChecklistStatusBadge status={item.status} />
+                  </div>
+                ))}
+              </div>
             </CardContent>
           </Card>
 
@@ -1299,7 +1561,7 @@ export default function EmployeeProfilePage() {
                     >
                     View in org chart
                   </Button>
-                  {!isTenantContextReadOnly ? (
+                  {canManageEmployee ? (
                     <Button
                       size="sm"
                       variant="outline"
@@ -1380,7 +1642,7 @@ export default function EmployeeProfilePage() {
                     Update the manager and review the chain.
                   </p>
                 </div>
-                {!isTenantContextReadOnly ? (
+                {canManageEmployee ? (
                   <Button
                     size="sm"
                     variant="outline"
@@ -1404,6 +1666,8 @@ export default function EmployeeProfilePage() {
 
       <EmployeeIdentityEditSheet
         profile={profile}
+        showPhone={showPhone}
+        requirePhone={requirePhone}
         open={activeWorkspaceSheet === "identity"}
         onOpenChange={(open) =>
           setActiveWorkspaceSheet(open ? "identity" : null)
@@ -1415,8 +1679,12 @@ export default function EmployeeProfilePage() {
         open={activeWorkspaceSheet === "employment"}
         showJobTitle={showJobTitle}
         showHireDate={showHireDate}
+        showWorkLocation={showWorkLocation}
+        showEmploymentType={showEmploymentType}
         requireJobTitle={requireJobTitle}
         requireHireDate={requireHireDate}
+        requireWorkLocation={requireWorkLocation}
+        requireEmploymentType={requireEmploymentType}
         onOpenChange={(open) =>
           setActiveWorkspaceSheet(open ? "employment" : null)
         }
@@ -1435,7 +1703,7 @@ export default function EmployeeProfilePage() {
         open={activeWorkspaceSheet === "status"}
         onOpenChange={(open) => setActiveWorkspaceSheet(open ? "status" : null)}
         onManageReportingRelationship={() => {
-          if (!isTenantContextReadOnly) {
+          if (canManageEmployee) {
             setSheetOpen(true);
           }
         }}

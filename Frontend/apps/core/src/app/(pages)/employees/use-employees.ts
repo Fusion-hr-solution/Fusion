@@ -63,7 +63,10 @@ interface UpdateEmployeeRecordInput {
   firstName?: string;
   lastName?: string;
   email?: string;
+   phone?: string | null;
   jobTitle?: string;
+   workLocation?: string | null;
+   employmentType?: string | null;
   orgUnitId?: string | null;
   hireDate?: string;
 }
@@ -72,6 +75,25 @@ interface UpdateMyProfileInput {
   employeeId: string;
   expectedVersion: number;
   preferredName?: string | null;
+  phone?: string | null;
+}
+
+interface CreateEmployeeInput {
+  employeeNumber?: string | null;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string | null;
+  hireDate: string;
+  jobTitle?: string | null;
+  workLocation?: string | null;
+  employmentType?: string | null;
+  managerId?: string | null;
+  orgUnitId?: string | null;
+}
+
+interface CreatedEmployeeRecordDto {
+  id: string;
 }
 
 interface DeactivateEmployeeInput {
@@ -172,10 +194,9 @@ export function useWorkforceReadinessSummary(): UseApiQueryResult<WorkforceReadi
 export function useEmployeeReportingLines(
   employeeId: string | null
 ): UseApiQueryResult<EmployeeReportingLinesDto> {
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const client = useMemo(() => createPlatformApiClient(), []);
-  const canAccess =
-    useCanAccessRoster() || user?.employeeId === employeeId;
+  const canAccess = useCanAccessProfile();
 
   const queryFn = useCallback(
     (signal: AbortSignal) => {
@@ -240,7 +261,6 @@ export function useEmployeeManagerOptions({
         isAuthenticated &&
         canAccess &&
         enabled &&
-        !!employeeId &&
         normalizedSearch.length >= 2,
     }
   );
@@ -289,7 +309,10 @@ function buildEmployeeUpdatePayload({
   firstName,
   lastName,
   email,
+  phone,
   jobTitle,
+  workLocation,
+  employmentType,
   orgUnitId,
   hireDate,
 }: Omit<UpdateEmployeeRecordInput, "employeeId" | "expectedVersion">) {
@@ -311,8 +334,20 @@ function buildEmployeeUpdatePayload({
     payload.email = email;
   }
 
+  if (phone !== undefined) {
+    payload.phone = phone?.trim() || null;
+  }
+
   if (jobTitle !== undefined) {
     payload.jobTitle = jobTitle;
+  }
+
+  if (workLocation !== undefined) {
+    payload.workLocation = workLocation?.trim() || null;
+  }
+
+  if (employmentType !== undefined) {
+    payload.employmentType = employmentType?.trim() || null;
   }
 
   if (orgUnitId !== undefined) {
@@ -402,6 +437,45 @@ export function useUpdateEmployeeManager() {
   );
 }
 
+export function useCreateEmployeeRecord() {
+  const client = useMemo(() => createPlatformApiClient(), []);
+
+  return useApiMutation<CreatedEmployeeRecordDto, CreateEmployeeInput>(
+    ({
+      employeeNumber,
+      firstName,
+      lastName,
+      email,
+      phone,
+      hireDate,
+      jobTitle,
+      workLocation,
+      employmentType,
+      managerId,
+      orgUnitId,
+    }) =>
+      client.post<CreatedEmployeeRecordDto>(EMPLOYEE_ROSTER_PATH, {
+        employeeNumber: employeeNumber?.trim() || null,
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        email: email.trim().toLowerCase(),
+        phone: phone?.trim() || null,
+        hireDate,
+        jobTitle: jobTitle?.trim() || null,
+        workLocation: workLocation?.trim() || null,
+        employmentType: employmentType?.trim() || null,
+        managerId: managerId || null,
+        orgUnitId: orgUnitId || null,
+      }),
+    {
+      invalidateQueries: [
+        { queryKey: employeeRosterQueryKeys.lists() },
+        { queryKey: employeeRosterQueryKeys.readinessSummary(), exact: true },
+      ],
+    }
+  );
+}
+
 export function useUpdateEmployeeRecord() {
   const client = useMemo(() => createPlatformApiClient(), []);
 
@@ -436,11 +510,12 @@ export function useUpdateMyProfile() {
   const client = useMemo(() => createPlatformApiClient(), []);
 
   return useApiMutation<void, UpdateMyProfileInput>(
-    ({ employeeId, expectedVersion, preferredName }) =>
+    ({ employeeId, expectedVersion, preferredName, phone }) =>
       client.put<void>(
         `${EMPLOYEE_ROSTER_PATH}/${employeeId}/self-profile`,
         {
           preferredName,
+          phone,
         },
         {
           headers: {

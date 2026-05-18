@@ -33,6 +33,11 @@ interface EmployeeProfileSheetProps {
   onOpenChange: (open: boolean) => void;
 }
 
+interface EmployeeIdentityEditSheetProps extends EmployeeProfileSheetProps {
+  showPhone: boolean;
+  requirePhone: boolean;
+}
+
 interface EmployeeStatusSheetProps extends EmployeeProfileSheetProps {
   onManageReportingRelationship: () => void;
 }
@@ -42,11 +47,14 @@ interface IdentityFormValues {
   firstName: string;
   lastName: string;
   email: string;
+  phone: string;
 }
 
 interface EmploymentFormValues {
   jobTitle: string;
   hireDate: string;
+  workLocation: string;
+  employmentType: string;
 }
 
 interface OrganizationFormValues {
@@ -56,8 +64,12 @@ interface OrganizationFormValues {
 interface EmployeeEmploymentEditSheetProps extends EmployeeProfileSheetProps {
   showJobTitle: boolean;
   showHireDate: boolean;
+  showWorkLocation: boolean;
+  showEmploymentType: boolean;
   requireJobTitle: boolean;
   requireHireDate: boolean;
+  requireWorkLocation: boolean;
+  requireEmploymentType: boolean;
 }
 
 function getMutationErrorMessage(error: unknown) {
@@ -149,7 +161,9 @@ export function EmployeeIdentityEditSheet({
   profile,
   open,
   onOpenChange,
-}: EmployeeProfileSheetProps) {
+  showPhone,
+  requirePhone,
+}: EmployeeIdentityEditSheetProps) {
   const updateEmployeeRecord = useUpdateEmployeeRecord();
   const [submitError, setSubmitError] = useState<string | null>(null);
   const form = useForm<IdentityFormValues>({
@@ -158,6 +172,7 @@ export function EmployeeIdentityEditSheet({
       firstName: profile.firstName,
       lastName: profile.lastName,
       email: profile.email,
+      phone: profile.phone ?? "",
     },
   });
 
@@ -171,9 +186,18 @@ export function EmployeeIdentityEditSheet({
       firstName: profile.firstName,
       lastName: profile.lastName,
       email: profile.email,
+      phone: profile.phone ?? "",
     });
     setSubmitError(null);
-  }, [form, open, profile.email, profile.employeeNumber, profile.firstName, profile.lastName]);
+  }, [
+    form,
+    open,
+    profile.email,
+    profile.employeeNumber,
+    profile.firstName,
+    profile.lastName,
+    profile.phone,
+  ]);
 
   async function handleSubmit(values: IdentityFormValues) {
     setSubmitError(null);
@@ -186,6 +210,7 @@ export function EmployeeIdentityEditSheet({
         firstName: values.firstName.trim(),
         lastName: values.lastName.trim(),
         email: values.email.trim().toLowerCase(),
+        ...(showPhone ? { phone: values.phone.trim() || null } : {}),
       });
 
       toast.success("Identity and contact details updated.");
@@ -268,6 +293,31 @@ export function EmployeeIdentityEditSheet({
           ) : null}
         </div>
 
+        {showPhone ? (
+          <div className="space-y-2">
+            <Label htmlFor="identity-phone">Phone</Label>
+            <Input
+              id="identity-phone"
+              autoComplete="tel"
+              placeholder="e.g. +44 7700 900123"
+              {...form.register(
+                "phone",
+                requirePhone
+                  ? {
+                      validate: (value) =>
+                        value.trim().length > 0 || "Phone is required.",
+                    }
+                  : undefined
+              )}
+            />
+            {form.formState.errors.phone ? (
+              <p className="text-sm text-destructive">
+                {form.formState.errors.phone.message}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
         {submitError ? (
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
@@ -310,8 +360,12 @@ export function EmployeeEmploymentEditSheet({
   onOpenChange,
   showJobTitle,
   showHireDate,
+  showWorkLocation,
+  showEmploymentType,
   requireJobTitle,
   requireHireDate,
+  requireWorkLocation,
+  requireEmploymentType,
 }: EmployeeEmploymentEditSheetProps) {
   const updateEmployeeRecord = useUpdateEmployeeRecord();
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -319,6 +373,8 @@ export function EmployeeEmploymentEditSheet({
     defaultValues: {
       jobTitle: profile.jobTitle ?? "",
       hireDate: getDateInputValue(profile.hireDate),
+      workLocation: profile.workLocation ?? "",
+      employmentType: profile.employmentType ?? "",
     },
   });
 
@@ -330,9 +386,18 @@ export function EmployeeEmploymentEditSheet({
     form.reset({
       jobTitle: profile.jobTitle ?? "",
       hireDate: getDateInputValue(profile.hireDate),
+      workLocation: profile.workLocation ?? "",
+      employmentType: profile.employmentType ?? "",
     });
     setSubmitError(null);
-  }, [form, open, profile.hireDate, profile.jobTitle]);
+  }, [
+    form,
+    open,
+    profile.employmentType,
+    profile.hireDate,
+    profile.jobTitle,
+    profile.workLocation,
+  ]);
 
   async function handleSubmit(values: EmploymentFormValues) {
     setSubmitError(null);
@@ -343,6 +408,12 @@ export function EmployeeEmploymentEditSheet({
         expectedVersion: profile.version,
         ...(showJobTitle ? { jobTitle: values.jobTitle.trim() } : {}),
         ...(showHireDate ? { hireDate: toApiHireDate(values.hireDate) } : {}),
+        ...(showWorkLocation
+          ? { workLocation: values.workLocation.trim() || null }
+          : {}),
+        ...(showEmploymentType
+          ? { employmentType: values.employmentType.trim() || null }
+          : {}),
       };
 
       await updateEmployeeRecord.mutateAsync({
@@ -409,6 +480,54 @@ export function EmployeeEmploymentEditSheet({
             {form.formState.errors.hireDate ? (
               <p className="text-sm text-destructive">
                 {form.formState.errors.hireDate.message}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
+        {showWorkLocation ? (
+          <div className="space-y-2">
+            <Label htmlFor="employment-work-location">Work location</Label>
+            <Input
+              id="employment-work-location"
+              placeholder="e.g. London HQ"
+              {...form.register(
+                "workLocation",
+                requireWorkLocation
+                  ? {
+                      validate: (value) =>
+                        value.trim().length > 0 || "Work location is required.",
+                    }
+                  : undefined
+              )}
+            />
+            {form.formState.errors.workLocation ? (
+              <p className="text-sm text-destructive">
+                {form.formState.errors.workLocation.message}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
+        {showEmploymentType ? (
+          <div className="space-y-2">
+            <Label htmlFor="employment-employment-type">Employment type</Label>
+            <Input
+              id="employment-employment-type"
+              placeholder="e.g. Full-time"
+              {...form.register(
+                "employmentType",
+                requireEmploymentType
+                  ? {
+                      validate: (value) =>
+                        value.trim().length > 0 || "Employment type is required.",
+                    }
+                  : undefined
+              )}
+            />
+            {form.formState.errors.employmentType ? (
+              <p className="text-sm text-destructive">
+                {form.formState.errors.employmentType.message}
               </p>
             ) : null}
           </div>
