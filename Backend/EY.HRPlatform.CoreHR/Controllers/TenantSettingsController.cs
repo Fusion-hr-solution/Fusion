@@ -11,7 +11,7 @@ namespace EY.HRPlatform.CoreHR.Controllers;
 
 [ApiController]
 [Route("api/corehr/settings")]
-[Authorize(Roles = $"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin}")]
+[Authorize]
 public class TenantSettingsController(ISender sender) : ControllerBase
 {
     /// <summary>
@@ -19,6 +19,7 @@ public class TenantSettingsController(ISender sender) : ControllerBase
     /// Returns merged platform defaults with tenant-specific overrides.
     /// </summary>
     [HttpGet]
+    [Authorize(Roles = $"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin},{PlatformRole.Employee},{PlatformRole.Manager}")]
     [ProducesResponseType(typeof(ApiResponse<TenantSettingsDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> Get(CancellationToken cancellationToken)
     {
@@ -36,6 +37,7 @@ public class TenantSettingsController(ISender sender) : ControllerBase
     /// Updates existing settings (If-Match required, returns 409 if missing or mismatched).
     /// </summary>
     [HttpPatch]
+    [Authorize(Roles = $"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin}")]
     [ProducesResponseType(typeof(ApiResponse<TenantSettingsDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status409Conflict)]
@@ -52,7 +54,8 @@ public class TenantSettingsController(ISender sender) : ControllerBase
             request.OrgUnitTypes,
             request.EmployeeFieldConfig,
             request.Branding,
-            request.DraftStructureSchema);
+            request.DraftStructureSchema,
+            request.SelfService);
 
         var result = await sender.Send(command, cancellationToken);
 

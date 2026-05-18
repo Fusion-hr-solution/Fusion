@@ -79,7 +79,8 @@ public sealed partial class UpdateTenantSettingsCommandHandler(
             request.OrgUnitTypes,
             request.EmployeeFieldConfig,
             request.Branding,
-            requestedSchema);
+            requestedSchema,
+            request.SelfService);
 
         settings.UpdateOverrides(newOverrides);
 
@@ -108,7 +109,8 @@ public sealed partial class UpdateTenantSettingsCommandHandler(
             request.OrgUnitTypes,
             request.EmployeeFieldConfig,
             request.Branding,
-            requestedSchema);
+            requestedSchema,
+            request.SelfService);
 
         var settings = Domain.Entities.TenantSettings.Create(tenantId, overrides);
 
