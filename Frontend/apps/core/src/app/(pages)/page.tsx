@@ -12,7 +12,12 @@ import { canAccessEmployeeRoster, canAccessSelfEmployeeProfile, canAccessTeamWor
 import { buildTenantContextHref } from "@/lib/tenant-navigation";
 import { useTenantContext } from "@/components/core-tenant-context-provider";
 import { buildImportHistoryHref } from "./employees/employee-readiness";
-import { useEmployeeProfile, useEmployeeReportingLines, useWorkforceReadinessSummary } from "./employees/use-employees";
+import {
+  useEmployeeProfile,
+  useEmployeeReportingLines,
+  useEmployeeRoster,
+  useWorkforceReadinessSummary,
+} from "./employees/use-employees";
 import { StatusBadge } from "./organizations/status-badge";
 import { StatsCards } from "./organizations/stats-cards";
 import { useOrganizationList } from "./organizations/use-organizations";
@@ -76,14 +81,63 @@ function DashboardCard({ icon: Icon, title, description, href, cta, children }: 
   );
 }
 
+function formatCompactDate(value: string) {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return "Date unavailable";
+  }
+
+  return parsed.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function getNewHireLabel(hireDate: string) {
+  const parsed = new Date(hireDate);
+  if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+
+  const now = new Date();
+  const diffInDays = Math.ceil(
+    (parsed.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+  );
+
+  if (diffInDays > 0) {
+    return diffInDays === 1 ? "Starts tomorrow" : `Starts in ${diffInDays} days`;
+  }
+
+  if (diffInDays >= -30) {
+    const daysSinceStart = Math.abs(diffInDays);
+    return daysSinceStart <= 1
+      ? "Started recently"
+      : `Started ${daysSinceStart} days ago`;
+  }
+
+  return null;
+}
+
 function HRAdminDashboard() {
   const { user } = useAuth();
   const { data: rs, error: rsError, isLoading: isRsLoading } = useWorkforceReadinessSummary();
+  const {
+    data: recentEmployees,
+    error: recentEmployeesError,
+    isLoading: isRecentEmployeesLoading,
+  } = useEmployeeRoster({
+    sortBy: "HireDate",
+    sortDir: "Desc",
+    page: 1,
+    pageSize: 5,
+  });
   const reportingIssueCount = rs
     ? rs.issueCounts.noManagerAssigned + rs.issueCounts.managerInactive + rs.issueCounts.managerMissing
     : 0;
   const canSeeSetup = canSeeCoreSetupNavigation(user);
   const canSeeSettings = canSeeCoreSettingsNavigation(user);
+  const recentHireItems = recentEmployees?.items ?? [];
 
   return (
     <div className="flex min-h-full flex-col gap-6 p-6">
@@ -192,13 +246,27 @@ function HRAdminDashboard() {
               </div>
               <CardDescription>Invite employees and manage platform access.</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-2">
               <Link
-                href="/employees?access=NotInvited"
-                className="group inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary/80"
+                href="/employees?create=1"
+                className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
               >
-                Review access invitations
-                <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+                <span>Add employee</span>
+                <Plus className="size-4 text-muted-foreground" />
+              </Link>
+              <Link
+                href="/employees?access=NotInvited&review=access"
+                className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
+              >
+                <span>Review invitations</span>
+                <ArrowRight className="size-4 text-muted-foreground" />
+              </Link>
+              <Link
+                href="/org-chart"
+                className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
+              >
+                <span>Open org chart</span>
+                <Network className="size-4 text-muted-foreground" />
               </Link>
             </CardContent>
           </Card>
@@ -229,7 +297,68 @@ function HRAdminDashboard() {
           </Card>
         </div>
 
-        <DashboardCard icon={Users} title="Employees" description="Roster operations, import workflow, and employee profiles." href="/employees" />
+        <Card className="flex flex-col">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                <Users className="size-4" />
+              </div>
+              <CardTitle className="text-base">Recent hires</CardTitle>
+            </div>
+            <CardDescription>Recently created or upcoming employee starts.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex-1">
+            {isRecentEmployeesLoading ? (
+              <div className="space-y-2">
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <Skeleton key={index} className="h-12 w-full rounded-lg" />
+                ))}
+              </div>
+            ) : recentEmployeesError ? (
+              <div className="rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground">
+                Recent hires are temporarily unavailable.
+              </div>
+            ) : recentHireItems.length > 0 ? (
+              <div className="space-y-2">
+                {recentHireItems.map((employee) => (
+                  <Link
+                    key={employee.id}
+                    href={`/employees/${employee.id}`}
+                    className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">
+                        {employee.firstName} {employee.lastName}
+                      </p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {employee.jobTitle || employee.email}
+                      </p>
+                    </div>
+                    <div className="text-right text-xs text-muted-foreground">
+                      <p>{formatCompactDate(employee.hireDate)}</p>
+                      {getNewHireLabel(employee.hireDate) ? (
+                        <p>{getNewHireLabel(employee.hireDate)}</p>
+                      ) : null}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground">
+                No recent hires are available yet.
+              </div>
+            )}
+          </CardContent>
+          <CardContent className="pt-0">
+            <Link
+              href="/employees?create=1"
+              className="group inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary/80"
+            >
+              Add employee
+              <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+            </Link>
+          </CardContent>
+        </Card>
 
         <DashboardCard icon={Network} title="Org chart" description="Organizational hierarchy and reporting visibility." href="/org-chart" />
 
