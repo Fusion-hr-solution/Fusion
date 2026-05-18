@@ -20,6 +20,25 @@ import {
   canSeeTeamWorkspaceNavigation,
 } from "@/lib/employee-roster-access";
 
+function applyTenantContextHref(
+  section: NavSection,
+  tenantId: string | null
+): NavSection {
+  if (!tenantId) {
+    return section;
+  }
+
+  const encodedTenantId = encodeURIComponent(tenantId);
+
+  return {
+    ...section,
+    items: section.items.map((item) => ({
+      ...item,
+      navigateHref: `${item.href}?tenantId=${encodedTenantId}`,
+    })),
+  };
+}
+
 type CSSVariableStyle = CSSProperties & Record<`--${string}`, string>;
 
 // Match the shared EY module sidebar theme locally so Core's app-level tokens
@@ -128,12 +147,10 @@ export function CoreSidebar() {
       ]
     : [{ ...PEOPLE_NAV, items: peopleItems }];
 
-  const sections =
-    isNavigationLocked && lockedNavigationReason
-      ? visibleSections.map((section) =>
-          applySetupLock(section, lockedNavigationReason)
-        )
-      : visibleSections;
+  const sections = (isNavigationLocked && lockedNavigationReason
+    ? visibleSections.map((section) => applySetupLock(section, lockedNavigationReason))
+    : visibleSections
+  ).map((section) => applyTenantContextHref(section, tenantId));
 
   return (
     <AppSidebar

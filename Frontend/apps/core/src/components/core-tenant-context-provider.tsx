@@ -49,7 +49,7 @@ function storeTenantId(id: string | null): void {
 }
 
 export function TenantContextProvider({ children }: { children: React.ReactNode }) {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const queryClient = useApiQueryClient();
   const searchParams = useSearchParams();
   const pathname = usePathname();
@@ -103,6 +103,10 @@ export function TenantContextProvider({ children }: { children: React.ReactNode 
   }, [clearTenantScopedQueries]);
 
   useEffect(() => {
+    if (isAuthLoading) {
+      return;
+    }
+
     if (!isAuthenticated || !isPlatformAdmin) {
       clearTenant();
       return;
@@ -121,7 +125,16 @@ export function TenantContextProvider({ children }: { children: React.ReactNode 
     } else if (!urlTenantId && !storedId && tenantId) {
       clearTenant();
     }
-  }, [activateTenant, clearTenant, isAuthenticated, isPlatformAdmin, pathname, searchParams, tenantId]);
+  }, [
+    activateTenant,
+    clearTenant,
+    isAuthenticated,
+    isAuthLoading,
+    isPlatformAdmin,
+    pathname,
+    searchParams,
+    tenantId,
+  ]);
 
   useEffect(() => {
     if (!tenantId || !isPlatformAdmin) {
