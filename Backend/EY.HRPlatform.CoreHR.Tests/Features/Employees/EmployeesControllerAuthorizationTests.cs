@@ -8,7 +8,7 @@ namespace EY.HRPlatform.CoreHR.Tests.Features.Employees;
 
 public class EmployeesControllerAuthorizationTests
 {
-    private const string LinkedEmployeeReadRoles = PlatformRole.HRAdmin + "," + PlatformRole.Employee + "," + PlatformRole.Manager;
+    private const string LinkedEmployeeReadRoles = PlatformRole.PlatformAdmin + "," + PlatformRole.HRAdmin + "," + PlatformRole.Employee + "," + PlatformRole.Manager;
 
     [Theory]
     [InlineData(nameof(EmployeesController.Create))]

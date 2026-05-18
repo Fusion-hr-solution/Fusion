@@ -14,7 +14,7 @@ namespace EY.HRPlatform.Identity.Controllers;
 
 [ApiController]
 [Route("api/corehr/employees/workforce-accounts")]
-[Authorize(Roles = PlatformRole.HRAdmin)]
+[Authorize]
 public sealed class WorkforceAccountsController(
     AppIdentityDbContext dbContext,
     UserManager<ApplicationUser> userManager,
@@ -37,6 +37,7 @@ public sealed class WorkforceAccountsController(
     private const string OutcomeConflict = "Conflict";
 
     [HttpPost("statuses")]
+    [Authorize(Roles = $"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin}")]
     [ProducesResponseType(typeof(ApiResponse<List<WorkforceAccountStatusDto>>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<List<WorkforceAccountStatusDto>>), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<ApiResponse<List<WorkforceAccountStatusDto>>>> GetStatuses(
@@ -63,6 +64,7 @@ public sealed class WorkforceAccountsController(
     }
 
     [HttpPost("bulk-provision")]
+    [Authorize(Roles = PlatformRole.HRAdmin)]
     [ProducesResponseType(typeof(ApiResponse<List<WorkforceAccountBulkProvisionResultDto>>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<List<WorkforceAccountBulkProvisionResultDto>>), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<ApiResponse<List<WorkforceAccountBulkProvisionResultDto>>>> BulkProvision(
@@ -90,6 +92,7 @@ public sealed class WorkforceAccountsController(
     }
 
     [HttpPost("{employeeId:guid}/invite")]
+    [Authorize(Roles = PlatformRole.HRAdmin)]
     [ProducesResponseType(typeof(ApiResponse<WorkforceAccountStatusDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<WorkforceAccountStatusDto>), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<ApiResponse<WorkforceAccountStatusDto>>> ProvisionInvite(
@@ -122,6 +125,7 @@ public sealed class WorkforceAccountsController(
     }
 
     [HttpPost("{employeeId:guid}/resend")]
+    [Authorize(Roles = PlatformRole.HRAdmin)]
     [ProducesResponseType(typeof(ApiResponse<WorkforceAccountStatusDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<WorkforceAccountStatusDto>), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ApiResponse<WorkforceAccountStatusDto>>> ResendInvite(
@@ -162,6 +166,7 @@ public sealed class WorkforceAccountsController(
     }
 
     [HttpPost("{employeeId:guid}/reactivate")]
+    [Authorize(Roles = PlatformRole.HRAdmin)]
     [ProducesResponseType(typeof(ApiResponse<WorkforceAccountStatusDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<WorkforceAccountStatusDto>), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ApiResponse<WorkforceAccountStatusDto>>> Reactivate(
@@ -182,6 +187,7 @@ public sealed class WorkforceAccountsController(
     }
 
     [HttpDelete("{employeeId:guid}")]
+    [Authorize(Roles = PlatformRole.HRAdmin)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Deactivate(

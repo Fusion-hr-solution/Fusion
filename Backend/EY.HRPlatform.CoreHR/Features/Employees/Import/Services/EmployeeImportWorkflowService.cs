@@ -99,6 +99,12 @@ public sealed class EmployeeImportWorkflowService(
             "Primary work email used as the stable employee identity.",
             "sarah.chen@contoso.com"),
         new(
+            "phone",
+            "Phone",
+            false,
+            "Optional employee contact number shown on the Core profile.",
+            "+44 7700 900123"),
+        new(
             "hireDate",
             "Hire date",
             true,
@@ -110,6 +116,18 @@ public sealed class EmployeeImportWorkflowService(
             false,
             "Current title shown on the employee record.",
             "Senior Engineer"),
+        new(
+            "workLocation",
+            "Work location",
+            false,
+            "Optional office, site, or primary work location shown on the employee profile.",
+            "London HQ"),
+        new(
+            "employmentType",
+            "Employment type",
+            false,
+            "Optional employment classification such as Full-time or Contractor.",
+            "Full-time"),
         new(
             "orgUnitCode",
             "Org unit code",
@@ -378,7 +396,10 @@ public sealed class EmployeeImportWorkflowService(
                 row.HireDate,
                 null,
                 row.JobTitle,
-                row.EmployeeNumber);
+                row.EmployeeNumber,
+                row.Phone,
+                row.WorkLocation,
+                row.EmploymentType);
 
             if (row.OrgUnitId.HasValue)
             {
@@ -597,10 +618,20 @@ public sealed class EmployeeImportWorkflowService(
     {
         var expectedHeaders = CanonicalFields.Select(field => field.Key).ToArray();
         var legacyHeaders = expectedHeaders
-            .Where(header => !string.Equals(header, "employeeNumber", StringComparison.Ordinal))
+            .Where(header => !string.Equals(header, "employeeNumber", StringComparison.Ordinal)
+                && !string.Equals(header, "phone", StringComparison.Ordinal)
+                && !string.Equals(header, "workLocation", StringComparison.Ordinal)
+                && !string.Equals(header, "employmentType", StringComparison.Ordinal))
+            .ToArray();
+        var legacyHeadersWithEmployeeNumber = expectedHeaders
+            .Where(header => !string.Equals(header, "phone", StringComparison.Ordinal)
+                && !string.Equals(header, "workLocation", StringComparison.Ordinal)
+                && !string.Equals(header, "employmentType", StringComparison.Ordinal))
             .ToArray();
 
-        if (HeadersMatch(actualHeaders, expectedHeaders) || HeadersMatch(actualHeaders, legacyHeaders))
+        if (HeadersMatch(actualHeaders, expectedHeaders)
+            || HeadersMatch(actualHeaders, legacyHeaders)
+            || HeadersMatch(actualHeaders, legacyHeadersWithEmployeeNumber))
         {
             return;
         }
@@ -685,8 +716,11 @@ public sealed class EmployeeImportWorkflowService(
         row.Values.TryGetValue("firstName", out var firstName);
         row.Values.TryGetValue("lastName", out var lastName);
         row.Values.TryGetValue("email", out var email);
+        row.Values.TryGetValue("phone", out var phone);
         row.Values.TryGetValue("hireDate", out var hireDate);
         row.Values.TryGetValue("jobTitle", out var jobTitle);
+        row.Values.TryGetValue("workLocation", out var workLocation);
+        row.Values.TryGetValue("employmentType", out var employmentType);
         row.Values.TryGetValue("orgUnitCode", out var orgUnitCode);
         row.Values.TryGetValue("managerEmail", out var managerEmail);
 
@@ -696,8 +730,11 @@ public sealed class EmployeeImportWorkflowService(
             NormalizeOptional(firstName),
             NormalizeOptional(lastName),
             NormalizeEmail(email),
+            NormalizeOptional(phone),
             NormalizeOptional(hireDate),
             NormalizeOptional(jobTitle),
+            NormalizeOptional(workLocation),
+            NormalizeOptional(employmentType),
             NormalizeOrgUnitCode(orgUnitCode),
             NormalizeEmail(managerEmail));
     }
@@ -722,8 +759,11 @@ public sealed class EmployeeImportWorkflowService(
             var firstName = ReadValue(sourceRow, "firstName");
             var lastName = ReadValue(sourceRow, "lastName");
             var email = NormalizeEmail(ReadValue(sourceRow, "email"));
+            var phone = NormalizeOptional(ReadValue(sourceRow, "phone"));
             var hireDateText = ReadValue(sourceRow, "hireDate");
             var jobTitle = ReadValue(sourceRow, "jobTitle");
+            var workLocation = NormalizeOptional(ReadValue(sourceRow, "workLocation"));
+            var employmentType = NormalizeOptional(ReadValue(sourceRow, "employmentType"));
             var orgUnitCode = NormalizeOrgUnitCode(ReadValue(sourceRow, "orgUnitCode"));
             var managerEmail = NormalizeEmail(ReadValue(sourceRow, "managerEmail"));
 
@@ -793,6 +833,48 @@ public sealed class EmployeeImportWorkflowService(
                     issueCodesByRow: issueCodesByRow);
             }
 
+            if (ResolveImportFieldRequired("phone", settings, false)
+                && string.IsNullOrWhiteSpace(phone))
+            {
+                AddIssue(
+                    issues,
+                    issueKeys,
+                    sourceRow.RowNumber,
+                    "phone",
+                    "missingPhone",
+                    "Phone is required.",
+                    rowErrorNumbers: rowErrorNumbers,
+                    issueCodesByRow: issueCodesByRow);
+            }
+
+            if (ResolveImportFieldRequired("workLocation", settings, false)
+                && string.IsNullOrWhiteSpace(workLocation))
+            {
+                AddIssue(
+                    issues,
+                    issueKeys,
+                    sourceRow.RowNumber,
+                    "workLocation",
+                    "missingWorkLocation",
+                    "Work location is required.",
+                    rowErrorNumbers: rowErrorNumbers,
+                    issueCodesByRow: issueCodesByRow);
+            }
+
+            if (ResolveImportFieldRequired("employmentType", settings, false)
+                && string.IsNullOrWhiteSpace(employmentType))
+            {
+                AddIssue(
+                    issues,
+                    issueKeys,
+                    sourceRow.RowNumber,
+                    "employmentType",
+                    "missingEmploymentType",
+                    "Employment type is required.",
+                    rowErrorNumbers: rowErrorNumbers,
+                    issueCodesByRow: issueCodesByRow);
+            }
+
             if (!string.IsNullOrWhiteSpace(managerEmail) && !IsValidEmail(managerEmail))
             {
                 AddIssue(issues, issueKeys, sourceRow.RowNumber, "managerEmail", "invalidManagerEmail", "Manager email must be a valid email address.", value: managerEmail, rowErrorNumbers: rowErrorNumbers, issueCodesByRow: issueCodesByRow);
@@ -832,9 +914,12 @@ public sealed class EmployeeImportWorkflowService(
                 firstName,
                 lastName,
                 email,
+                phone,
                 hireDateText,
                 hireDate,
                 jobTitle,
+                workLocation,
+                employmentType,
                 orgUnitCode,
                 managerEmail));
         }
@@ -1017,18 +1102,27 @@ public sealed class EmployeeImportWorkflowService(
                     || !string.IsNullOrWhiteSpace(candidate.LastName))
                 && (!ResolveImportFieldRequired("email", settings, true)
                     || !string.IsNullOrWhiteSpace(candidate.Email))
+                && (!ResolveImportFieldRequired("phone", settings, false)
+                    || !string.IsNullOrWhiteSpace(candidate.Phone))
                 && (!ResolveImportFieldRequired("hireDate", settings, true)
                     || candidate.HireDate.HasValue)
                 && (!ResolveImportFieldRequired("jobTitle", settings, false)
-                    || !string.IsNullOrWhiteSpace(candidate.JobTitle)))
+                    || !string.IsNullOrWhiteSpace(candidate.JobTitle))
+                && (!ResolveImportFieldRequired("workLocation", settings, false)
+                    || !string.IsNullOrWhiteSpace(candidate.WorkLocation))
+                && (!ResolveImportFieldRequired("employmentType", settings, false)
+                    || !string.IsNullOrWhiteSpace(candidate.EmploymentType)))
             .Select(candidate => new StoredNormalizedRow(
                 candidate.RowNumber,
                 candidate.EmployeeNumber,
                 candidate.FirstName!,
                 candidate.LastName!,
                 candidate.Email!,
+                candidate.Phone,
                 candidate.HireDate!.Value,
                 candidate.JobTitle,
+                candidate.WorkLocation,
+                candidate.EmploymentType,
                 candidate.OrgUnitCode,
                 candidate.ResolvedOrgUnitId,
                 candidate.ManagerEmail,
@@ -1691,6 +1785,9 @@ public sealed class EmployeeImportWorkflowService(
             "invalidEmployeeNumber" => "Keep the employee number to 64 characters or fewer, using one stable value per employee.",
             "missingHireDate" => "Add a hire date in YYYY-MM-DD format for this row.",
             "missingJobTitle" => "Add a job title for this row.",
+            "missingPhone" => "Add a phone number for this row.",
+            "missingWorkLocation" => "Add a work location for this row.",
+            "missingEmploymentType" => "Add an employment type for this row.",
             "invalidHireDate" => "Use YYYY-MM-DD format for the hire date in this row.",
             "invalidManagerEmail" => "Enter a valid manager email address or leave it blank.",
             "duplicateEmailInFile" => "Keep only one employee per unique email in this batch, or correct the mistaken row.",
@@ -1770,9 +1867,12 @@ public sealed class EmployeeImportWorkflowService(
         string? firstName,
         string? lastName,
         string? email,
+        string? phone,
         string? hireDateText,
         DateTime? hireDate,
         string? jobTitle,
+        string? workLocation,
+        string? employmentType,
         string? orgUnitCode,
         string? managerEmail)
     {
@@ -1781,9 +1881,12 @@ public sealed class EmployeeImportWorkflowService(
         public string? FirstName { get; } = firstName;
         public string? LastName { get; } = lastName;
         public string? Email { get; } = email;
+        public string? Phone { get; } = phone;
         public string? HireDateText { get; } = hireDateText;
         public DateTime? HireDate { get; } = hireDate;
         public string? JobTitle { get; } = jobTitle;
+        public string? WorkLocation { get; } = workLocation;
+        public string? EmploymentType { get; } = employmentType;
         public string? OrgUnitCode { get; } = orgUnitCode;
         public string? ManagerEmail { get; } = managerEmail;
         public Guid? ResolvedOrgUnitId { get; set; }
@@ -1796,8 +1899,11 @@ public sealed class EmployeeImportWorkflowService(
         string FirstName,
         string LastName,
         string Email,
+        string? Phone,
         DateTime HireDate,
         string? JobTitle,
+        string? WorkLocation,
+        string? EmploymentType,
         string? OrgUnitCode,
         Guid? OrgUnitId,
         string? ManagerEmail,
