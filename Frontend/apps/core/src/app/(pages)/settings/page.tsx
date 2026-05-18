@@ -8,6 +8,7 @@ import {
   KeyRound,
   LockKeyhole,
   Mail,
+  MapPin,
   Phone,
   RefreshCw,
   ShieldCheck,
@@ -57,8 +58,15 @@ const FIELD_ICONS: Record<EmployeeFieldKey, LucideIcon> = {
   email: Mail,
   hireDate: Calendar,
   phone: Phone,
+  workLocation: MapPin,
+  employmentType: KeyRound,
   jobTitle: KeyRound,
 };
+
+const DEFAULT_SELF_SERVICE_SETTINGS = {
+  canEditPreferredName: true,
+  canEditPhone: true,
+} as const;
 
 function buildSettingsErrorMessage(error: unknown) {
   if (error instanceof ApiError) {
@@ -192,8 +200,13 @@ export default function SettingsPage() {
     () => buildEmployeeFieldConfigDraft(settings),
     [settings]
   );
+  const settingsSelfService = useMemo(
+    () => settings?.selfService ?? DEFAULT_SELF_SERVICE_SETTINGS,
+    [settings]
+  );
   const [draftFieldConfig, setDraftFieldConfig] =
     useState<EmployeeFieldConfigMap>(settingsFieldConfig);
+  const [draftSelfService, setDraftSelfService] = useState(settingsSelfService);
   const [saveError, setSaveError] = useState<string | null>(null);
   const syncedVersionRef = useRef<number | null | undefined>(undefined);
   const isOrgStructureEditable = setupState?.currentPhase === "activated";
@@ -202,6 +215,7 @@ export default function SettingsPage() {
     onSuccess: (data) => {
       syncedVersionRef.current = data.version;
       setDraftFieldConfig(buildEmployeeFieldConfigDraft(data));
+      setDraftSelfService(data.selfService);
       setSaveError(null);
       toast.success("Core configuration updated.");
     },
@@ -217,13 +231,21 @@ export default function SettingsPage() {
     }
 
     setDraftFieldConfig(settingsFieldConfig);
+    setDraftSelfService(settingsSelfService);
     syncedVersionRef.current = settings.version;
-  }, [settings, settingsFieldConfig]);
+  }, [settings, settingsFieldConfig, settingsSelfService]);
 
   const hasChanges = useMemo(
     () =>
-      JSON.stringify(draftFieldConfig) !== JSON.stringify(settingsFieldConfig),
-    [draftFieldConfig, settingsFieldConfig]
+      JSON.stringify(draftFieldConfig) !==
+        JSON.stringify(settingsFieldConfig) ||
+      JSON.stringify(draftSelfService) !== JSON.stringify(settingsSelfService),
+    [
+      draftFieldConfig,
+      draftSelfService,
+      settingsFieldConfig,
+      settingsSelfService,
+    ]
   );
 
   const handleToggle = (
@@ -278,12 +300,28 @@ export default function SettingsPage() {
     setSaveError(null);
   };
 
+  const handleSelfServiceToggle = (
+    property: keyof typeof DEFAULT_SELF_SERVICE_SETTINGS,
+    nextValue: boolean
+  ) => {
+    if (isTenantContextReadOnly) {
+      return;
+    }
+
+    setDraftSelfService((current) => ({
+      ...current,
+      [property]: nextValue,
+    }));
+    setSaveError(null);
+  };
+
   const handleReset = () => {
     if (isTenantContextReadOnly) {
       return;
     }
 
     setDraftFieldConfig(settingsFieldConfig);
+    setDraftSelfService(settingsSelfService);
     setSaveError(null);
   };
 
@@ -297,6 +335,7 @@ export default function SettingsPage() {
         expectedVersion: settings.version,
         input: {
           employeeFieldConfig: buildEmployeeFieldConfigInput(draftFieldConfig),
+          selfService: draftSelfService,
         },
       });
     } catch (updateError) {
@@ -400,11 +439,17 @@ export default function SettingsPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead className="min-w-48">Field</TableHead>
-                      <TableHead className="min-w-40">Status / rule</TableHead>
+                      <TableHead className="min-w-40">Status • rule</TableHead>
                       <TableHead className="text-center">
                         Visible in Core
                       </TableHead>
                       <TableHead className="text-center">Required</TableHead>
+                      <TableHead className="text-center">
+                        Visible to employee
+                      </TableHead>
+                      <TableHead className="text-center">
+                        Visible to manager
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -413,6 +458,10 @@ export default function SettingsPage() {
                       const config = draftFieldConfig[field.key];
                       const ruleBadges = getFieldRuleBadges(field, config);
                       const hrAdminLocked = field.locked || config.required;
+                      const audienceLocked =
+                        isTenantContextReadOnly ||
+                        field.locked ||
+                        !config.visible;
 
                       return (
                         <TableRow key={field.key}>
@@ -440,7 +489,9 @@ export default function SettingsPage() {
                           <TableCell>
                             <MatrixSwitch
                               checked={config.visible}
-                              disabled={isTenantContextReadOnly || hrAdminLocked}
+                              disabled={
+                                isTenantContextReadOnly || hrAdminLocked
+                              }
                               ariaLabel={`${field.label} visible in Core`}
                               onCheckedChange={(checked) =>
                                 handleToggle(field.key, "visible", checked)
@@ -459,6 +510,34 @@ export default function SettingsPage() {
                               ariaLabel={`${field.label} required`}
                               onCheckedChange={(checked) =>
                                 handleToggle(field.key, "required", checked)
+                              }
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <MatrixSwitch
+                              checked={config.visibleToEmployee}
+                              disabled={audienceLocked}
+                              ariaLabel={`${field.label} visible to employees`}
+                              onCheckedChange={(checked) =>
+                                handleToggle(
+                                  field.key,
+                                  "visibleToEmployee",
+                                  checked
+                                )
+                              }
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <MatrixSwitch
+                              checked={config.visibleToManager}
+                              disabled={audienceLocked}
+                              ariaLabel={`${field.label} visible to managers`}
+                              onCheckedChange={(checked) =>
+                                handleToggle(
+                                  field.key,
+                                  "visibleToManager",
+                                  checked
+                                )
                               }
                             />
                           </TableCell>
@@ -490,10 +569,71 @@ export default function SettingsPage() {
                       disabled={!hasChanges || updateSettings.isLoading}
                       onClick={handleSave}
                     >
-                      {updateSettings.isLoading ? "Saving..." : "Save field rules"}
+                      {updateSettings.isLoading
+                        ? "Saving..."
+                        : "Save field rules"}
                     </Button>
                   </>
                 ) : null}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="space-y-3">
+              <div className="space-y-1">
+                <CardTitle>Self-service editing</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Control which personal fields employees can update from their
+                  own profile workspace.
+                </p>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="rounded-2xl border p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <h3 className="font-medium">Preferred name</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Let employees update their preferred display name.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={draftSelfService.canEditPreferredName}
+                      disabled={isTenantContextReadOnly}
+                      aria-label="Allow employees to edit preferred name"
+                      onCheckedChange={(checked) =>
+                        handleSelfServiceToggle("canEditPreferredName", checked)
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <h3 className="font-medium">Phone</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Let employees keep their own contact number up to date.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={draftSelfService.canEditPhone}
+                      disabled={isTenantContextReadOnly}
+                      aria-label="Allow employees to edit phone"
+                      onCheckedChange={(checked) =>
+                        handleSelfServiceToggle("canEditPhone", checked)
+                      }
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-dashed bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
+                Managers can view direct-report profiles within their existing
+                team scope. Field-level visibility for employees and managers is
+                controlled from the matrix above.
               </div>
             </CardContent>
           </Card>
@@ -546,8 +686,8 @@ export default function SettingsPage() {
                 </div>
               ) : isTenantContextReadOnly ? (
                 <div className="rounded-xl border border-dashed bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
-                  Org-unit kinds are visible here, but tenant-context browsing is
-                  read-only.
+                  Org-unit kinds are visible here, but tenant-context browsing
+                  is read-only.
                 </div>
               ) : null}
 
@@ -591,7 +731,17 @@ export default function SettingsPage() {
               {
                 title: "HRAdmin",
                 icon: Users,
-                body: "Workforce configuration, imports, employee records, and org chart operations.",
+                body: "Workforce configuration, profile management, access invitations, imports, and org chart operations.",
+              },
+              {
+                title: "Manager",
+                icon: ShieldCheck,
+                body: "Direct-report profile viewing within manager scope, subject to field-visibility rules.",
+              },
+              {
+                title: "Employee",
+                icon: UserRound,
+                body: "Own-profile visibility with self-service editing governed by the settings above.",
               },
             ].map((role) => {
               const Icon = role.icon;
