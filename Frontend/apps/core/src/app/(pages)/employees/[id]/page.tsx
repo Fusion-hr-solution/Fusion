@@ -877,14 +877,18 @@ export default function EmployeeProfilePage() {
       return;
     }
 
-    if (requestedSheet === "reporting") {
-      setSheetOpen(true);
-    } else if (
+    const isReportingSheetRequest = requestedSheet === "reporting";
+    const isWorkspaceSheetRequest =
       requestedSheet === "identity" ||
       requestedSheet === "employment" ||
       requestedSheet === "organization" ||
-      requestedSheet === "status"
-    ) {
+      requestedSheet === "status";
+
+    if (isTenantContextReadOnly && (isReportingSheetRequest || isWorkspaceSheetRequest)) {
+      lastHandledSheetRef.current = requestedSheet;
+    } else if (isReportingSheetRequest) {
+      setSheetOpen(true);
+    } else if (isWorkspaceSheetRequest) {
       setActiveWorkspaceSheet(requestedSheet);
     } else {
       return;
@@ -899,7 +903,7 @@ export default function EmployeeProfilePage() {
     const nextUrl = nextSearch ? `${nextPath}?${nextSearch}` : nextPath;
 
     window.history.replaceState(window.history.state, "", nextUrl);
-  }, [profile, requestedSheet, searchParams]);
+  }, [isTenantContextReadOnly, profile, requestedSheet, searchParams]);
 
   const isInitialLoading = canAccess && isLoading && !profile && !error;
 
@@ -977,6 +981,10 @@ export default function EmployeeProfilePage() {
   const hierarchyIsHealthy = profile.hierarchyStatus === "Healthy";
 
   const handleOpenReadinessIssue = (issue: (typeof attentionItems)[number]) => {
+    if (isTenantContextReadOnly) {
+      return;
+    }
+
     const sheet = getEmployeeFixSheet(issue);
 
     if (sheet === "reporting") {
@@ -1418,7 +1426,11 @@ export default function EmployeeProfilePage() {
         profile={profile}
         open={activeWorkspaceSheet === "status"}
         onOpenChange={(open) => setActiveWorkspaceSheet(open ? "status" : null)}
-        onManageReportingRelationship={() => setSheetOpen(true)}
+        onManageReportingRelationship={() => {
+          if (!isTenantContextReadOnly) {
+            setSheetOpen(true);
+          }
+        }}
       />
     </div>
   );

@@ -685,9 +685,11 @@ export default function SetupPage() {
             <div className="mt-6 flex flex-wrap gap-2">
               {setupState.currentPhase === "activated" ? (
                 <>
-                  <Button onClick={() => router.push("/setup/draft-structure")}>
-                    Open draft workspace
-                  </Button>
+                  {!isTenantContextReadOnly ? (
+                    <Button onClick={() => router.push("/setup/draft-structure")}>
+                      Open draft workspace
+                    </Button>
+                  ) : null}
                   {!isTenantContextReadOnly ? (
                     <Button
                       variant="outline"
@@ -722,23 +724,27 @@ export default function SetupPage() {
                       Reopen draft
                     </Button>
                   ) : null}
-                  <Button
-                    variant="outline"
-                    onClick={() => router.push("/setup/draft-structure")}
-                  >
-                    View draft workspace
-                  </Button>
+                  {!isTenantContextReadOnly ? (
+                    <Button
+                      variant="outline"
+                      onClick={() => router.push("/setup/draft-structure")}
+                    >
+                      View draft workspace
+                    </Button>
+                  ) : null}
                 </>
               ) : null}
               {isCoreUnlocked ? (
                 <>
                   <Button onClick={() => router.push("/")}>Open dashboard</Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => router.push("/setup/draft-structure")}
-                  >
-                    View published structure
-                  </Button>
+                  {!isTenantContextReadOnly ? (
+                    <Button
+                      variant="outline"
+                      onClick={() => router.push("/setup/draft-structure")}
+                    >
+                      View published structure
+                    </Button>
+                  ) : null}
                 </>
               ) : null}
             </div>

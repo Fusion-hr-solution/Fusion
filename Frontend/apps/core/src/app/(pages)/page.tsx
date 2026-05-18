@@ -4,6 +4,8 @@ import Link from "next/link";
 import { AlertTriangle, ArrowRight, Building, Building2, ClipboardList, ExternalLink, Mail, Network, Pause, Plus, Settings2, User, Users } from "lucide-react";
 import { canAccessOrganizations, canSeeCoreSetupNavigation, canSeeCoreSettingsNavigation, useAuth } from "@repo/auth";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { canAccessEmployeeRoster, canAccessSelfEmployeeProfile, canAccessTeamWorkspace } from "@/lib/employee-roster-access";
@@ -460,14 +462,31 @@ function EmployeeDashboard() {
 }
 
 function PlatformAdminDashboard() {
-  const { data, isLoading } = useOrganizationList({ skip: 0, take: 100 });
-  const stats = data?.stats;
-  const items = data?.items ?? [];
-
-  const attentionOrgs = items.filter(
-    (o) => o.operationalStatus === "invited" || o.operationalStatus === "suspended"
+  const {
+    data: recentData,
+    error: dashboardError,
+    isLoading: isDashboardLoading,
+    refetch: refetchDashboard,
+  } = useOrganizationList({ skip: 0, take: 5 });
+  const {
+    data: attentionData,
+    error: attentionError,
+    isLoading: isAttentionLoading,
+    refetch: refetchAttention,
+  } = useOrganizationList({
+    skip: 0,
+    take: 5,
+    filterByStatus: ["invited", "suspended"],
+  });
+  const stats = recentData?.stats;
+  const recentOrgs = recentData?.items ?? [];
+  const attentionOrgs = attentionData?.items ?? [];
+  const totalAttentionCount =
+    (stats?.invitedPending ?? 0) + (stats?.suspendedOrganizations ?? 0);
+  const remainingAttentionCount = Math.max(
+    totalAttentionCount - attentionOrgs.length,
+    0
   );
-  const recentOrgs = items.slice(0, 5);
 
   return (
     <div className="flex min-h-full flex-col gap-6 p-6">
@@ -497,12 +516,24 @@ function PlatformAdminDashboard() {
         </div>
       </div>
 
-      {/* KPI strip */}
-      <StatsCards stats={stats} isLoading={isLoading} />
+      {dashboardError && !recentData ? (
+        <Alert variant="destructive">
+          <AlertTitle>Failed to load platform dashboard</AlertTitle>
+          <AlertDescription className="flex items-center justify-between gap-4">
+            <span>{dashboardError.message || "An unexpected error occurred."}</span>
+            <Button variant="outline" size="sm" onClick={() => refetchDashboard()}>
+              Retry
+            </Button>
+          </AlertDescription>
+        </Alert>
+      ) : (
+        <>
+          {/* KPI strip */}
+          <StatsCards stats={stats} isLoading={isDashboardLoading && !recentData} />
 
-      {/* Main content: attention + quick actions */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card className="md:col-span-2 flex flex-col">
+          {/* Main content: attention + quick actions */}
+          <div className="grid gap-4 md:grid-cols-3">
+            <Card className="md:col-span-2 flex flex-col">
           <CardHeader>
             <div className="flex items-center gap-2">
               <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
@@ -513,35 +544,58 @@ function PlatformAdminDashboard() {
             <CardDescription>Organizations requiring platform admin action.</CardDescription>
           </CardHeader>
           <CardContent className="flex-1">
-            {isLoading ? (
+            {attentionError && !attentionData ? (
+              <Alert variant="destructive">
+                <AlertTitle>Failed to load organizations needing attention</AlertTitle>
+                <AlertDescription className="flex items-center justify-between gap-4">
+                  <span>{attentionError.message || "An unexpected error occurred."}</span>
+                  <Button variant="outline" size="sm" onClick={() => refetchAttention()}>
+                    Retry
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            ) : isAttentionLoading && !attentionData ? (
               <div className="space-y-2">
                 {Array.from({ length: 3 }).map((_, i) => (
                   <Skeleton key={i} className="h-12 w-full rounded-lg" />
                 ))}
               </div>
-            ) : attentionOrgs.length > 0 ? (
-              <div className="space-y-1.5">
-                {attentionOrgs.map((org) => (
-                  <Link
-                    key={org.id}
-                    href={`/organizations?detail=${org.id}`}
-                    className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
-                  >
-                    <div className="flex min-w-0 items-center gap-2">
-                      <span className="truncate font-medium">{org.name}</span>
-                      <StatusBadge status={org.operationalStatus} />
-                    </div>
-                    <div className="flex shrink-0 items-center gap-3 text-xs text-muted-foreground">
-                      {org.pendingInviteCount > 0 && (
-                        <span>{org.pendingInviteCount} invite{org.pendingInviteCount !== 1 ? "s" : ""}</span>
-                      )}
-                      {org.activeUserCount > 0 && (
-                        <span>{org.activeUserCount} user{org.activeUserCount !== 1 ? "s" : ""}</span>
-                      )}
-                      <ExternalLink className="size-3.5" />
-                    </div>
-                  </Link>
-                ))}
+            ) : totalAttentionCount > 0 ? (
+              <div className="space-y-3">
+                {attentionOrgs.length > 0 ? (
+                  <div className="space-y-1.5">
+                    {attentionOrgs.map((org) => (
+                      <Link
+                        key={org.id}
+                        href={`/organizations?detail=${org.id}`}
+                        className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
+                      >
+                        <div className="flex min-w-0 items-center gap-2">
+                          <span className="truncate font-medium">{org.name}</span>
+                          <StatusBadge status={org.operationalStatus} />
+                        </div>
+                        <div className="flex shrink-0 items-center gap-3 text-xs text-muted-foreground">
+                          {org.pendingInviteCount > 0 && (
+                            <span>{org.pendingInviteCount} invite{org.pendingInviteCount !== 1 ? "s" : ""}</span>
+                          )}
+                          {org.activeUserCount > 0 && (
+                            <span>{org.activeUserCount} user{org.activeUserCount !== 1 ? "s" : ""}</span>
+                          )}
+                          <ExternalLink className="size-3.5" />
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground">
+                    Organizations still need attention. Open the organizations table to review them.
+                  </div>
+                )}
+                {remainingAttentionCount > 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    {remainingAttentionCount} more organization{remainingAttentionCount === 1 ? "" : "s"} need attention.
+                  </p>
+                ) : null}
               </div>
             ) : (
               <div className="rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground">
@@ -558,9 +612,9 @@ function PlatformAdminDashboard() {
               <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
             </Link>
           </CardContent>
-        </Card>
+            </Card>
 
-        <Card className="flex flex-col">
+            <Card className="flex flex-col">
           <CardHeader>
             <div className="flex items-center gap-2">
               <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
@@ -600,53 +654,55 @@ function PlatformAdminDashboard() {
               Full organizations table
             </Link>
           </CardContent>
-        </Card>
-      </div>
-
-      {/* Recent organizations */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
-              <Building className="size-4" />
-            </div>
-            <CardTitle className="text-base">Recently created organizations</CardTitle>
+            </Card>
           </div>
-          <CardDescription>Most recently added tenant organizations.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="space-y-2">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Skeleton key={i} className="h-10 w-full rounded-lg" />
-              ))}
-            </div>
-          ) : recentOrgs.length > 0 ? (
-            <div className="divide-y">
-              {recentOrgs.map((org) => (
-                  <Link
-                    key={org.id}
-                    href={`/organizations?detail=${org.id}`}
-                    className="flex items-center justify-between px-1 py-2.5 text-sm transition-colors hover:text-primary"
-                  >
-                  <div className="flex min-w-0 items-center gap-2">
-                    <span className="truncate font-medium">{org.name}</span>
-                    <StatusBadge status={org.operationalStatus} />
-                  </div>
-                  <div className="flex shrink-0 items-center gap-3 text-xs text-muted-foreground">
-                    <span>Created {new Date(org.createdAt).toLocaleDateString()}</span>
-                    <ExternalLink className="size-3.5" />
-                  </div>
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <div className="rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground">
-              No organizations created yet.
-            </div>
-          )}
-        </CardContent>
-      </Card>
+
+          {/* Recent organizations */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                  <Building className="size-4" />
+                </div>
+                <CardTitle className="text-base">Recently created organizations</CardTitle>
+              </div>
+              <CardDescription>Most recently added tenant organizations.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isDashboardLoading && !recentData ? (
+                <div className="space-y-2">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Skeleton key={i} className="h-10 w-full rounded-lg" />
+                  ))}
+                </div>
+              ) : recentOrgs.length > 0 ? (
+                <div className="divide-y">
+                  {recentOrgs.map((org) => (
+                    <Link
+                      key={org.id}
+                      href={`/organizations?detail=${org.id}`}
+                      className="flex items-center justify-between px-1 py-2.5 text-sm transition-colors hover:text-primary"
+                    >
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span className="truncate font-medium">{org.name}</span>
+                        <StatusBadge status={org.operationalStatus} />
+                      </div>
+                      <div className="flex shrink-0 items-center gap-3 text-xs text-muted-foreground">
+                        <span>Created {new Date(org.createdAt).toLocaleDateString()}</span>
+                        <ExternalLink className="size-3.5" />
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground">
+                  No organizations created yet.
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </>
+      )}
     </div>
   );
 }

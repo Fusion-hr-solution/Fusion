@@ -229,6 +229,10 @@ export default function SettingsPage() {
     property: keyof FieldConfigDto,
     nextValue: boolean
   ) => {
+    if (isTenantContextReadOnly) {
+      return;
+    }
+
     const fieldDefinition = ACTIVE_EMPLOYEE_FIELD_DEFINITIONS.find(
       (field) => field.key === fieldKey
     );
@@ -273,12 +277,16 @@ export default function SettingsPage() {
   };
 
   const handleReset = () => {
+    if (isTenantContextReadOnly) {
+      return;
+    }
+
     setDraftFieldConfig(settingsFieldConfig);
     setSaveError(null);
   };
 
   const handleSave = async () => {
-    if (!settings) {
+    if (!settings || isTenantContextReadOnly) {
       return;
     }
 
@@ -430,7 +438,7 @@ export default function SettingsPage() {
                           <TableCell>
                             <MatrixSwitch
                               checked={config.visible}
-                              disabled={hrAdminLocked}
+                              disabled={isTenantContextReadOnly || hrAdminLocked}
                               ariaLabel={`${field.label} visible in Core`}
                               onCheckedChange={(checked) =>
                                 handleToggle(field.key, "visible", checked)
@@ -441,6 +449,7 @@ export default function SettingsPage() {
                             <MatrixSwitch
                               checked={config.required}
                               disabled={
+                                isTenantContextReadOnly ||
                                 field.locked ||
                                 field.requiredLocked ||
                                 !config.visible
@@ -500,7 +509,7 @@ export default function SettingsPage() {
                   <DraftOrgUnitKindManager
                     schema={settings.draftStructureSchema}
                     existingUnits={[]}
-                    disabled={false}
+                    disabled={isTenantContextReadOnly}
                     triggerLabel="Manage org-unit kinds"
                   />
                 ) : (
@@ -521,6 +530,8 @@ export default function SettingsPage() {
                 ) : null}
                 {!isOrgStructureEditable ? (
                   <Badge variant="outline">Managed in Setup</Badge>
+                ) : isTenantContextReadOnly ? (
+                  <Badge variant="outline">Read-only</Badge>
                 ) : (
                   <Badge variant="secondary">Editable now</Badge>
                 )}
@@ -530,6 +541,11 @@ export default function SettingsPage() {
                 <div className="rounded-xl border border-dashed bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
                   Org-unit kinds are managed from the active setup draft. Open
                   Setup to make changes.
+                </div>
+              ) : isTenantContextReadOnly ? (
+                <div className="rounded-xl border border-dashed bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
+                  Org-unit kinds are visible here, but tenant-context browsing is
+                  read-only.
                 </div>
               ) : null}
 

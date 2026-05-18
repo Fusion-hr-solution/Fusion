@@ -3,8 +3,14 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useAuth } from "@repo/auth";
-import { createPlatformApiClient } from "@repo/api";
-import type { TenantSummaryDto } from "@repo/api";
+import {
+  coreSetupQueryKeys,
+  createPlatformApiClient,
+  draftStructureQueryKeys,
+  tenantSettingsQueryKeys,
+  type TenantSummaryDto,
+} from "@repo/api";
+import { useApiQueryClient } from "@repo/api/query";
 
 const TENANT_STORAGE_KEY = "ey_core_tenant_context";
 
@@ -44,28 +50,57 @@ function storeTenantId(id: string | null): void {
 
 export function TenantContextProvider({ children }: { children: React.ReactNode }) {
   const { user, isAuthenticated } = useAuth();
+  const queryClient = useApiQueryClient();
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const [tenantId, setTenantIdState] = useState<string | null>(null);
   const [tenantSummary, setTenantSummary] = useState<TenantSummaryDto | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const prevTenantIdRef = useRef<string | null>(null);
+  const failedTenantIdRef = useRef<string | null>(null);
 
   const isPlatformAdmin = !!user?.roles.includes("PlatformAdmin");
 
+  const clearTenantScopedQueries = useCallback(() => {
+    const queryRoots = [
+      ["corehr"] as const,
+      coreSetupQueryKeys.all(),
+      tenantSettingsQueryKeys.all(),
+      draftStructureQueryKeys.all(),
+    ];
+
+    queryRoots.forEach((queryKey) => {
+      void queryClient.cancelQueries({ queryKey });
+      queryClient.removeQueries({ queryKey });
+    });
+  }, [queryClient]);
+
+  const activateTenant = useCallback(
+    (id: string) => {
+      failedTenantIdRef.current = null;
+      prevTenantIdRef.current = id;
+      setTenantSummary(null);
+      setIsLoading(true);
+      clearTenantScopedQueries();
+      setTenantIdState(id);
+      storeTenantId(id);
+    },
+    [clearTenantScopedQueries],
+  );
+
   const setTenant = useCallback((id: string) => {
-    prevTenantIdRef.current = id;
-    setTenantIdState(id);
-    storeTenantId(id);
-  }, []);
+    activateTenant(id);
+  }, [activateTenant]);
 
   const clearTenant = useCallback(() => {
+    failedTenantIdRef.current = null;
     prevTenantIdRef.current = null;
     setTenantIdState(null);
     setTenantSummary(null);
     setIsLoading(false);
+    clearTenantScopedQueries();
     storeTenantId(null);
-  }, []);
+  }, [clearTenantScopedQueries]);
 
   useEffect(() => {
     if (!isAuthenticated || !isPlatformAdmin) {
@@ -77,14 +112,16 @@ export function TenantContextProvider({ children }: { children: React.ReactNode 
     const storedId = loadStoredTenantId();
     const resolvedTenantId = urlTenantId || storedId;
 
+    if (resolvedTenantId === failedTenantIdRef.current) {
+      return;
+    }
+
     if (resolvedTenantId && resolvedTenantId !== prevTenantIdRef.current) {
-      prevTenantIdRef.current = resolvedTenantId;
-      setTenantIdState(resolvedTenantId);
-      storeTenantId(resolvedTenantId);
+      activateTenant(resolvedTenantId);
     } else if (!urlTenantId && !storedId && tenantId) {
       clearTenant();
     }
-  }, [clearTenant, isAuthenticated, isPlatformAdmin, pathname, searchParams, tenantId]);
+  }, [activateTenant, clearTenant, isAuthenticated, isPlatformAdmin, pathname, searchParams, tenantId]);
 
   useEffect(() => {
     if (!tenantId || !isPlatformAdmin) {
@@ -109,15 +146,20 @@ export function TenantContextProvider({ children }: { children: React.ReactNode 
       })
       .catch(() => {
         if (!cancelled) {
+          failedTenantIdRef.current = tenantId;
+          prevTenantIdRef.current = null;
+          setTenantIdState(null);
           setTenantSummary(null);
           setIsLoading(false);
+          clearTenantScopedQueries();
+          storeTenantId(null);
         }
       });
 
     return () => {
       cancelled = true;
     };
-  }, [tenantId, isPlatformAdmin]);
+  }, [clearTenantScopedQueries, tenantId, isPlatformAdmin]);
 
   const value = useMemo<TenantContextValue>(
     () => ({
