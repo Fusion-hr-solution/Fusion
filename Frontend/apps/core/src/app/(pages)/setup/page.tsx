@@ -14,6 +14,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { ApiError } from "@repo/api";
+import { useTenantContext } from "@/components/core-tenant-context-provider";
 import type {
   CoreSetupPhase,
   DraftSetupIssueCategory,
@@ -337,7 +338,9 @@ function getErrorMessage(error: unknown) {
 export default function SetupPage() {
   const router = useRouter();
   const { user } = useAuth();
-  const canAccess = canAccessCoreSetup(user);
+  const { tenantId } = useTenantContext();
+  const isTenantContextReadOnly = !!tenantId;
+  const canAccess = canAccessCoreSetup(user) || isTenantContextReadOnly;
   const [localError, setLocalError] = useState<string | null>(null);
   const [publishDialogOpen, setPublishDialogOpen] = useState(false);
 
@@ -553,16 +556,22 @@ export default function SetupPage() {
                   Starting setup opens the draft structure workspace.
                 </p>
               </div>
-              <Button
-                className="w-full"
-                onClick={() => {
-                  void handleStartSetup();
-                }}
-                disabled={activateSetup.isLoading}
-              >
-                Start organization setup
-                <ArrowRight className="size-4" />
-              </Button>
+              {!isTenantContextReadOnly ? (
+                <Button
+                  className="w-full"
+                  onClick={() => {
+                    void handleStartSetup();
+                  }}
+                  disabled={activateSetup.isLoading}
+                >
+                  Start organization setup
+                  <ArrowRight className="size-4" />
+                </Button>
+              ) : (
+                <p className="text-sm text-muted-foreground italic">
+                  Setup actions are not available in read-only view.
+                </p>
+              )}
             </div>
           </div>
         </Card>
@@ -679,34 +688,40 @@ export default function SetupPage() {
                   <Button onClick={() => router.push("/setup/draft-structure")}>
                     Open draft workspace
                   </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      void handleApprove();
-                    }}
-                    disabled={approvalDisabled}
-                  >
-                    Approve structure
-                  </Button>
+                  {!isTenantContextReadOnly ? (
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        void handleApprove();
+                      }}
+                      disabled={approvalDisabled}
+                    >
+                      Approve structure
+                    </Button>
+                  ) : null}
                 </>
               ) : null}
               {setupState.currentPhase === "structurallyGoverned" ? (
                 <>
-                  <Button
-                    onClick={() => setPublishDialogOpen(true)}
-                    disabled={publishDisabled}
-                  >
-                    Publish structure
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      void handleReopen();
-                    }}
-                    disabled={reopenDisabled}
-                  >
-                    Reopen draft
-                  </Button>
+                  {!isTenantContextReadOnly ? (
+                    <Button
+                      onClick={() => setPublishDialogOpen(true)}
+                      disabled={publishDisabled}
+                    >
+                      Publish structure
+                    </Button>
+                  ) : null}
+                  {!isTenantContextReadOnly ? (
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        void handleReopen();
+                      }}
+                      disabled={reopenDisabled}
+                    >
+                      Reopen draft
+                    </Button>
+                  ) : null}
                   <Button
                     variant="outline"
                     onClick={() => router.push("/setup/draft-structure")}
