@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { canAccessEmployeeRoster, canAccessSelfEmployeeProfile, canAccessTeamWorkspace } from "@/lib/employee-roster-access";
+import { useTenantContext } from "@/components/core-tenant-context-provider";
 import { buildImportHistoryHref } from "./employees/employee-readiness";
 import { useEmployeeProfile, useEmployeeReportingLines, useWorkforceReadinessSummary } from "./employees/use-employees";
 
@@ -470,8 +471,117 @@ function PlatformAdminDashboard() {
   );
 }
 
+function PlatformAdminTenantDashboard() {
+  const { tenantId, tenantName, isLoading, isReady } = useTenantContext();
+  const { data: rs, isLoading: isRsLoading } = useWorkforceReadinessSummary();
+  const reportingIssueCount = rs
+    ? rs.issueCounts.noManagerAssigned + rs.issueCounts.managerInactive + rs.issueCounts.managerMissing
+    : 0;
+
+  if (isLoading && !isReady) {
+    return <LoadingSkeleton />;
+  }
+
+  return (
+    <div className="flex min-h-full flex-col gap-6 p-6">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">{tenantName ?? tenantId ?? "Tenant context"}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {isReady
+            ? "Tenant overview and support surfaces."
+            : "Tenant summary is still loading. Read-only tenant surfaces are available now."}
+        </p>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {/* Workforce health */}
+        <Card className="xl:col-span-2 flex flex-col">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                <Users className="size-4" />
+              </div>
+              <CardTitle className="text-base">Workforce health</CardTitle>
+            </div>
+            <CardDescription>Employee record issues and operational blockers.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex-1">
+            {rs ? (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between rounded-lg border bg-muted/20 px-3 py-2">
+                  <span className="text-sm font-medium">Readiness score</span>
+                  <Badge variant="secondary">{rs.readinessScore}%</Badge>
+                </div>
+                <div className="grid gap-1.5">
+                  <Link
+                    href="/employees?readiness=NeedsAttention"
+                    className="flex items-center justify-between rounded-lg border px-3 py-1.5 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
+                  >
+                    <span>Employees needing attention</span>
+                    <span className="font-medium tabular-nums">{rs.employeesNeedingAttention}</span>
+                  </Link>
+                  <Link
+                    href="/employees?readiness=MissingRequiredField"
+                    className="flex items-center justify-between rounded-lg border px-3 py-1.5 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
+                  >
+                    <span>Missing required fields</span>
+                    <span className="font-medium tabular-nums">{rs.issueCounts.missingRequiredFields}</span>
+                  </Link>
+                  <Link
+                    href="/employees?readiness=MissingOrgUnit"
+                    className="flex items-center justify-between rounded-lg border px-3 py-1.5 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
+                  >
+                    <span>Missing org units</span>
+                    <span className="font-medium tabular-nums">{rs.issueCounts.missingOrgUnit}</span>
+                  </Link>
+                  <Link
+                    href="/employees?readiness=ReportingIssue"
+                    className="flex items-center justify-between rounded-lg border px-3 py-1.5 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
+                  >
+                    <span>Reporting issues</span>
+                    <span className="font-medium tabular-nums">{reportingIssueCount}</span>
+                  </Link>
+                  <Link
+                    href={buildImportHistoryHref()}
+                    className="flex items-center justify-between rounded-lg border px-3 py-1.5 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
+                  >
+                    <span>Unresolved import follow-up</span>
+                    <span className="font-medium tabular-nums">{rs.issueCounts.unresolvedImportIssues}</span>
+                  </Link>
+                </div>
+              </div>
+            ) : isRsLoading ? (
+              <div className="space-y-3">
+                <Skeleton className="h-9 w-full rounded-lg" />
+                <div className="grid gap-1.5">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Skeleton key={i} className="h-8 w-full rounded-lg" />
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground">
+                Workforce health data unavailable.
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Quick links */}
+        <div className="flex flex-col gap-4">
+          <DashboardCard icon={Settings2} title="Setup" description="Setup status and published structure." href="/setup" cta="View setup" />
+          <DashboardCard icon={ClipboardList} title="Settings" description="Tenant configuration and field policy." href="/settings" cta="View settings" />
+          <DashboardCard icon={Network} title="Org Chart" description="Organizational hierarchy viewer." href="/org-chart" cta="View org chart" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const { user, isLoading } = useAuth();
+  const { tenantId } = useTenantContext();
+  const isInTenantContext = !!tenantId;
   const isHrAdmin = canAccessEmployeeRoster(user);
   const isPlatformAdmin = canAccessOrganizations(user);
   const isManager = canAccessTeamWorkspace(user);
@@ -479,6 +589,10 @@ export default function DashboardPage() {
 
   if (isLoading) {
     return <LoadingSkeleton />;
+  }
+
+  if (isInTenantContext && isPlatformAdmin) {
+    return <PlatformAdminTenantDashboard />;
   }
 
   if (isPlatformAdmin) {

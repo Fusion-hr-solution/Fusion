@@ -2,7 +2,7 @@
 
 import type { CSSProperties } from "react";
 import { usePathname } from "next/navigation";
-import { BrainCircuit } from "lucide-react";
+import { BrainCircuit, Building } from "lucide-react";
 import { AppSidebar, type NavSection } from "@repo/ui";
 import {
   SidebarUserPanel,
@@ -13,6 +13,7 @@ import {
 } from "@repo/auth";
 import { PEOPLE_NAV, ADMIN_NAV } from "@/data/sidebar-nav";
 import { useCoreSetupAccess } from "@/components/core-setup-access";
+import { useTenantContext } from "@/components/core-tenant-context-provider";
 import {
   canSeeEmployeeRosterNavigation,
   canSeeSelfEmployeeProfileNavigation,
@@ -77,12 +78,14 @@ export function CoreSidebar() {
   const activePath = pathname.replace(/^\/core/, "") || "/";
   const { user } = useAuth();
   const { isNavigationLocked, lockedNavigationReason } = useCoreSetupAccess();
-  const canSeeSetup = canSeeCoreSetupNavigation(user);
-  const canSeeSettings = canSeeCoreSettingsNavigation(user);
-  const canSeeOrganizations = canSeeOrganizationsNavigation(user);
-  const canSeeEmployeeRoster = canSeeEmployeeRosterNavigation(user);
-  const canSeeMyProfile = canSeeSelfEmployeeProfileNavigation(user);
-  const canSeeMyTeam = canSeeTeamWorkspaceNavigation(user);
+  const { tenantId } = useTenantContext();
+  const isInTenantContext = !!tenantId;
+  const canSeeSetup = canSeeCoreSetupNavigation(user) || isInTenantContext;
+  const canSeeSettings = canSeeCoreSettingsNavigation(user) || isInTenantContext;
+  const canSeeOrganizations = canSeeOrganizationsNavigation(user) && !isInTenantContext;
+  const canSeeEmployeeRoster = canSeeEmployeeRosterNavigation(user) || isInTenantContext;
+  const canSeeMyProfile = canSeeSelfEmployeeProfileNavigation(user) && !isInTenantContext;
+  const canSeeMyTeam = canSeeTeamWorkspaceNavigation(user) && !isInTenantContext;
   const peopleItems = PEOPLE_NAV.items.filter((item) => {
     if (item.href === "/profile") {
       return canSeeMyProfile;
