@@ -8,7 +8,7 @@ import type {
 } from "@tanstack/react-table";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Copy, Link as LinkIcon, Send, Upload, Users } from "lucide-react";
+import { Copy, Link as LinkIcon, Plus, Send, Upload, Users } from "lucide-react";
 import { useApiQueryClient } from "@repo/api/query";
 import { useAuth } from "@repo/auth";
 import { DEFAULT_PAGE_SIZE, EmptyState, type PageSize } from "@repo/ui";
@@ -94,6 +94,7 @@ import {
   useResolveWorkforceAccountStatuses,
   useWorkforceAccountStatuses,
 } from "./use-workforce-accounts";
+import { EmployeeCreateDialog } from "./employee-create-dialog";
 
 const DEFAULT_EMPLOYEE_SORTING: SortingState = [{ id: "Name", desc: false }];
 
@@ -699,6 +700,7 @@ export default function EmployeesPage() {
   const isTenantContextReadOnly = !!tenantId;
   const canAccess = canAccessEmployeeRoster(user) || isTenantContextReadOnly;
   const shouldAutoReviewAccess = searchParams.get("review") === "access";
+  const shouldOpenCreateEmployee = searchParams.get("create") === "1";
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<PageSize>(DEFAULT_PAGE_SIZE);
   const [search, setSearch] = useState("");
@@ -718,6 +720,8 @@ export default function EmployeesPage() {
     EmployeeRosterRow[] | null
   >(null);
   const [isAccessWorkflowOpen, setIsAccessWorkflowOpen] = useState(false);
+  const [isCreateEmployeeOpen, setIsCreateEmployeeOpen] =
+    useState(shouldOpenCreateEmployee);
   const [isNotIncludedExpanded, setIsNotIncludedExpanded] = useState(false);
   const [isResultDetailsOpen, setIsResultDetailsOpen] = useState(false);
   const [selectedRolesByEmployeeId, setSelectedRolesByEmployeeId] = useState<
@@ -1065,6 +1069,40 @@ export default function EmployeesPage() {
     []
   );
 
+  const updateCreateEmployeeQueryParam = useCallback(
+    (open: boolean) => {
+      const nextSearchParams = new URLSearchParams(searchParams.toString());
+
+      if (open) {
+        nextSearchParams.set("create", "1");
+      } else {
+        nextSearchParams.delete("create");
+      }
+
+      const nextSearch = nextSearchParams.toString();
+      const nextPath = window.location.pathname;
+      const nextUrl = nextSearch ? `${nextPath}?${nextSearch}` : nextPath;
+
+      window.history.replaceState(window.history.state, "", nextUrl);
+    },
+    [searchParams]
+  );
+
+  const handleCreateEmployeeOpenChange = useCallback(
+    (open: boolean) => {
+      setIsCreateEmployeeOpen(open);
+      updateCreateEmployeeQueryParam(open);
+    },
+    [updateCreateEmployeeQueryParam]
+  );
+
+  const handleCreateEmployeeCreated = useCallback(
+    (employeeId: string) => {
+      router.push(buildTenantContextHref(`/employees/${employeeId}`, tenantId));
+    },
+    [router, tenantId]
+  );
+
   const handleSelectAllMatching = useCallback(async () => {
     setSelectionError(null);
     setBulkActionError(null);
@@ -1198,6 +1236,10 @@ export default function EmployeesPage() {
   }, [searchParams]);
 
   useEffect(() => {
+    setIsCreateEmployeeOpen(shouldOpenCreateEmployee);
+  }, [shouldOpenCreateEmployee]);
+
+  useEffect(() => {
     if (!shouldAutoReviewAccess) {
       setHasAppliedReviewHandoff(false);
       return;
@@ -1326,12 +1368,18 @@ export default function EmployeesPage() {
         description="Manage the tenant roster and send access invitations when employees are ready."
         actions={
           !isTenantContextReadOnly ? (
-            <Button asChild>
-              <Link href="/employees/import">
-                <Upload />
-                Import employees
-              </Link>
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => handleCreateEmployeeOpenChange(true)}>
+                <Plus />
+                Add employee
+              </Button>
+              <Button asChild variant="outline">
+                <Link href="/employees/import">
+                  <Upload />
+                  Import employees
+                </Link>
+              </Button>
+            </div>
           ) : null
         }
       />
@@ -1631,6 +1679,12 @@ export default function EmployeesPage() {
           results={bulkResults}
         />
       ) : null}
+
+      <EmployeeCreateDialog
+        open={isCreateEmployeeOpen}
+        onOpenChange={handleCreateEmployeeOpenChange}
+        onCreated={handleCreateEmployeeCreated}
+      />
     </div>
   );
 }
