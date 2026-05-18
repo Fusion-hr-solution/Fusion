@@ -12,6 +12,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { coreSetupQueryKeys, type TenantSetupStateDto } from "@repo/api";
 import { useApiQueryClient } from "@repo/api/query";
 import { canSeeCoreSetupNavigation, useAuth } from "@repo/auth";
+import { useTenantContext } from "@/components/core-tenant-context-provider";
 import { CorePageLoadingState } from "@/components/core-page-loading-state";
 import { useSetupState } from "@/app/(pages)/setup/use-setup";
 
@@ -71,9 +72,10 @@ function SetupRedirectFallback({ isChecking }: { isChecking: boolean }) {
 
 export function CoreSetupAccessProvider({ children }: { children: ReactNode }) {
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
+  const { tenantId } = useTenantContext();
   const queryClient = useApiQueryClient();
   const shouldCheckSetupAccess =
-    !isAuthLoading && isAuthenticated && canSeeCoreSetupNavigation(user);
+    !isAuthLoading && isAuthenticated && (canSeeCoreSetupNavigation(user) || !!tenantId);
   const {
     data: setupState,
     error: setupError,

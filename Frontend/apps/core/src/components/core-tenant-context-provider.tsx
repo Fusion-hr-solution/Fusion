@@ -53,7 +53,7 @@ export function TenantContextProvider({ children }: { children: React.ReactNode 
   const queryClient = useApiQueryClient();
   const searchParams = useSearchParams();
   const pathname = usePathname();
-  const [tenantId, setTenantIdState] = useState<string | null>(null);
+  const [tenantId, setTenantIdState] = useState<string | null>(() => loadStoredTenantId());
   const [tenantSummary, setTenantSummary] = useState<TenantSummaryDto | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const prevTenantIdRef = useRef<string | null>(null);

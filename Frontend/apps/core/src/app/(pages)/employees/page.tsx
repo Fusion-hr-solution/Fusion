@@ -696,7 +696,7 @@ export default function EmployeesPage() {
   const searchParams = useSearchParams();
   const { tenantId } = useTenantContext();
   const isTenantContextReadOnly = !!tenantId;
-  const canAccess = canAccessEmployeeRoster(user);
+  const canAccess = canAccessEmployeeRoster(user) || isTenantContextReadOnly;
   const shouldAutoReviewAccess = searchParams.get("review") === "access";
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<PageSize>(DEFAULT_PAGE_SIZE);
