@@ -25,6 +25,7 @@ interface OrgChartPreviewPanelProps {
   onFocusBranch: (employeeId: string) => void;
   onViewManager: (managerId: string) => void;
   onViewDirectReports: (employeeId: string) => void;
+  isTenantContextReadOnly?: boolean;
 }
 
 function getStatusVariant(
@@ -48,6 +49,7 @@ export function OrgChartPreviewPanel({
   showJobTitle,
   onClose,
   onOpenProfile,
+  isTenantContextReadOnly,
   onManageReportingRelationship,
   onFocusBranch,
   onViewManager,
@@ -144,23 +146,25 @@ export function OrgChartPreviewPanel({
             </p>
           </div>
         </button>
-        <button
-          type="button"
-          className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-muted"
-          onClick={() => onManageReportingRelationship(employee.employeeId)}
-        >
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted">
-            <Network className="size-4" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-sm font-medium leading-none">
-              Edit reporting lines
-            </p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Change manager or direct reports
-            </p>
-          </div>
-        </button>
+        {!isTenantContextReadOnly ? (
+          <button
+            type="button"
+            className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-muted"
+            onClick={() => onManageReportingRelationship(employee.employeeId)}
+          >
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted">
+              <Network className="size-4" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-medium leading-none">
+                Edit reporting lines
+              </p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Change manager or direct reports
+              </p>
+            </div>
+          </button>
+        ) : null}
       </div>
 
       {hasChartNavActions ? (

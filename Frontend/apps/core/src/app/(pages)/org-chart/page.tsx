@@ -10,6 +10,7 @@ import { PageHeader } from "@/components/page-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { canAccessEmployeeRoster } from "@/lib/employee-roster-access";
+import { useTenantContext } from "@/components/core-tenant-context-provider";
 import { cn } from "@/lib/utils";
 import { useEmployeeFieldVisibility } from "../employees/employee-field-visibility";
 import { EmployeeReportingLinesSheet } from "../employees/employee-reporting-lines-sheet";
@@ -44,7 +45,9 @@ export default function OrgChartPage() {
 
   // Local UI state (not URL-backed)
   const { user } = useAuth();
-  const canAccess = canAccessEmployeeRoster(user);
+  const { tenantId } = useTenantContext();
+  const isTenantContextReadOnly = !!tenantId;
+  const canAccess = canAccessEmployeeRoster(user) || isTenantContextReadOnly;
   const fieldVisibility = useEmployeeFieldVisibility(canAccess);
   const [isCanvasReady, setIsCanvasReady] = useState(false);
   const [isNavigating, setIsNavigating] = useState(false);
@@ -201,8 +204,9 @@ export default function OrgChartPage() {
   );
 
   const handlePreviewManageReporting = useCallback((employeeId: string) => {
+    if (isTenantContextReadOnly) return;
     setSheetEmployeeId(employeeId);
-  }, []);
+  }, [isTenantContextReadOnly]);
 
   const handlePreviewFocusBranch = useCallback(
     (employeeId: string) => {
@@ -382,7 +386,11 @@ export default function OrgChartPage() {
         onSelectSearchResult={handleSelectSearchResult}
         onFocusSelectedBranch={handleFocusSelectedBranch}
         onShowFullOrganization={handleShowFullOrganization}
-        onToggleReassignMode={() => setIsReassignMode((current) => !current)}
+        isTenantContextReadOnly={isTenantContextReadOnly}
+        onToggleReassignMode={() => {
+          if (isTenantContextReadOnly) return;
+          setIsReassignMode((current) => !current);
+        }}
         onFitToScreen={() => canvasApiRef.current?.fitToScreen()}
         onResetView={() => canvasApiRef.current?.resetView()}
         onIncludeInactiveChange={handleIncludeInactiveChange}
@@ -445,7 +453,10 @@ export default function OrgChartPage() {
               fitViewKey={fitViewKey}
               isOverviewMode={rootEmployeeId === null}
               onCanvasApiReady={handleCanvasApiReady}
-              onReassignProposal={setReassignProposal}
+              onReassignProposal={(proposal) => {
+                if (isTenantContextReadOnly) return;
+                setReassignProposal(proposal);
+              }}
             />
           </div>
 
@@ -461,6 +472,7 @@ export default function OrgChartPage() {
                 showJobTitle={fieldVisibility.showJobTitle}
                 onClose={() => setPreviewEmployeeId(null)}
                 onOpenProfile={handlePreviewOpenProfile}
+                isTenantContextReadOnly={isTenantContextReadOnly}
                 onManageReportingRelationship={handlePreviewManageReporting}
                 onFocusBranch={handlePreviewFocusBranch}
                 onViewManager={handlePreviewViewManager}

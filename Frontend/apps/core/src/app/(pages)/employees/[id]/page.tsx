@@ -847,21 +847,23 @@ export default function EmployeeProfilePage() {
       ? params.id
       : null;
   const canAccess = canAccessEmployeeRoster(user);
-  const fieldPolicy = useEmployeeFieldPolicy(canAccess);
+  const fieldPolicy = useEmployeeFieldPolicy(canAccess || isTenantContextReadOnly);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [activeWorkspaceSheet, setActiveWorkspaceSheet] = useState<
     "identity" | "employment" | "organization" | "status" | null
   >(null);
   const lastHandledSheetRef = useRef<string | null>(null);
 
+  const effectiveEmployeeId = (canAccess || isTenantContextReadOnly) && employeeId ? employeeId : null;
+
   const {
     data: profile,
     error,
     isLoading,
-  } = useEmployeeProfile(canAccess && employeeId ? employeeId : null);
+  } = useEmployeeProfile(effectiveEmployeeId);
 
   const { data: reportingLines } = useEmployeeReportingLines(
-    canAccess && employeeId ? employeeId : null
+    effectiveEmployeeId
   );
 
   // Register employee name in the top breadcrumb (Core > Employees > Jane Smith)
@@ -905,7 +907,7 @@ export default function EmployeeProfilePage() {
     window.history.replaceState(window.history.state, "", nextUrl);
   }, [isTenantContextReadOnly, profile, requestedSheet, searchParams]);
 
-  const isInitialLoading = canAccess && isLoading && !profile && !error;
+  const isInitialLoading = (canAccess || isTenantContextReadOnly) && isLoading && !profile && !error;
 
   if (isInitialLoading) {
     return (
