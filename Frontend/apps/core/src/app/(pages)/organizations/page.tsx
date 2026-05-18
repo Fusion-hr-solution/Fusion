@@ -74,15 +74,11 @@ export default function OrganizationsPage() {
   }, []);
 
   useEffect(() => {
-    if (createParam === "1") {
-      setCreateOpen(true);
-    }
+    setCreateOpen(createParam === "1");
   }, [createParam]);
 
   useEffect(() => {
-    if (detailParam) {
-      setDetailId(detailParam);
-    }
+    setDetailId(detailParam);
   }, [detailParam]);
 
   useEffect(() => {

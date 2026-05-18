@@ -49,11 +49,11 @@ function isPlatformAdminInCoreTenantContext(user: AuthUser | null): boolean {
 }
 
 export function canAccessCoreSetup(user: AuthUser | null): boolean {
-  return isTenantHrAdminOnly(user) || isPlatformAdminInCoreTenantContext(user);
+  return isTenantHrAdminOnly(user);
 }
 
 export function canSeeCoreSetupNavigation(user: AuthUser | null): boolean {
-  return canAccessCoreSetup(user);
+  return canAccessCoreSetup(user) || isPlatformAdminInCoreTenantContext(user);
 }
 
 export function canAccessCoreSettings(user: AuthUser | null): boolean {
