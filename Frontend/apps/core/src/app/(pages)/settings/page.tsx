@@ -15,6 +15,7 @@ import {
   Users,
   type LucideIcon,
 } from "lucide-react";
+import { useTenantContext } from "@/components/core-tenant-context-provider";
 import { ApiError, type FieldConfigDto } from "@repo/api";
 import { canAccessCoreSettings, useAuth } from "@repo/auth";
 import { EmptyState } from "@repo/ui";
@@ -175,7 +176,9 @@ function SettingsPageSkeleton() {
 export default function SettingsPage() {
   const router = useRouter();
   const { user } = useAuth();
-  const canAccess = canAccessCoreSettings(user);
+  const { tenantId } = useTenantContext();
+  const isTenantContextReadOnly = !!tenantId;
+  const canAccess = canAccessCoreSettings(user) || isTenantContextReadOnly;
   const { setupState } = useCoreSetupAccess();
   const {
     data: settings,
@@ -457,23 +460,29 @@ export default function SettingsPage() {
 
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-muted/20 px-4 py-3">
                 <p className="text-sm text-muted-foreground">
-                  {hasChanges
-                    ? "Changes are ready to save."
-                    : "No unsaved changes."}
+                  {isTenantContextReadOnly
+                    ? "Read-only view — settings cannot be modified."
+                    : hasChanges
+                      ? "Changes are ready to save."
+                      : "No unsaved changes."}
                 </p>
-                <Button
-                  variant="ghost"
-                  disabled={!hasChanges}
-                  onClick={handleReset}
-                >
-                  Reset
-                </Button>
-                <Button
-                  disabled={!hasChanges || updateSettings.isLoading}
-                  onClick={handleSave}
-                >
-                  {updateSettings.isLoading ? "Saving..." : "Save field rules"}
-                </Button>
+                {!isTenantContextReadOnly ? (
+                  <>
+                    <Button
+                      variant="ghost"
+                      disabled={!hasChanges}
+                      onClick={handleReset}
+                    >
+                      Reset
+                    </Button>
+                    <Button
+                      disabled={!hasChanges || updateSettings.isLoading}
+                      onClick={handleSave}
+                    >
+                      {updateSettings.isLoading ? "Saving..." : "Save field rules"}
+                    </Button>
+                  </>
+                ) : null}
               </div>
             </CardContent>
           </Card>

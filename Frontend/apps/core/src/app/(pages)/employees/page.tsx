@@ -13,6 +13,7 @@ import { useApiQueryClient } from "@repo/api/query";
 import { useAuth } from "@repo/auth";
 import { DEFAULT_PAGE_SIZE, EmptyState, type PageSize } from "@repo/ui";
 import { CorePageLoadingState } from "@/components/core-page-loading-state";
+import { useTenantContext } from "@/components/core-tenant-context-provider";
 import { PageHeader } from "@/components/page-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -693,6 +694,8 @@ export default function EmployeesPage() {
   const queryClient = useApiQueryClient();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { tenantId } = useTenantContext();
+  const isTenantContextReadOnly = !!tenantId;
   const canAccess = canAccessEmployeeRoster(user);
   const shouldAutoReviewAccess = searchParams.get("review") === "access";
   const [page, setPage] = useState(1);
@@ -1321,12 +1324,14 @@ export default function EmployeesPage() {
         title="Employees"
         description="Manage the tenant roster and send access invitations when employees are ready."
         actions={
-          <Button asChild>
-            <Link href="/employees/import">
-              <Upload />
-              Import employees
-            </Link>
-          </Button>
+          !isTenantContextReadOnly ? (
+            <Button asChild>
+              <Link href="/employees/import">
+                <Upload />
+                Import employees
+              </Link>
+            </Button>
+          ) : null
         }
       />
 
@@ -1377,7 +1382,7 @@ export default function EmployeesPage() {
         </Alert>
       ) : null}
 
-      {selectedEmployees.length > 0 ? (
+      {selectedEmployees.length > 0 && !isTenantContextReadOnly ? (
         <SelectedAccessActionBar
           canOfferSelectAllMatching={canOfferSelectAllMatching}
           isSelectingAllMatching={isSelectingAllMatching}
