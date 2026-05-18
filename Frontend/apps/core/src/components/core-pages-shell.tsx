@@ -7,6 +7,7 @@ import {
   CoreSetupRouteGuard,
   useCoreSetupAccess,
 } from "@/components/core-setup-access";
+import { CoreTenantBanner } from "@/components/core-tenant-banner";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export function CorePagesShell({ children }: { children: ReactNode }) {
@@ -21,6 +22,7 @@ export function CorePagesShell({ children }: { children: ReactNode }) {
       <CoreSidebar />
       <main className="flex-1 overflow-y-auto">
         <div className="flex min-h-full flex-col">
+          <CoreTenantBanner />
           <header className="sticky top-0 z-10 flex h-10 shrink-0 items-center border-b bg-background/95 px-6 backdrop-blur supports-backdrop-filter:bg-background/60">
             <AppBreadcrumb />
           </header>
