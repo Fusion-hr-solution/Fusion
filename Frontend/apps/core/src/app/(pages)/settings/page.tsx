@@ -16,6 +16,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useTenantContext } from "@/components/core-tenant-context-provider";
+import { buildTenantContextHref } from "@/lib/tenant-navigation";
 import { ApiError, type FieldConfigDto } from "@repo/api";
 import { canAccessCoreSettings, useAuth } from "@repo/auth";
 import { EmptyState } from "@repo/ui";
@@ -177,6 +178,7 @@ export default function SettingsPage() {
   const router = useRouter();
   const { user } = useAuth();
   const { tenantId } = useTenantContext();
+  const setupHref = buildTenantContextHref("/setup", tenantId);
   const isTenantContextReadOnly = !!tenantId;
   const canAccess = canAccessCoreSettings(user) || isTenantContextReadOnly;
   const { setupState } = useCoreSetupAccess();
@@ -346,7 +348,7 @@ export default function SettingsPage() {
       <PageHeader
         title="Core Configuration"
         actions={
-          <Button variant="outline" onClick={() => router.push("/setup")}>
+          <Button variant="outline" onClick={() => router.push(setupHref)}>
             Open setup
           </Button>
         }
@@ -516,7 +518,7 @@ export default function SettingsPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => router.push("/setup")}
+                    onClick={() => router.push(setupHref)}
                   >
                     Open setup
                   </Button>

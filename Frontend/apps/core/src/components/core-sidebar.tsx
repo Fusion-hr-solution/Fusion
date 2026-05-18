@@ -19,6 +19,7 @@ import {
   canSeeSelfEmployeeProfileNavigation,
   canSeeTeamWorkspaceNavigation,
 } from "@/lib/employee-roster-access";
+import { buildTenantContextHref } from "@/lib/tenant-navigation";
 
 function applyTenantContextHref(
   section: NavSection,
@@ -28,13 +29,11 @@ function applyTenantContextHref(
     return section;
   }
 
-  const encodedTenantId = encodeURIComponent(tenantId);
-
   return {
     ...section,
     items: section.items.map((item) => ({
       ...item,
-      navigateHref: `${item.href}?tenantId=${encodedTenantId}`,
+      navigateHref: buildTenantContextHref(item.href, tenantId),
     })),
   };
 }

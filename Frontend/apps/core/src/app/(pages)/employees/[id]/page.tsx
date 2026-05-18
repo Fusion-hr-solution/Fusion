@@ -38,6 +38,7 @@ import {
   canAccessEmployeeProfile,
   canAccessEmployeeRoster,
 } from "@/lib/employee-roster-access";
+import { buildTenantContextHref } from "@/lib/tenant-navigation";
 import { useEmployeeFieldPolicy } from "../employee-field-visibility";
 import {
   getEmployeeActionIssues,
@@ -1284,13 +1285,18 @@ export default function EmployeeProfilePage() {
               </CardDescription>
               <CardAction>
                 <div className="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() =>
-                      router.push(`/org-chart?focusEmployeeId=${profile.id}`)
-                    }
-                  >
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() =>
+                        router.push(
+                          buildTenantContextHref(
+                            `/org-chart?focusEmployeeId=${profile.id}`,
+                            tenantId
+                          )
+                        )
+                      }
+                    >
                     View in org chart
                   </Button>
                   {!isTenantContextReadOnly ? (

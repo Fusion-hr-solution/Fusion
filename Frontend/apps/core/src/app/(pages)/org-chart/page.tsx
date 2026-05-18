@@ -11,6 +11,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { canAccessEmployeeRoster } from "@/lib/employee-roster-access";
 import { useTenantContext } from "@/components/core-tenant-context-provider";
+import { buildTenantContextHref } from "@/lib/tenant-navigation";
 import { cn } from "@/lib/utils";
 import { useEmployeeFieldVisibility } from "../employees/employee-field-visibility";
 import { EmployeeReportingLinesSheet } from "../employees/employee-reporting-lines-sheet";
@@ -198,9 +199,9 @@ export default function OrgChartPage() {
   // Preview panel action handlers
   const handlePreviewOpenProfile = useCallback(
     (employeeId: string) => {
-      router.push(`/employees/${employeeId}`);
+      router.push(buildTenantContextHref(`/employees/${employeeId}`, tenantId));
     },
-    [router]
+    [router, tenantId]
   );
 
   const handlePreviewManageReporting = useCallback((employeeId: string) => {

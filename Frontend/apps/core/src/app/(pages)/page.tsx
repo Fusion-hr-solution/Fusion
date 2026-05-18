@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { canAccessEmployeeRoster, canAccessSelfEmployeeProfile, canAccessTeamWorkspace } from "@/lib/employee-roster-access";
+import { buildTenantContextHref } from "@/lib/tenant-navigation";
 import { useTenantContext } from "@/components/core-tenant-context-provider";
 import { buildImportHistoryHref } from "./employees/employee-readiness";
 import { useEmployeeProfile, useEmployeeReportingLines, useWorkforceReadinessSummary } from "./employees/use-employees";
@@ -709,6 +710,7 @@ function PlatformAdminDashboard() {
 
 function PlatformAdminTenantDashboard() {
   const { tenantId, tenantName, isLoading, isReady } = useTenantContext();
+  const tenantHref = (href: string) => buildTenantContextHref(href, tenantId);
   const { data: rs, isLoading: isRsLoading } = useWorkforceReadinessSummary();
   const reportingIssueCount = rs
     ? rs.issueCounts.noManagerAssigned + rs.issueCounts.managerInactive + rs.issueCounts.managerMissing
@@ -732,7 +734,7 @@ function PlatformAdminTenantDashboard() {
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <Link
-            href="/setup"
+            href={tenantHref("/setup")}
             className="group inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary/80"
           >
             View setup
@@ -790,35 +792,35 @@ function PlatformAdminTenantDashboard() {
                 </div>
                 <div className="grid gap-1.5">
                   <Link
-                    href="/employees?readiness=NeedsAttention"
+                    href={tenantHref("/employees?readiness=NeedsAttention")}
                     className="flex items-center justify-between rounded-lg border px-3 py-1.5 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
                   >
                     <span>Employees needing attention</span>
                     <span className="font-medium tabular-nums">{rs.employeesNeedingAttention}</span>
                   </Link>
                   <Link
-                    href="/employees?readiness=MissingRequiredField"
+                    href={tenantHref("/employees?readiness=MissingRequiredField")}
                     className="flex items-center justify-between rounded-lg border px-3 py-1.5 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
                   >
                     <span>Missing required fields</span>
                     <span className="font-medium tabular-nums">{rs.issueCounts.missingRequiredFields}</span>
                   </Link>
                   <Link
-                    href="/employees?readiness=MissingOrgUnit"
+                    href={tenantHref("/employees?readiness=MissingOrgUnit")}
                     className="flex items-center justify-between rounded-lg border px-3 py-1.5 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
                   >
                     <span>Missing org units</span>
                     <span className="font-medium tabular-nums">{rs.issueCounts.missingOrgUnit}</span>
                   </Link>
                   <Link
-                    href="/employees?readiness=ReportingIssue"
+                    href={tenantHref("/employees?readiness=ReportingIssue")}
                     className="flex items-center justify-between rounded-lg border px-3 py-1.5 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
                   >
                     <span>Reporting issues</span>
                     <span className="font-medium tabular-nums">{reportingIssueCount}</span>
                   </Link>
                   <Link
-                    href={buildImportHistoryHref()}
+                    href={tenantHref(buildImportHistoryHref())}
                     className="flex items-center justify-between rounded-lg border px-3 py-1.5 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
                   >
                     <span>Unresolved import follow-up</span>
@@ -843,7 +845,7 @@ function PlatformAdminTenantDashboard() {
           </CardContent>
           <CardContent className="pt-0">
             <Link
-              href="/employees"
+              href={tenantHref("/employees")}
               className="group inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary/80"
             >
               Open employees
@@ -865,28 +867,28 @@ function PlatformAdminTenantDashboard() {
           </CardHeader>
           <CardContent className="flex flex-1 flex-col gap-2">
             <Link
-              href="/setup"
+              href={tenantHref("/setup")}
               className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors hover:border-primary/40 hover:bg-muted/10"
             >
               <ClipboardList className="size-4 text-muted-foreground" />
               Setup
             </Link>
             <Link
-              href="/settings"
+              href={tenantHref("/settings")}
               className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors hover:border-primary/40 hover:bg-muted/10"
             >
               <Settings2 className="size-4 text-muted-foreground" />
               Settings
             </Link>
             <Link
-              href="/org-chart"
+              href={tenantHref("/org-chart")}
               className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors hover:border-primary/40 hover:bg-muted/10"
             >
               <Network className="size-4 text-muted-foreground" />
               Org chart
             </Link>
             <Link
-              href="/employees"
+              href={tenantHref("/employees")}
               className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors hover:border-primary/40 hover:bg-muted/10"
             >
               <Users className="size-4 text-muted-foreground" />
