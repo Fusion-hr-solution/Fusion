@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { SortingState } from "@tanstack/react-table";
 import type { PlatformOrganizationSummaryDto } from "@repo/api";
 import { canAccessOrganizations, useAuth } from "@repo/auth";
 import { DEFAULT_PAGE_SIZE, EmptyState, type PageSize } from "@repo/ui";
 import { Building, Plus } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { CorePageLoadingState } from "@/components/core-page-loading-state";
@@ -22,6 +23,7 @@ import { OrgDetailSheet } from "./org-detail-sheet";
 export default function OrganizationsPage() {
   const { user } = useAuth();
   const canManageOrganizations = canAccessOrganizations(user);
+  const searchParams = useSearchParams();
 
   // ---- list query state ----
   const [skip, setSkip] = useState(0);
@@ -48,6 +50,10 @@ export default function OrganizationsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
 
+  const createParam = searchParams.get("create");
+  const detailParam = searchParams.get("detail");
+  const statusParamsKey = searchParams.getAll("status").join(",");
+
   const handleRowClick = useCallback((org: PlatformOrganizationSummaryDto) => {
     setDetailId(org.id);
   }, []);
@@ -66,6 +72,34 @@ export default function OrganizationsPage() {
     setPageSize(size);
     setSkip(0);
   }, []);
+
+  useEffect(() => {
+    if (createParam === "1") {
+      setCreateOpen(true);
+    }
+  }, [createParam]);
+
+  useEffect(() => {
+    if (detailParam) {
+      setDetailId(detailParam);
+    }
+  }, [detailParam]);
+
+  useEffect(() => {
+    const nextStatusFilter = statusParamsKey ? statusParamsKey.split(",") : [];
+
+    setStatusFilter((current) => {
+      if (
+        current.length === nextStatusFilter.length &&
+        current.every((value, index) => value === nextStatusFilter[index])
+      ) {
+        return current;
+      }
+
+      return nextStatusFilter;
+    });
+    setSkip(0);
+  }, [statusParamsKey]);
 
   const isInitialPageLoading =
     canManageOrganizations && isLoading && !data && !error;

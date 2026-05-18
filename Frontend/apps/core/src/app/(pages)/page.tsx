@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { AlertTriangle, ArrowRight, Building, ClipboardList, Network, Settings2, User, Users } from "lucide-react";
+import { AlertTriangle, ArrowRight, Building, Building2, ClipboardList, ExternalLink, Mail, Network, Pause, Plus, Settings2, User, Users } from "lucide-react";
 import { canAccessOrganizations, canSeeCoreSetupNavigation, canSeeCoreSettingsNavigation, useAuth } from "@repo/auth";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +10,9 @@ import { canAccessEmployeeRoster, canAccessSelfEmployeeProfile, canAccessTeamWor
 import { useTenantContext } from "@/components/core-tenant-context-provider";
 import { buildImportHistoryHref } from "./employees/employee-readiness";
 import { useEmployeeProfile, useEmployeeReportingLines, useWorkforceReadinessSummary } from "./employees/use-employees";
+import { StatusBadge } from "./organizations/status-badge";
+import { StatsCards } from "./organizations/stats-cards";
+import { useOrganizationList } from "./organizations/use-organizations";
 
 function LoadingSkeleton() {
   return (
@@ -457,16 +460,193 @@ function EmployeeDashboard() {
 }
 
 function PlatformAdminDashboard() {
+  const { data, isLoading } = useOrganizationList({ skip: 0, take: 100 });
+  const stats = data?.stats;
+  const items = data?.items ?? [];
+
+  const attentionOrgs = items.filter(
+    (o) => o.operationalStatus === "invited" || o.operationalStatus === "suspended"
+  );
+  const recentOrgs = items.slice(0, 5);
+
   return (
     <div className="flex min-h-full flex-col gap-6 p-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Platform workspace</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Manage tenant organizations and first admin access.</p>
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold tracking-tight">Platform workspace</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Manage tenant organizations and platform operations.
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-3">
+          <Link
+            href="/organizations?create=1"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            <Plus className="size-4" />
+            New organization
+          </Link>
+          <Link
+            href="/organizations"
+            className="group inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary/80"
+          >
+            Open organizations
+            <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+          </Link>
+        </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        <DashboardCard icon={Building} title="Organizations" description="Tenant organization records and lifecycle administration." href="/organizations" />
+      {/* KPI strip */}
+      <StatsCards stats={stats} isLoading={isLoading} />
+
+      {/* Main content: attention + quick actions */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card className="md:col-span-2 flex flex-col">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                <AlertTriangle className="size-4" />
+              </div>
+              <CardTitle className="text-base">Needs attention</CardTitle>
+            </div>
+            <CardDescription>Organizations requiring platform admin action.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex-1">
+            {isLoading ? (
+              <div className="space-y-2">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <Skeleton key={i} className="h-12 w-full rounded-lg" />
+                ))}
+              </div>
+            ) : attentionOrgs.length > 0 ? (
+              <div className="space-y-1.5">
+                {attentionOrgs.map((org) => (
+                  <Link
+                    key={org.id}
+                    href={`/organizations?detail=${org.id}`}
+                    className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
+                  >
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span className="truncate font-medium">{org.name}</span>
+                      <StatusBadge status={org.operationalStatus} />
+                    </div>
+                    <div className="flex shrink-0 items-center gap-3 text-xs text-muted-foreground">
+                      {org.pendingInviteCount > 0 && (
+                        <span>{org.pendingInviteCount} invite{org.pendingInviteCount !== 1 ? "s" : ""}</span>
+                      )}
+                      {org.activeUserCount > 0 && (
+                        <span>{org.activeUserCount} user{org.activeUserCount !== 1 ? "s" : ""}</span>
+                      )}
+                      <ExternalLink className="size-3.5" />
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground">
+                All organizations are in good standing.
+              </div>
+            )}
+          </CardContent>
+          <CardContent className="pt-0">
+            <Link
+              href="/organizations"
+              className="group inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary/80"
+            >
+              All organizations
+              <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+            </Link>
+          </CardContent>
+        </Card>
+
+        <Card className="flex flex-col">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                <Building className="size-4" />
+              </div>
+              <CardTitle className="text-base">Quick actions</CardTitle>
+            </div>
+            <CardDescription>Common platform administration tasks.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-1 flex-col gap-2">
+            <Link
+              href="/organizations?create=1"
+              className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors hover:border-primary/40 hover:bg-muted/10"
+            >
+              <Plus className="size-4 text-muted-foreground" />
+              Create organization
+            </Link>
+            <Link
+              href="/organizations?status=invited"
+              className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors hover:border-primary/40 hover:bg-muted/10"
+            >
+              <Mail className="size-4 text-muted-foreground" />
+              Review invited orgs
+            </Link>
+            <Link
+              href="/organizations?status=suspended"
+              className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors hover:border-primary/40 hover:bg-muted/10"
+            >
+              <Pause className="size-4 text-muted-foreground" />
+              Manage suspended orgs
+            </Link>
+            <Link
+              href="/organizations"
+              className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors hover:border-primary/40 hover:bg-muted/10"
+            >
+              <Building2 className="size-4 text-muted-foreground" />
+              Full organizations table
+            </Link>
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Recent organizations */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
+              <Building className="size-4" />
+            </div>
+            <CardTitle className="text-base">Recently created organizations</CardTitle>
+          </div>
+          <CardDescription>Most recently added tenant organizations.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="space-y-2">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-10 w-full rounded-lg" />
+              ))}
+            </div>
+          ) : recentOrgs.length > 0 ? (
+            <div className="divide-y">
+              {recentOrgs.map((org) => (
+                  <Link
+                    key={org.id}
+                    href={`/organizations?detail=${org.id}`}
+                    className="flex items-center justify-between px-1 py-2.5 text-sm transition-colors hover:text-primary"
+                  >
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span className="truncate font-medium">{org.name}</span>
+                    <StatusBadge status={org.operationalStatus} />
+                  </div>
+                  <div className="flex shrink-0 items-center gap-3 text-xs text-muted-foreground">
+                    <span>Created {new Date(org.createdAt).toLocaleDateString()}</span>
+                    <ExternalLink className="size-3.5" />
+                  </div>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground">
+              No organizations created yet.
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -484,18 +664,58 @@ function PlatformAdminTenantDashboard() {
 
   return (
     <div className="flex min-h-full flex-col gap-6 p-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{tenantName ?? tenantId ?? "Tenant context"}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {isReady
-            ? "Tenant overview and support surfaces."
-            : "Tenant summary is still loading. Read-only tenant surfaces are available now."}
-        </p>
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold tracking-tight">{tenantName ?? tenantId ?? "Tenant context"}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {isReady
+              ? "Tenant overview and workforce readiness."
+              : "Tenant summary is still loading. Read-only tenant surfaces are available now."}
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <Link
+            href="/setup"
+            className="group inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary/80"
+          >
+            View setup
+            <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+          </Link>
+        </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      {/* Readiness KPI strip */}
+      {rs ? (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="flex flex-col gap-1 rounded-xl border bg-card p-4 ring-1 ring-foreground/5">
+            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Readiness</span>
+            <span className="text-2xl font-bold tabular-nums text-foreground">{rs.readinessScore}%</span>
+          </div>
+          <div className="flex flex-col gap-1 rounded-xl border bg-card p-4 ring-1 ring-foreground/5">
+            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Need Attention</span>
+            <span className="text-2xl font-bold tabular-nums text-foreground">{rs.employeesNeedingAttention}</span>
+          </div>
+          <div className="flex flex-col gap-1 rounded-xl border bg-card p-4 ring-1 ring-foreground/5">
+            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Missing Fields</span>
+            <span className="text-2xl font-bold tabular-nums text-foreground">{rs.issueCounts.missingRequiredFields}</span>
+          </div>
+          <div className="flex flex-col gap-1 rounded-xl border bg-card p-4 ring-1 ring-foreground/5">
+            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Reporting Issues</span>
+            <span className="text-2xl font-bold tabular-nums text-foreground">{reportingIssueCount}</span>
+          </div>
+        </div>
+      ) : isRsLoading ? (
+        <div className="grid grid-cols-4 gap-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-20 rounded-xl" />
+          ))}
+        </div>
+      ) : null}
+
+      <div className="grid gap-4 md:grid-cols-3">
         {/* Workforce health */}
-        <Card className="xl:col-span-2 flex flex-col">
+        <Card className="md:col-span-2 flex flex-col">
           <CardHeader>
             <div className="flex items-center gap-2">
               <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
@@ -565,14 +785,59 @@ function PlatformAdminTenantDashboard() {
               </div>
             )}
           </CardContent>
+          <CardContent className="pt-0">
+            <Link
+              href="/employees"
+              className="group inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary/80"
+            >
+              Open employees
+              <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+            </Link>
+          </CardContent>
         </Card>
 
-        {/* Quick links */}
-        <div className="flex flex-col gap-4">
-          <DashboardCard icon={Settings2} title="Setup" description="Setup status and published structure." href="/setup" cta="View setup" />
-          <DashboardCard icon={ClipboardList} title="Settings" description="Tenant configuration and field policy." href="/settings" cta="View settings" />
-          <DashboardCard icon={Network} title="Org Chart" description="Organizational hierarchy viewer." href="/org-chart" cta="View org chart" />
-        </div>
+        {/* Quick actions */}
+        <Card className="flex flex-col">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                <Settings2 className="size-4" />
+              </div>
+              <CardTitle className="text-base">Quick actions</CardTitle>
+            </div>
+            <CardDescription>Tenant administration and navigation.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-1 flex-col gap-2">
+            <Link
+              href="/setup"
+              className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors hover:border-primary/40 hover:bg-muted/10"
+            >
+              <ClipboardList className="size-4 text-muted-foreground" />
+              Setup
+            </Link>
+            <Link
+              href="/settings"
+              className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors hover:border-primary/40 hover:bg-muted/10"
+            >
+              <Settings2 className="size-4 text-muted-foreground" />
+              Settings
+            </Link>
+            <Link
+              href="/org-chart"
+              className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors hover:border-primary/40 hover:bg-muted/10"
+            >
+              <Network className="size-4 text-muted-foreground" />
+              Org chart
+            </Link>
+            <Link
+              href="/employees"
+              className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors hover:border-primary/40 hover:bg-muted/10"
+            >
+              <Users className="size-4 text-muted-foreground" />
+              Employees
+            </Link>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
