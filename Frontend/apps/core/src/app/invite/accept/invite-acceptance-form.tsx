@@ -63,17 +63,6 @@ interface AcceptFormValues {
   confirmPassword: string;
 }
 
-interface AccountReadyState {
-  destination: string;
-  email: string;
-  signInHref: string;
-}
-
-function buildSignInHref(destination: string) {
-  const nextPath = destination === "/" ? "/core" : `/core${destination}`;
-  return `/auth/signin?next=${encodeURIComponent(nextPath)}`;
-}
-
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -89,8 +78,6 @@ export function InviteAcceptanceForm({ token }: { token: string | null }) {
 
   const accept = useAcceptInvite();
 
-  const [accountReadyState, setAccountReadyState] =
-    useState<AccountReadyState | null>(null);
   const [serverErrors, setServerErrors] = useState<string[]>([]);
   const [isAutoLoginning, setIsAutoLoginning] = useState(false);
 
@@ -132,14 +119,11 @@ export function InviteAcceptanceForm({ token }: { token: string | null }) {
   const onSubmit = async (values: AcceptFormValues) => {
     if (!token || !invite) return;
 
-    setAccountReadyState(null);
     setServerErrors([]);
-
-    let nextAccountReadyState: AccountReadyState | null = null;
 
     try {
       // 1. Accept the invite (creates user account)
-      const acceptedUser = await accept.mutateAsync({
+      await accept.mutateAsync({
         token,
         request: {
           password: values.password,
@@ -148,22 +132,10 @@ export function InviteAcceptanceForm({ token }: { token: string | null }) {
         },
       } satisfies AcceptInvitePayload);
 
-      const destination = resolveInviteAcceptanceDestination({
-        roles: acceptedUser.roles,
-        employeeId: acceptedUser.employeeId ?? null,
-      });
-
-      nextAccountReadyState = {
-        destination,
-        email: acceptedUser.email,
-        signInHref: buildSignInHref(destination),
-      };
-      setAccountReadyState(nextAccountReadyState);
-
       // 2. Auto-login with the credentials just created
       setIsAutoLoginning(true);
       const authResponse = await apiLogin({
-        email: acceptedUser.email,
+        email: invite.email,
         password: values.password,
       });
 
@@ -183,26 +155,17 @@ export function InviteAcceptanceForm({ token }: { token: string | null }) {
       } satisfies StoredAuth);
 
       // 4. Redirect to the role-scoped app entry.
-      router.push(destination);
+      router.push(resolveInviteAcceptanceDestination(user));
     } catch (err) {
       setIsAutoLoginning(false);
-
       if (err instanceof ApiError) {
         setServerErrors(
           err.errors.length > 0
             ? err.errors
-            : [
-                nextAccountReadyState
-                  ? "Your account is ready. Sign in to continue."
-                  : "Something went wrong. Please try again.",
-              ]
+            : ["Something went wrong. Please try again."]
         );
       } else {
-        setServerErrors([
-          nextAccountReadyState
-            ? "Your account is ready. Sign in to continue."
-            : "An unexpected error occurred. Please try again.",
-        ]);
+        setServerErrors(["An unexpected error occurred. Please try again."]);
       }
     }
   };
@@ -216,7 +179,7 @@ export function InviteAcceptanceForm({ token }: { token: string | null }) {
   if (!token) {
     return (
       <InviteShell>
-        <StateCard
+        <ErrorState
           icon={<AlertTriangleIcon className="size-10 text-muted-foreground" />}
           title="Invalid invite link"
           description="Open the invite link from your email and try again."
@@ -242,7 +205,7 @@ export function InviteAcceptanceForm({ token }: { token: string | null }) {
       validateError instanceof ApiError && validateError.status === 404;
     return (
       <InviteShell>
-        <StateCard
+        <ErrorState
           icon={<AlertTriangleIcon className="size-10 text-muted-foreground" />}
           title={is404 ? "Invite not found" : "Could not verify invite"}
           description={
@@ -260,7 +223,7 @@ export function InviteAcceptanceForm({ token }: { token: string | null }) {
   if (invite.isExpired) {
     return (
       <InviteShell>
-        <StateCard
+        <ErrorState
           icon={<ClockIcon className="size-10 text-muted-foreground" />}
           title="Invite expired"
           description="Ask your administrator for a new link."
@@ -274,49 +237,16 @@ export function InviteAcceptanceForm({ token }: { token: string | null }) {
   if (invite.isUsed) {
     return (
       <InviteShell>
-        <StateCard
+        <ErrorState
           icon={<CheckCircle2Icon className="size-10 text-green-600" />}
           title="Invite already accepted"
           description="Sign in with your account."
           action={
-            <a href={buildSignInHref("/")}>
+            <a href="/auth/signin">
               <Button>Sign in</Button>
             </a>
           }
         />
-      </InviteShell>
-    );
-  }
-
-  if (accountReadyState) {
-    return (
-      <InviteShell>
-        <StateCard
-          icon={<CheckCircle2Icon className="size-10 text-green-600" />}
-          title={isAutoLoginning ? "Account ready" : "Sign in to continue"}
-          description={
-            isAutoLoginning
-              ? `Signing in as ${accountReadyState.email}...`
-              : `Your account for ${invite.tenantName} is ready.`
-          }
-          action={
-            !isAutoLoginning ? (
-              <a href={accountReadyState.signInHref}>
-                <Button>Sign in</Button>
-              </a>
-            ) : null
-          }
-        >
-          {serverErrors.length > 0 ? (
-            <Alert variant="destructive" className="text-left">
-              <AlertDescription>
-                {serverErrors.map((err, index) => (
-                  <p key={index}>{err}</p>
-                ))}
-              </AlertDescription>
-            </Alert>
-          ) : null}
-        </StateCard>
       </InviteShell>
     );
   }
@@ -326,20 +256,18 @@ export function InviteAcceptanceForm({ token }: { token: string | null }) {
   return (
     <InviteShell>
       <Card className="w-full max-w-lg">
-        <CardHeader className="space-y-2">
+        <CardHeader>
           <CardTitle>
             Join{" "}
             <span className="bg-yellow-200 px-1 py-0.5">
               {invite.tenantName}
             </span>
           </CardTitle>
-          <CardDescription>
-            Create your account and continue to Core.
-          </CardDescription>
+          <CardDescription>Create your account to continue.</CardDescription>
         </CardHeader>
 
         <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="grid gap-5">
+          <form onSubmit={handleSubmit(onSubmit)} className="grid gap-4">
             {/* Work Email (read-only) */}
             <div className="grid gap-2">
               <Label>Email</Label>
@@ -352,7 +280,7 @@ export function InviteAcceptanceForm({ token }: { token: string | null }) {
             </div>
 
             {/* Name fields */}
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-2">
                 <Label htmlFor="firstName">First Name</Label>
                 <Input
@@ -374,7 +302,7 @@ export function InviteAcceptanceForm({ token }: { token: string | null }) {
             </div>
 
             {/* Password fields */}
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-2">
                 <Label htmlFor="password">Password</Label>
                 <Input
@@ -410,32 +338,30 @@ export function InviteAcceptanceForm({ token }: { token: string | null }) {
             </div>
 
             {/* Password requirements checklist */}
-            {passwordValue ? (
-              <div className="grid gap-2">
-                <p className="text-xs text-muted-foreground">Password needs:</p>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {ruleResults.map((rule) => (
-                    <div
-                      key={rule.label}
-                      className="flex items-center gap-1.5 text-xs"
+            <div className="grid gap-1.5">
+              <p className="text-xs text-muted-foreground">Password needs:</p>
+              <div className="flex flex-wrap gap-x-4 gap-y-1">
+                {ruleResults.map((rule) => (
+                  <div
+                    key={rule.label}
+                    className="flex items-center gap-1.5 text-xs"
+                  >
+                    {rule.met ? (
+                      <CheckCircle2Icon className="size-3.5 text-green-600" />
+                    ) : (
+                      <CircleIcon className="size-3.5 text-muted-foreground/50" />
+                    )}
+                    <span
+                      className={
+                        rule.met ? "text-green-700" : "text-muted-foreground"
+                      }
                     >
-                      {rule.met ? (
-                        <CheckCircle2Icon className="size-3.5 text-green-600" />
-                      ) : (
-                        <CircleIcon className="size-3.5 text-muted-foreground/50" />
-                      )}
-                      <span
-                        className={
-                          rule.met ? "text-green-700" : "text-muted-foreground"
-                        }
-                      >
-                        {rule.label}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+                      {rule.label}
+                    </span>
+                  </div>
+                ))}
               </div>
-            ) : null}
+            </div>
 
             {/* Form-level validation errors */}
             {(errors.password || errors.confirmPassword) && (
@@ -471,7 +397,7 @@ export function InviteAcceptanceForm({ token }: { token: string | null }) {
                 </>
               ) : (
                 <>
-                  Create account
+                  Accept and continue
                   <ArrowRightIcon className="ml-2 size-4" />
                 </>
               )}
@@ -499,22 +425,20 @@ function InviteShell({ children }: { children: React.ReactNode }) {
 // Error / status state card
 // ---------------------------------------------------------------------------
 
-function StateCard({
+function ErrorState({
   icon,
   title,
   description,
   action,
-  children,
 }: {
   icon: React.ReactNode;
   title: string;
   description: string;
   action?: React.ReactNode;
-  children?: React.ReactNode;
 }) {
   return (
     <Card className="w-full max-w-lg">
-      <CardContent className="flex flex-col items-center justify-center gap-4 py-12 text-center">
+      <CardContent className="flex flex-col items-center justify-center py-12 text-center gap-4">
         {icon}
         <div className="grid gap-1">
           <p className="font-semibold">{title}</p>
@@ -522,7 +446,6 @@ function StateCard({
             {description}
           </p>
         </div>
-        {children}
         {action}
       </CardContent>
     </Card>

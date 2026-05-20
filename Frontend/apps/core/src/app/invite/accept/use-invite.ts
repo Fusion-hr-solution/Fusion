@@ -55,7 +55,6 @@ interface AcceptInviteResponse {
   email: string;
   fullName: string;
   tenantId: string;
-  employeeId?: string | null;
   roles: string[];
 }
 

@@ -1,43 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import {
-  AlertTriangle,
-  ArrowRight,
-  Building,
-  Building2,
-  ClipboardList,
-  ExternalLink,
-  Mail,
-  Network,
-  Pause,
-  Plus,
-  Settings2,
-  User,
-  Users,
-} from "lucide-react";
-import {
-  canAccessOrganizations,
-  canSeeCoreSetupNavigation,
-  canSeeCoreSettingsNavigation,
-  useAuth,
-} from "@repo/auth";
+import { AlertTriangle, ArrowRight, Building, Building2, ClipboardList, ExternalLink, Mail, Network, Pause, Plus, Settings2, User, Users } from "lucide-react";
+import { canAccessOrganizations, canSeeCoreSetupNavigation, canSeeCoreSettingsNavigation, useAuth } from "@repo/auth";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  canAccessEmployeeRoster,
-  canAccessSelfEmployeeProfile,
-  canAccessTeamWorkspace,
-} from "@/lib/employee-roster-access";
+import { canAccessEmployeeRoster, canAccessSelfEmployeeProfile, canAccessTeamWorkspace } from "@/lib/employee-roster-access";
 import { buildTenantContextHref } from "@/lib/tenant-navigation";
 import { useTenantContext } from "@/components/core-tenant-context-provider";
 import { buildImportHistoryHref } from "./employees/employee-readiness";
@@ -84,14 +55,7 @@ interface DashboardCardProps {
   children?: React.ReactNode;
 }
 
-function DashboardCard({
-  icon: Icon,
-  title,
-  description,
-  href,
-  cta,
-  children,
-}: DashboardCardProps) {
+function DashboardCard({ icon: Icon, title, description, href, cta, children }: DashboardCardProps) {
   return (
     <Card className="flex flex-col">
       <CardHeader>
@@ -103,9 +67,7 @@ function DashboardCard({
         </div>
         {description ? <CardDescription>{description}</CardDescription> : null}
       </CardHeader>
-      {children ? (
-        <CardContent className="flex-1">{children}</CardContent>
-      ) : null}
+      {children ? <CardContent className="flex-1">{children}</CardContent> : null}
       <CardContent className="pt-0">
         <Link
           href={href}
@@ -144,9 +106,7 @@ function getNewHireLabel(hireDate: string) {
   );
 
   if (diffInDays > 0) {
-    return diffInDays === 1
-      ? "Starts tomorrow"
-      : `Starts in ${diffInDays} days`;
+    return diffInDays === 1 ? "Starts tomorrow" : `Starts in ${diffInDays} days`;
   }
 
   if (diffInDays >= -30) {
@@ -161,11 +121,7 @@ function getNewHireLabel(hireDate: string) {
 
 function HRAdminDashboard() {
   const { user } = useAuth();
-  const {
-    data: rs,
-    error: rsError,
-    isLoading: isRsLoading,
-  } = useWorkforceReadinessSummary();
+  const { data: rs, error: rsError, isLoading: isRsLoading } = useWorkforceReadinessSummary();
   const {
     data: recentEmployees,
     error: recentEmployeesError,
@@ -177,9 +133,7 @@ function HRAdminDashboard() {
     pageSize: 5,
   });
   const reportingIssueCount = rs
-    ? rs.issueCounts.noManagerAssigned +
-      rs.issueCounts.managerInactive +
-      rs.issueCounts.managerMissing
+    ? rs.issueCounts.noManagerAssigned + rs.issueCounts.managerInactive + rs.issueCounts.managerMissing
     : 0;
   const canSeeSetup = canSeeCoreSetupNavigation(user);
   const canSeeSettings = canSeeCoreSettingsNavigation(user);
@@ -188,10 +142,8 @@ function HRAdminDashboard() {
   return (
     <div className="flex min-h-full flex-col gap-6 p-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Core</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Manage structure, people, and access.
-        </p>
+        <h1 className="text-2xl font-semibold tracking-tight">Core workspace</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Manage structure, employees, access, and workforce readiness.</p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -204,9 +156,7 @@ function HRAdminDashboard() {
               </div>
               <CardTitle className="text-base">Workforce health</CardTitle>
             </div>
-            <CardDescription>
-              Employee issues that need follow-up.
-            </CardDescription>
+            <CardDescription>Employee record issues and operational blockers.</CardDescription>
           </CardHeader>
           <CardContent className="flex-1">
             {rs ? (
@@ -221,45 +171,35 @@ function HRAdminDashboard() {
                     className="flex items-center justify-between rounded-lg border px-3 py-1.5 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
                   >
                     <span>Employees needing attention</span>
-                    <span className="font-medium tabular-nums">
-                      {rs.employeesNeedingAttention}
-                    </span>
+                    <span className="font-medium tabular-nums">{rs.employeesNeedingAttention}</span>
                   </Link>
                   <Link
                     href="/employees?readiness=MissingRequiredField"
                     className="flex items-center justify-between rounded-lg border px-3 py-1.5 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
                   >
                     <span>Missing required fields</span>
-                    <span className="font-medium tabular-nums">
-                      {rs.issueCounts.missingRequiredFields}
-                    </span>
+                    <span className="font-medium tabular-nums">{rs.issueCounts.missingRequiredFields}</span>
                   </Link>
                   <Link
                     href="/employees?readiness=MissingOrgUnit"
                     className="flex items-center justify-between rounded-lg border px-3 py-1.5 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
                   >
                     <span>Missing org units</span>
-                    <span className="font-medium tabular-nums">
-                      {rs.issueCounts.missingOrgUnit}
-                    </span>
+                    <span className="font-medium tabular-nums">{rs.issueCounts.missingOrgUnit}</span>
                   </Link>
                   <Link
                     href="/employees?readiness=ReportingIssue"
                     className="flex items-center justify-between rounded-lg border px-3 py-1.5 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
                   >
                     <span>Reporting issues</span>
-                    <span className="font-medium tabular-nums">
-                      {reportingIssueCount}
-                    </span>
+                    <span className="font-medium tabular-nums">{reportingIssueCount}</span>
                   </Link>
                   <Link
                     href={buildImportHistoryHref()}
                     className="flex items-center justify-between rounded-lg border px-3 py-1.5 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
                   >
                     <span>Unresolved import follow-up</span>
-                    <span className="font-medium tabular-nums">
-                      {rs.issueCounts.unresolvedImportIssues}
-                    </span>
+                    <span className="font-medium tabular-nums">{rs.issueCounts.unresolvedImportIssues}</span>
                   </Link>
                 </div>
               </div>
@@ -302,11 +242,9 @@ function HRAdminDashboard() {
                 <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
                   <User className="size-4" />
                 </div>
-                <CardTitle className="text-base">People access</CardTitle>
+                <CardTitle className="text-base">Access activation</CardTitle>
               </div>
-              <CardDescription>
-                Invite employees and review access.
-              </CardDescription>
+              <CardDescription>Invite employees and manage platform access.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
               <Link
@@ -339,12 +277,10 @@ function HRAdminDashboard() {
                 <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
                   <ClipboardList className="size-4" />
                 </div>
-                <CardTitle className="text-base">Structure</CardTitle>
+                <CardTitle className="text-base">Setup</CardTitle>
               </div>
               <CardDescription>
-                {canSeeSetup
-                  ? "Review the published structure."
-                  : "Open setup and structure tools."}
+                {canSeeSetup ? "Organization structure is published and live." : "Organization structure management."}
               </CardDescription>
             </CardHeader>
             {canSeeSetup && (
@@ -369,7 +305,7 @@ function HRAdminDashboard() {
               </div>
               <CardTitle className="text-base">Recent hires</CardTitle>
             </div>
-            <CardDescription>New and upcoming starters.</CardDescription>
+            <CardDescription>Recently created or upcoming employee starts.</CardDescription>
           </CardHeader>
           <CardContent className="flex-1">
             {isRecentEmployeesLoading ? (
@@ -424,20 +360,10 @@ function HRAdminDashboard() {
           </CardContent>
         </Card>
 
-        <DashboardCard
-          icon={Network}
-          title="Org chart"
-          description="View reporting lines and structure."
-          href="/org-chart"
-        />
+        <DashboardCard icon={Network} title="Org chart" description="Organizational hierarchy and reporting visibility." href="/org-chart" />
 
         {canSeeSettings ? (
-          <DashboardCard
-            icon={Settings2}
-            title="Settings"
-            description="Field rules and self-service settings."
-            href="/settings"
-          />
+          <DashboardCard icon={Settings2} title="Settings" description="Configuration surface for tenant preferences." href="/settings" />
         ) : null}
       </div>
     </div>
@@ -447,13 +373,10 @@ function HRAdminDashboard() {
 function ManagerDashboard() {
   const { user } = useAuth();
   const employeeId = user?.employeeId ?? null;
-  const { data: profile, isLoading: isProfileLoading } =
-    useEmployeeProfile(employeeId);
-  const { data: reportingLines, isLoading: isReportingLoading } =
-    useEmployeeReportingLines(employeeId);
+  const { data: profile, isLoading: isProfileLoading } = useEmployeeProfile(employeeId);
+  const { data: reportingLines, isLoading: isReportingLoading } = useEmployeeReportingLines(employeeId);
   const directReportCount = reportingLines?.directReportCount ?? 0;
-  const hasReportingData =
-    profile?.managerFullName ?? profile?.orgUnitName ?? null;
+  const hasReportingData = profile?.managerFullName ?? profile?.orgUnitName ?? null;
 
   if (isProfileLoading && !profile) {
     return <LoadingSkeleton />;
@@ -463,9 +386,7 @@ function ManagerDashboard() {
     <div className="flex min-h-full flex-col gap-6 p-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">My workspace</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Review your profile and team.
-        </p>
+        <p className="mt-1 text-sm text-muted-foreground">Review your profile and team context.</p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -478,9 +399,7 @@ function ManagerDashboard() {
               <CardTitle className="text-base">My Profile</CardTitle>
             </div>
             <CardDescription>
-              {profile
-                ? `${profile.fullName}${profile.jobTitle ? ` · ${profile.jobTitle}` : ""}`
-                : "Your linked employee record."}
+              {profile ? `${profile.fullName}${profile.jobTitle ? ` · ${profile.jobTitle}` : ""}` : "Your linked employee record."}
             </CardDescription>
           </CardHeader>
           <CardContent className="flex-1">
@@ -488,20 +407,12 @@ function ManagerDashboard() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between rounded-lg border px-3 py-1.5 text-sm">
                   <span className="text-muted-foreground">Status</span>
-                  <Badge
-                    variant={
-                      profile.status === "Active" ? "secondary" : "outline"
-                    }
-                  >
-                    {profile.status}
-                  </Badge>
+                  <Badge variant={profile.status === "Active" ? "secondary" : "outline"}>{profile.status}</Badge>
                 </div>
                 {profile.managerFullName ? (
                   <div className="flex items-center justify-between rounded-lg border px-3 py-1.5 text-sm">
                     <span className="text-muted-foreground">Manager</span>
-                    <span className="font-medium">
-                      {profile.managerFullName}
-                    </span>
+                    <span className="font-medium">{profile.managerFullName}</span>
                   </div>
                 ) : null}
                 {profile.orgUnitName ? (
@@ -533,9 +444,7 @@ function ManagerDashboard() {
               <CardTitle className="text-base">My Team</CardTitle>
             </div>
             <CardDescription>
-              {isReportingLoading
-                ? "Loading..."
-                : `${directReportCount} direct report${directReportCount === 1 ? "" : "s"}`}
+              {isReportingLoading ? "Loading..." : `${directReportCount} direct report${directReportCount === 1 ? "" : "s"}`}
             </CardDescription>
           </CardHeader>
           <CardContent className="flex-1">
@@ -546,9 +455,7 @@ function ManagerDashboard() {
                 Manager scope includes employees who report directly to you.
               </div>
             ) : (
-              <div className="rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground">
-                No direct reports currently assigned.
-              </div>
+              <div className="rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground">No direct reports currently assigned.</div>
             )}
           </CardContent>
           <CardContent className="pt-0">
@@ -577,9 +484,7 @@ function ManagerDashboard() {
                 {profile?.managerFullName ? (
                   <div className="flex items-center justify-between rounded-lg border px-3 py-1.5">
                     <span className="text-muted-foreground">Reports to</span>
-                    <span className="font-medium">
-                      {profile.managerFullName}
-                    </span>
+                    <span className="font-medium">{profile.managerFullName}</span>
                   </div>
                 ) : null}
                 {profile?.orgUnitName ? (
@@ -600,8 +505,7 @@ function ManagerDashboard() {
 function EmployeeDashboard() {
   const { user } = useAuth();
   const employeeId = user?.employeeId ?? null;
-  const { data: profile, isLoading: isProfileLoading } =
-    useEmployeeProfile(employeeId);
+  const { data: profile, isLoading: isProfileLoading } = useEmployeeProfile(employeeId);
 
   if (isProfileLoading && !profile) {
     return <LoadingSkeleton />;
@@ -611,9 +515,7 @@ function EmployeeDashboard() {
     <div className="flex min-h-full flex-col gap-6 p-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">My workspace</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Review your profile and work details.
-        </p>
+        <p className="mt-1 text-sm text-muted-foreground">Review your Core profile and work context.</p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -626,9 +528,7 @@ function EmployeeDashboard() {
               <CardTitle className="text-base">My Profile</CardTitle>
             </div>
             <CardDescription>
-              {profile
-                ? `${profile.fullName}${profile.jobTitle ? ` · ${profile.jobTitle}` : ""}`
-                : "Your linked employee record."}
+              {profile ? `${profile.fullName}${profile.jobTitle ? ` · ${profile.jobTitle}` : ""}` : "Your linked employee record."}
             </CardDescription>
           </CardHeader>
           <CardContent className="flex-1">
@@ -636,20 +536,12 @@ function EmployeeDashboard() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between rounded-lg border px-3 py-1.5 text-sm">
                   <span className="text-muted-foreground">Status</span>
-                  <Badge
-                    variant={
-                      profile.status === "Active" ? "secondary" : "outline"
-                    }
-                  >
-                    {profile.status}
-                  </Badge>
+                  <Badge variant={profile.status === "Active" ? "secondary" : "outline"}>{profile.status}</Badge>
                 </div>
                 {profile.managerFullName ? (
                   <div className="flex items-center justify-between rounded-lg border px-3 py-1.5 text-sm">
                     <span className="text-muted-foreground">Manager</span>
-                    <span className="font-medium">
-                      {profile.managerFullName}
-                    </span>
+                    <span className="font-medium">{profile.managerFullName}</span>
                   </div>
                 ) : null}
                 {profile.orgUnitName ? (
@@ -681,9 +573,7 @@ function EmployeeDashboard() {
               <CardTitle className="text-base">Profile preferences</CardTitle>
             </div>
             <CardDescription>
-              {profile?.preferredName
-                ? `Preferred name: ${profile.preferredName}`
-                : "Set your preferred display name."}
+              {profile?.preferredName ? `Preferred name: ${profile.preferredName}` : "Set your preferred display name."}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -733,9 +623,7 @@ function PlatformAdminDashboard() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Platform workspace
-          </h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Platform workspace</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Manage tenant organizations and platform operations.
           </p>
@@ -762,14 +650,8 @@ function PlatformAdminDashboard() {
         <Alert variant="destructive">
           <AlertTitle>Failed to load platform dashboard</AlertTitle>
           <AlertDescription className="flex items-center justify-between gap-4">
-            <span>
-              {dashboardError.message || "An unexpected error occurred."}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => refetchDashboard()}
-            >
+            <span>{dashboardError.message || "An unexpected error occurred."}</span>
+            <Button variant="outline" size="sm" onClick={() => refetchDashboard()}>
               Retry
             </Button>
           </AlertDescription>
@@ -777,158 +659,131 @@ function PlatformAdminDashboard() {
       ) : (
         <>
           {/* KPI strip */}
-          <StatsCards
-            stats={stats}
-            isLoading={isDashboardLoading && !recentData}
-          />
+          <StatsCards stats={stats} isLoading={isDashboardLoading && !recentData} />
 
           {/* Main content: attention + quick actions */}
           <div className="grid gap-4 md:grid-cols-3">
             <Card className="md:col-span-2 flex flex-col">
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                    <AlertTriangle className="size-4" />
-                  </div>
-                  <CardTitle className="text-base">Needs attention</CardTitle>
-                </div>
-                <CardDescription>
-                  Organizations requiring platform admin action.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex-1">
-                {attentionError && !attentionData ? (
-                  <Alert variant="destructive">
-                    <AlertTitle>
-                      Failed to load organizations needing attention
-                    </AlertTitle>
-                    <AlertDescription className="flex items-center justify-between gap-4">
-                      <span>
-                        {attentionError.message ||
-                          "An unexpected error occurred."}
-                      </span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => refetchAttention()}
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                <AlertTriangle className="size-4" />
+              </div>
+              <CardTitle className="text-base">Needs attention</CardTitle>
+            </div>
+            <CardDescription>Organizations requiring platform admin action.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex-1">
+            {attentionError && !attentionData ? (
+              <Alert variant="destructive">
+                <AlertTitle>Failed to load organizations needing attention</AlertTitle>
+                <AlertDescription className="flex items-center justify-between gap-4">
+                  <span>{attentionError.message || "An unexpected error occurred."}</span>
+                  <Button variant="outline" size="sm" onClick={() => refetchAttention()}>
+                    Retry
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            ) : isAttentionLoading && !attentionData ? (
+              <div className="space-y-2">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <Skeleton key={i} className="h-12 w-full rounded-lg" />
+                ))}
+              </div>
+            ) : totalAttentionCount > 0 ? (
+              <div className="space-y-3">
+                {attentionOrgs.length > 0 ? (
+                  <div className="space-y-1.5">
+                    {attentionOrgs.map((org) => (
+                      <Link
+                        key={org.id}
+                        href={`/organizations?detail=${org.id}`}
+                        className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
                       >
-                        Retry
-                      </Button>
-                    </AlertDescription>
-                  </Alert>
-                ) : isAttentionLoading && !attentionData ? (
-                  <div className="space-y-2">
-                    {Array.from({ length: 3 }).map((_, i) => (
-                      <Skeleton key={i} className="h-12 w-full rounded-lg" />
+                        <div className="flex min-w-0 items-center gap-2">
+                          <span className="truncate font-medium">{org.name}</span>
+                          <StatusBadge status={org.operationalStatus} />
+                        </div>
+                        <div className="flex shrink-0 items-center gap-3 text-xs text-muted-foreground">
+                          {org.pendingInviteCount > 0 && (
+                            <span>{org.pendingInviteCount} invite{org.pendingInviteCount !== 1 ? "s" : ""}</span>
+                          )}
+                          {org.activeUserCount > 0 && (
+                            <span>{org.activeUserCount} user{org.activeUserCount !== 1 ? "s" : ""}</span>
+                          )}
+                          <ExternalLink className="size-3.5" />
+                        </div>
+                      </Link>
                     ))}
-                  </div>
-                ) : totalAttentionCount > 0 ? (
-                  <div className="space-y-3">
-                    {attentionOrgs.length > 0 ? (
-                      <div className="space-y-1.5">
-                        {attentionOrgs.map((org) => (
-                          <Link
-                            key={org.id}
-                            href={`/organizations?detail=${org.id}`}
-                            className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
-                          >
-                            <div className="flex min-w-0 items-center gap-2">
-                              <span className="truncate font-medium">
-                                {org.name}
-                              </span>
-                              <StatusBadge status={org.operationalStatus} />
-                            </div>
-                            <div className="flex shrink-0 items-center gap-3 text-xs text-muted-foreground">
-                              {org.pendingInviteCount > 0 && (
-                                <span>
-                                  {org.pendingInviteCount} invite
-                                  {org.pendingInviteCount !== 1 ? "s" : ""}
-                                </span>
-                              )}
-                              {org.activeUserCount > 0 && (
-                                <span>
-                                  {org.activeUserCount} user
-                                  {org.activeUserCount !== 1 ? "s" : ""}
-                                </span>
-                              )}
-                              <ExternalLink className="size-3.5" />
-                            </div>
-                          </Link>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground">
-                        Organizations still need attention. Open the
-                        organizations table to review them.
-                      </div>
-                    )}
-                    {remainingAttentionCount > 0 ? (
-                      <p className="text-xs text-muted-foreground">
-                        {remainingAttentionCount} more organization
-                        {remainingAttentionCount === 1 ? "" : "s"} need
-                        attention.
-                      </p>
-                    ) : null}
                   </div>
                 ) : (
                   <div className="rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground">
-                    All organizations are in good standing.
+                    Organizations still need attention. Open the organizations table to review them.
                   </div>
                 )}
-              </CardContent>
-              <CardContent className="pt-0">
-                <Link
-                  href="/organizations"
-                  className="group inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary/80"
-                >
-                  All organizations
-                  <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
-                </Link>
-              </CardContent>
+                {remainingAttentionCount > 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    {remainingAttentionCount} more organization{remainingAttentionCount === 1 ? "" : "s"} need attention.
+                  </p>
+                ) : null}
+              </div>
+            ) : (
+              <div className="rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground">
+                All organizations are in good standing.
+              </div>
+            )}
+          </CardContent>
+          <CardContent className="pt-0">
+            <Link
+              href="/organizations"
+              className="group inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary/80"
+            >
+              All organizations
+              <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+            </Link>
+          </CardContent>
             </Card>
 
             <Card className="flex flex-col">
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                    <Building className="size-4" />
-                  </div>
-                  <CardTitle className="text-base">Quick actions</CardTitle>
-                </div>
-                <CardDescription>
-                  Common platform administration tasks.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex flex-1 flex-col gap-2">
-                <Link
-                  href="/organizations?create=1"
-                  className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors hover:border-primary/40 hover:bg-muted/10"
-                >
-                  <Plus className="size-4 text-muted-foreground" />
-                  Create organization
-                </Link>
-                <Link
-                  href="/organizations?status=invited"
-                  className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors hover:border-primary/40 hover:bg-muted/10"
-                >
-                  <Mail className="size-4 text-muted-foreground" />
-                  Review invited orgs
-                </Link>
-                <Link
-                  href="/organizations?status=suspended"
-                  className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors hover:border-primary/40 hover:bg-muted/10"
-                >
-                  <Pause className="size-4 text-muted-foreground" />
-                  Manage suspended orgs
-                </Link>
-                <Link
-                  href="/organizations"
-                  className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors hover:border-primary/40 hover:bg-muted/10"
-                >
-                  <Building2 className="size-4 text-muted-foreground" />
-                  Full organizations table
-                </Link>
-              </CardContent>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                <Building className="size-4" />
+              </div>
+              <CardTitle className="text-base">Quick actions</CardTitle>
+            </div>
+            <CardDescription>Common platform administration tasks.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-1 flex-col gap-2">
+            <Link
+              href="/organizations?create=1"
+              className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors hover:border-primary/40 hover:bg-muted/10"
+            >
+              <Plus className="size-4 text-muted-foreground" />
+              Create organization
+            </Link>
+            <Link
+              href="/organizations?status=invited"
+              className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors hover:border-primary/40 hover:bg-muted/10"
+            >
+              <Mail className="size-4 text-muted-foreground" />
+              Review invited orgs
+            </Link>
+            <Link
+              href="/organizations?status=suspended"
+              className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors hover:border-primary/40 hover:bg-muted/10"
+            >
+              <Pause className="size-4 text-muted-foreground" />
+              Manage suspended orgs
+            </Link>
+            <Link
+              href="/organizations"
+              className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors hover:border-primary/40 hover:bg-muted/10"
+            >
+              <Building2 className="size-4 text-muted-foreground" />
+              Full organizations table
+            </Link>
+          </CardContent>
             </Card>
           </div>
 
@@ -939,13 +794,9 @@ function PlatformAdminDashboard() {
                 <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
                   <Building className="size-4" />
                 </div>
-                <CardTitle className="text-base">
-                  Recently created organizations
-                </CardTitle>
+                <CardTitle className="text-base">Recently created organizations</CardTitle>
               </div>
-              <CardDescription>
-                Most recently added tenant organizations.
-              </CardDescription>
+              <CardDescription>Most recently added tenant organizations.</CardDescription>
             </CardHeader>
             <CardContent>
               {isDashboardLoading && !recentData ? (
@@ -967,9 +818,7 @@ function PlatformAdminDashboard() {
                         <StatusBadge status={org.operationalStatus} />
                       </div>
                       <div className="flex shrink-0 items-center gap-3 text-xs text-muted-foreground">
-                        <span>
-                          Created {new Date(org.createdAt).toLocaleDateString()}
-                        </span>
+                        <span>Created {new Date(org.createdAt).toLocaleDateString()}</span>
                         <ExternalLink className="size-3.5" />
                       </div>
                     </Link>
@@ -993,9 +842,7 @@ function PlatformAdminTenantDashboard() {
   const tenantHref = (href: string) => buildTenantContextHref(href, tenantId);
   const { data: rs, isLoading: isRsLoading } = useWorkforceReadinessSummary();
   const reportingIssueCount = rs
-    ? rs.issueCounts.noManagerAssigned +
-      rs.issueCounts.managerInactive +
-      rs.issueCounts.managerMissing
+    ? rs.issueCounts.noManagerAssigned + rs.issueCounts.managerInactive + rs.issueCounts.managerMissing
     : 0;
 
   if (isLoading && !isReady) {
@@ -1007,9 +854,7 @@ function PlatformAdminTenantDashboard() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-2xl font-semibold tracking-tight">
-            {tenantName ?? tenantId ?? "Tenant context"}
-          </h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{tenantName ?? tenantId ?? "Tenant context"}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {isReady
               ? "Tenant overview and workforce readiness."
@@ -1031,36 +876,20 @@ function PlatformAdminTenantDashboard() {
       {rs ? (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <div className="flex flex-col gap-1 rounded-xl border bg-card p-4 ring-1 ring-foreground/5">
-            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Readiness
-            </span>
-            <span className="text-2xl font-bold tabular-nums text-foreground">
-              {rs.readinessScore}%
-            </span>
+            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Readiness</span>
+            <span className="text-2xl font-bold tabular-nums text-foreground">{rs.readinessScore}%</span>
           </div>
           <div className="flex flex-col gap-1 rounded-xl border bg-card p-4 ring-1 ring-foreground/5">
-            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Need Attention
-            </span>
-            <span className="text-2xl font-bold tabular-nums text-foreground">
-              {rs.employeesNeedingAttention}
-            </span>
+            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Need Attention</span>
+            <span className="text-2xl font-bold tabular-nums text-foreground">{rs.employeesNeedingAttention}</span>
           </div>
           <div className="flex flex-col gap-1 rounded-xl border bg-card p-4 ring-1 ring-foreground/5">
-            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Missing Fields
-            </span>
-            <span className="text-2xl font-bold tabular-nums text-foreground">
-              {rs.issueCounts.missingRequiredFields}
-            </span>
+            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Missing Fields</span>
+            <span className="text-2xl font-bold tabular-nums text-foreground">{rs.issueCounts.missingRequiredFields}</span>
           </div>
           <div className="flex flex-col gap-1 rounded-xl border bg-card p-4 ring-1 ring-foreground/5">
-            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Reporting Issues
-            </span>
-            <span className="text-2xl font-bold tabular-nums text-foreground">
-              {reportingIssueCount}
-            </span>
+            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Reporting Issues</span>
+            <span className="text-2xl font-bold tabular-nums text-foreground">{reportingIssueCount}</span>
           </div>
         </div>
       ) : isRsLoading ? (
@@ -1081,9 +910,7 @@ function PlatformAdminTenantDashboard() {
               </div>
               <CardTitle className="text-base">Workforce health</CardTitle>
             </div>
-            <CardDescription>
-              Employee record issues and operational blockers.
-            </CardDescription>
+            <CardDescription>Employee record issues and operational blockers.</CardDescription>
           </CardHeader>
           <CardContent className="flex-1">
             {rs ? (
@@ -1098,47 +925,35 @@ function PlatformAdminTenantDashboard() {
                     className="flex items-center justify-between rounded-lg border px-3 py-1.5 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
                   >
                     <span>Employees needing attention</span>
-                    <span className="font-medium tabular-nums">
-                      {rs.employeesNeedingAttention}
-                    </span>
+                    <span className="font-medium tabular-nums">{rs.employeesNeedingAttention}</span>
                   </Link>
                   <Link
-                    href={tenantHref(
-                      "/employees?readiness=MissingRequiredField"
-                    )}
+                    href={tenantHref("/employees?readiness=MissingRequiredField")}
                     className="flex items-center justify-between rounded-lg border px-3 py-1.5 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
                   >
                     <span>Missing required fields</span>
-                    <span className="font-medium tabular-nums">
-                      {rs.issueCounts.missingRequiredFields}
-                    </span>
+                    <span className="font-medium tabular-nums">{rs.issueCounts.missingRequiredFields}</span>
                   </Link>
                   <Link
                     href={tenantHref("/employees?readiness=MissingOrgUnit")}
                     className="flex items-center justify-between rounded-lg border px-3 py-1.5 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
                   >
                     <span>Missing org units</span>
-                    <span className="font-medium tabular-nums">
-                      {rs.issueCounts.missingOrgUnit}
-                    </span>
+                    <span className="font-medium tabular-nums">{rs.issueCounts.missingOrgUnit}</span>
                   </Link>
                   <Link
                     href={tenantHref("/employees?readiness=ReportingIssue")}
                     className="flex items-center justify-between rounded-lg border px-3 py-1.5 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
                   >
                     <span>Reporting issues</span>
-                    <span className="font-medium tabular-nums">
-                      {reportingIssueCount}
-                    </span>
+                    <span className="font-medium tabular-nums">{reportingIssueCount}</span>
                   </Link>
                   <Link
                     href={tenantHref(buildImportHistoryHref())}
                     className="flex items-center justify-between rounded-lg border px-3 py-1.5 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
                   >
                     <span>Unresolved import follow-up</span>
-                    <span className="font-medium tabular-nums">
-                      {rs.issueCounts.unresolvedImportIssues}
-                    </span>
+                    <span className="font-medium tabular-nums">{rs.issueCounts.unresolvedImportIssues}</span>
                   </Link>
                 </div>
               </div>
@@ -1177,9 +992,7 @@ function PlatformAdminTenantDashboard() {
               </div>
               <CardTitle className="text-base">Quick actions</CardTitle>
             </div>
-            <CardDescription>
-              Tenant administration and navigation.
-            </CardDescription>
+            <CardDescription>Tenant administration and navigation.</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-1 flex-col gap-2">
             <Link
@@ -1253,12 +1066,8 @@ export default function DashboardPage() {
   return (
     <div className="flex min-h-full flex-col gap-6 p-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Core workspace
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          No workspaces are available for your current role.
-        </p>
+        <h1 className="text-2xl font-semibold tracking-tight">Core workspace</h1>
+        <p className="mt-1 text-sm text-muted-foreground">No workspaces are available for your current role.</p>
       </div>
       <div className="rounded-xl border border-dashed bg-muted/10 p-8 text-center text-sm text-muted-foreground">
         Contact your platform administrator to configure access.

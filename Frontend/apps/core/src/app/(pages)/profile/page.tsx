@@ -22,9 +22,9 @@ export default function MyProfilePage() {
   if (isLoading || employeeId) {
     return (
       <CorePageLoadingState
-        title="My profile"
-        description="Opening your employee profile."
-        message="Opening profile..."
+        title="My Profile"
+        description="Loading your linked employee profile..."
+        message="Loading profile..."
         variant="summary-list"
       />
     );
@@ -33,17 +33,13 @@ export default function MyProfilePage() {
   return (
     <div className="flex flex-col gap-6 p-6">
       <PageHeader
-        title="My profile"
-        description="Your employee profile will appear here once it is linked."
+        title="My Profile"
+        description="Your account is not linked to an employee record yet."
       />
       <EmptyState
         icon={User}
-        title="Profile not ready yet"
-        description="Ask an HR administrator to link your employee record."
-        action={{
-          label: "Open Core",
-          onClick: () => router.push("/"),
-        }}
+        title="No linked employee profile"
+        description="Ask a tenant HR administrator to invite you from the employee roster."
       />
     </div>
   );
