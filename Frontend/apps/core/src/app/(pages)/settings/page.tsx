@@ -349,8 +349,8 @@ export default function SettingsPage() {
       <div className="p-6">
         <EmptyState
           icon={LockKeyhole}
-          title="Core configuration is HRAdmin-only"
-          description="Contact a tenant HR administrator."
+          title="Core settings are HR admin only"
+          description="Ask an HR administrator for access."
         />
       </div>
     );
@@ -359,7 +359,7 @@ export default function SettingsPage() {
   if (error && !settings) {
     return (
       <div className="space-y-6 p-6">
-        <PageHeader title="Core Configuration" />
+        <PageHeader title="Core settings" />
         <Alert variant="destructive">
           <AlertCircle className="size-4" />
           <AlertTitle>Failed to load tenant settings</AlertTitle>
@@ -385,7 +385,7 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6 p-6">
       <PageHeader
-        title="Core Configuration"
+        title="Core settings"
         actions={
           <Button variant="outline" onClick={() => router.push(setupHref)}>
             Open setup
@@ -401,8 +401,8 @@ export default function SettingsPage() {
                 <div className="space-y-1">
                   <CardTitle>Employee field configuration</CardTitle>
                   <p className="text-sm text-muted-foreground">
-                    Configure the supported employee fields used across Core
-                    records, imports, and profile editing.
+                    Choose which employee fields appear in Core and who can see
+                    them.
                   </p>
                 </div>
                 {hasChanges ? (
@@ -551,9 +551,9 @@ export default function SettingsPage() {
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-muted/20 px-4 py-3">
                 <p className="text-sm text-muted-foreground">
                   {isTenantContextReadOnly
-                    ? "Read-only view — settings cannot be modified."
+                    ? "Read-only view."
                     : hasChanges
-                      ? "Changes are ready to save."
+                      ? "Ready to save."
                       : "No unsaved changes."}
                 </p>
                 {!isTenantContextReadOnly ? (
@@ -584,8 +584,7 @@ export default function SettingsPage() {
               <div className="space-y-1">
                 <CardTitle>Self-service editing</CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  Control which personal fields employees can update from their
-                  own profile workspace.
+                  Choose which personal fields employees can update.
                 </p>
               </div>
             </CardHeader>
@@ -596,7 +595,7 @@ export default function SettingsPage() {
                     <div className="space-y-1">
                       <h3 className="font-medium">Preferred name</h3>
                       <p className="text-sm text-muted-foreground">
-                        Let employees update their preferred display name.
+                        Let employees update the name shown in Core.
                       </p>
                     </div>
                     <Switch
@@ -615,7 +614,7 @@ export default function SettingsPage() {
                     <div className="space-y-1">
                       <h3 className="font-medium">Phone</h3>
                       <p className="text-sm text-muted-foreground">
-                        Let employees keep their own contact number up to date.
+                        Let employees keep their contact number current.
                       </p>
                     </div>
                     <Switch
@@ -631,9 +630,8 @@ export default function SettingsPage() {
               </div>
 
               <div className="rounded-xl border border-dashed bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
-                Managers can view direct-report profiles within their existing
-                team scope. Field-level visibility for employees and managers is
-                controlled from the matrix above.
+                Manager and employee visibility is controlled from the matrix
+                above.
               </div>
             </CardContent>
           </Card>
@@ -644,7 +642,7 @@ export default function SettingsPage() {
                 <div className="space-y-1">
                   <CardTitle>Org structure configuration</CardTitle>
                   <p className="text-sm text-muted-foreground">
-                    Org-unit kinds used across Setup and Core.
+                    Org-unit kinds used in Setup and Core.
                   </p>
                 </div>
                 {isOrgStructureEditable ? (
@@ -681,13 +679,11 @@ export default function SettingsPage() {
 
               {!isOrgStructureEditable ? (
                 <div className="rounded-xl border border-dashed bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
-                  Org-unit kinds are managed from the active setup draft. Open
-                  Setup to make changes.
+                  Org-unit kinds are managed in Setup.
                 </div>
               ) : isTenantContextReadOnly ? (
                 <div className="rounded-xl border border-dashed bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
-                  Org-unit kinds are visible here, but tenant-context browsing
-                  is read-only.
+                  Org-unit kinds are visible here in read-only mode.
                 </div>
               ) : null}
 
@@ -719,29 +715,29 @@ export default function SettingsPage() {
 
         <Card>
           <CardHeader className="space-y-2">
-            <CardTitle>Live access</CardTitle>
+            <CardTitle>Role access</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {[
               {
                 title: "PlatformAdmin",
                 icon: ShieldCheck,
-                body: "Tenant and platform lifecycle oversight.",
+                body: "Tenant and platform oversight.",
               },
               {
                 title: "HRAdmin",
                 icon: Users,
-                body: "Workforce configuration, profile management, access invitations, imports, and org chart operations.",
+                body: "Workforce setup, profile management, invitations, imports, and org chart access.",
               },
               {
                 title: "Manager",
                 icon: ShieldCheck,
-                body: "Direct-report profile viewing within manager scope, subject to field-visibility rules.",
+                body: "Direct-report profile access within manager scope.",
               },
               {
                 title: "Employee",
                 icon: UserRound,
-                body: "Own-profile visibility with self-service editing governed by the settings above.",
+                body: "Own-profile access with self-service controls from this page.",
               },
             ].map((role) => {
               const Icon = role.icon;

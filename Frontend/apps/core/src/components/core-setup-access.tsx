@@ -16,8 +16,7 @@ import { useTenantContext } from "@/components/core-tenant-context-provider";
 import { CorePageLoadingState } from "@/components/core-page-loading-state";
 import { useSetupState } from "@/app/(pages)/setup/use-setup";
 
-const SETUP_LOCK_REASON =
-  "Complete organization setup before using the rest of the workspace.";
+const SETUP_LOCK_REASON = "Finish setup before using the rest of Core.";
 
 interface CoreSetupAccessContextValue {
   shouldCheckSetupAccess: boolean;
@@ -62,9 +61,9 @@ function isSetupComplete(setupState: TenantSetupStateDto | undefined): boolean {
 function SetupRedirectFallback({ isChecking }: { isChecking: boolean }) {
   return (
     <CorePageLoadingState
-      title="Setup"
-      description="Complete organization setup before using the rest of the workspace."
-      message={isChecking ? "Loading setup..." : "Opening setup..."}
+      title="Opening setup"
+      description="Finish setup before using the rest of Core."
+      message={isChecking ? "Checking setup..." : "Opening setup..."}
       variant="redirect"
     />
   );
@@ -75,7 +74,9 @@ export function CoreSetupAccessProvider({ children }: { children: ReactNode }) {
   const { tenantId } = useTenantContext();
   const queryClient = useApiQueryClient();
   const shouldCheckSetupAccess =
-    !isAuthLoading && isAuthenticated && (canSeeCoreSetupNavigation(user) || !!tenantId);
+    !isAuthLoading &&
+    isAuthenticated &&
+    (canSeeCoreSetupNavigation(user) || !!tenantId);
   const {
     data: setupState,
     error: setupError,
@@ -141,7 +142,8 @@ export function CoreSetupRouteGuard({ children }: { children: ReactNode }) {
     useCoreSetupAccess();
   const currentPath = getCorePathname(pathname);
   const isSetupPage = isSetupAreaPath(currentPath);
-  const shouldHoldRoute = shouldCheckSetupAccess && !isSetupPage && isSetupLocked;
+  const shouldHoldRoute =
+    shouldCheckSetupAccess && !isSetupPage && isSetupLocked;
 
   useEffect(() => {
     if (!shouldCheckSetupAccess || !isSetupLocked || isSetupPage) {
