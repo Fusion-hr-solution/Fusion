@@ -171,16 +171,10 @@ public sealed class PlatformOrganizationService(
         Guid createdByUserId,
         CancellationToken cancellationToken = default)
     {
-        // EF InMemory doesn't support transactions; skip them in tests.
         IDbContextTransaction? tx = null;
-        try
-        {
+        if (db.Database.IsRelational())
             tx = await db.Database.BeginTransactionAsync(cancellationToken);
-        }
-        catch (InvalidOperationException)
-        {
-            tx = null;
-        }
+
         try
         {
             var tenant = Tenant.Create(request.Name.Trim());
