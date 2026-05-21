@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { SortingState } from "@tanstack/react-table";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Upload, Users } from "lucide-react";
 import { useAuth } from "@repo/auth";
 import { DEFAULT_PAGE_SIZE, EmptyState, type PageSize } from "@repo/ui";
@@ -12,6 +12,7 @@ import { CorePageLoadingState } from "@/components/core-page-loading-state";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { canAccessEmployeeRoster } from "@/lib/employee-roster-access";
+import { parseEmployeeReadinessFilter } from "./employee-readiness";
 import { buildEmployeeColumns } from "./columns";
 import { useEmployeeFieldVisibility } from "./employee-field-visibility";
 import { EmployeesTable } from "./employees-table";
@@ -22,6 +23,7 @@ import type {
   EmployeeRosterSortField,
   EmployeeRosterStatus,
   EmployeeRosterItem,
+  EmployeeReadinessFilter,
 } from "./employee-roster.types";
 import { useEmployeeRoster } from "./use-employees";
 
@@ -53,13 +55,17 @@ function getRosterSortParams(sorting: SortingState): {
 }
 
 export default function EmployeesPage() {
-  const { user, isLoading: isAuthLoading } = useAuth();
+  const { user } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const canAccess = canAccessEmployeeRoster(user);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<PageSize>(DEFAULT_PAGE_SIZE);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<EmployeeRosterStatus | undefined>();
+  const [readiness, setReadiness] = useState<EmployeeReadinessFilter | undefined>(
+    parseEmployeeReadinessFilter(searchParams.get("readiness"))
+  );
   const [sorting, setSorting] = useState<SortingState>(
     DEFAULT_EMPLOYEE_SORTING
   );
@@ -73,6 +79,7 @@ export default function EmployeesPage() {
   const { data, error, isLoading, isFetching, refetch } = useEmployeeRoster({
     search: search || undefined,
     status,
+    readiness,
     sortBy,
     sortDir,
     page,
@@ -87,6 +94,14 @@ export default function EmployeesPage() {
   const handleStatusChange = useCallback(
     (value: EmployeeRosterStatus | undefined) => {
       setStatus(value);
+      setPage(1);
+    },
+    []
+  );
+
+  const handleReadinessChange = useCallback(
+    (value: EmployeeReadinessFilter | undefined) => {
+      setReadiness(value);
       setPage(1);
     },
     []
@@ -119,9 +134,12 @@ export default function EmployeesPage() {
     }
   }, [fieldVisibility.showHireDate]);
 
-  const isInitialPageLoading =
-    (isAuthLoading && !user) ||
-    (!isAuthLoading && canAccess && isLoading && !data && !error);
+  useEffect(() => {
+    setReadiness(parseEmployeeReadinessFilter(searchParams.get("readiness")));
+    setPage(1);
+  }, [searchParams]);
+
+  const isInitialPageLoading = canAccess && isLoading && !data && !error;
 
   if (isInitialPageLoading) {
     return (
@@ -170,6 +188,8 @@ export default function EmployeesPage() {
         onSearchChange={handleSearchChange}
         status={status}
         onStatusChange={handleStatusChange}
+        readiness={readiness}
+        onReadinessChange={handleReadinessChange}
       />
 
       {error && (

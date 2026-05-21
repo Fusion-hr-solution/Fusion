@@ -48,6 +48,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import {
   Table,
@@ -72,6 +73,7 @@ import {
   formatTimestamp,
   getErrorMessage,
 } from "./employee-import-utils";
+import { buildEmployeeFixHref } from "../employee-readiness";
 
 const MAX_VISIBLE_SELECTED_ROWS = 12;
 
@@ -575,6 +577,60 @@ function HistoryMetric({ label, value }: BatchMetaItem) {
   );
 }
 
+function ImportHistoryListSkeleton() {
+  return (
+    <div className="space-y-3">
+      {Array.from({ length: 3 }).map((_, index) => (
+        <div key={index} className="rounded-xl border bg-background p-4">
+          <div className="space-y-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-52" />
+                <Skeleton className="h-3 w-40" />
+              </div>
+              <Skeleton className="h-6 w-16 rounded-full" />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Skeleton className="h-3 w-20" />
+              <Skeleton className="h-3 w-24" />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ImportHistoryDetailSkeleton() {
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <Skeleton className="h-3 w-32" />
+        <Skeleton className="h-5 w-20 rounded-full" />
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <Skeleton key={index} className="h-16 rounded-lg" />
+        ))}
+      </div>
+      <Skeleton className="h-16 rounded-xl" />
+    </div>
+  );
+}
+
+function ImportFieldReferenceSkeleton() {
+  return (
+    <div className="space-y-3 rounded-lg border bg-muted/10 p-4">
+      <Skeleton className="h-4 w-48" />
+      <div className="grid gap-2">
+        {Array.from({ length: 5 }).map((_, index) => (
+          <Skeleton key={index} className="h-10 w-full rounded-lg" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function ImportHistoryPanel({
   historyPage,
   historyDetail,
@@ -620,10 +676,7 @@ export function ImportHistoryPanel({
         ) : null}
 
         {isHistoryLoading && !historyPage ? (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Spinner />
-            Loading import history...
-          </div>
+          <ImportHistoryListSkeleton />
         ) : historyPage && historyPage.items.length > 0 ? (
           <div className="space-y-3">
             <div className="grid gap-2">
@@ -696,10 +749,7 @@ export function ImportHistoryPanel({
                             </AlertDescription>
                           </Alert>
                         ) : isHistoryDetailLoading || !selectedDetail ? (
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <Spinner />
-                            Loading import details...
-                          </div>
+                          <ImportHistoryDetailSkeleton />
                         ) : (
                           <div className="space-y-4">
                             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -728,11 +778,11 @@ export function ImportHistoryPanel({
                                 )}
                               />
                               <HistoryMetric
-                                label="Session ref"
+                                label="Batch ID"
                                 value={selectedDetail.sessionId.slice(0, 8)}
                               />
                               <HistoryMetric
-                                label="Version"
+                                label="Revision"
                                 value={selectedDetail.version}
                               />
                             </div>
@@ -754,6 +804,58 @@ export function ImportHistoryPanel({
                                   {selectedDetail.failureReason}
                                 </AlertDescription>
                               </Alert>
+                            ) : null}
+
+                            {selectedDetail.unresolvedFollowUpIssues.length > 0 ? (
+                              <div className="space-y-3 rounded-xl border bg-muted/20 p-4">
+                                <div className="space-y-1">
+                                  <p className="text-sm font-medium">
+                                    Unresolved follow-up items
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    Review the imported employees that still need
+                                    attention and open the existing fixing surface.
+                                  </p>
+                                </div>
+
+                                <div className="space-y-2">
+                                  {selectedDetail.unresolvedFollowUpIssues.map(
+                                    (issue) => {
+                                      const fixHref = buildEmployeeFixHref({
+                                        code: issue.code,
+                                        label: issue.label,
+                                        severity: "Attention",
+                                        fieldKey: issue.fieldKey,
+                                        fixTarget: issue.fixTarget,
+                                      });
+
+                                      return (
+                                        <div
+                                          key={issue.id}
+                                          className="flex flex-col gap-3 rounded-lg border bg-background p-3 sm:flex-row sm:items-center sm:justify-between"
+                                        >
+                                          <div className="space-y-1">
+                                            <p className="text-sm font-medium text-foreground">
+                                              {issue.label}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">
+                                              Row {issue.sourceRowNumber} • {" "}
+                                              {issue.employeeFullName} ({" "}
+                                              {issue.employeeEmail})
+                                            </p>
+                                          </div>
+
+                                          {fixHref ? (
+                                            <Button asChild size="sm" variant="outline">
+                                              <Link href={fixHref}>Open fix</Link>
+                                            </Button>
+                                          ) : null}
+                                        </div>
+                                      );
+                                    }
+                                  )}
+                                </div>
+                              </div>
                             ) : null}
                           </div>
                         )}
@@ -1043,7 +1145,7 @@ export function PreviewPagination({
           value={String(pageSize)}
           onValueChange={(value) => onPageSizeChange(Number(value) as PageSize)}
         >
-          <SelectTrigger className="h-8 w-[72px]">
+          <SelectTrigger className="h-8 w-18">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -1203,10 +1305,7 @@ export function SecondaryDetailsPanel({
         ) : null}
 
         {isSchemaLoading && !activeSchema ? (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Spinner />
-            Loading employee import schema...
-          </div>
+          <ImportFieldReferenceSkeleton />
         ) : (
           <details
             className="rounded-lg border bg-muted/10"

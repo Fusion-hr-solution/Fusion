@@ -3,7 +3,6 @@
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Spinner } from "@/components/ui/spinner";
 
 type CorePageLoadingStateVariant =
   | "list"
@@ -25,20 +24,6 @@ export function CorePageLoadingState({
   message,
   variant = "list",
 }: CorePageLoadingStateProps) {
-  if (variant === "redirect") {
-    return (
-      <div className="flex flex-col gap-6 p-6">
-        <PageHeader title={title} description={description} />
-        <Card>
-          <CardContent className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
-            <Spinner />
-            <span>{message}</span>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-col gap-6 p-6">
       <PageHeader title={title} description={description} />
@@ -47,12 +32,29 @@ export function CorePageLoadingState({
       </p>
       {variant === "dashboard" ? (
         <CoreDashboardSkeleton />
+      ) : variant === "redirect" ? (
+        <CoreRedirectSkeleton />
       ) : variant === "workspace" ? (
         <CoreWorkspaceSkeleton />
       ) : (
         <CoreListPageSkeleton showSummaryCards={variant === "summary-list"} />
       )}
     </div>
+  );
+}
+
+function CoreRedirectSkeleton() {
+  return (
+    <Card>
+      <CardContent className="space-y-4 py-6">
+        <Skeleton className="h-5 w-40" />
+        <Skeleton className="h-4 w-full max-w-xl" />
+        <div className="grid gap-3 md:grid-cols-2">
+          <Skeleton className="h-28 rounded-xl" />
+          <Skeleton className="h-28 rounded-xl" />
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

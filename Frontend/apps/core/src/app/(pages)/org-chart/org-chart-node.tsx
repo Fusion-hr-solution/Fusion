@@ -74,6 +74,9 @@ export const OrgChartNode = memo(function OrgChartNode({
             {issueMeta ? (
               <Badge variant={issueMeta.variant}>{issueMeta.label}</Badge>
             ) : null}
+            {!data.employee.orgUnitId ? (
+              <Badge variant="outline">Missing org unit</Badge>
+            ) : null}
             {data.employee.isOrphaned ? (
               <Badge variant="outline">Detached branch</Badge>
             ) : null}

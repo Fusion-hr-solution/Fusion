@@ -1,9 +1,16 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
+import Link from "next/link";
 import { ArrowUpDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  getEmployeeActionIssues,
+  buildEmployeeFixHref,
+  getEmployeeReadinessBadgeLabel,
+  getEmployeeReadinessBadgeVariant,
+} from "./employee-readiness";
 import { getHierarchyIssueMeta } from "./employee-hierarchy-status";
 import type { EmployeeFieldVisibility } from "./employee-field-visibility";
 import type { EmployeeRosterItem } from "./employee-roster.types";
@@ -73,9 +80,46 @@ export function buildEmployeeColumns(
       id: "Name",
       accessorFn: getEmployeeName,
       header: ({ column }) => <SortHeader label="Name" column={column} />,
-      cell: ({ row }) => (
-        <span className="font-medium">{getEmployeeName(row.original)}</span>
-      ),
+      cell: ({ row }) => {
+        const issues = getEmployeeActionIssues(row.original.readiness);
+        const visibleIssues = issues.slice(0, 2);
+        const remainingCount = issues.length - visibleIssues.length;
+
+        return (
+          <div className="min-w-[220px] space-y-1.5">
+            <div className="font-medium">{getEmployeeName(row.original)}</div>
+            {visibleIssues.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5">
+                {visibleIssues.map((issue) => {
+                  const href = buildEmployeeFixHref(issue);
+                  const badge = (
+                    <Badge variant={getEmployeeReadinessBadgeVariant(issue)}>
+                      {getEmployeeReadinessBadgeLabel(issue)}
+                    </Badge>
+                  );
+
+                  return href ? (
+                    <Link
+                      key={`${issue.code}:${issue.fieldKey ?? "none"}`}
+                      href={href}
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      {badge}
+                    </Link>
+                  ) : (
+                    <span key={`${issue.code}:${issue.fieldKey ?? "none"}`}>
+                      {badge}
+                    </span>
+                  );
+                })}
+                {remainingCount > 0 ? (
+                  <Badge variant="outline">+{remainingCount} more</Badge>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        );
+      },
       enableSorting: true,
     },
     {
