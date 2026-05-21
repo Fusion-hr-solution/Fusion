@@ -27,7 +27,9 @@ public static class ServiceCollectionExtensions
             services.AddScoped<IQuestionService, QuestionService>();
             services.AddScoped<ITestService, TestService>();
             services.AddScoped<ITestQuestionService, TestQuestionService>();
+            services.AddScoped<ICandidatePrivacyActionExecutor, CandidatePrivacyActionExecutor>();
             services.AddScoped<ICandidateManagementService, CandidateManagementService>();
+            services.AddScoped<ICandidateRetentionService, CandidateRetentionService>();
             services.AddScoped<ICandidateInvitationService, CandidateInvitationService>();
             services.AddScoped<ICandidateAccessService, CandidateAccessService>();
             return services;
@@ -51,9 +53,12 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IQuestionService, QuestionService>();
         services.AddScoped<ITestService, TestService>();
         services.AddScoped<ITestQuestionService, TestQuestionService>();
+        services.AddScoped<ICandidatePrivacyActionExecutor, CandidatePrivacyActionExecutor>();
         services.AddScoped<ICandidateManagementService, CandidateManagementService>();
+        services.AddScoped<ICandidateRetentionService, CandidateRetentionService>();
         services.AddScoped<ICandidateInvitationService, CandidateInvitationService>();
         services.AddScoped<ICandidateAccessService, CandidateAccessService>();
+        services.AddHostedService<CandidateRetentionBackgroundService>();
 
         return services;
     }
