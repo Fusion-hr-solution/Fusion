@@ -21,7 +21,6 @@ import { canAccessCoreSetup, useAuth } from "@repo/auth";
 import { EmptyState } from "@repo/ui";
 import { toast } from "sonner";
 import { useCoreSetupAccess } from "@/components/core-setup-access";
-import { CorePageLoadingState } from "@/components/core-page-loading-state";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -398,6 +397,10 @@ export default function DraftStructurePage() {
   const [editorOpen, setEditorOpen] = useState(false);
   const [kindManagerOpen, setKindManagerOpen] = useState(false);
   const [clearStructureOpen, setClearStructureOpen] = useState(false);
+  const [clearDeleteProgress, setClearDeleteProgress] = useState<{
+    current: number;
+    total: number;
+  } | null>(null);
   const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [explorerView, setExplorerView] = useState<ExplorerView>("tree");
@@ -625,7 +628,7 @@ export default function DraftStructurePage() {
         ? "warning"
         : "default";
   const isClearingStructureAction =
-    clearStructure.isLoading || deleteDraftOrgUnit.isLoading;
+    clearStructure.isLoading || deleteDraftOrgUnit.isLoading || !!clearDeleteProgress;
   const workbenchMeta = canReopenFromDraft
     ? setupState?.approvedAt
       ? `Approved ${formatTimestamp(setupState.approvedAt)}${setupState.approvedByFullName ? ` by ${setupState.approvedByFullName}` : ""}`
@@ -757,7 +760,20 @@ export default function DraftStructurePage() {
           throw error;
         }
 
-        for (const unit of buildLeafFirstDeleteOrder(workspace?.units ?? [])) {
+        const orderedUnits = buildLeafFirstDeleteOrder(
+          workspace?.units ?? []
+        );
+
+        setClearDeleteProgress({ current: 0, total: orderedUnits.length });
+
+        let deletedUnitsCount = 0;
+
+        for (const unit of orderedUnits) {
+          deletedUnitsCount++;
+          setClearDeleteProgress({
+            current: deletedUnitsCount,
+            total: orderedUnits.length,
+          });
           await deleteDraftOrgUnit.mutateAsync({
             id: unit.id,
             version: unit.version,
@@ -767,11 +783,13 @@ export default function DraftStructurePage() {
 
       resetWorkspaceChrome();
       setClearStructureOpen(false);
+      setClearDeleteProgress(null);
       await refreshWorkspaceAndReadiness({ refreshRoute: true });
       toast.success("Draft structure cleared", {
         description: "All units removed.",
       });
     } catch (error) {
+      setClearDeleteProgress(null);
       toast.error("The draft structure could not be cleared.", {
         description:
           error instanceof Error
@@ -865,14 +883,7 @@ export default function DraftStructurePage() {
   }
 
   if (shouldStartSetupFromDraft) {
-    return (
-      <CorePageLoadingState
-        title="Draft structure"
-        description="Starting setup and opening the draft workspace."
-        message="Opening draft workspace..."
-        variant="workspace"
-      />
-    );
+    return <DraftStructurePageSkeleton />;
   }
 
   if (workspaceEnabled && isWorkspaceLoading && !workspace && !workspaceError) {
@@ -1070,7 +1081,9 @@ export default function DraftStructurePage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete all draft units?</AlertDialogTitle>
             <AlertDialogDescription>
-              Resets the draft to empty.
+              {clearDeleteProgress
+                ? `Deleting unit ${clearDeleteProgress.current} of ${clearDeleteProgress.total}...`
+                : "Resets the draft to empty."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1085,7 +1098,9 @@ export default function DraftStructurePage() {
               }}
             >
               {isClearingStructureAction ? <Spinner className="mr-1" /> : null}
-              Delete all units
+              {clearDeleteProgress
+                ? "Deleting..."
+                : "Delete all units"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

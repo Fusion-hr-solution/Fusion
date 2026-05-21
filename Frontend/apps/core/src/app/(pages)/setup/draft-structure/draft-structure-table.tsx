@@ -122,12 +122,12 @@ export function DraftStructureTable({
   return (
     <div
       className={cn(
-        "overflow-auto bg-background",
+        "h-full min-h-0 overflow-auto bg-background",
         embedded ? "rounded-none border-0" : "rounded-xl border"
       )}
     >
       <Table>
-        <TableHeader className="bg-muted/10">
+        <TableHeader className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
           <TableRow className="hover:bg-muted/10">
             <TableHead>
               <SortHeader

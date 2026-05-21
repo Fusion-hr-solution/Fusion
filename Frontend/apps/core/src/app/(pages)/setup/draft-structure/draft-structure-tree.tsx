@@ -67,8 +67,8 @@ export function DraftStructureTree({
   return (
     <div
       className={cn(
-        "flex h-full flex-col overflow-hidden",
-        embedded ? "bg-transparent" : "rounded-2xl border bg-card shadow-sm"
+        "flex h-full min-h-0 flex-col overflow-hidden",
+        embedded ? "bg-transparent" : "rounded-2xl border bg-card"
       )}
     >
       {!embedded ? (
@@ -142,7 +142,7 @@ export function DraftStructureTree({
           </div>
         </div>
       ) : (
-        <ScrollArea className="flex-1 p-4">
+        <ScrollArea className="min-h-0 flex-1 p-4">
           <ul className="space-y-1">
             {nodes.map((node) => (
               <TreeBranch
