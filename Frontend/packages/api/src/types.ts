@@ -1,7 +1,6 @@
 export interface ApiClientConfig {
   baseUrl?: string; // Prefixed to every path, Default: "/api"
   getToken?: () => string | null | Promise<string | null>; // Called per-request. Null = no auth header.
-  getTenantId?: () => string | null; // Called per-request. If set, attaches X-Tenant-Id header.
   defaultHeaders?: Record<string, string>; // Merged into every request.
   onAuthError?: (error: ApiError) => void; // Called once on the first 401 response. The error is still thrown.
 }

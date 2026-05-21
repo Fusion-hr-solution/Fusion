@@ -9,12 +9,11 @@ namespace EY.HRPlatform.CoreHR.Controllers;
 
 [ApiController]
 [Route("api/corehr/employees/import")]
-[Authorize]
+[Authorize(Roles = PlatformRole.HRAdmin)]
 public class EmployeeImportController(
     IEmployeeImportWorkflowService workflowService) : ControllerBase
 {
     [HttpGet("schema")]
-    [Authorize(Roles = $"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin}")]
     [ProducesResponseType(typeof(ApiResponse<EmployeeImportSchemaDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetSchema(CancellationToken cancellationToken)
     {
@@ -23,7 +22,6 @@ public class EmployeeImportController(
     }
 
     [HttpGet("template")]
-    [Authorize(Roles = $"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin}")]
     public async Task<IActionResult> DownloadTemplate(CancellationToken cancellationToken)
     {
         var template = await workflowService.BuildTemplateAsync(cancellationToken);
@@ -31,7 +29,6 @@ public class EmployeeImportController(
     }
 
     [HttpPost]
-    [Authorize(Roles = PlatformRole.HRAdmin)]
     [RequestSizeLimit(10 * 1024 * 1024)]
     [ProducesResponseType(typeof(ApiResponse<EmployeeImportSessionDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> Upload(
@@ -43,7 +40,6 @@ public class EmployeeImportController(
     }
 
     [HttpPost("{sessionId:guid}/validate")]
-    [Authorize(Roles = PlatformRole.HRAdmin)]
     [ProducesResponseType(typeof(ApiResponse<EmployeeImportSessionDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> Validate(
         Guid sessionId,
@@ -64,7 +60,6 @@ public class EmployeeImportController(
     }
 
     [HttpPost("{sessionId:guid}/apply")]
-    [Authorize(Roles = PlatformRole.HRAdmin)]
     [ProducesResponseType(typeof(ApiResponse<EmployeeImportApplyResultDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> Apply(
         Guid sessionId,
@@ -81,7 +76,6 @@ public class EmployeeImportController(
     }
 
     [HttpGet("history")]
-    [Authorize(Roles = $"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin}")]
     [ProducesResponseType(typeof(ApiResponse<EmployeeImportHistoryPageDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetHistory(
         [FromQuery] int pageNumber = 1,
@@ -93,7 +87,6 @@ public class EmployeeImportController(
     }
 
     [HttpGet("history/{historyId:guid}")]
-    [Authorize(Roles = $"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin}")]
     [ProducesResponseType(typeof(ApiResponse<EmployeeImportHistoryDetailDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetHistoryDetail(
         Guid historyId,
@@ -104,7 +97,6 @@ public class EmployeeImportController(
     }
 
     [HttpGet("{sessionId:guid}")]
-    [Authorize(Roles = $"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin}")]
     [ProducesResponseType(typeof(ApiResponse<EmployeeImportSessionDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetSession(
         Guid sessionId,

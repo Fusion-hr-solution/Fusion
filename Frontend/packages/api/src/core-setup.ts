@@ -9,13 +9,7 @@ export type TenantSetupActivityType =
   | "approved"
   | "reopened"
   | "published"
-  | "completed"
-  | "draftCreated"
-  | "draftUpdated"
-  | "draftDeleted"
-  | "draftCleared"
-  | "draftImportUploaded"
-  | "draftImportApplied";
+  | "completed";
 
 export type DraftSetupIssueSeverity = "error" | "warning";
 

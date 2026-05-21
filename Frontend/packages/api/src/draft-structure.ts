@@ -194,7 +194,6 @@ export const draftStructurePaths = {
   tree: () => "/corehr/setup/draft-structure/tree",
   detail: (id: string) => `/corehr/setup/draft-structure/${id}`,
   create: () => "/corehr/setup/draft-structure",
-  clear: () => "/corehr/setup/draft-structure",
   update: (id: string) => `/corehr/setup/draft-structure/${id}`,
   remove: (id: string) => `/corehr/setup/draft-structure/${id}`,
   importSchema: () => "/corehr/setup/draft-structure/import/schema",

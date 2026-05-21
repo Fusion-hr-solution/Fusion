@@ -9,11 +9,10 @@ import {
 export function resolveInviteAcceptanceDestination(
   user: Pick<AuthUser, "roles" | "employeeId">
 ): string {
-  if (user.roles.includes(HR_ADMIN_ROLE)) {
-    return "/setup";
-  }
-
-  if (user.roles.includes(PLATFORM_ADMIN_ROLE)) {
+  if (
+    user.roles.includes(HR_ADMIN_ROLE) ||
+    user.roles.includes(PLATFORM_ADMIN_ROLE)
+  ) {
     return "/";
   }
 

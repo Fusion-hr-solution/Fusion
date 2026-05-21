@@ -33,28 +33,4 @@ public class TenantContextController(
 
         return Ok(ApiResponse<TenantOperationalStatusDto>.Success(response));
     }
-
-    /// <summary>
-    /// Lightweight tenant summary for the tenant-context banner — returns name and status.
-    /// Available to any authorized user with a resolved tenant context.
-    /// </summary>
-    [HttpGet("tenant-summary")]
-    [ProducesResponseType(typeof(ApiResponse<TenantSummaryDto>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<ApiResponse<TenantSummaryDto>>> GetTenantSummary(
-        CancellationToken cancellationToken)
-    {
-        var organization = await platformOrganizations.GetAsync(tenantContext.TenantId, cancellationToken);
-        if (organization is null)
-            return NotFound(ApiResponse.Failure("Tenant not found."));
-
-        var dto = new TenantSummaryDto(
-            organization.Id,
-            organization.Name,
-            organization.OperationalStatus,
-            organization.IsActive,
-            organization.IsArchived);
-
-        return Ok(ApiResponse<TenantSummaryDto>.Success(dto));
-    }
 }

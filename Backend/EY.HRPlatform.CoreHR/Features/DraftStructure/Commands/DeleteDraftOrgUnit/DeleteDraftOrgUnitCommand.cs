@@ -7,8 +7,4 @@ public sealed record DeleteDraftOrgUnitCommand(
     Guid Id,
     uint ExpectedVersion,
     Guid? ReplacementParentId,
-    bool PromoteChildrenToRoot,
-    Guid? ActorUserId = null,
-    string? ActorFullName = null,
-    string? ActorRole = null,
-    bool IsPlatformAssisted = false) : ICommand<Result>;
+    bool PromoteChildrenToRoot) : ICommand<Result>;

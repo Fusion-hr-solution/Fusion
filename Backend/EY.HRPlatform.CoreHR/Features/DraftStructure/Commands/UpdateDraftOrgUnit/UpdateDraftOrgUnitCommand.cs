@@ -13,8 +13,4 @@ public sealed record UpdateDraftOrgUnitCommand(
     string? Description,
     Guid? ParentId,
     uint ExpectedVersion,
-    Dictionary<string, object?>? Attributes,
-    Guid? ActorUserId = null,
-    string? ActorFullName = null,
-    string? ActorRole = null,
-    bool IsPlatformAssisted = false) : ICommand<Result<DraftOrgUnitDto>>;
+    Dictionary<string, object?>? Attributes) : ICommand<Result<DraftOrgUnitDto>>;

@@ -31,7 +31,7 @@ public class EmployeeImportWorkflowTests
 
         Assert.Equal("employee-import-template.csv", template.FileName);
         Assert.Equal(
-            "employeeNumber,firstName,lastName,email,phone,hireDate,jobTitle,workLocation,employmentType,orgUnitCode,managerEmail\r\n",
+            "employeeNumber,firstName,lastName,email,hireDate,jobTitle,orgUnitCode,managerEmail\r\n",
             csv);
     }
 

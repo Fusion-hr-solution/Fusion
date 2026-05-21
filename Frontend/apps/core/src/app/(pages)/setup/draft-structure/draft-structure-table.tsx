@@ -19,7 +19,6 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { cn } from "@/lib/utils";
 
 export type DraftStructureSortField =
   | "referenceKey"
@@ -30,12 +29,8 @@ export type DraftStructureSortField =
   | "updatedAt";
 
 interface DraftStructureTableProps {
-  embedded?: boolean;
   data: DraftOrgUnitDto[];
   isLoading: boolean;
-  selectedUnitId?: string | null;
-  emptyTitle?: string;
-  emptyDescription?: string;
   sortBy: DraftStructureSortField;
   sortDirection: "asc" | "desc";
   onSortChange: (field: DraftStructureSortField) => void;
@@ -83,13 +78,8 @@ function formatTimestamp(value: string | null, fallback: string) {
 }
 
 export function DraftStructureTable({
-  embedded = false,
   data,
   isLoading,
-  selectedUnitId = null,
-  emptyTitle = "No structure items yet",
-  emptyDescription =
-    "Add the first structure item to begin preparing a draft structure for import correction and later governance.",
   sortBy,
   sortDirection,
   onSortChange,
@@ -112,23 +102,21 @@ export function DraftStructureTable({
           <EmptyMedia variant="icon">
             <Building2 />
           </EmptyMedia>
-          <EmptyTitle>{emptyTitle}</EmptyTitle>
-          <EmptyDescription>{emptyDescription}</EmptyDescription>
+          <EmptyTitle>No structure items yet</EmptyTitle>
+          <EmptyDescription>
+            Add the first structure item to begin preparing a draft structure
+            for import correction and later governance.
+          </EmptyDescription>
         </EmptyHeader>
       </Empty>
     );
   }
 
   return (
-    <div
-      className={cn(
-        "h-full min-h-0 overflow-auto bg-background",
-        embedded ? "rounded-none border-0" : "rounded-xl border"
-      )}
-    >
+    <div className="rounded-xl border">
       <Table>
-        <TableHeader className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-          <TableRow className="hover:bg-muted/10">
+        <TableHeader>
+          <TableRow>
             <TableHead>
               <SortHeader
                 label="Reference Key"
@@ -189,10 +177,7 @@ export function DraftStructureTable({
           {data.map((unit) => (
             <TableRow
               key={unit.id}
-              className={cn(
-                "cursor-pointer transition-colors hover:bg-muted/20",
-                selectedUnitId === unit.id ? "bg-muted/30" : ""
-              )}
+              className="cursor-pointer"
               onClick={() => onRowClick(unit)}
             >
               <TableCell className="font-mono text-xs">

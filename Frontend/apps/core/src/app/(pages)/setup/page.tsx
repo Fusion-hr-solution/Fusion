@@ -5,15 +5,15 @@ import { useState } from "react";
 import {
   AlertCircle,
   AlertTriangle,
+  ArrowRight,
   ClipboardList,
   Flag,
   History,
+  LockKeyhole,
   Rocket,
   ShieldCheck,
 } from "lucide-react";
 import { ApiError } from "@repo/api";
-import { useTenantContext } from "@/components/core-tenant-context-provider";
-import { buildTenantContextHref } from "@/lib/tenant-navigation";
 import type {
   CoreSetupPhase,
   DraftSetupIssueCategory,
@@ -23,7 +23,6 @@ import type {
 } from "@repo/api";
 import { canAccessCoreSetup, useAuth } from "@repo/auth";
 import { EmptyState } from "@repo/ui";
-import { toast } from "sonner";
 import { useCoreSetupAccess } from "@/components/core-setup-access";
 import { PageHeader } from "@/components/page-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -40,38 +39,49 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Spinner } from "@/components/ui/spinner";
 import { SetupStatusBadge } from "./setup-status-badge";
 import {
+  useActivateSetup,
   useApproveStructure,
   usePublishStructure,
   useReopenStructure,
   useSetupReadiness,
 } from "./use-setup";
-import { SETUP_DRAFT_ENTRY_PATH } from "./setup-entry-routing";
 
 type SetupMilestoneKey = "activated" | "structurallyGoverned" | "operational";
 
 const SETUP_STEPS: Array<{
   key: SetupMilestoneKey;
   title: string;
+  description: string;
   icon: typeof Flag;
 }> = [
   {
     key: "activated",
     title: "Setup started",
+    description: "The draft workspace is open and isolated from live.",
     icon: Flag,
   },
   {
     key: "structurallyGoverned",
     title: "Structure approved",
+    description: "The draft is reviewed and locked for the next step.",
     icon: ShieldCheck,
   },
   {
     key: "operational",
     title: "Setup complete",
+    description: "The approved structure is live.",
     icon: Rocket,
   },
 ];
@@ -114,6 +124,20 @@ function isSetupCompletePhase(phase: CoreSetupPhase) {
   return phase === "structurallyPublished" || phase === "operational";
 }
 
+function getCompletedMilestoneCount(data: TenantSetupStateDto | undefined) {
+  if (!data || data.canStartSetup) {
+    return 0;
+  }
+
+  const currentStepKey = getCurrentMilestoneKey(data.currentPhase);
+
+  if (!currentStepKey) {
+    return 0;
+  }
+
+  return SETUP_STEPS.findIndex((step) => step.key === currentStepKey) + 1;
+}
+
 function getStepState(
   stepKey: SetupMilestoneKey,
   data: TenantSetupStateDto | undefined
@@ -142,206 +166,107 @@ function getStepState(
   return "upcoming" as const;
 }
 
-function getHeroCopy({
-  phase,
-  hasDraftUnits,
-  isReadyForApproval,
-  blockingIssueCount,
-}: {
-  phase: CoreSetupPhase;
-  hasDraftUnits: boolean;
-  isReadyForApproval: boolean;
-  blockingIssueCount: number;
-}) {
-  if (isSetupCompletePhase(phase)) {
-    return {
-      title: "Setup complete",
-      description: "The published structure is live and Core is unlocked.",
-    };
+function getReviewCopy(phase: CoreSetupPhase) {
+  switch (phase) {
+    case "activated":
+      return {
+        title: "Review the draft and approve when ready",
+        description: "Approval locks the draft until it is reopened.",
+      };
+    case "structurallyGoverned":
+      return {
+        title: "The structure is approved and ready to publish",
+        description:
+          "Publishing moves the locked draft into live and completes setup.",
+      };
+    case "structurallyPublished":
+      return {
+        title: "Setup is complete",
+        description:
+          "The live structure is in place. This page stays as the summary and activity record.",
+      };
+    case "operational":
+      return {
+        title: "Setup is complete",
+        description:
+          "The live structure is in place. Use this page as the summary and activity record.",
+      };
+    default:
+      return {
+        title: "Start setup to open the draft workspace",
+        description: "Create the first draft before review can begin.",
+      };
   }
-
-  if (phase === "structurallyGoverned") {
-    return {
-      title: "Publish the approved structure",
-      description:
-        "The approved structure is locked until you publish or reopen it.",
-    };
-  }
-
-  if (!hasDraftUnits) {
-    return {
-      title: "Start the draft",
-      description: "Open Draft Structure to add units or import a template.",
-    };
-  }
-
-  if (blockingIssueCount > 0) {
-    return {
-      title: "Clear draft blockers",
-      description: "Resolve blockers in Draft Structure before approval.",
-    };
-  }
-
-  if (isReadyForApproval) {
-    return {
-      title: "Approve the draft",
-      description:
-        "Checks are clean. Approve the structure to lock it for publish.",
-    };
-  }
-
-  return {
-    title: "Review the draft",
-    description: "Continue refining the structure in Draft Structure.",
-  };
 }
 
-function getHeaderDescription({
-  phase,
-  hasDraftUnits,
-  isReadyForApproval,
-  blockingIssueCount,
-}: {
-  phase: CoreSetupPhase;
-  hasDraftUnits: boolean;
-  isReadyForApproval: boolean;
-  blockingIssueCount: number;
-}) {
-  if (isSetupCompletePhase(phase)) {
-    return "Review the published result and recent setup activity here.";
+function getReadinessReviewDescription(phase: CoreSetupPhase) {
+  switch (phase) {
+    case "structurallyGoverned":
+      return "Publishing stays blocked until the locked draft has no blockers.";
+    case "structurallyPublished":
+    case "operational":
+      return "These results remain as the final review record.";
+    default:
+      return "Approval and publish stay blocked until the draft has no blockers.";
   }
-
-  if (phase === "structurallyGoverned") {
-    return "Review the approved structure here, then publish or reopen it.";
-  }
-
-  if (!hasDraftUnits) {
-    return "Use Draft Structure to start the hierarchy, then return here for approval and publish.";
-  }
-
-  if (blockingIssueCount > 0) {
-    return "Use Draft Structure for fixes; use this page for approval and publish.";
-  }
-
-  return isReadyForApproval
-    ? "Use this page to approve now or return to Draft Structure for final checks."
-    : "Use Draft Structure for edits; use this page to manage approval and publish.";
 }
 
-function getSetupSummaryLine({
-  phase,
-  hasDraftUnits,
-  unitCount,
-  rootUnitCount,
-  blockingIssueCount,
-  warningCount,
-  isReadyForApproval,
-}: {
-  phase: CoreSetupPhase;
-  hasDraftUnits: boolean;
-  unitCount: number;
-  rootUnitCount: number;
-  blockingIssueCount: number;
-  warningCount: number;
-  isReadyForApproval: boolean;
-}) {
+function getBlockingIssueHint(
+  phase: CoreSetupPhase,
+  hasDraftUnits: boolean,
+  blockingIssueCount: number
+) {
   if (!hasDraftUnits) {
-    return "No draft units yet.";
-  }
-
-  const counts = `${unitCount} unit${unitCount === 1 ? "" : "s"} • ${rootUnitCount} top-level`;
-
-  if (isSetupCompletePhase(phase)) {
-    return `${counts} • live across Core`;
-  }
-
-  if (phase === "structurallyGoverned") {
-    return blockingIssueCount > 0
-      ? `${counts} • ${blockingIssueCount} blocker${blockingIssueCount === 1 ? "" : "s"} to clear`
-      : `${counts} • ready to publish`;
+    return "Shown after the draft takes shape";
   }
 
   if (blockingIssueCount > 0) {
-    return `${counts} • ${blockingIssueCount} blocker${blockingIssueCount === 1 ? "" : "s"}`;
+    return phase === "structurallyGoverned"
+      ? "Reopen to clear before publish"
+      : "Must be cleared first";
+  }
+
+  if (isSetupCompletePhase(phase)) {
+    return "Checks passed before completion";
+  }
+
+  return phase === "structurallyGoverned"
+    ? "Ready to publish"
+    : "Ready for approval";
+}
+
+function getWarningHint(
+  phase: CoreSetupPhase,
+  hasDraftUnits: boolean,
+  warningCount: number
+) {
+  if (!hasDraftUnits) {
+    return "Shown after the draft takes shape";
   }
 
   if (warningCount > 0) {
-    return `${counts} • ${warningCount} warning${warningCount === 1 ? "" : "s"}`;
-  }
-
-  return `${counts} • ${isReadyForApproval ? "ready for approval" : "in progress"}`;
-}
-
-function getReadinessStatusLabel({
-  phase,
-  hasDraftUnits,
-  blockingIssueCount,
-  warningCount,
-  isReadyForApproval,
-}: {
-  phase: CoreSetupPhase;
-  hasDraftUnits: boolean;
-  blockingIssueCount: number;
-  warningCount: number;
-  isReadyForApproval: boolean;
-}) {
-  if (!hasDraftUnits) {
-    return "Waiting";
-  }
-
-  if (blockingIssueCount > 0) {
-    return `${blockingIssueCount} blocker${blockingIssueCount === 1 ? "" : "s"}`;
-  }
-
-  if (warningCount > 0) {
-    return `${warningCount} warning${warningCount === 1 ? "" : "s"}`;
+    return phase === "structurallyGoverned"
+      ? "Review before publish"
+      : "Review before approval";
   }
 
   if (isSetupCompletePhase(phase)) {
-    return "Published";
+    return "No remaining warnings";
   }
 
-  if (phase === "structurallyGoverned") {
-    return "Ready to publish";
-  }
-
-  return isReadyForApproval ? "Ready to approve" : "In progress";
+  return "No open warnings";
 }
 
-function getReadinessSummary({
-  phase,
-  hasDraftUnits,
-  blockingIssueCount,
-  warningCount,
-  isReadyForApproval,
-}: {
-  phase: CoreSetupPhase;
-  hasDraftUnits: boolean;
-  blockingIssueCount: number;
-  warningCount: number;
-  isReadyForApproval: boolean;
-}) {
-  if (!hasDraftUnits) {
-    return "No units yet.";
+function getCleanDraftMessage(phase: CoreSetupPhase) {
+  switch (phase) {
+    case "structurallyGoverned":
+      return "The draft is clean and locked. Publish it when ready, or reopen it for more changes.";
+    case "structurallyPublished":
+    case "operational":
+      return "The final review passed and the live structure is in place.";
+    default:
+      return "The draft is clean. You can approve it when ready.";
   }
-
-  if (blockingIssueCount > 0) {
-    return "Resolve blockers in Draft Structure before approval.";
-  }
-
-  if (warningCount > 0) {
-    return "Review warnings in Draft Structure before approval.";
-  }
-
-  if (isSetupCompletePhase(phase)) {
-    return "Live structure.";
-  }
-
-  if (phase === "structurallyGoverned") {
-    return "Ready to publish.";
-  }
-
-  return isReadyForApproval ? "Ready for approval." : "In progress.";
 }
 
 function formatRoleLabel(
@@ -372,64 +297,29 @@ function getIssueGroups(issues: DraftSetupIssueDto[]) {
     .filter((group) => group.issues.length > 0);
 }
 
-const activityCopyMap: Record<
-  string,
-  { title: string; description: (name: string) => string }
-> = {
-  draftCreated: {
-    title: "Unit added",
-    description: (name) => `${name} added a draft unit`,
-  },
-  draftUpdated: {
-    title: "Unit updated",
-    description: (name) => `${name} updated the draft structure`,
-  },
-  draftDeleted: {
-    title: "Unit deleted",
-    description: (name) => `${name} deleted a draft unit`,
-  },
-  draftCleared: {
-    title: "Draft cleared",
-    description: (name) => `${name} removed all draft units`,
-  },
-  draftImportUploaded: {
-    title: "Import uploaded",
-    description: (name) => `${name} uploaded a structure import`,
-  },
-  draftImportApplied: {
-    title: "Import applied",
-    description: (name) => `${name} applied a structure import`,
-  },
-  approved: {
-    title: "Draft approved",
-    description: (name) => `${name} approved the structure`,
-  },
-  reopened: {
-    title: "Draft reopened",
-    description: (name) => `${name} reopened the structure`,
-  },
-  published: {
-    title: "Structure published",
-    description: (name) => `${name} published the structure to live`,
-  },
-  completed: {
-    title: "Setup completed",
-    description: (name) => `${name} completed setup`,
-  },
-};
-
 function getActivityCopy(activity: TenantSetupActivityDto) {
-  const copy = activityCopyMap[activity.activityType];
-  if (copy) {
-    return {
-      title: copy.title,
-      description: copy.description(activity.actorFullName),
-    };
+  switch (activity.activityType) {
+    case "approved":
+      return {
+        title: "Draft approved",
+        description: `${activity.actorFullName} approved the structure`,
+      };
+    case "published":
+      return {
+        title: "Structure published",
+        description: `${activity.actorFullName} published the structure to live`,
+      };
+    case "completed":
+      return {
+        title: "Setup completed",
+        description: `${activity.actorFullName} completed setup`,
+      };
+    default:
+      return {
+        title: "Draft reopened",
+        description: `${activity.actorFullName} reopened the structure`,
+      };
   }
-  return {
-    title: "Activity recorded",
-    description: `${activity.actorFullName} performed an action`,
-  };
 }
 
 function getErrorMessage(error: unknown) {
@@ -447,21 +337,9 @@ function getErrorMessage(error: unknown) {
 export default function SetupPage() {
   const router = useRouter();
   const { user } = useAuth();
-  const { tenantId } = useTenantContext();
-  const dashboardHref = buildTenantContextHref("/", tenantId);
-  const draftStructureHref = buildTenantContextHref(
-    "/setup/draft-structure",
-    tenantId
-  );
-  const importEmployeesHref = buildTenantContextHref(
-    "/employees/import",
-    tenantId
-  );
-  const isTenantContextReadOnly = !!tenantId;
-  const canAccess = canAccessCoreSetup(user) || isTenantContextReadOnly;
+  const canAccess = canAccessCoreSetup(user);
   const [localError, setLocalError] = useState<string | null>(null);
   const [publishDialogOpen, setPublishDialogOpen] = useState(false);
-  const [visibleActivityCount, setVisibleActivityCount] = useState(3);
 
   const {
     setupState,
@@ -477,6 +355,7 @@ export default function SetupPage() {
     isLoading: isReadinessLoading,
     refetch: refetchReadiness,
   } = useSetupReadiness(canAccess && setupStarted);
+  const activateSetup = useActivateSetup();
   const approveStructure = useApproveStructure();
   const publishStructure = usePublishStructure({
     onSuccess: () => {
@@ -491,12 +370,12 @@ export default function SetupPage() {
       <div className="flex flex-col gap-6 p-6">
         <PageHeader
           title={pageTitle}
-          description="Tenant HR administrators manage setup."
+          description="Core setup is limited to tenant HR administrators."
         />
         <EmptyState
           icon={ClipboardList}
           title="Setup is not available for this role"
-          description="Contact a tenant HR administrator."
+          description="Ask a tenant HR administrator to manage setup."
         />
       </div>
     );
@@ -535,31 +414,29 @@ export default function SetupPage() {
     return <SetupPageSkeleton />;
   }
 
-  const phase = setupState.currentPhase;
   const isCoreUnlocked = isSetupCompletePhase(setupState.currentPhase);
-  const isGoverned = phase === "structurallyGoverned";
-  const isActivated = phase === "activated";
-  const hasDraftUnits = (readiness?.totalUnitCount ?? 0) > 0;
-  const blockingIssueCount = hasDraftUnits
-    ? (readiness?.blockingIssueCount ?? 0)
-    : 0;
-  const warningCount = hasDraftUnits ? (readiness?.warningCount ?? 0) : 0;
-  const hasBlockingIssues = hasDraftUnits && blockingIssueCount > 0;
-  const hasWarnings = hasDraftUnits && warningCount > 0;
-  const isReadyForApproval = !!readiness?.isReadyForApproval;
-  const heroCopy = getHeroCopy({
-    phase,
-    hasDraftUnits,
-    isReadyForApproval,
-    blockingIssueCount,
-  });
+  const completedMilestones = getCompletedMilestoneCount(setupState);
+  const progressValue = Math.round(
+    (completedMilestones / Math.max(SETUP_STEPS.length, 1)) * 100
+  );
+  const reviewCopy = getReviewCopy(setupState?.currentPhase ?? "notStarted");
   const pageError = localError ?? null;
-  const pageDescription = getHeaderDescription({
-    phase,
-    hasDraftUnits,
-    isReadyForApproval,
-    blockingIssueCount,
-  });
+  const pageDescription = isCoreUnlocked
+    ? "Review the completion summary, published structure, and setup history."
+    : setupState.currentPhase === "structurallyGoverned"
+      ? "Review the approved draft and publish it when ready."
+      : "Review draft readiness and move the structure through approval.";
+
+  const handleStartSetup = async () => {
+    setLocalError(null);
+
+    try {
+      await activateSetup.mutateAsync();
+      router.replace("/setup/draft-structure");
+    } catch (error) {
+      setLocalError(getErrorMessage(error));
+    }
+  };
 
   const handleApprove = async () => {
     if (setupState.version == null) {
@@ -572,11 +449,6 @@ export default function SetupPage() {
     try {
       await approveStructure.mutateAsync({
         expectedVersion: setupState.version,
-      });
-      await Promise.allSettled([refreshSetupAccess(), refetchReadiness()]);
-      router.refresh();
-      toast.success("Draft approved", {
-        description: "The structure is locked and ready for publish review.",
       });
     } catch (error) {
       setLocalError(getErrorMessage(error));
@@ -595,11 +467,6 @@ export default function SetupPage() {
       await publishStructure.mutateAsync({
         expectedVersion: setupState.version,
       });
-      await Promise.allSettled([refreshSetupAccess(), refetchReadiness()]);
-      router.refresh();
-      toast.success("Structure published", {
-        description: "The published structure is now live across Core.",
-      });
     } catch (error) {
       setLocalError(getErrorMessage(error));
     }
@@ -617,16 +484,100 @@ export default function SetupPage() {
       await reopenStructure.mutateAsync({
         expectedVersion: setupState.version,
       });
-      await Promise.allSettled([refreshSetupAccess(), refetchReadiness()]);
-      router.refresh();
-      toast.success("Draft reopened", {
-        description: "The structure can be edited again in Draft Structure.",
-      });
     } catch (error) {
       setLocalError(getErrorMessage(error));
     }
   };
 
+  if (setupState?.canStartSetup) {
+    return (
+      <div className="flex flex-col gap-6 p-6">
+        <PageHeader
+          title="Organization Setup"
+          description="Start with the draft structure. Approve it from there or from this review page when ready."
+        />
+
+        {pageError ? (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Setup could not be updated</AlertTitle>
+            <AlertDescription>{pageError}</AlertDescription>
+          </Alert>
+        ) : null}
+
+        <Card className="overflow-hidden">
+          <div className="grid gap-0 xl:grid-cols-[1.15fr_0.85fr]">
+            <div className="border-b p-6 xl:border-r xl:border-b-0">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                First step
+              </p>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <SetupStatusBadge status="notStarted" />
+                <span className="text-sm text-muted-foreground">
+                  0% complete
+                </span>
+              </div>
+              <h2 className="mt-3 text-2xl font-semibold tracking-tight">
+                Open the draft workspace
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+                Build the organization structure in a protected draft first. The
+                live structure stays untouched until later steps are complete.
+              </p>
+
+              <div className="mt-6 grid gap-3 md:grid-cols-3">
+                <SummaryTile
+                  title="Build the first draft"
+                  description="Add top-level units, place child units, and shape the hierarchy in one workspace."
+                />
+                <SummaryTile
+                  title="Import when useful"
+                  description="Use the template if the structure already exists elsewhere."
+                />
+                <SummaryTile
+                  title="Review before lock"
+                  description="Approve from the draft flow or from this page when ready."
+                />
+              </div>
+            </div>
+
+            <div className="space-y-6 p-6">
+              <MetricTile
+                label="Progress"
+                value={`0/${SETUP_STEPS.length}`}
+                hint="Setup milestones"
+              />
+              <div className="rounded-xl border bg-muted/20 p-4">
+                <p className="text-sm font-medium">What happens next</p>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Starting setup opens the draft structure workspace.
+                </p>
+              </div>
+              <Button
+                className="w-full"
+                onClick={() => {
+                  void handleStartSetup();
+                }}
+                disabled={activateSetup.isLoading}
+              >
+                Start organization setup
+                <ArrowRight className="size-4" />
+              </Button>
+            </div>
+          </div>
+        </Card>
+
+        <RoadmapCard data={setupState} />
+      </div>
+    );
+  }
+
+  const hasDraftUnits = (readiness?.totalUnitCount ?? 0) > 0;
+  const isDraftEmpty = !!readiness && !hasDraftUnits;
+  const blockingIssueCount = hasDraftUnits
+    ? (readiness?.blockingIssueCount ?? 0)
+    : 0;
+  const warningCount = hasDraftUnits ? (readiness?.warningCount ?? 0) : 0;
   const approvalDisabled =
     setupState?.currentPhase !== "activated" ||
     isReadinessLoading ||
@@ -640,142 +591,10 @@ export default function SetupPage() {
   const reopenDisabled =
     setupState?.currentPhase !== "structurallyGoverned" ||
     reopenStructure.isLoading;
-  const summaryLine = getSetupSummaryLine({
-    phase,
-    hasDraftUnits,
-    unitCount: readiness?.totalUnitCount ?? 0,
-    rootUnitCount: readiness?.rootUnitCount ?? 0,
-    blockingIssueCount,
-    warningCount,
-    isReadyForApproval,
-  });
-  const readinessStatusLabel = getReadinessStatusLabel({
-    phase,
-    hasDraftUnits,
-    blockingIssueCount,
-    warningCount,
-    isReadyForApproval,
-  });
-  const readinessSummary = getReadinessSummary({
-    phase,
-    hasDraftUnits,
-    blockingIssueCount,
-    warningCount,
-    isReadyForApproval,
-  });
-  const readinessStatusVariant = hasBlockingIssues
-    ? "destructive"
-    : hasWarnings || isReadyForApproval || isGoverned || isCoreUnlocked
-      ? "secondary"
-      : "outline";
-  const showExpandedReadiness =
-    !!readinessError ||
-    (setupStarted && isReadinessLoading && !readiness) ||
-    hasBlockingIssues ||
-    hasWarnings;
-  const summaryActions: Array<{
-    label: string;
-    pendingLabel?: string;
-    onClick: () => void;
-    variant?: "default" | "outline";
-    disabled?: boolean;
-    isLoading?: boolean;
-  }> = [];
-
-  if (!setupStarted) {
-    if (!isTenantContextReadOnly) {
-      summaryActions.push({
-        label: "Open draft workspace",
-        onClick: () => router.push(SETUP_DRAFT_ENTRY_PATH),
-      });
-    }
-  } else if (isActivated) {
-    if (isTenantContextReadOnly) {
-      summaryActions.push({
-        label: "View draft workspace",
-        onClick: () => router.push(draftStructureHref),
-      });
-    } else if (isReadyForApproval) {
-      summaryActions.push(
-        {
-          label: "Approve structure",
-          pendingLabel: "Approving...",
-          onClick: () => {
-            void handleApprove();
-          },
-          disabled: approvalDisabled,
-          isLoading: approveStructure.isLoading,
-        },
-        {
-          label: "Open draft workspace",
-          onClick: () => router.push(draftStructureHref),
-          variant: "outline",
-        }
-      );
-    } else {
-      summaryActions.push({
-        label: "Open draft workspace",
-        onClick: () => router.push(draftStructureHref),
-      });
-    }
-  } else if (isGoverned) {
-    if (isTenantContextReadOnly) {
-      summaryActions.push({
-        label: "View approved structure",
-        onClick: () => router.push(draftStructureHref),
-      });
-    } else {
-      summaryActions.push(
-        {
-          label: "Publish structure",
-          pendingLabel: "Publishing...",
-          onClick: () => setPublishDialogOpen(true),
-          disabled: publishDisabled,
-          isLoading: publishStructure.isLoading,
-        },
-        {
-          label: "Reopen draft",
-          pendingLabel: "Reopening...",
-          onClick: () => {
-            void handleReopen();
-          },
-          variant: "outline",
-          disabled: reopenDisabled,
-          isLoading: reopenStructure.isLoading,
-        }
-      );
-    }
-  } else if (isCoreUnlocked) {
-    summaryActions.push({
-      label: "Import employees",
-      onClick: () => router.push(importEmployeesHref),
-    });
-    summaryActions.push({
-      label: "View published structure",
-      onClick: () => router.push(draftStructureHref),
-      variant: "outline",
-    });
-  }
-
-  const visibleActivities = setupState.recentActivities.slice(
-    0,
-    visibleActivityCount
-  );
-  const hasMoreActivities =
-    visibleActivityCount < setupState.recentActivities.length;
-  const statusMeta = isCoreUnlocked
-    ? `Published ${formatTimestamp(
-        phase === "operational"
-          ? setupState.operationalAt
-          : setupState.structurallyPublishedAt
-      )}`
-    : setupState.approvedAt
-      ? `${setupState.approvedByFullName ?? "Approval recorded"} • ${formatTimestamp(setupState.approvedAt)}`
-      : null;
 
   return (
-    <div className="flex flex-col gap-5 p-6">
-      <PageHeader title="Setup" description={pageDescription} />
+    <div className="flex flex-col gap-6 p-6">
+      <PageHeader title={pageTitle} description={pageDescription} />
 
       {pageError ? (
         <Alert variant="destructive">
@@ -785,76 +604,188 @@ export default function SetupPage() {
         </Alert>
       ) : null}
 
-      <SetupMilestoneStrip data={setupState} />
+      <Card className="overflow-hidden">
+        <div className="grid gap-0 xl:grid-cols-[1.15fr_0.85fr]">
+          <div className="border-b p-6 xl:border-r xl:border-b-0">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              Governance review
+            </p>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <SetupStatusBadge status={setupState.currentPhase} />
+              <span className="text-sm text-muted-foreground">
+                {progressValue}% complete
+              </span>
+            </div>
+            <h2 className="mt-3 text-2xl font-semibold tracking-tight">
+              {reviewCopy.title}
+            </h2>
+            <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+              {reviewCopy.description}
+            </p>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] xl:items-start">
-        <Card>
-          <CardContent className="flex flex-col gap-4 p-5 lg:flex-row lg:items-start lg:justify-between">
-            <div className="min-w-0 space-y-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <SetupStatusBadge status={setupState.currentPhase} />
-                {setupState.isApprovedInPlatformAssistMode &&
-                !isCoreUnlocked ? (
-                  <Badge variant="outline">Assisted</Badge>
-                ) : null}
-              </div>
-              <div className="space-y-1.5">
-                <h2 className="text-2xl font-semibold tracking-tight">
-                  {heroCopy.title}
-                </h2>
-                <p className="max-w-2xl text-sm text-muted-foreground">
-                  {heroCopy.description}
+            {isCoreUnlocked ? (
+              <div className="mt-6 rounded-xl border bg-muted/20 p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="secondary">Setup complete</Badge>
+                  <Badge variant="outline">Live structure ready</Badge>
+                </div>
+                <p className="mt-3 text-sm font-medium">
+                  Completed{" "}
+                  {formatTimestamp(
+                    setupState.currentPhase === "operational"
+                      ? setupState.operationalAt
+                      : setupState.structurallyPublishedAt
+                  )}
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  The live structure is in place. This page stays as the summary
+                  and activity record.
                 </p>
               </div>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-                <span>{summaryLine}</span>
-                {statusMeta ? <span>{statusMeta}</span> : null}
-                {setupState.approvedAt && !isCoreUnlocked ? (
-                  <span>{formatRoleLabel(setupState.approvedByRole)}</span>
-                ) : null}
+            ) : setupState.approvedAt ? (
+              <div className="mt-6 rounded-xl border bg-muted/20 p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="secondary">Approved</Badge>
+                  {setupState.isApprovedInPlatformAssistMode ? (
+                    <Badge variant="outline">Assisted</Badge>
+                  ) : null}
+                </div>
+                <p className="mt-3 text-sm font-medium">
+                  {setupState.approvedByFullName ?? "Approval recorded"}
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {formatRoleLabel(setupState.approvedByRole)} •{" "}
+                  {formatTimestamp(setupState.approvedAt)}
+                </p>
               </div>
-            </div>
+            ) : (
+              <div className="mt-6 rounded-xl border bg-muted/20 p-4">
+                <div className="flex items-start gap-3">
+                  <LockKeyhole className="mt-0.5 size-4 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium">Approval lock</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      After approval, the draft becomes read-only until it is
+                      reopened here.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
-            {summaryActions.length > 0 ? (
-              <div className="flex flex-wrap gap-2 lg:justify-end">
-                {summaryActions.map((action) => (
-                  <Button
-                    key={action.label}
-                    variant={action.variant}
-                    onClick={action.onClick}
-                    disabled={action.disabled || action.isLoading}
-                  >
-                    {action.isLoading ? <Spinner className="mr-1" /> : null}
-                    {action.isLoading
-                      ? (action.pendingLabel ?? action.label)
-                      : action.label}
+            <div className="mt-6 flex flex-wrap gap-2">
+              {setupState.currentPhase === "activated" ? (
+                <>
+                  <Button onClick={() => router.push("/setup/draft-structure")}>
+                    Open draft workspace
                   </Button>
-                ))}
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      void handleApprove();
+                    }}
+                    disabled={approvalDisabled}
+                  >
+                    Approve structure
+                  </Button>
+                </>
+              ) : null}
+              {setupState.currentPhase === "structurallyGoverned" ? (
+                <>
+                  <Button
+                    onClick={() => setPublishDialogOpen(true)}
+                    disabled={publishDisabled}
+                  >
+                    Publish structure
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      void handleReopen();
+                    }}
+                    disabled={reopenDisabled}
+                  >
+                    Reopen draft
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => router.push("/setup/draft-structure")}
+                  >
+                    View draft workspace
+                  </Button>
+                </>
+              ) : null}
+              {isCoreUnlocked ? (
+                <>
+                  <Button onClick={() => router.push("/")}>Open dashboard</Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => router.push("/setup/draft-structure")}
+                  >
+                    View published structure
+                  </Button>
+                </>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="grid gap-4 p-6 sm:grid-cols-2">
+            <MetricTile
+              label="Progress"
+              value={`${completedMilestones}/${SETUP_STEPS.length}`}
+              hint="Setup milestones"
+            />
+            <MetricTile
+              label="Units in draft"
+              value={
+                isReadinessLoading && !readiness
+                  ? "..."
+                  : String(readiness?.totalUnitCount ?? 0)
+              }
+              hint={`Top-level units: ${readiness?.rootUnitCount ?? 0}`}
+            />
+            <MetricTile
+              label="Blocking issues"
+              value={
+                isReadinessLoading && !readiness
+                  ? "..."
+                  : String(blockingIssueCount)
+              }
+              hint={getBlockingIssueHint(
+                setupState.currentPhase,
+                hasDraftUnits,
+                blockingIssueCount
+              )}
+            />
+            <MetricTile
+              label="Warnings"
+              value={
+                isReadinessLoading && !readiness ? "..." : String(warningCount)
+              }
+              hint={getWarningHint(
+                setupState.currentPhase,
+                hasDraftUnits,
+                warningCount
+              )}
+            />
+            <div className="sm:col-span-2 space-y-2">
+              <div className="flex items-center justify-between text-sm text-muted-foreground">
+                <span>Setup progress</span>
+                <span>{progressValue}%</span>
               </div>
-            ) : null}
-          </CardContent>
-        </Card>
-
-        <div className="xl:self-stretch">
-          <RecentActivityCard
-            activities={visibleActivities}
-            hasMoreActivities={hasMoreActivities}
-            onLoadMore={() =>
-              setVisibleActivityCount((currentCount) =>
-                Math.min(currentCount + 3, setupState.recentActivities.length)
-              )
-            }
-          />
+              <Progress value={progressValue} />
+            </div>
+          </div>
         </div>
-      </div>
+      </Card>
 
-      {showExpandedReadiness ? (
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-            <CardTitle>Readiness</CardTitle>
-            <Badge variant={readinessStatusVariant}>
-              {readinessStatusLabel}
-            </Badge>
+          <CardHeader>
+            <CardTitle>Readiness review</CardTitle>
+            <CardDescription>
+              {getReadinessReviewDescription(setupState.currentPhase)}
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {readinessError ? (
@@ -872,29 +803,104 @@ export default function SetupPage() {
                   </Button>
                 </AlertDescription>
               </Alert>
-            ) : setupStarted && isReadinessLoading && !readiness ? (
+            ) : isReadinessLoading && !readiness ? (
               <ReadinessSkeleton />
-            ) : (
+            ) : readiness ? (
               <>
-                <p className="text-sm text-muted-foreground">
-                  {readinessSummary}
-                </p>
+                <ReviewSummaryCard
+                  setupState={setupState}
+                  hasDraftUnits={hasDraftUnits}
+                  isReadyForApproval={readiness.isReadyForApproval}
+                  blockingIssueCount={readiness.blockingIssueCount}
+                  warningCount={readiness.warningCount}
+                />
 
-                {readiness && hasBlockingIssues ? (
+                {hasDraftUnits && readiness.blockingIssues.length > 0 ? (
                   <IssueSection
                     title="Blocking issues"
+                    description="Clear these before approval."
                     issues={readiness.blockingIssues}
                   />
                 ) : null}
 
-                {readiness && hasWarnings ? (
-                  <IssueSection title="Warnings" issues={readiness.warnings} />
+                {hasDraftUnits && readiness.warnings.length > 0 ? (
+                  <IssueSection
+                    title="Warnings"
+                    description="These do not block approval, but they should be reviewed."
+                    issues={readiness.warnings}
+                  />
+                ) : null}
+
+                {isDraftEmpty ? (
+                  <div className="rounded-xl border bg-muted/20 p-4 text-sm text-muted-foreground">
+                    Add the first unit or import the structure template before
+                    approval checks begin.
+                  </div>
+                ) : readiness.blockingIssues.length === 0 &&
+                  readiness.warnings.length === 0 ? (
+                  <div className="rounded-xl border bg-muted/20 p-4 text-sm text-muted-foreground">
+                    {getCleanDraftMessage(setupState.currentPhase)}
+                  </div>
                 ) : null}
               </>
+            ) : null}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent activity</CardTitle>
+            <CardDescription>
+              {isCoreUnlocked
+                ? "This history remains as the completion record for setup."
+                : "Approval, publish, reopen, and completion events appear here."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {setupState.recentActivities.length === 0 ? (
+              <div className="rounded-xl border border-dashed p-6 text-sm text-muted-foreground">
+                No review activity has been recorded yet.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {setupState.recentActivities.map((activity, index) => {
+                  const activityCopy = getActivityCopy(activity);
+
+                  return (
+                    <div key={activity.id} className="space-y-3">
+                      <div className="flex items-start gap-3">
+                        <div className="mt-0.5 flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                          <History className="size-4" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="font-medium">{activityCopy.title}</p>
+                            {activity.isPlatformAssisted ? (
+                              <Badge variant="outline">Assisted</Badge>
+                            ) : null}
+                          </div>
+                          <p className="mt-1 text-sm text-muted-foreground">
+                            {activityCopy.description}
+                          </p>
+                          <p className="mt-2 text-xs text-muted-foreground">
+                            {formatRoleLabel(activity.actorRole, "Activity")} •{" "}
+                            {formatTimestamp(activity.occurredAt)}
+                          </p>
+                        </div>
+                      </div>
+                      {index < setupState.recentActivities.length - 1 ? (
+                        <Separator />
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </CardContent>
         </Card>
-      ) : null}
+      </div>
+
+      <RoadmapCard data={setupState} />
 
       <AlertDialog open={publishDialogOpen} onOpenChange={setPublishDialogOpen}>
         <AlertDialogContent>
@@ -902,14 +908,15 @@ export default function SetupPage() {
             <AlertDialogMedia>
               <AlertTriangle className="size-5 text-amber-700" />
             </AlertDialogMedia>
-            <AlertDialogTitle>Publish structure?</AlertDialogTitle>
+            <AlertDialogTitle>Publish this structure to live?</AlertDialogTitle>
             <AlertDialogDescription>
-              Makes the approved structure live.
+              This publishes the approved draft to your live organization and
+              completes setup. Existing live units will be replaced in one step.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={publishStructure.isLoading}>
-              Cancel
+              Keep reviewing
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
@@ -917,10 +924,7 @@ export default function SetupPage() {
               }}
               disabled={publishStructure.isLoading}
             >
-              {publishStructure.isLoading ? <Spinner className="mr-1" /> : null}
-              {publishStructure.isLoading
-                ? "Publishing..."
-                : "Publish structure"}
+              Publish structure
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -929,105 +933,122 @@ export default function SetupPage() {
   );
 }
 
-function SetupMilestoneStrip({
-  data,
+function SummaryTile({
+  title,
+  description,
 }: {
-  data: TenantSetupStateDto | undefined;
+  title: string;
+  description: string;
 }) {
   return (
-    <div className="grid gap-2 md:grid-cols-3">
-      {SETUP_STEPS.map((step) => (
-        <SetupMilestoneCard
-          key={step.key}
-          step={step}
-          state={getStepState(step.key, data)}
-        />
-      ))}
+    <div className="rounded-xl border bg-muted/20 p-4">
+      <p className="text-sm font-medium">{title}</p>
+      <p className="mt-2 text-sm text-muted-foreground">{description}</p>
     </div>
   );
 }
 
-function RecentActivityCard({
-  activities,
-  hasMoreActivities,
-  onLoadMore,
+function MetricTile({
+  label,
+  value,
+  hint,
 }: {
-  activities: TenantSetupActivityDto[];
-  hasMoreActivities: boolean;
-  onLoadMore: () => void;
+  label: string;
+  value: string;
+  hint: string;
 }) {
   return (
-    <Card className="flex h-full flex-col">
-      <CardHeader className="pb-3">
-        <CardTitle>Recent activity</CardTitle>
-      </CardHeader>
-      <CardContent className="flex min-h-0 flex-1 flex-col">
-        {activities.length === 0 ? (
-          <div className="flex flex-1 flex-col items-center justify-center gap-2 py-6 text-center">
-            <div className="flex size-8 items-center justify-center rounded-full border bg-muted/30 text-muted-foreground/60">
-              <History className="size-3.5" />
-            </div>
-            <p className="text-sm text-muted-foreground">No activity yet.</p>
-          </div>
-        ) : (
-          <div className="space-y-0">
-            {activities.map((activity) => {
-              const activityCopy = getActivityCopy(activity);
+    <div className="rounded-xl border bg-muted/20 p-4">
+      <p className="text-sm text-muted-foreground">{label}</p>
+      <p className="mt-2 text-2xl font-semibold tracking-tight">{value}</p>
+      <p className="mt-2 text-sm text-muted-foreground">{hint}</p>
+    </div>
+  );
+}
 
-              return (
-                <div
-                  key={activity.id}
-                  className="flex items-start gap-3 border-b py-3 first:pt-0 last:border-b-0 last:pb-0"
-                >
-                  <div className="mt-0.5 flex size-7 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                    <History className="size-3.5" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-medium">{activityCopy.title}</p>
-                      {activity.isPlatformAssisted ? (
-                        <Badge variant="outline">Assisted</Badge>
-                      ) : null}
-                    </div>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {activityCopy.description}
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {formatRoleLabel(activity.actorRole, "Activity")} •{" "}
-                      {formatTimestamp(activity.occurredAt)}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-            {hasMoreActivities ? (
-              <div className="pt-3">
-                <Button variant="outline" size="sm" onClick={onLoadMore}>
-                  Load more
-                </Button>
-              </div>
-            ) : null}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+function ReviewSummaryCard({
+  setupState,
+  hasDraftUnits,
+  isReadyForApproval,
+  blockingIssueCount,
+  warningCount,
+}: {
+  setupState: TenantSetupStateDto;
+  hasDraftUnits: boolean;
+  isReadyForApproval: boolean;
+  blockingIssueCount: number;
+  warningCount: number;
+}) {
+  const isGoverned = setupState.currentPhase === "structurallyGoverned";
+  const isPublished = setupState.currentPhase === "structurallyPublished";
+  const isOperational = setupState.currentPhase === "operational";
+  const isComplete = isPublished || isOperational;
+
+  const statusLabel =
+    !hasDraftUnits && !isGoverned && !isComplete
+      ? "Draft not started"
+      : isComplete
+        ? "Setup complete"
+        : isGoverned && !isReadyForApproval
+          ? "Needs changes before publish"
+          : isGoverned
+            ? "Ready to publish"
+            : isReadyForApproval
+              ? "Ready for approval"
+              : "Needs attention";
+
+  const summaryText =
+    !hasDraftUnits && !isGoverned && !isComplete
+      ? "Add the first unit or import the template before approval checks apply."
+      : isComplete
+        ? "The live structure is in place. Setup is complete and this page now stays as the completion summary."
+        : isGoverned && !isReadyForApproval
+      ? "Reopen the approved draft and clear the remaining issues before publishing."
+          : isGoverned
+        ? "The approved draft is ready to move into the live structure."
+            : isReadyForApproval
+              ? "The draft meets the review checks. You can approve it now."
+              : "Keep working in the draft workspace until the blocking issues are cleared.";
+
+  return (
+    <div className="rounded-xl border bg-muted/20 p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge
+          variant={
+            !hasDraftUnits || isComplete || isGoverned || isReadyForApproval
+              ? "secondary"
+              : "destructive"
+          }
+        >
+          {statusLabel}
+        </Badge>
+        <span className="text-sm text-muted-foreground">
+          {hasDraftUnits
+            ? `${blockingIssueCount} blocking issue${blockingIssueCount === 1 ? "" : "s"}${warningCount > 0 ? ` • ${warningCount} warning${warningCount === 1 ? "" : "s"}` : ""}`
+            : "No draft units yet"}
+        </span>
+      </div>
+      <p className="mt-3 text-sm text-muted-foreground">{summaryText}</p>
+    </div>
   );
 }
 
 function IssueSection({
   title,
+  description,
   issues,
 }: {
   title: string;
+  description: string;
   issues: DraftSetupIssueDto[];
 }) {
   const groups = getIssueGroups(issues);
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between gap-3">
+    <div className="space-y-4 rounded-xl border p-4">
+      <div>
         <p className="font-medium">{title}</p>
-        <Badge variant="outline">{issues.length}</Badge>
+        <p className="mt-1 text-sm text-muted-foreground">{description}</p>
       </div>
 
       <div className="space-y-3">
@@ -1054,6 +1075,29 @@ function IssueSection({
   );
 }
 
+function RoadmapCard({ data }: { data: TenantSetupStateDto | undefined }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Setup progress</CardTitle>
+        <CardDescription>
+          Structure comes first. Once the approved structure is published, setup
+          is complete.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+        {SETUP_STEPS.map((step) => (
+          <SetupMilestoneCard
+            key={step.key}
+            step={step}
+            state={getStepState(step.key, data)}
+          />
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
 function SetupMilestoneCard({
   step,
   state,
@@ -1064,17 +1108,9 @@ function SetupMilestoneCard({
   const Icon = step.icon;
   const stateLabel =
     state === "complete" ? "Done" : state === "current" ? "Current" : "Later";
-  const cardClass =
-    state === "current"
-      ? "border-primary/30 bg-primary/5"
-      : state === "complete"
-        ? "border-emerald-200 bg-emerald-50/60 dark:border-emerald-900/40 dark:bg-emerald-950/20"
-        : "bg-background";
 
   return (
-    <div
-      className={`flex h-full items-center justify-between gap-3 rounded-xl border p-3 ${cardClass}`}
-    >
+    <div className="flex h-full flex-col rounded-xl border p-4">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
@@ -1082,10 +1118,11 @@ function SetupMilestoneCard({
           </div>
           <p className="font-medium">{step.title}</p>
         </div>
+        <span className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+          {stateLabel}
+        </span>
       </div>
-      <span className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-        {stateLabel}
-      </span>
+      <p className="mt-3 text-sm text-muted-foreground">{step.description}</p>
     </div>
   );
 }
@@ -1097,47 +1134,30 @@ function SetupPageSkeleton() {
         title="Organization Setup"
         description="Loading the review surface..."
       />
-
-      <div className="grid gap-2 md:grid-cols-3">
-        {Array.from({ length: 3 }).map((_, index) => (
-          <Skeleton key={index} className="h-14 rounded-xl" />
-        ))}
-      </div>
-
       <Card>
-        <CardContent className="space-y-4 p-5">
+        <CardContent className="grid gap-4 p-6 xl:grid-cols-[1.15fr_0.85fr]">
           <div className="space-y-3">
             <Skeleton className="h-4 w-28" />
-            <Skeleton className="h-7 w-64" />
+            <Skeleton className="h-6 w-60" />
             <Skeleton className="h-4 w-full max-w-2xl" />
             <Skeleton className="h-4 w-full max-w-xl" />
-            <div className="flex flex-wrap gap-2">
-              <Skeleton className="h-10 w-40" />
-              <Skeleton className="h-10 w-36" />
+            <div className="grid gap-3 md:grid-cols-3">
+              <Skeleton className="h-28 rounded-xl" />
+              <Skeleton className="h-28 rounded-xl" />
+              <Skeleton className="h-28 rounded-xl" />
             </div>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Skeleton className="h-28 rounded-xl" />
+            <Skeleton className="h-28 rounded-xl" />
+            <Skeleton className="h-28 rounded-xl" />
+            <Skeleton className="h-28 rounded-xl" />
           </div>
         </CardContent>
       </Card>
-
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] xl:items-start">
-        <div className="space-y-4 rounded-xl border p-5">
-          <Skeleton className="h-4 w-28" />
-          <Skeleton className="h-7 w-64" />
-          <Skeleton className="h-4 w-full max-w-2xl" />
-          <Skeleton className="h-4 w-full max-w-xl" />
-          <div className="flex flex-wrap gap-2">
-            <Skeleton className="h-10 w-40" />
-            <Skeleton className="h-10 w-36" />
-          </div>
-        </div>
-        <div className="rounded-xl border p-5">
-          <Skeleton className="h-5 w-32" />
-          <div className="mt-4 space-y-4">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <Skeleton key={i} className="h-14 w-full" />
-            ))}
-          </div>
-        </div>
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
+        <Skeleton className="h-104 rounded-xl" />
+        <Skeleton className="h-104 rounded-xl" />
       </div>
     </div>
   );
@@ -1146,8 +1166,8 @@ function SetupPageSkeleton() {
 function ReadinessSkeleton() {
   return (
     <div className="space-y-4">
-      <Skeleton className="h-16 rounded-xl" />
-      <Skeleton className="h-36 rounded-xl" />
+      <Skeleton className="h-24 rounded-xl" />
+      <Skeleton className="h-40 rounded-xl" />
       <Skeleton className="h-32 rounded-xl" />
     </div>
   );

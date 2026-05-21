@@ -31,7 +31,7 @@ export default function MyTeamPage() {
     return (
       <CorePageLoadingState
         title="My Team"
-        description="Loading reports..."
+        description="Loading direct reports..."
         message="Loading team..."
         variant="summary-list"
       />
@@ -43,12 +43,12 @@ export default function MyTeamPage() {
       <div className="flex flex-col gap-6 p-6">
         <PageHeader
           title="My Team"
-          description="Available to linked manager accounts."
+          description="Direct-report access is available to linked manager accounts."
         />
         <EmptyState
           icon={Users}
           title="No team workspace available"
-          description="Contact a tenant HR administrator to link your manager record."
+          description="Ask a tenant HR administrator to link your account to a manager employee record."
         />
       </div>
     );
@@ -58,7 +58,7 @@ export default function MyTeamPage() {
     <div className="flex flex-col gap-6 p-6">
       <PageHeader
         title="My Team"
-        description="Direct reports from your linked record."
+        description="Direct reports from your linked employee record."
       />
 
       {error ? (
@@ -79,7 +79,7 @@ export default function MyTeamPage() {
             <div>
               <CardTitle>Direct reports</CardTitle>
               <CardDescription>
-                Employees who report directly to you.
+                Manager scope is limited to employees who report directly to you.
               </CardDescription>
             </div>
             <Badge variant="secondary">
@@ -93,7 +93,7 @@ export default function MyTeamPage() {
             <EmptyState
               icon={Users}
               title="No direct reports"
-              description="No employees report to you right now."
+              description="Your linked employee record does not currently manage any employees."
             />
           ) : (
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">

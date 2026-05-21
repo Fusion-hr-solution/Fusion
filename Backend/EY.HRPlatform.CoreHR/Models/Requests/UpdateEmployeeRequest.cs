@@ -14,10 +14,7 @@ public sealed record UpdateEmployeeRequest(
     [StringLength(100, MinimumLength = 1)] string? FirstName,
     [StringLength(100, MinimumLength = 1)] string? LastName,
     [EmailAddress] string? Email,
-    [StringLength(50)] string? Phone,
     [StringLength(100)] string? JobTitle,
-    [StringLength(100)] string? WorkLocation,
-    [StringLength(50)] string? EmploymentType,
     Guid? ManagerId,
     Guid? OrgUnitId = null,
     DateTime? HireDate = null);

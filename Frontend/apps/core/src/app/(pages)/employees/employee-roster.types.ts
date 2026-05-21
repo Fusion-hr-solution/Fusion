@@ -168,10 +168,7 @@ export interface EmployeeProfileDto {
   preferredName: string | null;
   fullName: string;
   email: string;
-  phone: string | null;
   jobTitle: string | null;
-  workLocation: string | null;
-  employmentType: string | null;
   hireDate: string;
   status: EmployeeRosterStatus;
   orgUnitId: string | null;

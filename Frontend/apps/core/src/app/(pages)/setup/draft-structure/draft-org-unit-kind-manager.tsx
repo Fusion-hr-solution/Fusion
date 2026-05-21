@@ -45,9 +45,6 @@ interface DraftOrgUnitKindManagerProps {
   existingUnits: DraftOrgUnitDto[];
   onSchemaUpdated?: (schema: DraftStructureSchemaDto) => void;
   currentKindKey?: string;
-  open?: boolean;
-  onOpenChange?: (open: boolean) => void;
-  hideTrigger?: boolean;
   disabled?: boolean;
   triggerLabel?: string;
   triggerVariant?: ComponentProps<typeof Button>["variant"];
@@ -114,23 +111,18 @@ export function DraftOrgUnitKindManager({
   existingUnits,
   onSchemaUpdated,
   currentKindKey,
-  open: controlledOpen,
-  onOpenChange,
-  hideTrigger = false,
   disabled = false,
   triggerLabel = "Manage types",
   triggerVariant = "outline",
   triggerSize = "sm",
 }: DraftOrgUnitKindManagerProps) {
-  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const [open, setOpen] = useState(false);
   const [draftKinds, setDraftKinds] = useState<EditableOrgUnitKind[]>(() =>
     createEditableKinds(schema)
   );
   const [newKindLabel, setNewKindLabel] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const nextNewId = useRef(0);
-  const open = controlledOpen ?? uncontrolledOpen;
-  const setOpen = onOpenChange ?? setUncontrolledOpen;
 
   const {
     data: settings,
@@ -284,18 +276,16 @@ export function DraftOrgUnitKindManager({
 
   return (
     <>
-      {!hideTrigger ? (
-        <Button
-          type="button"
-          variant={triggerVariant}
-          size={triggerSize}
-          disabled={disabled}
-          onClick={() => setOpen(true)}
-        >
-          <PencilLine className="size-4" />
-          {triggerLabel}
-        </Button>
-      ) : null}
+      <Button
+        type="button"
+        variant={triggerVariant}
+        size={triggerSize}
+        disabled={disabled}
+        onClick={() => setOpen(true)}
+      >
+        <PencilLine className="size-4" />
+        {triggerLabel}
+      </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-2xl">

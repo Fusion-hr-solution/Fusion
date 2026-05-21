@@ -38,15 +38,6 @@ vi.mock("@repo/auth", () => ({
     !!user?.employeeId,
 }));
 
-vi.mock("@/components/core-tenant-context-provider", () => ({
-  useTenantContext: () => ({
-    tenantId: null,
-    tenantSummary: null,
-    isLoading: false,
-    clearTenantContext: vi.fn(),
-  }),
-}));
-
 vi.mock("@repo/api/query", async () => {
   const actual = await vi.importActual("@repo/api/query");
   return actual;

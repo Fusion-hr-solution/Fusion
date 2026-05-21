@@ -8,7 +8,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Storage;
 
 namespace EY.HRPlatform.Identity.Controllers;
 
@@ -242,11 +241,8 @@ public class InvitesController : ControllerBase
         if (emailTaken)
             return BadRequest(ApiResponse<UserDto>.Failure("Email is already registered."));
 
-        // The local Development profile uses EF InMemory, which does not support transactions.
-        IDbContextTransaction? transaction = null;
-        if (_dbContext.Database.IsRelational())
-            transaction = await _dbContext.Database.BeginTransactionAsync();
-
+        // Use transaction to ensure atomicity of user creation + role assignment + invite marking
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync();
         try
         {
             // Create the user
@@ -273,9 +269,7 @@ public class InvitesController : ControllerBase
             var roleResult = await _userManager.AddToRoleAsync(user, invite.Role);
             if (!roleResult.Succeeded)
             {
-                if (transaction is not null)
-                    await transaction.RollbackAsync();
-
+                await transaction.RollbackAsync();
                 var errors = roleResult.Errors.Select(e => e.Description).ToArray();
                 return BadRequest(ApiResponse<UserDto>.Failure(errors));
             }
@@ -284,8 +278,7 @@ public class InvitesController : ControllerBase
             invite.MarkAccepted(user.Id);
             await _dbContext.SaveChangesAsync();
 
-            if (transaction is not null)
-                await transaction.CommitAsync();
+            await transaction.CommitAsync();
 
             // Fire-and-forget: provision downstream employee profile for workforce users.
             if (invite.EmployeeId.HasValue && IsWorkforceUserRole(invite.Role))
@@ -309,15 +302,8 @@ public class InvitesController : ControllerBase
         }
         catch
         {
-            if (transaction is not null)
-                await transaction.RollbackAsync();
-
+            await transaction.RollbackAsync();
             throw;
-        }
-        finally
-        {
-            if (transaction is not null)
-                await transaction.DisposeAsync();
         }
     }
 

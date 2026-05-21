@@ -14,6 +14,6 @@ public class OrgUnitsControllerAuthorizationTests
             .GetCustomAttribute<AuthorizeAttribute>(inherit: false);
 
         Assert.NotNull(authorizeAttribute);
-        Assert.Equal(PlatformRole.PlatformAdmin + "," + PlatformRole.HRAdmin, authorizeAttribute!.Roles);
+        Assert.Equal(PlatformRole.HRAdmin, authorizeAttribute!.Roles);
     }
 }

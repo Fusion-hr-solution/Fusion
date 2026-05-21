@@ -8,7 +8,6 @@ import {
   type UseApiQueryResult,
 } from "@repo/api/query";
 import { useAuth } from "@repo/auth";
-import { useTenantContext } from "@/components/core-tenant-context-provider";
 import { canAccessEmployeeRoster } from "@/lib/employee-roster-access";
 import { normalizeOrgChartQuery, orgChartQueryKeys } from "./org-chart-query-keys";
 import type { EmployeeOrgChartDto, OrgChartQueryParams } from "./org-chart.types";
@@ -19,9 +18,8 @@ export function useOrgChart(
   query?: OrgChartQueryParams
 ): UseApiQueryResult<EmployeeOrgChartDto> {
   const { user, isAuthenticated } = useAuth();
-  const { tenantId } = useTenantContext();
   const client = useMemo(() => createPlatformApiClient(), []);
-  const canAccess = canAccessEmployeeRoster(user) || (!!user?.roles.includes("PlatformAdmin") && !!tenantId);
+  const canAccess = canAccessEmployeeRoster(user);
   const normalizedQuery = normalizeOrgChartQuery(query);
 
   const queryFn = useCallback(
