@@ -6,7 +6,7 @@ import {
   Search, Plus, Eye, Minus, GripVertical, X, Inbox,
   CheckCircle2, BarChart2, Zap, Clock, ChevronLeft,
   ChevronRight, SlidersHorizontal, ArrowLeft, ArrowRight, ListChecks,
-  Filter, Flag, Pencil, MoreHorizontal,
+  Filter, Flag, Pencil, MoreHorizontal, AlertTriangle,
 } from "lucide-react";
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor,
@@ -132,6 +132,7 @@ export function StepQuestions() {
   const [questionLibrary, setQuestionLibrary] = useState<Question[]>([]);
   const [isLoadingLibrary, setIsLoadingLibrary] = useState(true);
   const [libraryError, setLibraryError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const PAGE_SIZE = 8;
   useEffect(() => {
     let isMounted = true;
@@ -403,6 +404,22 @@ export function StepQuestions() {
         {/* ══ Library ══════════════════════════════════════════════ */}
         <div className="min-w-0 flex-1 flex flex-col gap-4">
 
+          {/* delete error banner */}
+          {deleteError ? (
+            <div className="flex items-center gap-2 rounded-xl border border-red-100 bg-red-50 px-3 py-2.5 text-[12px] text-red-600">
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+              <span className="flex-1">{deleteError}</span>
+              <button
+                type="button"
+                onClick={() => setDeleteError(null)}
+                className="shrink-0 rounded p-0.5 hover:bg-red-100 transition-colors duration-150"
+                aria-label="Dismiss error"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ) : null}
+
           {/* result count */}
           <div className="flex items-center justify-between">
             <p className="text-[13px] font-semibold text-zinc-700">
@@ -542,10 +559,20 @@ export function StepQuestions() {
                             </button>
                             <button
                               onClick={() => {
-                                setOpenCardMenuId(null);
-                                setQuestionLibrary((prev) => prev.filter((item) => item.id !== q.id));
-                                removeQuestion(q.id);
-                                void deleteQuestion(q.id);
+                                void (async () => {
+                                  setOpenCardMenuId(null);
+                                  setDeleteError(null);
+                                  const wasSelected = isQuestionSelected(q.id);
+                                  setQuestionLibrary((prev) => prev.filter((item) => item.id !== q.id));
+                                  removeQuestion(q.id);
+                                  try {
+                                    await deleteQuestion(q.id);
+                                  } catch (err) {
+                                    setQuestionLibrary((prev) => [q, ...prev]);
+                                    if (wasSelected) addQuestion(q);
+                                    setDeleteError(err instanceof Error ? err.message : "Failed to delete question. Please try again.");
+                                  }
+                                })();
                               }}
                               className="flex w-full items-center gap-2 px-3 py-2 text-left text-[12px] text-red-600 hover:bg-zinc-50"
                             >
