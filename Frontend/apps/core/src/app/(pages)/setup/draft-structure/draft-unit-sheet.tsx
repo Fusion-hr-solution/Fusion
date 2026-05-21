@@ -92,8 +92,8 @@ export function DraftUnitSheet({
   onMutated,
   onSchemaUpdated,
   readOnly = false,
-  readOnlyDescription = "Review this approved draft unit here. Reopen the draft before making changes.",
-  readOnlyNotice = "Editing is unavailable here. Reopen the draft from Setup before editing or deleting units.",
+  readOnlyDescription = "Review this unit here. Reopen the draft in Setup to make changes.",
+  readOnlyNotice = "This unit is read-only in the current setup phase.",
   schema,
   existingUnits,
 }: DraftUnitSheetProps) {
@@ -264,7 +264,7 @@ export function DraftUnitSheet({
             <SheetDescription>
               {readOnly
                 ? readOnlyDescription
-                : "Update this unit inside the draft organization without touching the live structure immediately."}
+                : "Edit this unit in the draft. Live structure changes only after publish."}
             </SheetDescription>
           </SheetHeader>
 
@@ -415,13 +415,7 @@ export function DraftUnitSheet({
               </div>
 
               <div className="rounded-xl border bg-muted/20 p-4">
-                <div className="mb-4 space-y-1">
-                  <p className="text-sm font-medium">Optional details</p>
-                  <p className="text-sm text-muted-foreground">
-                    Keep the structure clean first. Add these details only when
-                    they are useful right now.
-                  </p>
-                </div>
+                <p className="mb-4 text-sm font-medium">Supporting details</p>
 
                 <div className="space-y-4">
                   <div className="grid gap-2 sm:grid-cols-2">
@@ -479,9 +473,8 @@ export function DraftUnitSheet({
               <div className="rounded-xl border bg-muted/30 p-4 text-sm text-muted-foreground">
                 <p className="font-medium text-foreground">Delete behavior</p>
                 <p className="mt-2">
-                  If this unit has children, delete requires reparenting them or
-                  promoting them to root. Cascade delete is intentionally not
-                  supported.
+                  If this unit has children, choose a new parent or promote them
+                  to root before deleting it.
                 </p>
               </div>
 
@@ -529,8 +522,8 @@ export function DraftUnitSheet({
             <AlertDialogTitle>Delete structure item?</AlertDialogTitle>
             <AlertDialogDescription>
               {childUnits.length > 0
-                ? "Choose how to keep the child branch intact before deleting this item."
-                : "This removes the structure item from the workspace."}
+                ? "Choose how to keep the child branch intact before deleting this unit."
+                : "This removes the unit from the draft workspace."}
             </AlertDialogDescription>
           </AlertDialogHeader>
 

@@ -45,7 +45,7 @@ const ROOT_VALUE = "__root__";
 interface CreateDraftUnitDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreated?: () => void;
+  onCreated?: (unit: DraftOrgUnitDto) => void;
   onSchemaUpdated?: () => void;
   readOnly?: boolean;
   schema: DraftStructureSchemaDto;
@@ -77,6 +77,12 @@ export function CreateDraftUnitDialog({
   const [editableSchema, setEditableSchema] = useState(schema);
   const schemaRef = useRef(schema);
   const editableSchemaRef = useRef(editableSchema);
+  const initialParent =
+    existingUnits.find((unit) => unit.id === initialParentId) ?? null;
+  const dialogTitle = initialParent ? "Add child unit" : "Add top-level unit";
+  const dialogDescription = initialParent
+    ? `Start a new unit under ${initialParent.displayName}. You can still change the parent here.`
+    : "Start a new top-level unit in the draft structure.";
 
   const {
     register,
@@ -120,7 +126,7 @@ export function CreateDraftUnitDialog({
       toast.success(`Unit "${data.displayName}" created`);
       setServerError(null);
       onOpenChange(false);
-      onCreated?.();
+      onCreated?.(data);
     },
   });
 
@@ -170,11 +176,8 @@ export function CreateDraftUnitDialog({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="flex h-[min(90vh,52rem)] max-w-[calc(100%-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
         <DialogHeader className="border-b p-6 pr-14">
-          <DialogTitle>Add unit</DialogTitle>
-          <DialogDescription>
-            Add a new unit under the draft organization without changing the
-            live structure immediately.
-          </DialogDescription>
+          <DialogTitle>{dialogTitle}</DialogTitle>
+          <DialogDescription>{dialogDescription}</DialogDescription>
         </DialogHeader>
 
         <form
@@ -306,13 +309,7 @@ export function CreateDraftUnitDialog({
             </div>
 
             <div className="rounded-xl border bg-muted/20 p-4">
-              <div className="mb-4 space-y-1">
-                <p className="text-sm font-medium">Optional details</p>
-                <p className="text-sm text-muted-foreground">
-                  Keep the first pass focused on the hierarchy. Add these
-                  details only if they help right now.
-                </p>
-              </div>
+              <p className="mb-4 text-sm font-medium">Supporting details</p>
 
               <div className="grid gap-4">
                 <div className="grid gap-2 sm:grid-cols-2">
@@ -341,7 +338,7 @@ export function CreateDraftUnitDialog({
                   <Label htmlFor="draft-description">Description</Label>
                   <Textarea
                     id="draft-description"
-                    placeholder="Optional notes about this unit"
+                    placeholder="Optional notes"
                     rows={3}
                     disabled={readOnly}
                     {...register("description", {

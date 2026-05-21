@@ -4,17 +4,17 @@ import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   AlertCircle,
-  CheckCircle2,
+  Ellipsis,
   FileSpreadsheet,
   FolderTree,
-  LockKeyhole,
+  Search,
+  Settings2,
   Plus,
 } from "lucide-react";
 import {
   ApiError,
   type CoreSetupPhase,
   type DraftOrgUnitDto,
-  type DraftSetupIssueDto,
   type DraftSetupReadinessDto,
   type DraftStructureSchemaDto,
 } from "@repo/api";
@@ -22,29 +22,38 @@ import { canAccessCoreSetup, useAuth } from "@repo/auth";
 import { EmptyState } from "@repo/ui";
 import { toast } from "sonner";
 import { useCoreSetupAccess } from "@/components/core-setup-access";
+import { CorePageLoadingState } from "@/components/core-page-loading-state";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/page-header";
-import { SetupStatusBadge } from "../setup-status-badge";
+import { cn } from "@/lib/utils";
 import {
+  useActivateSetup,
   useApproveStructure,
   useReopenStructure,
   useSetupReadiness,
 } from "../use-setup";
+import { shouldAutoActivateSetup } from "../setup-entry-routing";
 import { CreateDraftUnitDialog } from "./create-draft-unit-dialog";
 import { DraftOrgUnitKindManager } from "./draft-org-unit-kind-manager";
 import { DraftStructureImportPanel } from "./draft-structure-import-panel";
 import { getDraftFieldLabel } from "./draft-structure-labels";
+import {
+  DraftStructureTable,
+  type DraftStructureSortField,
+} from "./draft-structure-table";
 import { DraftStructureTree } from "./draft-structure-tree";
 import {
   buildWorkspaceDraftTree,
@@ -60,6 +69,8 @@ import {
 } from "./use-draft-structure";
 
 const DRAFT_STRUCTURE_EXPORT_FILE_NAME = "draft-structure-export.csv";
+
+type ExplorerView = "tree" | "list";
 
 function formatTimestamp(value: string | null) {
   if (!value) return "No draft changes yet";
@@ -113,6 +124,105 @@ function flattenDraftTreeNodeIds(
     node.id,
     ...flattenDraftTreeNodeIds(node.children),
   ]);
+}
+
+function filterDraftTreeByMatchedIds(
+  nodes: DraftStructureTreeNodeModel[],
+  matchedIds: Set<string>
+): DraftStructureTreeNodeModel[] {
+  return nodes.flatMap((node) => {
+    const filteredChildren = filterDraftTreeByMatchedIds(
+      node.children,
+      matchedIds
+    );
+
+    if (!matchedIds.has(node.id) && filteredChildren.length === 0) {
+      return [];
+    }
+
+    return [
+      {
+        ...node,
+        children: filteredChildren,
+      },
+    ];
+  });
+}
+
+function matchesDraftUnitSearch(unit: DraftOrgUnitDto, searchTerm: string) {
+  const normalizedSearchTerm = searchTerm.trim().toLowerCase();
+
+  if (!normalizedSearchTerm) {
+    return true;
+  }
+
+  return [
+    unit.referenceKey,
+    unit.displayName,
+    unit.orgUnitKindLabel,
+    unit.parentDisplayName ?? "",
+    unit.location ?? "",
+    unit.description ?? "",
+    ...Object.values(unit.attributes).map((value) =>
+      stringifyDraftStructureExportValue(value)
+    ),
+  ]
+    .join(" ")
+    .toLowerCase()
+    .includes(normalizedSearchTerm);
+}
+
+function compareDraftUnits(
+  left: DraftOrgUnitDto,
+  right: DraftOrgUnitDto,
+  sortBy: DraftStructureSortField,
+  sortDirection: "asc" | "desc"
+) {
+  const direction = sortDirection === "asc" ? 1 : -1;
+
+  if (sortBy === "updatedAt") {
+    const leftTimestamp = new Date(left.updatedAt ?? left.createdAt).getTime();
+    const rightTimestamp = new Date(
+      right.updatedAt ?? right.createdAt
+    ).getTime();
+
+    if (leftTimestamp !== rightTimestamp) {
+      return (leftTimestamp - rightTimestamp) * direction;
+    }
+  }
+
+  const getValue = (unit: DraftOrgUnitDto) => {
+    switch (sortBy) {
+      case "referenceKey":
+        return unit.referenceKey;
+      case "displayName":
+        return unit.displayName;
+      case "orgUnitKindLabel":
+        return unit.orgUnitKindLabel;
+      case "parentDisplayName":
+        return unit.parentDisplayName ?? "Organization root";
+      case "location":
+        return unit.location ?? "";
+      case "updatedAt":
+        return formatTimestamp(unit.updatedAt ?? unit.createdAt);
+      default:
+        return "";
+    }
+  };
+
+  const leftValue = getValue(left);
+  const rightValue = getValue(right);
+  const result = leftValue.localeCompare(rightValue, undefined, {
+    sensitivity: "base",
+  });
+
+  if (result !== 0) {
+    return result * direction;
+  }
+
+  return left.referenceKey.localeCompare(right.referenceKey, undefined, {
+    sensitivity: "base",
+  });
 }
 
 function stringifyDraftStructureExportValue(value: unknown) {
@@ -227,17 +337,29 @@ export default function DraftStructurePage() {
   const { user } = useAuth();
   const canAccess = canAccessCoreSetup(user);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [setupEntryError, setSetupEntryError] = useState<string | null>(null);
+  const [hasAttemptedSetupEntry, setHasAttemptedSetupEntry] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [createParentId, setCreateParentId] = useState<string | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
+  const [kindManagerOpen, setKindManagerOpen] = useState(false);
   const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [explorerView, setExplorerView] = useState<ExplorerView>("tree");
+  const [tableSortBy, setTableSortBy] =
+    useState<DraftStructureSortField>("displayName");
+  const [tableSortDirection, setTableSortDirection] = useState<"asc" | "desc">(
+    "asc"
+  );
   const deferredSearch = useDeferredValue(search);
+  const normalizedSearch = deferredSearch.trim();
+  const isSearching = normalizedSearch.length > 0;
 
   const {
     setupState,
     setupError,
     isSetupStateLoading: isSetupLoading,
+    refreshSetupAccess,
   } = useCoreSetupAccess();
   const isSetupComplete =
     setupState?.currentPhase === "structurallyPublished" ||
@@ -246,18 +368,22 @@ export default function DraftStructurePage() {
   const canApproveFromDraft = setupState?.currentPhase === "activated";
   const canReopenFromDraft =
     setupState?.currentPhase === "structurallyGoverned";
+  const shouldStartSetupFromDraft = shouldAutoActivateSetup(
+    setupState?.canStartSetup
+  );
   const pageTitle = !isDraftLocked
     ? "Draft structure"
     : isSetupComplete
       ? "Published structure"
-      : "Organization structure";
+      : canReopenFromDraft
+        ? "Approved structure"
+        : "Structure review";
 
   const workspaceEnabled =
     canAccess && !!setupState && !setupState.canStartSetup;
   const {
     data: readiness,
     error: readinessError,
-    isLoading: isReadinessLoading,
     refetch: refetchReadiness,
   } = useSetupReadiness(workspaceEnabled && canApproveFromDraft);
   const {
@@ -272,6 +398,7 @@ export default function DraftStructurePage() {
     isLoading: isTreeLoading,
     refetch: refetchTree,
   } = useDraftStructureTree(workspaceEnabled);
+  const activateSetup = useActivateSetup();
   const approveStructure = useApproveStructure();
   const reopenStructure = useReopenStructure();
 
@@ -280,9 +407,47 @@ export default function DraftStructurePage() {
     () => flattenDraftTreeNodeIds(draftTree),
     [draftTree]
   );
-  const filteredTree = useMemo(
+  const treeSearchResults = useMemo(
     () => filterDraftTree(draftTree, deferredSearch),
     [deferredSearch, draftTree]
+  );
+  const matchedSearchIds = useMemo(() => {
+    if (!isSearching) {
+      return null;
+    }
+
+    const nextMatchedIds = new Set(flattenDraftTreeNodeIds(treeSearchResults));
+
+    for (const unit of workspace?.units ?? []) {
+      if (matchesDraftUnitSearch(unit, deferredSearch)) {
+        nextMatchedIds.add(unit.id);
+      }
+    }
+
+    return nextMatchedIds;
+  }, [deferredSearch, isSearching, treeSearchResults, workspace?.units]);
+  const filteredTree = useMemo(
+    () =>
+      !isSearching || !matchedSearchIds
+        ? draftTree
+        : filterDraftTreeByMatchedIds(draftTree, matchedSearchIds),
+    [draftTree, isSearching, matchedSearchIds]
+  );
+  const filteredUnits = useMemo(() => {
+    const units = workspace?.units ?? [];
+
+    if (!isSearching || !matchedSearchIds) {
+      return units;
+    }
+
+    return units.filter((unit) => matchedSearchIds.has(unit.id));
+  }, [isSearching, matchedSearchIds, workspace?.units]);
+  const sortedFilteredUnits = useMemo(
+    () =>
+      [...filteredUnits].sort((left, right) =>
+        compareDraftUnits(left, right, tableSortBy, tableSortDirection)
+      ),
+    [filteredUnits, tableSortBy, tableSortDirection]
   );
 
   useEffect(() => {
@@ -308,43 +473,94 @@ export default function DraftStructurePage() {
     setSelectedUnitId(getFirstDraftTreeNodeId(draftTree));
   }, [draftTree, selectedUnitId]);
 
+  useEffect(() => {
+    if (!isSearching) {
+      return;
+    }
+
+    if (filteredUnits.some((unit) => unit.id === selectedUnitId)) {
+      return;
+    }
+
+    setSelectedUnitId(filteredUnits[0]?.id ?? null);
+  }, [filteredUnits, isSearching, selectedUnitId]);
+
+  useEffect(() => {
+    const isEmptyDraftWorkspace = (workspace?.units.length ?? 0) === 0;
+
+    if (!isEmptyDraftWorkspace) {
+      return;
+    }
+
+    setExplorerView("tree");
+    setSearch("");
+  }, [workspace?.units.length]);
+
+  const hasVisibleSelection =
+    !isSearching || filteredUnits.some((unit) => unit.id === selectedUnitId);
+  const effectiveSelectedUnitId = hasVisibleSelection ? selectedUnitId : null;
   const selectedUnit =
-    workspace?.units.find((unit) => unit.id === selectedUnitId) ?? null;
-  const selectedTreeNode = findDraftTreeNodeById(draftTree, selectedUnitId);
+    workspace?.units.find((unit) => unit.id === effectiveSelectedUnitId) ??
+    null;
+  const selectedTreeNode = findDraftTreeNodeById(
+    draftTree,
+    effectiveSelectedUnitId
+  );
   const isImportOpen = searchParams.get("import") === "1";
   const hasImportSession = !!searchParams.get("session");
-  const visibleUnitTypes =
-    workspace?.draftStructureSchema.orgUnitKinds.slice(0, 3) ?? [];
-  const remainingUnitTypeCount = Math.max(
-    (workspace?.draftStructureSchema.orgUnitKinds.length ?? 0) -
-      visibleUnitTypes.length,
-    0
-  );
+  const isEmptyDraftWorkspace = (workspace?.units.length ?? 0) === 0;
+  const unitCount = workspace?.unitCount ?? 0;
+  const topLevelCount = workspace?.rootUnitCount ?? 0;
+  const typeCount = workspace?.draftStructureSchema.orgUnitKinds.length ?? 0;
   const pageDescription = !isDraftLocked
-    ? "Build the structure draft here, review readiness, and approve when it is ready."
+    ? "Build and review the organization hierarchy before approval."
     : canReopenFromDraft
-      ? "This approved draft is ready for review. Reopen it from Setup if another round of changes is needed."
+      ? "Review the approved organization hierarchy."
       : isSetupComplete
-        ? "Use this page as the published structure reference while Setup holds the summary and history."
-        : "Review the structure here while editing is unavailable in the current setup phase.";
+        ? "Reference the published organization hierarchy."
+        : "Review the organization hierarchy.";
   const importReadOnlyTitle = isSetupComplete
     ? "Import is unavailable on the published structure"
     : "Import is unavailable while the structure is locked";
   const importReadOnlyMessage = canReopenFromDraft
-    ? "Reopen the draft from Setup to upload, validate, or apply a structure file."
+    ? "Reopen the draft from Setup to import a file."
     : isSetupComplete
-      ? "Use this page to review the published structure. Start a new setup cycle for structural changes."
-      : "Import becomes available again when the draft returns to an editable state.";
+      ? "Use this page to review the published structure. Start a new setup cycle to change it."
+      : "Import returns when the draft is editable again.";
   const unitReadOnlyDescription = canReopenFromDraft
-    ? "Approved unit. Reopen the draft from Setup to make structural changes."
+    ? "Approved unit. Reopen the draft from Setup to make changes."
     : isSetupComplete
-      ? "Published unit. Use this page as the live structure reference."
-      : "Review this unit while structural editing is unavailable.";
+      ? "Published unit. Use this page as the live reference."
+      : "Review this unit while editing is unavailable.";
   const unitReadOnlyNotice = canReopenFromDraft
-    ? "Structural editing is paused on the approved draft. Reopen it from Setup before editing or deleting units."
+    ? "Editing is paused on the approved structure. Reopen it from Setup to edit or delete units."
     : isSetupComplete
       ? "This view shows the live structure for reference."
-      : "Structural editing is unavailable during the current setup phase.";
+      : "Editing is unavailable in the current setup phase.";
+
+  useEffect(() => {
+    if (!shouldStartSetupFromDraft) {
+      setSetupEntryError(null);
+      setHasAttemptedSetupEntry(false);
+      return;
+    }
+
+    if (!canAccess || hasAttemptedSetupEntry || activateSetup.isLoading) {
+      return;
+    }
+
+    setHasAttemptedSetupEntry(true);
+    setSetupEntryError(null);
+
+    void activateSetup.mutateAsync().catch((error) => {
+      setSetupEntryError(getActionErrorMessage(error));
+    });
+  }, [
+    activateSetup,
+    canAccess,
+    hasAttemptedSetupEntry,
+    shouldStartSetupFromDraft,
+  ]);
 
   useEffect(() => {
     if (!isDraftLocked) {
@@ -355,13 +571,14 @@ export default function DraftStructurePage() {
     setEditorOpen(false);
   }, [isDraftLocked]);
 
-  const refreshWorkspaceAndReadiness = () => {
-    void refetch();
-    void refetchTree();
+  const refreshWorkspaceAndReadiness = async () => {
+    const refreshActions = [refetch(), refetchTree(), refreshSetupAccess()];
 
     if (canApproveFromDraft) {
-      void refetchReadiness();
+      refreshActions.push(refetchReadiness());
     }
+
+    await Promise.allSettled(refreshActions);
   };
 
   const handleDownloadStructureCsv = () => {
@@ -391,6 +608,18 @@ export default function DraftStructurePage() {
     }
   };
 
+  const handleTableSortChange = (field: DraftStructureSortField) => {
+    if (tableSortBy === field) {
+      setTableSortDirection((currentDirection) =>
+        currentDirection === "asc" ? "desc" : "asc"
+      );
+      return;
+    }
+
+    setTableSortBy(field);
+    setTableSortDirection("asc");
+  };
+
   const handleApprove = async () => {
     if (setupState?.version == null) {
       setActionError("The latest setup version is required before approval.");
@@ -403,8 +632,19 @@ export default function DraftStructurePage() {
       await approveStructure.mutateAsync({
         expectedVersion: setupState.version,
       });
+      await refreshWorkspaceAndReadiness();
     } catch (error) {
       setActionError(getActionErrorMessage(error));
+    }
+  };
+
+  const handleRetrySetupEntry = async () => {
+    setSetupEntryError(null);
+
+    try {
+      await activateSetup.mutateAsync();
+    } catch (error) {
+      setSetupEntryError(getActionErrorMessage(error));
     }
   };
 
@@ -420,6 +660,7 @@ export default function DraftStructurePage() {
       await reopenStructure.mutateAsync({
         expectedVersion: setupState.version,
       });
+      await refreshWorkspaceAndReadiness();
     } catch (error) {
       setActionError(getActionErrorMessage(error));
     }
@@ -457,7 +698,7 @@ export default function DraftStructurePage() {
   }
 
   if (isSetupLoading && !setupState) {
-    return <DraftStructurePageSkeleton hasImportSession={hasImportSession} />;
+    return <DraftStructurePageSkeleton />;
   }
 
   if (setupError) {
@@ -477,77 +718,79 @@ export default function DraftStructurePage() {
   }
 
   if (!setupState) {
-    return <DraftStructurePageSkeleton hasImportSession={hasImportSession} />;
+    return <DraftStructurePageSkeleton />;
   }
 
-  if (setupState?.canStartSetup) {
+  if (shouldStartSetupFromDraft && setupEntryError) {
     return (
       <div className="flex flex-col gap-6 p-6">
         <PageHeader
-          title={pageTitle}
-          description="Activate setup to access organization structure."
+          title="Draft structure"
+          description="Setup could not be started automatically."
         />
-        <EmptyState
-          icon={FolderTree}
-          title="Setup has not been activated"
-          description="Organization structure opens after setup is activated."
-          action={{
-            label: "Go to Setup",
-            onClick: () => router.push("/setup"),
-          }}
-        />
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Draft workspace could not be opened</AlertTitle>
+          <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+            <span>{setupEntryError}</span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                void handleRetrySetupEntry();
+              }}
+              disabled={activateSetup.isLoading}
+            >
+              Retry
+            </Button>
+          </AlertDescription>
+        </Alert>
       </div>
     );
   }
 
+  if (shouldStartSetupFromDraft) {
+    return (
+      <CorePageLoadingState
+        title="Draft structure"
+        description="Starting setup and opening the draft workspace."
+        message="Opening draft workspace..."
+        variant="workspace"
+      />
+    );
+  }
+
   if (workspaceEnabled && isWorkspaceLoading && !workspace && !workspaceError) {
-    return <DraftStructurePageSkeleton hasImportSession={hasImportSession} />;
+    return <DraftStructurePageSkeleton />;
   }
 
   const showTreeSkeleton = isTreeLoading && !tree;
+  const showReadOnlyEmptyState =
+    !showTreeSkeleton && isDraftLocked && isEmptyDraftWorkspace;
+  const emptyResultsDescription = `No units match "${normalizedSearch}". Try a different unit name, type, code, or detail.`;
+  const treeEmptyTitle = isSearching
+    ? "No matching units"
+    : !isDraftLocked && isEmptyDraftWorkspace
+      ? "Start the draft structure"
+      : "No units yet";
+  const treeEmptyDescription = isSearching
+    ? emptyResultsDescription
+    : isDraftLocked
+      ? canReopenFromDraft
+        ? "Reopen the draft from Setup to make changes."
+        : "Use this page to review the published structure."
+      : "Import a template or add the first top-level unit.";
+  const listEmptyDescription = isSearching
+    ? emptyResultsDescription
+    : isDraftLocked
+      ? canReopenFromDraft
+        ? "Reopen the draft from Setup to make changes."
+        : "Use this list to review the published structure."
+      : "Import a template or add the first top-level unit.";
 
   return (
-    <div className="flex flex-col gap-6 p-6">
-      <PageHeader
-        title={pageTitle}
-        description={pageDescription}
-        actions={
-          !isDraftLocked ? (
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                variant="outline"
-                onClick={() => handleImportOpenChange(true)}
-              >
-                <FileSpreadsheet className="size-4" />
-                {hasImportSession ? "Resume Import" : "Import from Template"}
-              </Button>
-              <Button
-                onClick={() => {
-                  setCreateParentId(null);
-                  setCreateOpen(true);
-                }}
-                disabled={isWorkspaceLoading}
-              >
-                <Plus className="size-4" />
-                Add Top-Level Unit
-              </Button>
-            </div>
-          ) : isSetupComplete ? (
-            <div className="flex flex-wrap items-center gap-2">
-              <Button onClick={() => router.push("/setup")}>
-                Open Setup Summary
-              </Button>
-              <Button variant="outline" onClick={() => router.push("/")}>
-                Open Dashboard
-              </Button>
-            </div>
-          ) : (
-            <Button variant="outline" onClick={() => router.push("/setup")}>
-              Open Setup
-            </Button>
-          )
-        }
-      />
+    <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-6 p-6">
+      <PageHeader title={pageTitle} description={pageDescription} />
 
       {(workspaceError || treeError) && (
         <Alert variant="destructive">
@@ -558,7 +801,9 @@ export default function DraftStructurePage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={refreshWorkspaceAndReadiness}
+              onClick={() => {
+                void refreshWorkspaceAndReadiness();
+              }}
             >
               Retry
             </Button>
@@ -574,397 +819,109 @@ export default function DraftStructurePage() {
         </Alert>
       ) : null}
 
-      {isDraftLocked && !isSetupComplete ? (
-        <Alert>
-          <LockKeyhole className="h-4 w-4" />
-          <AlertTitle>Draft is locked</AlertTitle>
-          <AlertDescription>
-            {canReopenFromDraft
-              ? "Reopen the draft from Setup to add, edit, or import units."
-              : "This structure is locked during the current setup phase."}
-          </AlertDescription>
-        </Alert>
-      ) : null}
+      {(!isEmptyDraftWorkspace || isDraftLocked) && (
+        <DraftStructureStatusBar
+          phase={setupState.currentPhase}
+          isDraftLocked={isDraftLocked}
+          isSetupComplete={isSetupComplete}
+          canReopenFromDraft={canReopenFromDraft}
+          isDraftEmpty={isEmptyDraftWorkspace}
+          unitCount={unitCount}
+          topLevelCount={topLevelCount}
+          typeCount={typeCount}
+          readiness={readiness}
+          readinessError={readinessError?.message ?? null}
+          approvedAt={setupState.approvedAt}
+          approvedByFullName={setupState.approvedByFullName}
+          approvedByRole={setupState.approvedByRole}
+          isApprovedInPlatformAssistMode={
+            setupState.isApprovedInPlatformAssistMode
+          }
+          updatedAt={workspace?.lastModifiedAt ?? null}
+          onApprove={() => {
+            void handleApprove();
+          }}
+          onReopen={() => {
+            void handleReopen();
+          }}
+          onOpenSetup={() => router.push("/setup")}
+          onRetryReadiness={() => {
+            void refetchReadiness();
+          }}
+          isApproving={approveStructure.isLoading}
+          isReopening={reopenStructure.isLoading}
+        />
+      )}
 
-      <DraftGovernanceCard
-        phase={setupState.currentPhase}
-        readiness={readiness}
-        readinessError={readinessError?.message ?? null}
-        isReadinessLoading={isReadinessLoading}
-        approvedAt={setupState.approvedAt}
-        approvedByFullName={setupState.approvedByFullName}
-        approvedByRole={setupState.approvedByRole}
-        isApprovedInPlatformAssistMode={
-          setupState.isApprovedInPlatformAssistMode
+      {showReadOnlyEmptyState ? (
+        <DraftStructureReferenceEmptyState
+          isSetupComplete={isSetupComplete}
+          canReopenFromDraft={canReopenFromDraft}
+        />
+      ) : showTreeSkeleton ? (
+        <DraftStructureWorkbenchSkeleton />
+      ) : (
+        <DraftStructureWorkbench
+          view={explorerView}
+          onViewChange={(value) => setExplorerView(value)}
+          search={search}
+          onSearchChange={setSearch}
+          isSearching={isSearching}
+          isEmptyDraft={isEmptyDraftWorkspace}
+          resultCount={filteredUnits.length}
+          totalUnitCount={unitCount}
+          isDraftLocked={isDraftLocked}
+          typeCount={typeCount}
+          schema={
+            workspace?.draftStructureSchema ?? {
+              orgUnitKinds: [],
+              attributes: [],
+            }
+          }
+          hasImportSession={hasImportSession}
+          nodes={filteredTree}
+          units={sortedFilteredUnits}
+          selectedUnitId={effectiveSelectedUnitId}
+          selectedUnit={selectedUnit}
+          selectedTreeNode={selectedTreeNode}
+          treeEmptyTitle={treeEmptyTitle}
+          treeEmptyDescription={treeEmptyDescription}
+          listEmptyDescription={listEmptyDescription}
+          sortBy={tableSortBy}
+          sortDirection={tableSortDirection}
+          onSortChange={handleTableSortChange}
+          onSelectUnit={(unitId) => setSelectedUnitId(unitId)}
+          onDownloadCsv={handleDownloadStructureCsv}
+          onManageTypes={() => setKindManagerOpen(true)}
+          onImport={() => handleImportOpenChange(true)}
+          onAddRoot={() => {
+            setCreateParentId(null);
+            setCreateOpen(true);
+          }}
+          onAddChild={(unitId) => {
+            setSelectedUnitId(unitId);
+            setCreateParentId(unitId);
+            setCreateOpen(true);
+          }}
+          onEditSelected={() => setEditorOpen(true)}
+        />
+      )}
+
+      <DraftOrgUnitKindManager
+        open={kindManagerOpen}
+        onOpenChange={setKindManagerOpen}
+        hideTrigger
+        schema={
+          workspace?.draftStructureSchema ?? {
+            orgUnitKinds: [],
+            attributes: [],
+          }
         }
-        onApprove={() => {
-          void handleApprove();
+        existingUnits={workspace?.units ?? []}
+        onSchemaUpdated={() => {
+          void refreshWorkspaceAndReadiness();
         }}
-        onReopen={() => {
-          void handleReopen();
-        }}
-        onOpenSetup={() => router.push("/setup")}
-        onRetryReadiness={() => {
-          void refetchReadiness();
-        }}
-        isApproving={approveStructure.isLoading}
-        isReopening={reopenStructure.isLoading}
       />
-
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardHeader>
-            <CardDescription>Planning status</CardDescription>
-            <CardTitle>
-              {isSetupComplete
-                ? "Complete"
-                : isDraftLocked
-                  ? "Locked"
-                  : workspace?.workspaceStatus === "empty"
-                    ? "Empty"
-                    : "In Progress"}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
-            {isSetupComplete
-              ? "Published structure."
-              : isDraftLocked
-                ? "Review only."
-                : "Build and review the draft here."}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardDescription>Units planned</CardDescription>
-            <CardTitle>{workspace?.unitCount ?? 0}</CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
-            Top-level units: {workspace?.rootUnitCount ?? 0}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardDescription>Last modified</CardDescription>
-            <CardTitle className="text-base font-medium">
-              {formatTimestamp(workspace?.lastModifiedAt ?? null)}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
-            {isSetupComplete ? "Snapshot from completed setup." : "Draft only."}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardDescription>Unit types available</CardDescription>
-            <CardTitle>
-              {workspace?.draftStructureSchema.orgUnitKinds.length ?? 0}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm text-muted-foreground">
-            <p>
-              Attributes:{" "}
-              {workspace?.draftStructureSchema.attributes.length ?? 0}
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {visibleUnitTypes.map((kind) => (
-                <Badge key={kind.key} variant="secondary">
-                  {kind.displayLabel}
-                </Badge>
-              ))}
-              {remainingUnitTypeCount > 0 ? (
-                <Badge variant="outline">+{remainingUnitTypeCount} more</Badge>
-              ) : null}
-            </div>
-            {!isDraftLocked ? (
-              <DraftOrgUnitKindManager
-                schema={
-                  workspace?.draftStructureSchema ?? {
-                    orgUnitKinds: [],
-                    attributes: [],
-                  }
-                }
-                existingUnits={workspace?.units ?? []}
-                disabled={!workspace}
-              />
-            ) : null}
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(22rem,0.8fr)] xl:items-start">
-        <div className="grid gap-4 xl:min-h-184 xl:grid-rows-[auto_minmax(0,1fr)]">
-          <div className="rounded-xl border p-4">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div>
-                <p className="text-sm font-medium">Structure tree</p>
-                <p className="text-sm text-muted-foreground">
-                  {!isDraftLocked
-                    ? "Search, review, and edit the draft tree."
-                    : canReopenFromDraft
-                      ? "Search and review the approved draft tree."
-                      : "Search and review the published structure."}
-                </p>
-              </div>
-              <Input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search unit name, type, code, or details"
-                className="md:max-w-sm"
-              />
-            </div>
-          </div>
-
-          {showTreeSkeleton ? (
-            <DraftStructureTreeSkeleton />
-          ) : (
-            <div className="min-h-0">
-              <DraftStructureTree
-                nodes={filteredTree}
-                selectedId={selectedUnitId}
-                onSelect={(node) => setSelectedUnitId(node.id)}
-                emptyTitle="No draft units yet"
-                emptyDescription={
-                  isDraftLocked
-                    ? canReopenFromDraft
-                      ? "The approved structure is locked. Reopen it from Setup if organizational changes are needed."
-                      : "This page keeps the published structure available for read-only review."
-                    : "Add the first top-level unit or start with a template import to build the planned organization tree."
-                }
-                readOnly={isDraftLocked}
-                onDownloadCsv={handleDownloadStructureCsv}
-                isDownloadDisabled={(workspace?.units.length ?? 0) === 0}
-                onAddRoot={() => {
-                  setCreateParentId(null);
-                  setCreateOpen(true);
-                }}
-                onAddChild={(node) => {
-                  setSelectedUnitId(node.id);
-                  setCreateParentId(node.id);
-                  setCreateOpen(true);
-                }}
-              />
-            </div>
-          )}
-        </div>
-
-        <Card className="overflow-hidden xl:sticky xl:top-6 xl:max-h-[calc(100vh-3rem)]">
-          {showTreeSkeleton ? (
-            <DraftStructureDetailSkeleton />
-          ) : selectedUnit && selectedTreeNode ? (
-            <div className="flex min-h-136 flex-col xl:min-h-0 xl:h-full">
-              <CardHeader className="shrink-0 border-b">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="secondary">
-                    {selectedUnit.orgUnitKindLabel}
-                  </Badge>
-                  {selectedTreeNode.isOrphaned ? (
-                    <Badge variant="outline">Parent missing</Badge>
-                  ) : null}
-                </div>
-                <CardTitle className="mt-2">
-                  {selectedUnit.displayName}
-                </CardTitle>
-                <CardDescription>
-                  {!isDraftLocked
-                    ? "Review the main fields here, then edit or add a child."
-                    : canReopenFromDraft
-                      ? "Review the unit here. Reopen the draft from Setup before making structural changes."
-                      : "Review the fields here as part of the live structure reference."}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="min-h-0 flex-1 space-y-6 overflow-y-auto p-6">
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <SummaryField
-                    label="Unit Name"
-                    value={selectedUnit.displayName}
-                  />
-                  <SummaryField
-                    label="Unit Type"
-                    value={selectedUnit.orgUnitKindLabel}
-                  />
-                  <SummaryField
-                    label="Unit Code"
-                    value={selectedUnit.referenceKey}
-                    mono
-                  />
-                  <SummaryField
-                    label="Parent Unit"
-                    value={
-                      selectedUnit.parentDisplayName ?? "Organization root"
-                    }
-                  />
-                </div>
-
-                <div className="rounded-xl border bg-muted/20 p-4">
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium">Optional details</p>
-                    <p className="text-sm text-muted-foreground">
-                      Keep these secondary unless they are useful for the first
-                      pass.
-                    </p>
-                  </div>
-
-                  <div className="mt-4 grid gap-3">
-                    <SummaryField
-                      label="Location"
-                      value={selectedUnit.location ?? "Not set"}
-                    />
-                    <SummaryField
-                      label="Description"
-                      value={selectedUnit.description ?? "Not set"}
-                    />
-                  </div>
-                </div>
-
-                {Object.keys(selectedUnit.attributes).length > 0 ? (
-                  <div className="rounded-xl border p-4">
-                    <p className="text-sm font-medium">Additional fields</p>
-                    <div className="mt-4 grid gap-3">
-                      {Object.entries(selectedUnit.attributes).map(
-                        ([key, value]) => (
-                          <SummaryField
-                            key={key}
-                            label={getDraftFieldLabel(
-                              key,
-                              workspace?.draftStructureSchema
-                            )}
-                            value={formatAttributeValue(value)}
-                          />
-                        )
-                      )}
-                    </div>
-                  </div>
-                ) : null}
-
-                <div className="text-xs text-muted-foreground">
-                  Last updated{" "}
-                  {formatTimestamp(
-                    selectedUnit.updatedAt ?? selectedUnit.createdAt
-                  )}
-                </div>
-              </CardContent>
-              <div className="shrink-0 border-t bg-background/95 p-4 pb-0 supports-backdrop-filter:bg-background/85 supports-backdrop-filter:backdrop-blur">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                    Actions
-                  </p>
-                  {isDraftLocked ? (
-                    canReopenFromDraft ? (
-                      <div className="flex flex-wrap gap-2">
-                        <Button
-                          variant="outline"
-                          onClick={() => {
-                            void handleReopen();
-                          }}
-                          disabled={reopenStructure.isLoading}
-                        >
-                          Reopen draft
-                        </Button>
-                        <Button
-                          variant="outline"
-                          onClick={() => router.push("/setup")}
-                        >
-                          Open Setup
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="flex flex-wrap gap-2">
-                        <Button onClick={() => router.push("/setup")}>
-                          Open Setup Summary
-                        </Button>
-                        <Button
-                          variant="outline"
-                          onClick={() => router.push("/")}
-                        >
-                          Open Dashboard
-                        </Button>
-                      </div>
-                    )
-                  ) : (
-                    <div className="flex flex-wrap gap-2">
-                      <Button onClick={() => setEditorOpen(true)}>
-                        Edit unit
-                      </Button>
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          setCreateParentId(selectedUnit.id);
-                          setCreateOpen(true);
-                        }}
-                      >
-                        <Plus className="size-4" />
-                        Add child unit
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="flex min-h-136 flex-col justify-center gap-4 p-8 text-center xl:min-h-0 xl:h-full">
-              <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                <FolderTree className="size-5" />
-              </div>
-              <div className="space-y-1">
-                <p className="font-medium">Select a unit</p>
-                <p className="text-sm text-muted-foreground">
-                  {!isDraftLocked
-                    ? "Choose a unit from the tree to inspect it, edit its details, or add a child underneath it."
-                    : canReopenFromDraft
-                      ? "Choose a unit from the tree to inspect the approved draft."
-                      : "Choose a unit from the tree to inspect the published structure."}
-                </p>
-              </div>
-              <div className="flex justify-center">
-                {isDraftLocked ? (
-                  canReopenFromDraft ? (
-                    <div className="flex flex-wrap justify-center gap-2">
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          void handleReopen();
-                        }}
-                        disabled={reopenStructure.isLoading}
-                      >
-                        Reopen draft
-                      </Button>
-                      <Button
-                        variant="outline"
-                        onClick={() => router.push("/setup")}
-                      >
-                        Open Setup
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="flex flex-wrap justify-center gap-2">
-                      <Button onClick={() => router.push("/setup")}>
-                        Open Setup Summary
-                      </Button>
-                      <Button
-                        variant="outline"
-                        onClick={() => router.push("/")}
-                      >
-                        Open Dashboard
-                      </Button>
-                    </div>
-                  )
-                ) : (
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setCreateParentId(null);
-                      setCreateOpen(true);
-                    }}
-                  >
-                    <Plus className="size-4" />
-                    Add top-level unit
-                  </Button>
-                )}
-              </div>
-            </div>
-          )}
-        </Card>
-      </div>
 
       <CreateDraftUnitDialog
         open={createOpen}
@@ -974,8 +931,14 @@ export default function DraftStructurePage() {
             setCreateParentId(null);
           }
         }}
-        onCreated={() => {
+        onCreated={(unit) => {
           setCreateParentId(null);
+          setSearch("");
+          setSelectedUnitId(unit.id);
+          void refreshWorkspaceAndReadiness();
+        }}
+        onSchemaUpdated={() => {
+          void refreshWorkspaceAndReadiness();
         }}
         initialParentId={createParentId}
         readOnly={isDraftLocked}
@@ -991,6 +954,11 @@ export default function DraftStructurePage() {
       <DraftStructureImportPanel
         open={isImportOpen}
         onOpenChange={handleImportOpenChange}
+        onApplied={async () => {
+          setSelectedUnitId(null);
+          setSearch("");
+          await refreshWorkspaceAndReadiness();
+        }}
         readOnly={isDraftLocked}
         readOnlyTitle={importReadOnlyTitle}
         readOnlyMessage={importReadOnlyMessage}
@@ -1010,28 +978,71 @@ export default function DraftStructurePage() {
           }
         }
         existingUnits={workspace?.units ?? []}
+        onMutated={() => {
+          void refreshWorkspaceAndReadiness();
+        }}
+        onSchemaUpdated={() => {
+          void refreshWorkspaceAndReadiness();
+        }}
       />
     </div>
   );
 }
 
-function SummaryField({
+function InspectorField({
   label,
   value,
   mono = false,
+  muted = false,
 }: {
   label: string;
   value: string;
   mono?: boolean;
+  muted?: boolean;
 }) {
   return (
-    <div className="rounded-xl border bg-background p-3">
-      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+    <div className="space-y-1 border-b pb-3 last:border-b-0 last:pb-0">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
         {label}
       </p>
-      <p className={mono ? "mt-1 font-mono text-sm" : "mt-1 text-sm"}>
+      <p
+        className={cn(
+          "text-sm leading-6 text-foreground",
+          mono ? "font-mono" : "",
+          muted ? "text-muted-foreground" : ""
+        )}
+      >
         {value}
       </p>
+    </div>
+  );
+}
+
+function WorkspaceSummaryPill({
+  label,
+  value,
+  tone = "default",
+}: {
+  label: string;
+  value: string;
+  tone?: "default" | "warning" | "danger";
+}) {
+  const toneClass =
+    tone === "danger"
+      ? "border-destructive/20 bg-destructive/5 text-destructive"
+      : tone === "warning"
+        ? "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-300"
+        : "border-border bg-background text-muted-foreground";
+
+  return (
+    <div
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs",
+        toneClass
+      )}
+    >
+      <span className="font-medium text-foreground">{value}</span>
+      <span>{label}</span>
     </div>
   );
 }
@@ -1054,15 +1065,22 @@ function formatRoleLabel(
   }
 }
 
-function DraftGovernanceCard({
+function DraftStructureStatusBar({
   phase,
+  isDraftLocked,
+  isSetupComplete,
+  canReopenFromDraft,
+  isDraftEmpty,
+  unitCount,
+  topLevelCount,
+  typeCount,
   readiness,
   readinessError,
-  isReadinessLoading,
   approvedAt,
   approvedByFullName,
   approvedByRole,
   isApprovedInPlatformAssistMode,
+  updatedAt,
   onApprove,
   onReopen,
   onOpenSetup,
@@ -1071,13 +1089,20 @@ function DraftGovernanceCard({
   isReopening,
 }: {
   phase: CoreSetupPhase;
+  isDraftLocked: boolean;
+  isSetupComplete: boolean;
+  canReopenFromDraft: boolean;
+  isDraftEmpty: boolean;
+  unitCount: number;
+  topLevelCount: number;
+  typeCount: number;
   readiness: DraftSetupReadinessDto | undefined;
   readinessError: string | null;
-  isReadinessLoading: boolean;
   approvedAt: string | null;
   approvedByFullName: string | null;
   approvedByRole: string | null;
   isApprovedInPlatformAssistMode: boolean;
+  updatedAt: string | null;
   onApprove: () => void;
   onReopen: () => void;
   onOpenSetup: () => void;
@@ -1085,277 +1110,477 @@ function DraftGovernanceCard({
   isApproving: boolean;
   isReopening: boolean;
 }) {
-  if (phase === "activated") {
-    const isReadyForApproval = readiness?.isReadyForApproval ?? false;
-    const isDraftEmpty = (readiness?.totalUnitCount ?? 0) === 0;
-
-    return (
-      <Card className="overflow-hidden">
-        <CardHeader className="border-b bg-muted/20">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="space-y-3">
-              <SetupStatusBadge status="activated" />
-              <div className="space-y-1">
-                <CardTitle>
-                  Finish the draft here and lock it when ready
-                </CardTitle>
-                <CardDescription>
-                  The same person can draft, check readiness, and approve from
-                  this flow. Use Setup when you want the broader milestone view.
-                </CardDescription>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" onClick={onOpenSetup}>
-                Open Setup
-              </Button>
-              <Button
-                onClick={onApprove}
-                disabled={
-                  isReadinessLoading || !isReadyForApproval || isApproving
-                }
-              >
-                Approve and lock draft
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-
-        <CardContent className="space-y-4 p-6">
-          {isReadinessLoading && !readiness ? (
-            <div className="grid gap-3 md:grid-cols-3">
-              {Array.from({ length: 3 }).map((_, index) => (
-                <div key={index} className="rounded-xl border p-4">
-                  <Skeleton className="h-3 w-20" />
-                  <Skeleton className="mt-3 h-7 w-16" />
-                  <Skeleton className="mt-2 h-4 w-full" />
-                </div>
-              ))}
-            </div>
-          ) : null}
-
-          {readinessError ? (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Readiness could not be checked</AlertTitle>
-              <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
-                <span>{readinessError}</span>
-                <Button variant="outline" size="sm" onClick={onRetryReadiness}>
-                  Retry
-                </Button>
-              </AlertDescription>
-            </Alert>
-          ) : null}
-
-          {readiness ? (
-            <>
-              <div className="grid gap-3 md:grid-cols-3">
-                <ReadinessStat
-                  label="Units planned"
-                  value={String(readiness.totalUnitCount)}
-                  hint={`${readiness.rootUnitCount} top-level units`}
-                />
-                <ReadinessStat
-                  label="Blocking issues"
-                  value={String(
-                    isDraftEmpty ? 0 : readiness.blockingIssueCount
-                  )}
-                  hint={
-                    isDraftEmpty
-                      ? "Shown after the draft takes shape"
-                      : readiness.blockingIssueCount === 0
-                        ? "Ready to approve"
-                        : "Clear these first"
-                  }
-                />
-                <ReadinessStat
-                  label="Warnings"
-                  value={String(isDraftEmpty ? 0 : readiness.warningCount)}
-                  hint={
-                    isDraftEmpty
-                      ? "Shown after the draft takes shape"
-                      : readiness.warningCount === 0
-                        ? "No open warnings"
-                        : "Review before approval"
-                  }
-                />
-              </div>
-
-              {isDraftEmpty ? (
-                <div className="rounded-xl border bg-muted/20 p-4 text-sm text-muted-foreground">
-                  Add the first unit or import the structure template to start
-                  the approval checks.
-                </div>
-              ) : readiness.blockingIssues.length === 0 &&
-                readiness.warnings.length === 0 ? (
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 p-4 text-sm text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/20 dark:text-emerald-200">
-                  <div className="flex items-center gap-2 font-medium">
-                    <CheckCircle2 className="size-4" />
-                    Draft is ready to approve
-                  </div>
-                  <p className="mt-2 text-emerald-800 dark:text-emerald-300">
-                    Lock it when this first pass is ready to hand off to the
-                    publish step.
-                  </p>
-                </div>
-              ) : null}
-
-              <div className="grid gap-3 lg:grid-cols-2">
-                {readiness.blockingIssues.length > 0 ? (
-                  <IssuePreviewList
-                    title="Blocking issues"
-                    issues={readiness.blockingIssues}
-                    tone="blocking"
-                  />
-                ) : null}
-
-                {readiness.warnings.length > 0 ? (
-                  <IssuePreviewList
-                    title="Warnings"
-                    issues={readiness.warnings}
-                    tone="warning"
-                  />
-                ) : null}
-              </div>
-            </>
-          ) : null}
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (phase === "structurallyGoverned") {
-    return (
-      <Card className="overflow-hidden">
-        <CardHeader className="border-b bg-muted/20">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="space-y-3">
-              <SetupStatusBadge status="structurallyGoverned" />
-              <div className="space-y-1">
-                <CardTitle>Draft approved and locked</CardTitle>
-                <CardDescription>
-                  The draft is frozen after approval. Reopen it only if more
-                  changes are needed before publish.
-                </CardDescription>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" onClick={onOpenSetup}>
-                Open Setup
-              </Button>
-              <Button
-                variant="outline"
-                onClick={onReopen}
-                disabled={isReopening}
-              >
-                Reopen draft
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-
-        <CardContent className="grid gap-3 p-6 md:grid-cols-3">
-          <ReadinessStat
-            label="Approved"
-            value={formatTimestamp(approvedAt)}
-            hint="Current approval time"
-          />
-          <ReadinessStat
-            label="Approved by"
-            value={approvedByFullName ?? "Not recorded"}
-            hint={formatRoleLabel(approvedByRole)}
-          />
-          <ReadinessStat
-            label="Approval mode"
-            value={isApprovedInPlatformAssistMode ? "Assisted" : "Standard"}
-            hint="Reopen if the draft needs changes"
-          />
-        </CardContent>
-      </Card>
-    );
-  }
+  const isReadyForApproval = readiness?.isReadyForApproval ?? false;
+  const blockingIssueCount = readiness?.blockingIssueCount ?? 0;
+  const warningCount = readiness?.warningCount ?? 0;
+  const statusLabel = !isDraftLocked
+    ? isDraftEmpty
+      ? "Draft empty"
+      : isReadyForApproval
+        ? "Ready to approve"
+        : "Draft active"
+    : canReopenFromDraft
+      ? "Approved structure"
+      : isSetupComplete
+        ? "Published structure"
+        : "Structure review";
+  const statusVariant =
+    !isDraftLocked && !isDraftEmpty && isReadyForApproval
+      ? "secondary"
+      : !isDraftLocked && blockingIssueCount > 0
+        ? "destructive"
+        : "outline";
+  const note = !isDraftLocked
+    ? readinessError
+      ? "Readiness could not be checked."
+      : isDraftEmpty
+        ? "Import a template or add the first top-level unit."
+        : blockingIssueCount > 0
+          ? "Resolve blockers before approval."
+          : warningCount > 0
+            ? "Review warnings before approval."
+            : isReadyForApproval
+              ? "Draft is ready for approval."
+              : null
+    : canReopenFromDraft
+      ? approvedAt
+        ? `Approved ${formatTimestamp(approvedAt)}${approvedByFullName ? ` by ${approvedByFullName}` : ""}.`
+        : "Approved structure."
+      : isSetupComplete
+        ? "Reference only."
+        : "Review only.";
+  const updatedLabel =
+    updatedAt && !canReopenFromDraft
+      ? `${isSetupComplete ? "Published" : "Updated"} ${formatTimestamp(updatedAt)}`
+      : null;
 
   return (
     <Card className="overflow-hidden">
-      <CardHeader className="border-b bg-muted/20">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div className="space-y-3">
-            <SetupStatusBadge status={phase} />
-            <div className="space-y-1">
-              <CardTitle>Published structure</CardTitle>
-              <CardDescription>
-                This page keeps the live structure available for reference.
-                Use Setup for the completion summary and history.
-              </CardDescription>
-            </div>
+      <CardContent className="flex flex-col gap-4 p-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0 flex-1 space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant={statusVariant}>{statusLabel}</Badge>
+            <WorkspaceSummaryPill label="units" value={String(unitCount)} />
+            <WorkspaceSummaryPill
+              label="top-level"
+              value={String(topLevelCount)}
+            />
+            <WorkspaceSummaryPill label="types" value={String(typeCount)} />
+            {!isDraftEmpty && blockingIssueCount > 0 ? (
+              <WorkspaceSummaryPill
+                label="blockers"
+                value={String(blockingIssueCount)}
+                tone="danger"
+              />
+            ) : null}
+            {!isDraftEmpty && warningCount > 0 ? (
+              <WorkspaceSummaryPill
+                label="warnings"
+                value={String(warningCount)}
+                tone="warning"
+              />
+            ) : null}
+            {canReopenFromDraft ? (
+              <WorkspaceSummaryPill
+                label="mode"
+                value={isApprovedInPlatformAssistMode ? "Assisted" : "Standard"}
+              />
+            ) : null}
           </div>
 
-          <Button variant="outline" onClick={onOpenSetup}>
-            Open Setup Summary
-          </Button>
+          {(note || updatedLabel || readinessError) && (
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+              {note ? <span>{note}</span> : null}
+              {updatedLabel ? <span>{updatedLabel}</span> : null}
+              {canReopenFromDraft && approvedByRole ? (
+                <span>{formatRoleLabel(approvedByRole)}</span>
+              ) : null}
+              {readinessError && phase === "activated" ? (
+                <Button variant="ghost" size="sm" onClick={onRetryReadiness}>
+                  Retry readiness
+                </Button>
+              ) : null}
+            </div>
+          )}
         </div>
-      </CardHeader>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {!isDraftLocked && !isDraftEmpty && isReadyForApproval ? (
+            <Button onClick={onApprove} disabled={isApproving}>
+              Approve draft
+            </Button>
+          ) : null}
+
+          {canReopenFromDraft ? (
+            <>
+              <Button onClick={onReopen} disabled={isReopening}>
+                Reopen draft
+              </Button>
+              <Button variant="outline" onClick={onOpenSetup}>
+                Open setup
+              </Button>
+            </>
+          ) : null}
+
+          {isSetupComplete ? (
+            <Button variant="outline" onClick={onOpenSetup}>
+              Open setup
+            </Button>
+          ) : null}
+        </div>
+      </CardContent>
     </Card>
   );
 }
 
-function ReadinessStat({
-  label,
-  value,
-  hint,
+function DraftStructureReferenceEmptyState({
+  isSetupComplete,
+  canReopenFromDraft,
 }: {
-  label: string;
-  value: string;
-  hint: string;
+  isSetupComplete: boolean;
+  canReopenFromDraft: boolean;
 }) {
   return (
-    <div className="rounded-xl border bg-background p-4">
-      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-        {label}
-      </p>
-      <p className="mt-2 text-lg font-semibold leading-tight">{value}</p>
-      <p className="mt-2 text-sm text-muted-foreground">{hint}</p>
-    </div>
+    <Card>
+      <CardContent className="flex flex-col items-center gap-4 px-6 py-14 text-center">
+        <div className="flex size-12 items-center justify-center rounded-full border bg-muted/10 text-muted-foreground">
+          <FolderTree className="size-5" />
+        </div>
+        <div className="space-y-1">
+          <p className="font-medium">
+            {isSetupComplete ? "No published units" : "No approved units"}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            {canReopenFromDraft
+              ? "The approved structure does not contain any units yet."
+              : "The published structure does not contain any units yet."}
+          </p>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
-function IssuePreviewList({
-  title,
-  issues,
-  tone,
+function DraftStructureWorkbench({
+  view,
+  onViewChange,
+  search,
+  onSearchChange,
+  isSearching,
+  isEmptyDraft,
+  resultCount,
+  totalUnitCount,
+  isDraftLocked,
+  typeCount,
+  schema,
+  hasImportSession,
+  nodes,
+  units,
+  selectedUnitId,
+  selectedUnit,
+  selectedTreeNode,
+  treeEmptyTitle,
+  treeEmptyDescription,
+  listEmptyDescription,
+  sortBy,
+  sortDirection,
+  onSortChange,
+  onSelectUnit,
+  onDownloadCsv,
+  onManageTypes,
+  onImport,
+  onAddRoot,
+  onAddChild,
+  onEditSelected,
 }: {
-  title: string;
-  issues: DraftSetupIssueDto[];
-  tone: "blocking" | "warning";
+  view: ExplorerView;
+  onViewChange: (view: ExplorerView) => void;
+  search: string;
+  onSearchChange: (value: string) => void;
+  isSearching: boolean;
+  isEmptyDraft: boolean;
+  resultCount: number;
+  totalUnitCount: number;
+  isDraftLocked: boolean;
+  typeCount: number;
+  schema: DraftStructureSchemaDto;
+  hasImportSession: boolean;
+  nodes: DraftStructureTreeNodeModel[];
+  units: DraftOrgUnitDto[];
+  selectedUnitId: string | null;
+  selectedUnit: DraftOrgUnitDto | null;
+  selectedTreeNode: DraftStructureTreeNodeModel | null;
+  treeEmptyTitle: string;
+  treeEmptyDescription: string;
+  listEmptyDescription: string;
+  sortBy: DraftStructureSortField;
+  sortDirection: "asc" | "desc";
+  onSortChange: (field: DraftStructureSortField) => void;
+  onSelectUnit: (unitId: string) => void;
+  onDownloadCsv: () => void;
+  onManageTypes: () => void;
+  onImport: () => void;
+  onAddRoot: () => void;
+  onAddChild: (unitId: string) => void;
+  onEditSelected: () => void;
 }) {
-  const previewItems = issues.slice(0, 3);
-  const containerClass =
-    tone === "blocking"
-      ? "border-destructive/25 bg-destructive/5"
-      : "border-border bg-muted/20";
+  const primaryAddLabel = isEmptyDraft
+    ? "Add first unit"
+    : "Add top-level unit";
 
   return (
-    <div className={`rounded-xl border p-4 ${containerClass}`}>
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-sm font-medium">{title}</p>
-        <Badge variant="outline">{issues.length}</Badge>
-      </div>
-      <div className="mt-3 space-y-2 text-sm text-muted-foreground">
-        {previewItems.map((issue) => (
-          <div
-            key={`${issue.code}-${issue.unitId ?? "global"}-${issue.field ?? "none"}`}
-          >
-            {issue.message}
+    <Tabs
+      value={view}
+      onValueChange={(value) => onViewChange(value as ExplorerView)}
+      className="gap-0"
+    >
+      <Card className="overflow-hidden">
+        <CardContent className="space-y-3 border-b p-4">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="relative min-w-0 flex-1 sm:max-w-md">
+                <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={search}
+                  onChange={(event) => onSearchChange(event.target.value)}
+                  placeholder="Search unit name, type, code, or details"
+                  className="pl-9"
+                  disabled={isEmptyDraft}
+                />
+              </div>
+
+              <TabsList className="grid w-full grid-cols-2 sm:w-[180px]">
+                <TabsTrigger value="tree">Tree</TabsTrigger>
+                <TabsTrigger value="list" disabled={isEmptyDraft}>
+                  List
+                </TabsTrigger>
+              </TabsList>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              {!isDraftLocked ? (
+                <>
+                  <Button onClick={onImport}>
+                    <FileSpreadsheet className="size-4" />
+                    {hasImportSession ? "Resume import" : "Import template"}
+                  </Button>
+                  <Button variant="outline" onClick={onAddRoot}>
+                    <Plus className="size-4" />
+                    {primaryAddLabel}
+                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="icon-sm">
+                        <Ellipsis className="size-4" />
+                        <span className="sr-only">Open structure options</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onSelect={onManageTypes}>
+                        <Settings2 className="size-4" />
+                        Manage types
+                      </DropdownMenuItem>
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          disabled={isEmptyDraft}
+                          onSelect={onDownloadCsv}
+                        >
+                          <FileSpreadsheet className="size-4" />
+                          Download CSV
+                        </DropdownMenuItem>
+                      </>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </>
+              ) : null}
+            </div>
           </div>
-        ))}
-        {issues.length > previewItems.length ? (
-          <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-            +{issues.length - previewItems.length} more on Setup
+
+          <div className="flex flex-col gap-2 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap items-center gap-2">
+              <span>{typeCount} types available</span>
+              {isSearching ? <span>{resultCount} results</span> : null}
+              {!isSearching ? <span>{totalUnitCount} units</span> : null}
+            </div>
+          </div>
+        </CardContent>
+
+        <div className="grid min-h-0 xl:grid-cols-[minmax(0,1.55fr)_minmax(18rem,0.9fr)]">
+          <div className="min-w-0 xl:border-r">
+            <TabsContent value="tree" className="m-0 min-w-0">
+              <DraftStructureTree
+                embedded
+                nodes={nodes}
+                selectedId={selectedUnitId}
+                onSelect={(node) => onSelectUnit(node.id)}
+                emptyTitle={treeEmptyTitle}
+                emptyDescription={treeEmptyDescription}
+                readOnly={isDraftLocked}
+              />
+            </TabsContent>
+
+            <TabsContent value="list" className="m-0 min-w-0 p-4">
+              <DraftStructureTable
+                embedded
+                data={units}
+                isLoading={false}
+                selectedUnitId={selectedUnitId}
+                emptyTitle={treeEmptyTitle}
+                emptyDescription={listEmptyDescription}
+                sortBy={sortBy}
+                sortDirection={sortDirection}
+                onSortChange={onSortChange}
+                onRowClick={(unit) => onSelectUnit(unit.id)}
+              />
+            </TabsContent>
+          </div>
+
+          <div className="border-t xl:border-t-0">
+            <DraftStructureInspectorPanel
+              unit={selectedUnit}
+              treeNode={selectedTreeNode}
+              schema={schema}
+              isDraftLocked={isDraftLocked}
+              isEmptyDraft={isEmptyDraft}
+              onEdit={onEditSelected}
+              onAddChild={() => {
+                if (selectedUnit) {
+                  onAddChild(selectedUnit.id);
+                }
+              }}
+            />
+          </div>
+        </div>
+      </Card>
+    </Tabs>
+  );
+}
+
+function DraftStructureInspectorPanel({
+  unit,
+  treeNode,
+  schema,
+  isDraftLocked,
+  isEmptyDraft,
+  onEdit,
+  onAddChild,
+}: {
+  unit: DraftOrgUnitDto | null;
+  treeNode: DraftStructureTreeNodeModel | null;
+  schema: DraftStructureSchemaDto;
+  isDraftLocked: boolean;
+  isEmptyDraft: boolean;
+  onEdit: () => void;
+  onAddChild: () => void;
+}) {
+  if (!unit || !treeNode) {
+    return (
+      <div className="flex h-full flex-col bg-muted/5">
+        <div className="space-y-3 border-b p-4">
+          <h2 className="text-base font-semibold tracking-tight">
+            Unit details
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            {isEmptyDraft
+              ? "Unit details appear here after you add or import units."
+              : "Select a unit to review details."}
+          </p>
+        </div>
+        <div className="flex flex-1 items-center justify-center p-6 text-center">
+          <div className="space-y-2 text-sm text-muted-foreground">
+            <p className="font-medium text-foreground">
+              {isEmptyDraft ? "No units yet" : "No unit selected"}
+            </p>
+            <p>
+              {isEmptyDraft
+                ? "Import a template or add the first top-level unit to start the structure."
+                : "Select a unit from the tree or list to review details."}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const locationValue = unit.location?.trim() || "Not set";
+  const descriptionValue = unit.description?.trim() || "Not set";
+
+  return (
+    <div className="flex h-full flex-col bg-muted/5">
+      <div className="space-y-3 border-b p-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="secondary">{unit.orgUnitKindLabel}</Badge>
+          {treeNode.isOrphaned ? (
+            <Badge variant="outline">Parent missing</Badge>
+          ) : null}
+        </div>
+        <div className="space-y-1">
+          <h2 className="text-lg font-semibold tracking-tight">
+            {unit.displayName}
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Review the selected unit.
+          </p>
+        </div>
+      </div>
+
+      <div className="flex-1 space-y-5 p-4">
+        <div className="space-y-3">
+          <InspectorField label="Unit code" value={unit.referenceKey} mono />
+          <InspectorField
+            label="Parent unit"
+            value={unit.parentDisplayName ?? "Top-level"}
+          />
+          <InspectorField
+            label="Location"
+            value={locationValue}
+            muted={locationValue === "Not set"}
+          />
+          <InspectorField
+            label="Description"
+            value={descriptionValue}
+            muted={descriptionValue === "Not set"}
+          />
+        </div>
+
+        {Object.keys(unit.attributes).length > 0 ? (
+          <div className="space-y-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+              Additional fields
+            </p>
+            <div className="space-y-3 rounded-xl border bg-background p-4">
+              {Object.entries(unit.attributes).map(([key, value]) => (
+                <InspectorField
+                  key={key}
+                  label={getDraftFieldLabel(key, schema)}
+                  value={formatAttributeValue(value)}
+                />
+              ))}
+            </div>
           </div>
         ) : null}
+
+        <p className="text-xs text-muted-foreground">
+          Last updated {formatTimestamp(unit.updatedAt ?? unit.createdAt)}
+        </p>
       </div>
+
+      {!isDraftLocked ? (
+        <div className="border-t p-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button onClick={onEdit}>Edit unit</Button>
+            <Button variant="outline" onClick={onAddChild}>
+              <Plus className="size-4" />
+              Add child unit
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="border-t px-4 py-3 text-sm text-muted-foreground">
+          Read-only details.
+        </div>
+      )}
     </div>
   );
 }
@@ -1388,127 +1613,88 @@ function formatAttributeValue(value: unknown): string {
   return JSON.stringify(value);
 }
 
-function DraftStructurePageSkeleton({
-  hasImportSession,
-}: {
-  hasImportSession: boolean;
-}) {
+function DraftStructurePageSkeleton() {
   return (
-    <div className="flex flex-col gap-6 p-6">
+    <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-6 p-6">
       <PageHeader
-        title="Organization Structure"
-        description="Build the draft tree here or import it from the template."
-        actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" disabled>
-              <FileSpreadsheet className="size-4" />
-              {hasImportSession ? "Resume Import" : "Import from Template"}
-            </Button>
-            <Button disabled>
-              <Plus className="size-4" />
-              Add Top-Level Unit
-            </Button>
-          </div>
-        }
+        title="Draft structure"
+        description="Build and review the organization hierarchy before approval."
       />
 
-      <div className="grid gap-4 md:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, index) => (
-          <Card key={index}>
-            <CardHeader>
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-7 w-32" />
-            </CardHeader>
-            <CardContent>
-              <Skeleton className="h-4 w-full" />
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(22rem,0.8fr)] xl:items-start">
-        <div className="grid gap-4 xl:min-h-184 xl:grid-rows-[auto_minmax(0,1fr)]">
-          <div className="rounded-xl border p-4">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div className="space-y-2">
-                <Skeleton className="h-5 w-32" />
-                <Skeleton className="h-4 w-44" />
-              </div>
-              <Skeleton className="h-10 w-full md:max-w-sm" />
+      <Card>
+        <CardContent className="flex flex-col gap-4 p-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="space-y-3">
+            <div className="flex flex-wrap gap-2">
+              {Array.from({ length: 5 }).map((_, index) => (
+                <Skeleton key={index} className="h-8 w-24 rounded-full" />
+              ))}
             </div>
+            <Skeleton className="h-4 w-72" />
           </div>
+          <Skeleton className="h-10 w-48" />
+        </CardContent>
+      </Card>
 
-          <DraftStructureTreeSkeleton />
-        </div>
-
-        <Card className="overflow-hidden xl:sticky xl:top-6 xl:max-h-[calc(100vh-3rem)]">
-          <DraftStructureDetailSkeleton />
-        </Card>
-      </div>
+      <DraftStructureWorkbenchSkeleton />
     </div>
   );
 }
 
-function DraftStructureTreeSkeleton() {
+function DraftStructureWorkbenchSkeleton() {
   return (
-    <Card className="xl:h-full">
-      <CardContent className="space-y-4 p-6">
-        <Skeleton className="h-8 w-40" />
-        {Array.from({ length: 8 }).map((_, index) => (
-          <Skeleton
-            key={index}
-            className={`h-10 ${index % 3 === 0 ? "w-11/12" : index % 3 === 1 ? "w-10/12" : "w-full"}`}
-          />
-        ))}
-      </CardContent>
-    </Card>
-  );
-}
-
-function DraftStructureDetailSkeleton() {
-  return (
-    <div className="flex min-h-136 flex-col xl:min-h-0 xl:h-full">
-      <CardHeader className="shrink-0 border-b space-y-3">
-        <div className="flex gap-2">
-          <Skeleton className="h-6 w-24 rounded-full" />
-          <Skeleton className="h-6 w-28 rounded-full" />
+    <Card className="overflow-hidden">
+      <CardContent className="space-y-4 border-b p-4">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+          <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-center">
+            <Skeleton className="h-10 flex-1 sm:max-w-md" />
+            <Skeleton className="h-9 w-[180px]" />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Skeleton className="h-10 w-36" />
+            <Skeleton className="h-10 w-40" />
+            <Skeleton className="h-10 w-32" />
+          </div>
         </div>
-        <Skeleton className="h-8 w-2/3" />
-        <Skeleton className="h-4 w-full" />
-      </CardHeader>
-      <CardContent className="min-h-0 flex-1 space-y-6 overflow-y-auto p-6">
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="flex flex-wrap gap-2">
+          <Skeleton className="h-6 w-28" />
+          <Skeleton className="h-6 w-20" />
+          <Skeleton className="h-6 w-24" />
+        </div>
+      </CardContent>
+
+      <div className="grid xl:grid-cols-[minmax(0,1.55fr)_minmax(18rem,0.9fr)]">
+        <div className="space-y-3 p-4 xl:border-r">
+          {Array.from({ length: 7 }).map((_, index) => (
+            <Skeleton
+              key={index}
+              className={`h-12 ${index % 3 === 0 ? "w-11/12" : index % 3 === 1 ? "w-10/12" : "w-full"}`}
+            />
+          ))}
+        </div>
+        <div className="space-y-4 border-t p-4 xl:border-t-0">
+          <div className="space-y-3 border-b pb-4">
+            <div className="flex gap-2">
+              <Skeleton className="h-6 w-24 rounded-full" />
+              <Skeleton className="h-6 w-24 rounded-full" />
+            </div>
+            <Skeleton className="h-7 w-2/3" />
+            <Skeleton className="h-4 w-full" />
+          </div>
           {Array.from({ length: 4 }).map((_, index) => (
             <div
               key={index}
-              className="rounded-xl border bg-background p-3 space-y-2"
+              className="space-y-2 border-b pb-3 last:border-b-0"
             >
               <Skeleton className="h-3 w-20" />
-              <Skeleton className="h-5 w-32" />
+              <Skeleton className="h-5 w-full" />
             </div>
           ))}
-        </div>
-
-        <div className="rounded-xl border bg-muted/20 p-4 space-y-4">
-          <div className="space-y-2">
-            <Skeleton className="h-4 w-28" />
-            <Skeleton className="h-4 w-40" />
-          </div>
-          <div className="grid gap-3">
-            <Skeleton className="h-14 w-full" />
-            <Skeleton className="h-14 w-full" />
-          </div>
-        </div>
-      </CardContent>
-      <div className="shrink-0 border-t bg-background/95 p-4 pb-0">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <Skeleton className="h-4 w-16" />
-          <div className="flex flex-wrap gap-2">
+          <div className="flex gap-2 pt-2">
             <Skeleton className="h-10 w-24" />
             <Skeleton className="h-10 w-32" />
           </div>
         </div>
       </div>
-    </div>
+    </Card>
   );
 }
