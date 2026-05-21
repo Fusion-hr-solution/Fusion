@@ -154,6 +154,21 @@ export function useDeleteDraftOrgUnit(opts?: { onSuccess?: () => void }) {
   );
 }
 
+export function useClearDraftStructure(opts?: { onSuccess?: () => void }) {
+  const client = useMemo(() => createPlatformApiClient(), []);
+  const queryClient = useApiQueryClient();
+
+  return useApiMutation<void, void>(
+    () => client.delete<void>(draftStructurePaths.clear()),
+    {
+      onSuccess: async () => {
+        await invalidateDraftStructureLifecycleQueries(queryClient);
+        await opts?.onSuccess?.();
+      },
+    }
+  );
+}
+
 export function useDraftStructureImportSchema(enabled = true) {
   const { isAuthenticated } = useAuth();
   const client = useMemo(() => createPlatformApiClient(), []);
@@ -228,6 +243,7 @@ export function useUploadDraftStructureImport(opts?: {
           draftStructureQueryKeys.importSession(data.id),
           data
         );
+        await invalidateDraftStructureLifecycleQueries(queryClient);
         await opts?.onSuccess?.(data);
       },
     }
