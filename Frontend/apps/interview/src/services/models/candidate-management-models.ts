@@ -169,3 +169,43 @@ export interface BackendCandidateRetakeGrantResultDto {
   inviteLink: string;
   tokenExpiresAtUtc: string;
 }
+
+export interface BackendCandidateRetentionSettingsDto {
+  enabled: boolean;
+  retentionAction: string;
+  retentionPeriodDays: number;
+  scanIntervalHours: number;
+  lastRunAtUtc?: string;
+}
+
+export interface BackendCandidateRetentionRunDto {
+  id: string;
+  triggeredBy: string;
+  triggerSource: string;
+  retentionAction: string;
+  retentionPeriodDays: number;
+  candidatesScanned: number;
+  candidatesProcessed: number;
+  candidatesAnonymized: number;
+  candidatesDeleted: number;
+  candidatesExpired: number;
+  startedAtUtc: string;
+  completedAtUtc?: string;
+}
+
+export interface BackendCandidateRetentionStateDto {
+  settings: BackendCandidateRetentionSettingsDto;
+  pendingCount: number;
+  recentRuns: BackendCandidateRetentionRunDto[];
+}
+
+export interface SaveCandidateRetentionSettingsInput {
+  enabled: boolean;
+  retentionAction: string;
+  retentionPeriodDays: number;
+  scanIntervalHours: number;
+}
+
+export interface RunCandidateRetentionInput {
+  triggeredBy: string;
+}

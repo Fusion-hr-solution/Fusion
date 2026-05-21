@@ -7,6 +7,9 @@ import type {
   CandidateManagementOverview,
   CandidateAttemptSettings,
   CandidatePrivacyActionResult,
+  CandidateRetentionState,
+  CandidateRetentionSettings,
+  CandidateRetentionRun,
 } from "@/types";
 import type {
   BackendCandidateManagementOverviewDto,
@@ -23,6 +26,11 @@ import type {
   BackendCandidateProgressTimelineDto,
   BackendCandidateRetakeGrantResultDto,
   GrantCandidateRetakeInput,
+  BackendCandidateRetentionStateDto,
+  BackendCandidateRetentionSettingsDto,
+  BackendCandidateRetentionRunDto,
+  SaveCandidateRetentionSettingsInput,
+  RunCandidateRetentionInput,
 } from "./models/candidate-management-models";
 
 const client = createPlatformApiClient();
@@ -47,6 +55,7 @@ const CANDIDATE_MANAGEMENT_LINK_SECURITY_ENDPOINT = `${CANDIDATE_MANAGEMENT_API}
 const CANDIDATE_MANAGEMENT_TIMELINE_CANDIDATES_ENDPOINT = `${CANDIDATE_MANAGEMENT_API}${CANDIDATE_MANAGEMENT_TIMELINE_PATH}/candidates`;
 const CANDIDATE_MANAGEMENT_TIMELINE_ENDPOINT = `${CANDIDATE_MANAGEMENT_API}${CANDIDATE_MANAGEMENT_TIMELINE_PATH}`;
 const CANDIDATE_MANAGEMENT_RETAKE_ENDPOINT = `${CANDIDATE_MANAGEMENT_API}/retake`;
+const CANDIDATE_MANAGEMENT_RETENTION_ENDPOINT = `${CANDIDATE_MANAGEMENT_API}/retention`;
 
 function mapInvitation(dto: BackendCandidateInvitationDto): CandidateInvitation {
   return {
@@ -377,4 +386,70 @@ export async function grantCandidateRetake(input: GrantCandidateRetakeInput): Pr
       sendNotification: true,
     }
   );
+}
+
+function mapRetentionSettings(dto: BackendCandidateRetentionSettingsDto): CandidateRetentionSettings {
+  return {
+    enabled: dto.enabled,
+    retentionAction: dto.retentionAction as CandidateRetentionSettings["retentionAction"],
+    retentionPeriodDays: dto.retentionPeriodDays,
+    scanIntervalHours: dto.scanIntervalHours,
+    lastRunAtUtc: dto.lastRunAtUtc,
+  };
+}
+
+function mapRetentionRun(dto: BackendCandidateRetentionRunDto): CandidateRetentionRun {
+  return {
+    id: dto.id,
+    triggeredBy: dto.triggeredBy,
+    triggerSource: dto.triggerSource,
+    retentionAction: dto.retentionAction,
+    retentionPeriodDays: dto.retentionPeriodDays,
+    candidatesScanned: dto.candidatesScanned,
+    candidatesProcessed: dto.candidatesProcessed,
+    candidatesAnonymized: dto.candidatesAnonymized,
+    candidatesDeleted: dto.candidatesDeleted,
+    candidatesExpired: dto.candidatesExpired,
+    startedAtUtc: dto.startedAtUtc,
+    completedAtUtc: dto.completedAtUtc,
+  };
+}
+
+export async function getCandidateRetentionState(): Promise<CandidateRetentionState> {
+  const dto = await client.get<BackendCandidateRetentionStateDto>(
+    CANDIDATE_MANAGEMENT_RETENTION_ENDPOINT
+  );
+
+  return {
+    settings: mapRetentionSettings(dto.settings),
+    pendingCount: dto.pendingCount,
+    recentRuns: dto.recentRuns.map(mapRetentionRun),
+  };
+}
+
+export async function saveCandidateRetentionSettings(
+  input: SaveCandidateRetentionSettingsInput
+): Promise<CandidateRetentionSettings> {
+  const dto = await client.put<BackendCandidateRetentionSettingsDto>(
+    CANDIDATE_MANAGEMENT_RETENTION_ENDPOINT,
+    {
+      enabled: input.enabled,
+      retentionAction: input.retentionAction,
+      retentionPeriodDays: input.retentionPeriodDays,
+      scanIntervalHours: input.scanIntervalHours,
+    }
+  );
+
+  return mapRetentionSettings(dto);
+}
+
+export async function runCandidateRetention(
+  input: RunCandidateRetentionInput
+): Promise<CandidateRetentionRun> {
+  const dto = await client.post<BackendCandidateRetentionRunDto>(
+    `${CANDIDATE_MANAGEMENT_RETENTION_ENDPOINT}/run`,
+    { triggeredBy: input.triggeredBy }
+  );
+
+  return mapRetentionRun(dto);
 }

@@ -13,6 +13,7 @@ import { TimelineTab } from "@/components/candidate-management/tabs/timeline-tab
 import { RetakeTab } from "@/components/candidate-management/tabs/retake-tab";
 import { AttemptLimitsTab } from "@/components/candidate-management/tabs/attempt-limits-tab";
 import { AnonymizeTab } from "@/components/candidate-management/tabs/anonymize-tab";
+import { RetentionTab } from "@/components/candidate-management/tabs/retention-tab";
 import type { CsvImportReport } from "@/services/models/csv_import_report_popup_model";
 import type { InviteResult } from "@/services/models/invite_result_popup_model";
 import type { InviteMethod } from "@/services/models/invite_tab_model";
@@ -31,6 +32,9 @@ import {
   resendInvitation,
   saveCandidateAttemptSettings,
   saveCandidateLinkSecuritySettings,
+  getCandidateRetentionState,
+  saveCandidateRetentionSettings,
+  runCandidateRetention,
 } from "@/services/candidate-management-service";
 import { getTests } from "@/services/test-service";
 import { useNetworkStatus } from "@/hooks/use-network-status";
@@ -47,6 +51,8 @@ import type {
   CandidateLinkSecurityState,
   CandidateManagementOverview,
   CandidatePrivacyActionType,
+  CandidateRetentionSettings,
+  CandidateRetentionRun,
   GracePeriodUnit,
   LinkValidityUnit,
   Test,
@@ -209,6 +215,15 @@ export function CandidateManagement() {
   const [privacySubmitting, setPrivacySubmitting] = useState(false);
   const [privacyError, setPrivacyError] = useState<string | null>(null);
   const [privacySuccess, setPrivacySuccess] = useState<string | null>(null);
+  const [retentionSettings, setRetentionSettings] = useState<CandidateRetentionSettings | null>(null);
+  const [retentionPendingCount, setRetentionPendingCount] = useState(0);
+  const [retentionRecentRuns, setRetentionRecentRuns] = useState<CandidateRetentionRun[]>([]);
+  const [retentionLoading, setRetentionLoading] = useState(false);
+  const [retentionSaving, setRetentionSaving] = useState(false);
+  const [retentionRunning, setRetentionRunning] = useState(false);
+  const [retentionSaveError, setRetentionSaveError] = useState<string | null>(null);
+  const [retentionRunError, setRetentionRunError] = useState<string | null>(null);
+  const [retentionRunSuccess, setRetentionRunSuccess] = useState<string | null>(null);
   const popupTimerRef = useRef<number | null>(null);
   const csvReportTimerRef = useRef<number | null>(null);
 
@@ -384,6 +399,41 @@ export function CandidateManagement() {
     }
 
     void loadAttemptSettings();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab !== "retention") {
+      return;
+    }
+
+    let isMounted = true;
+
+    async function loadRetentionState() {
+      setRetentionLoading(true);
+      setRetentionSaveError(null);
+      setRetentionRunError(null);
+      setRetentionRunSuccess(null);
+
+      try {
+        const state = await getCandidateRetentionState();
+        if (!isMounted) return;
+        setRetentionSettings(state.settings);
+        setRetentionPendingCount(state.pendingCount);
+        setRetentionRecentRuns(state.recentRuns);
+      } catch (err) {
+        if (!isMounted) return;
+        setRetentionSaveError(err instanceof Error ? err.message : "Failed to load retention settings.");
+      } finally {
+        if (!isMounted) return;
+        setRetentionLoading(false);
+      }
+    }
+
+    void loadRetentionState();
 
     return () => {
       isMounted = false;
@@ -1226,6 +1276,46 @@ export function CandidateManagement() {
     }
   }
 
+  async function handleSaveRetentionSettings(settings: CandidateRetentionSettings): Promise<void> {
+    setRetentionSaving(true);
+    setRetentionSaveError(null);
+
+    try {
+      const saved = await saveCandidateRetentionSettings({
+        enabled: settings.enabled,
+        retentionAction: settings.retentionAction,
+        retentionPeriodDays: settings.retentionPeriodDays,
+        scanIntervalHours: settings.scanIntervalHours,
+      });
+      setRetentionSettings(saved);
+    } catch (err) {
+      setRetentionSaveError(err instanceof Error ? err.message : "Failed to save retention settings.");
+    } finally {
+      setRetentionSaving(false);
+    }
+  }
+
+  async function handleRunRetention(triggeredBy: string): Promise<void> {
+    setRetentionRunning(true);
+    setRetentionRunError(null);
+    setRetentionRunSuccess(null);
+
+    try {
+      const run = await runCandidateRetention({ triggeredBy });
+      setRetentionRecentRuns((prev) => [run, ...prev].slice(0, 20));
+      setRetentionRunSuccess(
+        `Sweep complete — scanned ${run.candidatesScanned}, processed ${run.candidatesProcessed}.`
+      );
+      const state = await getCandidateRetentionState();
+      setRetentionPendingCount(state.pendingCount);
+      setRetentionSettings(state.settings);
+    } catch (err) {
+      setRetentionRunError(err instanceof Error ? err.message : "Failed to run retention sweep.");
+    } finally {
+      setRetentionRunning(false);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-zinc-50">
       <div className="border-b border-zinc-200 bg-white px-8 py-5">
@@ -1425,16 +1515,21 @@ export function CandidateManagement() {
                 success={privacySuccess}
                 onConfirm={handlePrivacyAction}
               />
-            ) : (
-              <div className="mt-5 rounded-xl border border-zinc-200 bg-zinc-50 p-4">
-                <p className="text-[13px] font-medium text-zinc-700">
-                  Tab scaffold is ready for the next step implementation.
-                </p>
-                <p className="mt-1 text-[12px] text-zinc-500">
-                  We will implement this screen end-to-end in its dedicated iteration.
-                </p>
-              </div>
-            )}
+            ) : activeTab === "retention" ? (
+              <RetentionTab
+                settings={retentionSettings}
+                pendingCount={retentionPendingCount}
+                recentRuns={retentionRecentRuns}
+                loading={retentionLoading}
+                saving={retentionSaving}
+                running={retentionRunning}
+                saveError={retentionSaveError}
+                runError={retentionRunError}
+                runSuccess={retentionRunSuccess}
+                onSaveSettings={handleSaveRetentionSettings}
+                onRunNow={handleRunRetention}
+              />
+            ) : null}
 
             {loading ? (
               <p className="mt-4 text-[12px] text-zinc-500">Loading overview data...</p>

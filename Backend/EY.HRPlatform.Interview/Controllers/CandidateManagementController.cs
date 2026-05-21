@@ -7,7 +7,10 @@ namespace EY.HRPlatform.Interview.Controllers;
 
 [ApiController]
 [Route("api/interview/candidates/management")]
-public class CandidateManagementController(ICandidateManagementService candidateManagementService) : ControllerBase
+public class CandidateManagementController(
+    ICandidateManagementService candidateManagementService,
+    ICandidateRetentionService candidateRetentionService)
+    : ControllerBase
 {
     [HttpGet("overview")]
     [ProducesResponseType(typeof(ApiResponse<CandidateManagementOverviewDto>), StatusCodes.Status200OK)]
@@ -108,5 +111,36 @@ public class CandidateManagementController(ICandidateManagementService candidate
     {
         var data = await candidateManagementService.RegenerateLinkAsync(testId, cancellationToken);
         return Ok(ApiResponse<CandidateLinkSecurityStateDto>.Success(data));
+    }
+
+    [HttpGet("retention")]
+    [ProducesResponseType(typeof(ApiResponse<CandidateRetentionStateDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetRetentionState(CancellationToken cancellationToken)
+    {
+        var data = await candidateRetentionService.GetStateAsync(cancellationToken);
+        return Ok(ApiResponse<CandidateRetentionStateDto>.Success(data));
+    }
+
+    [HttpPut("retention")]
+    [ProducesResponseType(typeof(ApiResponse<CandidateRetentionSettingsDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> SaveRetentionSettings(
+        [FromBody] UpdateCandidateRetentionSettingsDto request,
+        CancellationToken cancellationToken)
+    {
+        var data = await candidateRetentionService.SaveSettingsAsync(request, cancellationToken);
+        return Ok(ApiResponse<CandidateRetentionSettingsDto>.Success(data));
+    }
+
+    [HttpPost("retention/run")]
+    [ProducesResponseType(typeof(ApiResponse<CandidateRetentionRunDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> RunRetention(
+        [FromBody] RunCandidateRetentionRequestDto request,
+        CancellationToken cancellationToken)
+    {
+        var data = await candidateRetentionService.RunRetentionSweepAsync(
+            request.TriggeredBy,
+            "Manual",
+            cancellationToken);
+        return Ok(ApiResponse<CandidateRetentionRunDto>.Success(data));
     }
 }
