@@ -10,6 +10,8 @@ namespace EY.HRPlatform.Training.Features.Enrollment.Commands;
 
 public record EnrollInSessionsCommand(
     Guid EmployeeId,
+    string? EmployeeName,
+    string? EmployeeEmail,
     Guid TrainingId,
     List<SessionSelectionItem> Selections) : ICommand<Result<EnrollInSessionsResultDto>>;
 
@@ -173,7 +175,7 @@ public class EnrollInSessionsCommandHandler : ICommandHandler<EnrollInSessionsCo
                 status = EnrollmentStatus.Waitlisted;
             }
 
-            var enrollment = new SessionEnrollment(selection.SessionId, request.EmployeeId, status, waitlistPosition);
+            var enrollment = new SessionEnrollment(selection.SessionId, request.EmployeeId, status, waitlistPosition, request.EmployeeName, request.EmployeeEmail);
             enrollments.Add(enrollment);
 
             resultItems.Add(new EnrollmentResultItemDto
