@@ -20,7 +20,10 @@ public interface IDraftStructureImportWorkflowService
 {
     Task<DraftStructureImportSchemaDto> GetSchemaAsync(CancellationToken cancellationToken);
     Task<(byte[] Content, string FileName)> BuildTemplateAsync(CancellationToken cancellationToken);
-    Task<DraftStructureImportSessionDto> UploadAsync(IFormFile file, CancellationToken cancellationToken);
+    Task<DraftStructureImportSessionDto> UploadAsync(
+        IFormFile file,
+        CancellationToken cancellationToken,
+        DraftStructureActivityActor? actor = null);
     Task<DraftStructureImportSessionDto> GetSessionAsync(Guid sessionId, CancellationToken cancellationToken);
     Task<DraftStructureImportSessionDto> SaveMappingAsync(
         Guid sessionId,
@@ -31,7 +34,10 @@ public interface IDraftStructureImportWorkflowService
         DraftStructureImportResolveKindsRequest request,
         CancellationToken cancellationToken);
     Task<DraftStructureImportSessionDto> ValidateAsync(Guid sessionId, CancellationToken cancellationToken);
-    Task<DraftStructureImportApplyResultDto> ApplyAsync(Guid sessionId, CancellationToken cancellationToken);
+    Task<DraftStructureImportApplyResultDto> ApplyAsync(
+        Guid sessionId,
+        CancellationToken cancellationToken,
+        DraftStructureActivityActor? actor = null);
 }
 
 public sealed class DraftStructureImportWorkflowService(
@@ -67,9 +73,13 @@ public sealed class DraftStructureImportWorkflowService(
         return (Encoding.UTF8.GetBytes(output.ToString()), "draft-structure-template.csv");
     }
 
-    public async Task<DraftStructureImportSessionDto> UploadAsync(IFormFile file, CancellationToken cancellationToken)
+    public async Task<DraftStructureImportSessionDto> UploadAsync(
+        IFormFile file,
+        CancellationToken cancellationToken,
+        DraftStructureActivityActor? actor = null)
     {
         await DraftStructureRules.EnsureDraftEditableAsync(dbContext, cancellationToken);
+        var setupState = await dbContext.TenantSetupStates.FirstAsync(cancellationToken);
 
         if (file.Length <= 0)
             throw new ArgumentException("Upload a non-empty CSV file.", nameof(file));
@@ -100,6 +110,20 @@ public sealed class DraftStructureImportWorkflowService(
             kindResolutions.All(IsResolved));
 
         dbContext.DraftStructureImportSessions.Add(session);
+
+        if (actor is not null)
+        {
+            dbContext.TenantSetupActivities.Add(
+                TenantSetupActivity.Create(
+                    setupState.TenantId,
+                    setupState.Id,
+                    TenantSetupActivityType.DraftImportUploaded,
+                    actor.UserId,
+                    actor.FullName,
+                    actor.Role,
+                    actor.IsPlatformAssisted));
+        }
+
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return await BuildSessionDtoAsync(session, schema, cancellationToken);
@@ -223,9 +247,13 @@ public sealed class DraftStructureImportWorkflowService(
             });
     }
 
-    public async Task<DraftStructureImportApplyResultDto> ApplyAsync(Guid sessionId, CancellationToken cancellationToken)
+    public async Task<DraftStructureImportApplyResultDto> ApplyAsync(
+        Guid sessionId,
+        CancellationToken cancellationToken,
+        DraftStructureActivityActor? actor = null)
     {
         await DraftStructureRules.EnsureDraftEditableAsync(dbContext, cancellationToken);
+        var setupState = await dbContext.TenantSetupStates.FirstAsync(cancellationToken);
 
         var session = await GetSessionEntityAsync(sessionId, cancellationToken);
         await EnsureSessionCanMutateAsync(session, cancellationToken);
@@ -268,6 +296,20 @@ public sealed class DraftStructureImportWorkflowService(
                 await ReplaceDraftStructureAsync(normalizedRows, cancellationToken);
 
                 session.MarkApplied();
+
+                if (actor is not null)
+                {
+                    dbContext.TenantSetupActivities.Add(
+                        TenantSetupActivity.Create(
+                            setupState.TenantId,
+                            setupState.Id,
+                            TenantSetupActivityType.DraftImportApplied,
+                            actor.UserId,
+                            actor.FullName,
+                            actor.Role,
+                            actor.IsPlatformAssisted));
+                }
+
                 await dbContext.SaveChangesAsync(cancellationToken);
 
                 if (transaction is not null)

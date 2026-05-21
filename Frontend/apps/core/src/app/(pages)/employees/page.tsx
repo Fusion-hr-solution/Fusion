@@ -8,11 +8,19 @@ import type {
 } from "@tanstack/react-table";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Copy, Link as LinkIcon, Send, Upload, Users } from "lucide-react";
+import {
+  Copy,
+  Link as LinkIcon,
+  Plus,
+  Send,
+  Upload,
+  Users,
+} from "lucide-react";
 import { useApiQueryClient } from "@repo/api/query";
 import { useAuth } from "@repo/auth";
 import { DEFAULT_PAGE_SIZE, EmptyState, type PageSize } from "@repo/ui";
 import { CorePageLoadingState } from "@/components/core-page-loading-state";
+import { useTenantContext } from "@/components/core-tenant-context-provider";
 import { PageHeader } from "@/components/page-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -57,6 +65,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useToast } from "@/components/ui/use-toast";
 import { canAccessEmployeeRoster } from "@/lib/employee-roster-access";
+import { buildTenantContextHref } from "@/lib/tenant-navigation";
 import {
   type AccessInviteRole,
   getAccessBadgeTone,
@@ -92,6 +101,7 @@ import {
   useResolveWorkforceAccountStatuses,
   useWorkforceAccountStatuses,
 } from "./use-workforce-accounts";
+import { EmployeeCreateDialog } from "./employee-create-dialog";
 
 const DEFAULT_EMPLOYEE_SORTING: SortingState = [{ id: "Name", desc: false }];
 
@@ -693,8 +703,11 @@ export default function EmployeesPage() {
   const queryClient = useApiQueryClient();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const canAccess = canAccessEmployeeRoster(user);
+  const { tenantId } = useTenantContext();
+  const isTenantContextReadOnly = !!tenantId;
+  const canAccess = canAccessEmployeeRoster(user) || isTenantContextReadOnly;
   const shouldAutoReviewAccess = searchParams.get("review") === "access";
+  const shouldOpenCreateEmployee = searchParams.get("create") === "1";
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<PageSize>(DEFAULT_PAGE_SIZE);
   const [search, setSearch] = useState("");
@@ -714,6 +727,9 @@ export default function EmployeesPage() {
     EmployeeRosterRow[] | null
   >(null);
   const [isAccessWorkflowOpen, setIsAccessWorkflowOpen] = useState(false);
+  const [isCreateEmployeeOpen, setIsCreateEmployeeOpen] = useState(
+    shouldOpenCreateEmployee
+  );
   const [isNotIncludedExpanded, setIsNotIncludedExpanded] = useState(false);
   const [isResultDetailsOpen, setIsResultDetailsOpen] = useState(false);
   const [selectedRolesByEmployeeId, setSelectedRolesByEmployeeId] = useState<
@@ -747,7 +763,9 @@ export default function EmployeesPage() {
   const resolveWorkforceAccountStatuses = useResolveWorkforceAccountStatuses();
   const workforceAccountSubjects = useMemo<WorkforceAccountSubject[]>(
     () =>
-      (data?.items ?? []).map((employee) => buildWorkforceAccountSubject(employee)),
+      (data?.items ?? []).map((employee) =>
+        buildWorkforceAccountSubject(employee)
+      ),
     [data?.items]
   );
   const {
@@ -772,13 +790,13 @@ export default function EmployeesPage() {
   const resolveMatchingRows = useCallback(async (): Promise<
     EmployeeRosterRow[]
   > => {
-      const employees = await resolveEmployeeRoster({
-        search: search || undefined,
-        status,
-        access,
-        readiness,
-        sortBy,
-        sortDir,
+    const employees = await resolveEmployeeRoster({
+      search: search || undefined,
+      status,
+      access,
+      readiness,
+      sortBy,
+      sortDir,
     });
     const accounts = await resolveWorkforceAccountStatuses(
       employees.map((employee) => buildWorkforceAccountSubject(employee))
@@ -1045,9 +1063,11 @@ export default function EmployeesPage() {
 
   const handleRowClick = useCallback(
     (employee: EmployeeRosterRow) => {
-      router.push(`/employees/${employee.id}`);
+      router.push(
+        buildTenantContextHref(`/employees/${employee.id}`, tenantId)
+      );
     },
-    [router]
+    [router, tenantId]
   );
 
   const handleRowSelectionChange = useCallback(
@@ -1059,6 +1079,40 @@ export default function EmployeesPage() {
       setRowSelection(nextSelection);
     },
     []
+  );
+
+  const updateCreateEmployeeQueryParam = useCallback(
+    (open: boolean) => {
+      const nextSearchParams = new URLSearchParams(searchParams.toString());
+
+      if (open) {
+        nextSearchParams.set("create", "1");
+      } else {
+        nextSearchParams.delete("create");
+      }
+
+      const nextSearch = nextSearchParams.toString();
+      const nextPath = window.location.pathname;
+      const nextUrl = nextSearch ? `${nextPath}?${nextSearch}` : nextPath;
+
+      window.history.replaceState(window.history.state, "", nextUrl);
+    },
+    [searchParams]
+  );
+
+  const handleCreateEmployeeOpenChange = useCallback(
+    (open: boolean) => {
+      setIsCreateEmployeeOpen(open);
+      updateCreateEmployeeQueryParam(open);
+    },
+    [updateCreateEmployeeQueryParam]
+  );
+
+  const handleCreateEmployeeCreated = useCallback(
+    (employeeId: string) => {
+      router.push(buildTenantContextHref(`/employees/${employeeId}`, tenantId));
+    },
+    [router, tenantId]
   );
 
   const handleSelectAllMatching = useCallback(async () => {
@@ -1194,6 +1248,10 @@ export default function EmployeesPage() {
   }, [searchParams]);
 
   useEffect(() => {
+    setIsCreateEmployeeOpen(shouldOpenCreateEmployee);
+  }, [shouldOpenCreateEmployee]);
+
+  useEffect(() => {
     if (!shouldAutoReviewAccess) {
       setHasAppliedReviewHandoff(false);
       return;
@@ -1283,16 +1341,13 @@ export default function EmployeesPage() {
   }, [selectedEmployees]);
 
   const isInitialPageLoading =
-    canAccess &&
-    currentTableLoading &&
-    !error &&
-    !data;
+    canAccess && currentTableLoading && !error && !data;
 
   if (isInitialPageLoading) {
     return (
       <CorePageLoadingState
         title="Employees"
-        description="The operational roster is available only to tenant HR administrators."
+        description="Tenant HR administrators manage the roster."
         message="Loading employees..."
         variant="list"
       />
@@ -1304,12 +1359,12 @@ export default function EmployeesPage() {
       <div className="flex flex-col gap-6 p-6">
         <PageHeader
           title="Employees"
-          description="The operational roster is available only to tenant HR administrators."
+          description="Tenant HR administrators manage the roster."
         />
         <EmptyState
           icon={Users}
           title="Employee roster is not available for this role"
-          description="Ask a tenant HR administrator to manage the operational roster."
+          description="Contact a tenant HR administrator."
         />
       </div>
     );
@@ -1319,14 +1374,22 @@ export default function EmployeesPage() {
     <div className="flex flex-col gap-6 p-6">
       <PageHeader
         title="Employees"
-        description="Manage the tenant roster and send access invitations when employees are ready."
+        description="Manage the roster and access invitations."
         actions={
-          <Button asChild>
-            <Link href="/employees/import">
-              <Upload />
-              Import employees
-            </Link>
-          </Button>
+          !isTenantContextReadOnly ? (
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => handleCreateEmployeeOpenChange(true)}>
+                <Plus />
+                Add employee
+              </Button>
+              <Button asChild variant="outline">
+                <Link href="/employees/import">
+                  <Upload />
+                  Import employees
+                </Link>
+              </Button>
+            </div>
+          ) : null
         }
       />
 
@@ -1377,7 +1440,7 @@ export default function EmployeesPage() {
         </Alert>
       ) : null}
 
-      {selectedEmployees.length > 0 ? (
+      {selectedEmployees.length > 0 && !isTenantContextReadOnly ? (
         <SelectedAccessActionBar
           canOfferSelectAllMatching={canOfferSelectAllMatching}
           isSelectingAllMatching={isSelectingAllMatching}
@@ -1625,6 +1688,12 @@ export default function EmployeesPage() {
           results={bulkResults}
         />
       ) : null}
+
+      <EmployeeCreateDialog
+        open={isCreateEmployeeOpen}
+        onOpenChange={handleCreateEmployeeOpenChange}
+        onCreated={handleCreateEmployeeCreated}
+      />
     </div>
   );
 }

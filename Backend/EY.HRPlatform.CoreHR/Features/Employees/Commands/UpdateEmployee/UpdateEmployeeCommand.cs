@@ -26,4 +26,7 @@ public sealed record UpdateEmployeeCommand(
     Guid? ManagerId,
     Guid? OrgUnitId = null,
     DateTime? HireDate = null,
-    string? EmployeeNumber = null) : ICommand<Result<EmployeeDto>>;
+    string? EmployeeNumber = null,
+    string? Phone = null,
+    string? WorkLocation = null,
+    string? EmploymentType = null) : ICommand<Result<EmployeeDto>>;

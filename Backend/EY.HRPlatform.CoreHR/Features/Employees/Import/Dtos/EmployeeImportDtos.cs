@@ -40,8 +40,11 @@ public sealed record EmployeeImportPreviewRowDto(
     string? FirstName,
     string? LastName,
     string? Email,
+    string? Phone,
     string? HireDate,
     string? JobTitle,
+    string? WorkLocation,
+    string? EmploymentType,
     string? OrgUnitCode,
     string? ManagerEmail);
 

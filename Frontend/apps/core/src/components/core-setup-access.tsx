@@ -12,11 +12,16 @@ import { usePathname, useRouter } from "next/navigation";
 import { coreSetupQueryKeys, type TenantSetupStateDto } from "@repo/api";
 import { useApiQueryClient } from "@repo/api/query";
 import { canSeeCoreSetupNavigation, useAuth } from "@repo/auth";
+import { useTenantContext } from "@/components/core-tenant-context-provider";
 import { CorePageLoadingState } from "@/components/core-page-loading-state";
 import { useSetupState } from "@/app/(pages)/setup/use-setup";
+import {
+  resolveSetupEntryRouteAction,
+  SETUP_DRAFT_ENTRY_PATH,
+  SETUP_SUMMARY_PATH,
+} from "@/app/(pages)/setup/setup-entry-routing";
 
-const SETUP_LOCK_REASON =
-  "Complete organization setup before using the rest of the workspace.";
+const SETUP_LOCK_REASON = "Complete setup to unlock the rest of Core.";
 
 interface CoreSetupAccessContextValue {
   shouldCheckSetupAccess: boolean;
@@ -27,7 +32,7 @@ interface CoreSetupAccessContextValue {
   isSetupLocked: boolean;
   isNavigationLocked: boolean;
   lockedNavigationReason: string | null;
-  refreshSetupAccess: () => void;
+  refreshSetupAccess: () => Promise<void>;
 }
 
 const CoreSetupAccessContext = createContext<CoreSetupAccessContextValue>({
@@ -39,16 +44,12 @@ const CoreSetupAccessContext = createContext<CoreSetupAccessContextValue>({
   isSetupLocked: false,
   isNavigationLocked: false,
   lockedNavigationReason: null,
-  refreshSetupAccess: () => {},
+  refreshSetupAccess: async () => {},
 });
 
 function getCorePathname(pathname: string): string {
   const nextPath = pathname.replace(/^\/core/, "");
   return nextPath || "/";
-}
-
-function isSetupAreaPath(pathname: string): boolean {
-  return pathname === "/setup" || pathname.startsWith("/setup/");
 }
 
 function isSetupComplete(setupState: TenantSetupStateDto | undefined): boolean {
@@ -71,9 +72,12 @@ function SetupRedirectFallback({ isChecking }: { isChecking: boolean }) {
 
 export function CoreSetupAccessProvider({ children }: { children: ReactNode }) {
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
+  const { tenantId } = useTenantContext();
   const queryClient = useApiQueryClient();
   const shouldCheckSetupAccess =
-    !isAuthLoading && isAuthenticated && canSeeCoreSetupNavigation(user);
+    !isAuthLoading &&
+    isAuthenticated &&
+    (canSeeCoreSetupNavigation(user) || !!tenantId);
   const {
     data: setupState,
     error: setupError,
@@ -84,10 +88,10 @@ export function CoreSetupAccessProvider({ children }: { children: ReactNode }) {
 
   const refreshSetupAccess = useCallback(() => {
     if (!shouldCheckSetupAccess) {
-      return;
+      return Promise.resolve();
     }
 
-    void queryClient.invalidateQueries({
+    return queryClient.invalidateQueries({
       queryKey: coreSetupQueryKeys.state(),
       exact: true,
     });
@@ -135,19 +139,23 @@ export function useCoreSetupAccess() {
 export function CoreSetupRouteGuard({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { shouldCheckSetupAccess, isShellLoading, isSetupLocked } =
+  const { shouldCheckSetupAccess, isShellLoading, isSetupLocked, setupState } =
     useCoreSetupAccess();
   const currentPath = getCorePathname(pathname);
-  const isSetupPage = isSetupAreaPath(currentPath);
-  const shouldHoldRoute = shouldCheckSetupAccess && !isSetupPage && isSetupLocked;
+  const routeAction = resolveSetupEntryRouteAction({
+    currentPath,
+    shouldCheckSetupAccess,
+    isSetupLocked,
+  });
+  const shouldHoldRoute = routeAction === "redirect-to-setup-summary";
 
   useEffect(() => {
-    if (!shouldCheckSetupAccess || !isSetupLocked || isSetupPage) {
+    if (routeAction !== "redirect-to-setup-summary") {
       return;
     }
 
-    router.replace("/setup");
-  }, [shouldCheckSetupAccess, isSetupLocked, isSetupPage, router]);
+    router.replace(SETUP_SUMMARY_PATH);
+  }, [routeAction, router]);
 
   if (shouldHoldRoute) {
     return <SetupRedirectFallback isChecking={isShellLoading} />;

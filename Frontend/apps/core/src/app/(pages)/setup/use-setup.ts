@@ -2,9 +2,12 @@
 
 import { useCallback, useMemo } from "react";
 import {
+  coreWorkforceQueryKeys,
   coreSetupQueryKeys,
   coreSetupPaths,
   createPlatformApiClient,
+  draftStructureQueryKeys,
+  tenantSettingsQueryKeys,
   type DraftSetupReadinessDto,
   type TenantSetupStateDto,
 } from "@repo/api";
@@ -17,6 +20,27 @@ import { useAuth } from "@repo/auth";
 
 interface VersionedSetupMutationArgs {
   expectedVersion: number;
+}
+
+async function invalidateSetupLifecycleQueries(
+  queryClient: ReturnType<typeof useApiQueryClient>,
+  options?: { includePublishedSurfaces?: boolean }
+) {
+  const invalidations = [
+    queryClient.invalidateQueries({ queryKey: coreSetupQueryKeys.all() }),
+    queryClient.invalidateQueries({ queryKey: draftStructureQueryKeys.all() }),
+  ];
+
+  if (options?.includePublishedSurfaces) {
+    invalidations.push(
+      queryClient.invalidateQueries({
+        queryKey: tenantSettingsQueryKeys.all(),
+      }),
+      queryClient.invalidateQueries({ queryKey: coreWorkforceQueryKeys.all() })
+    );
+  }
+
+  await Promise.all(invalidations);
 }
 
 export function useSetupState(enabled = true) {
@@ -43,11 +67,9 @@ export function useActivateSetup(opts?: {
   return useApiMutation<TenantSetupStateDto, void>(
     () => client.post<TenantSetupStateDto>(coreSetupPaths.activate()),
     {
-      invalidateQueries: [
-        { queryKey: coreSetupQueryKeys.readiness(), exact: true },
-      ],
       onSuccess: async (data) => {
         queryClient.setQueryData(coreSetupQueryKeys.state(), data);
+        await invalidateSetupLifecycleQueries(queryClient);
         await opts?.onSuccess?.(data);
       },
     }
@@ -83,11 +105,9 @@ export function useApproveStructure(opts?: {
         headers: { "If-Match": `"${expectedVersion}"` },
       }),
     {
-      invalidateQueries: [
-        { queryKey: coreSetupQueryKeys.readiness(), exact: true },
-      ],
       onSuccess: async (data) => {
         queryClient.setQueryData(coreSetupQueryKeys.state(), data);
+        await invalidateSetupLifecycleQueries(queryClient);
         await opts?.onSuccess?.(data);
       },
     }
@@ -106,11 +126,9 @@ export function useReopenStructure(opts?: {
         headers: { "If-Match": `"${expectedVersion}"` },
       }),
     {
-      invalidateQueries: [
-        { queryKey: coreSetupQueryKeys.readiness(), exact: true },
-      ],
       onSuccess: async (data) => {
         queryClient.setQueryData(coreSetupQueryKeys.state(), data);
+        await invalidateSetupLifecycleQueries(queryClient);
         await opts?.onSuccess?.(data);
       },
     }
@@ -129,11 +147,11 @@ export function usePublishStructure(opts?: {
         headers: { "If-Match": `"${expectedVersion}"` },
       }),
     {
-      invalidateQueries: [
-        { queryKey: coreSetupQueryKeys.readiness(), exact: true },
-      ],
       onSuccess: async (data) => {
         queryClient.setQueryData(coreSetupQueryKeys.state(), data);
+        await invalidateSetupLifecycleQueries(queryClient, {
+          includePublishedSurfaces: true,
+        });
         await opts?.onSuccess?.(data);
       },
     }
@@ -152,11 +170,11 @@ export function useCompleteSetup(opts?: {
         headers: { "If-Match": `"${expectedVersion}"` },
       }),
     {
-      invalidateQueries: [
-        { queryKey: coreSetupQueryKeys.readiness(), exact: true },
-      ],
       onSuccess: async (data) => {
         queryClient.setQueryData(coreSetupQueryKeys.state(), data);
+        await invalidateSetupLifecycleQueries(queryClient, {
+          includePublishedSurfaces: true,
+        });
         await opts?.onSuccess?.(data);
       },
     }
