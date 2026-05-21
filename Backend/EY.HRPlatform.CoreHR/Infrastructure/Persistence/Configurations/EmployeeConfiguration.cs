@@ -27,9 +27,12 @@ public class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
         // The unique index therefore operates on a consistent value without
         // a DB-level value converter.
         builder.Property(e => e.Email).HasMaxLength(256).IsRequired();
+        builder.Property(e => e.Phone).HasMaxLength(50);
 
         builder.Property(e => e.Department).HasMaxLength(100);
         builder.Property(e => e.JobTitle).HasMaxLength(100);
+        builder.Property(e => e.WorkLocation).HasMaxLength(100);
+        builder.Property(e => e.EmploymentType).HasMaxLength(50);
 
         // HireDate stored as UTC timestamp. The global UtcDateTimeConverter
         // convention in CoreHRDbContext.ConfigureConventions handles read-side

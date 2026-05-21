@@ -35,7 +35,14 @@ public class DraftStructureImportController(
         [FromForm] IFormFile file,
         CancellationToken cancellationToken)
     {
-        var session = await workflowService.UploadAsync(file, cancellationToken);
+        var session = await workflowService.UploadAsync(
+            file,
+            cancellationToken,
+            new DraftStructureActivityActor(
+                User.GetUserId(),
+                User.GetFullName(),
+                GetActorRole(),
+                User.IsInRole(PlatformRole.PlatformAdmin)));
         return Ok(ApiResponse<DraftStructureImportSessionDto>.Success(session));
     }
 
@@ -81,7 +88,19 @@ public class DraftStructureImportController(
     [ProducesResponseType(typeof(ApiResponse<DraftStructureImportApplyResultDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> Apply(Guid sessionId, CancellationToken cancellationToken)
     {
-        var result = await workflowService.ApplyAsync(sessionId, cancellationToken);
+        var result = await workflowService.ApplyAsync(
+            sessionId,
+            cancellationToken,
+            new DraftStructureActivityActor(
+                User.GetUserId(),
+                User.GetFullName(),
+                GetActorRole(),
+                User.IsInRole(PlatformRole.PlatformAdmin)));
         return Ok(ApiResponse<DraftStructureImportApplyResultDto>.Success(result));
     }
+
+    private string GetActorRole()
+        => User.IsInRole(PlatformRole.PlatformAdmin)
+            ? PlatformRole.PlatformAdmin
+            : PlatformRole.HRAdmin;
 }

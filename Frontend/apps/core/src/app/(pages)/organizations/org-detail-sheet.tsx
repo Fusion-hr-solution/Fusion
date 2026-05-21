@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { useForm } from "react-hook-form";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import type {
   PlatformOrganizationDetailDto,
@@ -40,6 +41,7 @@ import {
   useRevokeFirstAdminInvite,
 } from "./use-organizations";
 import {
+  ArrowRight,
   Pencil,
   X,
   Check,
@@ -192,6 +194,13 @@ function DetailContent({ org }: { org: PlatformOrganizationDetailDto }) {
                 }
               />
             </div>
+
+            <Separator />
+
+            {/* Open Core workspace */}
+            <section>
+              <OpenCoreWorkspaceButton tenantId={org.id} />
+            </section>
 
             <Separator />
 
@@ -582,6 +591,31 @@ function MetricCard({
   }
 
   return content;
+}
+
+/* ------------------------------------------------------------------ */
+/* Open Core workspace button                                          */
+/* ------------------------------------------------------------------ */
+
+function OpenCoreWorkspaceButton({ tenantId }: { tenantId: string }) {
+  const router = useRouter();
+
+  return (
+    <div className="pt-1">
+      <Button
+        variant="default"
+        className="w-full gap-2"
+        onClick={() => router.push(`/?tenantId=${tenantId}`)}
+      >
+        <ExternalLink className="size-4" />
+        Open Core workspace
+        <ArrowRight className="size-4" />
+      </Button>
+      <p className="mt-1.5 text-xs text-muted-foreground">
+        View this tenant&apos;s Core workspace as PlatformAdmin.
+      </p>
+    </div>
+  );
 }
 
 /* ------------------------------------------------------------------ */

@@ -39,7 +39,22 @@ internal static class EmployeeReadinessPolicy
             "jobTitle",
             "Job title is required",
             EmployeeReadinessFixTargetKinds.ProfileEmployment,
-            employee => !string.IsNullOrWhiteSpace(employee.JobTitle))
+            employee => !string.IsNullOrWhiteSpace(employee.JobTitle)),
+        new(
+            "phone",
+            "Phone is required",
+            EmployeeReadinessFixTargetKinds.ProfileIdentity,
+            employee => !string.IsNullOrWhiteSpace(employee.Phone)),
+        new(
+            "workLocation",
+            "Work location is required",
+            EmployeeReadinessFixTargetKinds.ProfileEmployment,
+            employee => !string.IsNullOrWhiteSpace(employee.WorkLocation)),
+        new(
+            "employmentType",
+            "Employment type is required",
+            EmployeeReadinessFixTargetKinds.ProfileEmployment,
+            employee => !string.IsNullOrWhiteSpace(employee.EmploymentType))
     ];
 
     public static EmployeeReadinessSummaryDto BuildSummary(

@@ -105,8 +105,7 @@ function getSessionPresentation(
       statusLabel: "Upload expired",
       statusVariant: "destructive",
       title: "Upload expired",
-      description:
-        "Upload the CSV again to create a fresh batch before you continue.",
+      description: "Upload the CSV again to start a fresh batch.",
       cardClassName: "border-destructive/30 bg-destructive/5",
     };
   }
@@ -124,7 +123,7 @@ function getSessionPresentation(
       statusLabel: "Validation failed",
       statusVariant: "destructive",
       title: "Validation failed",
-      description: `${problemGroupCount} problem group${problemGroupCount === 1 ? "" : "s"} across ${affectedRowCount} affected row${affectedRowCount === 1 ? "" : "s"}. Fix the CSV, upload the corrected file, and validate again.`,
+      description: `${problemGroupCount} problem group${problemGroupCount === 1 ? "" : "s"} across ${affectedRowCount} affected row${affectedRowCount === 1 ? "" : "s"}. Fix the CSV and upload it again.`,
       cardClassName: "border-destructive/30 bg-destructive/5",
     };
   }
@@ -135,7 +134,7 @@ function getSessionPresentation(
       statusVariant: "secondary",
       title: "Validation passed",
       description:
-        "All rows passed. Upload a replacement if the source data changes.",
+        "All rows passed. Upload another file only if the source data changes.",
       cardClassName: "border-emerald-200 bg-emerald-50/70",
     };
   }
@@ -144,8 +143,7 @@ function getSessionPresentation(
     statusLabel: "Ready to validate",
     statusVariant: "outline",
     title: "Batch ready to validate",
-    description:
-      "Check the normalized preview below, then validate organization, duplicate, and manager references.",
+    description: "Review the preview, then validate the file.",
     cardClassName: "border-border bg-card",
   };
 }
@@ -364,9 +362,7 @@ export function ApplyReadinessPanel({
           </div>
           <div className="space-y-1">
             <CardTitle>Ready to apply this batch</CardTitle>
-            <CardDescription>
-              Creates new employees only. Existing records are not updated.
-            </CardDescription>
+            <CardDescription>Creates new employees only.</CardDescription>
           </div>
         </div>
       </CardHeader>
@@ -418,8 +414,8 @@ export function ApplyReadinessPanel({
                   Creates {session.validationSummary.validRows} employee
                   {session.validationSummary.validRows === 1
                     ? ""
-                    : "s"} from {session.sourceFileName}. Succeeds only if every
-                  row can be written.
+                    : "s"} from {session.sourceFileName}. This succeeds only if
+                  every row can be written.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -474,8 +470,7 @@ export function AppliedResultPanel({
             <CardTitle>Import completed</CardTitle>
             <CardDescription>
               {createdCount} employee{createdCount === 1 ? "" : "s"} were
-              created from {session.sourceFileName}. {needsAccessCount} need
-              platform access.
+              created. {needsAccessCount} need platform access.
             </CardDescription>
           </div>
         </div>
@@ -499,8 +494,7 @@ export function AppliedResultPanel({
             </p>
             <p>
               {needsAccessCount} imported employee
-              {needsAccessCount === 1 ? "" : "s"} are ready for access
-              activation.
+              {needsAccessCount === 1 ? "" : "s"} are ready for access.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -676,9 +670,7 @@ export function ImportHistoryPanel({
           </div>
           <div className="space-y-1">
             <CardTitle>Import history</CardTitle>
-            <CardDescription>
-              Applied batches for operational reference.
-            </CardDescription>
+            <CardDescription>Applied batches for reference.</CardDescription>
           </div>
         </div>
       </CardHeader>
@@ -829,9 +821,8 @@ export function ImportHistoryPanel({
                                     Unresolved follow-up items
                                   </p>
                                   <p className="text-xs text-muted-foreground">
-                                    Review the imported employees that still
-                                    need attention and open the existing fixing
-                                    surface.
+                                    Review imported employees that still need
+                                    attention and open the existing fix flow.
                                   </p>
                                 </div>
 
@@ -931,7 +922,7 @@ export function EmptyImportState({
                 Upload your employee CSV
               </h2>
               <p className="text-sm text-muted-foreground">
-                Download the template, upload the file, and validate before
+                Download the template, upload the file, then validate before
                 applying.
               </p>
             </div>
@@ -993,7 +984,7 @@ export function IssueNavigatorPanel({
       <CardHeader className="pb-2">
         <CardTitle>Problems to fix</CardTitle>
         <CardDescription>
-          Select a problem to narrow the preview to the affected rows.
+          Select a problem to filter the preview.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-1.5 xl:max-h-[calc(100vh-12rem)] xl:overflow-y-auto xl:pr-1">
@@ -1060,7 +1051,7 @@ export function SelectedIssueStrip({
   if (!group) {
     return (
       <div className="rounded-lg border bg-muted/10 p-3 text-sm text-muted-foreground">
-        Select a problem to filter the preview to affected rows.
+        Select a problem to filter the preview.
       </div>
     );
   }
@@ -1283,7 +1274,7 @@ export function SecondaryDetailsPanel({
       <CardHeader>
         <CardTitle>Reference details</CardTitle>
         <CardDescription>
-          Raw upload preview and template field reference.
+          Raw rows and template field reference.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

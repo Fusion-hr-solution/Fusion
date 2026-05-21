@@ -107,6 +107,12 @@ public static class TenantSetupStateMapper
         TenantSetupActivityType.Reopened => "reopened",
         TenantSetupActivityType.Published => "published",
         TenantSetupActivityType.Completed => "completed",
+        TenantSetupActivityType.DraftCreated => "draftCreated",
+        TenantSetupActivityType.DraftUpdated => "draftUpdated",
+        TenantSetupActivityType.DraftDeleted => "draftDeleted",
+        TenantSetupActivityType.DraftCleared => "draftCleared",
+        TenantSetupActivityType.DraftImportUploaded => "draftImportUploaded",
+        TenantSetupActivityType.DraftImportApplied => "draftImportApplied",
         _ => throw new ArgumentOutOfRangeException(nameof(activityType), activityType, null)
     };
 }

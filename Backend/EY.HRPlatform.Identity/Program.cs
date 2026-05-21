@@ -40,9 +40,9 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
-    // Migrations require a relational provider (e.g. Npgsql). For integration tests we use
-    // an in-memory database, so we create schema via EnsureCreated instead.
-    if (app.Environment.IsEnvironment("Testing"))
+    // Migrations require a relational provider (e.g. Npgsql). Use EnsureCreated for
+    // in-memory/test configurations so local startup does not fail.
+    if (!dbContext.Database.IsRelational())
         await dbContext.Database.EnsureCreatedAsync();
     else
         await dbContext.Database.MigrateAsync();

@@ -6,4 +6,5 @@ namespace EY.HRPlatform.CoreHR.Features.Employees.Commands.UpdateOwnEmployeeProf
 public sealed record UpdateOwnEmployeeProfileCommand(
     Guid EmployeeId,
     uint ExpectedVersion,
-    string? PreferredName) : ICommand<Result>;
+    string? PreferredName,
+    string? Phone = null) : ICommand<Result>;

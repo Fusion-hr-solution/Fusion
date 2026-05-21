@@ -24,6 +24,8 @@ export type {
   BrandingSettingsInputDto,
   FieldConfigDto,
   FieldConfigInputDto,
+  SelfServiceSettingsDto,
+  SelfServiceSettingsInputDto,
   TenantSettingsDto,
   UpdateTenantSettingsRequest,
 } from "./tenant-settings";
@@ -70,6 +72,7 @@ export type {
   PlatformOrganizationStatsDto,
   PlatformOrganizationSummaryDto,
   PlatformOrganizationPagedListDto,
+  TenantSummaryDto,
 } from "./platform-organizations";
 export {
   platformOrganizationsPaths,

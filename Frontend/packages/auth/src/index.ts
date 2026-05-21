@@ -39,6 +39,8 @@ export {
   canSeeCorePeopleNavigation,
   canAccessOrganizations,
   canSeeOrganizationsNavigation,
+  canAccessTenantContext,
+  canAccessTenantSurfaces,
 } from "./roles";
 
 // Components
