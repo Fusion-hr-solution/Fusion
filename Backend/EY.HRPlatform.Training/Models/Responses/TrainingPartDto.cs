@@ -8,6 +8,7 @@ public class TrainingPartDto
     public string? Description { get; set; }
     public int OrderIndex { get; set; }
     public decimal DurationHours { get; set; }
+    public bool IsLocked { get; set; }
     public int SessionCount { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }

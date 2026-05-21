@@ -415,6 +415,7 @@ export interface AdminTrainingPart {
   description?: string | null;
   orderIndex: number;
   durationHours: number;
+  isLocked: boolean;
   sessionCount: number;
   createdAt: string;
   updatedAt?: string | null;

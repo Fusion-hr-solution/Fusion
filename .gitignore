@@ -101,6 +101,8 @@ coverage/
 # Local Copilot Skills
 # ========================
 .github/skills/
+.agents/
+.claude/
 Frontend/.github/
 PROJECT_SUMMARY.md
 *.postman_collection.json

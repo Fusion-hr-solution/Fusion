@@ -73,15 +73,58 @@ public class EnrollInSessionsCommandHandler : ICommandHandler<EnrollInSessionsCo
             return Result.Failure<EnrollInSessionsResultDto>(
                 Error.Validation("Enrollment.NoAvailableSessions", "No sessions are currently available for enrollment."));
 
+        // Check existing enrollments — allow enrolling only for parts not yet enrolled
+        var sessionIdsForParts = await _db.TrainingSessions
+            .Where(s => partIds.Contains(s.PartId))
+            .Select(s => s.Id)
+            .ToListAsync(cancellationToken);
+
+        var existingPartEnrollments = await _db.SessionEnrollments
+            .Include(e => e.Session)
+            .Where(e => e.EmployeeId == request.EmployeeId
+                && sessionIdsForParts.Contains(e.SessionId)
+                && e.Status != EnrollmentStatus.Cancelled)
+            .ToListAsync(cancellationToken);
+
+        // A part is considered "already enrolled" if:
+        // - Employee has an active enrollment (Enrolled/Waitlisted), OR
+        // - Employee attended the session (Attended status)
+        // If the session completed but employee was absent (still Enrolled status on a completed session),
+        // they are allowed to re-enroll in another session for that part.
+        var alreadyEnrolledPartIds = existingPartEnrollments
+            .Where(e =>
+                e.Status == EnrollmentStatus.Attended ||
+                (e.Status is EnrollmentStatus.Enrolled or EnrollmentStatus.Waitlisted
+                 && e.Session.EffectiveStatus(nowUtc) is not SessionStatus.Completed))
+            .Select(e => e.Session.PartId)
+            .Distinct()
+            .ToHashSet();
+
+        // Exclude already-enrolled parts from required selections
+        var availableForEnrollmentPartIds = enrollablePartIds
+            .Where(id => !alreadyEnrolledPartIds.Contains(id))
+            .ToHashSet();
+
+        if (availableForEnrollmentPartIds.Count == 0)
+            return Result.Failure<EnrollInSessionsResultDto>(
+                Error.Conflict("Enrollment.AlreadyEnrolled",
+                    "You are already enrolled in sessions for all available parts."));
+
         // All selected parts must belong to this training
         if (!selectedPartIds.ToHashSet().IsSubsetOf(partIds))
             return Result.Failure<EnrollInSessionsResultDto>(
                 Error.Validation("Enrollment.InvalidPart", "One or more selected parts do not belong to this training."));
 
-        // All parts with available sessions must be covered
-        if (!enrollablePartIds.IsSubsetOf(selectedPartIds.ToHashSet()))
+        // Selected parts must be within available (unenrolled) parts
+        if (!selectedPartIds.ToHashSet().IsSubsetOf(availableForEnrollmentPartIds))
             return Result.Failure<EnrollInSessionsResultDto>(
-                Error.Validation("Enrollment.IncompleteSelection", "You must select a session for each part that has available sessions."));
+                Error.Conflict("Enrollment.AlreadyEnrolledInPart",
+                    "You are already enrolled in one or more of the selected parts. Cancel existing enrollments first."));
+
+        // At least one part must be selected
+        if (selectedPartIds.Count == 0)
+            return Result.Failure<EnrollInSessionsResultDto>(
+                Error.Validation("Enrollment.NoSelection", "You must select at least one session to enroll."));
 
         // Validate each selected session belongs to its part and is valid
         var selectedSessionIds = request.Selections.Select(s => s.SessionId).ToList();
@@ -112,24 +155,6 @@ public class EnrollInSessionsCommandHandler : ICommandHandler<EnrollInSessionsCo
                     Error.Validation("Enrollment.SessionCompleted",
                         $"Session '{selection.SessionId}' has already ended."));
         }
-
-        // Check if already enrolled in other sessions for the same parts
-        var sessionIdsForParts = await _db.TrainingSessions
-            .Where(s => partIds.Contains(s.PartId))
-            .Select(s => s.Id)
-            .ToListAsync(cancellationToken);
-
-        var existingPartEnrollments = await _db.SessionEnrollments
-            .Include(e => e.Session)
-            .Where(e => e.EmployeeId == request.EmployeeId
-                && sessionIdsForParts.Contains(e.SessionId)
-                && e.Status != EnrollmentStatus.Cancelled)
-            .ToListAsync(cancellationToken);
-
-        if (existingPartEnrollments.Count > 0)
-            return Result.Failure<EnrollInSessionsResultDto>(
-                Error.Conflict("Enrollment.AlreadyEnrolled",
-                    "You are already enrolled in sessions for this training. Cancel existing enrollments first."));
 
         // Count current enrollments for capacity check + precompute waitlist positions
         var enrollmentCounts = await _db.SessionEnrollments

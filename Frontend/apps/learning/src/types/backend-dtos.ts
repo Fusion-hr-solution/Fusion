@@ -413,3 +413,23 @@ export interface BackendMyEnrollmentSummaryDto {
   nextSessionUtc: string | null;
   sessions: BackendMyEnrollmentSessionDto[];
 }
+
+// --- US-5.3.1 QR attendance ---
+
+export interface BackendSessionQrCodeDto {
+  sessionId: string;
+  payload: string;
+  rotationSeconds: number;
+  issuedAt: string;
+  refreshAt: string;
+  expiresAt: string;
+  isRevoked: boolean;
+}
+
+export interface BackendScanQrResultDto {
+  sessionId: string;
+  trainingTitle: string;
+  partTitle: string;
+  sessionStartUtc: string;
+  attendedAt: string;
+}

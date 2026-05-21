@@ -1,5 +1,6 @@
 using EY.HRPlatform.SharedKernel.CQRS;
 using EY.HRPlatform.SharedKernel.Results;
+using EY.HRPlatform.Training.Domain.Enums;
 using EY.HRPlatform.Training.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -26,6 +27,28 @@ public class UpdateSessionCommandHandler : ICommandHandler<UpdateSessionCommand,
 
     public async Task<Result<UpdateSessionResult>> Handle(UpdateSessionCommand request, CancellationToken cancellationToken)
     {
+        var session = await _db.TrainingSessions
+            .FirstOrDefaultAsync(s => s.Id == request.SessionId, cancellationToken);
+
+        if (session is null)
+            return Result.Failure<UpdateSessionResult>(Error.NotFound("TrainingSession", request.SessionId));
+
+        var nowUtc = DateTime.UtcNow;
+        var effectiveStatus = session.EffectiveStatus(nowUtc);
+
+        // Completed sessions are locked — only trainer info and notes can be updated
+        if (effectiveStatus == SessionStatus.Completed)
+        {
+            session.UpdateTrainerAndNotes(
+                request.Notes,
+                request.TrainerEmployeeId,
+                request.TrainerName?.Trim(),
+                request.TrainerEmail?.Trim());
+
+            await _db.SaveChangesAsync(cancellationToken);
+            return Result.Success(new UpdateSessionResult(new List<RoomConflictItem>()));
+        }
+
         if (request.EndUtc <= request.StartUtc)
             return Result.Failure<UpdateSessionResult>(
                 Error.Validation("Session.InvalidTimeRange", "End time must be after start time."));
@@ -37,12 +60,6 @@ public class UpdateSessionCommandHandler : ICommandHandler<UpdateSessionCommand,
         if (string.IsNullOrWhiteSpace(request.Room))
             return Result.Failure<UpdateSessionResult>(
                 Error.Validation("Session.RoomRequired", "Room is required."));
-
-        var session = await _db.TrainingSessions
-            .FirstOrDefaultAsync(s => s.Id == request.SessionId, cancellationToken);
-
-        if (session is null)
-            return Result.Failure<UpdateSessionResult>(Error.NotFound("TrainingSession", request.SessionId));
 
         session.Update(
             DateTime.SpecifyKind(request.StartUtc, DateTimeKind.Utc),
