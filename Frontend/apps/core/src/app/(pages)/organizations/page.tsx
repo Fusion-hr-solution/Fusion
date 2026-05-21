@@ -20,7 +20,7 @@ import { CreateOrgDialog } from "./create-org-dialog";
 import { OrgDetailSheet } from "./org-detail-sheet";
 
 export default function OrganizationsPage() {
-  const { user, isLoading: isAuthLoading } = useAuth();
+  const { user } = useAuth();
   const canManageOrganizations = canAccessOrganizations(user);
 
   // ---- list query state ----
@@ -68,8 +68,7 @@ export default function OrganizationsPage() {
   }, []);
 
   const isInitialPageLoading =
-    (isAuthLoading && !user) ||
-    (!isAuthLoading && canManageOrganizations && isLoading && !data && !error);
+    canManageOrganizations && isLoading && !data && !error;
 
   if (isInitialPageLoading) {
     return (

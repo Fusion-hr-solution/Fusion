@@ -22,6 +22,8 @@ public sealed record EmployeeListItemDto(
     uint Version)
 {
     public string FullName => $"{FirstName} {LastName}";
+
+    public EmployeeReadinessSummaryDto Readiness { get; init; } = EmployeeReadinessSummaryDto.Empty;
 }
 
 public static class EmployeeHierarchyStatuses
