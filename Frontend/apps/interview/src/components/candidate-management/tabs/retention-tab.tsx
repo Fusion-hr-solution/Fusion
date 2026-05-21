@@ -105,18 +105,13 @@ function formatRelative(value?: string | null): string {
     return "unknown";
   }
   const deltaSeconds = Math.round((parsed.getTime() - Date.now()) / 1000);
-  const abs = Math.abs(deltaSeconds);
-  if (abs < 60) {
-    return "just now";
-  }
+  if (deltaSeconds >= 0) return "just now";
+  const abs = -deltaSeconds;
+  if (abs < 60) return "just now";
   const minutes = Math.round(abs / 60);
-  if (minutes < 60) {
-    return `${minutes}m ago`;
-  }
+  if (minutes < 60) return `${minutes}m ago`;
   const hours = Math.round(minutes / 60);
-  if (hours < 24) {
-    return `${hours}h ago`;
-  }
+  if (hours < 24) return `${hours}h ago`;
   const days = Math.round(hours / 24);
   return `${days}d ago`;
 }

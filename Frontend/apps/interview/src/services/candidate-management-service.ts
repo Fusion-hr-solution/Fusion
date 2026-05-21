@@ -10,6 +10,7 @@ import type {
   CandidateRetentionState,
   CandidateRetentionSettings,
   CandidateRetentionRun,
+  RetentionAction,
 } from "@/types";
 import type {
   BackendCandidateManagementOverviewDto,
@@ -388,10 +389,15 @@ export async function grantCandidateRetake(input: GrantCandidateRetakeInput): Pr
   );
 }
 
+function parseRetentionAction(value: string): RetentionAction {
+  if (value === "Anonymize" || value === "Delete" || value === "Expire") return value;
+  return "Anonymize";
+}
+
 function mapRetentionSettings(dto: BackendCandidateRetentionSettingsDto): CandidateRetentionSettings {
   return {
     enabled: dto.enabled,
-    retentionAction: dto.retentionAction as CandidateRetentionSettings["retentionAction"],
+    retentionAction: parseRetentionAction(dto.retentionAction),
     retentionPeriodDays: dto.retentionPeriodDays,
     scanIntervalHours: dto.scanIntervalHours,
     lastRunAtUtc: dto.lastRunAtUtc,
@@ -403,7 +409,7 @@ function mapRetentionRun(dto: BackendCandidateRetentionRunDto): CandidateRetenti
     id: dto.id,
     triggeredBy: dto.triggeredBy,
     triggerSource: dto.triggerSource,
-    retentionAction: dto.retentionAction,
+    retentionAction: parseRetentionAction(dto.retentionAction),
     retentionPeriodDays: dto.retentionPeriodDays,
     candidatesScanned: dto.candidatesScanned,
     candidatesProcessed: dto.candidatesProcessed,

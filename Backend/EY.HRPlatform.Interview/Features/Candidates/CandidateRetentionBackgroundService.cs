@@ -36,7 +36,12 @@ public class CandidateRetentionBackgroundService(
                         state.Settings.RetentionPeriodDays,
                         state.Settings.RetentionAction);
 
-                    await retentionService.RunRetentionSweepAsync("RetentionJob", "Scheduled", stoppingToken);
+                    var result = await retentionService.RunRetentionSweepAsync("RetentionJob", "Scheduled", stoppingToken);
+                    if (result is null)
+                    {
+                        logger.LogInformation(
+                            "CandidateRetentionBackgroundService: sweep skipped — another instance holds the lock.");
+                    }
                 }
                 else
                 {

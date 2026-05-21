@@ -34,6 +34,9 @@ public class CandidateRetentionSettingsConfiguration : IEntityTypeConfiguration<
         builder.Property(x => x.LastRunAtUtc)
             .IsRequired(false);
 
+        builder.Property(x => x.SweepLockedAtUtc)
+            .IsRequired(false);
+
         builder.Property(x => x.CreatedAt).IsRequired();
         builder.Property(x => x.UpdatedAt).IsRequired(false);
     }

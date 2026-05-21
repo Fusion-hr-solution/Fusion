@@ -9,6 +9,7 @@ public class CandidateRetentionSettings : AggregateRoot
     public int RetentionPeriodDays { get; set; } = 90;
     public int ScanIntervalHours { get; set; } = 24;
     public DateTime? LastRunAtUtc { get; set; }
+    public DateTime? SweepLockedAtUtc { get; set; }
 
     public void SetCreatedAt(DateTime createdAt)
     {

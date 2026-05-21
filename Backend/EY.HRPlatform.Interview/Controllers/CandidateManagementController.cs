@@ -133,14 +133,29 @@ public class CandidateManagementController(
 
     [HttpPost("retention/run")]
     [ProducesResponseType(typeof(ApiResponse<CandidateRetentionRunDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<CandidateRetentionRunDto>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<CandidateRetentionRunDto>), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> RunRetention(
         [FromBody] RunCandidateRetentionRequestDto request,
         CancellationToken cancellationToken)
     {
+        if (string.IsNullOrWhiteSpace(request.TriggeredBy))
+        {
+            return BadRequest(ApiResponse<CandidateRetentionRunDto>.Failure(
+                "TriggeredBy is required for audit logging."));
+        }
+
         var data = await candidateRetentionService.RunRetentionSweepAsync(
             request.TriggeredBy,
             "Manual",
             cancellationToken);
+
+        if (data is null)
+        {
+            return Conflict(ApiResponse<CandidateRetentionRunDto>.Failure(
+                "A retention sweep is already in progress. Try again shortly."));
+        }
+
         return Ok(ApiResponse<CandidateRetentionRunDto>.Success(data));
     }
 }

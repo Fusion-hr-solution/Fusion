@@ -1,6 +1,8 @@
 using EY.HRPlatform.Interview.Domain.Entities;
 using EY.HRPlatform.Interview.Infrastructure;
 using EY.HRPlatform.Interview.Models.Candidates;
+using EY.HRPlatform.Interview.Models.Common;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
 namespace EY.HRPlatform.Interview.Features.Candidates;
@@ -34,6 +36,12 @@ public class CandidateRetentionService(
         };
     }
 
+    public async Task<int> GetPendingCountAsync(CancellationToken cancellationToken)
+    {
+        var settings = await GetOrCreateSettingsAsync(cancellationToken);
+        return await CountPendingCandidatesAsync(settings, cancellationToken);
+    }
+
     public async Task<CandidateRetentionSettingsDto> SaveSettingsAsync(
         UpdateCandidateRetentionSettingsDto request,
         CancellationToken cancellationToken)
@@ -59,12 +67,50 @@ public class CandidateRetentionService(
         return MapSettings(settings);
     }
 
-    public async Task<CandidateRetentionRunDto> RunRetentionSweepAsync(
+    // A lock held longer than this is considered stale (crashed/hung replica).
+    private static readonly TimeSpan SweepLockTimeout = TimeSpan.FromHours(2);
+
+    public async Task<CandidateRetentionRunDto?> RunRetentionSweepAsync(
         string triggeredBy,
         string triggerSource,
         CancellationToken cancellationToken)
     {
         var settings = await GetOrCreateSettingsAsync(cancellationToken);
+
+        if (!settings.Enabled || settings.RetentionPeriodDays <= 0)
+        {
+            var at = DateTime.UtcNow;
+            var disabledRun = new CandidateRetentionRun
+            {
+                TriggeredBy = triggeredBy.Trim(),
+                TriggerSource = triggerSource,
+                RetentionAction = settings.RetentionAction,
+                RetentionPeriodDays = settings.RetentionPeriodDays,
+                StartedAtUtc = at,
+                CompletedAtUtc = at,
+            };
+            dbContext.CandidateRetentionRuns.Add(disabledRun);
+            settings.LastRunAtUtc = at;
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return MapRun(disabledRun);
+        }
+
+        // Atomically acquire the sweep lock. Uses a single UPDATE ... WHERE to test-and-set;
+        // the row-level lock in the database serialises concurrent replicas correctly.
+        var staleThreshold = DateTime.UtcNow - SweepLockTimeout;
+        var acquired = await dbContext.CandidateRetentionSettings
+            .Where(s => s.Id == RetentionSettingsId
+                        && (s.SweepLockedAtUtc == null || s.SweepLockedAtUtc < staleThreshold))
+            .ExecuteUpdateAsync(
+                s => s.SetProperty(x => x.SweepLockedAtUtc, DateTime.UtcNow),
+                cancellationToken);
+
+        if (acquired == 0)
+        {
+            logger.LogInformation(
+                "CandidateRetentionSweep: skipping — another instance already holds the sweep lock.");
+            return null;
+        }
 
         var startedAt = DateTime.UtcNow;
         var run = new CandidateRetentionRun
@@ -76,128 +122,186 @@ public class CandidateRetentionService(
             StartedAtUtc = startedAt,
         };
 
-        if (!settings.Enabled || settings.RetentionPeriodDays <= 0)
+        try
         {
+            var cutoffUtc = startedAt.AddDays(-settings.RetentionPeriodDays);
+            var action = settings.RetentionAction;
+
+            // Aggregate per-candidate activity in the database — avoids loading all invitations into memory.
+            // Groups by (TestId, normalised email) and computes the latest activity clock per group.
+            var candidateSummaries = await dbContext.CandidateInvitations
+                .AsNoTracking()
+                .Where(i => i.Status != "Expired" && i.Email != null && i.Email.Trim() != "")
+                .Select(i => new
+                {
+                    i.TestId,
+                    NormalizedEmail = i.Email.Trim().ToLower(),
+                    ActivityAt = i.AttemptSubmittedAtUtc ?? i.AttemptStartedAtUtc ?? (DateTime?)i.LastSentAtUtc ?? i.CreatedAt,
+                })
+                .GroupBy(i => new { i.TestId, i.NormalizedEmail })
+                .Select(g => new
+                {
+                    g.Key.TestId,
+                    g.Key.NormalizedEmail,
+                    LatestActivity = g.Max(i => i.ActivityAt),
+                })
+                .ToListAsync(cancellationToken);
+
+            run.CandidatesScanned = candidateSummaries.Count;
+
+            var dueGroups = candidateSummaries
+                .Where(x => x.LatestActivity <= cutoffUtc)
+                .ToList();
+
+            int anonymized = 0, deleted = 0, expired = 0;
+
+            // Batch-load invitations per test so we issue one query per test, not one per candidate.
+            foreach (var testGroup in dueGroups.GroupBy(d => d.TestId))
+            {
+                var dueEmails = testGroup.Select(d => d.NormalizedEmail).ToList();
+
+                switch (action)
+                {
+                    case "Anonymize":
+                    {
+                        var invitations = await dbContext.CandidateInvitations
+                            .Where(i => i.TestId == testGroup.Key
+                                        && i.Status != "Expired"
+                                        && dueEmails.Contains(i.Email.Trim().ToLower()))
+                            .ToListAsync(cancellationToken);
+
+                        foreach (var group in invitations.GroupBy(i => NormalizeEmail(i.Email)))
+                        {
+                            await privacyExecutor.PseudonymizeAsync(
+                                testGroup.Key,
+                                group.Key,
+                                "anonymize",
+                                string.IsNullOrWhiteSpace(triggeredBy) ? "RetentionJob" : triggeredBy,
+                                string.IsNullOrWhiteSpace(triggerSource) ? "RetentionJob" : triggerSource,
+                                group.ToList(),
+                                cancellationToken);
+                            anonymized++;
+                        }
+                        break;
+                    }
+
+                    case "Delete":
+                    {
+                        if (dbContext.Database.IsRelational())
+                        {
+                            var invitationIds = await dbContext.CandidateInvitations
+                                .AsNoTracking()
+                                .Where(i => i.TestId == testGroup.Key
+                                            && i.Status != "Expired"
+                                            && dueEmails.Contains(i.Email.Trim().ToLower()))
+                                .Select(i => i.Id)
+                                .ToListAsync(cancellationToken);
+
+                            await dbContext.CandidateProgressEvents
+                                .Where(i => invitationIds.Contains(i.InvitationId))
+                                .ExecuteDeleteAsync(cancellationToken);
+                            await dbContext.CandidateTestAttempts
+                                .Where(i => invitationIds.Contains(i.InvitationId))
+                                .ExecuteDeleteAsync(cancellationToken);
+                            await dbContext.CandidateInvitations
+                                .Where(i => invitationIds.Contains(i.Id))
+                                .ExecuteDeleteAsync(cancellationToken);
+                        }
+                        else
+                        {
+                            var invitationsToDelete = await dbContext.CandidateInvitations
+                                .Where(i => i.TestId == testGroup.Key
+                                            && i.Status != "Expired"
+                                            && dueEmails.Contains(i.Email.Trim().ToLower()))
+                                .ToListAsync(cancellationToken);
+
+                            var invitationIds = invitationsToDelete.Select(i => i.Id).ToList();
+
+                            var eventsToDelete = await dbContext.CandidateProgressEvents
+                                .Where(i => invitationIds.Contains(i.InvitationId))
+                                .ToListAsync(cancellationToken);
+                            dbContext.CandidateProgressEvents.RemoveRange(eventsToDelete);
+
+                            var attemptsToDelete = await dbContext.CandidateTestAttempts
+                                .Where(i => invitationIds.Contains(i.InvitationId))
+                                .ToListAsync(cancellationToken);
+                            dbContext.CandidateTestAttempts.RemoveRange(attemptsToDelete);
+
+                            dbContext.CandidateInvitations.RemoveRange(invitationsToDelete);
+                            await dbContext.SaveChangesAsync(cancellationToken);
+                        }
+
+                        deleted += dueEmails.Count;
+                        break;
+                    }
+
+                    case "Expire":
+                    {
+                        if (dbContext.Database.IsRelational())
+                        {
+                            await dbContext.CandidateInvitations
+                                .Where(i => i.TestId == testGroup.Key
+                                            && i.Status != "Expired"
+                                            && dueEmails.Contains(i.Email.Trim().ToLower()))
+                                .ExecuteUpdateAsync(
+                                    s => s.SetProperty(i => i.Status, "Expired"),
+                                    cancellationToken);
+                        }
+                        else
+                        {
+                            var invitations = await dbContext.CandidateInvitations
+                                .Where(i => i.TestId == testGroup.Key
+                                            && i.Status != "Expired"
+                                            && dueEmails.Contains(i.Email.Trim().ToLower()))
+                                .ToListAsync(cancellationToken);
+
+                            foreach (var invitation in invitations)
+                                invitation.Status = "Expired";
+                        }
+
+                        expired += dueEmails.Count;
+                        break;
+                    }
+                }
+            }
+
+            // For in-memory provider: Expire changes are tracked across all test groups — flush once here.
+            if (action == "Expire" && !dbContext.Database.IsRelational())
+            {
+                await dbContext.SaveChangesAsync(cancellationToken);
+            }
+
+            run.CandidatesAnonymized = anonymized;
+            run.CandidatesDeleted = deleted;
+            run.CandidatesExpired = expired;
+            run.CandidatesProcessed = anonymized + deleted + expired;
             run.CompletedAtUtc = DateTime.UtcNow;
-            dbContext.CandidateRetentionRuns.Add(run);
+
             settings.LastRunAtUtc = startedAt;
+            dbContext.CandidateRetentionRuns.Add(run);
             await dbContext.SaveChangesAsync(cancellationToken);
+
+            logger.LogInformation(
+                "CandidateRetentionSweep | Action={Action} | Period={Period}d | Scanned={Scanned} | Anonymized={Anonymized} | Deleted={Deleted} | Expired={Expired} | TriggeredBy={TriggeredBy}",
+                action,
+                settings.RetentionPeriodDays,
+                run.CandidatesScanned,
+                anonymized,
+                deleted,
+                expired,
+                triggeredBy);
+
             return MapRun(run);
         }
-
-        var cutoffUtc = startedAt.AddDays(-settings.RetentionPeriodDays);
-        var action = settings.RetentionAction;
-
-        var allInvitations = await dbContext.CandidateInvitations
-            .Where(item => item.Status != "Expired")
-            .OrderByDescending(item => item.CreatedAt)
-            .ToListAsync(cancellationToken);
-
-        var groups = allInvitations
-            .GroupBy(item => (item.TestId, Email: NormalizeEmail(item.Email)))
-            .Where(group => !string.IsNullOrWhiteSpace(group.Key.Email))
-            .ToList();
-
-        run.CandidatesScanned = groups.Count;
-
-        int anonymized = 0, deleted = 0, expired = 0;
-
-        foreach (var group in groups)
+        finally
         {
-            var invitationList = group.ToList();
-            var clock = invitationList
-                .Select(item =>
-                    item.AttemptSubmittedAtUtc
-                    ?? item.AttemptStartedAtUtc
-                    ?? (DateTime?)item.LastSentAtUtc
-                    ?? item.CreatedAt)
-                .Max();
-
-            if (clock > cutoffUtc)
-            {
-                continue;
-            }
-
-            switch (action)
-            {
-                case "Anonymize":
-                    await privacyExecutor.PseudonymizeAsync(
-                        group.Key.TestId,
-                        group.Key.Email,
-                        "anonymize",
-                        "RetentionJob",
-                        "RetentionJob",
-                        invitationList,
-                        cancellationToken);
-                    anonymized++;
-                    break;
-
-                case "Delete":
-                    var invitationIds = invitationList.Select(item => item.Id).ToList();
-
-                    if (dbContext.Database.IsRelational())
-                    {
-                        await dbContext.CandidateProgressEvents
-                            .Where(item => invitationIds.Contains(item.InvitationId))
-                            .ExecuteDeleteAsync(cancellationToken);
-                        await dbContext.CandidateTestAttempts
-                            .Where(item => invitationIds.Contains(item.InvitationId))
-                            .ExecuteDeleteAsync(cancellationToken);
-                        await dbContext.CandidateInvitations
-                            .Where(item => invitationIds.Contains(item.Id))
-                            .ExecuteDeleteAsync(cancellationToken);
-                    }
-                    else
-                    {
-                        var eventsToDelete = await dbContext.CandidateProgressEvents
-                            .Where(item => invitationIds.Contains(item.InvitationId))
-                            .ToListAsync(cancellationToken);
-                        dbContext.CandidateProgressEvents.RemoveRange(eventsToDelete);
-
-                        var attemptsToDelete = await dbContext.CandidateTestAttempts
-                            .Where(item => invitationIds.Contains(item.InvitationId))
-                            .ToListAsync(cancellationToken);
-                        dbContext.CandidateTestAttempts.RemoveRange(attemptsToDelete);
-
-                        dbContext.CandidateInvitations.RemoveRange(invitationList);
-                        await dbContext.SaveChangesAsync(cancellationToken);
-                    }
-
-                    deleted++;
-                    break;
-
-                case "Expire":
-                    foreach (var invitation in invitationList)
-                    {
-                        invitation.Status = "Expired";
-                    }
-                    await dbContext.SaveChangesAsync(cancellationToken);
-                    expired++;
-                    break;
-            }
+            // Release the lock regardless of success or cancellation so other replicas are not blocked.
+            await dbContext.CandidateRetentionSettings
+                .Where(s => s.Id == RetentionSettingsId)
+                .ExecuteUpdateAsync(
+                    s => s.SetProperty(x => x.SweepLockedAtUtc, (DateTime?)null),
+                    CancellationToken.None);
         }
-
-        run.CandidatesAnonymized = anonymized;
-        run.CandidatesDeleted = deleted;
-        run.CandidatesExpired = expired;
-        run.CandidatesProcessed = anonymized + deleted + expired;
-        run.CompletedAtUtc = DateTime.UtcNow;
-
-        settings.LastRunAtUtc = startedAt;
-        dbContext.CandidateRetentionRuns.Add(run);
-        await dbContext.SaveChangesAsync(cancellationToken);
-
-        logger.LogInformation(
-            "CandidateRetentionSweep | Action={Action} | Period={Period}d | Scanned={Scanned} | Anonymized={Anonymized} | Deleted={Deleted} | Expired={Expired} | TriggeredBy={TriggeredBy}",
-            action,
-            settings.RetentionPeriodDays,
-            run.CandidatesScanned,
-            anonymized,
-            deleted,
-            expired,
-            triggeredBy);
-
-        return MapRun(run);
     }
 
     private async Task<CandidateRetentionSettings> GetOrCreateSettingsAsync(CancellationToken cancellationToken)
@@ -226,45 +330,30 @@ public class CandidateRetentionService(
 
         var cutoffUtc = DateTime.UtcNow.AddDays(-settings.RetentionPeriodDays);
 
-        var allInvitations = await dbContext.CandidateInvitations
+        return await dbContext.CandidateInvitations
             .AsNoTracking()
-            .Where(item => item.Status != "Expired")
-            .Select(item => new
+            .Where(i => i.Status != "Expired" && i.Email != null && i.Email.Trim() != "")
+            .Select(i => new
             {
-                item.Email,
-                item.TestId,
-                item.AttemptSubmittedAtUtc,
-                item.AttemptStartedAtUtc,
-                item.LastSentAtUtc,
-                item.CreatedAt,
+                i.TestId,
+                NormalizedEmail = i.Email.Trim().ToLower(),
+                ActivityAt = i.AttemptSubmittedAtUtc ?? i.AttemptStartedAtUtc ?? (DateTime?)i.LastSentAtUtc ?? i.CreatedAt,
             })
-            .ToListAsync(cancellationToken);
-
-        return allInvitations
-            .GroupBy(item => (item.TestId, Email: NormalizeEmail(item.Email)))
-            .Count(group =>
-            {
-                var latest = group
-                    .Select(item =>
-                        item.AttemptSubmittedAtUtc
-                        ?? item.AttemptStartedAtUtc
-                        ?? (DateTime?)item.LastSentAtUtc
-                        ?? item.CreatedAt)
-                    .Max();
-                return latest <= cutoffUtc;
-            });
+            .GroupBy(i => new { i.TestId, i.NormalizedEmail })
+            .Select(g => g.Max(i => i.ActivityAt))
+            .CountAsync(latestActivity => latestActivity <= cutoffUtc, cancellationToken);
     }
 
     private static void ValidateSettings(UpdateCandidateRetentionSettingsDto request)
     {
         if (request.RetentionPeriodDays < 1)
         {
-            throw new ArgumentException("RetentionPeriodDays must be at least 1.");
+            throw new ApiException("RetentionPeriodDays must be at least 1.", StatusCodes.Status400BadRequest);
         }
 
         if (request.ScanIntervalHours < 1)
         {
-            throw new ArgumentException("ScanIntervalHours must be at least 1.");
+            throw new ApiException("ScanIntervalHours must be at least 1.", StatusCodes.Status400BadRequest);
         }
 
         NormalizeAction(request.RetentionAction);
@@ -277,7 +366,7 @@ public class CandidateRetentionService(
             "Anonymize" or "anonymize" => "Anonymize",
             "Delete" or "delete" => "Delete",
             "Expire" or "expire" => "Expire",
-            _ => throw new ArgumentException("RetentionAction must be Anonymize, Delete, or Expire."),
+            _ => throw new ApiException("RetentionAction must be Anonymize, Delete, or Expire.", StatusCodes.Status400BadRequest),
         };
     }
 

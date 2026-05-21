@@ -257,7 +257,7 @@ export interface CandidateRetentionRun {
   id: string;
   triggeredBy: string;
   triggerSource: string;
-  retentionAction: string;
+  retentionAction: RetentionAction;
   retentionPeriodDays: number;
   candidatesScanned: number;
   candidatesProcessed: number;

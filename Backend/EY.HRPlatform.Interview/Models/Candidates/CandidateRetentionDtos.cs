@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace EY.HRPlatform.Interview.Models.Candidates;
 
 public class CandidateRetentionSettingsDto
@@ -42,5 +44,6 @@ public class CandidateRetentionStateDto
 
 public class RunCandidateRetentionRequestDto
 {
+    [Required]
     public string TriggeredBy { get; set; } = string.Empty;
 }

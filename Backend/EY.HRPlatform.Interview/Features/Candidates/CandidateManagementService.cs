@@ -15,13 +15,13 @@ public class CandidateManagementService(
     ICandidateInvitationService invitationService,
     ICandidateInvitationEmailSender emailSender,
     ICandidatePrivacyActionExecutor privacyExecutor,
+    ICandidateRetentionService retentionService,
     IConfiguration configuration,
     ILogger<CandidateManagementService> logger)
     : ICandidateManagementService
 {
     private const int DefaultTimelineEventRetentionDays = 90;
     private static readonly Guid AttemptSettingsId = Guid.Parse("1f8197d0-4b62-4b54-8ed9-7ebf2fb02a51");
-    private static readonly Guid RetentionSettingsId = Guid.Parse("3a7e9f21-1c34-4d88-b012-5f6a8c9d0e11");
     private const string PrivacyActionAnonymize = "anonymize";
     private const string PrivacyActionDeletePii = "delete-pii";
 
@@ -31,7 +31,7 @@ public class CandidateManagementService(
         var pendingCount = pendingInvitations.Count;
         var deliveryFailedCount = pendingInvitations.Count(item => IsStatus(item.Status, "DeliveryFailed"));
 
-        var pendingDeletion = await CountPendingRetentionCandidatesAsync(cancellationToken);
+        var pendingDeletion = await retentionService.GetPendingCountAsync(cancellationToken);
 
         var overview = new CandidateManagementOverviewDto
         {
@@ -45,50 +45,6 @@ public class CandidateManagementService(
         };
 
         return overview;
-    }
-
-    private async Task<int> CountPendingRetentionCandidatesAsync(CancellationToken cancellationToken)
-    {
-        var settings = await dbContext.CandidateRetentionSettings
-            .AsNoTracking()
-            .FirstOrDefaultAsync(item => item.Id == RetentionSettingsId, cancellationToken);
-
-        if (settings is null || !settings.Enabled || settings.RetentionPeriodDays <= 0)
-        {
-            return 0;
-        }
-
-        var cutoffUtc = DateTime.UtcNow.AddDays(-settings.RetentionPeriodDays);
-
-        var allInvitations = await dbContext.CandidateInvitations
-            .AsNoTracking()
-            .Where(item => item.Status != "Expired")
-            .Select(item => new
-            {
-                item.Email,
-                item.TestId,
-                item.AttemptSubmittedAtUtc,
-                item.AttemptStartedAtUtc,
-                item.LastSentAtUtc,
-                item.CreatedAt,
-            })
-            .ToListAsync(cancellationToken);
-
-        var count = allInvitations
-            .GroupBy(item => (item.TestId, Email: NormalizeStoredEmailForLookup(item.Email)))
-            .Count(group =>
-            {
-                var latest = group
-                    .Select(item =>
-                        item.AttemptSubmittedAtUtc
-                        ?? item.AttemptStartedAtUtc
-                        ?? (DateTime?)item.LastSentAtUtc
-                        ?? item.CreatedAt)
-                    .Max();
-                return latest <= cutoffUtc;
-            });
-
-        return count;
     }
 
     public async Task<IReadOnlyList<CandidateTimelineCandidateDto>> GetTimelineCandidatesAsync(
