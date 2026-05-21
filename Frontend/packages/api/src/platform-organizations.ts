@@ -4,9 +4,6 @@ export interface PlatformOrganizationStatsDto {
   totalOrganizations: number;
   invitedPending: number;
   activeOrganizations: number;
-  draftOrganizations: number;
-  suspendedOrganizations: number;
-  archivedOrganizations: number;
 }
 
 export interface PlatformOrganizationInviteStatusDto {
@@ -49,14 +46,6 @@ export interface PlatformOrganizationDetailDto {
 export interface PlatformOrganizationCreatedDto {
   organization: PlatformOrganizationDetailDto;
   inviteLink: string;
-}
-
-export interface TenantSummaryDto {
-  tenantId: string;
-  name: string;
-  operationalStatus: string;
-  isActive: boolean;
-  isArchived: boolean;
 }
 
 export interface PlatformOrganizationPagedListDto {
@@ -120,7 +109,6 @@ export const platformOrganizationsPaths = {
     `/identity/platform-admin/organizations/${tenantId}/first-admin-invite/resend`,
   revokeFirstAdmin: (tenantId: string) =>
     `/identity/platform-admin/organizations/${tenantId}/first-admin-invite/revoke`,
-  tenantSummary: () => "/identity/tenant-context/tenant-summary",
 } as const;
 
 export const platformOrganizationsQueryKeys = {

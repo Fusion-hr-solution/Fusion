@@ -90,13 +90,6 @@ export function createApiClient(config: ApiClientConfig = {}): ApiClient {
       }
     }
 
-    if (config.getTenantId) {
-      const tenantId = config.getTenantId();
-      if (tenantId) {
-        headers["X-Tenant-Id"] = tenantId;
-      }
-    }
-
     if (
       headers["X-Correlation-Id"] == null &&
       typeof crypto !== "undefined" &&

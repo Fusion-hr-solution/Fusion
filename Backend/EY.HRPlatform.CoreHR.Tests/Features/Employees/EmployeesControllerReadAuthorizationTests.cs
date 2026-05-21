@@ -7,8 +7,7 @@ namespace EY.HRPlatform.CoreHR.Tests.Features.Employees;
 
 public class EmployeesControllerReadAuthorizationTests
 {
-    private const string LinkedEmployeeReadRoles = PlatformRole.PlatformAdmin + "," + PlatformRole.HRAdmin + "," + PlatformRole.Employee + "," + PlatformRole.Manager;
-    private const string CoreReadRoles = PlatformRole.PlatformAdmin + "," + PlatformRole.HRAdmin;
+    private const string LinkedEmployeeReadRoles = PlatformRole.HRAdmin + "," + PlatformRole.Employee + "," + PlatformRole.Manager;
 
     [Fact]
     public void GetAll_RequiresHrAdminRole()
@@ -22,7 +21,7 @@ public class EmployeesControllerReadAuthorizationTests
         // Assert
         Assert.NotNull(method);
         Assert.NotNull(authorize);
-        Assert.Equal(CoreReadRoles, authorize!.Roles);
+        Assert.Equal(PlatformRole.HRAdmin, authorize!.Roles);
     }
 
     [Fact]
@@ -37,7 +36,7 @@ public class EmployeesControllerReadAuthorizationTests
         // Assert
         Assert.NotNull(method);
         Assert.NotNull(authorize);
-        Assert.Equal(CoreReadRoles, authorize!.Roles);
+        Assert.Equal(PlatformRole.HRAdmin, authorize!.Roles);
     }
 
     [Fact]
@@ -67,7 +66,7 @@ public class EmployeesControllerReadAuthorizationTests
         // Assert
         Assert.NotNull(method);
         Assert.NotNull(authorize);
-        Assert.Equal(CoreReadRoles, authorize!.Roles);
+        Assert.Equal(PlatformRole.HRAdmin, authorize!.Roles);
     }
 
     [Fact]

@@ -1,5 +1,4 @@
 using EY.HRPlatform.CoreHR.Features.DraftStructure.Commands.CreateDraftOrgUnit;
-using EY.HRPlatform.CoreHR.Features.DraftStructure.Commands.ClearDraftStructure;
 using EY.HRPlatform.CoreHR.Features.DraftStructure.Commands.DeleteDraftOrgUnit;
 using EY.HRPlatform.CoreHR.Features.DraftStructure.Commands.UpdateDraftOrgUnit;
 using EY.HRPlatform.CoreHR.Features.DraftStructure.Dtos;
@@ -68,11 +67,7 @@ public class DraftStructureController(ISender sender) : ControllerBase
             request.Location,
             request.Description,
             request.ParentId,
-            request.Attributes,
-            User.GetUserId(),
-            User.GetFullName(),
-            GetActorRole(),
-            User.IsInRole(PlatformRole.PlatformAdmin));
+            request.Attributes);
 
         var result = await sender.Send(command, cancellationToken);
 
@@ -82,21 +77,6 @@ public class DraftStructureController(ISender sender) : ControllerBase
             nameof(GetById),
             new { id = result.Value.Id },
             ApiResponseOfDraftOrgUnitDto.Success(result.Value));
-    }
-
-    [HttpDelete]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status409Conflict)]
-    public async Task<IActionResult> Clear(CancellationToken cancellationToken)
-    {
-        await sender.Send(
-            new ClearDraftStructureCommand(
-                User.GetUserId(),
-                User.GetFullName(),
-                GetActorRole(),
-                User.IsInRole(PlatformRole.PlatformAdmin)),
-            cancellationToken);
-        return NoContent();
     }
 
     [HttpPut("{id:guid}")]
@@ -127,11 +107,7 @@ public class DraftStructureController(ISender sender) : ControllerBase
             request.Description,
             request.ParentId,
             expectedVersion,
-            request.Attributes,
-            User.GetUserId(),
-            User.GetFullName(),
-            GetActorRole(),
-            User.IsInRole(PlatformRole.PlatformAdmin));
+            request.Attributes);
 
         var result = await sender.Send(command, cancellationToken);
 
@@ -165,20 +141,11 @@ public class DraftStructureController(ISender sender) : ControllerBase
                 id,
                 expectedVersion,
                 replacementParentId,
-                promoteChildrenToRoot,
-                User.GetUserId(),
-                User.GetFullName(),
-                GetActorRole(),
-                User.IsInRole(PlatformRole.PlatformAdmin)),
+                promoteChildrenToRoot),
             cancellationToken);
 
         return NoContent();
     }
-
-    private string GetActorRole()
-        => User.IsInRole(PlatformRole.PlatformAdmin)
-            ? PlatformRole.PlatformAdmin
-            : PlatformRole.HRAdmin;
 
     private static bool TryParseVersion(string? ifMatch, out uint version)
     {

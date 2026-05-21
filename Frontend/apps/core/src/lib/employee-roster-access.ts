@@ -9,14 +9,6 @@ export function canAccessEmployeeRoster(user: AuthUser | null): boolean {
   return canAccessCorePeople(user);
 }
 
-export function isPlatformAdminInTenantContext(
-  user: AuthUser | null,
-  tenantId: string | null,
-  tenantReady: boolean,
-): boolean {
-  return !!user?.roles.includes("PlatformAdmin") && !!tenantId && tenantReady;
-}
-
 export function canSeeEmployeeRosterNavigation(user: AuthUser | null): boolean {
   return canAccessEmployeeRoster(user);
 }

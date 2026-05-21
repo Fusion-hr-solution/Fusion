@@ -11,11 +11,9 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { useTenantContext } from "@/components/core-tenant-context-provider";
-import { useBreadcrumbOverridesMap } from "@/components/breadcrumb-overrides";
 import { APP_NAME } from "@/config/constants";
 import { PEOPLE_NAV, ADMIN_NAV } from "@/data/sidebar-nav";
-import { buildTenantContextHref } from "@/lib/tenant-navigation";
+import { useBreadcrumbOverridesMap } from "@/components/breadcrumb-overrides";
 
 // Flat map: "/path-segment" → "Human Label" from all nav sections
 const NAV_LABEL_MAP: Record<string, string> = Object.fromEntries(
@@ -42,7 +40,6 @@ function resolveLabel(segment: string, overrides: Map<string, string>): string {
 export function AppBreadcrumb() {
   const pathname = usePathname();
   const overrides = useBreadcrumbOverridesMap();
-  const { tenantId } = useTenantContext();
 
   // Strip /core prefix emitted by the MFE router
   const clean = pathname.replace(/^\/core/, "") || "/";
@@ -59,7 +56,7 @@ export function AppBreadcrumb() {
           <>
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
-                <Link href={buildTenantContextHref("/", tenantId)}>{APP_NAME}</Link>
+                <Link href="/">{APP_NAME}</Link>
               </BreadcrumbLink>
             </BreadcrumbItem>
 
@@ -76,7 +73,7 @@ export function AppBreadcrumb() {
                       <BreadcrumbPage>{label}</BreadcrumbPage>
                     ) : (
                       <BreadcrumbLink asChild>
-                        <Link href={buildTenantContextHref(href, tenantId)}>{label}</Link>
+                        <Link href={href}>{label}</Link>
                       </BreadcrumbLink>
                     )}
                   </BreadcrumbItem>

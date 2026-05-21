@@ -13,8 +13,8 @@ namespace EY.HRPlatform.CoreHR.Controllers;
 [Authorize]
 public class WorkforceController(IWorkforceContractService workforceContractService) : ControllerBase
 {
-    private const string WorkforceReadRoles = PlatformRole.PlatformAdmin + "," + PlatformRole.HRAdmin + "," + PlatformRole.Employee + "," + PlatformRole.Manager;
-    private const string OrgUnitReadRoles = PlatformRole.PlatformAdmin + "," + PlatformRole.HRAdmin;
+    private const string WorkforceReadRoles = PlatformRole.HRAdmin + "," + PlatformRole.Employee + "," + PlatformRole.Manager;
+
     [HttpGet("me")]
     [Authorize(Roles = WorkforceReadRoles)]
     [ProducesResponseType(typeof(ApiResponse<WorkforceCurrentUserContextDto>), StatusCodes.Status200OK)]
@@ -82,7 +82,7 @@ public class WorkforceController(IWorkforceContractService workforceContractServ
     }
 
     [HttpGet("org-units")]
-    [Authorize(Roles = OrgUnitReadRoles)]
+    [Authorize(Roles = PlatformRole.HRAdmin)]
     [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<WorkforceOrgUnitSummaryDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetPublishedOrgUnits(
         [FromQuery] bool includeInactive = false,
@@ -93,7 +93,7 @@ public class WorkforceController(IWorkforceContractService workforceContractServ
     }
 
     [HttpGet("org-units/tree")]
-    [Authorize(Roles = OrgUnitReadRoles)]
+    [Authorize(Roles = PlatformRole.HRAdmin)]
     [ProducesResponseType(typeof(ApiResponse<WorkforceOrgUnitTreeDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetPublishedOrgUnitTree(
         [FromQuery] Guid? rootId,

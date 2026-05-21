@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { Lock } from "lucide-react";
 import { cn } from "../../lib/utils";
 import {
@@ -110,13 +109,13 @@ export function SidebarNav({
                     ) : null}
                   </Tooltip>
                 ) : (
-                  <Link
-                    href={item.navigateHref ?? item.href}
+                  <a
+                    href={`${basePath}${item.href}`}
                     className={itemClasses}
                     title={collapsed ? item.label : undefined}
                   >
                     {itemContent}
-                  </Link>
+                  </a>
                 )}
               </li>
             );

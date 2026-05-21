@@ -1,6 +1,5 @@
 using EY.HRPlatform.CoreHR.Domain.Entities;
 using EY.HRPlatform.CoreHR.Exceptions;
-using EY.HRPlatform.CoreHR.Features.DraftStructure.Commands.ClearDraftStructure;
 using EY.HRPlatform.CoreHR.Features.DraftStructure.Commands.CreateDraftOrgUnit;
 using EY.HRPlatform.CoreHR.Features.DraftStructure.Commands.DeleteDraftOrgUnit;
 using EY.HRPlatform.CoreHR.Features.DraftStructure.Commands.UpdateDraftOrgUnit;
@@ -339,34 +338,6 @@ public class DraftStructureHandlerTests
                 CancellationToken.None));
 
         Assert.Contains("replacement parent", ex.Message, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public async Task ClearDraftStructure_RemovesAllDraftUnits()
-    {
-        var dbName = Guid.NewGuid().ToString();
-        var tenantContext = TestTenantContext.WithTenant(TenantId);
-
-        await using (var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName))
-        {
-            seedContext.TenantSetupStates.Add(TenantSetupState.CreateActivated(TenantId));
-            seedContext.TenantSettings.Add(DomainTenantSettings.Create(TenantId, SettingsJson));
-
-            var department = CreateDraftOrgUnit(TenantId, "ENG", "Engineering", "department");
-            seedContext.DraftOrgUnits.Add(department);
-            await seedContext.SaveChangesAsync();
-
-            seedContext.DraftOrgUnits.Add(CreateDraftOrgUnit(TenantId, "TEAM", "Platform Team", "team", department.Id));
-            await seedContext.SaveChangesAsync();
-        }
-
-        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new ClearDraftStructureCommandHandler(context);
-
-        var result = await handler.Handle(new ClearDraftStructureCommand(), CancellationToken.None);
-
-        Assert.True(result.IsSuccess);
-        Assert.Empty(await context.DraftOrgUnits.ToListAsync());
     }
 
     [Fact]

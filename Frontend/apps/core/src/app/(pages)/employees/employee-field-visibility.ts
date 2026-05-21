@@ -10,11 +10,7 @@ export type EmployeeFieldKey =
   | "email"
   | "hireDate"
   | "phone"
-  | "jobTitle"
-  | "workLocation"
-  | "employmentType";
-
-export type EmployeeFieldAudience = "hrAdmin" | "manager" | "employee";
+  | "jobTitle";
 
 export interface EmployeeFieldDefinition {
   key: EmployeeFieldKey;
@@ -37,22 +33,13 @@ export interface EmployeeFieldPolicyState {
   fields: Record<EmployeeFieldKey, EmployeeFieldPolicy>;
   showHireDate: boolean;
   showJobTitle: boolean;
-  showPhone: boolean;
-  showWorkLocation: boolean;
-  showEmploymentType: boolean;
   requireHireDate: boolean;
   requireJobTitle: boolean;
-  requirePhone: boolean;
-  requireWorkLocation: boolean;
-  requireEmploymentType: boolean;
 }
 
 export interface EmployeeFieldVisibility {
   showHireDate: boolean;
   showJobTitle: boolean;
-  showPhone: boolean;
-  showWorkLocation: boolean;
-  showEmploymentType: boolean;
 }
 
 export const EMPLOYEE_FIELD_DEFINITIONS: readonly EmployeeFieldDefinition[] = [
@@ -111,31 +98,7 @@ export const EMPLOYEE_FIELD_DEFINITIONS: readonly EmployeeFieldDefinition[] = [
   {
     key: "phone",
     label: "Phone",
-    surface: "active",
-    defaultConfig: {
-      visible: true,
-      required: false,
-      visibleToEmployee: true,
-      visibleToManager: true,
-    },
-    locked: false,
-  },
-  {
-    key: "workLocation",
-    label: "Work location",
-    surface: "active",
-    defaultConfig: {
-      visible: true,
-      required: false,
-      visibleToEmployee: true,
-      visibleToManager: true,
-    },
-    locked: false,
-  },
-  {
-    key: "employmentType",
-    label: "Employment type",
-    surface: "active",
+    surface: "prepared",
     defaultConfig: {
       visible: true,
       required: false,
@@ -204,8 +167,7 @@ export function buildEmployeeFieldConfigInput(config: EmployeeFieldConfigMap) {
 }
 
 export function getEmployeeFieldPolicy(
-  settings?: TenantSettingsDto | null,
-  audience: EmployeeFieldAudience = "hrAdmin"
+  settings?: TenantSettingsDto | null
 ): EmployeeFieldPolicyState {
   const config = buildEmployeeFieldConfigDraft(settings);
 
@@ -213,12 +175,6 @@ export function getEmployeeFieldPolicy(
     (map, field) => {
       map[field.key] = {
         ...config[field.key],
-        visible:
-          audience === "employee"
-            ? config[field.key].visible && config[field.key].visibleToEmployee
-            : audience === "manager"
-              ? config[field.key].visible && config[field.key].visibleToManager
-              : config[field.key].visible,
         locked: field.locked,
         requiredLocked: field.requiredLocked === true,
         surface: field.surface,
@@ -233,64 +189,40 @@ export function getEmployeeFieldPolicy(
     fields,
     showHireDate: fields.hireDate.visible,
     showJobTitle: fields.jobTitle.visible,
-    showPhone: fields.phone.visible,
-    showWorkLocation: fields.workLocation.visible,
-    showEmploymentType: fields.employmentType.visible,
     requireHireDate: fields.hireDate.required,
     requireJobTitle: fields.jobTitle.required,
-    requirePhone: fields.phone.required,
-    requireWorkLocation: fields.workLocation.required,
-    requireEmploymentType: fields.employmentType.required,
   };
 }
 
 export function getEmployeeFieldVisibility(
-  settings?: TenantSettingsDto | null,
-  audience: EmployeeFieldAudience = "hrAdmin"
+  settings?: TenantSettingsDto | null
 ): EmployeeFieldVisibility {
-  const policy = getEmployeeFieldPolicy(settings, audience);
+  const policy = getEmployeeFieldPolicy(settings);
 
   return {
     showHireDate: policy.showHireDate,
     showJobTitle: policy.showJobTitle,
-    showPhone: policy.showPhone,
-    showWorkLocation: policy.showWorkLocation,
-    showEmploymentType: policy.showEmploymentType,
   };
 }
 
 export function useEmployeeFieldPolicy(
-  enabled: boolean,
-  audience: EmployeeFieldAudience = "hrAdmin"
+  enabled: boolean
 ): EmployeeFieldPolicyState {
   const { data: settings } = useTenantSettings(enabled);
 
-  return useMemo(
-    () => getEmployeeFieldPolicy(settings, audience),
-    [audience, settings]
-  );
+  return useMemo(() => getEmployeeFieldPolicy(settings), [settings]);
 }
 
 export function useEmployeeFieldVisibility(
-  enabled: boolean,
-  audience: EmployeeFieldAudience = "hrAdmin"
+  enabled: boolean
 ): EmployeeFieldVisibility {
-  const policy = useEmployeeFieldPolicy(enabled, audience);
+  const policy = useEmployeeFieldPolicy(enabled);
 
   return useMemo(
     () => ({
       showHireDate: policy.showHireDate,
       showJobTitle: policy.showJobTitle,
-      showPhone: policy.showPhone,
-      showWorkLocation: policy.showWorkLocation,
-      showEmploymentType: policy.showEmploymentType,
     }),
-    [
-      policy.showEmploymentType,
-      policy.showHireDate,
-      policy.showJobTitle,
-      policy.showPhone,
-      policy.showWorkLocation,
-    ]
+    [policy.showHireDate, policy.showJobTitle]
   );
 }

@@ -8,11 +8,8 @@ const FIELD_LABELS: Record<string, string> = {
   firstName: "First name",
   lastName: "Last name",
   email: "Email",
-  phone: "Phone",
   hireDate: "Hire date",
   jobTitle: "Job title",
-  workLocation: "Work location",
-  employmentType: "Employment type",
   orgUnitCode: "Org unit code",
   managerEmail: "Manager email",
 };

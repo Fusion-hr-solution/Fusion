@@ -19,7 +19,6 @@ public sealed class DeleteDraftOrgUnitCommandHandler(
         CancellationToken cancellationToken)
     {
         await DraftStructureRules.EnsureDraftEditableAsync(dbContext, cancellationToken);
-        var setupState = await dbContext.TenantSetupStates.FirstAsync(cancellationToken);
 
         var draftOrgUnit = await dbContext.DraftOrgUnits
             .FirstOrDefaultAsync(o => o.Id == request.Id, cancellationToken);
@@ -88,21 +87,6 @@ public sealed class DeleteDraftOrgUnitCommandHandler(
         }
 
         dbContext.DraftOrgUnits.Remove(draftOrgUnit);
-
-        if (request.ActorUserId.HasValue
-            && !string.IsNullOrWhiteSpace(request.ActorFullName)
-            && !string.IsNullOrWhiteSpace(request.ActorRole))
-        {
-            dbContext.TenantSetupActivities.Add(
-                TenantSetupActivity.Create(
-                    setupState.TenantId,
-                    setupState.Id,
-                    TenantSetupActivityType.DraftDeleted,
-                    request.ActorUserId.Value,
-                    request.ActorFullName,
-                    request.ActorRole,
-                    request.IsPlatformAssisted));
-        }
 
         try
         {

@@ -22,7 +22,6 @@ public sealed class CreateDraftOrgUnitCommandHandler(
         CancellationToken cancellationToken)
     {
         await DraftStructureRules.EnsureDraftEditableAsync(dbContext, cancellationToken);
-        var setupState = await dbContext.TenantSetupStates.FirstAsync(cancellationToken);
         var schema = await DraftStructureRules.GetDraftStructureSchemaAsync(dbContext, cancellationToken);
 
         var tenantId = tenantContext.TenantId;
@@ -67,21 +66,6 @@ public sealed class CreateDraftOrgUnitCommandHandler(
             request.ParentId);
 
         dbContext.DraftOrgUnits.Add(draftOrgUnit);
-
-        if (request.ActorUserId.HasValue
-            && !string.IsNullOrWhiteSpace(request.ActorFullName)
-            && !string.IsNullOrWhiteSpace(request.ActorRole))
-        {
-            dbContext.TenantSetupActivities.Add(
-                TenantSetupActivity.Create(
-                    setupState.TenantId,
-                    setupState.Id,
-                    TenantSetupActivityType.DraftCreated,
-                    request.ActorUserId.Value,
-                    request.ActorFullName,
-                    request.ActorRole,
-                    request.IsPlatformAssisted));
-        }
 
         try
         {

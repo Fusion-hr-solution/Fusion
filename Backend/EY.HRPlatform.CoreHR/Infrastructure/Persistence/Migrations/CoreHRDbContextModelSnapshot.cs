@@ -219,10 +219,6 @@ namespace EY.HRPlatform.CoreHR.Infrastructure.Persistence.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
-                    b.Property<string>("EmploymentType")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
                     b.Property<string>("FirstName")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -245,10 +241,6 @@ namespace EY.HRPlatform.CoreHR.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid?>("OrgUnitId")
                         .HasColumnType("uuid");
-
-                    b.Property<string>("Phone")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
 
                     b.Property<string>("PreferredName")
                         .HasMaxLength(100)
@@ -276,10 +268,6 @@ namespace EY.HRPlatform.CoreHR.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("xid")
                         .HasColumnName("xmin");
-
-                    b.Property<string>("WorkLocation")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
 
                     b.HasKey("Id");
 

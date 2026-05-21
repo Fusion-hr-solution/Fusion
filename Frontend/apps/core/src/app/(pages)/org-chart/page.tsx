@@ -10,8 +10,6 @@ import { PageHeader } from "@/components/page-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { canAccessEmployeeRoster } from "@/lib/employee-roster-access";
-import { useTenantContext } from "@/components/core-tenant-context-provider";
-import { buildTenantContextHref } from "@/lib/tenant-navigation";
 import { cn } from "@/lib/utils";
 import { useEmployeeFieldVisibility } from "../employees/employee-field-visibility";
 import { EmployeeReportingLinesSheet } from "../employees/employee-reporting-lines-sheet";
@@ -46,9 +44,7 @@ export default function OrgChartPage() {
 
   // Local UI state (not URL-backed)
   const { user } = useAuth();
-  const { tenantId } = useTenantContext();
-  const isTenantContextReadOnly = !!tenantId;
-  const canAccess = canAccessEmployeeRoster(user) || isTenantContextReadOnly;
+  const canAccess = canAccessEmployeeRoster(user);
   const fieldVisibility = useEmployeeFieldVisibility(canAccess);
   const [isCanvasReady, setIsCanvasReady] = useState(false);
   const [isNavigating, setIsNavigating] = useState(false);
@@ -199,18 +195,14 @@ export default function OrgChartPage() {
   // Preview panel action handlers
   const handlePreviewOpenProfile = useCallback(
     (employeeId: string) => {
-      router.push(buildTenantContextHref(`/employees/${employeeId}`, tenantId));
+      router.push(`/employees/${employeeId}`);
     },
-    [router, tenantId]
+    [router]
   );
 
-  const handlePreviewManageReporting = useCallback(
-    (employeeId: string) => {
-      if (isTenantContextReadOnly) return;
-      setSheetEmployeeId(employeeId);
-    },
-    [isTenantContextReadOnly]
-  );
+  const handlePreviewManageReporting = useCallback((employeeId: string) => {
+    setSheetEmployeeId(employeeId);
+  }, []);
 
   const handlePreviewFocusBranch = useCallback(
     (employeeId: string) => {
@@ -348,12 +340,12 @@ export default function OrgChartPage() {
       <div className="flex flex-col gap-6 p-6">
         <PageHeader
           title="Org Chart"
-          description="Tenant HR administrators manage the org chart."
+          description="The organization chart is available only to tenant HR administrators."
         />
         <EmptyState
           icon={Network}
           title="Org chart is not available for this role"
-          description="Contact a tenant HR administrator."
+          description="Ask a tenant HR administrator to review the governed reporting structure."
         />
       </div>
     );
@@ -363,7 +355,7 @@ export default function OrgChartPage() {
     <div className="flex min-h-full flex-col gap-6 p-6">
       <PageHeader
         title="Org Chart"
-        description="Inspect the workforce structure and reporting lines."
+        description="Inspect the governed workforce structure, focus on any branch, and drill into reporting relationships without leaving the chart."
         actions={
           <Button variant="outline" onClick={() => refetch()}>
             <RefreshCcw />
@@ -390,11 +382,7 @@ export default function OrgChartPage() {
         onSelectSearchResult={handleSelectSearchResult}
         onFocusSelectedBranch={handleFocusSelectedBranch}
         onShowFullOrganization={handleShowFullOrganization}
-        isTenantContextReadOnly={isTenantContextReadOnly}
-        onToggleReassignMode={() => {
-          if (isTenantContextReadOnly) return;
-          setIsReassignMode((current) => !current);
-        }}
+        onToggleReassignMode={() => setIsReassignMode((current) => !current)}
         onFitToScreen={() => canvasApiRef.current?.fitToScreen()}
         onResetView={() => canvasApiRef.current?.resetView()}
         onIncludeInactiveChange={handleIncludeInactiveChange}
@@ -417,7 +405,8 @@ export default function OrgChartPage() {
         <Alert>
           <AlertTitle>Chart depth is capped for this view</AlertTitle>
           <AlertDescription>
-            Increase depth or focus a branch to inspect more levels.
+            Increase the depth or focus a specific branch if you need to inspect
+            deeper levels.
           </AlertDescription>
         </Alert>
       ) : null}
@@ -426,8 +415,9 @@ export default function OrgChartPage() {
         <Alert>
           <AlertTitle>Large organization overview</AlertTitle>
           <AlertDescription>
-            This chart opens at the top for readability. Use Find person, click
-            a leader card, or focus a branch to inspect a team.
+            This chart opens at the top of the structure so reporting lines stay
+            readable. Use Find person, click a leader card, or focus a selected
+            branch to inspect a specific team.
           </AlertDescription>
         </Alert>
       ) : null}
@@ -436,7 +426,7 @@ export default function OrgChartPage() {
         <EmptyState
           icon={Network}
           title="No visible reporting structure yet"
-          description="Add employees and reporting lines to visualize the structure here."
+          description="Add governed employees and reporting relationships to visualize the workforce structure here."
         />
       ) : (
         <div className="flex h-[70vh] overflow-hidden rounded-2xl border bg-card">
@@ -455,10 +445,7 @@ export default function OrgChartPage() {
               fitViewKey={fitViewKey}
               isOverviewMode={rootEmployeeId === null}
               onCanvasApiReady={handleCanvasApiReady}
-              onReassignProposal={(proposal) => {
-                if (isTenantContextReadOnly) return;
-                setReassignProposal(proposal);
-              }}
+              onReassignProposal={setReassignProposal}
             />
           </div>
 
@@ -474,7 +461,6 @@ export default function OrgChartPage() {
                 showJobTitle={fieldVisibility.showJobTitle}
                 onClose={() => setPreviewEmployeeId(null)}
                 onOpenProfile={handlePreviewOpenProfile}
-                isTenantContextReadOnly={isTenantContextReadOnly}
                 onManageReportingRelationship={handlePreviewManageReporting}
                 onFocusBranch={handlePreviewFocusBranch}
                 onViewManager={handlePreviewViewManager}

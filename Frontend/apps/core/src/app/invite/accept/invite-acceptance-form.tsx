@@ -28,6 +28,7 @@ import { resolveInviteAcceptanceDestination } from "./invite-acceptance-routing"
 import {
   CheckCircle2Icon,
   CircleIcon,
+  ShieldCheckIcon,
   AlertTriangleIcon,
   ClockIcon,
   ArrowRightIcon,
@@ -43,13 +44,12 @@ interface PasswordRule {
 }
 
 const PASSWORD_RULES: PasswordRule[] = [
-  { label: "8+ characters", test: (v) => v.length >= 8 },
+  { label: "10+ characters", test: (v) => v.length >= 10 },
   {
-    label: "Upper and lower case",
+    label: "Upper & lower case",
     test: (v) => /[a-z]/.test(v) && /[A-Z]/.test(v),
   },
-  { label: "Number", test: (v) => /\d/.test(v) },
-  { label: "Symbol", test: (v) => /[^a-zA-Z0-9]/.test(v) },
+  { label: "Special character", test: (v) => /[^a-zA-Z0-9]/.test(v) },
 ];
 
 // ---------------------------------------------------------------------------
@@ -181,8 +181,8 @@ export function InviteAcceptanceForm({ token }: { token: string | null }) {
       <InviteShell>
         <ErrorState
           icon={<AlertTriangleIcon className="size-10 text-muted-foreground" />}
-          title="Invalid invite link"
-          description="Open the invite link from your email and try again."
+          title="Invalid Invite Link"
+          description="This link is missing a valid invitation token. Please check the link from your email and try again."
         />
       </InviteShell>
     );
@@ -207,11 +207,11 @@ export function InviteAcceptanceForm({ token }: { token: string | null }) {
       <InviteShell>
         <ErrorState
           icon={<AlertTriangleIcon className="size-10 text-muted-foreground" />}
-          title={is404 ? "Invite not found" : "Could not verify invite"}
+          title={is404 ? "Invitation Not Found" : "Unable to Verify Invitation"}
           description={
             is404
-              ? "Ask your administrator for a new link."
-              : "Try again in a moment."
+              ? "This invitation link is invalid or has been revoked. Please contact your administrator."
+              : "We couldn't verify this invitation right now. Please try again later."
           }
         />
       </InviteShell>
@@ -225,8 +225,8 @@ export function InviteAcceptanceForm({ token }: { token: string | null }) {
       <InviteShell>
         <ErrorState
           icon={<ClockIcon className="size-10 text-muted-foreground" />}
-          title="Invite expired"
-          description="Ask your administrator for a new link."
+          title="Invitation Expired"
+          description="This invitation has expired. Please contact your administrator to request a new one."
         />
       </InviteShell>
     );
@@ -239,11 +239,11 @@ export function InviteAcceptanceForm({ token }: { token: string | null }) {
       <InviteShell>
         <ErrorState
           icon={<CheckCircle2Icon className="size-10 text-green-600" />}
-          title="Invite already accepted"
-          description="Sign in with your account."
+          title="Invitation Already Accepted"
+          description="This invitation has already been used. You can sign in with your existing credentials."
           action={
             <a href="/auth/signin">
-              <Button>Sign in</Button>
+              <Button>Go to Sign In</Button>
             </a>
           }
         />
@@ -258,25 +258,32 @@ export function InviteAcceptanceForm({ token }: { token: string | null }) {
       <Card className="w-full max-w-lg">
         <CardHeader>
           <CardTitle>
-            Join{" "}
+            Accept invitation for{" "}
             <span className="bg-yellow-200 px-1 py-0.5">
               {invite.tenantName}
             </span>
           </CardTitle>
-          <CardDescription>Create your account to continue.</CardDescription>
+          <CardDescription>
+            Set up your administrator account to manage platform operations and
+            configure organizational parameters.
+          </CardDescription>
         </CardHeader>
 
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="grid gap-4">
             {/* Work Email (read-only) */}
             <div className="grid gap-2">
-              <Label>Email</Label>
+              <Label>Work Email</Label>
               <Input
                 value={invite.email}
                 readOnly
                 disabled
                 className="bg-muted/50"
               />
+              <div className="flex items-center gap-1.5 text-xs text-green-600">
+                <ShieldCheckIcon className="size-3.5" />
+                Verified professional identity
+              </div>
             </div>
 
             {/* Name fields */}
@@ -339,7 +346,9 @@ export function InviteAcceptanceForm({ token }: { token: string | null }) {
 
             {/* Password requirements checklist */}
             <div className="grid gap-1.5">
-              <p className="text-xs text-muted-foreground">Password needs:</p>
+              <p className="text-xs text-muted-foreground">
+                Security requirements
+              </p>
               <div className="flex flex-wrap gap-x-4 gap-y-1">
                 {ruleResults.map((rule) => (
                   <div
@@ -392,16 +401,34 @@ export function InviteAcceptanceForm({ token }: { token: string | null }) {
                 <>
                   <Spinner className="mr-2" />
                   {isAutoLoginning
-                    ? "Signing you in..."
-                    : "Creating account..."}
+                    ? "Signing you in…"
+                    : "Creating your account…"}
                 </>
               ) : (
                 <>
-                  Accept and continue
+                  Accept Invitation &amp; Continue
                   <ArrowRightIcon className="ml-2 size-4" />
                 </>
               )}
             </Button>
+
+            <p className="text-center text-xs text-muted-foreground">
+              By accepting, you agree to the{" "}
+              <a
+                href="#"
+                className="underline underline-offset-2 hover:text-foreground"
+              >
+                Service Terms
+              </a>{" "}
+              and{" "}
+              <a
+                href="#"
+                className="underline underline-offset-2 hover:text-foreground"
+              >
+                Privacy Protocol
+              </a>
+              .
+            </p>
           </form>
         </CardContent>
       </Card>

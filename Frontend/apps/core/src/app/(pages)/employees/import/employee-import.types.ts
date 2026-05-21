@@ -58,11 +58,8 @@ export interface EmployeeImportPreviewRowDto {
   firstName: string | null;
   lastName: string | null;
   email: string | null;
-  phone: string | null;
   hireDate: string | null;
   jobTitle: string | null;
-  workLocation: string | null;
-  employmentType: string | null;
   orgUnitCode: string | null;
   managerEmail: string | null;
 }

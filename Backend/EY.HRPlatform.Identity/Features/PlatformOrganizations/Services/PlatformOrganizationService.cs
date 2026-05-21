@@ -70,13 +70,7 @@ public sealed class PlatformOrganizationService(
             InvitedPending = allSummaries.Count(s =>
                 s.OperationalStatus.Equals(OrganizationOperationalStatus.Invited, StringComparison.OrdinalIgnoreCase)),
             ActiveOrganizations = allSummaries.Count(s =>
-                s.OperationalStatus.Equals(OrganizationOperationalStatus.Active, StringComparison.OrdinalIgnoreCase)),
-            DraftOrganizations = allSummaries.Count(s =>
-                s.OperationalStatus.Equals(OrganizationOperationalStatus.Draft, StringComparison.OrdinalIgnoreCase)),
-            SuspendedOrganizations = allSummaries.Count(s =>
-                s.OperationalStatus.Equals(OrganizationOperationalStatus.Suspended, StringComparison.OrdinalIgnoreCase)),
-            ArchivedOrganizations = allSummaries.Count(s =>
-                s.OperationalStatus.Equals(OrganizationOperationalStatus.Archived, StringComparison.OrdinalIgnoreCase))
+                s.OperationalStatus.Equals(OrganizationOperationalStatus.Active, StringComparison.OrdinalIgnoreCase))
         };
 
         // Apply search filter for paginated list
@@ -171,10 +165,16 @@ public sealed class PlatformOrganizationService(
         Guid createdByUserId,
         CancellationToken cancellationToken = default)
     {
+        // EF InMemory doesn't support transactions; skip them in tests.
         IDbContextTransaction? tx = null;
-        if (db.Database.IsRelational())
+        try
+        {
             tx = await db.Database.BeginTransactionAsync(cancellationToken);
-
+        }
+        catch (InvalidOperationException)
+        {
+            tx = null;
+        }
         try
         {
             var tenant = Tenant.Create(request.Name.Trim());
