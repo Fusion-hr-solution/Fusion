@@ -10,6 +10,7 @@ import {
   Search,
   Settings2,
   Plus,
+  Trash2,
 } from "lucide-react";
 import {
   ApiError,
@@ -21,6 +22,16 @@ import { EmptyState } from "@repo/ui";
 import { toast } from "sonner";
 import { useCoreSetupAccess } from "@/components/core-setup-access";
 import { CorePageLoadingState } from "@/components/core-page-loading-state";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -34,15 +45,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/page-header";
 import { cn } from "@/lib/utils";
-import {
-  useActivateSetup,
-  useSetupReadiness,
-} from "../use-setup";
+import { useActivateSetup, useSetupReadiness } from "../use-setup";
 import { shouldAutoActivateSetup } from "../setup-entry-routing";
-import { CreateDraftUnitDialog } from "./create-draft-unit-dialog";
+import { DraftUnitDialog } from "./create-draft-unit-dialog";
 import { DraftOrgUnitKindManager } from "./draft-org-unit-kind-manager";
 import { DraftStructureImportPanel } from "./draft-structure-import-panel";
 import { getDraftFieldLabel } from "./draft-structure-labels";
@@ -58,8 +67,9 @@ import {
   getFirstDraftTreeNodeId,
   type DraftStructureTreeNodeModel,
 } from "./draft-structure-tree-utils";
-import { DraftUnitSheet } from "./draft-unit-sheet";
 import {
+  useClearDraftStructure,
+  useDeleteDraftOrgUnit,
   useDraftStructureTree,
   useDraftStructureWorkspace,
 } from "./use-draft-structure";
@@ -143,6 +153,55 @@ function filterDraftTreeByMatchedIds(
       },
     ];
   });
+}
+
+function buildLeafFirstDeleteOrder(
+  units: DraftOrgUnitDto[]
+): DraftOrgUnitDto[] {
+  const unitsById = new Map(units.map((unit) => [unit.id, unit]));
+  const childCounts = new Map(units.map((unit) => [unit.id, 0]));
+
+  for (const unit of units) {
+    if (!unit.parentId || !unitsById.has(unit.parentId)) {
+      continue;
+    }
+
+    childCounts.set(unit.parentId, (childCounts.get(unit.parentId) ?? 0) + 1);
+  }
+
+  const stack = units.filter((unit) => (childCounts.get(unit.id) ?? 0) === 0);
+  const queuedIds = new Set(stack.map((unit) => unit.id));
+  const orderedUnits: DraftOrgUnitDto[] = [];
+
+  while (stack.length > 0) {
+    const unit = stack.pop();
+    if (!unit) {
+      continue;
+    }
+
+    orderedUnits.push(unit);
+
+    if (!unit.parentId || !unitsById.has(unit.parentId)) {
+      continue;
+    }
+
+    const nextChildCount = (childCounts.get(unit.parentId) ?? 0) - 1;
+    childCounts.set(unit.parentId, nextChildCount);
+
+    if (nextChildCount === 0) {
+      const parent = unitsById.get(unit.parentId);
+      if (parent && !queuedIds.has(parent.id)) {
+        stack.push(parent);
+        queuedIds.add(parent.id);
+      }
+    }
+  }
+
+  if (orderedUnits.length === units.length) {
+    return orderedUnits;
+  }
+
+  return [...orderedUnits, ...units.filter((unit) => !queuedIds.has(unit.id))];
 }
 
 function matchesDraftUnitSearch(unit: DraftOrgUnitDto, searchTerm: string) {
@@ -338,6 +397,7 @@ export default function DraftStructurePage() {
   const [createParentId, setCreateParentId] = useState<string | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
   const [kindManagerOpen, setKindManagerOpen] = useState(false);
+  const [clearStructureOpen, setClearStructureOpen] = useState(false);
   const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [explorerView, setExplorerView] = useState<ExplorerView>("tree");
@@ -394,6 +454,8 @@ export default function DraftStructurePage() {
     refetch: refetchTree,
   } = useDraftStructureTree(workspaceEnabled);
   const activateSetup = useActivateSetup();
+  const clearStructure = useClearDraftStructure();
+  const deleteDraftOrgUnit = useDeleteDraftOrgUnit();
 
   const draftTree = useMemo(() => buildWorkspaceDraftTree(tree ?? []), [tree]);
   const draftTreeNodeIds = useMemo(
@@ -520,16 +582,6 @@ export default function DraftStructurePage() {
     : isSetupComplete
       ? "Use this page to review the published structure. Start a new setup cycle to change it."
       : "Import returns when the draft is editable again.";
-  const unitReadOnlyDescription = canReopenFromDraft
-    ? "Approved unit. Reopen the draft from Setup to make changes."
-    : isSetupComplete
-      ? "Published unit. Use this page as the live reference."
-      : "Review this unit while editing is unavailable.";
-  const unitReadOnlyNotice = canReopenFromDraft
-    ? "Editing is paused on the approved structure. Reopen it from Setup to edit or delete units."
-    : isSetupComplete
-      ? "This view shows the live structure for reference."
-      : "Editing is unavailable in the current setup phase.";
   const blockingIssueCount = readiness?.blockingIssueCount ?? 0;
   const warningCount = readiness?.warningCount ?? 0;
   const workbenchStatusLabel = !isDraftLocked
@@ -545,28 +597,35 @@ export default function DraftStructurePage() {
       : isSetupComplete
         ? "Published structure"
         : "Read only";
-  const workbenchStatusVariant = !isDraftLocked && blockingIssueCount > 0
-    ? "destructive"
-    : !isDraftLocked && !isEmptyDraftWorkspace && readiness?.isReadyForApproval
-      ? "secondary"
-      : "outline";
+  const workbenchStatusVariant =
+    !isDraftLocked && blockingIssueCount > 0
+      ? "destructive"
+      : !isDraftLocked &&
+          !isEmptyDraftWorkspace &&
+          readiness?.isReadyForApproval
+        ? "secondary"
+        : "outline";
   const workbenchSummary = isEmptyDraftWorkspace
     ? `${typeCount} type${typeCount === 1 ? "" : "s"} available`
     : `${unitCount} unit${unitCount === 1 ? "" : "s"} • ${topLevelCount} top-level • ${typeCount} type${typeCount === 1 ? "" : "s"}`;
-  const workbenchIssueLabel = !isDraftLocked && !isEmptyDraftWorkspace
-    ? blockingIssueCount > 0
-      ? `${blockingIssueCount} blocker${blockingIssueCount === 1 ? "" : "s"}`
-      : warningCount > 0
-        ? `${warningCount} warning${warningCount === 1 ? "" : "s"}`
-        : readinessError
-          ? "Readiness unavailable"
-          : null
-    : null;
-  const workbenchIssueTone = blockingIssueCount > 0
-    ? "danger"
-    : warningCount > 0 || readinessError
-      ? "warning"
-      : "default";
+  const workbenchIssueLabel =
+    !isDraftLocked && !isEmptyDraftWorkspace
+      ? blockingIssueCount > 0
+        ? `${blockingIssueCount} blocker${blockingIssueCount === 1 ? "" : "s"}`
+        : warningCount > 0
+          ? `${warningCount} warning${warningCount === 1 ? "" : "s"}`
+          : readinessError
+            ? "Readiness unavailable"
+            : null
+      : null;
+  const workbenchIssueTone =
+    blockingIssueCount > 0
+      ? "danger"
+      : warningCount > 0 || readinessError
+        ? "warning"
+        : "default";
+  const isClearingStructureAction =
+    clearStructure.isLoading || deleteDraftOrgUnit.isLoading;
   const workbenchMeta = canReopenFromDraft
     ? setupState?.approvedAt
       ? `Approved ${formatTimestamp(setupState.approvedAt)}${setupState.approvedByFullName ? ` by ${setupState.approvedByFullName}` : ""}`
@@ -574,6 +633,18 @@ export default function DraftStructurePage() {
     : isSetupComplete && workspace?.lastModifiedAt
       ? `Published ${formatTimestamp(workspace.lastModifiedAt)}`
       : null;
+
+  const startSetupEntry = async () => {
+    setSetupEntryError(null);
+
+    try {
+      await activateSetup.mutateAsync();
+      await refreshSetupAccess();
+      router.refresh();
+    } catch (error) {
+      setSetupEntryError(getActionErrorMessage(error));
+    }
+  };
 
   useEffect(() => {
     if (!shouldStartSetupFromDraft) {
@@ -587,15 +658,13 @@ export default function DraftStructurePage() {
     }
 
     setHasAttemptedSetupEntry(true);
-    setSetupEntryError(null);
-
-    void activateSetup.mutateAsync().catch((error) => {
-      setSetupEntryError(getActionErrorMessage(error));
-    });
+    void startSetupEntry();
   }, [
     activateSetup,
     canAccess,
     hasAttemptedSetupEntry,
+    router,
+    refreshSetupAccess,
     shouldStartSetupFromDraft,
   ]);
 
@@ -608,7 +677,18 @@ export default function DraftStructurePage() {
     setEditorOpen(false);
   }, [isDraftLocked]);
 
-  const refreshWorkspaceAndReadiness = async () => {
+  const resetWorkspaceChrome = () => {
+    setCreateOpen(false);
+    setCreateParentId(null);
+    setEditorOpen(false);
+    setSelectedUnitId(null);
+    setSearch("");
+    setExplorerView("tree");
+  };
+
+  const refreshWorkspaceAndReadiness = async (options?: {
+    refreshRoute?: boolean;
+  }) => {
     const refreshActions = [refetch(), refetchTree(), refreshSetupAccess()];
 
     if (canApproveFromDraft) {
@@ -616,6 +696,10 @@ export default function DraftStructurePage() {
     }
 
     await Promise.allSettled(refreshActions);
+
+    if (options?.refreshRoute) {
+      router.refresh();
+    }
   };
 
   const handleDownloadStructureCsv = () => {
@@ -658,15 +742,44 @@ export default function DraftStructurePage() {
   };
 
   const handleRetrySetupEntry = async () => {
-    setSetupEntryError(null);
-
-    try {
-      await activateSetup.mutateAsync();
-    } catch (error) {
-      setSetupEntryError(getActionErrorMessage(error));
-    }
+    await startSetupEntry();
   };
 
+  const handleClearStructure = async () => {
+    try {
+      try {
+        await clearStructure.mutateAsync();
+      } catch (error) {
+        if (
+          !(error instanceof ApiError) ||
+          ![404, 405].includes(error.status)
+        ) {
+          throw error;
+        }
+
+        for (const unit of buildLeafFirstDeleteOrder(workspace?.units ?? [])) {
+          await deleteDraftOrgUnit.mutateAsync({
+            id: unit.id,
+            version: unit.version,
+          });
+        }
+      }
+
+      resetWorkspaceChrome();
+      setClearStructureOpen(false);
+      await refreshWorkspaceAndReadiness({ refreshRoute: true });
+      toast.success("Draft structure cleared", {
+        description: "All units removed.",
+      });
+    } catch (error) {
+      toast.error("The draft structure could not be cleared.", {
+        description:
+          error instanceof Error
+            ? error.message
+            : "Try deleting the draft structure again.",
+      });
+    }
+  };
 
   const handleImportOpenChange = (nextOpen: boolean) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -836,6 +949,7 @@ export default function DraftStructurePage() {
           isEmptyDraft={isEmptyDraftWorkspace}
           resultCount={filteredUnits.length}
           isDraftLocked={isDraftLocked}
+          isClearingStructure={isClearingStructureAction}
           schema={
             workspace?.draftStructureSchema ?? {
               orgUnitKinds: [],
@@ -857,6 +971,7 @@ export default function DraftStructurePage() {
           onSelectUnit={(unitId) => setSelectedUnitId(unitId)}
           onDownloadCsv={handleDownloadStructureCsv}
           onManageTypes={() => setKindManagerOpen(true)}
+          onClearStructure={() => setClearStructureOpen(true)}
           onImport={() => handleImportOpenChange(true)}
           onAddRoot={() => {
             setCreateParentId(null);
@@ -887,7 +1002,7 @@ export default function DraftStructurePage() {
         }}
       />
 
-      <CreateDraftUnitDialog
+      <DraftUnitDialog
         open={createOpen}
         onOpenChange={(nextOpen) => {
           setCreateOpen(nextOpen);
@@ -895,16 +1010,35 @@ export default function DraftStructurePage() {
             setCreateParentId(null);
           }
         }}
-        onCreated={(unit) => {
+        onMutated={() => {
           setCreateParentId(null);
           setSearch("");
-          setSelectedUnitId(unit.id);
           void refreshWorkspaceAndReadiness();
         }}
         onSchemaUpdated={() => {
           void refreshWorkspaceAndReadiness();
         }}
         initialParentId={createParentId}
+        readOnly={isDraftLocked}
+        schema={
+          workspace?.draftStructureSchema ?? {
+            orgUnitKinds: [],
+            attributes: [],
+          }
+        }
+        existingUnits={workspace?.units ?? []}
+      />
+
+      <DraftUnitDialog
+        unit={editorOpen ? selectedUnit : null}
+        open={editorOpen && !!selectedUnit}
+        onOpenChange={setEditorOpen}
+        onMutated={() => {
+          void refreshWorkspaceAndReadiness();
+        }}
+        onSchemaUpdated={() => {
+          void refreshWorkspaceAndReadiness();
+        }}
         readOnly={isDraftLocked}
         schema={
           workspace?.draftStructureSchema ?? {
@@ -928,27 +1062,34 @@ export default function DraftStructurePage() {
         readOnlyMessage={importReadOnlyMessage}
       />
 
-      <DraftUnitSheet
-        unit={selectedUnit}
-        open={editorOpen && !!selectedUnit}
-        onOpenChange={setEditorOpen}
-        readOnly={isDraftLocked}
-        readOnlyDescription={unitReadOnlyDescription}
-        readOnlyNotice={unitReadOnlyNotice}
-        schema={
-          workspace?.draftStructureSchema ?? {
-            orgUnitKinds: [],
-            attributes: [],
-          }
-        }
-        existingUnits={workspace?.units ?? []}
-        onMutated={() => {
-          void refreshWorkspaceAndReadiness();
-        }}
-        onSchemaUpdated={() => {
-          void refreshWorkspaceAndReadiness();
-        }}
-      />
+      <AlertDialog
+        open={clearStructureOpen}
+        onOpenChange={setClearStructureOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete all draft units?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Resets the draft to empty.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isClearingStructureAction}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={isClearingStructureAction}
+              onClick={() => {
+                void handleClearStructure();
+              }}
+            >
+              {isClearingStructureAction ? <Spinner className="mr-1" /> : null}
+              Delete all units
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -1025,6 +1166,7 @@ function DraftStructureWorkbench({
   isEmptyDraft,
   resultCount,
   isDraftLocked,
+  isClearingStructure,
   schema,
   hasImportSession,
   nodes,
@@ -1041,6 +1183,7 @@ function DraftStructureWorkbench({
   onSelectUnit,
   onDownloadCsv,
   onManageTypes,
+  onClearStructure,
   onImport,
   onAddRoot,
   onAddChild,
@@ -1060,6 +1203,7 @@ function DraftStructureWorkbench({
   isEmptyDraft: boolean;
   resultCount: number;
   isDraftLocked: boolean;
+  isClearingStructure: boolean;
   schema: DraftStructureSchemaDto;
   hasImportSession: boolean;
   nodes: DraftStructureTreeNodeModel[];
@@ -1076,6 +1220,7 @@ function DraftStructureWorkbench({
   onSelectUnit: (unitId: string) => void;
   onDownloadCsv: () => void;
   onManageTypes: () => void;
+  onClearStructure: () => void;
   onImport: () => void;
   onAddRoot: () => void;
   onAddChild: (unitId: string) => void;
@@ -1098,9 +1243,9 @@ function DraftStructureWorkbench({
     <Tabs
       value={view}
       onValueChange={(value) => onViewChange(value as ExplorerView)}
-      className="gap-0"
+      className="min-h-0 gap-0"
     >
-      <Card className="overflow-hidden">
+      <Card className="min-h-0 overflow-hidden">
         <CardContent className="space-y-3 border-b p-4">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-center">
@@ -1146,16 +1291,22 @@ function DraftStructureWorkbench({
                         <Settings2 className="size-4" />
                         Manage types
                       </DropdownMenuItem>
-                      <>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          disabled={isEmptyDraft}
-                          onSelect={onDownloadCsv}
-                        >
-                          <FileSpreadsheet className="size-4" />
-                          Download CSV
-                        </DropdownMenuItem>
-                      </>
+                      <DropdownMenuItem
+                        disabled={isEmptyDraft}
+                        onSelect={onDownloadCsv}
+                      >
+                        <FileSpreadsheet className="size-4" />
+                        Download CSV
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        disabled={isEmptyDraft || isClearingStructure}
+                        onSelect={onClearStructure}
+                        className="text-destructive focus:text-destructive"
+                      >
+                        <Trash2 className="size-4 text-destructive focus:text-destructive" />
+                        Delete all units
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </>
@@ -1178,9 +1329,12 @@ function DraftStructureWorkbench({
           </div>
         </CardContent>
 
-        <div className="grid min-h-0 xl:grid-cols-[minmax(0,1.55fr)_minmax(18rem,0.9fr)]">
-          <div className="min-w-0 xl:border-r">
-            <TabsContent value="tree" className="m-0 min-w-0">
+        <div className="grid min-h-0 overflow-hidden xl:h-[clamp(36rem,calc(100vh-18rem),48rem)] xl:grid-cols-[minmax(0,1.55fr)_minmax(20rem,0.9fr)]">
+          <div className="min-h-0 min-w-0 overflow-hidden xl:border-r">
+            <TabsContent
+              value="tree"
+              className="m-0 flex h-[min(52vh,34rem)] min-h-0 min-w-0 flex-col overflow-hidden xl:h-full"
+            >
               <DraftStructureTree
                 embedded
                 nodes={nodes}
@@ -1192,7 +1346,10 @@ function DraftStructureWorkbench({
               />
             </TabsContent>
 
-            <TabsContent value="list" className="m-0 min-w-0 p-4">
+            <TabsContent
+              value="list"
+              className="m-0 flex h-[min(52vh,34rem)] min-h-0 min-w-0 flex-col overflow-hidden p-4 xl:h-full"
+            >
               <DraftStructureTable
                 embedded
                 data={units}
@@ -1208,7 +1365,7 @@ function DraftStructureWorkbench({
             </TabsContent>
           </div>
 
-          <div className="border-t xl:border-t-0">
+          <div className="min-h-0 overflow-hidden h-[min(42vh,28rem)] border-t xl:h-full xl:border-t-0">
             <DraftStructureInspectorPanel
               unit={selectedUnit}
               treeNode={selectedTreeNode}
@@ -1269,8 +1426,8 @@ function DraftStructureInspectorPanel({
   const descriptionValue = unit.description?.trim() || "Not set";
 
   return (
-    <div className="flex h-full flex-col bg-muted/5">
-      <div className="space-y-3 border-b p-4">
+    <div className="flex h-full min-h-0 flex-col bg-muted/5">
+      <div className="shrink-0 space-y-3 border-b p-4">
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="secondary">{unit.orgUnitKindLabel}</Badge>
           {treeNode.isOrphaned ? (
@@ -1287,7 +1444,7 @@ function DraftStructureInspectorPanel({
         </div>
       </div>
 
-      <div className="flex-1 space-y-5 p-4">
+      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4">
         <div className="space-y-3">
           <InspectorField label="Unit code" value={unit.referenceKey} mono />
           <InspectorField
@@ -1329,7 +1486,7 @@ function DraftStructureInspectorPanel({
       </div>
 
       {!isDraftLocked ? (
-        <div className="border-t p-4">
+        <div className="shrink-0 border-t bg-background/80 p-4 backdrop-blur">
           <div className="flex flex-wrap items-center gap-2">
             <Button onClick={onEdit}>Edit unit</Button>
             <Button variant="outline" onClick={onAddChild}>
@@ -1339,7 +1496,7 @@ function DraftStructureInspectorPanel({
           </div>
         </div>
       ) : (
-        <div className="border-t px-4 py-3 text-sm text-muted-foreground">
+        <div className="shrink-0 border-t bg-background/80 px-4 py-3 text-sm text-muted-foreground backdrop-blur">
           Read-only details.
         </div>
       )}
@@ -1400,17 +1557,17 @@ function DraftStructureWorkbenchSkeleton() {
           <div className="flex flex-wrap gap-2">
             <Skeleton className="h-10 w-36" />
             <Skeleton className="h-10 w-40" />
-            <Skeleton className="h-10 w-32" />
+            <Skeleton className="h-10 w-10" />
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Skeleton className="h-6 w-28" />
-          <Skeleton className="h-6 w-20" />
-          <Skeleton className="h-6 w-24" />
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <Skeleton className="h-6 w-28 rounded-full" />
+          <Skeleton className="h-4 w-48" />
+          <Skeleton className="h-4 w-20" />
         </div>
       </CardContent>
 
-      <div className="grid xl:grid-cols-[minmax(0,1.55fr)_minmax(18rem,0.9fr)]">
+      <div className="grid xl:h-[clamp(36rem,calc(100vh-18rem),48rem)] xl:grid-cols-[minmax(0,1.55fr)_minmax(20rem,0.9fr)]">
         <div className="space-y-3 p-4 xl:border-r">
           {Array.from({ length: 7 }).map((_, index) => (
             <Skeleton
@@ -1419,7 +1576,7 @@ function DraftStructureWorkbenchSkeleton() {
             />
           ))}
         </div>
-        <div className="space-y-4 border-t p-4 xl:border-t-0">
+        <div className="flex flex-col border-t p-4 xl:border-t-0">
           <div className="space-y-3 border-b pb-4">
             <div className="flex gap-2">
               <Skeleton className="h-6 w-24 rounded-full" />
@@ -1428,16 +1585,18 @@ function DraftStructureWorkbenchSkeleton() {
             <Skeleton className="h-7 w-2/3" />
             <Skeleton className="h-4 w-full" />
           </div>
-          {Array.from({ length: 4 }).map((_, index) => (
-            <div
-              key={index}
-              className="space-y-2 border-b pb-3 last:border-b-0"
-            >
-              <Skeleton className="h-3 w-20" />
-              <Skeleton className="h-5 w-full" />
-            </div>
-          ))}
-          <div className="flex gap-2 pt-2">
+          <div className="flex-1 space-y-4 py-4">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div
+                key={index}
+                className="space-y-2 border-b pb-3 last:border-b-0"
+              >
+                <Skeleton className="h-3 w-20" />
+                <Skeleton className="h-5 w-full" />
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-2 border-t pt-4">
             <Skeleton className="h-10 w-24" />
             <Skeleton className="h-10 w-32" />
           </div>
