@@ -145,4 +145,32 @@ public class AdminTrainingPartsController : ControllerBase
                 ApiResponse.Failure("An error occurred while reordering parts."));
         }
     }
+
+    /// <summary>Lock or unlock a Part, preventing or allowing new session creation.</summary>
+    [HttpPut("{partId:guid}/lock")]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ToggleLock(
+        Guid trainingId, Guid partId, [FromBody] TogglePartLockRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await _sender.Send(
+                new TogglePartLockCommand(trainingId, partId, request.Lock), cancellationToken);
+
+            if (result.IsFailure)
+                return result.Error.Code.EndsWith("NotFound")
+                    ? NotFound(ApiResponse.Failure(result.Error.Message))
+                    : BadRequest(ApiResponse.Failure(result.Error.Message));
+
+            return Ok(ApiResponse.Success());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to toggle lock for part {PartId}", partId);
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                ApiResponse.Failure("An error occurred while toggling the part lock."));
+        }
+    }
 }
