@@ -18,7 +18,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useWizardStore } from "@/store/wizard-store";
-import { getQuestions } from "@/services/test-service";
+import { getQuestions, deleteQuestion } from "@/services/test-service";
 import { QUESTION_TYPES, DIFFICULTIES, GRADING_METHODS, SORT_OPTIONS } from "@/config/constants";
 import { cn } from "@/lib/utils";
 import type { Question, QuestionFilterState, SortOption, Difficulty } from "@/types";
@@ -542,9 +542,10 @@ export function StepQuestions() {
                             </button>
                             <button
                               onClick={() => {
+                                setOpenCardMenuId(null);
                                 setQuestionLibrary((prev) => prev.filter((item) => item.id !== q.id));
                                 removeQuestion(q.id);
-                                setOpenCardMenuId(null);
+                                void deleteQuestion(q.id);
                               }}
                               className="flex w-full items-center gap-2 px-3 py-2 text-left text-[12px] text-red-600 hover:bg-zinc-50"
                             >
