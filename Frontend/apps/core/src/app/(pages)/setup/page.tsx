@@ -453,6 +453,10 @@ export default function SetupPage() {
     "/setup/draft-structure",
     tenantId
   );
+  const importEmployeesHref = buildTenantContextHref(
+    "/employees/import",
+    tenantId
+  );
   const isTenantContextReadOnly = !!tenantId;
   const canAccess = canAccessCoreSetup(user) || isTenantContextReadOnly;
   const [localError, setLocalError] = useState<string | null>(null);
@@ -743,8 +747,8 @@ export default function SetupPage() {
     }
   } else if (isCoreUnlocked) {
     summaryActions.push({
-      label: "Open dashboard",
-      onClick: () => router.push(dashboardHref),
+      label: "Import employees",
+      onClick: () => router.push(importEmployeesHref),
     });
     summaryActions.push({
       label: "View published structure",

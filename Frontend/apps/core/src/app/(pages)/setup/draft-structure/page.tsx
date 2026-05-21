@@ -48,7 +48,11 @@ import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/page-header";
 import { cn } from "@/lib/utils";
-import { useActivateSetup, useSetupReadiness } from "../use-setup";
+import {
+  useActivateSetup,
+  useApproveStructure,
+  useSetupReadiness,
+} from "../use-setup";
 import { shouldAutoActivateSetup } from "../setup-entry-routing";
 import { DraftUnitDialog } from "./create-draft-unit-dialog";
 import { DraftOrgUnitKindManager } from "./draft-org-unit-kind-manager";
@@ -457,8 +461,10 @@ export default function DraftStructurePage() {
     refetch: refetchTree,
   } = useDraftStructureTree(workspaceEnabled);
   const activateSetup = useActivateSetup();
+  const approveStructure = useApproveStructure();
   const clearStructure = useClearDraftStructure();
   const deleteDraftOrgUnit = useDeleteDraftOrgUnit();
+  const [approveError, setApproveError] = useState<string | null>(null);
 
   const draftTree = useMemo(() => buildWorkspaceDraftTree(tree ?? []), [tree]);
   const draftTreeNodeIds = useMemo(
@@ -628,7 +634,7 @@ export default function DraftStructurePage() {
         ? "warning"
         : "default";
   const isClearingStructureAction =
-    clearStructure.isLoading || deleteDraftOrgUnit.isLoading || !!clearDeleteProgress;
+    clearStructure.isLoading || deleteDraftOrgUnit.isLoading || !!clearDeleteProgress || approveStructure.isLoading;
   const workbenchMeta = canReopenFromDraft
     ? setupState?.approvedAt
       ? `Approved ${formatTimestamp(setupState.approvedAt)}${setupState.approvedByFullName ? ` by ${setupState.approvedByFullName}` : ""}`
@@ -799,6 +805,36 @@ export default function DraftStructurePage() {
     }
   };
 
+  const handleApprove = async () => {
+    if (!setupState || setupState.version == null) {
+      setApproveError(
+        "The latest setup version is required before approval."
+      );
+      return;
+    }
+
+    setApproveError(null);
+
+    try {
+      await approveStructure.mutateAsync({
+        expectedVersion: setupState.version,
+      });
+      await refreshWorkspaceAndReadiness({ refreshRoute: true });
+      toast.success("Draft approved", {
+        description:
+          "The structure is locked and ready for publish review.",
+      });
+    } catch (error) {
+      const message =
+        error instanceof ApiError
+          ? error.errors.join(", ")
+          : error instanceof Error
+            ? error.message
+            : "An unexpected error occurred while approving the structure.";
+      setApproveError(message);
+    }
+  };
+
   const handleImportOpenChange = (nextOpen: boolean) => {
     const params = new URLSearchParams(searchParams.toString());
 
@@ -916,7 +952,41 @@ export default function DraftStructurePage() {
 
   return (
     <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-6 p-6">
-      <PageHeader title={pageTitle} description={pageDescription} />
+      <PageHeader
+        title={pageTitle}
+        description={pageDescription}
+        actions={
+          <>
+            {canApproveFromDraft && readiness?.isReadyForApproval ? (
+              <Button
+                onClick={handleApprove}
+                disabled={approveStructure.isLoading}
+              >
+                {approveStructure.isLoading ? (
+                  <Spinner className="mr-1" />
+                ) : null}
+                {approveStructure.isLoading
+                  ? "Approving..."
+                  : "Approve structure"}
+              </Button>
+            ) : null}
+
+            {canReopenFromDraft ? (
+              <Button variant="outline" onClick={() => router.push("/setup")}>
+                Go to setup summary
+              </Button>
+            ) : null}
+          </>
+        }
+      />
+
+      {approveError ? (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Approval failed</AlertTitle>
+          <AlertDescription>{approveError}</AlertDescription>
+        </Alert>
+      ) : null}
 
       {(workspaceError || treeError) && (
         <Alert variant="destructive">
