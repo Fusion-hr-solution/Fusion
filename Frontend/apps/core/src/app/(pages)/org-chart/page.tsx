@@ -204,10 +204,13 @@ export default function OrgChartPage() {
     [router, tenantId]
   );
 
-  const handlePreviewManageReporting = useCallback((employeeId: string) => {
-    if (isTenantContextReadOnly) return;
-    setSheetEmployeeId(employeeId);
-  }, [isTenantContextReadOnly]);
+  const handlePreviewManageReporting = useCallback(
+    (employeeId: string) => {
+      if (isTenantContextReadOnly) return;
+      setSheetEmployeeId(employeeId);
+    },
+    [isTenantContextReadOnly]
+  );
 
   const handlePreviewFocusBranch = useCallback(
     (employeeId: string) => {
@@ -345,12 +348,12 @@ export default function OrgChartPage() {
       <div className="flex flex-col gap-6 p-6">
         <PageHeader
           title="Org Chart"
-          description="The organization chart is available only to tenant HR administrators."
+          description="Tenant HR administrators manage the org chart."
         />
         <EmptyState
           icon={Network}
           title="Org chart is not available for this role"
-          description="Ask a tenant HR administrator to review the governed reporting structure."
+          description="Contact a tenant HR administrator."
         />
       </div>
     );
@@ -360,7 +363,7 @@ export default function OrgChartPage() {
     <div className="flex min-h-full flex-col gap-6 p-6">
       <PageHeader
         title="Org Chart"
-        description="Inspect the governed workforce structure, focus on any branch, and drill into reporting relationships without leaving the chart."
+        description="Inspect the workforce structure and reporting lines."
         actions={
           <Button variant="outline" onClick={() => refetch()}>
             <RefreshCcw />
@@ -414,8 +417,7 @@ export default function OrgChartPage() {
         <Alert>
           <AlertTitle>Chart depth is capped for this view</AlertTitle>
           <AlertDescription>
-            Increase the depth or focus a specific branch if you need to inspect
-            deeper levels.
+            Increase depth or focus a branch to inspect more levels.
           </AlertDescription>
         </Alert>
       ) : null}
@@ -424,9 +426,8 @@ export default function OrgChartPage() {
         <Alert>
           <AlertTitle>Large organization overview</AlertTitle>
           <AlertDescription>
-            This chart opens at the top of the structure so reporting lines stay
-            readable. Use Find person, click a leader card, or focus a selected
-            branch to inspect a specific team.
+            This chart opens at the top for readability. Use Find person, click
+            a leader card, or focus a branch to inspect a team.
           </AlertDescription>
         </Alert>
       ) : null}
@@ -435,7 +436,7 @@ export default function OrgChartPage() {
         <EmptyState
           icon={Network}
           title="No visible reporting structure yet"
-          description="Add governed employees and reporting relationships to visualize the workforce structure here."
+          description="Add employees and reporting lines to visualize the structure here."
         />
       ) : (
         <div className="flex h-[70vh] overflow-hidden rounded-2xl border bg-card">

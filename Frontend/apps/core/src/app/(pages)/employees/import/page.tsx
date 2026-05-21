@@ -3,11 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import {
-  ArrowLeft,
-  RefreshCcw,
-  Users,
-} from "lucide-react";
+import { ArrowLeft, RefreshCcw, Users } from "lucide-react";
 import { useAuth } from "@repo/auth";
 import { EmptyState, type PageSize } from "@repo/ui";
 import { toast } from "sonner";
@@ -507,7 +503,7 @@ export default function EmployeeImportPage() {
     return (
       <CorePageLoadingState
         title="Import employees"
-        description="Upload and validate employees in bulk with the official CSV template."
+        description="Upload and validate employees from the CSV template."
         message="Loading employee import..."
         variant="workspace"
       />
@@ -519,12 +515,12 @@ export default function EmployeeImportPage() {
       <div className="flex flex-col gap-6 p-6">
         <PageHeader
           title="Import employees"
-          description="Employee import is available only to tenant HR administrators after setup is complete."
+          description="Tenant HR administrators manage imports after setup is complete."
         />
         <EmptyState
           icon={Users}
           title="Employee import is not available for this role"
-          description="Ask a tenant HR administrator to manage employee imports from the Employees workspace."
+          description="Contact a tenant HR administrator."
         />
       </div>
     );
@@ -542,7 +538,7 @@ export default function EmployeeImportPage() {
 
       <PageHeader
         title="Import employees"
-        description="Upload and validate employees in bulk with the official CSV template."
+        description="Upload, validate, and apply employees from the CSV template."
         actions={
           <Button variant="outline" asChild>
             <Link href="/employees">

@@ -20,10 +20,19 @@ describe("resolveInviteAcceptanceDestination", () => {
     ).toBe("/profile");
   });
 
-  it("sends hr admins to the admin workspace", () => {
+  it("sends hr admins to setup summary", () => {
     expect(
       resolveInviteAcceptanceDestination({
         roles: ["HRAdmin"],
+        employeeId: null,
+      })
+    ).toBe("/setup");
+  });
+
+  it("keeps platform admins on the admin workspace root", () => {
+    expect(
+      resolveInviteAcceptanceDestination({
+        roles: ["PlatformAdmin"],
         employeeId: null,
       })
     ).toBe("/");

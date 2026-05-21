@@ -8,7 +8,14 @@ import type {
 } from "@tanstack/react-table";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Copy, Link as LinkIcon, Plus, Send, Upload, Users } from "lucide-react";
+import {
+  Copy,
+  Link as LinkIcon,
+  Plus,
+  Send,
+  Upload,
+  Users,
+} from "lucide-react";
 import { useApiQueryClient } from "@repo/api/query";
 import { useAuth } from "@repo/auth";
 import { DEFAULT_PAGE_SIZE, EmptyState, type PageSize } from "@repo/ui";
@@ -720,8 +727,9 @@ export default function EmployeesPage() {
     EmployeeRosterRow[] | null
   >(null);
   const [isAccessWorkflowOpen, setIsAccessWorkflowOpen] = useState(false);
-  const [isCreateEmployeeOpen, setIsCreateEmployeeOpen] =
-    useState(shouldOpenCreateEmployee);
+  const [isCreateEmployeeOpen, setIsCreateEmployeeOpen] = useState(
+    shouldOpenCreateEmployee
+  );
   const [isNotIncludedExpanded, setIsNotIncludedExpanded] = useState(false);
   const [isResultDetailsOpen, setIsResultDetailsOpen] = useState(false);
   const [selectedRolesByEmployeeId, setSelectedRolesByEmployeeId] = useState<
@@ -755,7 +763,9 @@ export default function EmployeesPage() {
   const resolveWorkforceAccountStatuses = useResolveWorkforceAccountStatuses();
   const workforceAccountSubjects = useMemo<WorkforceAccountSubject[]>(
     () =>
-      (data?.items ?? []).map((employee) => buildWorkforceAccountSubject(employee)),
+      (data?.items ?? []).map((employee) =>
+        buildWorkforceAccountSubject(employee)
+      ),
     [data?.items]
   );
   const {
@@ -780,13 +790,13 @@ export default function EmployeesPage() {
   const resolveMatchingRows = useCallback(async (): Promise<
     EmployeeRosterRow[]
   > => {
-      const employees = await resolveEmployeeRoster({
-        search: search || undefined,
-        status,
-        access,
-        readiness,
-        sortBy,
-        sortDir,
+    const employees = await resolveEmployeeRoster({
+      search: search || undefined,
+      status,
+      access,
+      readiness,
+      sortBy,
+      sortDir,
     });
     const accounts = await resolveWorkforceAccountStatuses(
       employees.map((employee) => buildWorkforceAccountSubject(employee))
@@ -1053,7 +1063,9 @@ export default function EmployeesPage() {
 
   const handleRowClick = useCallback(
     (employee: EmployeeRosterRow) => {
-      router.push(buildTenantContextHref(`/employees/${employee.id}`, tenantId));
+      router.push(
+        buildTenantContextHref(`/employees/${employee.id}`, tenantId)
+      );
     },
     [router, tenantId]
   );
@@ -1329,16 +1341,13 @@ export default function EmployeesPage() {
   }, [selectedEmployees]);
 
   const isInitialPageLoading =
-    canAccess &&
-    currentTableLoading &&
-    !error &&
-    !data;
+    canAccess && currentTableLoading && !error && !data;
 
   if (isInitialPageLoading) {
     return (
       <CorePageLoadingState
         title="Employees"
-        description="The operational roster is available only to tenant HR administrators."
+        description="Tenant HR administrators manage the roster."
         message="Loading employees..."
         variant="list"
       />
@@ -1350,12 +1359,12 @@ export default function EmployeesPage() {
       <div className="flex flex-col gap-6 p-6">
         <PageHeader
           title="Employees"
-          description="The operational roster is available only to tenant HR administrators."
+          description="Tenant HR administrators manage the roster."
         />
         <EmptyState
           icon={Users}
           title="Employee roster is not available for this role"
-          description="Ask a tenant HR administrator to manage the operational roster."
+          description="Contact a tenant HR administrator."
         />
       </div>
     );
@@ -1365,7 +1374,7 @@ export default function EmployeesPage() {
     <div className="flex flex-col gap-6 p-6">
       <PageHeader
         title="Employees"
-        description="Manage the tenant roster and send access invitations when employees are ready."
+        description="Manage the roster and access invitations."
         actions={
           !isTenantContextReadOnly ? (
             <div className="flex flex-wrap gap-2">

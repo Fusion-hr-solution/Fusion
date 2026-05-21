@@ -1,6 +1,14 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useAuth } from "@repo/auth";
 import {
@@ -48,13 +56,21 @@ function storeTenantId(id: string | null): void {
   }
 }
 
-export function TenantContextProvider({ children }: { children: React.ReactNode }) {
+export function TenantContextProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const queryClient = useApiQueryClient();
   const searchParams = useSearchParams();
   const pathname = usePathname();
-  const [tenantId, setTenantIdState] = useState<string | null>(() => loadStoredTenantId());
-  const [tenantSummary, setTenantSummary] = useState<TenantSummaryDto | null>(null);
+  const [tenantId, setTenantIdState] = useState<string | null>(() =>
+    loadStoredTenantId()
+  );
+  const [tenantSummary, setTenantSummary] = useState<TenantSummaryDto | null>(
+    null
+  );
   const [isLoading, setIsLoading] = useState(false);
   const prevTenantIdRef = useRef<string | null>(null);
   const failedTenantIdRef = useRef<string | null>(null);
@@ -85,12 +101,15 @@ export function TenantContextProvider({ children }: { children: React.ReactNode 
       setTenantIdState(id);
       storeTenantId(id);
     },
-    [clearTenantScopedQueries],
+    [clearTenantScopedQueries]
   );
 
-  const setTenant = useCallback((id: string) => {
-    activateTenant(id);
-  }, [activateTenant]);
+  const setTenant = useCallback(
+    (id: string) => {
+      activateTenant(id);
+    },
+    [activateTenant]
+  );
 
   const clearTenant = useCallback(() => {
     failedTenantIdRef.current = null;
@@ -150,7 +169,8 @@ export function TenantContextProvider({ children }: { children: React.ReactNode 
       getTenantId: () => tenantId,
     });
 
-    client.get<TenantSummaryDto>("/identity/tenant-context/tenant-summary")
+    client
+      .get<TenantSummaryDto>("/identity/tenant-context/tenant-summary")
       .then((data) => {
         if (!cancelled) {
           setTenantSummary(data);
@@ -186,16 +206,20 @@ export function TenantContextProvider({ children }: { children: React.ReactNode 
       setTenant,
       clearTenant,
     }),
-    [tenantId, tenantSummary, isLoading, setTenant, clearTenant],
+    [tenantId, tenantSummary, isLoading, setTenant, clearTenant]
   );
 
-  return <TenantContext.Provider value={value}>{children}</TenantContext.Provider>;
+  return (
+    <TenantContext.Provider value={value}>{children}</TenantContext.Provider>
+  );
 }
 
 export function useTenantContext(): TenantContextValue {
   const ctx = useContext(TenantContext);
   if (!ctx) {
-    throw new Error("useTenantContext must be used within a TenantContextProvider");
+    throw new Error(
+      "useTenantContext must be used within a TenantContextProvider"
+    );
   }
   return ctx;
 }
