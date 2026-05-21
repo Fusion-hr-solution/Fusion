@@ -341,9 +341,7 @@ function getReadinessSummary({
     return "Ready to publish.";
   }
 
-  return isReadyForApproval
-    ? "Ready for approval."
-    : "In progress.";
+  return isReadyForApproval ? "Ready for approval." : "In progress.";
 }
 
 function formatRoleLabel(
@@ -374,7 +372,10 @@ function getIssueGroups(issues: DraftSetupIssueDto[]) {
     .filter((group) => group.issues.length > 0);
 }
 
-const activityCopyMap: Record<string, { title: string; description: (name: string) => string }> = {
+const activityCopyMap: Record<
+  string,
+  { title: string; description: (name: string) => string }
+> = {
   draftCreated: {
     title: "Unit added",
     description: (name) => `${name} added a draft unit`,
@@ -420,9 +421,15 @@ const activityCopyMap: Record<string, { title: string; description: (name: strin
 function getActivityCopy(activity: TenantSetupActivityDto) {
   const copy = activityCopyMap[activity.activityType];
   if (copy) {
-    return { title: copy.title, description: copy.description(activity.actorFullName) };
+    return {
+      title: copy.title,
+      description: copy.description(activity.actorFullName),
+    };
   }
-  return { title: "Activity recorded", description: `${activity.actorFullName} performed an action` };
+  return {
+    title: "Activity recorded",
+    description: `${activity.actorFullName} performed an action`,
+  };
 }
 
 function getErrorMessage(error: unknown) {
@@ -776,13 +783,14 @@ export default function SetupPage() {
 
       <SetupMilestoneStrip data={setupState} />
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
-        <Card className="h-full">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] xl:items-start">
+        <Card>
           <CardContent className="flex flex-col gap-4 p-5 lg:flex-row lg:items-start lg:justify-between">
             <div className="min-w-0 space-y-3">
               <div className="flex flex-wrap items-center gap-2">
                 <SetupStatusBadge status={setupState.currentPhase} />
-                {setupState.isApprovedInPlatformAssistMode && !isCoreUnlocked ? (
+                {setupState.isApprovedInPlatformAssistMode &&
+                !isCoreUnlocked ? (
                   <Badge variant="outline">Assisted</Badge>
                 ) : null}
               </div>
@@ -823,22 +831,26 @@ export default function SetupPage() {
           </CardContent>
         </Card>
 
-        <RecentActivityCard
-          activities={visibleActivities}
-          hasMoreActivities={hasMoreActivities}
-          onLoadMore={() =>
-            setVisibleActivityCount((currentCount) =>
-              Math.min(currentCount + 3, setupState.recentActivities.length)
-            )
-          }
-        />
+        <div className="xl:self-stretch">
+          <RecentActivityCard
+            activities={visibleActivities}
+            hasMoreActivities={hasMoreActivities}
+            onLoadMore={() =>
+              setVisibleActivityCount((currentCount) =>
+                Math.min(currentCount + 3, setupState.recentActivities.length)
+              )
+            }
+          />
+        </div>
       </div>
 
       {showExpandedReadiness ? (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
             <CardTitle>Readiness</CardTitle>
-            <Badge variant={readinessStatusVariant}>{readinessStatusLabel}</Badge>
+            <Badge variant={readinessStatusVariant}>
+              {readinessStatusLabel}
+            </Badge>
           </CardHeader>
           <CardContent className="space-y-4">
             {readinessError ? (
@@ -872,10 +884,7 @@ export default function SetupPage() {
                 ) : null}
 
                 {readiness && hasWarnings ? (
-                  <IssueSection
-                    title="Warnings"
-                    issues={readiness.warnings}
-                  />
+                  <IssueSection title="Warnings" issues={readiness.warnings} />
                 ) : null}
               </>
             )}
@@ -950,13 +959,11 @@ function RecentActivityCard({
       </CardHeader>
       <CardContent className="flex min-h-0 flex-1 flex-col">
         {activities.length === 0 ? (
-          <div className="flex flex-1 flex-col items-center justify-center gap-2 py-8 text-center">
+          <div className="flex flex-1 flex-col items-center justify-center gap-2 py-6 text-center">
             <div className="flex size-8 items-center justify-center rounded-full border bg-muted/30 text-muted-foreground/60">
               <History className="size-3.5" />
             </div>
-            <p className="text-sm text-muted-foreground">
-              No activity yet.
-            </p>
+            <p className="text-sm text-muted-foreground">No activity yet.</p>
           </div>
         ) : (
           <div className="space-y-0">
@@ -1108,7 +1115,7 @@ function SetupPageSkeleton() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] xl:items-start">
         <div className="space-y-4 rounded-xl border p-5">
           <Skeleton className="h-4 w-28" />
           <Skeleton className="h-7 w-64" />
