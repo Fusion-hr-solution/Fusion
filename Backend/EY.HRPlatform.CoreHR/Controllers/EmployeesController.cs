@@ -11,6 +11,7 @@ using EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployeeReportingLines;
 using EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployeeProfile;
 using EY.HRPlatform.CoreHR.Features.Employees.Queries.GetWorkforceReadinessSummary;
 using EY.HRPlatform.CoreHR.Features.Employees.Services;
+using EY.HRPlatform.CoreHR.Features.Security;
 using EY.HRPlatform.CoreHR.Models.Requests;
 using EY.HRPlatform.CoreHR.Models.Responses;
 using EY.HRPlatform.SharedKernel.Auth;
@@ -30,15 +31,14 @@ namespace EY.HRPlatform.CoreHR.Controllers;
 [ApiController]
 [Route("api/corehr/employees")]
 [Authorize]
-public class EmployeesController(ISender sender) : ControllerBase
+public class EmployeesController(
+    ISender sender,
+    ICoreAccessPolicyService accessPolicy) : ControllerBase
 {
-    private const string LinkedEmployeeReadRoles = PlatformRole.PlatformAdmin + "," + PlatformRole.HRAdmin + "," + PlatformRole.Employee + "," + PlatformRole.Manager;
-
     /// <summary>
     /// List employees with optional search, status filtering, sorting, and pagination.
     /// </summary>
     [HttpGet]
-    [Authorize(Roles = $"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin}")]
     [ProducesResponseType(typeof(ApiResponseOfPagedEmployeeList), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAll(
         [FromQuery] string? search,
@@ -51,16 +51,25 @@ public class EmployeesController(ISender sender) : ControllerBase
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
+        if (!accessPolicy.CanViewTenantEmployees(User))
+        {
+            return Forbid();
+        }
+
         var query = new GetEmployeesQuery(search, status, access, readiness, sortBy, sortDir, page, pageSize);
         var result = await sender.Send(query, cancellationToken);
         return Ok(ApiResponseOfPagedEmployeeList.Success(result.Value));
     }
 
     [HttpGet("readiness-summary")]
-    [Authorize(Roles = $"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin}")]
     [ProducesResponseType(typeof(ApiResponseOfWorkforceReadinessSummaryDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetReadinessSummary(CancellationToken cancellationToken = default)
     {
+        if (!accessPolicy.CanViewTenantEmployees(User))
+        {
+            return Forbid();
+        }
+
         var result = await sender.Send(new GetWorkforceReadinessSummaryQuery(), cancellationToken);
         return Ok(ApiResponseOfWorkforceReadinessSummaryDto.Success(result.Value));
     }
@@ -70,7 +79,6 @@ public class EmployeesController(ISender sender) : ControllerBase
     /// Supports focus-employee root resolution, org unit scoping, and inactive visibility.
     /// </summary>
     [HttpGet("org-chart")]
-    [Authorize(Roles = $"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin}")]
     [ProducesResponseType(typeof(ApiResponseOfEmployeeOrgChartDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetOrgChart(
@@ -81,6 +89,11 @@ public class EmployeesController(ISender sender) : ControllerBase
         [FromQuery] bool includeInactive = false,
         CancellationToken cancellationToken = default)
     {
+        if (!accessPolicy.CanViewOrgChart(User))
+        {
+            return Forbid();
+        }
+
         var result = await sender.Send(
             new GetEmployeeOrgChartQuery(rootEmployeeId, focusEmployeeId, orgUnitId, maxDepth, includeInactive),
             cancellationToken);
@@ -97,7 +110,6 @@ public class EmployeesController(ISender sender) : ControllerBase
     /// Create a new employee within the current tenant.
     /// </summary>
     [HttpPost]
-    [Authorize(Roles = PlatformRole.HRAdmin)]
     [ProducesResponseType(typeof(ApiResponseOfEmployeeDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status409Conflict)]
@@ -105,6 +117,11 @@ public class EmployeesController(ISender sender) : ControllerBase
         [FromBody] CreateEmployeeRequest request,
         CancellationToken cancellationToken)
     {
+        if (!accessPolicy.CanManageEmployees(User))
+        {
+            return Forbid();
+        }
+
         var command = new CreateEmployeeCommand(
             request.FirstName,
             request.LastName,
@@ -132,11 +149,15 @@ public class EmployeesController(ISender sender) : ControllerBase
     /// Get an employee by ID.
     /// </summary>
     [HttpGet("{id:guid}")]
-    [Authorize(Roles = $"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin}")]
     [ProducesResponseType(typeof(ApiResponseOfEmployeeDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
     {
+        if (!accessPolicy.CanViewTenantEmployees(User))
+        {
+            return Forbid();
+        }
+
         var result = await sender.Send(new GetEmployeeByIdQuery(id), cancellationToken);
 
         if (result.IsFailure)
@@ -154,12 +175,16 @@ public class EmployeesController(ISender sender) : ControllerBase
     /// direct-report count, and hierarchy status in a single response.
     /// </summary>
     [HttpGet("{id:guid}/profile")]
-    [Authorize(Roles = LinkedEmployeeReadRoles)]
     [ProducesResponseType(typeof(ApiResponseOfEmployeeProfileDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> GetProfile(Guid id, CancellationToken cancellationToken)
     {
+        if (accessPolicy.GetEmployeeViewScope(User) is null && !accessPolicy.CanViewOwnProfile(User))
+        {
+            return Forbid();
+        }
+
         var audience = GetCurrentReadAudience();
         var result = await sender.Send(new GetEmployeeProfileQuery(id, audience), cancellationToken);
 
@@ -182,12 +207,16 @@ public class EmployeesController(ISender sender) : ControllerBase
     /// Get reporting-line summary for an employee, including manager chain, direct reports, and flat downline.
     /// </summary>
     [HttpGet("{id:guid}/reporting-lines")]
-    [Authorize(Roles = LinkedEmployeeReadRoles)]
     [ProducesResponseType(typeof(ApiResponseOfEmployeeReportingLinesDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> GetReportingLines(Guid id, CancellationToken cancellationToken)
     {
+        if (accessPolicy.GetEmployeeViewScope(User) is null && !accessPolicy.CanViewOwnProfile(User))
+        {
+            return Forbid();
+        }
+
         var audience = GetCurrentReadAudience();
         var result = await sender.Send(new GetEmployeeReportingLinesQuery(id, audience), cancellationToken);
 
@@ -209,7 +238,6 @@ public class EmployeesController(ISender sender) : ControllerBase
     /// Requires If-Match header with current version for optimistic concurrency.
     /// </summary>
     [HttpPut("{id:guid}")]
-    [Authorize(Roles = PlatformRole.HRAdmin)]
     [ProducesResponseType(typeof(ApiResponseOfEmployeeDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
@@ -221,6 +249,11 @@ public class EmployeesController(ISender sender) : ControllerBase
         [FromHeader(Name = "If-Match")] string? ifMatch,
         CancellationToken cancellationToken)
     {
+        if (!accessPolicy.CanManageEmployees(User))
+        {
+            return Forbid();
+        }
+
         if (!TryParseVersion(ifMatch, out var expectedVersion))
         {
             return StatusCode(
@@ -251,7 +284,6 @@ public class EmployeesController(ISender sender) : ControllerBase
     }
 
     [HttpPut("{id:guid}/self-profile")]
-    [Authorize(Roles = LinkedEmployeeReadRoles)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status412PreconditionFailed)]
@@ -261,7 +293,7 @@ public class EmployeesController(ISender sender) : ControllerBase
         [FromHeader(Name = "If-Match")] string? ifMatch,
         CancellationToken cancellationToken)
     {
-        if (!CanUpdateOwnProfile(id))
+        if (!accessPolicy.CanUpdateOwnProfile(User) || !CanUpdateOwnProfile(id))
         {
             return Forbid();
         }
@@ -285,7 +317,6 @@ public class EmployeesController(ISender sender) : ControllerBase
     /// Requires If-Match header with current version for optimistic concurrency.
     /// </summary>
     [HttpDelete("{id:guid}")]
-    [Authorize(Roles = PlatformRole.HRAdmin)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status409Conflict)]
@@ -295,6 +326,11 @@ public class EmployeesController(ISender sender) : ControllerBase
         [FromHeader(Name = "If-Match")] string? ifMatch,
         CancellationToken cancellationToken)
     {
+        if (!accessPolicy.CanManageEmployees(User))
+        {
+            return Forbid();
+        }
+
         if (!TryParseVersion(ifMatch, out var expectedVersion))
         {
             return StatusCode(
@@ -321,20 +357,12 @@ public class EmployeesController(ISender sender) : ControllerBase
     }
 
     private EmployeeReadAudience GetCurrentReadAudience()
-    {
-        if (User.IsInRole(PlatformRole.HRAdmin) || User.IsInRole(PlatformRole.PlatformAdmin))
-        {
-            return EmployeeReadAudience.HrAdmin;
-        }
-
-        return User.IsInRole(PlatformRole.Manager)
-            ? EmployeeReadAudience.Manager
-            : EmployeeReadAudience.Employee;
-    }
+        => accessPolicy.GetEmployeeReadAudience(User);
 
     private bool CanReadProfile(EmployeeProfileDto profile)
     {
-        if (User.IsInRole(PlatformRole.HRAdmin) || User.IsInRole(PlatformRole.PlatformAdmin))
+        var scope = accessPolicy.GetEmployeeViewScope(User);
+        if (scope == PermissionScopes.Tenant)
         {
             return true;
         }
@@ -347,15 +375,16 @@ public class EmployeesController(ISender sender) : ControllerBase
 
         if (profile.Id == linkedEmployeeId.Value)
         {
-            return true;
+            return scope == PermissionScopes.Self || scope == PermissionScopes.DirectReports || accessPolicy.CanViewOwnProfile(User);
         }
 
-        return User.IsInRole(PlatformRole.Manager) && profile.ManagerId == linkedEmployeeId.Value;
+        return scope == PermissionScopes.DirectReports && profile.ManagerId == linkedEmployeeId.Value;
     }
 
     private bool CanReadReportingLines(EmployeeListItemDto employee)
     {
-        if (User.IsInRole(PlatformRole.HRAdmin) || User.IsInRole(PlatformRole.PlatformAdmin))
+        var scope = accessPolicy.GetEmployeeViewScope(User);
+        if (scope == PermissionScopes.Tenant)
         {
             return true;
         }
@@ -368,10 +397,10 @@ public class EmployeesController(ISender sender) : ControllerBase
 
         if (employee.Id == linkedEmployeeId.Value)
         {
-            return true;
+            return scope == PermissionScopes.Self || scope == PermissionScopes.DirectReports || accessPolicy.CanViewOwnProfile(User);
         }
 
-        return User.IsInRole(PlatformRole.Manager) && employee.ManagerId == linkedEmployeeId.Value;
+        return scope == PermissionScopes.DirectReports && employee.ManagerId == linkedEmployeeId.Value;
     }
 
     private bool CanUpdateOwnProfile(Guid employeeId)
@@ -382,12 +411,13 @@ public class EmployeesController(ISender sender) : ControllerBase
 
     private EmployeeReportingLinesDto ApplyReportingScope(EmployeeReportingLinesDto reportingLines)
     {
-        if (User.IsInRole(PlatformRole.HRAdmin) || User.IsInRole(PlatformRole.PlatformAdmin))
+        var scope = accessPolicy.GetEmployeeViewScope(User);
+        if (scope == PermissionScopes.Tenant)
         {
             return reportingLines;
         }
 
-        if (User.IsInRole(PlatformRole.Manager))
+        if (scope == PermissionScopes.DirectReports)
         {
             return reportingLines with
             {

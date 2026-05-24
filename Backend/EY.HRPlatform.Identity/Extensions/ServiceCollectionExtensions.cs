@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Text;
 using EY.HRPlatform.Identity.Domain.Entities;
+using EY.HRPlatform.Identity.Features.AccessProfiles;
 using EY.HRPlatform.Identity.Features.PlatformOrganizations.Services;
 using EY.HRPlatform.Identity.Features.Tenants.Services;
 using EY.HRPlatform.Identity.Infrastructure.Persistence;
@@ -105,6 +106,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<ITenantService, TenantService>();
         services.AddScoped<IPlatformOrganizationService, PlatformOrganizationService>();
+        services.AddScoped<IAccessProfileService, AccessProfileService>();
 
         // 5. Training service client (service-to-service)
         // This integration is fire-and-forget only. When local config is blank,

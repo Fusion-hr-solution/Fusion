@@ -78,7 +78,7 @@ export function useBulkProvisionWorkforceAccountInvites() {
 
   return useApiMutation<
     WorkforceAccountBulkProvisionResultDto[],
-    { items: WorkforceAccountSubject[] }
+    { items: Array<WorkforceAccountSubject & { accessProfileId: string }> }
   >(({ items }) =>
     client.post<WorkforceAccountBulkProvisionResultDto[]>(
       `${WORKFORCE_ACCOUNTS_PATH}/bulk-provision`,
@@ -125,24 +125,24 @@ export function useProvisionWorkforceAccountInvite() {
 
   return useApiMutation<
     WorkforceAccountStatusDto,
-    {
-      employeeId: string;
-      email: string;
-      firstName: string;
-      lastName: string;
-      role: string;
-    }
-  >(({ employeeId, email, firstName, lastName, role }) =>
-    client.post<WorkforceAccountStatusDto>(
-      `${WORKFORCE_ACCOUNTS_PATH}/${employeeId}/invite`,
       {
-        email,
-        firstName,
-        lastName,
-        role,
+        employeeId: string;
+        email: string;
+        firstName: string;
+        lastName: string;
+        accessProfileId: string;
       }
-    )
-  );
+    >(({ employeeId, email, firstName, lastName, accessProfileId }) =>
+      client.post<WorkforceAccountStatusDto>(
+        `${WORKFORCE_ACCOUNTS_PATH}/${employeeId}/invite`,
+        {
+          email,
+          firstName,
+          lastName,
+          accessProfileId,
+        }
+      )
+    );
 }
 
 export function useReactivateWorkforceAccount() {

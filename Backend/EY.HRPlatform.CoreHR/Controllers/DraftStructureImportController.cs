@@ -1,4 +1,5 @@
 using EY.HRPlatform.CoreHR.Features.DraftStructure.Import.Dtos;
+using EY.HRPlatform.CoreHR.Features.Security;
 using EY.HRPlatform.CoreHR.Features.DraftStructure.Services;
 using EY.HRPlatform.SharedKernel.Api;
 using EY.HRPlatform.SharedKernel.Auth;
@@ -9,14 +10,20 @@ namespace EY.HRPlatform.CoreHR.Controllers;
 
 [ApiController]
 [Route("api/corehr/setup/draft-structure/import")]
-[Authorize(Roles = $"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin}")]
+[Authorize]
 public class DraftStructureImportController(
-    IDraftStructureImportWorkflowService workflowService) : ControllerBase
+    IDraftStructureImportWorkflowService workflowService,
+    ICoreAccessPolicyService accessPolicy) : ControllerBase
 {
     [HttpGet("schema")]
     [ProducesResponseType(typeof(ApiResponse<DraftStructureImportSchemaDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetSchema(CancellationToken cancellationToken)
     {
+        if (!accessPolicy.CanManageStructure(User))
+        {
+            return Forbid();
+        }
+
         var schema = await workflowService.GetSchemaAsync(cancellationToken);
         return Ok(ApiResponse<DraftStructureImportSchemaDto>.Success(schema));
     }
@@ -24,6 +31,11 @@ public class DraftStructureImportController(
     [HttpGet("template")]
     public async Task<IActionResult> DownloadTemplate(CancellationToken cancellationToken)
     {
+        if (!accessPolicy.CanManageStructure(User))
+        {
+            return Forbid();
+        }
+
         var template = await workflowService.BuildTemplateAsync(cancellationToken);
         return File(template.Content, "text/csv", template.FileName);
     }
@@ -35,6 +47,11 @@ public class DraftStructureImportController(
         [FromForm] IFormFile file,
         CancellationToken cancellationToken)
     {
+        if (!accessPolicy.CanManageStructure(User))
+        {
+            return Forbid();
+        }
+
         var session = await workflowService.UploadAsync(
             file,
             cancellationToken,
@@ -50,6 +67,11 @@ public class DraftStructureImportController(
     [ProducesResponseType(typeof(ApiResponse<DraftStructureImportSessionDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetSession(Guid sessionId, CancellationToken cancellationToken)
     {
+        if (!accessPolicy.CanManageStructure(User))
+        {
+            return Forbid();
+        }
+
         var session = await workflowService.GetSessionAsync(sessionId, cancellationToken);
         return Ok(ApiResponse<DraftStructureImportSessionDto>.Success(session));
     }
@@ -61,6 +83,11 @@ public class DraftStructureImportController(
         [FromBody] DraftStructureImportMappingRequest request,
         CancellationToken cancellationToken)
     {
+        if (!accessPolicy.CanManageStructure(User))
+        {
+            return Forbid();
+        }
+
         var session = await workflowService.SaveMappingAsync(sessionId, request, cancellationToken);
         return Ok(ApiResponse<DraftStructureImportSessionDto>.Success(session));
     }
@@ -72,6 +99,11 @@ public class DraftStructureImportController(
         [FromBody] DraftStructureImportResolveKindsRequest request,
         CancellationToken cancellationToken)
     {
+        if (!accessPolicy.CanManageStructure(User))
+        {
+            return Forbid();
+        }
+
         var session = await workflowService.ResolveKindsAsync(sessionId, request, cancellationToken);
         return Ok(ApiResponse<DraftStructureImportSessionDto>.Success(session));
     }
@@ -80,6 +112,11 @@ public class DraftStructureImportController(
     [ProducesResponseType(typeof(ApiResponse<DraftStructureImportSessionDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> Validate(Guid sessionId, CancellationToken cancellationToken)
     {
+        if (!accessPolicy.CanManageStructure(User))
+        {
+            return Forbid();
+        }
+
         var session = await workflowService.ValidateAsync(sessionId, cancellationToken);
         return Ok(ApiResponse<DraftStructureImportSessionDto>.Success(session));
     }
@@ -88,6 +125,11 @@ public class DraftStructureImportController(
     [ProducesResponseType(typeof(ApiResponse<DraftStructureImportApplyResultDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> Apply(Guid sessionId, CancellationToken cancellationToken)
     {
+        if (!accessPolicy.CanManageStructure(User))
+        {
+            return Forbid();
+        }
+
         var result = await workflowService.ApplyAsync(
             sessionId,
             cancellationToken,

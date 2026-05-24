@@ -81,6 +81,23 @@ export {
 export type { AcceptInviteRequest, InviteDto } from "./invites";
 export { invitePaths, inviteQueryKeys } from "./invites";
 export type {
+  PermissionScope,
+  CorePermissionCatalogItemDto,
+  EffectivePermissionGrantDto,
+  AccessProfileAssignmentSummaryDto,
+  AccessProfileSummaryDto,
+  UserAccessAssignmentDto,
+  CurrentUserAccessDto,
+  AccessProfileGrantInputDto,
+  CreateAccessProfileRequest,
+  UpdateAccessProfileRequest,
+  SetUserAccessProfilesRequest,
+} from "./core-access";
+export {
+  coreAccessPaths,
+  coreAccessQueryKeys,
+} from "./core-access";
+export type {
   WorkforceManagerSummaryDto,
   WorkforceOrgAssignmentDto,
   WorkforceDataQualityDto,

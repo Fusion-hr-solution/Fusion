@@ -1,6 +1,5 @@
 using System.Reflection;
 using EY.HRPlatform.CoreHR.Controllers;
-using EY.HRPlatform.SharedKernel.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -8,8 +7,6 @@ namespace EY.HRPlatform.CoreHR.Tests.Features.Employees;
 
 public class EmployeeImportControllerAuthorizationTests
 {
-    private const string PlatformAdminAndHrAdmin = PlatformRole.PlatformAdmin + "," + PlatformRole.HRAdmin;
-
     [Fact]
     public void Controller_HasAuthorizeAttributeAtClassLevel()
     {
@@ -20,84 +17,21 @@ public class EmployeeImportControllerAuthorizationTests
         Assert.Null(attribute!.Roles); // class-level is [Authorize] without roles
     }
 
-    [Fact]
-    public void GetSchema_AllowsPlatformAdminAndHrAdmin()
+    [Theory]
+    [InlineData(nameof(EmployeeImportController.GetSchema))]
+    [InlineData(nameof(EmployeeImportController.DownloadTemplate))]
+    [InlineData(nameof(EmployeeImportController.Upload))]
+    [InlineData(nameof(EmployeeImportController.Validate))]
+    [InlineData(nameof(EmployeeImportController.Apply))]
+    [InlineData(nameof(EmployeeImportController.GetHistory))]
+    [InlineData(nameof(EmployeeImportController.GetHistoryDetail))]
+    [InlineData(nameof(EmployeeImportController.GetSession))]
+    public void PermissionControlledEndpoints_DoNotDeclareMethodRoleAttributes(string methodName)
     {
-        var method = typeof(EmployeeImportController).GetMethod(nameof(EmployeeImportController.GetSchema));
+        var method = typeof(EmployeeImportController).GetMethod(methodName);
         var authorize = method?.GetCustomAttribute<AuthorizeAttribute>(inherit: false);
 
-        Assert.NotNull(authorize);
-        Assert.Equal(PlatformAdminAndHrAdmin, authorize!.Roles);
-    }
-
-    [Fact]
-    public void DownloadTemplate_AllowsPlatformAdminAndHrAdmin()
-    {
-        var method = typeof(EmployeeImportController).GetMethod(nameof(EmployeeImportController.DownloadTemplate));
-        var authorize = method?.GetCustomAttribute<AuthorizeAttribute>(inherit: false);
-
-        Assert.NotNull(authorize);
-        Assert.Equal(PlatformAdminAndHrAdmin, authorize!.Roles);
-    }
-
-    [Fact]
-    public void Upload_RequiresHrAdminRole()
-    {
-        var method = typeof(EmployeeImportController).GetMethod(nameof(EmployeeImportController.Upload));
-        var authorize = method?.GetCustomAttribute<AuthorizeAttribute>(inherit: false);
-
-        Assert.NotNull(authorize);
-        Assert.Equal(PlatformRole.HRAdmin, authorize!.Roles);
-    }
-
-    [Fact]
-    public void Validate_RequiresHrAdminRole()
-    {
-        var method = typeof(EmployeeImportController).GetMethod(nameof(EmployeeImportController.Validate));
-        var authorize = method?.GetCustomAttribute<AuthorizeAttribute>(inherit: false);
-
-        Assert.NotNull(authorize);
-        Assert.Equal(PlatformRole.HRAdmin, authorize!.Roles);
-    }
-
-    [Fact]
-    public void Apply_RequiresHrAdminRole()
-    {
-        var method = typeof(EmployeeImportController).GetMethod(nameof(EmployeeImportController.Apply));
-        var authorize = method?.GetCustomAttribute<AuthorizeAttribute>(inherit: false);
-
-        Assert.NotNull(authorize);
-        Assert.Equal(PlatformRole.HRAdmin, authorize!.Roles);
-    }
-
-    [Fact]
-    public void GetHistory_AllowsPlatformAdminAndHrAdmin()
-    {
-        var method = typeof(EmployeeImportController).GetMethod(nameof(EmployeeImportController.GetHistory));
-        var authorize = method?.GetCustomAttribute<AuthorizeAttribute>(inherit: false);
-
-        Assert.NotNull(authorize);
-        Assert.Equal(PlatformAdminAndHrAdmin, authorize!.Roles);
-    }
-
-    [Fact]
-    public void GetHistoryDetail_AllowsPlatformAdminAndHrAdmin()
-    {
-        var method = typeof(EmployeeImportController).GetMethod(nameof(EmployeeImportController.GetHistoryDetail));
-        var authorize = method?.GetCustomAttribute<AuthorizeAttribute>(inherit: false);
-
-        Assert.NotNull(authorize);
-        Assert.Equal(PlatformAdminAndHrAdmin, authorize!.Roles);
-    }
-
-    [Fact]
-    public void GetSession_AllowsPlatformAdminAndHrAdmin()
-    {
-        var method = typeof(EmployeeImportController).GetMethod(nameof(EmployeeImportController.GetSession));
-        var authorize = method?.GetCustomAttribute<AuthorizeAttribute>(inherit: false);
-
-        Assert.NotNull(authorize);
-        Assert.Equal(PlatformAdminAndHrAdmin, authorize!.Roles);
+        Assert.True(authorize is null || string.IsNullOrWhiteSpace(authorize.Roles));
     }
 
     [Fact]

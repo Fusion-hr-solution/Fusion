@@ -17,7 +17,12 @@ import {
   Users,
 } from "lucide-react";
 import { useApiQueryClient } from "@repo/api/query";
-import { useAuth } from "@repo/auth";
+import {
+  canAccessCoreAccess,
+  canImportCoreEmployees,
+  canManageCoreEmployees,
+  useAuth,
+} from "@repo/auth";
 import { DEFAULT_PAGE_SIZE, EmptyState, type PageSize } from "@repo/ui";
 import { CorePageLoadingState } from "@/components/core-page-loading-state";
 import { useTenantContext } from "@/components/core-tenant-context-provider";
@@ -29,7 +34,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -41,22 +46,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+
 import {
   Tooltip,
   TooltipContent,
@@ -67,7 +57,6 @@ import { useToast } from "@/components/ui/use-toast";
 import { canAccessEmployeeRoster } from "@/lib/employee-roster-access";
 import { buildTenantContextHref } from "@/lib/tenant-navigation";
 import {
-  type AccessInviteRole,
   getAccessBadgeTone,
   getAccessDisplayState,
   getBulkSelectionSummary,
@@ -75,6 +64,7 @@ import {
   getReviewDrawerRows,
   getSuggestedInviteRole,
   parseEmployeeAccessFilter,
+  type BulkSelectionSummary,
 } from "./employee-access";
 import { buildEmployeeColumns } from "./columns";
 import { useEmployeeFieldVisibility } from "./employee-field-visibility";
@@ -90,10 +80,8 @@ import type {
   EmployeeRosterSortDirection,
   EmployeeRosterSortField,
   EmployeeRosterStatus,
-  WorkforceAccountBulkProvisionResultDto,
   WorkforceAccountStatusDto,
   WorkforceAccountSubject,
-  WorkforceInvitationDeliveryState,
 } from "./employee-roster.types";
 import { useEmployeeRoster, useResolveEmployeeRoster } from "./use-employees";
 import {
@@ -102,6 +90,7 @@ import {
   useWorkforceAccountStatuses,
 } from "./use-workforce-accounts";
 import { EmployeeCreateDialog } from "./employee-create-dialog";
+import { useAccessProfiles } from "../settings/use-core-access";
 
 const DEFAULT_EMPLOYEE_SORTING: SortingState = [{ id: "Name", desc: false }];
 
@@ -110,8 +99,6 @@ type EmployeeRosterRow = EmployeeRosterItem & {
 };
 
 type SelectionScope = "page" | "allMatching";
-
-type ResultFilter = "All" | "Created" | "Skipped" | "Conflicts" | "EmailFailed";
 
 function isEmployeeRosterSortField(
   value: string | undefined
@@ -157,6 +144,27 @@ function buildWorkforceAccountSubject(
   };
 }
 
+function getSuggestedAccessProfileId(
+  accessProfiles: Array<{ id: string; name: string }>,
+  directReportCount: number,
+  currentProfileId?: string | null
+): string | null {
+  if (
+    currentProfileId &&
+    accessProfiles.some((profile) => profile.id === currentProfileId)
+  ) {
+    return currentProfileId;
+  }
+
+  const suggestedName = getSuggestedInviteRole(directReportCount);
+  return (
+    accessProfiles.find((profile) => profile.name === suggestedName)?.id ??
+    accessProfiles.find((profile) => profile.name === "Employee")?.id ??
+    accessProfiles[0]?.id ??
+    null
+  );
+}
+
 function mergeEmployeeRows(
   employees: EmployeeRosterItem[],
   accounts: WorkforceAccountStatusDto[]
@@ -171,124 +179,6 @@ function mergeEmployeeRows(
   }));
 }
 
-function getOutcomeBadgeVariant(
-  outcome: WorkforceAccountBulkProvisionResultDto["outcome"]
-): "default" | "secondary" | "outline" | "destructive" {
-  switch (outcome) {
-    case "Created":
-      return "default";
-    case "Active":
-    case "Inactive":
-      return "secondary";
-    case "Conflict":
-      return "destructive";
-    default:
-      return "outline";
-  }
-}
-
-function getOutcomeBadgeLabel(
-  outcome: WorkforceAccountBulkProvisionResultDto["outcome"]
-): string {
-  switch (outcome) {
-    case "Created":
-      return "Invitation created";
-    case "Pending":
-      return "Invited";
-    case "Active":
-      return "Account active";
-    case "Inactive":
-    case "Conflict":
-      return "Needs review";
-    default:
-      return outcome;
-  }
-}
-
-function getBulkResultDisplayName(
-  result: WorkforceAccountBulkProvisionResultDto
-): string {
-  return (
-    result.account.fullName?.trim() || result.account.email || result.employeeId
-  );
-}
-
-function summarizeBulkProvisionResults(
-  results: WorkforceAccountBulkProvisionResultDto[]
-) {
-  const createdResults = results.filter(
-    (result) => result.outcome === "Created"
-  );
-  const createdCount = createdResults.length;
-  const skippedCount = results.length - createdCount;
-  const conflictCount = results.filter(
-    (result) => result.outcome === "Conflict"
-  ).length;
-  const linkableCount = results.filter(
-    (result) => !!result.account.inviteLink
-  ).length;
-  const sentCount = createdResults.filter(
-    (result) => result.account.deliveryStatus === "Sent"
-  ).length;
-  const suppressedCount = createdResults.filter(
-    (result) =>
-      result.account.deliveryStatus === "Suppressed" ||
-      result.account.deliveryStatus === "Skipped"
-  ).length;
-  const failedCount = createdResults.filter(
-    (result) => result.account.deliveryStatus === "Failed"
-  ).length;
-  const fallbackCount = results.filter(
-    (result) => !!result.account.inviteLink
-  ).length;
-
-  let title = "No new invitations were created.";
-
-  if (createdCount > 0) {
-    const invitationLabel = `${createdCount} invitation${
-      createdCount === 1 ? "" : "s"
-    } created.`;
-
-    if (suppressedCount === createdCount) {
-      title = `${invitationLabel} Email delivery is disabled in this environment.`;
-    } else if (failedCount === createdCount) {
-      title = `${invitationLabel} Email failed; invite links are still available.`;
-    } else if (failedCount > 0) {
-      title = `${invitationLabel} Some emails failed; invite links are still available.`;
-    } else if (suppressedCount > 0) {
-      title = `${invitationLabel} Email delivery is disabled for some invitations in this environment.`;
-    } else if (sentCount > 0) {
-      title = `${invitationLabel} Invitation emails sent to the mail server.`;
-    } else {
-      title = invitationLabel;
-    }
-  }
-
-  return {
-    title,
-    createdCount,
-    skippedCount,
-    conflictCount,
-    linkableCount,
-    failedCount,
-    fallbackCount,
-    sentCount,
-    suppressedCount,
-  };
-}
-
-function buildInviteLinksClipboardText(
-  results: WorkforceAccountBulkProvisionResultDto[]
-): string {
-  return results
-    .filter((result) => !!result.account.inviteLink)
-    .map(
-      (result) =>
-        `${getBulkResultDisplayName(result)} <${result.account.email}>: ${result.account.inviteLink}`
-    )
-    .join("\n");
-}
-
 function buildSelectedInviteLinksClipboardText(
   employees: EmployeeRosterRow[]
 ): string {
@@ -301,378 +191,68 @@ function buildSelectedInviteLinksClipboardText(
     .join("\n");
 }
 
-function getDeliveryBadgeLabel(
-  status: WorkforceInvitationDeliveryState | null
-): string {
-  switch (status) {
-    case "Suppressed":
-    case "Skipped":
-      return "Fallback link available";
-    case "Failed":
-      return "Email failed";
-    case "NotAttempted":
-      return "Fallback link available";
-    case "Sent":
-      return "Email sent";
-    default:
-      return "No email status";
-  }
-}
-
-function getDeliveryBadgeVariant(
-  status: WorkforceInvitationDeliveryState | null
-): "default" | "secondary" | "outline" | "destructive" {
-  switch (status) {
-    case "Failed":
-      return "destructive";
-    case "Sent":
-      return "secondary";
-    default:
-      return "outline";
-  }
-}
-
-function resultMatchesFilter(
-  result: WorkforceAccountBulkProvisionResultDto,
-  filter: ResultFilter
-): boolean {
-  if (filter === "All") {
-    return true;
-  }
-
-  if (filter === "Created") {
-    return result.outcome === "Created";
-  }
-
-  if (filter === "Skipped") {
-    return result.outcome !== "Created";
-  }
-
-  if (filter === "Conflicts") {
-    return result.outcome === "Conflict";
-  }
-
-  return result.account.deliveryStatus === "Failed";
-}
-
-function BulkResultsSummaryBanner({
-  results,
-  copiedLinkKey,
-  onCopyAllLinks,
-  onDismiss,
-  onOpenDetails,
-}: {
-  results: WorkforceAccountBulkProvisionResultDto[];
-  copiedLinkKey: string | null;
-  onCopyAllLinks: () => void;
-  onDismiss: () => void;
-  onOpenDetails: () => void;
-}) {
-  const summary = summarizeBulkProvisionResults(results);
-
-  return (
-    <Alert className="py-3">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <div className="space-y-2">
-          <AlertTitle className="text-sm">{summary.title}</AlertTitle>
-          <AlertDescription className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-            <Badge variant="secondary">{summary.createdCount} created</Badge>
-            {summary.skippedCount > 0 ? (
-              <Badge variant="outline">{summary.skippedCount} skipped</Badge>
-            ) : null}
-            {summary.conflictCount > 0 ? (
-              <Badge variant="destructive">
-                {summary.conflictCount} conflict
-                {summary.conflictCount === 1 ? "" : "s"}
-              </Badge>
-            ) : null}
-            {summary.suppressedCount > 0 ? (
-              <Badge variant="outline">Email disabled</Badge>
-            ) : null}
-            {summary.failedCount > 0 ? (
-              <Badge variant="destructive">Email failed</Badge>
-            ) : null}
-            {summary.fallbackCount > 0 ? (
-              <Badge variant="outline">
-                {summary.fallbackCount} fallback link
-                {summary.fallbackCount === 1 ? "" : "s"}
-              </Badge>
-            ) : null}
-          </AlertDescription>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="outline" onClick={onOpenDetails}>
-            View details
-          </Button>
-          {summary.linkableCount > 0 ? (
-            <Button size="sm" variant="outline" onClick={onCopyAllLinks}>
-              <Copy />
-              {copiedLinkKey === "all-results"
-                ? "Links copied"
-                : "Copy all links"}
-            </Button>
-          ) : null}
-          <Button size="sm" variant="ghost" onClick={onDismiss}>
-            Dismiss
-          </Button>
-        </div>
-      </div>
-    </Alert>
-  );
-}
-
-function BulkResultsDialog({
-  copiedLinkKey,
-  onCopyInviteLink,
-  onOpenChange,
-  open,
-  results,
-}: {
-  copiedLinkKey: string | null;
-  onCopyInviteLink: (key: string, inviteLink: string | null) => Promise<void>;
-  onOpenChange: (open: boolean) => void;
-  open: boolean;
-  results: WorkforceAccountBulkProvisionResultDto[];
-}) {
-  const [filter, setFilter] = useState<ResultFilter>("All");
-  const summary = summarizeBulkProvisionResults(results);
-  const filteredResults = useMemo(
-    () => results.filter((result) => resultMatchesFilter(result, filter)),
-    [filter, results]
-  );
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="h-[80vh] max-h-[80vh] gap-0 p-0 sm:max-w-5xl">
-        <DialogHeader className="border-b px-6 py-4">
-          <DialogTitle>Invitation results</DialogTitle>
-          <DialogDescription>
-            Review outcomes, delivery status, and available invite links.
-          </DialogDescription>
-          <div className="mt-3 flex flex-wrap gap-2 text-xs">
-            <Badge variant="secondary">{summary.createdCount} created</Badge>
-            {summary.skippedCount > 0 ? (
-              <Badge variant="outline">{summary.skippedCount} skipped</Badge>
-            ) : null}
-            {summary.suppressedCount > 0 ? (
-              <Badge variant="outline">
-                {summary.suppressedCount} email disabled
-              </Badge>
-            ) : null}
-            {summary.failedCount > 0 ? (
-              <Badge variant="destructive">
-                {summary.failedCount} email failed
-              </Badge>
-            ) : null}
-            {summary.fallbackCount > 0 ? (
-              <Badge variant="outline">
-                {summary.fallbackCount} fallback link
-                {summary.fallbackCount === 1 ? "" : "s"}
-              </Badge>
-            ) : null}
-            {summary.conflictCount > 0 ? (
-              <Badge variant="destructive">
-                {summary.conflictCount} conflict
-                {summary.conflictCount === 1 ? "" : "s"}
-              </Badge>
-            ) : null}
-          </div>
-          {summary.suppressedCount > 0 ? (
-            <p className="mt-2 text-xs text-muted-foreground">
-              Email is disabled in this environment. Pending invites remain
-              usable through their fallback links.
-            </p>
-          ) : null}
-        </DialogHeader>
-
-        <div className="border-b px-6 py-3">
-          <div className="flex flex-wrap gap-2">
-            {(
-              ["All", "Created", "Skipped", "Conflicts", "EmailFailed"] as const
-            ).map((value) => (
-              <Button
-                key={value}
-                size="sm"
-                variant={filter === value ? "default" : "outline"}
-                onClick={() => setFilter(value)}
-              >
-                {value === "EmailFailed" ? "Email failed" : value}
-              </Button>
-            ))}
-          </div>
-        </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
-          <div className="rounded-xl border">
-            <Table>
-              <TableHeader className="sticky top-0 z-10 bg-background">
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Outcome</TableHead>
-                  <TableHead>Access state</TableHead>
-                  <TableHead>Delivery</TableHead>
-                  <TableHead className="w-35 text-right">Action</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredResults.map((result) => {
-                  return (
-                    <TableRow key={result.employeeId}>
-                      <TableCell>
-                        <div className="space-y-1">
-                          <p className="font-medium">
-                            {getBulkResultDisplayName(result)}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {result.account.email}
-                          </p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={getOutcomeBadgeVariant(result.outcome)}>
-                          {getOutcomeBadgeLabel(result.outcome)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={getAccessBadgeTone(
-                            getAccessDisplayState(result.account)
-                          )}
-                        >
-                          {getAccessDisplayState(result.account)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {result.account.deliveryStatus ? (
-                          <Badge
-                            variant={getDeliveryBadgeVariant(
-                              result.account.deliveryStatus
-                            )}
-                          >
-                            {getDeliveryBadgeLabel(
-                              result.account.deliveryStatus
-                            )}
-                          </Badge>
-                        ) : (
-                          <span className="text-sm text-muted-foreground">
-                            —
-                          </span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {result.account.inviteLink ? (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() =>
-                              void onCopyInviteLink(
-                                `result:${result.employeeId}`,
-                                result.account.inviteLink
-                              )
-                            }
-                          >
-                            <Copy className="size-3.5" />
-                            {copiedLinkKey === `result:${result.employeeId}`
-                              ? "Copied"
-                              : "Copy"}
-                          </Button>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">
-                            —
-                          </span>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 function SelectedAccessActionBar({
   canOfferSelectAllMatching,
+  canManageAccess,
   isSelectingAllMatching,
-  managerSuggestionCount,
-  notIncludedCount,
-  pendingWithLinkCount,
   onClearSelection,
   onCopyInviteLinks,
   onReviewInvitations,
   onSelectAllMatching,
   pageSelectedCount,
-  readyCount,
   selectedCount,
   selectionScope,
   totalMatchingCount,
+  summary,
 }: {
   canOfferSelectAllMatching: boolean;
+  canManageAccess: boolean;
   isSelectingAllMatching: boolean;
-  managerSuggestionCount: number;
-  notIncludedCount: number;
-  pendingWithLinkCount: number;
   onClearSelection: () => void;
   onCopyInviteLinks: () => void;
   onReviewInvitations: () => void;
   onSelectAllMatching: () => void;
   pageSelectedCount: number;
-  readyCount: number;
   selectedCount: number;
   selectionScope: SelectionScope;
   totalMatchingCount: number;
+  summary: BulkSelectionSummary;
 }) {
-  const hasReadyRows = readyCount > 0;
-  const isPendingOnly = !hasReadyRows && pendingWithLinkCount === selectedCount;
+  const hasProvisionable = summary.provisionableCount > 0;
+  const hasPendingOnly =
+    !hasProvisionable &&
+    summary.pendingInvitationCount > 0 &&
+    summary.notIncludedCount === 0;
 
   return (
-    <div className="rounded-xl border bg-background px-4 py-3 shadow-sm">
+    <div className="rounded-xl border bg-background px-4 py-3 ">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="space-y-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="secondary">{selectedCount} selected</Badge>
-            {hasReadyRows ? (
-              <Badge variant="outline">{readyCount} ready to invite</Badge>
-            ) : isPendingOnly ? (
-              <Badge variant="outline">Already invited</Badge>
-            ) : (
-              <Badge variant="outline">No invitations ready</Badge>
-            )}
-            {hasReadyRows && managerSuggestionCount > 0 ? (
-              <Badge variant="outline">
-                {managerSuggestionCount} manager suggestion
-                {managerSuggestionCount === 1 ? "" : "s"}
-              </Badge>
-            ) : null}
-            {notIncludedCount > 0 && hasReadyRows ? (
-              <Badge variant="outline">{notIncludedCount} not included</Badge>
-            ) : null}
-          </div>
-
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="secondary">{selectedCount} selected</Badge>
+          {hasProvisionable ? (
+            <Badge>{summary.provisionableCount} to invite</Badge>
+          ) : null}
+          {summary.pendingInvitationCount > 0 ? (
+            <Badge variant="secondary">
+              {summary.pendingInvitationCount} pending
+            </Badge>
+          ) : null}
           {canOfferSelectAllMatching ? (
-            <p className="text-sm text-muted-foreground">
-              All {pageSelectedCount} employees on this page are selected.
-              <Button
-                className="h-auto px-2"
-                size="sm"
-                variant="link"
-                onClick={onSelectAllMatching}
-                disabled={isSelectingAllMatching}
-              >
-                {isSelectingAllMatching
-                  ? "Selecting all..."
-                  : `Select all ${totalMatchingCount} matching employees`}
-              </Button>
-            </p>
-          ) : selectionScope === "allMatching" ? (
-            <p className="text-sm text-muted-foreground">
-              Bulk actions will apply to all employees matching the current
-              filters.
-            </p>
+            <Button
+              className="cursor-pointer h-auto px-0 text-xs text-muted-foreground"
+              size="sm"
+              variant="link"
+              onClick={onSelectAllMatching}
+              disabled={isSelectingAllMatching}
+            >
+              {isSelectingAllMatching
+                ? "Selecting all..."
+                : `Select all (${totalMatchingCount})`}
+            </Button>
+          ) : false && selectionScope === "allMatching" ? (
+            <span className="text-xs text-muted-foreground">
+              Applies to all matching
+            </span>
           ) : null}
         </div>
 
@@ -680,16 +260,24 @@ function SelectedAccessActionBar({
           <Button size="sm" variant="outline" onClick={onClearSelection}>
             Clear selection
           </Button>
-          {hasReadyRows ? (
+          {canManageAccess && hasProvisionable ? (
             <Button size="sm" onClick={onReviewInvitations}>
               <Send />
-              Review invitations
+              {summary.provisionableCount === 1
+                ? "Assign access for 1 employee"
+                : `Assign access for ${summary.provisionableCount} employees`}
             </Button>
-          ) : isPendingOnly ? (
+          ) : canManageAccess &&
+            hasPendingOnly &&
+            summary.hasPendingWithLink ? (
             <Button size="sm" onClick={onCopyInviteLinks}>
               <Copy />
-              Copy invite links
+              {summary.pendingInvitationCount === 1
+                ? "Copy 1 invite link"
+                : `Copy ${summary.pendingInvitationCount} invite links`}
             </Button>
+          ) : !canManageAccess ? (
+            <Badge variant="outline">Access invitations are restricted</Badge>
           ) : null}
         </div>
       </div>
@@ -706,6 +294,11 @@ export default function EmployeesPage() {
   const { tenantId } = useTenantContext();
   const isTenantContextReadOnly = !!tenantId;
   const canAccess = canAccessEmployeeRoster(user) || isTenantContextReadOnly;
+  const canManageAccess = canAccessCoreAccess(user) && !isTenantContextReadOnly;
+  const canCreateEmployee =
+    canManageCoreEmployees(user) && !isTenantContextReadOnly;
+  const canImportEmployees =
+    canImportCoreEmployees(user) && !isTenantContextReadOnly;
   const shouldAutoReviewAccess = searchParams.get("review") === "access";
   const shouldOpenCreateEmployee = searchParams.get("create") === "1";
   const [page, setPage] = useState(1);
@@ -731,13 +324,10 @@ export default function EmployeesPage() {
     shouldOpenCreateEmployee
   );
   const [isNotIncludedExpanded, setIsNotIncludedExpanded] = useState(false);
-  const [isResultDetailsOpen, setIsResultDetailsOpen] = useState(false);
-  const [selectedRolesByEmployeeId, setSelectedRolesByEmployeeId] = useState<
-    Record<string, AccessInviteRole>
-  >({});
-  const [bulkResults, setBulkResults] = useState<
-    WorkforceAccountBulkProvisionResultDto[] | null
-  >(null);
+  const [
+    selectedAccessProfilesByEmployeeId,
+    setSelectedAccessProfilesByEmployeeId,
+  ] = useState<Record<string, string>>({});
   const [copiedLinkKey, setCopiedLinkKey] = useState<string | null>(null);
   const [selectionError, setSelectionError] = useState<string | null>(null);
   const [bulkActionError, setBulkActionError] = useState<string | null>(null);
@@ -774,6 +364,7 @@ export default function EmployeesPage() {
     isLoading: isLoadingWorkforceAccounts,
   } = useWorkforceAccountStatuses(workforceAccountSubjects);
   const bulkProvision = useBulkProvisionWorkforceAccountInvites();
+  const { data: accessProfiles = [] } = useAccessProfiles(canManageAccess);
 
   const baseRows = useMemo(
     () =>
@@ -956,7 +547,7 @@ export default function EmployeesPage() {
                           );
                         }}
                         aria-label="Copy invite link"
-                        className="px-1.5"
+                        className="px-1.5 cursor-pointer"
                       >
                         <LinkIcon className="size-3" />
                       </Button>
@@ -987,24 +578,6 @@ export default function EmployeesPage() {
     isLoadingWorkforceAccounts,
     toast,
   ]);
-
-  const handleCopyAllInviteLinks = useCallback(async () => {
-    if (!bulkResults) {
-      return;
-    }
-
-    const content = buildInviteLinksClipboardText(bulkResults);
-    if (!content) {
-      return;
-    }
-
-    try {
-      await navigator.clipboard.writeText(content);
-      setCopiedLinkKey("all-results");
-    } catch {
-      setCopiedLinkKey(null);
-    }
-  }, [bulkResults]);
 
   const handleCopySelectedInviteLinks = useCallback(async () => {
     const content = buildSelectedInviteLinksClipboardText(selectedEmployees);
@@ -1138,11 +711,11 @@ export default function EmployeesPage() {
   }, [resolveMatchingRows]);
 
   const handleBulkProvision = useCallback(async () => {
-    const inviteableEmployees = reviewRows.inviteableRows.map(
+    const provisionableEmployees = reviewRows.provisionableRows.map(
       (row) => row.employee
     );
 
-    if (inviteableEmployees.length === 0) {
+    if (provisionableEmployees.length === 0) {
       return;
     }
 
@@ -1151,14 +724,18 @@ export default function EmployeesPage() {
 
     try {
       const results = await bulkProvision.mutateAsync({
-        items: inviteableEmployees.map((employee) => ({
+        items: provisionableEmployees.map((employee) => ({
+          accessProfileId:
+            selectedAccessProfilesByEmployeeId[employee.id] ??
+            getSuggestedAccessProfileId(
+              accessProfiles,
+              employee.directReportCount
+            ) ??
+            "",
           employeeId: employee.id,
           email: employee.email,
           firstName: employee.firstName,
           lastName: employee.lastName,
-          role:
-            selectedRolesByEmployeeId[employee.id] ??
-            getSuggestedInviteRole(employee.directReportCount),
         })),
       });
 
@@ -1178,35 +755,40 @@ export default function EmployeesPage() {
         queryKey: employeeRosterQueryKeys.lists(),
       });
 
-      setBulkResults(results);
+      const createdCount = results.filter(
+        (r) => r.outcome === "Created"
+      ).length;
+      toast({
+        title: `${createdCount} invitation${createdCount === 1 ? "" : "s"} created`,
+      });
       if (
         access === "NotInvited" &&
         results.some((result) => result.outcome === "Created")
       ) {
         setAccess("Invited");
       }
-      setIsResultDetailsOpen(false);
       setIsAccessWorkflowOpen(false);
       setSelectionScope("page");
       setAllMatchingSelectionRows(null);
       setRowSelection({});
-      setSelectedRolesByEmployeeId({});
+      setSelectedAccessProfilesByEmployeeId({});
     } catch (nextError) {
       setBulkActionError(getErrorMessage(nextError));
     }
   }, [
+    accessProfiles,
     access,
     bulkProvision,
     queryClient,
-    reviewRows.inviteableRows,
-    selectedRolesByEmployeeId,
+    reviewRows.provisionableRows,
+    selectedAccessProfilesByEmployeeId,
   ]);
 
-  const handleSelectedRoleChange = useCallback(
-    (employeeId: string, role: AccessInviteRole) => {
-      setSelectedRolesByEmployeeId((current) => ({
+  const handleSelectedAccessProfileChange = useCallback(
+    (employeeId: string, accessProfileId: string) => {
+      setSelectedAccessProfilesByEmployeeId((current) => ({
         ...current,
-        [employeeId]: role,
+        [employeeId]: accessProfileId,
       }));
     },
     []
@@ -1216,7 +798,7 @@ export default function EmployeesPage() {
     setSelectionScope("page");
     setAllMatchingSelectionRows(null);
     setRowSelection({});
-    setSelectedRolesByEmployeeId({});
+    setSelectedAccessProfilesByEmployeeId({});
     setSelectionError(null);
     setBulkActionError(null);
   }, []);
@@ -1315,20 +897,24 @@ export default function EmployeesPage() {
     setSelectionScope("page");
     setAllMatchingSelectionRows(null);
     setRowSelection({});
-    setSelectedRolesByEmployeeId({});
+    setSelectedAccessProfilesByEmployeeId({});
     setIsAccessWorkflowOpen(false);
     setSelectionError(null);
     setBulkActionError(null);
   }, [access, readiness, search, sortBy, sortDir, status]);
 
   useEffect(() => {
-    setSelectedRolesByEmployeeId((current) => {
-      const next: Record<string, AccessInviteRole> = {};
+    setSelectedAccessProfilesByEmployeeId((current) => {
+      const next: Record<string, string> = {};
 
       for (const employee of selectedEmployees) {
         next[employee.id] =
           current[employee.id] ??
-          getSuggestedInviteRole(employee.directReportCount);
+          getSuggestedAccessProfileId(
+            accessProfiles,
+            employee.directReportCount
+          ) ??
+          "";
       }
 
       return next;
@@ -1338,7 +924,7 @@ export default function EmployeesPage() {
       setIsAccessWorkflowOpen(false);
       setIsNotIncludedExpanded(false);
     }
-  }, [selectedEmployees]);
+  }, [accessProfiles, selectedEmployees]);
 
   const isInitialPageLoading =
     canAccess && currentTableLoading && !error && !data;
@@ -1376,18 +962,22 @@ export default function EmployeesPage() {
         title="Employees"
         description="Manage the roster and access invitations."
         actions={
-          !isTenantContextReadOnly ? (
+          canCreateEmployee || canImportEmployees ? (
             <div className="flex flex-wrap gap-2">
-              <Button onClick={() => handleCreateEmployeeOpenChange(true)}>
-                <Plus />
-                Add employee
-              </Button>
-              <Button asChild variant="outline">
-                <Link href="/employees/import">
-                  <Upload />
-                  Import employees
-                </Link>
-              </Button>
+              {canCreateEmployee ? (
+                <Button onClick={() => handleCreateEmployeeOpenChange(true)}>
+                  <Plus />
+                  Add employee
+                </Button>
+              ) : null}
+              {canImportEmployees ? (
+                <Button asChild variant="outline">
+                  <Link href="/employees/import">
+                    <Upload />
+                    Import employees
+                  </Link>
+                </Button>
+              ) : null}
             </div>
           ) : null
         }
@@ -1443,37 +1033,22 @@ export default function EmployeesPage() {
       {selectedEmployees.length > 0 && !isTenantContextReadOnly ? (
         <SelectedAccessActionBar
           canOfferSelectAllMatching={canOfferSelectAllMatching}
+          canManageAccess={canManageAccess}
           isSelectingAllMatching={isSelectingAllMatching}
-          managerSuggestionCount={selectionSummary.managerSuggestionCount}
-          notIncludedCount={selectionSummary.notIncludedCount}
-          pendingWithLinkCount={selectionSummary.pendingWithLinkCount}
           onClearSelection={handleClearSelection}
           onCopyInviteLinks={() => void handleCopySelectedInviteLinks()}
           onReviewInvitations={() => {
-            if (selectionSummary.readyToInviteCount === 0) {
+            if (selectionSummary.provisionableCount === 0) {
               return;
             }
             setIsAccessWorkflowOpen(true);
           }}
           onSelectAllMatching={() => void handleSelectAllMatching()}
           pageSelectedCount={selectedPageEmployees.length}
-          readyCount={selectionSummary.readyToInviteCount}
           selectedCount={selectedEmployees.length}
           selectionScope={selectionScope}
           totalMatchingCount={totalMatchingCount}
-        />
-      ) : null}
-
-      {bulkResults ? (
-        <BulkResultsSummaryBanner
-          results={bulkResults}
-          copiedLinkKey={copiedLinkKey}
-          onCopyAllLinks={() => void handleCopyAllInviteLinks()}
-          onDismiss={() => {
-            setBulkResults(null);
-            setIsResultDetailsOpen(false);
-          }}
-          onOpenDetails={() => setIsResultDetailsOpen(true)}
+          summary={selectionSummary}
         />
       ) : null}
 
@@ -1509,7 +1084,7 @@ export default function EmployeesPage() {
         />
       ) : null}
 
-      <Sheet
+      <Dialog
         open={isAccessWorkflowOpen}
         onOpenChange={(open) => {
           setIsAccessWorkflowOpen(open);
@@ -1518,124 +1093,103 @@ export default function EmployeesPage() {
           }
         }}
       >
-        <SheetContent className="w-full gap-0 p-0 sm:max-w-5xl">
-          <SheetHeader className="border-b pr-14">
-            <SheetTitle>Review invitations</SheetTitle>
-            <SheetDescription>
-              Confirm recipients and roles before sending access invitations.
-            </SheetDescription>
-          </SheetHeader>
+        <DialogContent className="flex max-h-[85vh] flex-col gap-0 p-0 sm:max-w-2xl">
+          <DialogHeader className="shrink-0 px-6 pt-6 pb-4">
+            <DialogTitle>Assign access profiles</DialogTitle>
+          </DialogHeader>
 
-          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6">
-            {reviewRows.inviteableRows.length > 0 ? (
-              <div className="rounded-xl border">
-                <Table>
-                  <TableHeader className="sticky top-0 z-10 bg-background">
-                    <TableRow>
-                      <TableHead>Employee</TableHead>
-                      <TableHead>Suggested access</TableHead>
-                      <TableHead className="w-45">Role</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {reviewRows.inviteableRows.map(
-                      ({ employee, suggestedRole }) => {
-                        const plannedRole =
-                          selectedRolesByEmployeeId[employee.id] ??
-                          suggestedRole;
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 pb-6">
+            {accessProfiles.length === 0 ? (
+              <Alert>
+                <AlertTitle>No access profiles available</AlertTitle>
+                <AlertDescription>
+                  Create an access profile in Settings before sending
+                  invitations.
+                </AlertDescription>
+              </Alert>
+            ) : null}
 
-                        return (
-                          <TableRow key={employee.id}>
-                            <TableCell>
-                              <div className="space-y-1">
-                                <p className="font-medium">
-                                  {employee.firstName} {employee.lastName}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  {employee.email}
-                                </p>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              {suggestedRole === "Manager" ? (
-                                <div className="space-y-0.5">
-                                  <p className="text-sm font-medium">
-                                    Manager suggested
-                                  </p>
-                                  <p className="text-xs text-muted-foreground">
-                                    Has direct reports
-                                  </p>
-                                </div>
-                              ) : (
-                                <p className="text-sm text-muted-foreground">
-                                  Employee default
-                                </p>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              <Select
-                                value={plannedRole}
-                                onValueChange={(value) =>
-                                  handleSelectedRoleChange(
-                                    employee.id,
-                                    value as AccessInviteRole
-                                  )
-                                }
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select role" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="Employee">
-                                    Employee
-                                  </SelectItem>
-                                  <SelectItem value="Manager">
-                                    Manager
-                                  </SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      }
-                    )}
-                  </TableBody>
-                </Table>
+            {reviewRows.provisionableRows.length > 0 ? (
+              <div className="rounded-lg border">
+                {reviewRows.provisionableRows.map(({ employee }) => {
+                  const suggestedProfileId = getSuggestedAccessProfileId(
+                    accessProfiles,
+                    employee.directReportCount
+                  );
+                  const plannedProfileId =
+                    selectedAccessProfilesByEmployeeId[employee.id] ??
+                    suggestedProfileId ??
+                    "";
+
+                  return (
+                    <div
+                      key={employee.id}
+                      className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3 last:border-0"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium">
+                          {employee.firstName} {employee.lastName}
+                        </p>
+                        <p className="truncate text-sm text-muted-foreground">
+                          {employee.email}
+                        </p>
+                      </div>
+                      <Select
+                        value={plannedProfileId}
+                        onValueChange={(value) =>
+                          handleSelectedAccessProfileChange(employee.id, value)
+                        }
+                      >
+                        <SelectTrigger className="w-56">
+                          <SelectValue placeholder="Choose access profile" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {accessProfiles.map((profile) => (
+                            <SelectItem key={profile.id} value={profile.id}>
+                              {profile.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  );
+                })}
               </div>
             ) : (
-              <div className="rounded-xl border bg-muted/15 px-4 py-3 text-sm text-muted-foreground">
-                No selected employees are ready for invitations.
-              </div>
+              <p className="py-2 text-sm text-muted-foreground">
+                No selected employees are ready for access right now.
+              </p>
             )}
 
             {reviewRows.notIncludedRows.length > 0 ? (
-              <div className="mt-3 rounded-xl border bg-muted/5 px-4 py-3">
+              <div className="rounded-lg border">
                 <button
                   type="button"
-                  className="w-full text-left text-sm text-muted-foreground"
+                  className="flex w-full items-center justify-between px-4 py-3 text-sm text-muted-foreground"
                   onClick={() =>
                     setIsNotIncludedExpanded((current) => !current)
                   }
                 >
-                  {reviewRows.notIncludedRows.length} not included: already
-                  invited, active, inactive, or conflict
+                  {reviewRows.notIncludedRows.length} not included
                 </button>
                 {isNotIncludedExpanded ? (
-                  <div className="mt-3 space-y-2">
+                  <div className="border-t px-4 py-2">
                     {reviewRows.notIncludedRows.map(({ employee, reason }) => (
                       <div
                         key={`not-included:${employee.id}`}
-                        className="flex items-center justify-between gap-3 rounded-lg border bg-background px-3 py-2"
+                        className="flex items-center justify-between gap-3 py-1.5"
                       >
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-medium">
+                          <p className="truncate text-sm">
                             {employee.firstName} {employee.lastName}
                           </p>
                           <p className="truncate text-xs text-muted-foreground">
                             {employee.email}
                           </p>
                         </div>
-                        <Badge variant="outline">{reason}</Badge>
+                        <Badge variant="outline" className="shrink-0">
+                          {reason}
+                        </Badge>
                       </div>
                     ))}
                   </div>
@@ -1644,15 +1198,24 @@ export default function EmployeesPage() {
             ) : null}
           </div>
 
-          <SheetFooter className="sticky bottom-0 border-t bg-background/95 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-wrap gap-2 text-xs">
-              <Badge variant="secondary">
-                {selectionSummary.readyToInviteCount} invitations ready
-              </Badge>
+          <div className="flex shrink-0 items-center justify-between gap-2 border-t bg-popover px-6 py-4">
+            <div className="space-y-1">
+              {reviewRows.notIncludedRows.length > 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  {reviewRows.notIncludedRows.length} selected employee
+                  {reviewRows.notIncludedRows.length === 1 ? "" : "s"}{" "}
+                  {reviewRows.notIncludedRows.length === 1
+                    ? "doesn't"
+                    : "don't"}{" "}
+                  need a new invitation.
+                </p>
+              ) : null}
+              <p className="text-sm text-muted-foreground">
+                {selectionSummary.provisionableCount} ready to invite
+              </p>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex gap-2">
               <Button
-                size="sm"
                 variant="outline"
                 onClick={() => setIsAccessWorkflowOpen(false)}
                 disabled={bulkProvision.isLoading}
@@ -1660,10 +1223,10 @@ export default function EmployeesPage() {
                 Cancel
               </Button>
               <Button
-                size="sm"
                 onClick={() => void handleBulkProvision()}
                 disabled={
-                  reviewRows.inviteableRows.length === 0 ||
+                  accessProfiles.length === 0 ||
+                  reviewRows.provisionableRows.length === 0 ||
                   bulkProvision.isLoading ||
                   isSelectingAllMatching
                 }
@@ -1675,19 +1238,9 @@ export default function EmployeesPage() {
                 Send invitations
               </Button>
             </div>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
-
-      {bulkResults ? (
-        <BulkResultsDialog
-          copiedLinkKey={copiedLinkKey}
-          onCopyInviteLink={handleCopyInviteLink}
-          onOpenChange={setIsResultDetailsOpen}
-          open={isResultDetailsOpen}
-          results={bulkResults}
-        />
-      ) : null}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <EmployeeCreateDialog
         open={isCreateEmployeeOpen}

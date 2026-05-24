@@ -24,11 +24,15 @@ public class InviteDto
 
     public string Email { get; set; } = string.Empty;
 
+    public Guid? EmployeeId { get; set; }
+
     public Guid TenantId { get; set; }
 
     public string TenantName { get; set; } = string.Empty;
 
     public string Role { get; set; } = string.Empty;
+
+    public List<AccessProfileAssignmentSummaryDto> AccessProfiles { get; set; } = [];
 
     public string? FirstName { get; set; }
 

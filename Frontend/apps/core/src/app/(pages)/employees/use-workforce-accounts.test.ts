@@ -96,7 +96,7 @@ describe("useBulkProvisionWorkforceAccountInvites", () => {
           email: "user@example.com",
           firstName: "User",
           lastName: "Example",
-          role: "Employee",
+          accessProfileId: "profile-employee",
         },
       ],
     });
@@ -110,7 +110,7 @@ describe("useBulkProvisionWorkforceAccountInvites", () => {
             email: "user@example.com",
             firstName: "User",
             lastName: "Example",
-            role: "Employee",
+            accessProfileId: "profile-employee",
           },
         ],
       }

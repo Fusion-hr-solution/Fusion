@@ -1,88 +1,21 @@
 using System.Reflection;
 using EY.HRPlatform.CoreHR.Controllers;
-using EY.HRPlatform.SharedKernel.Auth;
 using Microsoft.AspNetCore.Authorization;
 
 namespace EY.HRPlatform.CoreHR.Tests.Features.Employees;
 
 public class EmployeesControllerReadAuthorizationTests
 {
-    private const string LinkedEmployeeReadRoles = PlatformRole.PlatformAdmin + "," + PlatformRole.HRAdmin + "," + PlatformRole.Employee + "," + PlatformRole.Manager;
-    private const string CoreReadRoles = PlatformRole.PlatformAdmin + "," + PlatformRole.HRAdmin;
-
-    [Fact]
-    public void GetAll_RequiresHrAdminRole()
+    [Theory]
+    [InlineData(nameof(EmployeesController.GetProfile))]
+    [InlineData(nameof(EmployeesController.GetReportingLines))]
+    public void LinkedEmployeeReadEndpoints_DoNotUseMethodRoleAttributes(string methodName)
     {
-        // Arrange
-        var method = typeof(EmployeesController).GetMethod(nameof(EmployeesController.GetAll));
+        var method = typeof(EmployeesController).GetMethod(methodName, [typeof(Guid), typeof(CancellationToken)]);
 
-        // Act
         var authorize = method?.GetCustomAttribute<AuthorizeAttribute>(inherit: false);
 
-        // Assert
         Assert.NotNull(method);
-        Assert.NotNull(authorize);
-        Assert.Equal(CoreReadRoles, authorize!.Roles);
-    }
-
-    [Fact]
-    public void GetById_RequiresHrAdminRole()
-    {
-        // Arrange
-        var method = typeof(EmployeesController).GetMethod(nameof(EmployeesController.GetById));
-
-        // Act
-        var authorize = method?.GetCustomAttribute<AuthorizeAttribute>(inherit: false);
-
-        // Assert
-        Assert.NotNull(method);
-        Assert.NotNull(authorize);
-        Assert.Equal(CoreReadRoles, authorize!.Roles);
-    }
-
-    [Fact]
-    public void GetReportingLines_AllowsLinkedEmployeeReadRoles()
-    {
-        // Arrange
-        var method = typeof(EmployeesController).GetMethod(nameof(EmployeesController.GetReportingLines));
-
-        // Act
-        var authorize = method?.GetCustomAttribute<AuthorizeAttribute>(inherit: false);
-
-        // Assert
-        Assert.NotNull(method);
-        Assert.NotNull(authorize);
-        Assert.Equal(LinkedEmployeeReadRoles, authorize!.Roles);
-    }
-
-    [Fact]
-    public void GetOrgChart_RequiresHrAdminRole()
-    {
-        // Arrange
-        var method = typeof(EmployeesController).GetMethod(nameof(EmployeesController.GetOrgChart));
-
-        // Act
-        var authorize = method?.GetCustomAttribute<AuthorizeAttribute>(inherit: false);
-
-        // Assert
-        Assert.NotNull(method);
-        Assert.NotNull(authorize);
-        Assert.Equal(CoreReadRoles, authorize!.Roles);
-    }
-
-    [Fact]
-    public void GetProfile_AllowsLinkedEmployeeReadRoles()
-    {
-        // Arrange
-        // Specify parameter types to uniquely identify the method (Guid id, CancellationToken cancellationToken)
-        var method = typeof(EmployeesController).GetMethod("GetProfile", new[] { typeof(Guid), typeof(CancellationToken) });
-
-        // Act
-        var authorize = method?.GetCustomAttribute<AuthorizeAttribute>(inherit: false);
-
-        // Assert
-        Assert.NotNull(method);
-        Assert.NotNull(authorize);
-        Assert.Equal(LinkedEmployeeReadRoles, authorize!.Roles);
+        Assert.True(authorize is null || string.IsNullOrWhiteSpace(authorize.Roles));
     }
 }

@@ -7,6 +7,7 @@ import { AppSidebar, type NavSection } from "@repo/ui";
 import {
   SidebarUserPanel,
   useAuth,
+  canSeeCoreOrgChartNavigation,
   canSeeCoreSettingsNavigation,
   canSeeCoreSetupNavigation,
   canSeeOrganizationsNavigation,
@@ -102,6 +103,7 @@ export function CoreSidebar() {
   const canSeeSettings = canSeeCoreSettingsNavigation(user) || isInTenantContext;
   const canSeeOrganizations = canSeeOrganizationsNavigation(user) && !isInTenantContext;
   const canSeeEmployeeRoster = canSeeEmployeeRosterNavigation(user) || isInTenantContext;
+  const canSeeOrgChart = canSeeCoreOrgChartNavigation(user) || isInTenantContext;
   const canSeeMyProfile = canSeeSelfEmployeeProfileNavigation(user) && !isInTenantContext;
   const canSeeMyTeam = canSeeTeamWorkspaceNavigation(user) && !isInTenantContext;
   const peopleItems = PEOPLE_NAV.items.filter((item) => {
@@ -118,7 +120,7 @@ export function CoreSidebar() {
     }
 
     if (item.href === "/org-chart") {
-      return canSeeEmployeeRoster;
+      return canSeeOrgChart;
     }
 
     return true;

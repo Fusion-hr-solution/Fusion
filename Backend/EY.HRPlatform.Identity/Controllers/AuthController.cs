@@ -1,9 +1,10 @@
 ﻿using EY.HRPlatform.Identity.Domain.Entities;
-using EY.HRPlatform.SharedKernel.Auth;
+using EY.HRPlatform.Identity.Features.AccessProfiles;
 using EY.HRPlatform.Identity.Infrastructure.Persistence;
 using EY.HRPlatform.Identity.Infrastructure.Services;
 using EY.HRPlatform.Identity.Models.Requests;
 using EY.HRPlatform.Identity.Models.Responses;
+using EY.HRPlatform.SharedKernel.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -17,17 +18,20 @@ public class AuthController : ControllerBase
 {
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly ITokenService _tokenService;
+    private readonly IAccessProfileService _accessProfileService;
     private readonly AppIdentityDbContext _dbContext;
     private readonly IConfiguration _configuration;
 
     public AuthController(
         UserManager<ApplicationUser> userManager,
         ITokenService tokenService,
+        IAccessProfileService accessProfileService,
         AppIdentityDbContext dbContext,
         IConfiguration configuration)
     {
         _userManager = userManager;
         _tokenService = tokenService;
+        _accessProfileService = accessProfileService;
         _dbContext = dbContext;
         _configuration = configuration;
     }
@@ -201,10 +205,23 @@ public class AuthController : ControllerBase
         return new AuthResponse
         {
             UserId = user.Id,
+            TenantId = user.TenantId,
             Email = user.Email!,
             FullName = user.FullName,
             Roles = roles.ToList(),
             EmployeeId = user.EmployeeId,
+            AccessProfiles = (await _accessProfileService.GetAssignedProfilesAsync(user)).ToList(),
+            EffectivePermissions = (await _accessProfileService.GetEffectivePermissionsAsync(user))
+                .Select(grant => new EffectivePermissionGrantDto
+                {
+                    PermissionKey = grant.PermissionKey,
+                    Scope = grant.Scope,
+                    Label = CorePermissionCatalog.Get(grant.PermissionKey).Label,
+                    Group = CorePermissionCatalog.Get(grant.PermissionKey).Group,
+                    HelperText = CorePermissionCatalog.Get(grant.PermissionKey).HelperText,
+                    AllowedScopes = CorePermissionCatalog.Get(grant.PermissionKey).AllowedScopes.ToList(),
+                })
+                .ToList(),
             AccessToken = accessToken,
             RefreshToken = refreshTokenString,
             AccessTokenExpiration = DateTime.UtcNow.AddMinutes(

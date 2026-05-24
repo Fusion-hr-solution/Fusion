@@ -13,6 +13,7 @@ public class UserDto
     public Guid TenantId { get; set; }
     public Guid? EmployeeId { get; set; }
     public List<string> Roles { get; set; } = [];
+    public List<AccessProfileAssignmentSummaryDto> AccessProfiles { get; set; } = [];
 
     /// <summary>
     /// Only populated when a user is created. Contains the temporary password

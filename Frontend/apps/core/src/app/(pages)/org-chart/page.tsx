@@ -3,13 +3,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Network, RefreshCcw } from "lucide-react";
-import { useAuth } from "@repo/auth";
+import { canAccessCoreOrgChart, useAuth } from "@repo/auth";
 import { EmptyState } from "@repo/ui";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/page-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { canAccessEmployeeRoster } from "@/lib/employee-roster-access";
 import { useTenantContext } from "@/components/core-tenant-context-provider";
 import { buildTenantContextHref } from "@/lib/tenant-navigation";
 import { cn } from "@/lib/utils";
@@ -48,7 +47,7 @@ export default function OrgChartPage() {
   const { user } = useAuth();
   const { tenantId } = useTenantContext();
   const isTenantContextReadOnly = !!tenantId;
-  const canAccess = canAccessEmployeeRoster(user) || isTenantContextReadOnly;
+  const canAccess = canAccessCoreOrgChart(user) || isTenantContextReadOnly;
   const fieldVisibility = useEmployeeFieldVisibility(canAccess);
   const [isCanvasReady, setIsCanvasReady] = useState(false);
   const [isNavigating, setIsNavigating] = useState(false);

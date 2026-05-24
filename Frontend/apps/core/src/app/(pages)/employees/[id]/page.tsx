@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   AlertTriangle,
@@ -16,7 +16,11 @@ import {
   User,
   Users,
 } from "lucide-react";
-import { useAuth } from "@repo/auth";
+import {
+  canAccessCoreAccess,
+  canManageCoreEmployees,
+  useAuth,
+} from "@repo/auth";
 import { EmptyState } from "@repo/ui";
 import { CorePageLoadingState } from "@/components/core-page-loading-state";
 import { useTenantContext } from "@/components/core-tenant-context-provider";
@@ -33,6 +37,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { useBreadcrumbLabel } from "@/components/breadcrumb-overrides";
 import {
@@ -51,7 +62,6 @@ import {
   getAccessDisplayState,
   getInvitationEligibility,
   getSuggestedInviteRole,
-  type AccessInviteRole,
 } from "../employee-access";
 import {
   EmployeeEmploymentEditSheet,
@@ -72,6 +82,9 @@ import {
   useResendWorkforceAccountInvite,
   useWorkforceAccountStatus,
 } from "../use-workforce-accounts";
+import { useAccessProfiles } from "../../settings/use-core-access";
+import { useApiQueryClient } from "@repo/api/query";
+import { employeeRosterQueryKeys } from "../employee-query-keys";
 import type {
   EmployeeHierarchyNodeDto,
   EmployeeHierarchyStatus,
@@ -363,6 +376,27 @@ function getActionErrorMessage(error: unknown): string {
   return "An unexpected error occurred.";
 }
 
+function getSuggestedAccessProfileId(
+  accessProfiles: Array<{ id: string; name: string }>,
+  directReportCount: number,
+  currentProfileId?: string | null
+): string | null {
+  if (
+    currentProfileId &&
+    accessProfiles.some((profile) => profile.id === currentProfileId)
+  ) {
+    return currentProfileId;
+  }
+
+  const suggestedName = getSuggestedInviteRole(directReportCount);
+  return (
+    accessProfiles.find((profile) => profile.name === suggestedName)?.id ??
+    accessProfiles.find((profile) => profile.name === "Employee")?.id ??
+    accessProfiles[0]?.id ??
+    null
+  );
+}
+
 function PersonalProfileCard({
   employeeId,
   fullName,
@@ -573,6 +607,9 @@ function WorkforceAccountCard({
 }) {
   const { tenantId } = useTenantContext();
   const isTenantContextReadOnly = !!tenantId;
+  const { data: accessProfiles = [] } = useAccessProfiles(
+    canManageAccess && !isTenantContextReadOnly
+  );
   const { data, error, isLoading } = useWorkforceAccountStatus({
     employeeId,
     email,
@@ -583,20 +620,34 @@ function WorkforceAccountCard({
   const provisionInvite = useProvisionWorkforceAccountInvite();
   const reactivateAccount = useReactivateWorkforceAccount();
   const resendInvite = useResendWorkforceAccountInvite();
-  const [selectedRole, setSelectedRole] = useState<AccessInviteRole>(
-    getSuggestedInviteRole(directReportCount)
-  );
+  const queryClient = useApiQueryClient();
+  const [selectedAccessProfileId, setSelectedAccessProfileId] = useState<
+    string | null
+  >(null);
   const [copyMessage, setCopyMessage] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
+  const invalidateAccount = useCallback(() => {
+    queryClient.invalidateQueries({
+      queryKey: employeeRosterQueryKeys.workforceAccount(employeeId),
+    });
+  }, [employeeId, queryClient]);
+
   useEffect(() => {
-    if (data?.role === "Manager" || data?.role === "Employee") {
-      setSelectedRole(data.role);
+    const currentProfileId = data?.accessProfiles?.[0]?.id ?? null;
+    const suggestedProfileId = getSuggestedAccessProfileId(
+      accessProfiles,
+      directReportCount,
+      currentProfileId
+    );
+
+    if (suggestedProfileId) {
+      setSelectedAccessProfileId(suggestedProfileId);
       return;
     }
 
-    setSelectedRole(getSuggestedInviteRole(directReportCount));
-  }, [data?.role, directReportCount, employeeId]);
+    setSelectedAccessProfileId(null);
+  }, [accessProfiles, data?.accessProfiles, directReportCount, employeeId]);
 
   const eligibility = getInvitationEligibility(data ?? null);
   const conflict = data?.conflict ?? null;
@@ -615,14 +666,19 @@ function WorkforceAccountCard({
       ? (data?.deliveryMessage ?? null)
       : null);
   const effectiveEmail = data?.email || email || "Not set";
-  const effectiveRole = data?.role || selectedRole;
+  const effectiveAccessProfiles = data?.accessProfiles ?? [];
+  const selectedAccessProfile = accessProfiles.find(
+    (profile) => profile.id === selectedAccessProfileId
+  );
   const emailLabel = hasLinkedAccount
     ? "Account email"
     : hasInvite
       ? "Invitation email"
       : "Work email for access";
-  const roleLabel = hasLinkedAccount ? "Account role" : "Invited role";
-  const showRoleDetail = hasLinkedAccount || hasInvite;
+  const accessProfileLabel = hasLinkedAccount
+    ? "Assigned access profiles"
+    : "Selected access profile";
+  const showAccessProfileDetail = hasLinkedAccount || hasInvite;
   const showLastSignIn = hasLinkedAccount;
   const showInviteCreated = showInviteDetails && !!data?.inviteCreatedAt;
   const showDeliveryStatus = showInviteDetails && !!data?.deliveryStatus;
@@ -631,14 +687,20 @@ function WorkforceAccountCard({
     setCopyMessage(null);
     setActionError(null);
 
+    if (!selectedAccessProfileId) {
+      setActionError("Select an access profile before sending the invitation.");
+      return;
+    }
+
     try {
       await provisionInvite.mutateAsync({
         employeeId,
         email,
         firstName,
         lastName,
-        role: selectedRole,
+        accessProfileId: selectedAccessProfileId,
       });
+      invalidateAccount();
     } catch (error) {
       setActionError(getActionErrorMessage(error));
     }
@@ -650,6 +712,7 @@ function WorkforceAccountCard({
 
     try {
       await resendInvite.mutateAsync({ employeeId });
+      invalidateAccount();
     } catch (error) {
       setActionError(getActionErrorMessage(error));
     }
@@ -675,6 +738,7 @@ function WorkforceAccountCard({
 
     try {
       await deactivateAccount.mutateAsync({ employeeId });
+      invalidateAccount();
       setCopyMessage("Account deactivated.");
     } catch (error) {
       setActionError(getActionErrorMessage(error));
@@ -687,6 +751,7 @@ function WorkforceAccountCard({
 
     try {
       await reactivateAccount.mutateAsync({ employeeId });
+      invalidateAccount();
       setCopyMessage("Account reactivated.");
     } catch (error) {
       setActionError(getActionErrorMessage(error));
@@ -697,10 +762,7 @@ function WorkforceAccountCard({
     <Card className={WORKSPACE_CARD_CLASS_NAME}>
       <CardHeader className={WORKSPACE_CARD_HEADER_CLASS_NAME}>
         <CardTitle className="text-base">Access &amp; account</CardTitle>
-        <CardDescription>
-          Manage invitation status, fallback links, and account access for this
-          employee.
-        </CardDescription>
+        <CardDescription>Manage access and invitation status.</CardDescription>
         <CardAction>
           <WorkforceAccountStateBadge account={data ?? null} />
         </CardAction>
@@ -722,14 +784,24 @@ function WorkforceAccountCard({
         ) : (
           <>
             <DetailRow icon={Mail} label={emailLabel} value={effectiveEmail} />
-            {showRoleDetail ? (
+            {showAccessProfileDetail ? (
               <>
                 <Separator />
                 <DetailRow
                   icon={User}
-                  label={roleLabel}
+                  label={accessProfileLabel}
                   value={
-                    effectiveRole || (
+                    effectiveAccessProfiles.length > 0 ? (
+                      <div className="flex flex-wrap gap-1.5">
+                        {effectiveAccessProfiles.map((profile) => (
+                          <Badge key={profile.id} variant="secondary">
+                            {profile.name}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : selectedAccessProfile ? (
+                      <Badge variant="outline">{selectedAccessProfile.name}</Badge>
+                    ) : (
                       <span className="font-normal text-muted-foreground">
                         Not assigned
                       </span>
@@ -792,7 +864,7 @@ function WorkforceAccountCard({
               <>
                 <Separator />
                 <div className="rounded-xl border bg-muted/10 px-4 py-3 text-sm text-muted-foreground">
-                  No platform access has been provisioned yet.
+                  No access has been provisioned yet.
                 </div>
               </>
             ) : null}
@@ -863,42 +935,35 @@ function WorkforceAccountCard({
                 <Separator />
                 <div className="space-y-3 rounded-xl border bg-muted/20 p-4">
                   <p className="text-sm font-medium">Send access invitation</p>
-                  <p className="text-xs text-muted-foreground">
-                    Choose the role that should apply when the employee
-                    activates access.
+                  <p className="text-sm text-muted-foreground">
+                    Choose the access profile this account should receive.
                   </p>
                   {directReportCount > 0 ? (
                     <p className="text-xs text-muted-foreground">
-                      Suggested: Manager · has {directReportCount} direct report
-                      {directReportCount === 1 ? "" : "s"}.
+                      Suggested: Manager access profile.
                     </p>
                   ) : null}
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant={
-                        selectedRole === "Employee" ? "default" : "outline"
-                      }
-                      onClick={() => setSelectedRole("Employee")}
-                    >
-                      Employee
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant={
-                        selectedRole === "Manager" ? "default" : "outline"
-                      }
-                      onClick={() => setSelectedRole("Manager")}
-                    >
-                      Manager
-                    </Button>
-                  </div>
+                  <Select
+                    value={selectedAccessProfileId ?? ""}
+                    onValueChange={setSelectedAccessProfileId}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose access profile" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {accessProfiles.map((profile) => (
+                        <SelectItem key={profile.id} value={profile.id}>
+                          {profile.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <Button
                     size="sm"
                     onClick={() => void handleSendInvite()}
-                    disabled={provisionInvite.isLoading}
+                    disabled={
+                      provisionInvite.isLoading || accessProfiles.length === 0
+                    }
                   >
                     {provisionInvite.isLoading
                       ? "Sending invite..."
@@ -972,7 +1037,8 @@ export default function EmployeeProfilePage() {
   const { tenantId } = useTenantContext();
   const isTenantContextReadOnly = !!tenantId;
   const canManageEmployee =
-    canAccessEmployeeRoster(user) && !isTenantContextReadOnly;
+    canManageCoreEmployees(user) && !isTenantContextReadOnly;
+  const canManageAccess = canAccessCoreAccess(user) && !isTenantContextReadOnly;
   const canViewProfile = canAccessEmployeeProfile(user);
   const requestedSheet = searchParams.get("sheet");
   const params = useParams<{ id: string }>();
@@ -1535,14 +1601,14 @@ export default function EmployeeProfilePage() {
             </CardContent>
           </Card>
 
-          {canManageEmployee ? (
+          {canManageEmployee || canManageAccess ? (
             <WorkforceAccountCard
               employeeId={profile.id}
               firstName={profile.firstName}
               lastName={profile.lastName}
               email={profile.email}
               directReportCount={profile.directReportCount}
-              canManageAccess={canManageEmployee}
+              canManageAccess={canManageAccess}
             />
           ) : null}
 

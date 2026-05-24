@@ -15,6 +15,48 @@ export const EMPLOYEE_ACCESS_FILTER_OPTIONS: Array<{
 
 export type AccessInviteRole = "Employee" | "Manager";
 
+export type ActionCohort =
+  | "NewInvitation"
+  | "RefreshInvitation"
+  | "PendingInvitation"
+  | "InactiveAccount"
+  | "Conflict"
+  | "AcceptedInvitation"
+  | "Active";
+
+export function classifyActionCohort(
+  account: WorkforceAccountStatusDto | null
+): ActionCohort {
+  if (!account) return "NewInvitation";
+  switch (account.provisioningState) {
+    case "Unprovisioned":
+      return "NewInvitation";
+    case "InviteExpired":
+    case "InviteRevoked":
+      return "RefreshInvitation";
+    case "InvitePending":
+      return "PendingInvitation";
+    case "Inactive":
+      return "InactiveAccount";
+    case "Conflict":
+      return "Conflict";
+    case "InviteAccepted":
+      return "AcceptedInvitation";
+    case "Active":
+      return "Active";
+    default:
+      return "Conflict";
+  }
+}
+
+export function needsProfileSelection(cohort: ActionCohort): boolean {
+  return cohort === "NewInvitation" || cohort === "RefreshInvitation";
+}
+
+export function isProvisionableInBulk(cohort: ActionCohort): boolean {
+  return cohort === "NewInvitation" || cohort === "RefreshInvitation";
+}
+
 export interface InvitationEligibility {
   canInvite: boolean;
   canResend: boolean;
@@ -26,6 +68,7 @@ export interface InvitationEligibility {
   hasPendingInvite: boolean;
   hasConflict: boolean;
   notIncludedReason: string | null;
+  cohort: ActionCohort;
 }
 
 export function parseEmployeeAccessFilter(
@@ -129,6 +172,7 @@ export function getInvitationEligibility(
       hasPendingInvite: false,
       hasConflict: false,
       notIncludedReason: null,
+      cohort: "NewInvitation" as ActionCohort,
     };
   }
 
@@ -141,10 +185,7 @@ export function getInvitationEligibility(
   const isRevoked = account.provisioningState === "InviteRevoked";
 
   return {
-    canInvite:
-      account.provisioningState === "Unprovisioned" ||
-      account.provisioningState === "Inactive" ||
-      account.provisioningState === "Conflict",
+    canInvite: account.provisioningState === "Unprovisioned",
     canResend: hasPendingInvite || isExpired || isRevoked,
     canCopyInviteLink: hasInviteLink,
     canReactivate: isInactive,
@@ -153,13 +194,14 @@ export function getInvitationEligibility(
     isActive,
     hasPendingInvite,
     hasConflict: isConflict,
+    cohort: classifyActionCohort(account),
     notIncludedReason:
       account.provisioningState === "Active"
         ? "Already active"
         : account.provisioningState === "InviteAccepted"
-        ? "Invite already accepted"
+        ? "Invitation already accepted"
         : account.provisioningState === "Inactive"
-        ? "Already inactive"
+        ? "Account inactive"
         : account.provisioningState === "Conflict"
         ? account.conflict?.message ?? "Account conflict"
         : null,
@@ -185,7 +227,8 @@ export interface ReviewDrawerRow {
 }
 
 export interface ReviewDrawerRows {
-  inviteableRows: ReviewDrawerRow[];
+  provisionableRows: ReviewDrawerRow[];
+  pendingInvitationRows: ReviewDrawerRow[];
   notIncludedRows: Array<ReviewDrawerRow & { reason: string }>;
 }
 
@@ -199,33 +242,15 @@ export function getReviewDrawerRows(
     workforceAccount: WorkforceAccountStatusDto | null;
   }>
 ): ReviewDrawerRows {
-  const inviteableRows: ReviewDrawerRow[] = [];
+  const provisionableRows: ReviewDrawerRow[] = [];
+  const pendingInvitationRows: ReviewDrawerRow[] = [];
   const notIncludedRows: Array<ReviewDrawerRow & { reason: string }> = [];
 
   selectedEmployees.forEach((employee) => {
     const eligibility = getInvitationEligibility(employee.workforceAccount);
     const suggestedRole = getSuggestedInviteRole(employee.directReportCount);
-
-    if (eligibility.canInvite || eligibility.canResend) {
-      inviteableRows.push({
-        employee: {
-          id: employee.id,
-          firstName: employee.firstName,
-          lastName: employee.lastName,
-          email: employee.email,
-          directReportCount: employee.directReportCount,
-        },
-        suggestedRole,
-        workforceAccount: employee.workforceAccount,
-      });
-      return;
-    }
-
-    const reason =
-      eligibility.notIncludedReason ??
-      (employee.workforceAccount ? "Not included" : "No action available");
-
-    notIncludedRows.push({
+    const cohort = eligibility.cohort;
+    const row: ReviewDrawerRow = {
       employee: {
         id: employee.id,
         firstName: employee.firstName,
@@ -235,60 +260,98 @@ export function getReviewDrawerRows(
       },
       suggestedRole,
       workforceAccount: employee.workforceAccount,
+    };
+
+    if (isProvisionableInBulk(cohort)) {
+      provisionableRows.push(row);
+      return;
+    }
+
+    if (cohort === "PendingInvitation") {
+      pendingInvitationRows.push(row);
+      return;
+    }
+
+    const reason =
+      eligibility.notIncludedReason ??
+      (employee.workforceAccount ? "Not included" : "No action available");
+
+    notIncludedRows.push({
+      ...row,
       reason,
     });
   });
 
-  return { inviteableRows, notIncludedRows };
+  return { provisionableRows, pendingInvitationRows, notIncludedRows };
 }
 
 export interface BulkSelectionSummary {
-  readyToInviteCount: number;
-  pendingWithLinkCount: number;
-  managerSuggestionCount: number;
+  newInvitationCount: number;
+  refreshInvitationCount: number;
+  pendingInvitationCount: number;
+  inactiveCount: number;
+  conflictCount: number;
+  activeCount: number;
   notIncludedCount: number;
+  provisionableCount: number;
+  hasPendingWithLink: boolean;
 }
 
 export function getBulkSelectionSummary(
   selectedEmployees: Array<{
     workforceAccount: WorkforceAccountStatusDto | null;
-    directReportCount: number;
   }>
 ): BulkSelectionSummary {
-  let readyToInviteCount = 0;
-  let pendingWithLinkCount = 0;
-  let managerSuggestionCount = 0;
-  let notIncludedCount = 0;
+  let newInvitationCount = 0;
+  let refreshInvitationCount = 0;
+  let pendingInvitationCount = 0;
+  let inactiveCount = 0;
+  let conflictCount = 0;
+  let activeCount = 0;
+  let hasPendingWithLink = false;
 
   selectedEmployees.forEach((employee) => {
-    const eligibility = getInvitationEligibility(employee.workforceAccount);
+    const cohort = classifyActionCohort(employee.workforceAccount);
 
-    if (eligibility.canInvite) {
-      readyToInviteCount += 1;
-    }
-
-    if (eligibility.hasPendingInvite && eligibility.canCopyInviteLink) {
-      pendingWithLinkCount += 1;
-    }
-
-    if (
-      !employee.workforceAccount ||
-      employee.workforceAccount.provisioningState === "Unprovisioned"
-    ) {
-      if (employee.directReportCount > 0) {
-        managerSuggestionCount += 1;
-      }
-    }
-
-    if (!eligibility.canInvite && !eligibility.canResend) {
-      notIncludedCount += 1;
+    switch (cohort) {
+      case "NewInvitation":
+        newInvitationCount += 1;
+        break;
+      case "RefreshInvitation":
+        refreshInvitationCount += 1;
+        break;
+      case "PendingInvitation":
+        pendingInvitationCount += 1;
+        if (employee.workforceAccount?.inviteLink) {
+          hasPendingWithLink = true;
+        }
+        break;
+      case "InactiveAccount":
+        inactiveCount += 1;
+        break;
+      case "Conflict":
+      case "AcceptedInvitation":
+        conflictCount += 1;
+        break;
+      case "Active":
+        activeCount += 1;
+        break;
     }
   });
 
+  const notIncludedCount =
+    inactiveCount + conflictCount + activeCount;
+  const provisionableCount = newInvitationCount + refreshInvitationCount;
+
   return {
-    readyToInviteCount,
-    pendingWithLinkCount,
-    managerSuggestionCount,
+    newInvitationCount,
+    refreshInvitationCount,
+    pendingInvitationCount,
+    inactiveCount,
+    conflictCount,
+    activeCount,
     notIncludedCount,
+    provisionableCount,
+    hasPendingWithLink,
   };
 }

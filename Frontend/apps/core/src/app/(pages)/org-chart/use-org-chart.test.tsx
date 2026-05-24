@@ -28,6 +28,9 @@ vi.mock("@repo/auth", () => ({
   canAccessCorePeople: (user: { roles?: string[] } | null) =>
     !!user?.roles?.includes("HRAdmin") &&
     !user?.roles?.includes("PlatformAdmin"),
+  canAccessCoreOrgChart: (user: { roles?: string[] } | null) =>
+    !!user?.roles?.includes("HRAdmin") &&
+    !user?.roles?.includes("PlatformAdmin"),
 }));
 
 vi.mock("@/components/core-tenant-context-provider", () => ({

@@ -1,4 +1,5 @@
 using EY.HRPlatform.Identity.Domain.Entities;
+using EY.HRPlatform.Identity.Features.AccessProfiles;
 using EY.HRPlatform.Identity.Infrastructure.Services;
 using EY.HRPlatform.Identity.Infrastructure.Persistence;
 using EY.HRPlatform.Identity.Models.Responses;
@@ -17,7 +18,7 @@ namespace EY.HRPlatform.Identity.Controllers;
 [Authorize]
 public sealed class WorkforceAccountsController(
     AppIdentityDbContext dbContext,
-    UserManager<ApplicationUser> userManager,
+    IAccessProfileService accessProfileService,
     ITenantContext tenantContext,
     IConfiguration configuration) : ControllerBase
 {
@@ -81,11 +82,10 @@ public sealed class WorkforceAccountsController(
         var results = new List<WorkforceAccountBulkProvisionResultDto>();
         foreach (var item in DistinctSubjects(request.Items))
         {
-            var role = NormalizeWorkforceRole(item.Role);
-            if (role is null)
-                return BadRequest(ApiResponse<List<WorkforceAccountBulkProvisionResultDto>>.Failure("Role must be Employee or Manager."));
+            if (!item.AccessProfileId.HasValue || item.AccessProfileId.Value == Guid.Empty)
+                return BadRequest(ApiResponse<List<WorkforceAccountBulkProvisionResultDto>>.Failure("Access profile is required."));
 
-            results.Add(await ProvisionInviteAsync(tenantId, item, role, cancellationToken));
+            results.Add(await ProvisionInviteAsync(tenantId, item, item.AccessProfileId.Value, cancellationToken));
         }
 
         return Ok(ApiResponse<List<WorkforceAccountBulkProvisionResultDto>>.Success(results));
@@ -109,18 +109,17 @@ public sealed class WorkforceAccountsController(
             Email = request.Email,
             FirstName = request.FirstName,
             LastName = request.LastName,
-            Role = request.Role
+            AccessProfileId = request.AccessProfileId,
         };
 
         var validationError = ValidateSubject(subject);
         if (validationError is not null)
             return BadRequest(ApiResponse<WorkforceAccountStatusDto>.Failure(validationError));
 
-        var role = NormalizeWorkforceRole(request.Role);
-        if (role is null)
-            return BadRequest(ApiResponse<WorkforceAccountStatusDto>.Failure("Role must be Employee or Manager."));
+        if (request.AccessProfileId == Guid.Empty)
+            return BadRequest(ApiResponse<WorkforceAccountStatusDto>.Failure("Access profile is required."));
 
-        var result = await ProvisionInviteAsync(tenantId, subject, role, cancellationToken);
+        var result = await ProvisionInviteAsync(tenantId, subject, request.AccessProfileId, cancellationToken);
         return Ok(ApiResponse<WorkforceAccountStatusDto>.Success(result.Account));
     }
 
@@ -144,6 +143,10 @@ public sealed class WorkforceAccountsController(
 
         if (invite.IsRevoked)
         {
+            var inviteProfileIds = await ResolveInviteProfileIdsAsync(invite, cancellationToken);
+            if (inviteProfileIds.Count == 0)
+                return BadRequest(ApiResponse<WorkforceAccountStatusDto>.Failure("This invitation no longer has a valid access profile."));
+
             invite = await CreateInviteAsync(
                 tenantId,
                 new WorkforceAccountSubjectDto
@@ -153,7 +156,7 @@ public sealed class WorkforceAccountsController(
                     FirstName = invite.FirstName,
                     LastName = invite.LastName
                 },
-                invite.Role,
+                inviteProfileIds[0],
                 cancellationToken);
         }
         else
@@ -162,7 +165,7 @@ public sealed class WorkforceAccountsController(
             await dbContext.SaveChangesAsync(cancellationToken);
         }
 
-        return Ok(ApiResponse<WorkforceAccountStatusDto>.Success(BuildInviteStatus(employeeId, invite)));
+        return Ok(ApiResponse<WorkforceAccountStatusDto>.Success(await BuildInviteStatusAsync(employeeId, invite, cancellationToken)));
     }
 
     [HttpPost("{employeeId:guid}/reactivate")]
@@ -183,7 +186,7 @@ public sealed class WorkforceAccountsController(
         user.IsActive = true;
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        return Ok(ApiResponse<WorkforceAccountStatusDto>.Success(await BuildUserStatusAsync(employeeId, user)));
+        return Ok(ApiResponse<WorkforceAccountStatusDto>.Success(await BuildUserStatusAsync(employeeId, user, cancellationToken)));
     }
 
     [HttpDelete("{employeeId:guid}")]
@@ -210,7 +213,7 @@ public sealed class WorkforceAccountsController(
     private async Task<WorkforceAccountBulkProvisionResultDto> ProvisionInviteAsync(
         Guid tenantId,
         WorkforceAccountSubjectDto subject,
-        string role,
+        Guid accessProfileId,
         CancellationToken cancellationToken)
     {
         var status = await ResolveStatusAsync(tenantId, subject, cancellationToken);
@@ -220,23 +223,15 @@ public sealed class WorkforceAccountsController(
             case StateUnprovisioned:
             case StateInviteRevoked:
             {
-                var invite = await CreateInviteAsync(tenantId, subject, role, cancellationToken);
-                var account = BuildInviteStatus(subject.EmployeeId, invite);
+                var invite = await CreateInviteAsync(tenantId, subject, accessProfileId, cancellationToken);
+                var account = await BuildInviteStatusAsync(subject.EmployeeId, invite, cancellationToken);
                 return BuildBulkResult(subject.EmployeeId, OutcomeCreated, "Invitation created.", account);
             }
 
             case StateInviteExpired:
             {
-                var invite = await FindLatestInviteAsync(tenantId, subject, cancellationToken)
-                    ?? await CreateInviteAsync(tenantId, subject, role, cancellationToken);
-                if (!invite.IsRevoked && !invite.IsUsed)
-                {
-                    invite.ExtendExpiry();
-                    invite.LinkEmployee(subject.EmployeeId);
-                    await dbContext.SaveChangesAsync(cancellationToken);
-                }
-
-                var account = BuildInviteStatus(subject.EmployeeId, invite);
+                var invite = await CreateInviteAsync(tenantId, subject, accessProfileId, cancellationToken);
+                var account = await BuildInviteStatusAsync(subject.EmployeeId, invite, cancellationToken);
                 return BuildBulkResult(subject.EmployeeId, OutcomeCreated, "Invitation refreshed.", account);
             }
 
@@ -265,7 +260,7 @@ public sealed class WorkforceAccountsController(
             if (!string.Equals(userByEmployee.NormalizedEmail, normalizedEmailUpper, StringComparison.Ordinal))
                 return BuildConflictStatus(subject, "EmployeeEmailMismatch", "This employee is linked to a different account email.", "Review the employee email or deactivate the linked account first.");
 
-            return await BuildUserStatusAsync(subject.EmployeeId, userByEmployee);
+            return await BuildUserStatusAsync(subject.EmployeeId, userByEmployee, cancellationToken);
         }
 
         var userByEmail = await dbContext.Users
@@ -278,7 +273,7 @@ public sealed class WorkforceAccountsController(
                 return BuildConflictStatus(subject, "EmployeeEmailMismatch", "This email is already linked to a different employee.", "Review duplicate employee records before inviting.");
 
             userByEmail.EmployeeId = subject.EmployeeId;
-            return await BuildUserStatusAsync(subject.EmployeeId, userByEmail);
+            return await BuildUserStatusAsync(subject.EmployeeId, userByEmail, cancellationToken);
         }
 
         var crossTenantUserExists = await dbContext.Users
@@ -293,7 +288,7 @@ public sealed class WorkforceAccountsController(
             if (!string.Equals(inviteByEmployee.Email, normalizedEmail, StringComparison.OrdinalIgnoreCase))
                 return BuildConflictStatus(subject, "EmployeeEmailMismatch", "This employee has an invitation for a different email.", "Revoke the old invitation before sending a new one.");
 
-            return BuildInviteStatus(subject.EmployeeId, inviteByEmployee);
+            return await BuildInviteStatusAsync(subject.EmployeeId, inviteByEmployee, cancellationToken);
         }
 
         var inviteByEmail = await dbContext.InviteTokens
@@ -308,7 +303,7 @@ public sealed class WorkforceAccountsController(
                 return BuildConflictStatus(subject, "EmployeeEmailMismatch", "This email already has an invitation for a different employee.", "Review duplicate employee records before inviting.");
 
             inviteByEmail.LinkEmployee(subject.EmployeeId);
-            return BuildInviteStatus(subject.EmployeeId, inviteByEmail);
+            return await BuildInviteStatusAsync(subject.EmployeeId, inviteByEmail, cancellationToken);
         }
 
         return BuildUnprovisionedStatus(subject);
@@ -317,7 +312,7 @@ public sealed class WorkforceAccountsController(
     private async Task<InviteToken> CreateInviteAsync(
         Guid tenantId,
         WorkforceAccountSubjectDto subject,
-        string role,
+        Guid accessProfileId,
         CancellationToken cancellationToken)
     {
         var tenantExists = await dbContext.Tenants
@@ -326,11 +321,19 @@ public sealed class WorkforceAccountsController(
         if (!tenantExists)
             throw new InvalidOperationException("Tenant not found or inactive.");
 
+        var selectedProfile = await accessProfileService.GetProfileAsync(tenantId, accessProfileId, cancellationToken)
+            ?? throw new InvalidOperationException("Access profile not found.");
+
+        var compatibilityRole = accessProfileService.ResolveCompatibilityRole(
+            selectedProfile.Grants
+                .Select(grant => new EffectivePermissionGrant(grant.PermissionKey, grant.Scope))
+                .ToList());
+
         var currentUserId = User.GetUserId();
         var invite = InviteToken.Create(
             NormalizeEmail(subject.Email),
             tenantId,
-            role,
+            compatibilityRole,
             currentUserId,
             subject.FirstName,
             subject.LastName,
@@ -338,6 +341,7 @@ public sealed class WorkforceAccountsController(
 
         dbContext.InviteTokens.Add(invite);
         await dbContext.SaveChangesAsync(cancellationToken);
+        await accessProfileService.SetInviteAccessProfilesAsync(tenantId, invite.Id, [selectedProfile.Id], cancellationToken);
         return invite;
     }
 
@@ -372,15 +376,17 @@ public sealed class WorkforceAccountsController(
             .FirstOrDefaultAsync(cancellationToken);
     }
 
-    private async Task<WorkforceAccountStatusDto> BuildUserStatusAsync(Guid employeeId, ApplicationUser user)
+    private async Task<WorkforceAccountStatusDto> BuildUserStatusAsync(Guid employeeId, ApplicationUser user, CancellationToken cancellationToken)
     {
-        var roles = await userManager.GetRolesAsync(user);
+        var accessProfiles = (await accessProfileService.GetAssignedProfilesAsync(user, cancellationToken)).ToList();
+        var effectivePermissions = await accessProfileService.GetEffectivePermissionsAsync(user, cancellationToken);
         return new WorkforceAccountStatusDto
         {
             EmployeeId = employeeId,
             Email = user.Email ?? string.Empty,
             FullName = user.FullName,
-            Role = PickWorkforceRole(roles),
+            Role = accessProfileService.ResolveCompatibilityRole(effectivePermissions),
+            AccessProfiles = accessProfiles,
             ProvisioningState = user.IsActive ? StateActive : StateInactive,
             UserId = user.Id,
             IsActive = user.IsActive,
@@ -388,7 +394,7 @@ public sealed class WorkforceAccountsController(
         };
     }
 
-    private WorkforceAccountStatusDto BuildInviteStatus(Guid employeeId, InviteToken invite)
+    private async Task<WorkforceAccountStatusDto> BuildInviteStatusAsync(Guid employeeId, InviteToken invite, CancellationToken cancellationToken)
     {
         var state = invite.IsRevoked
             ? StateInviteRevoked
@@ -399,12 +405,15 @@ public sealed class WorkforceAccountsController(
                     : StateInvitePending;
         var linkable = state == StateInvitePending;
 
+        var accessProfiles = (await accessProfileService.GetInviteAccessProfilesAsync(invite.Id, cancellationToken)).ToList();
+
         return new WorkforceAccountStatusDto
         {
             EmployeeId = employeeId,
             Email = invite.Email,
             FullName = BuildFullName(invite.FirstName, invite.LastName),
             Role = invite.Role,
+            AccessProfiles = accessProfiles,
             ProvisioningState = state,
             InviteId = invite.Id,
             InviteCreatedAt = invite.CreatedAt,
@@ -423,6 +432,7 @@ public sealed class WorkforceAccountsController(
             Email = NormalizeEmail(subject.Email),
             FullName = BuildFullName(subject.FirstName, subject.LastName),
             Role = PlatformRole.Employee,
+            AccessProfiles = [],
             ProvisioningState = StateUnprovisioned
         };
 
@@ -437,6 +447,7 @@ public sealed class WorkforceAccountsController(
             Email = NormalizeEmail(subject.Email),
             FullName = BuildFullName(subject.FirstName, subject.LastName),
             Role = PlatformRole.Employee,
+            AccessProfiles = [],
             ProvisioningState = StateConflict,
             Conflict = new WorkforceAccountConflictDto
             {
@@ -514,27 +525,12 @@ public sealed class WorkforceAccountsController(
     private static string NormalizeEmail(string email)
         => email.Trim().ToLowerInvariant();
 
-    private static string? NormalizeWorkforceRole(string? role)
-    {
-        if (string.Equals(role, PlatformRole.Manager, StringComparison.OrdinalIgnoreCase))
-            return PlatformRole.Manager;
-
-        if (string.Equals(role, PlatformRole.Employee, StringComparison.OrdinalIgnoreCase))
-            return PlatformRole.Employee;
-
-        return null;
-    }
-
-    private static string PickWorkforceRole(IEnumerable<string> roles)
-    {
-        if (roles.Contains(PlatformRole.Manager))
-            return PlatformRole.Manager;
-
-        if (roles.Contains(PlatformRole.Employee))
-            return PlatformRole.Employee;
-
-        return roles.FirstOrDefault() ?? PlatformRole.Employee;
-    }
+    private async Task<List<Guid>> ResolveInviteProfileIdsAsync(InviteToken invite, CancellationToken cancellationToken)
+        => await dbContext.InviteAccessProfiles
+            .IgnoreQueryFilters()
+            .Where(assignment => assignment.InviteTokenId == invite.Id)
+            .Select(assignment => assignment.AccessProfileId)
+            .ToListAsync(cancellationToken);
 
     private static string? BuildFullName(string? firstName, string? lastName)
     {

@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using EY.HRPlatform.Identity.Domain.Entities;
+using EY.HRPlatform.Identity.Features.AccessProfiles;
 using EY.HRPlatform.SharedKernel.Auth;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
@@ -19,11 +20,16 @@ public class TokenService : ITokenService
 {
     private readonly IConfiguration _configuration;
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly IAccessProfileService _accessProfileService;
 
-    public TokenService(IConfiguration configuration, UserManager<ApplicationUser> userManager)
+    public TokenService(
+        IConfiguration configuration,
+        UserManager<ApplicationUser> userManager,
+        IAccessProfileService accessProfileService)
     {
         _configuration = configuration;
         _userManager = userManager;
+        _accessProfileService = accessProfileService;
     }
 
     public async Task<string> GenerateAccessTokenAsync(ApplicationUser user)
@@ -57,6 +63,14 @@ public class TokenService : ITokenService
         if (user.EmployeeId.HasValue)
         {
             claims.Add(new Claim(CustomClaimTypes.EmployeeId, user.EmployeeId.Value.ToString()));
+        }
+
+        var permissions = await _accessProfileService.GetEffectivePermissionsAsync(user);
+        foreach (var permission in permissions)
+        {
+            claims.Add(new Claim(
+                CustomClaimTypes.CorePermission,
+                CorePermissionClaimValue.Encode(permission.PermissionKey, permission.Scope)));
         }
 
         // Step 5: Create the signing key from our secret

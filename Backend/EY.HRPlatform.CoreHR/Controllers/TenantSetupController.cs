@@ -6,6 +6,7 @@ using EY.HRPlatform.CoreHR.Features.TenantSetup.Commands.ReopenTenantStructure;
 using EY.HRPlatform.CoreHR.Features.TenantSetup.Dtos;
 using EY.HRPlatform.CoreHR.Features.TenantSetup.Queries.GetDraftSetupReadiness;
 using EY.HRPlatform.CoreHR.Features.TenantSetup.Queries.GetTenantSetupState;
+using EY.HRPlatform.CoreHR.Features.Security;
 using EY.HRPlatform.SharedKernel.Api;
 using EY.HRPlatform.SharedKernel.Auth;
 using MediatR;
@@ -16,13 +17,20 @@ namespace EY.HRPlatform.CoreHR.Controllers;
 
 [ApiController]
 [Route("api/corehr/setup")]
-[Authorize(Roles = $"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin}")]
-public class TenantSetupController(ISender sender) : ControllerBase
+[Authorize]
+public class TenantSetupController(
+    ISender sender,
+    ICoreAccessPolicyService accessPolicy) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType(typeof(ApiResponse<TenantSetupStateDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> Get(CancellationToken cancellationToken)
     {
+        if (!accessPolicy.CanViewSetup(User))
+        {
+            return Forbid();
+        }
+
         var setupState = await sender.Send(new GetTenantSetupStateQuery(), cancellationToken);
 
         if (setupState.Version.HasValue)
@@ -35,6 +43,11 @@ public class TenantSetupController(ISender sender) : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<TenantSetupStateDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> Activate(CancellationToken cancellationToken)
     {
+        if (!accessPolicy.CanManageSetup(User))
+        {
+            return Forbid();
+        }
+
         var result = await sender.Send(new ActivateTenantSetupCommand(), cancellationToken);
 
         if (result.Value.Version.HasValue)
@@ -47,6 +60,11 @@ public class TenantSetupController(ISender sender) : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<DraftSetupReadinessDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetReadiness(CancellationToken cancellationToken)
     {
+        if (!accessPolicy.CanViewSetup(User))
+        {
+            return Forbid();
+        }
+
         var readiness = await sender.Send(new GetDraftSetupReadinessQuery(), cancellationToken);
         return Ok(ApiResponse<DraftSetupReadinessDto>.Success(readiness));
     }
@@ -58,6 +76,11 @@ public class TenantSetupController(ISender sender) : ControllerBase
         [FromHeader(Name = "If-Match")] string? ifMatch,
         CancellationToken cancellationToken)
     {
+        if (!accessPolicy.CanManageSetup(User))
+        {
+            return Forbid();
+        }
+
         if (!TryParseVersion(ifMatch, out var expectedVersion))
         {
             return StatusCode(
@@ -87,6 +110,11 @@ public class TenantSetupController(ISender sender) : ControllerBase
         [FromHeader(Name = "If-Match")] string? ifMatch,
         CancellationToken cancellationToken)
     {
+        if (!accessPolicy.CanManageSetup(User))
+        {
+            return Forbid();
+        }
+
         if (!TryParseVersion(ifMatch, out var expectedVersion))
         {
             return StatusCode(
@@ -116,6 +144,11 @@ public class TenantSetupController(ISender sender) : ControllerBase
         [FromHeader(Name = "If-Match")] string? ifMatch,
         CancellationToken cancellationToken)
     {
+        if (!accessPolicy.CanPublishStructure(User))
+        {
+            return Forbid();
+        }
+
         if (!TryParseVersion(ifMatch, out var expectedVersion))
         {
             return StatusCode(
@@ -145,6 +178,11 @@ public class TenantSetupController(ISender sender) : ControllerBase
         [FromHeader(Name = "If-Match")] string? ifMatch,
         CancellationToken cancellationToken)
     {
+        if (!accessPolicy.CanManageSetup(User))
+        {
+            return Forbid();
+        }
+
         if (!TryParseVersion(ifMatch, out var expectedVersion))
         {
             return StatusCode(

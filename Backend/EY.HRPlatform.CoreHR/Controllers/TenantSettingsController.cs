@@ -1,8 +1,8 @@
 using EY.HRPlatform.CoreHR.Features.TenantSettings.Commands.UpdateTenantSettings;
 using EY.HRPlatform.CoreHR.Features.TenantSettings.Dtos;
 using EY.HRPlatform.CoreHR.Features.TenantSettings.Queries.GetTenantSettings;
+using EY.HRPlatform.CoreHR.Features.Security;
 using EY.HRPlatform.SharedKernel.Api;
-using EY.HRPlatform.SharedKernel.Auth;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -12,17 +12,23 @@ namespace EY.HRPlatform.CoreHR.Controllers;
 [ApiController]
 [Route("api/corehr/settings")]
 [Authorize]
-public class TenantSettingsController(ISender sender) : ControllerBase
+public class TenantSettingsController(
+    ISender sender,
+    ICoreAccessPolicyService accessPolicy) : ControllerBase
 {
     /// <summary>
     /// Get tenant settings for the current tenant.
     /// Returns merged platform defaults with tenant-specific overrides.
     /// </summary>
     [HttpGet]
-    [Authorize(Roles = $"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin},{PlatformRole.Employee},{PlatformRole.Manager}")]
     [ProducesResponseType(typeof(ApiResponse<TenantSettingsDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> Get(CancellationToken cancellationToken)
     {
+        if (!accessPolicy.CanViewSettings(User))
+        {
+            return Forbid();
+        }
+
         var settings = await sender.Send(new GetTenantSettingsQuery(), cancellationToken);
 
         if (settings.Version.HasValue)
@@ -37,7 +43,6 @@ public class TenantSettingsController(ISender sender) : ControllerBase
     /// Updates existing settings (If-Match required, returns 409 if missing or mismatched).
     /// </summary>
     [HttpPatch]
-    [Authorize(Roles = $"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin}")]
     [ProducesResponseType(typeof(ApiResponse<TenantSettingsDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status409Conflict)]
@@ -46,6 +51,11 @@ public class TenantSettingsController(ISender sender) : ControllerBase
         [FromHeader(Name = "If-Match")] string? ifMatch,
         CancellationToken cancellationToken)
     {
+        if (!accessPolicy.CanManageSettings(User))
+        {
+            return Forbid();
+        }
+
         // Parse If-Match header (optional for creation, required for updates)
         uint? expectedVersion = TryParseVersion(ifMatch, out var version) ? version : null;
 

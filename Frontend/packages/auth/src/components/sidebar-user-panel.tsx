@@ -11,6 +11,11 @@ import {
   Home,
 } from "lucide-react";
 import { useAuth } from "../auth-context";
+import {
+  canAccessCoreSettings,
+  canAccessOwnCoreProfile,
+  PLATFORM_ADMIN_ROLE,
+} from "../roles";
 
 interface SidebarUserPanelProps {
   collapsed: boolean;
@@ -30,7 +35,15 @@ export function SidebarUserPanel({ collapsed }: SidebarUserPanelProps) {
 
   if (isAuthenticated && user) {
     const initial = user.fullName?.charAt(0)?.toUpperCase() || "U";
-    const role = user.roles?.[0] || "User";
+    const role = user.roles.includes(PLATFORM_ADMIN_ROLE)
+      ? "Platform Admin"
+      : user.accessProfiles.length > 1
+        ? `${user.accessProfiles[0]?.name ?? "Access profile"} +${
+            user.accessProfiles.length - 1
+          }`
+        : user.accessProfiles[0]?.name ?? user.roles?.[0] ?? "User";
+    const canOpenProfile = canAccessOwnCoreProfile(user);
+    const canOpenSettings = canAccessCoreSettings(user);
 
     if (collapsed) {
       return (
@@ -75,20 +88,24 @@ export function SidebarUserPanel({ collapsed }: SidebarUserPanelProps) {
               onClick={() => setMenuOpen(false)}
             />
             <div className="absolute bottom-full left-0 right-0 z-50 mb-2 rounded-lg border border-[hsl(var(--ey-grey-200))] bg-white py-1 shadow-lg">
-              <a
-                href="/profile"
-                className="flex items-center gap-3 px-3 py-2 text-sm text-[hsl(var(--ey-grey-500))] hover:bg-[hsl(var(--ey-grey-100))] transition-colors"
-              >
-                <User className="h-4 w-4 text-[hsl(var(--ey-grey-400))]" />
-                Profile
-              </a>
-              <a
-                href="/settings"
-                className="flex items-center gap-3 px-3 py-2 text-sm text-[hsl(var(--ey-grey-500))] hover:bg-[hsl(var(--ey-grey-100))] transition-colors"
-              >
-                <Settings className="h-4 w-4 text-[hsl(var(--ey-grey-400))]" />
-                Settings
-              </a>
+              {canOpenProfile ? (
+                <a
+                  href="/profile"
+                  className="flex items-center gap-3 px-3 py-2 text-sm text-[hsl(var(--ey-grey-500))] hover:bg-[hsl(var(--ey-grey-100))] transition-colors"
+                >
+                  <User className="h-4 w-4 text-[hsl(var(--ey-grey-400))]" />
+                  My Profile
+                </a>
+              ) : null}
+              {canOpenSettings ? (
+                <a
+                  href="/settings"
+                  className="flex items-center gap-3 px-3 py-2 text-sm text-[hsl(var(--ey-grey-500))] hover:bg-[hsl(var(--ey-grey-100))] transition-colors"
+                >
+                  <Settings className="h-4 w-4 text-[hsl(var(--ey-grey-400))]" />
+                  Settings
+                </a>
+              ) : null}
               <a
                 href="/"
                 className="flex items-center gap-3 px-3 py-2 text-sm text-[hsl(var(--ey-grey-500))] hover:bg-[hsl(var(--ey-grey-100))] transition-colors"

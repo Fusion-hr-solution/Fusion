@@ -1,4 +1,5 @@
 using EY.HRPlatform.Identity.Domain.Entities;
+using EY.HRPlatform.Identity.Features.AccessProfiles;
 using EY.HRPlatform.Identity.Infrastructure.Persistence;
 using EY.HRPlatform.Identity.Infrastructure.Services;
 using EY.HRPlatform.Identity.Models.Requests;
@@ -20,17 +21,20 @@ public class InvitesController : ControllerBase
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IConfiguration _configuration;
     private readonly ITrainingServiceClient _trainingClient;
+    private readonly IAccessProfileService _accessProfileService;
 
     public InvitesController(
         AppIdentityDbContext dbContext,
         UserManager<ApplicationUser> userManager,
         IConfiguration configuration,
-        ITrainingServiceClient trainingClient)
+        ITrainingServiceClient trainingClient,
+        IAccessProfileService accessProfileService)
     {
         _dbContext = dbContext;
         _userManager = userManager;
         _configuration = configuration;
         _trainingClient = trainingClient;
+        _accessProfileService = accessProfileService;
     }
 
     /// <summary>
@@ -125,9 +129,11 @@ public class InvitesController : ControllerBase
             Token = invite.Token,
             InviteLink = inviteLink,
             Email = invite.Email,
+            EmployeeId = invite.EmployeeId,
             TenantId = tenant.Id,
             TenantName = tenant.Name,
             Role = invite.Role,
+            AccessProfiles = (await _accessProfileService.GetInviteAccessProfilesAsync(invite.Id)).ToList(),
             FirstName = invite.FirstName,
             LastName = invite.LastName,
             ExpiresAt = invite.ExpiresAt,
@@ -176,9 +182,11 @@ public class InvitesController : ControllerBase
         {
             Id = invite.Id,
             Email = invite.Email,
+            EmployeeId = invite.EmployeeId,
             TenantId = invite.TenantId,
             TenantName = invite.Tenant?.Name ?? string.Empty,
             Role = invite.Role,
+            AccessProfiles = (await _accessProfileService.GetInviteAccessProfilesAsync(invite.Id)).ToList(),
             FirstName = invite.FirstName,
             LastName = invite.LastName,
             ExpiresAt = invite.ExpiresAt,
@@ -280,6 +288,8 @@ public class InvitesController : ControllerBase
                 return BadRequest(ApiResponse<UserDto>.Failure(errors));
             }
 
+            await _accessProfileService.ApplyInviteProfilesAsync(invite, user);
+
             // Mark invite as used
             invite.MarkAccepted(user.Id);
             await _dbContext.SaveChangesAsync();
@@ -301,7 +311,8 @@ public class InvitesController : ControllerBase
                 HireDate = user.HireDate,
                 TenantId = user.TenantId,
                 EmployeeId = user.EmployeeId,
-                Roles = [invite.Role]
+                Roles = [invite.Role],
+                AccessProfiles = (await _accessProfileService.GetAssignedProfilesAsync(user)).ToList(),
             };
 
             return StatusCode(StatusCodes.Status201Created,
@@ -353,23 +364,30 @@ public class InvitesController : ControllerBase
 
         var invites = await query
             .OrderByDescending(i => i.CreatedAt)
-            .Select(i => new InviteDto
-            {
-                Id = i.Id,
-                Email = i.Email,
-                TenantId = i.TenantId,
-                TenantName = tenant.Name,
-                Role = i.Role,
-                FirstName = i.FirstName,
-                LastName = i.LastName,
-                ExpiresAt = i.ExpiresAt,
-                IsExpired = i.ExpiresAt < DateTime.UtcNow,
-                IsUsed = i.AcceptedAt != null,
-                CreatedAt = i.CreatedAt
-            })
             .ToListAsync();
 
-        return Ok(ApiResponse<List<InviteDto>>.Success(invites));
+        var dtos = new List<InviteDto>(invites.Count);
+        foreach (var invite in invites)
+        {
+            dtos.Add(new InviteDto
+            {
+                Id = invite.Id,
+                Email = invite.Email,
+                EmployeeId = invite.EmployeeId,
+                TenantId = invite.TenantId,
+                TenantName = tenant.Name,
+                Role = invite.Role,
+                AccessProfiles = (await _accessProfileService.GetInviteAccessProfilesAsync(invite.Id)).ToList(),
+                FirstName = invite.FirstName,
+                LastName = invite.LastName,
+                ExpiresAt = invite.ExpiresAt,
+                IsExpired = invite.ExpiresAt < DateTime.UtcNow,
+                IsUsed = invite.AcceptedAt != null,
+                CreatedAt = invite.CreatedAt,
+            });
+        }
+
+        return Ok(ApiResponse<List<InviteDto>>.Success(dtos));
     }
 
     /// <summary>
@@ -441,9 +459,11 @@ public class InvitesController : ControllerBase
             Token = invite.Token,
             InviteLink = inviteLink,
             Email = invite.Email,
+            EmployeeId = invite.EmployeeId,
             TenantId = invite.TenantId,
             TenantName = invite.Tenant?.Name ?? string.Empty,
             Role = invite.Role,
+            AccessProfiles = (await _accessProfileService.GetInviteAccessProfilesAsync(invite.Id)).ToList(),
             FirstName = invite.FirstName,
             LastName = invite.LastName,
             ExpiresAt = invite.ExpiresAt,

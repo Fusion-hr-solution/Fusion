@@ -80,6 +80,8 @@ public class InviteToken : ITenantEntity
     /// </summary>
     public Guid? EmployeeId { get; private set; }
 
+    public List<InviteAccessProfile> AccessProfileAssignments { get; private set; } = [];
+
     /// <summary>
     /// Whether this invite has been revoked (soft-deleted).
     /// </summary>

@@ -221,6 +221,12 @@ export interface WorkforceAccountStatusDto {
   email: string;
   fullName: string | null;
   role: string;
+  accessProfiles: Array<{
+    id: string;
+    name: string;
+    type: "SystemSeeded" | "Custom";
+    isSystemProtected: boolean;
+  }>;
   provisioningState: WorkforceAccountProvisioningState;
   userId: string | null;
   isActive: boolean | null;
@@ -240,7 +246,7 @@ export interface WorkforceAccountSubject {
   email: string;
   firstName?: string | null;
   lastName?: string | null;
-  role?: string | null;
+  accessProfileId?: string | null;
 }
 
 export type WorkforceAccountBulkProvisionOutcome =

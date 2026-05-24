@@ -5,6 +5,7 @@ using EY.HRPlatform.CoreHR.Features.Employees.Services;
 using EY.HRPlatform.CoreHR.Features.Employees.Import.Services;
 using EY.HRPlatform.CoreHR.Features.TenantSettings.Services;
 using EY.HRPlatform.CoreHR.Features.TenantSetup.Services;
+using EY.HRPlatform.CoreHR.Features.Security;
 using EY.HRPlatform.CoreHR.Features.Workforce.Services;
 using EY.HRPlatform.SharedKernel.Multitenancy;
 using Microsoft.EntityFrameworkCore;
@@ -46,6 +47,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IDraftStructureImportWorkflowService, DraftStructureImportWorkflowService>();
         services.AddScoped<IEmployeeHierarchyService, EmployeeHierarchyService>();
         services.AddScoped<IEmployeeReadModelPolicy, EmployeeReadModelPolicy>();
+        services.AddScoped<ICoreAccessPolicyService, CoreAccessPolicyService>();
         services.AddScoped<ITenantSettingsReadService, TenantSettingsReadService>();
         services.AddScoped<IEmployeeImportWorkflowService, EmployeeImportWorkflowService>();
         services.AddScoped<IWorkforceContractService, WorkforceContractService>();

@@ -8,12 +8,12 @@ namespace EY.HRPlatform.CoreHR.Tests.Features.Employees;
 public class OrgUnitsControllerAuthorizationTests
 {
     [Fact]
-    public void Controller_RequiresHrAdminAtClassLevel()
+    public void Controller_RequiresAuthenticatedUserAtClassLevel()
     {
         var authorizeAttribute = typeof(OrgUnitsController)
             .GetCustomAttribute<AuthorizeAttribute>(inherit: false);
 
         Assert.NotNull(authorizeAttribute);
-        Assert.Equal(PlatformRole.PlatformAdmin + "," + PlatformRole.HRAdmin, authorizeAttribute!.Roles);
+        Assert.Null(authorizeAttribute!.Roles);
     }
 }
