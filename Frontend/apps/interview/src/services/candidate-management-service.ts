@@ -149,6 +149,9 @@ function mapProgressTimeline(dto: BackendCandidateProgressTimelineDto): Candidat
       attemptNumber: attempt.attemptNumber,
       attemptId: attempt.attemptId,
       status: attempt.status,
+      gradingStatus: attempt.gradingStatus ?? "Pending",
+      totalScore: attempt.totalScore,
+      maxScore: attempt.maxScore,
       milestones: attempt.milestones.map((milestone) => ({
         name: milestone.name,
         state: milestone.state,

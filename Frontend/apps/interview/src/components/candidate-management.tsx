@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Mail, ShieldCheck, History, RotateCcw, Settings2, UserX, Clock3, Link2, Check, FileUp, Send, X, RefreshCw } from "lucide-react";
+import { Mail, ShieldCheck, History, RotateCcw, Settings2, UserX, Clock3, Link2, Check, FileUp, Send, X, RefreshCw, ClipboardCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { InviteResultPopup } from "@/components/candidate-management/invite-result-popup";
 import { CsvImportReportPopup } from "@/components/candidate-management/csv-import-report-popup";
@@ -14,6 +14,7 @@ import { RetakeTab } from "@/components/candidate-management/tabs/retake-tab";
 import { AttemptLimitsTab } from "@/components/candidate-management/tabs/attempt-limits-tab";
 import { AnonymizeTab } from "@/components/candidate-management/tabs/anonymize-tab";
 import { RetentionTab } from "@/components/candidate-management/tabs/retention-tab";
+import { HumanReviewTab } from "@/components/candidate-management/tabs/human-review-tab";
 import type { CsvImportReport } from "@/services/models/csv_import_report_popup_model";
 import type { InviteResult } from "@/services/models/invite_result_popup_model";
 import type { InviteMethod } from "@/services/models/invite_tab_model";
@@ -66,7 +67,8 @@ type CandidateTabKey =
   | "retake"
   | "limits"
   | "anonymize"
-  | "retention";
+  | "retention"
+  | "review";
 
 interface TabConfig {
   key: CandidateTabKey;
@@ -126,6 +128,12 @@ const TAB_CONFIG: TabConfig[] = [
     label: "Retention Window",
     icon: Clock3,
     description: "Auto-deletion policy and upcoming deletions",
+  },
+  {
+    key: "review",
+    label: "Review Queue",
+    icon: ClipboardCheck,
+    description: "AI-graded responses that need manual verification",
   },
 ];
 
@@ -1577,6 +1585,8 @@ export function CandidateManagement() {
                 onSaveSettings={handleSaveRetentionSettings}
                 onRunNow={handleRunRetention}
               />
+            ) : activeTab === "review" ? (
+              <HumanReviewTab />
             ) : null}
 
             {loading ? (

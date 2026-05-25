@@ -1,10 +1,16 @@
 using EY.HRPlatform.Interview.Features.Candidates;
+using EY.HRPlatform.Interview.Features.Grading;
+using EY.HRPlatform.Interview.Features.Grading.Graders;
+using EY.HRPlatform.Interview.Features.Grading.Groq;
+using EY.HRPlatform.Interview.Features.Grading.HumanReview;
+using EY.HRPlatform.Interview.Features.Grading.Judge0;
 using EY.HRPlatform.Interview.Features.Questions;
 using EY.HRPlatform.Interview.Features.TestQuestions;
 using EY.HRPlatform.Interview.Features.Tests;
 using EY.HRPlatform.Interview.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using StackExchange.Redis;
 
 namespace EY.HRPlatform.Interview.Extensions;
 
@@ -32,6 +38,10 @@ public static class ServiceCollectionExtensions
             services.AddScoped<ICandidateRetentionService, CandidateRetentionService>();
             services.AddScoped<ICandidateInvitationService, CandidateInvitationService>();
             services.AddScoped<ICandidateAccessService, CandidateAccessService>();
+            services.AddScoped<IGrader, DeterministicGrader>();
+            services.AddScoped<GradingOrchestrator>();
+            services.AddScoped<HumanReviewService>();
+            services.AddDistributedMemoryCache();
             return services;
         }
 
@@ -59,6 +69,55 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICandidateInvitationService, CandidateInvitationService>();
         services.AddScoped<ICandidateAccessService, CandidateAccessService>();
         services.AddHostedService<CandidateRetentionBackgroundService>();
+
+        services.AddScoped<IGrader, DeterministicGrader>();
+        services.AddScoped<GradingOrchestrator>();
+        services.AddScoped<HumanReviewService>();
+        services.AddHostedService<GradingBackgroundService>();
+
+        var groqApiKey = configuration["Groq:ApiKey"];
+        if (!string.IsNullOrWhiteSpace(groqApiKey))
+        {
+            services.AddScoped<IGrader, GroqGrader>();
+            services.AddHttpClient<GroqClient>(c =>
+            {
+                c.BaseAddress = new Uri("https://api.groq.com");
+                c.DefaultRequestHeaders.Add("Authorization", $"Bearer {groqApiKey}");
+            });
+        }
+
+        var judge0BaseUrl = configuration["Judge0:BaseUrl"];
+        if (!string.IsNullOrWhiteSpace(judge0BaseUrl))
+        {
+            services.AddScoped<IGrader, Judge0Grader>();
+            services.AddHttpClient<Judge0Client>(c =>
+            {
+                c.BaseAddress = new Uri(judge0BaseUrl);
+                var token = configuration["Judge0:AuthToken"];
+                if (!string.IsNullOrWhiteSpace(token))
+                    c.DefaultRequestHeaders.Add("X-Auth-Token", token);
+            });
+        }
+
+        var redisConnectionString = configuration["Redis:ConnectionString"];
+        if (!string.IsNullOrWhiteSpace(redisConnectionString))
+        {
+            services.AddStackExchangeRedisCache(o =>
+            {
+                var opts = ConfigurationOptions.Parse(redisConnectionString);
+                // Keep connect attempts short so a missing Redis instance doesn't
+                // stall requests. SYN_SENT can hang for the full connectTimeout on
+                // Windows when nothing is listening on the port.
+                opts.ConnectTimeout = 300;
+                opts.SyncTimeout = 300;
+                opts.AbortOnConnectFail = true; // fail fast after timeout; subsequent ops throw immediately
+                o.ConfigurationOptions = opts;
+            });
+        }
+        else
+        {
+            services.AddDistributedMemoryCache();
+        }
 
         return services;
     }
