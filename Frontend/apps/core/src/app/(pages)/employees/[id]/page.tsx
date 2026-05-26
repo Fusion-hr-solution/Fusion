@@ -17,7 +17,7 @@ import {
   Users,
 } from "lucide-react";
 import {
-  canAccessCoreAccess,
+  canManageCoreAccess,
   canManageCoreEmployees,
   useAuth,
 } from "@repo/auth";
@@ -1038,7 +1038,7 @@ export default function EmployeeProfilePage() {
   const isTenantContextReadOnly = !!tenantId;
   const canManageEmployee =
     canManageCoreEmployees(user) && !isTenantContextReadOnly;
-  const canManageAccess = canAccessCoreAccess(user) && !isTenantContextReadOnly;
+  const canManageAccess = canManageCoreAccess(user) && !isTenantContextReadOnly;
   const canViewProfile = canAccessEmployeeProfile(user);
   const requestedSheet = searchParams.get("sheet");
   const params = useParams<{ id: string }>();

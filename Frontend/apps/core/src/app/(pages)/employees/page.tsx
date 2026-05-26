@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { useApiQueryClient } from "@repo/api/query";
 import {
-  canAccessCoreAccess,
+  canManageCoreAccess,
   canImportCoreEmployees,
   canManageCoreEmployees,
   useAuth,
@@ -91,6 +91,8 @@ import {
 } from "./use-workforce-accounts";
 import { EmployeeCreateDialog } from "./employee-create-dialog";
 import { useAccessProfiles } from "../settings/use-core-access";
+
+const EMPTY_ACCESS_PROFILES: Array<{ id: string; name: string }> = [];
 
 const DEFAULT_EMPLOYEE_SORTING: SortingState = [{ id: "Name", desc: false }];
 
@@ -294,7 +296,7 @@ export default function EmployeesPage() {
   const { tenantId } = useTenantContext();
   const isTenantContextReadOnly = !!tenantId;
   const canAccess = canAccessEmployeeRoster(user) || isTenantContextReadOnly;
-  const canManageAccess = canAccessCoreAccess(user) && !isTenantContextReadOnly;
+  const canManageAccess = canManageCoreAccess(user) && !isTenantContextReadOnly;
   const canCreateEmployee =
     canManageCoreEmployees(user) && !isTenantContextReadOnly;
   const canImportEmployees =
@@ -364,7 +366,8 @@ export default function EmployeesPage() {
     isLoading: isLoadingWorkforceAccounts,
   } = useWorkforceAccountStatuses(workforceAccountSubjects);
   const bulkProvision = useBulkProvisionWorkforceAccountInvites();
-  const { data: accessProfiles = [] } = useAccessProfiles(canManageAccess);
+  const { data: accessProfilesData } = useAccessProfiles(canManageAccess);
+  const accessProfiles = accessProfilesData ?? EMPTY_ACCESS_PROFILES;
 
   const baseRows = useMemo(
     () =>

@@ -13,6 +13,7 @@ import type {
 const WORKFORCE_ACCOUNTS_PATH = "/corehr/employees/workforce-accounts";
 const WORKFORCE_ACCOUNT_STATUSES_PATH = `${WORKFORCE_ACCOUNTS_PATH}/statuses`;
 const WORKFORCE_ACCOUNT_STATUS_BATCH_SIZE = 200;
+const EMPTY_WORKFORCE_ACCOUNT_STATUSES: WorkforceAccountStatusDto[] = [];
 
 export function useWorkforceAccountStatuses(
   subjects: WorkforceAccountSubject[]
@@ -37,7 +38,7 @@ export function useWorkforceAccountStatuses(
     queryFn,
     {
       enabled: subjects.length > 0,
-      placeholderData: [],
+      placeholderData: EMPTY_WORKFORCE_ACCOUNT_STATUSES,
     }
   );
 }
@@ -53,7 +54,11 @@ export function useResolveWorkforceAccountStatuses() {
 
       const results: WorkforceAccountStatusDto[] = [];
 
-      for (let index = 0; index < subjects.length; index += WORKFORCE_ACCOUNT_STATUS_BATCH_SIZE) {
+      for (
+        let index = 0;
+        index < subjects.length;
+        index += WORKFORCE_ACCOUNT_STATUS_BATCH_SIZE
+      ) {
         const batch = subjects.slice(
           index,
           index + WORKFORCE_ACCOUNT_STATUS_BATCH_SIZE
@@ -112,7 +117,7 @@ export function useWorkforceAccountStatus(
   return useApiQuery(
     subject?.employeeId
       ? employeeRosterQueryKeys.workforceAccount(subject.employeeId)
-      : [...employeeRosterQueryKeys.workforceAccounts(), "pending"] as const,
+      : ([...employeeRosterQueryKeys.workforceAccounts(), "pending"] as const),
     queryFn,
     {
       enabled: !!subject?.employeeId,
@@ -125,57 +130,52 @@ export function useProvisionWorkforceAccountInvite() {
 
   return useApiMutation<
     WorkforceAccountStatusDto,
+    {
+      employeeId: string;
+      email: string;
+      firstName: string;
+      lastName: string;
+      accessProfileId: string;
+    }
+  >(({ employeeId, email, firstName, lastName, accessProfileId }) =>
+    client.post<WorkforceAccountStatusDto>(
+      `${WORKFORCE_ACCOUNTS_PATH}/${employeeId}/invite`,
       {
-        employeeId: string;
-        email: string;
-        firstName: string;
-        lastName: string;
-        accessProfileId: string;
+        email,
+        firstName,
+        lastName,
+        accessProfileId,
       }
-    >(({ employeeId, email, firstName, lastName, accessProfileId }) =>
-      client.post<WorkforceAccountStatusDto>(
-        `${WORKFORCE_ACCOUNTS_PATH}/${employeeId}/invite`,
-        {
-          email,
-          firstName,
-          lastName,
-          accessProfileId,
-        }
-      )
-    );
+    )
+  );
 }
 
 export function useReactivateWorkforceAccount() {
   const client = useMemo(() => createPlatformApiClient(), []);
 
-  return useApiMutation<
-    WorkforceAccountStatusDto,
-    { employeeId: string }
-  >(({ employeeId }) =>
-    client.post<WorkforceAccountStatusDto>(
-      `${WORKFORCE_ACCOUNTS_PATH}/${employeeId}/reactivate`
-    )
+  return useApiMutation<WorkforceAccountStatusDto, { employeeId: string }>(
+    ({ employeeId }) =>
+      client.post<WorkforceAccountStatusDto>(
+        `${WORKFORCE_ACCOUNTS_PATH}/${employeeId}/reactivate`
+      )
   );
 }
 
 export function useResendWorkforceAccountInvite() {
   const client = useMemo(() => createPlatformApiClient(), []);
 
-  return useApiMutation<
-    WorkforceAccountStatusDto,
-    { employeeId: string }
-  >(({ employeeId }) =>
-    client.post<WorkforceAccountStatusDto>(
-      `${WORKFORCE_ACCOUNTS_PATH}/${employeeId}/resend`
-    )
+  return useApiMutation<WorkforceAccountStatusDto, { employeeId: string }>(
+    ({ employeeId }) =>
+      client.post<WorkforceAccountStatusDto>(
+        `${WORKFORCE_ACCOUNTS_PATH}/${employeeId}/resend`
+      )
   );
 }
 
 export function useDeactivateWorkforceAccount() {
   const client = useMemo(() => createPlatformApiClient(), []);
 
-  return useApiMutation<void, { employeeId: string }>(
-    ({ employeeId }) =>
-      client.delete<void>(`${WORKFORCE_ACCOUNTS_PATH}/${employeeId}`)
+  return useApiMutation<void, { employeeId: string }>(({ employeeId }) =>
+    client.delete<void>(`${WORKFORCE_ACCOUNTS_PATH}/${employeeId}`)
   );
 }
