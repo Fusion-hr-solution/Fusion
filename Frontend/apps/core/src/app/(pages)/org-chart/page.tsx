@@ -421,7 +421,7 @@ export default function OrgChartPage() {
         </Alert>
       ) : null}
 
-      {data && rootEmployeeId === null && data.totalVisibleNodeCount > 80 ? (
+      {/* {data && rootEmployeeId === null && data.totalVisibleNodeCount > 80 ? (
         <Alert>
           <AlertTitle>Large organization overview</AlertTitle>
           <AlertDescription>
@@ -429,7 +429,7 @@ export default function OrgChartPage() {
             a leader card, or focus a branch to inspect a team.
           </AlertDescription>
         </Alert>
-      ) : null}
+      ) : null} */}
 
       {data && data.totalVisibleNodeCount === 0 ? (
         <EmptyState
