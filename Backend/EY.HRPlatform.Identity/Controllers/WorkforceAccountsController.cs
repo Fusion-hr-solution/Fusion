@@ -38,13 +38,15 @@ public sealed class WorkforceAccountsController(
     private const string OutcomeConflict = "Conflict";
 
     [HttpPost("statuses")]
-    [Authorize(Roles = $"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin}")]
     [ProducesResponseType(typeof(ApiResponse<List<WorkforceAccountStatusDto>>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<List<WorkforceAccountStatusDto>>), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<ApiResponse<List<WorkforceAccountStatusDto>>>> GetStatuses(
         [FromBody] WorkforceAccountStatusesRequest request,
         CancellationToken cancellationToken)
     {
+        if (!CanViewWorkforceAccess())
+            return Forbid();
+
         if (!TryGetTenantId(out var tenantId, out var tenantError))
             return BadRequest(ApiResponse<List<WorkforceAccountStatusDto>>.Failure(tenantError));
 
@@ -65,13 +67,15 @@ public sealed class WorkforceAccountsController(
     }
 
     [HttpPost("bulk-provision")]
-    [Authorize(Roles = PlatformRole.HRAdmin)]
     [ProducesResponseType(typeof(ApiResponse<List<WorkforceAccountBulkProvisionResultDto>>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<List<WorkforceAccountBulkProvisionResultDto>>), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<ApiResponse<List<WorkforceAccountBulkProvisionResultDto>>>> BulkProvision(
         [FromBody] WorkforceAccountBulkProvisionRequest request,
         CancellationToken cancellationToken)
     {
+        if (!CanManageWorkforceAccess())
+            return Forbid();
+
         if (!TryGetTenantId(out var tenantId, out var tenantError))
             return BadRequest(ApiResponse<List<WorkforceAccountBulkProvisionResultDto>>.Failure(tenantError));
 
@@ -92,7 +96,6 @@ public sealed class WorkforceAccountsController(
     }
 
     [HttpPost("{employeeId:guid}/invite")]
-    [Authorize(Roles = PlatformRole.HRAdmin)]
     [ProducesResponseType(typeof(ApiResponse<WorkforceAccountStatusDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<WorkforceAccountStatusDto>), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<ApiResponse<WorkforceAccountStatusDto>>> ProvisionInvite(
@@ -100,6 +103,9 @@ public sealed class WorkforceAccountsController(
         [FromBody] ProvisionWorkforceAccountInviteRequest request,
         CancellationToken cancellationToken)
     {
+        if (!CanManageWorkforceAccess())
+            return Forbid();
+
         if (!TryGetTenantId(out var tenantId, out var tenantError))
             return BadRequest(ApiResponse<WorkforceAccountStatusDto>.Failure(tenantError));
 
@@ -124,13 +130,15 @@ public sealed class WorkforceAccountsController(
     }
 
     [HttpPost("{employeeId:guid}/resend")]
-    [Authorize(Roles = PlatformRole.HRAdmin)]
     [ProducesResponseType(typeof(ApiResponse<WorkforceAccountStatusDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<WorkforceAccountStatusDto>), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ApiResponse<WorkforceAccountStatusDto>>> ResendInvite(
         Guid employeeId,
         CancellationToken cancellationToken)
     {
+        if (!CanManageWorkforceAccess())
+            return Forbid();
+
         if (!TryGetTenantId(out var tenantId, out var tenantError))
             return BadRequest(ApiResponse<WorkforceAccountStatusDto>.Failure(tenantError));
 
@@ -169,13 +177,15 @@ public sealed class WorkforceAccountsController(
     }
 
     [HttpPost("{employeeId:guid}/reactivate")]
-    [Authorize(Roles = PlatformRole.HRAdmin)]
     [ProducesResponseType(typeof(ApiResponse<WorkforceAccountStatusDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<WorkforceAccountStatusDto>), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ApiResponse<WorkforceAccountStatusDto>>> Reactivate(
         Guid employeeId,
         CancellationToken cancellationToken)
     {
+        if (!CanManageWorkforceAccess())
+            return Forbid();
+
         if (!TryGetTenantId(out var tenantId, out var tenantError))
             return BadRequest(ApiResponse<WorkforceAccountStatusDto>.Failure(tenantError));
 
@@ -190,13 +200,15 @@ public sealed class WorkforceAccountsController(
     }
 
     [HttpDelete("{employeeId:guid}")]
-    [Authorize(Roles = PlatformRole.HRAdmin)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Deactivate(
         Guid employeeId,
         CancellationToken cancellationToken)
     {
+        if (!CanManageWorkforceAccess())
+            return Forbid();
+
         if (!TryGetTenantId(out var tenantId, out var tenantError))
             return BadRequest(ApiResponse.Failure(tenantError));
 
@@ -473,6 +485,14 @@ public sealed class WorkforceAccountsController(
 
     private string BuildInviteLink(string token)
         => InvitationLinkBuilder.Build(configuration, token);
+
+    private bool CanViewWorkforceAccess()
+        => (User.IsInRole(PlatformRole.PlatformAdmin) && tenantContext.IsResolved)
+            || User.HasCorePermission(CorePermissions.AccessView, PermissionScopes.Tenant)
+            || User.HasCorePermission(CorePermissions.AccessManage, PermissionScopes.Tenant);
+
+    private bool CanManageWorkforceAccess()
+        => User.HasCorePermission(CorePermissions.AccessManage, PermissionScopes.Tenant);
 
     private bool TryGetTenantId(out Guid tenantId, out string error)
     {
