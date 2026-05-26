@@ -16,12 +16,27 @@ function createAuthUser(overrides: Partial<AuthUser>): AuthUser {
   };
 }
 
+function grant(
+  permissionKey: string,
+  scope: "Self" | "DirectReports" | "Tenant"
+): AuthUser["effectivePermissions"][number] {
+  return {
+    permissionKey,
+    scope,
+    label: permissionKey,
+    group: "Test",
+    helperText: null,
+    allowedScopes: [scope],
+  };
+}
+
 describe("resolveInviteAcceptanceDestination", () => {
   it("sends employees to My Profile", () => {
     expect(
       resolveInviteAcceptanceDestination(createAuthUser({
         roles: ["Employee"],
         employeeId: "emp-1",
+        effectivePermissions: [grant("core.profile.self.view", "Self")],
       }))
     ).toBe("/profile");
   });
@@ -31,6 +46,10 @@ describe("resolveInviteAcceptanceDestination", () => {
       resolveInviteAcceptanceDestination(createAuthUser({
         roles: ["Manager"],
         employeeId: "emp-1",
+        effectivePermissions: [
+          grant("core.team.view", "DirectReports"),
+          grant("core.employee.view", "DirectReports"),
+        ],
       }))
     ).toBe("/profile");
   });
@@ -40,6 +59,7 @@ describe("resolveInviteAcceptanceDestination", () => {
       resolveInviteAcceptanceDestination(createAuthUser({
         roles: ["HRAdmin"],
         employeeId: null,
+        effectivePermissions: [grant("core.setup.view", "Tenant")],
       }))
     ).toBe("/setup");
   });
