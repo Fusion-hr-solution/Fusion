@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
@@ -168,6 +168,10 @@ const PERMISSION_HELPER_TEXT_OVERRIDES: Record<string, string> = {
 };
 
 const ACCESS_PROFILE_MANAGER_PERMISSION_KEY = "core.accessprofiles.manage";
+
+const EMPTY_PERMISSION_CATALOG: CorePermissionCatalogItemDto[] = [];
+const EMPTY_ACCESS_PROFILES: AccessProfileSummaryDto[] = [];
+const EMPTY_ASSIGNMENTS: UserAccessAssignmentDto[] = [];
 
 const ADMIN_CAPABILITY_PERMISSION_KEYS = new Set([
   ACCESS_PROFILE_MANAGER_PERMISSION_KEY,
@@ -507,6 +511,7 @@ export default function SettingsPage() {
   const { tenantId, tenantName } = useTenantContext();
   const isTenantContext = !!tenantId;
   const setupHref = buildTenantContextHref("/setup", tenantId);
+  const searchParams = useSearchParams();
 
   const canViewConfiguration = canAccessCoreSettings(user) || isTenantContext;
   const canEditSettings = !isTenantContext && canManageCoreSettings(user);
@@ -536,12 +541,48 @@ export default function SettingsPage() {
   const isOrgStructureEditable =
     !!setupState && setupState.currentPhase === "activated" && canEditSettings;
 
-  const { data: permissionCatalog = [], isLoading: isCatalogLoading } =
-    useCorePermissionCatalog(canManageProfiles);
-  const { data: accessProfiles = [], isLoading: isProfilesLoading } =
-    useAccessProfiles(canManageProfiles);
-  const { data: assignments = [], isLoading: isAssignmentsLoading } =
-    useUserAccessAssignments(canManageProfiles);
+  const showAccessProfilesTab = canManageProfiles;
+
+  const activeTab = useMemo(() => {
+    const tabParam = searchParams.get("tab");
+
+    if (tabParam === "access-profiles" && showAccessProfilesTab) {
+      return "access-profiles";
+    }
+
+    if (tabParam === "organization-structure") {
+      return "organization-structure";
+    }
+
+    if (tabParam === "employee-fields") {
+      return "employee-fields";
+    }
+
+    if (canManageProfiles && !canEditSettings) {
+      return "access-profiles";
+    }
+
+    return "employee-fields";
+  }, [searchParams, showAccessProfilesTab, canManageProfiles, canEditSettings]);
+
+  const handleTabChange = (value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", value);
+    router.replace(`?${params.toString()}`, { scroll: false });
+  };
+
+  const isAccessProfilesActive = activeTab === "access-profiles";
+
+  const { data: permissionCatalogData, isLoading: isCatalogLoading } =
+    useCorePermissionCatalog(canManageProfiles && isAccessProfilesActive);
+  const { data: accessProfilesData, isLoading: isProfilesLoading } =
+    useAccessProfiles(canManageProfiles && isAccessProfilesActive);
+  const { data: assignmentsData, isLoading: isAssignmentsLoading } =
+    useUserAccessAssignments(canManageProfiles && isAccessProfilesActive);
+
+  const permissionCatalog = permissionCatalogData ?? EMPTY_PERMISSION_CATALOG;
+  const accessProfiles = accessProfilesData ?? EMPTY_ACCESS_PROFILES;
+  const assignments = assignmentsData ?? EMPTY_ASSIGNMENTS;
 
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(
     null
@@ -784,16 +825,6 @@ export default function SettingsPage() {
     isJobTitleLikeProfileName(draftProfileName);
   const newProfileNameLooksLikeJobTitle =
     isJobTitleLikeProfileName(newProfileName);
-  const showAccessProfilesTab = canManageProfiles;
-
-  const defaultTab = useMemo(() => {
-    if (canManageProfiles && !canEditSettings) {
-      return "access-profiles";
-    }
-
-    return "employee-fields";
-  }, [canEditSettings, canManageProfiles]);
-
   const handleToggle = (
     fieldKey: EmployeeFieldKey,
     property: keyof FieldConfigDto,
@@ -1033,7 +1064,7 @@ export default function SettingsPage() {
         </div>
       ) : null}
 
-      <Tabs defaultValue={defaultTab} className="space-y-6">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
         <TabsList
           className={`grid w-full ${
             showAccessProfilesTab
@@ -1205,7 +1236,7 @@ export default function SettingsPage() {
                   {hasSettingsChanges
                     ? "Unsaved field and self-service changes"
                     : canEditSettings
-                      ? "No unsaved changes"
+                      ? null
                       : "Read-only in the current access mode"}
                 </span>
                 <div className="flex gap-2">
@@ -1497,6 +1528,7 @@ export default function SettingsPage() {
                               <Input
                                 id="profile-description"
                                 value={draftProfileDescription}
+                                disabled={selectedProfile.isSystemProtected}
                                 onChange={(event) =>
                                   setDraftProfileDescription(event.target.value)
                                 }
@@ -1630,6 +1662,7 @@ export default function SettingsPage() {
                                                   </div>
                                                   <Select
                                                     value={selectedScope}
+                                                    disabled={selectedProfile.isSystemProtected}
                                                     onValueChange={(value) =>
                                                       setDraftProfileGrants(
                                                         (current) => ({
@@ -1640,7 +1673,10 @@ export default function SettingsPage() {
                                                       )
                                                     }
                                                   >
-                                                    <SelectTrigger className="h-9 w-full">
+                                                    <SelectTrigger
+                                                      className="h-9 w-full"
+                                                      disabled={selectedProfile.isSystemProtected}
+                                                    >
                                                       <SelectValue
                                                         placeholder={getScopeLabel(
                                                           "None"
@@ -1699,7 +1735,9 @@ export default function SettingsPage() {
                               </Button>
                               <Button
                                 disabled={
-                                  !hasProfileChanges || updateProfile.isLoading
+                                  !hasProfileChanges ||
+                                  updateProfile.isLoading ||
+                                  selectedProfile.isSystemProtected
                                 }
                                 onClick={() => void handleSaveProfile()}
                               >
@@ -1731,6 +1769,12 @@ export default function SettingsPage() {
                             placeholder="Search by name or email"
                           />
                         </div>
+
+                        <p className="text-xs text-muted-foreground">
+                          People can hold more than one profile. Effective
+                          access combines assigned profiles and uses the highest
+                          scope for each permission.
+                        </p>
 
                         <div className="space-y-3">
                           <div className="flex items-center justify-between gap-3">
