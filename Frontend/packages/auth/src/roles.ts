@@ -62,6 +62,10 @@ function getEffectivePermissionScope(
   user: AuthUser | null,
   permissionKey: string
 ): PermissionScope | null {
+  if (isPlatformAdminOutsideCoreTenantContext(user)) {
+    return null;
+  }
+
   if (!user?.effectivePermissions?.length) {
     return null;
   }
@@ -125,6 +129,10 @@ function hasCoreTenantContext(): boolean {
   }
 }
 
+function isPlatformAdminOutsideCoreTenantContext(user: AuthUser | null): boolean {
+  return hasAnyRole(user, [PLATFORM_ADMIN_ROLE]) && !hasCoreTenantContext();
+}
+
 function isPlatformAdminInCoreTenantContext(user: AuthUser | null): boolean {
   return hasAnyRole(user, [PLATFORM_ADMIN_ROLE]) && hasCoreTenantContext();
 }
@@ -135,8 +143,7 @@ export function canAccessCoreSetup(user: AuthUser | null): boolean {
     hasCorePermission(user, CORE_PERMISSION.setupManage, "Tenant") ||
     hasCorePermission(user, CORE_PERMISSION.structureView, "Tenant") ||
     hasCorePermission(user, CORE_PERMISSION.structureManage, "Tenant") ||
-    hasCorePermission(user, CORE_PERMISSION.structurePublish, "Tenant") ||
-    hasAnyRole(user, [HR_ADMIN_ROLE])
+    hasCorePermission(user, CORE_PERMISSION.structurePublish, "Tenant")
   );
 }
 
@@ -148,23 +155,16 @@ export function canAccessCoreSettings(user: AuthUser | null): boolean {
   return (
     hasCorePermission(user, CORE_PERMISSION.settingsView, "Tenant") ||
     hasCorePermission(user, CORE_PERMISSION.settingsManage, "Tenant") ||
-    hasCorePermission(user, CORE_PERMISSION.accessProfilesManage, "Tenant") ||
-    hasAnyRole(user, [HR_ADMIN_ROLE])
+    hasCorePermission(user, CORE_PERMISSION.accessProfilesManage, "Tenant")
   );
 }
 
 export function canManageCoreSettings(user: AuthUser | null): boolean {
-  return (
-    hasCorePermission(user, CORE_PERMISSION.settingsManage, "Tenant") ||
-    hasAnyRole(user, [HR_ADMIN_ROLE])
-  );
+  return hasCorePermission(user, CORE_PERMISSION.settingsManage, "Tenant");
 }
 
 export function canManageCoreAccessProfiles(user: AuthUser | null): boolean {
-  return (
-    hasCorePermission(user, CORE_PERMISSION.accessProfilesManage, "Tenant") ||
-    canAccessTenantAccessProfiles(user)
-  );
+  return hasCorePermission(user, CORE_PERMISSION.accessProfilesManage, "Tenant");
 }
 
 export function canSeeCoreSettingsNavigation(user: AuthUser | null): boolean {
@@ -172,31 +172,19 @@ export function canSeeCoreSettingsNavigation(user: AuthUser | null): boolean {
 }
 
 export function canAccessCorePeople(user: AuthUser | null): boolean {
-  return (
-    hasCorePermission(user, CORE_PERMISSION.employeeView, "Tenant") ||
-    hasAnyRole(user, [HR_ADMIN_ROLE])
-  );
+  return hasCorePermission(user, CORE_PERMISSION.employeeView, "Tenant");
 }
 
 export function canManageCoreEmployees(user: AuthUser | null): boolean {
-  return (
-    hasCorePermission(user, CORE_PERMISSION.employeeManage, "Tenant") ||
-    hasAnyRole(user, [HR_ADMIN_ROLE])
-  );
+  return hasCorePermission(user, CORE_PERMISSION.employeeManage, "Tenant");
 }
 
 export function canImportCoreEmployees(user: AuthUser | null): boolean {
-  return (
-    hasCorePermission(user, CORE_PERMISSION.employeeImport, "Tenant") ||
-    hasAnyRole(user, [HR_ADMIN_ROLE])
-  );
+  return hasCorePermission(user, CORE_PERMISSION.employeeImport, "Tenant");
 }
 
 export function canManageCoreReporting(user: AuthUser | null): boolean {
-  return (
-    hasCorePermission(user, CORE_PERMISSION.reportingManage, "Tenant") ||
-    hasAnyRole(user, [HR_ADMIN_ROLE])
-  );
+  return hasCorePermission(user, CORE_PERMISSION.reportingManage, "Tenant");
 }
 
 export function canSeeCorePeopleNavigation(user: AuthUser | null): boolean {
@@ -212,8 +200,7 @@ export function canAccessOwnCoreProfile(user: AuthUser | null): boolean {
     hasCorePermission(user, CORE_PERMISSION.profileSelfView, "Self") ||
     hasCorePermission(user, CORE_PERMISSION.employeeView, "Self") ||
     hasCorePermission(user, CORE_PERMISSION.employeeView, "DirectReports") ||
-    hasCorePermission(user, CORE_PERMISSION.employeeView, "Tenant") ||
-    hasAnyRole(user, [EMPLOYEE_ROLE, MANAGER_ROLE, HR_ADMIN_ROLE])
+    hasCorePermission(user, CORE_PERMISSION.employeeView, "Tenant")
   );
 }
 
@@ -229,8 +216,7 @@ export function canAccessCoreTeam(user: AuthUser | null): boolean {
   return (
     hasCorePermission(user, CORE_PERMISSION.teamView, "DirectReports") ||
     hasCorePermission(user, CORE_PERMISSION.employeeView, "DirectReports") ||
-    hasCorePermission(user, CORE_PERMISSION.employeeView, "Tenant") ||
-    hasAnyRole(user, [MANAGER_ROLE, HR_ADMIN_ROLE])
+    hasCorePermission(user, CORE_PERMISSION.employeeView, "Tenant")
   );
 }
 
@@ -239,10 +225,7 @@ export function canSeeCoreTeamNavigation(user: AuthUser | null): boolean {
 }
 
 export function canAccessCoreOrgChart(user: AuthUser | null): boolean {
-  return (
-    hasCorePermission(user, CORE_PERMISSION.orgChartView, "Tenant") ||
-    hasAnyRole(user, [HR_ADMIN_ROLE])
-  );
+  return hasCorePermission(user, CORE_PERMISSION.orgChartView, "Tenant");
 }
 
 export function canSeeCoreOrgChartNavigation(user: AuthUser | null): boolean {
@@ -250,18 +233,18 @@ export function canSeeCoreOrgChartNavigation(user: AuthUser | null): boolean {
 }
 
 export function canAccessCoreOverview(user: AuthUser | null): boolean {
-  return (
-    hasCorePermission(user, CORE_PERMISSION.overviewView, "Tenant") ||
-    hasAnyRole(user, [HR_ADMIN_ROLE])
-  );
+  return hasCorePermission(user, CORE_PERMISSION.overviewView, "Tenant");
 }
 
 export function canAccessCoreAccess(user: AuthUser | null): boolean {
   return (
     hasCorePermission(user, CORE_PERMISSION.accessView, "Tenant") ||
-    hasCorePermission(user, CORE_PERMISSION.accessManage, "Tenant") ||
-    hasAnyRole(user, [HR_ADMIN_ROLE])
+    hasCorePermission(user, CORE_PERMISSION.accessManage, "Tenant")
   );
+}
+
+export function canManageCoreAccess(user: AuthUser | null): boolean {
+  return hasCorePermission(user, CORE_PERMISSION.accessManage, "Tenant");
 }
 
 export function canAccessTenantAccessProfiles(user: AuthUser | null): boolean {

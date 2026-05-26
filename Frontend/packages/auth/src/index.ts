@@ -49,6 +49,7 @@ export {
   canSeeCoreOrgChartNavigation,
   canAccessCoreOverview,
   canAccessCoreAccess,
+  canManageCoreAccess,
   canManageCoreAccessProfiles,
   canAccessTenantAccessProfiles,
   canAccessOrganizations,
