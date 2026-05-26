@@ -207,6 +207,107 @@ public class PlatformOrganizationsControllerIntegrationTests
     }
 
     [Fact]
+    public async Task AcceptInvite_ForFreshOrganization_AssignsSeededAccessProfileAndMarksInviteUsed()
+    {
+        await using var factory = new IdentityApiFactory();
+        using var scope = factory.Services.CreateScope();
+
+        var db = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+
+        var adminTenant = Tenant.Create("Invite Accept Admin Tenant");
+        db.Tenants.Add(adminTenant);
+        await db.SaveChangesAsync();
+
+        var adminEmail = "invite.accept.admin@example.com";
+        var adminPassword = "Admin@1234";
+
+        var adminUser = new ApplicationUser
+        {
+            UserName = adminEmail,
+            Email = adminEmail,
+            NormalizedEmail = adminEmail.ToUpperInvariant(),
+            EmailConfirmed = true,
+            TenantId = adminTenant.Id,
+            IsActive = true,
+            FirstName = "Invite",
+            LastName = "Admin",
+        };
+
+        var created = await userManager.CreateAsync(adminUser, adminPassword);
+        Assert.True(created.Succeeded);
+        await userManager.AddToRoleAsync(adminUser, PlatformRole.PlatformAdmin);
+
+        var accessToken = await LoginAsync(factory, adminEmail, adminPassword);
+
+        var platformClient = factory.CreateClient();
+        platformClient.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", accessToken);
+
+        var createReq = new
+        {
+            name = "Fresh Invite Acceptance Org",
+            firstAdminEmail = "fresh.accept@example.com",
+            firstAdminFirstName = "Fresh",
+            firstAdminLastName = "Admin",
+        };
+
+        var createResp = await platformClient.PostAsJsonAsync(
+            "/api/identity/platform-admin/organizations",
+            createReq);
+
+        Assert.Equal(HttpStatusCode.Created, createResp.StatusCode);
+
+        using var createJson = JsonDocument.Parse(await createResp.Content.ReadAsStringAsync());
+        var createData = createJson.RootElement.GetProperty("data");
+        var tenantId = createData.GetProperty("organization").GetProperty("id").GetGuid();
+        var inviteLink = createData.GetProperty("inviteLink").GetString();
+        Assert.False(string.IsNullOrWhiteSpace(inviteLink));
+
+        var token = Uri.UnescapeDataString(inviteLink!.Split("token=")[1]);
+
+        var anonymousClient = factory.CreateClient();
+        var acceptResp = await anonymousClient.PostAsJsonAsync(
+            $"/api/identity/invites/{Uri.EscapeDataString(token)}/accept",
+            new
+            {
+                password = "FreshAccept@123!",
+                firstName = "Fresh",
+                lastName = "Admin",
+            });
+
+        Assert.Equal(HttpStatusCode.Created, acceptResp.StatusCode);
+
+        using var verifyScope = factory.Services.CreateScope();
+        var verifyDb = verifyScope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
+
+        var acceptedInvite = await verifyDb.InviteTokens
+            .IgnoreQueryFilters()
+            .FirstAsync(invite => invite.Token == token);
+        Assert.NotNull(acceptedInvite.AcceptedAt);
+        Assert.NotNull(acceptedInvite.AcceptedByUserId);
+
+        var invitedUser = await verifyDb.Users
+            .IgnoreQueryFilters()
+            .FirstAsync(user => user.Email == createReq.firstAdminEmail);
+
+        var assignments = await verifyDb.UserAccessProfiles
+            .IgnoreQueryFilters()
+            .Where(assignment => assignment.TenantId == tenantId && assignment.UserId == invitedUser.Id)
+            .ToListAsync();
+
+        Assert.NotEmpty(assignments);
+
+        var assignedProfileNames = await verifyDb.AccessProfiles
+            .IgnoreQueryFilters()
+            .Where(profile => profile.TenantId == tenantId && assignments.Select(assignment => assignment.AccessProfileId).Contains(profile.Id))
+            .Select(profile => profile.Name)
+            .ToListAsync();
+
+        Assert.Contains(PlatformRole.HRAdmin, assignedProfileNames);
+    }
+
+    [Fact]
     public async Task PatchOrganization_UpdatesNameAndNotes()
     {
         await using var factory = new IdentityApiFactory();

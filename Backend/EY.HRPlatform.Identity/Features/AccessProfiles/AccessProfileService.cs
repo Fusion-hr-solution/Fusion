@@ -127,10 +127,25 @@ public sealed class AccessProfileService(
         if (profile.Version != expectedVersion)
             throw new DbUpdateConcurrencyException("Access profile version mismatch.");
 
-        if (profile.IsSystemProtected
-            && !string.Equals(profile.Name, request.Name?.Trim(), StringComparison.Ordinal))
+        if (profile.IsSystemProtected)
         {
-            throw new InvalidOperationException("System access profile names cannot be renamed.");
+            if (!string.Equals(profile.Name, request.Name?.Trim(), StringComparison.Ordinal))
+                throw new InvalidOperationException("System access profile names cannot be renamed.");
+
+            if (!string.Equals(profile.Description ?? string.Empty, request.Description ?? string.Empty, StringComparison.Ordinal))
+                throw new InvalidOperationException("System access profile descriptions cannot be changed.");
+
+            var currentGrantKeys = profile.Grants
+                .Select(grant => $"{grant.PermissionKey}:{grant.Scope}")
+                .OrderBy(key => key)
+                .ToArray();
+            var incomingGrantKeys = NormalizeGrantInputs(request.Grants)
+                .Select(grant => $"{grant.PermissionKey}:{grant.Scope}")
+                .OrderBy(key => key)
+                .ToArray();
+
+            if (!currentGrantKeys.SequenceEqual(incomingGrantKeys, StringComparer.Ordinal))
+                throw new InvalidOperationException("System access profile permissions cannot be modified.");
         }
 
         await EnsureProfileNameAvailableAsync(tenantId, request.Name ?? string.Empty, profile.Id, cancellationToken);
@@ -386,6 +401,8 @@ public sealed class AccessProfileService(
 
         if (inviteProfiles.Count == 0)
         {
+            await EnsureTenantProfilesAsync(invite.TenantId, cancellationToken);
+
             var seededProfile = await ResolveSeededProfileIdAsync(invite.TenantId, invite.Role, cancellationToken);
             if (seededProfile.HasValue)
             {
@@ -455,9 +472,7 @@ public sealed class AccessProfileService(
     {
         var roles = new List<string>();
 
-        if (effectivePermissions.Any(grant =>
-                AdminCapabilityPermissions.Contains(grant.PermissionKey, StringComparer.Ordinal)
-                && grant.Scope == PermissionScopes.Tenant))
+        if (HasHrAdminCompatibilityCoverage(effectivePermissions))
         {
             roles.Add(PlatformRole.HRAdmin);
         }
@@ -478,6 +493,12 @@ public sealed class AccessProfileService(
 
         return roles.Distinct(StringComparer.Ordinal).ToArray();
     }
+
+    private static bool HasHrAdminCompatibilityCoverage(IReadOnlyCollection<EffectivePermissionGrant> effectivePermissions)
+        => AccessProfileTemplates.HrAdmin.Grants.All(required =>
+            effectivePermissions.Any(grant =>
+                string.Equals(grant.PermissionKey, required.PermissionKey, StringComparison.Ordinal)
+                && PermissionScopes.GetRank(grant.Scope) >= PermissionScopes.GetRank(required.Scope)));
 
     private async Task EnsureTenantProfilesAsync(Guid tenantId, CancellationToken cancellationToken)
     {
