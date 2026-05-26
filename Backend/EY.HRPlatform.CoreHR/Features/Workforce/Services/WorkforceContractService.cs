@@ -517,21 +517,28 @@ public sealed class WorkforceContractService(
     }
 
     private static WorkforceAccessContext BuildAccessContext(ClaimsPrincipal user)
-        => new(
-            user.IsInRole(PlatformRole.HRAdmin),
-            user.IsInRole(PlatformRole.Manager),
-            user.IsInRole(PlatformRole.Employee),
+    {
+        var isPlatformAdmin = user.IsInRole(PlatformRole.PlatformAdmin);
+        var isTenantReader = isPlatformAdmin
+            || user.HasCorePermission(CorePermissions.EmployeeView, PermissionScopes.Tenant);
+        var isDirectReportReader = !isTenantReader
+            && (user.HasCorePermission(CorePermissions.TeamView, PermissionScopes.DirectReports)
+                || user.HasCorePermission(CorePermissions.EmployeeView, PermissionScopes.DirectReports));
+
+        return new WorkforceAccessContext(
+            isTenantReader,
+            isDirectReportReader,
             user.GetEmployeeId(),
-            user.IsInRole(PlatformRole.HRAdmin)
+            isTenantReader
                 ? EmployeeReadAudience.HrAdmin
-                : user.IsInRole(PlatformRole.Manager)
+                : isDirectReportReader
                     ? EmployeeReadAudience.Manager
                     : EmployeeReadAudience.Employee);
+    }
 
     private sealed record WorkforceAccessContext(
         bool IsHrAdmin,
         bool IsManager,
-        bool IsEmployee,
         Guid? LinkedEmployeeId,
         EmployeeReadAudience Audience);
 }

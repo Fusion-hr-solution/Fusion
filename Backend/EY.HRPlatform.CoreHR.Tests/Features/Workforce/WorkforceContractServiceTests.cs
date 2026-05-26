@@ -115,6 +115,43 @@ public class WorkforceContractServiceTests
             claims.Add(new Claim(CustomClaimTypes.EmployeeId, employeeId.Value.ToString()));
         }
 
+        foreach (var grant in BuildRoleGrants(role))
+        {
+            claims.Add(new Claim(
+                CustomClaimTypes.CorePermission,
+                CorePermissionClaimValue.Encode(grant.PermissionKey, grant.Scope)));
+        }
+
         return new ClaimsPrincipal(new ClaimsIdentity(claims, "TestAuth", ClaimTypes.Name, ClaimTypes.Role));
     }
+
+    private static IEnumerable<EffectivePermissionGrant> BuildRoleGrants(string role)
+        => role switch
+        {
+            PlatformRole.HRAdmin =>
+            [
+                new EffectivePermissionGrant(CorePermissions.EmployeeView, PermissionScopes.Tenant),
+                new EffectivePermissionGrant(CorePermissions.EmployeeManage, PermissionScopes.Tenant),
+                new EffectivePermissionGrant(CorePermissions.StructureView, PermissionScopes.Tenant),
+                new EffectivePermissionGrant(CorePermissions.StructureManage, PermissionScopes.Tenant),
+                new EffectivePermissionGrant(CorePermissions.SetupView, PermissionScopes.Tenant),
+                new EffectivePermissionGrant(CorePermissions.SetupManage, PermissionScopes.Tenant),
+                new EffectivePermissionGrant(CorePermissions.ProfileSelfView, PermissionScopes.Self),
+                new EffectivePermissionGrant(CorePermissions.ProfileSelfUpdate, PermissionScopes.Self),
+                new EffectivePermissionGrant(CorePermissions.TeamView, PermissionScopes.DirectReports),
+            ],
+            PlatformRole.Manager =>
+            [
+                new EffectivePermissionGrant(CorePermissions.ProfileSelfView, PermissionScopes.Self),
+                new EffectivePermissionGrant(CorePermissions.ProfileSelfUpdate, PermissionScopes.Self),
+                new EffectivePermissionGrant(CorePermissions.TeamView, PermissionScopes.DirectReports),
+                new EffectivePermissionGrant(CorePermissions.EmployeeView, PermissionScopes.DirectReports),
+            ],
+            PlatformRole.Employee =>
+            [
+                new EffectivePermissionGrant(CorePermissions.ProfileSelfView, PermissionScopes.Self),
+                new EffectivePermissionGrant(CorePermissions.ProfileSelfUpdate, PermissionScopes.Self),
+            ],
+            _ => [],
+        };
 }
