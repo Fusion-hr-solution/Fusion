@@ -260,15 +260,7 @@ public sealed class CoreAccessController(
         => tenantContext.TenantIdOrDefault;
 
     private bool CanManageAccessProfiles()
-    {
-        if (User.IsInRole(PlatformRole.PlatformAdmin))
-        {
-            return tenantContext.IsResolved;
-        }
-
-        return User.HasCorePermission(CorePermissions.AccessProfilesManage, PermissionScopes.Tenant)
-            || User.IsInRole(PlatformRole.HRAdmin);
-    }
+        => User.HasCorePermission(CorePermissions.AccessProfilesManage, PermissionScopes.Tenant);
 
     private static bool TryParseVersion(string? ifMatch, out uint version)
     {
