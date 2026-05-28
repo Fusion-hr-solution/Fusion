@@ -59,6 +59,10 @@ import { DraftOrgUnitKindManager } from "./draft-org-unit-kind-manager";
 import { DraftStructureImportPanel } from "./draft-structure-import-panel";
 import { getDraftFieldLabel } from "./draft-structure-labels";
 import {
+  resolveDraftStructureSelectedUnitId,
+  shouldShowDraftStructureBootstrap,
+} from "./draft-structure-page-state";
+import {
   DraftStructureTable,
   type DraftStructureSortField,
 } from "./draft-structure-table";
@@ -392,6 +396,9 @@ function buildDraftStructureExportCsv({
 export default function DraftStructurePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const initialImportSessionId = searchParams.get("session");
+  const initialImportOpen =
+    searchParams.get("import") === "1" || !!initialImportSessionId;
   const { user } = useAuth();
   const canAccess = canAccessCoreSetup(user);
   const [setupEntryError, setSetupEntryError] = useState<string | null>(null);
@@ -408,6 +415,10 @@ export default function DraftStructurePage() {
   const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [explorerView, setExplorerView] = useState<ExplorerView>("tree");
+  const [isImportOpen, setIsImportOpen] = useState(() => initialImportOpen);
+  const [importSessionId, setImportSessionId] = useState<string | null>(
+    () => initialImportSessionId
+  );
   const [tableSortBy, setTableSortBy] =
     useState<DraftStructureSortField>("displayName");
   const [tableSortDirection, setTableSortDirection] = useState<"asc" | "desc">(
@@ -451,13 +462,11 @@ export default function DraftStructurePage() {
   const {
     data: workspace,
     error: workspaceError,
-    isLoading: isWorkspaceLoading,
     refetch,
   } = useDraftStructureWorkspace(workspaceEnabled);
   const {
     data: tree,
     error: treeError,
-    isLoading: isTreeLoading,
     refetch: refetchTree,
   } = useDraftStructureTree(workspaceEnabled);
   const activateSetup = useActivateSetup();
@@ -465,6 +474,7 @@ export default function DraftStructurePage() {
   const clearStructure = useClearDraftStructure();
   const deleteDraftOrgUnit = useDeleteDraftOrgUnit();
   const [approveError, setApproveError] = useState<string | null>(null);
+  const [approveDialogOpen, setApproveDialogOpen] = useState(false);
 
   const draftTree = useMemo(() => buildWorkspaceDraftTree(tree ?? []), [tree]);
   const draftTreeNodeIds = useMemo(
@@ -513,41 +523,22 @@ export default function DraftStructurePage() {
       ),
     [filteredUnits, tableSortBy, tableSortDirection]
   );
+  const resolvedSelectedUnitId = useMemo(() => {
+    return resolveDraftStructureSelectedUnitId({
+      draftTree,
+      filteredUnits,
+      isSearching,
+      selectedUnitId,
+    });
+  }, [draftTree, filteredUnits, isSearching, selectedUnitId]);
 
   useEffect(() => {
-    if (selectedUnitId) {
+    if (selectedUnitId === resolvedSelectedUnitId) {
       return;
     }
 
-    const firstNodeId = getFirstDraftTreeNodeId(draftTree);
-    if (firstNodeId) {
-      setSelectedUnitId(firstNodeId);
-    }
-  }, [draftTree, selectedUnitId]);
-
-  useEffect(() => {
-    if (!selectedUnitId) {
-      return;
-    }
-
-    if (findDraftTreeNodeById(draftTree, selectedUnitId)) {
-      return;
-    }
-
-    setSelectedUnitId(getFirstDraftTreeNodeId(draftTree));
-  }, [draftTree, selectedUnitId]);
-
-  useEffect(() => {
-    if (!isSearching) {
-      return;
-    }
-
-    if (filteredUnits.some((unit) => unit.id === selectedUnitId)) {
-      return;
-    }
-
-    setSelectedUnitId(filteredUnits[0]?.id ?? null);
-  }, [filteredUnits, isSearching, selectedUnitId]);
+    setSelectedUnitId(resolvedSelectedUnitId);
+  }, [resolvedSelectedUnitId, selectedUnitId]);
 
   useEffect(() => {
     const isEmptyDraftWorkspace = (workspace?.units.length ?? 0) === 0;
@@ -560,9 +551,7 @@ export default function DraftStructurePage() {
     setSearch("");
   }, [workspace?.units.length]);
 
-  const hasVisibleSelection =
-    !isSearching || filteredUnits.some((unit) => unit.id === selectedUnitId);
-  const effectiveSelectedUnitId = hasVisibleSelection ? selectedUnitId : null;
+  const effectiveSelectedUnitId = resolvedSelectedUnitId;
   const selectedUnit =
     workspace?.units.find((unit) => unit.id === effectiveSelectedUnitId) ??
     null;
@@ -570,8 +559,7 @@ export default function DraftStructurePage() {
     draftTree,
     effectiveSelectedUnitId
   );
-  const isImportOpen = searchParams.get("import") === "1";
-  const hasImportSession = !!searchParams.get("session");
+  const hasImportSession = !!importSessionId;
   const isEmptyDraftWorkspace = (workspace?.units.length ?? 0) === 0;
   const unitCount = workspace?.unitCount ?? 0;
   const topLevelCount = workspace?.rootUnitCount ?? 0;
@@ -581,7 +569,7 @@ export default function DraftStructurePage() {
     : canReopenFromDraft
       ? "Review the approved organization hierarchy."
       : isSetupComplete
-        ? "Reference the published organization hierarchy."
+        ? "Review the published organization hierarchy."
         : "Review the organization hierarchy.";
   const importReadOnlyTitle = isSetupComplete
     ? "Import is unavailable on the published structure"
@@ -589,7 +577,7 @@ export default function DraftStructurePage() {
   const importReadOnlyMessage = canReopenFromDraft
     ? "Reopen the draft from Setup to import a file."
     : isSetupComplete
-      ? "Use this page to review the published structure. Start a new setup cycle to change it."
+      ? "Use this page to review the published structure. Structure changes are not available here after publish."
       : "Import returns when the draft is editable again.";
   const blockingIssueCount = readiness?.blockingIssueCount ?? 0;
   const warningCount = readiness?.warningCount ?? 0;
@@ -634,13 +622,23 @@ export default function DraftStructurePage() {
         ? "warning"
         : "default";
   const isClearingStructureAction =
-    clearStructure.isLoading || deleteDraftOrgUnit.isLoading || !!clearDeleteProgress || approveStructure.isLoading;
+    clearStructure.isLoading ||
+    deleteDraftOrgUnit.isLoading ||
+    !!clearDeleteProgress ||
+    approveStructure.isLoading;
+  const isInitialWorkspaceBootstrap = shouldShowDraftStructureBootstrap({
+    workspaceEnabled,
+    hasWorkspace: !!workspace,
+    hasTree: !!tree,
+    hasWorkspaceError: !!workspaceError,
+    hasTreeError: !!treeError,
+  });
   const workbenchMeta = canReopenFromDraft
     ? setupState?.approvedAt
       ? `Approved ${formatTimestamp(setupState.approvedAt)}${setupState.approvedByFullName ? ` by ${setupState.approvedByFullName}` : ""}`
       : "Approved"
-    : isSetupComplete && workspace?.lastModifiedAt
-      ? `Published ${formatTimestamp(workspace.lastModifiedAt)}`
+    : isSetupComplete && setupState?.structurallyPublishedAt
+      ? `Published ${formatTimestamp(setupState.structurallyPublishedAt)}`
       : null;
 
   const startSetupEntry = async () => {
@@ -649,11 +647,28 @@ export default function DraftStructurePage() {
     try {
       await activateSetup.mutateAsync();
       await refreshSetupAccess();
-      router.refresh();
     } catch (error) {
       setSetupEntryError(getActionErrorMessage(error));
     }
   };
+
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const hasImport = url.searchParams.get("import");
+    const hasSession = url.searchParams.get("session");
+
+    if (!hasImport && !hasSession) return;
+
+    url.searchParams.delete("import");
+    url.searchParams.delete("session");
+
+    const query = url.searchParams.toString();
+    window.history.replaceState(
+      null,
+      "",
+      query ? `/setup/draft-structure?${query}` : "/setup/draft-structure"
+    );
+  }, []);
 
   useEffect(() => {
     if (!shouldStartSetupFromDraft) {
@@ -695,9 +710,7 @@ export default function DraftStructurePage() {
     setExplorerView("tree");
   };
 
-  const refreshWorkspaceAndReadiness = async (options?: {
-    refreshRoute?: boolean;
-  }) => {
+  const refreshWorkspaceAndReadiness = async () => {
     const refreshActions = [refetch(), refetchTree(), refreshSetupAccess()];
 
     if (canApproveFromDraft) {
@@ -705,10 +718,6 @@ export default function DraftStructurePage() {
     }
 
     await Promise.allSettled(refreshActions);
-
-    if (options?.refreshRoute) {
-      router.refresh();
-    }
   };
 
   const handleDownloadStructureCsv = () => {
@@ -766,9 +775,7 @@ export default function DraftStructurePage() {
           throw error;
         }
 
-        const orderedUnits = buildLeafFirstDeleteOrder(
-          workspace?.units ?? []
-        );
+        const orderedUnits = buildLeafFirstDeleteOrder(workspace?.units ?? []);
 
         setClearDeleteProgress({ current: 0, total: orderedUnits.length });
 
@@ -790,7 +797,8 @@ export default function DraftStructurePage() {
       resetWorkspaceChrome();
       setClearStructureOpen(false);
       setClearDeleteProgress(null);
-      await refreshWorkspaceAndReadiness({ refreshRoute: true });
+      await refreshWorkspaceAndReadiness();
+      router.refresh();
       toast.success("Draft structure cleared", {
         description: "All units removed.",
       });
@@ -807,9 +815,7 @@ export default function DraftStructurePage() {
 
   const handleApprove = async () => {
     if (!setupState || setupState.version == null) {
-      setApproveError(
-        "The latest setup version is required before approval."
-      );
+      setApproveError("The latest setup version is required before approval.");
       return;
     }
 
@@ -819,10 +825,11 @@ export default function DraftStructurePage() {
       await approveStructure.mutateAsync({
         expectedVersion: setupState.version,
       });
-      await refreshWorkspaceAndReadiness({ refreshRoute: true });
+      setApproveDialogOpen(false);
+      await refreshWorkspaceAndReadiness();
+      router.refresh();
       toast.success("Draft approved", {
-        description:
-          "The structure is locked and ready for publish review.",
+        description: "The structure is locked and ready for publish review.",
       });
     } catch (error) {
       const message =
@@ -836,18 +843,7 @@ export default function DraftStructurePage() {
   };
 
   const handleImportOpenChange = (nextOpen: boolean) => {
-    const params = new URLSearchParams(searchParams.toString());
-
-    if (nextOpen) {
-      params.set("import", "1");
-    } else {
-      params.delete("import");
-    }
-
-    const query = params.toString();
-    router.replace(
-      query ? `/setup/draft-structure?${query}` : "/setup/draft-structure"
-    );
+    setIsImportOpen(nextOpen);
   };
 
   if (!canAccess) {
@@ -918,17 +914,11 @@ export default function DraftStructurePage() {
     );
   }
 
-  if (shouldStartSetupFromDraft) {
+  if (isInitialWorkspaceBootstrap) {
     return <DraftStructurePageSkeleton />;
   }
 
-  if (workspaceEnabled && isWorkspaceLoading && !workspace && !workspaceError) {
-    return <DraftStructurePageSkeleton />;
-  }
-
-  const showTreeSkeleton = isTreeLoading && !tree;
-  const showReadOnlyEmptyState =
-    !showTreeSkeleton && isDraftLocked && isEmptyDraftWorkspace;
+  const showReadOnlyEmptyState = !shouldStartSetupFromDraft && isDraftLocked && isEmptyDraftWorkspace;
   const emptyResultsDescription = `No units match "${normalizedSearch}". Try a different unit name, type, code, or detail.`;
   const treeEmptyTitle = isSearching
     ? "No matching units"
@@ -959,7 +949,7 @@ export default function DraftStructurePage() {
           <>
             {canApproveFromDraft && readiness?.isReadyForApproval ? (
               <Button
-                onClick={handleApprove}
+                onClick={() => setApproveDialogOpen(true)}
                 disabled={approveStructure.isLoading}
               >
                 {approveStructure.isLoading ? (
@@ -1012,8 +1002,6 @@ export default function DraftStructurePage() {
           isSetupComplete={isSetupComplete}
           canReopenFromDraft={canReopenFromDraft}
         />
-      ) : showTreeSkeleton ? (
-        <DraftStructureWorkbenchSkeleton />
       ) : (
         <DraftStructureWorkbench
           view={explorerView}
@@ -1133,15 +1121,45 @@ export default function DraftStructurePage() {
       <DraftStructureImportPanel
         open={isImportOpen}
         onOpenChange={handleImportOpenChange}
+        sessionId={importSessionId}
+        onSessionIdChange={setImportSessionId}
         onApplied={async () => {
           setSelectedUnitId(null);
           setSearch("");
+          setImportSessionId(null);
           await refreshWorkspaceAndReadiness();
         }}
         readOnly={isDraftLocked}
         readOnlyTitle={importReadOnlyTitle}
         readOnlyMessage={importReadOnlyMessage}
       />
+
+      <AlertDialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Approve structure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Locks the draft. You can reopen Setup if changes are needed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={approveStructure.isLoading}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                void handleApprove();
+              }}
+              disabled={approveStructure.isLoading}
+            >
+              {approveStructure.isLoading ? <Spinner className="mr-1" /> : null}
+              {approveStructure.isLoading
+                ? "Approving..."
+                : "Approve structure"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog
         open={clearStructureOpen}
@@ -1168,9 +1186,7 @@ export default function DraftStructurePage() {
               }}
             >
               {isClearingStructureAction ? <Spinner className="mr-1" /> : null}
-              {clearDeleteProgress
-                ? "Deleting..."
-                : "Delete all units"}
+              {clearDeleteProgress ? "Deleting..." : "Delete all units"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1418,7 +1434,7 @@ function DraftStructureWorkbench({
           <div className="min-h-0 min-w-0 overflow-hidden xl:border-r">
             <TabsContent
               value="tree"
-              className="m-0 flex h-[min(52vh,34rem)] min-h-0 min-w-0 flex-col overflow-hidden xl:h-full"
+              className="m-0 flex min-h-0 min-w-0 flex-col overflow-hidden xl:h-full"
             >
               <DraftStructureTree
                 embedded
@@ -1433,7 +1449,7 @@ function DraftStructureWorkbench({
 
             <TabsContent
               value="list"
-              className="m-0 flex h-[min(52vh,34rem)] min-h-0 min-w-0 flex-col overflow-hidden p-4 xl:h-full"
+              className="m-0 flex min-h-0 min-w-0 flex-col overflow-hidden p-4 xl:h-full"
             >
               <DraftStructureTable
                 embedded
@@ -1450,7 +1466,7 @@ function DraftStructureWorkbench({
             </TabsContent>
           </div>
 
-          <div className="min-h-0 overflow-hidden h-[min(42vh,28rem)] border-t xl:h-full xl:border-t-0">
+          <div className="min-h-0 overflow-hidden border-t xl:h-full xl:border-t-0">
             <DraftStructureInspectorPanel
               unit={selectedUnit}
               treeNode={selectedTreeNode}

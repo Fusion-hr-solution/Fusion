@@ -2,10 +2,8 @@
 
 import { useCallback, useMemo } from "react";
 import {
-  coreWorkforceQueryKeys,
   createPlatformApiClient,
   coreSetupQueryKeys,
-  tenantSettingsQueryKeys,
   draftStructureQueryKeys,
   draftStructurePaths,
   type CreateDraftOrgUnitRequest,
@@ -41,19 +39,41 @@ interface DeleteDraftOrgUnitArgs {
 
 async function invalidateDraftStructureLifecycleQueries(
   queryClient: ReturnType<typeof useApiQueryClient>,
-  options?: { includePublishedSurfaces?: boolean }
+  options?: {
+    includeImportSchema?: boolean;
+    includeReadiness?: boolean;
+  }
 ) {
   const invalidations = [
-    queryClient.invalidateQueries({ queryKey: draftStructureQueryKeys.all() }),
-    queryClient.invalidateQueries({ queryKey: coreSetupQueryKeys.all() }),
+    queryClient.invalidateQueries({
+      queryKey: draftStructureQueryKeys.workspace(),
+      exact: true,
+      refetchType: "none",
+    }),
+    queryClient.invalidateQueries({
+      queryKey: draftStructureQueryKeys.tree(),
+      exact: true,
+      refetchType: "none",
+    }),
   ];
 
-  if (options?.includePublishedSurfaces) {
+  if (options?.includeImportSchema) {
     invalidations.push(
       queryClient.invalidateQueries({
-        queryKey: tenantSettingsQueryKeys.all(),
-      }),
-      queryClient.invalidateQueries({ queryKey: coreWorkforceQueryKeys.all() })
+        queryKey: draftStructureQueryKeys.importSchema(),
+        exact: true,
+        refetchType: "none",
+      })
+    );
+  }
+
+  if (options?.includeReadiness) {
+    invalidations.push(
+      queryClient.invalidateQueries({
+        queryKey: coreSetupQueryKeys.readiness(),
+        exact: true,
+        refetchType: "none",
+      })
     );
   }
 
@@ -105,7 +125,9 @@ export function useCreateDraftOrgUnit(opts?: {
       client.post<DraftOrgUnitDto>(draftStructurePaths.create(), input),
     {
       onSuccess: async (data) => {
-        await invalidateDraftStructureLifecycleQueries(queryClient);
+        await invalidateDraftStructureLifecycleQueries(queryClient, {
+          includeReadiness: true,
+        });
         await opts?.onSuccess?.(data);
       },
     }
@@ -125,7 +147,9 @@ export function useUpdateDraftOrgUnit(opts?: {
       }),
     {
       onSuccess: async (data) => {
-        await invalidateDraftStructureLifecycleQueries(queryClient);
+        await invalidateDraftStructureLifecycleQueries(queryClient, {
+          includeReadiness: true,
+        });
         await opts?.onSuccess?.(data);
       },
     }
@@ -147,7 +171,9 @@ export function useDeleteDraftOrgUnit(opts?: { onSuccess?: () => void }) {
       }),
     {
       onSuccess: async () => {
-        await invalidateDraftStructureLifecycleQueries(queryClient);
+        await invalidateDraftStructureLifecycleQueries(queryClient, {
+          includeReadiness: true,
+        });
         await opts?.onSuccess?.();
       },
     }
@@ -162,7 +188,9 @@ export function useClearDraftStructure(opts?: { onSuccess?: () => void }) {
     () => client.delete<void>(draftStructurePaths.clear()),
     {
       onSuccess: async () => {
-        await invalidateDraftStructureLifecycleQueries(queryClient);
+        await invalidateDraftStructureLifecycleQueries(queryClient, {
+          includeReadiness: true,
+        });
         await opts?.onSuccess?.();
       },
     }
@@ -243,7 +271,6 @@ export function useUploadDraftStructureImport(opts?: {
           draftStructureQueryKeys.importSession(data.id),
           data
         );
-        await invalidateDraftStructureLifecycleQueries(queryClient);
         await opts?.onSuccess?.(data);
       },
     }
@@ -364,7 +391,10 @@ export function useApplyDraftStructureImport(opts?: {
         queryClient.removeQueries({
           queryKey: draftStructureQueryKeys.importSessions(),
         });
-        await invalidateDraftStructureLifecycleQueries(queryClient);
+        await invalidateDraftStructureLifecycleQueries(queryClient, {
+          includeImportSchema: true,
+          includeReadiness: true,
+        });
         await opts?.onSuccess?.(data);
       },
     }

@@ -1,10 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import {
   AlertCircle,
   AlertTriangle,
+  CheckCircle2,
   ClipboardList,
   Flag,
   History,
@@ -14,6 +16,7 @@ import {
 import { ApiError } from "@repo/api";
 import { useTenantContext } from "@/components/core-tenant-context-provider";
 import { buildTenantContextHref } from "@/lib/tenant-navigation";
+import { cn } from "@/lib/utils";
 import type {
   CoreSetupPhase,
   DraftSetupIssueCategory,
@@ -41,10 +44,12 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { SetupStatusBadge } from "./setup-status-badge";
 import {
+  useActivateSetup,
   useApproveStructure,
   usePublishStructure,
   useReopenStructure,
@@ -52,10 +57,43 @@ import {
 } from "./use-setup";
 import { SETUP_DRAFT_ENTRY_PATH } from "./setup-entry-routing";
 
-type SetupMilestoneKey = "activated" | "structurallyGoverned" | "operational";
+type SetupProgressStepKey =
+  | "activated"
+  | "structurallyGoverned"
+  | "published";
 
-const SETUP_STEPS: Array<{
-  key: SetupMilestoneKey;
+type SetupProgressVisualState =
+  | "complete"
+  | "current"
+  | "warning"
+  | "blocked"
+  | "upcoming";
+
+interface SetupProgressContext {
+  data: TenantSetupStateDto | undefined;
+  hasDraftUnits: boolean;
+  blockingIssueCount: number;
+  warningCount: number;
+  isReadyForApproval: boolean;
+  hasReadinessData: boolean;
+  isReadinessLoading: boolean;
+  hasReadinessError: boolean;
+}
+
+interface SetupProgressStepModel {
+  key: SetupProgressStepKey;
+  title: string;
+  icon: typeof Flag;
+  state: SetupProgressVisualState;
+  isCurrent: boolean;
+  statusLabel: string;
+  description: string;
+  meta?: string;
+  showAssistedBadge?: boolean;
+}
+
+const SETUP_PROGRESS_STEPS: Array<{
+  key: SetupProgressStepKey;
   title: string;
   icon: typeof Flag;
 }> = [
@@ -70,8 +108,8 @@ const SETUP_STEPS: Array<{
     icon: ShieldCheck,
   },
   {
-    key: "operational",
-    title: "Setup complete",
+    key: "published",
+    title: "Published and live",
     icon: Rocket,
   },
 ];
@@ -94,52 +132,343 @@ function formatTimestamp(value: string | null) {
   }).format(new Date(value));
 }
 
-function getCurrentMilestoneKey(
-  phase: CoreSetupPhase
-): SetupMilestoneKey | null {
-  switch (phase) {
-    case "activated":
-      return "activated";
-    case "structurallyGoverned":
-      return "structurallyGoverned";
-    case "structurallyPublished":
-    case "operational":
-      return "operational";
-    default:
-      return null;
-  }
-}
-
 function isSetupCompletePhase(phase: CoreSetupPhase) {
   return phase === "structurallyPublished" || phase === "operational";
 }
 
-function getStepState(
-  stepKey: SetupMilestoneKey,
+function getCompletedSetupProgressStepCount(
   data: TenantSetupStateDto | undefined
 ) {
   if (!data || data.canStartSetup) {
-    return "upcoming" as const;
+    return 0;
   }
 
-  const stepOrder = SETUP_STEPS.map((step) => step.key);
-  const stepIndex = stepOrder.indexOf(stepKey);
-  const currentStepKey = getCurrentMilestoneKey(data.currentPhase);
-  const currentIndex = currentStepKey ? stepOrder.indexOf(currentStepKey) : -1;
-
-  if (currentIndex > stepIndex) {
-    return "complete" as const;
+  if (isSetupCompletePhase(data.currentPhase)) {
+    return 3;
   }
 
-  if (currentIndex === stepIndex) {
-    if (stepKey === "operational") {
-      return "complete" as const;
+  if (data.currentPhase === "structurallyGoverned") {
+    return 2;
+  }
+
+  if (data.currentPhase === "activated") {
+    return 1;
+  }
+
+  return 0;
+}
+
+function getApprovalProgressMeta(data: TenantSetupStateDto | undefined) {
+  if (!data?.approvedAt) {
+    return undefined;
+  }
+
+  const approvedAt = formatTimestamp(data.approvedAt);
+
+  return data.approvedByFullName
+    ? `Approved by ${data.approvedByFullName} • ${approvedAt}`
+    : `Approved ${approvedAt}`;
+}
+
+function getPublishedProgressMeta(data: TenantSetupStateDto | undefined) {
+  const liveAt = data?.operationalAt ?? data?.structurallyPublishedAt;
+
+  return liveAt ? `Live since ${formatTimestamp(liveAt)}` : undefined;
+}
+
+function getApprovalCurrentStepState({
+  hasDraftUnits,
+  blockingIssueCount,
+  warningCount,
+  isReadyForApproval,
+  hasReadinessData,
+  isReadinessLoading,
+  hasReadinessError,
+}: Omit<SetupProgressContext, "data">) {
+  if (!hasReadinessData && isReadinessLoading) {
+    return {
+      state: "current" as const,
+      statusLabel: "Checking",
+      description: "Checking draft readiness for approval.",
+    };
+  }
+
+  if (hasReadinessError) {
+    return {
+      state: "warning" as const,
+      statusLabel: "Check readiness",
+      description:
+        "Readiness details are unavailable. Review the readiness section below.",
+    };
+  }
+
+  if (!hasReadinessData) {
+    return {
+      state: "current" as const,
+      statusLabel: "In progress",
+      description: "Continue refining the draft structure.",
+    };
+  }
+
+  if (!hasDraftUnits) {
+    return {
+      state: "current" as const,
+      statusLabel: "In progress",
+      description:
+        "Add units or import a structure template before approval becomes available.",
+    };
+  }
+
+  if (blockingIssueCount > 0) {
+    return {
+      state: "blocked" as const,
+      statusLabel: "Blocked",
+      description: `Resolve ${blockingIssueCount} blocker${blockingIssueCount === 1 ? "" : "s"} in Draft Structure before approval.`,
+    };
+  }
+
+  if (isReadyForApproval) {
+    return {
+      state: "current" as const,
+      statusLabel: "Ready",
+      description:
+        warningCount > 0
+          ? `The draft can be approved now. Review ${warningCount} warning${warningCount === 1 ? "" : "s"} first if needed.`
+          : "The draft passed checks and can be approved when you're ready.",
+    };
+  }
+
+  if (warningCount > 0) {
+    return {
+      state: "warning" as const,
+      statusLabel: "Review",
+      description: `Review ${warningCount} warning${warningCount === 1 ? "" : "s"} before approval.`,
+    };
+  }
+
+  return {
+    state: "current" as const,
+    statusLabel: "In progress",
+    description: "Continue refining the draft structure.",
+  };
+}
+
+function getSetupProgressCallout({
+  data,
+  hasDraftUnits,
+  blockingIssueCount,
+  warningCount,
+  isReadyForApproval,
+  hasReadinessData,
+  isReadinessLoading,
+  hasReadinessError,
+}: SetupProgressContext) {
+  if (!data) {
+    return "Checking setup progress...";
+  }
+
+  if (isSetupCompletePhase(data.currentPhase)) {
+    return "All setup milestones are complete.";
+  }
+
+  if (data.canStartSetup) {
+    return "Next: Start setup from Draft Structure.";
+  }
+
+  if (data.currentPhase === "structurallyGoverned") {
+    return "Next: Publish the approved structure.";
+  }
+
+  if (!hasReadinessData && isReadinessLoading) {
+    return "Next: Checking draft readiness.";
+  }
+
+  if (hasReadinessError) {
+    return "Next: Review readiness details below.";
+  }
+
+  if (!hasReadinessData) {
+    return `Next: ${data.nextAction}.`;
+  }
+
+  if (!hasDraftUnits) {
+    return "Next: Add units or import a structure template.";
+  }
+
+  if (blockingIssueCount > 0) {
+    return `Next: Clear ${blockingIssueCount} blocker${blockingIssueCount === 1 ? "" : "s"} in Draft Structure.`;
+  }
+
+  if (isReadyForApproval) {
+    return "Next: Approve the structure.";
+  }
+
+  if (warningCount > 0) {
+    return `Next: Review ${warningCount} warning${warningCount === 1 ? "" : "s"} before approval.`;
+  }
+
+  return `Next: ${data.nextAction}.`;
+}
+
+function getSetupProgressSteps(
+  context: SetupProgressContext
+): SetupProgressStepModel[] {
+  const completedStepCount = getCompletedSetupProgressStepCount(context.data);
+  const currentStepKey =
+    completedStepCount < SETUP_PROGRESS_STEPS.length
+      ? SETUP_PROGRESS_STEPS[completedStepCount]?.key ?? null
+      : null;
+
+  return SETUP_PROGRESS_STEPS.map((step, index) => {
+    const isComplete = index < completedStepCount;
+    const isCurrent = step.key === currentStepKey;
+
+    if (isComplete) {
+      switch (step.key) {
+        case "activated":
+          return {
+            ...step,
+            state: "complete",
+            isCurrent: false,
+            statusLabel: "Complete",
+            description: "Draft workspace is active and setup is underway.",
+            meta: context.data?.activatedAt
+              ? `Started ${formatTimestamp(context.data.activatedAt)}`
+              : undefined,
+          } satisfies SetupProgressStepModel;
+        case "structurallyGoverned":
+          return {
+            ...step,
+            state: "complete",
+            isCurrent: false,
+            statusLabel: "Complete",
+            description: "The structure is locked and ready for publish.",
+            meta: getApprovalProgressMeta(context.data),
+            showAssistedBadge: context.data?.isApprovedInPlatformAssistMode,
+          } satisfies SetupProgressStepModel;
+        case "published":
+          return {
+            ...step,
+            state: "complete",
+            isCurrent: false,
+            statusLabel: "Live",
+            description: "The published structure is live across Core.",
+            meta: getPublishedProgressMeta(context.data),
+          } satisfies SetupProgressStepModel;
+      }
     }
 
-    return "current" as const;
-  }
+    if (isCurrent) {
+      switch (step.key) {
+        case "activated":
+          return {
+            ...step,
+            state: "current",
+            isCurrent: true,
+            statusLabel: "Start here",
+            description: "Open Draft Structure to begin building the hierarchy.",
+          } satisfies SetupProgressStepModel;
+        case "structurallyGoverned": {
+          const approvalState = getApprovalCurrentStepState({
+            hasDraftUnits: context.hasDraftUnits,
+            blockingIssueCount: context.blockingIssueCount,
+            warningCount: context.warningCount,
+            isReadyForApproval: context.isReadyForApproval,
+            hasReadinessData: context.hasReadinessData,
+            isReadinessLoading: context.isReadinessLoading,
+            hasReadinessError: context.hasReadinessError,
+          });
 
-  return "upcoming" as const;
+          return {
+            ...step,
+            isCurrent: true,
+            ...approvalState,
+          } satisfies SetupProgressStepModel;
+        }
+        case "published":
+          return {
+            ...step,
+            state: "current",
+            isCurrent: true,
+            statusLabel: "Ready to publish",
+            description:
+              "Publish the approved structure to make it live across Core.",
+            meta: getApprovalProgressMeta(context.data),
+          } satisfies SetupProgressStepModel;
+      }
+    }
+
+    switch (step.key) {
+      case "activated":
+        return {
+          ...step,
+          state: "upcoming",
+          isCurrent: false,
+          statusLabel: "Later",
+          description: "Setup begins once Draft Structure is opened.",
+        } satisfies SetupProgressStepModel;
+      case "structurallyGoverned":
+        return {
+          ...step,
+          state: "upcoming",
+          isCurrent: false,
+          statusLabel: "Later",
+          description:
+            "Approval becomes available once the draft passes readiness checks.",
+        } satisfies SetupProgressStepModel;
+      case "published":
+        return {
+          ...step,
+          state: "upcoming",
+          isCurrent: false,
+          statusLabel: "Later",
+          description: "This unlocks the live structure across Core.",
+        } satisfies SetupProgressStepModel;
+    }
+  });
+}
+
+function getSetupProgressVisualStyle(state: SetupProgressVisualState) {
+  switch (state) {
+    case "complete":
+      return {
+        cardClassName:
+          "border-emerald-200 bg-emerald-50/70 dark:border-emerald-900/40 dark:bg-emerald-950/20",
+        badgeClassName:
+          "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-300",
+        nodeClassName:
+          "bg-emerald-600 text-white dark:bg-emerald-500 dark:text-emerald-950",
+      };
+    case "blocked":
+      return {
+        cardClassName: "border-destructive/20 bg-destructive/5",
+        badgeClassName:
+          "border-destructive/20 bg-destructive/10 text-destructive",
+        nodeClassName: "bg-destructive/10 text-destructive",
+      };
+    case "warning":
+      return {
+        cardClassName:
+          "border-amber-200 bg-amber-50/80 dark:border-amber-900/40 dark:bg-amber-950/20",
+        badgeClassName:
+          "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-300",
+        nodeClassName:
+          "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
+      };
+    case "current":
+      return {
+        cardClassName: "border-primary/30 bg-primary/5",
+        badgeClassName: "border-primary/20 bg-primary/10 text-primary",
+        nodeClassName: "bg-primary text-primary-foreground",
+      };
+    default:
+      return {
+        cardClassName: "bg-background",
+        badgeClassName: "border-border bg-background text-muted-foreground",
+        nodeClassName:
+          "border border-border bg-muted/30 text-muted-foreground",
+      };
+  }
 }
 
 function getHeroCopy({
@@ -485,6 +814,8 @@ export default function SetupPage() {
     },
   });
   const reopenStructure = useReopenStructure();
+  const activateSetup = useActivateSetup();
+  const [isActivating, setIsActivating] = useState(false);
 
   if (!canAccess) {
     return (
@@ -686,7 +1017,22 @@ export default function SetupPage() {
     if (!isTenantContextReadOnly) {
       summaryActions.push({
         label: "Open draft workspace",
-        onClick: () => router.push(SETUP_DRAFT_ENTRY_PATH),
+        pendingLabel: "Activating...",
+        onClick: async () => {
+          setIsActivating(true);
+          try {
+            await activateSetup.mutateAsync();
+            router.push(SETUP_DRAFT_ENTRY_PATH);
+          } catch {
+            toast.error("Setup could not be activated.", {
+              description: "Try opening the draft workspace again.",
+            });
+          } finally {
+            setIsActivating(false);
+          }
+        },
+        disabled: isActivating,
+        isLoading: isActivating,
       });
     }
   } else if (isActivated) {
@@ -727,13 +1073,6 @@ export default function SetupPage() {
     } else {
       summaryActions.push(
         {
-          label: "Publish structure",
-          pendingLabel: "Publishing...",
-          onClick: () => setPublishDialogOpen(true),
-          disabled: publishDisabled,
-          isLoading: publishStructure.isLoading,
-        },
-        {
           label: "Reopen draft",
           pendingLabel: "Reopening...",
           onClick: () => {
@@ -742,6 +1081,13 @@ export default function SetupPage() {
           variant: "outline",
           disabled: reopenDisabled,
           isLoading: reopenStructure.isLoading,
+        },
+        {
+          label: "Publish structure",
+          pendingLabel: "Publishing...",
+          onClick: () => setPublishDialogOpen(true),
+          disabled: publishDisabled,
+          isLoading: publishStructure.isLoading,
         }
       );
     }
@@ -749,11 +1095,6 @@ export default function SetupPage() {
     summaryActions.push({
       label: "Import employees",
       onClick: () => router.push(importEmployeesHref),
-    });
-    summaryActions.push({
-      label: "View published structure",
-      onClick: () => router.push(draftStructureHref),
-      variant: "outline",
     });
   }
 
@@ -785,55 +1126,90 @@ export default function SetupPage() {
         </Alert>
       ) : null}
 
-      <SetupMilestoneStrip data={setupState} />
-
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] xl:items-start">
-        <Card>
-          <CardContent className="flex flex-col gap-4 p-5 lg:flex-row lg:items-start lg:justify-between">
-            <div className="min-w-0 space-y-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <SetupStatusBadge status={setupState.currentPhase} />
-                {setupState.isApprovedInPlatformAssistMode &&
-                !isCoreUnlocked ? (
-                  <Badge variant="outline">Assisted</Badge>
-                ) : null}
+        <div className="space-y-4">
+          <Card>
+            <CardContent className="flex flex-col gap-4 px-4 lg:flex-row lg:items-start lg:justify-between">
+              <div className="min-w-0 space-y-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <SetupStatusBadge status={setupState.currentPhase} />
+                  {setupState.isApprovedInPlatformAssistMode &&
+                  !isCoreUnlocked ? (
+                    <Badge variant="outline">Assisted</Badge>
+                  ) : null}
+                </div>
+                <div className="space-y-1.5">
+                  <h2 className="text-2xl font-semibold tracking-tight">
+                    {heroCopy.title}
+                  </h2>
+                  {isCoreUnlocked ? (
+                    <p className="max-w-2xl text-sm text-muted-foreground">
+                      The published structure is live.{" "}
+                      <Link
+                        href={draftStructureHref}
+                        className="underline underline-offset-2 hover:text-foreground"
+                      >
+                        View it here
+                      </Link>
+                    </p>
+                  ) : isGoverned ? (
+                    <p className="max-w-2xl text-sm text-muted-foreground">
+                      The approved structure is locked until you publish or{" "}
+                      <button
+                        type="button"
+                        onClick={() => void handleReopen()}
+                        className="underline underline-offset-2 hover:text-foreground"
+                      >
+                        reopen it
+                      </button>
+                      .
+                    </p>
+                  ) : (
+                    <p className="max-w-2xl text-sm text-muted-foreground">
+                      {heroCopy.description}
+                    </p>
+                  )}
+                </div>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+                  <span>{summaryLine}</span>
+                  {statusMeta ? <span>{statusMeta}</span> : null}
+                  {setupState.approvedAt && !isCoreUnlocked ? (
+                    <span>{formatRoleLabel(setupState.approvedByRole)}</span>
+                  ) : null}
+                </div>
               </div>
-              <div className="space-y-1.5">
-                <h2 className="text-2xl font-semibold tracking-tight">
-                  {heroCopy.title}
-                </h2>
-                <p className="max-w-2xl text-sm text-muted-foreground">
-                  {heroCopy.description}
-                </p>
-              </div>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-                <span>{summaryLine}</span>
-                {statusMeta ? <span>{statusMeta}</span> : null}
-                {setupState.approvedAt && !isCoreUnlocked ? (
-                  <span>{formatRoleLabel(setupState.approvedByRole)}</span>
-                ) : null}
-              </div>
-            </div>
 
-            {summaryActions.length > 0 ? (
-              <div className="flex flex-wrap gap-2 lg:justify-end">
-                {summaryActions.map((action) => (
-                  <Button
-                    key={action.label}
-                    variant={action.variant}
-                    onClick={action.onClick}
-                    disabled={action.disabled || action.isLoading}
-                  >
-                    {action.isLoading ? <Spinner className="mr-1" /> : null}
-                    {action.isLoading
-                      ? (action.pendingLabel ?? action.label)
-                      : action.label}
-                  </Button>
-                ))}
-              </div>
-            ) : null}
-          </CardContent>
-        </Card>
+              {summaryActions.length > 0 ? (
+                <div className="flex flex-nowrap gap-2 justify-end">
+                  {summaryActions.map((action) => (
+                    <Button
+                      key={action.label}
+                      variant={action.variant}
+                      onClick={action.onClick}
+                      disabled={action.disabled || action.isLoading}
+                    >
+                      {action.isLoading ? <Spinner className="mr-1" /> : null}
+                      {action.isLoading
+                        ? (action.pendingLabel ?? action.label)
+                        : action.label}
+                    </Button>
+                  ))}
+                </div>
+              ) : null}
+            </CardContent>
+          </Card>
+
+          <SetupProgressPanel
+            data={setupState}
+            hasDraftUnits={hasDraftUnits}
+            blockingIssueCount={blockingIssueCount}
+            warningCount={warningCount}
+            isReadyForApproval={isReadyForApproval}
+            hasReadinessData={!!readiness}
+            isReadinessLoading={isReadinessLoading}
+            hasReadinessError={!!readinessError}
+          />
+        </div>
 
         <div className="xl:self-stretch">
           <RecentActivityCard
@@ -929,21 +1305,79 @@ export default function SetupPage() {
   );
 }
 
-function SetupMilestoneStrip({
+function SetupProgressPanel({
   data,
-}: {
-  data: TenantSetupStateDto | undefined;
-}) {
+  hasDraftUnits,
+  blockingIssueCount,
+  warningCount,
+  isReadyForApproval,
+  hasReadinessData,
+  isReadinessLoading,
+  hasReadinessError,
+}: SetupProgressContext) {
+  const steps = getSetupProgressSteps({
+    data,
+    hasDraftUnits,
+    blockingIssueCount,
+    warningCount,
+    isReadyForApproval,
+    hasReadinessData,
+    isReadinessLoading,
+    hasReadinessError,
+  });
+  const completedStepCount = getCompletedSetupProgressStepCount(data);
+  const totalStepCount = SETUP_PROGRESS_STEPS.length;
+  const progressValue = (completedStepCount / totalStepCount) * 100;
+  const remainingStepCount = Math.max(totalStepCount - completedStepCount, 0);
+  const progressCallout = getSetupProgressCallout({
+    data,
+    hasDraftUnits,
+    blockingIssueCount,
+    warningCount,
+    isReadyForApproval,
+    hasReadinessData,
+    isReadinessLoading,
+    hasReadinessError,
+  });
+
   return (
-    <div className="grid gap-2 md:grid-cols-3">
-      {SETUP_STEPS.map((step) => (
-        <SetupMilestoneCard
-          key={step.key}
-          step={step}
-          state={getStepState(step.key, data)}
-        />
-      ))}
-    </div>
+    <Card>
+      <CardHeader className="space-y-4 pb-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-1">
+            <CardTitle>Setup progress</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              {completedStepCount === totalStepCount
+                ? "Every required setup milestone is complete."
+                : "Track what is done, what needs attention, and what comes next."}
+            </p>
+          </div>
+          <Badge variant={completedStepCount === totalStepCount ? "secondary" : "outline"}>
+            {completedStepCount} of {totalStepCount} complete
+          </Badge>
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+            <span>{progressCallout}</span>
+            <span>
+              {remainingStepCount === 0
+                ? "Live"
+                : `${remainingStepCount} step${remainingStepCount === 1 ? "" : "s"} left`}
+            </span>
+          </div>
+          <Progress value={progressValue} className="h-2" aria-label="Setup progress" />
+        </div>
+      </CardHeader>
+
+      <CardContent>
+        <div className="grid gap-4 md:grid-cols-3">
+          {steps.map((step, index) => (
+            <SetupProgressCard key={step.key} step={step} index={index} />
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -1001,7 +1435,7 @@ function RecentActivityCard({
               );
             })}
             {hasMoreActivities ? (
-              <div className="pt-3">
+              <div className="pt-4">
                 <Button variant="outline" size="sm" onClick={onLoadMore}>
                   Load more
                 </Button>
@@ -1054,38 +1488,53 @@ function IssueSection({
   );
 }
 
-function SetupMilestoneCard({
+function SetupProgressCard({
   step,
-  state,
+  index,
 }: {
-  step: (typeof SETUP_STEPS)[number];
-  state: "complete" | "current" | "upcoming";
+  step: SetupProgressStepModel;
+  index: number;
 }) {
-  const Icon = step.icon;
-  const stateLabel =
-    state === "complete" ? "Done" : state === "current" ? "Current" : "Later";
-  const cardClass =
-    state === "current"
-      ? "border-primary/30 bg-primary/5"
-      : state === "complete"
-        ? "border-emerald-200 bg-emerald-50/60 dark:border-emerald-900/40 dark:bg-emerald-950/20"
-        : "bg-background";
+  const Icon = step.state === "complete" ? CheckCircle2 : step.icon;
+  const visualStyle = getSetupProgressVisualStyle(step.state);
 
   return (
     <div
-      className={`flex h-full items-center justify-between gap-3 rounded-xl border p-3 ${cardClass}`}
+      className={cn(
+        "flex flex-col items-center gap-4 rounded-xl border p-5 text-center transition-colors",
+        visualStyle.cardClassName,
+        step.isCurrent ? "shadow-sm ring-1 ring-primary/10" : undefined
+      )}
+      aria-current={step.isCurrent ? "step" : undefined}
     >
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
-            <Icon className="size-4" />
-          </div>
-          <p className="font-medium">{step.title}</p>
-        </div>
+      <div
+        className={cn(
+          "flex size-12 items-center justify-center rounded-full",
+          visualStyle.nodeClassName
+        )}
+      >
+        <Icon className="size-6" />
       </div>
-      <span className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-        {stateLabel}
-      </span>
+
+      <div className="space-y-1">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+          Step {index + 1}
+        </p>
+        <p className="font-semibold">{step.title}</p>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-center gap-2">
+        <Badge variant="outline" className={visualStyle.badgeClassName}>
+          {step.statusLabel}
+        </Badge>
+        {step.showAssistedBadge ? (
+          <Badge variant="outline">Assisted</Badge>
+        ) : null}
+      </div>
+
+      {step.meta ? (
+        <p className="text-xs text-muted-foreground">{step.meta}</p>
+      ) : null}
     </div>
   );
 }
@@ -1098,37 +1547,49 @@ function SetupPageSkeleton() {
         description="Loading the review surface..."
       />
 
-      <div className="grid gap-2 md:grid-cols-3">
-        {Array.from({ length: 3 }).map((_, index) => (
-          <Skeleton key={index} className="h-14 rounded-xl" />
-        ))}
-      </div>
-
-      <Card>
-        <CardContent className="space-y-4 p-5">
-          <div className="space-y-3">
-            <Skeleton className="h-4 w-28" />
-            <Skeleton className="h-7 w-64" />
-            <Skeleton className="h-4 w-full max-w-2xl" />
-            <Skeleton className="h-4 w-full max-w-xl" />
-            <div className="flex flex-wrap gap-2">
-              <Skeleton className="h-10 w-40" />
-              <Skeleton className="h-10 w-36" />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] xl:items-start">
-        <div className="space-y-4 rounded-xl border p-5">
-          <Skeleton className="h-4 w-28" />
-          <Skeleton className="h-7 w-64" />
-          <Skeleton className="h-4 w-full max-w-2xl" />
-          <Skeleton className="h-4 w-full max-w-xl" />
-          <div className="flex flex-wrap gap-2">
-            <Skeleton className="h-10 w-40" />
-            <Skeleton className="h-10 w-36" />
-          </div>
+        <div className="space-y-4">
+          <Card>
+            <CardContent className="space-y-4 p-5">
+              <div className="space-y-3">
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-7 w-64" />
+                <Skeleton className="h-4 w-full max-w-2xl" />
+                <Skeleton className="h-4 w-full max-w-xl" />
+                <div className="flex flex-wrap gap-2">
+                  <Skeleton className="h-10 w-40" />
+                  <Skeleton className="h-10 w-36" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="space-y-4 p-5">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <Skeleton className="h-5 w-32" />
+                  <Skeleton className="h-5 w-28" />
+                </div>
+                <Skeleton className="h-4 w-full max-w-xl" />
+                <Skeleton className="h-2 w-full rounded-full" />
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-3">
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <div key={index} className="flex flex-col items-center gap-4 rounded-xl border p-5">
+                    <Skeleton className="size-12 rounded-full" />
+                    <div className="space-y-1 text-center">
+                      <Skeleton className="mx-auto h-3 w-16" />
+                      <Skeleton className="mx-auto h-4 w-28" />
+                    </div>
+                    <Skeleton className="h-5 w-20 rounded-full" />
+                    <Skeleton className="h-3 w-36" />
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </div>
         <div className="rounded-xl border p-5">
           <Skeleton className="h-5 w-32" />

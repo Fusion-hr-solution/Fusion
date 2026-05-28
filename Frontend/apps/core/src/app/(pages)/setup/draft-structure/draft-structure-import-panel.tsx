@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import {
   AlertCircle,
   FileSpreadsheet,
@@ -198,6 +197,8 @@ function DropZone({
 export function DraftStructureImportPanel({
   open,
   onOpenChange,
+  sessionId,
+  onSessionIdChange,
   onApplied,
   readOnly = false,
   readOnlyTitle = "Import is unavailable",
@@ -205,6 +206,8 @@ export function DraftStructureImportPanel({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  sessionId: string | null;
+  onSessionIdChange: (sessionId: string | null) => void;
   onApplied?: (
     result: DraftStructureImportApplyResultDto
   ) => void | Promise<void>;
@@ -212,22 +215,17 @@ export function DraftStructureImportPanel({
   readOnlyTitle?: string;
   readOnlyMessage?: string;
 }) {
-  const searchParams = useSearchParams();
-  const [localSessionId, setLocalSessionId] = useState<string | null>(
-    () => searchParams.get("session") ?? null
-  );
   const [pendingFileName, setPendingFileName] = useState<string | null>(null);
   const [pageError, setPageError] = useState<string | null>(null);
   const [selectedPreviewNodeId, setSelectedPreviewNodeId] = useState<
     string | null
   >(null);
 
-  const sessionId = localSessionId;
   const {
     data: session,
     error: sessionError,
     isLoading: isSessionLoading,
-  } = useDraftStructureImportSession(sessionId, !!sessionId);
+  } = useDraftStructureImportSession(sessionId, open && !!sessionId);
   const { data: importSchema } = useDraftStructureImportSchema(open);
   const uploadImport = useUploadDraftStructureImport();
   const downloadTemplate = useDownloadDraftStructureTemplate();
@@ -237,11 +235,10 @@ export function DraftStructureImportPanel({
   const isAutoReviewInProgress =
     uploadImport.isLoading || validateImport.isLoading;
   const isProcessingSelectedFile = !!pendingFileName && isAutoReviewInProgress;
+  const hasRenderablePanelState =
+    !!pageError || !!sessionError || !!importSchema || !!activeSession;
   const isInitialPanelLoading =
-    open &&
-    !pageError &&
-    !sessionError &&
-    (!importSchema || (!!sessionId && isSessionLoading && !activeSession));
+    open && !hasRenderablePanelState && (!sessionId || isSessionLoading);
 
   const previewTree = useMemo(
     () =>
@@ -342,8 +339,8 @@ export function DraftStructureImportPanel({
     }
 
     setPageError(sessionError.errors.join(", "));
-    setLocalSessionId(null);
-  }, [sessionError, sessionId]);
+    onSessionIdChange(null);
+  }, [onSessionIdChange, sessionError, sessionId]);
 
   useEffect(() => {
     if (open) {
@@ -413,7 +410,7 @@ export function DraftStructureImportPanel({
     try {
       const nextSession = await uploadImport.mutateAsync(file);
       nextSessionId = nextSession.id;
-      setLocalSessionId(nextSession.id);
+      onSessionIdChange(nextSession.id);
       await validateImport.mutateAsync({ sessionId: nextSession.id });
     } catch (error) {
       handleApiError(
@@ -434,7 +431,7 @@ export function DraftStructureImportPanel({
     setPendingFileName(null);
     setPageError(null);
     setSelectedPreviewNodeId(null);
-    setLocalSessionId(null);
+    onSessionIdChange(null);
   };
 
   const handleValidate = async () => {
@@ -475,7 +472,7 @@ export function DraftStructureImportPanel({
         `Replaced the draft with ${result.replacedUnitCount} units`
       );
       await onApplied?.(result);
-      setLocalSessionId(null);
+      onSessionIdChange(null);
       onOpenChange(false);
     } catch (error) {
       handleApiError(error, "Replacing the draft workspace failed.");
@@ -486,7 +483,7 @@ export function DraftStructureImportPanel({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex h-[min(92vh,56rem)] max-w-[calc(100%-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-6xl">
+      <DialogContent className="flex max-h-[min(92vh,56rem)] max-w-[calc(100%-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-6xl">
         <DialogHeader className="border-b p-5 pr-14">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="space-y-1">
@@ -516,11 +513,11 @@ export function DraftStructureImportPanel({
           </div>
         </DialogHeader>
 
-        <div className="flex-1 space-y-4 overflow-y-auto p-5">
+        <div className="flex flex-1 flex-col overflow-y-auto p-5">
           {isInitialPanelLoading ? (
             <ImportPanelSkeleton />
           ) : (
-            <>
+            <div className="flex flex-1 flex-col gap-4">
               {readOnly ? (
                 <Alert>
                   <AlertCircle className="h-4 w-4" />
@@ -553,63 +550,136 @@ export function DraftStructureImportPanel({
               ) : null}
 
               {hasSession ? (
-                <div
-                  className={cn(
-                    "space-y-4 rounded-xl border p-4",
-                    importProgress?.tone ? stageTones[importProgress.tone] : ""
-                  )}
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="space-y-0.5">
-                      <p className="text-sm font-medium">
-                        {importProgress?.label ?? "Waiting for file"}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {importProgress?.hint ??
-                          `Expires ${formatTimestamp(activeSession.expiresAt)}`}
-                      </p>
+                <div className="space-y-4">
+                  <div
+                    className={cn(
+                      "space-y-4 rounded-xl border p-4",
+                      importProgress?.tone ? stageTones[importProgress.tone] : ""
+                    )}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="space-y-0.5">
+                        <p className="text-sm font-medium">
+                          {importProgress?.label ?? "Waiting for file"}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {importProgress?.hint ??
+                            `Expires ${formatTimestamp(activeSession.expiresAt)}`}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className="text-xs">
+                        {activeSession.sourceFileName}
+                      </Badge>
                     </div>
-                    <Badge variant="outline" className="text-xs">
-                      {activeSession.sourceFileName}
-                    </Badge>
+
+                    <div className="grid grid-cols-4 gap-px overflow-hidden rounded-lg border bg-muted/30">
+                      <StatCell
+                        label="Rows"
+                        value={String(activeSession.sourceRowCount)}
+                      />
+                      <StatCell
+                        label="Issues"
+                        value={String(activeSession.validationSummary.errorCount)}
+                        muted={activeSession.stage !== "Validated"}
+                      />
+                      <StatCell
+                        label="Ready"
+                        value={String(activeSession.validationSummary.validRows)}
+                        muted={activeSession.stage !== "Validated"}
+                      />
+                      <StatCell
+                        label="New types"
+                        value={String(newKindResolutions.length)}
+                      />
+                    </div>
+
+                    {sessionUnitTypes.length > 0 ? (
+                      <div className="flex flex-wrap gap-1.5">
+                        {sessionUnitTypes.map((kind) => (
+                          <Badge
+                            key={kind.key}
+                            variant={
+                              newKindKeys.has(kind.key) ? "outline" : "secondary"
+                            }
+                            className="text-xs"
+                          >
+                            {kind.displayLabel}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
 
-                  <div className="grid grid-cols-4 gap-px overflow-hidden rounded-lg border bg-muted/30">
-                    <StatCell
-                      label="Rows"
-                      value={String(activeSession.sourceRowCount)}
-                    />
-                    <StatCell
-                      label="Issues"
-                      value={String(activeSession.validationSummary.errorCount)}
-                      muted={activeSession.stage !== "Validated"}
-                    />
-                    <StatCell
-                      label="Ready"
-                      value={String(activeSession.validationSummary.validRows)}
-                      muted={activeSession.stage !== "Validated"}
-                    />
-                    <StatCell
-                      label="New types"
-                      value={String(newKindResolutions.length)}
-                    />
-                  </div>
-
-                  {sessionUnitTypes.length > 0 ? (
-                    <div className="flex flex-wrap gap-1.5">
-                      {sessionUnitTypes.map((kind) => (
-                        <Badge
-                          key={kind.key}
-                          variant={
-                            newKindKeys.has(kind.key) ? "outline" : "secondary"
-                          }
-                          className="text-xs"
-                        >
-                          {kind.displayLabel}
-                        </Badge>
-                      ))}
+                  <div className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
+                    <div className="min-h-0 space-y-2">
+                      <p className="text-sm font-medium">Validation issues</p>
+                      {activeSession.validationIssues.length === 0 ? (
+                        <div className="flex items-center justify-center rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
+                          {activeSession.stage === "Validated"
+                            ? "No issues found."
+                            : "Validate the file to see issues here."}
+                        </div>
+                      ) : (
+                        <div className="max-h-80 overflow-auto rounded-lg border">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="w-12">Row</TableHead>
+                                <TableHead className="w-28">Field</TableHead>
+                                <TableHead>Issue</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {activeSession.validationIssues.map((issue) => (
+                                <TableRow
+                                  key={`${issue.rowNumber}-${issue.code}-${issue.field ?? "general"}`}
+                                >
+                                  <TableCell className="text-xs tabular-nums">
+                                    {issue.rowNumber}
+                                  </TableCell>
+                                  <TableCell className="text-xs">
+                                    {getImportFieldLabel(
+                                      issue.field,
+                                      activeSession.importSchema
+                                    )}
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex items-start gap-2">
+                                      <Badge
+                                        variant={
+                                          issue.severity === "error"
+                                            ? "destructive"
+                                            : "secondary"
+                                        }
+                                        className="shrink-0 text-[10px]"
+                                      >
+                                        {issue.severity}
+                                      </Badge>
+                                      <span className="text-sm text-muted-foreground">
+                                        {issue.message}
+                                      </span>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      )}
                     </div>
-                  ) : null}
+
+                    <div className="min-h-0 space-y-2">
+                      <p className="text-sm font-medium">Staged tree preview</p>
+                      <DraftStructureTree
+                        nodes={previewTree}
+                        selectedId={selectedPreviewNodeId}
+                        onSelect={(node) => setSelectedPreviewNodeId(node.id)}
+                        emptyTitle="No staged tree yet"
+                        emptyDescription="Validate the uploaded file to build the staged tree preview."
+                        readOnly
+                      />
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <DropZone
@@ -620,86 +690,13 @@ export function DraftStructureImportPanel({
                 />
               )}
 
-              {hasSession && (
-                <div className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
-                  <div className="min-h-0 space-y-2">
-                    <p className="text-sm font-medium">Validation issues</p>
-                    {activeSession.validationIssues.length === 0 ? (
-                      <div className="flex items-center justify-center rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
-                        {activeSession.stage === "Validated"
-                          ? "No issues found."
-                          : "Validate the file to see issues here."}
-                      </div>
-                    ) : (
-                      <div className="max-h-80 overflow-auto rounded-lg border">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead className="w-12">Row</TableHead>
-                              <TableHead className="w-28">Field</TableHead>
-                              <TableHead>Issue</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {activeSession.validationIssues.map((issue) => (
-                              <TableRow
-                                key={`${issue.rowNumber}-${issue.code}-${issue.field ?? "general"}`}
-                              >
-                                <TableCell className="text-xs tabular-nums">
-                                  {issue.rowNumber}
-                                </TableCell>
-                                <TableCell className="text-xs">
-                                  {getImportFieldLabel(
-                                    issue.field,
-                                    activeSession.importSchema
-                                  )}
-                                </TableCell>
-                                <TableCell>
-                                  <div className="flex items-start gap-2">
-                                    <Badge
-                                      variant={
-                                        issue.severity === "error"
-                                          ? "destructive"
-                                          : "secondary"
-                                      }
-                                      className="shrink-0 text-[10px]"
-                                    >
-                                      {issue.severity}
-                                    </Badge>
-                                    <span className="text-sm text-muted-foreground">
-                                      {issue.message}
-                                    </span>
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="min-h-0 space-y-2">
-                    <p className="text-sm font-medium">Staged tree preview</p>
-                    <DraftStructureTree
-                      nodes={previewTree}
-                      selectedId={selectedPreviewNodeId}
-                      onSelect={(node) => setSelectedPreviewNodeId(node.id)}
-                      emptyTitle="No staged tree yet"
-                      emptyDescription="Validate the uploaded file to build the staged tree preview."
-                      readOnly
-                    />
-                  </div>
-                </div>
-              )}
-
               {isSessionLoading ? (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Spinner />
                   Loading import session...
                 </div>
               ) : null}
-            </>
+            </div>
           )}
         </div>
 
