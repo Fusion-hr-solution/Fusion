@@ -132,6 +132,7 @@ export function OrgChartToolbar({
 }: OrgChartToolbarProps) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [showAdvancedTools, setShowAdvancedTools] = useState(false);
   const [orgUnitOpen, setOrgUnitOpen] = useState(false);
   const [orgUnitSearch, setOrgUnitSearch] = useState("");
   // Cache the selected org unit name so it remains visible when the user types
@@ -202,7 +203,7 @@ export function OrgChartToolbar({
                 <CommandInput
                   value={searchQuery}
                   onValueChange={setSearchQuery}
-                  placeholder="Search loaded chart"
+                  placeholder="Search people in this chart"
                 />
                 <CommandList>
                   <CommandEmpty>
@@ -247,7 +248,7 @@ export function OrgChartToolbar({
             onClick={onFocusSelectedBranch}
           >
             <TreePine />
-            Focus selected branch
+            Show this team
           </Button>
 
           <Button
@@ -261,61 +262,79 @@ export function OrgChartToolbar({
             onClick={onShowFullOrganization}
           >
             <Undo2 />
-            Return to overview
+            Show whole organization
+          </Button>
+
+          <Button
+            variant={showAdvancedTools ? "secondary" : "outline"}
+            onClick={() => setShowAdvancedTools((current) => !current)}
+          >
+            {showAdvancedTools ? "Hide tools" : "More tools"}
           </Button>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/50 pt-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <Popover open={orgUnitOpen} onOpenChange={setOrgUnitOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant={selectedOrgUnitId ? "secondary" : "outline"}
-                  size="sm"
-                >
-                  <Building2 />
-                  {displayOrgUnitName ?? "All org units"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent align="start" className="w-72 p-0">
-                <Command>
-                  <CommandInput
-                    value={orgUnitSearch}
-                    onValueChange={setOrgUnitSearch}
-                    placeholder="Search org units…"
-                  />
-                  <CommandList>
-                    <CommandEmpty>No org units found.</CommandEmpty>
-                    <CommandGroup>
+        <div className="flex flex-wrap items-center gap-2 border-t border-border/50 pt-3">
+          <Popover open={orgUnitOpen} onOpenChange={setOrgUnitOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant={selectedOrgUnitId ? "secondary" : "outline"}
+                size="sm"
+              >
+                <Building2 />
+                {displayOrgUnitName ?? "All org units"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-72 p-0">
+              <Command>
+                <CommandInput
+                  value={orgUnitSearch}
+                  onValueChange={setOrgUnitSearch}
+                  placeholder="Search org units"
+                />
+                <CommandList>
+                  <CommandEmpty>No org units found.</CommandEmpty>
+                  <CommandGroup>
+                    <CommandItem
+                      value="__all__"
+                      onSelect={() => {
+                        onOrgUnitChange(null);
+                        setOrgUnitNameCache(null);
+                        setOrgUnitOpen(false);
+                      }}
+                    >
+                      All org units
+                    </CommandItem>
+                    {orgUnitOptions?.items.map((unit) => (
                       <CommandItem
-                        value="__all__"
+                        key={unit.id}
+                        value={unit.name}
                         onSelect={() => {
-                          onOrgUnitChange(null);
-                          setOrgUnitNameCache(null);
+                          onOrgUnitChange(unit.id);
+                          setOrgUnitNameCache(unit.name);
                           setOrgUnitOpen(false);
                         }}
                       >
-                        All org units
+                        {unit.name}
                       </CommandItem>
-                      {orgUnitOptions?.items.map((unit) => (
-                        <CommandItem
-                          key={unit.id}
-                          value={unit.name}
-                          onSelect={() => {
-                            onOrgUnitChange(unit.id);
-                            setOrgUnitNameCache(unit.name);
-                            setOrgUnitOpen(false);
-                          }}
-                        >
-                          {unit.name}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
 
+          {isBusy ? (
+            <Badge variant="secondary">
+              {isNavigating ? "Updating chart..." : "Refreshing chart..."}
+            </Badge>
+          ) : null}
+
+          <Badge variant="outline">{totalVisibleNodeCount} people shown</Badge>
+        </div>
+
+        {showAdvancedTools ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/50 pt-3">
+          <div className="flex flex-wrap items-center gap-2">
             <div className="flex items-center gap-2 rounded-md border px-2 py-1">
               <Checkbox
                 id="include-inactive"
@@ -358,7 +377,7 @@ export function OrgChartToolbar({
                   onClick={onToggleReassignMode}
                 >
                   <ArrowRightLeft />
-                  {isReassignMode ? "Reassign mode on" : "Reassign by drag"}
+                  {isReassignMode ? "Move mode on" : "Move people by drag"}
                 </Button>
               </TooltipTrigger>
               {isTenantContextReadOnly ? (
@@ -372,7 +391,7 @@ export function OrgChartToolbar({
               <TooltipTrigger asChild>
                 <Button variant="outline" size="sm" onClick={onFitToScreen}>
                   <Maximize />
-                  Fit full chart
+                  Fit chart
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="bottom">
@@ -401,7 +420,7 @@ export function OrgChartToolbar({
               <PopoverTrigger asChild>
                 <Button variant="outline" size="sm">
                   <CircleHelp />
-                  Chart guide
+                  Legend
                 </Button>
               </PopoverTrigger>
               <PopoverContent align="end" className="w-80 space-y-3">
@@ -428,25 +447,9 @@ export function OrgChartToolbar({
               </PopoverContent>
             </Popover>
 
-            {isBusy ? (
-              <Badge variant="secondary">
-                {isNavigating ? "Updating chart" : "Refreshing"}
-              </Badge>
-            ) : null}
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span>
-                  <Badge variant="outline">{totalVisibleNodeCount} loaded</Badge>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">
-                Loaded people in the current chart query. Collapsing a branch
-                only hides it locally.
-              </TooltipContent>
-            </Tooltip>
           </div>
-        </div>
+          </div>
+        ) : null}
 
         {isReassignMode ? (
           <div className="flex flex-wrap items-center gap-2 border-t border-border/50 pt-3 text-xs text-muted-foreground">
