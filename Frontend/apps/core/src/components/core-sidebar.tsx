@@ -7,6 +7,7 @@ import { AppSidebar, type NavSection } from "@repo/ui";
 import {
   SidebarUserPanel,
   useAuth,
+  canSeeCoreAccessNavigation,
   canSeeCoreOrgChartNavigation,
   canSeeCoreSettingsNavigation,
   canSeeCoreSetupNavigation,
@@ -100,6 +101,7 @@ export function CoreSidebar() {
   const { tenantId } = useTenantContext();
   const isInTenantContext = !!tenantId;
   const canSeeSetup = canSeeCoreSetupNavigation(user) || isInTenantContext;
+  const canSeeAccess = canSeeCoreAccessNavigation(user) || isInTenantContext;
   const canSeeSettings = canSeeCoreSettingsNavigation(user) || isInTenantContext;
   const canSeeOrganizations = canSeeOrganizationsNavigation(user) && !isInTenantContext;
   const canSeeEmployeeRoster = canSeeEmployeeRosterNavigation(user) || isInTenantContext;
@@ -128,6 +130,10 @@ export function CoreSidebar() {
   const adminItems = ADMIN_NAV.items.filter((item) => {
     if (item.href === "/setup") {
       return canSeeSetup;
+    }
+
+    if (item.href === "/access") {
+      return canSeeAccess;
     }
 
     if (item.href === "/settings") {

@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   ArrowRight,
@@ -13,15 +15,22 @@ import {
   Pause,
   Plus,
   Settings2,
+  ShieldCheck,
   User,
   Users,
 } from "lucide-react";
 import {
+  canAccessCoreOverview,
+  canAccessCoreSettings,
+  canAccessCoreSetup,
   canAccessOrganizations,
+  canSeeCoreAccessNavigation,
   canSeeCoreSetupNavigation,
   canSeeCoreSettingsNavigation,
+  type AuthUser,
   useAuth,
 } from "@repo/auth";
+import { CorePageLoadingState } from "@/components/core-page-loading-state";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -1150,10 +1159,163 @@ function PlatformAdminTenantDashboard() {
   );
 }
 
+function CoreOperationsDashboard() {
+  const { user } = useAuth();
+  const { tenantId } = useTenantContext();
+  const moduleHref = (href: string) =>
+    tenantId ? buildTenantContextHref(href, tenantId) : href;
+
+  const workspaces = [
+    canSeeCoreAccessNavigation(user)
+      ? {
+          href: moduleHref("/access"),
+          title: "Access",
+          description: "Manage account activation, invitations, and profile assignment.",
+          icon: ShieldCheck,
+        }
+      : null,
+    canSeeCoreSetupNavigation(user)
+      ? {
+          href: moduleHref("/setup"),
+          title: "Setup",
+          description: "Review tenant structure and readiness tasks.",
+          icon: ClipboardList,
+        }
+      : null,
+    canSeeCoreSettingsNavigation(user)
+      ? {
+          href: moduleHref("/settings"),
+          title: "Settings",
+          description: "Open Core configuration and access profile settings.",
+          icon: Settings2,
+        }
+      : null,
+    canAccessEmployeeRoster(user)
+      ? {
+          href: moduleHref("/employees"),
+          title: "Employees",
+          description: "Review the tenant employee roster and readiness state.",
+          icon: Users,
+        }
+      : null,
+    canAccessTeamWorkspace(user)
+      ? {
+          href: moduleHref("/team"),
+          title: "My Team",
+          description: "Open your direct team workspace.",
+          icon: Users,
+        }
+      : null,
+    canAccessSelfEmployeeProfile(user)
+      ? {
+          href: moduleHref("/profile"),
+          title: "My Profile",
+          description: "Review your linked workforce profile.",
+          icon: User,
+        }
+      : null,
+  ].filter((workspace) => workspace !== null);
+
+  return (
+    <div className="flex min-h-full flex-col gap-6 p-6">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">Overview</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Choose the Core workspace that matches your current permissions.
+        </p>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {workspaces.map((workspace) => {
+          const Icon = workspace.icon;
+
+          return (
+            <Card key={workspace.title}>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                    <Icon className="size-4" />
+                  </div>
+                  <CardTitle className="text-base">{workspace.title}</CardTitle>
+                </div>
+                <CardDescription>{workspace.description}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Link
+                  href={workspace.href}
+                  className="group inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary/80"
+                >
+                  Open {workspace.title.toLowerCase()}
+                  <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+                </Link>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function CoreWorkspaceRedirect({
+  href,
+  label,
+}: {
+  href: string;
+  label: string;
+}) {
+  const router = useRouter();
+
+  useEffect(() => {
+    router.replace(href);
+  }, [href, router]);
+
+  return (
+    <CorePageLoadingState
+      title="Overview"
+      description={`Redirecting to ${label}.`}
+      message={`Redirecting to ${href}`}
+      variant="redirect"
+    />
+  );
+}
+
+function getFallbackWorkspace(user: AuthUser | null): {
+  href: string;
+  label: string;
+} | null {
+  if (canSeeCoreAccessNavigation(user)) {
+    return { href: "/access", label: "Access" };
+  }
+
+  if (canAccessCoreSetup(user)) {
+    return { href: "/setup", label: "Setup" };
+  }
+
+  if (canAccessCoreSettings(user)) {
+    return { href: "/settings", label: "Settings" };
+  }
+
+  if (canAccessEmployeeRoster(user)) {
+    return { href: "/employees", label: "Employees" };
+  }
+
+  if (canAccessTeamWorkspace(user)) {
+    return { href: "/team", label: "My Team" };
+  }
+
+  if (canAccessSelfEmployeeProfile(user)) {
+    return { href: "/profile", label: "My Profile" };
+  }
+
+  return null;
+}
+
 export default function DashboardPage() {
   const { user, isLoading } = useAuth();
   const { tenantId } = useTenantContext();
   const isInTenantContext = !!tenantId;
+  const canSeeOverview = canAccessCoreOverview(user);
   const isHrAdmin = canAccessEmployeeRoster(user);
   const isPlatformAdmin = canAccessOrganizations(user);
   const isManager = canAccessTeamWorkspace(user);
@@ -1171,16 +1333,30 @@ export default function DashboardPage() {
     return <PlatformAdminDashboard />;
   }
 
-  if (isHrAdmin) {
+  if (canSeeOverview && isHrAdmin) {
     return <HRAdminDashboard />;
   }
 
-  if (isManager) {
+  if (canSeeOverview && isManager) {
     return <ManagerDashboard />;
   }
 
-  if (isEmployee) {
+  if (canSeeOverview && isEmployee) {
     return <EmployeeDashboard />;
+  }
+
+  if (canSeeOverview) {
+    return <CoreOperationsDashboard />;
+  }
+
+  const fallbackWorkspace = getFallbackWorkspace(user);
+  if (fallbackWorkspace) {
+    return (
+      <CoreWorkspaceRedirect
+        href={fallbackWorkspace.href}
+        label={fallbackWorkspace.label}
+      />
+    );
   }
 
   return (

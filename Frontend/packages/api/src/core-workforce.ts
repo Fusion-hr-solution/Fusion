@@ -45,6 +45,16 @@ export interface WorkforceEmployeeSummaryDto {
   version: number;
 }
 
+export interface WorkforceAccessSubjectSummaryDto {
+  employeeId: string;
+  firstName: string;
+  lastName: string;
+  displayName: string;
+  workEmail: string;
+  employmentStatus: string;
+  isActive: boolean;
+}
+
 export interface WorkforceManagerScopeDto {
   scopeType: string;
   managerEmployeeId: string;
@@ -108,11 +118,22 @@ export interface WorkforceEmployeePageDto {
   hasPreviousPage: boolean;
 }
 
+export interface WorkforceAccessSubjectPageDto {
+  items: WorkforceAccessSubjectSummaryDto[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+}
+
 export const coreWorkforcePaths = {
   me: () => "/corehr/workforce/me",
   employee: (employeeId: string) => `/corehr/workforce/employees/${employeeId}`,
   resolve: () => "/corehr/workforce/employees/resolve",
   search: () => "/corehr/workforce/employees/search",
+  accessSubjects: () => "/corehr/workforce/access-subjects",
   team: (employeeId: string) => `/corehr/workforce/employees/${employeeId}/team`,
   managerChain: (employeeId: string) => `/corehr/workforce/employees/${employeeId}/manager-chain`,
   orgUnits: () => "/corehr/workforce/org-units",
@@ -131,6 +152,20 @@ export const coreWorkforceQueryKeys = {
     [
       ...coreWorkforceQueryKeys.employees(),
       "search",
+      {
+        search: params.search?.trim() || null,
+        page: params.page,
+        pageSize: params.pageSize,
+      },
+    ] as const,
+  accessSubjects: (params: {
+    search?: string | null;
+    page: number;
+    pageSize: number;
+  }) =>
+    [
+      ...coreWorkforceQueryKeys.all(),
+      "access-subjects",
       {
         search: params.search?.trim() || null,
         page: params.page,

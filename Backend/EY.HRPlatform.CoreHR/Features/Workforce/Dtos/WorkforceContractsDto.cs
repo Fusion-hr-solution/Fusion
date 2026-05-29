@@ -45,6 +45,15 @@ public sealed record WorkforceEmployeeSummaryDto(
     WorkforceDataQualityDto DataQuality,
     uint Version);
 
+public sealed record WorkforceAccessSubjectSummaryDto(
+    Guid EmployeeId,
+    string FirstName,
+    string LastName,
+    string DisplayName,
+    string WorkEmail,
+    string EmploymentStatus,
+    bool IsActive);
+
 public sealed record WorkforceManagerScopeDto(
     string ScopeType,
     Guid ManagerEmployeeId,
@@ -94,3 +103,6 @@ public sealed record WorkforceOrgUnitTreeDto(
 
 public sealed record WorkforceEmployeeSearchResponseDto(
     PagedResponse<WorkforceEmployeeSummaryDto> Results);
+
+public sealed record WorkforceAccessSubjectSearchResponseDto(
+    PagedResponse<WorkforceAccessSubjectSummaryDto> Results);

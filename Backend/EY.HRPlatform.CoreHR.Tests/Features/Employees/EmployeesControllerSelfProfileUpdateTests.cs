@@ -91,6 +91,8 @@ public class EmployeesControllerSelfProfileUpdateTests
         public bool CanViewSettings(ClaimsPrincipal user) => true;
         public bool CanManageSettings(ClaimsPrincipal user) => true;
         public bool CanViewOrgChart(ClaimsPrincipal user) => true;
+        public bool CanViewAccess(ClaimsPrincipal user) => true;
+        public bool CanManageAccess(ClaimsPrincipal user) => true;
         public bool CanViewTenantEmployees(ClaimsPrincipal user) => true;
         public bool CanManageEmployees(ClaimsPrincipal user) => true;
         public bool CanImportEmployees(ClaimsPrincipal user) => true;

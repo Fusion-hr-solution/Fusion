@@ -81,6 +81,23 @@ public class WorkforceController(
         return Ok(ApiResponse<PagedResponse<WorkforceEmployeeSummaryDto>>.Success(result));
     }
 
+    [HttpGet("access-subjects")]
+    [ProducesResponseType(typeof(ApiResponse<PagedResponse<WorkforceAccessSubjectSummaryDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> SearchAccessSubjects(
+        [FromQuery] string? search,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        if (!accessPolicy.CanViewAccess(User))
+        {
+            return Forbid();
+        }
+
+        var result = await workforceContractService.SearchAccessSubjectsAsync(search, page, pageSize, cancellationToken);
+        return Ok(ApiResponse<PagedResponse<WorkforceAccessSubjectSummaryDto>>.Success(result));
+    }
+
     [HttpGet("employees/{employeeId:guid}/team")]
     [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<WorkforceEmployeeSummaryDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetTeam(Guid employeeId, CancellationToken cancellationToken)

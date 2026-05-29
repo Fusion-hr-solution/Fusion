@@ -15,6 +15,8 @@ public interface ICoreAccessPolicyService
     bool CanViewSettings(ClaimsPrincipal user);
     bool CanManageSettings(ClaimsPrincipal user);
     bool CanViewOrgChart(ClaimsPrincipal user);
+    bool CanViewAccess(ClaimsPrincipal user);
+    bool CanManageAccess(ClaimsPrincipal user);
     bool CanViewTenantEmployees(ClaimsPrincipal user);
     bool CanManageEmployees(ClaimsPrincipal user);
     bool CanImportEmployees(ClaimsPrincipal user);
@@ -68,6 +70,14 @@ public sealed class CoreAccessPolicyService : ICoreAccessPolicyService
     public bool CanViewOrgChart(ClaimsPrincipal user)
         => user.HasCorePermission(CorePermissions.OrgChartView, PermissionScopes.Tenant)
             || user.IsInRole(PlatformRole.PlatformAdmin);
+
+    public bool CanViewAccess(ClaimsPrincipal user)
+        => user.HasCorePermission(CorePermissions.AccessView, PermissionScopes.Tenant)
+            || user.HasCorePermission(CorePermissions.AccessManage, PermissionScopes.Tenant)
+            || user.IsInRole(PlatformRole.PlatformAdmin);
+
+    public bool CanManageAccess(ClaimsPrincipal user)
+        => user.HasCorePermission(CorePermissions.AccessManage, PermissionScopes.Tenant);
 
     public bool CanViewTenantEmployees(ClaimsPrincipal user)
         => user.HasCorePermission(CorePermissions.EmployeeView, PermissionScopes.Tenant)

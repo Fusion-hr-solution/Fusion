@@ -67,7 +67,7 @@ public sealed class CoreAccessController(
             return BadRequest(ApiResponse<IReadOnlyList<AccessProfileSummaryDto>>.Failure("Tenant context is required."));
         }
 
-        if (!CanManageAccessProfiles())
+        if (!CanReadAccessProfiles())
         {
             return Forbid();
         }
@@ -88,7 +88,7 @@ public sealed class CoreAccessController(
             return BadRequest(ApiResponse<AccessProfileSummaryDto>.Failure("Tenant context is required."));
         }
 
-        if (!CanManageAccessProfiles())
+        if (!CanReadAccessProfiles())
         {
             return Forbid();
         }
@@ -235,7 +235,7 @@ public sealed class CoreAccessController(
             return BadRequest(ApiResponse<UserAccessAssignmentDto>.Failure("Tenant context is required."));
         }
 
-        if (!CanManageAccessProfiles())
+        if (!CanManageAccess() && !CanManageAccessProfiles())
         {
             return Forbid();
         }
@@ -258,6 +258,14 @@ public sealed class CoreAccessController(
 
     private Guid? ResolveTenantId()
         => tenantContext.TenantIdOrDefault;
+
+    private bool CanReadAccessProfiles()
+        => CanManageAccessProfiles()
+            || User.HasCorePermission(CorePermissions.AccessView, PermissionScopes.Tenant)
+            || User.HasCorePermission(CorePermissions.AccessManage, PermissionScopes.Tenant);
+
+    private bool CanManageAccess()
+        => User.HasCorePermission(CorePermissions.AccessManage, PermissionScopes.Tenant);
 
     private bool CanManageAccessProfiles()
         => User.HasCorePermission(CorePermissions.AccessProfilesManage, PermissionScopes.Tenant);

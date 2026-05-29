@@ -320,15 +320,11 @@ public sealed class AccessProfileService(
 
     public async Task<IReadOnlyList<EffectivePermissionGrant>> GetEffectivePermissionsAsync(ApplicationUser user, CancellationToken cancellationToken = default)
     {
-        var assignments = await dbContext.UserAccessProfiles
-            .Where(assignment => assignment.TenantId == user.TenantId && assignment.UserId == user.Id)
-            .Select(assignment => assignment.AccessProfileId)
-            .ToListAsync(cancellationToken);
+        var assignments = await EnsureAssignedProfileIdsAsync(user, cancellationToken);
 
         if (assignments.Count == 0)
         {
-            var roles = await userManager.GetRolesAsync(user);
-            return AccessProfileTemplates.BuildLegacyFallbackGrants(roles);
+            return await BuildCompatibilityFallbackGrantsAsync(user, cancellationToken);
         }
 
         var grants = await dbContext.AccessProfileGrants
@@ -561,12 +557,7 @@ public sealed class AccessProfileService(
                 continue;
             }
 
-            var roles = await userManager.GetRolesAsync(user);
-            var desiredProfiles = roles
-                .Where(role => seededByName.ContainsKey(role) && role != PlatformRole.PlatformAdmin)
-                .Select(role => seededByName[role].Id)
-                .Distinct()
-                .ToList();
+            var desiredProfiles = await ResolveRoleMappedSeededProfileIdsAsync(user, seededByName);
 
             if (desiredProfiles.Count == 0)
             {
@@ -742,6 +733,15 @@ public sealed class AccessProfileService(
             }
         }
 
+        var profileIdBySeededName = await dbContext.AccessProfiles
+            .IgnoreQueryFilters()
+            .Where(profile => profile.TenantId == tenantId && profile.Type == AccessProfileTypes.SystemSeeded)
+            .ToDictionaryAsync(
+                profile => profile.Name,
+                profile => profile.Id,
+                StringComparer.Ordinal,
+                cancellationToken);
+
         var userProfiles = assignments
             .GroupBy(assignment => assignment.UserId)
             .ToDictionary(
@@ -782,10 +782,91 @@ public sealed class AccessProfileService(
                 continue;
             }
 
+            var seededFallbackProfileIds = roleLookup
+                .GetValueOrDefault(user.Id, [])
+                .Where(role => profileIdBySeededName.ContainsKey(role) && role != PlatformRole.PlatformAdmin)
+                .Select(role => profileIdBySeededName[role])
+                .Distinct()
+                .ToArray();
+
+            if (seededFallbackProfileIds.Length > 0)
+            {
+                result[user.Id] = AggregateEffectivePermissions(seededFallbackProfileIds
+                    .SelectMany(profileId => profileGrants.GetValueOrDefault(profileId, [])));
+                continue;
+            }
+
             result[user.Id] = AccessProfileTemplates.BuildLegacyFallbackGrants(roleLookup.GetValueOrDefault(user.Id, []));
         }
 
         return result;
+    }
+
+    private async Task<List<Guid>> EnsureAssignedProfileIdsAsync(ApplicationUser user, CancellationToken cancellationToken)
+    {
+        var assignments = await dbContext.UserAccessProfiles
+            .Where(assignment => assignment.TenantId == user.TenantId && assignment.UserId == user.Id)
+            .Select(assignment => assignment.AccessProfileId)
+            .ToListAsync(cancellationToken);
+
+        if (assignments.Count > 0)
+        {
+            return assignments;
+        }
+
+        await EnsureTenantProfilesAsync(user.TenantId, cancellationToken);
+
+        if (await TryBackfillUserAssignmentsFromRolesAsync(user, cancellationToken))
+        {
+            return await dbContext.UserAccessProfiles
+                .Where(assignment => assignment.TenantId == user.TenantId && assignment.UserId == user.Id)
+                .Select(assignment => assignment.AccessProfileId)
+                .ToListAsync(cancellationToken);
+        }
+
+        return assignments;
+    }
+
+    private async Task<bool> TryBackfillUserAssignmentsFromRolesAsync(ApplicationUser user, CancellationToken cancellationToken)
+    {
+        var seededProfiles = await dbContext.AccessProfiles
+            .IgnoreQueryFilters()
+            .Where(profile => profile.TenantId == user.TenantId && profile.Type == AccessProfileTypes.SystemSeeded)
+            .ToListAsync(cancellationToken);
+
+        var seededByName = seededProfiles.ToDictionary(profile => profile.Name, StringComparer.Ordinal);
+        var desiredProfiles = await ResolveRoleMappedSeededProfileIdsAsync(user, seededByName);
+        if (desiredProfiles.Count == 0)
+        {
+            return false;
+        }
+
+        dbContext.UserAccessProfiles.AddRange(desiredProfiles.Select(profileId =>
+            UserAccessProfile.Create(user.TenantId, user.Id, profileId)));
+        await dbContext.SaveChangesAsync(cancellationToken);
+        await SyncCompatibilityRolesAsync(user, cancellationToken);
+        return true;
+    }
+
+    private async Task<List<Guid>> ResolveRoleMappedSeededProfileIdsAsync(
+        ApplicationUser user,
+        IReadOnlyDictionary<string, AccessProfile> seededByName)
+    {
+        var roles = await userManager.GetRolesAsync(user);
+        return roles
+            .Where(role => seededByName.ContainsKey(role) && role != PlatformRole.PlatformAdmin)
+            .Select(role => seededByName[role].Id)
+            .Distinct()
+            .ToList();
+    }
+
+    private async Task<IReadOnlyList<EffectivePermissionGrant>> BuildCompatibilityFallbackGrantsAsync(
+        ApplicationUser user,
+        CancellationToken cancellationToken)
+    {
+        // Compatibility bridge only: prefer persisted access-profile assignments whenever possible.
+        var roles = await userManager.GetRolesAsync(user);
+        return AccessProfileTemplates.BuildLegacyFallbackGrants(roles);
     }
 
     private static void EnsureTenantSafety(IReadOnlyDictionary<Guid, IReadOnlyList<EffectivePermissionGrant>> permissionsByUserId)

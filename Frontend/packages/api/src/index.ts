@@ -102,6 +102,7 @@ export type {
   WorkforceOrgAssignmentDto,
   WorkforceDataQualityDto,
   WorkforceEmployeeSummaryDto,
+  WorkforceAccessSubjectSummaryDto,
   WorkforceManagerScopeDto,
   WorkforceCurrentUserContextDto,
   WorkforceEmployeeResolveRequest,
@@ -109,5 +110,6 @@ export type {
   WorkforceOrgUnitTreeNodeDto,
   WorkforceOrgUnitTreeDto,
   WorkforceEmployeePageDto,
+  WorkforceAccessSubjectPageDto,
 } from "./core-workforce";
 export { coreWorkforcePaths, coreWorkforceQueryKeys } from "./core-workforce";

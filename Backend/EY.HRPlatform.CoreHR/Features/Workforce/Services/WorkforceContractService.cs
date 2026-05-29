@@ -19,6 +19,7 @@ public interface IWorkforceContractService
     Task<WorkforceEmployeeSummaryDto?> GetEmployeeAsync(Guid employeeId, ClaimsPrincipal user, CancellationToken cancellationToken);
     Task<IReadOnlyList<WorkforceEmployeeSummaryDto>> ResolveEmployeesAsync(IReadOnlyCollection<Guid> employeeIds, ClaimsPrincipal user, CancellationToken cancellationToken);
     Task<PagedResponse<WorkforceEmployeeSummaryDto>> SearchEmployeesAsync(string? search, int page, int pageSize, ClaimsPrincipal user, CancellationToken cancellationToken);
+    Task<PagedResponse<WorkforceAccessSubjectSummaryDto>> SearchAccessSubjectsAsync(string? search, int page, int pageSize, CancellationToken cancellationToken);
     Task<IReadOnlyList<WorkforceEmployeeSummaryDto>> GetTeamAsync(Guid employeeId, ClaimsPrincipal user, CancellationToken cancellationToken);
     Task<IReadOnlyList<WorkforceEmployeeSummaryDto>> GetManagerChainAsync(Guid employeeId, ClaimsPrincipal user, CancellationToken cancellationToken);
     Task<IReadOnlyList<WorkforceOrgUnitSummaryDto>> GetPublishedOrgUnitsAsync(bool includeInactive, CancellationToken cancellationToken);
@@ -165,6 +166,57 @@ public sealed class WorkforceContractService(
             TotalCount = totalCount,
             Page = currentPage,
             PageSize = currentPageSize
+        };
+    }
+
+    public async Task<PagedResponse<WorkforceAccessSubjectSummaryDto>> SearchAccessSubjectsAsync(
+        string? search,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken)
+    {
+        var currentPage = Math.Max(1, page);
+        var currentPageSize = Math.Clamp(pageSize, 1, MaxSearchPageSize);
+
+        var query = dbContext.Employees
+            .AsNoTracking()
+            .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var searchTerm = search.Trim().ToLowerInvariant();
+            query = query.Where(current =>
+                current.FirstName.ToLower().Contains(searchTerm) ||
+                current.LastName.ToLower().Contains(searchTerm) ||
+                current.Email.ToLower().Contains(searchTerm) ||
+                (current.EmployeeNumber != null && current.EmployeeNumber.ToLower().Contains(searchTerm)) ||
+                (current.FirstName + " " + current.LastName).ToLower().Contains(searchTerm));
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken);
+        var employees = await query
+            .OrderBy(current => current.LastName)
+            .ThenBy(current => current.FirstName)
+            .Skip((currentPage - 1) * currentPageSize)
+            .Take(currentPageSize)
+            .Select(current => new WorkforceAccessSubjectSummaryDto(
+                current.Id,
+                current.FirstName,
+                current.LastName,
+                !string.IsNullOrWhiteSpace(current.PreferredName)
+                    ? $"{current.PreferredName} {current.LastName}".Trim()
+                    : current.FullName,
+                current.Email,
+                current.Status.ToString(),
+                current.Status == EmployeeStatus.Active))
+            .ToListAsync(cancellationToken);
+
+        return new PagedResponse<WorkforceAccessSubjectSummaryDto>
+        {
+            Items = employees,
+            TotalCount = totalCount,
+            Page = currentPage,
+            PageSize = currentPageSize,
         };
     }
 

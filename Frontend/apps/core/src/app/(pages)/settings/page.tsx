@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -12,6 +13,7 @@ import {
   Phone,
   Plus,
   Search,
+  ShieldCheck,
   ShieldAlert,
   UserRound,
   type LucideIcon,
@@ -1342,6 +1344,23 @@ export default function SettingsPage() {
             </Card>
           ) : (
             <>
+              <Card>
+                <CardContent className="flex flex-col gap-4 py-5 md:flex-row md:items-center md:justify-between">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">Daily access operations live in Access</p>
+                    <p className="text-sm text-muted-foreground">
+                      Use this tab to define access profiles. Use Access to invite people, resend links, and manage account activation.
+                    </p>
+                  </div>
+                  <Button asChild variant="outline">
+                    <Link href="/access">
+                      <ShieldCheck className="size-4" />
+                      Open access
+                    </Link>
+                  </Button>
+                </CardContent>
+              </Card>
+
               <div className="grid gap-6 xl:grid-cols-[minmax(280px,340px)_minmax(0,1fr)]">
                 <Card>
                   <CardHeader className="pb-3">

@@ -11,6 +11,7 @@ import {
   canSeeCorePeopleNavigation,
   canSeeCoreSettingsNavigation,
   canSeeCoreSetupNavigation,
+  canSeeCoreAccessNavigation,
   canSeeOrganizationsNavigation,
 } from "../roles";
 import type { AuthUser } from "../types";
@@ -174,5 +175,17 @@ describe("role helpers", () => {
 
     expect(canAccessCoreSettings(user)).toBe(true);
     expect(canSeeCoreSettingsNavigation(user)).toBe(true);
+  });
+
+  it("shows access navigation for access-only and profile managers", () => {
+    const accessViewer = makeUser([], null, [
+      grant("core.access.view", "Tenant"),
+    ]);
+    const profileManager = makeUser([], null, [
+      grant("core.accessprofiles.manage", "Tenant"),
+    ]);
+
+    expect(canSeeCoreAccessNavigation(accessViewer)).toBe(true);
+    expect(canSeeCoreAccessNavigation(profileManager)).toBe(true);
   });
 });

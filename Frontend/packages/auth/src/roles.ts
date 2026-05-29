@@ -247,6 +247,14 @@ export function canManageCoreAccess(user: AuthUser | null): boolean {
   return hasCorePermission(user, CORE_PERMISSION.accessManage, "Tenant");
 }
 
+export function canSeeCoreAccessNavigation(user: AuthUser | null): boolean {
+  return (
+    canAccessCoreAccess(user) ||
+    canManageCoreAccessProfiles(user) ||
+    isPlatformAdminInCoreTenantContext(user)
+  );
+}
+
 export function canAccessTenantAccessProfiles(user: AuthUser | null): boolean {
   return isPlatformAdminInCoreTenantContext(user);
 }

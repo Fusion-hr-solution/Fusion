@@ -1,9 +1,13 @@
 import {
+  canAccessCoreAccess,
   canAccessCoreOverview,
   canAccessCorePeople,
   canAccessCoreSetup,
+  canAccessCoreSettings,
+  canAccessCoreTeam,
   canAccessOrganizations,
   canAccessOwnCoreProfile,
+  canManageCoreAccessProfiles,
   type AuthUser,
 } from "@repo/auth";
 
@@ -14,16 +18,32 @@ export function resolveInviteAcceptanceDestination(
     return "/organizations";
   }
 
+  if (canAccessCoreOverview(user)) {
+    return "/";
+  }
+
+  if (canAccessCoreAccess(user) || canManageCoreAccessProfiles(user)) {
+    return "/access";
+  }
+
   if (canAccessCoreSetup(user)) {
     return "/setup";
   }
 
-  if (canAccessOwnCoreProfile(user)) {
-    return "/profile";
+  if (canAccessCoreSettings(user)) {
+    return "/settings";
   }
 
-  if (canAccessCoreOverview(user) || canAccessCorePeople(user)) {
-    return "/";
+  if (canAccessCorePeople(user)) {
+    return "/employees";
+  }
+
+  if (canAccessCoreTeam(user)) {
+    return "/team";
+  }
+
+  if (canAccessOwnCoreProfile(user)) {
+    return "/profile";
   }
 
   return "/";

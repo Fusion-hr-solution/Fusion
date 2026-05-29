@@ -18,7 +18,9 @@ import {
 } from "lucide-react";
 import { useApiQueryClient } from "@repo/api/query";
 import {
+  canAccessCoreAccess,
   canManageCoreAccess,
+  canManageCoreAccessProfiles,
   canImportCoreEmployees,
   canManageCoreEmployees,
   useAuth,
@@ -288,6 +290,9 @@ export default function EmployeesPage() {
   const { tenantId } = useTenantContext();
   const isTenantContextReadOnly = !!tenantId;
   const canAccess = canAccessEmployeeRoster(user) || isTenantContextReadOnly;
+  const canUseAccessWorkspace =
+    (canAccessCoreAccess(user) || canManageCoreAccessProfiles(user)) &&
+    !isTenantContextReadOnly;
   const canManageAccess = canManageCoreAccess(user) && !isTenantContextReadOnly;
   const canCreateEmployee =
     canManageCoreEmployees(user) && !isTenantContextReadOnly;
@@ -947,6 +952,12 @@ export default function EmployeesPage() {
   const isInitialPageLoading =
     canAccess && currentTableLoading && !error && !data;
 
+  useEffect(() => {
+    if (!canAccess && canUseAccessWorkspace) {
+      router.replace("/access");
+    }
+  }, [canAccess, canUseAccessWorkspace, router]);
+
   if (isInitialPageLoading) {
     return (
       <CorePageLoadingState
@@ -954,6 +965,17 @@ export default function EmployeesPage() {
         description="Tenant HR administrators manage the roster."
         message="Loading employees..."
         variant="list"
+      />
+    );
+  }
+
+  if (!canAccess && canUseAccessWorkspace) {
+    return (
+      <CorePageLoadingState
+        title="Employees"
+        description="Redirecting to the Access workspace."
+        message="Opening Access workspace"
+        variant="redirect"
       />
     );
   }
@@ -978,10 +1000,18 @@ export default function EmployeesPage() {
     <div className="flex flex-col gap-6 p-6">
       <PageHeader
         title="Employees"
-        description="Manage the roster and access invitations."
+        description="Manage the roster. Day-to-day account activation and invitation work lives in Access."
         actions={
-          canCreateEmployee || canImportEmployees ? (
+          canCreateEmployee || canImportEmployees || canUseAccessWorkspace ? (
             <div className="flex flex-wrap gap-2">
+              {canUseAccessWorkspace ? (
+                <Button asChild variant="outline">
+                  <Link href="/access">
+                    <Send />
+                    Open access
+                  </Link>
+                </Button>
+              ) : null}
               {canCreateEmployee ? (
                 <Button onClick={() => handleCreateEmployeeOpenChange(true)}>
                   <Plus />

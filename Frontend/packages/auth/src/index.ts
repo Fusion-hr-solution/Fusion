@@ -50,6 +50,7 @@ export {
   canAccessCoreOverview,
   canAccessCoreAccess,
   canManageCoreAccess,
+  canSeeCoreAccessNavigation,
   canManageCoreAccessProfiles,
   canAccessTenantAccessProfiles,
   canAccessOrganizations,

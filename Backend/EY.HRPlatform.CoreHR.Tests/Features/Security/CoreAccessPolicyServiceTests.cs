@@ -64,9 +64,33 @@ public class CoreAccessPolicyServiceTests
         var user = CreatePrincipal(roles: [PlatformRole.PlatformAdmin]);
 
         Assert.True(_service.CanViewOverview(user));
+        Assert.True(_service.CanViewAccess(user));
         Assert.True(_service.CanViewTenantEmployees(user));
+        Assert.False(_service.CanManageAccess(user));
         Assert.False(_service.CanManageEmployees(user));
         Assert.Equal(PermissionScopes.Tenant, _service.GetEmployeeViewScope(user));
+    }
+
+    [Fact]
+    public void AccessViewPermission_GrantsAccessWorkspaceReadOnly()
+    {
+        var user = CreatePrincipal(
+            null,
+            (CorePermissions.AccessView, PermissionScopes.Tenant));
+
+        Assert.True(_service.CanViewAccess(user));
+        Assert.False(_service.CanManageAccess(user));
+    }
+
+    [Fact]
+    public void AccessManagePermission_GrantsAccessWorkspaceManagement()
+    {
+        var user = CreatePrincipal(
+            null,
+            (CorePermissions.AccessManage, PermissionScopes.Tenant));
+
+        Assert.True(_service.CanViewAccess(user));
+        Assert.True(_service.CanManageAccess(user));
     }
 
     private static ClaimsPrincipal CreatePrincipal(

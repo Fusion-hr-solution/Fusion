@@ -31,6 +31,14 @@ function grant(
 }
 
 describe("resolveInviteAcceptanceDestination", () => {
+  it("sends access operators to Access", () => {
+    expect(
+      resolveInviteAcceptanceDestination(createAuthUser({
+        effectivePermissions: [grant("core.access.manage", "Tenant")],
+      }))
+    ).toBe("/access");
+  });
+
   it("sends employees to My Profile", () => {
     expect(
       resolveInviteAcceptanceDestination(createAuthUser({
@@ -41,7 +49,7 @@ describe("resolveInviteAcceptanceDestination", () => {
     ).toBe("/profile");
   });
 
-  it("sends managers to My Profile", () => {
+  it("sends managers to My Team", () => {
     expect(
       resolveInviteAcceptanceDestination(createAuthUser({
         roles: ["Manager"],
@@ -51,14 +59,22 @@ describe("resolveInviteAcceptanceDestination", () => {
           grant("core.employee.view", "DirectReports"),
         ],
       }))
-    ).toBe("/profile");
+    ).toBe("/team");
   });
 
-  it("sends hr admins to setup summary", () => {
+  it("sends overview users to Core overview", () => {
     expect(
       resolveInviteAcceptanceDestination(createAuthUser({
         roles: ["HRAdmin"],
         employeeId: null,
+        effectivePermissions: [grant("core.overview.view", "Tenant")],
+      }))
+    ).toBe("/");
+  });
+
+  it("sends setup-only users to Setup", () => {
+    expect(
+      resolveInviteAcceptanceDestination(createAuthUser({
         effectivePermissions: [grant("core.setup.view", "Tenant")],
       }))
     ).toBe("/setup");
