@@ -37,7 +37,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -469,8 +468,8 @@ export function AppliedResultPanel({
           <div className="space-y-1">
             <CardTitle>Import completed</CardTitle>
             <CardDescription>
-              {createdCount} employee{createdCount === 1 ? "" : "s"} were
-              created. {needsAccessCount} need platform access.
+              {formatCreatedEmployeesSummary(createdCount)} {" "}
+              {formatNeedsAccessSummary(needsAccessCount)}
             </CardDescription>
           </div>
         </div>
@@ -492,10 +491,7 @@ export function AppliedResultPanel({
             <p className="font-medium text-foreground">
               Next step: access invitations
             </p>
-            <p>
-              {needsAccessCount} imported employee
-              {needsAccessCount === 1 ? "" : "s"} are ready for access.
-            </p>
+            <p>{formatReadyForAccessSummary(needsAccessCount)}</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button asChild>
@@ -640,6 +636,18 @@ function ImportFieldReferenceSkeleton() {
   );
 }
 
+function formatCreatedEmployeesSummary(count: number): string {
+  return `${count} employee${count === 1 ? " was" : "s were"} created.`;
+}
+
+function formatNeedsAccessSummary(count: number): string {
+  return `${count} employee${count === 1 ? " needs" : "s need"} access.`;
+}
+
+function formatReadyForAccessSummary(count: number): string {
+  return `${count} imported employee${count === 1 ? " is" : "s are"} ready for access.`;
+}
+
 export function ImportHistoryPanel({
   historyPage,
   historyDetail,
@@ -670,7 +678,7 @@ export function ImportHistoryPanel({
           </div>
           <div className="space-y-1">
             <CardTitle>Import history</CardTitle>
-            <CardDescription>Applied batches for reference.</CardDescription>
+            <CardDescription>Previous imports and outcomes.</CardDescription>
           </div>
         </div>
       </CardHeader>
@@ -1260,21 +1268,15 @@ export function SecondaryDetailsPanel({
   activeSchema?: EmployeeImportSessionDto["employeeImportSchema"];
   isSchemaLoading: boolean;
 }) {
-  const shouldExpandSecondaryDetailsByDefault =
-    !!session && session.stage !== "Applied";
-  const [isRawRowsOpen, setIsRawRowsOpen] = useState(
-    shouldExpandSecondaryDetailsByDefault
-  );
-  const [isFieldReferenceOpen, setIsFieldReferenceOpen] = useState(
-    shouldExpandSecondaryDetailsByDefault
-  );
+  const [isRawRowsOpen, setIsRawRowsOpen] = useState(false);
+  const [isFieldReferenceOpen, setIsFieldReferenceOpen] = useState(false);
 
   return (
     <Card className="border-dashed">
       <CardHeader>
         <CardTitle>Reference details</CardTitle>
         <CardDescription>
-          Raw rows and template field reference.
+          Raw uploaded rows and template field definitions.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

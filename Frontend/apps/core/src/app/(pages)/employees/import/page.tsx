@@ -186,7 +186,6 @@ export default function EmployeeImportPage() {
   const isAppliedSession = session?.stage === "Applied";
   const isPreviewExpanded = !isAppliedSession || isAppliedPreviewOpen;
   const historyItemCount = historyPage?.items.length ?? 0;
-  const firstHistoryItemId = historyPage?.items[0]?.id ?? null;
   const isInitialSessionLoading =
     !!sessionId && isSessionLoading && !session && !sessionError;
   const isInitialImportPageLoading =
@@ -240,12 +239,7 @@ export default function EmployeeImportPage() {
 
       return;
     }
-
-    if (!selectedHistoryId && firstHistoryItemId) {
-      setSelectedHistoryId(firstHistoryItemId);
-    }
   }, [
-    firstHistoryItemId,
     historyItemCount,
     isHistoryLoading,
     selectedHistoryId,
@@ -538,7 +532,7 @@ export default function EmployeeImportPage() {
 
       <PageHeader
         title="Import employees"
-        description="Upload, validate, and apply employees from the CSV template."
+        description="Upload, review, and apply employee data from the CSV template."
         actions={
           <Button variant="outline" asChild>
             <Link href="/employees">
