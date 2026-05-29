@@ -283,7 +283,7 @@ export function EmployeeCreateDialog({
             <div>
               <h3 className="font-medium">Employment</h3>
               <p className="text-sm text-muted-foreground">
-                Employment details that shape the employee profile and demo story.
+                Employment details that shape the employee profile.
               </p>
             </div>
 

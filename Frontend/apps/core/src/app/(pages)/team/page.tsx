@@ -32,7 +32,7 @@ export default function MyTeamPage() {
       <CorePageLoadingState
         title="My Team"
         description="Loading reports..."
-        message="Loading team..."
+        message="Loading your team..."
         variant="summary-list"
       />
     );

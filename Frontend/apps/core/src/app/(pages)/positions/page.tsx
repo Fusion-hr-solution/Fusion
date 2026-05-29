@@ -4,11 +4,10 @@ export default function PositionsPage() {
       <div className="text-center">
         <h1 className="text-2xl font-semibold text-foreground">Positions</h1>
         <p className="mt-2 text-muted-foreground">
-          This route is not part of the active Core workspace surface.
+          This page is not part of the current Core experience.
         </p>
         <p className="mt-2 text-sm text-muted-foreground">
-          Current Core workflows are centered on Setup, Organizations, and
-          Employees while this area remains unproductized.
+          Current Core work is centered on setup, organizations, and employees.
         </p>
       </div>
     </div>

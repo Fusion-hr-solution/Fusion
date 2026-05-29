@@ -50,8 +50,8 @@ export function CoreTenantBanner() {
           size="icon-sm"
           onClick={handleExit}
           className="h-6 text-amber-700 hover:text-amber-900 hover:bg-amber-100 dark:text-amber-300 dark:hover:text-amber-100 dark:hover:bg-amber-900/40"
-          aria-label="Exit tenant context"
-          title="Exit tenant context"
+          aria-label="Exit read-only tenant view"
+          title="Exit read-only tenant view"
         >
           <LogOut className="size-3" />
         </Button>
