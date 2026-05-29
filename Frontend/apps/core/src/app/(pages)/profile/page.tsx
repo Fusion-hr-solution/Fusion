@@ -1,32 +1,35 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { User } from "lucide-react";
 import { useAuth } from "@repo/auth";
 import { EmptyState } from "@repo/ui";
 import { CorePageLoadingState } from "@/components/core-page-loading-state";
 import { PageHeader } from "@/components/page-header";
+import EmployeeProfilePage from "../employees/[id]/page";
+import { EmployeeProfileRouteProvider } from "../employees/employee-profile-route-context";
 
 export default function MyProfilePage() {
-  const router = useRouter();
   const { user, isLoading } = useAuth();
   const employeeId = user?.employeeId ?? null;
 
-  useEffect(() => {
-    if (!isLoading && employeeId) {
-      router.replace(`/employees/${employeeId}`);
-    }
-  }, [employeeId, isLoading, router]);
-
-  if (isLoading || employeeId) {
+  if (isLoading) {
     return (
       <CorePageLoadingState
         title="My Profile"
         description="Loading your profile..."
-        message="Loading profile..."
+        message="Loading your profile..."
         variant="summary-list"
       />
+    );
+  }
+
+  if (employeeId) {
+    return (
+      <EmployeeProfileRouteProvider
+        value={{ employeeId, route: "self" }}
+      >
+        <EmployeeProfilePage />
+      </EmployeeProfileRouteProvider>
     );
   }
 

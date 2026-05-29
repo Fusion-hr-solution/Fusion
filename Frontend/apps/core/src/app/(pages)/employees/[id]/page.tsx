@@ -48,7 +48,6 @@ import { Separator } from "@/components/ui/separator";
 import { useBreadcrumbLabel } from "@/components/breadcrumb-overrides";
 import {
   canAccessEmployeeProfile,
-  canAccessEmployeeRoster,
 } from "@/lib/employee-roster-access";
 import { buildTenantContextHref } from "@/lib/tenant-navigation";
 import { useTenantSettings } from "../../setup/draft-structure/use-tenant-settings";
@@ -85,6 +84,10 @@ import {
 import { useAccessProfiles } from "../../settings/use-core-access";
 import { useApiQueryClient } from "@repo/api/query";
 import { employeeRosterQueryKeys } from "../employee-query-keys";
+import {
+  type EmployeeProfileRouteKind,
+  useEmployeeProfileRouteContext,
+} from "../employee-profile-route-context";
 import type {
   EmployeeHierarchyNodeDto,
   EmployeeHierarchyStatus,
@@ -651,7 +654,6 @@ function WorkforceAccountCard({
 
   const eligibility = getInvitationEligibility(data ?? null);
   const conflict = data?.conflict ?? null;
-  const hasConflict = !!data?.conflict;
   const hasLinkedAccount = !!data?.userId;
   const hasInvite = !!data?.inviteId;
   const canInviteWithEmail = hasTextValue(email);
@@ -1034,19 +1036,24 @@ export default function EmployeeProfilePage() {
   const { user } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const params = useParams<{ id?: string }>();
+  const routeContext = useEmployeeProfileRouteContext();
   const { tenantId } = useTenantContext();
+  const route: EmployeeProfileRouteKind = routeContext?.route ?? "employee";
+  const isSelfRoute = route === "self";
   const isTenantContextReadOnly = !!tenantId;
   const canManageEmployee =
     canManageCoreEmployees(user) && !isTenantContextReadOnly;
   const canManageAccess = canManageCoreAccess(user) && !isTenantContextReadOnly;
   const canViewProfile = canAccessEmployeeProfile(user);
   const requestedSheet = searchParams.get("sheet");
-  const params = useParams<{ id: string }>();
   const employeeId =
-    typeof params.id === "string" && params.id.trim().length > 0
+    routeContext?.employeeId ??
+    (typeof params.id === "string" && params.id.trim().length > 0
       ? params.id
-      : null;
+      : null);
   const isOwnProfile = !!employeeId && user?.employeeId === employeeId;
+  const isSelfView = isSelfRoute || isOwnProfile;
   const fieldAudience =
     canManageEmployee || isTenantContextReadOnly
       ? "hrAdmin"
@@ -1081,7 +1088,10 @@ export default function EmployeeProfilePage() {
     useEmployeeReportingLines(effectiveEmployeeId);
 
   // Register employee name in the top breadcrumb (Core > Employees > Jane Smith)
-  useBreadcrumbLabel(employeeId ?? "", profile?.fullName);
+  useBreadcrumbLabel(
+    isSelfRoute ? "" : employeeId ?? "",
+    isSelfRoute ? undefined : profile?.fullName
+  );
 
   useEffect(() => {
     if (!profile || !requestedSheet) {
@@ -1133,9 +1143,13 @@ export default function EmployeeProfilePage() {
   if (isInitialLoading) {
     return (
       <CorePageLoadingState
-        title="Employee Profile"
-        description="Loading employee details..."
-        message="Loading employee profile..."
+        title={isSelfRoute ? "My Profile" : "Employee Profile"}
+        description={
+          isSelfRoute ? "Loading your profile..." : "Loading employee details..."
+        }
+        message={
+          isSelfRoute ? "Loading your profile..." : "Loading employee profile..."
+        }
         variant="summary-list"
       />
     );
@@ -1148,8 +1162,16 @@ export default function EmployeeProfilePage() {
       <div className="flex flex-col gap-6 p-6">
         <EmptyState
           icon={Users}
-          title="Employee profile is not available for this role"
-          description="Contact a tenant HR administrator."
+          title={
+            isSelfRoute
+              ? "Your profile is not available for this role"
+              : "Employee profile is not available for this role"
+          }
+          description={
+            isSelfRoute
+              ? "Contact a tenant HR administrator if you expected to see your profile."
+              : "Contact a tenant HR administrator."
+          }
         />
       </div>
     );
@@ -1164,20 +1186,28 @@ export default function EmployeeProfilePage() {
     return (
       <div className="flex flex-col gap-6 p-6">
         {isNotFound || isForbidden ? (
-          <EmptyState
-            icon={User}
-            title={
-              isForbidden
-                ? "Employee is outside your scope"
-                : "Employee not found"
-            }
-            description={
-              isForbidden
-                ? "This employee is not available in your current Core access scope."
-                : "This employee may have been removed or is outside your current scope."
-            }
-          />
-        ) : (
+            <EmptyState
+              icon={User}
+              title={
+                isForbidden
+                  ? isSelfRoute
+                    ? "Your profile is outside your current access scope"
+                    : "Employee is outside your scope"
+                  : isSelfRoute
+                    ? "Your profile could not be found"
+                    : "Employee not found"
+              }
+              description={
+                isForbidden
+                  ? isSelfRoute
+                    ? "Your account is not linked to a profile you can open in the current Core access scope."
+                    : "This employee is not available in your current Core access scope."
+                  : isSelfRoute
+                    ? "Your linked employee profile may have been removed or is not available right now."
+                    : "This employee may have been removed or is outside your current scope."
+              }
+            />
+          ) : (
           <Alert variant="destructive">
             <AlertTitle>Failed to load employee profile</AlertTitle>
             <AlertDescription>
@@ -1229,6 +1259,40 @@ export default function EmployeeProfilePage() {
     profile,
     showPhone,
   });
+  const identityTitle = isSelfView ? "Personal details" : "Identity & Contact";
+  const identityDescription = isSelfView
+    ? "Review your name, work email, and contact details."
+    : "Maintain the employee's primary identity details.";
+  const employmentTitle = isSelfView ? "Work details" : "Employment";
+  const employmentDescription = isSelfView
+    ? "Review role, hire date, and employment details."
+    : "Keep role, hire date, and status details current.";
+  const attentionTitle = attentionItems.length > 0
+    ? isSelfView
+      ? "Needs your attention"
+      : "Needs attention"
+    : isSelfView
+      ? "Profile status"
+      : "Record health";
+  const attentionDescription = attentionItems.length > 0
+    ? isSelfView
+      ? "Review the details that need follow-up on your profile."
+      : "Review the details that need follow-up on this employee."
+    : isSelfView
+      ? "No current profile issues need action."
+      : "No current profile issues need action.";
+  const fileChecklistTitle = isSelfView
+    ? "Profile checklist"
+    : "Profile checklist";
+  const fileChecklistDescription = isSelfView
+    ? "Key details that help keep your profile complete."
+    : "Key details that help keep this profile complete.";
+  const organizationDescription = isSelfView
+    ? "See where you sit in the organization and who you report to."
+    : "View org placement and manager details in one place.";
+  const reportingRelationshipDescription = canManageEmployee
+    ? "Update the manager and review the reporting chain."
+    : "Review the manager and reporting chain.";
 
   const handleOpenReadinessIssue = (issue: (typeof attentionItems)[number]) => {
     if (!canManageEmployee) {
@@ -1380,10 +1444,10 @@ export default function EmployeeProfilePage() {
           <Card className={WORKSPACE_CARD_CLASS_NAME}>
             <CardHeader className={WORKSPACE_CARD_HEADER_CLASS_NAME}>
               <CardTitle className="text-base">
-                Identity &amp; Contact
+                {identityTitle}
               </CardTitle>
               <CardDescription>
-                Maintain the employee&apos;s primary identity fields.
+                {identityDescription}
               </CardDescription>
               <CardAction>
                 {!isTenantContextReadOnly ? (
@@ -1440,10 +1504,8 @@ export default function EmployeeProfilePage() {
 
           <Card className={WORKSPACE_CARD_CLASS_NAME}>
             <CardHeader className={WORKSPACE_CARD_HEADER_CLASS_NAME}>
-              <CardTitle className="text-base">Employment</CardTitle>
-              <CardDescription>
-                Keep role, hire date, and status details current.
-              </CardDescription>
+              <CardTitle className="text-base">{employmentTitle}</CardTitle>
+              <CardDescription>{employmentDescription}</CardDescription>
               <CardAction className="flex flex-wrap gap-2">
                 {canEditEmploymentDetails ? (
                   <Button
@@ -1538,8 +1600,8 @@ export default function EmployeeProfilePage() {
               <Separator />
               <DetailRow
                 icon={Building2}
-                label="Workforce context"
-                value="Core HR record"
+                label="Record type"
+                value="Employee record"
               />
             </CardContent>
           </Card>
@@ -1549,16 +1611,8 @@ export default function EmployeeProfilePage() {
         <div className="flex flex-col gap-6">
           <Card className={WORKSPACE_CARD_CLASS_NAME}>
             <CardHeader className={WORKSPACE_CARD_HEADER_CLASS_NAME}>
-              <CardTitle className="text-base">
-                {attentionItems.length > 0
-                  ? "Needs attention"
-                  : "Record health"}
-              </CardTitle>
-              <CardDescription>
-                {attentionItems.length > 0
-                  ? "Resolve the current workforce record issues from the linked workspace."
-                  : "No current workforce record issues are blocking this profile."}
-              </CardDescription>
+              <CardTitle className="text-base">{attentionTitle}</CardTitle>
+              <CardDescription>{attentionDescription}</CardDescription>
             </CardHeader>
             <CardContent className={WORKSPACE_CARD_CONTENT_CLASS_NAME}>
               {attentionItems.length > 0 ? (
@@ -1572,8 +1626,8 @@ export default function EmployeeProfilePage() {
                         <p className="text-sm font-medium">{issue.label}</p>
                         <p className="text-xs text-muted-foreground">
                           {issue.severity === "Blocker"
-                            ? "Resolve this blocker from the linked workforce surface."
-                            : "Open the linked workforce surface to fix this issue."}
+                            ? "Open the relevant details to resolve this blocker."
+                            : "Open the relevant details to review this issue."}
                         </p>
                       </div>
                       {canManageEmployee ? (
@@ -1591,10 +1645,10 @@ export default function EmployeeProfilePage() {
               ) : (
                 <div className="rounded-xl border bg-muted/10 px-4 py-3 text-sm text-muted-foreground">
                   <p className="font-medium text-foreground">
-                    Ready for Core operations
+                    Nothing needs action
                   </p>
                   <p className="mt-1">
-                    No current record issues need action on this employee.
+                    No current profile issues need action.
                   </p>
                 </div>
               )}
@@ -1615,12 +1669,9 @@ export default function EmployeeProfilePage() {
           <Card className={WORKSPACE_CARD_CLASS_NAME}>
             <CardHeader className={WORKSPACE_CARD_HEADER_CLASS_NAME}>
               <CardTitle className="text-base">
-                Employee file &amp; readiness
+                {fileChecklistTitle}
               </CardTitle>
-              <CardDescription>
-                Lightweight employee file checkpoints for a cleaner Core demo
-                story.
-              </CardDescription>
+              <CardDescription>{fileChecklistDescription}</CardDescription>
             </CardHeader>
             <CardContent className={WORKSPACE_CARD_CONTENT_CLASS_NAME}>
               <div className="space-y-3">
@@ -1645,9 +1696,7 @@ export default function EmployeeProfilePage() {
           <Card className={WORKSPACE_CARD_CLASS_NAME}>
             <CardHeader className={WORKSPACE_CARD_HEADER_CLASS_NAME}>
               <CardTitle className="text-base">Organization</CardTitle>
-              <CardDescription>
-                Maintain org placement and manager context from one workspace.
-              </CardDescription>
+              <CardDescription>{organizationDescription}</CardDescription>
               <CardAction>
                 <div className="flex items-center gap-2">
                   <Button
@@ -1742,7 +1791,7 @@ export default function EmployeeProfilePage() {
                 <div className="space-y-0.5">
                   <p className="text-sm font-medium">Reporting relationship</p>
                   <p className="text-xs text-muted-foreground">
-                    Update the manager and review the chain.
+                    {reportingRelationshipDescription}
                   </p>
                 </div>
                 {canManageEmployee ? (
@@ -1761,7 +1810,7 @@ export default function EmployeeProfilePage() {
       </div>
 
       <EmployeeReportingLinesSheet
-        employeeId={employeeId}
+        employeeId={profile.id}
         open={sheetOpen}
         onOpenChange={setSheetOpen}
         showJobTitle={showJobTitle}
