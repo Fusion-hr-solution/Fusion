@@ -63,6 +63,152 @@ interface AcceptFormValues {
   confirmPassword: string;
 }
 
+interface InviteErrorStateConfig {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  action?: React.ReactNode;
+}
+
+function buildSupportReference(correlationId: string | null): string | null {
+  return correlationId ? `Reference ID: ${correlationId}` : null;
+}
+
+function hasErrorMessage(error: ApiError, fragment: string): boolean {
+  return error.errors.some((message) =>
+    message.toLowerCase().includes(fragment.toLowerCase())
+  );
+}
+
+function getInviteValidationErrorState(
+  error: unknown
+): InviteErrorStateConfig | null {
+  if (!error) {
+    return null;
+  }
+
+  if (!(error instanceof ApiError)) {
+    return {
+      icon: <AlertTriangleIcon className="size-10 text-muted-foreground" />,
+      title: "Could not verify invite",
+      description: "Check your connection and try again.",
+    };
+  }
+
+  if (error.status === 404) {
+    return {
+      icon: <AlertTriangleIcon className="size-10 text-muted-foreground" />,
+      title: "Invite not found",
+      description: "Ask your administrator for a new invite link.",
+    };
+  }
+
+  if (error.status === 410 && hasErrorMessage(error, "used")) {
+    return {
+      icon: <CheckCircle2Icon className="size-10 text-green-600" />,
+      title: "Invite already accepted",
+      description: "Sign in with your account to continue.",
+      action: (
+        <a href="/auth/signin">
+          <Button>Sign in</Button>
+        </a>
+      ),
+    };
+  }
+
+  if (error.status === 410 && hasErrorMessage(error, "expired")) {
+    return {
+      icon: <ClockIcon className="size-10 text-muted-foreground" />,
+      title: "Invite expired",
+      description: "Ask your administrator for a new invite link.",
+    };
+  }
+
+  if (error.status === 410 && hasErrorMessage(error, "revoked")) {
+    return {
+      icon: <AlertTriangleIcon className="size-10 text-muted-foreground" />,
+      title: "Invite cancelled",
+      description: "This invite is no longer valid. Ask your administrator for a new invite link.",
+    };
+  }
+
+  const supportReference = buildSupportReference(error.correlationId);
+
+  if (error.status >= 500) {
+    return {
+      icon: <AlertTriangleIcon className="size-10 text-muted-foreground" />,
+      title: "Could not verify invite",
+      description: supportReference
+        ? `Try again in a moment. If the problem continues, contact your administrator and share ${supportReference}.`
+        : "Try again in a moment. If the problem continues, contact your administrator.",
+    };
+  }
+
+  return {
+    icon: <AlertTriangleIcon className="size-10 text-muted-foreground" />,
+    title: "Could not verify invite",
+    description: supportReference
+      ? `Refresh the page or try again in a moment. If you need help, share ${supportReference}.`
+      : "Refresh the page or try again in a moment.",
+  };
+}
+
+function getInviteSubmitErrorMessages(
+  error: unknown,
+  step: "accept" | "sign-in"
+): string[] {
+  if (!(error instanceof ApiError)) {
+    return ["We couldn't complete your request. Check your connection and try again."];
+  }
+
+  const supportReference = buildSupportReference(error.correlationId);
+
+  if (step === "sign-in") {
+    const messages = [
+      error.status === 401 || error.status === 403
+        ? "Your account was created, but automatic sign-in failed. Sign in with your new account to continue."
+        : "Your account was created, but we couldn't finish signing you in. Try signing in to continue.",
+    ];
+
+    if (supportReference && error.status >= 500) {
+      messages.push(supportReference);
+    }
+
+    return messages;
+  }
+
+  if (error.status === 410 && hasErrorMessage(error, "used")) {
+    return ["This invite has already been accepted. Sign in with your account to continue."];
+  }
+
+  if (error.status === 410 && hasErrorMessage(error, "expired")) {
+    return ["This invite has expired. Ask your administrator for a new invite link."];
+  }
+
+  if (error.status === 410 && hasErrorMessage(error, "revoked")) {
+    return ["This invite was cancelled. Ask your administrator for a new invite link."];
+  }
+
+  if (error.status === 400 && hasErrorMessage(error, "email is already registered")) {
+    return [
+      "This email already has an account. Sign in instead, or ask your administrator for a fresh invite if needed.",
+    ];
+  }
+
+  if (error.errors.length > 0 && error.status < 500) {
+    return error.errors;
+  }
+
+  return supportReference
+    ? [
+        "We couldn't finish setting up your account. Try again in a moment or contact your administrator.",
+        supportReference,
+      ]
+    : [
+        "We couldn't finish setting up your account. Try again in a moment or contact your administrator.",
+      ];
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -120,6 +266,7 @@ export function InviteAcceptanceForm({ token }: { token: string | null }) {
     if (!token || !invite) return;
 
     setServerErrors([]);
+    let submitStep: "accept" | "sign-in" = "accept";
 
     try {
       // 1. Accept the invite (creates user account)
@@ -134,6 +281,7 @@ export function InviteAcceptanceForm({ token }: { token: string | null }) {
 
       // 2. Auto-login with the credentials just created
       setIsAutoLoginning(true);
+      submitStep = "sign-in";
       const authResponse = await apiLogin({
         email: invite.email,
         password: values.password,
@@ -161,15 +309,7 @@ export function InviteAcceptanceForm({ token }: { token: string | null }) {
       router.push(resolveInviteAcceptanceDestination(user));
     } catch (err) {
       setIsAutoLoginning(false);
-      if (err instanceof ApiError) {
-        setServerErrors(
-          err.errors.length > 0
-            ? err.errors
-            : ["Something went wrong. Please try again."]
-        );
-      } else {
-        setServerErrors(["An unexpected error occurred. Please try again."]);
-      }
+      setServerErrors(getInviteSubmitErrorMessages(err, submitStep));
     }
   };
 
@@ -203,19 +343,28 @@ export function InviteAcceptanceForm({ token }: { token: string | null }) {
 
   // ── Validation error ────────────────────────────────────────────
 
-  if (validateError || !invite) {
-    const is404 =
-      validateError instanceof ApiError && validateError.status === 404;
+  const validationErrorState = getInviteValidationErrorState(validateError);
+
+  if (validationErrorState) {
+    return (
+      <InviteShell>
+        <ErrorState
+          icon={validationErrorState.icon}
+          title={validationErrorState.title}
+          description={validationErrorState.description}
+          action={validationErrorState.action}
+        />
+      </InviteShell>
+    );
+  }
+
+  if (!invite) {
     return (
       <InviteShell>
         <ErrorState
           icon={<AlertTriangleIcon className="size-10 text-muted-foreground" />}
-          title={is404 ? "Invite not found" : "Could not verify invite"}
-          description={
-            is404
-              ? "Ask your administrator for a new link."
-              : "Try again in a moment."
-          }
+          title="Could not verify invite"
+          description="Refresh the page and try again."
         />
       </InviteShell>
     );
@@ -229,7 +378,7 @@ export function InviteAcceptanceForm({ token }: { token: string | null }) {
         <ErrorState
           icon={<ClockIcon className="size-10 text-muted-foreground" />}
           title="Invite expired"
-          description="Ask your administrator for a new link."
+          description="Ask your administrator for a new invite link."
         />
       </InviteShell>
     );
@@ -243,7 +392,7 @@ export function InviteAcceptanceForm({ token }: { token: string | null }) {
         <ErrorState
           icon={<CheckCircle2Icon className="size-10 text-green-600" />}
           title="Invite already accepted"
-          description="Sign in with your account."
+          description="Sign in with your account to continue."
           action={
             <a href="/auth/signin">
               <Button>Sign in</Button>
