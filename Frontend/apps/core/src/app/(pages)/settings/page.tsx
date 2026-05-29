@@ -136,7 +136,7 @@ const PERMISSION_GROUP_LABELS: Record<
   (typeof PERMISSION_GROUP_ORDER)[number],
   string
 > = {
-  Workspace: "Core workspace",
+  Workspace: "Overview",
   "Setup & Structure": "Setup & structure",
   Employees: "Employees",
   "Org Chart": "Org chart",
@@ -153,14 +153,14 @@ const PERMISSION_SCOPE_LABELS: Record<GrantScopeDraft, string> = {
 };
 
 const PERMISSION_LABEL_OVERRIDES: Record<string, string> = {
-  "core.overview.view": "View Core workspace",
+  "core.overview.view": "View overview",
   "core.structure.view": "View organization structure",
   "core.structure.manage": "Manage organization structure",
   "core.structure.publish": "Publish organization structure",
   "core.employee.manage": "Manage employee records",
   "core.employee.import": "Import employee records",
-  "core.settings.view": "View configuration",
-  "core.settings.manage": "Manage configuration",
+  "core.settings.view": "View settings",
+  "core.settings.manage": "Manage settings",
 };
 
 const PERMISSION_HELPER_TEXT_OVERRIDES: Record<string, string> = {
@@ -467,28 +467,6 @@ function buildGrantInput(
       permissionKey,
       scope: scope as PermissionScope,
     }));
-}
-
-function formatPermissionSummary(profile: AccessProfileSummaryDto): string {
-  if (profile.grants.length === 0) {
-    return "No access";
-  }
-
-  const groupCount = new Set(profile.grants.map((grant) => grant.group)).size;
-  const grantLabel =
-    profile.grants.length === 1 ? "1 grant" : `${profile.grants.length} grants`;
-  const areaLabel = groupCount === 1 ? "1 area" : `${groupCount} areas`;
-
-  return `${grantLabel} · ${areaLabel}`;
-}
-
-function formatProfileMeta(profile: AccessProfileSummaryDto): string {
-  return [
-    formatAssignedUserCount(profile.assignedUserCount),
-    profile.grants.length === 1
-      ? "1 permission"
-      : `${profile.grants.length} permissions`,
-  ].join(" · ");
 }
 
 function formatWorkforceContext(user: UserAccessAssignmentDto): string {
@@ -1015,10 +993,10 @@ export default function SettingsPage() {
   if (error && !settings) {
     return (
       <div className="space-y-6 p-6">
-        <PageHeader title="Core Configuration" />
+        <PageHeader title="Settings" />
         <Alert variant="destructive">
           <AlertCircle className="size-4" />
-          <AlertTitle>Failed to load Core configuration</AlertTitle>
+          <AlertTitle>Failed to load settings</AlertTitle>
           <AlertDescription className="flex items-center justify-between gap-4">
             <span>{buildSettingsErrorMessage(error)}</span>
             <Button variant="outline" size="sm" onClick={() => refetch()}>
@@ -1041,11 +1019,11 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6 p-6">
       <PageHeader
-        title="Core Configuration"
+        title="Settings"
         description={
           isTenantContext
-            ? `Reviewing ${tenantName ?? "tenant"} in tenant context.`
-            : "Manage employee fields, structure settings, and access profiles."
+            ? `Reviewing ${tenantName ?? "tenant"} in a read-only tenant view.`
+            : "Manage employee fields, self-service rules, structure settings, and access profiles."
         }
         actions={
           <Button variant="outline" onClick={() => router.push(setupHref)}>
@@ -1058,7 +1036,7 @@ export default function SettingsPage() {
         <div className="flex items-center gap-2 rounded-lg border bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
           <ShieldAlert className="size-4 shrink-0" />
           <span>
-            Tenant context: fields and structure are read-only. Access profiles
+            Read-only tenant view: fields and structure are read-only. Access profiles
             stay editable.
           </span>
         </div>
@@ -1086,7 +1064,7 @@ export default function SettingsPage() {
             <CardHeader>
               <CardTitle>Employee fields</CardTitle>
               <CardDescription>
-                Configure field visibility and self-service.
+                Manage everyday employee fields and self-service settings.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -1098,7 +1076,31 @@ export default function SettingsPage() {
                 </Alert>
               ) : null}
 
-              <div className="overflow-hidden rounded-xl border">
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="rounded-xl border bg-muted/10 p-4">
+                  <p className="text-sm font-medium text-foreground">
+                    Common changes
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Start with self-service settings and the fields employees
+                    use most often.
+                  </p>
+                </div>
+                <div className="rounded-xl border bg-muted/10 p-4">
+                  <p className="text-sm font-medium text-foreground">
+                    Advanced field rules
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Open the field rule matrix when you need to change required
+                    fields or audience visibility.
+                  </p>
+                </div>
+              </div>
+
+              <details className="overflow-hidden rounded-xl border" open={hasSettingsChanges}>
+                <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-foreground">
+                  Field visibility and requirements
+                </summary>
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -1203,7 +1205,7 @@ export default function SettingsPage() {
                     })}
                   </TableBody>
                 </Table>
-              </div>
+              </details>
 
               <div className="flex flex-wrap items-center gap-4 rounded-xl border bg-muted/20 px-4 py-3">
                 <span className="text-sm font-medium">
@@ -1755,28 +1757,37 @@ export default function SettingsPage() {
                   {selectedProfile ? (
                     <Card>
                       <CardHeader className="pb-3">
-                        <CardTitle>People with this profile</CardTitle>
+                        <CardTitle>Assignments</CardTitle>
+                        <CardDescription>
+                          Review who currently holds this access profile.
+                        </CardDescription>
                       </CardHeader>
                       <CardContent className="space-y-4">
-                        <div className="relative">
-                          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                          <Input
-                            className="pl-9"
-                            value={assignmentSearch}
-                            onChange={(event) =>
-                              setAssignmentSearch(event.target.value)
-                            }
-                            placeholder="Search by name or email"
-                          />
-                        </div>
+                        <details className="rounded-xl border bg-muted/10">
+                          <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-foreground">
+                            Show people with this profile
+                          </summary>
 
-                        <p className="text-xs text-muted-foreground">
-                          People can hold more than one profile. Effective
-                          access combines assigned profiles and uses the highest
-                          scope for each permission.
-                        </p>
+                          <div className="space-y-4 border-t p-4">
+                            <div className="relative">
+                              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                              <Input
+                                className="pl-9"
+                                value={assignmentSearch}
+                                onChange={(event) =>
+                                  setAssignmentSearch(event.target.value)
+                                }
+                                placeholder="Search by name or email"
+                              />
+                            </div>
 
-                        <div className="space-y-3">
+                            <p className="text-xs text-muted-foreground">
+                              People can hold more than one profile. Effective
+                              access combines assigned profiles and uses the highest
+                              scope for each permission.
+                            </p>
+
+                            <div className="space-y-3">
                           <div className="flex items-center justify-between gap-3">
                             <p className="text-sm font-medium">
                               Assigned users
@@ -1956,7 +1967,9 @@ export default function SettingsPage() {
                               </div>
                             ))
                           )}
-                        </div>
+                            </div>
+                          </div>
+                        </details>
                       </CardContent>
                     </Card>
                   ) : null}
