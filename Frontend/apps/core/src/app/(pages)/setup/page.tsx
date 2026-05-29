@@ -12,6 +12,7 @@ import {
   History,
   Rocket,
   ShieldCheck,
+  User,
 } from "lucide-react";
 import { ApiError } from "@repo/api";
 import { useTenantContext } from "@/components/core-tenant-context-provider";
@@ -558,47 +559,33 @@ function getHeaderDescription({
 }
 
 function getSetupSummaryLine({
-  phase,
   hasDraftUnits,
   unitCount,
   rootUnitCount,
   blockingIssueCount,
   warningCount,
-  isReadyForApproval,
 }: {
-  phase: CoreSetupPhase;
   hasDraftUnits: boolean;
   unitCount: number;
   rootUnitCount: number;
   blockingIssueCount: number;
   warningCount: number;
-  isReadyForApproval: boolean;
-}) {
+}): string | null {
   if (!hasDraftUnits) {
-    return "No draft units yet.";
+    return null;
   }
 
-  const counts = `${unitCount} unit${unitCount === 1 ? "" : "s"} • ${rootUnitCount} top-level`;
-
-  if (isSetupCompletePhase(phase)) {
-    return `${counts} • live across Core`;
-  }
-
-  if (phase === "structurallyGoverned") {
-    return blockingIssueCount > 0
-      ? `${counts} • ${blockingIssueCount} blocker${blockingIssueCount === 1 ? "" : "s"} to clear`
-      : `${counts} • ready to publish`;
-  }
+  const counts = `${unitCount} unit${unitCount === 1 ? "" : "s"} · ${rootUnitCount} top-level`;
 
   if (blockingIssueCount > 0) {
-    return `${counts} • ${blockingIssueCount} blocker${blockingIssueCount === 1 ? "" : "s"}`;
+    return `${counts} · ${blockingIssueCount} blocker${blockingIssueCount === 1 ? "" : "s"}`;
   }
 
   if (warningCount > 0) {
-    return `${counts} • ${warningCount} warning${warningCount === 1 ? "" : "s"}`;
+    return `${counts} · ${warningCount} warning${warningCount === 1 ? "" : "s"}`;
   }
 
-  return `${counts} • ${isReadyForApproval ? "ready for approval" : "in progress"}`;
+  return counts;
 }
 
 function getReadinessStatusLabel({
@@ -972,13 +959,11 @@ export default function SetupPage() {
     setupState?.currentPhase !== "structurallyGoverned" ||
     reopenStructure.isLoading;
   const summaryLine = getSetupSummaryLine({
-    phase,
     hasDraftUnits,
     unitCount: readiness?.totalUnitCount ?? 0,
     rootUnitCount: readiness?.rootUnitCount ?? 0,
     blockingIssueCount,
     warningCount,
-    isReadyForApproval,
   });
   const readinessStatusLabel = getReadinessStatusLabel({
     phase,
@@ -1170,11 +1155,28 @@ export default function SetupPage() {
                     </p>
                   )}
                 </div>
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-                  <span>{summaryLine}</span>
-                  {statusMeta ? <span>{statusMeta}</span> : null}
+                <div className="space-y-1.5">
+                  {summaryLine ? (
+                    <p className="text-sm text-muted-foreground">{summaryLine}</p>
+                  ) : null}
                   {setupState.approvedAt && !isCoreUnlocked ? (
-                    <span>{formatRoleLabel(setupState.approvedByRole)}</span>
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <User className="h-3.5 w-3.5 shrink-0 opacity-60" />
+                      <span>
+                        <span className="font-medium text-foreground/75">
+                          {setupState.approvedByFullName ?? "Approval recorded"}
+                        </span>
+                        {setupState.approvedByRole ? (
+                          <> &middot; {formatRoleLabel(setupState.approvedByRole)}</>
+                        ) : null}
+                        {" "}&middot; {formatTimestamp(setupState.approvedAt)}
+                      </span>
+                    </div>
+                  ) : isCoreUnlocked && statusMeta ? (
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <History className="h-3.5 w-3.5 shrink-0 opacity-60" />
+                      <span>{statusMeta}</span>
+                    </div>
                   ) : null}
                 </div>
               </div>
