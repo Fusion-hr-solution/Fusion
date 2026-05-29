@@ -608,11 +608,11 @@ function OpenCoreWorkspaceButton({ tenantId }: { tenantId: string }) {
         onClick={() => router.push(`/?tenantId=${tenantId}`)}
       >
         <ExternalLink className="size-4" />
-        Open Core workspace
+        Open tenant overview
         <ArrowRight className="size-4" />
       </Button>
       <p className="mt-1.5 text-xs text-muted-foreground">
-        View this tenant&apos;s Core workspace as PlatformAdmin.
+        View this tenant&apos;s Core overview as a platform administrator.
       </p>
     </div>
   );

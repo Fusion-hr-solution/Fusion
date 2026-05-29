@@ -75,50 +75,6 @@ function LoadingSkeleton() {
   );
 }
 
-interface DashboardCardProps {
-  icon: React.ComponentType<{ className?: string }>;
-  title: string;
-  description?: string;
-  href: string;
-  cta?: string;
-  children?: React.ReactNode;
-}
-
-function DashboardCard({
-  icon: Icon,
-  title,
-  description,
-  href,
-  cta,
-  children,
-}: DashboardCardProps) {
-  return (
-    <Card className="flex flex-col">
-      <CardHeader>
-        <div className="flex items-center gap-2">
-          <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
-            <Icon className="size-4" />
-          </div>
-          <CardTitle className="text-base">{title}</CardTitle>
-        </div>
-        {description ? <CardDescription>{description}</CardDescription> : null}
-      </CardHeader>
-      {children ? (
-        <CardContent className="flex-1">{children}</CardContent>
-      ) : null}
-      <CardContent className="pt-0">
-        <Link
-          href={href}
-          className="group inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary/80"
-        >
-          {cta ?? `Open ${title.toLowerCase()}`}
-          <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
-        </Link>
-      </CardContent>
-    </Card>
-  );
-}
-
 function formatCompactDate(value: string) {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) {
@@ -188,25 +144,24 @@ function HRAdminDashboard() {
   return (
     <div className="flex min-h-full flex-col gap-6 p-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Core workspace
-        </h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Overview</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Manage structure, people, access, and readiness.
+          Start with the people and access work that needs attention.
         </p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {/* Workforce health — spans 2 columns */}
         <Card className="xl:col-span-2 flex flex-col">
           <CardHeader>
             <div className="flex items-center gap-2">
               <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
                 <Users className="size-4" />
               </div>
-              <CardTitle className="text-base">Workforce health</CardTitle>
+              <CardTitle className="text-base">People needing attention</CardTitle>
             </div>
-            <CardDescription>Employee issues and blockers.</CardDescription>
+            <CardDescription>
+              Review employee and import issues that need follow-up.
+            </CardDescription>
           </CardHeader>
           <CardContent className="flex-1">
             {rs ? (
@@ -275,7 +230,7 @@ function HRAdminDashboard() {
             ) : rsError ? (
               <div className="flex items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground">
                 <AlertTriangle className="size-4" />
-                Workforce health is temporarily unavailable.
+                People and import issues are temporarily unavailable.
               </div>
             ) : (
               <div className="rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground">
@@ -288,7 +243,7 @@ function HRAdminDashboard() {
               href="/employees"
               className="group inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary/80"
             >
-              Open employees
+              Review people
               <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
             </Link>
           </CardContent>
@@ -302,10 +257,10 @@ function HRAdminDashboard() {
                 <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
                   <User className="size-4" />
                 </div>
-                <CardTitle className="text-base">Access activation</CardTitle>
+                <CardTitle className="text-base">Access invitations</CardTitle>
               </div>
               <CardDescription>
-                Invite employees and manage access.
+                Invite people and assign the access they need.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
@@ -322,13 +277,6 @@ function HRAdminDashboard() {
               >
                 <span>Review invitations</span>
                 <ArrowRight className="size-4 text-muted-foreground" />
-              </Link>
-              <Link
-                href="/org-chart"
-                className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
-              >
-                <span>Open org chart</span>
-                <Network className="size-4 text-muted-foreground" />
               </Link>
             </CardContent>
           </Card>
@@ -411,31 +359,19 @@ function HRAdminDashboard() {
               </div>
             )}
           </CardContent>
-          <CardContent className="pt-0">
-            <Link
-              href="/employees?create=1"
-              className="group inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary/80"
-            >
-              Add employee
-              <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
-            </Link>
-          </CardContent>
         </Card>
+      </div>
 
-        <DashboardCard
-          icon={Network}
-          title="Org chart"
-          description="Hierarchy and reporting lines."
-          href="/org-chart"
-        />
-
+      <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
+        <Link href="/org-chart" className="inline-flex items-center gap-1.5 hover:text-foreground">
+          <Network className="size-4" />
+          Open org chart
+        </Link>
         {canSeeSettings ? (
-          <DashboardCard
-            icon={Settings2}
-            title="Settings"
-            description="Tenant settings and policies."
-            href="/settings"
-          />
+          <Link href="/settings" className="inline-flex items-center gap-1.5 hover:text-foreground">
+            <Settings2 className="size-4" />
+            Open settings
+          </Link>
         ) : null}
       </div>
     </div>
@@ -460,9 +396,9 @@ function ManagerDashboard() {
   return (
     <div className="flex min-h-full flex-col gap-6 p-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">My workspace</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Overview</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Review your profile and team.
+          Start with your profile and team.
         </p>
       </div>
 
@@ -532,7 +468,7 @@ function ManagerDashboard() {
             </div>
             <CardDescription>
               {isReportingLoading
-                ? "Loading..."
+                ? "Loading team summary..."
                 : `${directReportCount} direct report${directReportCount === 1 ? "" : "s"}`}
             </CardDescription>
           </CardHeader>
@@ -608,9 +544,9 @@ function EmployeeDashboard() {
   return (
     <div className="flex min-h-full flex-col gap-6 p-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">My workspace</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Overview</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Review your profile and work context.
+          Review your profile and work details.
         </p>
       </div>
 
@@ -626,7 +562,7 @@ function EmployeeDashboard() {
             <CardDescription>
               {profile
                 ? `${profile.fullName}${profile.jobTitle ? ` · ${profile.jobTitle}` : ""}`
-                : "Your linked employee record."}
+                : "Your work profile."}
             </CardDescription>
           </CardHeader>
           <CardContent className="flex-1">
@@ -686,7 +622,7 @@ function EmployeeDashboard() {
           </CardHeader>
           <CardContent>
             <Link
-              href={employeeId ? `/employees/${employeeId}` : "/profile"}
+              href="/profile"
               className="group inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary/80"
             >
               Edit profile preferences
@@ -1070,14 +1006,13 @@ function PlatformAdminTenantDashboard() {
       ) : null}
 
       <div className="grid gap-4 md:grid-cols-3">
-        {/* Workforce health */}
         <Card className="md:col-span-2 flex flex-col">
           <CardHeader>
             <div className="flex items-center gap-2">
               <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
                 <Users className="size-4" />
               </div>
-              <CardTitle className="text-base">Workforce health</CardTitle>
+              <CardTitle className="text-base">People needing attention</CardTitle>
             </div>
             <CardDescription>
               Employee record issues and operational blockers.
@@ -1151,7 +1086,7 @@ function PlatformAdminTenantDashboard() {
               </div>
             ) : (
               <div className="rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground">
-                Workforce health data unavailable.
+                People and import issues are temporarily unavailable.
               </div>
             )}
           </CardContent>
@@ -1160,7 +1095,7 @@ function PlatformAdminTenantDashboard() {
               href={tenantHref("/employees")}
               className="group inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary/80"
             >
-              Open employees
+              Review people
               <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
             </Link>
           </CardContent>
@@ -1252,7 +1187,7 @@ export default function DashboardPage() {
     <div className="flex min-h-full flex-col gap-6 p-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
-          Core workspace
+          Overview
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
           No workspaces are available for your current role.
