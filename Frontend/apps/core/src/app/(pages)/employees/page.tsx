@@ -34,7 +34,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
-  DialogFooter,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -201,9 +201,7 @@ function SelectedAccessActionBar({
   onCopyInviteLinks,
   onReviewInvitations,
   onSelectAllMatching,
-  pageSelectedCount,
   selectedCount,
-  selectionScope,
   totalMatchingCount,
   summary,
 }: {
@@ -214,9 +212,7 @@ function SelectedAccessActionBar({
   onCopyInviteLinks: () => void;
   onReviewInvitations: () => void;
   onSelectAllMatching: () => void;
-  pageSelectedCount: number;
   selectedCount: number;
-  selectionScope: SelectionScope;
   totalMatchingCount: number;
   summary: BulkSelectionSummary;
 }) {
@@ -251,10 +247,6 @@ function SelectedAccessActionBar({
                 ? "Selecting all..."
                 : `Select all (${totalMatchingCount})`}
             </Button>
-          ) : false && selectionScope === "allMatching" ? (
-            <span className="text-xs text-muted-foreground">
-              Applies to all matching
-            </span>
           ) : null}
         </div>
 
@@ -532,7 +524,7 @@ export default function EmployeesPage() {
                 variant={getAccessBadgeTone(accessState)}
                 className="max-w-[7.4rem] truncate px-2 min-[1700px]:max-w-[9.4rem]"
               >
-                {isLoadingWorkforceAccounts ? "Loading..." : accessState}
+                {isLoadingWorkforceAccounts ? "Loading access..." : accessState}
               </Badge>
 
               {eligibility.canCopyInviteLink ? (
@@ -596,6 +588,28 @@ export default function EmployeesPage() {
     }
   }, [selectedEmployees]);
 
+  const replaceEmployeesQueryParams = useCallback(
+    (updates: Record<string, string | null>) => {
+      const nextSearchParams = new URLSearchParams(searchParams.toString());
+
+      for (const [key, value] of Object.entries(updates)) {
+        if (!value) {
+          nextSearchParams.delete(key);
+          continue;
+        }
+
+        nextSearchParams.set(key, value);
+      }
+
+      const nextSearch = nextSearchParams.toString();
+      const nextPath = window.location.pathname;
+      const nextUrl = nextSearch ? `${nextPath}?${nextSearch}` : nextPath;
+
+      window.history.replaceState(window.history.state, "", nextUrl);
+    },
+    [searchParams]
+  );
+
   const handleSearchChange = useCallback((value: string) => {
     setSearch(value);
     setPage(1);
@@ -613,16 +627,21 @@ export default function EmployeesPage() {
     (value: EmployeeAccessFilter | undefined) => {
       setAccess(value);
       setPage(1);
+      replaceEmployeesQueryParams({
+        access: value ?? null,
+        review: null,
+      });
     },
-    []
+    [replaceEmployeesQueryParams]
   );
 
   const handleReadinessChange = useCallback(
     (value: EmployeeReadinessFilter | undefined) => {
       setReadiness(value);
       setPage(1);
+      replaceEmployeesQueryParams({ readiness: value ?? null });
     },
-    []
+    [replaceEmployeesQueryParams]
   );
 
   const handleSortingChange = useCallback((nextSorting: SortingState) => {
@@ -659,21 +678,9 @@ export default function EmployeesPage() {
 
   const updateCreateEmployeeQueryParam = useCallback(
     (open: boolean) => {
-      const nextSearchParams = new URLSearchParams(searchParams.toString());
-
-      if (open) {
-        nextSearchParams.set("create", "1");
-      } else {
-        nextSearchParams.delete("create");
-      }
-
-      const nextSearch = nextSearchParams.toString();
-      const nextPath = window.location.pathname;
-      const nextUrl = nextSearch ? `${nextPath}?${nextSearch}` : nextPath;
-
-      window.history.replaceState(window.history.state, "", nextUrl);
+      replaceEmployeesQueryParams({ create: open ? "1" : null });
     },
-    [searchParams]
+    [replaceEmployeesQueryParams]
   );
 
   const handleCreateEmployeeOpenChange = useCallback(
@@ -769,6 +776,12 @@ export default function EmployeesPage() {
         results.some((result) => result.outcome === "Created")
       ) {
         setAccess("Invited");
+        replaceEmployeesQueryParams({
+          access: "Invited",
+          review: null,
+        });
+      } else {
+        replaceEmployeesQueryParams({ review: null });
       }
       setIsAccessWorkflowOpen(false);
       setSelectionScope("page");
@@ -783,8 +796,10 @@ export default function EmployeesPage() {
     access,
     bulkProvision,
     queryClient,
+    replaceEmployeesQueryParams,
     reviewRows.provisionableRows,
     selectedAccessProfilesByEmployeeId,
+    toast,
   ]);
 
   const handleSelectedAccessProfileChange = useCallback(
@@ -1047,9 +1062,7 @@ export default function EmployeesPage() {
             setIsAccessWorkflowOpen(true);
           }}
           onSelectAllMatching={() => void handleSelectAllMatching()}
-          pageSelectedCount={selectedPageEmployees.length}
           selectedCount={selectedEmployees.length}
-          selectionScope={selectionScope}
           totalMatchingCount={totalMatchingCount}
           summary={selectionSummary}
         />
@@ -1099,6 +1112,10 @@ export default function EmployeesPage() {
         <DialogContent className="flex max-h-[85vh] flex-col gap-0 p-0 sm:max-w-2xl">
           <DialogHeader className="shrink-0 px-6 pt-6 pb-4">
             <DialogTitle>Assign access profiles</DialogTitle>
+            <DialogDescription>
+              Choose an access profile for each selected employee before
+              sending their invitation email.
+            </DialogDescription>
           </DialogHeader>
 
           <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 pb-6">

@@ -140,7 +140,7 @@ export function Toolbar({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">
-          <DropdownMenuLabel>Filter platform access state</DropdownMenuLabel>
+          <DropdownMenuLabel>Filter access state</DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuRadioGroup
             value={access ?? "all"}
