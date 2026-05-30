@@ -104,7 +104,7 @@ export default function OrganizationsPage() {
     return (
       <CorePageLoadingState
         title="Organizations"
-        description="Organization management is available only to platform administrators."
+        description="Loading organizations."
         message="Loading organizations..."
         variant="summary-list"
       />
@@ -114,14 +114,11 @@ export default function OrganizationsPage() {
   if (!canManageOrganizations) {
     return (
       <div className="flex flex-col gap-6 p-6">
-        <PageHeader
-          title="Organizations"
-          description="Organization management is available only to platform administrators."
-        />
+        <PageHeader title="Organizations" description="Platform admin workspace only." />
         <EmptyState
           icon={Building}
           title="Organization management is not available here"
-          description="Use the administration area to manage organizations."
+          description="Use the platform administration area."
         />
       </div>
     );
@@ -131,7 +128,7 @@ export default function OrganizationsPage() {
     <div className="flex flex-col gap-6 p-6">
       <PageHeader
         title="Organizations"
-        description="Manage tenant organizations, invites, and lifecycle."
+        description="Tenant organizations and lifecycle."
         actions={
           <Button onClick={() => setCreateOpen(true)}>
             <Plus className="size-4" />

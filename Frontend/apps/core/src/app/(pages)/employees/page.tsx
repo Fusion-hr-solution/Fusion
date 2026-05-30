@@ -225,7 +225,7 @@ function SelectedAccessActionBar({
     summary.notIncludedCount === 0;
 
   return (
-    <div className="rounded-xl border bg-background px-4 py-3 ">
+    <div className="rounded-xl border bg-muted/10 px-4 py-3">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="secondary">{selectedCount} selected</Badge>
@@ -247,7 +247,7 @@ function SelectedAccessActionBar({
             >
               {isSelectingAllMatching
                 ? "Selecting all..."
-                : `Select all (${totalMatchingCount})`}
+                : `Select all ${totalMatchingCount}`}
             </Button>
           ) : null}
         </div>
@@ -260,8 +260,8 @@ function SelectedAccessActionBar({
             <Button size="sm" onClick={onReviewInvitations}>
               <Send />
               {summary.provisionableCount === 1
-                ? "Assign access for 1 employee"
-                : `Assign access for ${summary.provisionableCount} employees`}
+                ? "Invite 1 employee"
+                : `Invite ${summary.provisionableCount} employees`}
             </Button>
           ) : canManageAccess &&
             hasPendingOnly &&
@@ -269,11 +269,11 @@ function SelectedAccessActionBar({
             <Button size="sm" onClick={onCopyInviteLinks}>
               <Copy />
               {summary.pendingInvitationCount === 1
-                ? "Copy 1 invite link"
-                : `Copy ${summary.pendingInvitationCount} invite links`}
+                ? "Copy 1 link"
+                : `Copy ${summary.pendingInvitationCount} links`}
             </Button>
           ) : !canManageAccess ? (
-            <Badge variant="outline">Access invitations are restricted</Badge>
+            <Badge variant="outline">Access restricted</Badge>
           ) : null}
         </div>
       </div>
@@ -962,7 +962,7 @@ export default function EmployeesPage() {
     return (
       <CorePageLoadingState
         title="Employees"
-        description="Tenant HR administrators manage the roster."
+        description="Manage the roster."
         message="Loading employees..."
         variant="list"
       />
@@ -973,7 +973,7 @@ export default function EmployeesPage() {
     return (
       <CorePageLoadingState
         title="Employees"
-        description="Redirecting to the Access workspace."
+        description="Opening Access."
         message="Opening Access workspace"
         variant="redirect"
       />
@@ -983,10 +983,7 @@ export default function EmployeesPage() {
   if (!canAccess) {
     return (
       <div className="flex flex-col gap-6 p-6">
-        <PageHeader
-          title="Employees"
-          description="Tenant HR administrators manage the roster."
-        />
+        <PageHeader title="Employees" description="Manage the roster." />
         <EmptyState
           icon={Users}
           title="Employee roster is not available for this role"
@@ -1000,7 +997,7 @@ export default function EmployeesPage() {
     <div className="flex flex-col gap-6 p-6">
       <PageHeader
         title="Employees"
-        description="Manage the roster. Day-to-day account activation and invitation work lives in Access."
+        description="Manage roster data. Access operations live in Access."
         actions={
           canCreateEmployee || canImportEmployees || canUseAccessWorkspace ? (
             <div className="flex flex-wrap gap-2">
@@ -1008,7 +1005,7 @@ export default function EmployeesPage() {
                 <Button asChild variant="outline">
                   <Link href="/access">
                     <Send />
-                    Open access
+                    Open Access
                   </Link>
                 </Button>
               ) : null}
@@ -1115,8 +1112,8 @@ export default function EmployeesPage() {
         }
         emptyDescription={
           access
-            ? "Try a different access filter or search."
-            : "Try a different search or status filter."
+            ? "Try another access filter."
+            : "Try another search or filter."
         }
       />
 
@@ -1143,8 +1140,7 @@ export default function EmployeesPage() {
           <DialogHeader className="shrink-0 px-6 pt-6 pb-4">
             <DialogTitle>Assign access profiles</DialogTitle>
             <DialogDescription>
-              Choose an access profile for each selected employee before
-              sending their invitation email.
+              Choose a profile before sending invitations.
             </DialogDescription>
           </DialogHeader>
 
@@ -1153,8 +1149,7 @@ export default function EmployeesPage() {
               <Alert>
                 <AlertTitle>No access profiles available</AlertTitle>
                 <AlertDescription>
-                  Create an access profile in Settings before sending
-                  invitations.
+                  Create an access profile in Settings first.
                 </AlertDescription>
               </Alert>
             ) : null}
@@ -1207,7 +1202,7 @@ export default function EmployeesPage() {
               </div>
             ) : (
               <p className="py-2 text-sm text-muted-foreground">
-                No selected employees are ready for access right now.
+                No selected employees are ready to invite.
               </p>
             )}
 
@@ -1220,7 +1215,7 @@ export default function EmployeesPage() {
                     setIsNotIncludedExpanded((current) => !current)
                   }
                 >
-                  {reviewRows.notIncludedRows.length} not included
+                  {reviewRows.notIncludedRows.length} excluded
                 </button>
                 {isNotIncludedExpanded ? (
                   <div className="border-t px-4 py-2">
@@ -1252,12 +1247,7 @@ export default function EmployeesPage() {
             <div className="space-y-1">
               {reviewRows.notIncludedRows.length > 0 ? (
                 <p className="text-xs text-muted-foreground">
-                  {reviewRows.notIncludedRows.length} selected employee
-                  {reviewRows.notIncludedRows.length === 1 ? "" : "s"}{" "}
-                  {reviewRows.notIncludedRows.length === 1
-                    ? "doesn't"
-                    : "don't"}{" "}
-                  need a new invitation.
+                  {reviewRows.notIncludedRows.length} excluded from this run.
                 </p>
               ) : null}
               <p className="text-sm text-muted-foreground">

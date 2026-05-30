@@ -1145,7 +1145,7 @@ export default function EmployeeProfilePage() {
       <CorePageLoadingState
         title={isSelfRoute ? "My Profile" : "Employee Profile"}
         description={
-          isSelfRoute ? "Loading your profile..." : "Loading employee details..."
+          isSelfRoute ? "Loading profile." : "Loading employee profile."
         }
         message={
           isSelfRoute ? "Loading your profile..." : "Loading employee profile..."
@@ -1169,7 +1169,7 @@ export default function EmployeeProfilePage() {
           }
           description={
             isSelfRoute
-              ? "Contact a tenant HR administrator if you expected to see your profile."
+              ? "Contact a tenant HR administrator if you expected access."
               : "Contact a tenant HR administrator."
           }
         />
@@ -1200,11 +1200,11 @@ export default function EmployeeProfilePage() {
               description={
                 isForbidden
                   ? isSelfRoute
-                    ? "Your account is not linked to a profile you can open in the current Core access scope."
-                    : "This employee is not available in your current Core access scope."
+                    ? "Your linked record is outside your current Core access scope."
+                    : "This employee is outside your current Core access scope."
                   : isSelfRoute
-                    ? "Your linked employee profile may have been removed or is not available right now."
-                    : "This employee may have been removed or is outside your current scope."
+                    ? "Your linked employee profile is not available right now."
+                    : "This employee is not available right now."
               }
             />
           ) : (

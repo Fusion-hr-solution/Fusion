@@ -243,18 +243,15 @@ function matchesProfileFilter(row: AccessRow, profileId: string): boolean {
 function AccessOverviewCard({
   title,
   value,
-  description,
 }: {
   title: string;
   value: number;
-  description: string;
 }) {
   return (
     <Card>
-      <CardContent className="space-y-2 py-5">
+      <CardContent density="compact" className="space-y-1 py-4">
         <p className="text-sm text-muted-foreground">{title}</p>
-        <p className="text-3xl font-semibold tracking-tight">{value}</p>
-        <p className="text-xs text-muted-foreground">{description}</p>
+        <p className="text-3xl font-semibold tracking-tight tabular-nums">{value}</p>
       </CardContent>
     </Card>
   );
@@ -521,7 +518,7 @@ export default function AccessPage() {
     return (
       <CorePageLoadingState
         title="Access"
-        description="Manage account activation and access profiles for linked workforce records."
+        description="Invites, activation, and profile assignment."
         message="Loading access workspace"
         variant="workspace"
       />
@@ -533,7 +530,7 @@ export default function AccessPage() {
       <div className="flex flex-col gap-6 p-6">
         <PageHeader
           title="Access"
-          description="Manage account activation and access profiles for linked workforce records."
+          description="Invites, activation, and profile assignment."
         />
         <Alert>
           <AlertTriangle className="size-4" />
@@ -550,108 +547,27 @@ export default function AccessPage() {
     <div className="flex flex-col gap-6 p-6">
       <PageHeader
         title="Access"
-        description="Manage account activation and access profiles for linked workforce records."
+        description="Invites, activation, and profile assignment."
         actions={
           canManageProfiles ? (
             <Button asChild variant="outline">
               <Link href="/settings?tab=access-profiles">
                 <Settings2 className="size-4" />
-                Access profiles
+                Profile settings
               </Link>
             </Button>
           ) : null
         }
       />
 
-      {canManageProfiles ? (
-        <Card>
-          <CardContent className="flex flex-col gap-4 py-5 md:flex-row md:items-center md:justify-between">
-            <div className="space-y-1">
-              <p className="text-sm font-medium">Profile definition stays in Settings</p>
-              <p className="text-sm text-muted-foreground">
-                Use this workspace for day-to-day access operations and Settings for profile design.
-              </p>
-            </div>
-            <Button asChild variant="secondary">
-              <Link href="/settings?tab=access-profiles">
-                <ShieldCheck className="size-4" />
-                Open access profiles
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
-      ) : null}
-
       {canViewAccess ? (
         <>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <AccessOverviewCard
-              title="Not invited"
-              value={overview.notInvited}
-              description="Current search results with no account invite yet."
-            />
-            <AccessOverviewCard
-              title="Invite pending"
-              value={overview.invited}
-              description="Pending access invitations on the current page."
-            />
-            <AccessOverviewCard
-              title="Active accounts"
-              value={overview.active}
-              description="People with an active linked sign-in account."
-            />
-            <AccessOverviewCard
-              title="Needs review"
-              value={overview.needsReview}
-              description="Expired, inactive, conflicting, or follow-up states."
-            />
+            <AccessOverviewCard title="Not invited" value={overview.notInvited} />
+            <AccessOverviewCard title="Invite pending" value={overview.invited} />
+            <AccessOverviewCard title="Active accounts" value={overview.active} />
+            <AccessOverviewCard title="Needs review" value={overview.needsReview} />
           </div>
-
-          <Card>
-            <CardContent className="flex flex-col gap-3 py-5 lg:flex-row lg:items-center lg:justify-between">
-              <div className="w-full lg:max-w-sm">
-                <Input
-                  value={searchInput}
-                  onChange={(event) => setSearchInput(event.target.value)}
-                  placeholder="Search by name, email, or employee number"
-                />
-              </div>
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <Select
-                  value={accessFilter}
-                  onValueChange={(value) =>
-                    setAccessFilter(value as EmployeeAccessFilter | typeof ALL_FILTER)
-                  }
-                >
-                  <SelectTrigger className="w-full sm:w-[180px]">
-                    <SelectValue placeholder="Access state" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={ALL_FILTER}>All access states</SelectItem>
-                    {EMPLOYEE_ACCESS_FILTER_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                <Select value={profileFilter} onValueChange={setProfileFilter}>
-                  <SelectTrigger className="w-full sm:w-[220px]">
-                    <SelectValue placeholder="Access profile" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={ALL_FILTER}>All access profiles</SelectItem>
-                    {accessProfiles.map((profile) => (
-                      <SelectItem key={profile.id} value={profile.id}>
-                        {profile.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardContent>
-          </Card>
 
           {accessSubjectsQuery.error ? (
             <Alert variant="destructive">
@@ -662,13 +578,63 @@ export default function AccessPage() {
             </Alert>
           ) : (
             <Card>
-              <CardHeader>
-                <CardTitle>People access list</CardTitle>
-                <CardDescription>
-                  Search current workforce records, review account state, and manage access actions.
-                </CardDescription>
+              <CardHeader density="compact" className="space-y-4">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-base">People</CardTitle>
+                    <Badge variant="outline">{filteredRows.length} shown</Badge>
+                  </div>
+                  {canManageProfiles ? (
+                    <p className="text-sm text-muted-foreground">
+                      Profile design stays in Settings.
+                    </p>
+                  ) : null}
+                </div>
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="w-full lg:max-w-sm">
+                    <Input
+                      value={searchInput}
+                      onChange={(event) => setSearchInput(event.target.value)}
+                      placeholder="Search by name, email, or employee number"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-3 sm:flex-row">
+                    <Select
+                      value={accessFilter}
+                      onValueChange={(value) =>
+                        setAccessFilter(value as EmployeeAccessFilter | typeof ALL_FILTER)
+                      }
+                    >
+                      <SelectTrigger className="w-full sm:w-[180px]">
+                        <SelectValue placeholder="Access state" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={ALL_FILTER}>All access states</SelectItem>
+                        {EMPLOYEE_ACCESS_FILTER_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    <Select value={profileFilter} onValueChange={setProfileFilter}>
+                      <SelectTrigger className="w-full sm:w-[220px]">
+                        <SelectValue placeholder="Access profile" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={ALL_FILTER}>All access profiles</SelectItem>
+                        {accessProfiles.map((profile) => (
+                          <SelectItem key={profile.id} value={profile.id}>
+                            {profile.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent density="compact" className="space-y-4">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -770,7 +736,7 @@ export default function AccessPage() {
           <AlertTriangle className="size-4" />
           <AlertTitle>Operational access is restricted</AlertTitle>
           <AlertDescription>
-            You can manage access profile definitions, but this workspace does not include invitation or account operations.
+            Profile definitions are available in Settings, but invitation and account operations are not available here.
           </AlertDescription>
         </Alert>
       )}
@@ -789,7 +755,7 @@ export default function AccessPage() {
               <SheetHeader>
                 <SheetTitle>{selectedRow.displayName}</SheetTitle>
                 <SheetDescription>
-                  Review account activation, invitation state, and access profile assignment.
+                  Account state and profile assignment.
                 </SheetDescription>
               </SheetHeader>
 
@@ -819,13 +785,10 @@ export default function AccessPage() {
 
                 {selectedRow.workforceAccount?.userId && canManageAccess ? (
                   <Card>
-                    <CardHeader>
+                    <CardHeader density="compact">
                       <CardTitle className="text-base">Assigned access profiles</CardTitle>
-                      <CardDescription>
-                        Effective access combines all assigned profiles.
-                      </CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-3">
+                    <CardContent density="compact" className="space-y-3">
                       {accessProfiles.map((profile) => {
                         const checked = selectedProfileIds.includes(profile.id);
                         return (
@@ -854,13 +817,10 @@ export default function AccessPage() {
 
                 {!selectedRow.workforceAccount?.userId && canManageAccess ? (
                   <Card>
-                    <CardHeader>
+                    <CardHeader density="compact">
                       <CardTitle className="text-base">Invitation profile</CardTitle>
-                      <CardDescription>
-                        Choose the initial access profile to apply when this invitation is accepted.
-                      </CardDescription>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent density="compact">
                       <Select value={inviteProfileId} onValueChange={setInviteProfileId}>
                         <SelectTrigger>
                           <SelectValue placeholder="Select an access profile" />

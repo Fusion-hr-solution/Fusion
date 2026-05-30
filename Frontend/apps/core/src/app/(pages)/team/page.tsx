@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -31,7 +30,7 @@ export default function MyTeamPage() {
     return (
       <CorePageLoadingState
         title="My Team"
-        description="Loading reports..."
+        description="Loading team."
         message="Loading your team..."
         variant="summary-list"
       />
@@ -41,10 +40,7 @@ export default function MyTeamPage() {
   if (!canAccess || !employeeId) {
     return (
       <div className="flex flex-col gap-6 p-6">
-        <PageHeader
-          title="My Team"
-          description="Available to linked manager accounts."
-        />
+        <PageHeader title="My Team" description="Manager workspace only." />
         <EmptyState
           icon={Users}
           title="No team workspace available"
@@ -56,10 +52,7 @@ export default function MyTeamPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <PageHeader
-        title="My Team"
-        description="Direct reports from your linked record."
-      />
+      <PageHeader title="My Team" description="Direct reports." />
 
       {error ? (
         <Alert variant="destructive">
@@ -74,13 +67,10 @@ export default function MyTeamPage() {
       ) : null}
 
       <Card>
-        <CardHeader>
+        <CardHeader density="compact">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <CardTitle>Direct reports</CardTitle>
-              <CardDescription>
-                Employees who report directly to you.
-              </CardDescription>
             </div>
             <Badge variant="secondary">
               {directReports.length} direct report

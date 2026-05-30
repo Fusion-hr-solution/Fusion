@@ -497,7 +497,7 @@ export default function EmployeeImportPage() {
     return (
       <CorePageLoadingState
         title="Import employees"
-        description="Upload and validate employees from the CSV template."
+        description="Upload and validate from the CSV template."
         message="Loading employee import..."
         variant="workspace"
       />
@@ -509,7 +509,7 @@ export default function EmployeeImportPage() {
       <div className="flex flex-col gap-6 p-6">
         <PageHeader
           title="Import employees"
-          description="Tenant HR administrators manage imports after setup is complete."
+          description="Import access is restricted."
         />
         <EmptyState
           icon={Users}
@@ -532,7 +532,7 @@ export default function EmployeeImportPage() {
 
       <PageHeader
         title="Import employees"
-        description="Upload, review, and apply employee data from the CSV template."
+        description="Upload, review, and apply CSV employee data."
         actions={
           <Button variant="outline" asChild>
             <Link href="/employees">

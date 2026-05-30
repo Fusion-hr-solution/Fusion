@@ -51,6 +51,8 @@ import { cn } from "@/lib/utils";
 import {
   useActivateSetup,
   useApproveStructure,
+  usePublishStructure,
+  useReopenStructure,
   useSetupReadiness,
 } from "../use-setup";
 import { shouldAutoActivateSetup } from "../setup-entry-routing";
@@ -473,8 +475,12 @@ export default function DraftStructurePage() {
   const approveStructure = useApproveStructure();
   const clearStructure = useClearDraftStructure();
   const deleteDraftOrgUnit = useDeleteDraftOrgUnit();
+  const publishStructure = usePublishStructure();
+  const reopenStructure = useReopenStructure();
   const [approveError, setApproveError] = useState<string | null>(null);
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
+  const [publishDialogOpen, setPublishDialogOpen] = useState(false);
+  const [publishError, setPublishError] = useState<string | null>(null);
 
   const draftTree = useMemo(() => buildWorkspaceDraftTree(tree ?? []), [tree]);
   const draftTreeNodeIds = useMemo(
@@ -842,6 +848,61 @@ export default function DraftStructurePage() {
     }
   };
 
+  const handlePublish = async () => {
+    if (!setupState || setupState.version == null) {
+      setPublishError("The latest setup version is required before publishing.");
+      return;
+    }
+
+    setPublishError(null);
+
+    try {
+      await publishStructure.mutateAsync({
+        expectedVersion: setupState.version,
+      });
+      setPublishDialogOpen(false);
+      await refreshWorkspaceAndReadiness();
+      router.refresh();
+      toast.success("Structure published", {
+        description: "The published structure is now live across Core.",
+      });
+    } catch (error) {
+      const message =
+        error instanceof ApiError
+          ? error.errors.join(", ")
+          : error instanceof Error
+            ? error.message
+            : "An unexpected error occurred while publishing the structure.";
+      setPublishError(message);
+    }
+  };
+
+  const handleReopen = async () => {
+    if (!setupState || setupState.version == null) {
+      toast.error("The latest setup version is required before reopening.");
+      return;
+    }
+
+    try {
+      await reopenStructure.mutateAsync({
+        expectedVersion: setupState.version,
+      });
+      await refreshWorkspaceAndReadiness();
+      router.refresh();
+      toast.success("Draft reopened", {
+        description: "The structure can be edited again.",
+      });
+    } catch (error) {
+      const message =
+        error instanceof ApiError
+          ? error.errors.join(", ")
+          : error instanceof Error
+            ? error.message
+            : "An unexpected error occurred while reopening the draft.";
+      toast.error(message);
+    }
+  };
+
   const handleImportOpenChange = (nextOpen: boolean) => {
     setIsImportOpen(nextOpen);
   };
@@ -946,7 +1007,7 @@ export default function DraftStructurePage() {
         title={pageTitle}
         description={pageDescription}
         actions={
-          <>
+          <div className="flex flex-wrap items-center gap-2">
             {canApproveFromDraft && readiness?.isReadyForApproval ? (
               <Button
                 onClick={() => setApproveDialogOpen(true)}
@@ -962,11 +1023,33 @@ export default function DraftStructurePage() {
             ) : null}
 
             {canReopenFromDraft ? (
-              <Button variant="outline" onClick={() => router.push("/setup")}>
-                Go to setup summary
+              <Button variant="outline" onClick={() => void handleReopen()} disabled={reopenStructure.isLoading}>
+                {reopenStructure.isLoading ? (
+                  <Spinner className="mr-1" />
+                ) : null}
+                {reopenStructure.isLoading
+                  ? "Reopening..."
+                  : "Reopen draft"}
               </Button>
             ) : null}
-          </>
+
+            {canReopenFromDraft ? (
+              <Button onClick={() => setPublishDialogOpen(true)} disabled={publishStructure.isLoading}>
+                {publishStructure.isLoading ? (
+                  <Spinner className="mr-1" />
+                ) : null}
+                {publishStructure.isLoading
+                  ? "Publishing..."
+                  : "Publish structure"}
+              </Button>
+            ) : null}
+
+            {isSetupComplete ? (
+              <Button variant="outline" onClick={() => router.push("/setup")}>
+                Open setup
+              </Button>
+            ) : null}
+          </div>
         }
       />
 
@@ -1156,6 +1239,40 @@ export default function DraftStructurePage() {
               {approveStructure.isLoading
                 ? "Approving..."
                 : "Approve structure"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={publishDialogOpen} onOpenChange={setPublishDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Publish structure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Makes the approved structure live.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {publishError ? (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Publishing failed</AlertTitle>
+              <AlertDescription>{publishError}</AlertDescription>
+            </Alert>
+          ) : null}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={publishStructure.isLoading}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                void handlePublish();
+              }}
+              disabled={publishStructure.isLoading}
+            >
+              {publishStructure.isLoading ? <Spinner className="mr-1" /> : null}
+              {publishStructure.isLoading
+                ? "Publishing..."
+                : "Publish structure"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1370,48 +1487,45 @@ function DraftStructureWorkbench({
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              {!isDraftLocked ? (
-                <>
-                  <Button onClick={onImport}>
+              <Button onClick={onImport}>
+                <FileSpreadsheet className="size-4" />
+                {hasImportSession ? "Resume import" : "Import template"}
+              </Button>
+
+              <Button variant="outline" onClick={onAddRoot}>
+                <Plus className="size-4" />
+                {primaryAddLabel}
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon-sm">
+                    <Ellipsis className="size-4" />
+                    <span className="sr-only">Open structure options</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onSelect={onManageTypes}>
+                    <Settings2 className="size-4" />
+                    Manage types
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    disabled={isEmptyDraft}
+                    onSelect={onDownloadCsv}
+                  >
                     <FileSpreadsheet className="size-4" />
-                    {hasImportSession ? "Resume import" : "Import template"}
-                  </Button>
-                  <Button variant="outline" onClick={onAddRoot}>
-                    <Plus className="size-4" />
-                    {primaryAddLabel}
-                  </Button>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="icon-sm">
-                        <Ellipsis className="size-4" />
-                        <span className="sr-only">Open structure options</span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onSelect={onManageTypes}>
-                        <Settings2 className="size-4" />
-                        Manage types
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        disabled={isEmptyDraft}
-                        onSelect={onDownloadCsv}
-                      >
-                        <FileSpreadsheet className="size-4" />
-                        Download CSV
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        disabled={isEmptyDraft || isClearingStructure}
-                        onSelect={onClearStructure}
-                        className="text-destructive focus:text-destructive"
-                      >
-                        <Trash2 className="size-4 text-destructive focus:text-destructive" />
-                        Delete all units
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </>
-              ) : null}
+                    Download CSV
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    variant="destructive"
+                    disabled={isEmptyDraft || isClearingStructure}
+                    onSelect={onClearStructure}
+                  >
+                    <Trash2 className="size-4" />
+                    Delete all units
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
 

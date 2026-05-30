@@ -31,6 +31,7 @@ import {
   useAuth,
 } from "@repo/auth";
 import { CorePageLoadingState } from "@/components/core-page-loading-state";
+import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -152,27 +153,26 @@ function HRAdminDashboard() {
 
   return (
     <div className="flex min-h-full flex-col gap-6 p-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Overview</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Start with the people and access work that needs attention.
-        </p>
-      </div>
+      <PageHeader
+        title="Overview"
+        description="People, access, and setup work needing attention."
+      />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <Card className="xl:col-span-2 flex flex-col">
-          <CardHeader>
+          <CardHeader
+            density="compact"
+            className="flex-row items-center justify-between gap-3 space-y-0"
+          >
             <div className="flex items-center gap-2">
               <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
                 <Users className="size-4" />
               </div>
               <CardTitle className="text-base">People needing attention</CardTitle>
             </div>
-            <CardDescription>
-              Review employee and import issues that need follow-up.
-            </CardDescription>
+            {rs ? <Badge variant="outline">{rs.employeesNeedingAttention} open</Badge> : null}
           </CardHeader>
-          <CardContent className="flex-1">
+          <CardContent density="compact" className="flex-1">
             {rs ? (
               <div className="space-y-3">
                 <div className="flex items-center justify-between rounded-lg border bg-muted/20 px-3 py-2">
@@ -247,7 +247,7 @@ function HRAdminDashboard() {
               </div>
             )}
           </CardContent>
-          <CardContent className="pt-0">
+          <CardContent density="compact" className="pt-0">
             <Link
               href="/employees"
               className="group inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary/80"
@@ -261,18 +261,19 @@ function HRAdminDashboard() {
         {/* Right column */}
         <div className="flex flex-col gap-4">
           <Card>
-            <CardHeader>
+            <CardHeader
+              density="compact"
+              className="flex-row items-center justify-between gap-3 space-y-0"
+            >
               <div className="flex items-center gap-2">
                 <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                  <User className="size-4" />
+                  <ShieldCheck className="size-4" />
                 </div>
-                <CardTitle className="text-base">Access invitations</CardTitle>
+                <CardTitle className="text-base">Access</CardTitle>
               </div>
-              <CardDescription>
-                Invite people and assign the access they need.
-              </CardDescription>
+              <Badge variant="outline">2 actions</Badge>
             </CardHeader>
-            <CardContent className="space-y-2">
+            <CardContent density="compact" className="space-y-2">
               <Link
                 href="/employees?create=1"
                 className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
@@ -284,26 +285,29 @@ function HRAdminDashboard() {
                 href="/employees?access=NotInvited&review=access"
                 className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
               >
-                <span>Review invitations</span>
+                <span>Review pending access</span>
                 <ArrowRight className="size-4 text-muted-foreground" />
               </Link>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader>
+            <CardHeader
+              density="compact"
+              className="flex-row items-center justify-between gap-3 space-y-0"
+            >
               <div className="flex items-center gap-2">
                 <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
                   <ClipboardList className="size-4" />
                 </div>
                 <CardTitle className="text-base">Setup</CardTitle>
               </div>
-              <CardDescription>
-                {canSeeSetup ? "Structure is live." : "Structure management."}
-              </CardDescription>
+              <Badge variant={canSeeSetup ? "secondary" : "outline"}>
+                {canSeeSetup ? "Available" : "Restricted"}
+              </Badge>
             </CardHeader>
             {canSeeSetup && (
-              <CardContent>
+              <CardContent density="compact">
                 <Link
                   href="/setup"
                   className="group inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary/80"
@@ -317,16 +321,19 @@ function HRAdminDashboard() {
         </div>
 
         <Card className="flex flex-col">
-          <CardHeader>
+          <CardHeader
+            density="compact"
+            className="flex-row items-center justify-between gap-3 space-y-0"
+          >
             <div className="flex items-center gap-2">
               <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
                 <Users className="size-4" />
               </div>
               <CardTitle className="text-base">Recent hires</CardTitle>
             </div>
-            <CardDescription>Recent and upcoming starts.</CardDescription>
+            <Badge variant="outline">{recentHireItems.length}</Badge>
           </CardHeader>
-          <CardContent className="flex-1">
+          <CardContent density="compact" className="flex-1">
             {isRecentEmployeesLoading ? (
               <div className="space-y-2">
                 {Array.from({ length: 4 }).map((_, index) => (
@@ -673,33 +680,23 @@ function PlatformAdminDashboard() {
 
   return (
     <div className="flex min-h-full flex-col gap-6 p-6">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Platform workspace
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Manage tenant organizations and platform operations.
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-3">
-          <Link
-            href="/organizations?create=1"
-            className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-          >
-            <Plus className="size-4" />
-            New organization
-          </Link>
-          <Link
-            href="/organizations"
-            className="group inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary/80"
-          >
-            Open organizations
-            <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
-          </Link>
-        </div>
-      </div>
+      <PageHeader
+        title="Platform workspace"
+        description="Organizations and platform operations."
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <Button asChild>
+              <Link href="/organizations?create=1">
+                <Plus className="size-4" />
+                New organization
+              </Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/organizations">Open organizations</Link>
+            </Button>
+          </div>
+        }
+      />
 
       {dashboardError && !recentData ? (
         <Alert variant="destructive">
@@ -719,27 +716,26 @@ function PlatformAdminDashboard() {
         </Alert>
       ) : (
         <>
-          {/* KPI strip */}
           <StatsCards
             stats={stats}
             isLoading={isDashboardLoading && !recentData}
           />
 
-          {/* Main content: attention + quick actions */}
           <div className="grid gap-4 md:grid-cols-3">
             <Card className="md:col-span-2 flex flex-col">
-              <CardHeader>
+              <CardHeader
+                density="compact"
+                className="flex-row items-center justify-between gap-3 space-y-0"
+              >
                 <div className="flex items-center gap-2">
                   <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
                     <AlertTriangle className="size-4" />
                   </div>
                   <CardTitle className="text-base">Needs attention</CardTitle>
                 </div>
-                <CardDescription>
-                  Organizations requiring platform admin action.
-                </CardDescription>
+                <Badge variant="outline">{totalAttentionCount}</Badge>
               </CardHeader>
-              <CardContent className="flex-1">
+              <CardContent density="compact" className="flex-1">
                 {attentionError && !attentionData ? (
                   <Alert variant="destructive">
                     <AlertTitle>
@@ -819,7 +815,7 @@ function PlatformAdminDashboard() {
                   </div>
                 )}
               </CardContent>
-              <CardContent className="pt-0">
+              <CardContent density="compact" className="pt-0">
                 <Link
                   href="/organizations"
                   className="group inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary/80"
@@ -831,18 +827,15 @@ function PlatformAdminDashboard() {
             </Card>
 
             <Card className="flex flex-col">
-              <CardHeader>
+              <CardHeader density="compact">
                 <div className="flex items-center gap-2">
                   <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
                     <Building className="size-4" />
                   </div>
                   <CardTitle className="text-base">Quick actions</CardTitle>
                 </div>
-                <CardDescription>
-                  Common platform administration tasks.
-                </CardDescription>
               </CardHeader>
-              <CardContent className="flex flex-1 flex-col gap-2">
+              <CardContent density="compact" className="flex flex-1 flex-col gap-2">
                 <Link
                   href="/organizations?create=1"
                   className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors hover:border-primary/40 hover:bg-muted/10"
@@ -875,9 +868,11 @@ function PlatformAdminDashboard() {
             </Card>
           </div>
 
-          {/* Recent organizations */}
           <Card>
-            <CardHeader>
+            <CardHeader
+              density="compact"
+              className="flex-row items-center justify-between gap-3 space-y-0"
+            >
               <div className="flex items-center gap-2">
                 <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
                   <Building className="size-4" />
@@ -886,11 +881,9 @@ function PlatformAdminDashboard() {
                   Recently created organizations
                 </CardTitle>
               </div>
-              <CardDescription>
-                Most recently added tenant organizations.
-              </CardDescription>
+              <Badge variant="outline">{recentOrgs.length}</Badge>
             </CardHeader>
-            <CardContent>
+            <CardContent density="compact">
               {isDashboardLoading && !recentData ? (
                 <div className="space-y-2">
                   {Array.from({ length: 5 }).map((_, i) => (
@@ -947,30 +940,20 @@ function PlatformAdminTenantDashboard() {
 
   return (
     <div className="flex min-h-full flex-col gap-6 p-6">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-semibold tracking-tight">
-            {tenantName ?? tenantId ?? "Tenant context"}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {isReady
-              ? "Tenant overview and workforce readiness."
-              : "Tenant summary is still loading. Read-only tenant surfaces are available now."}
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <Link
-            href={tenantHref("/setup")}
-            className="group inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary/80"
-          >
-            View setup
-            <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
-          </Link>
-        </div>
-      </div>
+      <PageHeader
+        title={tenantName ?? tenantId ?? "Tenant context"}
+        description={
+          isReady
+            ? "Tenant overview and workforce readiness."
+            : "Tenant summary is still loading."
+        }
+        actions={
+          <Button asChild variant="outline">
+            <Link href={tenantHref("/setup")}>View setup</Link>
+          </Button>
+        }
+      />
 
-      {/* Readiness KPI strip */}
       {rs ? (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <div className="flex flex-col gap-1 rounded-xl border bg-card p-4 ring-1 ring-foreground/5">
@@ -1016,18 +999,19 @@ function PlatformAdminTenantDashboard() {
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card className="md:col-span-2 flex flex-col">
-          <CardHeader>
+          <CardHeader
+            density="compact"
+            className="flex-row items-center justify-between gap-3 space-y-0"
+          >
             <div className="flex items-center gap-2">
               <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
                 <Users className="size-4" />
               </div>
               <CardTitle className="text-base">People needing attention</CardTitle>
             </div>
-            <CardDescription>
-              Employee record issues and operational blockers.
-            </CardDescription>
+            {rs ? <Badge variant="outline">{rs.employeesNeedingAttention} open</Badge> : null}
           </CardHeader>
-          <CardContent className="flex-1">
+          <CardContent density="compact" className="flex-1">
             {rs ? (
               <div className="space-y-3">
                 <div className="flex items-center justify-between rounded-lg border bg-muted/20 px-3 py-2">
@@ -1099,7 +1083,7 @@ function PlatformAdminTenantDashboard() {
               </div>
             )}
           </CardContent>
-          <CardContent className="pt-0">
+          <CardContent density="compact" className="pt-0">
             <Link
               href={tenantHref("/employees")}
               className="group inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary/80"
@@ -1110,20 +1094,16 @@ function PlatformAdminTenantDashboard() {
           </CardContent>
         </Card>
 
-        {/* Quick actions */}
         <Card className="flex flex-col">
-          <CardHeader>
+          <CardHeader density="compact">
             <div className="flex items-center gap-2">
               <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
                 <Settings2 className="size-4" />
               </div>
               <CardTitle className="text-base">Quick actions</CardTitle>
             </div>
-            <CardDescription>
-              Tenant administration and navigation.
-            </CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-1 flex-col gap-2">
+          <CardContent density="compact" className="flex flex-1 flex-col gap-2">
             <Link
               href={tenantHref("/setup")}
               className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors hover:border-primary/40 hover:bg-muted/10"
@@ -1170,7 +1150,7 @@ function CoreOperationsDashboard() {
       ? {
           href: moduleHref("/access"),
           title: "Access",
-          description: "Manage account activation, invitations, and profile assignment.",
+          badge: "Invites",
           icon: ShieldCheck,
         }
       : null,
@@ -1178,7 +1158,7 @@ function CoreOperationsDashboard() {
       ? {
           href: moduleHref("/setup"),
           title: "Setup",
-          description: "Review tenant structure and readiness tasks.",
+          badge: "Readiness",
           icon: ClipboardList,
         }
       : null,
@@ -1186,7 +1166,7 @@ function CoreOperationsDashboard() {
       ? {
           href: moduleHref("/settings"),
           title: "Settings",
-          description: "Open Core configuration and access profile settings.",
+          badge: "Config",
           icon: Settings2,
         }
       : null,
@@ -1194,7 +1174,7 @@ function CoreOperationsDashboard() {
       ? {
           href: moduleHref("/employees"),
           title: "Employees",
-          description: "Review the tenant employee roster and readiness state.",
+          badge: "Roster",
           icon: Users,
         }
       : null,
@@ -1202,7 +1182,7 @@ function CoreOperationsDashboard() {
       ? {
           href: moduleHref("/team"),
           title: "My Team",
-          description: "Open your direct team workspace.",
+          badge: "Reports",
           icon: Users,
         }
       : null,
@@ -1210,7 +1190,7 @@ function CoreOperationsDashboard() {
       ? {
           href: moduleHref("/profile"),
           title: "My Profile",
-          description: "Review your linked workforce profile.",
+          badge: "Self",
           icon: User,
         }
       : null,
@@ -1218,12 +1198,10 @@ function CoreOperationsDashboard() {
 
   return (
     <div className="flex min-h-full flex-col gap-6 p-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Overview</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Choose the Core workspace that matches your current permissions.
-        </p>
-      </div>
+      <PageHeader
+        title="Overview"
+        description="Open the Core workspace you use today."
+      />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {workspaces.map((workspace) => {
@@ -1231,16 +1209,19 @@ function CoreOperationsDashboard() {
 
           return (
             <Card key={workspace.title}>
-              <CardHeader>
+              <CardHeader
+                density="compact"
+                className="flex-row items-center justify-between gap-3 space-y-0"
+              >
                 <div className="flex items-center gap-2">
                   <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
                     <Icon className="size-4" />
                   </div>
                   <CardTitle className="text-base">{workspace.title}</CardTitle>
                 </div>
-                <CardDescription>{workspace.description}</CardDescription>
+                <Badge variant="outline">{workspace.badge}</Badge>
               </CardHeader>
-              <CardContent>
+              <CardContent density="compact">
                 <Link
                   href={workspace.href}
                   className="group inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary/80"
@@ -1361,14 +1342,10 @@ export default function DashboardPage() {
 
   return (
     <div className="flex min-h-full flex-col gap-6 p-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Overview
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          No workspaces are available for your current role.
-        </p>
-      </div>
+      <PageHeader
+        title="Overview"
+        description="No Core workspaces are available for your current role."
+      />
       <div className="rounded-xl border border-dashed bg-muted/10 p-8 text-center text-sm text-muted-foreground">
         Contact your platform administrator to configure access.
       </div>

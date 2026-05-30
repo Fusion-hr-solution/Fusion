@@ -345,10 +345,7 @@ export default function OrgChartPage() {
   if (!canAccess) {
     return (
       <div className="flex flex-col gap-6 p-6">
-        <PageHeader
-          title="Org Chart"
-          description="Tenant HR administrators manage the org chart."
-        />
+        <PageHeader title="Org Chart" description="Org chart access is restricted." />
         <EmptyState
           icon={Network}
           title="Org chart is not available for this role"
@@ -362,7 +359,7 @@ export default function OrgChartPage() {
     <div className="flex min-h-full flex-col gap-6 p-6">
       <PageHeader
         title="Org Chart"
-        description="Inspect the workforce structure and reporting lines."
+        description="Workforce structure and reporting lines."
         actions={
           <Button variant="outline" onClick={() => refetch()}>
             <RefreshCcw />
@@ -435,7 +432,7 @@ export default function OrgChartPage() {
         <EmptyState
           icon={Network}
           title="No visible reporting structure yet"
-          description="Add employees and reporting lines to visualize the structure here."
+          description="Add employees and reporting lines to render the chart."
         />
       ) : (
         <div className="flex h-[70vh] overflow-hidden rounded-2xl border bg-card">

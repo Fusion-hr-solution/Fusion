@@ -1024,8 +1024,8 @@ export default function SettingsPage() {
         title="Settings"
         description={
           isTenantContext
-            ? `Reviewing ${tenantName ?? "tenant"} in a read-only tenant view.`
-            : "Manage employee fields, self-service rules, structure settings, and access profiles."
+            ? `Read-only view for ${tenantName ?? "tenant"}.`
+            : "Employee fields, structure, and access profiles."
         }
         actions={
           <Button variant="outline" onClick={() => router.push(setupHref)}>
@@ -1037,10 +1037,7 @@ export default function SettingsPage() {
       {isTenantContext ? (
         <div className="flex items-center gap-2 rounded-lg border bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
           <ShieldAlert className="size-4 shrink-0" />
-          <span>
-            Read-only tenant view: fields and structure are read-only. Access profiles
-            stay editable.
-          </span>
+          <span>Read-only tenant view. Access profiles stay editable.</span>
         </div>
       ) : null}
 
@@ -1063,11 +1060,8 @@ export default function SettingsPage() {
 
         <TabsContent value="employee-fields" className="space-y-6">
           <Card>
-            <CardHeader>
+            <CardHeader density="compact">
               <CardTitle>Employee fields</CardTitle>
-              <CardDescription>
-                Manage everyday employee fields and self-service settings.
-              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {saveError ? (
@@ -1078,25 +1072,9 @@ export default function SettingsPage() {
                 </Alert>
               ) : null}
 
-              <div className="grid gap-3 md:grid-cols-2">
-                <div className="rounded-xl border bg-muted/10 p-4">
-                  <p className="text-sm font-medium text-foreground">
-                    Common changes
-                  </p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Start with self-service settings and the fields employees
-                    use most often.
-                  </p>
-                </div>
-                <div className="rounded-xl border bg-muted/10 p-4">
-                  <p className="text-sm font-medium text-foreground">
-                    Advanced field rules
-                  </p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Open the field rule matrix when you need to change required
-                    fields or audience visibility.
-                  </p>
-                </div>
+              <div className="flex flex-wrap items-center gap-2 rounded-xl border bg-muted/10 px-4 py-3 text-sm text-muted-foreground">
+                <Badge variant="outline">Self-service first</Badge>
+                <span>Use the matrix for field visibility and requirements.</span>
               </div>
 
               <details className="overflow-hidden rounded-xl border" open={hasSettingsChanges}>
@@ -1238,10 +1216,10 @@ export default function SettingsPage() {
               <div className="flex items-center justify-between gap-3 rounded-xl border bg-muted/20 px-4 py-3">
                 <span className="text-sm text-muted-foreground">
                   {hasSettingsChanges
-                    ? "Unsaved field and self-service changes"
+                    ? "Unsaved changes"
                     : canEditSettings
                       ? null
-                      : "Read-only in the current access mode"}
+                      : "Read-only"}
                 </span>
                 <div className="flex gap-2">
                   <Button
@@ -1269,9 +1247,8 @@ export default function SettingsPage() {
 
         <TabsContent value="organization-structure" className="space-y-6">
           <Card>
-            <CardHeader>
+            <CardHeader density="compact">
               <CardTitle>Organization structure</CardTitle>
-              <CardDescription>Review active org-unit kinds.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex flex-wrap items-center gap-2">
@@ -1338,32 +1315,28 @@ export default function SettingsPage() {
                 <EmptyState
                   icon={LockKeyhole}
                   title="Access profiles are restricted"
-                  description="Ask a Core administrator for access to profile management."
+                  description="Ask a Core administrator for access."
                 />
               </CardContent>
             </Card>
           ) : (
             <>
-              <Card>
-                <CardContent className="flex flex-col gap-4 py-5 md:flex-row md:items-center md:justify-between">
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium">Daily access operations live in Access</p>
-                    <p className="text-sm text-muted-foreground">
-                      Use this tab to define access profiles. Use Access to invite people, resend links, and manage account activation.
-                    </p>
-                  </div>
-                  <Button asChild variant="outline">
-                    <Link href="/access">
-                      <ShieldCheck className="size-4" />
-                      Open access
-                    </Link>
-                  </Button>
-                </CardContent>
-              </Card>
+              <div className="flex flex-col gap-3 rounded-xl border bg-muted/10 px-4 py-3 md:flex-row md:items-center md:justify-between">
+                <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                  <Badge variant="outline">Operational access</Badge>
+                  <span>Invites and activation stay in Access.</span>
+                </div>
+                <Button asChild variant="outline" size="sm">
+                  <Link href="/access">
+                    <ShieldCheck className="size-4" />
+                    Open access
+                  </Link>
+                </Button>
+              </div>
 
               <div className="grid gap-6 xl:grid-cols-[minmax(280px,340px)_minmax(0,1fr)]">
                 <Card>
-                  <CardHeader className="pb-3">
+                  <CardHeader density="compact" className="pb-3">
                     <div className="flex items-center justify-between gap-3">
                       <CardTitle>Access profiles</CardTitle>
                       <Button
@@ -1447,7 +1420,7 @@ export default function SettingsPage() {
 
                 <div className="space-y-6">
                   <Card>
-                    <CardHeader className="pb-4">
+                    <CardHeader density="compact" className="pb-4">
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="space-y-2">
                           <div className="flex flex-wrap items-center gap-2">
@@ -1490,9 +1463,7 @@ export default function SettingsPage() {
                               </Badge>
                             </div>
                           ) : (
-                            <CardDescription>
-                              Choose a profile to continue.
-                            </CardDescription>
+                            <CardDescription>Choose a profile.</CardDescription>
                           )}
                         </div>
                       </div>
@@ -1600,8 +1571,7 @@ export default function SettingsPage() {
                                   Permissions
                                 </p>
                                 <p className="text-sm text-muted-foreground">
-                                  Choose what this profile can do and how far it
-                                  reaches.
+                                  Choose permissions and scope.
                                 </p>
                               </div>
                               <Badge variant="outline">

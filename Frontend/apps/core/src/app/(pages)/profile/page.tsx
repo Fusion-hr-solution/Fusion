@@ -16,7 +16,7 @@ export default function MyProfilePage() {
     return (
       <CorePageLoadingState
         title="My Profile"
-        description="Loading your profile..."
+        description="Loading profile."
         message="Loading your profile..."
         variant="summary-list"
       />
@@ -35,14 +35,11 @@ export default function MyProfilePage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <PageHeader
-        title="My Profile"
-        description="Your account is not linked to an employee record."
-      />
+      <PageHeader title="My Profile" description="No linked employee record." />
       <EmptyState
         icon={User}
         title="No linked employee profile"
-        description="Contact a tenant HR administrator to link you in the roster."
+        description="Contact a tenant HR administrator to link your record."
       />
     </div>
   );
