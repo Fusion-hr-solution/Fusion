@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   AlertTriangle,
@@ -46,9 +52,7 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { useBreadcrumbLabel } from "@/components/breadcrumb-overrides";
-import {
-  canAccessEmployeeProfile,
-} from "@/lib/employee-roster-access";
+import { canAccessEmployeeProfile } from "@/lib/employee-roster-access";
 import { buildTenantContextHref } from "@/lib/tenant-navigation";
 import { useTenantSettings } from "../../setup/draft-structure/use-tenant-settings";
 import { useEmployeeFieldPolicy } from "../employee-field-visibility";
@@ -82,8 +86,6 @@ import {
   useWorkforceAccountStatus,
 } from "../use-workforce-accounts";
 import { useAccessProfiles } from "../../settings/use-core-access";
-import { useApiQueryClient } from "@repo/api/query";
-import { employeeRosterQueryKeys } from "../employee-query-keys";
 import {
   type EmployeeProfileRouteKind,
   useEmployeeProfileRouteContext,
@@ -623,18 +625,11 @@ function WorkforceAccountCard({
   const provisionInvite = useProvisionWorkforceAccountInvite();
   const reactivateAccount = useReactivateWorkforceAccount();
   const resendInvite = useResendWorkforceAccountInvite();
-  const queryClient = useApiQueryClient();
   const [selectedAccessProfileId, setSelectedAccessProfileId] = useState<
     string | null
   >(null);
   const [copyMessage, setCopyMessage] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-
-  const invalidateAccount = useCallback(() => {
-    queryClient.invalidateQueries({
-      queryKey: employeeRosterQueryKeys.workforceAccount(employeeId),
-    });
-  }, [employeeId, queryClient]);
 
   useEffect(() => {
     const currentProfileId = data?.accessProfiles?.[0]?.id ?? null;
@@ -702,7 +697,6 @@ function WorkforceAccountCard({
         lastName,
         accessProfileId: selectedAccessProfileId,
       });
-      invalidateAccount();
     } catch (error) {
       setActionError(getActionErrorMessage(error));
     }
@@ -714,7 +708,6 @@ function WorkforceAccountCard({
 
     try {
       await resendInvite.mutateAsync({ employeeId });
-      invalidateAccount();
     } catch (error) {
       setActionError(getActionErrorMessage(error));
     }
@@ -740,7 +733,6 @@ function WorkforceAccountCard({
 
     try {
       await deactivateAccount.mutateAsync({ employeeId });
-      invalidateAccount();
       setCopyMessage("Account deactivated.");
     } catch (error) {
       setActionError(getActionErrorMessage(error));
@@ -753,7 +745,6 @@ function WorkforceAccountCard({
 
     try {
       await reactivateAccount.mutateAsync({ employeeId });
-      invalidateAccount();
       setCopyMessage("Account reactivated.");
     } catch (error) {
       setActionError(getActionErrorMessage(error));
@@ -802,7 +793,9 @@ function WorkforceAccountCard({
                         ))}
                       </div>
                     ) : selectedAccessProfile ? (
-                      <Badge variant="outline">{selectedAccessProfile.name}</Badge>
+                      <Badge variant="outline">
+                        {selectedAccessProfile.name}
+                      </Badge>
                     ) : (
                       <span className="font-normal text-muted-foreground">
                         Not assigned
@@ -1089,7 +1082,7 @@ export default function EmployeeProfilePage() {
 
   // Register employee name in the top breadcrumb (Core > Employees > Jane Smith)
   useBreadcrumbLabel(
-    isSelfRoute ? "" : employeeId ?? "",
+    isSelfRoute ? "" : (employeeId ?? ""),
     isSelfRoute ? undefined : profile?.fullName
   );
 
@@ -1148,7 +1141,9 @@ export default function EmployeeProfilePage() {
           isSelfRoute ? "Loading profile." : "Loading employee profile."
         }
         message={
-          isSelfRoute ? "Loading your profile..." : "Loading employee profile..."
+          isSelfRoute
+            ? "Loading your profile..."
+            : "Loading employee profile..."
         }
         variant="summary-list"
       />
@@ -1186,28 +1181,28 @@ export default function EmployeeProfilePage() {
     return (
       <div className="flex flex-col gap-6 p-6">
         {isNotFound || isForbidden ? (
-            <EmptyState
-              icon={User}
-              title={
-                isForbidden
-                  ? isSelfRoute
-                    ? "Your profile is outside your current access scope"
-                    : "Employee is outside your scope"
-                  : isSelfRoute
-                    ? "Your profile could not be found"
-                    : "Employee not found"
-              }
-              description={
-                isForbidden
-                  ? isSelfRoute
-                    ? "Your linked record is outside your current Core access scope."
-                    : "This employee is outside your current Core access scope."
-                  : isSelfRoute
-                    ? "Your linked employee profile is not available right now."
-                    : "This employee is not available right now."
-              }
-            />
-          ) : (
+          <EmptyState
+            icon={User}
+            title={
+              isForbidden
+                ? isSelfRoute
+                  ? "Your profile is outside your current access scope"
+                  : "Employee is outside your scope"
+                : isSelfRoute
+                  ? "Your profile could not be found"
+                  : "Employee not found"
+            }
+            description={
+              isForbidden
+                ? isSelfRoute
+                  ? "Your linked record is outside your current Core access scope."
+                  : "This employee is outside your current Core access scope."
+                : isSelfRoute
+                  ? "Your linked employee profile is not available right now."
+                  : "This employee is not available right now."
+            }
+          />
+        ) : (
           <Alert variant="destructive">
             <AlertTitle>Failed to load employee profile</AlertTitle>
             <AlertDescription>
@@ -1267,20 +1262,22 @@ export default function EmployeeProfilePage() {
   const employmentDescription = isSelfView
     ? "Review role, hire date, and employment details."
     : "Keep role, hire date, and status details current.";
-  const attentionTitle = attentionItems.length > 0
-    ? isSelfView
-      ? "Needs your attention"
-      : "Needs attention"
-    : isSelfView
-      ? "Profile status"
-      : "Record health";
-  const attentionDescription = attentionItems.length > 0
-    ? isSelfView
-      ? "Review the details that need follow-up on your profile."
-      : "Review the details that need follow-up on this employee."
-    : isSelfView
-      ? "No current profile issues need action."
-      : "No current profile issues need action.";
+  const attentionTitle =
+    attentionItems.length > 0
+      ? isSelfView
+        ? "Needs your attention"
+        : "Needs attention"
+      : isSelfView
+        ? "Profile status"
+        : "Record health";
+  const attentionDescription =
+    attentionItems.length > 0
+      ? isSelfView
+        ? "Review the details that need follow-up on your profile."
+        : "Review the details that need follow-up on this employee."
+      : isSelfView
+        ? "No current profile issues need action."
+        : "No current profile issues need action.";
   const fileChecklistTitle = isSelfView
     ? "Profile checklist"
     : "Profile checklist";
@@ -1443,12 +1440,8 @@ export default function EmployeeProfilePage() {
         <div className="flex flex-col gap-6">
           <Card className={WORKSPACE_CARD_CLASS_NAME}>
             <CardHeader className={WORKSPACE_CARD_HEADER_CLASS_NAME}>
-              <CardTitle className="text-base">
-                {identityTitle}
-              </CardTitle>
-              <CardDescription>
-                {identityDescription}
-              </CardDescription>
+              <CardTitle className="text-base">{identityTitle}</CardTitle>
+              <CardDescription>{identityDescription}</CardDescription>
               <CardAction>
                 {!isTenantContextReadOnly ? (
                   <Button
@@ -1647,9 +1640,7 @@ export default function EmployeeProfilePage() {
                   <p className="font-medium text-foreground">
                     Nothing needs action
                   </p>
-                  <p className="mt-1">
-                    No current profile issues need action.
-                  </p>
+                  <p className="mt-1">No current profile issues need action.</p>
                 </div>
               )}
             </CardContent>
@@ -1668,9 +1659,7 @@ export default function EmployeeProfilePage() {
 
           <Card className={WORKSPACE_CARD_CLASS_NAME}>
             <CardHeader className={WORKSPACE_CARD_HEADER_CLASS_NAME}>
-              <CardTitle className="text-base">
-                {fileChecklistTitle}
-              </CardTitle>
+              <CardTitle className="text-base">{fileChecklistTitle}</CardTitle>
               <CardDescription>{fileChecklistDescription}</CardDescription>
             </CardHeader>
             <CardContent className={WORKSPACE_CARD_CONTENT_CLASS_NAME}>

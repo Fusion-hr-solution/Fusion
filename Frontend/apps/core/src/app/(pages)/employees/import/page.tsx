@@ -15,7 +15,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -30,8 +29,7 @@ import {
 } from "./employee-import-validation";
 import {
   AppliedResultPanel,
-  ApplyReadinessPanel,
-  BatchStatusPanel,
+  BatchActionPanel,
   EmptyImportState,
   ImportHistoryPanel,
   IssueNavigatorPanel,
@@ -43,7 +41,7 @@ import { EmployeeImportPreviewTable } from "./preview-table";
 import {
   downloadBlob,
   getErrorMessage,
-  getPreviewDescription,
+
 } from "./employee-import-utils";
 import { DEFAULT_EMPLOYEE_IMPORT_PREVIEW_PAGE_SIZE } from "../employee-query-keys";
 import {
@@ -133,13 +131,6 @@ export default function EmployeeImportPage() {
     () => (session ? buildEmployeeImportValidationUiModel(session) : null),
     [session]
   );
-  const issueSummary = validationUi
-    ? {
-        groupCount: validationUi.groupCount,
-        rawIssueCount: validationUi.rawIssueCount,
-        affectedRowCount: validationUi.affectedRowCount,
-      }
-    : null;
   const hasGroupedIssues =
     session?.stage === "Validated" && (validationUi?.groupCount ?? 0) > 0;
   const sessionViewResetKey = session
@@ -155,34 +146,6 @@ export default function EmployeeImportPage() {
     [activeIssueGroupKey, validationUi]
   );
   const displayedPreviewRows = session?.previewRows ?? [];
-  const previewRangeStart =
-    session && session.totalPreviewRowCount > 0
-      ? (session.previewPageNumber - 1) * session.previewPageSize + 1
-      : 0;
-  const previewRangeEnd =
-    session && session.totalPreviewRowCount > 0
-      ? previewRangeStart + displayedPreviewRows.length - 1
-      : 0;
-  const previewFooterPrimary = session
-    ? focusedGroup
-      ? session.totalPreviewRowCount > 0
-        ? `Showing rows ${previewRangeStart}-${previewRangeEnd} of ${session.totalPreviewRowCount} for the selected problem`
-        : "No preview rows match the selected problem."
-      : hasGroupedIssues && previewFilter === "affected"
-        ? session.totalPreviewRowCount > 0
-          ? `Showing rows ${previewRangeStart}-${previewRangeEnd} of ${session.totalPreviewRowCount} affected row(s)`
-          : "No rows with issues match the current preview."
-        : session.totalPreviewRowCount > 0
-          ? `Showing rows ${previewRangeStart}-${previewRangeEnd} of ${session.totalPreviewRowCount}`
-          : "No rows are available in this preview."
-    : "";
-  const previewFooterSecondary = session
-    ? session.previewPageCount > 1
-      ? `Page ${session.previewPageNumber} of ${session.previewPageCount}`
-      : session.totalPreviewRowCount > 0
-        ? "All matching rows are visible on one page."
-        : "Adjust the filter to inspect a different row set."
-    : "";
   const isAppliedSession = session?.stage === "Applied";
   const isPreviewExpanded = !isAppliedSession || isAppliedPreviewOpen;
   const historyItemCount = historyPage?.items.length ?? 0;
@@ -239,11 +202,7 @@ export default function EmployeeImportPage() {
 
       return;
     }
-  }, [
-    historyItemCount,
-    isHistoryLoading,
-    selectedHistoryId,
-  ]);
+  }, [historyItemCount, isHistoryLoading, selectedHistoryId]);
 
   const handleBrowse = useCallback(() => {
     fileInputRef.current?.click();
@@ -315,7 +274,7 @@ export default function EmployeeImportPage() {
 
   const handleApplySession = useCallback(async () => {
     if (!session) {
-      return;
+      return false;
     }
 
     try {
@@ -333,10 +292,12 @@ export default function EmployeeImportPage() {
       }
 
       toast.success("Employee import applied.");
+      return true;
     } catch (error) {
       const message = getErrorMessage(error);
       setApplyError(message);
       toast.error(message);
+      return false;
     }
   }, [
     applyImport,
@@ -572,24 +533,19 @@ export default function EmployeeImportPage() {
               onReviewHistory={handleReviewHistory}
             />
           ) : (
-            <BatchStatusPanel
+            <BatchActionPanel
               session={session}
               isValidating={validateImport.isLoading}
               isUploading={uploadImport.isLoading}
               isDownloadingTemplate={downloadTemplate.isLoading}
-              issueSummary={issueSummary}
+              isApplying={applyImport.isLoading}
+              applyError={applyError}
               onValidate={handleValidateSession}
               onUpload={handleBrowse}
               onDownloadTemplate={handleDownloadTemplate}
+              onApply={handleApplySession}
             />
           )}
-
-          <ApplyReadinessPanel
-            session={session}
-            isApplying={applyImport.isLoading}
-            applyError={applyError}
-            onApply={handleApplySession}
-          />
 
           {isAppliedSession ? (
             <ImportHistoryPanel
@@ -621,14 +577,9 @@ export default function EmployeeImportPage() {
             ) : null}
 
             <Card id="employee-import-preview">
-              <CardHeader className="gap-4">
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                  <div>
-                    <CardTitle>Normalized preview</CardTitle>
-                    <CardDescription>
-                      {getPreviewDescription(session)}
-                    </CardDescription>
-                  </div>
+              <CardHeader className="gap-3">
+                <div className="flex items-start justify-between gap-3">
+                  <CardTitle>Preview</CardTitle>
                   {isAppliedSession ? (
                     <Button
                       type="button"
@@ -669,7 +620,7 @@ export default function EmployeeImportPage() {
               {isPreviewExpanded ? (
                 <CardContent>
                   {hasGroupedIssues ? (
-                    <div className="mb-4">
+                    <div className="">
                       <SelectedIssueStrip
                         group={focusedGroup}
                         onJumpToRow={handleJumpToRow}
@@ -685,16 +636,7 @@ export default function EmployeeImportPage() {
                     activeIssueGroupKey={activeIssueGroupKey}
                     onSelectGroup={handleSelectGroup}
                   />
-                </CardContent>
-              ) : null}
-              {isPreviewExpanded ? (
-                <CardFooter className="flex flex-col gap-3 text-xs text-muted-foreground lg:flex-row lg:items-center lg:justify-between">
-                  <div className="space-y-1">
-                    <span className="block">{previewFooterPrimary}</span>
-                    <span className="block">{previewFooterSecondary}</span>
-                  </div>
-
-                  <div className="self-start lg:self-auto">
+                  <div className="mt-4">
                     <PreviewPagination
                       pageNumber={session.previewPageNumber}
                       pageCount={session.previewPageCount}
@@ -703,8 +645,9 @@ export default function EmployeeImportPage() {
                       onPageSizeChange={handlePreviewPageSizeChange}
                     />
                   </div>
-                </CardFooter>
+                </CardContent>
               ) : null}
+
             </Card>
           </div>
 
@@ -724,8 +667,6 @@ export default function EmployeeImportPage() {
 
           <SecondaryDetailsPanel
             key={session ? `${session.id}:${session.stage}` : "empty-session"}
-            session={session}
-            activeHeaders={activeHeaders}
             activeSchema={activeSchema}
             isSchemaLoading={isSchemaLoading}
           />
@@ -753,7 +694,6 @@ export default function EmployeeImportPage() {
 
           <SecondaryDetailsPanel
             key="empty-session"
-            activeHeaders={activeHeaders}
             activeSchema={activeSchema}
             isSchemaLoading={isSchemaLoading}
           />

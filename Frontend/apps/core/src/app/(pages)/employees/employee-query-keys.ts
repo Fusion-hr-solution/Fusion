@@ -2,7 +2,7 @@ import type { EmployeeImportPreviewFilter } from "./import/employee-import.types
 import type { EmployeeRosterQueryParams } from "./employee-roster.types";
 
 export const DEFAULT_EMPLOYEE_IMPORT_HISTORY_PAGE_SIZE = 10;
-export const DEFAULT_EMPLOYEE_IMPORT_PREVIEW_PAGE_SIZE = 25;
+export const DEFAULT_EMPLOYEE_IMPORT_PREVIEW_PAGE_SIZE = 5;
 export const MIN_EMPLOYEE_IMPORT_PREVIEW_PAGE_SIZE = 1;
 export const MAX_EMPLOYEE_IMPORT_PREVIEW_PAGE_SIZE = 100;
 

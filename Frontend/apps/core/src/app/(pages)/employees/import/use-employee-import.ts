@@ -47,9 +47,7 @@ function buildPreviewQueryString(query?: EmployeeImportPreviewQuery) {
     params.set("previewPageNumber", String(normalizedQuery.pageNumber));
   }
 
-  if (normalizedQuery.pageSize !== DEFAULT_EMPLOYEE_IMPORT_PREVIEW_PAGE_SIZE) {
-    params.set("previewPageSize", String(normalizedQuery.pageSize));
-  }
+  params.set("previewPageSize", String(normalizedQuery.pageSize));
 
   if (normalizedQuery.previewFilter === "affected") {
     params.set("previewFilter", normalizedQuery.previewFilter);
@@ -153,15 +151,22 @@ export function useUploadEmployeeImport(): UseApiMutationResult<
 > {
   const client = useMemo(() => createPlatformApiClient(), []);
 
-  return useApiMutation(async (file: File) => {
-    const formData = new FormData();
-    formData.append("file", file);
+  return useApiMutation(
+    async (file: File) => {
+      const formData = new FormData();
+      formData.append("file", file);
 
-    return client.post<EmployeeImportSessionDto>(
-      EMPLOYEE_IMPORT_BASE_PATH,
-      formData
-    );
-  });
+      return client.post<EmployeeImportSessionDto>(
+        EMPLOYEE_IMPORT_BASE_PATH,
+        formData
+      );
+    },
+    {
+      invalidateQueries: () => [
+        { queryKey: employeeImportQueryKeys.history() },
+      ],
+    }
+  );
 }
 
 export function useValidateEmployeeImport(): UseApiMutationResult<
@@ -179,6 +184,7 @@ export function useValidateEmployeeImport(): UseApiMutationResult<
     {
       invalidateQueries: (_data, args) => [
         { queryKey: employeeImportQueryKeys.session(args.sessionId) },
+        { queryKey: employeeImportQueryKeys.history() },
       ],
     }
   );

@@ -1,18 +1,21 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { useState } from "react";
+import { describe, expect, it, vi } from "vitest";
+import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import {
   AppliedResultPanel,
+  BatchActionPanel,
   ImportHistoryPanel,
 } from "./employee-import-panels";
 import type { EmployeeImportSessionDto } from "./employee-import.types";
 
-function buildAppliedImportSession(
+function buildImportSession(
   overrides: Partial<EmployeeImportSessionDto> = {}
 ): EmployeeImportSessionDto {
   return {
     id: "session-1",
-    stage: "Applied",
+    stage: "PreviewReady",
     version: 1,
     sourceFileName: "employees.csv",
     sourceFileSizeBytes: 512,
@@ -32,14 +35,186 @@ function buildAppliedImportSession(
       warningCount: 0,
     },
     validationIssues: [],
-    appliedAt: "2026-05-13T09:00:00Z",
+    appliedAt: null,
     expiresAt: "2026-05-14T09:00:00Z",
     employeeImportSchema: { canonicalFields: [] },
-    canValidate: false,
+    canValidate: true,
     canApply: false,
     ...overrides,
   };
 }
+
+function buildAppliedImportSession(
+  overrides: Partial<EmployeeImportSessionDto> = {}
+): EmployeeImportSessionDto {
+  return buildImportSession({
+    stage: "Applied",
+    appliedAt: "2026-05-13T09:00:00Z",
+    canValidate: false,
+    canApply: false,
+    ...overrides,
+  });
+}
+
+describe("BatchActionPanel", () => {
+  it("focuses the next step on validation for preview-ready batches", () => {
+    render(
+      <BatchActionPanel
+        session={buildImportSession()}
+        isValidating={false}
+        isUploading={false}
+        isDownloadingTemplate={false}
+        isApplying={false}
+        applyError={null}
+        onValidate={() => undefined}
+        onUpload={() => undefined}
+        onDownloadTemplate={() => undefined}
+        onApply={async () => false}
+      />
+    );
+
+    expect(screen.getByText("Preview ready")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Validate file" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Import employees" })).toBeNull();
+  });
+
+  it("summarizes blocking validation issues and points to a corrected upload", () => {
+    render(
+      <BatchActionPanel
+        session={buildImportSession({
+          stage: "Validated",
+          validationSummary: {
+            totalRows: 12,
+            validRows: 7,
+            errorCount: 4,
+            warningCount: 2,
+          },
+        })}
+        isValidating={false}
+        isUploading={false}
+        isDownloadingTemplate={false}
+        isApplying={false}
+        applyError={null}
+        onValidate={() => undefined}
+        onUpload={() => undefined}
+        onDownloadTemplate={() => undefined}
+        onApply={async () => false}
+      />
+    );
+
+    expect(screen.getAllByText("Blocked").length).toBeGreaterThan(0);
+    expect(
+      screen.getByRole("button", { name: "Upload corrected file" })
+    ).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Validate file" })).toBeNull();
+    expect(screen.getByText("4 issues · 2 warnings")).toBeTruthy();
+  });
+
+  it("surfaces apply as the primary action for validated clean batches", () => {
+    render(
+      <BatchActionPanel
+        session={buildImportSession({
+          stage: "Validated",
+          canApply: true,
+        })}
+        isValidating={false}
+        isUploading={false}
+        isDownloadingTemplate={false}
+        isApplying={false}
+        applyError={null}
+        onValidate={() => undefined}
+        onUpload={() => undefined}
+        onDownloadTemplate={() => undefined}
+        onApply={async () => true}
+      />
+    );
+
+    expect(screen.getByText("Ready to import")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Import employees" })).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Upload another file" })
+    ).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Validate file" })).toBeNull();
+  });
+
+  it("keeps the confirmation open when apply fails", async () => {
+    const user = userEvent.setup();
+    const onApply = vi.fn(async () => false);
+
+    function FailingApplyPanel({ apply }: { apply: () => Promise<boolean> }) {
+      const [applyError, setApplyError] = useState<string | null>(null);
+
+      return (
+        <BatchActionPanel
+          session={buildImportSession({
+            stage: "Validated",
+            canApply: true,
+          })}
+          isValidating={false}
+          isUploading={false}
+          isDownloadingTemplate={false}
+          isApplying={false}
+          applyError={applyError}
+          onValidate={() => undefined}
+          onUpload={() => undefined}
+          onDownloadTemplate={() => undefined}
+          onApply={async () => {
+            setApplyError("Database rejected the batch.");
+            return apply();
+          }}
+        />
+      );
+    }
+
+    render(<FailingApplyPanel apply={onApply} />);
+
+    await user.click(screen.getByRole("button", { name: "Import employees" }));
+
+    const dialog = screen.getByRole("alertdialog");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Import employees" })
+    );
+
+    expect(onApply).toHaveBeenCalledTimes(1);
+    expect(
+      await screen.findByText("Database rejected the batch.")
+    ).toBeTruthy();
+    expect(screen.getByRole("alertdialog")).toBeTruthy();
+  });
+
+  it("closes the confirmation after a successful apply", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <BatchActionPanel
+        session={buildImportSession({
+          stage: "Validated",
+          canApply: true,
+        })}
+        isValidating={false}
+        isUploading={false}
+        isDownloadingTemplate={false}
+        isApplying={false}
+        applyError={null}
+        onValidate={() => undefined}
+        onUpload={() => undefined}
+        onDownloadTemplate={() => undefined}
+        onApply={async () => true}
+      />
+    );
+ 
+    await user.click(screen.getByRole("button", { name: "Import employees" }));
+    await user.click(
+      within(screen.getByRole("alertdialog")).getByRole("button", {
+        name: "Import employees",
+      })
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByRole("alertdialog")).toBeNull();
+    });
+  });
+});
 
 describe("AppliedResultPanel", () => {
   it("routes import completion into access review", () => {
@@ -60,7 +235,7 @@ describe("AppliedResultPanel", () => {
     );
 
     const rosterLink = screen.getByRole("link", {
-      name: "Open employee roster",
+      name: "View employees",
     });
     expect(rosterLink.getAttribute("href")).toBe(
       "/employees?access=NotInvited"
@@ -88,6 +263,7 @@ describe("ImportHistoryPanel", () => {
               actorUserId: "hr-1",
               actorFullName: "HR Admin",
               actorRole: "HRAdmin",
+              eventType: "Import",
             },
           ],
           pageNumber: 1,
@@ -128,6 +304,7 @@ describe("ImportHistoryPanel", () => {
               },
             },
           ],
+          eventType: "Import",
         }}
         selectedHistoryId="history-1"
         isHistoryLoading={false}
@@ -145,5 +322,94 @@ describe("ImportHistoryPanel", () => {
     expect(fixLink.getAttribute("href")).toBe(
       "/employees/emp-1?sheet=organization"
     );
+  });
+
+  it("renders upload history items with correct labels", () => {
+    render(
+      <ImportHistoryPanel
+        historyPage={{
+          items: [
+            {
+              id: "upload-1",
+              sessionId: "session-1",
+              sourceFileName: "employees.csv",
+              sourceFileSizeBytes: 512,
+              sourceRowCount: 12,
+              validRowCount: 0,
+              createdCount: 0,
+              skippedCount: 0,
+              status: "Uploaded",
+              appliedAt: "2026-05-13T08:00:00Z",
+              actorUserId: "hr-1",
+              actorFullName: "HR Uploader",
+              actorRole: "HRAdmin",
+              eventType: "Upload",
+            },
+          ],
+          pageNumber: 1,
+          pageSize: 5,
+          totalCount: 1,
+          pageCount: 1,
+        }}
+        historyDetail={undefined}
+        selectedHistoryId={null}
+        isHistoryLoading={false}
+        isHistoryDetailLoading={false}
+        historyError={null}
+        historyDetailError={null}
+        onSelectHistory={() => undefined}
+        onPageChange={() => undefined}
+      />
+    );
+
+    expect(screen.getByText("Uploaded")).toBeTruthy();
+    expect(screen.getByText(/12 rows/)).toBeTruthy();
+    expect(screen.queryByText("created")).toBeNull();
+  });
+
+  it("renders validation history items with error count", () => {
+    render(
+      <ImportHistoryPanel
+        historyPage={{
+          items: [
+            {
+              id: "val-1",
+              sessionId: "session-1",
+              sourceFileName: "employees.csv",
+              sourceFileSizeBytes: 512,
+              sourceRowCount: 12,
+              validRowCount: 8,
+              createdCount: 0,
+              skippedCount: 0,
+              status: "Validated",
+              appliedAt: "2026-05-13T09:00:00Z",
+              actorUserId: "hr-1",
+              actorFullName: "HR Validator",
+              actorRole: "HRAdmin",
+              eventType: "Validation",
+              errorCount: 3,
+              warningCount: 1,
+            },
+          ],
+          pageNumber: 1,
+          pageSize: 5,
+          totalCount: 1,
+          pageCount: 1,
+        }}
+        historyDetail={undefined}
+        selectedHistoryId={null}
+        isHistoryLoading={false}
+        isHistoryDetailLoading={false}
+        historyError={null}
+        historyDetailError={null}
+        onSelectHistory={() => undefined}
+        onPageChange={() => undefined}
+      />
+    );
+
+    expect(screen.getByText("Validated")).toBeTruthy();
+    expect(screen.getByText(/3 errors/)).toBeTruthy();
+    expect(screen.getByText(/1 warning/)).toBeTruthy();
+    expect(screen.getByText(/12 rows/)).toBeTruthy();
   });
 });

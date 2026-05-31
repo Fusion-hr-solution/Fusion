@@ -12,16 +12,15 @@ import {
   Eye,
   FileSpreadsheet,
   History,
-  RefreshCcw,
   ShieldCheck,
   Upload,
   Users,
+  type LucideIcon,
 } from "lucide-react";
 import { PAGE_SIZE_OPTIONS, type PageSize } from "@repo/ui";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -62,6 +61,7 @@ import type {
   EmployeeImportHistoryDetailDto,
   EmployeeImportHistoryPageDto,
   EmployeeImportSessionDto,
+  ImportHistoryEventType,
 } from "./employee-import.types";
 import type {
   EmployeeImportIssueGroup,
@@ -72,144 +72,267 @@ import {
   formatTimestamp,
   getErrorMessage,
 } from "./employee-import-utils";
+import { cn } from "@/lib/utils";
 import { buildEmployeeFixHref } from "../employee-readiness";
 
 const MAX_VISIBLE_SELECTED_ROWS = 12;
-
-type SessionPresentation = {
-  statusLabel: string;
-  statusVariant: "default" | "secondary" | "outline" | "destructive";
-  title: string;
-  description: string;
-  cardClassName: string;
-};
 
 type BatchMetaItem = {
   label: string;
   value: string | number;
 };
 
-type BatchIssueSummary = {
-  groupCount: number;
-  rawIssueCount: number;
-  affectedRowCount: number;
+type ImportWorkflowStepState = "complete" | "current" | "upcoming" | "blocked";
+
+type ImportWorkflowStep = {
+  key: "upload" | "validate" | "import";
+  title: string;
+  statusLabel: string;
+  state: ImportWorkflowStepState;
+  icon: LucideIcon;
+  isLoading?: boolean;
 };
 
-function getSessionPresentation(
-  session: EmployeeImportSessionDto,
-  issueSummary?: BatchIssueSummary | null
-): SessionPresentation {
+function getBatchMetaItems(session: EmployeeImportSessionDto): BatchMetaItem[] {
+  return [
+    { label: "Rows", value: session.sourceRowCount },
+    { label: "Size", value: formatBytes(session.sourceFileSizeBytes) },
+    { label: "Expires", value: formatTimestamp(session.expiresAt) },
+  ];
+}
+
+function getWorkflowStatusLabel({
+  session,
+  isValidating,
+  isApplying,
+}: {
+  session: EmployeeImportSessionDto;
+  isValidating: boolean;
+  isApplying: boolean;
+}): {
+  label: string;
+  variant: "default" | "secondary" | "outline" | "destructive";
+  cardClassName: string;
+} {
   if (session.stage === "Expired") {
     return {
-      statusLabel: "Upload expired",
-      statusVariant: "destructive",
-      title: "Upload expired",
-      description: "Upload the CSV again to start a fresh batch.",
+      label: "Expired",
+      variant: "destructive",
       cardClassName: "border-destructive/30 bg-destructive/5",
     };
+  }
+  if (isApplying) {
+    return {
+      label: "Importing",
+      variant: "default",
+      cardClassName: "border-amber-200 bg-amber-50/70",
+    };
+  }
+  if (
+    session.stage === "Validated" &&
+    session.validationSummary.errorCount > 0
+  ) {
+    return {
+      label: "Blocked",
+      variant: "destructive",
+      cardClassName: "border-destructive/30 bg-destructive/5",
+    };
+  }
+  if (session.stage === "Validated") {
+    return {
+      label: "Ready to import",
+      variant: "secondary",
+      cardClassName: "border-emerald-200 bg-emerald-50/70",
+    };
+  }
+  if (isValidating) {
+    return {
+      label: "Validating",
+      variant: "outline",
+      cardClassName: "border-primary/20 bg-primary/5",
+    };
+  }
+  return {
+    label: "Preview ready",
+    variant: "outline",
+    cardClassName: "border-border bg-card",
+  };
+}
+
+function getWorkflowSteps({
+  session,
+  isValidating,
+  isApplying,
+}: {
+  session: EmployeeImportSessionDto;
+  isValidating: boolean;
+  isApplying: boolean;
+}): ImportWorkflowStep[] {
+  if (session.stage === "Expired") {
+    return [
+      {
+        key: "upload",
+        title: "Upload file",
+        statusLabel: "Upload again",
+        state: "current",
+        icon: Upload,
+      },
+      {
+        key: "validate",
+        title: "Validate data",
+        statusLabel: "Later",
+        state: "upcoming",
+        icon: Eye,
+      },
+      {
+        key: "import",
+        title: "Import employees",
+        statusLabel: "Later",
+        state: "upcoming",
+        icon: Users,
+      },
+    ];
   }
 
   if (
     session.stage === "Validated" &&
     session.validationSummary.errorCount > 0
   ) {
-    const problemGroupCount =
-      issueSummary?.groupCount ?? session.validationSummary.errorCount;
-    const affectedRowCount =
-      issueSummary?.affectedRowCount ?? session.validationSummary.errorCount;
-
-    return {
-      statusLabel: "Validation failed",
-      statusVariant: "destructive",
-      title: "Validation failed",
-      description: `${problemGroupCount} problem group${problemGroupCount === 1 ? "" : "s"} across ${affectedRowCount} affected row${affectedRowCount === 1 ? "" : "s"}. Fix the CSV and upload it again.`,
-      cardClassName: "border-destructive/30 bg-destructive/5",
-    };
-  }
-
-  if (session.stage === "Validated") {
-    return {
-      statusLabel: "Validation passed",
-      statusVariant: "secondary",
-      title: "Validation passed",
-      description:
-        "All rows passed. Upload another file only if the source data changes.",
-      cardClassName: "border-emerald-200 bg-emerald-50/70",
-    };
-  }
-
-  return {
-    statusLabel: "Ready to validate",
-    statusVariant: "outline",
-    title: "Batch ready to validate",
-    description: "Review the preview, then validate the file.",
-    cardClassName: "border-border bg-card",
-  };
-}
-
-function getBatchMetaItems(
-  session: EmployeeImportSessionDto,
-  issueSummary?: BatchIssueSummary | null
-): BatchMetaItem[] {
-  const isValidated = session.stage === "Validated";
-  const hasErrors = session.validationSummary.errorCount > 0;
-
-  if (isValidated && hasErrors && issueSummary) {
     return [
       {
-        label: "File",
-        value: session.sourceFileName,
+        key: "upload",
+        title: "Upload file",
+        statusLabel: "Done",
+        state: "complete",
+        icon: Upload,
       },
       {
-        label: "Problem groups",
-        value: issueSummary.groupCount,
+        key: "validate",
+        title: "Validate data",
+        statusLabel: `${session.validationSummary.errorCount} issue${session.validationSummary.errorCount === 1 ? "" : "s"}${session.validationSummary.warningCount > 0 ? ` · ${session.validationSummary.warningCount} warning${session.validationSummary.warningCount === 1 ? "" : "s"}` : ""}`,
+        state: "blocked",
+        icon: Eye,
       },
       {
-        label: "Affected rows",
-        value: issueSummary.affectedRowCount,
-      },
-      {
-        label: "Row issues",
-        value: issueSummary.rawIssueCount,
+        key: "import",
+        title: "Import employees",
+        statusLabel: "Blocked",
+        state: "upcoming",
+        icon: Users,
       },
     ];
   }
 
-  if (isValidated) {
+  if (session.stage === "Validated") {
+    const validatedLabel =
+      session.validationSummary.warningCount > 0
+        ? `${session.validationSummary.validRows} ready · ${session.validationSummary.warningCount} warning${session.validationSummary.warningCount === 1 ? "" : "s"}`
+        : `${session.validationSummary.validRows} ready`;
     return [
       {
-        label: "File",
-        value: session.sourceFileName,
+        key: "upload",
+        title: "Upload file",
+        statusLabel: "Done",
+        state: "complete",
+        icon: Upload,
       },
       {
-        label: "Valid rows",
-        value: session.validationSummary.validRows,
+        key: "validate",
+        title: "Validate data",
+        statusLabel: validatedLabel,
+        state: "complete",
+        icon: Eye,
       },
       {
-        label: "Total rows",
-        value: session.sourceRowCount,
+        key: "import",
+        title: "Import employees",
+        statusLabel: isApplying ? "Running" : "Ready",
+        state: "current",
+        icon: Users,
+        isLoading: isApplying,
       },
     ];
   }
 
   return [
     {
-      label: "File",
-      value: session.sourceFileName,
+      key: "upload",
+      title: "Upload file",
+      statusLabel: "Done",
+      state: "complete",
+      icon: Upload,
     },
     {
-      label: "Rows",
-      value: session.sourceRowCount,
+      key: "validate",
+      title: "Validate data",
+      statusLabel: isValidating ? "Running" : "Start here",
+      state: "current",
+      icon: Eye,
+      isLoading: isValidating,
     },
     {
-      label: "Size",
-      value: formatBytes(session.sourceFileSizeBytes),
-    },
-    {
-      label: "Expires",
-      value: formatTimestamp(session.expiresAt),
+      key: "import",
+      title: "Import employees",
+      statusLabel: "Later",
+      state: "upcoming",
+      icon: Users,
     },
   ];
+}
+
+function getCompletedSteps(): ImportWorkflowStep[] {
+  return [
+    {
+      key: "upload",
+      title: "Upload file",
+      statusLabel: "Done",
+      state: "complete",
+      icon: Upload,
+    },
+    {
+      key: "validate",
+      title: "Validate data",
+      statusLabel: "Done",
+      state: "complete",
+      icon: Eye,
+    },
+    {
+      key: "import",
+      title: "Import employees",
+      statusLabel: "Done",
+      state: "complete",
+      icon: Users,
+    },
+  ];
+}
+
+function getStepStyle(state: ImportWorkflowStepState) {
+  switch (state) {
+    case "complete":
+      return {
+        cell: "bg-emerald-50/70 dark:bg-emerald-950/20",
+        node: "border-emerald-200 bg-emerald-100 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-900/30 dark:text-emerald-300",
+        status: "text-emerald-700 dark:text-emerald-300",
+      };
+    case "current":
+      return {
+        cell: "bg-primary/5",
+        node: "border-primary/20 bg-primary/10 text-primary",
+        status: "text-primary",
+      };
+    case "blocked":
+      return {
+        cell: "bg-destructive/5",
+        node: "border-destructive/20 bg-destructive/10 text-destructive",
+        status: "text-destructive",
+      };
+    default:
+      return {
+        cell: "bg-background",
+        node: "border-border bg-muted/60 text-muted-foreground",
+        status: "text-muted-foreground",
+      };
+  }
 }
 
 function BatchMetaPill({ label, value }: BatchMetaItem) {
@@ -221,217 +344,257 @@ function BatchMetaPill({ label, value }: BatchMetaItem) {
   );
 }
 
-export function BatchStatusPanel({
+function ImportWorkflowSteps({ steps }: { steps: ImportWorkflowStep[] }) {
+  return (
+    <div className="overflow-hidden rounded-xl border bg-background/85">
+      <div className="grid md:grid-cols-3">
+        {steps.map((step, index) => {
+          const Icon = step.state === "complete" ? CheckCircle2 : step.icon;
+          const style = getStepStyle(step.state);
+
+          return (
+            <div
+              key={step.key}
+              className={cn(
+                "flex items-center gap-3 px-4 py-3",
+                style.cell,
+                index < steps.length - 1
+                  ? "border-b md:border-r md:border-b-0"
+                  : undefined
+              )}
+              aria-current={step.state === "current" ? "step" : undefined}
+            >
+              <div
+                className={cn(
+                  "flex size-8 shrink-0 items-center justify-center rounded-full border",
+                  style.node
+                )}
+              >
+                {step.isLoading ? (
+                  <Spinner className="size-3.5" />
+                ) : (
+                  <Icon className="size-4" />
+                )}
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-foreground">
+                  {step.title}
+                </p>
+                <p className={cn("text-xs", style.status)}>
+                  {step.statusLabel}
+                </p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+export function BatchActionPanel({
   session,
   isValidating,
   isUploading,
   isDownloadingTemplate,
-  issueSummary,
+  isApplying,
+  applyError,
   onValidate,
   onUpload,
   onDownloadTemplate,
+  onApply,
 }: {
   session: EmployeeImportSessionDto;
   isValidating: boolean;
   isUploading: boolean;
   isDownloadingTemplate: boolean;
-  issueSummary?: BatchIssueSummary | null;
+  isApplying: boolean;
+  applyError: string | null;
   onValidate: () => void;
   onUpload: () => void;
   onDownloadTemplate: () => void;
+  onApply: () => Promise<boolean>;
 }) {
-  const presentation = getSessionPresentation(session, issueSummary);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const statusMeta = getWorkflowStatusLabel({
+    session,
+    isValidating,
+    isApplying,
+  });
   const isValidated = session.stage === "Validated";
   const hasErrors = session.validationSummary.errorCount > 0;
   const isExpired = session.stage === "Expired";
-  const uploadButtonLabel = isExpired
-    ? "Upload file again"
-    : isValidated && hasErrors
-      ? "Upload corrected CSV"
-      : isValidated
-        ? "Upload replacement CSV"
-        : "Upload different CSV";
-  const metaItems = getBatchMetaItems(session, issueSummary);
-  const statusIcon =
-    isValidated && !hasErrors ? (
-      <CheckCircle2 className="size-4 text-emerald-600" />
-    ) : !isValidated && !isExpired ? (
-      <Eye className="size-4 text-muted-foreground" />
-    ) : (
-      <AlertCircle className="size-4 text-destructive" />
-    );
-
-  return (
-    <Card className={presentation.cardClassName}>
-      <CardContent>
-        <div className="flex flex-col gap-4 xl:flex-row xl:justify-between">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              {statusIcon}
-              <span className="font-medium">{presentation.title}</span>
-              <Badge variant={presentation.statusVariant}>
-                {presentation.statusLabel}
-              </Badge>
-            </div>
-            <p className="max-w-3xl text-sm text-muted-foreground">
-              {presentation.description}
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {metaItems.map((item) => (
-                <BatchMetaPill key={item.label} {...item} />
-              ))}
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            {!isValidated && !isExpired ? (
-              <Button
-                type="button"
-                onClick={onValidate}
-                disabled={!session.canValidate || isValidating}
-              >
-                {isValidating ? <Spinner /> : <Eye />}
-                Validate current file
-              </Button>
-            ) : null}
-            <Button
-              type="button"
-              onClick={onUpload}
-              disabled={isUploading}
-              variant={isExpired || hasErrors ? "default" : "outline"}
-            >
-              {isUploading ? <Spinner /> : <Upload />}
-              {uploadButtonLabel}
-            </Button>
-            {isValidated && !isExpired ? (
-              <Button
-                type="button"
-                onClick={onValidate}
-                disabled={!session.canValidate || isValidating}
-                variant="outline"
-              >
-                {isValidating ? <Spinner /> : <RefreshCcw />}
-                Revalidate current file
-              </Button>
-            ) : null}
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onDownloadTemplate}
-              disabled={isDownloadingTemplate}
-            >
-              {isDownloadingTemplate ? <Spinner /> : <Download />}
-              Download template
-            </Button>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+  const isReadyToImport = isValidated && !hasErrors;
+  const isActionLocked = isValidating || isApplying || isUploading;
+  const metaItems = getBatchMetaItems(session);
+  const steps = getWorkflowSteps({ session, isValidating, isApplying });
+  const statusIcon = isApplying ? (
+    <Users className="size-4 text-amber-700" />
+  ) : isValidated && !hasErrors ? (
+    <CheckCircle2 className="size-4 text-emerald-600" />
+  ) : !isValidated && !isExpired ? (
+    <Eye className="size-4 text-muted-foreground" />
+  ) : (
+    <AlertCircle className="size-4 text-destructive" />
   );
-}
-
-export function ApplyReadinessPanel({
-  session,
-  isApplying,
-  applyError,
-  onApply,
-}: {
-  session: EmployeeImportSessionDto;
-  isApplying: boolean;
-  applyError: string | null;
-  onApply: () => Promise<void>;
-}) {
-  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
-
-  if (!session.canApply) {
-    return null;
-  }
 
   const handleConfirm = async () => {
-    await onApply();
-    setIsConfirmOpen(false);
+    const didApply = await onApply();
+    if (didApply) {
+      setIsConfirmOpen(false);
+    }
   };
 
   return (
-    <Card className="border-amber-200 bg-amber-50/70">
-      <CardHeader>
-        <div className="flex items-start gap-3">
-          <div className="rounded-lg border border-amber-200 bg-background/90 p-2">
-            <ClipboardCheck className="size-5 text-amber-700" />
+    <Card className={statusMeta.cardClassName}>
+      <CardHeader className="gap-3 ">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3 min-w-0 flex-1">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border bg-background/90">
+              {statusIcon}
+            </div>
+            <div className="min-w-0 flex-1 space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant={statusMeta.variant}>{statusMeta.label}</Badge>
+              </div>
+              <CardTitle className="break-all text-base sm:text-lg">
+                {session.sourceFileName}
+              </CardTitle>
+              <div className="flex flex-wrap gap-2">
+                {metaItems.map((item) => (
+                  <BatchMetaPill key={item.label} {...item} />
+                ))}
+              </div>
+            </div>
           </div>
-          <div className="space-y-1">
-            <CardTitle>Ready to apply this batch</CardTitle>
-            <CardDescription>Creates new employees only.</CardDescription>
+          <div className="flex flex-wrap gap-2 shrink-0">
+            {isReadyToImport ? (
+              <AlertDialog
+                open={isConfirmOpen}
+                onOpenChange={(open) => {
+                  if (!isApplying) {
+                    setIsConfirmOpen(open);
+                  }
+                }}
+              >
+                <AlertDialogTrigger asChild>
+                  <Button
+                    type="button"
+                    disabled={!session.canApply || isApplying}
+                  >
+                    {isApplying ? <Spinner /> : <ClipboardCheck />}
+                    {isApplying ? "Importing employees" : "Import employees"}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogMedia>
+                      <ShieldCheck className="size-5 text-amber-700" />
+                    </AlertDialogMedia>
+                    <AlertDialogTitle>Import these employees?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Creates {session.validationSummary.validRows} employee
+                      {session.validationSummary.validRows === 1
+                        ? ""
+                        : "s"}{" "}
+                      from {session.sourceFileName}.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  {applyError ? (
+                    <Alert variant="destructive">
+                      <AlertTitle>Import failed</AlertTitle>
+                      <AlertDescription>
+                        <div className="space-y-1">
+                          <p>{applyError}</p>
+                          <p>
+                            Revalidate or upload a corrected file before
+                            retrying.
+                          </p>
+                        </div>
+                      </AlertDescription>
+                    </Alert>
+                  ) : null}
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={isApplying}>
+                      Cancel
+                    </AlertDialogCancel>
+                    <Button
+                      type="button"
+                      disabled={isApplying}
+                      onClick={handleConfirm}
+                    >
+                      {isApplying ? <Spinner /> : <ClipboardCheck />}
+                      {isApplying ? "Importing employees" : "Import employees"}
+                    </Button>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            ) : hasErrors || isExpired ? (
+              <Button
+                type="button"
+                onClick={onUpload}
+                disabled={isActionLocked}
+              >
+                {isUploading ? <Spinner /> : <Upload />}
+                {hasErrors ? "Upload corrected file" : "Upload file again"}
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                onClick={onValidate}
+                disabled={!session.canValidate || isActionLocked}
+              >
+                {isValidating ? <Spinner /> : <Eye />}
+                {isValidating ? "Validating file" : "Validate file"}
+              </Button>
+            )}
+
+            {!isExpired && !hasErrors ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onUpload}
+                disabled={isActionLocked}
+              >
+                {isUploading ? <Spinner /> : <Upload />}
+                Upload another file
+              </Button>
+            ) : null}
+
+            {!isReadyToImport ? (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={onDownloadTemplate}
+                disabled={
+                  isDownloadingTemplate ||
+                  isValidating ||
+                  isApplying ||
+                  isUploading
+                }
+              >
+                {isDownloadingTemplate ? <Spinner /> : <Download />}
+                Download template
+              </Button>
+            ) : null}
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {applyError ? (
+
+      <CardContent className="space-y-3 pt-0">
+        <ImportWorkflowSteps steps={steps} />
+
+        {applyError && !isConfirmOpen ? (
           <Alert variant="destructive">
-            <AlertTitle>Apply failed</AlertTitle>
+            <AlertTitle>Import failed</AlertTitle>
             <AlertDescription>
               <div className="space-y-1">
                 <p>{applyError}</p>
-                <p>Revalidate or upload a corrected CSV before retrying.</p>
+                <p>Revalidate or upload a corrected file before retrying.</p>
               </div>
             </AlertDescription>
           </Alert>
         ) : null}
-
-        <div className="flex flex-wrap gap-2">
-          <BatchMetaPill label="File" value={session.sourceFileName} />
-          <BatchMetaPill label="Source rows" value={session.sourceRowCount} />
-          <BatchMetaPill
-            label="Rows to create"
-            value={session.validationSummary.validRows}
-          />
-          <BatchMetaPill
-            label="File size"
-            value={formatBytes(session.sourceFileSizeBytes)}
-          />
-        </div>
-
-        <div className="rounded-lg border border-amber-200/80 bg-background/85 p-3 text-sm text-muted-foreground">
-          All rows are created together or none at all.
-        </div>
-
-        <div className="flex justify-end">
-          <AlertDialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
-            <AlertDialogTrigger asChild>
-              <Button type="button" disabled={!session.canApply || isApplying}>
-                {isApplying ? <Spinner /> : <ClipboardCheck />}
-                Apply import
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogMedia>
-                  <ShieldCheck className="size-5 text-amber-700" />
-                </AlertDialogMedia>
-                <AlertDialogTitle>Apply this employee import?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Creates {session.validationSummary.validRows} employee
-                  {session.validationSummary.validRows === 1
-                    ? ""
-                    : "s"} from {session.sourceFileName}. This succeeds only if
-                  every row can be written.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel disabled={isApplying}>
-                  Cancel
-                </AlertDialogCancel>
-                <AlertDialogAction
-                  disabled={isApplying}
-                  onClick={handleConfirm}
-                >
-                  {isApplying ? <Spinner /> : <ClipboardCheck />}
-                  Apply import
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
       </CardContent>
     </Card>
   );
@@ -460,40 +623,33 @@ export function AppliedResultPanel({
 
   return (
     <Card className="border-emerald-200 bg-emerald-50/70">
-      <CardHeader>
-        <div className="flex items-start gap-3">
-          <div className="rounded-lg border border-emerald-200 bg-background/90 p-2">
-            <CheckCircle2 className="size-5 text-emerald-600" />
+      <CardHeader className="gap-3 ">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3 min-w-0 flex-1">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-emerald-200 bg-background/90">
+              <CheckCircle2 className="size-4 text-emerald-600" />
+            </div>
+            <div className="min-w-0 flex-1 space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="secondary">Imported</Badge>
+                <span className="text-xs text-muted-foreground">
+                  {formatCreatedEmployeesSummary(createdCount)}{" "}
+                  {formatNeedsAccessSummary(needsAccessCount)}
+                </span>
+              </div>
+              <CardTitle className="break-all text-base sm:text-lg">
+                {session.sourceFileName}
+              </CardTitle>
+              <div className="flex flex-wrap gap-2">
+                <BatchMetaPill label="Source rows" value={sourceRowCount} />
+                <BatchMetaPill
+                  label="Imported"
+                  value={appliedAt ? formatTimestamp(appliedAt) : "Recorded"}
+                />
+              </div>
+            </div>
           </div>
-          <div className="space-y-1">
-            <CardTitle>Import completed</CardTitle>
-            <CardDescription>
-              {formatCreatedEmployeesSummary(createdCount)} {" "}
-              {formatNeedsAccessSummary(needsAccessCount)}
-            </CardDescription>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex flex-wrap gap-2">
-          <BatchMetaPill label="File" value={session.sourceFileName} />
-          <BatchMetaPill label="Created" value={createdCount} />
-          <BatchMetaPill label="Need access" value={needsAccessCount} />
-          <BatchMetaPill label="Source rows" value={sourceRowCount} />
-          <BatchMetaPill
-            label="Applied"
-            value={appliedAt ? formatTimestamp(appliedAt) : "Recorded"}
-          />
-        </div>
-
-        <div className="grid gap-3 rounded-lg border border-emerald-200/80 bg-background/85 p-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-          <div className="space-y-1 text-sm text-muted-foreground">
-            <p className="font-medium text-foreground">
-              Next step: access invitations
-            </p>
-            <p>{formatReadyForAccessSummary(needsAccessCount)}</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 shrink-0">
             <Button asChild>
               <Link href="/employees?access=NotInvited&review=access">
                 <Users />
@@ -503,19 +659,19 @@ export function AppliedResultPanel({
             <Button asChild type="button" variant="outline">
               <Link href="/employees?access=NotInvited">
                 <Eye />
-                Open employee roster
+                View employees
               </Link>
             </Button>
             <Button type="button" variant="ghost" onClick={onUpload}>
               <Upload />
-              Upload next CSV
-            </Button>
-            <Button type="button" variant="ghost" onClick={onReviewHistory}>
-              <History />
-              Review history
+              Upload next file
             </Button>
           </div>
         </div>
+      </CardHeader>
+
+      <CardContent className="space-y-3 pt-0">
+        <ImportWorkflowSteps steps={getCompletedSteps()} />
       </CardContent>
     </Card>
   );
@@ -573,32 +729,26 @@ function HistoryPagination({
 
 function HistoryMetric({ label, value }: BatchMetaItem) {
   return (
-    <div className="rounded-lg border bg-background/80 px-3 py-2">
+    <div className="rounded-lg border bg-background/80 px-2.5 py-1.5">
       <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
         {label}
       </p>
-      <p className="mt-1 text-sm font-medium text-foreground">{value}</p>
+      <p className="text-sm font-medium text-foreground">{value}</p>
     </div>
   );
 }
 
 function ImportHistoryListSkeleton() {
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       {Array.from({ length: 3 }).map((_, index) => (
-        <div key={index} className="rounded-xl border bg-background p-4">
-          <div className="space-y-3">
-            <div className="flex items-start justify-between gap-3">
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-52" />
-                <Skeleton className="h-3 w-40" />
-              </div>
-              <Skeleton className="h-6 w-16 rounded-full" />
+        <div key={index} className="rounded-xl border bg-background p-2">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0 flex-1 space-y-1">
+              <Skeleton className="h-4 w-48" />
+              <Skeleton className="h-3 w-64" />
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Skeleton className="h-3 w-20" />
-              <Skeleton className="h-3 w-24" />
-            </div>
+            <Skeleton className="h-5 w-14 shrink-0 rounded-full" />
           </div>
         </div>
       ))}
@@ -608,28 +758,11 @@ function ImportHistoryListSkeleton() {
 
 function ImportHistoryDetailSkeleton() {
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <Skeleton className="h-3 w-32" />
-        <Skeleton className="h-5 w-20 rounded-full" />
-      </div>
-      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="space-y-3">
+      <Skeleton className="h-3 w-48" />
+      <div className="grid gap-1.5 sm:grid-cols-2 xl:grid-cols-4">
         {Array.from({ length: 4 }).map((_, index) => (
-          <Skeleton key={index} className="h-16 rounded-lg" />
-        ))}
-      </div>
-      <Skeleton className="h-16 rounded-xl" />
-    </div>
-  );
-}
-
-function ImportFieldReferenceSkeleton() {
-  return (
-    <div className="space-y-3 rounded-lg border bg-muted/10 p-4">
-      <Skeleton className="h-4 w-48" />
-      <div className="grid gap-2">
-        {Array.from({ length: 5 }).map((_, index) => (
-          <Skeleton key={index} className="h-10 w-full rounded-lg" />
+          <Skeleton key={index} className="h-14 rounded-lg" />
         ))}
       </div>
     </div>
@@ -646,6 +779,27 @@ function formatNeedsAccessSummary(count: number): string {
 
 function formatReadyForAccessSummary(count: number): string {
   return `${count} imported employee${count === 1 ? " is" : "s are"} ready for access.`;
+}
+
+function getEventBadgeVariant(
+  eventType: ImportHistoryEventType,
+  hasErrors: boolean
+): "secondary" | "outline" | "destructive" {
+  if (eventType === "Validation" && hasErrors) {
+    return "destructive";
+  }
+  return eventType === "Import" ? "secondary" : "outline";
+}
+
+function getEventActionLabel(eventType: ImportHistoryEventType): string {
+  switch (eventType) {
+    case "Upload":
+      return "Uploaded";
+    case "Validation":
+      return "Validated";
+    case "Import":
+      return "Imported";
+  }
 }
 
 export function ImportHistoryPanel({
@@ -678,7 +832,9 @@ export function ImportHistoryPanel({
           </div>
           <div className="space-y-1">
             <CardTitle>Import history</CardTitle>
-            <CardDescription>Previous imports and outcomes.</CardDescription>
+            <CardDescription>
+              File uploads, validations, and imports.
+            </CardDescription>
           </div>
         </div>
       </CardHeader>
@@ -694,10 +850,9 @@ export function ImportHistoryPanel({
           <ImportHistoryListSkeleton />
         ) : historyPage && historyPage.items.length > 0 ? (
           <div className="space-y-3">
-            <div className="grid gap-2">
+            <div className="grid gap-1.5">
               {historyPage.items.map((item, index) => {
                 const isSelected = selectedHistoryId === item.id;
-                const isLatest = index === 0 && historyPage.pageNumber === 1;
                 const selectedDetail =
                   isSelected && historyDetail?.id === item.id
                     ? historyDetail
@@ -714,7 +869,7 @@ export function ImportHistoryPanel({
                   >
                     <button
                       type="button"
-                      className={`w-full cursor-pointer p-3 text-left transition-colors ${
+                      className={`w-full cursor-pointer p-2 text-left transition-colors ${
                         isSelected
                           ? "bg-muted/20"
                           : "hover:border-foreground/15 hover:bg-muted/20"
@@ -722,38 +877,53 @@ export function ImportHistoryPanel({
                       onClick={() => onSelectHistory(item.id)}
                       aria-pressed={isSelected}
                     >
-                      <div className="flex flex-wrap items-start justify-between gap-2">
-                        <div className="space-y-1">
-                          <p className="font-medium text-foreground">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium text-foreground">
                             {item.sourceFileName}
                           </p>
-                          <p className="text-xs text-muted-foreground">
-                            {formatTimestamp(item.appliedAt)} by{" "}
-                            {item.actorFullName}
+                          <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                            {getEventActionLabel(item.eventType)}{" "}
+                            {formatTimestamp(item.appliedAt)}
+                            {" · "}
+                            {item.eventType === "Import"
+                              ? `${item.createdCount} created · `
+                              : ""}
+                            {item.eventType === "Validation" &&
+                            item.errorCount != null &&
+                            item.errorCount > 0
+                              ? `${item.errorCount} error${item.errorCount === 1 ? "" : "s"} · `
+                              : ""}
+                            {item.eventType === "Validation" &&
+                            item.warningCount != null &&
+                            item.warningCount > 0
+                              ? `${item.warningCount} warning${item.warningCount === 1 ? "" : "s"} · `
+                              : ""}
+                            {item.eventType === "Validation" &&
+                            (item.errorCount ?? 0) === 0
+                              ? `${item.validRowCount} valid · `
+                              : ""}
+                            {item.sourceRowCount} rows · by {item.actorFullName}
                           </p>
                         </div>
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          {isLatest ? (
-                            <Badge
-                              variant="outline"
-                              className="border-emerald-300 text-[10px] text-emerald-700"
-                            >
-                              Latest
-                            </Badge>
-                          ) : null}
-                          <Badge variant={isSelected ? "secondary" : "outline"}>
-                            {item.status}
-                          </Badge>
-                        </div>
-                      </div>
-                      <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                        <span>{item.createdCount} created</span>
-                        <span>{item.sourceRowCount} source rows</span>
+                        <Badge
+                          variant={
+                            isSelected
+                              ? "secondary"
+                              : getEventBadgeVariant(
+                                  item.eventType,
+                                  (item.errorCount ?? 0) > 0
+                                )
+                          }
+                          className="shrink-0"
+                        >
+                          {item.status}
+                        </Badge>
                       </div>
                     </button>
 
                     {isSelected ? (
-                      <div className="border-t bg-background/70 px-4 py-4">
+                      <div className="border-t bg-background/70 px-3 py-3">
                         {historyDetailError ? (
                           <Alert variant="destructive">
                             <AlertTitle>
@@ -767,9 +937,9 @@ export function ImportHistoryPanel({
                           <ImportHistoryDetailSkeleton />
                         ) : (
                           <div className="space-y-4">
-                            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                            <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
                               <span>
-                                Applied{" "}
+                                {getEventActionLabel(selectedDetail.eventType)}{" "}
                                 {formatTimestamp(selectedDetail.appliedAt)}
                               </span>
                               <span>by {selectedDetail.actorFullName}</span>
@@ -781,10 +951,29 @@ export function ImportHistoryPanel({
                               </Badge>
                             </div>
 
-                            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                            <div className="grid gap-1.5 sm:grid-cols-2 xl:grid-cols-4">
+                              {selectedDetail.eventType === "Import" ? (
+                                <HistoryMetric
+                                  label="Created"
+                                  value={selectedDetail.createdCount}
+                                />
+                              ) : selectedDetail.eventType === "Validation" &&
+                                selectedDetail.errorCount != null ? (
+                                <HistoryMetric
+                                  label="Errors"
+                                  value={selectedDetail.errorCount}
+                                />
+                              ) : null}
+                              {selectedDetail.eventType === "Validation" &&
+                              selectedDetail.warningCount != null ? (
+                                <HistoryMetric
+                                  label="Warnings"
+                                  value={selectedDetail.warningCount}
+                                />
+                              ) : null}
                               <HistoryMetric
-                                label="Valid rows"
-                                value={selectedDetail.validRowCount}
+                                label="Rows"
+                                value={selectedDetail.sourceRowCount}
                               />
                               <HistoryMetric
                                 label="File size"
@@ -802,7 +991,8 @@ export function ImportHistoryPanel({
                               />
                             </div>
 
-                            {selectedDetail.skippedCount > 0 ? (
+                            {selectedDetail.eventType === "Import" &&
+                            selectedDetail.skippedCount > 0 ? (
                               <p className="text-xs text-muted-foreground">
                                 {selectedDetail.skippedCount} row
                                 {selectedDetail.skippedCount === 1
@@ -812,7 +1002,8 @@ export function ImportHistoryPanel({
                               </p>
                             ) : null}
 
-                            {selectedDetail.failureReason ? (
+                            {selectedDetail.eventType === "Import" &&
+                            selectedDetail.failureReason ? (
                               <Alert variant="destructive">
                                 <AlertTitle>Failure reason</AlertTitle>
                                 <AlertDescription>
@@ -821,10 +1012,11 @@ export function ImportHistoryPanel({
                               </Alert>
                             ) : null}
 
-                            {selectedDetail.unresolvedFollowUpIssues.length >
-                            0 ? (
-                              <div className="space-y-3 rounded-xl border bg-muted/20 p-4">
-                                <div className="space-y-1">
+                            {selectedDetail.eventType === "Import" &&
+                            selectedDetail.unresolvedFollowUpIssues.length >
+                              0 ? (
+                              <div className="space-y-2 rounded-xl border bg-muted/20 p-3">
+                                <div>
                                   <p className="text-sm font-medium">
                                     Unresolved follow-up items
                                   </p>
@@ -834,7 +1026,7 @@ export function ImportHistoryPanel({
                                   </p>
                                 </div>
 
-                                <div className="space-y-2">
+                                <div className="space-y-1.5">
                                   {selectedDetail.unresolvedFollowUpIssues.map(
                                     (issue) => {
                                       const fixHref = buildEmployeeFixHref({
@@ -848,15 +1040,15 @@ export function ImportHistoryPanel({
                                       return (
                                         <div
                                           key={issue.id}
-                                          className="flex flex-col gap-3 rounded-lg border bg-background p-3 sm:flex-row sm:items-center sm:justify-between"
+                                          className="flex flex-col gap-2 rounded-lg border bg-background p-2 sm:flex-row sm:items-center sm:justify-between"
                                         >
-                                          <div className="space-y-1">
+                                          <div>
                                             <p className="text-sm font-medium text-foreground">
                                               {issue.label}
                                             </p>
                                             <p className="text-xs text-muted-foreground">
                                               Row {issue.sourceRowNumber} •{" "}
-                                              {issue.employeeFullName} ({" "}
+                                              {issue.employeeFullName} (
                                               {issue.employeeEmail})
                                             </p>
                                           </div>
@@ -896,9 +1088,8 @@ export function ImportHistoryPanel({
             />
           </div>
         ) : (
-          <div className="rounded-xl border border-dashed p-6 text-sm text-muted-foreground">
-            No imports applied yet. Validate a clean batch and apply it to get
-            started.
+          <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
+            No import activity yet.
           </div>
         )}
       </CardContent>
@@ -926,12 +1117,9 @@ export function EmptyImportState({
               <FileSpreadsheet className="size-5 text-muted-foreground" />
             </div>
             <div className="space-y-1">
-              <h2 className="text-lg font-semibold">
-                Upload your employee CSV
-              </h2>
+              <h2 className="text-lg font-semibold">Start employee import</h2>
               <p className="text-sm text-muted-foreground">
-                Download the template, upload the file, then validate before
-                applying.
+                Upload a CSV to create a preview and validate it.
               </p>
             </div>
           </div>
@@ -951,10 +1139,6 @@ export function EmptyImportState({
               Download template
             </Button>
           </div>
-
-          <p className="text-xs text-muted-foreground">
-            Use the official template and keep column headers unchanged.
-          </p>
         </div>
       </CardContent>
     </Card>
@@ -974,7 +1158,6 @@ function getNavigatorItemClassName(
   if (isActive) {
     return "border-destructive/40 bg-destructive/10 shadow-sm";
   }
-
   return "border-destructive/20 bg-background hover:border-destructive/30 hover:bg-destructive/5";
 }
 
@@ -1057,11 +1240,7 @@ export function SelectedIssueStrip({
   onJumpToRow: (rowNumber: number) => void;
 }) {
   if (!group) {
-    return (
-      <div className="rounded-lg border bg-muted/10 p-3 text-sm text-muted-foreground">
-        Select a problem to filter the preview.
-      </div>
-    );
+    return null;
   }
 
   const visibleRowNumbers = group.rowNumbers.slice(
@@ -1158,7 +1337,6 @@ export function PreviewPagination({
   const firstVisiblePage = pageNumbers[0] ?? 1;
   const lastVisiblePage =
     pageNumbers[pageNumbers.length - 1] ?? normalizedPageCount;
-
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
       <div className="flex items-center gap-2">
@@ -1258,83 +1436,33 @@ export function PreviewPagination({
 }
 
 export function SecondaryDetailsPanel({
-  session,
-  activeHeaders,
   activeSchema,
   isSchemaLoading,
 }: {
-  session?: EmployeeImportSessionDto | null;
-  activeHeaders: string[];
   activeSchema?: EmployeeImportSessionDto["employeeImportSchema"];
   isSchemaLoading: boolean;
 }) {
-  const [isRawRowsOpen, setIsRawRowsOpen] = useState(false);
-  const [isFieldReferenceOpen, setIsFieldReferenceOpen] = useState(false);
-
   return (
     <Card className="border-dashed">
       <CardHeader>
         <CardTitle>Reference details</CardTitle>
         <CardDescription>
-          Raw uploaded rows and template field definitions.
+          Template field reference for the import file.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {session ? (
-          <details
-            className="rounded-lg border bg-muted/10"
-            open={isRawRowsOpen}
-            onToggle={(event) => setIsRawRowsOpen(event.currentTarget.open)}
-          >
-            <summary className="cursor-pointer list-none px-4 py-3 text-sm font-medium">
-              Raw uploaded rows ({session.sampleRows.length} shown)
-            </summary>
-            <div className="overflow-x-auto border-t">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Row</TableHead>
-                    {activeHeaders.map((header) => (
-                      <TableHead key={header} className="font-mono text-xs">
-                        {header}
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {session.sampleRows.map((row) => (
-                    <TableRow key={row.rowNumber}>
-                      <TableCell>{row.rowNumber}</TableCell>
-                      {activeHeaders.map((header) => (
-                        <TableCell key={`${row.rowNumber}-${header}`}>
-                          {row.values[header] ?? (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </details>
-        ) : null}
-
+      <CardContent>
         {isSchemaLoading && !activeSchema ? (
-          <ImportFieldReferenceSkeleton />
+          <div className="space-y-3 rounded-lg border bg-muted/10 p-4">
+            <Skeleton className="h-4 w-48" />
+            <div className="grid gap-2">
+              {Array.from({ length: 5 }).map((_, index) => (
+                <Skeleton key={index} className="h-10 w-full rounded-lg" />
+              ))}
+            </div>
+          </div>
         ) : (
-          <details
-            className="rounded-lg border bg-muted/10"
-            open={isFieldReferenceOpen}
-            onToggle={(event) =>
-              setIsFieldReferenceOpen(event.currentTarget.open)
-            }
-          >
-            <summary className="cursor-pointer list-none px-4 py-3 text-sm font-medium">
-              Template field reference (
-              {activeSchema?.canonicalFields.length ?? 0})
-            </summary>
-            <div className="overflow-x-auto border-t">
+          <div className="overflow-hidden rounded-lg border bg-muted/10">
+            <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -1370,7 +1498,7 @@ export function SecondaryDetailsPanel({
                 </TableBody>
               </Table>
             </div>
-          </details>
+          </div>
         )}
       </CardContent>
     </Card>

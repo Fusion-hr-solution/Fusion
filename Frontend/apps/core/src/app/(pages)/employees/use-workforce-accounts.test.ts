@@ -7,11 +7,15 @@ const { mockPost } = vi.hoisted(() => ({
   mockPost: vi.fn(),
 }));
 
-vi.mock("@repo/api", () => ({
-  createPlatformApiClient: () => ({
-    post: mockPost,
-  }),
-}));
+vi.mock("@repo/api", async () => {
+  const actual = await vi.importActual<typeof import("@repo/api")>("@repo/api");
+  return {
+    ...actual,
+    createPlatformApiClient: () => ({
+      post: mockPost,
+    }),
+  };
+});
 
 vi.mock("@repo/api/query", async () => {
   const actual = await vi.importActual("@repo/api/query");

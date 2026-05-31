@@ -79,6 +79,8 @@ export interface EmployeeImportApplyResultDto {
   stage: EmployeeImportStage;
 }
 
+export type ImportHistoryEventType = "Upload" | "Validation" | "Import";
+
 export interface EmployeeImportHistoryListItemDto {
   id: string;
   sessionId: string;
@@ -93,6 +95,9 @@ export interface EmployeeImportHistoryListItemDto {
   actorUserId: string;
   actorFullName: string;
   actorRole: string;
+  eventType: ImportHistoryEventType;
+  errorCount?: number;
+  warningCount?: number;
 }
 
 export interface EmployeeImportHistoryDetailDto {
@@ -112,6 +117,9 @@ export interface EmployeeImportHistoryDetailDto {
   actorRole: string;
   failureReason: string | null;
   unresolvedFollowUpIssues: EmployeeImportFollowUpIssueDto[];
+  eventType: ImportHistoryEventType;
+  errorCount?: number;
+  warningCount?: number;
 }
 
 export interface EmployeeImportFollowUpIssueDto {

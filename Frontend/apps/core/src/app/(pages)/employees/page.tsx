@@ -16,7 +16,6 @@ import {
   Upload,
   Users,
 } from "lucide-react";
-import { useApiQueryClient } from "@repo/api/query";
 import {
   canAccessCoreAccess,
   canManageCoreAccess,
@@ -74,7 +73,6 @@ import { parseEmployeeReadinessFilter } from "./employee-readiness";
 import { EmployeesTable } from "./employees-table";
 import { PaginationBar } from "./pagination-bar";
 import { Toolbar } from "./toolbar";
-import { employeeRosterQueryKeys } from "./employee-query-keys";
 import type {
   EmployeeAccessFilter,
   EmployeeReadinessFilter,
@@ -284,7 +282,6 @@ function SelectedAccessActionBar({
 export default function EmployeesPage() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const queryClient = useApiQueryClient();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { tenantId } = useTenantContext();
@@ -763,13 +760,6 @@ export default function EmployeesPage() {
         ...nextOverrides,
       }));
 
-      await queryClient.invalidateQueries({
-        queryKey: employeeRosterQueryKeys.workforceAccounts(),
-      });
-      await queryClient.invalidateQueries({
-        queryKey: employeeRosterQueryKeys.lists(),
-      });
-
       const createdCount = results.filter(
         (r) => r.outcome === "Created"
       ).length;
@@ -800,7 +790,6 @@ export default function EmployeesPage() {
     accessProfiles,
     access,
     bulkProvision,
-    queryClient,
     replaceEmployeesQueryParams,
     reviewRows.provisionableRows,
     selectedAccessProfilesByEmployeeId,

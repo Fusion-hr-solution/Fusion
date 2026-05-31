@@ -1,7 +1,11 @@
 "use client";
 
 import { useCallback, useMemo } from "react";
-import { createPlatformApiClient } from "@repo/api";
+import {
+  coreAccessQueryKeys,
+  coreWorkforceQueryKeys,
+  createPlatformApiClient,
+} from "@repo/api";
 import { useApiMutation, useApiQuery } from "@repo/api/query";
 import { employeeRosterQueryKeys } from "./employee-query-keys";
 import type {
@@ -14,6 +18,15 @@ const WORKFORCE_ACCOUNTS_PATH = "/corehr/employees/workforce-accounts";
 const WORKFORCE_ACCOUNT_STATUSES_PATH = `${WORKFORCE_ACCOUNTS_PATH}/statuses`;
 const WORKFORCE_ACCOUNT_STATUS_BATCH_SIZE = 200;
 const EMPTY_WORKFORCE_ACCOUNT_STATUSES: WorkforceAccountStatusDto[] = [];
+const WORKFORCE_ACCOUNT_MUTATION_INVALIDATIONS = [
+  { queryKey: coreWorkforceQueryKeys.all() },
+  { queryKey: employeeRosterQueryKeys.workforceAccounts() },
+  { queryKey: coreAccessQueryKeys.profiles() },
+];
+const BULK_WORKFORCE_ACCOUNT_MUTATION_INVALIDATIONS = [
+  ...WORKFORCE_ACCOUNT_MUTATION_INVALIDATIONS,
+  { queryKey: employeeRosterQueryKeys.lists() },
+];
 
 export function useWorkforceAccountStatuses(
   subjects: WorkforceAccountSubject[]
@@ -88,7 +101,10 @@ export function useBulkProvisionWorkforceAccountInvites() {
     client.post<WorkforceAccountBulkProvisionResultDto[]>(
       `${WORKFORCE_ACCOUNTS_PATH}/bulk-provision`,
       { items }
-    )
+    ),
+    {
+      invalidateQueries: BULK_WORKFORCE_ACCOUNT_MUTATION_INVALIDATIONS,
+    }
   );
 }
 
@@ -146,7 +162,10 @@ export function useProvisionWorkforceAccountInvite() {
         lastName,
         accessProfileId,
       }
-    )
+    ),
+    {
+      invalidateQueries: WORKFORCE_ACCOUNT_MUTATION_INVALIDATIONS,
+    }
   );
 }
 
@@ -157,7 +176,10 @@ export function useReactivateWorkforceAccount() {
     ({ employeeId }) =>
       client.post<WorkforceAccountStatusDto>(
         `${WORKFORCE_ACCOUNTS_PATH}/${employeeId}/reactivate`
-      )
+      ),
+    {
+      invalidateQueries: WORKFORCE_ACCOUNT_MUTATION_INVALIDATIONS,
+    }
   );
 }
 
@@ -168,14 +190,21 @@ export function useResendWorkforceAccountInvite() {
     ({ employeeId }) =>
       client.post<WorkforceAccountStatusDto>(
         `${WORKFORCE_ACCOUNTS_PATH}/${employeeId}/resend`
-      )
+      ),
+    {
+      invalidateQueries: WORKFORCE_ACCOUNT_MUTATION_INVALIDATIONS,
+    }
   );
 }
 
 export function useDeactivateWorkforceAccount() {
   const client = useMemo(() => createPlatformApiClient(), []);
 
-  return useApiMutation<void, { employeeId: string }>(({ employeeId }) =>
-    client.delete<void>(`${WORKFORCE_ACCOUNTS_PATH}/${employeeId}`)
+  return useApiMutation<void, { employeeId: string }>(
+    ({ employeeId }) =>
+      client.delete<void>(`${WORKFORCE_ACCOUNTS_PATH}/${employeeId}`),
+    {
+      invalidateQueries: WORKFORCE_ACCOUNT_MUTATION_INVALIDATIONS,
+    }
   );
 }
