@@ -25,6 +25,9 @@ public class GetAllTrainingsQueryHandler : IQueryHandler<GetAllTrainingsQuery, R
         if (request.CategoryId.HasValue)
             query = query.Where(t => t.CategoryId == request.CategoryId.Value);
 
+        if (request.TrainingType.HasValue)
+            query = query.Where(t => t.TrainingType == request.TrainingType.Value);
+
         if (!string.IsNullOrWhiteSpace(request.Search))
             query = query.Where(t =>
                 t.Title.Contains(request.Search) ||

@@ -1,4 +1,5 @@
 using System.Text;
+using EY.HRPlatform.Training.Features.Admin.Sessions.Export;
 using EY.HRPlatform.Training.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -48,6 +49,9 @@ public static class ServiceCollectionExtensions
 
         // 3. Register MediatR — scans this assembly for all handlers
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<Program>());
+
+        // 4. Register export service (Excel + PDF participant lists)
+        services.AddSingleton<ISessionParticipantExporter, SessionParticipantExporter>();
 
         return services;
     }

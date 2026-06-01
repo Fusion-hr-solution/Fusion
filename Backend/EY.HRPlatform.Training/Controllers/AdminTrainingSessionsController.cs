@@ -1,6 +1,7 @@
 using EY.HRPlatform.SharedKernel.Auth;
 using EY.HRPlatform.Training.Features.Admin.Sessions;
 using EY.HRPlatform.Training.Features.Admin.Sessions.Commands;
+using EY.HRPlatform.Training.Features.Admin.Sessions.Export;
 using EY.HRPlatform.Training.Features.Admin.Sessions.Queries;
 using EY.HRPlatform.Training.Models.Requests;
 using EY.HRPlatform.Training.Models.Responses;
@@ -17,11 +18,16 @@ public class AdminTrainingSessionsController : ControllerBase
 {
     private readonly ISender _sender;
     private readonly ILogger<AdminTrainingSessionsController> _logger;
+    private readonly ISessionParticipantExporter _exporter;
 
-    public AdminTrainingSessionsController(ISender sender, ILogger<AdminTrainingSessionsController> logger)
+    public AdminTrainingSessionsController(
+        ISender sender,
+        ILogger<AdminTrainingSessionsController> logger,
+        ISessionParticipantExporter exporter)
     {
         _sender = sender;
         _logger = logger;
+        _exporter = exporter;
     }
 
     /// <summary>Global session list with filters: trainingId, date range, status, trainer, search.</summary>
@@ -73,6 +79,62 @@ public class AdminTrainingSessionsController : ControllerBase
             return StatusCode(StatusCodes.Status500InternalServerError,
                 ApiResponse.Failure("An error occurred while retrieving the session."));
         }
+    }
+
+    /// <summary>Export the participant list for a session as Excel (.xlsx).</summary>
+    [HttpGet("sessions/{sessionId:guid}/export/excel")]
+    [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ExportParticipantsExcel(Guid sessionId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await _sender.Send(new GetSessionParticipantsForExportQuery(sessionId), cancellationToken);
+            if (result.IsFailure)
+                return NotFound(ApiResponse.Failure(result.Error.Message));
+
+            var bytes = _exporter.ToExcel(result.Value!);
+            var fileName = BuildExportFileName(result.Value!, "xlsx");
+            return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to export participants (Excel) for session {SessionId}", sessionId);
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                ApiResponse.Failure("An error occurred while exporting the participant list."));
+        }
+    }
+
+    /// <summary>Export the participant list for a session as PDF.</summary>
+    [HttpGet("sessions/{sessionId:guid}/export/pdf")]
+    [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ExportParticipantsPdf(Guid sessionId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await _sender.Send(new GetSessionParticipantsForExportQuery(sessionId), cancellationToken);
+            if (result.IsFailure)
+                return NotFound(ApiResponse.Failure(result.Error.Message));
+
+            var bytes = _exporter.ToPdf(result.Value!);
+            var fileName = BuildExportFileName(result.Value!, "pdf");
+            return File(bytes, "application/pdf", fileName);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to export participants (PDF) for session {SessionId}", sessionId);
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                ApiResponse.Failure("An error occurred while exporting the participant list."));
+        }
+    }
+
+    private static string BuildExportFileName(SessionParticipantExportDto data, string extension)
+    {
+        var safeTitle = string.Concat((data.TrainingTitle + "-" + data.PartTitle)
+            .Where(c => char.IsLetterOrDigit(c) || c is '-' or '_'));
+        if (string.IsNullOrWhiteSpace(safeTitle)) safeTitle = "session";
+        return $"participants-{safeTitle}-{data.StartUtc:yyyyMMdd}.{extension}";
     }
 
     /// <summary>Add a session to a Part. Returns the new session id and any room conflict warnings.</summary>
