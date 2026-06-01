@@ -110,17 +110,6 @@ internal static class EmployeeReadinessPolicy
 
         switch (hierarchyStatus)
         {
-            case EmployeeHierarchyStatuses.NoManagerAssigned:
-                issues.Add(new EmployeeReadinessIssueDto(
-                    EmployeeReadinessIssueCodes.NoManagerAssigned,
-                    "No manager is assigned",
-                    EmployeeReadinessIssueSeverities.Attention,
-                    "managerId",
-                    new EmployeeReadinessFixTargetDto(
-                        EmployeeReadinessFixTargetKinds.ReportingRelationships,
-                        employee.Id,
-                        FieldKey: "managerId")));
-                break;
             case EmployeeHierarchyStatuses.ManagerInactive:
                 issues.Add(new EmployeeReadinessIssueDto(
                     EmployeeReadinessIssueCodes.ManagerInactive,

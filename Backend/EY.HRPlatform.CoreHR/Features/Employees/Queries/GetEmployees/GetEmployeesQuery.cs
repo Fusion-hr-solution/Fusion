@@ -14,6 +14,8 @@ public record GetEmployeesQuery(
     EmployeeStatus? Status = null,
     EmployeeAccessFilter? Access = null,
     EmployeeReadinessFilter? Readiness = null,
+    Guid? OrgUnitId = null,
+    Guid? ManagerId = null,
     EmployeeSortField SortBy = EmployeeSortField.Name,
     SortDirection SortDir = SortDirection.Asc,
     int Page = 1,

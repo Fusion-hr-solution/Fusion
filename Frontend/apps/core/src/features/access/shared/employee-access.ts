@@ -1,15 +1,15 @@
 import type {
   EmployeeAccessFilter,
   WorkforceAccountStatusDto,
-} from "./employee-roster.types";
+} from "@/app/(pages)/employees/employee-roster.types";
 
 export const EMPLOYEE_ACCESS_FILTER_OPTIONS: Array<{
   value: EmployeeAccessFilter;
   label: string;
 }> = [
   { value: "NotInvited", label: "Not invited" },
-  { value: "Invited", label: "Invited" },
-  { value: "AccountActive", label: "Account active" },
+  { value: "Invited", label: "Invite pending" },
+  { value: "AccountActive", label: "Active account" },
   { value: "NeedsReview", label: "Needs review" },
 ];
 
@@ -258,100 +258,21 @@ export function getReviewDrawerRows(
         email: employee.email,
         directReportCount: employee.directReportCount,
       },
-      suggestedRole,
       workforceAccount: employee.workforceAccount,
+      suggestedRole,
     };
 
     if (isProvisionableInBulk(cohort)) {
       provisionableRows.push(row);
-      return;
-    }
-
-    if (cohort === "PendingInvitation") {
+    } else if (cohort === "PendingInvitation") {
       pendingInvitationRows.push(row);
-      return;
+    } else {
+      notIncludedRows.push({
+        ...row,
+        reason: eligibility.notIncludedReason ?? "",
+      });
     }
-
-    const reason =
-      eligibility.notIncludedReason ??
-      (employee.workforceAccount ? "Not included" : "No action available");
-
-    notIncludedRows.push({
-      ...row,
-      reason,
-    });
   });
 
   return { provisionableRows, pendingInvitationRows, notIncludedRows };
-}
-
-export interface BulkSelectionSummary {
-  newInvitationCount: number;
-  refreshInvitationCount: number;
-  pendingInvitationCount: number;
-  inactiveCount: number;
-  conflictCount: number;
-  activeCount: number;
-  notIncludedCount: number;
-  provisionableCount: number;
-  hasPendingWithLink: boolean;
-}
-
-export function getBulkSelectionSummary(
-  selectedEmployees: Array<{
-    workforceAccount: WorkforceAccountStatusDto | null;
-  }>
-): BulkSelectionSummary {
-  let newInvitationCount = 0;
-  let refreshInvitationCount = 0;
-  let pendingInvitationCount = 0;
-  let inactiveCount = 0;
-  let conflictCount = 0;
-  let activeCount = 0;
-  let hasPendingWithLink = false;
-
-  selectedEmployees.forEach((employee) => {
-    const cohort = classifyActionCohort(employee.workforceAccount);
-
-    switch (cohort) {
-      case "NewInvitation":
-        newInvitationCount += 1;
-        break;
-      case "RefreshInvitation":
-        refreshInvitationCount += 1;
-        break;
-      case "PendingInvitation":
-        pendingInvitationCount += 1;
-        if (employee.workforceAccount?.inviteLink) {
-          hasPendingWithLink = true;
-        }
-        break;
-      case "InactiveAccount":
-        inactiveCount += 1;
-        break;
-      case "Conflict":
-      case "AcceptedInvitation":
-        conflictCount += 1;
-        break;
-      case "Active":
-        activeCount += 1;
-        break;
-    }
-  });
-
-  const notIncludedCount =
-    inactiveCount + conflictCount + activeCount;
-  const provisionableCount = newInvitationCount + refreshInvitationCount;
-
-  return {
-    newInvitationCount,
-    refreshInvitationCount,
-    pendingInvitationCount,
-    inactiveCount,
-    conflictCount,
-    activeCount,
-    notIncludedCount,
-    provisionableCount,
-    hasPendingWithLink,
-  };
 }

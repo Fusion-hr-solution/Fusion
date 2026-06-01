@@ -56,6 +56,16 @@ public sealed class GetEmployeesQueryHandler(
             query = ApplyReadinessFilter(query, request.Readiness.Value, settings);
         }
 
+        if (request.OrgUnitId.HasValue)
+        {
+            query = query.Where(employee => employee.OrgUnitId == request.OrgUnitId.Value);
+        }
+
+        if (request.ManagerId.HasValue)
+        {
+            query = query.Where(employee => employee.ManagerId == request.ManagerId.Value);
+        }
+
         // Apply sorting
         query = ApplySorting(query, request.SortBy, request.SortDir);
 
@@ -201,14 +211,11 @@ public sealed class GetEmployeesQueryHandler(
             EmployeeReadinessFilter.Ready => query.Where(employee =>
                 !(requiresJobTitle && (employee.JobTitle == null || employee.JobTitle == string.Empty))
                 && employee.OrgUnitId != null
-                && (employee.ManagerId.HasValue
-                    || dbContext.Employees.Any(report => report.ManagerId == employee.Id && report.Status == Domain.Enums.EmployeeStatus.Active))
                 && (!employee.ManagerId.HasValue || employee.Manager != null)
                 && (!employee.ManagerId.HasValue || employee.Manager == null || employee.Manager.Status == Domain.Enums.EmployeeStatus.Active)),
             EmployeeReadinessFilter.NeedsAttention => query.Where(employee =>
                 (requiresJobTitle && (employee.JobTitle == null || employee.JobTitle == string.Empty))
                 || employee.OrgUnitId == null
-                || (!employee.ManagerId.HasValue && !dbContext.Employees.Any(report => report.ManagerId == employee.Id && report.Status == Domain.Enums.EmployeeStatus.Active))
                 || (employee.ManagerId.HasValue && employee.Manager == null)
                 || (employee.ManagerId.HasValue && employee.Manager != null && employee.Manager.Status != Domain.Enums.EmployeeStatus.Active)),
             EmployeeReadinessFilter.MissingRequiredField => requiresJobTitle
@@ -216,8 +223,7 @@ public sealed class GetEmployeesQueryHandler(
                 : query.Where(_ => false),
             EmployeeReadinessFilter.MissingOrgUnit => query.Where(employee => employee.OrgUnitId == null),
             EmployeeReadinessFilter.ReportingIssue => query.Where(employee =>
-                (!employee.ManagerId.HasValue && !dbContext.Employees.Any(report => report.ManagerId == employee.Id && report.Status == Domain.Enums.EmployeeStatus.Active))
-                || (employee.ManagerId.HasValue && employee.Manager == null)
+                (employee.ManagerId.HasValue && employee.Manager == null)
                 || (employee.ManagerId.HasValue && employee.Manager != null && employee.Manager.Status != Domain.Enums.EmployeeStatus.Active)),
             EmployeeReadinessFilter.NoManagerAssigned => query.Where(employee =>
                 !employee.ManagerId.HasValue

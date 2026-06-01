@@ -89,6 +89,9 @@ export type EmployeeRosterSortDirection = "Asc" | "Desc";
 export interface EmployeeRosterItem {
   id: string;
   employeeNumber?: string | null;
+  preferredName?: string | null;
+  displayName?: string;
+  fullName?: string;
   firstName: string;
   lastName: string;
   email: string;
@@ -118,6 +121,8 @@ export interface EmployeeRosterPageDto {
 export interface EmployeeRosterQueryParams {
   search?: string;
   status?: EmployeeRosterStatus;
+  orgUnitId?: string;
+  managerId?: string;
   access?: EmployeeAccessFilter;
   readiness?: EmployeeReadinessFilter;
   sortBy: EmployeeRosterSortField;

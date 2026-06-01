@@ -31,7 +31,7 @@ import { buildDraftOrgUnitKindKey } from "./draft-structure-form-utils";
 import {
   useTenantSettings,
   useUpdateTenantSettings,
-} from "./use-tenant-settings";
+} from "@/features/settings/api/use-tenant-settings";
 
 interface EditableOrgUnitKind {
   id: string;

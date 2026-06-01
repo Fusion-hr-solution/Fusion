@@ -1,8 +1,30 @@
 // @vitest-environment jsdom
 import { useState } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+
+const authState = vi.hoisted(() => ({
+  user: {
+    userId: "hr-1",
+    email: "hr@example.com",
+    fullName: "HR Admin",
+    roles: ["HRAdmin"],
+  },
+}));
+
+vi.mock("@repo/auth", () => ({
+  useAuth: () => authState,
+  canAccessCoreAccess: (user: { roles?: string[] } | null) =>
+    !!user?.roles?.includes("AccessAdmin"),
+  canManageCoreAccessProfiles: (user: { roles?: string[] } | null) =>
+    !!user?.roles?.includes("HRAdmin"),
+  canAccessCorePeople: (user: { roles?: string[] } | null) =>
+    !!user?.roles?.includes("HRAdmin"),
+  canAccessCoreTeam: () => false,
+  canAccessOwnCoreProfile: () => false,
+}));
+
 import {
   AppliedResultPanel,
   BatchActionPanel,
@@ -55,6 +77,15 @@ function buildAppliedImportSession(
     ...overrides,
   });
 }
+
+beforeEach(() => {
+  authState.user = {
+    userId: "hr-1",
+    email: "hr@example.com",
+    fullName: "HR Admin",
+    roles: ["HRAdmin"],
+  };
+});
 
 describe("BatchActionPanel", () => {
   it("focuses the next step on validation for preview-ready batches", () => {
@@ -228,16 +259,38 @@ describe("AppliedResultPanel", () => {
     );
 
     const reviewLink = screen.getByRole("link", {
-      name: "Review access invitations",
+      name: "Activate access",
     });
-    expect(reviewLink.getAttribute("href")).toBe("/access?access=NotInvited");
+    expect(reviewLink.getAttribute("href")).toBe("/access");
 
     const rosterLink = screen.getByRole("link", {
-      name: "View employees",
+      name: "See employees",
     });
-    expect(rosterLink.getAttribute("href")).toBe(
-      "/employees?access=NotInvited"
+    expect(rosterLink.getAttribute("href")).toBe("/employees");
+  });
+
+  it("hides completion links when the user lacks directory and access permissions", () => {
+    authState.user = {
+      userId: "viewer-1",
+      email: "viewer@example.com",
+      fullName: "Viewer",
+      roles: [],
+    };
+
+    render(
+      <AppliedResultPanel
+        session={buildAppliedImportSession()}
+        applyResult={null}
+        onUpload={() => undefined}
+        onReviewHistory={() => undefined}
+      />
     );
+
+    expect(
+      screen.queryByRole("link", { name: "Activate access" })
+    ).toBeNull();
+    expect(screen.queryByRole("link", { name: "See employees" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Upload" })).toBeTruthy();
   });
 });
 

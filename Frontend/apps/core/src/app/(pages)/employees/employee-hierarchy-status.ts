@@ -6,9 +6,9 @@ export function getHierarchyIssueMeta(status: EmployeeHierarchyStatus): {
 } | null {
   switch (status) {
     case "ManagerInactive":
-      return { label: "Needs reassignment", variant: "destructive" };
+      return { label: "Manager inactive", variant: "destructive" };
     case "ManagerMissing":
-      return { label: "Needs attention", variant: "destructive" };
+      return { label: "Manager missing", variant: "destructive" };
     default:
       return null;
   }

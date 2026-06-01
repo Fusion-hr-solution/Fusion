@@ -29,6 +29,8 @@ export function normalizeEmployeeRosterQuery(
   return {
     search: normalizeEmployeeRosterSearch(params.search),
     status: params.status ?? null,
+    orgUnitId: params.orgUnitId ?? null,
+    managerId: params.managerId ?? null,
     access: params.access ?? null,
     readiness: params.readiness ?? null,
     sortBy: params.sortBy,

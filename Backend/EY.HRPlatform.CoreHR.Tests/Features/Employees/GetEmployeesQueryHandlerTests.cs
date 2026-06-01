@@ -725,6 +725,79 @@ public class GetEmployeesQueryHandlerTests
     }
 
     [Fact]
+    public async Task GetEmployees_WithOrgUnitFilter_ReturnsOnlyEmployeesInSelectedOrgUnit()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+
+        var engineering = OrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null);
+        var finance = OrgUnit.Create(TenantId, "FIN", "Finance", "Department", null);
+
+        var engineer = Employee.Create(TenantId, "Jordan", "Engineer", "jordan.engineer@example.com", DateTime.UtcNow);
+        engineer.AssignOrgUnit(engineering.Id);
+
+        var analyst = Employee.Create(TenantId, "Taylor", "Analyst", "taylor.analyst@example.com", DateTime.UtcNow);
+        analyst.AssignOrgUnit(finance.Id);
+
+        var unassigned = Employee.Create(TenantId, "Casey", "Unassigned", "casey.unassigned@example.com", DateTime.UtcNow);
+
+        seedContext.OrgUnits.AddRange(engineering, finance);
+        seedContext.Employees.AddRange(engineer, analyst, unassigned);
+        await seedContext.SaveChangesAsync();
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = CreateHandler(context);
+
+        var result = await handler.Handle(
+            new GetEmployeesQuery(OrgUnitId: engineering.Id),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var item = Assert.Single(result.Value.Items);
+        Assert.Equal(engineer.Id, item.Id);
+        Assert.Equal(engineering.Id, item.OrgUnitId);
+    }
+
+    [Fact]
+    public async Task GetEmployees_WithManagerFilter_ReturnsOnlyDirectReportsForSelectedManager()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+
+        var manager = Employee.Create(TenantId, "Alex", "Manager", "alex.manager@example.com", DateTime.UtcNow);
+        var otherManager = Employee.Create(TenantId, "Morgan", "Lead", "morgan.lead@example.com", DateTime.UtcNow);
+
+        var firstReport = Employee.Create(TenantId, "Sam", "Report", "sam.report@example.com", DateTime.UtcNow);
+        firstReport.AssignManager(manager.Id);
+
+        var secondReport = Employee.Create(TenantId, "Jamie", "Report", "jamie.report@example.com", DateTime.UtcNow);
+        secondReport.AssignManager(manager.Id);
+
+        var otherReport = Employee.Create(TenantId, "Riley", "Peer", "riley.peer@example.com", DateTime.UtcNow);
+        otherReport.AssignManager(otherManager.Id);
+
+        var rootLeader = Employee.Create(TenantId, "Dana", "Root", "dana.root@example.com", DateTime.UtcNow);
+
+        seedContext.Employees.AddRange(manager, otherManager, firstReport, secondReport, otherReport, rootLeader);
+        await seedContext.SaveChangesAsync();
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = CreateHandler(context);
+
+        var result = await handler.Handle(
+            new GetEmployeesQuery(ManagerId: manager.Id),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(2, result.Value.TotalCount);
+        Assert.All(result.Value.Items, item => Assert.Equal(manager.Id, item.ManagerId));
+        Assert.Contains(result.Value.Items, item => item.Id == firstReport.Id);
+        Assert.Contains(result.Value.Items, item => item.Id == secondReport.Id);
+    }
+
+    [Fact]
     public async Task GetEmployees_HidesJobTitle_WhenTenantSettingsDisableItForHrAdmin()
     {
         // Arrange

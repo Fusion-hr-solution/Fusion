@@ -39,7 +39,7 @@ import {
   useUpdateOrganization,
   useResendFirstAdminInvite,
   useRevokeFirstAdminInvite,
-} from "./use-organizations";
+} from "@/features/organizations/api/use-organizations";
 import {
   ArrowRight,
   Pencil,

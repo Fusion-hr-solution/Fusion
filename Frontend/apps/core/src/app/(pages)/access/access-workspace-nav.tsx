@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ShieldCheck, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useTenantContext } from "@/components/core-tenant-context-provider";
+import { useTenantContext } from "@/shell/tenant-context/core-tenant-context-provider";
 import { buildTenantContextHref } from "@/lib/tenant-navigation";
 
 export function AccessWorkspaceNav({

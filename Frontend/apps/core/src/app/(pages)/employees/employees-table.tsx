@@ -1,17 +1,18 @@
 "use client";
 
+import type { ReactNode } from "react";
+
 import {
   flexRender,
   getCoreRowModel,
   useReactTable,
   type ColumnDef,
-  type RowSelectionState,
   type SortingState,
 } from "@tanstack/react-table";
 import { Users } from "lucide-react";
 import {
   Empty,
-  EmptyDescription,
+  EmptyContent,
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
@@ -40,10 +41,9 @@ interface EmployeesTableProps<TRow extends EmployeeRosterItem> {
   sorting: SortingState;
   onSortingChange: (sorting: SortingState) => void;
   onRowClick: (employee: TRow) => void;
-  rowSelection?: RowSelectionState;
-  onRowSelectionChange?: (selection: RowSelectionState) => void;
   emptyTitle?: string;
   emptyDescription?: string;
+  emptyContent?: ReactNode;
 }
 
 export function EmployeesTable<TRow extends EmployeeRosterItem>({
@@ -54,34 +54,21 @@ export function EmployeesTable<TRow extends EmployeeRosterItem>({
   sorting,
   onSortingChange,
   onRowClick,
-  rowSelection,
-  onRowSelectionChange,
   emptyTitle = "No employees found",
-  emptyDescription = "Try a different search or status filter.",
+  emptyContent,
 }: EmployeesTableProps<TRow>) {
   const table = useReactTable({
     data,
     columns,
     state: {
       sorting,
-      rowSelection,
     },
     onSortingChange: (updater) => {
       const next = typeof updater === "function" ? updater(sorting) : updater;
       onSortingChange(next);
     },
-    onRowSelectionChange: (updater) => {
-      if (!onRowSelectionChange) {
-        return;
-      }
-
-      const next =
-        typeof updater === "function" ? updater(rowSelection ?? {}) : updater;
-      onRowSelectionChange(next);
-    },
     getCoreRowModel: getCoreRowModel(),
     manualSorting: true,
-    enableRowSelection: !!onRowSelectionChange,
     getRowId: (row) => row.id,
   });
 
@@ -103,8 +90,8 @@ export function EmployeesTable<TRow extends EmployeeRosterItem>({
             <Users />
           </EmptyMedia>
           <EmptyTitle>{emptyTitle}</EmptyTitle>
-          <EmptyDescription>{emptyDescription}</EmptyDescription>
         </EmptyHeader>
+        {emptyContent ? <EmptyContent>{emptyContent}</EmptyContent> : null}
       </Empty>
     );
   }
@@ -115,7 +102,7 @@ export function EmployeesTable<TRow extends EmployeeRosterItem>({
         <div className="bg-background/50 absolute inset-0 z-10 rounded-xl" />
       )}
 
-      <Table className="min-w-[840px] table-fixed min-[1500px]:min-w-[980px] min-[1800px]:min-w-[1120px]">
+      <Table className="min-w-[980px] table-fixed xl:min-w-[1080px] 2xl:min-w-[1160px]">
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>
@@ -129,7 +116,7 @@ export function EmployeesTable<TRow extends EmployeeRosterItem>({
                     key={header.id}
                     className={
                       [
-                        header.column.id === "HireDate" ? "text-right" : null,
+                        "text-center",
                         meta?.headerClassName ?? null,
                       ]
                         .filter(Boolean)
@@ -153,8 +140,7 @@ export function EmployeesTable<TRow extends EmployeeRosterItem>({
           {table.getRowModel().rows.map((row) => (
             <TableRow
               key={row.id}
-              data-state={row.getIsSelected() ? "selected" : undefined}
-              className="group/employee-row data-[state=selected]:bg-muted/55 cursor-pointer hover:bg-muted/40"
+              className="group/employee-row cursor-pointer hover:bg-muted/40"
               role="button"
               tabIndex={0}
               aria-label={`Open employee profile for ${row.original.firstName} ${row.original.lastName}`}
@@ -175,7 +161,7 @@ export function EmployeesTable<TRow extends EmployeeRosterItem>({
                   <TableCell
                     key={cell.id}
                     className={[
-                      "overflow-hidden align-middle whitespace-normal py-3",
+                      "overflow-hidden text-center align-middle whitespace-normal py-2",
                       meta?.cellClassName ?? null,
                     ]
                       .filter(Boolean)

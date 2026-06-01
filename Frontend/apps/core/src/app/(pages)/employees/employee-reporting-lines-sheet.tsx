@@ -715,9 +715,9 @@ function getRelationshipStatusMeta(status: EmployeeHierarchyStatus): {
     case "NoManagerAssigned":
       return { label: "No manager assigned", variant: "outline" };
     case "ManagerInactive":
-      return { label: "Needs reassignment", variant: "destructive" };
+      return { label: "Manager inactive", variant: "destructive" };
     case "ManagerMissing":
-      return { label: "Needs attention", variant: "destructive" };
+      return { label: "Manager missing", variant: "destructive" };
   }
 }
 
@@ -730,7 +730,11 @@ function getCurrentManagerValue(employee: EmployeeRosterItem) {
     return "No manager assigned";
   }
 
-  return employee.managerName ?? "Needs attention";
+  if (employee.hierarchyStatus === "ManagerMissing") {
+    return "Manager record not found";
+  }
+
+  return employee.managerName ?? "No manager assigned";
 }
 
 function getCurrentManagerSupportingText(employee: EmployeeRosterItem) {

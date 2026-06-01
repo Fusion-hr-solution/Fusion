@@ -10,6 +10,10 @@ public static class EmployeeReadinessIssueCodes
     public const string DeactivationBlocked = "DeactivationBlocked";
 }
 
+// Remapped issue codes for the new record-status model.
+// NoManagerAssigned is no longer emitted as a readiness issue;
+// it is a structural fact surfaced only via HierarchyStatus.
+
 public static class EmployeeReadinessIssueSeverities
 {
     public const string Attention = "Attention";

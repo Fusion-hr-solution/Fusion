@@ -3,9 +3,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 import { createElement, type PropsWithChildren } from "react";
 
-const { mockDelete, mockGet, mockPut } = vi.hoisted(() => ({
+const { mockDelete, mockGet, mockPost, mockPut } = vi.hoisted(() => ({
   mockDelete: vi.fn(),
   mockGet: vi.fn(),
+  mockPost: vi.fn(),
   mockPut: vi.fn(),
 }));
 
@@ -23,6 +24,7 @@ vi.mock("@repo/api", () => ({
   createPlatformApiClient: () => ({
     delete: mockDelete,
     get: mockGet,
+    post: mockPost,
     put: mockPut,
   }),
 }));
@@ -38,7 +40,7 @@ vi.mock("@repo/auth", () => ({
     !!user?.employeeId,
 }));
 
-vi.mock("@/components/core-tenant-context-provider", () => ({
+vi.mock("@/shell/tenant-context/core-tenant-context-provider", () => ({
   useTenantContext: () => ({
     tenantId: null,
     tenantSummary: null,
@@ -54,6 +56,7 @@ vi.mock("@repo/api/query", async () => {
 
 import { ApiQueryProvider, createApiQueryClient } from "@repo/api/query";
 import {
+  useCreateEmployeeRecord,
   useDeactivateEmployee,
   useEmployeeOrgUnitOptions,
   useEmployeeManagerOptions,
@@ -112,6 +115,8 @@ describe("useEmployeeRoster", () => {
         useEmployeeRoster({
           search: "pat",
           status: "Active",
+          orgUnitId: "ou-1",
+          managerId: "mgr-7",
           access: "NotInvited",
           readiness: "MissingOrgUnit",
           sortBy: "HireDate",
@@ -130,6 +135,8 @@ describe("useEmployeeRoster", () => {
         params: expect.objectContaining({
           search: "pat",
           status: "Active",
+          orgUnitId: "ou-1",
+          managerId: "mgr-7",
           access: "NotInvited",
           readiness: "MissingOrgUnit",
           sortBy: "HireDate",
@@ -347,7 +354,7 @@ describe("useEmployeeManagerOptions", () => {
       items: [],
       totalCount: 0,
       page: 1,
-      pageSize: 8,
+      pageSize: 100,
       totalPages: 0,
       hasNextPage: false,
       hasPreviousPage: false,
@@ -373,7 +380,45 @@ describe("useEmployeeManagerOptions", () => {
           sortBy: "Name",
           sortDir: "Asc",
           page: 1,
-          pageSize: 8,
+          pageSize: 100,
+        }),
+        signal: expect.any(AbortSignal),
+      })
+    );
+  });
+
+  it("loads manager options on open even before a search term is entered", async () => {
+    mockGet.mockResolvedValue({
+      items: [],
+      totalCount: 0,
+      page: 1,
+      pageSize: 100,
+      totalPages: 0,
+      hasNextPage: false,
+      hasPreviousPage: false,
+    });
+
+    renderHook(
+      () =>
+        useEmployeeManagerOptions({
+          employeeId: null,
+          search: "",
+        }),
+      { wrapper: createWrapper() }
+    );
+
+    await waitFor(() => expect(mockGet).toHaveBeenCalled());
+
+    expect(mockGet).toHaveBeenCalledWith(
+      "/corehr/employees",
+      expect.objectContaining({
+        params: expect.objectContaining({
+          search: undefined,
+          status: "Active",
+          sortBy: "Name",
+          sortDir: "Asc",
+          page: 1,
+          pageSize: 100,
         }),
         signal: expect.any(AbortSignal),
       })
@@ -412,6 +457,34 @@ describe("useEmployeeOrgUnitOptions", () => {
         }),
         signal: expect.any(AbortSignal),
       })
+    );
+  });
+});
+
+describe("useCreateEmployeeRecord", () => {
+  it("posts a minimal create payload and omits empty optional fields", async () => {
+    mockPost.mockResolvedValue({ id: "emp-7" });
+
+    const { result } = renderHook(() => useCreateEmployeeRecord(), {
+      wrapper: createWrapper(),
+    });
+
+    await result.current.mutateAsync({
+      firstName: "  Alice  ",
+      lastName: "  Smith  ",
+      email: "  Alice.Smith@Example.com  ",
+      hireDate: "2026-06-01T00:00:00.000Z",
+      jobTitle: "   ",
+    });
+
+    expect(mockPost).toHaveBeenCalledWith(
+      "/corehr/employees",
+      {
+        firstName: "Alice",
+        lastName: "Smith",
+        email: "alice.smith@example.com",
+        hireDate: "2026-06-01T00:00:00.000Z",
+      }
     );
   });
 });

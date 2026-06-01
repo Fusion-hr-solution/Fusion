@@ -8,7 +8,7 @@ import {
   type UseApiQueryResult,
 } from "@repo/api/query";
 import { canAccessCoreOrgChart, useAuth } from "@repo/auth";
-import { useTenantContext } from "@/components/core-tenant-context-provider";
+import { useTenantContext } from "@/shell/tenant-context/core-tenant-context-provider";
 import { normalizeOrgChartQuery, orgChartQueryKeys } from "./org-chart-query-keys";
 import type { EmployeeOrgChartDto, OrgChartQueryParams } from "./org-chart.types";
 

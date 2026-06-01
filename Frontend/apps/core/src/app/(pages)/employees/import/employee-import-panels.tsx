@@ -13,10 +13,16 @@ import {
   FileSpreadsheet,
   History,
   ShieldCheck,
+  Unlock,
   Upload,
   Users,
   type LucideIcon,
 } from "lucide-react";
+import {
+  canAccessCoreAccess,
+  canManageCoreAccessProfiles,
+  useAuth,
+} from "@repo/auth";
 import { PAGE_SIZE_OPTIONS, type PageSize } from "@repo/ui";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -73,6 +79,7 @@ import {
   getErrorMessage,
 } from "./employee-import-utils";
 import { cn } from "@/lib/utils";
+import { canAccessEmployeeRoster } from "@/lib/employee-roster-access";
 import { buildEmployeeFixHref } from "../employee-readiness";
 
 const MAX_VISIBLE_SELECTED_ROWS = 12;
@@ -615,11 +622,16 @@ export function AppliedResultPanel({
     return null;
   }
 
+  const { user } = useAuth();
+
   const createdCount =
     applyResult?.createdCount ?? session.validationSummary.validRows;
   const sourceRowCount = applyResult?.sourceRowCount ?? session.sourceRowCount;
   const appliedAt = applyResult?.appliedAt ?? session.appliedAt;
   const needsAccessCount = createdCount;
+  const canOpenAccessWorkspace =
+    canAccessCoreAccess(user) || canManageCoreAccessProfiles(user);
+  const canOpenEmployeeDirectory = canAccessEmployeeRoster(user);
 
   return (
     <Card className="border-emerald-200 bg-emerald-50/70">
@@ -650,21 +662,25 @@ export function AppliedResultPanel({
             </div>
           </div>
           <div className="flex flex-wrap gap-2 shrink-0">
-            <Button asChild>
-              <Link href="/access?access=NotInvited">
-                <Users />
-                Review access invitations
-              </Link>
-            </Button>
-            <Button asChild type="button" variant="outline">
-              <Link href="/employees?access=NotInvited">
-                <Eye />
-                View employees
-              </Link>
-            </Button>
+            {canOpenAccessWorkspace ? (
+              <Button asChild>
+                <Link href="/access">
+                  <Unlock />
+                  Activate access
+                </Link>
+              </Button>
+            ) : null}
+            {canOpenEmployeeDirectory ? (
+              <Button asChild type="button" variant="outline">
+                <Link href="/employees">
+                  <Users />
+                  See employees
+                </Link>
+              </Button>
+            ) : null}
             <Button type="button" variant="ghost" onClick={onUpload}>
               <Upload />
-              Upload next file
+              Upload
             </Button>
           </div>
         </div>
@@ -805,22 +821,22 @@ function getEventActionLabel(eventType: ImportHistoryEventType): string {
 export function ImportHistoryPanel({
   historyPage,
   historyDetail,
-  selectedHistoryId,
+  selectedHistoryId = null,
   isHistoryLoading,
-  isHistoryDetailLoading,
+  isHistoryDetailLoading = false,
   historyError,
-  historyDetailError,
-  onSelectHistory,
+  historyDetailError = null,
+  onSelectHistory = () => undefined,
   onPageChange,
 }: {
   historyPage?: EmployeeImportHistoryPageDto;
   historyDetail?: EmployeeImportHistoryDetailDto;
-  selectedHistoryId: string | null;
+  selectedHistoryId?: string | null;
   isHistoryLoading: boolean;
-  isHistoryDetailLoading: boolean;
+  isHistoryDetailLoading?: boolean;
   historyError: unknown;
-  historyDetailError: unknown;
-  onSelectHistory: (historyId: string) => void;
+  historyDetailError?: unknown;
+  onSelectHistory?: (historyId: string) => void;
   onPageChange: (pageNumber: number) => void;
 }) {
   return (

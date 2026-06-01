@@ -9,7 +9,7 @@ import {
   type UseApiQueryResult,
 } from "@repo/api/query";
 import { useAuth } from "@repo/auth";
-import { useTenantContext } from "@/components/core-tenant-context-provider";
+import { useTenantContext } from "@/shell/tenant-context/core-tenant-context-provider";
 import {
   canAccessEmployeeProfile,
   canAccessEmployeeRoster,
@@ -46,7 +46,7 @@ function useCanAccessProfile(): boolean {
 
 const EMPLOYEE_ROSTER_PATH = "/corehr/employees";
 const ORG_UNIT_OPTIONS_PATH = "/corehr/org-units";
-const MANAGER_OPTIONS_PAGE_SIZE = 8;
+const MANAGER_OPTIONS_PAGE_SIZE = 100;
 const ORG_UNIT_OPTIONS_PAGE_SIZE = 100;
 const EMPTY_GUID = "00000000-0000-0000-0000-000000000000";
 
@@ -79,15 +79,11 @@ interface UpdateMyProfileInput {
 }
 
 interface CreateEmployeeInput {
-  employeeNumber?: string | null;
   firstName: string;
   lastName: string;
   email: string;
-  phone?: string | null;
   hireDate: string;
   jobTitle?: string | null;
-  workLocation?: string | null;
-  employmentType?: string | null;
   managerId?: string | null;
   orgUnitId?: string | null;
 }
@@ -107,11 +103,24 @@ export function useEmployeeRoster(
   const { isAuthenticated } = useAuth();
   const client = useMemo(() => createPlatformApiClient(), []);
   const canAccess = useCanAccessRoster();
-  const { access, page, pageSize, readiness, search, sortBy, sortDir, status } = params;
+  const {
+    access,
+    managerId,
+    orgUnitId,
+    page,
+    pageSize,
+    readiness,
+    search,
+    sortBy,
+    sortDir,
+    status,
+  } = params;
   const normalizedQuery = useMemo(
     () =>
       normalizeEmployeeRosterQuery({
         access,
+        managerId,
+        orgUnitId,
         page,
         pageSize,
         readiness,
@@ -120,7 +129,7 @@ export function useEmployeeRoster(
         sortDir,
         status,
       }),
-    [access, page, pageSize, readiness, search, sortBy, sortDir, status]
+    [access, managerId, orgUnitId, page, pageSize, readiness, search, sortBy, sortDir, status]
   );
 
   const queryFn = useCallback(
@@ -130,6 +139,8 @@ export function useEmployeeRoster(
         params: {
           search: normalizedQuery.search ?? undefined,
           status: normalizedQuery.status ?? undefined,
+          orgUnitId: normalizedQuery.orgUnitId ?? undefined,
+          managerId: normalizedQuery.managerId ?? undefined,
           access: normalizedQuery.access ?? undefined,
           readiness: normalizedQuery.readiness ?? undefined,
           sortBy: normalizedQuery.sortBy,
@@ -143,6 +154,8 @@ export function useEmployeeRoster(
       normalizedQuery.page,
       normalizedQuery.pageSize,
       normalizedQuery.access,
+      normalizedQuery.managerId,
+      normalizedQuery.orgUnitId,
       normalizedQuery.readiness,
       normalizedQuery.search,
       normalizedQuery.sortBy,
@@ -155,6 +168,8 @@ export function useEmployeeRoster(
     employeeRosterQueryKeys.list({
       search: normalizedQuery.search ?? undefined,
       status: normalizedQuery.status ?? undefined,
+      orgUnitId: normalizedQuery.orgUnitId ?? undefined,
+      managerId: normalizedQuery.managerId ?? undefined,
       access: normalizedQuery.access ?? undefined,
       readiness: normalizedQuery.readiness ?? undefined,
       sortBy: normalizedQuery.sortBy,
@@ -242,7 +257,7 @@ export function useEmployeeManagerOptions({
       client.get<EmployeeRosterPageDto>(EMPLOYEE_ROSTER_PATH, {
         signal,
         params: {
-          search: normalizedSearch,
+          search: normalizedSearch || undefined,
           status: "Active",
           sortBy: "Name",
           sortDir: "Asc",
@@ -257,11 +272,8 @@ export function useEmployeeManagerOptions({
     employeeRosterQueryKeys.managerOptions(normalizedSearch),
     queryFn,
     {
-      enabled:
-        isAuthenticated &&
-        canAccess &&
-        enabled &&
-        normalizedSearch.length >= 2,
+      enabled: isAuthenticated && canAccess && enabled,
+      placeholderData: keepPreviousData,
     }
   );
 }
@@ -441,32 +453,28 @@ export function useCreateEmployeeRecord() {
   const client = useMemo(() => createPlatformApiClient(), []);
 
   return useApiMutation<CreatedEmployeeRecordDto, CreateEmployeeInput>(
-    ({
-      employeeNumber,
-      firstName,
-      lastName,
-      email,
-      phone,
-      hireDate,
-      jobTitle,
-      workLocation,
-      employmentType,
-      managerId,
-      orgUnitId,
-    }) =>
-      client.post<CreatedEmployeeRecordDto>(EMPLOYEE_ROSTER_PATH, {
-        employeeNumber: employeeNumber?.trim() || null,
+    ({ firstName, lastName, email, hireDate, jobTitle, managerId, orgUnitId }) => {
+      const payload: Record<string, string> = {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         email: email.trim().toLowerCase(),
-        phone: phone?.trim() || null,
         hireDate,
-        jobTitle: jobTitle?.trim() || null,
-        workLocation: workLocation?.trim() || null,
-        employmentType: employmentType?.trim() || null,
-        managerId: managerId || null,
-        orgUnitId: orgUnitId || null,
-      }),
+      };
+
+      if (jobTitle?.trim()) {
+        payload.jobTitle = jobTitle.trim();
+      }
+
+      if (managerId) {
+        payload.managerId = managerId;
+      }
+
+      if (orgUnitId) {
+        payload.orgUnitId = orgUnitId;
+      }
+
+      return client.post<CreatedEmployeeRecordDto>(EMPLOYEE_ROSTER_PATH, payload);
+    },
     {
       invalidateQueries: [
         { queryKey: employeeRosterQueryKeys.lists() },

@@ -45,6 +45,8 @@ public class EmployeesController(
         [FromQuery] EmployeeStatus? status,
         [FromQuery] EmployeeAccessFilter? access,
         [FromQuery] EmployeeReadinessFilter? readiness,
+        [FromQuery] Guid? orgUnitId,
+        [FromQuery] Guid? managerId,
         [FromQuery] EmployeeSortField sortBy = EmployeeSortField.Name,
         [FromQuery] SortDirection sortDir = SortDirection.Asc,
         [FromQuery] int page = 1,
@@ -56,7 +58,7 @@ public class EmployeesController(
             return Forbid();
         }
 
-        var query = new GetEmployeesQuery(search, status, access, readiness, sortBy, sortDir, page, pageSize);
+        var query = new GetEmployeesQuery(search, status, access, readiness, orgUnitId, managerId, sortBy, sortDir, page, pageSize);
         var result = await sender.Send(query, cancellationToken);
         return Ok(ApiResponseOfPagedEmployeeList.Success(result.Value));
     }

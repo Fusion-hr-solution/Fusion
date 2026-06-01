@@ -33,7 +33,7 @@ vi.mock("@repo/auth", () => ({
     !user?.roles?.includes("PlatformAdmin"),
 }));
 
-vi.mock("@/components/core-tenant-context-provider", () => ({
+vi.mock("@/shell/tenant-context/core-tenant-context-provider", () => ({
   useTenantContext: () => ({
     tenantId: null,
     tenantSummary: null,
