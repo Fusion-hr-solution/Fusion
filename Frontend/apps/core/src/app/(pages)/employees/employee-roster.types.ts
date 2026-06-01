@@ -262,3 +262,14 @@ export interface WorkforceAccountBulkProvisionResultDto {
   message: string;
   account: WorkforceAccountStatusDto;
 }
+
+export interface WorkforceAccountSummaryDto {
+  activeAccountCount: number;
+  inactiveAccountCount: number;
+  pendingInviteCount: number;
+  acceptedInviteCount: number;
+  expiredInviteCount: number;
+  revokedInviteCount: number;
+  trackedEmployeeCount: number;
+  attentionQueueCount: number;
+}

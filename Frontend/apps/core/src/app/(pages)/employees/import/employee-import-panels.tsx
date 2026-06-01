@@ -651,7 +651,7 @@ export function AppliedResultPanel({
           </div>
           <div className="flex flex-wrap gap-2 shrink-0">
             <Button asChild>
-              <Link href="/employees?access=NotInvited&review=access">
+              <Link href="/access?access=NotInvited">
                 <Users />
                 Review access invitations
               </Link>

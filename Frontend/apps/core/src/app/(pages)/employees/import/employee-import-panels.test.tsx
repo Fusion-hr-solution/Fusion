@@ -217,7 +217,7 @@ describe("BatchActionPanel", () => {
 });
 
 describe("AppliedResultPanel", () => {
-  it("routes import completion into access review", () => {
+  it("routes import completion into the Access workspace", () => {
     render(
       <AppliedResultPanel
         session={buildAppliedImportSession()}
@@ -230,9 +230,7 @@ describe("AppliedResultPanel", () => {
     const reviewLink = screen.getByRole("link", {
       name: "Review access invitations",
     });
-    expect(reviewLink.getAttribute("href")).toBe(
-      "/employees?access=NotInvited&review=access"
-    );
+    expect(reviewLink.getAttribute("href")).toBe("/access?access=NotInvited");
 
     const rosterLink = screen.getByRole("link", {
       name: "View employees",

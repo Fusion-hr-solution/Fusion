@@ -66,6 +66,8 @@ export const employeeRosterQueryKeys = {
     [...employeeRosterQueryKeys.all(), "readiness-summary"] as const,
   workforceAccounts: () =>
     [...employeeRosterQueryKeys.all(), "workforce-accounts"] as const,
+  workforceAccountSummary: () =>
+    [...employeeRosterQueryKeys.workforceAccounts(), "summary"] as const,
   workforceAccount: (employeeId: string) =>
     [...employeeRosterQueryKeys.workforceAccounts(), employeeId] as const,
 };

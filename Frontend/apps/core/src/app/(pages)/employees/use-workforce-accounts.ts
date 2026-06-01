@@ -10,17 +10,20 @@ import { useApiMutation, useApiQuery } from "@repo/api/query";
 import { employeeRosterQueryKeys } from "./employee-query-keys";
 import type {
   WorkforceAccountBulkProvisionResultDto,
+  WorkforceAccountSummaryDto,
   WorkforceAccountStatusDto,
   WorkforceAccountSubject,
 } from "./employee-roster.types";
 
 const WORKFORCE_ACCOUNTS_PATH = "/corehr/employees/workforce-accounts";
+const WORKFORCE_ACCOUNT_SUMMARY_PATH = `${WORKFORCE_ACCOUNTS_PATH}/summary`;
 const WORKFORCE_ACCOUNT_STATUSES_PATH = `${WORKFORCE_ACCOUNTS_PATH}/statuses`;
 const WORKFORCE_ACCOUNT_STATUS_BATCH_SIZE = 200;
 const EMPTY_WORKFORCE_ACCOUNT_STATUSES: WorkforceAccountStatusDto[] = [];
 const WORKFORCE_ACCOUNT_MUTATION_INVALIDATIONS = [
   { queryKey: coreWorkforceQueryKeys.all() },
   { queryKey: employeeRosterQueryKeys.workforceAccounts() },
+  { queryKey: employeeRosterQueryKeys.workforceAccountSummary() },
   { queryKey: coreAccessQueryKeys.profiles() },
 ];
 const BULK_WORKFORCE_ACCOUNT_MUTATION_INVALIDATIONS = [
@@ -91,17 +94,37 @@ export function useResolveWorkforceAccountStatuses() {
   );
 }
 
+export function useWorkforceAccountSummary(enabled = true) {
+  const client = useMemo(() => createPlatformApiClient(), []);
+  const queryFn = useCallback(
+    (signal: AbortSignal) =>
+      client.get<WorkforceAccountSummaryDto>(WORKFORCE_ACCOUNT_SUMMARY_PATH, {
+        signal,
+      }),
+    [client]
+  );
+
+  return useApiQuery(
+    employeeRosterQueryKeys.workforceAccountSummary(),
+    queryFn,
+    {
+      enabled,
+    }
+  );
+}
+
 export function useBulkProvisionWorkforceAccountInvites() {
   const client = useMemo(() => createPlatformApiClient(), []);
 
   return useApiMutation<
     WorkforceAccountBulkProvisionResultDto[],
     { items: Array<WorkforceAccountSubject & { accessProfileId: string }> }
-  >(({ items }) =>
-    client.post<WorkforceAccountBulkProvisionResultDto[]>(
-      `${WORKFORCE_ACCOUNTS_PATH}/bulk-provision`,
-      { items }
-    ),
+  >(
+    ({ items }) =>
+      client.post<WorkforceAccountBulkProvisionResultDto[]>(
+        `${WORKFORCE_ACCOUNTS_PATH}/bulk-provision`,
+        { items }
+      ),
     {
       invalidateQueries: BULK_WORKFORCE_ACCOUNT_MUTATION_INVALIDATIONS,
     }
@@ -153,16 +176,17 @@ export function useProvisionWorkforceAccountInvite() {
       lastName: string;
       accessProfileId: string;
     }
-  >(({ employeeId, email, firstName, lastName, accessProfileId }) =>
-    client.post<WorkforceAccountStatusDto>(
-      `${WORKFORCE_ACCOUNTS_PATH}/${employeeId}/invite`,
-      {
-        email,
-        firstName,
-        lastName,
-        accessProfileId,
-      }
-    ),
+  >(
+    ({ employeeId, email, firstName, lastName, accessProfileId }) =>
+      client.post<WorkforceAccountStatusDto>(
+        `${WORKFORCE_ACCOUNTS_PATH}/${employeeId}/invite`,
+        {
+          email,
+          firstName,
+          lastName,
+          accessProfileId,
+        }
+      ),
     {
       invalidateQueries: WORKFORCE_ACCOUNT_MUTATION_INVALIDATIONS,
     }

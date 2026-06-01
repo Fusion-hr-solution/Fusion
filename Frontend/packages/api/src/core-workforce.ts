@@ -128,12 +128,19 @@ export interface WorkforceAccessSubjectPageDto {
   hasPreviousPage: boolean;
 }
 
+export interface WorkforceAccessRosterSummaryDto {
+  totalCount: number;
+  activeEmployeeCount: number;
+  inactiveEmployeeCount: number;
+}
+
 export const coreWorkforcePaths = {
   me: () => "/corehr/workforce/me",
   employee: (employeeId: string) => `/corehr/workforce/employees/${employeeId}`,
   resolve: () => "/corehr/workforce/employees/resolve",
   search: () => "/corehr/workforce/employees/search",
   accessSubjects: () => "/corehr/workforce/access-subjects",
+  accessSubjectsSummary: () => "/corehr/workforce/access-subjects/summary",
   team: (employeeId: string) => `/corehr/workforce/employees/${employeeId}/team`,
   managerChain: (employeeId: string) => `/corehr/workforce/employees/${employeeId}/manager-chain`,
   orgUnits: () => "/corehr/workforce/org-units",
@@ -172,6 +179,8 @@ export const coreWorkforceQueryKeys = {
         pageSize: params.pageSize,
       },
     ] as const,
+  accessSubjectsSummary: () =>
+    [...coreWorkforceQueryKeys.all(), "access-subjects-summary"] as const,
   team: (employeeId: string) =>
     [...coreWorkforceQueryKeys.employees(), employeeId, "team"] as const,
   managerChain: (employeeId: string) =>
