@@ -5,6 +5,7 @@ import {
   coreWorkforcePaths,
   coreWorkforceQueryKeys,
   createPlatformApiClient,
+  type WorkforceAccessRosterSummaryDto,
   type WorkforceAccessSubjectPageDto,
 } from "@repo/api";
 import { useApiQuery } from "@repo/api/query";
@@ -42,4 +43,28 @@ export function useAccessSubjects(
   return useApiQuery(coreWorkforceQueryKeys.accessSubjects(params), queryFn, {
     enabled: isAuthenticated && enabled,
   });
+}
+
+export function useAccessSubjectSummary(enabled = true) {
+  const { isAuthenticated } = useAuth();
+  const client = useMemo(() => createPlatformApiClient(), []);
+
+  const queryFn = useCallback(
+    (signal: AbortSignal) =>
+      client.get<WorkforceAccessRosterSummaryDto>(
+        coreWorkforcePaths.accessSubjectsSummary(),
+        {
+          signal,
+        }
+      ),
+    [client]
+  );
+
+  return useApiQuery(
+    coreWorkforceQueryKeys.accessSubjectsSummary(),
+    queryFn,
+    {
+      enabled: isAuthenticated && enabled,
+    }
+  );
 }

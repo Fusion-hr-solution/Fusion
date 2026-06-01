@@ -73,6 +73,11 @@ export interface SetUserAccessProfilesRequest {
   accessProfileIds: string[];
 }
 
+export interface BulkSetUserAccessProfilesRequest {
+  userIds: string[];
+  accessProfileIds: string[];
+}
+
 export const coreAccessPaths = {
   me: () => "/identity/core-access/me",
   catalog: () => "/identity/core-access/catalog",
