@@ -15,7 +15,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import type { EmployeeRosterStatus } from "./employee-roster.types";
+import {
+  EMPLOYEE_READINESS_FILTER_OPTIONS,
+} from "./employee-readiness";
+import type {
+  EmployeeReadinessFilter,
+  EmployeeRosterStatus,
+} from "./employee-roster.types";
 
 const STATUS_OPTIONS: Array<{
   value: EmployeeRosterStatus;
@@ -30,6 +36,8 @@ interface ToolbarProps {
   onSearchChange: (value: string) => void;
   status: EmployeeRosterStatus | undefined;
   onStatusChange: (value: EmployeeRosterStatus | undefined) => void;
+  readiness: EmployeeReadinessFilter | undefined;
+  onReadinessChange: (value: EmployeeReadinessFilter | undefined) => void;
 }
 
 export function Toolbar({
@@ -37,10 +45,12 @@ export function Toolbar({
   onSearchChange,
   status,
   onStatusChange,
+  readiness,
+  onReadinessChange,
 }: ToolbarProps) {
   const [localSearch, setLocalSearch] = useState(search);
-  const hasFilters = localSearch.trim().length > 0 || !!status;
-  const activeFilterCount = status ? 1 : 0;
+  const hasFilters = localSearch.trim().length > 0 || !!status || !!readiness;
+  const activeFilterCount = (status ? 1 : 0) + (readiness ? 1 : 0);
 
   useEffect(() => {
     setLocalSearch(search);
@@ -103,6 +113,41 @@ export function Toolbar({
         </DropdownMenuContent>
       </DropdownMenu>
 
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline" className="gap-1">
+            <ListFilter className="size-3.5" />
+            Needs attention
+            {readiness ? (
+              <Badge variant="secondary" className="ml-1 rounded-full px-1.5">
+                1
+              </Badge>
+            ) : null}
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start">
+          <DropdownMenuLabel>Filter needs-attention state</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuRadioGroup
+            value={readiness ?? "all"}
+            onValueChange={(value) =>
+              onReadinessChange(
+                value === "all" ? undefined : (value as EmployeeReadinessFilter)
+              )
+            }
+          >
+            <DropdownMenuRadioItem value="all">
+              All needs-attention states
+            </DropdownMenuRadioItem>
+            {EMPLOYEE_READINESS_FILTER_OPTIONS.map((option) => (
+              <DropdownMenuRadioItem key={option.value} value={option.value}>
+                {option.label}
+              </DropdownMenuRadioItem>
+            ))}
+          </DropdownMenuRadioGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
       {hasFilters ? (
         <Button
           variant="ghost"
@@ -111,6 +156,7 @@ export function Toolbar({
             setLocalSearch("");
             onSearchChange("");
             onStatusChange(undefined);
+            onReadinessChange(undefined);
           }}
         >
           <X className="size-3.5" />

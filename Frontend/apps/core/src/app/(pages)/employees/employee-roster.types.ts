@@ -1,5 +1,72 @@
 export type EmployeeRosterStatus = "Active" | "Inactive";
 
+export type EmployeeReadinessFilter =
+  | "NeedsAttention"
+  | "MissingRequiredField"
+  | "MissingOrgUnit"
+  | "NoManagerAssigned"
+  | "ManagerInactive"
+  | "ManagerMissing"
+  | "DeactivationBlocked";
+
+export type EmployeeReadinessSeverity = "Attention" | "Blocker";
+
+export type EmployeeReadinessFixTargetKind =
+  | "ProfileIdentity"
+  | "ProfileEmployment"
+  | "ProfileOrganization"
+  | "ReportingRelationships"
+  | "ProfileStatus"
+  | "ImportHistoryDetail";
+
+export interface EmployeeReadinessFixTargetDto {
+  kind: EmployeeReadinessFixTargetKind;
+  employeeId?: string | null;
+  importHistoryId?: string | null;
+  fieldKey?: string | null;
+}
+
+export interface EmployeeReadinessIssueDto {
+  code:
+    | "MissingRequiredField"
+    | "MissingOrgUnit"
+    | "NoManagerAssigned"
+    | "ManagerInactive"
+    | "ManagerMissing"
+    | "DeactivationBlocked";
+  label: string;
+  severity: EmployeeReadinessSeverity;
+  fieldKey: string | null;
+  fixTarget: EmployeeReadinessFixTargetDto;
+}
+
+export interface EmployeeReadinessSummaryDto {
+  employeeStateIssueCount: number;
+  blockingIssueCount: number;
+  employeeStateIssues: EmployeeReadinessIssueDto[];
+  blockingIssues: EmployeeReadinessIssueDto[];
+  hasEmployeeStateIssues: boolean;
+  hasBlockingIssues: boolean;
+}
+
+export interface WorkforceReadinessIssueCountsDto {
+  missingRequiredFields: number;
+  missingOrgUnit: number;
+  noManagerAssigned: number;
+  managerInactive: number;
+  managerMissing: number;
+  deactivationBlocked: number;
+  unresolvedImportIssues: number;
+}
+
+export interface WorkforceReadinessSummaryDto {
+  activeEmployeeCount: number;
+  readyEmployeeCount: number;
+  employeesNeedingAttention: number;
+  readinessScore: number;
+  issueCounts: WorkforceReadinessIssueCountsDto;
+}
+
 export type EmployeeHierarchyStatus =
   | "Healthy"
   | "Root"
@@ -25,6 +92,7 @@ export interface EmployeeRosterItem {
   managerName: string | null;
   hierarchyStatus: EmployeeHierarchyStatus;
   directReportCount: number;
+  readiness: EmployeeReadinessSummaryDto;
   version: number;
 }
 
@@ -41,6 +109,7 @@ export interface EmployeeRosterPageDto {
 export interface EmployeeRosterQueryParams {
   search?: string;
   status?: EmployeeRosterStatus;
+  readiness?: EmployeeReadinessFilter;
   sortBy: EmployeeRosterSortField;
   sortDir: EmployeeRosterSortDirection;
   page: number;
@@ -99,5 +168,6 @@ export interface EmployeeProfileDto {
   managerFullName: string | null;
   hierarchyStatus: EmployeeHierarchyStatus;
   directReportCount: number;
+  readiness: EmployeeReadinessSummaryDto;
   version: number;
 }
