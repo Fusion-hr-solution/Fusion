@@ -19,6 +19,7 @@ public interface IAccessProfileService
     Task DeleteProfileAsync(Guid tenantId, Guid profileId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<UserAccessAssignmentDto>> GetUserAssignmentsAsync(Guid tenantId, CancellationToken cancellationToken = default);
     Task<UserAccessAssignmentDto> SetUserAccessProfilesAsync(Guid tenantId, Guid userId, IReadOnlyCollection<Guid> accessProfileIds, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<UserAccessAssignmentDto>> SetUserAccessProfilesBulkAsync(Guid tenantId, IReadOnlyCollection<Guid> userIds, IReadOnlyCollection<Guid> accessProfileIds, CancellationToken cancellationToken = default);
     Task<CurrentUserAccessDto> GetCurrentUserAccessAsync(ApplicationUser user, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<AccessProfileAssignmentSummaryDto>> GetAssignedProfilesAsync(ApplicationUser user, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<EffectivePermissionGrant>> GetEffectivePermissionsAsync(ApplicationUser user, CancellationToken cancellationToken = default);
@@ -209,18 +210,9 @@ public sealed class AccessProfileService(
 
         var summariesByUserId = await LoadAssignedProfileSummariesByUserIdAsync(tenantId, users.Select(user => user.Id).ToList(), cancellationToken);
 
-        return users.Select(user => new UserAccessAssignmentDto
-        {
-            UserId = user.Id,
-            EmployeeId = user.EmployeeId,
-            Email = user.Email ?? string.Empty,
-            FullName = user.FullName,
-            Department = user.Department,
-            JobTitle = user.JobTitle,
-            IsActive = user.IsActive,
-            LastLoginAt = user.LastLoginAt,
-            AccessProfiles = summariesByUserId.GetValueOrDefault(user.Id, []).ToList(),
-        }).ToList();
+        return users.Select(user => MapUserAssignment(
+            user,
+            summariesByUserId.GetValueOrDefault(user.Id, []))).ToList();
     }
 
     public async Task<UserAccessAssignmentDto> SetUserAccessProfilesAsync(
@@ -229,10 +221,43 @@ public sealed class AccessProfileService(
         IReadOnlyCollection<Guid> accessProfileIds,
         CancellationToken cancellationToken = default)
     {
-        var user = await dbContext.Users
+        var assignments = await SetUserAccessProfilesBulkAsync(
+            tenantId,
+            [userId],
+            accessProfileIds,
+            cancellationToken);
+
+        return assignments.Single();
+    }
+
+    public async Task<IReadOnlyList<UserAccessAssignmentDto>> SetUserAccessProfilesBulkAsync(
+        Guid tenantId,
+        IReadOnlyCollection<Guid> userIds,
+        IReadOnlyCollection<Guid> accessProfileIds,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedUserIds = userIds
+            .Where(userId => userId != Guid.Empty)
+            .Distinct()
+            .ToArray();
+
+        if (normalizedUserIds.Length == 0)
+        {
+            return [];
+        }
+
+        var users = await dbContext.Users
             .IgnoreQueryFilters()
-            .FirstOrDefaultAsync(item => item.Id == userId && item.TenantId == tenantId, cancellationToken)
-            ?? throw new InvalidOperationException("User not found.");
+            .Where(item => item.TenantId == tenantId && normalizedUserIds.Contains(item.Id))
+            .ToListAsync(cancellationToken);
+
+        if (users.Count != normalizedUserIds.Length)
+        {
+            throw new InvalidOperationException(
+                normalizedUserIds.Length == 1
+                    ? "User not found."
+                    : "One or more users were not found.");
+        }
 
         var normalizedIds = accessProfileIds
             .Where(profileId => profileId != Guid.Empty)
@@ -249,10 +274,9 @@ public sealed class AccessProfileService(
 
         var projectedPermissions = await BuildProjectedEffectivePermissionsAsync(
             tenantId,
-            userProfileOverrides: new Dictionary<Guid, IReadOnlyCollection<Guid>>
-            {
-                [userId] = normalizedIds,
-            },
+            userProfileOverrides: normalizedUserIds.ToDictionary(
+                currentUserId => currentUserId,
+                _ => (IReadOnlyCollection<Guid>)normalizedIds),
             profileGrantOverrides: null,
             cancellationToken: cancellationToken);
 
@@ -260,29 +284,32 @@ public sealed class AccessProfileService(
 
         var existingAssignments = await dbContext.UserAccessProfiles
             .IgnoreQueryFilters()
-            .Where(assignment => assignment.TenantId == tenantId && assignment.UserId == userId)
+            .Where(assignment => assignment.TenantId == tenantId && normalizedUserIds.Contains(assignment.UserId))
             .ToListAsync(cancellationToken);
 
         dbContext.UserAccessProfiles.RemoveRange(existingAssignments);
-        dbContext.UserAccessProfiles.AddRange(normalizedIds.Select(profileId =>
-            UserAccessProfile.Create(tenantId, userId, profileId)));
+        dbContext.UserAccessProfiles.AddRange(
+            normalizedUserIds.SelectMany(currentUserId => normalizedIds.Select(profileId =>
+                UserAccessProfile.Create(tenantId, currentUserId, profileId))));
 
         await dbContext.SaveChangesAsync(cancellationToken);
-        await SyncCompatibilityRolesAsync(user, cancellationToken);
 
-        var profilesByUserId = await LoadAssignedProfileSummariesByUserIdAsync(tenantId, [user.Id], cancellationToken);
-        return new UserAccessAssignmentDto
+        foreach (var user in users)
         {
-            UserId = user.Id,
-            EmployeeId = user.EmployeeId,
-            Email = user.Email ?? string.Empty,
-            FullName = user.FullName,
-            Department = user.Department,
-            JobTitle = user.JobTitle,
-            IsActive = user.IsActive,
-            LastLoginAt = user.LastLoginAt,
-            AccessProfiles = profilesByUserId.GetValueOrDefault(user.Id, []).ToList(),
-        };
+            await SyncCompatibilityRolesAsync(user, cancellationToken);
+        }
+
+        var profilesByUserId = await LoadAssignedProfileSummariesByUserIdAsync(
+            tenantId,
+            normalizedUserIds,
+            cancellationToken);
+        var usersById = users.ToDictionary(user => user.Id);
+
+        return normalizedUserIds
+            .Select(currentUserId => MapUserAssignment(
+                usersById[currentUserId],
+                profilesByUserId.GetValueOrDefault(currentUserId, [])))
+            .ToList();
     }
 
     public async Task<CurrentUserAccessDto> GetCurrentUserAccessAsync(ApplicationUser user, CancellationToken cancellationToken = default)
@@ -647,6 +674,22 @@ public sealed class AccessProfileService(
                 group => group.Key,
                 group => group.Select(row => row.Summary).OrderBy(summary => summary.Name).ToList());
     }
+
+    private static UserAccessAssignmentDto MapUserAssignment(
+        ApplicationUser user,
+        IReadOnlyCollection<AccessProfileAssignmentSummaryDto> accessProfiles)
+        => new()
+        {
+            UserId = user.Id,
+            EmployeeId = user.EmployeeId,
+            Email = user.Email ?? string.Empty,
+            FullName = user.FullName,
+            Department = user.Department,
+            JobTitle = user.JobTitle,
+            IsActive = user.IsActive,
+            LastLoginAt = user.LastLoginAt,
+            AccessProfiles = accessProfiles.ToList(),
+        };
 
     private AccessProfileSummaryDto MapProfile(AccessProfile profile)
         => new()

@@ -256,6 +256,41 @@ public sealed class CoreAccessController(
         }
     }
 
+    [HttpPut("assignments")]
+    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<UserAccessAssignmentDto>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<UserAccessAssignmentDto>>>> SetAssignmentsBulk(
+        [FromBody] BulkSetUserAccessProfilesRequest request,
+        CancellationToken cancellationToken)
+    {
+        var tenantId = ResolveTenantId();
+        if (!tenantId.HasValue)
+        {
+            return BadRequest(ApiResponse<IReadOnlyList<UserAccessAssignmentDto>>.Failure("Tenant context is required."));
+        }
+
+        if (!CanManageAccess() && !CanManageAccessProfiles())
+        {
+            return Forbid();
+        }
+
+        try
+        {
+            var response = await accessProfileService.SetUserAccessProfilesBulkAsync(
+                tenantId.Value,
+                request.UserIds,
+                request.AccessProfileIds,
+                cancellationToken);
+
+            return Ok(ApiResponse<IReadOnlyList<UserAccessAssignmentDto>>.Success(response));
+        }
+        catch (InvalidOperationException exception)
+        {
+            return BadRequest(ApiResponse<IReadOnlyList<UserAccessAssignmentDto>>.Failure(exception.Message));
+        }
+    }
+
     private Guid? ResolveTenantId()
         => tenantContext.TenantIdOrDefault;
 
@@ -268,7 +303,8 @@ public sealed class CoreAccessController(
         => User.HasCorePermission(CorePermissions.AccessManage, PermissionScopes.Tenant);
 
     private bool CanManageAccessProfiles()
-        => User.HasCorePermission(CorePermissions.AccessProfilesManage, PermissionScopes.Tenant);
+        => User.HasCorePermission(CorePermissions.AccessProfilesManage, PermissionScopes.Tenant)
+            || User.IsInRole(PlatformRole.PlatformAdmin);
 
     private static bool TryParseVersion(string? ifMatch, out uint version)
     {

@@ -37,6 +37,92 @@ public sealed class WorkforceAccountsController(
     private const string OutcomeInactive = "Inactive";
     private const string OutcomeConflict = "Conflict";
 
+    [HttpGet("summary")]
+    [ProducesResponseType(typeof(ApiResponse<WorkforceAccountSummaryDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<WorkforceAccountSummaryDto>), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ApiResponse<WorkforceAccountSummaryDto>>> GetSummary(
+        CancellationToken cancellationToken)
+    {
+        if (!CanViewWorkforceAccess())
+            return Forbid();
+
+        if (!TryGetTenantId(out var tenantId, out var tenantError))
+            return BadRequest(ApiResponse<WorkforceAccountSummaryDto>.Failure(tenantError));
+
+        var now = DateTime.UtcNow;
+        var userSnapshots = await dbContext.Users
+            .IgnoreQueryFilters()
+            .Where(user => user.TenantId == tenantId && user.EmployeeId.HasValue)
+            .Select(user => new
+            {
+                EmployeeId = user.EmployeeId!.Value,
+                user.IsActive,
+            })
+            .ToListAsync(cancellationToken);
+
+        var userEmployeeIds = userSnapshots
+            .Select(user => user.EmployeeId)
+            .ToHashSet();
+
+        var latestInvites = await dbContext.InviteTokens
+            .IgnoreQueryFilters()
+            .Where(invite => invite.TenantId == tenantId && invite.EmployeeId.HasValue)
+            .Select(invite => new
+            {
+                EmployeeId = invite.EmployeeId!.Value,
+                invite.IsUsed,
+                invite.IsRevoked,
+                invite.ExpiresAt,
+                invite.CreatedAt,
+            })
+            .ToListAsync(cancellationToken);
+
+        var latestInviteByEmployeeId = latestInvites
+            .Where(invite => !userEmployeeIds.Contains(invite.EmployeeId))
+            .GroupBy(invite => invite.EmployeeId)
+            .Select(group => group
+                .OrderByDescending(invite => invite.CreatedAt)
+                .First())
+            .ToList();
+
+        var activeAccountCount = userSnapshots.Count(user => user.IsActive);
+        var inactiveAccountCount = userSnapshots.Count(user => !user.IsActive);
+        var pendingInviteCount = latestInviteByEmployeeId.Count(invite =>
+            !invite.IsUsed &&
+            !invite.IsRevoked &&
+            invite.ExpiresAt > now);
+        var acceptedInviteCount = latestInviteByEmployeeId.Count(invite => invite.IsUsed);
+        var expiredInviteCount = latestInviteByEmployeeId.Count(invite =>
+            !invite.IsUsed &&
+            !invite.IsRevoked &&
+            invite.ExpiresAt <= now);
+        var revokedInviteCount = latestInviteByEmployeeId.Count(invite =>
+            !invite.IsUsed &&
+            invite.IsRevoked);
+
+        var response = new WorkforceAccountSummaryDto
+        {
+            ActiveAccountCount = activeAccountCount,
+            InactiveAccountCount = inactiveAccountCount,
+            PendingInviteCount = pendingInviteCount,
+            AcceptedInviteCount = acceptedInviteCount,
+            ExpiredInviteCount = expiredInviteCount,
+            RevokedInviteCount = revokedInviteCount,
+            TrackedEmployeeCount = activeAccountCount
+                + inactiveAccountCount
+                + pendingInviteCount
+                + acceptedInviteCount
+                + expiredInviteCount
+                + revokedInviteCount,
+            AttentionQueueCount = inactiveAccountCount
+                + acceptedInviteCount
+                + expiredInviteCount
+                + revokedInviteCount,
+        };
+
+        return Ok(ApiResponse<WorkforceAccountSummaryDto>.Success(response));
+    }
+
     [HttpPost("statuses")]
     [ProducesResponseType(typeof(ApiResponse<List<WorkforceAccountStatusDto>>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<List<WorkforceAccountStatusDto>>), StatusCodes.Status400BadRequest)]

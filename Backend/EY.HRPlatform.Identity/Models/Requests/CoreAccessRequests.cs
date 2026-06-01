@@ -37,3 +37,10 @@ public sealed class SetUserAccessProfilesRequest
 {
     public List<Guid> AccessProfileIds { get; set; } = [];
 }
+
+public sealed class BulkSetUserAccessProfilesRequest
+{
+    public List<Guid> UserIds { get; set; } = [];
+
+    public List<Guid> AccessProfileIds { get; set; } = [];
+}

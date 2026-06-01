@@ -69,3 +69,15 @@ public sealed class WorkforceAccountBulkProvisionResultDto
     public string Message { get; set; } = string.Empty;
     public WorkforceAccountStatusDto Account { get; set; } = new();
 }
+
+public sealed class WorkforceAccountSummaryDto
+{
+    public int ActiveAccountCount { get; set; }
+    public int InactiveAccountCount { get; set; }
+    public int PendingInviteCount { get; set; }
+    public int AcceptedInviteCount { get; set; }
+    public int ExpiredInviteCount { get; set; }
+    public int RevokedInviteCount { get; set; }
+    public int TrackedEmployeeCount { get; set; }
+    public int AttentionQueueCount { get; set; }
+}
