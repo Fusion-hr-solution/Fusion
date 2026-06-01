@@ -549,7 +549,7 @@ public class UpdateTenantSettingsCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_WithApprovedSetupAndDraftStructureSchema_ThrowsInvalidTenantSetupStateException()
+    public async Task Handle_WithApprovedSetupAndDraftStructureSchema_UpdatesSettings()
     {
         // Arrange
         var dbName = Guid.NewGuid().ToString();
@@ -590,10 +590,14 @@ public class UpdateTenantSettingsCommandHandlerTests
             EmployeeFieldConfig: null,
             Branding: null);
 
-        // Act & Assert
-        var ex = await Assert.ThrowsAsync<InvalidTenantSetupStateException>(
-            () => handler.Handle(command, CancellationToken.None));
-        Assert.Contains("reopen", ex.Message, StringComparison.OrdinalIgnoreCase);
+        // Act
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.Equal(["Division"], result.Value.OrgUnitTypes);
+        Assert.Single(result.Value.DraftStructureSchema.OrgUnitKinds);
+        Assert.Equal("Division", result.Value.DraftStructureSchema.OrgUnitKinds[0].DisplayLabel);
     }
 
     #endregion

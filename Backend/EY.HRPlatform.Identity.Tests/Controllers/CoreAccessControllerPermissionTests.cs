@@ -38,6 +38,22 @@ public class CoreAccessControllerPermissionTests
     }
 
     [Fact]
+    public async Task SetAssignmentsBulk_WithAccessManagePermission_ReturnsOk()
+    {
+        var controller = CreateController((CorePermissions.AccessManage, PermissionScopes.Tenant));
+
+        var result = await controller.SetAssignmentsBulk(
+            new BulkSetUserAccessProfilesRequest
+            {
+                UserIds = [Guid.NewGuid()],
+                AccessProfileIds = [],
+            },
+            CancellationToken.None);
+
+        Assert.IsType<OkObjectResult>(result.Result);
+    }
+
+    [Fact]
     public async Task SetAssignments_WithAccessViewPermission_ReturnsForbid()
     {
         var controller = CreateController((CorePermissions.AccessView, PermissionScopes.Tenant));
@@ -45,6 +61,22 @@ public class CoreAccessControllerPermissionTests
         var result = await controller.SetAssignments(
             Guid.NewGuid(),
             new SetUserAccessProfilesRequest { AccessProfileIds = [] },
+            CancellationToken.None);
+
+        Assert.IsType<ForbidResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task SetAssignmentsBulk_WithAccessViewPermission_ReturnsForbid()
+    {
+        var controller = CreateController((CorePermissions.AccessView, PermissionScopes.Tenant));
+
+        var result = await controller.SetAssignmentsBulk(
+            new BulkSetUserAccessProfilesRequest
+            {
+                UserIds = [Guid.NewGuid()],
+                AccessProfileIds = [],
+            },
             CancellationToken.None);
 
         Assert.IsType<ForbidResult>(result.Result);
@@ -66,7 +98,28 @@ public class CoreAccessControllerPermissionTests
         Assert.IsType<ForbidResult>(result.Result);
     }
 
+    [Fact]
+    public async Task CreateProfile_WithPlatformAdminRole_ReturnsCreated()
+    {
+        var controller = CreateController(roles: [PlatformRole.PlatformAdmin]);
+
+        var result = await controller.CreateProfile(
+            new CreateAccessProfileRequest
+            {
+                Name = "Platform Access Operator",
+                Grants = [],
+            },
+            CancellationToken.None);
+
+        Assert.IsType<CreatedAtActionResult>(result.Result);
+    }
+
     private static CoreAccessController CreateController(
+        params (string PermissionKey, string Scope)[] grants)
+        => CreateController(null, grants);
+
+    private static CoreAccessController CreateController(
+        IEnumerable<string>? roles = null,
         params (string PermissionKey, string Scope)[] grants)
     {
         var controller = new CoreAccessController(
@@ -81,6 +134,7 @@ public class CoreAccessControllerPermissionTests
                     [
                         new Claim(ClaimTypes.NameIdentifier, Guid.NewGuid().ToString()),
                         new Claim(ClaimTypes.Email, "controller.test@example.com"),
+                        .. (roles ?? []).Select(role => new Claim(ClaimTypes.Role, role)),
                         .. grants.Select(grant => new Claim(
                             CustomClaimTypes.CorePermission,
                             CorePermissionClaimValue.Encode(grant.PermissionKey, grant.Scope))),
@@ -134,6 +188,15 @@ public class CoreAccessControllerPermissionTests
                 FullName = "Controller Test",
                 AccessProfiles = [],
             });
+
+        public Task<IReadOnlyList<UserAccessAssignmentDto>> SetUserAccessProfilesBulkAsync(Guid tenantId, IReadOnlyCollection<Guid> userIds, IReadOnlyCollection<Guid> accessProfileIds, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<UserAccessAssignmentDto>>(userIds.Select(userId => new UserAccessAssignmentDto
+            {
+                UserId = userId,
+                Email = "controller.test@example.com",
+                FullName = "Controller Test",
+                AccessProfiles = [],
+            }).ToList());
 
         public Task<CurrentUserAccessDto> GetCurrentUserAccessAsync(ApplicationUser user, CancellationToken cancellationToken = default)
             => Task.FromResult(new CurrentUserAccessDto());

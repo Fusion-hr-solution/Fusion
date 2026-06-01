@@ -20,6 +20,7 @@ public class WorkforceControllerAuthorizationTests
     [InlineData(nameof(WorkforceController.GetCurrentContext))]
     [InlineData(nameof(WorkforceController.GetEmployee))]
     [InlineData(nameof(WorkforceController.SearchAccessSubjects))]
+    [InlineData(nameof(WorkforceController.GetAccessRosterSummary))]
     [InlineData(nameof(WorkforceController.GetPublishedOrgUnits))]
     public void PermissionControlledEndpoints_DoNotDeclareMethodRoleAttributes(string methodName)
     {

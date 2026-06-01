@@ -17,6 +17,7 @@ public class WorkforceAccountsControllerAuthorizationTests
     }
 
     [Theory]
+    [InlineData(nameof(WorkforceAccountsController.GetSummary))]
     [InlineData(nameof(WorkforceAccountsController.GetStatuses))]
     [InlineData(nameof(WorkforceAccountsController.BulkProvision))]
     [InlineData(nameof(WorkforceAccountsController.ProvisionInvite))]

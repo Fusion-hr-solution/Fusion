@@ -108,7 +108,7 @@ public class DraftStructureHandlerTests
     }
 
     [Fact]
-    public async Task CreateDraftOrgUnit_WhenSetupIsApproved_ThrowsInvalidTenantSetupStateException()
+    public async Task CreateDraftOrgUnit_WhenSetupIsApproved_CreatesDraftOrgUnit()
     {
         var dbName = Guid.NewGuid().ToString();
         var tenantContext = TestTenantContext.WithTenant(TenantId);
@@ -126,19 +126,24 @@ public class DraftStructureHandlerTests
         await using var context = TestDbContextFactory.Create(tenantContext, dbName);
         var handler = new CreateDraftOrgUnitCommandHandler(context, tenantContext);
 
-        var ex = await Assert.ThrowsAsync<InvalidTenantSetupStateException>(
-            () => handler.Handle(
-                new CreateDraftOrgUnitCommand(
-                    "ENG",
-                    "Engineering",
-                    "department",
-                    null,
-                    null,
-                    null,
-                    null),
-                CancellationToken.None));
+        var result = await handler.Handle(
+            new CreateDraftOrgUnitCommand(
+                "ENG",
+                "Engineering",
+                "department",
+                null,
+                null,
+                null,
+                null),
+            CancellationToken.None);
 
-        Assert.Contains("reopen", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.True(result.IsSuccess);
+        Assert.Equal("ENG", result.Value.ReferenceKey);
+        Assert.Equal("Engineering", result.Value.DisplayName);
+
+        var saved = await context.DraftOrgUnits.IgnoreQueryFilters().FirstOrDefaultAsync();
+        Assert.NotNull(saved);
+        Assert.Equal(result.Value.Id, saved.Id);
     }
 
     [Fact]

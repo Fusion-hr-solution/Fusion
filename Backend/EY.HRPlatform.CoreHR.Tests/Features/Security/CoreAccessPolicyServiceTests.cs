@@ -93,6 +93,17 @@ public class CoreAccessPolicyServiceTests
         Assert.True(_service.CanManageAccess(user));
     }
 
+    [Fact]
+    public void AccessProfileManagement_DoesNotGrantSettingsVisibility()
+    {
+        var user = CreatePrincipal(
+            null,
+            (CorePermissions.AccessProfilesManage, PermissionScopes.Tenant));
+
+        Assert.False(_service.CanViewSettings(user));
+        Assert.False(_service.CanManageSettings(user));
+    }
+
     private static ClaimsPrincipal CreatePrincipal(
         IEnumerable<string>? roles = null,
         params (string PermissionKey, string Scope)[] grants)

@@ -94,6 +94,48 @@ public class WorkforceContractServiceTests
         Assert.Equal(1, platformTeam.PublishedStructureVersion);
     }
 
+    [Fact]
+    public async Task GetAccessRosterSummaryAsync_ReturnsTenantHeadcountBreakdown()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+
+        await using (var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName))
+        {
+            seedContext.TenantSettings.Add(DomainTenantSettings.Create(TenantId, SettingsJson));
+
+            var activeEmployee = Employee.Create(
+                TenantId,
+                "Alex",
+                "Active",
+                "alex.active@example.com",
+                DateTime.UtcNow,
+                jobTitle: "Analyst",
+                employeeNumber: "E-200");
+            var inactiveEmployee = Employee.Create(
+                TenantId,
+                "Iris",
+                "Inactive",
+                "iris.inactive@example.com",
+                DateTime.UtcNow,
+                jobTitle: "Analyst",
+                employeeNumber: "E-201");
+            inactiveEmployee.Deactivate();
+
+            seedContext.Employees.AddRange(activeEmployee, inactiveEmployee);
+            await seedContext.SaveChangesAsync();
+        }
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var service = CreateService(context, tenantContext);
+
+        var summary = await service.GetAccessRosterSummaryAsync(CancellationToken.None);
+
+        Assert.Equal(2, summary.TotalCount);
+        Assert.Equal(1, summary.ActiveEmployeeCount);
+        Assert.Equal(1, summary.InactiveEmployeeCount);
+    }
+
     private static WorkforceContractService CreateService(CoreHRDbContext context, TestTenantContext tenantContext)
         => new(
             context,
