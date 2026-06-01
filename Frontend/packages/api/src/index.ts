@@ -92,6 +92,7 @@ export type {
   CreateAccessProfileRequest,
   UpdateAccessProfileRequest,
   SetUserAccessProfilesRequest,
+  BulkSetUserAccessProfilesRequest,
 } from "./core-access";
 export {
   coreAccessPaths,
@@ -111,5 +112,6 @@ export type {
   WorkforceOrgUnitTreeDto,
   WorkforceEmployeePageDto,
   WorkforceAccessSubjectPageDto,
+  WorkforceAccessRosterSummaryDto,
 } from "./core-workforce";
 export { coreWorkforcePaths, coreWorkforceQueryKeys } from "./core-workforce";

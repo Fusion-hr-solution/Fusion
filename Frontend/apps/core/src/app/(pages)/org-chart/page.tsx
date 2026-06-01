@@ -345,7 +345,10 @@ export default function OrgChartPage() {
   if (!canAccess) {
     return (
       <div className="flex flex-col gap-6 p-6">
-        <PageHeader title="Org Chart" description="Org chart access is restricted." />
+        <PageHeader
+          title="Org Chart"
+          description="Org chart access is restricted."
+        />
         <EmptyState
           icon={Network}
           title="Org chart is not available for this role"

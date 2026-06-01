@@ -22,8 +22,12 @@ export function resolveInviteAcceptanceDestination(
     return "/";
   }
 
-  if (canAccessCoreAccess(user) || canManageCoreAccessProfiles(user)) {
+  if (canAccessCoreAccess(user)) {
     return "/access";
+  }
+
+  if (canManageCoreAccessProfiles(user)) {
+    return "/access/profiles";
   }
 
   if (canAccessCoreSetup(user)) {

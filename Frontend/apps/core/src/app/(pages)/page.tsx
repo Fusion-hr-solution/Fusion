@@ -21,10 +21,11 @@ import {
 } from "lucide-react";
 import {
   canAccessCoreOverview,
+  canAccessCoreAccess,
   canAccessCoreSettings,
   canAccessCoreSetup,
   canAccessOrganizations,
-  canSeeCoreAccessNavigation,
+  canManageCoreAccessProfiles,
   canSeeCoreSetupNavigation,
   canSeeCoreSettingsNavigation,
   type AuthUser,
@@ -282,7 +283,7 @@ function HRAdminDashboard() {
                 <Plus className="size-4 text-muted-foreground" />
               </Link>
               <Link
-                href="/employees?access=NotInvited&review=access"
+                href="/access?access=NotInvited"
                 className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
               >
                 <span>Review pending access</span>
@@ -1146,13 +1147,20 @@ function CoreOperationsDashboard() {
     tenantId ? buildTenantContextHref(href, tenantId) : href;
 
   const workspaces = [
-    canSeeCoreAccessNavigation(user)
+    canAccessCoreAccess(user)
       ? {
           href: moduleHref("/access"),
           title: "Access",
           badge: "Invites",
           icon: ShieldCheck,
         }
+      : canManageCoreAccessProfiles(user)
+        ? {
+            href: moduleHref("/access/profiles"),
+            title: "Access Profiles",
+            badge: "Policies",
+            icon: ShieldCheck,
+          }
       : null,
     canSeeCoreSetupNavigation(user)
       ? {
@@ -1265,8 +1273,12 @@ function getFallbackWorkspace(user: AuthUser | null): {
   href: string;
   label: string;
 } | null {
-  if (canSeeCoreAccessNavigation(user)) {
+  if (canAccessCoreAccess(user)) {
     return { href: "/access", label: "Access" };
+  }
+
+  if (canManageCoreAccessProfiles(user)) {
+    return { href: "/access/profiles", label: "Access Profiles" };
   }
 
   if (canAccessCoreSetup(user)) {

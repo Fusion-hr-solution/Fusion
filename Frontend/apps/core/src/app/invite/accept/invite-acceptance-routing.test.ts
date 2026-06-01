@@ -39,6 +39,14 @@ describe("resolveInviteAcceptanceDestination", () => {
     ).toBe("/access");
   });
 
+  it("sends profile managers to Access Profiles", () => {
+    expect(
+      resolveInviteAcceptanceDestination(createAuthUser({
+        effectivePermissions: [grant("core.accessprofiles.manage", "Tenant")],
+      }))
+    ).toBe("/access/profiles");
+  });
+
   it("sends employees to My Profile", () => {
     expect(
       resolveInviteAcceptanceDestination(createAuthUser({

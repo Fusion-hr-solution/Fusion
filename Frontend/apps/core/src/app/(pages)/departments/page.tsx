@@ -17,7 +17,10 @@ export default function DepartmentsPage() {
             Use the active workspaces instead.
           </p>
           <div className="flex flex-wrap gap-4 text-sm font-medium text-primary">
-            <Link href="/employees" className="inline-flex items-center gap-1.5">
+            <Link
+              href="/employees"
+              className="inline-flex items-center gap-1.5"
+            >
               Employees
               <ArrowRight className="size-3.5" />
             </Link>

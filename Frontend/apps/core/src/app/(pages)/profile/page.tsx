@@ -25,9 +25,7 @@ export default function MyProfilePage() {
 
   if (employeeId) {
     return (
-      <EmployeeProfileRouteProvider
-        value={{ employeeId, route: "self" }}
-      >
+      <EmployeeProfileRouteProvider value={{ employeeId, route: "self" }}>
         <EmployeeProfilePage />
       </EmployeeProfileRouteProvider>
     );

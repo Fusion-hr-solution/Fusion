@@ -154,8 +154,7 @@ export function canSeeCoreSetupNavigation(user: AuthUser | null): boolean {
 export function canAccessCoreSettings(user: AuthUser | null): boolean {
   return (
     hasCorePermission(user, CORE_PERMISSION.settingsView, "Tenant") ||
-    hasCorePermission(user, CORE_PERMISSION.settingsManage, "Tenant") ||
-    hasCorePermission(user, CORE_PERMISSION.accessProfilesManage, "Tenant")
+    hasCorePermission(user, CORE_PERMISSION.settingsManage, "Tenant")
   );
 }
 
@@ -164,7 +163,10 @@ export function canManageCoreSettings(user: AuthUser | null): boolean {
 }
 
 export function canManageCoreAccessProfiles(user: AuthUser | null): boolean {
-  return hasCorePermission(user, CORE_PERMISSION.accessProfilesManage, "Tenant");
+  return (
+    hasCorePermission(user, CORE_PERMISSION.accessProfilesManage, "Tenant") ||
+    isPlatformAdminInCoreTenantContext(user)
+  );
 }
 
 export function canSeeCoreSettingsNavigation(user: AuthUser | null): boolean {
@@ -239,7 +241,8 @@ export function canAccessCoreOverview(user: AuthUser | null): boolean {
 export function canAccessCoreAccess(user: AuthUser | null): boolean {
   return (
     hasCorePermission(user, CORE_PERMISSION.accessView, "Tenant") ||
-    hasCorePermission(user, CORE_PERMISSION.accessManage, "Tenant")
+    hasCorePermission(user, CORE_PERMISSION.accessManage, "Tenant") ||
+    isPlatformAdminInCoreTenantContext(user)
   );
 }
 
