@@ -1,6 +1,4 @@
 using EY.HRPlatform.CoreHR.Features.TenantSetup.Commands.ActivateTenantSetup;
-using EY.HRPlatform.CoreHR.Features.TenantSetup.Commands.ApproveTenantStructure;
-using EY.HRPlatform.CoreHR.Features.TenantSetup.Commands.CompleteTenantSetup;
 using EY.HRPlatform.CoreHR.Features.TenantSetup.Commands.PublishTenantStructure;
 using EY.HRPlatform.CoreHR.Features.TenantSetup.Commands.ReopenTenantStructure;
 using EY.HRPlatform.CoreHR.Features.TenantSetup.Dtos;
@@ -69,40 +67,6 @@ public class TenantSetupController(
         return Ok(ApiResponse<DraftSetupReadinessDto>.Success(readiness));
     }
 
-    [HttpPost("approve")]
-    [ProducesResponseType(typeof(ApiResponse<TenantSetupStateDto>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status412PreconditionFailed)]
-    public async Task<IActionResult> Approve(
-        [FromHeader(Name = "If-Match")] string? ifMatch,
-        CancellationToken cancellationToken)
-    {
-        if (!accessPolicy.CanManageSetup(User))
-        {
-            return Forbid();
-        }
-
-        if (!TryParseVersion(ifMatch, out var expectedVersion))
-        {
-            return StatusCode(
-                StatusCodes.Status412PreconditionFailed,
-                ApiResponse.Failure("If-Match header with valid version is required for approval."));
-        }
-
-        var result = await sender.Send(
-            new ApproveTenantStructureCommand(
-                expectedVersion,
-                User.GetUserId(),
-                User.GetFullName(),
-                GetActorRole(),
-                User.IsInRole(PlatformRole.PlatformAdmin)),
-            cancellationToken);
-
-        if (result.Value.Version.HasValue)
-            Response.Headers.ETag = $"\"{result.Value.Version}\"";
-
-        return Ok(ApiResponse<TenantSetupStateDto>.Success(result.Value));
-    }
-
     [HttpPost("reopen")]
     [ProducesResponseType(typeof(ApiResponse<TenantSetupStateDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status412PreconditionFailed)]
@@ -158,40 +122,6 @@ public class TenantSetupController(
 
         var result = await sender.Send(
             new PublishTenantStructureCommand(
-                expectedVersion,
-                User.GetUserId(),
-                User.GetFullName(),
-                GetActorRole(),
-                User.IsInRole(PlatformRole.PlatformAdmin)),
-            cancellationToken);
-
-        if (result.Value.Version.HasValue)
-            Response.Headers.ETag = $"\"{result.Value.Version}\"";
-
-        return Ok(ApiResponse<TenantSetupStateDto>.Success(result.Value));
-    }
-
-    [HttpPost("complete")]
-    [ProducesResponseType(typeof(ApiResponse<TenantSetupStateDto>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status412PreconditionFailed)]
-    public async Task<IActionResult> Complete(
-        [FromHeader(Name = "If-Match")] string? ifMatch,
-        CancellationToken cancellationToken)
-    {
-        if (!accessPolicy.CanManageSetup(User))
-        {
-            return Forbid();
-        }
-
-        if (!TryParseVersion(ifMatch, out var expectedVersion))
-        {
-            return StatusCode(
-                StatusCodes.Status412PreconditionFailed,
-                ApiResponse.Failure("If-Match header with valid version is required to complete setup."));
-        }
-
-        var result = await sender.Send(
-            new CompleteTenantSetupCommand(
                 expectedVersion,
                 User.GetUserId(),
                 User.GetFullName(),

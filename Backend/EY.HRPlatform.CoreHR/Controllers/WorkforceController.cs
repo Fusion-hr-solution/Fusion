@@ -98,6 +98,19 @@ public class WorkforceController(
         return Ok(ApiResponse<PagedResponse<WorkforceAccessSubjectSummaryDto>>.Success(result));
     }
 
+    [HttpGet("access-subjects/summary")]
+    [ProducesResponseType(typeof(ApiResponse<WorkforceAccessRosterSummaryDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAccessRosterSummary(CancellationToken cancellationToken = default)
+    {
+        if (!accessPolicy.CanViewAccess(User))
+        {
+            return Forbid();
+        }
+
+        var result = await workforceContractService.GetAccessRosterSummaryAsync(cancellationToken);
+        return Ok(ApiResponse<WorkforceAccessRosterSummaryDto>.Success(result));
+    }
+
     [HttpGet("employees/{employeeId:guid}/team")]
     [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<WorkforceEmployeeSummaryDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetTeam(Guid employeeId, CancellationToken cancellationToken)

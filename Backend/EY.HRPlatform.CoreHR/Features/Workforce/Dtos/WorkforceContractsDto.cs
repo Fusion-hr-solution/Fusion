@@ -54,6 +54,11 @@ public sealed record WorkforceAccessSubjectSummaryDto(
     string EmploymentStatus,
     bool IsActive);
 
+public sealed record WorkforceAccessRosterSummaryDto(
+    int TotalCount,
+    int ActiveEmployeeCount,
+    int InactiveEmployeeCount);
+
 public sealed record WorkforceManagerScopeDto(
     string ScopeType,
     Guid ManagerEmployeeId,

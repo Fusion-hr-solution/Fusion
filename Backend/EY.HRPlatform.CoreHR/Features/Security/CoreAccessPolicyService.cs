@@ -61,7 +61,6 @@ public sealed class CoreAccessPolicyService : ICoreAccessPolicyService
     public bool CanViewSettings(ClaimsPrincipal user)
         => user.HasCorePermission(CorePermissions.SettingsView, PermissionScopes.Tenant)
             || user.HasCorePermission(CorePermissions.SettingsManage, PermissionScopes.Tenant)
-            || user.HasCorePermission(CorePermissions.AccessProfilesManage, PermissionScopes.Tenant)
             || user.IsInRole(PlatformRole.PlatformAdmin);
 
     public bool CanManageSettings(ClaimsPrincipal user)

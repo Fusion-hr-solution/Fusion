@@ -20,6 +20,7 @@ public interface IWorkforceContractService
     Task<IReadOnlyList<WorkforceEmployeeSummaryDto>> ResolveEmployeesAsync(IReadOnlyCollection<Guid> employeeIds, ClaimsPrincipal user, CancellationToken cancellationToken);
     Task<PagedResponse<WorkforceEmployeeSummaryDto>> SearchEmployeesAsync(string? search, int page, int pageSize, ClaimsPrincipal user, CancellationToken cancellationToken);
     Task<PagedResponse<WorkforceAccessSubjectSummaryDto>> SearchAccessSubjectsAsync(string? search, int page, int pageSize, CancellationToken cancellationToken);
+    Task<WorkforceAccessRosterSummaryDto> GetAccessRosterSummaryAsync(CancellationToken cancellationToken);
     Task<IReadOnlyList<WorkforceEmployeeSummaryDto>> GetTeamAsync(Guid employeeId, ClaimsPrincipal user, CancellationToken cancellationToken);
     Task<IReadOnlyList<WorkforceEmployeeSummaryDto>> GetManagerChainAsync(Guid employeeId, ClaimsPrincipal user, CancellationToken cancellationToken);
     Task<IReadOnlyList<WorkforceOrgUnitSummaryDto>> GetPublishedOrgUnitsAsync(bool includeInactive, CancellationToken cancellationToken);
@@ -218,6 +219,19 @@ public sealed class WorkforceContractService(
             Page = currentPage,
             PageSize = currentPageSize,
         };
+    }
+
+    public async Task<WorkforceAccessRosterSummaryDto> GetAccessRosterSummaryAsync(
+        CancellationToken cancellationToken)
+    {
+        var totalCount = await dbContext.Employees.CountAsync(cancellationToken);
+        var activeEmployeeCount = await dbContext.Employees
+            .CountAsync(current => current.Status == EmployeeStatus.Active, cancellationToken);
+
+        return new WorkforceAccessRosterSummaryDto(
+            totalCount,
+            activeEmployeeCount,
+            Math.Max(0, totalCount - activeEmployeeCount));
     }
 
     public async Task<IReadOnlyList<WorkforceEmployeeSummaryDto>> GetTeamAsync(
