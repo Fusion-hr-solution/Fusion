@@ -98,6 +98,19 @@ describe("resolveDraftStructureSelectedUnitId", () => {
 });
 
 describe("shouldShowDraftStructureBootstrap", () => {
+  it("holds the workspace in bootstrap while setup activation or reopen is settling", () => {
+    expect(
+      shouldShowDraftStructureBootstrap({
+        workspaceEnabled: false,
+        hasWorkspace: false,
+        hasTree: false,
+        hasWorkspaceError: false,
+        hasTreeError: false,
+        isSetupTransitionPending: true,
+      })
+    ).toBe(true);
+  });
+
   it("keeps the bootstrap skeleton up until both workspace and tree are ready", () => {
     expect(
       shouldShowDraftStructureBootstrap({
@@ -106,6 +119,7 @@ describe("shouldShowDraftStructureBootstrap", () => {
         hasTree: false,
         hasWorkspaceError: false,
         hasTreeError: false,
+        isSetupTransitionPending: false,
       })
     ).toBe(true);
   });
@@ -118,6 +132,7 @@ describe("shouldShowDraftStructureBootstrap", () => {
         hasTree: true,
         hasWorkspaceError: false,
         hasTreeError: false,
+        isSetupTransitionPending: false,
       })
     ).toBe(false);
   });
@@ -130,6 +145,7 @@ describe("shouldShowDraftStructureBootstrap", () => {
         hasTree: false,
         hasWorkspaceError: true,
         hasTreeError: false,
+        isSetupTransitionPending: false,
       })
     ).toBe(false);
   });

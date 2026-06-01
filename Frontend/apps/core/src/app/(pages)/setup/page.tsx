@@ -11,15 +11,12 @@ import {
   Flag,
   History,
   Rocket,
-  ShieldCheck,
-  User,
 } from "lucide-react";
 import { ApiError } from "@repo/api";
 import { useTenantContext } from "@/components/core-tenant-context-provider";
 import { buildTenantContextHref } from "@/lib/tenant-navigation";
 import { cn } from "@/lib/utils";
 import type {
-  CoreSetupPhase,
   DraftSetupIssueCategory,
   DraftSetupIssueDto,
   TenantSetupActivityDto,
@@ -50,17 +47,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { SetupStatusBadge } from "./setup-status-badge";
 import {
-  useActivateSetup,
-  useApproveStructure,
-  usePublishStructure,
-  useReopenStructure,
   useSetupReadiness,
 } from "./use-setup";
 import { SETUP_DRAFT_ENTRY_PATH } from "./setup-entry-routing";
 
 type SetupProgressStepKey =
-  | "activated"
-  | "structurallyGoverned"
+  | "setupStarted"
+  | "draftReady"
   | "published";
 
 type SetupProgressVisualState =
@@ -99,18 +92,18 @@ const SETUP_PROGRESS_STEPS: Array<{
   icon: typeof Flag;
 }> = [
   {
-    key: "activated",
+    key: "setupStarted",
     title: "Setup started",
     icon: Flag,
   },
   {
-    key: "structurallyGoverned",
-    title: "Structure approved",
-    icon: ShieldCheck,
+    key: "draftReady",
+    title: "Draft data in place",
+    icon: ClipboardList,
   },
   {
     key: "published",
-    title: "Published and live",
+    title: "Published live",
     icon: Rocket,
   },
 ];
@@ -133,8 +126,8 @@ function formatTimestamp(value: string | null) {
   }).format(new Date(value));
 }
 
-function isSetupCompletePhase(phase: CoreSetupPhase) {
-  return phase === "structurallyPublished" || phase === "operational";
+function hasLiveStructure(data: TenantSetupStateDto | undefined) {
+  return !!data?.hasPublishedStructure;
 }
 
 function getCompletedSetupProgressStepCount(
@@ -144,31 +137,26 @@ function getCompletedSetupProgressStepCount(
     return 0;
   }
 
-  if (isSetupCompletePhase(data.currentPhase)) {
-    return 3;
-  }
-
-  if (data.currentPhase === "structurallyGoverned") {
-    return 2;
-  }
-
-  if (data.currentPhase === "activated") {
-    return 1;
-  }
-
-  return 0;
+  return Math.max(0, Math.min(data.currentStep, SETUP_PROGRESS_STEPS.length));
 }
 
-function getApprovalProgressMeta(data: TenantSetupStateDto | undefined) {
-  if (!data?.approvedAt) {
+function getDraftProgressMeta(
+  data: TenantSetupStateDto | undefined,
+  hasDraftUnits: boolean
+) {
+  if (!hasDraftUnits) {
     return undefined;
   }
 
-  const approvedAt = formatTimestamp(data.approvedAt);
+  if (data?.requiresRepublish) {
+    const liveAt = data.operationalAt ?? data.structurallyPublishedAt;
 
-  return data.approvedByFullName
-    ? `Approved by ${data.approvedByFullName} • ${approvedAt}`
-    : `Approved ${approvedAt}`;
+    return liveAt
+      ? `Live stays on ${formatTimestamp(liveAt)} until republish`
+      : "Draft changes are pending publish";
+  }
+
+  return "Draft data is ready for publish";
 }
 
 function getPublishedProgressMeta(data: TenantSetupStateDto | undefined) {
@@ -177,7 +165,8 @@ function getPublishedProgressMeta(data: TenantSetupStateDto | undefined) {
   return liveAt ? `Live since ${formatTimestamp(liveAt)}` : undefined;
 }
 
-function getApprovalCurrentStepState({
+function getDraftCurrentStepState({
+  data,
   hasDraftUnits,
   blockingIssueCount,
   warningCount,
@@ -185,12 +174,12 @@ function getApprovalCurrentStepState({
   hasReadinessData,
   isReadinessLoading,
   hasReadinessError,
-}: Omit<SetupProgressContext, "data">) {
+}: SetupProgressContext) {
   if (!hasReadinessData && isReadinessLoading) {
     return {
       state: "current" as const,
       statusLabel: "Checking",
-      description: "Checking draft readiness for approval.",
+      description: "Checking the current draft before publish.",
     };
   }
 
@@ -216,7 +205,7 @@ function getApprovalCurrentStepState({
       state: "current" as const,
       statusLabel: "In progress",
       description:
-        "Add units or import a structure template before approval becomes available.",
+        "Add units or import a structure template before publish becomes available.",
     };
   }
 
@@ -224,7 +213,7 @@ function getApprovalCurrentStepState({
     return {
       state: "blocked" as const,
       statusLabel: "Blocked",
-      description: `Resolve ${blockingIssueCount} blocker${blockingIssueCount === 1 ? "" : "s"} in Draft Structure before approval.`,
+      description: `Resolve ${blockingIssueCount} blocker${blockingIssueCount === 1 ? "" : "s"} in Draft Structure before publishing.`,
     };
   }
 
@@ -234,8 +223,10 @@ function getApprovalCurrentStepState({
       statusLabel: "Ready",
       description:
         warningCount > 0
-          ? `The draft can be approved now. Review ${warningCount} warning${warningCount === 1 ? "" : "s"} first if needed.`
-          : "The draft passed checks and can be approved when you're ready.",
+          ? `The draft can be published now. Review ${warningCount} warning${warningCount === 1 ? "" : "s"} first if needed.`
+          : data?.requiresRepublish
+            ? "The updated draft passed checks and can replace the live structure when you're ready."
+            : "The draft passed checks and can be published when you're ready.",
     };
   }
 
@@ -243,7 +234,7 @@ function getApprovalCurrentStepState({
     return {
       state: "warning" as const,
       statusLabel: "Review",
-      description: `Review ${warningCount} warning${warningCount === 1 ? "" : "s"} before approval.`,
+      description: `Review ${warningCount} warning${warningCount === 1 ? "" : "s"} before publishing.`,
     };
   }
 
@@ -268,20 +259,16 @@ function getSetupProgressCallout({
     return "Checking setup progress...";
   }
 
-  if (isSetupCompletePhase(data.currentPhase)) {
-    return "All setup milestones are complete.";
+  if (hasLiveStructure(data) && !data.isDraftCycleActive) {
+    return "Live structure is available. Reopen the draft when changes are needed.";
   }
 
   if (data.canStartSetup) {
     return "Next: Start setup from Draft Structure.";
   }
 
-  if (data.currentPhase === "structurallyGoverned") {
-    return "Next: Publish the approved structure.";
-  }
-
   if (!hasReadinessData && isReadinessLoading) {
-    return "Next: Checking draft readiness.";
+    return "Next: Checking current draft readiness.";
   }
 
   if (hasReadinessError) {
@@ -301,11 +288,13 @@ function getSetupProgressCallout({
   }
 
   if (isReadyForApproval) {
-    return "Next: Approve the structure.";
+    return data.requiresRepublish
+      ? "Next: Publish the latest draft to refresh the live structure."
+      : "Next: Publish the draft structure.";
   }
 
   if (warningCount > 0) {
-    return `Next: Review ${warningCount} warning${warningCount === 1 ? "" : "s"} before approval.`;
+    return `Next: Review ${warningCount} warning${warningCount === 1 ? "" : "s"} before publishing.`;
   }
 
   return `Next: ${data.nextAction}.`;
@@ -326,7 +315,7 @@ function getSetupProgressSteps(
 
     if (isComplete) {
       switch (step.key) {
-        case "activated":
+        case "setupStarted":
           return {
             ...step,
             state: "complete",
@@ -337,15 +326,16 @@ function getSetupProgressSteps(
               ? `Started ${formatTimestamp(context.data.activatedAt)}`
               : undefined,
           } satisfies SetupProgressStepModel;
-        case "structurallyGoverned":
+        case "draftReady":
           return {
             ...step,
             state: "complete",
             isCurrent: false,
             statusLabel: "Complete",
-            description: "The structure is locked and ready for publish.",
-            meta: getApprovalProgressMeta(context.data),
-            showAssistedBadge: context.data?.isApprovedInPlatformAssistMode,
+            description: context.data?.requiresRepublish
+              ? "A new draft is active while the current live structure stays available."
+              : "Draft data is in place and ready for publish.",
+            meta: getDraftProgressMeta(context.data, context.hasDraftUnits),
           } satisfies SetupProgressStepModel;
         case "published":
           return {
@@ -361,7 +351,7 @@ function getSetupProgressSteps(
 
     if (isCurrent) {
       switch (step.key) {
-        case "activated":
+        case "setupStarted":
           return {
             ...step,
             state: "current",
@@ -369,8 +359,9 @@ function getSetupProgressSteps(
             statusLabel: "Start here",
             description: "Open Draft Structure to begin building the hierarchy.",
           } satisfies SetupProgressStepModel;
-        case "structurallyGoverned": {
-          const approvalState = getApprovalCurrentStepState({
+        case "draftReady": {
+          const draftState = getDraftCurrentStepState({
+            data: context.data,
             hasDraftUnits: context.hasDraftUnits,
             blockingIssueCount: context.blockingIssueCount,
             warningCount: context.warningCount,
@@ -383,7 +374,7 @@ function getSetupProgressSteps(
           return {
             ...step,
             isCurrent: true,
-            ...approvalState,
+            ...draftState,
           } satisfies SetupProgressStepModel;
         }
         case "published":
@@ -391,16 +382,22 @@ function getSetupProgressSteps(
             ...step,
             state: "current",
             isCurrent: true,
-            statusLabel: "Ready to publish",
+            statusLabel: context.data?.requiresRepublish
+              ? "Ready to republish"
+              : "Ready to publish",
             description:
-              "Publish the approved structure to make it live across Core.",
-            meta: getApprovalProgressMeta(context.data),
+              context.data?.requiresRepublish
+                ? "Publish the latest draft when you're ready. The current live structure stays active until then."
+                : "Publish the draft structure to make it live across Core.",
+            meta: context.data?.requiresRepublish
+              ? getPublishedProgressMeta(context.data)
+              : undefined,
           } satisfies SetupProgressStepModel;
       }
     }
 
     switch (step.key) {
-      case "activated":
+      case "setupStarted":
         return {
           ...step,
           state: "upcoming",
@@ -408,14 +405,14 @@ function getSetupProgressSteps(
           statusLabel: "Later",
           description: "Setup begins once Draft Structure is opened.",
         } satisfies SetupProgressStepModel;
-      case "structurallyGoverned":
+      case "draftReady":
         return {
           ...step,
           state: "upcoming",
           isCurrent: false,
           statusLabel: "Later",
           description:
-            "Approval becomes available once the draft passes readiness checks.",
+            "Add units or import a structure template to create draft data.",
         } satisfies SetupProgressStepModel;
       case "published":
         return {
@@ -423,7 +420,7 @@ function getSetupProgressSteps(
           state: "upcoming",
           isCurrent: false,
           statusLabel: "Later",
-          description: "This unlocks the live structure across Core.",
+          description: "Publish when the draft is ready.",
         } satisfies SetupProgressStepModel;
     }
   });
@@ -473,28 +470,33 @@ function getSetupProgressVisualStyle(state: SetupProgressVisualState) {
 }
 
 function getHeroCopy({
-  phase,
+  hasPublishedStructure,
+  isDraftCycleActive,
+  requiresRepublish,
   hasDraftUnits,
   isReadyForApproval,
   blockingIssueCount,
 }: {
-  phase: CoreSetupPhase;
+  hasPublishedStructure: boolean;
+  isDraftCycleActive: boolean;
+  requiresRepublish: boolean;
   hasDraftUnits: boolean;
   isReadyForApproval: boolean;
   blockingIssueCount: number;
 }) {
-  if (isSetupCompletePhase(phase)) {
+  if (hasPublishedStructure && !isDraftCycleActive) {
     return {
-      title: "Setup complete",
-      description: "The published structure is live and Core is unlocked.",
+      title: "Structure live",
+      description:
+        "The published structure is active across Core. Reopen the draft whenever changes are needed.",
     };
   }
 
-  if (phase === "structurallyGoverned") {
+  if (requiresRepublish) {
     return {
-      title: "Publish the approved structure",
+      title: "Draft changes underway",
       description:
-        "The approved structure is locked until you publish or reopen it.",
+        "A new draft is open. Live stays active until you publish the latest changes.",
     };
   }
 
@@ -508,15 +510,15 @@ function getHeroCopy({
   if (blockingIssueCount > 0) {
     return {
       title: "Clear draft blockers",
-      description: "Resolve blockers in Draft Structure before approval.",
+      description: "Resolve blockers in Draft Structure before publishing.",
     };
   }
 
   if (isReadyForApproval) {
     return {
-      title: "Approve the draft",
+      title: "Publish the draft",
       description:
-        "Checks are clean. Approve the structure to lock it for publish.",
+        "Checks are clean. Publish the structure when you're ready.",
     };
   }
 
@@ -527,35 +529,39 @@ function getHeroCopy({
 }
 
 function getHeaderDescription({
-  phase,
+  hasPublishedStructure,
+  isDraftCycleActive,
+  requiresRepublish,
   hasDraftUnits,
   isReadyForApproval,
   blockingIssueCount,
 }: {
-  phase: CoreSetupPhase;
+  hasPublishedStructure: boolean;
+  isDraftCycleActive: boolean;
+  requiresRepublish: boolean;
   hasDraftUnits: boolean;
   isReadyForApproval: boolean;
   blockingIssueCount: number;
 }) {
-  if (isSetupCompletePhase(phase)) {
-    return "Review the published result and recent setup activity here.";
+  if (hasPublishedStructure && !isDraftCycleActive) {
+    return "Review the live structure, reopen the draft when changes are needed, and track recent activity here.";
   }
 
-  if (phase === "structurallyGoverned") {
-    return "Review the approved structure here, then publish or reopen it.";
+  if (requiresRepublish) {
+    return "Review the reopened draft here, then publish when the new structure is ready to replace live.";
   }
 
   if (!hasDraftUnits) {
-    return "Use Draft Structure to start the hierarchy, then return here for approval and publish.";
+    return "Use Draft Structure to start the hierarchy, then return here to publish it live.";
   }
 
   if (blockingIssueCount > 0) {
-    return "Use Draft Structure for fixes; use this page for approval and publish.";
+    return "Use Draft Structure for fixes; use this page to monitor readiness and publish.";
   }
 
   return isReadyForApproval
-    ? "Use this page to approve now or return to Draft Structure for final checks."
-    : "Use Draft Structure for edits; use this page to manage approval and publish.";
+    ? "Use this page to publish now or return to Draft Structure for final checks."
+    : "Use Draft Structure for edits; use this page to manage publish and reopen.";
 }
 
 function getSetupSummaryLine({
@@ -589,13 +595,17 @@ function getSetupSummaryLine({
 }
 
 function getReadinessStatusLabel({
-  phase,
+  hasPublishedStructure,
+  isDraftCycleActive,
+  requiresRepublish,
   hasDraftUnits,
   blockingIssueCount,
   warningCount,
   isReadyForApproval,
 }: {
-  phase: CoreSetupPhase;
+  hasPublishedStructure: boolean;
+  isDraftCycleActive: boolean;
+  requiresRepublish: boolean;
   hasDraftUnits: boolean;
   blockingIssueCount: number;
   warningCount: number;
@@ -613,51 +623,57 @@ function getReadinessStatusLabel({
     return `${warningCount} warning${warningCount === 1 ? "" : "s"}`;
   }
 
-  if (isSetupCompletePhase(phase)) {
-    return "Published";
+  if (hasPublishedStructure && !isDraftCycleActive) {
+    return "Live";
   }
 
-  if (phase === "structurallyGoverned") {
-    return "Ready to publish";
+  if (requiresRepublish) {
+    return isReadyForApproval ? "Ready to republish" : "Draft active";
   }
 
-  return isReadyForApproval ? "Ready to approve" : "In progress";
+  return isReadyForApproval ? "Ready to publish" : "In progress";
 }
 
 function getReadinessSummary({
-  phase,
+  hasPublishedStructure,
+  isDraftCycleActive,
+  requiresRepublish,
   hasDraftUnits,
   blockingIssueCount,
   warningCount,
   isReadyForApproval,
 }: {
-  phase: CoreSetupPhase;
+  hasPublishedStructure: boolean;
+  isDraftCycleActive: boolean;
+  requiresRepublish: boolean;
   hasDraftUnits: boolean;
   blockingIssueCount: number;
   warningCount: number;
   isReadyForApproval: boolean;
 }) {
   if (!hasDraftUnits) {
-    return "No units yet.";
+    return "No draft data yet.";
   }
 
   if (blockingIssueCount > 0) {
-    return "Resolve blockers in Draft Structure before approval.";
+    return "Resolve blockers in Draft Structure before publishing.";
   }
 
   if (warningCount > 0) {
-    return "Review warnings in Draft Structure before approval.";
+    return "Review warnings in Draft Structure before publishing.";
   }
 
-  if (isSetupCompletePhase(phase)) {
+  if (hasPublishedStructure && !isDraftCycleActive) {
     return "Live structure.";
   }
 
-  if (phase === "structurallyGoverned") {
-    return "Ready to publish.";
+  if (requiresRepublish) {
+    return isReadyForApproval
+      ? "Ready to republish the latest draft."
+      : "Current draft will replace the live structure when published.";
   }
 
-  return isReadyForApproval ? "Ready for approval." : "In progress.";
+  return isReadyForApproval ? "Ready to publish." : "In progress.";
 }
 
 function formatRoleLabel(
@@ -717,12 +733,12 @@ const activityCopyMap: Record<
     description: (name) => `${name} applied a structure import`,
   },
   approved: {
-    title: "Draft approved",
-    description: (name) => `${name} approved the structure`,
+    title: "Legacy approval recorded",
+    description: (name) => `${name} used the previous approval workflow`,
   },
   reopened: {
     title: "Draft reopened",
-    description: (name) => `${name} reopened the structure`,
+    description: (name) => `${name} reopened the draft while live stayed active`,
   },
   published: {
     title: "Structure published",
@@ -783,26 +799,24 @@ export default function SetupPage() {
     setupState,
     setupError,
     isSetupStateLoading: isSetupLoading,
+    setupTransitionKind,
+    startSetup,
+    publishSetup,
+    reopenSetup,
     refreshSetupAccess,
   } = useCoreSetupAccess();
   const setupStarted = !!setupState && !setupState.canStartSetup;
   const pageTitle = setupStarted ? "Setup summary" : "Setup";
+  const draftCycleActive = setupState?.isDraftCycleActive ?? false;
   const {
     data: readiness,
     error: readinessError,
     isLoading: isReadinessLoading,
     refetch: refetchReadiness,
-  } = useSetupReadiness(canAccess && setupStarted);
-  const approveStructure = useApproveStructure();
-  const publishStructure = usePublishStructure({
-    onSuccess: () => {
-      setPublishDialogOpen(false);
-      setLocalError(null);
-    },
-  });
-  const reopenStructure = useReopenStructure();
-  const activateSetup = useActivateSetup();
-  const [isActivating, setIsActivating] = useState(false);
+  } = useSetupReadiness(canAccess && setupStarted && draftCycleActive);
+  const isActivating = setupTransitionKind === "activating";
+  const isPublishing = setupTransitionKind === "publishing";
+  const isReopening = setupTransitionKind === "reopening";
 
   if (!canAccess) {
     return (
@@ -854,52 +868,37 @@ export default function SetupPage() {
   }
 
   const phase = setupState.currentPhase;
-  const isCoreUnlocked = isSetupCompletePhase(setupState.currentPhase);
-  const isGoverned = phase === "structurallyGoverned";
-  const isActivated = phase === "activated";
-  const hasDraftUnits = (readiness?.totalUnitCount ?? 0) > 0;
+  const hasLivePublishedStructure = setupState.hasPublishedStructure;
+  const isCoreUnlocked = hasLivePublishedStructure;
+  const canReopenLiveDraft =
+    phase === "structurallyGoverned" ||
+    (hasLivePublishedStructure && !setupState.isDraftCycleActive);
+  const hasDraftUnits =
+    setupState.hasDraftStructure || (readiness?.totalUnitCount ?? 0) > 0;
   const blockingIssueCount = hasDraftUnits
     ? (readiness?.blockingIssueCount ?? 0)
     : 0;
   const warningCount = hasDraftUnits ? (readiness?.warningCount ?? 0) : 0;
   const hasBlockingIssues = hasDraftUnits && blockingIssueCount > 0;
   const hasWarnings = hasDraftUnits && warningCount > 0;
-  const isReadyForApproval = !!readiness?.isReadyForApproval;
+  const isReadyForPublish = !!readiness?.isReadyForApproval;
   const heroCopy = getHeroCopy({
-    phase,
+    hasPublishedStructure: hasLivePublishedStructure,
+    isDraftCycleActive: setupState.isDraftCycleActive,
+    requiresRepublish: setupState.requiresRepublish,
     hasDraftUnits,
-    isReadyForApproval,
+    isReadyForApproval: isReadyForPublish,
     blockingIssueCount,
   });
   const pageError = localError ?? null;
   const pageDescription = getHeaderDescription({
-    phase,
+    hasPublishedStructure: hasLivePublishedStructure,
+    isDraftCycleActive: setupState.isDraftCycleActive,
+    requiresRepublish: setupState.requiresRepublish,
     hasDraftUnits,
-    isReadyForApproval,
+    isReadyForApproval: isReadyForPublish,
     blockingIssueCount,
   });
-
-  const handleApprove = async () => {
-    if (setupState.version == null) {
-      setLocalError("The latest setup version is required before approval.");
-      return;
-    }
-
-    setLocalError(null);
-
-    try {
-      await approveStructure.mutateAsync({
-        expectedVersion: setupState.version,
-      });
-      await Promise.allSettled([refreshSetupAccess(), refetchReadiness()]);
-      router.refresh();
-      toast.success("Draft approved", {
-        description: "The structure is locked and ready for publish review.",
-      });
-    } catch (error) {
-      setLocalError(getErrorMessage(error));
-    }
-  };
 
   const handlePublish = async () => {
     if (setupState.version == null) {
@@ -910,11 +909,11 @@ export default function SetupPage() {
     setLocalError(null);
 
     try {
-      await publishStructure.mutateAsync({
+      await publishSetup({
         expectedVersion: setupState.version,
       });
-      await Promise.allSettled([refreshSetupAccess(), refetchReadiness()]);
-      router.refresh();
+      setPublishDialogOpen(false);
+      await Promise.allSettled([refetchReadiness()]);
       toast.success("Structure published", {
         description: "The published structure is now live across Core.",
       });
@@ -932,11 +931,10 @@ export default function SetupPage() {
     setLocalError(null);
 
     try {
-      await reopenStructure.mutateAsync({
+      await reopenSetup({
         expectedVersion: setupState.version,
       });
-      await Promise.allSettled([refreshSetupAccess(), refetchReadiness()]);
-      router.refresh();
+      await Promise.allSettled([refetchReadiness()]);
       toast.success("Draft reopened", {
         description: "The structure can be edited again in Draft Structure.",
       });
@@ -945,19 +943,16 @@ export default function SetupPage() {
     }
   };
 
-  const approvalDisabled =
-    setupState?.currentPhase !== "activated" ||
-    isReadinessLoading ||
-    !readiness?.isReadyForApproval ||
-    approveStructure.isLoading;
   const publishDisabled =
-    setupState?.currentPhase !== "structurallyGoverned" ||
-    isReadinessLoading ||
-    !readiness?.isReadyForApproval ||
-    publishStructure.isLoading;
+    phase === "structurallyGoverned"
+      ? isPublishing
+      : !setupState.isDraftCycleActive ||
+        isReadinessLoading ||
+        !isReadyForPublish ||
+        isPublishing;
   const reopenDisabled =
-    setupState?.currentPhase !== "structurallyGoverned" ||
-    reopenStructure.isLoading;
+    !canReopenLiveDraft ||
+    isReopening;
   const summaryLine = getSetupSummaryLine({
     hasDraftUnits,
     unitCount: readiness?.totalUnitCount ?? 0,
@@ -966,22 +961,26 @@ export default function SetupPage() {
     warningCount,
   });
   const readinessStatusLabel = getReadinessStatusLabel({
-    phase,
+    hasPublishedStructure: hasLivePublishedStructure,
+    isDraftCycleActive: setupState.isDraftCycleActive,
+    requiresRepublish: setupState.requiresRepublish,
     hasDraftUnits,
     blockingIssueCount,
     warningCount,
-    isReadyForApproval,
+    isReadyForApproval: isReadyForPublish,
   });
   const readinessSummary = getReadinessSummary({
-    phase,
+    hasPublishedStructure: hasLivePublishedStructure,
+    isDraftCycleActive: setupState.isDraftCycleActive,
+    requiresRepublish: setupState.requiresRepublish,
     hasDraftUnits,
     blockingIssueCount,
     warningCount,
-    isReadyForApproval,
+    isReadyForApproval: isReadyForPublish,
   });
   const readinessStatusVariant = hasBlockingIssues
     ? "destructive"
-    : hasWarnings || isReadyForApproval || isGoverned || isCoreUnlocked
+    : hasWarnings || isReadyForPublish || setupState.requiresRepublish || isCoreUnlocked
       ? "secondary"
       : "outline";
   const showExpandedReadiness =
@@ -1004,52 +1003,20 @@ export default function SetupPage() {
         label: "Open draft workspace",
         pendingLabel: "Activating...",
         onClick: async () => {
-          setIsActivating(true);
           try {
-            await activateSetup.mutateAsync();
+            await startSetup();
             router.push(SETUP_DRAFT_ENTRY_PATH);
           } catch {
             toast.error("Setup could not be activated.", {
               description: "Try opening the draft workspace again.",
             });
-          } finally {
-            setIsActivating(false);
           }
         },
         disabled: isActivating,
         isLoading: isActivating,
       });
     }
-  } else if (isActivated) {
-    if (isTenantContextReadOnly) {
-      summaryActions.push({
-        label: "View draft workspace",
-        onClick: () => router.push(draftStructureHref),
-      });
-    } else if (isReadyForApproval) {
-      summaryActions.push(
-        {
-          label: "Approve structure",
-          pendingLabel: "Approving...",
-          onClick: () => {
-            void handleApprove();
-          },
-          disabled: approvalDisabled,
-          isLoading: approveStructure.isLoading,
-        },
-        {
-          label: "Open draft workspace",
-          onClick: () => router.push(draftStructureHref),
-          variant: "outline",
-        }
-      );
-    } else {
-      summaryActions.push({
-        label: "Open draft workspace",
-        onClick: () => router.push(draftStructureHref),
-      });
-    }
-  } else if (isGoverned) {
+  } else if (phase === "structurallyGoverned" && !hasLivePublishedStructure) {
     if (isTenantContextReadOnly) {
       summaryActions.push({
         label: "View approved structure",
@@ -1065,22 +1032,64 @@ export default function SetupPage() {
           },
           variant: "outline",
           disabled: reopenDisabled,
-          isLoading: reopenStructure.isLoading,
+          isLoading: isReopening,
         },
         {
           label: "Publish structure",
           pendingLabel: "Publishing...",
           onClick: () => setPublishDialogOpen(true),
           disabled: publishDisabled,
-          isLoading: publishStructure.isLoading,
+          isLoading: isPublishing,
         }
       );
     }
-  } else if (isCoreUnlocked) {
-    summaryActions.push({
-      label: "Import employees",
-      onClick: () => router.push(importEmployeesHref),
-    });
+  } else if (setupState.isDraftCycleActive) {
+    const showPublishAction = !isTenantContextReadOnly && (isReadyForPublish || setupState.requiresRepublish);
+    if (isTenantContextReadOnly) {
+      summaryActions.push({
+        label: "View draft workspace",
+        onClick: () => router.push(draftStructureHref),
+      });
+    } else {
+      summaryActions.push({
+        label: "Open draft workspace",
+        onClick: () => router.push(draftStructureHref),
+        variant: showPublishAction ? "outline" : undefined,
+      });
+      if (showPublishAction) {
+        summaryActions.push({
+          label: setupState.requiresRepublish ? "Publish changes" : "Publish structure",
+          pendingLabel: "Publishing...",
+          onClick: () => setPublishDialogOpen(true),
+          disabled: publishDisabled,
+          isLoading: isPublishing,
+        });
+      }
+    }
+  } else if (hasLivePublishedStructure) {
+    if (isTenantContextReadOnly) {
+      summaryActions.push({
+        label: "View live structure",
+        onClick: () => router.push(draftStructureHref),
+      });
+    } else {
+      summaryActions.push(
+        {
+          label: "Reopen draft",
+          pendingLabel: "Reopening...",
+          onClick: () => {
+            void handleReopen();
+          },
+          variant: "outline",
+          disabled: reopenDisabled,
+          isLoading: isReopening,
+        },
+        {
+          label: "Import employees",
+          onClick: () => router.push(importEmployeesHref),
+        }
+      );
+    }
   }
 
   const visibleActivities = setupState.recentActivities.slice(
@@ -1089,14 +1098,17 @@ export default function SetupPage() {
   );
   const hasMoreActivities =
     visibleActivityCount < setupState.recentActivities.length;
-  const statusMeta = isCoreUnlocked
-    ? `Published ${formatTimestamp(
-        phase === "operational"
-          ? setupState.operationalAt
-          : setupState.structurallyPublishedAt
-      )}`
-    : setupState.approvedAt
-      ? `${setupState.approvedByFullName ?? "Approval recorded"} • ${formatTimestamp(setupState.approvedAt)}`
+  const liveAt = setupState.operationalAt ?? setupState.structurallyPublishedAt;
+  const statusMeta = hasLivePublishedStructure
+    ? setupState.requiresRepublish
+      ? liveAt
+        ? `Live stays on ${formatTimestamp(liveAt)} until republish`
+        : "Live structure stays active until republish"
+      : liveAt
+        ? `Live since ${formatTimestamp(liveAt)}`
+        : "Live structure available"
+    : setupState.activatedAt
+      ? `Started ${formatTimestamp(setupState.activatedAt)}`
       : null;
 
   return (
@@ -1117,9 +1129,9 @@ export default function SetupPage() {
             <CardContent className="flex flex-col gap-4 px-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0 space-y-3">
                 <div className="flex flex-wrap items-center gap-2">
-                  <SetupStatusBadge status={setupState.currentPhase} />
+                  <SetupStatusBadge setupState={setupState} />
                   {setupState.isApprovedInPlatformAssistMode &&
-                  !isCoreUnlocked ? (
+                  phase === "structurallyGoverned" ? (
                     <Badge variant="outline">Assisted</Badge>
                   ) : null}
                 </div>
@@ -1127,7 +1139,18 @@ export default function SetupPage() {
                   <h2 className="text-2xl font-semibold tracking-tight">
                     {heroCopy.title}
                   </h2>
-                  {isCoreUnlocked ? (
+                  {setupState.requiresRepublish ? (
+                    <p className="max-w-2xl text-sm text-muted-foreground">
+                      Draft changes are underway. The current live structure
+                      stays active until you publish the latest version. {" "}
+                      <Link
+                        href={draftStructureHref}
+                        className="underline underline-offset-2 hover:text-foreground"
+                      >
+                        Review the draft here
+                      </Link>
+                    </p>
+                  ) : isCoreUnlocked ? (
                     <p className="max-w-2xl text-sm text-muted-foreground">
                       The published structure is live.{" "}
                       <Link
@@ -1136,18 +1159,6 @@ export default function SetupPage() {
                       >
                         View it here
                       </Link>
-                    </p>
-                  ) : isGoverned ? (
-                    <p className="max-w-2xl text-sm text-muted-foreground">
-                      The approved structure is locked until you publish or{" "}
-                      <button
-                        type="button"
-                        onClick={() => void handleReopen()}
-                        className="underline underline-offset-2 hover:text-foreground"
-                      >
-                        reopen it
-                      </button>
-                      .
                     </p>
                   ) : (
                     <p className="max-w-2xl text-sm text-muted-foreground">
@@ -1159,20 +1170,7 @@ export default function SetupPage() {
                   {summaryLine ? (
                     <p className="text-sm text-muted-foreground">{summaryLine}</p>
                   ) : null}
-                  {setupState.approvedAt && !isCoreUnlocked ? (
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <User className="h-3.5 w-3.5 shrink-0 opacity-60" />
-                      <span>
-                        <span className="font-medium text-foreground/75">
-                          {setupState.approvedByFullName ?? "Approval recorded"}
-                        </span>
-                        {setupState.approvedByRole ? (
-                          <> &middot; {formatRoleLabel(setupState.approvedByRole)}</>
-                        ) : null}
-                        {" "}&middot; {formatTimestamp(setupState.approvedAt)}
-                      </span>
-                    </div>
-                  ) : isCoreUnlocked && statusMeta ? (
+                  {statusMeta ? (
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                       <History className="h-3.5 w-3.5 shrink-0 opacity-60" />
                       <span>{statusMeta}</span>
@@ -1206,7 +1204,7 @@ export default function SetupPage() {
             hasDraftUnits={hasDraftUnits}
             blockingIssueCount={blockingIssueCount}
             warningCount={warningCount}
-            isReadyForApproval={isReadyForApproval}
+            isReadyForApproval={isReadyForPublish}
             hasReadinessData={!!readiness}
             isReadinessLoading={isReadinessLoading}
             hasReadinessError={!!readinessError}
@@ -1282,21 +1280,23 @@ export default function SetupPage() {
             </AlertDialogMedia>
             <AlertDialogTitle>Publish structure?</AlertDialogTitle>
             <AlertDialogDescription>
-              Makes the approved structure live.
+              {setupState.requiresRepublish
+                ? "Replaces the current live structure with the latest draft."
+                : "Makes the current draft live across Core."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={publishStructure.isLoading}>
+            <AlertDialogCancel disabled={isPublishing}>
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 void handlePublish();
               }}
-              disabled={publishStructure.isLoading}
+              disabled={isPublishing}
             >
-              {publishStructure.isLoading ? <Spinner className="mr-1" /> : null}
-              {publishStructure.isLoading
+              {isPublishing ? <Spinner className="mr-1" /> : null}
+              {isPublishing
                 ? "Publishing..."
                 : "Publish structure"}
             </AlertDialogAction>

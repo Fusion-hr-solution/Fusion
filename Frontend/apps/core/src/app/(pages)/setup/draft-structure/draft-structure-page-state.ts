@@ -18,6 +18,7 @@ interface ShouldShowDraftStructureBootstrapArgs {
   hasTree: boolean;
   hasWorkspaceError: boolean;
   hasTreeError: boolean;
+  isSetupTransitionPending: boolean;
 }
 
 export function resolveDraftStructureSelectedUnitId({
@@ -47,8 +48,10 @@ export function shouldShowDraftStructureBootstrap({
   hasTree,
   hasWorkspaceError,
   hasTreeError,
+  isSetupTransitionPending,
 }: ShouldShowDraftStructureBootstrapArgs) {
   return (
+    isSetupTransitionPending ||
     workspaceEnabled &&
     !hasWorkspaceError &&
     !hasTreeError &&

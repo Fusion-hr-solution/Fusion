@@ -35,6 +35,7 @@ interface DeleteDraftOrgUnitArgs {
   version: number;
   replacementParentId?: string;
   promoteChildrenToRoot?: boolean;
+  skipLifecycleRefresh?: boolean;
 }
 
 async function invalidateDraftStructureLifecycleQueries(
@@ -48,12 +49,17 @@ async function invalidateDraftStructureLifecycleQueries(
     queryClient.invalidateQueries({
       queryKey: draftStructureQueryKeys.workspace(),
       exact: true,
-      refetchType: "none",
+      refetchType: "active",
     }),
     queryClient.invalidateQueries({
       queryKey: draftStructureQueryKeys.tree(),
       exact: true,
-      refetchType: "none",
+      refetchType: "active",
+    }),
+    queryClient.invalidateQueries({
+      queryKey: coreSetupQueryKeys.state(),
+      exact: true,
+      refetchType: "active",
     }),
   ];
 
@@ -62,7 +68,7 @@ async function invalidateDraftStructureLifecycleQueries(
       queryClient.invalidateQueries({
         queryKey: draftStructureQueryKeys.importSchema(),
         exact: true,
-        refetchType: "none",
+        refetchType: "active",
       })
     );
   }
@@ -72,7 +78,7 @@ async function invalidateDraftStructureLifecycleQueries(
       queryClient.invalidateQueries({
         queryKey: coreSetupQueryKeys.readiness(),
         exact: true,
-        refetchType: "none",
+        refetchType: "active",
       })
     );
   }
@@ -170,10 +176,12 @@ export function useDeleteDraftOrgUnit(opts?: { onSuccess?: () => void }) {
         },
       }),
     {
-      onSuccess: async () => {
-        await invalidateDraftStructureLifecycleQueries(queryClient, {
-          includeReadiness: true,
-        });
+      onSuccess: async (_data, args) => {
+        if (!args.skipLifecycleRefresh) {
+          await invalidateDraftStructureLifecycleQueries(queryClient, {
+            includeReadiness: true,
+          });
+        }
         await opts?.onSuccess?.();
       },
     }

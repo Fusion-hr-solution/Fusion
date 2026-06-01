@@ -4,8 +4,10 @@ import { useCallback, useMemo } from "react";
 import {
   coreAccessPaths,
   coreAccessQueryKeys,
+  coreWorkforceQueryKeys,
   createPlatformApiClient,
   type AccessProfileSummaryDto,
+  type BulkSetUserAccessProfilesRequest,
   type CorePermissionCatalogItemDto,
   type CreateAccessProfileRequest,
   type SetUserAccessProfilesRequest,
@@ -18,6 +20,7 @@ import {
   useApiQueryClient,
 } from "@repo/api/query";
 import { useAuth } from "@repo/auth";
+import { employeeRosterQueryKeys } from "../employees/employee-query-keys";
 
 interface UpdateAccessProfileArgs {
   profileId: string;
@@ -92,11 +95,16 @@ export function useCreateAccessProfile(opts?: {
   const queryClient = useApiQueryClient();
 
   return useApiMutation<AccessProfileSummaryDto, CreateAccessProfileRequest>(
-    (input) => client.post<AccessProfileSummaryDto>(coreAccessPaths.profiles(), input),
+    (input) =>
+      client.post<AccessProfileSummaryDto>(coreAccessPaths.profiles(), input),
     {
       onSuccess: async (data) => {
-        await queryClient.invalidateQueries({ queryKey: coreAccessQueryKeys.profiles() });
-        await queryClient.invalidateQueries({ queryKey: coreAccessQueryKeys.assignments() });
+        await queryClient.invalidateQueries({
+          queryKey: coreAccessQueryKeys.profiles(),
+        });
+        await queryClient.invalidateQueries({
+          queryKey: coreAccessQueryKeys.assignments(),
+        });
         await opts?.onSuccess?.(data);
       },
     }
@@ -111,22 +119,28 @@ export function useUpdateAccessProfile(opts?: {
 
   return useApiMutation<AccessProfileSummaryDto, UpdateAccessProfileArgs>(
     ({ profileId, expectedVersion, input }) =>
-      client.put<AccessProfileSummaryDto>(coreAccessPaths.profile(profileId), input, {
-        headers: { "If-Match": `"${expectedVersion}"` },
-      }),
+      client.put<AccessProfileSummaryDto>(
+        coreAccessPaths.profile(profileId),
+        input,
+        {
+          headers: { "If-Match": `"${expectedVersion}"` },
+        }
+      ),
     {
       onSuccess: async (data) => {
-        await queryClient.invalidateQueries({ queryKey: coreAccessQueryKeys.profiles() });
-        await queryClient.invalidateQueries({ queryKey: coreAccessQueryKeys.assignments() });
+        await queryClient.invalidateQueries({
+          queryKey: coreAccessQueryKeys.profiles(),
+        });
+        await queryClient.invalidateQueries({
+          queryKey: coreAccessQueryKeys.assignments(),
+        });
         await opts?.onSuccess?.(data);
       },
     }
   );
 }
 
-export function useDeleteAccessProfile(opts?: {
-  onSuccess?: () => void;
-}) {
+export function useDeleteAccessProfile(opts?: { onSuccess?: () => void }) {
   const client = useMemo(() => createPlatformApiClient(), []);
   const queryClient = useApiQueryClient();
 
@@ -134,8 +148,12 @@ export function useDeleteAccessProfile(opts?: {
     ({ profileId }) => client.delete<void>(coreAccessPaths.profile(profileId)),
     {
       onSuccess: async () => {
-        await queryClient.invalidateQueries({ queryKey: coreAccessQueryKeys.profiles() });
-        await queryClient.invalidateQueries({ queryKey: coreAccessQueryKeys.assignments() });
+        await queryClient.invalidateQueries({
+          queryKey: coreAccessQueryKeys.profiles(),
+        });
+        await queryClient.invalidateQueries({
+          queryKey: coreAccessQueryKeys.assignments(),
+        });
         await opts?.onSuccess?.();
       },
     }
@@ -150,18 +168,68 @@ export function useSetUserAccessProfiles(opts?: {
 
   return useApiMutation<UserAccessAssignmentDto, SetUserAccessProfilesArgs>(
     ({ userId, input }) =>
-      client.put<UserAccessAssignmentDto>(coreAccessPaths.assignment(userId), input),
+      client.put<UserAccessAssignmentDto>(
+        coreAccessPaths.assignment(userId),
+        input
+      ),
     {
       onSuccess: async (data) => {
         queryClient.setQueriesData(
           { queryKey: coreAccessQueryKeys.assignments() },
           (current: UserAccessAssignmentDto[] | undefined) =>
-            current?.map((row) => (row.userId === data.userId ? data : row)) ?? current
+            current?.map((row) => (row.userId === data.userId ? data : row)) ??
+            current
         );
-        await queryClient.invalidateQueries({ queryKey: coreAccessQueryKeys.assignments() });
-        await queryClient.invalidateQueries({ queryKey: coreAccessQueryKeys.profiles() });
+        await Promise.all([
+          queryClient.invalidateQueries({
+            queryKey: coreAccessQueryKeys.assignments(),
+          }),
+          queryClient.invalidateQueries({
+            queryKey: coreAccessQueryKeys.profiles(),
+          }),
+          queryClient.invalidateQueries({
+            queryKey: coreWorkforceQueryKeys.all(),
+          }),
+          queryClient.invalidateQueries({
+            queryKey: employeeRosterQueryKeys.workforceAccounts(),
+          }),
+        ]);
         await opts?.onSuccess?.(data);
       },
     }
   );
 }
+
+  export function useBulkSetUserAccessProfiles(opts?: {
+    onSuccess?: (data: UserAccessAssignmentDto[]) => void;
+  }) {
+    const client = useMemo(() => createPlatformApiClient(), []);
+    const queryClient = useApiQueryClient();
+
+    return useApiMutation<
+      UserAccessAssignmentDto[],
+      BulkSetUserAccessProfilesRequest
+    >(
+      (input) =>
+        client.put<UserAccessAssignmentDto[]>(coreAccessPaths.assignments(), input),
+      {
+        onSuccess: async (data) => {
+          await Promise.all([
+            queryClient.invalidateQueries({
+              queryKey: coreAccessQueryKeys.assignments(),
+            }),
+            queryClient.invalidateQueries({
+              queryKey: coreAccessQueryKeys.profiles(),
+            }),
+            queryClient.invalidateQueries({
+              queryKey: coreWorkforceQueryKeys.all(),
+            }),
+            queryClient.invalidateQueries({
+              queryKey: employeeRosterQueryKeys.workforceAccounts(),
+            }),
+          ]);
+          await opts?.onSuccess?.(data);
+        },
+      }
+    );
+  }

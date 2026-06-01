@@ -1,6 +1,12 @@
 "use client";
 
-import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   AlertCircle,
@@ -48,13 +54,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/page-header";
 import { cn } from "@/lib/utils";
-import {
-  useActivateSetup,
-  useApproveStructure,
-  usePublishStructure,
-  useReopenStructure,
-  useSetupReadiness,
-} from "../use-setup";
+import { useSetupReadiness } from "../use-setup";
 import { shouldAutoActivateSetup } from "../setup-entry-routing";
 import { DraftUnitDialog } from "./create-draft-unit-dialog";
 import { DraftOrgUnitKindManager } from "./draft-org-unit-kind-manager";
@@ -434,24 +434,28 @@ export default function DraftStructurePage() {
     setupState,
     setupError,
     isSetupStateLoading: isSetupLoading,
+    setupTransitionKind,
+    startSetup,
+    publishSetup,
+    reopenSetup,
     refreshSetupAccess,
   } = useCoreSetupAccess();
-  const isSetupComplete =
-    setupState?.currentPhase === "structurallyPublished" ||
-    setupState?.currentPhase === "operational";
-  const isDraftLocked = setupState?.currentPhase !== "activated";
-  const canApproveFromDraft = setupState?.currentPhase === "activated";
+  const isSetupComplete = !!setupState?.hasPublishedStructure;
+  const isDraftLocked = !setupState?.isDraftCycleActive;
+  const canPublishFromDraft = !!setupState?.isDraftCycleActive;
   const canReopenFromDraft =
-    setupState?.currentPhase === "structurallyGoverned";
+    !!setupState?.hasPublishedStructure && !setupState.isDraftCycleActive;
   const shouldStartSetupFromDraft = shouldAutoActivateSetup(
     setupState?.canStartSetup
   );
   const pageTitle = !isDraftLocked
-    ? "Draft structure"
+    ? setupState?.requiresRepublish
+      ? "Draft changes"
+      : "Draft structure"
     : isSetupComplete
-      ? "Published structure"
+      ? "Live structure"
       : canReopenFromDraft
-        ? "Approved structure"
+        ? "Live structure"
         : "Structure review";
 
   const workspaceEnabled =
@@ -460,7 +464,7 @@ export default function DraftStructurePage() {
     data: readiness,
     error: readinessError,
     refetch: refetchReadiness,
-  } = useSetupReadiness(workspaceEnabled && canApproveFromDraft);
+  } = useSetupReadiness(workspaceEnabled && canPublishFromDraft);
   const {
     data: workspace,
     error: workspaceError,
@@ -471,21 +475,40 @@ export default function DraftStructurePage() {
     error: treeError,
     refetch: refetchTree,
   } = useDraftStructureTree(workspaceEnabled);
-  const activateSetup = useActivateSetup();
-  const approveStructure = useApproveStructure();
   const clearStructure = useClearDraftStructure();
   const deleteDraftOrgUnit = useDeleteDraftOrgUnit();
-  const publishStructure = usePublishStructure();
-  const reopenStructure = useReopenStructure();
-  const [approveError, setApproveError] = useState<string | null>(null);
-  const [approveDialogOpen, setApproveDialogOpen] = useState(false);
   const [publishDialogOpen, setPublishDialogOpen] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
+  const isActivating = setupTransitionKind === "activating";
+  const isPublishing = setupTransitionKind === "publishing";
+  const isReopening = setupTransitionKind === "reopening";
 
   const draftTree = useMemo(() => buildWorkspaceDraftTree(tree ?? []), [tree]);
   const draftTreeNodeIds = useMemo(
     () => flattenDraftTreeNodeIds(draftTree),
     [draftTree]
+  );
+  const syncWorkspaceQueries = useCallback(
+    async (options?: { includeSetupState?: boolean }) => {
+      const refreshActions = [refetch(), refetchTree()];
+
+      if (options?.includeSetupState) {
+        refreshActions.push(refreshSetupAccess());
+      }
+
+      if (canPublishFromDraft) {
+        refreshActions.push(refetchReadiness());
+      }
+
+      await Promise.allSettled(refreshActions);
+    },
+    [
+      canPublishFromDraft,
+      refetch,
+      refetchReadiness,
+      refetchTree,
+      refreshSetupAccess,
+    ]
   );
   const treeSearchResults = useMemo(
     () => filterDraftTree(draftTree, deferredSearch),
@@ -571,19 +594,21 @@ export default function DraftStructurePage() {
   const topLevelCount = workspace?.rootUnitCount ?? 0;
   const typeCount = workspace?.draftStructureSchema.orgUnitKinds.length ?? 0;
   const pageDescription = !isDraftLocked
-    ? "Build and review the organization hierarchy before approval."
+    ? setupState?.requiresRepublish
+      ? "Update the reopened draft while the current live structure stays active until republish."
+      : "Build and review the organization hierarchy before publish."
     : canReopenFromDraft
-      ? "Review the approved organization hierarchy."
+      ? "Review the live organization hierarchy."
       : isSetupComplete
-        ? "Review the published organization hierarchy."
+        ? "Review the live organization hierarchy."
         : "Review the organization hierarchy.";
   const importReadOnlyTitle = isSetupComplete
-    ? "Import is unavailable on the published structure"
-    : "Import is unavailable while the structure is locked";
+    ? "Import is unavailable on the live structure"
+    : "Import is unavailable while the structure is read-only";
   const importReadOnlyMessage = canReopenFromDraft
     ? "Reopen the draft from Setup to import a file."
     : isSetupComplete
-      ? "Use this page to review the published structure. Structure changes are not available here after publish."
+      ? "Use this page to review the live structure. Reopen the draft from Setup when changes are needed."
       : "Import returns when the draft is editable again.";
   const blockingIssueCount = readiness?.blockingIssueCount ?? 0;
   const warningCount = readiness?.warningCount ?? 0;
@@ -593,12 +618,16 @@ export default function DraftStructurePage() {
       : blockingIssueCount > 0
         ? "Needs fixes"
         : readiness?.isReadyForApproval
-          ? "Ready to approve"
-          : "Draft active"
+          ? setupState?.requiresRepublish
+            ? "Ready to republish"
+            : "Ready to publish"
+          : setupState?.requiresRepublish
+            ? "Draft changes pending"
+            : "Draft active"
     : canReopenFromDraft
-      ? "Approved structure"
+      ? "Live structure"
       : isSetupComplete
-        ? "Published structure"
+        ? "Live structure"
         : "Read only";
   const workbenchStatusVariant =
     !isDraftLocked && blockingIssueCount > 0
@@ -630,33 +659,36 @@ export default function DraftStructurePage() {
   const isClearingStructureAction =
     clearStructure.isLoading ||
     deleteDraftOrgUnit.isLoading ||
-    !!clearDeleteProgress ||
-    approveStructure.isLoading;
+    !!clearDeleteProgress;
+  const isWorkspaceTransitionPending =
+    shouldStartSetupFromDraft || isActivating || isReopening;
   const isInitialWorkspaceBootstrap = shouldShowDraftStructureBootstrap({
     workspaceEnabled,
     hasWorkspace: !!workspace,
     hasTree: !!tree,
     hasWorkspaceError: !!workspaceError,
     hasTreeError: !!treeError,
+    isSetupTransitionPending: isWorkspaceTransitionPending,
   });
   const workbenchMeta = canReopenFromDraft
-    ? setupState?.approvedAt
-      ? `Approved ${formatTimestamp(setupState.approvedAt)}${setupState.approvedByFullName ? ` by ${setupState.approvedByFullName}` : ""}`
-      : "Approved"
-    : isSetupComplete && setupState?.structurallyPublishedAt
-      ? `Published ${formatTimestamp(setupState.structurallyPublishedAt)}`
-      : null;
+    ? setupState?.structurallyPublishedAt
+      ? `Live since ${formatTimestamp(setupState.structurallyPublishedAt)}`
+      : "Live structure"
+    : setupState?.requiresRepublish && setupState?.structurallyPublishedAt
+      ? `Live since ${formatTimestamp(setupState.structurallyPublishedAt)} · draft changes pending`
+      : isSetupComplete && setupState?.structurallyPublishedAt
+        ? `Live since ${formatTimestamp(setupState.structurallyPublishedAt)}`
+        : null;
 
-  const startSetupEntry = async () => {
+  const startSetupEntry = useCallback(async () => {
     setSetupEntryError(null);
 
     try {
-      await activateSetup.mutateAsync();
-      await refreshSetupAccess();
+      await startSetup();
     } catch (error) {
       setSetupEntryError(getActionErrorMessage(error));
     }
-  };
+  }, [startSetup]);
 
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -683,18 +715,17 @@ export default function DraftStructurePage() {
       return;
     }
 
-    if (!canAccess || hasAttemptedSetupEntry || activateSetup.isLoading) {
+    if (!canAccess || hasAttemptedSetupEntry || isActivating) {
       return;
     }
 
     setHasAttemptedSetupEntry(true);
     void startSetupEntry();
   }, [
-    activateSetup,
     canAccess,
     hasAttemptedSetupEntry,
-    router,
-    refreshSetupAccess,
+    isActivating,
+    startSetupEntry,
     shouldStartSetupFromDraft,
   ]);
 
@@ -714,16 +745,6 @@ export default function DraftStructurePage() {
     setSelectedUnitId(null);
     setSearch("");
     setExplorerView("tree");
-  };
-
-  const refreshWorkspaceAndReadiness = async () => {
-    const refreshActions = [refetch(), refetchTree(), refreshSetupAccess()];
-
-    if (canApproveFromDraft) {
-      refreshActions.push(refetchReadiness());
-    }
-
-    await Promise.allSettled(refreshActions);
   };
 
   const handleDownloadStructureCsv = () => {
@@ -771,6 +792,8 @@ export default function DraftStructurePage() {
 
   const handleClearStructure = async () => {
     try {
+      let requiresWorkspaceSync = false;
+
       try {
         await clearStructure.mutateAsync();
       } catch (error) {
@@ -782,6 +805,7 @@ export default function DraftStructurePage() {
         }
 
         const orderedUnits = buildLeafFirstDeleteOrder(workspace?.units ?? []);
+        requiresWorkspaceSync = true;
 
         setClearDeleteProgress({ current: 0, total: orderedUnits.length });
 
@@ -796,6 +820,7 @@ export default function DraftStructurePage() {
           await deleteDraftOrgUnit.mutateAsync({
             id: unit.id,
             version: unit.version,
+            skipLifecycleRefresh: true,
           });
         }
       }
@@ -803,7 +828,9 @@ export default function DraftStructurePage() {
       resetWorkspaceChrome();
       setClearStructureOpen(false);
       setClearDeleteProgress(null);
-      await refreshWorkspaceAndReadiness();
+      if (requiresWorkspaceSync) {
+        await syncWorkspaceQueries({ includeSetupState: true });
+      }
       router.refresh();
       toast.success("Draft structure cleared", {
         description: "All units removed.",
@@ -819,52 +846,25 @@ export default function DraftStructurePage() {
     }
   };
 
-  const handleApprove = async () => {
-    if (!setupState || setupState.version == null) {
-      setApproveError("The latest setup version is required before approval.");
-      return;
-    }
-
-    setApproveError(null);
-
-    try {
-      await approveStructure.mutateAsync({
-        expectedVersion: setupState.version,
-      });
-      setApproveDialogOpen(false);
-      await refreshWorkspaceAndReadiness();
-      router.refresh();
-      toast.success("Draft approved", {
-        description: "The structure is locked and ready for publish review.",
-      });
-    } catch (error) {
-      const message =
-        error instanceof ApiError
-          ? error.errors.join(", ")
-          : error instanceof Error
-            ? error.message
-            : "An unexpected error occurred while approving the structure.";
-      setApproveError(message);
-    }
-  };
-
   const handlePublish = async () => {
     if (!setupState || setupState.version == null) {
-      setPublishError("The latest setup version is required before publishing.");
+      setPublishError(
+        "The latest setup version is required before publishing."
+      );
       return;
     }
 
     setPublishError(null);
 
     try {
-      await publishStructure.mutateAsync({
+      await publishSetup({
         expectedVersion: setupState.version,
       });
       setPublishDialogOpen(false);
-      await refreshWorkspaceAndReadiness();
-      router.refresh();
       toast.success("Structure published", {
-        description: "The published structure is now live across Core.",
+        description: setupState.requiresRepublish
+          ? "The latest draft is now live across Core."
+          : "The draft structure is now live across Core.",
       });
     } catch (error) {
       const message =
@@ -884,13 +884,12 @@ export default function DraftStructurePage() {
     }
 
     try {
-      await reopenStructure.mutateAsync({
+      await reopenSetup({
         expectedVersion: setupState.version,
       });
-      await refreshWorkspaceAndReadiness();
-      router.refresh();
       toast.success("Draft reopened", {
-        description: "The structure can be edited again.",
+        description:
+          "The draft can be edited again while the live structure stays active.",
       });
     } catch (error) {
       const message =
@@ -965,7 +964,7 @@ export default function DraftStructurePage() {
               onClick={() => {
                 void handleRetrySetupEntry();
               }}
-              disabled={activateSetup.isLoading}
+              disabled={isActivating}
             >
               Retry
             </Button>
@@ -979,7 +978,8 @@ export default function DraftStructurePage() {
     return <DraftStructurePageSkeleton />;
   }
 
-  const showReadOnlyEmptyState = !shouldStartSetupFromDraft && isDraftLocked && isEmptyDraftWorkspace;
+  const showReadOnlyEmptyState =
+    !shouldStartSetupFromDraft && isDraftLocked && isEmptyDraftWorkspace;
   const emptyResultsDescription = `No units match "${normalizedSearch}". Try a different unit name, type, code, or detail.`;
   const treeEmptyTitle = isSearching
     ? "No matching units"
@@ -1008,39 +1008,28 @@ export default function DraftStructurePage() {
         description={pageDescription}
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            {canApproveFromDraft && readiness?.isReadyForApproval ? (
+            {canPublishFromDraft && readiness?.isReadyForApproval ? (
               <Button
-                onClick={() => setApproveDialogOpen(true)}
-                disabled={approveStructure.isLoading}
+                onClick={() => setPublishDialogOpen(true)}
+                disabled={isPublishing}
               >
-                {approveStructure.isLoading ? (
-                  <Spinner className="mr-1" />
-                ) : null}
-                {approveStructure.isLoading
-                  ? "Approving..."
-                  : "Approve structure"}
-              </Button>
-            ) : null}
-
-            {canReopenFromDraft ? (
-              <Button variant="outline" onClick={() => void handleReopen()} disabled={reopenStructure.isLoading}>
-                {reopenStructure.isLoading ? (
-                  <Spinner className="mr-1" />
-                ) : null}
-                {reopenStructure.isLoading
-                  ? "Reopening..."
-                  : "Reopen draft"}
-              </Button>
-            ) : null}
-
-            {canReopenFromDraft ? (
-              <Button onClick={() => setPublishDialogOpen(true)} disabled={publishStructure.isLoading}>
-                {publishStructure.isLoading ? (
-                  <Spinner className="mr-1" />
-                ) : null}
-                {publishStructure.isLoading
+                {isPublishing ? <Spinner className="mr-1" /> : null}
+                {isPublishing
                   ? "Publishing..."
-                  : "Publish structure"}
+                  : setupState?.requiresRepublish
+                    ? "Publish changes"
+                    : "Publish structure"}
+              </Button>
+            ) : null}
+
+            {canReopenFromDraft ? (
+              <Button
+                variant="outline"
+                onClick={() => void handleReopen()}
+                disabled={isReopening}
+              >
+                {isReopening ? <Spinner className="mr-1" /> : null}
+                {isReopening ? "Reopening..." : "Reopen draft"}
               </Button>
             ) : null}
 
@@ -1053,14 +1042,6 @@ export default function DraftStructurePage() {
         }
       />
 
-      {approveError ? (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Approval failed</AlertTitle>
-          <AlertDescription>{approveError}</AlertDescription>
-        </Alert>
-      ) : null}
-
       {(workspaceError || treeError) && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
@@ -1071,7 +1052,7 @@ export default function DraftStructurePage() {
               variant="outline"
               size="sm"
               onClick={() => {
-                void refreshWorkspaceAndReadiness();
+                void syncWorkspaceQueries();
               }}
             >
               Retry
@@ -1081,10 +1062,7 @@ export default function DraftStructurePage() {
       )}
 
       {showReadOnlyEmptyState ? (
-        <DraftStructureReferenceEmptyState
-          isSetupComplete={isSetupComplete}
-          canReopenFromDraft={canReopenFromDraft}
-        />
+        <DraftStructureReferenceEmptyState isSetupComplete={isSetupComplete} />
       ) : (
         <DraftStructureWorkbench
           view={explorerView}
@@ -1149,9 +1127,6 @@ export default function DraftStructurePage() {
           }
         }
         existingUnits={workspace?.units ?? []}
-        onSchemaUpdated={() => {
-          void refreshWorkspaceAndReadiness();
-        }}
       />
 
       <DraftUnitDialog
@@ -1165,10 +1140,6 @@ export default function DraftStructurePage() {
         onMutated={() => {
           setCreateParentId(null);
           setSearch("");
-          void refreshWorkspaceAndReadiness();
-        }}
-        onSchemaUpdated={() => {
-          void refreshWorkspaceAndReadiness();
         }}
         initialParentId={createParentId}
         readOnly={isDraftLocked}
@@ -1185,12 +1156,6 @@ export default function DraftStructurePage() {
         unit={editorOpen ? selectedUnit : null}
         open={editorOpen && !!selectedUnit}
         onOpenChange={setEditorOpen}
-        onMutated={() => {
-          void refreshWorkspaceAndReadiness();
-        }}
-        onSchemaUpdated={() => {
-          void refreshWorkspaceAndReadiness();
-        }}
         readOnly={isDraftLocked}
         schema={
           workspace?.draftStructureSchema ?? {
@@ -1210,46 +1175,20 @@ export default function DraftStructurePage() {
           setSelectedUnitId(null);
           setSearch("");
           setImportSessionId(null);
-          await refreshWorkspaceAndReadiness();
         }}
         readOnly={isDraftLocked}
         readOnlyTitle={importReadOnlyTitle}
         readOnlyMessage={importReadOnlyMessage}
       />
 
-      <AlertDialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Approve structure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Locks the draft. You can reopen Setup if changes are needed.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={approveStructure.isLoading}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                void handleApprove();
-              }}
-              disabled={approveStructure.isLoading}
-            >
-              {approveStructure.isLoading ? <Spinner className="mr-1" /> : null}
-              {approveStructure.isLoading
-                ? "Approving..."
-                : "Approve structure"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
       <AlertDialog open={publishDialogOpen} onOpenChange={setPublishDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Publish structure?</AlertDialogTitle>
             <AlertDialogDescription>
-              Makes the approved structure live.
+              {setupState?.requiresRepublish
+                ? "Replaces the current live structure with the latest draft."
+                : "Makes the current draft live across Core."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           {publishError ? (
@@ -1260,19 +1199,21 @@ export default function DraftStructurePage() {
             </Alert>
           ) : null}
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={publishStructure.isLoading}>
+            <AlertDialogCancel disabled={isPublishing}>
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 void handlePublish();
               }}
-              disabled={publishStructure.isLoading}
+              disabled={isPublishing}
             >
-              {publishStructure.isLoading ? <Spinner className="mr-1" /> : null}
-              {publishStructure.isLoading
+              {isPublishing ? <Spinner className="mr-1" /> : null}
+              {isPublishing
                 ? "Publishing..."
-                : "Publish structure"}
+                : setupState?.requiresRepublish
+                  ? "Publish changes"
+                  : "Publish structure"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1343,10 +1284,8 @@ function InspectorField({
 
 function DraftStructureReferenceEmptyState({
   isSetupComplete,
-  canReopenFromDraft,
 }: {
   isSetupComplete: boolean;
-  canReopenFromDraft: boolean;
 }) {
   return (
     <Card>
@@ -1356,12 +1295,12 @@ function DraftStructureReferenceEmptyState({
         </div>
         <div className="space-y-1">
           <p className="font-medium">
-            {isSetupComplete ? "No published units" : "No approved units"}
+            {isSetupComplete ? "No live units" : "No units available"}
           </p>
           <p className="text-sm text-muted-foreground">
-            {canReopenFromDraft
-              ? "The approved structure does not contain any units yet."
-              : "The published structure does not contain any units yet."}
+            {isSetupComplete
+              ? "The live structure does not contain any units yet."
+              : "No units are available in this view yet."}
           </p>
         </div>
       </CardContent>

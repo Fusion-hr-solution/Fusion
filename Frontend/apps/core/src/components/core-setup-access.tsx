@@ -6,6 +6,7 @@ import {
   useEffect,
   useMemo,
   useCallback,
+  useState,
   type ReactNode,
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
@@ -14,7 +15,13 @@ import { useApiQueryClient } from "@repo/api/query";
 import { canSeeCoreSetupNavigation, useAuth } from "@repo/auth";
 import { useTenantContext } from "@/components/core-tenant-context-provider";
 import { CorePageLoadingState } from "@/components/core-page-loading-state";
-import { useSetupState } from "@/app/(pages)/setup/use-setup";
+import {
+  useActivateSetup,
+  usePublishStructure,
+  useReopenStructure,
+  useSetupState,
+  type VersionedSetupMutationArgs,
+} from "@/app/(pages)/setup/use-setup";
 import {
   resolveSetupEntryRouteAction,
   SETUP_DRAFT_ENTRY_PATH,
@@ -22,6 +29,8 @@ import {
 } from "@/app/(pages)/setup/setup-entry-routing";
 
 const SETUP_LOCK_REASON = "Complete setup to unlock the rest of Core.";
+
+type SetupTransitionKind = "activating" | "publishing" | "reopening";
 
 interface CoreSetupAccessContextValue {
   shouldCheckSetupAccess: boolean;
@@ -32,6 +41,14 @@ interface CoreSetupAccessContextValue {
   isSetupLocked: boolean;
   isNavigationLocked: boolean;
   lockedNavigationReason: string | null;
+  setupTransitionKind: SetupTransitionKind | null;
+  startSetup: () => Promise<TenantSetupStateDto>;
+  publishSetup: (
+    args: VersionedSetupMutationArgs
+  ) => Promise<TenantSetupStateDto>;
+  reopenSetup: (
+    args: VersionedSetupMutationArgs
+  ) => Promise<TenantSetupStateDto>;
   refreshSetupAccess: () => Promise<void>;
 }
 
@@ -44,6 +61,16 @@ const CoreSetupAccessContext = createContext<CoreSetupAccessContextValue>({
   isSetupLocked: false,
   isNavigationLocked: false,
   lockedNavigationReason: null,
+  setupTransitionKind: null,
+  startSetup: async () => {
+    throw new Error("Setup access is unavailable.");
+  },
+  publishSetup: async () => {
+    throw new Error("Setup access is unavailable.");
+  },
+  reopenSetup: async () => {
+    throw new Error("Setup access is unavailable.");
+  },
   refreshSetupAccess: async () => {},
 });
 
@@ -53,9 +80,25 @@ function getCorePathname(pathname: string): string {
 }
 
 function isSetupComplete(setupState: TenantSetupStateDto | undefined): boolean {
+  return !!setupState?.hasPublishedStructure;
+}
+
+function haveEquivalentSetupSnapshots(
+  left: TenantSetupStateDto | undefined,
+  right: TenantSetupStateDto | undefined
+) {
+  if (!left || !right) {
+    return false;
+  }
+
   return (
-    setupState?.currentPhase === "operational" ||
-    setupState?.currentPhase === "structurallyPublished"
+    left.version === right.version &&
+    left.currentPhase === right.currentPhase &&
+    left.canStartSetup === right.canStartSetup &&
+    left.hasPublishedStructure === right.hasPublishedStructure &&
+    left.isDraftCycleActive === right.isDraftCycleActive &&
+    left.requiresRepublish === right.requiresRepublish &&
+    left.publishedStructureVersion === right.publishedStructureVersion
   );
 }
 
@@ -74,6 +117,10 @@ export function CoreSetupAccessProvider({ children }: { children: ReactNode }) {
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const { tenantId } = useTenantContext();
   const queryClient = useApiQueryClient();
+  const [setupStateOverride, setSetupStateOverride] =
+    useState<TenantSetupStateDto>();
+  const [setupTransitionKind, setSetupTransitionKind] =
+    useState<SetupTransitionKind | null>(null);
   const shouldCheckSetupAccess =
     !isAuthLoading &&
     isAuthenticated &&
@@ -83,46 +130,119 @@ export function CoreSetupAccessProvider({ children }: { children: ReactNode }) {
     error: setupError,
     isLoading: isSetupStateLoading,
   } = useSetupState(shouldCheckSetupAccess);
+  const activateSetupMutation = useActivateSetup();
+  const publishStructureMutation = usePublishStructure();
+  const reopenStructureMutation = useReopenStructure();
+  const effectiveSetupState = setupStateOverride ?? setupState;
+  const effectiveSetupError = setupStateOverride ? null : setupError;
   const isSetupAccessPending =
-    shouldCheckSetupAccess && !setupState && !setupError;
+    shouldCheckSetupAccess && !effectiveSetupState && !effectiveSetupError;
+
+  useEffect(() => {
+    if (
+      setupStateOverride &&
+      haveEquivalentSetupSnapshots(setupStateOverride, setupState)
+    ) {
+      setSetupStateOverride(undefined);
+    }
+  }, [setupState, setupStateOverride]);
+
+  useEffect(() => {
+    if (shouldCheckSetupAccess) {
+      return;
+    }
+
+    setSetupStateOverride(undefined);
+    setSetupTransitionKind(null);
+  }, [shouldCheckSetupAccess, tenantId]);
 
   const refreshSetupAccess = useCallback(() => {
     if (!shouldCheckSetupAccess) {
       return Promise.resolve();
     }
 
-    return queryClient.invalidateQueries({
+    return queryClient.refetchQueries({
       queryKey: coreSetupQueryKeys.state(),
       exact: true,
     });
   }, [queryClient, shouldCheckSetupAccess]);
 
+  const startSetup = useCallback(async () => {
+    setSetupTransitionKind("activating");
+
+    try {
+      const nextState = await activateSetupMutation.mutateAsync();
+      setSetupStateOverride(nextState);
+      return nextState;
+    } finally {
+      setSetupTransitionKind(null);
+    }
+  }, [activateSetupMutation]);
+
+  const publishSetup = useCallback(
+    async (args: VersionedSetupMutationArgs) => {
+      setSetupTransitionKind("publishing");
+
+      try {
+        const nextState = await publishStructureMutation.mutateAsync(args);
+        setSetupStateOverride(nextState);
+        return nextState;
+      } finally {
+        setSetupTransitionKind(null);
+      }
+    },
+    [publishStructureMutation]
+  );
+
+  const reopenSetup = useCallback(
+    async (args: VersionedSetupMutationArgs) => {
+      setSetupTransitionKind("reopening");
+
+      try {
+        const nextState = await reopenStructureMutation.mutateAsync(args);
+        setSetupStateOverride(nextState);
+        return nextState;
+      } finally {
+        setSetupTransitionKind(null);
+      }
+    },
+    [reopenStructureMutation]
+  );
+
   const value = useMemo<CoreSetupAccessContextValue>(() => {
     const isSetupLocked =
       shouldCheckSetupAccess &&
       !isSetupAccessPending &&
-      !setupError &&
-      !isSetupComplete(setupState);
+      !effectiveSetupError &&
+      !isSetupComplete(effectiveSetupState);
 
     return {
       shouldCheckSetupAccess,
-      setupState,
-      setupError,
+      setupState: effectiveSetupState,
+      setupError: effectiveSetupError,
       isShellLoading: isAuthLoading || isSetupAccessPending,
       isSetupStateLoading,
       isSetupLocked,
       isNavigationLocked: shouldCheckSetupAccess && isSetupLocked,
       lockedNavigationReason: isSetupLocked ? SETUP_LOCK_REASON : null,
+      setupTransitionKind,
+      startSetup,
+      publishSetup,
+      reopenSetup,
       refreshSetupAccess,
     };
   }, [
+    effectiveSetupError,
+    effectiveSetupState,
     shouldCheckSetupAccess,
-    setupError,
-    setupState,
     isAuthLoading,
     isSetupAccessPending,
     isSetupStateLoading,
+    publishSetup,
     refreshSetupAccess,
+    reopenSetup,
+    setupTransitionKind,
+    startSetup,
   ]);
 
   return (
