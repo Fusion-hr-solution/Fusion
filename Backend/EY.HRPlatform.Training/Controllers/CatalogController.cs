@@ -40,7 +40,7 @@ public class CatalogController : ControllerBase
         }
     }
 
-    /// <summary>Get all trainings, optionally filtered by category or search term.</summary>
+    /// <summary>Get all trainings, optionally filtered by category, format, or search term.</summary>
     [HttpGet]
     [AllowAnonymous]
     [ProducesResponseType(typeof(ApiResponse<PagedResponse<TrainingDto>>), StatusCodes.Status200OK)]
@@ -48,14 +48,23 @@ public class CatalogController : ControllerBase
     public async Task<IActionResult> GetAll(
         [FromQuery] Guid? categoryId,
         [FromQuery] string? search,
+        [FromQuery] string? trainingType,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 10,
         CancellationToken cancellationToken = default)
     {
         try
         {
+            Domain.Enums.TrainingType? typeFilter = null;
+            if (!string.IsNullOrWhiteSpace(trainingType))
+            {
+                if (!Enum.TryParse<Domain.Enums.TrainingType>(trainingType, true, out var parsed))
+                    return BadRequest(ApiResponse.Failure($"Invalid trainingType '{trainingType}'. Allowed: ELearning, OnSite."));
+                typeFilter = parsed;
+            }
+
             var result = await _sender.Send(
-                new GetAllTrainingsQuery(categoryId, search, page, pageSize), cancellationToken);
+                new GetAllTrainingsQuery(categoryId, search, typeFilter, page, pageSize), cancellationToken);
             return Ok(ApiResponse<PagedResponse<TrainingDto>>.Success(result.Value!));
         }
         catch (Exception ex)
