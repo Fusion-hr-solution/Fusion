@@ -1,4 +1,5 @@
 using EY.HRPlatform.CoreHR.Domain.Entities;
+using EY.HRPlatform.CoreHR.Domain.Enums;
 using EY.HRPlatform.CoreHR.Features.Employees.Dtos;
 using EY.HRPlatform.CoreHR.Features.Employees.Services;
 using EY.HRPlatform.CoreHR.Features.TenantSettings.Services;
@@ -48,6 +49,11 @@ public sealed class GetEmployeesQueryHandler(
             query = query.Where(e => e.Status == request.Status.Value);
         }
 
+        if (request.Readiness.HasValue)
+        {
+            query = ApplyReadinessFilter(query, request.Readiness.Value, settings);
+        }
+
         // Get total count before pagination
         var totalCount = await query.CountAsync(cancellationToken);
 
@@ -72,7 +78,9 @@ public sealed class GetEmployeesQueryHandler(
             ? new Dictionary<Guid, int>()
             : await dbContext.Employees
                 .AsNoTracking()
-                .Where(employee => employee.ManagerId.HasValue && pageEmployeeIds.Contains(employee.ManagerId.Value))
+                .Where(employee => employee.ManagerId.HasValue
+                    && employee.Status == EmployeeStatus.Active
+                    && pageEmployeeIds.Contains(employee.ManagerId.Value))
                 .GroupBy(employee => employee.ManagerId!.Value)
                 .Select(group => new { ManagerId = group.Key, Count = group.Count() })
                 .ToDictionaryAsync(group => group.ManagerId, group => group.Count, cancellationToken);
@@ -119,6 +127,44 @@ public sealed class GetEmployeesQueryHandler(
             (EmployeeSortField.Status, SortDirection.Desc) =>
                 query.OrderByDescending(e => e.Status),
             _ => query.OrderBy(e => e.LastName).ThenBy(e => e.FirstName)
+        };
+    }
+
+    private IQueryable<Employee> ApplyReadinessFilter(
+        IQueryable<Employee> query,
+        EmployeeReadinessFilter readiness,
+        Features.TenantSettings.Dtos.TenantSettingsDto settings)
+    {
+        var requiresJobTitle = settings.EmployeeFieldConfig.TryGetValue("jobTitle", out var jobTitleField)
+            && jobTitleField.Required;
+
+        bool NeedsMissingRequiredField(Employee employee)
+            => requiresJobTitle && (employee.JobTitle == null || employee.JobTitle == string.Empty);
+
+        return readiness switch
+        {
+            EmployeeReadinessFilter.NeedsAttention => query.Where(employee =>
+                (requiresJobTitle && (employee.JobTitle == null || employee.JobTitle == string.Empty))
+                || employee.OrgUnitId == null
+                || (!employee.ManagerId.HasValue && !dbContext.Employees.Any(report => report.ManagerId == employee.Id && report.Status == Domain.Enums.EmployeeStatus.Active))
+                || (employee.ManagerId.HasValue && employee.Manager == null)
+                || (employee.ManagerId.HasValue && employee.Manager != null && employee.Manager.Status != Domain.Enums.EmployeeStatus.Active)),
+            EmployeeReadinessFilter.MissingRequiredField => requiresJobTitle
+                ? query.Where(employee => employee.JobTitle == null || employee.JobTitle == string.Empty)
+                : query.Where(_ => false),
+            EmployeeReadinessFilter.MissingOrgUnit => query.Where(employee => employee.OrgUnitId == null),
+            EmployeeReadinessFilter.NoManagerAssigned => query.Where(employee =>
+                !employee.ManagerId.HasValue
+                && !dbContext.Employees.Any(report => report.ManagerId == employee.Id && report.Status == Domain.Enums.EmployeeStatus.Active)),
+            EmployeeReadinessFilter.ManagerInactive => query.Where(employee =>
+                employee.ManagerId.HasValue
+                && employee.Manager != null
+                && employee.Manager.Status != Domain.Enums.EmployeeStatus.Active),
+            EmployeeReadinessFilter.ManagerMissing => query.Where(employee => employee.ManagerId.HasValue && employee.Manager == null),
+            EmployeeReadinessFilter.DeactivationBlocked => query.Where(employee =>
+                employee.Status == Domain.Enums.EmployeeStatus.Active
+                && dbContext.Employees.Any(report => report.ManagerId == employee.Id && report.Status == Domain.Enums.EmployeeStatus.Active)),
+            _ => query
         };
     }
 }

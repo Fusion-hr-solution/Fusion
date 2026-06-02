@@ -19,6 +19,7 @@ import { ApiError, type FieldConfigDto } from "@repo/api";
 import { canAccessCoreSettings, useAuth } from "@repo/auth";
 import { EmptyState } from "@repo/ui";
 import { toast } from "sonner";
+import { useCoreSetupAccess } from "@/components/core-setup-access";
 import { PageHeader } from "@/components/page-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -36,14 +37,12 @@ import {
 } from "@/components/ui/table";
 import { DraftOrgUnitKindManager } from "../setup/draft-structure/draft-org-unit-kind-manager";
 import { SetupStatusBadge } from "../setup/setup-status-badge";
-import { useSetupState } from "../setup/use-setup";
 import {
   useTenantSettings,
   useUpdateTenantSettings,
 } from "../setup/draft-structure/use-tenant-settings";
 import {
   ACTIVE_EMPLOYEE_FIELD_DEFINITIONS,
-  PREPARED_EMPLOYEE_FIELD_DEFINITIONS,
   buildEmployeeFieldConfigDraft,
   buildEmployeeFieldConfigInput,
   type EmployeeFieldConfigMap,
@@ -83,10 +82,9 @@ function getFieldRuleBadges(
 
   if (field.requiredLocked) {
     badges.push({
-      label: "Required locked",
-      variant: "outline",
-      title:
-        "Required until import and manual create flows support records without a hire date.",
+      label: "Required",
+      variant: "secondary",
+      title: "This field is required for the current Core workforce record.",
     });
   } else if (config.required) {
     badges.push({ label: "Required", variant: "secondary" });
@@ -178,7 +176,7 @@ export default function SettingsPage() {
   const router = useRouter();
   const { user } = useAuth();
   const canAccess = canAccessCoreSettings(user);
-  const { data: setupState } = useSetupState(canAccess);
+  const { setupState } = useCoreSetupAccess();
   const {
     data: settings,
     error,
@@ -306,11 +304,7 @@ export default function SettingsPage() {
     );
   }
 
-  if (isLoading || !settings) {
-    return <SettingsPageSkeleton />;
-  }
-
-  if (error) {
+  if (error && !settings) {
     return (
       <div className="space-y-6 p-6">
         <PageHeader title="Core Configuration" />
@@ -326,6 +320,14 @@ export default function SettingsPage() {
         </Alert>
       </div>
     );
+  }
+
+  if (isLoading && !settings) {
+    return <SettingsPageSkeleton />;
+  }
+
+  if (!settings) {
+    return <SettingsPageSkeleton />;
   }
 
   return (
@@ -347,8 +349,8 @@ export default function SettingsPage() {
                 <div className="space-y-1">
                   <CardTitle>Employee field configuration</CardTitle>
                   <p className="text-sm text-muted-foreground">
-                    Configure which employee fields are required and visible
-                    across Core.
+                    Configure the supported employee fields used across Core
+                    records, imports, and profile editing.
                   </p>
                 </div>
                 {hasChanges ? (
@@ -386,12 +388,10 @@ export default function SettingsPage() {
                     <TableRow>
                       <TableHead className="min-w-48">Field</TableHead>
                       <TableHead className="min-w-40">Status / rule</TableHead>
-                      <TableHead className="text-center">HRAdmin</TableHead>
-                      <TableHead className="text-center">Required</TableHead>
-                      <TableHead className="text-center">Manager</TableHead>
                       <TableHead className="text-center">
-                        Collaborateur
+                        Visible in Core
                       </TableHead>
+                      <TableHead className="text-center">Required</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -428,7 +428,7 @@ export default function SettingsPage() {
                             <MatrixSwitch
                               checked={config.visible}
                               disabled={hrAdminLocked}
-                              ariaLabel={`${field.label} visible to HRAdmin`}
+                              ariaLabel={`${field.label} visible in Core`}
                               onCheckedChange={(checked) =>
                                 handleToggle(field.key, "visible", checked)
                               }
@@ -448,48 +448,12 @@ export default function SettingsPage() {
                               }
                             />
                           </TableCell>
-                          <TableCell>
-                            <MatrixSwitch
-                              checked={config.visibleToManager}
-                              ariaLabel={`${field.label} visible to Manager`}
-                              onCheckedChange={(checked) =>
-                                handleToggle(
-                                  field.key,
-                                  "visibleToManager",
-                                  checked
-                                )
-                              }
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <MatrixSwitch
-                              checked={config.visibleToEmployee}
-                              ariaLabel={`${field.label} visible to Collaborateur`}
-                              onCheckedChange={(checked) =>
-                                handleToggle(
-                                  field.key,
-                                  "visibleToEmployee",
-                                  checked
-                                )
-                              }
-                            />
-                          </TableCell>
                         </TableRow>
                       );
                     })}
                   </TableBody>
                 </Table>
               </div>
-
-              {PREPARED_EMPLOYEE_FIELD_DEFINITIONS.length > 0 ? (
-                <div className="rounded-xl border border-dashed bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
-                  Prepared for later:{" "}
-                  {PREPARED_EMPLOYEE_FIELD_DEFINITIONS.map(
-                    (field) => field.label
-                  ).join(", ")}{" "}
-                  is not collected or enforced in Core yet.
-                </div>
-              ) : null}
 
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-muted/20 px-4 py-3">
                 <p className="text-sm text-muted-foreground">
@@ -523,12 +487,22 @@ export default function SettingsPage() {
                     Org-unit kinds used across Setup and Core.
                   </p>
                 </div>
-                <DraftOrgUnitKindManager
-                  schema={settings.draftStructureSchema}
-                  existingUnits={[]}
-                  disabled={!isOrgStructureEditable}
-                  triggerLabel="Manage org-unit kinds"
-                />
+                {isOrgStructureEditable ? (
+                  <DraftOrgUnitKindManager
+                    schema={settings.draftStructureSchema}
+                    existingUnits={[]}
+                    disabled={false}
+                    triggerLabel="Manage org-unit kinds"
+                  />
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => router.push("/setup")}
+                  >
+                    Open setup
+                  </Button>
+                )}
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -537,23 +511,16 @@ export default function SettingsPage() {
                   <SetupStatusBadge status={setupState.currentPhase} />
                 ) : null}
                 {!isOrgStructureEditable ? (
-                  <Badge variant="outline">Editing follows Setup</Badge>
+                  <Badge variant="outline">Managed in Setup</Badge>
                 ) : (
                   <Badge variant="secondary">Editable now</Badge>
                 )}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-auto px-0"
-                  onClick={() => router.push("/setup")}
-                >
-                  Open setup
-                </Button>
               </div>
 
               {!isOrgStructureEditable ? (
                 <div className="rounded-xl border border-dashed bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
-                  Reopen the draft in Setup to edit org-unit kinds.
+                  Org-unit kinds are managed from the active setup draft. Open
+                  Setup to make changes.
                 </div>
               ) : null}
 
@@ -585,33 +552,19 @@ export default function SettingsPage() {
 
         <Card>
           <CardHeader className="space-y-2">
-            <CardTitle>Access policy</CardTitle>
+            <CardTitle>Live access</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="rounded-xl border bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
-              Manager and Collaborateur rules prepare future surfaces. HRAdmin
-              is the only live audience today.
-            </div>
             {[
               {
                 title: "PlatformAdmin",
                 icon: ShieldCheck,
-                body: "Tenant and platform lifecycle.",
+                body: "Tenant and platform lifecycle oversight.",
               },
               {
                 title: "HRAdmin",
                 icon: Users,
-                body: "Workforce configuration, imports, employees, and org chart.",
-              },
-              {
-                title: "Manager",
-                icon: UserRound,
-                body: "Team visibility — configurable now, surface not yet built.",
-              },
-              {
-                title: "Collaborateur",
-                icon: LockKeyhole,
-                body: "Self-profile visibility — configurable now, surface not yet built.",
+                body: "Workforce configuration, imports, employee records, and org chart operations.",
               },
             ].map((role) => {
               const Icon = role.icon;

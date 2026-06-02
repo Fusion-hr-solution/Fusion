@@ -95,6 +95,7 @@ export function OrgChartPreviewPanel({
         {issueMeta ? (
           <Badge variant={issueMeta.variant}>{issueMeta.label}</Badge>
         ) : null}
+        {!employee.orgUnitId ? <Badge variant="outline">Missing org unit</Badge> : null}
         {employee.isOrphaned ? (
           <Badge variant="outline">Detached branch</Badge>
         ) : null}

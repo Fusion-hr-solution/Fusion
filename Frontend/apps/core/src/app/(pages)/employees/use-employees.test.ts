@@ -47,6 +47,7 @@ import {
   useEmployeeProfile,
   useEmployeeReportingLines,
   useEmployeeRoster,
+  useWorkforceReadinessSummary,
   useUpdateEmployeeRecord,
   useUpdateEmployeeManager,
 } from "./use-employees";
@@ -97,6 +98,7 @@ describe("useEmployeeRoster", () => {
         useEmployeeRoster({
           search: "pat",
           status: "Active",
+          readiness: "MissingOrgUnit",
           sortBy: "HireDate",
           sortDir: "Desc",
           page: 2,
@@ -113,6 +115,7 @@ describe("useEmployeeRoster", () => {
         params: expect.objectContaining({
           search: "pat",
           status: "Active",
+          readiness: "MissingOrgUnit",
           sortBy: "HireDate",
           sortDir: "Desc",
           page: 2,
@@ -122,6 +125,35 @@ describe("useEmployeeRoster", () => {
       })
     );
     expect(result.current.data).toEqual(mockData);
+  });
+
+  it("calls the employee list endpoint with the readiness filter when provided", async () => {
+    mockGet.mockResolvedValue({
+      items: [],
+      totalCount: 0,
+      page: 1,
+      pageSize: 20,
+      totalPages: 0,
+      hasNextPage: false,
+      hasPreviousPage: false,
+    });
+
+    renderHook(
+      () =>
+        useEmployeeRoster({
+          readiness: "DeactivationBlocked",
+          sortBy: "Name",
+          sortDir: "Asc",
+          page: 1,
+          pageSize: 20,
+        }),
+      { wrapper: createWrapper() }
+    );
+
+    await waitFor(() => expect(mockGet).toHaveBeenCalled());
+
+    const [, options] = mockGet.mock.calls[0]!;
+    expect(options.params.readiness).toBe("DeactivationBlocked");
   });
 
   it("omits an empty search string from the request", async () => {
@@ -250,6 +282,41 @@ describe("useEmployeeReportingLines", () => {
 
     expect(mockGet).toHaveBeenCalledWith(
       "/corehr/employees/emp-1/reporting-lines",
+      expect.objectContaining({
+        signal: expect.any(AbortSignal),
+      })
+    );
+    expect(result.current.data).toEqual(mockData);
+  });
+});
+
+describe("useWorkforceReadinessSummary", () => {
+  it("calls the readiness summary endpoint", async () => {
+    const mockData = {
+      activeEmployeeCount: 12,
+      readyEmployeeCount: 9,
+      employeesNeedingAttention: 4,
+      readinessScore: 75,
+      issueCounts: {
+        missingRequiredFields: 1,
+        missingOrgUnit: 1,
+        noManagerAssigned: 1,
+        managerInactive: 0,
+        managerMissing: 0,
+        deactivationBlocked: 2,
+        unresolvedImportIssues: 3,
+      },
+    };
+    mockGet.mockResolvedValue(mockData);
+
+    const { result } = renderHook(() => useWorkforceReadinessSummary(), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(mockGet).toHaveBeenCalledWith(
+      "/corehr/employees/readiness-summary",
       expect.objectContaining({
         signal: expect.any(AbortSignal),
       })

@@ -4,19 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
-  AlertCircle,
   ArrowLeft,
-  CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
-  ClipboardCheck,
-  Download,
-  Eye,
-  FileSpreadsheet,
-  History,
   RefreshCcw,
-  ShieldCheck,
-  Upload,
   Users,
 } from "lucide-react";
 import { useAuth } from "@repo/auth";
@@ -25,19 +14,6 @@ import { toast } from "sonner";
 import { CorePageLoadingState } from "@/components/core-page-loading-state";
 import { PageHeader } from "@/components/page-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogMedia,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -51,7 +27,6 @@ import { canAccessEmployeeRoster } from "@/lib/employee-roster-access";
 import type {
   EmployeeImportApplyResultDto,
   EmployeeImportPreviewFilter,
-  EmployeeImportSessionDto,
 } from "./employee-import.types";
 import {
   buildEmployeeImportValidationUiModel,
@@ -86,16 +61,16 @@ import {
   useValidateEmployeeImport,
 } from "./use-employee-import";
 
-const MAX_VISIBLE_SELECTED_ROWS = 12;
 const HISTORY_PAGE_SIZE = 5;
 
 export default function EmployeeImportPage() {
-  const { user, isLoading: isAuthLoading } = useAuth();
+  const { user } = useAuth();
   const canAccess = canAccessEmployeeRoster(user);
   const router = useRouter();
   const searchParams = useSearchParams();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const sessionId = searchParams.get("session");
+  const requestedHistoryId = searchParams.get("historyId");
   const [previewFilter, setPreviewFilter] =
     useState<EmployeeImportPreviewFilter>("all");
   const [activeIssueGroupKey, setActiveIssueGroupKey] = useState<string | null>(
@@ -107,7 +82,7 @@ export default function EmployeeImportPage() {
   );
   const [historyPageNumber, setHistoryPageNumber] = useState(1);
   const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(
-    null
+    requestedHistoryId
   );
   const [applyError, setApplyError] = useState<string | null>(null);
   const [lastApplyResult, setLastApplyResult] =
@@ -221,10 +196,7 @@ export default function EmployeeImportPage() {
   const isInitialImportPageLoading =
     !sessionId && !session && !schema && !schemaError && isSchemaLoading;
   const isInitialPageLoading =
-    (isAuthLoading && !user) ||
-    (!isAuthLoading &&
-      canAccess &&
-      (isInitialImportPageLoading || isInitialSessionLoading));
+    canAccess && (isInitialImportPageLoading || isInitialSessionLoading);
 
   useEffect(() => {
     setApplyError(null);
@@ -255,6 +227,14 @@ export default function EmployeeImportPage() {
     setPendingScrollRowNumber(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionViewResetKey]);
+
+  useEffect(() => {
+    if (!requestedHistoryId) {
+      return;
+    }
+
+    setSelectedHistoryId(requestedHistoryId);
+  }, [requestedHistoryId]);
 
   useEffect(() => {
     if (historyItemCount === 0) {
@@ -336,6 +316,7 @@ export default function EmployeeImportPage() {
   }, [
     activeIssueGroupKey,
     currentPreviewPage,
+    previewPageSize,
     previewFilter,
     refetchSession,
     session,

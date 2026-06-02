@@ -43,7 +43,10 @@ public sealed class EmployeeReadModelPolicy : IEmployeeReadModelPolicy
             employee.Version);
 
     public EmployeeListItemDto MapListItem(Employee employee, TenantSettingsDto settings, EmployeeReadAudience audience, int directReportCount = 0)
-        => new(
+    {
+        var hierarchyStatus = ResolveHierarchyStatus(employee, directReportCount);
+
+        return new EmployeeListItemDto(
             employee.Id,
             employee.FirstName,
             employee.LastName,
@@ -55,12 +58,19 @@ public sealed class EmployeeReadModelPolicy : IEmployeeReadModelPolicy
             employee.HireDate,
             employee.ManagerId,
             employee.Manager is not null ? employee.Manager.FirstName + " " + employee.Manager.LastName : null,
-            ResolveHierarchyStatus(employee, directReportCount),
+            hierarchyStatus,
             directReportCount,
-            employee.Version);
+            employee.Version)
+        {
+            Readiness = EmployeeReadinessPolicy.BuildSummary(employee, settings, hierarchyStatus, directReportCount)
+        };
+    }
 
     public EmployeeProfileDto MapProfile(Employee employee, TenantSettingsDto settings, EmployeeReadAudience audience, int directReportCount)
-        => new(
+    {
+        var hierarchyStatus = ResolveHierarchyStatus(employee, directReportCount);
+
+        return new EmployeeProfileDto(
             employee.Id,
             employee.FirstName,
             employee.LastName,
@@ -74,9 +84,13 @@ public sealed class EmployeeReadModelPolicy : IEmployeeReadModelPolicy
             employee.Manager?.FirstName,
             employee.Manager?.LastName,
             employee.Manager?.Email,
-            ResolveHierarchyStatus(employee, directReportCount),
+            hierarchyStatus,
             directReportCount,
-            employee.Version);
+            employee.Version)
+        {
+            Readiness = EmployeeReadinessPolicy.BuildSummary(employee, settings, hierarchyStatus, directReportCount)
+        };
+    }
 
     private static bool CanViewField(
         TenantSettingsDto settings,
@@ -97,7 +111,7 @@ public sealed class EmployeeReadModelPolicy : IEmployeeReadModelPolicy
         };
     }
 
-    private static string ResolveHierarchyStatus(Employee employee, int directReportCount)
+    internal static string ResolveHierarchyStatus(Employee employee, int directReportCount)
     {
         if (!employee.ManagerId.HasValue)
         {
