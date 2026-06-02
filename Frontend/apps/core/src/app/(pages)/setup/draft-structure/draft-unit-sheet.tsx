@@ -93,7 +93,7 @@ export function DraftUnitSheet({
   onSchemaUpdated,
   readOnly = false,
   readOnlyDescription = "Review this approved draft unit here. Reopen the draft before making changes.",
-  readOnlyNotice = "This draft is locked. Reopen it from Setup before editing or deleting units.",
+  readOnlyNotice = "Editing is unavailable here. Reopen the draft from Setup before editing or deleting units.",
   schema,
   existingUnits,
 }: DraftUnitSheetProps) {

@@ -690,6 +690,138 @@ public class GetEmployeesQueryHandlerTests
         Assert.Null(result.Value.Items[0].JobTitle);
     }
 
+    [Fact]
+    public async Task GetEmployees_WhenIssuesExist_SurfacesReadinessIssuesAndFixTargets()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+
+        seedContext.TenantSettings.Add(EY.HRPlatform.CoreHR.Domain.Entities.TenantSettings.Create(
+            TenantId,
+            """{"employeeFieldConfig":{"jobTitle":{"visible":true,"required":true,"visibleToEmployee":true,"visibleToManager":true}}}"""));
+
+        var employee = Employee.Create(TenantId, "Jordan", "Solo", "jordan.solo@example.com", DateTime.UtcNow);
+        seedContext.Employees.Add(employee);
+        await seedContext.SaveChangesAsync();
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = CreateHandler(context);
+
+        var result = await handler.Handle(new GetEmployeesQuery(), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var readiness = Assert.Single(result.Value.Items).Readiness;
+        Assert.Equal(3, readiness.EmployeeStateIssueCount);
+        Assert.Equal(0, readiness.BlockingIssueCount);
+
+        var missingJobTitle = Assert.Single(readiness.EmployeeStateIssues, issue => issue.FieldKey == "jobTitle");
+        Assert.Equal(EmployeeReadinessIssueCodes.MissingRequiredField, missingJobTitle.Code);
+        Assert.Equal(EmployeeReadinessFixTargetKinds.ProfileEmployment, missingJobTitle.FixTarget.Kind);
+        Assert.Equal(employee.Id, missingJobTitle.FixTarget.EmployeeId);
+
+        var missingOrgUnit = Assert.Single(readiness.EmployeeStateIssues, issue => issue.Code == EmployeeReadinessIssueCodes.MissingOrgUnit);
+        Assert.Equal(EmployeeReadinessFixTargetKinds.ProfileOrganization, missingOrgUnit.FixTarget.Kind);
+
+        var missingManager = Assert.Single(readiness.EmployeeStateIssues, issue => issue.Code == EmployeeReadinessIssueCodes.NoManagerAssigned);
+        Assert.Equal(EmployeeReadinessFixTargetKinds.ReportingRelationships, missingManager.FixTarget.Kind);
+    }
+
+    [Fact]
+    public async Task GetEmployees_WithMissingOrgUnitReadinessFilter_ReturnsOnlyMatchingEmployees()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+
+        var orgUnit = OrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null);
+        var cleanEmployee = Employee.Create(TenantId, "Sarah", "Chen", "sarah.chen@example.com", DateTime.UtcNow, null, "Engineer");
+        cleanEmployee.AssignOrgUnit(orgUnit.Id);
+        var missingOrgUnit = Employee.Create(TenantId, "Jordan", "Solo", "jordan.solo@example.com", DateTime.UtcNow, null, "Analyst");
+
+        seedContext.OrgUnits.Add(orgUnit);
+        seedContext.Employees.AddRange(cleanEmployee, missingOrgUnit);
+        await seedContext.SaveChangesAsync();
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = CreateHandler(context);
+
+        var result = await handler.Handle(
+            new GetEmployeesQuery(Readiness: EmployeeReadinessFilter.MissingOrgUnit),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var item = Assert.Single(result.Value.Items);
+        Assert.Equal(missingOrgUnit.Id, item.Id);
+        Assert.Contains(item.Readiness.EmployeeStateIssues, issue => issue.Code == EmployeeReadinessIssueCodes.MissingOrgUnit);
+    }
+
+    [Fact]
+    public async Task GetEmployees_WithNeedsAttentionReadinessFilter_ExcludesDeactivationOnlyBlockers()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+
+        var orgUnit = OrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null);
+        var manager = Employee.Create(TenantId, "Alex", "Manager", "alex.manager@example.com", DateTime.UtcNow, null, "Manager");
+        manager.AssignOrgUnit(orgUnit.Id);
+        var report = Employee.Create(TenantId, "Casey", "Report", "casey.report@example.com", DateTime.UtcNow, null, "Engineer");
+        report.AssignManager(manager.Id);
+        report.AssignOrgUnit(orgUnit.Id);
+        var missingOrgUnit = Employee.Create(TenantId, "Jordan", "Solo", "jordan.solo@example.com", DateTime.UtcNow, null, "Analyst");
+
+        seedContext.OrgUnits.Add(orgUnit);
+        seedContext.Employees.AddRange(manager, report, missingOrgUnit);
+        await seedContext.SaveChangesAsync();
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = CreateHandler(context);
+
+        var result = await handler.Handle(
+            new GetEmployeesQuery(Readiness: EmployeeReadinessFilter.NeedsAttention),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var item = Assert.Single(result.Value.Items);
+        Assert.Equal(missingOrgUnit.Id, item.Id);
+        Assert.DoesNotContain(result.Value.Items, employee => employee.Id == manager.Id);
+    }
+
+    [Fact]
+    public async Task GetEmployees_WithDeactivationBlockedReadinessFilter_ReturnsManagersWithActiveReports()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+
+        var orgUnit = OrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null);
+        var manager = Employee.Create(TenantId, "Alex", "Manager", "alex.manager@example.com", DateTime.UtcNow, null, "Manager");
+        manager.AssignOrgUnit(orgUnit.Id);
+        var report = Employee.Create(TenantId, "Casey", "Report", "casey.report@example.com", DateTime.UtcNow, null, "Engineer");
+        report.AssignManager(manager.Id);
+        report.AssignOrgUnit(orgUnit.Id);
+
+        var individualContributor = Employee.Create(TenantId, "Taylor", "Solo", "taylor.solo@example.com", DateTime.UtcNow, null, "Engineer");
+        individualContributor.AssignOrgUnit(orgUnit.Id);
+
+        seedContext.OrgUnits.Add(orgUnit);
+        seedContext.Employees.AddRange(manager, report, individualContributor);
+        await seedContext.SaveChangesAsync();
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = CreateHandler(context);
+
+        var result = await handler.Handle(
+            new GetEmployeesQuery(Readiness: EmployeeReadinessFilter.DeactivationBlocked),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var item = Assert.Single(result.Value.Items);
+        Assert.Equal(manager.Id, item.Id);
+        Assert.Contains(item.Readiness.BlockingIssues, issue => issue.Code == EmployeeReadinessIssueCodes.DeactivationBlocked);
+    }
+
     #endregion
 
     private static GetEmployeesQueryHandler CreateHandler(CoreHRDbContext context)

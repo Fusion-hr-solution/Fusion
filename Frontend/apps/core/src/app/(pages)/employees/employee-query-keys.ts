@@ -29,6 +29,7 @@ export function normalizeEmployeeRosterQuery(
   return {
     search: normalizeEmployeeRosterSearch(params.search),
     status: params.status ?? null,
+    readiness: params.readiness ?? null,
     sortBy: params.sortBy,
     sortDir: params.sortDir,
     page: params.page,
@@ -60,6 +61,8 @@ export const employeeRosterQueryKeys = {
     [...employeeRosterQueryKeys.all(), "reporting-lines", employeeId] as const,
   profile: (employeeId: string) =>
     [...employeeRosterQueryKeys.all(), "profile", employeeId] as const,
+  readinessSummary: () =>
+    [...employeeRosterQueryKeys.all(), "readiness-summary"] as const,
 };
 
 export function normalizeEmployeeImportPreviewQuery(
