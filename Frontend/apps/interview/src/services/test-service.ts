@@ -255,6 +255,10 @@ export async function deleteTest(testId: string): Promise<void> {
   await client.delete(`/interview/tests/${testId}`);
 }
 
+export async function deleteQuestion(questionId: string): Promise<void> {
+  await client.delete(`/interview/questions/${questionId}`);
+}
+
 interface PersistTestInput {
   testId?: string;
   title: string;

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   AlertTriangle,
   Building2,
@@ -33,6 +33,10 @@ import { Separator } from "@/components/ui/separator";
 import { useBreadcrumbLabel } from "@/components/breadcrumb-overrides";
 import { canAccessEmployeeRoster } from "@/lib/employee-roster-access";
 import { useEmployeeFieldPolicy } from "../employee-field-visibility";
+import {
+  getEmployeeActionIssues,
+  getEmployeeFixSheet,
+} from "../employee-readiness";
 import {
   EmployeeEmploymentEditSheet,
   EmployeeIdentityEditSheet,
@@ -195,27 +199,6 @@ function getManagerChainSummary(
     : `${managerChain.length} levels to ${topName}; direct manager is ${directName}.`;
 }
 
-function buildAttentionItems(
-  profile: {
-    hierarchyStatus: EmployeeHierarchyStatus;
-    orgUnitId: string | null;
-    jobTitle: string | null;
-  },
-  requireJobTitle: boolean
-): string[] {
-  const issues: string[] = [];
-  if (profile.hierarchyStatus === "NoManagerAssigned")
-    issues.push("No manager is assigned.");
-  if (profile.hierarchyStatus === "ManagerMissing")
-    issues.push("Manager record is missing.");
-  if (profile.hierarchyStatus === "ManagerInactive")
-    issues.push("Assigned manager is inactive.");
-  if (!profile.orgUnitId) issues.push("Org unit is not assigned.");
-  if (requireJobTitle && !hasTextValue(profile.jobTitle))
-    issues.push("Job title is missing.");
-  return issues;
-}
-
 function getInitials(firstName: string, lastName: string): string {
   return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
 }
@@ -223,8 +206,10 @@ function getInitials(firstName: string, lastName: string): string {
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export default function EmployeeProfilePage() {
-  const { user, isLoading: isAuthLoading } = useAuth();
+  const { user } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const requestedSheet = searchParams.get("sheet");
   const params = useParams<{ id: string }>();
   const employeeId =
     typeof params.id === "string" && params.id.trim().length > 0
@@ -236,6 +221,7 @@ export default function EmployeeProfilePage() {
   const [activeWorkspaceSheet, setActiveWorkspaceSheet] = useState<
     "identity" | "employment" | "organization" | "status" | null
   >(null);
+  const lastHandledSheetRef = useRef<string | null>(null);
 
   const {
     data: profile,
@@ -250,9 +236,41 @@ export default function EmployeeProfilePage() {
   // Register employee name in the top breadcrumb (Core > Employees > Jane Smith)
   useBreadcrumbLabel(employeeId ?? "", profile?.fullName);
 
-  const isInitialLoading =
-    (isAuthLoading && !user) ||
-    (!isAuthLoading && canAccess && isLoading && !profile && !error);
+  useEffect(() => {
+    if (!profile || !requestedSheet) {
+      lastHandledSheetRef.current = null;
+      return;
+    }
+
+    if (lastHandledSheetRef.current === requestedSheet) {
+      return;
+    }
+
+    if (requestedSheet === "reporting") {
+      setSheetOpen(true);
+    } else if (
+      requestedSheet === "identity" ||
+      requestedSheet === "employment" ||
+      requestedSheet === "organization" ||
+      requestedSheet === "status"
+    ) {
+      setActiveWorkspaceSheet(requestedSheet);
+    } else {
+      return;
+    }
+
+    lastHandledSheetRef.current = requestedSheet;
+
+    const nextSearchParams = new URLSearchParams(searchParams.toString());
+    nextSearchParams.delete("sheet");
+    const nextSearch = nextSearchParams.toString();
+    const nextPath = window.location.pathname;
+    const nextUrl = nextSearch ? `${nextPath}?${nextSearch}` : nextPath;
+
+    window.history.replaceState(window.history.state, "", nextUrl);
+  }, [profile, requestedSheet, searchParams]);
+
+  const isInitialLoading = canAccess && isLoading && !profile && !error;
 
   if (isInitialLoading) {
     return (
@@ -317,12 +335,25 @@ export default function EmployeeProfilePage() {
       : profile.managerEmail?.trim()
         ? profile.managerEmail
         : "Not set";
-  const attentionItems = buildAttentionItems(profile, requireJobTitle);
+  const attentionItems = getEmployeeActionIssues(profile.readiness);
   const managerChainSummary = getManagerChainSummary(
     reportingLines?.managerChain ?? [],
     profile.hierarchyStatus
   );
   const hierarchyIsHealthy = profile.hierarchyStatus === "Healthy";
+
+  const handleOpenReadinessIssue = (issue: (typeof attentionItems)[number]) => {
+    const sheet = getEmployeeFixSheet(issue);
+
+    if (sheet === "reporting") {
+      setSheetOpen(true);
+      return;
+    }
+
+    if (sheet) {
+      setActiveWorkspaceSheet(sheet);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -334,7 +365,7 @@ export default function EmployeeProfilePage() {
           <AlertDescription>
             <ul className="mt-1 space-y-0.5 list-disc pl-5">
               {attentionItems.map((item) => (
-                <li key={item}>{item}</li>
+                <li key={`${item.code}:${item.fieldKey ?? "none"}`}>{item.label}</li>
               ))}
             </ul>
           </AlertDescription>
@@ -387,14 +418,6 @@ export default function EmployeeProfilePage() {
               </div>
             </div>
 
-            <Button
-              variant="outline"
-              className="shrink-0 self-start"
-              onClick={() => setSheetOpen(true)}
-            >
-              <Users className="mr-2 h-4 w-4" />
-              Manage reporting relationship
-            </Button>
           </div>
         </CardContent>
       </Card>
@@ -539,6 +562,56 @@ export default function EmployeeProfilePage() {
 
         {/* Right */}
         <div className="flex flex-col gap-6">
+          <Card className={WORKSPACE_CARD_CLASS_NAME}>
+            <CardHeader className={WORKSPACE_CARD_HEADER_CLASS_NAME}>
+              <CardTitle className="text-base">
+                {attentionItems.length > 0 ? "Needs attention" : "Record health"}
+              </CardTitle>
+              <CardDescription>
+                {attentionItems.length > 0
+                  ? "Resolve the current workforce record issues from the linked workspace."
+                  : "No current workforce record issues are blocking this profile."}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className={WORKSPACE_CARD_CONTENT_CLASS_NAME}>
+              {attentionItems.length > 0 ? (
+                <div className="space-y-3">
+                  {attentionItems.map((issue) => (
+                    <div
+                      key={`${issue.code}:${issue.fieldKey ?? "none"}`}
+                      className="flex flex-col gap-3 rounded-xl border bg-muted/20 p-4 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div className="space-y-0.5">
+                        <p className="text-sm font-medium">{issue.label}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {issue.severity === "Blocker"
+                            ? "Resolve this blocker from the linked workforce surface."
+                            : "Open the linked workforce surface to fix this issue."}
+                        </p>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleOpenReadinessIssue(issue)}
+                      >
+                        Open fix
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-xl border bg-muted/10 px-4 py-3 text-sm text-muted-foreground">
+                  <p className="font-medium text-foreground">
+                    Ready for Core operations
+                  </p>
+                  <p className="mt-1">
+                    No current record issues need action on this employee.
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           <Card className={WORKSPACE_CARD_CLASS_NAME}>
             <CardHeader className={WORKSPACE_CARD_HEADER_CLASS_NAME}>
               <CardTitle className="text-base">Organization</CardTitle>

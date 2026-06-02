@@ -110,3 +110,5 @@ PROJECT_SUMMARY.md
 #opencode
 opencode.json
 .opencode/
+#claude code 
+.claude

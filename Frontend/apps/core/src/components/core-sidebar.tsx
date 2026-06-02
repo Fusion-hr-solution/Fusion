@@ -71,28 +71,12 @@ function applySetupLock(
 export function CoreSidebar() {
   const pathname = usePathname();
   const activePath = pathname.replace(/^\/core/, "") || "/";
-  const { user, isLoading: isAuthLoading } = useAuth();
+  const { user } = useAuth();
   const { isNavigationLocked, lockedNavigationReason } = useCoreSetupAccess();
   const canSeeSetup = canSeeCoreSetupNavigation(user);
   const canSeeSettings = canSeeCoreSettingsNavigation(user);
   const canSeeOrganizations = canSeeOrganizationsNavigation(user);
   const canSeeEmployeeRoster = canSeeEmployeeRosterNavigation(user);
-  const loadingSections: NavSection[] = [
-    {
-      ...PEOPLE_NAV,
-      items: PEOPLE_NAV.items.map((item) => ({
-        ...item,
-        disabled: true,
-      })),
-    },
-    {
-      ...ADMIN_NAV,
-      items: ADMIN_NAV.items.map((item) => ({
-        ...item,
-        disabled: true,
-      })),
-    },
-  ];
   const peopleItems = PEOPLE_NAV.items.filter((item) => {
     if (item.href === "/employees") {
       return canSeeEmployeeRoster;
@@ -116,14 +100,12 @@ export function CoreSidebar() {
     return canSeeSetup;
   });
 
-  const visibleSections = isAuthLoading
-    ? loadingSections
-    : adminItems.length
-      ? [
-          { ...PEOPLE_NAV, items: peopleItems },
-          { ...ADMIN_NAV, items: adminItems },
-        ]
-      : [{ ...PEOPLE_NAV, items: peopleItems }];
+  const visibleSections = adminItems.length
+    ? [
+        { ...PEOPLE_NAV, items: peopleItems },
+        { ...ADMIN_NAV, items: adminItems },
+      ]
+    : [{ ...PEOPLE_NAV, items: peopleItems }];
 
   const sections =
     isNavigationLocked && lockedNavigationReason
@@ -135,7 +117,7 @@ export function CoreSidebar() {
   return (
     <AppSidebar
       activeModule="Core"
-      activePath={isAuthLoading ? "" : activePath}
+      activePath={activePath}
       sections={sections}
       brandIcon={BrainCircuit}
       brandTitle="EY Core HR"

@@ -20,6 +20,7 @@ import type {
   EmployeeReportingLinesDto,
   EmployeeRosterPageDto,
   EmployeeRosterQueryParams,
+  WorkforceReadinessSummaryDto,
 } from "./employee-roster.types";
 
 const EMPLOYEE_ROSTER_PATH = "/corehr/employees";
@@ -56,18 +57,19 @@ export function useEmployeeRoster(
   const { user, isAuthenticated } = useAuth();
   const client = useMemo(() => createPlatformApiClient(), []);
   const canAccess = canAccessEmployeeRoster(user);
-  const { page, pageSize, search, sortBy, sortDir, status } = params;
+  const { page, pageSize, readiness, search, sortBy, sortDir, status } = params;
   const normalizedQuery = useMemo(
     () =>
       normalizeEmployeeRosterQuery({
         page,
         pageSize,
+        readiness,
         search,
         sortBy,
         sortDir,
         status,
       }),
-    [page, pageSize, search, sortBy, sortDir, status]
+    [page, pageSize, readiness, search, sortBy, sortDir, status]
   );
 
   const queryFn = useCallback(
@@ -77,6 +79,7 @@ export function useEmployeeRoster(
         params: {
           search: normalizedQuery.search ?? undefined,
           status: normalizedQuery.status ?? undefined,
+          readiness: normalizedQuery.readiness ?? undefined,
           sortBy: normalizedQuery.sortBy,
           sortDir: normalizedQuery.sortDir,
           page: normalizedQuery.page,
@@ -87,6 +90,7 @@ export function useEmployeeRoster(
       client,
       normalizedQuery.page,
       normalizedQuery.pageSize,
+      normalizedQuery.readiness,
       normalizedQuery.search,
       normalizedQuery.sortBy,
       normalizedQuery.sortDir,
@@ -98,6 +102,7 @@ export function useEmployeeRoster(
     employeeRosterQueryKeys.list({
       search: normalizedQuery.search ?? undefined,
       status: normalizedQuery.status ?? undefined,
+      readiness: normalizedQuery.readiness ?? undefined,
       sortBy: normalizedQuery.sortBy,
       sortDir: normalizedQuery.sortDir,
       page: normalizedQuery.page,
@@ -109,6 +114,27 @@ export function useEmployeeRoster(
       placeholderData: keepPreviousData,
     }
   );
+}
+
+export function useWorkforceReadinessSummary(): UseApiQueryResult<WorkforceReadinessSummaryDto> {
+  const { user, isAuthenticated } = useAuth();
+  const client = useMemo(() => createPlatformApiClient(), []);
+  const canAccess = canAccessEmployeeRoster(user);
+
+  const queryFn = useCallback(
+    (signal: AbortSignal) =>
+      client.get<WorkforceReadinessSummaryDto>(
+        `${EMPLOYEE_ROSTER_PATH}/readiness-summary`,
+        {
+          signal,
+        }
+      ),
+    [client]
+  );
+
+  return useApiQuery(employeeRosterQueryKeys.readinessSummary(), queryFn, {
+    enabled: isAuthenticated && canAccess,
+  });
 }
 
 export function useEmployeeReportingLines(
