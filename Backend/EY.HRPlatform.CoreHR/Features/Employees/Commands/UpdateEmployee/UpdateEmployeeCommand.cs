@@ -11,6 +11,7 @@ namespace EY.HRPlatform.CoreHR.Features.Employees.Commands.UpdateEmployee;
 /// <param name="ExpectedVersion">Row version for optimistic concurrency check.</param>
 /// <param name="FirstName">New first name, or null to keep existing.</param>
 /// <param name="LastName">New last name, or null to keep existing.</param>
+/// <param name="PreferredName">New preferred name, null to keep existing, or empty to clear.</param>
 /// <param name="Email">New email, or null to keep existing.</param>
 /// <param name="JobTitle">New job title, or null to keep existing.</param>
 /// <param name="ManagerId">New manager ID, Guid.Empty to clear, or null to keep existing.</param>
@@ -21,6 +22,7 @@ public sealed record UpdateEmployeeCommand(
     uint ExpectedVersion,
     string? FirstName,
     string? LastName,
+    string? PreferredName,
     string? Email,
     string? JobTitle,
     Guid? ManagerId,

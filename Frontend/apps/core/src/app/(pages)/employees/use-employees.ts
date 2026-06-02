@@ -35,13 +35,19 @@ import type {
 function useCanAccessRoster(): boolean {
   const { user } = useAuth();
   const { tenantId } = useTenantContext();
-  return canAccessEmployeeRoster(user) || (!!user?.roles.includes("PlatformAdmin") && !!tenantId);
+  return (
+    canAccessEmployeeRoster(user) ||
+    (!!user?.roles.includes("PlatformAdmin") && !!tenantId)
+  );
 }
 
 function useCanAccessProfile(): boolean {
   const { user } = useAuth();
   const { tenantId } = useTenantContext();
-  return canAccessEmployeeProfile(user) || (!!user?.roles.includes("PlatformAdmin") && !!tenantId);
+  return (
+    canAccessEmployeeProfile(user) ||
+    (!!user?.roles.includes("PlatformAdmin") && !!tenantId)
+  );
 }
 
 const EMPLOYEE_ROSTER_PATH = "/corehr/employees";
@@ -62,11 +68,12 @@ interface UpdateEmployeeRecordInput {
   employeeNumber?: string | null;
   firstName?: string;
   lastName?: string;
+  preferredName?: string | null;
   email?: string;
-   phone?: string | null;
+  phone?: string | null;
   jobTitle?: string;
-   workLocation?: string | null;
-   employmentType?: string | null;
+  workLocation?: string | null;
+  employmentType?: string | null;
   orgUnitId?: string | null;
   hireDate?: string;
 }
@@ -93,6 +100,11 @@ interface CreatedEmployeeRecordDto {
 }
 
 interface DeactivateEmployeeInput {
+  employeeId: string;
+  expectedVersion: number;
+}
+
+interface ReactivateEmployeeInput {
   employeeId: string;
   expectedVersion: number;
 }
@@ -129,7 +141,18 @@ export function useEmployeeRoster(
         sortDir,
         status,
       }),
-    [access, managerId, orgUnitId, page, pageSize, readiness, search, sortBy, sortDir, status]
+    [
+      access,
+      managerId,
+      orgUnitId,
+      page,
+      pageSize,
+      readiness,
+      search,
+      sortBy,
+      sortDir,
+      status,
+    ]
   );
 
   const queryFn = useCallback(
@@ -320,6 +343,7 @@ function buildEmployeeUpdatePayload({
   employeeNumber,
   firstName,
   lastName,
+  preferredName,
   email,
   phone,
   jobTitle,
@@ -340,6 +364,10 @@ function buildEmployeeUpdatePayload({
 
   if (lastName !== undefined) {
     payload.lastName = lastName;
+  }
+
+  if (preferredName !== undefined) {
+    payload.preferredName = preferredName?.trim() ?? "";
   }
 
   if (email !== undefined) {
@@ -444,6 +472,20 @@ export function useUpdateEmployeeManager() {
           queryKey: employeeRosterQueryKeys.profile(args.employeeId),
           exact: true,
         },
+        ...(args.managerId
+          ? [
+              {
+                queryKey: employeeRosterQueryKeys.reportingLines(
+                  args.managerId
+                ),
+                exact: true,
+              },
+              {
+                queryKey: employeeRosterQueryKeys.profile(args.managerId),
+                exact: true,
+              },
+            ]
+          : []),
       ],
     }
   );
@@ -453,7 +495,15 @@ export function useCreateEmployeeRecord() {
   const client = useMemo(() => createPlatformApiClient(), []);
 
   return useApiMutation<CreatedEmployeeRecordDto, CreateEmployeeInput>(
-    ({ firstName, lastName, email, hireDate, jobTitle, managerId, orgUnitId }) => {
+    ({
+      firstName,
+      lastName,
+      email,
+      hireDate,
+      jobTitle,
+      managerId,
+      orgUnitId,
+    }) => {
       const payload: Record<string, string> = {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
@@ -473,7 +523,10 @@ export function useCreateEmployeeRecord() {
         payload.orgUnitId = orgUnitId;
       }
 
-      return client.post<CreatedEmployeeRecordDto>(EMPLOYEE_ROSTER_PATH, payload);
+      return client.post<CreatedEmployeeRecordDto>(
+        EMPLOYEE_ROSTER_PATH,
+        payload
+      );
     },
     {
       invalidateQueries: [
@@ -507,6 +560,10 @@ export function useUpdateEmployeeRecord() {
         },
         {
           queryKey: employeeRosterQueryKeys.profile(args.employeeId),
+          exact: true,
+        },
+        {
+          queryKey: employeeRosterQueryKeys.workforceAccount(args.employeeId),
           exact: true,
         },
       ],
@@ -561,6 +618,44 @@ export function useDeactivateEmployee() {
         },
         {
           queryKey: employeeRosterQueryKeys.profile(args.employeeId),
+          exact: true,
+        },
+        {
+          queryKey: employeeRosterQueryKeys.workforceAccount(args.employeeId),
+          exact: true,
+        },
+      ],
+    }
+  );
+}
+
+export function useReactivateEmployee() {
+  const client = useMemo(() => createPlatformApiClient(), []);
+
+  return useApiMutation<void, ReactivateEmployeeInput>(
+    ({ employeeId, expectedVersion }) =>
+      client.post<void>(
+        `${EMPLOYEE_ROSTER_PATH}/${employeeId}/reactivate`,
+        undefined,
+        {
+          headers: {
+            "If-Match": `"${expectedVersion}"`,
+          },
+        }
+      ),
+    {
+      invalidateQueries: (_data, args) => [
+        { queryKey: employeeRosterQueryKeys.lists() },
+        {
+          queryKey: employeeRosterQueryKeys.reportingLines(args.employeeId),
+          exact: true,
+        },
+        {
+          queryKey: employeeRosterQueryKeys.profile(args.employeeId),
+          exact: true,
+        },
+        {
+          queryKey: employeeRosterQueryKeys.workforceAccount(args.employeeId),
           exact: true,
         },
       ],

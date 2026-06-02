@@ -171,6 +171,7 @@ export interface EmployeeProfileDto {
   firstName: string;
   lastName: string;
   preferredName: string | null;
+  displayName: string;
   fullName: string;
   email: string;
   phone: string | null;
@@ -181,6 +182,7 @@ export interface EmployeeProfileDto {
   status: EmployeeRosterStatus;
   orgUnitId: string | null;
   orgUnitName: string | null;
+  orgUnitType: string | null;
   managerId: string | null;
   managerFirstName: string | null;
   managerLastName: string | null;
@@ -189,6 +191,8 @@ export interface EmployeeProfileDto {
   hierarchyStatus: EmployeeHierarchyStatus;
   directReportCount: number;
   readiness: EmployeeReadinessSummaryDto;
+  createdAt: string;
+  updatedAt: string | null;
   version: number;
 }
 

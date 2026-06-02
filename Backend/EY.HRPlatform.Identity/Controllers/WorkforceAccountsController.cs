@@ -517,8 +517,6 @@ public sealed class WorkforceAccountsController(
             InviteCreatedAt = invite.CreatedAt,
             InviteExpiresAt = invite.ExpiresAt,
             InviteLink = linkable ? BuildInviteLink(invite.Token) : null,
-            DeliveryStatus = linkable ? "Suppressed" : null,
-            DeliveryMessage = linkable ? "Email delivery is disabled in this environment." : null,
             DeliveryRecordedAt = linkable ? invite.CreatedAt : null
         };
     }

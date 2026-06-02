@@ -8,8 +8,7 @@ export type EmployeeFixSheet =
   | "identity"
   | "employment"
   | "organization"
-  | "reporting"
-  | "status";
+  | "reporting";
 
 export const EMPLOYEE_READINESS_FILTER_OPTIONS: Array<{
   value: EmployeeReadinessFilter;
@@ -181,7 +180,7 @@ export function getEmployeeFixSheet(
     case "ReportingRelationships":
       return "reporting";
     case "ProfileStatus":
-      return "status";
+      return null;
     default:
       return null;
   }

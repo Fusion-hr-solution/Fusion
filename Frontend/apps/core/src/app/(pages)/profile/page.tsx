@@ -2,8 +2,11 @@
 
 import { User } from "lucide-react";
 import {
+  canAccessCoreAccess,
+  canAccessCoreOrgChart,
   canManageCoreAccess,
   canManageCoreEmployees,
+  canManageCoreReporting,
   useAuth,
 } from "@repo/auth";
 import { EmptyState } from "@repo/ui";
@@ -28,7 +31,12 @@ export default function MyProfilePage() {
   const isTenantContextReadOnly = !!tenantId;
   const canManageEmployee =
     canManageCoreEmployees(user) && !isTenantContextReadOnly;
+  const canManageReporting =
+    canManageCoreReporting(user) && !isTenantContextReadOnly;
   const canManageAccess = canManageCoreAccess(user) && !isTenantContextReadOnly;
+  const canViewAccess =
+    canAccessCoreAccess(user) || canManageAccess || isTenantContextReadOnly;
+  const canUseOrgChart = canAccessCoreOrgChart(user) || isTenantContextReadOnly;
   const canViewProfile = !!employeeId;
 
   const fieldPolicy = useEmployeeFieldPolicy(canViewProfile, "employee");
@@ -40,8 +48,9 @@ export default function MyProfilePage() {
     isLoading,
   } = useEmployeeProfile(canViewProfile ? employeeId : null);
 
-  const { data: reportingLines } =
-    useEmployeeReportingLines(canViewProfile ? employeeId : null);
+  const { data: reportingLines } = useEmployeeReportingLines(
+    canViewProfile ? employeeId : null
+  );
 
   if (authLoading) {
     return (
@@ -57,7 +66,10 @@ export default function MyProfilePage() {
   if (!employeeId) {
     return (
       <div className="flex flex-col gap-6 p-6">
-        <PageHeader title="My Profile" description="No linked employee record." />
+        <PageHeader
+          title="My Profile"
+          description="No linked employee record."
+        />
         <EmptyState
           icon={User}
           title="No linked employee profile"
@@ -90,7 +102,18 @@ export default function MyProfilePage() {
     );
   }
 
-  if (!profile) return null;
+  if (!profile) {
+    return (
+      <div className="flex flex-col gap-6 p-6">
+        <PageHeader title="My Profile" description="Profile unavailable." />
+        <EmptyState
+          icon={User}
+          title="Unable to load profile"
+          description="Your employee profile is not available right now."
+        />
+      </div>
+    );
+  }
 
   const canEditOwnPreferredName =
     user?.employeeId === profile.id &&
@@ -104,12 +127,12 @@ export default function MyProfilePage() {
     reportingLines,
     fieldPolicy,
     user,
-    employeeId,
-    isSelfRoute: true,
-    isSelfView: true,
     isTenantContextReadOnly,
     canManageEmployee,
+    canManageReporting,
+    canViewAccess,
     canManageAccess,
+    canUseOrgChart,
     canEditOwnPreferredName,
     canEditOwnPhone,
   };

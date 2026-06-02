@@ -1,6 +1,7 @@
 using EY.HRPlatform.CoreHR.Domain.Enums;
 using EY.HRPlatform.CoreHR.Features.Employees.Commands.CreateEmployee;
 using EY.HRPlatform.CoreHR.Features.Employees.Commands.DeactivateEmployee;
+using EY.HRPlatform.CoreHR.Features.Employees.Commands.ReactivateEmployee;
 using EY.HRPlatform.CoreHR.Features.Employees.Commands.UpdateOwnEmployeeProfile;
 using EY.HRPlatform.CoreHR.Features.Employees.Commands.UpdateEmployee;
 using EY.HRPlatform.CoreHR.Features.Employees.Dtos;
@@ -251,7 +252,7 @@ public class EmployeesController(
         [FromHeader(Name = "If-Match")] string? ifMatch,
         CancellationToken cancellationToken)
     {
-        if (!accessPolicy.CanManageEmployees(User))
+        if (!CanUpdateEmployee(request))
         {
             return Forbid();
         }
@@ -268,6 +269,7 @@ public class EmployeesController(
             expectedVersion,
             request.FirstName,
             request.LastName,
+            request.PreferredName,
             request.Email,
             request.JobTitle,
             request.ManagerId,
@@ -345,6 +347,37 @@ public class EmployeesController(
         return NoContent();
     }
 
+    /// <summary>
+    /// Reactivate an employee.
+    /// Requires If-Match header with current version for optimistic concurrency.
+    /// </summary>
+    [HttpPost("{id:guid}/reactivate")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status409Conflict)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status412PreconditionFailed)]
+    public async Task<IActionResult> Reactivate(
+        Guid id,
+        [FromHeader(Name = "If-Match")] string? ifMatch,
+        CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanManageEmployees(User))
+        {
+            return Forbid();
+        }
+
+        if (!TryParseVersion(ifMatch, out var expectedVersion))
+        {
+            return StatusCode(
+                StatusCodes.Status412PreconditionFailed,
+                ApiResponse.Failure("If-Match header with valid version is required for reactivation."));
+        }
+
+        await sender.Send(new ReactivateEmployeeCommand(id, expectedVersion), cancellationToken);
+
+        return NoContent();
+    }
+
     private static bool TryParseVersion(string? ifMatch, out uint version)
     {
         version = 0;
@@ -357,6 +390,26 @@ public class EmployeesController(
 
         return uint.TryParse(trimmed, out version);
     }
+
+    private bool CanUpdateEmployee(UpdateEmployeeRequest request)
+        => accessPolicy.CanManageEmployees(User)
+            || (accessPolicy.CanManageReporting(User) && IsReportingOnlyUpdate(request));
+
+    // Reporting-only users can reuse the employee update endpoint when the request
+    // only changes manager relationships.
+    private static bool IsReportingOnlyUpdate(UpdateEmployeeRequest request)
+        => request.ManagerId.HasValue
+            && request.EmployeeNumber is null
+            && request.FirstName is null
+            && request.LastName is null
+            && request.PreferredName is null
+            && request.Email is null
+            && request.Phone is null
+            && request.JobTitle is null
+            && request.WorkLocation is null
+            && request.EmploymentType is null
+            && request.OrgUnitId is null
+            && request.HireDate is null;
 
     private EmployeeReadAudience GetCurrentReadAudience()
         => accessPolicy.GetEmployeeReadAudience(User);

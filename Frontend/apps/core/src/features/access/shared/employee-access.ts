@@ -94,14 +94,15 @@ export function getAccessDisplayState(
     case "Unprovisioned":
       return "Not invited";
     case "InvitePending":
-      return "Invited";
+      return "Invite pending";
     case "InviteExpired":
     case "InviteRevoked":
     case "InviteAccepted":
       return "Needs review";
     case "Active":
-      return "Account active";
+      return "Active account";
     case "Inactive":
+      return "Inactive account";
     case "Conflict":
       return "Needs review";
     default:
@@ -113,10 +114,12 @@ export function getAccessBadgeTone(
   accessState: string
 ): "default" | "secondary" | "destructive" | "outline" {
   switch (accessState) {
-    case "Account active":
+    case "Active account":
       return "default";
-    case "Invited":
+    case "Invite pending":
       return "secondary";
+    case "Inactive account":
+      return "destructive";
     case "Needs review":
       return "destructive";
     case "Not invited":
@@ -199,12 +202,12 @@ export function getInvitationEligibility(
       account.provisioningState === "Active"
         ? "Already active"
         : account.provisioningState === "InviteAccepted"
-        ? "Invitation already accepted"
-        : account.provisioningState === "Inactive"
-        ? "Account inactive"
-        : account.provisioningState === "Conflict"
-        ? account.conflict?.message ?? "Account conflict"
-        : null,
+          ? "Invitation already accepted"
+          : account.provisioningState === "Inactive"
+            ? "Account inactive"
+            : account.provisioningState === "Conflict"
+              ? (account.conflict?.message ?? "Account conflict")
+              : null,
   };
 }
 

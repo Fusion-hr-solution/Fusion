@@ -3,8 +3,11 @@
 import { useParams } from "next/navigation";
 import { Users, User } from "lucide-react";
 import {
+  canAccessCoreAccess,
+  canAccessCoreOrgChart,
   canManageCoreAccess,
   canManageCoreEmployees,
+  canManageCoreReporting,
   useAuth,
 } from "@repo/auth";
 import { EmptyState } from "@repo/ui";
@@ -23,30 +26,26 @@ import {
   useEmployeeProfile,
   useEmployeeReportingLines,
 } from "../use-employees";
-import {
-  type EmployeeProfileRouteKind,
-  useEmployeeProfileRouteContext,
-} from "../employee-profile-route-context";
 
 export default function EmployeeProfilePage() {
   const { user } = useAuth();
   const params = useParams<{ id?: string }>();
-  const routeContext = useEmployeeProfileRouteContext();
   const { tenantId } = useTenantContext();
-  const route: EmployeeProfileRouteKind = routeContext?.route ?? "employee";
-  const isSelfRoute = route === "self";
   const isTenantContextReadOnly = !!tenantId;
   const canManageEmployee =
     canManageCoreEmployees(user) && !isTenantContextReadOnly;
+  const canManageReporting =
+    canManageCoreReporting(user) && !isTenantContextReadOnly;
   const canManageAccess = canManageCoreAccess(user) && !isTenantContextReadOnly;
+  const canViewAccess =
+    canAccessCoreAccess(user) || canManageAccess || isTenantContextReadOnly;
+  const canUseOrgChart = canAccessCoreOrgChart(user) || isTenantContextReadOnly;
   const canViewProfile = canAccessEmployeeProfile(user);
   const employeeId =
-    routeContext?.employeeId ??
-    (typeof params.id === "string" && params.id.trim().length > 0
+    typeof params.id === "string" && params.id.trim().length > 0
       ? params.id
-      : null);
+      : null;
   const isOwnProfile = !!employeeId && user?.employeeId === employeeId;
-  const isSelfView = isSelfRoute || isOwnProfile;
   const fieldAudience =
     canManageEmployee || isTenantContextReadOnly
       ? "hrAdmin"
@@ -76,10 +75,7 @@ export default function EmployeeProfilePage() {
     useEmployeeReportingLines(effectiveEmployeeId);
 
   // Register employee name in the top breadcrumb (Core > Employees > Jane Smith)
-  useBreadcrumbLabel(
-    isSelfRoute ? "" : (employeeId ?? ""),
-    isSelfRoute ? undefined : profile?.fullName
-  );
+  useBreadcrumbLabel(employeeId ?? "", profile?.fullName);
 
   const isInitialLoading =
     (canViewProfile || isTenantContextReadOnly) &&
@@ -90,15 +86,9 @@ export default function EmployeeProfilePage() {
   if (isInitialLoading) {
     return (
       <CorePageLoadingState
-        title={isSelfRoute ? "My Profile" : "Employee Profile"}
-        description={
-          isSelfRoute ? "Loading profile." : "Loading employee profile."
-        }
-        message={
-          isSelfRoute
-            ? "Loading your profile..."
-            : "Loading employee profile..."
-        }
+        title="Employee Profile"
+        description="Loading employee profile."
+        message="Loading employee profile..."
         variant="summary-list"
       />
     );
@@ -111,16 +101,8 @@ export default function EmployeeProfilePage() {
       <div className="flex flex-col gap-6 p-6">
         <EmptyState
           icon={Users}
-          title={
-            isSelfRoute
-              ? "Your profile is not available for this role"
-              : "Employee profile is not available for this role"
-          }
-          description={
-            isSelfRoute
-              ? "Contact a tenant HR administrator if you expected access."
-              : "Contact a tenant HR administrator."
-          }
+          title="Employee profile is not available for this role"
+          description="Contact a tenant HR administrator."
         />
       </div>
     );
@@ -139,21 +121,13 @@ export default function EmployeeProfilePage() {
             icon={User}
             title={
               isForbidden
-                ? isSelfRoute
-                  ? "Your profile is outside your current access scope"
-                  : "Employee is outside your scope"
-                : isSelfRoute
-                  ? "Your profile could not be found"
-                  : "Employee not found"
+                ? "Employee is outside your scope"
+                : "Employee not found"
             }
             description={
               isForbidden
-                ? isSelfRoute
-                  ? "Your linked record is outside your current Core access scope."
-                  : "This employee is outside your current Core access scope."
-                : isSelfRoute
-                  ? "Your linked employee profile is not available right now."
-                  : "This employee is not available right now."
+                ? "This employee is outside your current Core access scope."
+                : "This employee is not available right now."
             }
           />
         ) : (
@@ -168,7 +142,17 @@ export default function EmployeeProfilePage() {
     );
   }
 
-  if (!profile) return null;
+  if (!profile) {
+    return (
+      <div className="flex flex-col gap-6 p-6">
+        <EmptyState
+          icon={User}
+          title="Employee profile unavailable"
+          description="This employee profile is not available right now."
+        />
+      </div>
+    );
+  }
 
   const canEditOwnPreferredName =
     user?.employeeId === profile.id &&
@@ -182,12 +166,12 @@ export default function EmployeeProfilePage() {
     reportingLines,
     fieldPolicy,
     user,
-    employeeId: effectiveEmployeeId!,
-    isSelfRoute,
-    isSelfView,
     isTenantContextReadOnly,
     canManageEmployee,
+    canManageReporting,
+    canViewAccess,
     canManageAccess,
+    canUseOrgChart,
     canEditOwnPreferredName,
     canEditOwnPhone,
   };

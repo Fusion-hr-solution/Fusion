@@ -13,6 +13,7 @@ public sealed record UpdateEmployeeRequest(
     [StringLength(64)] string? EmployeeNumber,
     [StringLength(100, MinimumLength = 1)] string? FirstName,
     [StringLength(100, MinimumLength = 1)] string? LastName,
+    [StringLength(100)] string? PreferredName,
     [EmailAddress] string? Email,
     [StringLength(50)] string? Phone,
     [StringLength(100)] string? JobTitle,

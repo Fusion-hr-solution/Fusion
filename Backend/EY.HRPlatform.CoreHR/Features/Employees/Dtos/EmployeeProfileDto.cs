@@ -22,12 +22,15 @@ public sealed record EmployeeProfileDto(
     EmployeeStatus Status,
     Guid? OrgUnitId,
     string? OrgUnitName,
+    string? OrgUnitType,
     Guid? ManagerId,
     string? ManagerFirstName,
     string? ManagerLastName,
     string? ManagerEmail,
     string HierarchyStatus,
     int DirectReportCount,
+    DateTime CreatedAt,
+    DateTime? UpdatedAt,
     uint Version)
 {
     public string FullName => $"{FirstName} {LastName}";

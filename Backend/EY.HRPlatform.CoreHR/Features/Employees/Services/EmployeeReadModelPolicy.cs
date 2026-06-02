@@ -92,12 +92,15 @@ public sealed class EmployeeReadModelPolicy : IEmployeeReadModelPolicy
             employee.Status,
             employee.OrgUnitId,
             employee.OrgUnit?.Name,
+            employee.OrgUnit?.Type,
             employee.ManagerId,
             employee.Manager?.FirstName,
             employee.Manager?.LastName,
             employee.Manager?.Email,
             hierarchyStatus,
             directReportCount,
+            employee.CreatedAt,
+            employee.UpdatedAt,
             employee.Version)
         {
             Readiness = EmployeeReadinessPolicy.BuildSummary(employee, settings, hierarchyStatus, directReportCount)

@@ -110,3 +110,6 @@ PROJECT_SUMMARY.md
 #opencode
 opencode.json
 .opencode/
+
+# Windows accidental null redirection artifact
+nul

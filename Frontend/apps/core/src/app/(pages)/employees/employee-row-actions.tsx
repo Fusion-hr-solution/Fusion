@@ -45,10 +45,6 @@ export function EmployeeRowActions({
         `/employees/${employee.id}?sheet=identity`,
         tenantId
       ),
-      status: buildTenantContextHref(
-        `/employees/${employee.id}?sheet=status`,
-        tenantId
-      ),
       orgChart: buildTenantContextHref(
         `/org-chart?focusEmployeeId=${employee.id}`,
         tenantId
@@ -114,7 +110,7 @@ export function EmployeeRowActions({
           <>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
-              <Link href={hrefs.status} onClick={(event) => event.stopPropagation()}>
+              <Link href={hrefs.profile} onClick={(event) => event.stopPropagation()}>
                 <UserRoundCog className="size-4" />
                 {employee.status === "Inactive" ? "Reactivate employee" : "Deactivate employee"}
               </Link>

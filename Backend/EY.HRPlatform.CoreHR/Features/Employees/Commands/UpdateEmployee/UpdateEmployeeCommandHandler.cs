@@ -115,6 +115,11 @@ public sealed class UpdateEmployeeCommandHandler(
             workLocation,
             employmentType);
 
+        if (request.PreferredName is not null)
+        {
+            employee.UpdatePreferredName(request.PreferredName);
+        }
+
         if (request.HireDate.HasValue)
         {
             employee.UpdateHireDate(request.HireDate.Value);
