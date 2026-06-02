@@ -1,4 +1,5 @@
 using EY.HRPlatform.CoreHR.Domain.Entities;
+using EY.HRPlatform.CoreHR.Features.Employees.Dtos;
 
 namespace EY.HRPlatform.CoreHR.Features.Employees.Import.Dtos;
 
@@ -89,7 +90,21 @@ public sealed record EmployeeImportHistoryDetailDto(
     Guid ActorUserId,
     string ActorFullName,
     string ActorRole,
-    string? FailureReason);
+    string? FailureReason)
+{
+    public IReadOnlyList<EmployeeImportFollowUpIssueDto> UnresolvedFollowUpIssues { get; init; } = Array.Empty<EmployeeImportFollowUpIssueDto>();
+}
+
+public sealed record EmployeeImportFollowUpIssueDto(
+    Guid Id,
+    int SourceRowNumber,
+    Guid EmployeeId,
+    string EmployeeFullName,
+    string EmployeeEmail,
+    string Code,
+    string Label,
+    string? FieldKey,
+    EmployeeReadinessFixTargetDto FixTarget);
 
 public sealed record EmployeeImportHistoryPageDto(
     IReadOnlyList<EmployeeImportHistoryListItemDto> Items,

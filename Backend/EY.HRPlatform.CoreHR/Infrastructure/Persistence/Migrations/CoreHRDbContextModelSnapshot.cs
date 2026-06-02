@@ -279,6 +279,68 @@ namespace EY.HRPlatform.CoreHR.Infrastructure.Persistence.Migrations
                     b.ToTable("Employees", "corehr");
                 });
 
+            modelBuilder.Entity("EY.HRPlatform.CoreHR.Domain.Entities.EmployeeImportFollowUpIssue", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("EmployeeImportHistoryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("FieldKey")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("IssueCode")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<int>("SourceRowNumber")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeImportHistoryId")
+                        .HasDatabaseName("IX_EmployeeImportFollowUpIssues_HistoryId");
+
+                    b.HasIndex("TenantId")
+                        .HasDatabaseName("IX_EmployeeImportFollowUpIssues_TenantId");
+
+                    b.HasIndex("EmployeeImportHistoryId", "EmployeeId", "IssueCode", "FieldKey")
+                        .IsUnique()
+                        .HasDatabaseName("IX_EmployeeImportFollowUpIssues_HistoryId_EmployeeId_Issue");
+
+                    b.ToTable("EmployeeImportFollowUpIssues", "corehr");
+                });
+
             modelBuilder.Entity("EY.HRPlatform.CoreHR.Domain.Entities.EmployeeImportHistory", b =>
                 {
                     b.Property<Guid>("Id")

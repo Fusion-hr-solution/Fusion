@@ -10,6 +10,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<CandidateLinkSecuritySettings> CandidateLinkSecuritySettings => Set<CandidateLinkSecuritySettings>();
     public DbSet<CandidateProgressEvent> CandidateProgressEvents => Set<CandidateProgressEvent>();
     public DbSet<CandidatePrivacyAction> CandidatePrivacyActions => Set<CandidatePrivacyAction>();
+    public DbSet<CandidateRetentionSettings> CandidateRetentionSettings => Set<CandidateRetentionSettings>();
+    public DbSet<CandidateRetentionRun> CandidateRetentionRuns => Set<CandidateRetentionRun>();
     public DbSet<CandidateTestAttempt> CandidateTestAttempts => Set<CandidateTestAttempt>();
     public DbSet<Question> Questions => Set<Question>();
     public DbSet<QuestionOption> QuestionOptions => Set<QuestionOption>();
@@ -133,6 +135,36 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         }
 
         foreach (var entry in ChangeTracker.Entries<CandidatePrivacyAction>())
+        {
+            if (entry.State == EntityState.Added)
+            {
+                entry.Property(x => x.CreatedAt).CurrentValue = utcNow;
+                entry.Property(x => x.UpdatedAt).CurrentValue = utcNow;
+            }
+
+            if (entry.State == EntityState.Modified)
+            {
+                entry.Property(x => x.UpdatedAt).CurrentValue = utcNow;
+                entry.Property(x => x.CreatedAt).IsModified = false;
+            }
+        }
+
+        foreach (var entry in ChangeTracker.Entries<CandidateRetentionSettings>())
+        {
+            if (entry.State == EntityState.Added)
+            {
+                entry.Property(x => x.CreatedAt).CurrentValue = utcNow;
+                entry.Property(x => x.UpdatedAt).CurrentValue = utcNow;
+            }
+
+            if (entry.State == EntityState.Modified)
+            {
+                entry.Property(x => x.UpdatedAt).CurrentValue = utcNow;
+                entry.Property(x => x.CreatedAt).IsModified = false;
+            }
+        }
+
+        foreach (var entry in ChangeTracker.Entries<CandidateRetentionRun>())
         {
             if (entry.State == EntityState.Added)
             {

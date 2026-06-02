@@ -8,7 +8,6 @@ import {
   useCallback,
   type ReactNode,
 } from "react";
-import { Lock } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { coreSetupQueryKeys, type TenantSetupStateDto } from "@repo/api";
 import { useApiQueryClient } from "@repo/api/query";
@@ -18,10 +17,12 @@ import { useSetupState } from "@/app/(pages)/setup/use-setup";
 
 const SETUP_LOCK_REASON =
   "Complete organization setup before using the rest of the workspace.";
-const SETUP_LOADING_REASON = "Loading setup...";
 
 interface CoreSetupAccessContextValue {
   shouldCheckSetupAccess: boolean;
+  setupState: TenantSetupStateDto | undefined;
+  setupError: Error | null;
+  isShellLoading: boolean;
   isSetupStateLoading: boolean;
   isSetupLocked: boolean;
   isNavigationLocked: boolean;
@@ -31,6 +32,9 @@ interface CoreSetupAccessContextValue {
 
 const CoreSetupAccessContext = createContext<CoreSetupAccessContextValue>({
   shouldCheckSetupAccess: false,
+  setupState: undefined,
+  setupError: null,
+  isShellLoading: false,
   isSetupStateLoading: false,
   isSetupLocked: false,
   isNavigationLocked: false,
@@ -57,24 +61,26 @@ function isSetupComplete(setupState: TenantSetupStateDto | undefined): boolean {
 function SetupRedirectFallback({ isChecking }: { isChecking: boolean }) {
   return (
     <CorePageLoadingState
-      title="Setup required"
+      title="Setup"
       description="Complete organization setup before using the rest of the workspace."
-      message={isChecking ? "Loading setup..." : "Redirecting to setup..."}
+      message={isChecking ? "Loading setup..." : "Opening setup..."}
       variant="redirect"
     />
   );
 }
 
 export function CoreSetupAccessProvider({ children }: { children: ReactNode }) {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const queryClient = useApiQueryClient();
   const shouldCheckSetupAccess =
-    isAuthenticated && canSeeCoreSetupNavigation(user);
+    !isAuthLoading && isAuthenticated && canSeeCoreSetupNavigation(user);
   const {
     data: setupState,
     error: setupError,
     isLoading: isSetupStateLoading,
   } = useSetupState(shouldCheckSetupAccess);
+  const isSetupAccessPending =
+    shouldCheckSetupAccess && !setupState && !setupError;
 
   const refreshSetupAccess = useCallback(() => {
     if (!shouldCheckSetupAccess) {
@@ -90,31 +96,29 @@ export function CoreSetupAccessProvider({ children }: { children: ReactNode }) {
   const value = useMemo<CoreSetupAccessContextValue>(() => {
     const isSetupLocked =
       shouldCheckSetupAccess &&
-      !isSetupStateLoading &&
+      !isSetupAccessPending &&
       !setupError &&
       !isSetupComplete(setupState);
 
     return {
       shouldCheckSetupAccess,
+      setupState,
+      setupError,
+      isShellLoading: isAuthLoading || isSetupAccessPending,
       isSetupStateLoading,
       isSetupLocked,
-      isNavigationLocked:
-        shouldCheckSetupAccess && (isSetupStateLoading || isSetupLocked),
-      lockedNavigationReason: shouldCheckSetupAccess
-        ? isSetupStateLoading
-          ? SETUP_LOADING_REASON
-          : isSetupLocked
-            ? SETUP_LOCK_REASON
-            : null
-        : null,
+      isNavigationLocked: shouldCheckSetupAccess && isSetupLocked,
+      lockedNavigationReason: isSetupLocked ? SETUP_LOCK_REASON : null,
       refreshSetupAccess,
     };
   }, [
     shouldCheckSetupAccess,
-    isSetupStateLoading,
-    refreshSetupAccess,
     setupError,
     setupState,
+    isAuthLoading,
+    isSetupAccessPending,
+    isSetupStateLoading,
+    refreshSetupAccess,
   ]);
 
   return (
@@ -131,14 +135,11 @@ export function useCoreSetupAccess() {
 export function CoreSetupRouteGuard({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { shouldCheckSetupAccess, isSetupStateLoading, isSetupLocked } =
+  const { shouldCheckSetupAccess, isShellLoading, isSetupLocked } =
     useCoreSetupAccess();
   const currentPath = getCorePathname(pathname);
   const isSetupPage = isSetupAreaPath(currentPath);
-  const shouldHoldRoute =
-    shouldCheckSetupAccess &&
-    !isSetupPage &&
-    (isSetupStateLoading || isSetupLocked);
+  const shouldHoldRoute = shouldCheckSetupAccess && !isSetupPage && isSetupLocked;
 
   useEffect(() => {
     if (!shouldCheckSetupAccess || !isSetupLocked || isSetupPage) {
@@ -149,7 +150,7 @@ export function CoreSetupRouteGuard({ children }: { children: ReactNode }) {
   }, [shouldCheckSetupAccess, isSetupLocked, isSetupPage, router]);
 
   if (shouldHoldRoute) {
-    return <SetupRedirectFallback isChecking={isSetupStateLoading} />;
+    return <SetupRedirectFallback isChecking={isShellLoading} />;
   }
 
   return <>{children}</>;

@@ -23,6 +23,7 @@ import type {
 } from "@repo/api";
 import { canAccessCoreSetup, useAuth } from "@repo/auth";
 import { EmptyState } from "@repo/ui";
+import { useCoreSetupAccess } from "@/components/core-setup-access";
 import { PageHeader } from "@/components/page-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -55,7 +56,6 @@ import {
   usePublishStructure,
   useReopenStructure,
   useSetupReadiness,
-  useSetupState,
 } from "./use-setup";
 
 type SetupMilestoneKey = "activated" | "structurallyGoverned" | "operational";
@@ -336,18 +336,19 @@ function getErrorMessage(error: unknown) {
 
 export default function SetupPage() {
   const router = useRouter();
-  const { user, isLoading: isAuthLoading } = useAuth();
+  const { user } = useAuth();
   const canAccess = canAccessCoreSetup(user);
   const [localError, setLocalError] = useState<string | null>(null);
   const [publishDialogOpen, setPublishDialogOpen] = useState(false);
 
   const {
-    data: setupState,
-    error: setupError,
-    isLoading: isSetupLoading,
-    refetch: refetchSetup,
-  } = useSetupState(canAccess);
+    setupState,
+    setupError,
+    isSetupStateLoading: isSetupLoading,
+    refreshSetupAccess,
+  } = useCoreSetupAccess();
   const setupStarted = !!setupState && !setupState.canStartSetup;
+  const pageTitle = setupStarted ? "Setup summary" : "Setup";
   const {
     data: readiness,
     error: readinessError,
@@ -364,15 +365,11 @@ export default function SetupPage() {
   });
   const reopenStructure = useReopenStructure();
 
-  if (isAuthLoading && !user) {
-    return <SetupPageSkeleton />;
-  }
-
   if (!canAccess) {
     return (
       <div className="flex flex-col gap-6 p-6">
         <PageHeader
-          title="Organization Setup"
+          title={pageTitle}
           description="Core setup is limited to tenant HR administrators."
         />
         <EmptyState
@@ -392,7 +389,7 @@ export default function SetupPage() {
     return (
       <div className="flex flex-col gap-6 p-6">
         <PageHeader
-          title="Organization Setup"
+          title={pageTitle}
           description="The review page is available after the setup state loads."
         />
         <Alert variant="destructive">
@@ -400,7 +397,11 @@ export default function SetupPage() {
           <AlertTitle>Setup could not be loaded</AlertTitle>
           <AlertDescription className="flex items-center justify-between gap-4">
             <span>{setupError.message}</span>
-            <Button variant="outline" size="sm" onClick={() => refetchSetup()}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => refreshSetupAccess()}
+            >
               Retry
             </Button>
           </AlertDescription>
@@ -421,7 +422,7 @@ export default function SetupPage() {
   const reviewCopy = getReviewCopy(setupState?.currentPhase ?? "notStarted");
   const pageError = localError ?? null;
   const pageDescription = isCoreUnlocked
-    ? "Review the completion summary, published snapshot, and setup history."
+    ? "Review the completion summary, published structure, and setup history."
     : setupState.currentPhase === "structurallyGoverned"
       ? "Review the approved draft and publish it when ready."
       : "Review draft readiness and move the structure through approval.";
@@ -593,7 +594,7 @@ export default function SetupPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <PageHeader title="Organization Setup" description={pageDescription} />
+      <PageHeader title={pageTitle} description={pageDescription} />
 
       {pageError ? (
         <Alert variant="destructive">
@@ -716,12 +717,12 @@ export default function SetupPage() {
               ) : null}
               {isCoreUnlocked ? (
                 <>
-                  <Button onClick={() => router.push("/")}>Go to home</Button>
+                  <Button onClick={() => router.push("/")}>Open dashboard</Button>
                   <Button
                     variant="outline"
                     onClick={() => router.push("/setup/draft-structure")}
                   >
-                    View published snapshot
+                    View published structure
                   </Button>
                 </>
               ) : null}
@@ -1002,9 +1003,9 @@ function ReviewSummaryCard({
       : isComplete
         ? "The live structure is in place. Setup is complete and this page now stays as the completion summary."
         : isGoverned && !isReadyForApproval
-          ? "The draft is locked, but it must be reopened and corrected before it can be published."
+      ? "Reopen the approved draft and clear the remaining issues before publishing."
           : isGoverned
-            ? "The draft is locked and ready to move into the live structure."
+        ? "The approved draft is ready to move into the live structure."
             : isReadyForApproval
               ? "The draft meets the review checks. You can approve it now."
               : "Keep working in the draft workspace until the blocking issues are cleared.";
