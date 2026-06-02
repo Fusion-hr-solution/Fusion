@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
-import { Pencil, UserCog, ChevronLeft, ChevronRight } from "lucide-react";
+import { Pencil, UserCog, ChevronLeft, ChevronRight, BarChart2 } from "lucide-react";
 import {
   Button,
   Badge,
   Card,
   CardContent,
 } from "@repo/ui";
+import Link from "next/link";
 import { useApiQuery } from "@repo/api/react";
 import { getEmployeeProfiles, getIdentityUsers } from "@/services/admin-service";
 import { EmployeeProfileForm } from "./employee-profile-form";
@@ -111,6 +112,16 @@ export function EmployeeProfilesManager() {
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        asChild
+                        aria-label={`View attendance for ${userMap.get(profile.employeeId.toLowerCase())?.fullName ?? profile.employeeId}`}
+                      >
+                        <Link href={`/admin/employees/${profile.employeeId}/attendance`}>
+                          <BarChart2 className="h-3.5 w-3.5" />
+                        </Link>
+                      </Button>
                       <Button
                         variant="ghost"
                         size="sm"

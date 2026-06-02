@@ -6,6 +6,7 @@ import {
   GraduationCap,
   Users,
   BarChart3,
+  BarChart2,
   ClipboardList,
   Settings,
   Route,
@@ -49,6 +50,7 @@ export const ADMIN_NAV: NavSection = {
     { label: "Employee Profiles", href: "/admin/employee-profiles", icon: UserCog },
     { label: "Curriculum", href: "/admin/curriculum", icon: Grid3X3 },
     { label: "Sessions", href: "/admin/sessions", icon: CalendarClock },
+    { label: "Attendance", href: "/admin/attendance", icon: BarChart2 },
     { label: "Settings", href: "/admin/settings", icon: Settings },
   ],
 };
