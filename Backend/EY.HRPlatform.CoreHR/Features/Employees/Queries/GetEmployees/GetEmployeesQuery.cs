@@ -12,6 +12,7 @@ namespace EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployees;
 public record GetEmployeesQuery(
     string? Search = null,
     EmployeeStatus? Status = null,
+    EmployeeReadinessFilter? Readiness = null,
     EmployeeSortField SortBy = EmployeeSortField.Name,
     SortDirection SortDir = SortDirection.Asc,
     int Page = 1,

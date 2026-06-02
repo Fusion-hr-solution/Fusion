@@ -29,4 +29,6 @@ public sealed record EmployeeProfileDto(
     public string? ManagerFullName => ManagerFirstName is not null && ManagerLastName is not null
         ? $"{ManagerFirstName} {ManagerLastName}"
         : null;
+
+    public EmployeeReadinessSummaryDto Readiness { get; init; } = EmployeeReadinessSummaryDto.Empty;
 }

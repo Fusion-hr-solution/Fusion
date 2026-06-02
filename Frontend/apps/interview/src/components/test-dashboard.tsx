@@ -261,46 +261,49 @@ export function TestDashboard() {
   return (
     <div className="flex flex-1 flex-col min-h-screen bg-zinc-50">
       {/* Page header */}
-      <div className="flex items-center justify-between border-b border-zinc-200 bg-white px-8 py-5">
-        <div>
-          <h1 className="text-[24px] font-semibold text-zinc-900">
-            Test Management
-          </h1>
-          <p className="mt-0.5 text-[13px] text-zinc-500">
-            Manage and organize your assessments
-          </p>
-          <div className="mt-3 inline-flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-50 p-1">
-            {[
-              { key: "active" as const, label: "Active", status: "Active" as const },
-              { key: "draft" as const, label: "Draft", status: "Draft" as const },
-              { key: "archived" as const, label: "Archived", status: "Archived" as const },
-            ].map((item) => (
-              <button
-                key={item.key}
-                onClick={() => navigateToView(item.key)}
-                className={cn(
-                  "rounded-md px-3 py-1.5 text-[12px] font-semibold transition-colors duration-150",
-                  statusScope === item.status
-                    ? "bg-zinc-900 text-white"
-                    : "text-zinc-600 hover:bg-white"
-                )}
-              >
-                {item.label}
-              </button>
-            ))}
+      <div className="border-b border-zinc-200 bg-white px-8 py-5">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-[22px] font-semibold tracking-tight text-zinc-900">
+              Test Management
+            </h1>
+            <p className="mt-0.5 text-[13px] text-zinc-500">
+              Manage and organize your assessments
+            </p>
           </div>
+          <button
+            onClick={() => {
+              resetWizard();
+              router.push("/tests/create");
+            }}
+            className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-zinc-900 px-4 py-2.5 text-[13px] font-semibold text-white shadow-sm transition-all duration-150 hover:bg-zinc-700 active:scale-[0.98]"
+          >
+            <Plus className="h-4 w-4" />
+            Create New Test
+          </button>
         </div>
 
-        <button
-          onClick={() => {
-            resetWizard();
-            router.push("/tests/create");
-          }}
-          className="flex items-center gap-2 rounded-md bg-zinc-900 px-4 py-2 text-[14px] font-medium text-white hover:bg-zinc-700 transition-colors duration-150"
-        >
-          <Plus className="h-4 w-4" />
-          Create New Test
-        </button>
+        {/* View switcher — browser-tab style consistent with candidate management */}
+        <div className="mt-4 flex gap-0.5 overflow-x-auto scrollbar-hide border-b border-zinc-100 -mb-px">
+          {[
+            { key: "active" as const, label: "Active", status: "Active" as const },
+            { key: "draft" as const, label: "Draft", status: "Draft" as const },
+            { key: "archived" as const, label: "Archived", status: "Archived" as const },
+          ].map((item) => (
+            <button
+              key={item.key}
+              onClick={() => navigateToView(item.key)}
+              className={cn(
+                "inline-flex shrink-0 items-center rounded-t-lg border border-transparent px-4 py-2 text-[12px] font-medium transition-all duration-150",
+                statusScope === item.status
+                  ? "border-zinc-200 border-b-white bg-zinc-50 text-zinc-900 shadow-[0_-1px_3px_rgba(0,0,0,0.03)] -mb-px pb-[9px]"
+                  : "text-zinc-500 hover:text-zinc-700 hover:bg-zinc-50/60"
+              )}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <StatsRow tests={tests} />
@@ -326,25 +329,33 @@ export function TestDashboard() {
       ) : null}
 
       {!isLoading && error ? (
-        <div className="mx-8 mt-4 rounded-md border border-red-200 bg-red-50 px-4 py-3">
-          <p className="text-[13px] text-red-700">{error}</p>
+        <div className="mx-8 mt-4 flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[13px] text-red-700">
+          <X className="h-4 w-4 shrink-0 text-red-500" />
+          {error}
         </div>
       ) : null}
 
       {!isLoading && !error && paginatedTests.length === 0 ? (
-        <div className="flex flex-1 flex-col items-center justify-center gap-3 py-24">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-zinc-100">
+        <div className="flex flex-1 flex-col items-center justify-center gap-4 py-28">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-100">
             <Plus className="h-6 w-6 text-zinc-400" />
           </div>
-          <p className="text-[15px] font-medium text-zinc-900">
-            No tests found
-          </p>
-          <p className="text-[13px] text-zinc-500">
-            Try adjusting your filters or create a new test
-          </p>
+          <div className="text-center">
+            <p className="text-[15px] font-semibold text-zinc-900">No tests found</p>
+            <p className="mt-1 text-[13px] text-zinc-500">
+              Try adjusting your filters or create a new test.
+            </p>
+          </div>
+          <button
+            onClick={() => { resetWizard(); router.push("/tests/create"); }}
+            className="inline-flex items-center gap-2 rounded-xl bg-zinc-900 px-4 py-2.5 text-[13px] font-semibold text-white transition-all duration-150 hover:bg-zinc-700 active:scale-[0.98]"
+          >
+            <Plus className="h-4 w-4" />
+            Create New Test
+          </button>
         </div>
       ) : !isLoading && !error ? (
-        <div className="grid grid-cols-3 gap-4 px-8 py-4">
+        <div className="grid grid-cols-1 gap-4 px-8 py-4 sm:grid-cols-2 xl:grid-cols-3">
           {paginatedTests.map((test) => (
             <TestCard
               key={test.id}
