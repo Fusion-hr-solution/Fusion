@@ -14,14 +14,22 @@ import {
   Users,
   FileText,
   CalendarPlus,
+  FileSpreadsheet,
+  FileDown,
+  Loader2,
+  CheckCircle2,
 } from "lucide-react";
-import { Button, Card, CardContent, Input, Label, Progress, Separator } from "@repo/ui";
+import { Badge, Button, Card, CardContent, Input, Label, Progress, Separator } from "@repo/ui";
 import { useApiQuery, useApiMutation } from "@repo/api/react";
 import {
   getSessionDetail,
   duplicateSession,
+  exportSessionParticipantsExcel,
+  exportSessionParticipantsPdf,
+  markAttendance,
 } from "@/services/admin-sessions-service";
 import { getIdentityUsers } from "@/services/admin-dashboard-service";
+import { downloadBlob } from "@/lib/download";
 import { SessionStatusBadge } from "./session-status-badge";
 import { CancelSessionDialog } from "./cancel-session-dialog";
 import {
@@ -60,6 +68,48 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
       intervalDays: 7,
     }),
     { onSuccess: () => { refetch(); setDuplicateNew(""); } },
+  );
+
+  const [exportingExcel, setExportingExcel] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
+  const [markingId, setMarkingId] = useState<string | null>(null);
+
+  const handleMarkAttendance = useCallback(
+    async (employeeId: string) => {
+      setMarkingId(employeeId);
+      try {
+        await markAttendance(sessionId, employeeId);
+        refetch();
+      } finally {
+        setMarkingId(null);
+      }
+    },
+    [sessionId, refetch],
+  );
+
+  const handleExport = useCallback(
+    async (format: "excel" | "pdf") => {
+      const setBusy = format === "excel" ? setExportingExcel : setExportingPdf;
+      setBusy(true);
+      try {
+        const blob =
+          format === "excel"
+            ? await exportSessionParticipantsExcel(sessionId)
+            : await exportSessionParticipantsPdf(sessionId);
+        const safeTitle = (session?.trainingTitle ?? "session")
+          .replace(/[^a-z0-9]+/gi, "-")
+          .replace(/^-|-$/g, "")
+          .toLowerCase();
+        const datePart = session?.startUtc
+          ? new Date(session.startUtc).toISOString().slice(0, 10)
+          : "";
+        const ext = format === "excel" ? "xlsx" : "pdf";
+        downloadBlob(blob, `participants-${safeTitle}-${datePart}.${ext}`);
+      } finally {
+        setBusy(false);
+      }
+    },
+    [sessionId, session?.trainingTitle, session?.startUtc],
   );
 
   if (isLoading) {
@@ -261,6 +311,38 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
                 </div>
                 <span className="text-xs text-muted-foreground">{resolvedAttendees.length} people</span>
               </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 gap-1.5 border-emerald-200 bg-emerald-50/50 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+                  disabled={resolvedAttendees.length === 0 || exportingExcel}
+                  onClick={() => handleExport("excel")}
+                  aria-label="Export participant list as Excel"
+                >
+                  {exportingExcel ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <FileSpreadsheet className="h-3.5 w-3.5" aria-hidden="true" />
+                  )}
+                  Excel
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 gap-1.5 border-rose-200 bg-rose-50/50 text-rose-700 hover:bg-rose-50 hover:text-rose-800"
+                  disabled={resolvedAttendees.length === 0 || exportingPdf}
+                  onClick={() => handleExport("pdf")}
+                  aria-label="Export participant list as PDF"
+                >
+                  {exportingPdf ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <FileDown className="h-3.5 w-3.5" aria-hidden="true" />
+                  )}
+                  PDF
+                </Button>
+              </div>
               {resolvedAttendees.length === 0 ? (
                 <div className="flex flex-col items-center py-4 text-center">
                   <Users className="h-6 w-6 text-muted-foreground/40" />
@@ -277,6 +359,29 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
                         <p className="text-xs font-medium truncate">{a.fullName ?? a.employeeId}</p>
                         {a.email && <p className="text-[10px] text-muted-foreground truncate">{a.email}</p>}
                       </div>
+                      {a.status === "Attended" ? (
+                        <Badge variant="outline" className="shrink-0 border-emerald-200 bg-emerald-50 text-emerald-700 text-[10px] px-1.5 py-0.5">
+                          <CheckCircle2 className="h-3 w-3 mr-0.5" />
+                          Attended
+                        </Badge>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="shrink-0 h-6 px-2 text-[10px] text-muted-foreground hover:text-emerald-700 hover:bg-emerald-50"
+                          disabled={markingId === a.employeeId}
+                          onClick={() => handleMarkAttendance(a.employeeId)}
+                        >
+                          {markingId === a.employeeId ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <>
+                              <CheckCircle2 className="h-3 w-3 mr-0.5" />
+                              Mark
+                            </>
+                          )}
+                        </Button>
+                      )}
                     </div>
                   ))}
                 </div>

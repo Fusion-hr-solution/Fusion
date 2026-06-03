@@ -1,5 +1,5 @@
 import { ApiError, createPlatformApiClient } from "@repo/api";
-import type { EnrolledTraining, Training, TrainingCategory, TrainingLevel, BadgeLevel, TrainingLearnData, ContentType, ChapterContent, ChapterLayout, TrainingType, OnSiteCourse, LearnerExam, LearnerQuestionType, ExamSubmissionResult, ExamAttempt, MyCursus } from "@/types";
+import type { EnrolledTraining, Training, TrainingCategory, TrainingLevel, BadgeLevel, TrainingLearnData, ContentType, ChapterContent, ChapterLayout, TrainingType, OnSiteCourse, LearnerExam, LearnerQuestionType, ExamSubmissionResult, ExamAttempt, MyCursus, MyInPersonHours } from "@/types";
 import type {
   BackendTrainingCategoryDto,
   BackendTrainingDto,
@@ -111,6 +111,7 @@ export async function getCategories(): Promise<BackendTrainingCategoryDto[]> {
 export async function getTrainings(params?: {
   categoryId?: string;
   search?: string;
+  trainingType?: TrainingType;
   page?: number;
   pageSize?: number;
 }): Promise<{ trainings: Training[]; totalCount: number; page: number; pageSize: number }> {
@@ -119,6 +120,7 @@ export async function getTrainings(params?: {
     params: {
       categoryId: params?.categoryId,
       search: params?.search,
+      trainingType: params?.trainingType,
       page: params?.page,
       pageSize: params?.pageSize,
     },
@@ -383,4 +385,8 @@ export async function getExamAttempts(trainingId: string): Promise<ExamAttempt[]
     passed: d.passed,
     attemptedAt: d.attemptedAt,
   }));
+}
+
+export async function getMyInPersonHours(): Promise<MyInPersonHours> {
+  return client.get<MyInPersonHours>("/training/my-trainings/in-person-hours");
 }

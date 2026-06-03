@@ -128,6 +128,7 @@ export function SessionEnrollmentPanel({ trainingId }: SessionEnrollmentPanelPro
 
       <EnrollmentResultDialog
         result={enrollResult}
+        trainingTitle={available?.trainingTitle}
         open={!!enrollResult}
         onClose={resetEnrollResult}
       />
