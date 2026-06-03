@@ -106,3 +106,28 @@ export async function detectRoomConflicts(params: {
 }): Promise<RoomConflict[]> {
   return client.get<RoomConflict[]>("/training/admin/sessions/conflicts", { params });
 }
+
+// --- Participant exports ---
+
+export async function exportSessionParticipantsExcel(sessionId: string): Promise<Blob> {
+  return client.get<Blob>(
+    `/training/admin/sessions/${encodeURIComponent(sessionId)}/export/excel`,
+    { responseType: "blob" },
+  );
+}
+
+export async function exportSessionParticipantsPdf(sessionId: string): Promise<Blob> {
+  return client.get<Blob>(
+    `/training/admin/sessions/${encodeURIComponent(sessionId)}/export/pdf`,
+    { responseType: "blob" },
+  );
+}
+
+// --- Attendance ---
+
+export async function markAttendance(sessionId: string, employeeId: string): Promise<void> {
+  await client.post("/training/session-enrollments/mark-attendance", {
+    sessionId,
+    employeeId,
+  });
+}
