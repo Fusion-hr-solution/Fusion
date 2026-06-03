@@ -441,6 +441,7 @@ export interface AdminSessionAttendee {
   employeeId: string;
   fullName?: string | null;
   email?: string | null;
+  status: string;
 }
 
 export interface AdminSessionDetail extends AdminSessionListItem {
