@@ -177,7 +177,17 @@ public sealed class PlatformOrganizationService(
 
         try
         {
-            var tenant = Tenant.Create(request.Name.Trim());
+            // Generate unique slug from the name
+            var baseSlug = Tenant.GenerateSlug(request.Name);
+            var slug = baseSlug;
+            var slugSuffix = 2;
+            while (await db.Tenants.AnyAsync(t => t.Slug == slug, cancellationToken))
+            {
+                slug = $"{baseSlug}-{slugSuffix}";
+                slugSuffix++;
+            }
+
+            var tenant = Tenant.Create(Guid.NewGuid(), request.Name.Trim(), slug);
             if (!string.IsNullOrWhiteSpace(request.InternalNotes))
                 tenant.SetInternalNotes(request.InternalNotes);
 
@@ -464,6 +474,7 @@ public sealed class PlatformOrganizationService(
         {
             Id = tenant.Id,
             Name = tenant.Name,
+            Slug = tenant.Slug,
             OperationalStatus = status,
             ActiveUserCount = m.ActiveUserCount,
             PendingInviteCount = m.PendingInviteCount,
@@ -488,6 +499,7 @@ public sealed class PlatformOrganizationService(
         {
             Id = tenant.Id,
             Name = tenant.Name,
+            Slug = tenant.Slug,
             OperationalStatus = status,
             CreatedAt = tenant.CreatedAt,
             UpdatedAt = tenant.UpdatedAt,
