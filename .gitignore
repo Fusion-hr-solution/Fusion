@@ -1,4 +1,9 @@
 # ========================
+# Project artifacts (local only)
+# ========================
+.artifacts/
+
+# ========================
 # Project docs (local only)
 # ========================
 EY_ACADEMY_MODULE.md
