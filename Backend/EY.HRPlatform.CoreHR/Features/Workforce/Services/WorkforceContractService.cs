@@ -394,7 +394,7 @@ public sealed class WorkforceContractService(
                 var profile = employeeReadModelPolicy.MapProfile(employee, settings, audience, directReportCount);
                 return new WorkforceEmployeeSummaryDto(
                     employee.Id,
-                    employee.EmployeeNumber ?? employee.Id.ToString(),
+                    employee.StableEmployeeKey,
                     employee.EmployeeNumber,
                     profile.FirstName,
                     profile.LastName,

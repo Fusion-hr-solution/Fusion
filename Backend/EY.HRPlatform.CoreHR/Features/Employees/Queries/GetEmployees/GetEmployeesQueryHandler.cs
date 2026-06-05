@@ -61,6 +61,13 @@ public sealed class GetEmployeesQueryHandler(
             query = query.Where(employee => employee.OrgUnitId == request.OrgUnitId.Value);
         }
 
+        if (!string.IsNullOrWhiteSpace(request.OrgUnitCode))
+        {
+            var normalizedCode = request.OrgUnitCode.Trim().ToUpperInvariant();
+            query = query.Where(employee =>
+                employee.OrgUnit != null && employee.OrgUnit.Code == normalizedCode);
+        }
+
         if (request.ManagerId.HasValue)
         {
             query = query.Where(employee => employee.ManagerId == request.ManagerId.Value);

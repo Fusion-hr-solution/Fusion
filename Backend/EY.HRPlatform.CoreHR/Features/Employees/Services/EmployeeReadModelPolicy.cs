@@ -26,6 +26,7 @@ public sealed class EmployeeReadModelPolicy : IEmployeeReadModelPolicy
         => new(
             employee.Id,
             employee.TenantId,
+            employee.StableEmployeeKey,
             employee.EmployeeNumber,
             employee.FirstName,
             employee.LastName,
@@ -53,6 +54,7 @@ public sealed class EmployeeReadModelPolicy : IEmployeeReadModelPolicy
 
         return new EmployeeListItemDto(
             employee.Id,
+            employee.StableEmployeeKey,
             employee.EmployeeNumber,
             employee.FirstName,
             employee.LastName,
@@ -79,6 +81,7 @@ public sealed class EmployeeReadModelPolicy : IEmployeeReadModelPolicy
 
         return new EmployeeProfileDto(
             employee.Id,
+            employee.StableEmployeeKey,
             employee.EmployeeNumber,
             employee.FirstName,
             employee.LastName,

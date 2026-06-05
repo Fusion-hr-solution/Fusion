@@ -173,6 +173,7 @@ public sealed class UpdateEmployeeCommandHandler(
     private static EmployeeDto MapToDto(Employee employee, Employee? manager, OrgUnit? orgUnit) => new(
         employee.Id,
         employee.TenantId,
+        employee.StableEmployeeKey,
         employee.EmployeeNumber,
         employee.FirstName,
         employee.LastName,

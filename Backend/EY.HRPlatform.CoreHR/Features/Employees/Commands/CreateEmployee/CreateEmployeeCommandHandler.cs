@@ -16,16 +16,18 @@ public sealed class CreateEmployeeCommandHandler(
     CoreHRDbContext dbContext,
     ITenantContext tenantContext,
     IEmployeeHierarchyService hierarchyService,
-    ITenantSettingsReadService tenantSettingsReadService) : ICommandHandler<CreateEmployeeCommand, Result<EmployeeDto>>
+    ITenantSettingsReadService? tenantSettingsReadService = null) : ICommandHandler<CreateEmployeeCommand, Result<EmployeeDto>>
 {
     private readonly IEmployeeHierarchyService employeeHierarchyService = hierarchyService;
+    private readonly ITenantSettingsReadService tenantSettingsReader =
+        tenantSettingsReadService ?? new TenantSettingsReadService(dbContext);
     private static readonly HashSet<string> OperationallyRequiredFields =
         ["firstName", "lastName", "email", "hireDate"];
 
     public async Task<Result<EmployeeDto>> Handle(CreateEmployeeCommand request, CancellationToken cancellationToken)
     {
         var tenantId = tenantContext.TenantId;
-        var settings = await tenantSettingsReadService.GetCurrentAsync(cancellationToken);
+        var settings = await tenantSettingsReader.GetCurrentAsync(cancellationToken);
         ValidateConfiguredRequiredField(request.FirstName, "firstName", "First name", settings, true);
         ValidateConfiguredRequiredField(request.LastName, "lastName", "Last name", settings, true);
         ValidateConfiguredRequiredField(request.Email, "email", "Email", settings, true);
@@ -153,6 +155,7 @@ public sealed class CreateEmployeeCommandHandler(
     private static EmployeeDto MapToDto(Employee employee, Employee? manager, OrgUnit? orgUnit) => new(
         employee.Id,
         employee.TenantId,
+        employee.StableEmployeeKey,
         employee.EmployeeNumber,
         employee.FirstName,
         employee.LastName,

@@ -92,7 +92,7 @@ internal static class EmployeeReadinessPolicy
                 field.Label,
                 EmployeeReadinessIssueSeverities.Attention,
                 field.Key,
-                new EmployeeReadinessFixTargetDto(field.FixTargetKind, employee.Id, FieldKey: field.Key)));
+                new EmployeeReadinessFixTargetDto(field.FixTargetKind, employee.Id, EmployeeKey: employee.StableEmployeeKey, FieldKey: field.Key)));
         }
 
         if (!employee.OrgUnitId.HasValue)
@@ -105,11 +105,24 @@ internal static class EmployeeReadinessPolicy
                 new EmployeeReadinessFixTargetDto(
                     EmployeeReadinessFixTargetKinds.ProfileOrganization,
                     employee.Id,
+                    EmployeeKey: employee.StableEmployeeKey,
                     FieldKey: "orgUnitId")));
         }
 
         switch (hierarchyStatus)
         {
+            case EmployeeHierarchyStatuses.NoManagerAssigned:
+                issues.Add(new EmployeeReadinessIssueDto(
+                    EmployeeReadinessIssueCodes.NoManagerAssigned,
+                    "Manager is missing",
+                    EmployeeReadinessIssueSeverities.Attention,
+                    "managerId",
+                    new EmployeeReadinessFixTargetDto(
+                        EmployeeReadinessFixTargetKinds.ReportingRelationships,
+                        employee.Id,
+                        EmployeeKey: employee.StableEmployeeKey,
+                        FieldKey: "managerId")));
+                break;
             case EmployeeHierarchyStatuses.ManagerInactive:
                 issues.Add(new EmployeeReadinessIssueDto(
                     EmployeeReadinessIssueCodes.ManagerInactive,
@@ -119,6 +132,7 @@ internal static class EmployeeReadinessPolicy
                     new EmployeeReadinessFixTargetDto(
                         EmployeeReadinessFixTargetKinds.ReportingRelationships,
                         employee.Id,
+                        EmployeeKey: employee.StableEmployeeKey,
                         FieldKey: "managerId")));
                 break;
             case EmployeeHierarchyStatuses.ManagerMissing:
@@ -130,6 +144,7 @@ internal static class EmployeeReadinessPolicy
                     new EmployeeReadinessFixTargetDto(
                         EmployeeReadinessFixTargetKinds.ReportingRelationships,
                         employee.Id,
+                        EmployeeKey: employee.StableEmployeeKey,
                         FieldKey: "managerId")));
                 break;
         }
@@ -153,7 +168,7 @@ internal static class EmployeeReadinessPolicy
                     : $"Employee cannot be deactivated while {directReportCount} active direct reports remain",
                 EmployeeReadinessIssueSeverities.Blocker,
                 null,
-                new EmployeeReadinessFixTargetDto(EmployeeReadinessFixTargetKinds.ProfileStatus, employee.Id))
+                new EmployeeReadinessFixTargetDto(EmployeeReadinessFixTargetKinds.ProfileStatus, employee.Id, EmployeeKey: employee.StableEmployeeKey))
         ];
     }
 

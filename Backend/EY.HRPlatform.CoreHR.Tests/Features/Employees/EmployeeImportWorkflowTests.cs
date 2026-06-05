@@ -685,6 +685,7 @@ public class EmployeeImportWorkflowTests
         Assert.Equal(2, detail.UnresolvedFollowUpIssues.Count);
         Assert.Contains(detail.UnresolvedFollowUpIssues, issue => issue.Code == EmployeeReadinessIssueCodes.MissingOrgUnit && issue.FixTarget.Kind == EmployeeReadinessFixTargetKinds.ProfileOrganization);
         Assert.Contains(detail.UnresolvedFollowUpIssues, issue => issue.Code == EmployeeReadinessIssueCodes.NoManagerAssigned && issue.FixTarget.Kind == EmployeeReadinessFixTargetKinds.ReportingRelationships);
+        Assert.All(detail.UnresolvedFollowUpIssues, issue => Assert.False(string.IsNullOrWhiteSpace(issue.FixTarget.EmployeeKey)));
     }
 
     [Fact]

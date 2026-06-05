@@ -19,6 +19,8 @@ public class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
         builder.Property(e => e.TenantId).IsRequired();
         builder.Property(e => e.EmployeeNumber).HasMaxLength(64);
 
+        builder.Property(e => e.StableEmployeeKey).HasMaxLength(64).IsRequired();
+
         builder.Property(e => e.FirstName).HasMaxLength(100).IsRequired();
         builder.Property(e => e.LastName).HasMaxLength(100).IsRequired();
         builder.Property(e => e.PreferredName).HasMaxLength(100);
@@ -76,6 +78,10 @@ public class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
         builder.HasIndex(e => new { e.TenantId, e.Email })
             .IsUnique()
             .HasDatabaseName("IX_Employees_TenantId_Email");
+
+        builder.HasIndex(e => new { e.TenantId, e.StableEmployeeKey })
+            .IsUnique()
+            .HasDatabaseName("IX_Employees_TenantId_StableEmployeeKey");
 
         builder.HasIndex(e => new { e.TenantId, e.EmployeeNumber })
             .IsUnique()

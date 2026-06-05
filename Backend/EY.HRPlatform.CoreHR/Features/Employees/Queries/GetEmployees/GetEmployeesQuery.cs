@@ -15,6 +15,7 @@ public record GetEmployeesQuery(
     EmployeeAccessFilter? Access = null,
     EmployeeReadinessFilter? Readiness = null,
     Guid? OrgUnitId = null,
+    string? OrgUnitCode = null,
     Guid? ManagerId = null,
     EmployeeSortField SortBy = EmployeeSortField.Name,
     SortDirection SortDir = SortDirection.Asc,

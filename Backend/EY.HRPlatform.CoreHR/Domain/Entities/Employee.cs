@@ -15,6 +15,7 @@ public class Employee : AggregateRoot, ITenantEntity
     /// </summary>
     public uint Version { get; private set; }
     public string? EmployeeNumber { get; private set; }
+    public string StableEmployeeKey { get; private set; } = string.Empty;
     public string FirstName { get; private set; } = string.Empty;
     public string LastName { get; private set; } = string.Empty;
     public string? PreferredName { get; private set; }
@@ -63,10 +64,13 @@ public class Employee : AggregateRoot, ITenantEntity
 
         hireDate = NormalizeHireDate(hireDate, nameof(hireDate));
 
+        var id = Guid.NewGuid();
         return new Employee
         {
+            Id = id,
             TenantId = tenantId,
             EmployeeNumber = NormalizeEmployeeNumber(employeeNumber),
+            StableEmployeeKey = GenerateStableKey(id),
             FirstName = firstName.Trim(),
             LastName = lastName.Trim(),
             Email = email.Trim().ToLowerInvariant(),
@@ -190,6 +194,12 @@ public class Employee : AggregateRoot, ITenantEntity
             return null;
 
         return preferredName.Trim();
+    }
+
+    private static string GenerateStableKey(Guid id)
+    {
+        var shortId = id.ToString("N")[..8].ToUpperInvariant();
+        return $"E-{shortId}";
     }
 
     private static string? NormalizeEmployeeNumber(string? employeeNumber)

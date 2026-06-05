@@ -31,4 +31,29 @@ public sealed record UpdateEmployeeCommand(
     string? EmployeeNumber = null,
     string? Phone = null,
     string? WorkLocation = null,
-    string? EmploymentType = null) : ICommand<Result<EmployeeDto>>;
+    string? EmploymentType = null) : ICommand<Result<EmployeeDto>>
+{
+    public UpdateEmployeeCommand(
+        Guid employeeId,
+        uint expectedVersion,
+        string? firstName,
+        string? lastName,
+        string? email,
+        string? jobTitle,
+        Guid? managerId,
+        Guid? orgUnitId = null,
+        DateTime? hireDate = null)
+        : this(
+            employeeId,
+            expectedVersion,
+            firstName,
+            lastName,
+            null,
+            email,
+            jobTitle,
+            managerId,
+            orgUnitId,
+            hireDate)
+    {
+    }
+}
