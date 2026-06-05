@@ -37,7 +37,7 @@ interface EmployeeProfileSheetProps {
 }
 
 interface EmployeeEditSheetProps extends EmployeeProfileSheetProps {
-  employeeId: string;
+  employeeKey: string;
   defaultTab?: string;
   showPhone: boolean;
   requirePhone: boolean;
@@ -146,7 +146,7 @@ function EmployeeEditTabLayout({
 
 export function EmployeeEditDialog({
   profile,
-  employeeId,
+  employeeKey,
   open,
   onOpenChange,
   defaultTab = "personal",
@@ -255,7 +255,7 @@ export function EmployeeEditDialog({
 
             <TabsContent value="manager" className="min-h-0 flex flex-col">
               <ManagerTab
-                employeeId={employeeId}
+                employeeKey={employeeKey}
                 showJobTitle={showJobTitle}
                 onDirtyChange={(isDirty) => setDirtyTab("manager", isDirty)}
               />
@@ -758,15 +758,15 @@ function WorkTab({
 // ── ManagerTab ─────────────────────────────────────────────────────────────
 
 function ManagerTab({
-  employeeId,
+  employeeKey,
   showJobTitle,
   onDirtyChange,
 }: {
-  employeeId: string;
+  employeeKey: string;
   showJobTitle: boolean;
   onDirtyChange: (isDirty: boolean) => void;
 }) {
-  const { data, error, isLoading } = useEmployeeReportingLines(employeeId);
+  const { data, error, isLoading } = useEmployeeReportingLines(employeeKey);
   const controllerRef = useRef<
     { save: () => void; remove: () => void } | undefined
   >(undefined);
@@ -794,8 +794,7 @@ function ManagerTab({
           <AlertTriangle className="size-4" />
           <AlertTitle>Couldn&apos;t load reporting relationship</AlertTitle>
           <AlertDescription>
-            {error.message ||
-              "Reporting details couldn&apos;t be loaded. Try again."}
+            Reporting details couldn&apos;t be loaded. Try again.
           </AlertDescription>
         </Alert>
       </div>
@@ -1001,8 +1000,7 @@ function OrganizationTab({
                 </div>
               ) : orgUnitOptionsQuery.error ? (
                 <div className="px-4 py-3 text-sm text-destructive">
-                  {orgUnitOptionsQuery.error.message ||
-                    "Unable to load org units right now."}
+                  Unable to load org units right now.
                 </div>
               ) : visibleOrgUnits.length === 0 ? (
                 <div className="px-4 py-3 text-sm text-muted-foreground">

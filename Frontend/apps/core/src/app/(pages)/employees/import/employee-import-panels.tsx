@@ -611,12 +611,10 @@ export function AppliedResultPanel({
   session,
   applyResult,
   onUpload,
-  onReviewHistory,
 }: {
   session: EmployeeImportSessionDto;
   applyResult: EmployeeImportApplyResultDto | null;
   onUpload: () => void;
-  onReviewHistory: () => void;
 }) {
   if (session.stage !== "Applied") {
     return null;
@@ -785,6 +783,105 @@ function ImportHistoryDetailSkeleton() {
   );
 }
 
+function ImportHistoryDetailContent({
+  historyDetail,
+}: {
+  historyDetail: EmployeeImportHistoryDetailDto;
+}) {
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+        <span>{formatTimestamp(historyDetail.appliedAt)}</span>
+        <span>{getHistoryActorLabel(historyDetail)}</span>
+        <span>{getEventActionLabel(historyDetail.eventType)}</span>
+      </div>
+
+      <div className="grid gap-1.5 sm:grid-cols-2 xl:grid-cols-4">
+        {historyDetail.eventType === "Import" ? (
+          <HistoryMetric label="Created" value={historyDetail.createdCount} />
+        ) : historyDetail.eventType === "Validation" &&
+          historyDetail.errorCount != null ? (
+          <HistoryMetric label="Errors" value={historyDetail.errorCount} />
+        ) : null}
+        {historyDetail.eventType === "Validation" &&
+        historyDetail.warningCount != null ? (
+          <HistoryMetric label="Warnings" value={historyDetail.warningCount} />
+        ) : null}
+        <HistoryMetric label="Rows" value={historyDetail.sourceRowCount} />
+        <HistoryMetric
+          label="File size"
+          value={formatBytes(historyDetail.sourceFileSizeBytes)}
+        />
+      </div>
+
+      {historyDetail.eventType === "Import" && historyDetail.skippedCount > 0 ? (
+        <p className="text-xs text-muted-foreground">
+          {historyDetail.skippedCount} row
+          {historyDetail.skippedCount === 1 ? " was" : "s were"} skipped due
+          to duplicate emails.
+        </p>
+      ) : null}
+
+      {historyDetail.eventType === "Import" && historyDetail.failureReason ? (
+        <Alert variant="destructive">
+          <AlertTitle>Import failed</AlertTitle>
+          <AlertDescription>
+            The import could not be completed. Check the file and try again.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
+      {historyDetail.eventType === "Import" &&
+      historyDetail.unresolvedFollowUpIssues.length > 0 ? (
+        <div className="space-y-2 rounded-xl border bg-muted/20 p-3">
+          <div>
+            <p className="text-sm font-medium">Unresolved follow-up items</p>
+            <p className="text-xs text-muted-foreground">
+              Review imported employees that still need attention and open the
+              existing fix flow.
+            </p>
+          </div>
+
+          <div className="space-y-1.5">
+            {historyDetail.unresolvedFollowUpIssues.map((issue) => {
+              const fixHref = buildEmployeeFixHref({
+                code: issue.code,
+                label: issue.label,
+                severity: "Attention",
+                fieldKey: issue.fieldKey,
+                fixTarget: issue.fixTarget,
+              });
+
+              return (
+                <div
+                  key={issue.id}
+                  className="flex flex-col gap-2 rounded-lg border bg-background p-2 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div>
+                    <p className="text-sm font-medium text-foreground">
+                      {issue.label}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Row {issue.sourceRowNumber} • {issue.employeeFullName} (
+                      {issue.employeeEmail})
+                    </p>
+                  </div>
+
+                  {fixHref ? (
+                    <Button asChild size="sm" variant="outline">
+                      <Link href={fixHref}>Open fix</Link>
+                    </Button>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function formatCreatedEmployeesSummary(count: number): string {
   return `${count} employee${count === 1 ? " was" : "s were"} created.`;
 }
@@ -818,6 +915,47 @@ function getEventActionLabel(eventType: ImportHistoryEventType): string {
   }
 }
 
+function getEventIcon(eventType: ImportHistoryEventType) {
+  switch (eventType) {
+    case "Upload":
+      return Upload;
+    case "Validation":
+      return Eye;
+    case "Import":
+      return Users;
+  }
+}
+
+function getHistoryActorLabel(item: {
+  actorFullName: string;
+  actorRole: string;
+}) {
+  return item.actorFullName.trim() || item.actorRole;
+}
+
+function getHistoryRowSummary(item: {
+  eventType: ImportHistoryEventType;
+  sourceRowCount: number;
+  validRowCount: number;
+  createdCount: number;
+  skippedCount: number;
+  errorCount?: number;
+  warningCount?: number;
+}) {
+  switch (item.eventType) {
+    case "Upload":
+      return `${item.sourceRowCount} rows ready for validation`;
+    case "Validation":
+      if ((item.errorCount ?? 0) > 0) {
+        return `${item.errorCount} error${item.errorCount === 1 ? "" : "s"}${(item.warningCount ?? 0) > 0 ? ` · ${item.warningCount} warning${item.warningCount === 1 ? "" : "s"}` : ""}`;
+      }
+
+      return `${item.validRowCount} valid · ${item.sourceRowCount} rows`;
+    case "Import":
+      return `${item.createdCount} created${item.skippedCount > 0 ? ` · ${item.skippedCount} skipped` : ""} · ${item.sourceRowCount} rows`;
+  }
+}
+
 export function ImportHistoryPanel({
   historyPage,
   historyDetail,
@@ -839,6 +977,14 @@ export function ImportHistoryPanel({
   onSelectHistory?: (historyId: string) => void;
   onPageChange: (pageNumber: number) => void;
 }) {
+  const isSelectedHistoryVisible =
+    !!selectedHistoryId
+    && (historyPage?.items.some((item) => item.id === selectedHistoryId) ?? false);
+  const selectedDetail =
+    selectedHistoryId && historyDetail?.id === selectedHistoryId
+      ? historyDetail
+      : null;
+
   return (
     <Card id="employee-import-history" className="border-dashed">
       <CardHeader>
@@ -862,17 +1008,48 @@ export function ImportHistoryPanel({
           </Alert>
         ) : null}
 
+        {selectedHistoryId && !isSelectedHistoryVisible ? (
+          <div className="space-y-3 rounded-xl border bg-muted/20 p-3">
+            <div>
+              <p className="text-sm font-medium">Selected import record</p>
+              <p className="text-xs text-muted-foreground">
+                Showing the requested import history entry outside the current
+                page.
+              </p>
+              {selectedDetail ? (
+                <p className="mt-1 text-sm font-medium text-foreground">
+                  {selectedDetail.sourceFileName}
+                </p>
+              ) : null}
+            </div>
+
+            {historyDetailError ? (
+              <Alert variant="destructive">
+                <AlertTitle>History details failed to load</AlertTitle>
+                <AlertDescription>
+                  {getErrorMessage(historyDetailError)}
+                </AlertDescription>
+              </Alert>
+            ) : isHistoryDetailLoading || !selectedDetail ? (
+              <ImportHistoryDetailSkeleton />
+            ) : (
+              <ImportHistoryDetailContent historyDetail={selectedDetail} />
+            )}
+          </div>
+        ) : null}
+
         {isHistoryLoading && !historyPage ? (
           <ImportHistoryListSkeleton />
         ) : historyPage && historyPage.items.length > 0 ? (
           <div className="space-y-3">
             <div className="grid gap-1.5">
-              {historyPage.items.map((item, index) => {
+              {historyPage.items.map((item) => {
                 const isSelected = selectedHistoryId === item.id;
-                const selectedDetail =
+                const selectedRowDetail =
                   isSelected && historyDetail?.id === item.id
                     ? historyDetail
                     : null;
+                const EventIcon = getEventIcon(item.eventType);
 
                 return (
                   <div
@@ -893,34 +1070,24 @@ export function ImportHistoryPanel({
                       onClick={() => onSelectHistory(item.id)}
                       aria-pressed={isSelected}
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium text-foreground">
-                            {item.sourceFileName}
-                          </p>
-                          <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                            {getEventActionLabel(item.eventType)}{" "}
-                            {formatTimestamp(item.appliedAt)}
-                            {" · "}
-                            {item.eventType === "Import"
-                              ? `${item.createdCount} created · `
-                              : ""}
-                            {item.eventType === "Validation" &&
-                            item.errorCount != null &&
-                            item.errorCount > 0
-                              ? `${item.errorCount} error${item.errorCount === 1 ? "" : "s"} · `
-                              : ""}
-                            {item.eventType === "Validation" &&
-                            item.warningCount != null &&
-                            item.warningCount > 0
-                              ? `${item.warningCount} warning${item.warningCount === 1 ? "" : "s"} · `
-                              : ""}
-                            {item.eventType === "Validation" &&
-                            (item.errorCount ?? 0) === 0
-                              ? `${item.validRowCount} valid · `
-                              : ""}
-                            {item.sourceRowCount} rows · by {item.actorFullName}
-                          </p>
+                      <div className="flex items-start gap-3">
+                        <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg border bg-muted/20 text-muted-foreground">
+                          <EventIcon className="size-4" />
+                        </div>
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="truncate text-sm font-medium text-foreground">
+                              {item.sourceFileName}
+                            </p>
+                            <Badge variant="outline" className="py-0 text-[10px]">
+                              {getEventActionLabel(item.eventType)}
+                            </Badge>
+                          </div>
+                          <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                            <span>{getHistoryRowSummary(item)}</span>
+                            <span>{formatTimestamp(item.appliedAt)}</span>
+                            <span>{getHistoryActorLabel(item)}</span>
+                          </div>
                         </div>
                         <Badge
                           variant={
@@ -949,145 +1116,12 @@ export function ImportHistoryPanel({
                               {getErrorMessage(historyDetailError)}
                             </AlertDescription>
                           </Alert>
-                        ) : isHistoryDetailLoading || !selectedDetail ? (
+                        ) : isHistoryDetailLoading || !selectedRowDetail ? (
                           <ImportHistoryDetailSkeleton />
                         ) : (
-                          <div className="space-y-4">
-                            <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-                              <span>
-                                {getEventActionLabel(selectedDetail.eventType)}{" "}
-                                {formatTimestamp(selectedDetail.appliedAt)}
-                              </span>
-                              <span>by {selectedDetail.actorFullName}</span>
-                              <Badge
-                                variant="outline"
-                                className="py-0 text-[10px]"
-                              >
-                                {selectedDetail.actorRole}
-                              </Badge>
-                            </div>
-
-                            <div className="grid gap-1.5 sm:grid-cols-2 xl:grid-cols-4">
-                              {selectedDetail.eventType === "Import" ? (
-                                <HistoryMetric
-                                  label="Created"
-                                  value={selectedDetail.createdCount}
-                                />
-                              ) : selectedDetail.eventType === "Validation" &&
-                                selectedDetail.errorCount != null ? (
-                                <HistoryMetric
-                                  label="Errors"
-                                  value={selectedDetail.errorCount}
-                                />
-                              ) : null}
-                              {selectedDetail.eventType === "Validation" &&
-                              selectedDetail.warningCount != null ? (
-                                <HistoryMetric
-                                  label="Warnings"
-                                  value={selectedDetail.warningCount}
-                                />
-                              ) : null}
-                              <HistoryMetric
-                                label="Rows"
-                                value={selectedDetail.sourceRowCount}
-                              />
-                              <HistoryMetric
-                                label="File size"
-                                value={formatBytes(
-                                  selectedDetail.sourceFileSizeBytes
-                                )}
-                              />
-                              <HistoryMetric
-                                label="Batch ID"
-                                value={selectedDetail.sessionId.slice(0, 8)}
-                              />
-                              <HistoryMetric
-                                label="Revision"
-                                value={selectedDetail.version}
-                              />
-                            </div>
-
-                            {selectedDetail.eventType === "Import" &&
-                            selectedDetail.skippedCount > 0 ? (
-                              <p className="text-xs text-muted-foreground">
-                                {selectedDetail.skippedCount} row
-                                {selectedDetail.skippedCount === 1
-                                  ? " was"
-                                  : "s were"}{" "}
-                                skipped due to duplicate emails.
-                              </p>
-                            ) : null}
-
-                            {selectedDetail.eventType === "Import" &&
-                            selectedDetail.failureReason ? (
-                              <Alert variant="destructive">
-                                <AlertTitle>Failure reason</AlertTitle>
-                                <AlertDescription>
-                                  {selectedDetail.failureReason}
-                                </AlertDescription>
-                              </Alert>
-                            ) : null}
-
-                            {selectedDetail.eventType === "Import" &&
-                            selectedDetail.unresolvedFollowUpIssues.length >
-                              0 ? (
-                              <div className="space-y-2 rounded-xl border bg-muted/20 p-3">
-                                <div>
-                                  <p className="text-sm font-medium">
-                                    Unresolved follow-up items
-                                  </p>
-                                  <p className="text-xs text-muted-foreground">
-                                    Review imported employees that still need
-                                    attention and open the existing fix flow.
-                                  </p>
-                                </div>
-
-                                <div className="space-y-1.5">
-                                  {selectedDetail.unresolvedFollowUpIssues.map(
-                                    (issue) => {
-                                      const fixHref = buildEmployeeFixHref({
-                                        code: issue.code,
-                                        label: issue.label,
-                                        severity: "Attention",
-                                        fieldKey: issue.fieldKey,
-                                        fixTarget: issue.fixTarget,
-                                      });
-
-                                      return (
-                                        <div
-                                          key={issue.id}
-                                          className="flex flex-col gap-2 rounded-lg border bg-background p-2 sm:flex-row sm:items-center sm:justify-between"
-                                        >
-                                          <div>
-                                            <p className="text-sm font-medium text-foreground">
-                                              {issue.label}
-                                            </p>
-                                            <p className="text-xs text-muted-foreground">
-                                              Row {issue.sourceRowNumber} •{" "}
-                                              {issue.employeeFullName} (
-                                              {issue.employeeEmail})
-                                            </p>
-                                          </div>
-
-                                          {fixHref ? (
-                                            <Button
-                                              asChild
-                                              size="sm"
-                                              variant="outline"
-                                            >
-                                              <Link href={fixHref}>
-                                                Open fix
-                                              </Link>
-                                            </Button>
-                                          ) : null}
-                                        </div>
-                                      );
-                                    }
-                                  )}
-                                </div>
-                              </div>
-                            ) : null}
-                          </div>
+                          <ImportHistoryDetailContent
+                            historyDetail={selectedRowDetail}
+                          />
                         )}
                       </div>
                     ) : null}

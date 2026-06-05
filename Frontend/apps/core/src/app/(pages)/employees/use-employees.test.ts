@@ -275,6 +275,7 @@ describe("useEmployeeReportingLines", () => {
     const mockData = {
       employee: {
         id: "emp-1",
+        stableEmployeeKey: "E-EMP1",
         firstName: "Sarah",
         lastName: "Chen",
         email: "sarah.chen@ey-hr.com",
@@ -297,14 +298,14 @@ describe("useEmployeeReportingLines", () => {
     };
     mockGet.mockResolvedValue(mockData);
 
-    const { result } = renderHook(() => useEmployeeReportingLines("emp-1"), {
+    const { result } = renderHook(() => useEmployeeReportingLines("E-EMP1"), {
       wrapper: createWrapper(),
     });
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     expect(mockGet).toHaveBeenCalledWith(
-      "/corehr/employees/emp-1/reporting-lines",
+      "/corehr/employees/by-key/E-EMP1/reporting-lines",
       expect.objectContaining({
         signal: expect.any(AbortSignal),
       })
@@ -664,6 +665,7 @@ describe("useEmployeeProfile", () => {
   it("calls the profile endpoint for the given employee", async () => {
     const mockProfile = {
       id: "emp-1",
+      stableEmployeeKey: "E-EMP1",
       firstName: "Alice",
       lastName: "Smith",
       preferredName: "Ali",
@@ -686,14 +688,14 @@ describe("useEmployeeProfile", () => {
 
     mockGet.mockResolvedValue(mockProfile);
 
-    const { result } = renderHook(() => useEmployeeProfile("emp-1"), {
+    const { result } = renderHook(() => useEmployeeProfile("E-EMP1"), {
       wrapper: createWrapper(),
     });
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     expect(mockGet).toHaveBeenCalledWith(
-      "/corehr/employees/emp-1/profile",
+      "/corehr/employees/by-key/E-EMP1/profile",
       expect.objectContaining({ signal: expect.any(AbortSignal) })
     );
     expect(result.current.data).toMatchObject({

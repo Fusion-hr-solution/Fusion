@@ -50,7 +50,7 @@ interface ToolbarProps {
   onSearchChange: (value: string) => void;
   status: EmployeeRosterStatus | undefined;
   onStatusChange: (value: EmployeeRosterStatus | undefined) => void;
-  orgUnitId: string | undefined;
+  orgUnitCode: string | undefined;
   selectedOrgUnitName: string | null;
   onOrgUnitChange: (value: string | undefined, label?: string | null) => void;
   orgUnitSeedOptions: EmployeeOrgUnitOption[];
@@ -78,7 +78,7 @@ export function Toolbar({
   onSearchChange,
   status,
   onStatusChange,
-  orgUnitId,
+  orgUnitCode,
   selectedOrgUnitName,
   onOrgUnitChange,
   orgUnitSeedOptions,
@@ -109,7 +109,7 @@ export function Toolbar({
   const hasFilters =
     localSearch.trim().length > 0 ||
     !!status ||
-    !!orgUnitId ||
+    !!orgUnitCode ||
     !!managerId ||
     !!access ||
     !!readiness;
@@ -158,6 +158,10 @@ export function Toolbar({
       left.name.localeCompare(right.name)
     );
   }, [orgUnitOptionsQuery.data?.items, orgUnitSeedOptions]);
+  const resolvedOrgUnitName = useMemo(
+    () => orgUnitOptions.find((orgUnit) => orgUnit.code === orgUnitCode)?.name ?? null,
+    [orgUnitCode, orgUnitOptions]
+  );
 
   useEffect(() => {
     setLocalSearch(search);
@@ -218,12 +222,14 @@ export function Toolbar({
       <Popover open={isOrgUnitOpen} onOpenChange={setIsOrgUnitOpen}>
         <PopoverTrigger asChild>
           <Button
-            variant={orgUnitId ? "secondary" : "outline"}
+            variant={orgUnitCode ? "secondary" : "outline"}
             size="sm"
             className="max-w-[13rem] justify-start gap-1"
           >
             <Building2 className="size-3.5" />
-            <span className="truncate">{selectedOrgUnitName ?? "Org unit"}</span>
+            <span className="truncate">
+              {resolvedOrgUnitName ?? selectedOrgUnitName ?? orgUnitCode ?? "Org unit"}
+            </span>
           </Button>
         </PopoverTrigger>
         <PopoverContent align="start" className="w-[18rem] p-0">
@@ -251,7 +257,7 @@ export function Toolbar({
                     key={orgUnit.id}
                     value={getOrgUnitDisplayLabel(orgUnit)}
                     onSelect={() => {
-                      onOrgUnitChange(orgUnit.id, orgUnit.name);
+                      onOrgUnitChange(orgUnit.code, orgUnit.name);
                       setIsOrgUnitOpen(false);
                       setOrgUnitSearch("");
                     }}

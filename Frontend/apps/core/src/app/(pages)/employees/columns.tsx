@@ -80,6 +80,7 @@ export function buildEmployeeColumns<TEmployee extends EmployeeRosterItem>(
   fieldVisibility: EmployeeFieldVisibility,
   options?: {
     tenantId?: string | null;
+    tenantSlug?: string | null;
   }
 ): ColumnDef<TEmployee>[] {
   const columns: ColumnDef<TEmployee>[] = [
@@ -93,8 +94,9 @@ export function buildEmployeeColumns<TEmployee extends EmployeeRosterItem>(
       header: ({ column }) => <SortHeader label="Employee" column={column} />,
       cell: ({ row }) => {
         const profileHref = buildTenantContextHref(
-          `/employees/${row.original.id}`,
-          options?.tenantId ?? null
+          `/employees/${row.original.stableEmployeeKey}`,
+          options?.tenantId ?? null,
+          options?.tenantSlug ?? null
         );
 
         return (

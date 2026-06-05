@@ -19,11 +19,28 @@ describe("employee readiness helpers", () => {
       fixTarget: {
         kind: "ProfileOrganization",
         employeeId: "emp-1",
+        employeeKey: "E-EMP1",
         fieldKey: "orgUnitId",
       },
     });
 
-    expect(href).toBe("/employees/emp-1?sheet=organization");
+    expect(href).toBe("/employees/E-EMP1?sheet=organization");
+  });
+
+  it("does not fall back to raw employee ids for profile sheet hrefs", () => {
+    const href = buildEmployeeFixHref({
+      code: "MissingOrgUnit",
+      label: "Org unit is missing",
+      severity: "Attention",
+      fieldKey: "orgUnitId",
+      fixTarget: {
+        kind: "ProfileOrganization",
+        employeeId: "0f1b3dad-7b0b-4ca1-b3f4-8fbf9068b5f0",
+        fieldKey: "orgUnitId",
+      },
+    });
+
+    expect(href).toBeNull();
   });
 
   it("maps reporting issues to the reporting sheet", () => {

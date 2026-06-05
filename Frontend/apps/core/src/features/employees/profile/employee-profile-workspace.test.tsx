@@ -87,8 +87,16 @@ vi.mock("@/components/ui/sheet", () => ({
 vi.mock(
   "@/app/(pages)/employees/[id]/employee-profile-workspace-sheets",
   () => ({
-    EmployeeEditDialog: ({ open }: { open: boolean }) =>
-      open ? <div data-testid="employee-edit-dialog">Edit dialog</div> : null,
+    EmployeeEditDialog: ({
+      open,
+      employeeKey,
+    }: {
+      open: boolean;
+      employeeKey: string;
+    }) =>
+      open ? (
+        <div data-testid="employee-edit-dialog">{employeeKey}</div>
+      ) : null,
   })
 );
 
@@ -141,6 +149,7 @@ const completeReadiness: EmployeeReadinessSummaryDto = {
 
 const baseProfile: EmployeeProfileDto = {
   id: "emp-1",
+  stableEmployeeKey: "E-EMP1",
   employeeNumber: "E-001",
   firstName: "Jordan",
   lastName: "Lee",
@@ -173,6 +182,7 @@ const baseProfile: EmployeeProfileDto = {
 const baseReportingLines: EmployeeReportingLinesDto = {
   employee: {
     id: "emp-1",
+    stableEmployeeKey: "E-EMP1",
     employeeNumber: "E-001",
     preferredName: "Jordy",
     displayName: "Jordy Lee",
@@ -197,6 +207,7 @@ const baseReportingLines: EmployeeReportingLinesDto = {
       depth: 0,
       employee: {
         id: "mgr-1",
+        stableEmployeeKey: "E-MGR1",
         employeeNumber: "E-010",
         preferredName: null,
         displayName: "Morgan Hart",
@@ -223,6 +234,7 @@ const baseReportingLines: EmployeeReportingLinesDto = {
       depth: 1,
       employee: {
         id: "emp-2",
+        stableEmployeeKey: "E-EMP2",
         employeeNumber: "E-002",
         preferredName: null,
         displayName: "Taylor Singh",
@@ -247,6 +259,7 @@ const baseReportingLines: EmployeeReportingLinesDto = {
       depth: 1,
       employee: {
         id: "emp-3",
+        stableEmployeeKey: "E-EMP3",
         employeeNumber: "E-003",
         preferredName: null,
         displayName: "Avery Cole",
@@ -391,18 +404,22 @@ describe("EmployeeProfileWorkspace", () => {
     expect(screen.queryByText("Recent activity")).toBeNull();
 
     const managerLinks = screen.getAllByRole("link", { name: /Morgan Hart/i });
-    expect(managerLinks[0]?.getAttribute("href")).toBe("/employees/mgr-1");
+    const managerHrefs = managerLinks.map((link) => link.getAttribute("href"));
+    expect(managerHrefs).toContain("/employees/E-MGR1");
 
     const directReportLink = screen.getByRole("link", {
       name: /Taylor Singh/i,
     });
-    expect(directReportLink.getAttribute("href")).toBe("/employees/emp-2");
+    expect(directReportLink.getAttribute("href")).toBe("/employees/E-EMP2");
 
     await user.click(
       screen.getAllByRole("button", { name: "Edit record" })[0]!
     );
 
     expect(screen.getByTestId("employee-edit-dialog")).toBeTruthy();
+    expect(screen.getByTestId("employee-edit-dialog").textContent).toBe(
+      "E-EMP1"
+    );
     expect(screen.queryByText("No follow-up needed")).toBeNull();
   });
 
@@ -429,9 +446,6 @@ describe("EmployeeProfileWorkspace", () => {
     await user.click(screen.getByRole("button", { name: "Manage access" }));
 
     expect(screen.getByRole("button", { name: "Resend invite" })).toBeTruthy();
-    expect(
-      screen.getByRole("button", { name: "Copy invite link" })
-    ).toBeTruthy();
   });
 
   it("routes readiness issues to the reporting sheet when the fix target is reporting", async () => {
@@ -488,6 +502,7 @@ describe("EmployeeProfileWorkspace", () => {
             depth: 1,
             employee: {
               id: "emp-4",
+              stableEmployeeKey: "E-EMP4",
               employeeNumber: "E-004",
               preferredName: null,
               displayName: "Houda Ammar",
@@ -512,6 +527,7 @@ describe("EmployeeProfileWorkspace", () => {
             depth: 1,
             employee: {
               id: "emp-5",
+              stableEmployeeKey: "E-EMP5",
               employeeNumber: "E-005",
               preferredName: null,
               displayName: "Imen Benyahia",
@@ -536,6 +552,7 @@ describe("EmployeeProfileWorkspace", () => {
             depth: 1,
             employee: {
               id: "emp-6",
+              stableEmployeeKey: "E-EMP6",
               employeeNumber: "E-006",
               preferredName: null,
               displayName: "Mehdi Frikha",

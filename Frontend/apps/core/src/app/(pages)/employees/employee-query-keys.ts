@@ -30,6 +30,7 @@ export function normalizeEmployeeRosterQuery(
     search: normalizeEmployeeRosterSearch(params.search),
     status: params.status ?? null,
     orgUnitId: params.orgUnitId ?? null,
+    orgUnitCode: params.orgUnitCode ?? null,
     managerId: params.managerId ?? null,
     access: params.access ?? null,
     readiness: params.readiness ?? null,

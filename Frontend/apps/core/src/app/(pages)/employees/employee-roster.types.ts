@@ -30,6 +30,7 @@ export type EmployeeReadinessFixTargetKind =
 export interface EmployeeReadinessFixTargetDto {
   kind: EmployeeReadinessFixTargetKind;
   employeeId?: string | null;
+  employeeKey?: string | null;
   importHistoryId?: string | null;
   fieldKey?: string | null;
 }
@@ -88,6 +89,7 @@ export type EmployeeRosterSortDirection = "Asc" | "Desc";
 
 export interface EmployeeRosterItem {
   id: string;
+  stableEmployeeKey: string;
   employeeNumber?: string | null;
   preferredName?: string | null;
   displayName?: string;
@@ -122,6 +124,7 @@ export interface EmployeeRosterQueryParams {
   search?: string;
   status?: EmployeeRosterStatus;
   orgUnitId?: string;
+  orgUnitCode?: string;
   managerId?: string;
   access?: EmployeeAccessFilter;
   readiness?: EmployeeReadinessFilter;
@@ -167,6 +170,7 @@ export interface EmployeeOrgUnitPageDto {
 
 export interface EmployeeProfileDto {
   id: string;
+  stableEmployeeKey: string;
   employeeNumber?: string | null;
   firstName: string;
   lastName: string;

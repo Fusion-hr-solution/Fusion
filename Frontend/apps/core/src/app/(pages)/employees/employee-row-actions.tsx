@@ -24,6 +24,7 @@ import type { EmployeeRosterItem } from "./employee-roster.types";
 interface EmployeeRowActionsProps {
   employee: EmployeeRosterItem;
   tenantId: string | null;
+  tenantSlug: string | null;
   canViewEmployee: boolean;
   canManageEmployee: boolean;
   canUseAccessWorkspace: boolean;
@@ -33,6 +34,7 @@ interface EmployeeRowActionsProps {
 export function EmployeeRowActions({
   employee,
   tenantId,
+  tenantSlug,
   canViewEmployee,
   canManageEmployee,
   canUseAccessWorkspace,
@@ -40,18 +42,20 @@ export function EmployeeRowActions({
 }: EmployeeRowActionsProps) {
   const hrefs = useMemo(
     () => ({
-      profile: buildTenantContextHref(`/employees/${employee.id}`, tenantId),
+      profile: buildTenantContextHref(`/employees/${employee.stableEmployeeKey}`, tenantId, tenantSlug),
       edit: buildTenantContextHref(
-        `/employees/${employee.id}?sheet=identity`,
-        tenantId
+        `/employees/${employee.stableEmployeeKey}?sheet=identity`,
+        tenantId,
+        tenantSlug
       ),
       orgChart: buildTenantContextHref(
-        `/org-chart?focusEmployeeId=${employee.id}`,
-        tenantId
+        `/org-chart?focusEmployeeKey=${employee.stableEmployeeKey}`,
+        tenantId,
+        tenantSlug
       ),
-      access: buildTenantContextHref("/access", tenantId),
+      access: buildTenantContextHref("/access", tenantId, tenantSlug),
     }),
-    [employee.id, tenantId]
+    [employee.stableEmployeeKey, tenantId, tenantSlug]
   );
 
   return (

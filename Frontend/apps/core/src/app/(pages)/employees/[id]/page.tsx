@@ -41,11 +41,11 @@ export default function EmployeeProfilePage() {
     canAccessCoreAccess(user) || canManageAccess || isTenantContextReadOnly;
   const canUseOrgChart = canAccessCoreOrgChart(user) || isTenantContextReadOnly;
   const canViewProfile = canAccessEmployeeProfile(user);
-  const employeeId =
+  const employeeKey =
     typeof params.id === "string" && params.id.trim().length > 0
       ? params.id
       : null;
-  const isOwnProfile = !!employeeId && user?.employeeId === employeeId;
+  const isOwnProfile = !!employeeKey && user?.employeeId === employeeKey;
   const fieldAudience =
     canManageEmployee || isTenantContextReadOnly
       ? "hrAdmin"
@@ -60,22 +60,22 @@ export default function EmployeeProfilePage() {
     canViewProfile || isTenantContextReadOnly
   );
 
-  const effectiveEmployeeId =
-    (canViewProfile || isTenantContextReadOnly) && employeeId
-      ? employeeId
+  const effectiveEmployeeKey =
+    (canViewProfile || isTenantContextReadOnly) && employeeKey
+      ? employeeKey
       : null;
 
   const {
     data: profile,
     error,
     isLoading,
-  } = useEmployeeProfile(effectiveEmployeeId);
+  } = useEmployeeProfile(effectiveEmployeeKey);
 
   const { data: reportingLines } =
-    useEmployeeReportingLines(effectiveEmployeeId);
+    useEmployeeReportingLines(effectiveEmployeeKey);
 
   // Register employee name in the top breadcrumb (Core > Employees > Jane Smith)
-  useBreadcrumbLabel(employeeId ?? "", profile?.fullName);
+  useBreadcrumbLabel(employeeKey ?? "", profile?.fullName);
 
   const isInitialLoading =
     (canViewProfile || isTenantContextReadOnly) &&
@@ -134,7 +134,7 @@ export default function EmployeeProfilePage() {
           <Alert variant="destructive">
             <AlertTitle>Failed to load employee profile</AlertTitle>
             <AlertDescription>
-              {error.message || "An unexpected error occurred."}
+              Could not load profile. Try again in a moment.
             </AlertDescription>
           </Alert>
         )}

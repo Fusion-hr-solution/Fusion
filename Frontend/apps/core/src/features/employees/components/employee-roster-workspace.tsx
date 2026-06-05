@@ -188,12 +188,13 @@ export default function EmployeeRosterWorkspace() {
   const { user } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { tenantId } = useTenantContext();
+  const { tenantId, tenantSlug } = useTenantContext();
   const isTenantContextReadOnly = !!tenantId;
-  const accessWorkspaceHref = buildTenantContextHref("/access", tenantId);
+  const accessWorkspaceHref = buildTenantContextHref("/access", tenantId, tenantSlug);
   const accessReviewHref = buildTenantContextHref(
     "/access?access=NotInvited",
-    tenantId
+    tenantId,
+    tenantSlug
   );
   const canAccess = canAccessEmployeeRoster(user) || isTenantContextReadOnly;
   const canUseAccessWorkspace =
@@ -217,8 +218,8 @@ export default function EmployeeRosterWorkspace() {
   const [status, setStatus] = useState<EmployeeRosterStatus | undefined>(() =>
     parseEmployeeStatus(searchParams.get("status"))
   );
-  const [orgUnitId, setOrgUnitId] = useState<string | undefined>(() =>
-    parseFilterId(searchParams.get("orgUnitId"))
+  const [orgUnitCode, setOrgUnitCode] = useState<string | undefined>(
+    () => searchParams.get("orgUnitCode") ?? undefined
   );
   const [managerId, setManagerId] = useState<string | undefined>(() =>
     parseFilterId(searchParams.get("managerId"))
@@ -240,7 +241,7 @@ export default function EmployeeRosterWorkspace() {
     name: string;
   } | null>(null);
   const [selectedOrgUnit, setSelectedOrgUnit] = useState<{
-    id: string;
+    code: string;
     name: string;
   } | null>(null);
   const fieldVisibility = useEmployeeFieldVisibility(canAccess);
@@ -249,7 +250,7 @@ export default function EmployeeRosterWorkspace() {
   const { data, error, isLoading, isFetching, refetch } = useEmployeeRoster({
     search: search || undefined,
     status,
-    orgUnitId,
+    orgUnitCode,
     managerId,
     access,
     readiness,
@@ -307,22 +308,20 @@ export default function EmployeeRosterWorkspace() {
     );
   }, [managerId, selectedManager, tableRows]);
   const selectedOrgUnitName = useMemo(() => {
-    if (!orgUnitId) {
+    if (!orgUnitCode) {
       return null;
     }
 
-    if (selectedOrgUnit?.id === orgUnitId) {
+    if (selectedOrgUnit?.code === orgUnitCode) {
       return selectedOrgUnit.name;
     }
 
-    return (
-      tableRows.find((row) => row.orgUnitId === orgUnitId)?.orgUnitName ?? null
-    );
-  }, [orgUnitId, selectedOrgUnit, tableRows]);
+    return null;
+  }, [orgUnitCode, selectedOrgUnit]);
   const hasActiveFilters =
     search.trim().length > 0 ||
     !!status ||
-    !!orgUnitId ||
+    !!orgUnitCode ||
     !!managerId ||
     !!access ||
     !!readiness;
@@ -335,6 +334,7 @@ export default function EmployeeRosterWorkspace() {
       fieldVisibility,
       {
         tenantId,
+        tenantSlug,
       }
     );
 
@@ -382,6 +382,7 @@ export default function EmployeeRosterWorkspace() {
           <EmployeeRowActions
             employee={row.original}
             tenantId={tenantId}
+            tenantSlug={tenantSlug}
             canViewEmployee={canAccess}
             canManageEmployee={canManageEmployee}
             canUseAccessWorkspace={canUseAccessWorkspace}
@@ -394,12 +395,14 @@ export default function EmployeeRosterWorkspace() {
 
     return [...baseColumns, accessColumn, actionsColumn];
   }, [
+    canAccess,
     canManageEmployee,
     canUseAccessWorkspace,
     canUseOrgChart,
     fieldVisibility,
     isLoadingWorkforceAccounts,
     tenantId,
+    tenantSlug,
     workforceAccountsError,
   ]);
 
@@ -451,11 +454,12 @@ export default function EmployeeRosterWorkspace() {
 
   const handleOrgUnitChange = useCallback(
     (value: string | undefined, label?: string | null) => {
-      setOrgUnitId(value);
-      setSelectedOrgUnit(value && label ? { id: value, name: label } : null);
+      setOrgUnitCode(value);
+      setSelectedOrgUnit(value && label ? { code: value, name: label } : null);
       setPage(1);
       replaceEmployeesQueryParams({
-        orgUnitId: value ?? null,
+        orgUnitCode: value ?? null,
+        orgUnitId: null,
         page: null,
       });
     },
@@ -500,7 +504,7 @@ export default function EmployeeRosterWorkspace() {
   const handleClearFilters = useCallback(() => {
     setSearch("");
     setStatus(undefined);
-    setOrgUnitId(undefined);
+    setOrgUnitCode(undefined);
     setManagerId(undefined);
     setAccess(undefined);
     setReadiness(undefined);
@@ -510,6 +514,7 @@ export default function EmployeeRosterWorkspace() {
     replaceEmployeesQueryParams({
       search: null,
       status: null,
+      orgUnitCode: null,
       orgUnitId: null,
       managerId: null,
       access: null,
@@ -551,10 +556,17 @@ export default function EmployeeRosterWorkspace() {
   const handleRowClick = useCallback(
     (employee: EmployeeRosterRow) => {
       router.push(
-        buildTenantContextHref(`/employees/${employee.id}`, tenantId)
+        buildTenantContextHref(`/employees/${employee.stableEmployeeKey}`, tenantId, tenantSlug)
       );
     },
-    [router, tenantId]
+    [router, tenantId, tenantSlug]
+  );
+
+  const handleNavigateToEmployee = useCallback(
+    (employeeKey: string) => {
+      router.push(buildTenantContextHref(`/employees/${employeeKey}`, tenantId, tenantSlug));
+    },
+    [router, tenantId, tenantSlug]
   );
 
   const updateCreateEmployeeQueryParam = useCallback(
@@ -573,16 +585,18 @@ export default function EmployeeRosterWorkspace() {
   );
 
   const handleCreateEmployeeCreated = useCallback(
-    (employeeId: string) => {
-      router.push(buildTenantContextHref(`/employees/${employeeId}`, tenantId));
+    (employeeKey: string) => {
+      router.push(
+        buildTenantContextHref(`/employees/${employeeKey}`, tenantId, tenantSlug)
+      );
     },
-    [router, tenantId]
+    [router, tenantId, tenantSlug]
   );
 
   useEffect(() => {
     setSearch(searchParams.get("search") ?? "");
     setStatus(parseEmployeeStatus(searchParams.get("status")));
-    setOrgUnitId(parseFilterId(searchParams.get("orgUnitId")));
+    setOrgUnitCode(searchParams.get("orgUnitCode") ?? undefined);
     setManagerId(parseFilterId(searchParams.get("managerId")));
     setReadiness(parseEmployeeReadinessFilter(searchParams.get("readiness")));
     setAccess(parseEmployeeAccessFilter(searchParams.get("access")));
@@ -597,10 +611,10 @@ export default function EmployeeRosterWorkspace() {
   }, [managerId]);
 
   useEffect(() => {
-    if (!orgUnitId) {
+    if (!orgUnitCode) {
       setSelectedOrgUnit(null);
     }
-  }, [orgUnitId]);
+  }, [orgUnitCode]);
 
   useEffect(() => {
     setIsCreateEmployeeOpen(shouldOpenCreateEmployee);
@@ -718,7 +732,7 @@ export default function EmployeeRosterWorkspace() {
         <Alert variant="destructive">
           <AlertTitle>Employees could not be loaded.</AlertTitle>
           <AlertDescription className="flex items-center justify-between gap-4">
-            <span>{error.message || "An unexpected error occurred."}</span>
+            <span>Could not load employee data. Try again in a moment.</span>
             <Button variant="outline" size="sm" onClick={() => refetch()}>
               Retry
             </Button>
@@ -742,7 +756,7 @@ export default function EmployeeRosterWorkspace() {
           onSearchChange={handleSearchChange}
           status={status}
           onStatusChange={handleStatusChange}
-          orgUnitId={orgUnitId}
+          orgUnitCode={orgUnitCode}
           selectedOrgUnitName={selectedOrgUnitName}
           onOrgUnitChange={handleOrgUnitChange}
           orgUnitSeedOptions={orgUnitSeedOptions}

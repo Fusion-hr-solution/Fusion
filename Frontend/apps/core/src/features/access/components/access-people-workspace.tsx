@@ -114,7 +114,7 @@ type AccessRow = WorkforceAccessSubjectSummaryDto & {
 
 type BadgeTone = "default" | "secondary" | "destructive" | "outline";
 type ProductAccessState = "Not invited" | "Invite pending" | "Active" | "Inactive" | "Needs review";
-type RowActionType = "open" | "copy" | "resend" | "reactivate";
+type RowActionType = "open" | "resend" | "reactivate";
 
 interface RowPrimaryAction {
   label: string;
@@ -552,10 +552,6 @@ function getRowPrimaryAction(
     return { label: "Send invite", type: "open" };
   }
 
-  if (eligibility.canCopyInviteLink) {
-    return { label: "Copy link", type: "copy" };
-  }
-
   if (eligibility.canResend) {
     return { label: "Resend", type: "resend" };
   }
@@ -986,7 +982,7 @@ function AccessPersonSheet({
                 <div className="space-y-1">
                   <h2 className="text-sm font-semibold">Invite pending</h2>
                   <p className="text-sm text-muted-foreground">
-                    Track delivery, resend the invite, or copy the activation link.
+                    Track delivery or resend the invite.
                   </p>
                 </div>
 
@@ -1003,15 +999,6 @@ function AccessPersonSheet({
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                  {canManageAccess ? (
-                    <Button
-                      variant="outline"
-                      onClick={() => void onCopyInviteLink(row.workforceAccount)}
-                    >
-                      <Copy className="size-4" />
-                      Copy invite link
-                    </Button>
-                  ) : null}
                   {canManageAccess ? (
                     <Button variant="outline" onClick={onResend} disabled={isMutating}>
                       {isMutating ? (
@@ -1313,7 +1300,7 @@ export default function AccessPeopleWorkspace() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, isLoading } = useAuth();
-  const { tenantId } = useTenantContext();
+  const { tenantId, tenantSlug } = useTenantContext();
   const { toast } = useToast();
   const [searchInput, setSearchInput] = useState("");
   const deferredSearch = useDeferredValue(searchInput);
@@ -1343,7 +1330,11 @@ export default function AccessPeopleWorkspace() {
   const canViewAccess = canAccessCoreAccess(user);
   const canManageAccess = canManageCoreAccess(user);
   const canManageProfiles = canManageCoreAccessProfiles(user);
-  const profilesHref = buildTenantContextHref("/access/profiles", tenantId);
+  const profilesHref = buildTenantContextHref(
+    "/access/profiles",
+    tenantId,
+    tenantSlug
+  );
   const showSelection = canManageAccess;
 
   useEffect(() => {
@@ -1534,73 +1525,6 @@ export default function AccessPeopleWorkspace() {
     setAccessFilter(ALL_FILTER);
     setProfileFilter(ALL_FILTER);
     setPage(1);
-  };
-
-  const copyTextToClipboard = async ({
-    text,
-    successTitle,
-    successDescription,
-    errorTitle,
-    errorDescription,
-  }: {
-    text: string;
-    successTitle: string;
-    successDescription: string;
-    errorTitle: string;
-    errorDescription: string;
-  }) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      toast({
-        title: successTitle,
-        description: successDescription,
-      });
-    } catch {
-      toast({
-        title: errorTitle,
-        description: errorDescription,
-        variant: "destructive",
-      });
-    }
-  };
-
-  const copyInviteLink = async (account: WorkforceAccountStatusDto | null) => {
-    if (!account?.inviteLink) {
-      toast({
-        title: "Invite link unavailable",
-        description: "This person does not have a pending invite link to copy.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    await copyTextToClipboard({
-      text: account.inviteLink,
-      successTitle: "Invite link copied",
-      successDescription: "The activation link is ready to share.",
-      errorTitle: "Copy failed",
-      errorDescription: "Clipboard access is not available in this browser session.",
-    });
-  };
-
-  const copySelectedInviteLinks = async () => {
-    const rowsWithLinks = selectedRows.filter(
-      (row) => !!row.workforceAccount?.inviteLink
-    );
-
-    if (rowsWithLinks.length === 0) {
-      return;
-    }
-
-    await copyTextToClipboard({
-      text: rowsWithLinks
-        .map((row) => `${row.displayName} <${row.workEmail}>: ${row.workforceAccount?.inviteLink}`)
-        .join("\n"),
-      successTitle: "Invite links copied",
-      successDescription: `${rowsWithLinks.length} invite ${rowsWithLinks.length === 1 ? "link" : "links"} copied.`,
-      errorTitle: "Copy failed",
-      errorDescription: "Clipboard access is not available in this browser session.",
-    });
   };
 
   const handleInvite = async () => {
@@ -1826,9 +1750,6 @@ export default function AccessPeopleWorkspace() {
     const primaryAction = getRowPrimaryAction(row, canManageAccess);
 
     switch (primaryAction.type) {
-      case "copy":
-        await copyInviteLink(row.workforceAccount);
-        return;
       case "resend":
         await handleRowResend(row);
         return;
@@ -1953,4 +1874,3 @@ export default function AccessPeopleWorkspace() {
     </div>
   );
 }
-

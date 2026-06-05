@@ -254,7 +254,6 @@ describe("AppliedResultPanel", () => {
         session={buildAppliedImportSession()}
         applyResult={null}
         onUpload={() => undefined}
-        onReviewHistory={() => undefined}
       />
     );
 
@@ -267,6 +266,9 @@ describe("AppliedResultPanel", () => {
       name: "See employees",
     });
     expect(rosterLink.getAttribute("href")).toBe("/employees");
+    expect(
+      screen.queryByRole("button", { name: "Review history" })
+    ).toBeNull();
   });
 
   it("hides completion links when the user lacks directory and access permissions", () => {
@@ -282,7 +284,6 @@ describe("AppliedResultPanel", () => {
         session={buildAppliedImportSession()}
         applyResult={null}
         onUpload={() => undefined}
-        onReviewHistory={() => undefined}
       />
     );
 
@@ -351,6 +352,7 @@ describe("ImportHistoryPanel", () => {
               fixTarget: {
                 kind: "ProfileOrganization",
                 employeeId: "emp-1",
+                employeeKey: "E-EMP1",
                 fieldKey: "orgUnitId",
               },
             },
@@ -371,8 +373,68 @@ describe("ImportHistoryPanel", () => {
 
     const fixLink = screen.getByRole("link", { name: "Open fix" });
     expect(fixLink.getAttribute("href")).toBe(
-      "/employees/emp-1?sheet=organization"
+      "/employees/E-EMP1?sheet=organization"
     );
+  });
+
+  it("renders selected history detail outside the current page", () => {
+    render(
+      <ImportHistoryPanel
+        historyPage={{
+          items: [
+            {
+              id: "history-2",
+              sessionId: "session-2",
+              sourceFileName: "other.csv",
+              sourceFileSizeBytes: 128,
+              sourceRowCount: 2,
+              validRowCount: 2,
+              createdCount: 2,
+              skippedCount: 0,
+              status: "Applied",
+              appliedAt: "2026-05-13T10:00:00Z",
+              actorUserId: "hr-2",
+              actorFullName: "Other Admin",
+              actorRole: "HRAdmin",
+              eventType: "Import",
+            },
+          ],
+          pageNumber: 1,
+          pageSize: 5,
+          totalCount: 6,
+          pageCount: 2,
+        }}
+        historyDetail={{
+          id: "history-1",
+          sessionId: "session-1",
+          version: 1,
+          sourceFileName: "employees.csv",
+          sourceFileSizeBytes: 512,
+          sourceRowCount: 1,
+          validRowCount: 1,
+          createdCount: 1,
+          skippedCount: 0,
+          status: "Applied",
+          appliedAt: "2026-05-13T09:00:00Z",
+          actorUserId: "hr-1",
+          actorFullName: "HR Admin",
+          actorRole: "HRAdmin",
+          failureReason: null,
+          unresolvedFollowUpIssues: [],
+          eventType: "Import",
+        }}
+        selectedHistoryId="history-1"
+        isHistoryLoading={false}
+        isHistoryDetailLoading={false}
+        historyError={null}
+        historyDetailError={null}
+        onSelectHistory={() => undefined}
+        onPageChange={() => undefined}
+      />
+    );
+
+    expect(screen.getByText("Selected import record")).toBeTruthy();
+    expect(screen.getByText("employees.csv")).toBeTruthy();
   });
 
   it("renders upload history items with correct labels", () => {
@@ -413,7 +475,7 @@ describe("ImportHistoryPanel", () => {
       />
     );
 
-    expect(screen.getByText("Uploaded")).toBeTruthy();
+    expect(screen.getAllByText("Uploaded").length).toBeGreaterThan(0);
     expect(screen.getByText(/12 rows/)).toBeTruthy();
     expect(screen.queryByText("created")).toBeNull();
   });
@@ -458,9 +520,8 @@ describe("ImportHistoryPanel", () => {
       />
     );
 
-    expect(screen.getByText("Validated")).toBeTruthy();
+    expect(screen.getAllByText("Validated").length).toBeGreaterThan(0);
     expect(screen.getByText(/3 errors/)).toBeTruthy();
     expect(screen.getByText(/1 warning/)).toBeTruthy();
-    expect(screen.getByText(/12 rows/)).toBeTruthy();
   });
 });

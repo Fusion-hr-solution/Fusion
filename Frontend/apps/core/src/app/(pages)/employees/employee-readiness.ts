@@ -189,15 +189,15 @@ export function getEmployeeFixSheet(
 export function buildEmployeeFixHref(
   issue: EmployeeReadinessIssueDto
 ): string | null {
-  const employeeId = issue.fixTarget.employeeId;
+  const employeeKey = issue.fixTarget.employeeKey;
   const sheet = getEmployeeFixSheet(issue);
 
-  if (!employeeId || !sheet) {
+  if (!employeeKey || !sheet) {
     return null;
   }
 
   const params = new URLSearchParams({ sheet });
-  return `/employees/${employeeId}?${params.toString()}`;
+  return `/employees/${employeeKey}?${params.toString()}`;
 }
 
 export function buildImportHistoryHref(historyId?: string | null): string {

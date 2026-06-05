@@ -97,6 +97,7 @@ interface CreateEmployeeInput {
 
 interface CreatedEmployeeRecordDto {
   id: string;
+  stableEmployeeKey: string;
 }
 
 interface DeactivateEmployeeInput {
@@ -119,6 +120,7 @@ export function useEmployeeRoster(
     access,
     managerId,
     orgUnitId,
+    orgUnitCode,
     page,
     pageSize,
     readiness,
@@ -133,6 +135,7 @@ export function useEmployeeRoster(
         access,
         managerId,
         orgUnitId,
+        orgUnitCode,
         page,
         pageSize,
         readiness,
@@ -145,6 +148,7 @@ export function useEmployeeRoster(
       access,
       managerId,
       orgUnitId,
+      orgUnitCode,
       page,
       pageSize,
       readiness,
@@ -163,6 +167,7 @@ export function useEmployeeRoster(
           search: normalizedQuery.search ?? undefined,
           status: normalizedQuery.status ?? undefined,
           orgUnitId: normalizedQuery.orgUnitId ?? undefined,
+          orgUnitCode: normalizedQuery.orgUnitCode ?? undefined,
           managerId: normalizedQuery.managerId ?? undefined,
           access: normalizedQuery.access ?? undefined,
           readiness: normalizedQuery.readiness ?? undefined,
@@ -179,6 +184,7 @@ export function useEmployeeRoster(
       normalizedQuery.access,
       normalizedQuery.managerId,
       normalizedQuery.orgUnitId,
+      normalizedQuery.orgUnitCode,
       normalizedQuery.readiness,
       normalizedQuery.search,
       normalizedQuery.sortBy,
@@ -192,6 +198,7 @@ export function useEmployeeRoster(
       search: normalizedQuery.search ?? undefined,
       status: normalizedQuery.status ?? undefined,
       orgUnitId: normalizedQuery.orgUnitId ?? undefined,
+      orgUnitCode: normalizedQuery.orgUnitCode ?? undefined,
       managerId: normalizedQuery.managerId ?? undefined,
       access: normalizedQuery.access ?? undefined,
       readiness: normalizedQuery.readiness ?? undefined,
@@ -230,7 +237,7 @@ export function useWorkforceReadinessSummary(): UseApiQueryResult<WorkforceReadi
 }
 
 export function useEmployeeReportingLines(
-  employeeId: string | null
+  employeeKey: string | null
 ): UseApiQueryResult<EmployeeReportingLinesDto> {
   const { isAuthenticated } = useAuth();
   const client = useMemo(() => createPlatformApiClient(), []);
@@ -238,25 +245,25 @@ export function useEmployeeReportingLines(
 
   const queryFn = useCallback(
     (signal: AbortSignal) => {
-      if (!employeeId) {
-        throw new Error("Employee ID is required to load reporting lines.");
+      if (!employeeKey) {
+        throw new Error("Employee key is required to load reporting lines.");
       }
 
       return client.get<EmployeeReportingLinesDto>(
-        `${EMPLOYEE_ROSTER_PATH}/${employeeId}/reporting-lines`,
+        `${EMPLOYEE_ROSTER_PATH}/by-key/${encodeURIComponent(employeeKey)}/reporting-lines`,
         {
           signal,
         }
       );
     },
-    [client, employeeId]
+    [client, employeeKey]
   );
 
   return useApiQuery(
-    employeeRosterQueryKeys.reportingLines(employeeId ?? "pending"),
+    employeeRosterQueryKeys.reportingLines(employeeKey ?? "pending"),
     queryFn,
     {
-      enabled: isAuthenticated && canAccess && !!employeeId,
+      enabled: isAuthenticated && canAccess && !!employeeKey,
     }
   );
 }
@@ -462,31 +469,7 @@ export function useUpdateEmployeeManager() {
         }
       ),
     {
-      invalidateQueries: (_data, args) => [
-        { queryKey: employeeRosterQueryKeys.lists() },
-        {
-          queryKey: employeeRosterQueryKeys.reportingLines(args.employeeId),
-          exact: true,
-        },
-        {
-          queryKey: employeeRosterQueryKeys.profile(args.employeeId),
-          exact: true,
-        },
-        ...(args.managerId
-          ? [
-              {
-                queryKey: employeeRosterQueryKeys.reportingLines(
-                  args.managerId
-                ),
-                exact: true,
-              },
-              {
-                queryKey: employeeRosterQueryKeys.profile(args.managerId),
-                exact: true,
-              },
-            ]
-          : []),
-      ],
+      invalidateQueries: [{ queryKey: employeeRosterQueryKeys.all() }],
     }
   );
 }
@@ -529,10 +512,7 @@ export function useCreateEmployeeRecord() {
       );
     },
     {
-      invalidateQueries: [
-        { queryKey: employeeRosterQueryKeys.lists() },
-        { queryKey: employeeRosterQueryKeys.readinessSummary(), exact: true },
-      ],
+      invalidateQueries: [{ queryKey: employeeRosterQueryKeys.all() }],
     }
   );
 }
@@ -552,21 +532,7 @@ export function useUpdateEmployeeRecord() {
         }
       ),
     {
-      invalidateQueries: (_data, args) => [
-        { queryKey: employeeRosterQueryKeys.lists() },
-        {
-          queryKey: employeeRosterQueryKeys.reportingLines(args.employeeId),
-          exact: true,
-        },
-        {
-          queryKey: employeeRosterQueryKeys.profile(args.employeeId),
-          exact: true,
-        },
-        {
-          queryKey: employeeRosterQueryKeys.workforceAccount(args.employeeId),
-          exact: true,
-        },
-      ],
+      invalidateQueries: [{ queryKey: employeeRosterQueryKeys.all() }],
     }
   );
 }
@@ -589,12 +555,7 @@ export function useUpdateMyProfile() {
         }
       ),
     {
-      invalidateQueries: (_data, args) => [
-        {
-          queryKey: employeeRosterQueryKeys.profile(args.employeeId),
-          exact: true,
-        },
-      ],
+      invalidateQueries: [{ queryKey: employeeRosterQueryKeys.all() }],
     }
   );
 }
@@ -610,21 +571,7 @@ export function useDeactivateEmployee() {
         },
       }),
     {
-      invalidateQueries: (_data, args) => [
-        { queryKey: employeeRosterQueryKeys.lists() },
-        {
-          queryKey: employeeRosterQueryKeys.reportingLines(args.employeeId),
-          exact: true,
-        },
-        {
-          queryKey: employeeRosterQueryKeys.profile(args.employeeId),
-          exact: true,
-        },
-        {
-          queryKey: employeeRosterQueryKeys.workforceAccount(args.employeeId),
-          exact: true,
-        },
-      ],
+      invalidateQueries: [{ queryKey: employeeRosterQueryKeys.all() }],
     }
   );
 }
@@ -644,27 +591,13 @@ export function useReactivateEmployee() {
         }
       ),
     {
-      invalidateQueries: (_data, args) => [
-        { queryKey: employeeRosterQueryKeys.lists() },
-        {
-          queryKey: employeeRosterQueryKeys.reportingLines(args.employeeId),
-          exact: true,
-        },
-        {
-          queryKey: employeeRosterQueryKeys.profile(args.employeeId),
-          exact: true,
-        },
-        {
-          queryKey: employeeRosterQueryKeys.workforceAccount(args.employeeId),
-          exact: true,
-        },
-      ],
+      invalidateQueries: [{ queryKey: employeeRosterQueryKeys.all() }],
     }
   );
 }
 
 export function useEmployeeProfile(
-  employeeId: string | null
+  employeeKey: string | null
 ): UseApiQueryResult<EmployeeProfileDto> {
   const { isAuthenticated } = useAuth();
   const client = useMemo(() => createPlatformApiClient(), []);
@@ -672,23 +605,23 @@ export function useEmployeeProfile(
 
   const queryFn = useCallback(
     (signal: AbortSignal) => {
-      if (!employeeId) {
-        throw new Error("Employee ID is required to load profile.");
+      if (!employeeKey) {
+        throw new Error("Employee key is required to load profile.");
       }
 
       return client.get<EmployeeProfileDto>(
-        `${EMPLOYEE_ROSTER_PATH}/${employeeId}/profile`,
+        `${EMPLOYEE_ROSTER_PATH}/by-key/${encodeURIComponent(employeeKey)}/profile`,
         { signal }
       );
     },
-    [client, employeeId]
+    [client, employeeKey]
   );
 
   return useApiQuery(
-    employeeRosterQueryKeys.profile(employeeId ?? "pending"),
+    employeeRosterQueryKeys.profile(employeeKey ?? "pending"),
     queryFn,
     {
-      enabled: isAuthenticated && canAccess && !!employeeId,
+      enabled: isAuthenticated && canAccess && !!employeeKey,
     }
   );
 }

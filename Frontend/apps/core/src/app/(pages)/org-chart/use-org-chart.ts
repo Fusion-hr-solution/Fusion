@@ -32,7 +32,10 @@ export function useOrgChart(
         params: {
           rootEmployeeId: normalizedQuery.rootEmployeeId ?? undefined,
           focusEmployeeId: normalizedQuery.focusEmployeeId ?? undefined,
+          rootEmployeeKey: normalizedQuery.rootEmployeeKey ?? undefined,
+          focusEmployeeKey: normalizedQuery.focusEmployeeKey ?? undefined,
           orgUnitId: normalizedQuery.orgUnitId ?? undefined,
+          orgUnitCode: normalizedQuery.orgUnitCode ?? undefined,
           maxDepth: normalizedQuery.maxDepth,
           includeInactive: normalizedQuery.includeInactive || undefined,
         },
@@ -40,10 +43,13 @@ export function useOrgChart(
     [
       client,
       normalizedQuery.focusEmployeeId,
+      normalizedQuery.focusEmployeeKey,
       normalizedQuery.includeInactive,
       normalizedQuery.maxDepth,
+      normalizedQuery.orgUnitCode,
       normalizedQuery.orgUnitId,
       normalizedQuery.rootEmployeeId,
+      normalizedQuery.rootEmployeeKey,
     ]
   );
 

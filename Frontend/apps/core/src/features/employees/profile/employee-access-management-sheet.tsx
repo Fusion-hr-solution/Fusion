@@ -338,25 +338,6 @@ export function EmployeeAccessManagementSheet({
     }
   }
 
-  async function handleCopyInviteLink() {
-    if (!account?.inviteLink) {
-      setActionError(
-        "This person does not have a pending invite link to copy."
-      );
-      return;
-    }
-
-    try {
-      await navigator.clipboard.writeText(account.inviteLink);
-      setActionError(null);
-      toast.success("Invite link copied.");
-    } catch {
-      setActionError(
-        "Clipboard access is not available in this browser session."
-      );
-    }
-  }
-
   async function handleSaveProfiles() {
     if (!account?.userId) {
       setActionError(
@@ -434,7 +415,7 @@ export function EmployeeAccessManagementSheet({
                     Access details couldn&apos;t be loaded
                   </AlertTitle>
                   <AlertDescription>
-                    {error.message || "Try again in a moment."}
+                    Something went wrong. Try again in a moment.
                   </AlertDescription>
                 </Alert>
               ) : null}
@@ -563,14 +544,6 @@ export function EmployeeAccessManagementSheet({
                   </div>
 
                   <div className="flex flex-wrap gap-2">
-                    {account?.inviteLink ? (
-                      <Button
-                        variant="outline"
-                        onClick={() => void handleCopyInviteLink()}
-                      >
-                        Copy invite link
-                      </Button>
-                    ) : null}
                     <Button
                       variant="outline"
                       onClick={() => void handleResend()}

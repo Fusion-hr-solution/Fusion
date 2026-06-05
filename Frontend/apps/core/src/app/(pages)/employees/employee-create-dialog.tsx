@@ -56,7 +56,7 @@ interface CreateEmployeeFormValues {
 interface EmployeeCreateDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreated: (employeeId: string) => void;
+  onCreated: (employeeKey: string) => void;
 }
 
 type ServerFieldName = "email" | "managerId" | "orgUnitId";
@@ -110,10 +110,8 @@ function isServerFieldName(name: string): name is ServerFieldName {
   return name === "email" || name === "managerId" || name === "orgUnitId";
 }
 
-function getQueryErrorMessage(error: unknown, fallback: string) {
-  return error instanceof Error && error.message.trim().length > 0
-    ? error.message
-    : fallback;
+function getQueryErrorMessage(_error: unknown, fallback: string) {
+  return fallback;
 }
 
 function getCreateEmployeeErrorState(error: unknown): CreateEmployeeErrorState {
@@ -145,14 +143,11 @@ function getCreateEmployeeErrorState(error: unknown): CreateEmployeeErrorState {
       };
     }
 
-    return { message };
+    return { message: "An unexpected error occurred. Please try again." };
   }
 
   return {
-    message:
-      error instanceof Error
-        ? error.message
-        : "An unexpected error occurred. Please try again.",
+    message: "An unexpected error occurred. Please try again.",
   };
 }
 
@@ -514,7 +509,7 @@ export function EmployeeCreateDialog({
       toast.success("Employee added", {
         action: {
           label: "Open profile",
-          onClick: () => onCreated(created.id),
+          onClick: () => onCreated(created.stableEmployeeKey),
         },
         cancel: {
           label: "Add another",

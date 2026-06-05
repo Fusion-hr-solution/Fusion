@@ -15,9 +15,13 @@ export function AccessWorkspaceNav({
   showPeople: boolean;
   showProfiles: boolean;
 }) {
-  const { tenantId } = useTenantContext();
-  const peopleHref = buildTenantContextHref("/access", tenantId);
-  const profilesHref = buildTenantContextHref("/access/profiles", tenantId);
+  const { tenantId, tenantSlug } = useTenantContext();
+  const peopleHref = buildTenantContextHref("/access", tenantId, tenantSlug);
+  const profilesHref = buildTenantContextHref(
+    "/access/profiles",
+    tenantId,
+    tenantSlug
+  );
 
   if (!showPeople && !showProfiles) {
     return null;

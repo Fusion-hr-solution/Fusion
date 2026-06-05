@@ -42,20 +42,20 @@ import { Spinner } from "@/components/ui/spinner";
 const MIN_SEARCH_LENGTH = 1;
 
 interface EmployeeReportingLinesDialogProps {
-  employeeId: string | null;
+  employeeKey: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   showJobTitle?: boolean;
 }
 
 export function EmployeeReportingLinesDialog({
-  employeeId,
+  employeeKey,
   open,
   onOpenChange,
   showJobTitle = true,
 }: EmployeeReportingLinesDialogProps) {
   const { data, error, isLoading, refetch } = useEmployeeReportingLines(
-    open ? employeeId : null
+    open ? employeeKey : null
   );
 
   return (
@@ -136,8 +136,7 @@ function ErrorState({
           <AlertTitle>Couldn&apos;t load reporting relationship</AlertTitle>
           <AlertDescription className="flex items-center justify-between gap-4">
             <span>
-              {message ||
-                "Reporting details couldn&apos;t be loaded. Try again."}
+              Reporting details couldn&apos;t be loaded. Try again.
             </span>
             <Button variant="outline" size="sm" onClick={onRetry}>
               Retry
@@ -677,7 +676,7 @@ function ManagerSearchResults({
   if (error) {
     return (
       <p className="text-sm text-destructive">
-        {error.message || "Could not load results."}
+        Could not load results. Try again.
       </p>
     );
   }

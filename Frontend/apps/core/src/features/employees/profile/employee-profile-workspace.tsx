@@ -149,19 +149,21 @@ function SummaryStripItem({
   onClick?: (() => void) | null;
 }) {
   const baseClassName =
-    "flex min-h-24 flex-col justify-between gap-3 bg-background/95 px-4 py-4 text-left";
+    "flex min-h-24 min-w-0 flex-col justify-between gap-3 bg-background/95 px-4 py-4 text-left";
   const content = (
     <>
-      <div className="space-y-1">
+      <div className="min-w-0 space-y-1">
         <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
           {label}
         </p>
-        <div className="text-sm font-semibold leading-snug text-foreground">
+        <div className="min-w-0 text-sm font-semibold leading-snug text-foreground">
           {value}
         </div>
       </div>
       {supportingText ? (
-        <div className="text-xs text-muted-foreground">{supportingText}</div>
+        <div className="truncate text-xs text-muted-foreground">
+          {supportingText}
+        </div>
       ) : null}
     </>
   );
@@ -236,11 +238,11 @@ function RelationshipCard({
   const content = (
     <>
       <div className="flex items-start justify-between gap-3">
-        <div className="space-y-1">
+        <div className="min-w-0 space-y-1">
           <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
             {eyebrow}
           </p>
-          <div className="text-sm font-semibold leading-5 text-foreground">
+          <div className="min-w-0 text-sm font-semibold leading-5 text-foreground">
             {title}
           </div>
         </div>
@@ -320,11 +322,13 @@ function ManagerChainBreadcrumb({
   managerChain,
   hierarchyStatus,
   tenantId,
+  tenantSlug,
   canOpenProfiles,
 }: {
   managerChain: EmployeeHierarchyNodeDto[];
   hierarchyStatus: EmployeeHierarchyStatus;
   tenantId: string | null;
+  tenantSlug: string | null;
   canOpenProfiles: boolean;
 }) {
   if (managerChain.length === 0) {
@@ -346,8 +350,8 @@ function ManagerChainBreadcrumb({
           employee.fullName?.trim() ||
           `${employee.firstName} ${employee.lastName}`;
         const href =
-          canOpenProfiles && employee.id
-            ? buildTenantContextHref(`/employees/${employee.id}`, tenantId)
+          canOpenProfiles && employee.stableEmployeeKey
+            ? buildTenantContextHref(`/employees/${employee.stableEmployeeKey}`, tenantId, tenantSlug)
             : null;
 
         return (
@@ -856,7 +860,7 @@ function WorkforceAccountCard({
           <Alert variant="destructive">
             <AlertTitle>Failed to load account status</AlertTitle>
             <AlertDescription>
-              {error.message || "An unexpected error occurred."}
+              Could not load account information. Try again in a moment.
             </AlertDescription>
           </Alert>
         ) : (
@@ -913,7 +917,7 @@ export function EmployeeProfileWorkspace({
 }: EmployeeProfileWorkspaceProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { tenantId } = useTenantContext();
+  const { tenantId, tenantSlug } = useTenantContext();
   const accessSectionRef = useRef<HTMLDivElement | null>(null);
   const reportingSectionRef = useRef<HTMLDivElement | null>(null);
   const directReportsSectionRef = useRef<HTMLDivElement | null>(null);
@@ -1043,12 +1047,16 @@ export function EmployeeProfileWorkspace({
     canManageEmployee ||
     canManageReporting;
   const managerProfileHref =
-    canOpenManagerProfile && profile.managerId
-      ? buildTenantContextHref(`/employees/${profile.managerId}`, tenantId)
+    canOpenManagerProfile && managerNode?.stableEmployeeKey
+      ? buildTenantContextHref(
+          `/employees/${managerNode.stableEmployeeKey}`,
+          tenantId,
+          tenantSlug
+        )
       : null;
   const managerSupportingText = managerNode?.jobTitle ? (
-    <div className="space-y-0.5">
-      <span>{managerNode.jobTitle}</span>
+    <div className="min-w-0 space-y-0.5">
+      <span className="block truncate">{managerNode.jobTitle}</span>
       {managerEmail ? (
         <span className="block truncate">{managerEmail}</span>
       ) : null}
@@ -1248,8 +1256,9 @@ export function EmployeeProfileWorkspace({
   const focusInOrgChart = () => {
     router.push(
       buildTenantContextHref(
-        `/org-chart?focusEmployeeId=${profile.id}`,
-        tenantId
+        `/org-chart?focusEmployeeKey=${profile.stableEmployeeKey}`,
+        tenantId,
+        tenantSlug
       )
     );
   };
@@ -1634,6 +1643,7 @@ export function EmployeeProfileWorkspace({
                     managerChain={reportingLines?.managerChain ?? []}
                     hierarchyStatus={profile.hierarchyStatus}
                     tenantId={tenantId}
+                    tenantSlug={tenantSlug}
                     canOpenProfiles={
                       isTenantContextReadOnly ||
                       canAccessCorePeople(user) ||
@@ -1657,8 +1667,9 @@ export function EmployeeProfileWorkspace({
                           `${employee.firstName} ${employee.lastName}`;
                         const href = canOpenDirectReportProfiles
                           ? buildTenantContextHref(
-                              `/employees/${employee.id}`,
-                              tenantId
+                              `/employees/${employee.stableEmployeeKey}`,
+                              tenantId,
+                              tenantSlug
                             )
                           : null;
                         const tertiary = employee.jobTitle ? (
@@ -1793,7 +1804,7 @@ export function EmployeeProfileWorkspace({
 
       <EmployeeEditDialog
         profile={profile}
-        employeeId={profile.id}
+        employeeKey={profile.stableEmployeeKey}
         defaultTab={editDialogTab}
         showPhone={showPhone}
         requirePhone={requirePhone}
