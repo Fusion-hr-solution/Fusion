@@ -223,6 +223,29 @@ export interface ExamAttempt {
   attemptedAt: string;
 }
 
+/* ── Personal in-person training hours ── */
+
+export interface AttendedSession {
+  sessionId: string;
+  trainingId: string;
+  trainingTitle: string;
+  partTitle: string;
+  startUtc: string;
+  endUtc: string;
+  room: string;
+  hours: number;
+}
+
+export interface MyInPersonHours {
+  totalHoursYear: number;
+  totalHoursQuarter: number;
+  totalHoursMonth: number;
+  totalHoursAllTime: number;
+  inPersonHours: number;
+  eLearningHours: number;
+  attendedSessions: AttendedSession[];
+}
+
 /* ── Grade / ServiceLine / Curriculum types ── */
 
 export interface Grade {
