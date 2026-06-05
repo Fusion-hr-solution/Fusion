@@ -18,7 +18,7 @@ import { SetupPageSkeleton } from "@/features/setup/components/setup-workspace";
 
 export default function SetupPage() {
   const { user } = useAuth();
-  const { tenantId } = useTenantContext();
+  const { tenantId, tenantSlug } = useTenantContext();
   const isTenantContextReadOnly = !!tenantId;
   const canAccess = canAccessCoreSetup(user) || isTenantContextReadOnly;
 
@@ -27,7 +27,6 @@ export default function SetupPage() {
     setupError,
     isSetupStateLoading: isSetupLoading,
     setupTransitionKind,
-    startSetup,
     publishSetup,
     reopenSetup,
     refreshSetupAccess,
@@ -92,14 +91,16 @@ export default function SetupPage() {
     return <SetupPageSkeleton />;
   }
 
-  const dashboardHref = buildTenantContextHref("/", tenantId);
+  const dashboardHref = buildTenantContextHref("/", tenantId, tenantSlug);
   const draftStructureHref = buildTenantContextHref(
     "/setup/draft-structure",
-    tenantId
+    tenantId,
+    tenantSlug
   );
   const importEmployeesHref = buildTenantContextHref(
     "/employees/import",
-    tenantId
+    tenantId,
+    tenantSlug
   );
 
   const workspaceProps: SetupWorkspaceProps = {
@@ -109,7 +110,6 @@ export default function SetupPage() {
     isReadinessLoading,
     refetchReadiness,
     isTenantContextReadOnly,
-    onStartSetup: startSetup,
     onPublish: publishSetup,
     onReopen: reopenSetup,
     dashboardHref,

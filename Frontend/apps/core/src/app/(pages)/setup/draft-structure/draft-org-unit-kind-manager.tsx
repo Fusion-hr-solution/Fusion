@@ -336,9 +336,6 @@ export function DraftOrgUnitKindManager({
                           placeholder="Department"
                         />
                         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                          <span className="font-mono uppercase tracking-[0.14em]">
-                            {kind.key || "pending-key"}
-                          </span>
                           {usageCount > 0 ? (
                             <Badge variant="outline">
                               {usageCount} planned unit

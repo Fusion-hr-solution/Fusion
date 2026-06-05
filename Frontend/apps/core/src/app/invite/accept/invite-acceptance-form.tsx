@@ -70,10 +70,6 @@ interface InviteErrorStateConfig {
   action?: React.ReactNode;
 }
 
-function buildSupportReference(correlationId: string | null): string | null {
-  return correlationId ? `Reference ID: ${correlationId}` : null;
-}
-
 function hasErrorMessage(error: ApiError, fragment: string): boolean {
   return error.errors.some((message) =>
     message.toLowerCase().includes(fragment.toLowerCase())
@@ -132,24 +128,18 @@ function getInviteValidationErrorState(
     };
   }
 
-  const supportReference = buildSupportReference(error.correlationId);
-
   if (error.status >= 500) {
     return {
       icon: <AlertTriangleIcon className="size-10 text-muted-foreground" />,
       title: "Could not verify invite",
-      description: supportReference
-        ? `Try again in a moment. If the problem continues, contact your administrator and share ${supportReference}.`
-        : "Try again in a moment. If the problem continues, contact your administrator.",
+      description: "Try again in a moment. If the problem continues, contact your administrator.",
     };
   }
 
   return {
     icon: <AlertTriangleIcon className="size-10 text-muted-foreground" />,
     title: "Could not verify invite",
-    description: supportReference
-      ? `Refresh the page or try again in a moment. If you need help, share ${supportReference}.`
-      : "Refresh the page or try again in a moment.",
+    description: "Refresh the page or try again in a moment.",
   };
 }
 
@@ -161,18 +151,12 @@ function getInviteSubmitErrorMessages(
     return ["We couldn't complete your request. Check your connection and try again."];
   }
 
-  const supportReference = buildSupportReference(error.correlationId);
-
   if (step === "sign-in") {
     const messages = [
       error.status === 401 || error.status === 403
         ? "Your account was created, but automatic sign-in failed. Sign in with your new account to continue."
         : "Your account was created, but we couldn't finish signing you in. Try signing in to continue.",
     ];
-
-    if (supportReference && error.status >= 500) {
-      messages.push(supportReference);
-    }
 
     return messages;
   }
@@ -199,14 +183,9 @@ function getInviteSubmitErrorMessages(
     return error.errors;
   }
 
-  return supportReference
-    ? [
-        "We couldn't finish setting up your account. Try again in a moment or contact your administrator.",
-        supportReference,
-      ]
-    : [
-        "We couldn't finish setting up your account. Try again in a moment or contact your administrator.",
-      ];
+  return [
+    "We couldn't finish setting up your account. Try again in a moment or contact your administrator.",
+  ];
 }
 
 // ---------------------------------------------------------------------------

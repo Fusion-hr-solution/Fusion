@@ -530,7 +530,7 @@ export function DraftStructureImportPanel({
                   <AlertCircle className="h-4 w-4" />
                   <AlertTitle>Import is blocked</AlertTitle>
                   <AlertDescription>
-                    {pageError ?? (sessionId ? sessionError?.message : null)}
+                    {pageError ?? "The import could not proceed. Check the file and try again."}
                   </AlertDescription>
                 </Alert>
               ) : null}

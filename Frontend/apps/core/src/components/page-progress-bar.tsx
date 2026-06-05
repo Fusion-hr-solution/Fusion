@@ -1,21 +1,24 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 export function PageProgressBar() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [visible, setVisible] = useState(false);
   const [width, setWidth] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval>>(undefined);
-  const prevPath = useRef(pathname);
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const locationKey = `${pathname}?${searchParams.toString()}`;
+  const prevLocationKey = useRef(locationKey);
 
   useEffect(() => {
-    if (prevPath.current !== pathname) {
+    if (prevLocationKey.current !== locationKey) {
       finish();
-      prevPath.current = pathname;
+      prevLocationKey.current = locationKey;
     }
-  }, [pathname]);
+  }, [locationKey]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -40,11 +43,56 @@ export function PageProgressBar() {
     return () => window.removeEventListener("popstate", handler);
   }, []);
 
-  useEffect(() => () => clearInterval(timerRef.current), []);
+  useEffect(() => {
+    const originalPushState = window.history.pushState;
+    const originalReplaceState = window.history.replaceState;
+
+    const wrapHistoryMethod =
+      (method: History["pushState"]) =>
+      function patchedHistoryMethod(
+        this: History,
+        data: unknown,
+        unused: string,
+        url?: string | URL | null
+      ) {
+        if (url) {
+          try {
+            const nextUrl = new URL(url.toString(), window.location.href);
+            if (
+              nextUrl.origin === window.location.origin &&
+              nextUrl.pathname !== window.location.pathname
+            ) {
+              start();
+            }
+          } catch {
+            /* noop */
+          }
+        }
+
+        return method.call(this, data, unused, url);
+      };
+
+    window.history.pushState = wrapHistoryMethod(originalPushState);
+    window.history.replaceState = wrapHistoryMethod(originalReplaceState);
+
+    return () => {
+      window.history.pushState = originalPushState;
+      window.history.replaceState = originalReplaceState;
+    };
+  }, []);
+
+  useEffect(
+    () => () => {
+      clearInterval(timerRef.current);
+      clearTimeout(hideTimerRef.current);
+    },
+    []
+  );
 
   function start() {
+    clearTimeout(hideTimerRef.current);
     setVisible(true);
-    setWidth(15);
+    setWidth((currentWidth) => (currentWidth >= 15 ? currentWidth : 15));
     clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
       setWidth((w) => Math.min(w + (100 - w) * 0.08, 85));
@@ -52,9 +100,10 @@ export function PageProgressBar() {
   }
 
   function finish() {
+    clearTimeout(hideTimerRef.current);
     setWidth(100);
     clearInterval(timerRef.current);
-    setTimeout(() => {
+    hideTimerRef.current = setTimeout(() => {
       setVisible(false);
       setWidth(0);
     }, 250);
