@@ -49,10 +49,6 @@ export function classifyActionCohort(
   }
 }
 
-export function needsProfileSelection(cohort: ActionCohort): boolean {
-  return cohort === "NewInvitation" || cohort === "RefreshInvitation";
-}
-
 export function isProvisionableInBulk(cohort: ActionCohort): boolean {
   return cohort === "NewInvitation" || cohort === "RefreshInvitation";
 }
@@ -215,67 +211,4 @@ export function getSuggestedInviteRole(
   directReportCount: number
 ): AccessInviteRole {
   return directReportCount > 0 ? "Manager" : "Employee";
-}
-
-export interface ReviewDrawerRow {
-  employee: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-    directReportCount: number;
-  };
-  suggestedRole: AccessInviteRole;
-  workforceAccount: WorkforceAccountStatusDto | null;
-}
-
-export interface ReviewDrawerRows {
-  provisionableRows: ReviewDrawerRow[];
-  pendingInvitationRows: ReviewDrawerRow[];
-  notIncludedRows: Array<ReviewDrawerRow & { reason: string }>;
-}
-
-export function getReviewDrawerRows(
-  selectedEmployees: Array<{
-    id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-    directReportCount: number;
-    workforceAccount: WorkforceAccountStatusDto | null;
-  }>
-): ReviewDrawerRows {
-  const provisionableRows: ReviewDrawerRow[] = [];
-  const pendingInvitationRows: ReviewDrawerRow[] = [];
-  const notIncludedRows: Array<ReviewDrawerRow & { reason: string }> = [];
-
-  selectedEmployees.forEach((employee) => {
-    const eligibility = getInvitationEligibility(employee.workforceAccount);
-    const suggestedRole = getSuggestedInviteRole(employee.directReportCount);
-    const cohort = eligibility.cohort;
-    const row: ReviewDrawerRow = {
-      employee: {
-        id: employee.id,
-        firstName: employee.firstName,
-        lastName: employee.lastName,
-        email: employee.email,
-        directReportCount: employee.directReportCount,
-      },
-      workforceAccount: employee.workforceAccount,
-      suggestedRole,
-    };
-
-    if (isProvisionableInBulk(cohort)) {
-      provisionableRows.push(row);
-    } else if (cohort === "PendingInvitation") {
-      pendingInvitationRows.push(row);
-    } else {
-      notIncludedRows.push({
-        ...row,
-        reason: eligibility.notIncludedReason ?? "",
-      });
-    }
-  });
-
-  return { provisionableRows, pendingInvitationRows, notIncludedRows };
 }

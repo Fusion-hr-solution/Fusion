@@ -18,7 +18,6 @@ import type {
 const WORKFORCE_ACCOUNTS_PATH = "/corehr/employees/workforce-accounts";
 const WORKFORCE_ACCOUNT_SUMMARY_PATH = `${WORKFORCE_ACCOUNTS_PATH}/summary`;
 const WORKFORCE_ACCOUNT_STATUSES_PATH = `${WORKFORCE_ACCOUNTS_PATH}/statuses`;
-const WORKFORCE_ACCOUNT_STATUS_BATCH_SIZE = 200;
 const EMPTY_WORKFORCE_ACCOUNT_STATUSES: WorkforceAccountStatusDto[] = [];
 const WORKFORCE_ACCOUNT_MUTATION_INVALIDATIONS = [
   { queryKey: coreWorkforceQueryKeys.all() },
@@ -56,41 +55,6 @@ export function useWorkforceAccountStatuses(
       enabled: subjects.length > 0,
       placeholderData: EMPTY_WORKFORCE_ACCOUNT_STATUSES,
     }
-  );
-}
-
-export function useResolveWorkforceAccountStatuses() {
-  const client = useMemo(() => createPlatformApiClient(), []);
-
-  return useCallback(
-    async (subjects: WorkforceAccountSubject[]) => {
-      if (subjects.length === 0) {
-        return [] as WorkforceAccountStatusDto[];
-      }
-
-      const results: WorkforceAccountStatusDto[] = [];
-
-      for (
-        let index = 0;
-        index < subjects.length;
-        index += WORKFORCE_ACCOUNT_STATUS_BATCH_SIZE
-      ) {
-        const batch = subjects.slice(
-          index,
-          index + WORKFORCE_ACCOUNT_STATUS_BATCH_SIZE
-        );
-
-        const batchResults = await client.post<WorkforceAccountStatusDto[]>(
-          WORKFORCE_ACCOUNT_STATUSES_PATH,
-          { subjects: batch }
-        );
-
-        results.push(...batchResults);
-      }
-
-      return results;
-    },
-    [client]
   );
 }
 

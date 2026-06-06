@@ -27,7 +27,6 @@ vi.mock("@repo/api/query", async () => {
 import { ApiQueryProvider, createApiQueryClient } from "@repo/api/query";
 import {
   useBulkProvisionWorkforceAccountInvites,
-  useResolveWorkforceAccountStatuses,
   useWorkforceAccountSummary,
 } from "./use-workforce-accounts";
 
@@ -75,39 +74,6 @@ describe("useWorkforceAccountSummary", () => {
         expect.objectContaining({ signal: expect.any(AbortSignal) })
       );
     });
-  });
-});
-
-describe("useResolveWorkforceAccountStatuses", () => {
-  it("calls the workforce account statuses endpoint", async () => {
-    mockPost.mockResolvedValue([]);
-
-    const { result } = renderHook(() => useResolveWorkforceAccountStatuses(), {
-      wrapper: createWrapper(),
-    });
-
-    await result.current([
-      {
-        employeeId: "emp-1",
-        email: "user@example.com",
-        firstName: "User",
-        lastName: "Example",
-      },
-    ]);
-
-    expect(mockPost).toHaveBeenCalledWith(
-      "/corehr/employees/workforce-accounts/statuses",
-      {
-        subjects: [
-          {
-            employeeId: "emp-1",
-            email: "user@example.com",
-            firstName: "User",
-            lastName: "Example",
-          },
-        ],
-      }
-    );
   });
 });
 

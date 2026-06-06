@@ -19,16 +19,11 @@ import {
   normalizeEmployeeRosterQuery,
 } from "./employee-query-keys";
 import type {
-  EmployeeAccessFilter,
   EmployeeOrgUnitPageDto,
   EmployeeProfileDto,
   EmployeeReportingLinesDto,
   EmployeeRosterPageDto,
   EmployeeRosterQueryParams,
-  EmployeeRosterSortDirection,
-  EmployeeRosterSortField,
-  EmployeeRosterStatus,
-  EmployeeReadinessFilter,
   WorkforceReadinessSummaryDto,
 } from "./employee-roster.types";
 
@@ -406,50 +401,6 @@ function buildEmployeeUpdatePayload({
   }
 
   return payload;
-}
-
-export function useResolveEmployeeRoster() {
-  const client = useMemo(() => createPlatformApiClient(), []);
-
-  return useCallback(
-    async (params: {
-      search?: string;
-      status?: EmployeeRosterStatus;
-      access?: EmployeeAccessFilter;
-      readiness?: EmployeeReadinessFilter;
-      sortBy?: EmployeeRosterSortField;
-      sortDir?: EmployeeRosterSortDirection;
-    }) => {
-      const items: EmployeeRosterPageDto["items"] = [];
-      let page = 1;
-      let hasNextPage = true;
-
-      while (hasNextPage) {
-        const response = await client.get<EmployeeRosterPageDto>(
-          EMPLOYEE_ROSTER_PATH,
-          {
-            params: {
-              search: params.search,
-              status: params.status,
-              access: params.access,
-              readiness: params.readiness,
-              sortBy: params.sortBy,
-              sortDir: params.sortDir,
-              page,
-              pageSize: 100,
-            },
-          }
-        );
-
-        items.push(...response.items);
-        hasNextPage = response.hasNextPage;
-        page += 1;
-      }
-
-      return items;
-    },
-    [client]
-  );
 }
 
 export function useUpdateEmployeeManager() {
