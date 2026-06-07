@@ -255,6 +255,9 @@ public class InvitesController : ControllerBase
         if (_dbContext.Database.IsRelational())
             transaction = await _dbContext.Database.BeginTransactionAsync();
 
+        // Track whether we created the user so we can clean up on partial failure
+        ApplicationUser? createdUser = null;
+
         try
         {
             // Create the user
@@ -277,6 +280,8 @@ public class InvitesController : ControllerBase
                 return BadRequest(ApiResponse<UserDto>.Failure(errors));
             }
 
+            createdUser = user;
+
             // Assign role
             var roleResult = await _userManager.AddToRoleAsync(user, invite.Role);
             if (!roleResult.Succeeded)
@@ -296,6 +301,8 @@ public class InvitesController : ControllerBase
 
             if (transaction is not null)
                 await transaction.CommitAsync();
+
+            createdUser = null; // Success — don't clean up
 
             // Fire-and-forget: provision downstream employee profile for workforce users.
             if (invite.EmployeeId.HasValue && IsWorkforceUserRole(invite.Role))
@@ -329,6 +336,12 @@ public class InvitesController : ControllerBase
         {
             if (transaction is not null)
                 await transaction.DisposeAsync();
+
+            // InMemory cleanup: if user was created but not fully processed, remove it
+            if (createdUser is not null && transaction is null)
+            {
+                try { await _userManager.DeleteAsync(createdUser); } catch { /* best-effort */ }
+            }
         }
     }
 
@@ -473,6 +486,29 @@ public class InvitesController : ControllerBase
         };
 
         return Ok(ApiResponse<InviteDto>.Success(dto));
+    }
+
+    /// <summary>
+    /// Dev-only: remove an orphaned user by email (partial-failure cleanup on InMemory).
+    /// </summary>
+    [HttpDelete("dev/users/{email}")]
+    [Authorize(Roles = PlatformRole.PlatformAdmin)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ApiResponse>> DeleteUserByEmail(string email)
+    {
+        var user = await _userManager.FindByEmailAsync(email);
+        if (user is null)
+            return NotFound(ApiResponse.Failure("User not found."));
+
+        var result = await _userManager.DeleteAsync(user);
+        if (!result.Succeeded)
+        {
+            var errors = result.Errors.Select(e => e.Description).ToArray();
+            return BadRequest(ApiResponse.Failure(errors));
+        }
+
+        return Ok(ApiResponse.Success());
     }
 
     private bool CanAccessTenant(Guid tenantId)

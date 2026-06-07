@@ -6,6 +6,7 @@ import {
   coreWorkforceQueryKeys,
   createPlatformApiClient,
   type WorkforceAccessRosterSummaryDto,
+  type WorkforceAccessState,
   type WorkforceAccessSubjectPageDto,
 } from "@repo/api";
 import { useApiQuery } from "@repo/api/query";
@@ -13,6 +14,10 @@ import { useAuth } from "@repo/auth";
 
 export interface AccessSubjectQueryParams {
   search?: string | null;
+  access?: WorkforceAccessState | null;
+  profileId?: string | null;
+  employeeStatus?: "Active" | "Inactive" | null;
+  employeeKey?: string | null;
   page: number;
   pageSize: number;
 }
@@ -32,12 +37,25 @@ export function useAccessSubjects(
           signal,
           params: {
             search: params.search?.trim() || undefined,
+            access: params.access || undefined,
+            profileId: params.profileId || undefined,
+            employeeStatus: params.employeeStatus || undefined,
+            employeeKey: params.employeeKey?.trim() || undefined,
             page: params.page,
             pageSize: params.pageSize,
           },
         }
       ),
-    [client, params.page, params.pageSize, params.search]
+    [
+      client,
+      params.access,
+      params.employeeKey,
+      params.employeeStatus,
+      params.page,
+      params.pageSize,
+      params.profileId,
+      params.search,
+    ]
   );
 
   return useApiQuery(coreWorkforceQueryKeys.accessSubjects(params), queryFn, {

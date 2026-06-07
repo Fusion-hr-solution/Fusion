@@ -33,6 +33,11 @@ public sealed class ProvisionWorkforceAccountInviteRequest
     public Guid AccessProfileId { get; set; }
 }
 
+public sealed class SetPendingInviteAccessProfilesRequest
+{
+    public List<Guid> AccessProfileIds { get; set; } = [];
+}
+
 public sealed class WorkforceAccountStatusDto
 {
     public Guid EmployeeId { get; set; }

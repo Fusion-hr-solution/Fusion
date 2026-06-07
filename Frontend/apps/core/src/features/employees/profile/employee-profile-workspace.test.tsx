@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 const {
@@ -16,6 +16,7 @@ const {
   mockUseProvisionWorkforceAccountInvite,
   mockUseReactivateWorkforceAccount,
   mockUseResendWorkforceAccountInvite,
+  mockUseSetPendingInviteAccessProfiles,
   mockUseDeactivateEmployee,
   mockUseReactivateEmployee,
 } = vi.hoisted(() => ({
@@ -31,6 +32,7 @@ const {
   mockUseProvisionWorkforceAccountInvite: vi.fn(),
   mockUseReactivateWorkforceAccount: vi.fn(),
   mockUseResendWorkforceAccountInvite: vi.fn(),
+  mockUseSetPendingInviteAccessProfiles: vi.fn(),
   mockUseDeactivateEmployee: vi.fn(() => ({
     mutateAsync: vi.fn(),
     isLoading: false,
@@ -111,12 +113,22 @@ vi.mock("@/app/(pages)/employees/use-workforce-accounts", () => ({
   useProvisionWorkforceAccountInvite: mockUseProvisionWorkforceAccountInvite,
   useReactivateWorkforceAccount: mockUseReactivateWorkforceAccount,
   useResendWorkforceAccountInvite: mockUseResendWorkforceAccountInvite,
+  useSetPendingInviteAccessProfiles: mockUseSetPendingInviteAccessProfiles,
   useWorkforceAccountStatus: mockUseWorkforceAccountStatus,
 }));
 
 vi.mock("@/features/access/api/use-core-access", () => ({
   useAccessProfiles: mockUseAccessProfiles,
   useSetUserAccessProfiles: mockUseSetUserAccessProfiles,
+}));
+
+vi.mock("./employee-access-management-sheet", () => ({
+  EmployeeAccessManagementSheet: ({ open }: { open: boolean }) =>
+    open ? (
+      <div data-testid="access-sheet">
+        <button type="button">Resend invite</button>
+      </div>
+    ) : null,
 }));
 
 import type {
@@ -362,6 +374,7 @@ beforeEach(() => {
   mockUseProvisionWorkforceAccountInvite.mockReturnValue(createMutationState());
   mockUseReactivateWorkforceAccount.mockReturnValue(createMutationState());
   mockUseResendWorkforceAccountInvite.mockReturnValue(createMutationState());
+  mockUseSetPendingInviteAccessProfiles.mockReturnValue(createMutationState());
   Object.defineProperty(window.HTMLElement.prototype, "scrollIntoView", {
     configurable: true,
     value: vi.fn(),
@@ -369,12 +382,11 @@ beforeEach(() => {
 });
 
 describe("EmployeeProfileWorkspace", () => {
-  it("renders the rewritten HR profile layout with linked reporting and working edit actions", async () => {
-    const user = userEvent.setup();
-
+  it("renders the rewritten HR profile layout with linked reporting and working edit actions", () => {
     renderWorkspace({
       profile: {
         ...baseProfile,
+        hierarchyStatus: "NoManagerAssigned",
         readiness: {
           ...completeReadiness,
           employeeStateIssueCount: 1,
@@ -412,7 +424,7 @@ describe("EmployeeProfileWorkspace", () => {
     });
     expect(directReportLink.getAttribute("href")).toBe("/employees/E-EMP2");
 
-    await user.click(
+    fireEvent.click(
       screen.getAllByRole("button", { name: "Edit record" })[0]!
     );
 
@@ -424,8 +436,6 @@ describe("EmployeeProfileWorkspace", () => {
   });
 
   it("opens access management for invite-pending account actions", async () => {
-    const user = userEvent.setup();
-
     mockUseWorkforceAccountStatus.mockReturnValue({
       data: {
         ...activeAccount,
@@ -443,7 +453,7 @@ describe("EmployeeProfileWorkspace", () => {
 
     renderWorkspace();
 
-    await user.click(screen.getByRole("button", { name: "Manage access" }));
+    fireEvent.click(screen.getByRole("button", { name: "Manage access" }));
 
     expect(screen.getByRole("button", { name: "Resend invite" })).toBeTruthy();
   });

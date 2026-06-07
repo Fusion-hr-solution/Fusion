@@ -103,7 +103,7 @@ public static class CorePermissionCatalog
             new(CorePermissions.EmployeeManage, "Manage employees", "Employees", [PermissionScopes.Tenant]),
             new(CorePermissions.EmployeeImport, "Import employees", "Employees", [PermissionScopes.Tenant]),
             new(CorePermissions.ReportingManage, "Manage reporting lines", "Employees", [PermissionScopes.Tenant]),
-            new(CorePermissions.OrgChartView, "View org chart", "Org Chart", [PermissionScopes.Tenant]),
+            new(CorePermissions.OrgChartView, "View org chart", "Org Chart", [PermissionScopes.DirectReports, PermissionScopes.Tenant]),
             new(CorePermissions.AccessView, "View access invitations", "Access", [PermissionScopes.Tenant]),
             new(CorePermissions.AccessManage, "Manage access invitations", "Access", [PermissionScopes.Tenant]),
             new(CorePermissions.SettingsView, "View Core settings", "Settings", [PermissionScopes.Tenant]),

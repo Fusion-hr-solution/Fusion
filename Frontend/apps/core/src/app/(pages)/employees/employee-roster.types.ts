@@ -276,6 +276,23 @@ export interface WorkforceAccountBulkProvisionResultDto {
   account: WorkforceAccountStatusDto;
 }
 
+export interface WorkforceBulkInviteResultItemDto {
+  employeeId: string;
+  displayName: string;
+  email: string;
+  outcome: string;
+  message: string;
+}
+
+export interface WorkforceBulkInviteResponseDto {
+  items: WorkforceBulkInviteResultItemDto[];
+  totalRequested: number;
+  invitedCount: number;
+  refreshedCount: number;
+  alreadyActiveCount: number;
+  skippedCount: number;
+}
+
 export interface WorkforceAccountSummaryDto {
   activeAccountCount: number;
   inactiveAccountCount: number;

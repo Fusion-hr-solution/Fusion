@@ -85,6 +85,11 @@ public class WorkforceController(
     [ProducesResponseType(typeof(ApiResponse<PagedResponse<WorkforceAccessSubjectSummaryDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> SearchAccessSubjects(
         [FromQuery] string? search,
+        [FromQuery] string? access,
+        [FromQuery] Guid? profileId,
+        [FromQuery] string? employeeStatus,
+        [FromQuery] string? deliveryState,
+        [FromQuery] string? employeeKey,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
@@ -94,7 +99,16 @@ public class WorkforceController(
             return Forbid();
         }
 
-        var result = await workforceContractService.SearchAccessSubjectsAsync(search, page, pageSize, cancellationToken);
+        var result = await workforceContractService.SearchAccessSubjectsAsync(
+            search,
+            access,
+            profileId,
+            employeeStatus,
+            deliveryState,
+            employeeKey,
+            page,
+            pageSize,
+            cancellationToken);
         return Ok(ApiResponse<PagedResponse<WorkforceAccessSubjectSummaryDto>>.Success(result));
     }
 
@@ -109,6 +123,34 @@ public class WorkforceController(
 
         var result = await workforceContractService.GetAccessRosterSummaryAsync(cancellationToken);
         return Ok(ApiResponse<WorkforceAccessRosterSummaryDto>.Success(result));
+    }
+
+    [HttpPost("access-subjects/bulk-invite")]
+    [ProducesResponseType(typeof(ApiResponse<WorkforceBulkInviteResponseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> BulkInvite(
+        [FromBody] WorkforceBulkInviteRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (!accessPolicy.CanViewAccess(User))
+        {
+            return Forbid();
+        }
+
+        if (request.AccessProfileId == Guid.Empty)
+        {
+            return BadRequest(ApiResponse.Failure("Access profile is required."));
+        }
+
+        try
+        {
+            var result = await workforceContractService.BulkInviteAsync(request, User, cancellationToken);
+            return Ok(ApiResponse<WorkforceBulkInviteResponseDto>.Success(result));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse.Failure(ex.Message));
+        }
     }
 
     [HttpGet("employees/{employeeId:guid}/team")]

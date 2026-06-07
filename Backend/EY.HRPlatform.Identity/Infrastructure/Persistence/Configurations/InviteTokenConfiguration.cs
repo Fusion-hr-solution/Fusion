@@ -30,6 +30,14 @@ public class InviteTokenConfiguration : IEntityTypeConfiguration<InviteToken>
         builder.Property(i => i.LastName)
             .HasMaxLength(100);
 
+        builder.Property(i => i.DeliveryStatus)
+            .HasMaxLength(32);
+
+        builder.Property(i => i.DeliveryMessage)
+            .HasMaxLength(512);
+
+        builder.Property(i => i.DeliveryRecordedAt);
+
         builder.Property(i => i.IsRevoked)
             .IsRequired()
             .HasDefaultValue(false);

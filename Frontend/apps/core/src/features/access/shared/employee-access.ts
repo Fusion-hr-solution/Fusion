@@ -91,14 +91,12 @@ export function getAccessDisplayState(
       return "Not invited";
     case "InvitePending":
       return "Invite pending";
+    case "Active":
+      return "Active account";
     case "InviteExpired":
     case "InviteRevoked":
     case "InviteAccepted":
-      return "Needs review";
-    case "Active":
-      return "Active account";
     case "Inactive":
-      return "Inactive account";
     case "Conflict":
       return "Needs review";
     default:
@@ -114,8 +112,6 @@ export function getAccessBadgeTone(
       return "default";
     case "Invite pending":
       return "secondary";
-    case "Inactive account":
-      return "destructive";
     case "Needs review":
       return "destructive";
     case "Not invited":
@@ -211,4 +207,10 @@ export function getSuggestedInviteRole(
   directReportCount: number
 ): AccessInviteRole {
   return directReportCount > 0 ? "Manager" : "Employee";
+}
+
+export function getPrimaryAccessProfile(
+  profiles: Array<{ id: string; name: string }>
+) {
+  return profiles[0] ?? null;
 }

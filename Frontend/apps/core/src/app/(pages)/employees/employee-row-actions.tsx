@@ -53,7 +53,11 @@ export function EmployeeRowActions({
         tenantId,
         tenantSlug
       ),
-      access: buildTenantContextHref("/access", tenantId, tenantSlug),
+      access: buildTenantContextHref(
+        `/access?employeeKey=${employee.stableEmployeeKey}`,
+        tenantId,
+        tenantSlug
+      ),
     }),
     [employee.stableEmployeeKey, tenantId, tenantSlug]
   );

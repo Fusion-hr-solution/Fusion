@@ -39,7 +39,7 @@ import type {
   WorkforceAccountSubject,
 } from "@/app/(pages)/employees/employee-roster.types";
 import { EmployeesTable } from "@/app/(pages)/employees/employees-table";
-import { PaginationBar } from "@/app/(pages)/employees/pagination-bar";
+import { DataTablePagination as PaginationBar } from "@/components/data-table-pagination";
 import { Toolbar } from "@/app/(pages)/employees/toolbar";
 import { useEmployeeRoster } from "@/app/(pages)/employees/use-employees";
 import { useWorkforceAccountStatuses } from "@/app/(pages)/employees/use-workforce-accounts";

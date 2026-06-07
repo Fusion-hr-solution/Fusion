@@ -47,7 +47,6 @@ import {
   useApplyEmployeeImport,
   useDownloadEmployeeImportTemplate,
   useEmployeeImportHistory,
-  useEmployeeImportHistoryDetail,
   useEmployeeImportSchema,
   useEmployeeImportSession,
   useUploadEmployeeImport,
@@ -63,7 +62,6 @@ export default function EmployeeImportWorkspace() {
   const searchParams = useSearchParams();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const sessionId = searchParams.get("session");
-  const historyIdFromQuery = searchParams.get("historyId");
   const [previewFilter, setPreviewFilter] =
     useState<EmployeeImportPreviewFilter>("all");
   const [activeIssueGroupKey, setActiveIssueGroupKey] = useState<string | null>(
@@ -74,9 +72,6 @@ export default function EmployeeImportWorkspace() {
     DEFAULT_EMPLOYEE_IMPORT_PREVIEW_PAGE_SIZE
   );
   const [historyPageNumber, setHistoryPageNumber] = useState(1);
-  const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(
-    historyIdFromQuery
-  );
   const [applyError, setApplyError] = useState<string | null>(null);
   const [lastApplyResult, setLastApplyResult] =
     useState<EmployeeImportApplyResultDto | null>(null);
@@ -114,11 +109,6 @@ export default function EmployeeImportWorkspace() {
     pageNumber: historyPageNumber,
     pageSize: HISTORY_PAGE_SIZE,
   });
-  const {
-    data: historyDetail,
-    error: historyDetailError,
-    isLoading: isHistoryDetailLoading,
-  } = useEmployeeImportHistoryDetail(selectedHistoryId);
 
   const activeSchema = session?.employeeImportSchema ?? schema;
   const canonicalFieldKeys =
@@ -158,10 +148,6 @@ export default function EmployeeImportWorkspace() {
     setApplyError(null);
     setLastApplyResult(null);
   }, [session?.id]);
-
-  useEffect(() => {
-    setSelectedHistoryId(historyIdFromQuery);
-  }, [historyIdFromQuery]);
 
   useEffect(() => {
     setIsAppliedPreviewOpen(!isAppliedSession);
@@ -287,8 +273,7 @@ export default function EmployeeImportWorkspace() {
       setApplyError(null);
       const result = await applyImport.mutateAsync({ sessionId: session.id });
       setLastApplyResult(result);
-      setSelectedHistoryId(result.historyId);
-      replaceImportRoute(session.id, result.historyId);
+      replaceImportRoute(session.id, null);
       const shouldRefetchCurrentHistoryPage = historyPageNumber === 1;
       setHistoryPageNumber(1);
 
@@ -453,14 +438,6 @@ export default function EmployeeImportWorkspace() {
     [historyPage, historyPageNumber]
   );
 
-  const handleSelectHistory = useCallback(
-    (historyId: string) => {
-      setSelectedHistoryId(historyId);
-      replaceImportRoute(sessionId, historyId, "#employee-import-history");
-    },
-    [replaceImportRoute, sessionId]
-  );
-
   if (isInitialPageLoading) {
     return (
       <CorePageLoadingState
@@ -556,13 +533,8 @@ export default function EmployeeImportWorkspace() {
           {isAppliedSession ? (
             <ImportHistoryPanel
               historyPage={historyPage}
-              historyDetail={historyDetail}
-              selectedHistoryId={selectedHistoryId}
               isHistoryLoading={isHistoryLoading}
-              isHistoryDetailLoading={isHistoryDetailLoading}
               historyError={historyError}
-              historyDetailError={historyDetailError}
-              onSelectHistory={handleSelectHistory}
               onPageChange={handleHistoryPageChange}
             />
           ) : null}
@@ -660,13 +632,8 @@ export default function EmployeeImportWorkspace() {
           {!isAppliedSession ? (
             <ImportHistoryPanel
               historyPage={historyPage}
-              historyDetail={historyDetail}
-              selectedHistoryId={selectedHistoryId}
               isHistoryLoading={isHistoryLoading}
-              isHistoryDetailLoading={isHistoryDetailLoading}
               historyError={historyError}
-              historyDetailError={historyDetailError}
-              onSelectHistory={handleSelectHistory}
               onPageChange={handleHistoryPageChange}
             />
           ) : null}
@@ -688,13 +655,8 @@ export default function EmployeeImportWorkspace() {
 
           <ImportHistoryPanel
             historyPage={historyPage}
-            historyDetail={historyDetail}
-            selectedHistoryId={selectedHistoryId}
             isHistoryLoading={isHistoryLoading}
-            isHistoryDetailLoading={isHistoryDetailLoading}
             historyError={historyError}
-            historyDetailError={historyDetailError}
-            onSelectHistory={handleSelectHistory}
             onPageChange={handleHistoryPageChange}
           />
 

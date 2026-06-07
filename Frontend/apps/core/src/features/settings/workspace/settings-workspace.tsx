@@ -48,6 +48,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DraftOrgUnitKindManager } from "@/app/(pages)/setup/draft-structure/draft-org-unit-kind-manager";
 import { SetupStatusBadge } from "@/app/(pages)/setup/setup-status-badge";
+import { AccessProfilesWorkspace } from "@/features/access/components/access-profiles-workspace";
 import {
   useTenantSettings,
   useUpdateTenantSettings,
@@ -159,16 +160,12 @@ export default function SettingsWorkspace() {
   const { tenantId, tenantSlug, tenantName } = useTenantContext();
   const isTenantContext = !!tenantId;
   const setupHref = buildTenantContextHref("/setup", tenantId, tenantSlug);
-  const accessProfilesHref = buildTenantContextHref(
-    "/access/profiles",
-    tenantId,
-    tenantSlug
-  );
   const searchParams = useSearchParams();
-
-  const canViewConfiguration = canAccessCoreSettings(user) || isTenantContext;
-  const canEditSettings = !isTenantContext && canManageCoreSettings(user);
   const canManageProfiles = canManageCoreAccessProfiles(user);
+  const canViewSettingsTabs = canAccessCoreSettings(user) || isTenantContext;
+
+  const canViewConfiguration = canViewSettingsTabs || canManageProfiles;
+  const canEditSettings = !isTenantContext && canManageCoreSettings(user);
 
   const { setupState } = useCoreSetupAccess();
   const {
@@ -176,7 +173,7 @@ export default function SettingsWorkspace() {
     error,
     isLoading,
     refetch,
-  } = useTenantSettings(canViewConfiguration);
+  } = useTenantSettings(canViewSettingsTabs);
   const settingsFieldConfig = useMemo(
     () => buildEmployeeFieldConfigDraft(settings),
     [settings]
@@ -194,22 +191,33 @@ export default function SettingsWorkspace() {
   const isOrgStructureEditable =
     !!setupState && setupState.isDraftCycleActive && canEditSettings;
 
-  const shouldRedirectToAccessProfiles =
-    searchParams.get("tab") === "access-profiles" && canManageProfiles;
+  const availableTabs = useMemo(() => {
+    const tabs: string[] = [];
+
+    if (canViewSettingsTabs) {
+      tabs.push("employee-fields", "organization-structure");
+    }
+
+    if (canManageProfiles) {
+      tabs.push("access-profiles");
+    }
+
+    return tabs;
+  }, [canManageProfiles, canViewSettingsTabs]);
 
   const activeTab = useMemo(() => {
     const tabParam = searchParams.get("tab");
 
-    if (tabParam === "organization-structure") {
-      return "organization-structure";
+    if (tabParam && availableTabs.includes(tabParam)) {
+      return tabParam;
     }
 
-    if (tabParam === "employee-fields") {
-      return "employee-fields";
+    if (canManageProfiles && !canViewSettingsTabs) {
+      return "access-profiles";
     }
 
-    return "employee-fields";
-  }, [searchParams]);
+    return availableTabs[0] ?? "employee-fields";
+  }, [availableTabs, canManageProfiles, canViewSettingsTabs, searchParams]);
 
   const handleTabChange = (value: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -351,16 +359,6 @@ export default function SettingsWorkspace() {
     }
   };
 
-  useEffect(() => {
-    if (shouldRedirectToAccessProfiles) {
-      router.replace(accessProfilesHref);
-    }
-  }, [accessProfilesHref, router, shouldRedirectToAccessProfiles]);
-
-  if (shouldRedirectToAccessProfiles) {
-    return <SettingsPageSkeleton />;
-  }
-
   if (!canViewConfiguration) {
     return (
       <div className="p-6">
@@ -373,7 +371,7 @@ export default function SettingsWorkspace() {
     );
   }
 
-  if (error && !settings) {
+  if (canViewSettingsTabs && error && !settings) {
     return (
       <div className="space-y-6 p-6">
         <PageHeader title="Settings" />
@@ -391,11 +389,11 @@ export default function SettingsWorkspace() {
     );
   }
 
-  if (isLoading && !settings) {
+  if (canViewSettingsTabs && isLoading && !settings) {
     return <SettingsPageSkeleton />;
   }
 
-  if (!settings) {
+  if (canViewSettingsTabs && !settings) {
     return <SettingsPageSkeleton />;
   }
 
@@ -406,24 +404,44 @@ export default function SettingsWorkspace() {
         description={
           isTenantContext
             ? `Read-only view for ${tenantName ?? "tenant"}.`
-            : "Employee fields and organization structure."
+            : canManageProfiles
+              ? "Core configuration and access profiles."
+              : "Employee fields and organization structure."
         }
         actions={
-          <Button variant="outline" onClick={() => router.push(setupHref)}>
-            Open setup
-          </Button>
+          canViewSettingsTabs ? (
+            <Button variant="outline" onClick={() => router.push(setupHref)}>
+              Open setup
+            </Button>
+          ) : null
         }
       />
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 sm:w-[360px]">
-          <TabsTrigger value="employee-fields">Employee fields</TabsTrigger>
-          <TabsTrigger value="organization-structure">
-            Organization structure
-          </TabsTrigger>
+        <TabsList
+          className={
+            availableTabs.length === 1
+              ? "grid w-full grid-cols-1 sm:w-[220px]"
+              : availableTabs.length === 2
+                ? "grid w-full grid-cols-2 sm:w-[360px]"
+                : "grid w-full grid-cols-3 sm:w-[520px]"
+          }
+        >
+          {canViewSettingsTabs ? (
+            <TabsTrigger value="employee-fields">Employee fields</TabsTrigger>
+          ) : null}
+          {canViewSettingsTabs ? (
+            <TabsTrigger value="organization-structure">
+              Organization structure
+            </TabsTrigger>
+          ) : null}
+          {canManageProfiles ? (
+            <TabsTrigger value="access-profiles">Access profiles</TabsTrigger>
+          ) : null}
         </TabsList>
 
-        <TabsContent value="employee-fields" className="space-y-6">
+        {canViewSettingsTabs ? (
+          <TabsContent value="employee-fields" className="space-y-6">
           <Card>
             <CardHeader density="compact">
               <CardTitle>Employee fields</CardTitle>
@@ -608,9 +626,11 @@ export default function SettingsWorkspace() {
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
+          </TabsContent>
+        ) : null}
 
-        <TabsContent value="organization-structure" className="space-y-6">
+        {canViewSettingsTabs ? (
+          <TabsContent value="organization-structure" className="space-y-6">
           <Card>
             <CardHeader density="compact">
               <CardTitle>Organization structure</CardTitle>
@@ -631,7 +651,7 @@ export default function SettingsWorkspace() {
                 <p className="text-sm font-medium">Org-unit kinds</p>
                 {isOrgStructureEditable ? (
                   <DraftOrgUnitKindManager
-                    schema={settings.draftStructureSchema}
+                    schema={settings!.draftStructureSchema}
                     existingUnits={[]}
                     disabled={false}
                     triggerLabel="Manage org-unit kinds"
@@ -655,7 +675,7 @@ export default function SettingsWorkspace() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {settings.draftStructureSchema.orgUnitKinds.map((kind) => (
+                    {settings!.draftStructureSchema.orgUnitKinds.map((kind) => (
                       <TableRow key={kind.key}>
                         <TableCell className="font-medium">
                           {kind.displayLabel}
@@ -667,7 +687,14 @@ export default function SettingsWorkspace() {
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
+          </TabsContent>
+        ) : null}
+
+        {canManageProfiles ? (
+          <TabsContent value="access-profiles" className="space-y-6">
+            <AccessProfilesWorkspace embedded />
+          </TabsContent>
+        ) : null}
 
       </Tabs>
     </div>

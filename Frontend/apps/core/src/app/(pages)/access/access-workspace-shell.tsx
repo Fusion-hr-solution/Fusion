@@ -9,7 +9,7 @@ export function AccessWorkspaceShell({
   showPeople,
   showProfiles,
   children,
-  description = "Manage account activation, access profiles, and invitation status.",
+  description = "Activate accounts and manage access for workforce users.",
 }: {
   active: "people" | "profiles";
   showPeople: boolean;

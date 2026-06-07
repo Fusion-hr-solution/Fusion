@@ -78,8 +78,15 @@ describe("useWorkforceAccountSummary", () => {
 });
 
 describe("useBulkProvisionWorkforceAccountInvites", () => {
-  it("calls the workforce bulk-provision endpoint", async () => {
-    mockPost.mockResolvedValue([]);
+  it("calls the corehr bulk-invite endpoint", async () => {
+    mockPost.mockResolvedValue({
+      items: [],
+      totalRequested: 2,
+      invitedCount: 1,
+      refreshedCount: 0,
+      alreadyActiveCount: 1,
+      skippedCount: 0,
+    });
 
     const { result } = renderHook(
       () => useBulkProvisionWorkforceAccountInvites(),
@@ -89,29 +96,25 @@ describe("useBulkProvisionWorkforceAccountInvites", () => {
     );
 
     await result.current.mutateAsync({
-      items: [
-        {
-          employeeId: "emp-1",
-          email: "user@example.com",
-          firstName: "User",
-          lastName: "Example",
-          accessProfileId: "profile-employee",
-        },
-      ],
+      accessProfileId: "profile-employee",
+      search: null,
+      access: null,
+      profileId: null,
+      employeeStatus: null,
+      employeeKey: null,
+      employeeIds: ["emp-1", "emp-2"],
     });
 
     expect(mockPost).toHaveBeenCalledWith(
-      "/corehr/employees/workforce-accounts/bulk-provision",
+      "/corehr/workforce/access-subjects/bulk-invite",
       {
-        items: [
-          {
-            employeeId: "emp-1",
-            email: "user@example.com",
-            firstName: "User",
-            lastName: "Example",
-            accessProfileId: "profile-employee",
-          },
-        ],
+        accessProfileId: "profile-employee",
+        search: null,
+        access: null,
+        profileId: null,
+        employeeStatus: null,
+        employeeKey: null,
+        employeeIds: ["emp-1", "emp-2"],
       }
     );
   });

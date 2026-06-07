@@ -44,7 +44,7 @@ describe("resolveInviteAcceptanceDestination", () => {
       resolveInviteAcceptanceDestination(createAuthUser({
         effectivePermissions: [grant("core.accessprofiles.manage", "Tenant")],
       }))
-    ).toBe("/access/profiles");
+    ).toBe("/settings?tab=access-profiles");
   });
 
   it("sends employees to My Profile", () => {

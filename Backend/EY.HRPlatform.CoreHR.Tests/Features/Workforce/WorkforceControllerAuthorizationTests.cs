@@ -22,6 +22,7 @@ public class WorkforceControllerAuthorizationTests
     [InlineData(nameof(WorkforceController.SearchAccessSubjects))]
     [InlineData(nameof(WorkforceController.GetAccessRosterSummary))]
     [InlineData(nameof(WorkforceController.GetPublishedOrgUnits))]
+    [InlineData(nameof(WorkforceController.BulkInvite))]
     public void PermissionControlledEndpoints_DoNotDeclareMethodRoleAttributes(string methodName)
     {
         var method = typeof(WorkforceController).GetMethod(methodName);

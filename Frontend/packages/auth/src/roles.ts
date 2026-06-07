@@ -227,7 +227,10 @@ export function canSeeCoreTeamNavigation(user: AuthUser | null): boolean {
 }
 
 export function canAccessCoreOrgChart(user: AuthUser | null): boolean {
-  return hasCorePermission(user, CORE_PERMISSION.orgChartView, "Tenant");
+  return (
+    hasCorePermission(user, CORE_PERMISSION.orgChartView, "Tenant") ||
+    hasCorePermission(user, CORE_PERMISSION.orgChartView, "DirectReports")
+  );
 }
 
 export function canSeeCoreOrgChartNavigation(user: AuthUser | null): boolean {

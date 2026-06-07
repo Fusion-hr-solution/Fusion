@@ -80,6 +80,12 @@ public class InviteToken : ITenantEntity
     /// </summary>
     public Guid? EmployeeId { get; private set; }
 
+    public string? DeliveryStatus { get; private set; }
+
+    public string? DeliveryMessage { get; private set; }
+
+    public DateTime? DeliveryRecordedAt { get; private set; }
+
     public List<InviteAccessProfile> AccessProfileAssignments { get; private set; } = [];
 
     /// <summary>
@@ -205,6 +211,21 @@ public class InviteToken : ITenantEntity
         EmployeeId = employeeId;
     }
 
+    public void UpdateRole(string role)
+    {
+        ValidateRole(role);
+        Role = role.Trim();
+    }
+
+    public void RecordDelivery(string status, string? message = null, DateTime? recordedAt = null)
+    {
+        ValidateDeliveryStatus(status);
+
+        DeliveryStatus = status.Trim();
+        DeliveryMessage = NormalizeDeliveryMessage(message);
+        DeliveryRecordedAt = recordedAt ?? DateTime.UtcNow;
+    }
+
     /// <summary>
     /// Soft-revokes this invite so it can no longer be accepted.
     /// </summary>
@@ -275,6 +296,20 @@ public class InviteToken : ITenantEntity
     {
         if (employeeId == Guid.Empty)
             throw new ArgumentException("Employee ID cannot be empty.", nameof(employeeId));
+    }
+
+    private static void ValidateDeliveryStatus(string status)
+    {
+        if (string.IsNullOrWhiteSpace(status))
+            throw new ArgumentException("Delivery status is required.", nameof(status));
+    }
+
+    private static string? NormalizeDeliveryMessage(string? message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+            return null;
+
+        return message.Trim();
     }
 
     private static void ValidateExpiryDays(int expiryDays)

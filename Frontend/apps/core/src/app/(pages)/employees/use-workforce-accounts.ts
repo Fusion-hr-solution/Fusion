@@ -9,10 +9,10 @@ import {
 import { useApiMutation, useApiQuery } from "@repo/api/query";
 import { employeeRosterQueryKeys } from "./employee-query-keys";
 import type {
-  WorkforceAccountBulkProvisionResultDto,
   WorkforceAccountSummaryDto,
   WorkforceAccountStatusDto,
   WorkforceAccountSubject,
+  WorkforceBulkInviteResponseDto,
 } from "./employee-roster.types";
 
 const WORKFORCE_ACCOUNTS_PATH = "/corehr/employees/workforce-accounts";
@@ -77,18 +77,26 @@ export function useWorkforceAccountSummary(enabled = true) {
   );
 }
 
+const BULK_INVITE_PATH = "/corehr/workforce/access-subjects/bulk-invite";
+
 export function useBulkProvisionWorkforceAccountInvites() {
   const client = useMemo(() => createPlatformApiClient(), []);
 
   return useApiMutation<
-    WorkforceAccountBulkProvisionResultDto[],
-    { items: Array<WorkforceAccountSubject & { accessProfileId: string }> }
+    WorkforceBulkInviteResponseDto,
+    {
+      accessProfileId: string;
+      search?: string | null;
+      access?: string | null;
+      profileId?: string | null;
+      employeeStatus?: string | null;
+      deliveryState?: string | null;
+      employeeKey?: string | null;
+      employeeIds?: string[] | null;
+    }
   >(
-    ({ items }) =>
-      client.post<WorkforceAccountBulkProvisionResultDto[]>(
-        `${WORKFORCE_ACCOUNTS_PATH}/bulk-provision`,
-        { items }
-      ),
+    (request) =>
+      client.post<WorkforceBulkInviteResponseDto>(BULK_INVITE_PATH, request),
     {
       invalidateQueries: BULK_WORKFORCE_ACCOUNT_MUTATION_INVALIDATIONS,
     }
@@ -178,6 +186,26 @@ export function useResendWorkforceAccountInvite() {
     ({ employeeId }) =>
       client.post<WorkforceAccountStatusDto>(
         `${WORKFORCE_ACCOUNTS_PATH}/${employeeId}/resend`
+      ),
+    {
+      invalidateQueries: WORKFORCE_ACCOUNT_MUTATION_INVALIDATIONS,
+    }
+  );
+}
+
+export function useSetPendingInviteAccessProfiles() {
+  const client = useMemo(() => createPlatformApiClient(), []);
+
+  return useApiMutation<
+    WorkforceAccountStatusDto,
+    { employeeId: string; accessProfileIds: string[] }
+  >(
+    ({ employeeId, accessProfileIds }) =>
+      client.put<WorkforceAccountStatusDto>(
+        `${WORKFORCE_ACCOUNTS_PATH}/${employeeId}/invite-profiles`,
+        {
+          accessProfileIds,
+        }
       ),
     {
       invalidateQueries: WORKFORCE_ACCOUNT_MUTATION_INVALIDATIONS,

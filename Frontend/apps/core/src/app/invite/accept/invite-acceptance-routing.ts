@@ -27,7 +27,7 @@ export function resolveInviteAcceptanceDestination(
   }
 
   if (canManageCoreAccessProfiles(user)) {
-    return "/access/profiles";
+    return "/settings?tab=access-profiles";
   }
 
   if (canAccessCoreSetup(user)) {

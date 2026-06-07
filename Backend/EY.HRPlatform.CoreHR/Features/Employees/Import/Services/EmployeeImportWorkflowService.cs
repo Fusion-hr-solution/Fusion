@@ -1520,7 +1520,10 @@ public sealed class EmployeeImportWorkflowService(
             history.AppliedAt,
             history.ActorUserId,
             history.ActorFullName,
-            history.ActorRole);
+            history.ActorRole,
+            history.EventType,
+            history.ErrorCount,
+            history.WarningCount);
 
     private static EmployeeImportHistoryDetailDto BuildHistoryDetailDto(
         EmployeeImportHistory history,
@@ -1540,7 +1543,10 @@ public sealed class EmployeeImportWorkflowService(
             history.ActorUserId,
             history.ActorFullName,
             history.ActorRole,
-            history.FailureReason)
+            history.FailureReason,
+            history.EventType,
+            history.ErrorCount,
+            history.WarningCount)
         {
             UnresolvedFollowUpIssues = unresolvedFollowUpIssues
         };

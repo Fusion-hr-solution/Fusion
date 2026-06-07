@@ -68,6 +68,7 @@ public sealed class CoreAccessPolicyService : ICoreAccessPolicyService
 
     public bool CanViewOrgChart(ClaimsPrincipal user)
         => user.HasCorePermission(CorePermissions.OrgChartView, PermissionScopes.Tenant)
+            || user.HasCorePermission(CorePermissions.OrgChartView, PermissionScopes.DirectReports)
             || user.IsInRole(PlatformRole.PlatformAdmin);
 
     public bool CanViewAccess(ClaimsPrincipal user)

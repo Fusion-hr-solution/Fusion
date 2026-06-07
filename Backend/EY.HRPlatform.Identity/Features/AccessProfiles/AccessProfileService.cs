@@ -36,6 +36,7 @@ public sealed class AccessProfileService(
 {
     private static readonly string[] TenantRoles = [
         PlatformRole.HRAdmin,
+        PlatformRole.OrgAdmin,
         PlatformRole.Manager,
         PlatformRole.Employee,
     ];
@@ -495,6 +496,11 @@ public sealed class AccessProfileService(
     {
         var roles = new List<string>();
 
+        if (HasOrgAdminCompatibilityCoverage(effectivePermissions))
+        {
+            roles.Add(PlatformRole.OrgAdmin);
+        }
+
         if (HasHrAdminCompatibilityCoverage(effectivePermissions))
         {
             roles.Add(PlatformRole.HRAdmin);
@@ -517,6 +523,12 @@ public sealed class AccessProfileService(
         return roles.Distinct(StringComparer.Ordinal).ToArray();
     }
 
+    private static bool HasOrgAdminCompatibilityCoverage(IReadOnlyCollection<EffectivePermissionGrant> effectivePermissions)
+        => AccessProfileTemplates.OrgAdmin.Grants.All(required =>
+            effectivePermissions.Any(grant =>
+                string.Equals(grant.PermissionKey, required.PermissionKey, StringComparison.Ordinal)
+                && PermissionScopes.GetRank(grant.Scope) >= PermissionScopes.GetRank(required.Scope)));
+
     private static bool HasHrAdminCompatibilityCoverage(IReadOnlyCollection<EffectivePermissionGrant> effectivePermissions)
         => AccessProfileTemplates.HrAdmin.Grants.All(required =>
             effectivePermissions.Any(grant =>
@@ -531,30 +543,149 @@ public sealed class AccessProfileService(
             .Where(profile => profile.TenantId == tenantId)
             .ToListAsync(cancellationToken);
 
-        var existingByName = existingProfiles.ToDictionary(profile => profile.NormalizedName, StringComparer.Ordinal);
-        var created = false;
+        var changed = false;
+
+        // Phase 1: Migrate legacy/old system-seeded profiles to new naming
+        foreach (var profile in existingProfiles.Where(p => p.Type == AccessProfileTypes.SystemSeeded).ToList())
+        {
+            if (!string.IsNullOrEmpty(profile.InternalKey))
+                continue;
+
+            if (AccessProfileTemplates.LegacyNameMapping.TryGetValue(profile.Name, out var targetInternalKey))
+            {
+                var targetTemplate = AccessProfileTemplates.GetByInternalKey(targetInternalKey);
+                if (targetTemplate is null)
+                    continue;
+
+                // Check if a profile with this internal key already exists
+                var existingTarget = existingProfiles.FirstOrDefault(p =>
+                    string.Equals(p.InternalKey, targetInternalKey, StringComparison.Ordinal)
+                    && p.Id != profile.Id);
+                if (existingTarget is not null)
+                {
+                    // Migrate assignments from old profile to target, then remove old
+                    var assignments = await dbContext.UserAccessProfiles
+                        .IgnoreQueryFilters()
+                        .Where(a => a.TenantId == tenantId && a.AccessProfileId == profile.Id)
+                        .ToListAsync(cancellationToken);
+                    foreach (var assignment in assignments)
+                    {
+                        var alreadyAssigned = await dbContext.UserAccessProfiles
+                            .IgnoreQueryFilters()
+                            .AnyAsync(a => a.TenantId == tenantId && a.UserId == assignment.UserId && a.AccessProfileId == existingTarget.Id, cancellationToken);
+                        if (!alreadyAssigned)
+                        {
+                            dbContext.UserAccessProfiles.Add(
+                                UserAccessProfile.Create(tenantId, assignment.UserId, existingTarget.Id));
+                        }
+                    }
+                    dbContext.UserAccessProfiles.RemoveRange(assignments);
+
+                    var inviteAssignments = await dbContext.InviteAccessProfiles
+                        .IgnoreQueryFilters()
+                        .Where(a => a.TenantId == tenantId && a.AccessProfileId == profile.Id)
+                        .ToListAsync(cancellationToken);
+                    foreach (var assignment in inviteAssignments)
+                    {
+                        var alreadyAssigned = await dbContext.InviteAccessProfiles
+                            .IgnoreQueryFilters()
+                            .AnyAsync(a => a.TenantId == tenantId && a.InviteTokenId == assignment.InviteTokenId && a.AccessProfileId == existingTarget.Id, cancellationToken);
+                        if (!alreadyAssigned)
+                        {
+                            dbContext.InviteAccessProfiles.Add(
+                                InviteAccessProfile.Create(tenantId, assignment.InviteTokenId, existingTarget.Id));
+                        }
+                    }
+                    dbContext.InviteAccessProfiles.RemoveRange(inviteAssignments);
+
+                    dbContext.AccessProfiles.Remove(profile);
+                    changed = true;
+                    continue;
+                }
+
+                // Migrate this profile in-place
+                profile.SetInternalKey(targetTemplate.InternalKey);
+                profile.UpdateDetails(targetTemplate.Name, targetTemplate.Description, targetTemplate.InternalKey);
+                profile.MarkSystemState(AccessProfileTypes.SystemSeeded, targetTemplate.IsSystemProtected);
+                profile.ReplaceGrants(targetTemplate.Grants.Select(grant =>
+                    AccessProfileGrant.Create(tenantId, profile.Id, grant.PermissionKey, grant.Scope)));
+                changed = true;
+            }
+            else if (AccessProfileTemplates.ObsoleteLegacyNames.Contains(profile.Name))
+            {
+                // Remove obsolete system-seeded profiles with no assignments
+                var assignmentCount = await dbContext.UserAccessProfiles
+                    .IgnoreQueryFilters()
+                    .CountAsync(a => a.TenantId == tenantId && a.AccessProfileId == profile.Id, cancellationToken);
+                if (assignmentCount == 0)
+                {
+                    dbContext.AccessProfiles.Remove(profile);
+                    changed = true;
+                }
+            }
+        }
+
+        // Phase 2: Ensure all current templates exist (by InternalKey)
+        var existingByKey = existingProfiles
+            .Where(p => !string.IsNullOrEmpty(p.InternalKey))
+            .ToDictionary(p => p.InternalKey!, StringComparer.Ordinal);
+
+        // Re-read after potential removals
+        existingProfiles = await dbContext.AccessProfiles
+            .IgnoreQueryFilters()
+            .Include(p => p.Grants)
+            .Where(p => p.TenantId == tenantId)
+            .ToListAsync(cancellationToken);
+        existingByKey = existingProfiles
+            .Where(p => !string.IsNullOrEmpty(p.InternalKey))
+            .ToDictionary(p => p.InternalKey!, StringComparer.Ordinal);
 
         foreach (var template in AccessProfileTemplates.All)
         {
-            var normalizedName = template.Name.ToUpperInvariant();
-            if (existingByName.ContainsKey(normalizedName))
+            if (existingByKey.TryGetValue(template.InternalKey, out var existing))
             {
-                continue;
-            }
+                // Update existing system profile if name/description changed
+                if (!string.Equals(existing.Name, template.Name, StringComparison.Ordinal)
+                    || !string.Equals(existing.Description ?? string.Empty, template.Description ?? string.Empty, StringComparison.Ordinal))
+                {
+                    existing.UpdateDetails(template.Name, template.Description, template.InternalKey);
+                    changed = true;
+                }
 
-            var profile = AccessProfile.Create(
-                tenantId,
-                template.Name,
-                template.Description,
-                AccessProfileTypes.SystemSeeded,
-                template.IsSystemProtected);
-            profile.ReplaceGrants(template.Grants.Select(grant =>
-                AccessProfileGrant.Create(tenantId, profile.Id, grant.PermissionKey, grant.Scope)));
-            dbContext.AccessProfiles.Add(profile);
-            created = true;
+                // Update grants if they differ
+                var currentGrantKeys = existing.Grants
+                    .Select(g => $"{g.PermissionKey}:{g.Scope}")
+                    .OrderBy(k => k)
+                    .ToArray();
+                var templateGrantKeys = template.Grants
+                    .Select(g => $"{g.PermissionKey}:{g.Scope}")
+                    .OrderBy(k => k)
+                    .ToArray();
+                if (!currentGrantKeys.SequenceEqual(templateGrantKeys, StringComparer.Ordinal))
+                {
+                    existing.ReplaceGrants(template.Grants.Select(grant =>
+                        AccessProfileGrant.Create(tenantId, existing.Id, grant.PermissionKey, grant.Scope)));
+                    changed = true;
+                }
+            }
+            else
+            {
+                // Create new profile from template
+                var profile = AccessProfile.Create(
+                    tenantId,
+                    template.Name,
+                    template.Description,
+                    AccessProfileTypes.SystemSeeded,
+                    template.IsSystemProtected,
+                    template.InternalKey);
+                profile.ReplaceGrants(template.Grants.Select(grant =>
+                    AccessProfileGrant.Create(tenantId, profile.Id, grant.PermissionKey, grant.Scope)));
+                dbContext.AccessProfiles.Add(profile);
+                changed = true;
+            }
         }
 
-        if (created)
+        if (changed)
         {
             await dbContext.SaveChangesAsync(cancellationToken);
         }
@@ -568,6 +699,9 @@ public sealed class AccessProfileService(
             .ToListAsync(cancellationToken);
 
         var seededByName = seededProfiles.ToDictionary(profile => profile.Name, StringComparer.Ordinal);
+        var seededByKey = seededProfiles
+            .Where(p => !string.IsNullOrEmpty(p.InternalKey))
+            .ToDictionary(p => p.InternalKey!, StringComparer.Ordinal);
 
         var users = await dbContext.Users
             .IgnoreQueryFilters()
@@ -584,7 +718,7 @@ public sealed class AccessProfileService(
                 continue;
             }
 
-            var desiredProfiles = await ResolveRoleMappedSeededProfileIdsAsync(user, seededByName);
+            var desiredProfiles = await ResolveRoleMappedSeededProfileIdsAsync(user, seededByName, seededByKey);
 
             if (desiredProfiles.Count == 0)
             {
@@ -733,12 +867,32 @@ public sealed class AccessProfileService(
                     : current))
             .ToList();
 
+    private static string PlatformRoleToInternalKey(string role) => role switch
+    {
+        PlatformRole.HRAdmin => "hr-admin",
+        PlatformRole.OrgAdmin => "org-admin",
+        _ => role.ToLowerInvariant()
+    };
+
     private async Task<Guid?> ResolveSeededProfileIdAsync(Guid tenantId, string role, CancellationToken cancellationToken)
-        => await dbContext.AccessProfiles
+    {
+        // First try matching by name
+        var byName = await dbContext.AccessProfiles
             .IgnoreQueryFilters()
             .Where(profile => profile.TenantId == tenantId && profile.Name == role)
             .Select(profile => (Guid?)profile.Id)
             .FirstOrDefaultAsync(cancellationToken);
+        if (byName.HasValue)
+            return byName;
+
+        // Then try matching by internal key (with role-to-key mapping)
+        var internalKey = PlatformRoleToInternalKey(role);
+        return await dbContext.AccessProfiles
+            .IgnoreQueryFilters()
+            .Where(profile => profile.TenantId == tenantId && profile.InternalKey == internalKey)
+            .Select(profile => (Guid?)profile.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
 
     private async Task<Dictionary<Guid, IReadOnlyList<EffectivePermissionGrant>>> BuildProjectedEffectivePermissionsAsync(
         Guid tenantId,
@@ -776,14 +930,16 @@ public sealed class AccessProfileService(
             }
         }
 
-        var profileIdBySeededName = await dbContext.AccessProfiles
+        var seededProfiles = await dbContext.AccessProfiles
             .IgnoreQueryFilters()
             .Where(profile => profile.TenantId == tenantId && profile.Type == AccessProfileTypes.SystemSeeded)
-            .ToDictionaryAsync(
-                profile => profile.Name,
-                profile => profile.Id,
-                StringComparer.Ordinal,
-                cancellationToken);
+            .ToListAsync(cancellationToken);
+
+        var profileIdBySeededName = seededProfiles
+            .ToDictionary(profile => profile.Name, profile => profile.Id, StringComparer.Ordinal);
+        var profileIdByInternalKey = seededProfiles
+            .Where(p => !string.IsNullOrEmpty(p.InternalKey))
+            .ToDictionary(p => p.InternalKey!, p => p.Id, StringComparer.Ordinal);
 
         var userProfiles = assignments
             .GroupBy(assignment => assignment.UserId)
@@ -827,8 +983,17 @@ public sealed class AccessProfileService(
 
             var seededFallbackProfileIds = roleLookup
                 .GetValueOrDefault(user.Id, [])
-                .Where(role => profileIdBySeededName.ContainsKey(role) && role != PlatformRole.PlatformAdmin)
-                .Select(role => profileIdBySeededName[role])
+                .Where(role => role != PlatformRole.PlatformAdmin)
+                .Select(role =>
+                {
+                    if (profileIdBySeededName.TryGetValue(role, out var id))
+                        return id;
+                    if (profileIdByInternalKey.TryGetValue(role, out id))
+                        return id;
+                    return (Guid?)null;
+                })
+                .Where(id => id.HasValue)
+                .Select(id => id!.Value)
                 .Distinct()
                 .ToArray();
 
@@ -878,7 +1043,10 @@ public sealed class AccessProfileService(
             .ToListAsync(cancellationToken);
 
         var seededByName = seededProfiles.ToDictionary(profile => profile.Name, StringComparer.Ordinal);
-        var desiredProfiles = await ResolveRoleMappedSeededProfileIdsAsync(user, seededByName);
+        var seededByKey = seededProfiles
+            .Where(p => !string.IsNullOrEmpty(p.InternalKey))
+            .ToDictionary(p => p.InternalKey!, StringComparer.Ordinal);
+        var desiredProfiles = await ResolveRoleMappedSeededProfileIdsAsync(user, seededByName, seededByKey);
         if (desiredProfiles.Count == 0)
         {
             return false;
@@ -893,14 +1061,31 @@ public sealed class AccessProfileService(
 
     private async Task<List<Guid>> ResolveRoleMappedSeededProfileIdsAsync(
         ApplicationUser user,
-        IReadOnlyDictionary<string, AccessProfile> seededByName)
+        IReadOnlyDictionary<string, AccessProfile> seededByName,
+        IReadOnlyDictionary<string, AccessProfile> seededByKey)
     {
         var roles = await userManager.GetRolesAsync(user);
-        return roles
-            .Where(role => seededByName.ContainsKey(role) && role != PlatformRole.PlatformAdmin)
-            .Select(role => seededByName[role].Id)
-            .Distinct()
-            .ToList();
+        var ids = new List<Guid>();
+        foreach (var role in roles)
+        {
+            if (role == PlatformRole.PlatformAdmin)
+                continue;
+
+            // Match by name first
+            if (seededByName.TryGetValue(role, out var byName))
+            {
+                ids.Add(byName.Id);
+                continue;
+            }
+
+            // Match by internal key (with role-to-key mapping)
+            var internalKey = PlatformRoleToInternalKey(role);
+            if (seededByKey.TryGetValue(internalKey, out var byKey))
+            {
+                ids.Add(byKey.Id);
+            }
+        }
+        return ids.Distinct().ToList();
     }
 
     private async Task<IReadOnlyList<EffectivePermissionGrant>> BuildCompatibilityFallbackGrantsAsync(

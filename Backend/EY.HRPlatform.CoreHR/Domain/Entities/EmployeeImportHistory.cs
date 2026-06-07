@@ -39,6 +39,12 @@ public class EmployeeImportHistory : BaseEntity, ITenantEntity
 
     public string? FailureReason { get; private set; }
 
+    public string EventType { get; private set; } = string.Empty;
+
+    public int ErrorCount { get; private set; }
+
+    public int WarningCount { get; private set; }
+
     public static EmployeeImportHistory CreateApplied(
         Guid tenantId,
         Guid sessionId,
@@ -112,7 +118,10 @@ public class EmployeeImportHistory : BaseEntity, ITenantEntity
             AppliedAt = normalizedAppliedAt,
             ActorUserId = actorUserId,
             ActorFullName = actorFullName.Trim(),
-            ActorRole = actorRole.Trim()
+            ActorRole = actorRole.Trim(),
+            EventType = "Import",
+            ErrorCount = 0,
+            WarningCount = 0
         };
     }
 }

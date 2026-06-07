@@ -91,8 +91,10 @@ export function PageProgressBar() {
 
   function start() {
     clearTimeout(hideTimerRef.current);
-    setVisible(true);
-    setWidth((currentWidth) => (currentWidth >= 15 ? currentWidth : 15));
+    queueMicrotask(() => {
+      setVisible(true);
+      setWidth((currentWidth) => (currentWidth >= 15 ? currentWidth : 15));
+    });
     clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
       setWidth((w) => Math.min(w + (100 - w) * 0.08, 85));

@@ -1131,9 +1131,9 @@ function CoreOperationsDashboard() {
         }
       : canManageCoreAccessProfiles(user)
         ? {
-            href: moduleHref("/access/profiles"),
-            title: "Access Profiles",
-            badge: "Policies",
+            href: moduleHref("/settings?tab=access-profiles"),
+            title: "Settings",
+            badge: "Access profiles",
             icon: ShieldCheck,
           }
       : null,
@@ -1253,7 +1253,7 @@ function getFallbackWorkspace(user: AuthUser | null): {
   }
 
   if (canManageCoreAccessProfiles(user)) {
-    return { href: "/access/profiles", label: "Access Profiles" };
+    return { href: "/settings?tab=access-profiles", label: "Settings" };
   }
 
   if (canAccessCoreSetup(user)) {

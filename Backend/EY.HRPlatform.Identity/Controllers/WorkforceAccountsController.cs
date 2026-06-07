@@ -1,5 +1,6 @@
 using EY.HRPlatform.Identity.Domain.Entities;
 using EY.HRPlatform.Identity.Features.AccessProfiles;
+using EY.HRPlatform.Identity.Features.WorkforceAccounts;
 using EY.HRPlatform.Identity.Infrastructure.Services;
 using EY.HRPlatform.Identity.Infrastructure.Persistence;
 using EY.HRPlatform.Identity.Models.Responses;
@@ -20,7 +21,8 @@ public sealed class WorkforceAccountsController(
     AppIdentityDbContext dbContext,
     IAccessProfileService accessProfileService,
     ITenantContext tenantContext,
-    IConfiguration configuration) : ControllerBase
+    IConfiguration configuration,
+    IWorkforceInvitationEmailSender workforceInvitationEmailSender) : ControllerBase
 {
     private const string StateUnprovisioned = "Unprovisioned";
     private const string StateInvitePending = "InvitePending";
@@ -256,8 +258,49 @@ public sealed class WorkforceAccountsController(
         else
         {
             invite.ExtendExpiry();
+            await DeliverInviteAsync(invite, cancellationToken);
             await dbContext.SaveChangesAsync(cancellationToken);
         }
+
+        return Ok(ApiResponse<WorkforceAccountStatusDto>.Success(await BuildInviteStatusAsync(employeeId, invite, cancellationToken)));
+    }
+
+    [HttpPut("{employeeId:guid}/invite-profiles")]
+    [ProducesResponseType(typeof(ApiResponse<WorkforceAccountStatusDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<WorkforceAccountStatusDto>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<WorkforceAccountStatusDto>), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ApiResponse<WorkforceAccountStatusDto>>> UpdateInviteProfiles(
+        Guid employeeId,
+        [FromBody] SetPendingInviteAccessProfilesRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!CanManageWorkforceAccess())
+            return Forbid();
+
+        if (!TryGetTenantId(out var tenantId, out var tenantError))
+            return BadRequest(ApiResponse<WorkforceAccountStatusDto>.Failure(tenantError));
+
+        var accessProfileIds = request.AccessProfileIds
+            .Where(profileId => profileId != Guid.Empty)
+            .Distinct()
+            .ToList();
+
+        if (accessProfileIds.Count == 0)
+            return BadRequest(ApiResponse<WorkforceAccountStatusDto>.Failure("At least one access profile is required."));
+
+        var invite = await FindLatestInviteByEmployeeAsync(tenantId, employeeId, cancellationToken);
+        if (invite is null)
+            return NotFound(ApiResponse<WorkforceAccountStatusDto>.Failure("Invitation not found."));
+
+        if (invite.IsUsed)
+            return BadRequest(ApiResponse<WorkforceAccountStatusDto>.Failure("Cannot change access profiles for an accepted invitation."));
+
+        if (invite.IsRevoked)
+            return BadRequest(ApiResponse<WorkforceAccountStatusDto>.Failure("Cannot change access profiles for a revoked invitation."));
+
+        await accessProfileService.SetInviteAccessProfilesAsync(tenantId, invite.Id, accessProfileIds, cancellationToken);
+        invite.UpdateRole(await ResolveCompatibilityRoleAsync(tenantId, accessProfileIds, cancellationToken));
+        await dbContext.SaveChangesAsync(cancellationToken);
 
         return Ok(ApiResponse<WorkforceAccountStatusDto>.Success(await BuildInviteStatusAsync(employeeId, invite, cancellationToken)));
     }
@@ -328,7 +371,20 @@ public sealed class WorkforceAccountsController(
 
             case StateInviteExpired:
             {
-                var invite = await CreateInviteAsync(tenantId, subject, accessProfileId, cancellationToken);
+                var invite = await FindLatestInviteByEmployeeAsync(tenantId, subject.EmployeeId, cancellationToken);
+                if (invite is null)
+                {
+                    invite = await CreateInviteAsync(tenantId, subject, accessProfileId, cancellationToken);
+                }
+                else
+                {
+                    invite.ExtendExpiry();
+                    await accessProfileService.SetInviteAccessProfilesAsync(tenantId, invite.Id, [accessProfileId], cancellationToken);
+                    invite.UpdateRole(await ResolveCompatibilityRoleAsync(tenantId, [accessProfileId], cancellationToken));
+                    await DeliverInviteAsync(invite, cancellationToken);
+                    await dbContext.SaveChangesAsync(cancellationToken);
+                }
+
                 var account = await BuildInviteStatusAsync(subject.EmployeeId, invite, cancellationToken);
                 return BuildBulkResult(subject.EmployeeId, OutcomeCreated, "Invitation refreshed.", account);
             }
@@ -413,10 +469,10 @@ public sealed class WorkforceAccountsController(
         Guid accessProfileId,
         CancellationToken cancellationToken)
     {
-        var tenantExists = await dbContext.Tenants
+        var tenant = await dbContext.Tenants
             .IgnoreQueryFilters()
-            .AnyAsync(tenant => tenant.Id == tenantId && tenant.IsActive && !tenant.IsArchived, cancellationToken);
-        if (!tenantExists)
+            .FirstOrDefaultAsync(current => current.Id == tenantId && current.IsActive && !current.IsArchived, cancellationToken);
+        if (tenant is null)
             throw new InvalidOperationException("Tenant not found or inactive.");
 
         var selectedProfile = await accessProfileService.GetProfileAsync(tenantId, accessProfileId, cancellationToken)
@@ -440,6 +496,8 @@ public sealed class WorkforceAccountsController(
         dbContext.InviteTokens.Add(invite);
         await dbContext.SaveChangesAsync(cancellationToken);
         await accessProfileService.SetInviteAccessProfilesAsync(tenantId, invite.Id, [selectedProfile.Id], cancellationToken);
+        await DeliverInviteAsync(invite, tenant.Name, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
         return invite;
     }
 
@@ -517,7 +575,9 @@ public sealed class WorkforceAccountsController(
             InviteCreatedAt = invite.CreatedAt,
             InviteExpiresAt = invite.ExpiresAt,
             InviteLink = linkable ? BuildInviteLink(invite.Token) : null,
-            DeliveryRecordedAt = linkable ? invite.CreatedAt : null
+            DeliveryStatus = invite.DeliveryStatus,
+            DeliveryMessage = invite.DeliveryMessage,
+            DeliveryRecordedAt = invite.DeliveryRecordedAt
         };
     }
 
@@ -569,6 +629,42 @@ public sealed class WorkforceAccountsController(
 
     private string BuildInviteLink(string token)
         => InvitationLinkBuilder.Build(configuration, token);
+
+    private async Task DeliverInviteAsync(
+        InviteToken invite,
+        CancellationToken cancellationToken)
+    {
+        var tenantName = await dbContext.Tenants
+            .IgnoreQueryFilters()
+            .Where(tenant => tenant.Id == invite.TenantId)
+            .Select(tenant => tenant.Name)
+            .FirstOrDefaultAsync(cancellationToken)
+            ?? "your organization";
+
+        await DeliverInviteAsync(invite, tenantName, cancellationToken);
+    }
+
+    private async Task DeliverInviteAsync(
+        InviteToken invite,
+        string tenantName,
+        CancellationToken cancellationToken)
+    {
+        var accessProfiles = await accessProfileService.GetInviteAccessProfilesAsync(invite.Id, cancellationToken);
+        var delivery = await workforceInvitationEmailSender.SendInviteAsync(
+            new WorkforceInvitationEmailMessage(
+                invite.Id,
+                invite.TenantId,
+                tenantName,
+                invite.EmployeeId,
+                invite.Email,
+                BuildFullName(invite.FirstName, invite.LastName),
+                BuildInviteLink(invite.Token),
+                invite.ExpiresAt,
+                accessProfiles.Select(profile => profile.Name).ToList()),
+            cancellationToken);
+
+        invite.RecordDelivery(delivery.Status, delivery.Message, delivery.RecordedAt);
+    }
 
     private bool CanViewWorkforceAccess()
         => (User.IsInRole(PlatformRole.PlatformAdmin) && tenantContext.IsResolved)
@@ -635,6 +731,26 @@ public sealed class WorkforceAccountsController(
             .Where(assignment => assignment.InviteTokenId == invite.Id)
             .Select(assignment => assignment.AccessProfileId)
             .ToListAsync(cancellationToken);
+
+    private async Task<string> ResolveCompatibilityRoleAsync(
+        Guid tenantId,
+        IReadOnlyCollection<Guid> accessProfileIds,
+        CancellationToken cancellationToken)
+    {
+        var profiles = new List<AccessProfileSummaryDto>();
+        foreach (var accessProfileId in accessProfileIds)
+        {
+            var profile = await accessProfileService.GetProfileAsync(tenantId, accessProfileId, cancellationToken)
+                ?? throw new InvalidOperationException("Access profile not found.");
+            profiles.Add(profile);
+        }
+
+        return accessProfileService.ResolveCompatibilityRole(
+            profiles
+                .SelectMany(profile => profile.Grants)
+                .Select(grant => new EffectivePermissionGrant(grant.PermissionKey, grant.Scope))
+                .ToList());
+    }
 
     private static string? BuildFullName(string? firstName, string? lastName)
     {

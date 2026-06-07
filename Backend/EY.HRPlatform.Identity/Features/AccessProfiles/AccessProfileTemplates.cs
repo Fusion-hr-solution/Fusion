@@ -3,6 +3,7 @@ using EY.HRPlatform.SharedKernel.Auth;
 namespace EY.HRPlatform.Identity.Features.AccessProfiles;
 
 public sealed record SeededAccessProfileTemplate(
+    string InternalKey,
     string Name,
     string Description,
     IReadOnlyList<EffectivePermissionGrant> Grants,
@@ -10,9 +11,49 @@ public sealed record SeededAccessProfileTemplate(
 
 public static class AccessProfileTemplates
 {
+    public static readonly SeededAccessProfileTemplate Employee = new(
+        "employee",
+        "Employee",
+        "Access to own profile and self-service details.",
+        [
+            new(CorePermissions.ProfileSelfView, PermissionScopes.Self),
+            new(CorePermissions.ProfileSelfUpdate, PermissionScopes.Self),
+            new(CorePermissions.EmployeeView, PermissionScopes.Self),
+        ]);
+
+    public static readonly SeededAccessProfileTemplate Manager = new(
+        "manager",
+        "Manager",
+        "Access to own profile and direct team.",
+        [
+            new(CorePermissions.ProfileSelfView, PermissionScopes.Self),
+            new(CorePermissions.ProfileSelfUpdate, PermissionScopes.Self),
+            new(CorePermissions.EmployeeView, PermissionScopes.DirectReports),
+            new(CorePermissions.TeamView, PermissionScopes.DirectReports),
+        ]);
+
     public static readonly SeededAccessProfileTemplate HrAdmin = new(
-        PlatformRole.HRAdmin,
-        "Tenant-wide Core management.",
+        "hr-admin",
+        "HR Admin",
+        "Manages workforce records, reporting lines, imports, and account activation.",
+        [
+            new(CorePermissions.OverviewView, PermissionScopes.Tenant),
+            new(CorePermissions.SetupView, PermissionScopes.Tenant),
+            new(CorePermissions.StructureView, PermissionScopes.Tenant),
+            new(CorePermissions.EmployeeView, PermissionScopes.Tenant),
+            new(CorePermissions.EmployeeManage, PermissionScopes.Tenant),
+            new(CorePermissions.EmployeeImport, PermissionScopes.Tenant),
+            new(CorePermissions.ReportingManage, PermissionScopes.Tenant),
+            new(CorePermissions.OrgChartView, PermissionScopes.Tenant),
+            new(CorePermissions.AccessView, PermissionScopes.Tenant),
+            new(CorePermissions.AccessManage, PermissionScopes.Tenant),
+            new(CorePermissions.SettingsView, PermissionScopes.Tenant),
+        ]);
+
+    public static readonly SeededAccessProfileTemplate OrgAdmin = new(
+        "org-admin",
+        "Org Admin",
+        "Manages tenant setup, structure, settings, access profiles, and Core administration.",
         [
             new(CorePermissions.OverviewView, PermissionScopes.Tenant),
             new(CorePermissions.SetupView, PermissionScopes.Tenant),
@@ -30,30 +71,20 @@ public static class AccessProfileTemplates
             new(CorePermissions.SettingsView, PermissionScopes.Tenant),
             new(CorePermissions.SettingsManage, PermissionScopes.Tenant),
             new(CorePermissions.AccessProfilesManage, PermissionScopes.Tenant),
-            new(CorePermissions.ProfileSelfView, PermissionScopes.Self),
-            new(CorePermissions.ProfileSelfUpdate, PermissionScopes.Self),
-            new(CorePermissions.TeamView, PermissionScopes.DirectReports),
         ]);
 
-    public static readonly SeededAccessProfileTemplate Manager = new(
-        PlatformRole.Manager,
-        "Self-service and direct-team visibility.",
-        [
-            new(CorePermissions.ProfileSelfView, PermissionScopes.Self),
-            new(CorePermissions.ProfileSelfUpdate, PermissionScopes.Self),
-            new(CorePermissions.TeamView, PermissionScopes.DirectReports),
-            new(CorePermissions.EmployeeView, PermissionScopes.DirectReports),
-        ]);
+    public static IReadOnlyList<SeededAccessProfileTemplate> All => [Employee, Manager, HrAdmin, OrgAdmin];
 
-    public static readonly SeededAccessProfileTemplate Employee = new(
-        PlatformRole.Employee,
-        "Self-service Core access.",
-        [
-            new(CorePermissions.ProfileSelfView, PermissionScopes.Self),
-            new(CorePermissions.ProfileSelfUpdate, PermissionScopes.Self),
-        ]);
+    public static SeededAccessProfileTemplate? GetByInternalKey(string internalKey)
+        => All.FirstOrDefault(t =>
+            string.Equals(t.InternalKey, internalKey, StringComparison.Ordinal));
 
-    public static IReadOnlyList<SeededAccessProfileTemplate> All => [HrAdmin, Manager, Employee];
+    private static string PlatformRoleToInternalKey(string role) => role switch
+    {
+        PlatformRole.HRAdmin => "hr-admin",
+        PlatformRole.OrgAdmin => "org-admin",
+        _ => role.ToLowerInvariant()
+    };
 
     public static IReadOnlyList<EffectivePermissionGrant> BuildLegacyFallbackGrants(IEnumerable<string> roles)
     {
@@ -61,8 +92,11 @@ public static class AccessProfileTemplates
 
         foreach (var role in roles)
         {
+            var internalKey = PlatformRoleToInternalKey(role);
             var template = All.FirstOrDefault(candidate =>
-                string.Equals(candidate.Name, role, StringComparison.Ordinal));
+                string.Equals(candidate.Name, role, StringComparison.Ordinal)
+                || string.Equals(candidate.InternalKey, role, StringComparison.Ordinal)
+                || string.Equals(candidate.InternalKey, internalKey, StringComparison.Ordinal));
             if (template is null)
             {
                 continue;
@@ -85,4 +119,35 @@ public static class AccessProfileTemplates
 
         return effective.Values.ToList();
     }
+
+    /// <summary>
+    /// Maps legacy/old profile names to their target internal key for migration.
+    /// </summary>
+    public static readonly IReadOnlyDictionary<string, string> LegacyNameMapping =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["HRAdmin"] = "hr-admin",
+            ["HR Admin"] = "hr-admin",
+            ["Core Admin"] = "org-admin",
+            ["Core Administrator"] = "org-admin",
+            ["Organization Administrator"] = "org-admin",
+            ["Org Admin"] = "org-admin",
+            ["Access Admin"] = "hr-admin",
+            ["Access Manager"] = "hr-admin",
+            ["Access Administrator"] = "hr-admin",
+        };
+
+    /// <summary>
+    /// Old legacy names that should be removed if system-seeded with no assignments.
+    /// </summary>
+    public static readonly IReadOnlySet<string> ObsoleteLegacyNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        "HRAdmin",
+        "Core Admin",
+        "Core Administrator",
+        "Organization Administrator",
+        "Access Admin",
+        "Access Manager",
+        "Access Administrator",
+    };
 }

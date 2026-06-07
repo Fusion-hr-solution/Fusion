@@ -45,14 +45,42 @@ export interface WorkforceEmployeeSummaryDto {
   version: number;
 }
 
+export type WorkforceAccessState =
+  | "NotInvited"
+  | "InvitePending"
+  | "ActiveAccount"
+  | "NeedsReview";
+
+export type WorkforceAccessDeliveryState = "Sent" | "Suppressed" | "Failed";
+
+export interface WorkforceAccessProfileSummaryDto {
+  id: string;
+  name: string;
+}
+
 export interface WorkforceAccessSubjectSummaryDto {
   employeeId: string;
+  stableEmployeeKey: string;
+  employeeNumber: string | null;
   firstName: string;
   lastName: string;
+  preferredName: string | null;
   displayName: string;
   workEmail: string;
   employmentStatus: string;
   isActive: boolean;
+  directReportCount: number;
+  accessState: WorkforceAccessState;
+  accessStateLabel: string;
+  accessStateDetail: string | null;
+  accessProfiles: WorkforceAccessProfileSummaryDto[];
+  invitationLabel: string;
+  lastActivityLabel: string;
+  lastActivityAt: string | null;
+  deliveryState: WorkforceAccessDeliveryState | null;
+  reviewReason: string | null;
+  provisioningState: string;
+  userId: string | null;
 }
 
 export interface WorkforceManagerScopeDto {
@@ -130,8 +158,10 @@ export interface WorkforceAccessSubjectPageDto {
 
 export interface WorkforceAccessRosterSummaryDto {
   totalCount: number;
-  activeEmployeeCount: number;
-  inactiveEmployeeCount: number;
+  notInvitedCount: number;
+  invitePendingCount: number;
+  activeAccountCount: number;
+  needsReviewCount: number;
 }
 
 export const coreWorkforcePaths = {
@@ -167,6 +197,11 @@ export const coreWorkforceQueryKeys = {
     ] as const,
   accessSubjects: (params: {
     search?: string | null;
+    access?: WorkforceAccessState | null;
+    profileId?: string | null;
+    employeeStatus?: "Active" | "Inactive" | null;
+    deliveryState?: WorkforceAccessDeliveryState | null;
+    employeeKey?: string | null;
     page: number;
     pageSize: number;
   }) =>
@@ -175,6 +210,11 @@ export const coreWorkforceQueryKeys = {
       "access-subjects",
       {
         search: params.search?.trim() || null,
+        access: params.access ?? null,
+        profileId: params.profileId ?? null,
+        employeeStatus: params.employeeStatus ?? null,
+        deliveryState: params.deliveryState ?? null,
+        employeeKey: params.employeeKey ?? null,
         page: params.page,
         pageSize: params.pageSize,
       },

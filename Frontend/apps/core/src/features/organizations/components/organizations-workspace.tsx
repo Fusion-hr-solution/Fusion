@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import type { SortingState } from "@tanstack/react-table";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { ColumnDef, SortingState } from "@tanstack/react-table";
 import type { PlatformOrganizationSummaryDto } from "@repo/api";
 import { canAccessOrganizations, useAuth } from "@repo/auth";
 import { DEFAULT_PAGE_SIZE, EmptyState, type PageSize } from "@repo/ui";
@@ -9,13 +9,15 @@ import { Building, Plus } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { DataTablePagination } from "@/components/data-table-pagination";
 import { CorePageLoadingState } from "@/components/core-page-loading-state";
 import { PageHeader } from "@/components/page-header";
 import { useOrganizationList } from "@/features/organizations/api/use-organizations";
 import { StatsCards } from "@/app/(pages)/organizations/stats-cards";
 import { Toolbar } from "@/app/(pages)/organizations/toolbar";
 import { OrganizationsTable } from "@/app/(pages)/organizations/organizations-table";
-import { PaginationBar } from "@/app/(pages)/organizations/pagination-bar";
+import { columns as baseColumns } from "@/app/(pages)/organizations/columns";
+import { RowActions } from "@/app/(pages)/organizations/row-actions";
 import { CreateOrgDialog } from "@/app/(pages)/organizations/create-org-dialog";
 import { OrgDetailSheet } from "@/app/(pages)/organizations/org-detail-sheet";
 
@@ -24,7 +26,7 @@ export default function OrganizationsWorkspace() {
   const canManageOrganizations = canAccessOrganizations(user);
   const searchParams = useSearchParams();
 
-  const [skip, setSkip] = useState(0);
+  const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<PageSize>(DEFAULT_PAGE_SIZE);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
@@ -32,6 +34,7 @@ export default function OrganizationsWorkspace() {
     { id: "createdAt", desc: true },
   ]);
 
+  const skip = (page - 1) * pageSize;
   const orderBy = sorting[0]?.id ?? "createdAt";
   const orderDirection = sorting[0]?.desc ? "desc" : "asc";
 
@@ -51,23 +54,42 @@ export default function OrganizationsWorkspace() {
   const detailParam = searchParams.get("detail");
   const statusParamsKey = searchParams.getAll("status").join(",");
 
+  const columns = useMemo<ColumnDef<PlatformOrganizationSummaryDto>[]>(() => {
+    const actionsColumn: ColumnDef<PlatformOrganizationSummaryDto> = {
+      id: "Actions",
+      header: "",
+      meta: {
+        headerClassName: "w-10",
+        cellClassName: "w-10",
+      },
+      cell: ({ row }) => (
+        <div onClick={(event) => event.stopPropagation()} role="presentation">
+          <RowActions org={row.original} />
+        </div>
+      ),
+      enableSorting: false,
+    };
+
+    return [...baseColumns, actionsColumn];
+  }, []);
+
   const handleRowClick = useCallback((org: PlatformOrganizationSummaryDto) => {
     setDetailId(org.id);
   }, []);
 
   const handleSearchChange = useCallback((value: string) => {
     setSearch(value);
-    setSkip(0);
+    setPage(1);
   }, []);
 
   const handleStatusFilterChange = useCallback((value: string[]) => {
     setStatusFilter(value);
-    setSkip(0);
+    setPage(1);
   }, []);
 
   const handlePageSizeChange = useCallback((size: PageSize) => {
     setPageSize(size);
-    setSkip(0);
+    setPage(1);
   }, []);
 
   useEffect(() => {
@@ -91,7 +113,7 @@ export default function OrganizationsWorkspace() {
 
       return nextStatusFilter;
     });
-    setSkip(0);
+    setPage(1);
   }, [statusParamsKey]);
 
   const isInitialPageLoading =
@@ -159,6 +181,7 @@ export default function OrganizationsWorkspace() {
       ) : null}
 
       <OrganizationsTable
+        columns={columns}
         data={data?.items ?? []}
         isLoading={isLoading && !data}
         isRefetching={isFetching && !!data}
@@ -168,11 +191,11 @@ export default function OrganizationsWorkspace() {
       />
 
       {data && data.totalCount > 0 ? (
-        <PaginationBar
-          skip={skip}
-          take={pageSize}
+        <DataTablePagination
+          page={page}
+          pageSize={pageSize}
           totalCount={data.totalCount}
-          onPageChange={setSkip}
+          onPageChange={setPage}
           onPageSizeChange={handlePageSizeChange}
         />
       ) : null}

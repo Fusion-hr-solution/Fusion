@@ -15,6 +15,7 @@ public class AccessProfile : BaseEntity, ITenantEntity
 
     public Guid TenantId { get; private set; }
     public string Name { get; private set; } = string.Empty;
+    public string? InternalKey { get; private set; }
     public string NormalizedName { get; private set; } = string.Empty;
     public string? Description { get; private set; }
     public string Type { get; private set; } = AccessProfileTypes.Custom;
@@ -30,7 +31,8 @@ public class AccessProfile : BaseEntity, ITenantEntity
         string name,
         string? description,
         string type,
-        bool isSystemProtected)
+        bool isSystemProtected,
+        string? internalKey = null)
     {
         if (tenantId == Guid.Empty)
             throw new ArgumentException("TenantId is required.", nameof(tenantId));
@@ -43,6 +45,7 @@ public class AccessProfile : BaseEntity, ITenantEntity
         {
             TenantId = tenantId,
             Name = normalizedName,
+            InternalKey = type == AccessProfileTypes.SystemSeeded ? internalKey : null,
             NormalizedName = normalizedName.ToUpperInvariant(),
             Description = NormalizeDescription(description),
             Type = type,
@@ -50,12 +53,23 @@ public class AccessProfile : BaseEntity, ITenantEntity
         };
     }
 
-    public void UpdateDetails(string name, string? description)
+    public void SetInternalKey(string internalKey)
+    {
+        if (Type != AccessProfileTypes.SystemSeeded)
+            throw new InvalidOperationException("Only system-seeded profiles can have an internal key.");
+
+        InternalKey = internalKey;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void UpdateDetails(string name, string? description, string? internalKey = null)
     {
         var normalizedName = NormalizeName(name);
         Name = normalizedName;
         NormalizedName = normalizedName.ToUpperInvariant();
         Description = NormalizeDescription(description);
+        if (internalKey is not null)
+            InternalKey = internalKey;
         UpdatedAt = DateTime.UtcNow;
     }
 

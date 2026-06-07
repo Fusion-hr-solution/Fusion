@@ -15,6 +15,7 @@ import {
 import {
   canAccessCorePeople,
   canAccessCoreTeam,
+  canManageCoreAccessProfiles,
   type AuthUser,
 } from "@repo/auth";
 import { useTenantContext } from "@/shell/tenant-context/core-tenant-context-provider";
@@ -521,10 +522,12 @@ function getWorkforceDeliveryBadgeLabel(
   deliveryStatus: WorkforceAccountStatusDto["deliveryStatus"]
 ): string {
   switch (deliveryStatus) {
+    case "Suppressed":
+      return "Link ready";
     case "Failed":
-      return "Email failed";
+      return "Delivery issue";
     default:
-      return "Email sent";
+      return "Sent";
   }
 }
 
@@ -930,6 +933,12 @@ export function EmployeeProfileWorkspace({
   const lastHandledSheetRef = useRef<string | null>(null);
 
   const isOwnProfile = user?.employeeId === profile.id;
+  const canManageProfiles = canManageCoreAccessProfiles(user);
+  const profilesHref = buildTenantContextHref(
+    "/settings?tab=access-profiles",
+    tenantId,
+    tenantSlug
+  );
   const hireDate = formatDate(profile.hireDate);
   const tenure = getTenure(profile.hireDate);
   const displayName = getProfileDisplayName(profile);
@@ -1787,6 +1796,8 @@ export function EmployeeProfileWorkspace({
           firstName={profile.firstName}
           lastName={profile.lastName}
           directReportCount={profile.directReportCount}
+          canManageProfiles={canManageProfiles}
+          profilesHref={profilesHref}
         />
       ) : null}
 

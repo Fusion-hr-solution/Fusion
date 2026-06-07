@@ -18,7 +18,7 @@ export function AccessWorkspaceNav({
   const { tenantId, tenantSlug } = useTenantContext();
   const peopleHref = buildTenantContextHref("/access", tenantId, tenantSlug);
   const profilesHref = buildTenantContextHref(
-    "/access/profiles",
+    "/settings?tab=access-profiles",
     tenantId,
     tenantSlug
   );
@@ -47,11 +47,11 @@ export function AccessWorkspaceNav({
           asChild
           size="sm"
           className="rounded-lg"
-          variant={active === "profiles" ? "default" : "ghost"}
+          variant={active === "profiles" ? "default" : "outline"}
         >
           <Link href={profilesHref}>
             <ShieldCheck className="size-4" />
-            Profiles
+            Access profiles
           </Link>
         </Button>
       ) : null}

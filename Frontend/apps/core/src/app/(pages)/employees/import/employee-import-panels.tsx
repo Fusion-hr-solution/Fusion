@@ -80,7 +80,6 @@ import {
 } from "./employee-import-utils";
 import { cn } from "@/lib/utils";
 import { canAccessEmployeeRoster } from "@/lib/employee-roster-access";
-import { buildEmployeeFixHref } from "../employee-readiness";
 
 const MAX_VISIBLE_SELECTED_ROWS = 12;
 
@@ -741,17 +740,6 @@ function HistoryPagination({
   );
 }
 
-function HistoryMetric({ label, value }: BatchMetaItem) {
-  return (
-    <div className="rounded-lg border bg-background/80 px-2.5 py-1.5">
-      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-        {label}
-      </p>
-      <p className="text-sm font-medium text-foreground">{value}</p>
-    </div>
-  );
-}
-
 function ImportHistoryListSkeleton() {
   return (
     <div className="space-y-2">
@@ -759,125 +747,13 @@ function ImportHistoryListSkeleton() {
         <div key={index} className="rounded-xl border bg-background p-2">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0 flex-1 space-y-1">
-              <Skeleton className="h-4 w-48" />
-              <Skeleton className="h-3 w-64" />
+              <div className="h-4 w-48 animate-pulse rounded-md bg-muted" />
+              <div className="h-3 w-64 animate-pulse rounded-md bg-muted" />
             </div>
-            <Skeleton className="h-5 w-14 shrink-0 rounded-full" />
+            <div className="h-5 w-14 animate-pulse shrink-0 rounded-full bg-muted" />
           </div>
         </div>
       ))}
-    </div>
-  );
-}
-
-function ImportHistoryDetailSkeleton() {
-  return (
-    <div className="space-y-3">
-      <Skeleton className="h-3 w-48" />
-      <div className="grid gap-1.5 sm:grid-cols-2 xl:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, index) => (
-          <Skeleton key={index} className="h-14 rounded-lg" />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function ImportHistoryDetailContent({
-  historyDetail,
-}: {
-  historyDetail: EmployeeImportHistoryDetailDto;
-}) {
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-        <span>{formatTimestamp(historyDetail.appliedAt)}</span>
-        <span>{getHistoryActorLabel(historyDetail)}</span>
-        <span>{getEventActionLabel(historyDetail.eventType)}</span>
-      </div>
-
-      <div className="grid gap-1.5 sm:grid-cols-2 xl:grid-cols-4">
-        {historyDetail.eventType === "Import" ? (
-          <HistoryMetric label="Created" value={historyDetail.createdCount} />
-        ) : historyDetail.eventType === "Validation" &&
-          historyDetail.errorCount != null ? (
-          <HistoryMetric label="Errors" value={historyDetail.errorCount} />
-        ) : null}
-        {historyDetail.eventType === "Validation" &&
-        historyDetail.warningCount != null ? (
-          <HistoryMetric label="Warnings" value={historyDetail.warningCount} />
-        ) : null}
-        <HistoryMetric label="Rows" value={historyDetail.sourceRowCount} />
-        <HistoryMetric
-          label="File size"
-          value={formatBytes(historyDetail.sourceFileSizeBytes)}
-        />
-      </div>
-
-      {historyDetail.eventType === "Import" && historyDetail.skippedCount > 0 ? (
-        <p className="text-xs text-muted-foreground">
-          {historyDetail.skippedCount} row
-          {historyDetail.skippedCount === 1 ? " was" : "s were"} skipped due
-          to duplicate emails.
-        </p>
-      ) : null}
-
-      {historyDetail.eventType === "Import" && historyDetail.failureReason ? (
-        <Alert variant="destructive">
-          <AlertTitle>Import failed</AlertTitle>
-          <AlertDescription>
-            The import could not be completed. Check the file and try again.
-          </AlertDescription>
-        </Alert>
-      ) : null}
-
-      {historyDetail.eventType === "Import" &&
-      historyDetail.unresolvedFollowUpIssues.length > 0 ? (
-        <div className="space-y-2 rounded-xl border bg-muted/20 p-3">
-          <div>
-            <p className="text-sm font-medium">Unresolved follow-up items</p>
-            <p className="text-xs text-muted-foreground">
-              Review imported employees that still need attention and open the
-              existing fix flow.
-            </p>
-          </div>
-
-          <div className="space-y-1.5">
-            {historyDetail.unresolvedFollowUpIssues.map((issue) => {
-              const fixHref = buildEmployeeFixHref({
-                code: issue.code,
-                label: issue.label,
-                severity: "Attention",
-                fieldKey: issue.fieldKey,
-                fixTarget: issue.fixTarget,
-              });
-
-              return (
-                <div
-                  key={issue.id}
-                  className="flex flex-col gap-2 rounded-lg border bg-background p-2 sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <div>
-                    <p className="text-sm font-medium text-foreground">
-                      {issue.label}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Row {issue.sourceRowNumber} • {issue.employeeFullName} (
-                      {issue.employeeEmail})
-                    </p>
-                  </div>
-
-                  {fixHref ? (
-                    <Button asChild size="sm" variant="outline">
-                      <Link href={fixHref}>Open fix</Link>
-                    </Button>
-                  ) : null}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }
@@ -904,17 +780,6 @@ function getEventBadgeVariant(
   return eventType === "Import" ? "secondary" : "outline";
 }
 
-function getEventActionLabel(eventType: ImportHistoryEventType): string {
-  switch (eventType) {
-    case "Upload":
-      return "Uploaded";
-    case "Validation":
-      return "Validated";
-    case "Import":
-      return "Imported";
-  }
-}
-
 function getEventIcon(eventType: ImportHistoryEventType) {
   switch (eventType) {
     case "Upload":
@@ -923,6 +788,8 @@ function getEventIcon(eventType: ImportHistoryEventType) {
       return Eye;
     case "Import":
       return Users;
+    default:
+      return History;
   }
 }
 
@@ -953,38 +820,22 @@ function getHistoryRowSummary(item: {
       return `${item.validRowCount} valid · ${item.sourceRowCount} rows`;
     case "Import":
       return `${item.createdCount} created${item.skippedCount > 0 ? ` · ${item.skippedCount} skipped` : ""} · ${item.sourceRowCount} rows`;
+    default:
+      return `${item.sourceRowCount} rows`;
   }
 }
 
 export function ImportHistoryPanel({
   historyPage,
-  historyDetail,
-  selectedHistoryId = null,
   isHistoryLoading,
-  isHistoryDetailLoading = false,
   historyError,
-  historyDetailError = null,
-  onSelectHistory = () => undefined,
   onPageChange,
 }: {
   historyPage?: EmployeeImportHistoryPageDto;
-  historyDetail?: EmployeeImportHistoryDetailDto;
-  selectedHistoryId?: string | null;
   isHistoryLoading: boolean;
-  isHistoryDetailLoading?: boolean;
   historyError: unknown;
-  historyDetailError?: unknown;
-  onSelectHistory?: (historyId: string) => void;
   onPageChange: (pageNumber: number) => void;
 }) {
-  const isSelectedHistoryVisible =
-    !!selectedHistoryId
-    && (historyPage?.items.some((item) => item.id === selectedHistoryId) ?? false);
-  const selectedDetail =
-    selectedHistoryId && historyDetail?.id === selectedHistoryId
-      ? historyDetail
-      : null;
-
   return (
     <Card id="employee-import-history" className="border-dashed">
       <CardHeader>
@@ -1008,123 +859,43 @@ export function ImportHistoryPanel({
           </Alert>
         ) : null}
 
-        {selectedHistoryId && !isSelectedHistoryVisible ? (
-          <div className="space-y-3 rounded-xl border bg-muted/20 p-3">
-            <div>
-              <p className="text-sm font-medium">Selected import record</p>
-              <p className="text-xs text-muted-foreground">
-                Showing the requested import history entry outside the current
-                page.
-              </p>
-              {selectedDetail ? (
-                <p className="mt-1 text-sm font-medium text-foreground">
-                  {selectedDetail.sourceFileName}
-                </p>
-              ) : null}
-            </div>
-
-            {historyDetailError ? (
-              <Alert variant="destructive">
-                <AlertTitle>History details failed to load</AlertTitle>
-                <AlertDescription>
-                  {getErrorMessage(historyDetailError)}
-                </AlertDescription>
-              </Alert>
-            ) : isHistoryDetailLoading || !selectedDetail ? (
-              <ImportHistoryDetailSkeleton />
-            ) : (
-              <ImportHistoryDetailContent historyDetail={selectedDetail} />
-            )}
-          </div>
-        ) : null}
-
         {isHistoryLoading && !historyPage ? (
           <ImportHistoryListSkeleton />
         ) : historyPage && historyPage.items.length > 0 ? (
           <div className="space-y-3">
             <div className="grid gap-1.5">
               {historyPage.items.map((item) => {
-                const isSelected = selectedHistoryId === item.id;
-                const selectedRowDetail =
-                  isSelected && historyDetail?.id === item.id
-                    ? historyDetail
-                    : null;
                 const EventIcon = getEventIcon(item.eventType);
 
                 return (
                   <div
                     key={item.id}
-                    className={`overflow-hidden rounded-xl border transition-colors ${
-                      isSelected
-                        ? "border-foreground/20 bg-muted/25"
-                        : "border-border bg-background"
-                    }`}
+                    className="overflow-hidden rounded-xl border border-border bg-background p-3 transition-colors"
                   >
-                    <button
-                      type="button"
-                      className={`w-full cursor-pointer p-2 text-left transition-colors ${
-                        isSelected
-                          ? "bg-muted/20"
-                          : "hover:border-foreground/15 hover:bg-muted/20"
-                      }`}
-                      onClick={() => onSelectHistory(item.id)}
-                      aria-pressed={isSelected}
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg border bg-muted/20 text-muted-foreground">
-                          <EventIcon className="size-4" />
-                        </div>
-                        <div className="min-w-0 flex-1 space-y-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <p className="truncate text-sm font-medium text-foreground">
-                              {item.sourceFileName}
-                            </p>
-                            <Badge variant="outline" className="py-0 text-[10px]">
-                              {getEventActionLabel(item.eventType)}
-                            </Badge>
-                          </div>
-                          <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                            <span>{getHistoryRowSummary(item)}</span>
-                            <span>{formatTimestamp(item.appliedAt)}</span>
-                            <span>{getHistoryActorLabel(item)}</span>
-                          </div>
-                        </div>
-                        <Badge
-                          variant={
-                            isSelected
-                              ? "secondary"
-                              : getEventBadgeVariant(
-                                  item.eventType,
-                                  (item.errorCount ?? 0) > 0
-                                )
-                          }
-                          className="shrink-0"
-                        >
-                          {item.status}
-                        </Badge>
+                    <div className="flex items-start gap-3">
+                      <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg border bg-muted/20 text-muted-foreground">
+                        <EventIcon className="size-4" />
                       </div>
-                    </button>
-
-                    {isSelected ? (
-                      <div className="border-t bg-background/70 px-3 py-3">
-                        {historyDetailError ? (
-                          <Alert variant="destructive">
-                            <AlertTitle>
-                              History details failed to load
-                            </AlertTitle>
-                            <AlertDescription>
-                              {getErrorMessage(historyDetailError)}
-                            </AlertDescription>
-                          </Alert>
-                        ) : isHistoryDetailLoading || !selectedRowDetail ? (
-                          <ImportHistoryDetailSkeleton />
-                        ) : (
-                          <ImportHistoryDetailContent
-                            historyDetail={selectedRowDetail}
-                          />
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <p className="truncate text-sm font-medium text-foreground">
+                          {item.sourceFileName}
+                        </p>
+                        <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                          <span>{getHistoryRowSummary(item)}</span>
+                          <span>{formatTimestamp(item.appliedAt)}</span>
+                          <span>{getHistoryActorLabel(item)}</span>
+                        </div>
+                      </div>
+                      <Badge
+                        variant={getEventBadgeVariant(
+                          item.eventType,
+                          (item.errorCount ?? 0) > 0
                         )}
-                      </div>
-                    ) : null}
+                        className="shrink-0"
+                      >
+                        {item.status}
+                      </Badge>
+                    </div>
                   </div>
                 );
               })}
