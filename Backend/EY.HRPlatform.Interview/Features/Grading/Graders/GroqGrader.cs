@@ -1,32 +1,53 @@
 using System.Text.Json;
 using EY.HRPlatform.Interview.Domain.Entities;
 using EY.HRPlatform.Interview.Domain.Enums;
+using EY.HRPlatform.Interview.Features.Grading;
 using EY.HRPlatform.Interview.Features.Grading.Dtos;
 using EY.HRPlatform.Interview.Features.Grading.Groq;
+using Microsoft.Extensions.Options;
 
 namespace EY.HRPlatform.Interview.Features.Grading.Graders;
 
-public class GroqGrader(GroqClient groq, ILogger<GroqGrader> logger) : IGrader
+public class GroqGrader(
+    GroqClient groq,
+    ILogger<GroqGrader> logger,
+    IOptions<GroqGradingOptions> options) : IGrader
 {
-    private const double LowConfidenceThreshold = 0.7;
+    private readonly GroqGradingOptions _options = options.Value;
 
     public bool CanGrade(Question question) =>
         question.Type is QuestionType.Essay or QuestionType.CaseStudy
-        || (question.Type == QuestionType.Coding && string.IsNullOrWhiteSpace(question.TestCases));
+        || (question.Type is QuestionType.Coding or QuestionType.Sql
+            && string.IsNullOrWhiteSpace(question.TestCases));
 
-    public async Task<QuestionGradeResultDto> GradeAsync(Question question, string answer, CancellationToken ct)
+    public async Task<QuestionGradeResultDto> GradeAsync(Question question, CandidateAnswer answer, CancellationToken ct)
     {
         var systemPrompt = BuildSystemPrompt(question);
-        var userMessage = BuildUserMessage(question, answer);
+        var userMessage = BuildUserMessage(question, answer.AnswerText);
 
-        string rawResponse;
-        try
+        var passCount = Math.Max(1, _options.PassCount);
+
+        // Grade passCount times. Passes run sequentially to keep concurrent Groq
+        // load bounded (questions are already graded in parallel by the orchestrator).
+        var passes = new List<GradingResponse>(passCount);
+        for (var i = 0; i < passCount; i++)
         {
-            rawResponse = await groq.CompleteAsync(systemPrompt, userMessage, ct);
+            try
+            {
+                var raw = await groq.CompleteAsync(systemPrompt, userMessage, ct, _options.PassTemperature);
+                passes.Add(ParseGradingResponse(raw));
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex,
+                    "Groq grading pass {Pass}/{Total} failed for question {QuestionId}.",
+                    i + 1, passCount, question.Id);
+            }
         }
-        catch (Exception ex)
+
+        if (passes.Count == 0)
         {
-            logger.LogWarning(ex, "Groq grading failed for question {QuestionId}; routing to human review.", question.Id);
+            logger.LogWarning("All Groq passes failed for question {QuestionId}; routing to human review.", question.Id);
             return new QuestionGradeResultDto(
                 QuestionId: question.Id,
                 GraderType: "Groq",
@@ -37,18 +58,52 @@ public class GroqGrader(GroqClient groq, ILogger<GroqGrader> logger) : IGrader
             );
         }
 
-        var parsed = ParseGradingResponse(rawResponse);
-        var score = Math.Clamp(Math.Round((decimal)(parsed.Score / 10.0 * question.Points), 2), 0m, question.Points);
-        var needsReview = parsed.Confidence < LowConfidenceThreshold;
+        // Reconcile: median score is robust to a single outlier pass.
+        var sortedScores = passes.Select(p => p.Score).OrderBy(s => s).ToList();
+        var medianScore = Median(sortedScores);
+        var spread = sortedScores[^1] - sortedScores[0];
+        var avgConfidence = passes.Average(p => p.Confidence);
+
+        var score = Math.Clamp(Math.Round((decimal)(medianScore / 10.0 * question.Points), 2), 0m, question.Points);
+
+        // Flag for review when the model is unsure: low average confidence, the
+        // passes disagreed too much, or we couldn't get enough samples to
+        // cross-check (a single surviving pass isn't a real "check").
+        var disagreement = spread > _options.MaxScoreSpread;
+        var insufficientSamples = passes.Count < Math.Min(2, passCount);
+        var needsReview = avgConfidence < _options.LowConfidenceThreshold || disagreement || insufficientSamples;
+
+        // Use the feedback from the pass closest to the median.
+        var chosen = passes.OrderBy(p => Math.Abs(p.Score - medianScore)).First();
+        var feedback = chosen.Feedback;
+        if (disagreement)
+        {
+            var raw = string.Join(", ", sortedScores.Select(s => s.ToString("0.#")));
+            feedback = $"[AI grading passes disagreed ({raw} out of 10) — flagged for review] {feedback}";
+        }
+
+        logger.LogInformation(
+            "Groq triple-check for question {QuestionId}: scores=[{Scores}], median={Median}/10, avgConfidence={Confidence:0.00}, review={Review}.",
+            question.Id, string.Join(",", sortedScores.Select(s => s.ToString("0.#"))),
+            medianScore.ToString("0.#"), avgConfidence, needsReview);
 
         return new QuestionGradeResultDto(
             QuestionId: question.Id,
             GraderType: "Groq",
             Score: score,
             MaxScore: question.Points,
-            Feedback: parsed.Feedback,
+            Feedback: feedback,
             NeedsHumanReview: needsReview
         );
+    }
+
+    private static double Median(IReadOnlyList<double> sorted)
+    {
+        var n = sorted.Count;
+        if (n == 0) return 0;
+        return n % 2 == 1
+            ? sorted[n / 2]
+            : (sorted[n / 2 - 1] + sorted[n / 2]) / 2.0;
     }
 
     private static string BuildSystemPrompt(Question question)

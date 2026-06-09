@@ -9,7 +9,7 @@ public class GradingBackgroundService(
     ILogger<GradingBackgroundService> logger)
     : BackgroundService
 {
-    private static readonly TimeSpan Interval = TimeSpan.FromMilliseconds(2500);
+    private static readonly TimeSpan Interval = TimeSpan.FromMilliseconds(1000);
     private static readonly TimeSpan LockTimeout = TimeSpan.FromMinutes(10);
     private readonly string _instanceId = Guid.NewGuid().ToString("N")[..8];
 
@@ -52,6 +52,7 @@ public class GradingBackgroundService(
                         && j.FailedAt == null
                         && j.RetryCount < 3
                         && (j.LockedAt == null || j.LockedAt < staleThreshold))
+            .OrderBy(j => j.CreatedAt)
             .Take(1)
             .ExecuteUpdateAsync(s => s
                 .SetProperty(j => j.LockedAt, DateTime.UtcNow)

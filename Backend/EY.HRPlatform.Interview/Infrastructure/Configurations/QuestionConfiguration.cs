@@ -1,6 +1,7 @@
 using System.Text.Json;
 using EY.HRPlatform.Interview.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace EY.HRPlatform.Interview.Infrastructure.Configurations;
@@ -34,11 +35,17 @@ public class QuestionConfiguration : IEntityTypeConfiguration<Question>
             .HasMaxLength(20)
             .IsRequired();
 
-        builder.Property(q => q.Tags)
+        var tagsProperty = builder.Property(q => q.Tags)
             .HasConversion(
                 tags => JsonSerializer.Serialize(tags, JsonSerializerOptions.Default),
                 value => JsonSerializer.Deserialize<List<string>>(value, JsonSerializerOptions.Default) ?? new List<string>())
             .IsRequired();
+
+        tagsProperty.Metadata.SetValueComparer(
+            new ValueComparer<List<string>>(
+                (c1, c2) => c1 != null && c2 != null && c1.SequenceEqual(c2),
+                c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
+                c => c.ToList()));
 
         builder.Property(q => q.Language).HasMaxLength(80);
         builder.Property(q => q.StarterCode);

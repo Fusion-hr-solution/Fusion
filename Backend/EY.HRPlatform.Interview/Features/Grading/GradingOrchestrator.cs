@@ -1,4 +1,3 @@
-using System.Text.Json;
 using EY.HRPlatform.Interview.Domain.Entities;
 using EY.HRPlatform.Interview.Domain.Enums;
 using EY.HRPlatform.Interview.Features.Grading.Dtos;
@@ -30,37 +29,24 @@ public class GradingOrchestrator(
             .Where(q => questionIds.Contains(q.Id))
             .ToListAsync(ct);
 
-        var answers = ParseAnswers(attempt.AnswersJson);
+        var answers = CandidateAnswerParser.Parse(attempt.AnswersJson);
 
         attempt.GradingStatus = GradingStatus.InProgress;
         await dbContext.SaveChangesAsync(ct);
 
-        var results = new List<QuestionGradeResultDto>();
+        // Grade every question concurrently. Graders are stateless and only do
+        // HTTP/in-memory work — they never touch the DbContext — so this is safe.
+        // Persistence happens sequentially after all grading completes.
+        var results = (await Task.WhenAll(
+            questions.Select(question => GradeQuestionAsync(question, answers, ct))
+        )).ToList();
 
-        foreach (var question in questions)
+        foreach (var result in results)
         {
-            answers.TryGetValue(question.Id.ToString(), out var answer);
-            answer ??= string.Empty;
-
-            var grader = graders.FirstOrDefault(g => g.CanGrade(question));
-
-            QuestionGradeResultDto result;
-            if (grader is null)
-            {
-                logger.LogDebug("No grader for question {QuestionId} (type={Type}); queuing for human review.", question.Id, question.Type);
-                result = new QuestionGradeResultDto(
-                    QuestionId: question.Id,
-                    GraderType: "HumanReview",
-                    Score: 0m,
-                    MaxScore: question.Points,
-                    Feedback: null,
-                    NeedsHumanReview: true
-                );
-            }
-            else
-            {
-                result = await grader.GradeAsync(question, answer, ct);
-            }
+            logger.LogInformation(
+                "Question {QuestionId} graded by {Grader}: {Score}/{MaxScore}{Review}.",
+                result.QuestionId, result.GraderType, result.Score, result.MaxScore,
+                result.NeedsHumanReview ? " (needs human review)" : string.Empty);
 
             dbContext.QuestionGradeResults.Add(new QuestionGradeResult
             {
@@ -72,8 +58,6 @@ public class GradingOrchestrator(
                 Feedback = result.Feedback,
                 NeedsHumanReview = result.NeedsHumanReview,
             });
-
-            results.Add(result);
         }
 
         var totalScore = results.Sum(r => r.Score);
@@ -95,15 +79,42 @@ public class GradingOrchestrator(
         );
     }
 
-    private static Dictionary<string, string> ParseAnswers(string answersJson)
+    /// <summary>
+    /// Routes a single question to the right grader and returns its result.
+    /// Must not touch the DbContext — it runs concurrently with sibling questions.
+    /// </summary>
+    private async Task<QuestionGradeResultDto> GradeQuestionAsync(
+        Question question,
+        IReadOnlyDictionary<string, CandidateAnswer> answers,
+        CancellationToken ct)
     {
-        try
+        if (!answers.TryGetValue(question.Id.ToString(), out var answer))
+            answer = CandidateAnswer.Empty;
+
+        // Grader selection (in registration order):
+        //   Deterministic → MultipleChoice / TrueFalse
+        //   Judge0        → Coding / SQL *with* test cases
+        //   Groq (AI)     → Essay / CaseStudy, and Coding / SQL *without* test cases
+        // Only a question no grader can handle is routed to human review.
+        var grader = graders.FirstOrDefault(g => g.CanGrade(question));
+        if (grader is null)
         {
-            return JsonSerializer.Deserialize<Dictionary<string, string>>(answersJson) ?? [];
+            logger.LogWarning(
+                "No grader matched question {QuestionId} (type={Type}); queuing for human review.",
+                question.Id, question.Type);
+            return new QuestionGradeResultDto(
+                QuestionId: question.Id,
+                GraderType: "HumanReview",
+                Score: 0m,
+                MaxScore: question.Points,
+                Feedback: null,
+                NeedsHumanReview: true
+            );
         }
-        catch
-        {
-            return [];
-        }
+
+        logger.LogDebug(
+            "Grading question {QuestionId} (type={Type}) with {Grader}.",
+            question.Id, question.Type, grader.GetType().Name);
+        return await grader.GradeAsync(question, answer, ct);
     }
 }

@@ -27,8 +27,14 @@ public class Judge0Client(HttpClient httpClient)
             expected_output = expectedOutput is null ? null : Convert.ToBase64String(Encoding.UTF8.GetBytes(expectedOutput)),
         };
 
-        var response = await httpClient.PostAsJsonAsync(
-            "/submissions?base64_encoded=true&wait=false", body, ct);
+        // Serialize to a buffered StringContent so the request carries a
+        // Content-Length header. PostAsJsonAsync streams without one (chunked
+        // transfer encoding), which Judge0's Rack stack fails to parse — it sees
+        // an empty body and rejects the submission with 422.
+        var json = JsonSerializer.Serialize(body);
+        using var content = new StringContent(json, Encoding.UTF8, "application/json");
+        var response = await httpClient.PostAsync(
+            "/submissions?base64_encoded=true&wait=false", content, ct);
         response.EnsureSuccessStatusCode();
 
         var submission = await response.Content.ReadFromJsonAsync<Judge0SubmissionResponse>(JsonOptions, ct)
@@ -39,9 +45,11 @@ public class Judge0Client(HttpClient httpClient)
 
     private async Task<Judge0Result> PollAsync(string token, CancellationToken ct)
     {
-        for (var attempt = 0; attempt < 30; attempt++)
+        // Poll every 350ms (Judge0 typically finishes a small program well under a
+        // second). ~85 attempts keeps roughly a 30s ceiling for slow/hung runs.
+        for (var attempt = 0; attempt < 85; attempt++)
         {
-            await Task.Delay(1000, ct);
+            await Task.Delay(350, ct);
 
             var response = await httpClient.GetAsync(
                 $"/submissions/{token}?base64_encoded=true&fields=status,stdout,stderr,compile_output,time,memory", ct);

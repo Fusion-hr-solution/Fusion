@@ -143,6 +143,8 @@ services:
     image: judge0/judge0:1.13.1
     container_name: fusion-judge0-worker
     command: ["./scripts/workers"]
+    volumes:
+      - ./judge0.conf:/judge0.conf:ro
     privileged: true
     depends_on:
       - judge0-redis
@@ -153,6 +155,8 @@ services:
   judge0-redis:
     image: redis:7-alpine
     container_name: fusion-judge0-redis
+    # Judge0 always issues AUTH, so the Redis instance must require a password.
+    command: ["redis-server", "--requirepass", "judge0redis"]
     networks:
       - fusion-net
 

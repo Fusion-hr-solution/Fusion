@@ -322,6 +322,12 @@ export async function resendInvitation(invitationId: string): Promise<CandidateI
   return mapInvitation(dto);
 }
 
+export async function deleteInvitation(invitationId: string): Promise<void> {
+  await client.delete(
+    `${CANDIDATE_INVITATIONS_API}/${encodeURIComponent(invitationId)}`
+  );
+}
+
 export async function getCandidateLinkSecurityState(testId: string): Promise<CandidateLinkSecurityState> {
   const dto = await client.get<BackendCandidateLinkSecurityStateDto>(
     CANDIDATE_MANAGEMENT_LINK_SECURITY_ENDPOINT,

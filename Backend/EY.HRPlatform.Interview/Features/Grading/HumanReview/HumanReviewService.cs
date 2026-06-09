@@ -1,5 +1,6 @@
-using System.Text.Json;
+using EY.HRPlatform.Interview.Domain.Entities;
 using EY.HRPlatform.Interview.Domain.Enums;
+using EY.HRPlatform.Interview.Features.Grading;
 using EY.HRPlatform.Interview.Features.Grading.Dtos;
 using EY.HRPlatform.Interview.Infrastructure;
 using Microsoft.EntityFrameworkCore;
@@ -13,20 +14,21 @@ public class HumanReviewService(AppDbContext dbContext)
         var results = await dbContext.QuestionGradeResults
             .Include(r => r.Attempt)
             .Include(r => r.Question)
+                .ThenInclude(q => q.Options)
             .Where(r => r.NeedsHumanReview && r.ReviewedAt == null)
             .OrderBy(r => r.Attempt.SubmittedAtUtc)
             .ToListAsync(ct);
 
         return results.Select(r =>
         {
-            var answer = ParseAnswer(r.Attempt.AnswersJson, r.QuestionId.ToString());
+            var answer = CandidateAnswerParser.For(r.Attempt.AnswersJson, r.QuestionId.ToString());
             return new ReviewQueueItemDto(
                 ResultId: r.Id,
                 AttemptId: r.AttemptId,
                 CandidateName: r.Attempt.CandidateName ?? r.Attempt.CandidateEmail,
                 QuestionTitle: r.Question.Title,
                 QuestionText: r.Question.Description,
-                CandidateAnswer: answer,
+                CandidateAnswer: RenderAnswer(answer, r.Question),
                 AiSuggestedFeedback: r.Feedback,
                 AiSuggestedScore: r.Score,
                 MaxScore: r.MaxScore
@@ -62,16 +64,24 @@ public class HumanReviewService(AppDbContext dbContext)
         await dbContext.SaveChangesAsync(ct);
     }
 
-    private static string ParseAnswer(string answersJson, string questionId)
+    /// <summary>
+    /// Produces a human-readable answer for the review queue. Selected option ids
+    /// are resolved to their option text; otherwise the free-text answer is shown.
+    /// </summary>
+    private static string RenderAnswer(CandidateAnswer answer, Question question)
     {
-        try
+        if (answer.SelectedOptionIds.Count > 0)
         {
-            var dict = JsonSerializer.Deserialize<Dictionary<string, string>>(answersJson);
-            return dict?.TryGetValue(questionId, out var v) == true ? v : string.Empty;
+            var textById = question.Options
+                .GroupBy(o => o.Id.ToString(), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First().Text, StringComparer.OrdinalIgnoreCase);
+
+            var labels = answer.SelectedOptionIds
+                .Select(id => textById.TryGetValue(id, out var text) ? text : id);
+
+            return string.Join(", ", labels);
         }
-        catch
-        {
-            return string.Empty;
-        }
+
+        return answer.AnswerText;
     }
 }

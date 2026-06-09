@@ -78,6 +78,7 @@ public static class ServiceCollectionExtensions
         var groqApiKey = configuration["Groq:ApiKey"];
         if (!string.IsNullOrWhiteSpace(groqApiKey))
         {
+            services.Configure<GroqGradingOptions>(configuration.GetSection(GroqGradingOptions.SectionName));
             services.AddScoped<IGrader, GroqGrader>();
             services.AddHttpClient<GroqClient>(c =>
             {
