@@ -278,4 +278,74 @@ public class AdminTrainingSessionsController : ControllerBase
                 ApiResponse.Failure("An error occurred while detecting conflicts."));
         }
     }
+
+    /// <summary>Generate (or regenerate) the rotating QR code for a session's attendance.</summary>
+    [HttpPost("sessions/{sessionId:guid}/qr-code")]
+    [ProducesResponseType(typeof(ApiResponse<SessionQrCodeDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GenerateQrCode(
+        Guid sessionId,
+        [FromBody] GenerateSessionQrCodeRequest? request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var regenerate = request?.Regenerate ?? false;
+            var result = await _sender.Send(new GenerateSessionQrCodeCommand(sessionId, regenerate), cancellationToken);
+            if (result.IsFailure)
+                return result.Error.Code.EndsWith("NotFound")
+                    ? NotFound(ApiResponse.Failure(result.Error.Message))
+                    : BadRequest(ApiResponse.Failure(result.Error.Message));
+            return Ok(ApiResponse<SessionQrCodeDto>.Success(result.Value!));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to generate QR code for session {SessionId}", sessionId);
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                ApiResponse.Failure("An error occurred while generating the QR code."));
+        }
+    }
+
+    /// <summary>Get the current QR payload for a session (admin polling). Returns 404 if not generated.</summary>
+    [HttpGet("sessions/{sessionId:guid}/qr-code")]
+    [ProducesResponseType(typeof(ApiResponse<SessionQrCodeDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetQrCode(Guid sessionId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await _sender.Send(new GetSessionQrCodeQuery(sessionId), cancellationToken);
+            if (result.IsFailure)
+                return NotFound(ApiResponse.Failure(result.Error.Message));
+            return Ok(ApiResponse<SessionQrCodeDto>.Success(result.Value!));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to retrieve QR code for session {SessionId}", sessionId);
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                ApiResponse.Failure("An error occurred while retrieving the QR code."));
+        }
+    }
+
+    /// <summary>Revoke a session's QR code (no further scans accepted).</summary>
+    [HttpDelete("sessions/{sessionId:guid}/qr-code")]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RevokeQrCode(Guid sessionId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await _sender.Send(new RevokeSessionQrCodeCommand(sessionId), cancellationToken);
+            if (result.IsFailure)
+                return NotFound(ApiResponse.Failure(result.Error.Message));
+            return Ok(ApiResponse.Success());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to revoke QR code for session {SessionId}", sessionId);
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                ApiResponse.Failure("An error occurred while revoking the QR code."));
+        }
+    }
 }
