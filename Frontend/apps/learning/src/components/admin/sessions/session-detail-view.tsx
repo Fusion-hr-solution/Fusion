@@ -34,6 +34,7 @@ import { downloadBlob } from "@/lib/download";
 import { SessionStatusBadge } from "./session-status-badge";
 import { CancelSessionDialog } from "./cancel-session-dialog";
 import { SessionQrCard } from "./session-qr-card";
+import { SessionAttendancePanel } from "../attendance";
 import {
   formatSessionDate,
   formatSessionTimeRange,
@@ -399,6 +400,9 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
           </Card>
         </div>
       </div>
+
+      {/* Attendance summary (US-5.3.2) */}
+      <SessionAttendancePanel sessionId={sessionId} />
 
       {/* History timeline */}
       <Card className="border-border/50">

@@ -15,6 +15,7 @@ import { KpiCard } from "../kpi-card";
 import { ProgrammeMatrixTable } from "./programme-matrix-table";
 import { CompletionBarChart } from "./completion-bar-chart";
 import { CompletionTrendChart } from "./completion-trend-chart";
+import { AttendanceRatesSection } from "./attendance";
 
 export function AdminDashboard() {
   const router = useRouter();
@@ -130,6 +131,9 @@ export function AdminDashboard() {
         ) : trend && trend.points.length > 0 ? (
           <CompletionTrendChart points={trend.points} />
         ) : null}
+
+        {/* ── Attendance Rates ── */}
+        <AttendanceRatesSection />
       </section>
     </TooltipProvider>
   );
