@@ -18,6 +18,7 @@ import { RecommendedCard } from "./recommended-card";
 import { ProgressRing } from "./progress-ring";
 import { CategoryBreakdown } from "./category-breakdown";
 import { AchievementsCard } from "./achievements-card";
+import { InPersonHoursWidget } from "./in-person-hours-widget";
 
 export function Dashboard({ trainings, enrolledTrainings }: DashboardProps) {
   const { stats, categoryBreakdown, continueTrainings, recommended } =
@@ -43,7 +44,11 @@ export function Dashboard({ trainings, enrolledTrainings }: DashboardProps) {
       </PageHeader>
 
       {/* ── Dashboard grid ── */}
-      <section className="px-8 py-8">
+      <section className="px-8 py-8 space-y-6">
+        <div className="ey-animate-fade-up">
+          <InPersonHoursWidget />
+        </div>
+
         <div className="grid gap-6 lg:grid-cols-3">
           {/* ── LEFT COLUMN (2/3) ── */}
           <div className="space-y-6 lg:col-span-2">

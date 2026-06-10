@@ -2,7 +2,7 @@ import { TrainingCatalog } from "@/components";
 import { MOCK_TRAININGS } from "@/data/trainings";
 import { getTrainings, getCategories } from "@/services/learning-service";
 import { CATEGORY_MAP } from "@/types/backend-dtos";
-import type { TrainingCategory } from "@/types";
+import type { TrainingCategory, TrainingType } from "@/types";
 import { AdminRedirectGuard } from "@/components/admin-redirect-guard";
 
 export const dynamic = "force-dynamic";
@@ -12,12 +12,16 @@ const PAGE_SIZE = 10;
 export default async function LearningPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; search?: string; category?: string }>;
+  searchParams: Promise<{ page?: string; search?: string; category?: string; trainingType?: string }>;
 }) {
   const params = await searchParams;
   const page = Math.max(1, parseInt(params.page ?? "1", 10) || 1);
   const search = params.search?.trim() ?? "";
   const categoryParam = params.category as TrainingCategory | undefined;
+  const trainingType =
+    params.trainingType === "ELearning" || params.trainingType === "OnSite"
+      ? (params.trainingType as TrainingType)
+      : undefined;
 
   // Resolve frontend category enum → backend UUID for server-side filtering
   let categoryId: string | undefined;
@@ -37,6 +41,7 @@ export default async function LearningPage({
       pageSize: PAGE_SIZE,
       search: search || undefined,
       categoryId,
+      trainingType,
     });
     return (
       <AdminRedirectGuard>

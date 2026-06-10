@@ -132,4 +132,28 @@ public class MyTrainingsController : ControllerBase
     }
 
     /// <summary>Update progress for a specific chapter.</summary>
+
+    /// <summary>
+    /// Get personal in-person training hours summary for the dashboard widget.
+    /// Includes year/quarter/month totals, attended sessions breakdown, and
+    /// in-person vs e-learning hours ratio.
+    /// </summary>
+    [HttpGet("in-person-hours")]
+    [ProducesResponseType(typeof(ApiResponse<MyInPersonHoursDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> GetMyInPersonHours(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var employeeId = User.GetUserId();
+            var result = await _sender.Send(new GetMyInPersonHoursQuery(employeeId), cancellationToken);
+            return Ok(ApiResponse<MyInPersonHoursDto>.Success(result.Value!));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to retrieve in-person hours summary");
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                ApiResponse.Failure("An error occurred while retrieving your in-person hours."));
+        }
+    }
 }

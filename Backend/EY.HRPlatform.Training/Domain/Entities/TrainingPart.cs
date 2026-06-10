@@ -8,6 +8,7 @@ public class TrainingPart : BaseEntity
     public string? Description { get; private set; }
     public int OrderIndex { get; private set; }
     public decimal DurationHours { get; private set; }
+    public bool IsLocked { get; private set; }
 
     public Guid TrainingId { get; private set; }
     public TrainingCourse Training { get; private set; } = null!;
@@ -42,6 +43,18 @@ public class TrainingPart : BaseEntity
     public void Reorder(int orderIndex)
     {
         OrderIndex = orderIndex;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void Lock()
+    {
+        IsLocked = true;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void Unlock()
+    {
+        IsLocked = false;
         UpdatedAt = DateTime.UtcNow;
     }
 }
