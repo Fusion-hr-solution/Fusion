@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { AuthProvider } from "@repo/auth";
 import { AppShell } from "@/components/app-shell";
+import { Providers } from "@/app/providers";
 import "@repo/ui/src/ey-brand.css";
 import "./globals.css";
 
@@ -15,9 +16,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="min-h-screen antialiased bg-white">
-        <AuthProvider>
-          <AppShell>{children}</AppShell>
-        </AuthProvider>
+        <Providers>
+          <AuthProvider>
+            <AppShell>{children}</AppShell>
+          </AuthProvider>
+        </Providers>
       </body>
     </html>
   );

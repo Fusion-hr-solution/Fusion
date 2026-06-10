@@ -89,19 +89,25 @@ public class EnrollmentCommandHandlerTests
     }
 
     [Fact]
-    public async Task EnrollInSessions_Fails_WhenMissingPartSelection()
+    public async Task EnrollInSessions_Succeeds_WithPartialSelection()
     {
         var (ctx, trainingId, part1Id, _, session1Id, _) = await SeedAsync();
         var handler = new EnrollInSessionsCommandHandler(ctx);
+        var employeeId = Guid.NewGuid();
 
-        // Only select session for part 1, missing part 2
+        // Only select session for part 1 — partial enrollment is now allowed
         var result = await handler.Handle(new EnrollInSessionsCommand(
-            Guid.NewGuid(), "Test User", "test@test.com", trainingId, [
+            employeeId, "Test User", "test@test.com", trainingId, [
                 new SessionSelectionItem(part1Id, session1Id)
             ]), CancellationToken.None);
 
-        Assert.True(result.IsFailure);
-        Assert.Contains("IncompleteSelection", result.Error.Code);
+        Assert.True(result.IsSuccess);
+
+        var enrollments = await ctx.SessionEnrollments
+            .Where(e => e.EmployeeId == employeeId)
+            .ToListAsync();
+        Assert.Single(enrollments);
+        Assert.Equal(session1Id, enrollments[0].SessionId);
     }
 
     [Fact]
@@ -209,6 +215,13 @@ public class EnrollmentCommandHandlerTests
     public async Task EnrollInSessions_Fails_WhenSessionCancelled()
     {
         var (ctx, trainingId, part1Id, part2Id, session1Id, session2Id) = await SeedAsync();
+
+        // Add a second session to part1 so the part remains enrollable
+        var addSessionHandler = new AddSessionCommandHandler(ctx);
+        var altStart = DateTime.UtcNow.Date.AddDays(15).AddHours(9);
+        await addSessionHandler.Handle(new AddSessionCommand(
+            trainingId, part1Id, altStart, altStart.AddHours(3),
+            "Room C", 25, null, null, "Carol", "carol@ey.com"), CancellationToken.None);
 
         // Cancel session1
         var session = await ctx.TrainingSessions.FindAsync(session1Id);

@@ -20,12 +20,14 @@ public class TestQuestionService(AppDbContext dbContext) : ITestQuestionService
             .Where(tq => tq.TestId == testId)
             .Include(tq => tq.Question)
                 .ThenInclude(q => q.Options)
-            .OrderByDescending(tq => tq.Question.CreatedAt)
             .Select(tq => tq.Question)
             .Distinct()
             .ToListAsync(cancellationToken);
 
-        return items.Select(MapQuestion).ToList();
+        return items
+            .OrderByDescending(q => q.CreatedAt)
+            .Select(MapQuestion)
+            .ToList();
     }
 
     public async Task AddQuestionAsync(Guid testId, Guid questionId, CancellationToken cancellationToken)

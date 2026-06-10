@@ -18,6 +18,7 @@ import {
   FileDown,
   Loader2,
   CheckCircle2,
+  History,
 } from "lucide-react";
 import { Badge, Button, Card, CardContent, Input, Label, Progress, Separator } from "@repo/ui";
 import { useApiQuery, useApiMutation } from "@repo/api/react";
@@ -32,6 +33,8 @@ import { getIdentityUsers } from "@/services/admin-dashboard-service";
 import { downloadBlob } from "@/lib/download";
 import { SessionStatusBadge } from "./session-status-badge";
 import { CancelSessionDialog } from "./cancel-session-dialog";
+import { SessionQrCard } from "./session-qr-card";
+import { SessionAttendancePanel } from "../attendance";
 import {
   formatSessionDate,
   formatSessionTimeRange,
@@ -157,7 +160,7 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
           <CardContent className="py-6 space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-base font-semibold text-foreground">Session Details</h2>
-              {session.status !== "Cancelled" && (
+              {session.status !== "Cancelled" && session.status !== "Completed" && new Date(session.endUtc) >= new Date() && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -269,6 +272,13 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
 
         {/* Sidebar */}
         <div className="space-y-4">
+          {/* QR attendance card */}
+          <SessionQrCard
+            sessionId={sessionId}
+            sessionEnded={new Date(session.endUtc) < new Date()}
+            sessionCancelled={session.status === "Cancelled"}
+          />
+
           {/* Duplicate card */}
           <Card className="border-border/50">
             <CardContent className="py-5 space-y-3">
@@ -390,6 +400,75 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
           </Card>
         </div>
       </div>
+
+      {/* Attendance summary (US-5.3.2) */}
+      <SessionAttendancePanel sessionId={sessionId} />
+
+      {/* History timeline */}
+      <Card className="border-border/50">
+        <CardContent className="py-5 space-y-4">
+          <div className="flex items-center gap-2">
+            <History className="h-4 w-4 text-muted-foreground" />
+            <h3 className="text-sm font-semibold text-foreground">History</h3>
+          </div>
+          <ol className="relative border-l border-border/60 ml-2 space-y-4">
+            {/* Created */}
+            <li className="ml-4">
+              <div className="absolute -left-1.5 mt-1 h-3 w-3 rounded-full border-2 border-background bg-muted-foreground/40" />
+              <p className="text-xs font-medium text-foreground">Session created</p>
+              <time className="text-[10px] text-muted-foreground">
+                {new Date(session.createdAt).toLocaleString()}
+              </time>
+            </li>
+
+            {/* Started (if time has passed) */}
+            {new Date(session.startUtc) <= new Date() && session.status !== "Cancelled" && (
+              <li className="ml-4">
+                <div className="absolute -left-1.5 mt-1 h-3 w-3 rounded-full border-2 border-background bg-blue-400" />
+                <p className="text-xs font-medium text-foreground">Session started</p>
+                <time className="text-[10px] text-muted-foreground">
+                  {new Date(session.startUtc).toLocaleString()}
+                </time>
+              </li>
+            )}
+
+            {/* Ended / Completed */}
+            {new Date(session.endUtc) <= new Date() && session.status !== "Cancelled" && (
+              <li className="ml-4">
+                <div className="absolute -left-1.5 mt-1 h-3 w-3 rounded-full border-2 border-background bg-emerald-500" />
+                <p className="text-xs font-medium text-foreground">Session completed</p>
+                <time className="text-[10px] text-muted-foreground">
+                  {new Date(session.endUtc).toLocaleString()}
+                </time>
+              </li>
+            )}
+
+            {/* Cancelled */}
+            {session.status === "Cancelled" && session.cancelledAt && (
+              <li className="ml-4">
+                <div className="absolute -left-1.5 mt-1 h-3 w-3 rounded-full border-2 border-background bg-destructive" />
+                <p className="text-xs font-medium text-destructive">Session cancelled</p>
+                <time className="text-[10px] text-muted-foreground">
+                  {new Date(session.cancelledAt).toLocaleString()}
+                </time>
+                {session.cancelReason && (
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Reason: {session.cancelReason}</p>
+                )}
+              </li>
+            )}
+
+            {/* Attendance results */}
+            {resolvedAttendees.filter((a) => a.status === "Attended").length > 0 && (
+              <li className="ml-4">
+                <div className="absolute -left-1.5 mt-1 h-3 w-3 rounded-full border-2 border-background bg-emerald-400" />
+                <p className="text-xs font-medium text-foreground">
+                  Attendance recorded ({resolvedAttendees.filter((a) => a.status === "Attended").length}/{resolvedAttendees.length})
+                </p>
+              </li>
+            )}
+          </ol>
+        </CardContent>
+      </Card>
 
       <CancelSessionDialog
         sessionId={sessionId}

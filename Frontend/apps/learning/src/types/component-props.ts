@@ -289,10 +289,16 @@ export interface EnrollmentStatusPanelProps {
   enrollments: MySessionEnrollments;
   onCancelSession: (sessionId: string) => void;
   isCancelling: boolean;
+  availableParts?: PartWithSessions[];
+  selections?: Record<string, string>;
+  onSelectSession?: (partId: string, sessionId: string) => void;
 }
 
 export interface EnrollmentPartRowProps {
   part: MyPartEnrollment;
   onCancel: (sessionId: string) => void;
   isCancelling: boolean;
+  availableSessions?: AvailableSession[];
+  selectedSessionId?: string | null;
+  onSelectSession?: (sessionId: string) => void;
 }

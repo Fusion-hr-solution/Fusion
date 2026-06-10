@@ -1,5 +1,6 @@
 using System.Text;
 using EY.HRPlatform.Training.Features.Admin.Sessions.Export;
+using EY.HRPlatform.Training.Features.Admin.Sessions.Services;
 using EY.HRPlatform.Training.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -52,6 +53,9 @@ public static class ServiceCollectionExtensions
 
         // 4. Register export service (Excel + PDF participant lists)
         services.AddSingleton<ISessionParticipantExporter, SessionParticipantExporter>();
+
+        // 5. Register QR token service (rotating HMAC payloads for session attendance)
+        services.AddSingleton<IQrTokenService, QrTokenService>();
 
         return services;
     }

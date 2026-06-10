@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using EY.HRPlatform.Interview.Domain.Entities;
+using EY.HRPlatform.Interview.Domain.Enums;
 using EY.HRPlatform.Interview.Infrastructure;
 using EY.HRPlatform.Interview.Models.Candidates;
 using EY.HRPlatform.Interview.Models.Common;
@@ -295,6 +296,12 @@ public class CandidateAccessService(AppDbContext dbContext) : ICandidateAccessSe
             UserAgent = request.UserAgent,
         });
 
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        dbContext.GradingJobs.Add(new GradingJob
+        {
+            AttemptId = attempt.Id,
+        });
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return new CandidateAccessSubmissionDto

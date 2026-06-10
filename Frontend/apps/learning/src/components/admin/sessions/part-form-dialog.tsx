@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Clock, FileText, CheckCircle2 } from "lucide-react";
+import { Clock, FileText, CheckCircle2, Lock } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -38,6 +38,9 @@ export function PartFormDialog({
   const [error, setError] = useState<string | null>(null);
 
   const isEditing = !!part;
+  const isPartCompleted = isEditing && part.sessions.length > 0 &&
+    part.sessions.every((s) => s.status === "Completed" || new Date(s.endUtc) < new Date());
+  const isLocked = isEditing && (isPartCompleted || part.isLocked);
   const totalSteps = isEditing ? 1 : 2; // Edit mode skips review
 
   useEffect(() => {
@@ -143,6 +146,18 @@ export function PartFormDialog({
         {/* Step 0: Form fields */}
         {step === 0 && (
           <div className="space-y-4 pt-2">
+            {/* Lock banner for completed/locked parts */}
+            {isLocked && (
+              <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+                <Lock className="h-4 w-4 text-amber-600 shrink-0" />
+                <p className="text-xs text-amber-700">
+                  {isPartCompleted
+                    ? "This part is completed. All its sessions have ended and it cannot be modified."
+                    : "This part is locked and cannot be modified."}
+                </p>
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="partTitle" className="text-sm font-medium">Title *</Label>
               <Input
@@ -152,6 +167,7 @@ export function PartFormDialog({
                 maxLength={300}
                 placeholder="e.g. Foundations, Communication, Workshop"
                 className="h-10"
+                disabled={isLocked}
               />
               <p className="text-xs text-muted-foreground">A short name for this segment of the training.</p>
             </div>
@@ -164,6 +180,7 @@ export function PartFormDialog({
                 maxLength={2000}
                 placeholder="Optional: what will be covered in this part"
                 className="h-10"
+                disabled={isLocked}
               />
             </div>
             <div className="space-y-2">
@@ -178,6 +195,7 @@ export function PartFormDialog({
                   value={durationHours}
                   onChange={(e) => setDurationHours(e.target.value)}
                   className="h-10 pl-9"
+                  disabled={isLocked}
                 />
               </div>
               <p className="text-xs text-muted-foreground">Estimated duration for this part.</p>
@@ -227,7 +245,7 @@ export function PartFormDialog({
             Cancel
           </Button>
           {(isEditing || step === totalSteps - 1) ? (
-            <Button onClick={handleSubmit} disabled={isLoading} className="ey-bg-dark hover:opacity-90">
+            <Button onClick={handleSubmit} disabled={isLoading || isLocked} className="ey-bg-dark hover:opacity-90">
               {isLoading ? "Saving..." : isEditing ? "Update" : "Create Part"}
             </Button>
           ) : (

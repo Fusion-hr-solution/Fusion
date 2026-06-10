@@ -40,4 +40,12 @@ public class CandidateInvitationsController(ICandidateInvitationService invitati
         var data = await invitationService.ResendAsync(id, cancellationToken);
         return Ok(ApiResponse<CandidateInvitationDto>.Success(data));
     }
+
+    [HttpDelete("{id}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> Delete(string id, CancellationToken cancellationToken)
+    {
+        await invitationService.DeleteAsync(id, cancellationToken);
+        return NoContent();
+    }
 }
