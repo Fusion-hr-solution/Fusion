@@ -1,4 +1,4 @@
-import type { CandidateLinkSecuritySettings, RetentionAction } from "@/types";
+import type { CandidateLinkSecuritySettings } from "@/types";
 
 export interface BackendCandidateManagementOverviewDto {
   pendingInvitations: number;
@@ -168,44 +168,4 @@ export interface BackendCandidateRetakeGrantResultDto {
   notificationSent: boolean;
   inviteLink: string;
   tokenExpiresAtUtc: string;
-}
-
-export interface BackendCandidateRetentionSettingsDto {
-  enabled: boolean;
-  retentionAction: RetentionAction;
-  retentionPeriodDays: number;
-  scanIntervalHours: number;
-  lastRunAtUtc?: string;
-}
-
-export interface BackendCandidateRetentionRunDto {
-  id: string;
-  triggeredBy: string;
-  triggerSource: string;
-  retentionAction: RetentionAction;
-  retentionPeriodDays: number;
-  candidatesScanned: number;
-  candidatesProcessed: number;
-  candidatesAnonymized: number;
-  candidatesDeleted: number;
-  candidatesExpired: number;
-  startedAtUtc: string;
-  completedAtUtc?: string;
-}
-
-export interface BackendCandidateRetentionStateDto {
-  settings: BackendCandidateRetentionSettingsDto;
-  pendingCount: number;
-  recentRuns: BackendCandidateRetentionRunDto[];
-}
-
-export interface SaveCandidateRetentionSettingsInput {
-  enabled: boolean;
-  retentionAction: RetentionAction;
-  retentionPeriodDays: number;
-  scanIntervalHours: number;
-}
-
-export interface RunCandidateRetentionInput {
-  triggeredBy: string;
 }

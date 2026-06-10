@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle2, Clock3, Link2, RefreshCw, ShieldCheck } from "lucide-react";
+import { Clock3, Link2, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DropdownSelect } from "@/components/candidate-management/dropdown-select";
 import type { GracePeriodUnit, LinkValidityUnit } from "@/types";
@@ -105,24 +105,9 @@ export function LinkSecurityTab({
         </div>
       </section>
 
-      {linkSecurityLoading ? (
-        <div className="flex items-center gap-2 text-[12px] text-zinc-400">
-          <RefreshCw className="h-3 w-3 animate-spin" />
-          Loading link security settings...
-        </div>
-      ) : null}
-      {linkSecurityError ? (
-        <div className="flex items-center gap-2 rounded-xl border border-red-100 bg-red-50 px-3 py-2.5 text-[12px] text-red-600">
-          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-          {linkSecurityError}
-        </div>
-      ) : null}
-      {linkSecuritySuccess ? (
-        <div className="flex items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2.5 text-[12px] text-emerald-700">
-          <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-          {linkSecuritySuccess}
-        </div>
-      ) : null}
+      {linkSecurityLoading ? <p className="text-[12px] text-zinc-500">Loading link security settings...</p> : null}
+      {linkSecurityError ? <p className="text-[12px] text-red-600">{linkSecurityError}</p> : null}
+      {linkSecuritySuccess ? <p className="text-[12px] text-emerald-700">{linkSecuritySuccess}</p> : null}
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
         <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">

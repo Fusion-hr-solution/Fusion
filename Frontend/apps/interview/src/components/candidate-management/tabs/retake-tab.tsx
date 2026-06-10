@@ -240,42 +240,18 @@ export function RetakeTab({
             {grantRetakeSending ? "Granting..." : "Grant Retake"}
           </button>
         </div>
-        {grantRetakeSuccess ? (
-          <div className="mt-3 flex items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2.5 text-[12px] text-emerald-700">
-            <CheckCircle2 className="h-4 w-4 shrink-0" />
-            {grantRetakeSuccess}
-          </div>
-        ) : null}
-        {grantRetakeError ? (
-          <div className="mt-3 flex items-center gap-2 rounded-xl border border-red-100 bg-red-50 px-3 py-2.5 text-[12px] text-red-600">
-            <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-            {grantRetakeError}
-          </div>
-        ) : null}
+        {grantRetakeSuccess ? <p className="mt-2 text-[12px] text-emerald-700">{grantRetakeSuccess}</p> : null}
+        {grantRetakeError ? <p className="mt-2 text-[12px] text-red-600">{grantRetakeError}</p> : null}
       </section>
 
-      {timelineError ? (
-        <div className="flex items-center gap-2 rounded-xl border border-red-100 bg-red-50 px-3 py-2.5 text-[12px] text-red-600">
-          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-          {timelineError}
-        </div>
-      ) : null}
+      {timelineError ? <p className="text-[12px] text-red-600">{timelineError}</p> : null}
       {timelineCandidatesLoading || (timelineLoading && !timelineData) ? (
-        <div className="flex items-center gap-2 text-[12px] text-zinc-400">
-          <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-zinc-200 border-t-zinc-500" />
-          Loading retake context...
-        </div>
+        <p className="text-[12px] text-zinc-500">Loading retake context...</p>
       ) : null}
 
       {!timelineLoading && !timelineCandidatesLoading && !timelineError && timelineCandidates.length === 0 ? (
-        <section className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 py-10">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-zinc-100">
-            <RotateCcw className="h-4 w-4 text-zinc-400" />
-          </div>
-          <p className="mt-3 text-[13px] font-semibold text-zinc-700">No candidates yet</p>
-          <p className="mt-1 text-center text-[12px] text-zinc-400">
-            Select a test and invite candidates to see retake history.
-          </p>
+        <section className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+          <p className="text-[13px] font-medium text-zinc-700">No candidate attempts available for the selected test yet.</p>
         </section>
       ) : null}
 

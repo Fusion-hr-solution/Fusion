@@ -5,6 +5,7 @@ import {
   AlertTriangle,
   Calendar,
   Clock,
+  Lock,
   MapPin,
   Users,
   User,
@@ -57,6 +58,9 @@ export function SessionFormDialog({
   onSaved,
 }: SessionFormDialogProps) {
   const isEditing = !!session;
+  const isCompleted = isEditing && (
+    session.status === "Completed" || new Date(session.endUtc) < new Date()
+  );
   const [step, setStep] = useState(0);
 
   const [sessionDate, setSessionDate] = useState<Date | undefined>(undefined);
@@ -126,6 +130,11 @@ export function SessionFormDialog({
   );
 
   function validateFields(): boolean {
+    if (isCompleted) {
+      // Only trainer/notes are editable for completed sessions
+      setError(null);
+      return true;
+    }
     if (!sessionDate) { setError("Session date is required."); return false; }
     if (!start || !end) { setError("Start and end times are required."); return false; }
     if (end <= start) { setError("End time must be after start time."); return false; }
@@ -213,6 +222,16 @@ export function SessionFormDialog({
         {/* Step 0: Form fields */}
         {step === 0 && (
           <div className="space-y-5 pt-2">
+            {/* Lock banner for completed sessions */}
+            {isCompleted && (
+              <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+                <Lock className="h-4 w-4 text-amber-600 shrink-0" />
+                <p className="text-xs text-amber-700">
+                  This session has ended. Only trainer info and notes can be edited.
+                </p>
+              </div>
+            )}
+
             {/* Schedule section */}
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-sm font-medium text-foreground">
@@ -225,9 +244,9 @@ export function SessionFormDialog({
                   <CalendarWidget
                     mode="single"
                     selected={sessionDate}
-                    onSelect={(d) => { setSessionDate(d ?? undefined); setError(null); }}
-                    disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
-                    className="rounded-md border"
+                    onSelect={(d) => { if (!isCompleted) { setSessionDate(d ?? undefined); setError(null); } }}
+                    disabled={isCompleted ? () => true : (date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                    className={`rounded-md border ${isCompleted ? "opacity-50 pointer-events-none" : ""}`}
                   />
                 </div>
                 <div className="space-y-3">
@@ -238,6 +257,7 @@ export function SessionFormDialog({
                       value={startTime}
                       onChange={(e) => { setStartTime(e.target.value); setError(null); }}
                       className="h-10"
+                      disabled={isCompleted}
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -247,6 +267,7 @@ export function SessionFormDialog({
                       value={endTime}
                       onChange={(e) => { setEndTime(e.target.value); setError(null); }}
                       className="h-10"
+                      disabled={isCompleted}
                     />
                   </div>
                 </div>
@@ -270,6 +291,7 @@ export function SessionFormDialog({
                     onChange={(e) => { setRoom(e.target.value); setError(null); }}
                     placeholder="e.g. Room A, Building 3"
                     className="h-10"
+                    disabled={isCompleted}
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -283,6 +305,7 @@ export function SessionFormDialog({
                       value={capacity}
                       onChange={(e) => setCapacity(e.target.value)}
                       className="h-10 pl-9"
+                      disabled={isCompleted}
                     />
                   </div>
                 </div>

@@ -415,6 +415,7 @@ export interface AdminTrainingPart {
   description?: string | null;
   orderIndex: number;
   durationHours: number;
+  isLocked: boolean;
   sessionCount: number;
   createdAt: string;
   updatedAt?: string | null;
@@ -441,6 +442,7 @@ export interface AdminSessionAttendee {
   employeeId: string;
   fullName?: string | null;
   email?: string | null;
+  status?: string | null;
 }
 
 export interface AdminSessionDetail extends AdminSessionListItem {

@@ -46,6 +46,10 @@ public class AddSessionCommandHandler : ICommandHandler<AddSessionCommand, Resul
         if (part is null)
             return Result.Failure<AddSessionResult>(Error.NotFound("TrainingPart", request.PartId));
 
+        if (part.IsLocked)
+            return Result.Failure<AddSessionResult>(
+                Error.Validation("Part.Locked", "This part is locked. Unlock it before adding new sessions."));
+
         var session = new TrainingSession(
             part.Id,
             DateTime.SpecifyKind(request.StartUtc, DateTimeKind.Utc),

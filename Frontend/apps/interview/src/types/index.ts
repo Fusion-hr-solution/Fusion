@@ -242,34 +242,3 @@ export interface CandidateProgressTimeline {
   candidateName?: string;
   attempts: CandidateAttemptTimeline[];
 }
-
-export type RetentionAction = "Anonymize" | "Delete" | "Expire";
-
-export interface CandidateRetentionSettings {
-  enabled: boolean;
-  retentionAction: RetentionAction;
-  retentionPeriodDays: number;
-  scanIntervalHours: number;
-  lastRunAtUtc?: string;
-}
-
-export interface CandidateRetentionRun {
-  id: string;
-  triggeredBy: string;
-  triggerSource: string;
-  retentionAction: RetentionAction;
-  retentionPeriodDays: number;
-  candidatesScanned: number;
-  candidatesProcessed: number;
-  candidatesAnonymized: number;
-  candidatesDeleted: number;
-  candidatesExpired: number;
-  startedAtUtc: string;
-  completedAtUtc?: string;
-}
-
-export interface CandidateRetentionState {
-  settings: CandidateRetentionSettings;
-  pendingCount: number;
-  recentRuns: CandidateRetentionRun[];
-}

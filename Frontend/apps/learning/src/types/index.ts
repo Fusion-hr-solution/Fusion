@@ -376,3 +376,23 @@ export interface MyEnrollmentSummary {
   nextSessionUtc: string | null;
   sessions: MyEnrollmentSession[];
 }
+
+// --- US-5.3.1 QR attendance ---
+
+export interface SessionQrCode {
+  sessionId: string;
+  payload: string;
+  rotationSeconds: number;
+  issuedAt: string;
+  refreshAt: string;
+  expiresAt: string;
+  isRevoked: boolean;
+}
+
+export interface ScanQrResult {
+  sessionId: string;
+  trainingTitle: string;
+  partTitle: string;
+  sessionStartUtc: string;
+  attendedAt: string;
+}

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Mail, ShieldCheck, History, RotateCcw, Settings2, UserX, Clock3, Link2, Check, FileUp, Send, X, RefreshCw } from "lucide-react";
+import { Mail, ShieldCheck, History, RotateCcw, Settings2, UserX, Clock3, Link2, Check, FileUp, Send, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { InviteResultPopup } from "@/components/candidate-management/invite-result-popup";
 import { CsvImportReportPopup } from "@/components/candidate-management/csv-import-report-popup";
@@ -13,7 +13,6 @@ import { TimelineTab } from "@/components/candidate-management/tabs/timeline-tab
 import { RetakeTab } from "@/components/candidate-management/tabs/retake-tab";
 import { AttemptLimitsTab } from "@/components/candidate-management/tabs/attempt-limits-tab";
 import { AnonymizeTab } from "@/components/candidate-management/tabs/anonymize-tab";
-import { RetentionTab } from "@/components/candidate-management/tabs/retention-tab";
 import type { CsvImportReport } from "@/services/models/csv_import_report_popup_model";
 import type { InviteResult } from "@/services/models/invite_result_popup_model";
 import type { InviteMethod } from "@/services/models/invite_tab_model";
@@ -32,9 +31,6 @@ import {
   resendInvitation,
   saveCandidateAttemptSettings,
   saveCandidateLinkSecuritySettings,
-  getCandidateRetentionState,
-  saveCandidateRetentionSettings,
-  runCandidateRetention,
 } from "@/services/candidate-management-service";
 import { getTests } from "@/services/test-service";
 import { useNetworkStatus } from "@/hooks/use-network-status";
@@ -51,8 +47,6 @@ import type {
   CandidateLinkSecurityState,
   CandidateManagementOverview,
   CandidatePrivacyActionType,
-  CandidateRetentionSettings,
-  CandidateRetentionRun,
   GracePeriodUnit,
   LinkValidityUnit,
   Test,
@@ -215,15 +209,6 @@ export function CandidateManagement() {
   const [privacySubmitting, setPrivacySubmitting] = useState(false);
   const [privacyError, setPrivacyError] = useState<string | null>(null);
   const [privacySuccess, setPrivacySuccess] = useState<string | null>(null);
-  const [retentionSettings, setRetentionSettings] = useState<CandidateRetentionSettings | null>(null);
-  const [retentionPendingCount, setRetentionPendingCount] = useState(0);
-  const [retentionRecentRuns, setRetentionRecentRuns] = useState<CandidateRetentionRun[]>([]);
-  const [retentionLoading, setRetentionLoading] = useState(false);
-  const [retentionSaving, setRetentionSaving] = useState(false);
-  const [retentionRunning, setRetentionRunning] = useState(false);
-  const [retentionSaveError, setRetentionSaveError] = useState<string | null>(null);
-  const [retentionRunError, setRetentionRunError] = useState<string | null>(null);
-  const [retentionRunSuccess, setRetentionRunSuccess] = useState<string | null>(null);
   const popupTimerRef = useRef<number | null>(null);
   const csvReportTimerRef = useRef<number | null>(null);
 
@@ -399,41 +384,6 @@ export function CandidateManagement() {
     }
 
     void loadAttemptSettings();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [activeTab]);
-
-  useEffect(() => {
-    if (activeTab !== "retention") {
-      return;
-    }
-
-    let isMounted = true;
-
-    async function loadRetentionState() {
-      setRetentionLoading(true);
-      setRetentionSaveError(null);
-      setRetentionRunError(null);
-      setRetentionRunSuccess(null);
-
-      try {
-        const state = await getCandidateRetentionState();
-        if (!isMounted) return;
-        setRetentionSettings(state.settings);
-        setRetentionPendingCount(state.pendingCount);
-        setRetentionRecentRuns(state.recentRuns);
-      } catch (err) {
-        if (!isMounted) return;
-        setRetentionSaveError(err instanceof Error ? err.message : "Failed to load retention settings.");
-      } finally {
-        if (!isMounted) return;
-        setRetentionLoading(false);
-      }
-    }
-
-    void loadRetentionState();
 
     return () => {
       isMounted = false;
@@ -1276,92 +1226,25 @@ export function CandidateManagement() {
     }
   }
 
-  async function handleSaveRetentionSettings(settings: CandidateRetentionSettings): Promise<void> {
-    setRetentionSaving(true);
-    setRetentionSaveError(null);
-
-    try {
-      const saved = await saveCandidateRetentionSettings({
-        enabled: settings.enabled,
-        retentionAction: settings.retentionAction,
-        retentionPeriodDays: settings.retentionPeriodDays,
-        scanIntervalHours: settings.scanIntervalHours,
-      });
-      setRetentionSettings(saved);
-    } catch (err) {
-      setRetentionSaveError(err instanceof Error ? err.message : "Failed to save retention settings.");
-    } finally {
-      setRetentionSaving(false);
-    }
-  }
-
-  async function handleRunRetention(triggeredBy: string): Promise<void> {
-    setRetentionRunning(true);
-    setRetentionRunError(null);
-    setRetentionRunSuccess(null);
-
-    try {
-      const run = await runCandidateRetention({ triggeredBy });
-      setRetentionRecentRuns((prev) => [run, ...prev].slice(0, 20));
-      setRetentionRunSuccess(
-        `Sweep complete — scanned ${run.candidatesScanned}, processed ${run.candidatesProcessed}.`
-      );
-      const state = await getCandidateRetentionState();
-      setRetentionPendingCount(state.pendingCount);
-      setRetentionSettings(state.settings);
-    } catch (err) {
-      setRetentionRunError(err instanceof Error ? err.message : "Failed to run retention sweep.");
-    } finally {
-      setRetentionRunning(false);
-    }
-  }
-
   return (
-    <div className="min-h-screen bg-zinc-50/70">
-      {/* Page header */}
+    <div className="min-h-screen bg-zinc-50">
       <div className="border-b border-zinc-200 bg-white px-8 py-5">
-        <div className="flex items-start justify-between gap-6">
-          <div>
-            <h1 className="text-[22px] font-semibold tracking-tight text-zinc-900">
-              Candidate Management
-            </h1>
-            <p className="mt-0.5 text-[13px] text-zinc-500">
-              Manage invitations, journey states, limits, and retention policies.
-            </p>
-          </div>
-          {overview && !loading ? (
-            <div className="flex shrink-0 items-center gap-2.5">
-              <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2 text-center">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Pending</p>
-                <p className="text-[20px] font-bold leading-none text-zinc-900 mt-0.5">
-                  {overview.pendingInvitations}
-                </p>
-              </div>
-              {retentionPendingCount > 0 ? (
-                <div className="rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2 text-center">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-amber-500">Retention Due</p>
-                  <p className="text-[20px] font-bold leading-none text-amber-700 mt-0.5">
-                    {retentionPendingCount}
-                  </p>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-        </div>
+        <h1 className="text-[24px] font-semibold text-zinc-900">Candidate Management</h1>
+        <p className="mt-0.5 text-[13px] text-zinc-500">
+          Manage invitations, journey states, limits, and retention policies.
+        </p>
       </div>
 
       <div className="px-8 py-6">
         {error ? (
-          <div className="mb-4 flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[13px] text-red-700">
-            <X className="h-4 w-4 shrink-0 text-red-500" />
+          <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-[13px] text-red-700">
             {error}
           </div>
         ) : null}
 
-        <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm">
-          {/* Tab navigation */}
-          <div className="border-b border-zinc-100 bg-zinc-50/50 px-3 pt-2.5 pb-0">
-            <div className="flex gap-0.5 overflow-x-auto scrollbar-hide">
+        <div className="mt-6 rounded-2xl border border-zinc-200 bg-white shadow-sm">
+          <div className="border-b border-zinc-100 px-4 py-3">
+            <div className="flex flex-wrap gap-2">
               {TAB_CONFIG.map((tab) => {
                 const isActive = tab.key === activeTab;
                 return (
@@ -1369,13 +1252,11 @@ export function CandidateManagement() {
                     key={tab.key}
                     onClick={() => switchTab(tab.key)}
                     className={cn(
-                      "inline-flex shrink-0 items-center gap-1.5 rounded-t-lg px-3 py-2 text-[12px] font-medium transition-all duration-150 border border-transparent",
-                      isActive
-                        ? "bg-white border-zinc-200 border-b-white text-zinc-900 shadow-[0_-1px_3px_rgba(0,0,0,0.04)] -mb-px pb-[9px]"
-                        : "text-zinc-500 hover:text-zinc-700 hover:bg-white/60"
+                      "inline-flex items-center gap-2 rounded-lg px-3 py-2 text-[12px] font-semibold transition-colors",
+                      isActive ? "bg-zinc-900 text-white" : "text-zinc-600 hover:bg-zinc-100"
                     )}
                   >
-                    <tab.icon className={cn("h-3.5 w-3.5", isActive ? "text-zinc-700" : "text-zinc-400")} />
+                    <tab.icon className="h-3.5 w-3.5" />
                     {tab.label}
                   </button>
                 );
@@ -1384,27 +1265,8 @@ export function CandidateManagement() {
           </div>
 
           <div className="px-6 py-6">
-            <div className="mb-5 flex items-start gap-3">
-              <div className={cn(
-                "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl",
-                activeTab === "retention" ? "bg-amber-50" :
-                activeTab === "anonymize" ? "bg-red-50" :
-                activeTab === "link-security" ? "bg-blue-50" :
-                "bg-zinc-100"
-              )}>
-                <activeConfig.icon className={cn(
-                  "h-4 w-4",
-                  activeTab === "retention" ? "text-amber-600" :
-                  activeTab === "anonymize" ? "text-red-600" :
-                  activeTab === "link-security" ? "text-blue-600" :
-                  "text-zinc-600"
-                )} />
-              </div>
-              <div>
-                <h2 className="text-[17px] font-bold tracking-tight text-zinc-900">{activeConfig.label}</h2>
-                <p className="mt-0.5 text-[13px] text-zinc-500">{activeConfig.description}</p>
-              </div>
-            </div>
+            <h2 className="text-[20px] font-bold text-zinc-900">{activeConfig.label}</h2>
+            <p className="mt-1 text-[13px] text-zinc-500">{activeConfig.description}</p>
 
             {activeTab === "invite" ? (
               <InviteTab
@@ -1563,30 +1425,22 @@ export function CandidateManagement() {
                 success={privacySuccess}
                 onConfirm={handlePrivacyAction}
               />
-            ) : activeTab === "retention" ? (
-              <RetentionTab
-                settings={retentionSettings}
-                pendingCount={retentionPendingCount}
-                recentRuns={retentionRecentRuns}
-                loading={retentionLoading}
-                saving={retentionSaving}
-                running={retentionRunning}
-                saveError={retentionSaveError}
-                runError={retentionRunError}
-                runSuccess={retentionRunSuccess}
-                onSaveSettings={handleSaveRetentionSettings}
-                onRunNow={handleRunRetention}
-              />
-            ) : null}
+            ) : (
+              <div className="mt-5 rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+                <p className="text-[13px] font-medium text-zinc-700">
+                  Tab scaffold is ready for the next step implementation.
+                </p>
+                <p className="mt-1 text-[12px] text-zinc-500">
+                  We will implement this screen end-to-end in its dedicated iteration.
+                </p>
+              </div>
+            )}
 
             {loading ? (
-              <div className="mt-4 flex items-center gap-2 text-[12px] text-zinc-400">
-                <RefreshCw className="h-3 w-3 animate-spin" />
-                Loading overview data...
-              </div>
+              <p className="mt-4 text-[12px] text-zinc-500">Loading overview data...</p>
             ) : overview?.generatedAtUtc ? (
-              <p className="mt-4 text-[11px] text-zinc-400">
-                Overview refreshed {new Date(overview.generatedAtUtc).toLocaleString("en-US", { hour: "2-digit", minute: "2-digit" })}
+              <p className="mt-4 text-[12px] text-zinc-500">
+                Overview refreshed: {new Date(overview.generatedAtUtc).toLocaleString("en-US")}
               </p>
             ) : null}
           </div>
