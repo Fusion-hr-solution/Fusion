@@ -36,6 +36,15 @@ public class CandidateTestAttemptConfiguration : IEntityTypeConfiguration<Candid
         builder.Property(x => x.ResultJson)
             .IsRequired();
 
+        builder.Property(x => x.GradingStatus)
+            .HasConversion<string>()
+            .HasMaxLength(20)
+            .IsRequired()
+            .HasDefaultValue(Domain.Enums.GradingStatus.Pending);
+
+        builder.Property(x => x.TotalScore).HasPrecision(5, 2);
+        builder.Property(x => x.MaxScore).HasPrecision(5, 2);
+
         builder.Property(x => x.CreatedAt).IsRequired();
         builder.Property(x => x.UpdatedAt).IsRequired(false);
 

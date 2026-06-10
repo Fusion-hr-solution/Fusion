@@ -519,8 +519,19 @@ namespace EY.HRPlatform.Interview.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("GradingStatus")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("Pending");
+
                     b.Property<Guid>("InvitationId")
                         .HasColumnType("uuid");
+
+                    b.Property<decimal?>("MaxScore")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
 
                     b.Property<string>("ResultJson")
                         .IsRequired()
@@ -534,6 +545,10 @@ namespace EY.HRPlatform.Interview.Migrations
 
                     b.Property<Guid>("TestId")
                         .HasColumnType("uuid");
+
+                    b.Property<decimal?>("TotalScore")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -552,6 +567,49 @@ namespace EY.HRPlatform.Interview.Migrations
                         .IsUnique();
 
                     b.ToTable("CandidateTestAttempts", (string)null);
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Interview.Domain.Entities.GradingJob", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AttemptId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<DateTime?>("FailedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("LockedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LockedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("RetryCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AttemptId");
+
+                    b.HasIndex("LockedAt", "CompletedAt");
+
+                    b.ToTable("GradingJobs", (string)null);
                 });
 
             modelBuilder.Entity("EY.HRPlatform.Interview.Domain.Entities.Question", b =>
@@ -599,6 +657,9 @@ namespace EY.HRPlatform.Interview.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("TestCases")
+                        .HasColumnType("text");
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -630,6 +691,61 @@ namespace EY.HRPlatform.Interview.Migrations
                     b.HasIndex("UsageCount");
 
                     b.ToTable("Questions", (string)null);
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Interview.Domain.Entities.QuestionGradeResult", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AttemptId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Feedback")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<string>("GraderType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<decimal>("MaxScore")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
+
+                    b.Property<bool>("NeedsHumanReview")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<Guid>("QuestionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ReviewedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ReviewedBy")
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)");
+
+                    b.Property<decimal>("Score")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AttemptId");
+
+                    b.HasIndex("QuestionId");
+
+                    b.HasIndex("NeedsHumanReview", "ReviewedAt");
+
+                    b.ToTable("QuestionGradeResults", (string)null);
                 });
 
             modelBuilder.Entity("EY.HRPlatform.Interview.Domain.Entities.QuestionOption", b =>
@@ -820,6 +936,36 @@ namespace EY.HRPlatform.Interview.Migrations
                     b.Navigation("Invitation");
 
                     b.Navigation("Test");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Interview.Domain.Entities.GradingJob", b =>
+                {
+                    b.HasOne("EY.HRPlatform.Interview.Domain.Entities.CandidateTestAttempt", "Attempt")
+                        .WithMany()
+                        .HasForeignKey("AttemptId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Attempt");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Interview.Domain.Entities.QuestionGradeResult", b =>
+                {
+                    b.HasOne("EY.HRPlatform.Interview.Domain.Entities.CandidateTestAttempt", "Attempt")
+                        .WithMany()
+                        .HasForeignKey("AttemptId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("EY.HRPlatform.Interview.Domain.Entities.Question", "Question")
+                        .WithMany()
+                        .HasForeignKey("QuestionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Attempt");
+
+                    b.Navigation("Question");
                 });
 
             modelBuilder.Entity("EY.HRPlatform.Interview.Domain.Entities.QuestionOption", b =>

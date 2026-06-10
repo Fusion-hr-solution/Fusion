@@ -22,6 +22,9 @@ public class CandidateAttemptTimelineDto
     public int AttemptNumber { get; set; }
     public string? AttemptId { get; set; }
     public string Status { get; set; } = "Invited";
+    public string GradingStatus { get; set; } = "Pending";
+    public decimal? TotalScore { get; set; }
+    public decimal? MaxScore { get; set; }
     public List<CandidateTimelineMilestoneDto> Milestones { get; set; } = [];
 }
 

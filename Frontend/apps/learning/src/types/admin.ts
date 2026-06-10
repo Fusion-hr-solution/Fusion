@@ -415,6 +415,7 @@ export interface AdminTrainingPart {
   description?: string | null;
   orderIndex: number;
   durationHours: number;
+  isLocked: boolean;
   sessionCount: number;
   createdAt: string;
   updatedAt?: string | null;
@@ -441,6 +442,7 @@ export interface AdminSessionAttendee {
   employeeId: string;
   fullName?: string | null;
   email?: string | null;
+  status: string;
 }
 
 export interface AdminSessionDetail extends AdminSessionListItem {
@@ -587,4 +589,111 @@ export interface CellEmployee {
   completionPercentage: number;
   lastActivityAt?: string;
   trainingBreakdown: CellEmployeeTrainingProgress[];
+}
+
+/* ── Attendance Dashboards (US-5.3.2) ── */
+
+/** "present" | "absent" | "pending" — absence is derived, never stored. */
+export type AttendanceStatus = "present" | "absent" | "pending";
+
+export interface SessionAttendanceAttendee {
+  employeeId: string;
+  employeeName?: string | null;
+  employeeEmail?: string | null;
+  status: AttendanceStatus;
+}
+
+export interface SessionAttendance {
+  sessionId: string;
+  trainingTitle: string;
+  partTitle: string;
+  startUtc: string;
+  endUtc: string;
+  isClosed: boolean;
+  presentCount: number;
+  absentCount: number;
+  pendingCount: number;
+  /** Present + Absent (denominator for the rate). */
+  countedTotal: number;
+  attendanceRate: number;
+  attendees: SessionAttendanceAttendee[];
+}
+
+export interface EmployeeAttendanceRecord {
+  sessionId: string;
+  trainingTitle: string;
+  partTitle: string;
+  sessionDate: string;
+  status: AttendanceStatus;
+  hours: number;
+}
+
+export interface EmployeeAttendanceHistory {
+  employeeId: string;
+  employeeName?: string | null;
+  overallAttendanceRate: number;
+  totalInPersonHours: number;
+  presentCount: number;
+  absentCount: number;
+  records: EmployeeAttendanceRecord[];
+}
+
+export interface AttendanceByGrade {
+  gradeId: string | null;
+  gradeName: string;
+  level: number;
+  attendanceRate: number;
+  presentCount: number;
+  countedTotal: number;
+}
+
+export interface AttendanceTrendPoint {
+  year: number;
+  month: number;
+  label: string;
+  attendanceRate: number;
+  presentCount: number;
+  countedTotal: number;
+}
+
+export interface AttendanceTrend {
+  points: AttendanceTrendPoint[];
+}
+
+export interface AttendanceHeatmapMonth {
+  year: number;
+  month: number;
+  label: string;
+}
+
+export interface AttendanceHeatmapCell {
+  gradeId: string | null;
+  year: number;
+  month: number;
+  attendanceRate: number;
+  presentCount: number;
+  countedTotal: number;
+}
+
+export interface AttendanceHeatmap {
+  grades: AdminGrade[];
+  months: AttendanceHeatmapMonth[];
+  cells: AttendanceHeatmapCell[];
+}
+
+export interface AttendanceSummary {
+  overallAttendanceRate: number;
+  totalSessions: number;
+  totalHoursDelivered: number;
+  totalPresent: number;
+  totalAbsent: number;
+}
+
+/** Optional dimensional filters shared across the aggregated attendance views. */
+export interface AttendanceFilters {
+  gradeId?: string;
+  serviceLineId?: string;
+  trainingId?: string;
+  from?: string;
+  to?: string;
 }

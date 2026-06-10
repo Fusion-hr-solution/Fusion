@@ -1,9 +1,10 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Archive, Clock, Eye, HelpCircle, Plus, Trash2, X } from "lucide-react";
 import * as AlertDialog from "@radix-ui/react-alert-dialog";
 import * as Dialog from "@radix-ui/react-dialog";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { StatsRow } from "./stats-row";
 import { FilterBar } from "./filter-bar";
 import { TestCard } from "./test-card";
@@ -29,6 +30,7 @@ type PendingAction =
 export function TestDashboard() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
   const resetWizard = useWizardStore((state) => state.reset);
   const setPersistedTestId = useWizardStore((state) => state.setPersistedTestId);
   const updateBasicInfo = useWizardStore((state) => state.updateBasicInfo);
@@ -36,16 +38,13 @@ export function TestDashboard() {
   const reorderQuestions = useWizardStore((state) => state.reorderQuestions);
   const setStep = useWizardStore((state) => state.setStep);
   const markSaved = useWizardStore((state) => state.markSaved);
-  const [tests, setTests] = useState<Test[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [actionBusyId, setActionBusyId] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<PendingAction>(null);
   const [previewTest, setPreviewTest] = useState<Test | null>(null);
   const [previewQuestions, setPreviewQuestions] = useState<Question[]>([]);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
-  const mountedRef = useRef(false);
+  const [mutationError, setMutationError] = useState<string | null>(null);
   const previewRequestTokenRef = useRef(0);
 
   const requestedView = searchParams.get("view");
@@ -56,38 +55,23 @@ export function TestDashboard() {
         ? "Archived"
         : "Active";
 
-  async function loadTests(): Promise<void> {
-    if (!mountedRef.current) return;
-    setIsLoading(true);
-    setError(null);
-    try {
-      const data = await getTests(statusScope);
-      if (!mountedRef.current) return;
-      setTests(data);
-    } catch (err) {
-      if (!mountedRef.current) return;
-      setError(err instanceof Error ? err.message : "Failed to load tests.");
-      setTests([]);
-    } finally {
-      if (!mountedRef.current) return;
-      setIsLoading(false);
-    }
+  const {
+    data: tests = [],
+    isLoading,
+    error: queryError,
+  } = useQuery({
+    queryKey: ["tests", statusScope],
+    queryFn: () => getTests(statusScope),
+  });
+
+  const error = mutationError ?? (queryError instanceof Error ? queryError.message : queryError ? "Failed to load tests." : null);
+
+  function invalidateTests(): Promise<void> {
+    return queryClient.invalidateQueries({ queryKey: ["tests"] });
   }
-
-  useEffect(() => {
-    mountedRef.current = true;
-
-    void loadTests();
-
-    return () => {
-      mountedRef.current = false;
-    };
-  }, [statusScope]);
 
   async function loadTestIntoWizard(test: Test, targetStep: number): Promise<void> {
     const selectedQuestions = await getTestQuestions(test.id);
-    if (!mountedRef.current) return;
-
     resetWizard();
     setPersistedTestId(test.id);
     updateBasicInfo({
@@ -108,49 +92,38 @@ export function TestDashboard() {
   }
 
   async function handleEdit(test: Test, targetStep = 1): Promise<void> {
-    if (!mountedRef.current) return;
     setActionBusyId(test.id);
     try {
       await loadTestIntoWizard(test, targetStep);
-      if (!mountedRef.current) return;
       router.push("/tests/create");
     } catch (err) {
-      if (!mountedRef.current) return;
-      setError(err instanceof Error ? err.message : "Failed to load test for editing.");
+      setMutationError(err instanceof Error ? err.message : "Failed to load test for editing.");
     } finally {
-      if (!mountedRef.current) return;
       setActionBusyId(null);
     }
   }
 
   async function handleOpenCandidatePreview(test: Test): Promise<void> {
-    if (!mountedRef.current) return;
     setActionBusyId(test.id);
     try {
       await loadTestIntoWizard(test, 4);
-      if (!mountedRef.current) return;
       closePreview();
       router.push("/tests/create/preview");
     } catch (err) {
-      if (!mountedRef.current) return;
-      setError(err instanceof Error ? err.message : "Failed to open candidate view.");
+      setMutationError(err instanceof Error ? err.message : "Failed to open candidate view.");
     } finally {
-      if (!mountedRef.current) return;
       setActionBusyId(null);
     }
   }
 
   async function handleDuplicate(test: Test): Promise<void> {
-    if (!mountedRef.current) return;
     setActionBusyId(test.id);
     try {
       await duplicateTest(test);
-      await loadTests();
+      await invalidateTests();
     } catch (err) {
-      if (!mountedRef.current) return;
-      setError(err instanceof Error ? err.message : "Failed to duplicate test.");
+      setMutationError(err instanceof Error ? err.message : "Failed to duplicate test.");
     } finally {
-      if (!mountedRef.current) return;
       setActionBusyId(null);
     }
   }
@@ -163,16 +136,13 @@ export function TestDashboard() {
       return;
     }
 
-    if (!mountedRef.current) return;
     setActionBusyId(test.id);
     try {
       await setTestStatus(test, status);
-      await loadTests();
+      await invalidateTests();
     } catch (err) {
-      if (!mountedRef.current) return;
-      setError(err instanceof Error ? err.message : `Failed to set status to ${status}.`);
+      setMutationError(err instanceof Error ? err.message : `Failed to set status to ${status}.`);
     } finally {
-      if (!mountedRef.current) return;
       setActionBusyId(null);
     }
   }
@@ -182,7 +152,6 @@ export function TestDashboard() {
   }
 
   async function handlePreview(test: Test): Promise<void> {
-    if (!mountedRef.current) return;
     const requestToken = previewRequestTokenRef.current + 1;
     previewRequestTokenRef.current = requestToken;
     setPreviewTest(test);
@@ -191,15 +160,12 @@ export function TestDashboard() {
     setPreviewLoading(true);
     try {
       const questions = await getTestQuestions(test.id);
-      if (!mountedRef.current) return;
       if (previewRequestTokenRef.current !== requestToken) return;
       setPreviewQuestions(questions);
     } catch (err) {
-      if (!mountedRef.current) return;
       if (previewRequestTokenRef.current !== requestToken) return;
       setPreviewError(err instanceof Error ? err.message : "Failed to load test preview.");
     } finally {
-      if (!mountedRef.current) return;
       if (previewRequestTokenRef.current !== requestToken) return;
       setPreviewLoading(false);
     }
@@ -217,7 +183,6 @@ export function TestDashboard() {
     if (!pendingAction) return;
 
     const { test, type } = pendingAction;
-    if (!mountedRef.current) return;
     setActionBusyId(test.id);
     try {
       if (type === "archive") {
@@ -225,10 +190,9 @@ export function TestDashboard() {
       } else {
         await deleteTest(test.id);
       }
-      await loadTests();
+      await invalidateTests();
     } catch (err) {
-      if (!mountedRef.current) return;
-      setError(
+      setMutationError(
         err instanceof Error
           ? err.message
           : type === "archive"
@@ -236,7 +200,6 @@ export function TestDashboard() {
             : "Failed to delete test."
       );
     } finally {
-      if (!mountedRef.current) return;
       setActionBusyId(null);
       setPendingAction(null);
     }
