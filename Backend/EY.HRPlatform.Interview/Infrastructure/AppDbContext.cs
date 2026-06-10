@@ -1,4 +1,5 @@
 using EY.HRPlatform.Interview.Domain.Entities;
+using EY.HRPlatform.Interview.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace EY.HRPlatform.Interview.Infrastructure;
@@ -13,6 +14,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<CandidateRetentionSettings> CandidateRetentionSettings => Set<CandidateRetentionSettings>();
     public DbSet<CandidateRetentionRun> CandidateRetentionRuns => Set<CandidateRetentionRun>();
     public DbSet<CandidateTestAttempt> CandidateTestAttempts => Set<CandidateTestAttempt>();
+    public DbSet<GradingJob> GradingJobs => Set<GradingJob>();
+    public DbSet<QuestionGradeResult> QuestionGradeResults => Set<QuestionGradeResult>();
     public DbSet<Question> Questions => Set<Question>();
     public DbSet<QuestionOption> QuestionOptions => Set<QuestionOption>();
     public DbSet<Test> Tests => Set<Test>();

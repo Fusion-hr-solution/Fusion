@@ -1,20 +1,30 @@
 using EY.HRPlatform.Interview.Domain.Entities;
 using EY.HRPlatform.Interview.Domain.Enums;
 using EY.HRPlatform.Interview.Features.Tests;
+using EY.HRPlatform.Interview.Infrastructure;
 using EY.HRPlatform.Interview.Models.Common;
 using EY.HRPlatform.Interview.Models.Tests;
 using EY.HRPlatform.Interview.Tests.TestHelpers;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 
 namespace EY.HRPlatform.Interview.Tests.Features.Tests;
 
 public class TestServiceTests
 {
+    private static TestService CreateService(AppDbContext db) =>
+        new(db,
+            new MemoryDistributedCache(Options.Create(new MemoryDistributedCacheOptions())),
+            NullLogger<TestService>.Instance);
+
     [Fact]
     public async Task CreateAsync_WhenValidRequest_SetsDefaultsAndPersists()
     {
         await using var db = TestDbContextFactory.Create();
-        var service = new TestService(db);
+        var service = CreateService(db);
 
         var request = new CreateTestDto
         {
@@ -35,7 +45,7 @@ public class TestServiceTests
     public async Task CreateAsync_WhenTitleMissing_Throws400()
     {
         await using var db = TestDbContextFactory.Create();
-        var service = new TestService(db);
+        var service = CreateService(db);
 
         var request = new CreateTestDto
         {
@@ -106,7 +116,7 @@ public class TestServiceTests
         db.Tests.AddRange(t1, t2);
         await db.SaveChangesAsync();
 
-        var service = new TestService(db);
+        var service = CreateService(db);
         var filter = new TestFilterDto
         {
             Search = "Engineering",
@@ -130,7 +140,7 @@ public class TestServiceTests
     public async Task UpdateAsync_WhenTestMissing_Throws404()
     {
         await using var db = TestDbContextFactory.Create();
-        var service = new TestService(db);
+        var service = CreateService(db);
 
         var request = new UpdateTestDto
         {

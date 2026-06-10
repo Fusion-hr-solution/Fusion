@@ -141,6 +141,9 @@ export interface BackendCandidateAttemptTimelineDto {
   attemptNumber: number;
   attemptId?: string;
   status: "Invited" | "PendingStart" | "InProgress" | "Submitted";
+  gradingStatus: "Pending" | "InProgress" | "Completed" | "Failed";
+  totalScore?: number;
+  maxScore?: number;
   milestones: BackendCandidateTimelineMilestoneDto[];
 }
 

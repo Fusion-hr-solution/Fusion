@@ -5,6 +5,7 @@ import { X, Plus, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { QUESTION_TYPES, CODING_LANGUAGES, GRADING_METHODS } from "@/config/constants";
 import { DropdownSelect } from "@/components/candidate-management/dropdown-select";
+import { TestCasesEditor } from "@/components/create-test-page/test-cases-editor";
 import type { NewQuestionForm, QuestionType, Difficulty, GradingMethod } from "@/types";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -13,7 +14,7 @@ const EMPTY_FORM: NewQuestionForm = {
   type: "", title: "", description: "", difficulty: "",
   points: 10, durationMinutes: 10, gradingMethod: "",
   tags: [], options: [{ text: "", correct: false }, { text: "", correct: false }],
-  language: "Python", starterCode: "", evaluationCriteria: "",
+  language: "Python", starterCode: "", evaluationCriteria: "", testCases: [],
 };
 
 function defaultOptionsForType(type: NewQuestionForm["type"]) {
@@ -508,6 +509,13 @@ export function CreateQuestionSheet({
                       className="w-full resize-none rounded-xl border border-zinc-200 bg-zinc-950 px-4 py-3 font-mono text-[12px] text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-zinc-700 transition-all duration-150"
                     />
                   </div>
+
+                  <div className="border-t border-zinc-800 pt-4">
+                    <TestCasesEditor
+                      testCases={form.testCases}
+                      onChange={(testCases) => update("testCases", testCases)}
+                    />
+                  </div>
                 </div>
               )}
 
@@ -522,6 +530,9 @@ export function CreateQuestionSheet({
                     placeholder="What should reviewers look for?"
                     className="w-full resize-none rounded-xl border border-zinc-200 bg-white px-4 py-3 text-[13px] text-zinc-900 shadow-sm placeholder:text-zinc-400 transition-all duration-150 hover:border-zinc-300 focus:border-zinc-300 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
                   />
+                  <p className="mt-1.5 text-[11px] text-zinc-400">
+                    Used by the AI grader to assess open-ended responses.
+                  </p>
                 </div>
               )}
             </div>

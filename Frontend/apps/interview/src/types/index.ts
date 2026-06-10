@@ -46,6 +46,11 @@ export interface Test {
   createdAt: string;
 }
 
+export interface TestCase {
+  input: string;
+  expectedOutput: string;
+}
+
 export interface Question {
   id: string;
   title: string;
@@ -61,6 +66,7 @@ export interface Question {
   language?: string;
   starterCode?: string;
   evaluationCriteria?: string;
+  testCases?: TestCase[];
 }
 
 export interface NewQuestionForm {
@@ -76,6 +82,7 @@ export interface NewQuestionForm {
   language: string;
   starterCode: string;
   evaluationCriteria: string;
+  testCases: TestCase[];
 }
 
 export interface WizardFormState {
@@ -232,6 +239,9 @@ export interface CandidateAttemptTimeline {
   attemptNumber: number;
   attemptId?: string;
   status: "Invited" | "PendingStart" | "InProgress" | "Submitted";
+  gradingStatus: "Pending" | "InProgress" | "Completed" | "Failed";
+  totalScore?: number;
+  maxScore?: number;
   milestones: CandidateTimelineMilestone[];
 }
 
@@ -272,4 +282,16 @@ export interface CandidateRetentionState {
   settings: CandidateRetentionSettings;
   pendingCount: number;
   recentRuns: CandidateRetentionRun[];
+}
+
+export interface ReviewQueueItem {
+  resultId: string;
+  attemptId: string;
+  candidateName: string;
+  questionTitle: string;
+  questionText: string;
+  candidateAnswer: string;
+  aiSuggestedFeedback?: string;
+  aiSuggestedScore: number;
+  maxScore: number;
 }

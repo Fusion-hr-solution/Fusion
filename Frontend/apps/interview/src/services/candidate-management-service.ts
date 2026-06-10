@@ -149,6 +149,9 @@ function mapProgressTimeline(dto: BackendCandidateProgressTimelineDto): Candidat
       attemptNumber: attempt.attemptNumber,
       attemptId: attempt.attemptId,
       status: attempt.status,
+      gradingStatus: attempt.gradingStatus ?? "Pending",
+      totalScore: attempt.totalScore,
+      maxScore: attempt.maxScore,
       milestones: attempt.milestones.map((milestone) => ({
         name: milestone.name,
         state: milestone.state,
@@ -317,6 +320,12 @@ export async function resendInvitation(invitationId: string): Promise<CandidateI
   );
 
   return mapInvitation(dto);
+}
+
+export async function deleteInvitation(invitationId: string): Promise<void> {
+  await client.delete(
+    `${CANDIDATE_INVITATIONS_API}/${encodeURIComponent(invitationId)}`
+  );
 }
 
 export async function getCandidateLinkSecurityState(testId: string): Promise<CandidateLinkSecurityState> {
