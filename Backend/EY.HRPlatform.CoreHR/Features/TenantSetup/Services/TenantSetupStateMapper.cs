@@ -7,18 +7,25 @@ public static class TenantSetupStateMapper
 {
     private static readonly List<string> OrderedSteps =
     [
-        "activated",
-        "structurallyGoverned",
-        "structurallyPublished",
-        "operational"
+        "setupStarted",
+        "draftReady",
+        "publishedLive"
     ];
 
     public static TenantSetupStateDto Map(
         TenantSetupState? state,
-        IReadOnlyCollection<TenantSetupActivity>? recentActivities = null)
+        IReadOnlyCollection<TenantSetupActivity>? recentActivities = null,
+        bool hasDraftStructure = false)
     {
         var phase = state?.CurrentPhase ?? TenantSetupPhase.NotStarted;
-        var completedSteps = GetCompletedSteps(phase);
+        var hasPublishedStructure = HasPublishedStructure(state, phase);
+        var isDraftCycleActive = IsDraftCycleActive(phase);
+        var requiresRepublish = isDraftCycleActive && hasPublishedStructure;
+        var completedSteps = GetCompletedSteps(
+            phase,
+            hasDraftStructure,
+            hasPublishedStructure,
+            requiresRepublish);
         var pendingSteps = OrderedSteps.Where(step => !completedSteps.Contains(step)).ToList();
         var activities = recentActivities?
             .Select(MapActivity)
@@ -30,13 +37,16 @@ public static class TenantSetupStateMapper
             CurrentPhase = ToClientPhase(phase),
             CurrentStep = completedSteps.Count,
             TotalSteps = OrderedSteps.Count,
-            NextAction = GetNextAction(phase),
+            NextAction = GetNextAction(phase, hasDraftStructure, requiresRepublish),
             CompletedSteps = completedSteps,
             PendingSteps = pendingSteps,
             CanStartSetup = phase == TenantSetupPhase.NotStarted,
-            CanResumeSetup =
-                phase != TenantSetupPhase.NotStarted &&
-                phase < TenantSetupPhase.StructurallyPublished,
+            CanResumeSetup = isDraftCycleActive,
+            HasDraftStructure = hasDraftStructure,
+            HasPublishedStructure = hasPublishedStructure,
+            IsDraftCycleActive = isDraftCycleActive,
+            RequiresRepublish = requiresRepublish,
+            PublishedStructureVersion = state?.PublishedStructureVersion ?? 0,
             ActivatedAt = state?.ActivatedAt,
             StructurallyGovernedAt = state?.StructurallyGovernedAt,
             ApprovedAt = state?.ApprovedAt,
@@ -50,13 +60,18 @@ public static class TenantSetupStateMapper
         };
     }
 
-    private static string GetNextAction(TenantSetupPhase phase) => phase switch
+    private static string GetNextAction(
+        TenantSetupPhase phase,
+        bool hasDraftStructure,
+        bool requiresRepublish) => phase switch
     {
         TenantSetupPhase.NotStarted => "Start setup",
-        TenantSetupPhase.Activated => "Review the structure and approve when ready",
-        TenantSetupPhase.StructurallyGoverned => "Publish the approved structure to complete setup",
-        TenantSetupPhase.StructurallyPublished => "Setup is complete",
-        TenantSetupPhase.Operational => "Setup is complete",
+        TenantSetupPhase.Activated when !hasDraftStructure => "Import or build the draft structure",
+        TenantSetupPhase.Activated when requiresRepublish => "Update the draft and publish the latest structure to live",
+        TenantSetupPhase.Activated => "Publish the draft structure to live when ready",
+        TenantSetupPhase.StructurallyGoverned => "Publish the draft structure to live",
+        TenantSetupPhase.StructurallyPublished => "The structure is live",
+        TenantSetupPhase.Operational => "The structure is live",
         _ => throw new ArgumentOutOfRangeException(nameof(phase), phase, null)
     };
 
@@ -72,24 +87,34 @@ public static class TenantSetupStateMapper
             IsPlatformAssisted = activity.IsPlatformAssisted,
         };
 
-    private static List<string> GetCompletedSteps(TenantSetupPhase phase)
+    private static List<string> GetCompletedSteps(
+        TenantSetupPhase phase,
+        bool hasDraftStructure,
+        bool hasPublishedStructure,
+        bool requiresRepublish)
     {
         var steps = new List<string>();
 
         if (phase >= TenantSetupPhase.Activated)
-            steps.Add("activated");
+            steps.Add("setupStarted");
 
-        if (phase >= TenantSetupPhase.StructurallyGoverned)
-            steps.Add("structurallyGoverned");
+        if (hasDraftStructure || hasPublishedStructure)
+            steps.Add("draftReady");
 
-        if (phase >= TenantSetupPhase.StructurallyPublished)
-        {
-            steps.Add("structurallyPublished");
-            steps.Add("operational");
-        }
+        if (hasPublishedStructure && !requiresRepublish)
+            steps.Add("publishedLive");
 
         return steps;
     }
+
+    private static bool HasPublishedStructure(TenantSetupState? state, TenantSetupPhase phase)
+        => state?.StructurallyPublishedAt is not null
+            || state?.OperationalAt is not null
+            || phase == TenantSetupPhase.StructurallyPublished
+            || phase == TenantSetupPhase.Operational;
+
+    private static bool IsDraftCycleActive(TenantSetupPhase phase)
+        => phase == TenantSetupPhase.Activated || phase == TenantSetupPhase.StructurallyGoverned;
 
     private static string ToClientPhase(TenantSetupPhase phase) => phase switch
     {
@@ -107,6 +132,12 @@ public static class TenantSetupStateMapper
         TenantSetupActivityType.Reopened => "reopened",
         TenantSetupActivityType.Published => "published",
         TenantSetupActivityType.Completed => "completed",
+        TenantSetupActivityType.DraftCreated => "draftCreated",
+        TenantSetupActivityType.DraftUpdated => "draftUpdated",
+        TenantSetupActivityType.DraftDeleted => "draftDeleted",
+        TenantSetupActivityType.DraftCleared => "draftCleared",
+        TenantSetupActivityType.DraftImportUploaded => "draftImportUploaded",
+        TenantSetupActivityType.DraftImportApplied => "draftImportApplied",
         _ => throw new ArgumentOutOfRangeException(nameof(activityType), activityType, null)
     };
 }

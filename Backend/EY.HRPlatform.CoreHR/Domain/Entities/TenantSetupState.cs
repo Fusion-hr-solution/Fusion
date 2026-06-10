@@ -32,6 +32,8 @@ public class TenantSetupState : BaseEntity, ITenantEntity
 
     public DateTime? StructurallyPublishedAt { get; private set; }
 
+    public int PublishedStructureVersion { get; private set; }
+
     public DateTime? OperationalAt { get; private set; }
 
     public ICollection<TenantSetupActivity> Activities { get; private set; } = new List<TenantSetupActivity>();
@@ -99,9 +101,11 @@ public class TenantSetupState : BaseEntity, ITenantEntity
 
     public void Reopen()
     {
-        if (CurrentPhase != TenantSetupPhase.StructurallyGoverned)
+        if (CurrentPhase != TenantSetupPhase.StructurallyGoverned
+            && CurrentPhase != TenantSetupPhase.StructurallyPublished
+            && CurrentPhase != TenantSetupPhase.Operational)
         {
-            throw new InvalidOperationException("Only an approved draft can be reopened.");
+            throw new InvalidOperationException("Only an approved or published structure can be reopened.");
         }
 
         CurrentPhase = TenantSetupPhase.Activated;
@@ -116,15 +120,17 @@ public class TenantSetupState : BaseEntity, ITenantEntity
 
     public void Publish()
     {
-        if (CurrentPhase != TenantSetupPhase.StructurallyGoverned)
+        if (CurrentPhase != TenantSetupPhase.Activated
+            && CurrentPhase != TenantSetupPhase.StructurallyGoverned)
         {
-            throw new InvalidOperationException("Only an approved structure can be published.");
+            throw new InvalidOperationException("Only an active draft can be published.");
         }
 
         var publishedAt = DateTime.UtcNow;
 
         CurrentPhase = TenantSetupPhase.StructurallyPublished;
         StructurallyPublishedAt = publishedAt;
+        PublishedStructureVersion += 1;
         UpdatedAt = publishedAt;
     }
 

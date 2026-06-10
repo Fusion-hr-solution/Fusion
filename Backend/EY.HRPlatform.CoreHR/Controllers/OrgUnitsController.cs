@@ -6,6 +6,7 @@ using EY.HRPlatform.CoreHR.Features.OrgUnits.Dtos;
 using EY.HRPlatform.CoreHR.Features.OrgUnits.Queries.GetOrgUnitById;
 using EY.HRPlatform.CoreHR.Features.OrgUnits.Queries.GetOrgUnits;
 using EY.HRPlatform.CoreHR.Features.OrgUnits.Queries.GetOrgUnitTree;
+using EY.HRPlatform.CoreHR.Features.Security;
 using EY.HRPlatform.CoreHR.Models.Responses;
 using EY.HRPlatform.SharedKernel.Auth;
 using MediatR;
@@ -20,8 +21,10 @@ namespace EY.HRPlatform.CoreHR.Controllers;
 
 [ApiController]
 [Route("api/corehr/org-units")]
-[Authorize(Roles = PlatformRole.HRAdmin)]
-public class OrgUnitsController(ISender sender) : ControllerBase
+[Authorize]
+public class OrgUnitsController(
+    ISender sender,
+    ICoreAccessPolicyService accessPolicy) : ControllerBase
 {
     /// <summary>
     /// List org units with optional search, filtering, sorting, and pagination.
@@ -39,6 +42,11 @@ public class OrgUnitsController(ISender sender) : ControllerBase
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
+        if (!accessPolicy.CanViewStructure(User))
+        {
+            return Forbid();
+        }
+
         var query = new GetOrgUnitsQuery(search, type, parentId, isActive, sortBy, sortDir, page, pageSize);
         var result = await sender.Send(query, cancellationToken);
         return Ok(ApiResponseOfPagedOrgUnitList.Success(result.Value));
@@ -55,6 +63,11 @@ public class OrgUnitsController(ISender sender) : ControllerBase
         [FromQuery] bool includeInactive = false,
         CancellationToken cancellationToken = default)
     {
+        if (!accessPolicy.CanViewStructure(User))
+        {
+            return Forbid();
+        }
+
         var query = new GetOrgUnitTreeQuery(rootId, maxDepth, includeInactive);
         var result = await sender.Send(query, cancellationToken);
         return Ok(ApiResponseOfOrgUnitTree.Success(result.Value));
@@ -68,6 +81,11 @@ public class OrgUnitsController(ISender sender) : ControllerBase
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
     {
+        if (!accessPolicy.CanViewStructure(User))
+        {
+            return Forbid();
+        }
+
         var result = await sender.Send(new GetOrgUnitByIdQuery(id), cancellationToken);
 
         Response.Headers.ETag = $"\"{result.Value.Version}\"";
@@ -86,6 +104,11 @@ public class OrgUnitsController(ISender sender) : ControllerBase
         [FromBody] CreateOrgUnitRequest request,
         CancellationToken cancellationToken)
     {
+        if (!accessPolicy.CanManageStructure(User))
+        {
+            return Forbid();
+        }
+
         var command = new CreateOrgUnitCommand(
             request.Code,
             request.Name,
@@ -118,6 +141,11 @@ public class OrgUnitsController(ISender sender) : ControllerBase
         [FromHeader(Name = "If-Match")] string? ifMatch,
         CancellationToken cancellationToken)
     {
+        if (!accessPolicy.CanManageStructure(User))
+        {
+            return Forbid();
+        }
+
         if (!TryParseVersion(ifMatch, out var expectedVersion))
         {
             return StatusCode(
@@ -154,6 +182,11 @@ public class OrgUnitsController(ISender sender) : ControllerBase
         [FromHeader(Name = "If-Match")] string? ifMatch,
         CancellationToken cancellationToken)
     {
+        if (!accessPolicy.CanManageStructure(User))
+        {
+            return Forbid();
+        }
+
         if (!TryParseVersion(ifMatch, out var expectedVersion))
         {
             return StatusCode(

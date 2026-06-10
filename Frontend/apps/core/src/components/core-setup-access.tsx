@@ -13,7 +13,7 @@ import { coreSetupQueryKeys, type TenantSetupStateDto } from "@repo/api";
 import { useApiQueryClient } from "@repo/api/query";
 import { canSeeCoreSetupNavigation, useAuth } from "@repo/auth";
 import { CorePageLoadingState } from "@/components/core-page-loading-state";
-import { useSetupState } from "@/app/(pages)/setup/use-setup";
+import { useSetupState } from "@/features/setup/api/use-setup";
 
 const SETUP_LOCK_REASON =
   "Complete organization setup before using the rest of the workspace.";

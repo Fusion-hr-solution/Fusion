@@ -1,10 +1,12 @@
 using EY.HRPlatform.CoreHR.Features.DraftStructure.Commands.CreateDraftOrgUnit;
+using EY.HRPlatform.CoreHR.Features.DraftStructure.Commands.ClearDraftStructure;
 using EY.HRPlatform.CoreHR.Features.DraftStructure.Commands.DeleteDraftOrgUnit;
 using EY.HRPlatform.CoreHR.Features.DraftStructure.Commands.UpdateDraftOrgUnit;
 using EY.HRPlatform.CoreHR.Features.DraftStructure.Dtos;
 using EY.HRPlatform.CoreHR.Features.DraftStructure.Queries.GetDraftOrgUnitById;
 using EY.HRPlatform.CoreHR.Features.DraftStructure.Queries.GetDraftOrgUnitTree;
 using EY.HRPlatform.CoreHR.Features.DraftStructure.Queries.GetDraftStructureWorkspace;
+using EY.HRPlatform.CoreHR.Features.Security;
 using EY.HRPlatform.SharedKernel.Api;
 using EY.HRPlatform.SharedKernel.Auth;
 using MediatR;
@@ -18,13 +20,20 @@ namespace EY.HRPlatform.CoreHR.Controllers;
 
 [ApiController]
 [Route("api/corehr/setup/draft-structure")]
-[Authorize(Roles = $"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin}")]
-public class DraftStructureController(ISender sender) : ControllerBase
+[Authorize]
+public class DraftStructureController(
+    ISender sender,
+    ICoreAccessPolicyService accessPolicy) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType(typeof(ApiResponseOfDraftStructureWorkspaceDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetWorkspace(CancellationToken cancellationToken)
     {
+        if (!accessPolicy.CanViewStructure(User))
+        {
+            return Forbid();
+        }
+
         var workspace = await sender.Send(new GetDraftStructureWorkspaceQuery(), cancellationToken);
         return Ok(ApiResponseOfDraftStructureWorkspaceDto.Success(workspace));
     }
@@ -36,6 +45,11 @@ public class DraftStructureController(ISender sender) : ControllerBase
         [FromQuery] int maxDepth = 10,
         CancellationToken cancellationToken = default)
     {
+        if (!accessPolicy.CanViewStructure(User))
+        {
+            return Forbid();
+        }
+
         var tree = await sender.Send(new GetDraftOrgUnitTreeQuery(rootId, maxDepth), cancellationToken);
         return Ok(ApiResponseOfDraftOrgUnitTree.Success(tree));
     }
@@ -45,6 +59,11 @@ public class DraftStructureController(ISender sender) : ControllerBase
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
     {
+        if (!accessPolicy.CanViewStructure(User))
+        {
+            return Forbid();
+        }
+
         var draftOrgUnit = await sender.Send(new GetDraftOrgUnitByIdQuery(id), cancellationToken);
 
         Response.Headers.ETag = $"\"{draftOrgUnit.Version}\"";
@@ -60,6 +79,11 @@ public class DraftStructureController(ISender sender) : ControllerBase
         [FromBody] CreateDraftOrgUnitRequest request,
         CancellationToken cancellationToken)
     {
+        if (!accessPolicy.CanManageStructure(User))
+        {
+            return Forbid();
+        }
+
         var command = new CreateDraftOrgUnitCommand(
             request.ReferenceKey,
             request.DisplayName,
@@ -67,7 +91,11 @@ public class DraftStructureController(ISender sender) : ControllerBase
             request.Location,
             request.Description,
             request.ParentId,
-            request.Attributes);
+            request.Attributes,
+            User.GetUserId(),
+            User.GetFullName(),
+            GetActorRole(),
+            User.IsInRole(PlatformRole.PlatformAdmin));
 
         var result = await sender.Send(command, cancellationToken);
 
@@ -77,6 +105,26 @@ public class DraftStructureController(ISender sender) : ControllerBase
             nameof(GetById),
             new { id = result.Value.Id },
             ApiResponseOfDraftOrgUnitDto.Success(result.Value));
+    }
+
+    [HttpDelete]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Clear(CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanManageStructure(User))
+        {
+            return Forbid();
+        }
+
+        await sender.Send(
+            new ClearDraftStructureCommand(
+                User.GetUserId(),
+                User.GetFullName(),
+                GetActorRole(),
+                User.IsInRole(PlatformRole.PlatformAdmin)),
+            cancellationToken);
+        return NoContent();
     }
 
     [HttpPut("{id:guid}")]
@@ -91,6 +139,11 @@ public class DraftStructureController(ISender sender) : ControllerBase
         [FromHeader(Name = "If-Match")] string? ifMatch,
         CancellationToken cancellationToken)
     {
+        if (!accessPolicy.CanManageStructure(User))
+        {
+            return Forbid();
+        }
+
         if (!TryParseVersion(ifMatch, out var expectedVersion))
         {
             return StatusCode(
@@ -107,7 +160,11 @@ public class DraftStructureController(ISender sender) : ControllerBase
             request.Description,
             request.ParentId,
             expectedVersion,
-            request.Attributes);
+            request.Attributes,
+            User.GetUserId(),
+            User.GetFullName(),
+            GetActorRole(),
+            User.IsInRole(PlatformRole.PlatformAdmin));
 
         var result = await sender.Send(command, cancellationToken);
 
@@ -129,6 +186,11 @@ public class DraftStructureController(ISender sender) : ControllerBase
         [FromHeader(Name = "If-Match")] string? ifMatch,
         CancellationToken cancellationToken)
     {
+        if (!accessPolicy.CanManageStructure(User))
+        {
+            return Forbid();
+        }
+
         if (!TryParseVersion(ifMatch, out var expectedVersion))
         {
             return StatusCode(
@@ -141,11 +203,20 @@ public class DraftStructureController(ISender sender) : ControllerBase
                 id,
                 expectedVersion,
                 replacementParentId,
-                promoteChildrenToRoot),
+                promoteChildrenToRoot,
+                User.GetUserId(),
+                User.GetFullName(),
+                GetActorRole(),
+                User.IsInRole(PlatformRole.PlatformAdmin)),
             cancellationToken);
 
         return NoContent();
     }
+
+    private string GetActorRole()
+        => User.IsInRole(PlatformRole.PlatformAdmin)
+            ? PlatformRole.PlatformAdmin
+            : PlatformRole.HRAdmin;
 
     private static bool TryParseVersion(string? ifMatch, out uint version)
     {
