@@ -19,4 +19,6 @@ export interface ResendTabProps {
   resendModalItem: CandidateInvitation | null;
   resendSubmitting: boolean;
   onConfirmResend: () => Promise<void>;
+  onDeleteCandidate?: (id: string) => Promise<void>;
+  deleteSubmitting?: boolean;
 }

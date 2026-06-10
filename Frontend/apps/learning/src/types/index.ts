@@ -223,6 +223,29 @@ export interface ExamAttempt {
   attemptedAt: string;
 }
 
+/* ── Personal in-person training hours ── */
+
+export interface AttendedSession {
+  sessionId: string;
+  trainingId: string;
+  trainingTitle: string;
+  partTitle: string;
+  startUtc: string;
+  endUtc: string;
+  room: string;
+  hours: number;
+}
+
+export interface MyInPersonHours {
+  totalHoursYear: number;
+  totalHoursQuarter: number;
+  totalHoursMonth: number;
+  totalHoursAllTime: number;
+  inPersonHours: number;
+  eLearningHours: number;
+  attendedSessions: AttendedSession[];
+}
+
 /* ── Grade / ServiceLine / Curriculum types ── */
 
 export interface Grade {
@@ -375,4 +398,24 @@ export interface MyEnrollmentSummary {
   totalEnrolledParts: number;
   nextSessionUtc: string | null;
   sessions: MyEnrollmentSession[];
+}
+
+// --- US-5.3.1 QR attendance ---
+
+export interface SessionQrCode {
+  sessionId: string;
+  payload: string;
+  rotationSeconds: number;
+  issuedAt: string;
+  refreshAt: string;
+  expiresAt: string;
+  isRevoked: boolean;
+}
+
+export interface ScanQrResult {
+  sessionId: string;
+  trainingTitle: string;
+  partTitle: string;
+  sessionStartUtc: string;
+  attendedAt: string;
 }

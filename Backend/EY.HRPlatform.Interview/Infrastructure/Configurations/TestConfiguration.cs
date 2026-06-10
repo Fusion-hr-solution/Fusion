@@ -27,7 +27,7 @@ public class TestConfiguration : IEntityTypeConfiguration<Test>
             .HasConversion<string>()
             .HasMaxLength(20)
             .IsRequired()
-            .HasDefaultValue(TestStatus.Draft);
+            .ValueGeneratedNever();
 
         builder.Property(t => t.MaxAttempts)
             .IsRequired(false);

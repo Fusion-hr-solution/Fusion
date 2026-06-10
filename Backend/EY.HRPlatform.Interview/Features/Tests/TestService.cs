@@ -1,3 +1,4 @@
+using System.Text.Json;
 using EY.HRPlatform.Interview.Domain.Entities;
 using EY.HRPlatform.Interview.Domain.Enums;
 using EY.HRPlatform.Interview.Infrastructure;
@@ -5,19 +6,66 @@ using EY.HRPlatform.Interview.Models.Common;
 using EY.HRPlatform.Interview.Models.Tests;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Distributed;
 
 namespace EY.HRPlatform.Interview.Features.Tests;
 
-public class TestService(AppDbContext dbContext) : ITestService
+public class TestService(AppDbContext dbContext, IDistributedCache cache, ILogger<TestService> logger) : ITestService
 {
+    private static readonly string[] CachedStatuses = ["Active", "Draft", "Archived"];
+    private static readonly DistributedCacheEntryOptions CacheOptions = new()
+    {
+        AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5),
+    };
+
+    private static string TestsCacheKey(string status) => $"tests:{status}";
+
+    private async Task InvalidateTestsCacheAsync(CancellationToken ct)
+    {
+        foreach (var status in CachedStatuses)
+        {
+            try
+            {
+                await cache.RemoveAsync(TestsCacheKey(status), ct);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                logger.LogWarning(ex, "Cache invalidation failed for key '{Key}'.", TestsCacheKey(status));
+            }
+        }
+    }
     public async Task<PagedResultDto<TestDto>> GetAsync(TestFilterDto filter, CancellationToken cancellationToken)
     {
         ValidatePaging(filter.Page, filter.PageSize);
 
+        var isSimpleStatusQuery = filter.Page == 1
+            && filter.PageSize >= 100
+            && string.IsNullOrWhiteSpace(filter.Search)
+            && string.IsNullOrWhiteSpace(filter.Discipline)
+            && string.IsNullOrWhiteSpace(filter.QuestionType)
+            && !string.IsNullOrWhiteSpace(filter.Status);
+
+        if (isSimpleStatusQuery)
+        {
+            var cacheKey = TestsCacheKey(filter.Status!);
+            try
+            {
+                var cached = await cache.GetStringAsync(cacheKey, cancellationToken);
+                if (cached is not null)
+                {
+                    var cachedResult = JsonSerializer.Deserialize<PagedResultDto<TestDto>>(cached);
+                    if (cachedResult is not null)
+                        return cachedResult;
+                }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                logger.LogWarning(ex, "Cache read failed for key '{Key}'; falling through to database.", cacheKey);
+            }
+        }
+
         var query = dbContext.Tests
-            .AsNoTrackingWithIdentityResolution()
-            .Include(t => t.TestQuestions)
-            .ThenInclude(tq => tq.Question)
+            .AsNoTracking()
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(filter.Search))
@@ -53,19 +101,67 @@ public class TestService(AppDbContext dbContext) : ITestService
         };
 
         var totalCount = await query.CountAsync(cancellationToken);
-        var items = await query
+        var rawItems = await query
             .Skip((filter.Page - 1) * filter.PageSize)
             .Take(filter.PageSize)
+            .Select(t => new
+            {
+                t.Id,
+                t.Title,
+                t.Description,
+                t.Discipline,
+                t.Status,
+                t.MaxAttempts,
+                t.AllowSkipping,
+                t.AllowBacktracking,
+                t.ShowProgressBar,
+                t.RandomizeOrder,
+                t.CandidateCount,
+                t.CreatedAt,
+                QuestionCount = t.TestQuestions.Count,
+                QuestionTypes = t.TestQuestions.Select(tq => tq.Question.Type).ToList(),
+            })
             .ToListAsync(cancellationToken);
 
-        return new PagedResultDto<TestDto>
+        var result = new PagedResultDto<TestDto>
         {
-            Items = items.Select(MapToDto).ToList(),
+            Items = rawItems.Select(t => new TestDto
+            {
+                Id = t.Id.ToString(),
+                Title = t.Title,
+                Description = t.Description,
+                Discipline = t.Discipline.ToString(),
+                Status = t.Status.ToString(),
+                QuestionTypes = t.QuestionTypes.Select(ToContract).Distinct().OrderBy(x => x).ToList(),
+                MaxAttempts = t.MaxAttempts,
+                AllowSkipping = t.AllowSkipping,
+                AllowBacktracking = t.AllowBacktracking,
+                ShowProgressBar = t.ShowProgressBar,
+                RandomizeOrder = t.RandomizeOrder,
+                CandidateCount = t.CandidateCount,
+                QuestionCount = t.QuestionCount,
+                CreatedAt = t.CreatedAt == default ? DateTime.UtcNow.ToString("O") : t.CreatedAt.ToString("O"),
+            }).ToList(),
             TotalCount = totalCount,
             TotalPages = (int)Math.Ceiling(totalCount / (double)filter.PageSize),
             Page = filter.Page,
             PageSize = filter.PageSize
         };
+
+        if (isSimpleStatusQuery)
+        {
+            try
+            {
+                var serialized = JsonSerializer.Serialize(result);
+                await cache.SetStringAsync(TestsCacheKey(filter.Status!), serialized, CacheOptions, cancellationToken);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                logger.LogWarning(ex, "Cache write failed for status '{Status}'; result served without caching.", filter.Status);
+            }
+        }
+
+        return result;
     }
 
     public async Task<TestDto> GetByIdAsync(Guid id, CancellationToken cancellationToken)
@@ -102,6 +198,7 @@ public class TestService(AppDbContext dbContext) : ITestService
 
         dbContext.Tests.Add(test);
         await dbContext.SaveChangesAsync(cancellationToken);
+        await InvalidateTestsCacheAsync(cancellationToken);
 
         return MapToDto(test);
     }
@@ -127,6 +224,7 @@ public class TestService(AppDbContext dbContext) : ITestService
         test.RandomizeOrder = request.RandomizeOrder ?? test.RandomizeOrder;
 
         await dbContext.SaveChangesAsync(cancellationToken);
+        await InvalidateTestsCacheAsync(cancellationToken);
 
         // Re-query with navigations for consistent DTO shape without over-fetching in the update query.
         return await GetByIdAsync(id, cancellationToken);
@@ -140,6 +238,7 @@ public class TestService(AppDbContext dbContext) : ITestService
 
         dbContext.Tests.Remove(test);
         await dbContext.SaveChangesAsync(cancellationToken);
+        await InvalidateTestsCacheAsync(cancellationToken);
     }
 
     private static void ValidatePaging(int page, int pageSize)

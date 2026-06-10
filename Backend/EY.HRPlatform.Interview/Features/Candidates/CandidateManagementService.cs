@@ -170,6 +170,9 @@ public class CandidateManagementService(
                 AttemptNumber = attemptNumber,
                 AttemptId = attempt?.Id.ToString(),
                 Status = status,
+                GradingStatus = attempt?.GradingStatus.ToString() ?? "Pending",
+                TotalScore = attempt?.TotalScore,
+                MaxScore = attempt?.MaxScore,
                 Milestones =
                 [
                     BuildMilestone(CandidateProgressMilestones.Invited, invitedAtUtc),
@@ -271,7 +274,15 @@ public class CandidateManagementService(
             {
                 logger.LogWarning(
                     ex,
-                    "Candidate retake notification failed. InvitationId={InvitationId} | Email={Email}",
+                    "Candidate retake notification failed (SMTP). InvitationId={InvitationId} | Email={Email}",
+                    invitation.Id,
+                    invitation.Email);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(
+                    ex,
+                    "Candidate retake notification failed (unexpected error). InvitationId={InvitationId} | Email={Email}",
                     invitation.Id,
                     invitation.Email);
             }

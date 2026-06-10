@@ -30,13 +30,16 @@ import {
   Users,
   ChevronDown,
   ChevronRight,
+  Lock,
+  CheckCircle2,
 } from "lucide-react";
-import { Button, Card, CardContent } from "@repo/ui";
+import { Badge, Button, Card, CardContent } from "@repo/ui";
 import { useApiQuery, useApiMutation } from "@repo/api/react";
 import {
   getPartsForTraining,
   deletePart,
   reorderParts,
+  togglePartLock,
 } from "@/services/admin-sessions-service";
 import type { AdminTrainingPart, AdminTrainingSession } from "@/types/admin";
 import { PartFormDialog } from "./part-form-dialog";
@@ -60,6 +63,7 @@ interface SortablePartCardProps {
   onAddSession: () => void;
   onEditSession: (session: AdminTrainingSession) => void;
   onCancelSession: (sessionId: string) => void;
+  onToggleLock: () => void;
 }
 
 function SortablePartCard({
@@ -71,8 +75,11 @@ function SortablePartCard({
   onAddSession,
   onEditSession,
   onCancelSession,
+  onToggleLock,
 }: SortablePartCardProps) {
-  const [expanded, setExpanded] = useState(true);
+  const isPartCompleted = part.sessions.length > 0 &&
+    part.sessions.every((s) => s.status === "Completed" || s.status === "Cancelled" || new Date(s.endUtc) < new Date());
+  const [expanded, setExpanded] = useState(!isPartCompleted);
 
   const {
     attributes,
@@ -130,7 +137,21 @@ function SortablePartCard({
         </button>
 
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-foreground">{part.title}</p>
+          <div className="flex items-center gap-2">
+            <p className="truncate text-sm font-semibold text-foreground">{part.title}</p>
+            {isPartCompleted && (
+              <Badge variant="outline" className="shrink-0 border-emerald-200 bg-emerald-50 text-emerald-700 text-[10px] px-1.5 py-0.5">
+                <CheckCircle2 className="h-3 w-3 mr-0.5" />
+                Completed
+              </Badge>
+            )}
+            {part.isLocked && (
+              <Badge variant="outline" className="shrink-0 border-amber-200 bg-amber-50 text-amber-700 text-[10px] px-1.5 py-0.5">
+                <Lock className="h-3 w-3 mr-0.5" />
+                Locked
+              </Badge>
+            )}
+          </div>
           <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
             {part.description && (
               <span className="truncate max-w-[200px]">{part.description}</span>
@@ -149,6 +170,15 @@ function SortablePartCard({
         {/* Actions — visible on hover */}
         {!isDeleted && (
           <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onToggleLock}
+              aria-label={part.isLocked ? "Unlock part" : "Lock part"}
+              className={`h-8 w-8 p-0 ${part.isLocked ? "text-amber-600 hover:text-amber-700 hover:bg-amber-50" : ""}`}
+            >
+              <Lock className="h-3.5 w-3.5" />
+            </Button>
             <Button variant="ghost" size="sm" onClick={onEdit} aria-label="Edit part" className="h-8 w-8 p-0">
               <Pencil className="h-3.5 w-3.5" />
             </Button>
@@ -231,6 +261,7 @@ function SortablePartCard({
               variant="outline"
               size="sm"
               onClick={onAddSession}
+              disabled={part.isLocked}
               className="mt-1 border-dashed hover:border-solid transition-all"
             >
               <Plus className="mr-1.5 h-3.5 w-3.5" />
@@ -302,6 +333,11 @@ export function PartsManagerSection({ trainingId, isDeleted }: PartsManagerSecti
 
   const { mutateAsync: doReorder } = useApiMutation(
     (partIds: string[]) => reorderParts(trainingId, partIds),
+    { onSuccess: () => refetch() },
+  );
+
+  const { mutateAsync: doToggleLock } = useApiMutation(
+    ({ partId, lock }: { partId: string; lock: boolean }) => togglePartLock(trainingId, partId, lock),
     { onSuccess: () => refetch() },
   );
 
@@ -437,6 +473,7 @@ export function PartsManagerSection({ trainingId, isDeleted }: PartsManagerSecti
                   onAddSession={() => openAddSession(part.id)}
                   onEditSession={(s) => openEditSession(part.id, s)}
                   onCancelSession={(id) => openCancel(id)}
+                  onToggleLock={() => doToggleLock({ partId: part.id, lock: !part.isLocked })}
                 />
               ))}
             </div>

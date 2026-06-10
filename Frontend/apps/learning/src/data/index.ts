@@ -8,6 +8,8 @@ export { EMPLOYEE_NAV, ADMIN_NAV } from "./sidebar-nav";
 export { SORT_OPTIONS } from "./sort-options";
 export { STATUS_CONFIG } from "./status-config";
 export { TABS } from "./training-tabs";
+export { TRAINING_TYPE_CONFIG, TRAINING_TYPE_OPTIONS } from "./training-type-config";
+export type { TrainingTypeConfigEntry } from "./training-type-config";
 export { MOCK_TRAININGS } from "./trainings";
 export { getTrainingDetailStats } from "./training-detail-stats";
 export type { TrainingStatItem } from "./training-detail-stats";

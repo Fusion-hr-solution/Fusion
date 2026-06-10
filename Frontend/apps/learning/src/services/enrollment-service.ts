@@ -6,12 +6,14 @@ import type {
   SessionSelection,
   EnrollmentStatus,
   MyEnrollmentSummary,
+  ScanQrResult,
 } from "@/types";
 import type {
   BackendAvailableSessionsForEnrollmentDto,
   BackendEnrollInSessionsResultDto,
   BackendMySessionEnrollmentsDto,
   BackendMyEnrollmentSummaryDto,
+  BackendScanQrResultDto,
 } from "@/types/backend-dtos";
 
 const client = createPlatformApiClient();
@@ -156,4 +158,18 @@ export async function getAllMyEnrollments(): Promise<MyEnrollmentSummary[]> {
       enrolledAt: s.enrolledAt,
     })),
   }));
+}
+
+export async function scanQrAttendance(qrPayload: string): Promise<ScanQrResult> {
+  const dto = await client.post<BackendScanQrResultDto>(
+    "/training/session-enrollments/scan-qr",
+    { qrPayload },
+  );
+  return {
+    sessionId: dto.sessionId,
+    trainingTitle: dto.trainingTitle,
+    partTitle: dto.partTitle,
+    sessionStartUtc: dto.sessionStartUtc,
+    attendedAt: dto.attendedAt,
+  };
 }
