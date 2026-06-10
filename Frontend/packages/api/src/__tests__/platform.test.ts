@@ -105,6 +105,7 @@ describe("createPlatformApiClient", () => {
           email: "jane@example.com",
           fullName: "Jane Doe",
           roles: ["HRAdmin"],
+          employeeId: "employee-1",
         },
       }),
     };
@@ -128,6 +129,7 @@ describe("createPlatformApiClient", () => {
               email: "jane@example.com",
               fullName: "Jane Doe",
               roles: ["HRAdmin"],
+              employeeId: "employee-1",
               accessToken: "fresh-token",
               refreshToken: "refresh-token-2",
               accessTokenExpiration: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
@@ -154,6 +156,7 @@ describe("createPlatformApiClient", () => {
     const [, protectedInit] = fetchSpy.mock.calls[1] as [string, RequestInit];
     const headers = protectedInit.headers as Record<string, string>;
     expect(headers["Authorization"]).toBe("Bearer fresh-token");
+    expect(JSON.parse(storage.ey_hr_auth!).user.employeeId).toBe("employee-1");
   });
 
   it("retries once after a 401 by refreshing the stored session", async () => {
@@ -170,6 +173,7 @@ describe("createPlatformApiClient", () => {
           email: "jane@example.com",
           fullName: "Jane Doe",
           roles: ["HRAdmin"],
+          employeeId: "employee-1",
         },
       }),
     };
@@ -199,6 +203,7 @@ describe("createPlatformApiClient", () => {
               email: "jane@example.com",
               fullName: "Jane Doe",
               roles: ["HRAdmin"],
+              employeeId: "employee-1",
               accessToken: "fresh-token",
               refreshToken: "refresh-token-2",
               accessTokenExpiration: new Date(Date.now() + 60 * 60 * 1000).toISOString(),

@@ -26,6 +26,10 @@ const nextConfig: NextConfig = {
         destination: `${coreUrl}/core/:path*`,
       },
       {
+        source: "/invite/:path*",
+        destination: `${coreUrl}/core/invite/:path*`,
+      },
+      {
         source: "/learning/:path*",
         destination: "http://localhost:3003/learning/:path*",
       },

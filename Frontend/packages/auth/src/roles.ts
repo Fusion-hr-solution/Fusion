@@ -143,7 +143,8 @@ export function canAccessCoreSetup(user: AuthUser | null): boolean {
     hasCorePermission(user, CORE_PERMISSION.setupManage, "Tenant") ||
     hasCorePermission(user, CORE_PERMISSION.structureView, "Tenant") ||
     hasCorePermission(user, CORE_PERMISSION.structureManage, "Tenant") ||
-    hasCorePermission(user, CORE_PERMISSION.structurePublish, "Tenant")
+    hasCorePermission(user, CORE_PERMISSION.structurePublish, "Tenant") ||
+    isPlatformAdminInCoreTenantContext(user)
   );
 }
 
@@ -154,7 +155,8 @@ export function canSeeCoreSetupNavigation(user: AuthUser | null): boolean {
 export function canAccessCoreSettings(user: AuthUser | null): boolean {
   return (
     hasCorePermission(user, CORE_PERMISSION.settingsView, "Tenant") ||
-    hasCorePermission(user, CORE_PERMISSION.settingsManage, "Tenant")
+    hasCorePermission(user, CORE_PERMISSION.settingsManage, "Tenant") ||
+    isPlatformAdminInCoreTenantContext(user)
   );
 }
 
@@ -174,7 +176,10 @@ export function canSeeCoreSettingsNavigation(user: AuthUser | null): boolean {
 }
 
 export function canAccessCorePeople(user: AuthUser | null): boolean {
-  return hasCorePermission(user, CORE_PERMISSION.employeeView, "Tenant");
+  return (
+    hasCorePermission(user, CORE_PERMISSION.employeeView, "Tenant") ||
+    isPlatformAdminInCoreTenantContext(user)
+  );
 }
 
 export function canManageCoreEmployees(user: AuthUser | null): boolean {
@@ -229,7 +234,8 @@ export function canSeeCoreTeamNavigation(user: AuthUser | null): boolean {
 export function canAccessCoreOrgChart(user: AuthUser | null): boolean {
   return (
     hasCorePermission(user, CORE_PERMISSION.orgChartView, "Tenant") ||
-    hasCorePermission(user, CORE_PERMISSION.orgChartView, "DirectReports")
+    hasCorePermission(user, CORE_PERMISSION.orgChartView, "DirectReports") ||
+    isPlatformAdminInCoreTenantContext(user)
   );
 }
 
@@ -238,7 +244,10 @@ export function canSeeCoreOrgChartNavigation(user: AuthUser | null): boolean {
 }
 
 export function canAccessCoreOverview(user: AuthUser | null): boolean {
-  return hasCorePermission(user, CORE_PERMISSION.overviewView, "Tenant");
+  return (
+    hasCorePermission(user, CORE_PERMISSION.overviewView, "Tenant") ||
+    isPlatformAdminInCoreTenantContext(user)
+  );
 }
 
 export function canAccessCoreAccess(user: AuthUser | null): boolean {

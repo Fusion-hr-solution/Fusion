@@ -49,8 +49,12 @@ public sealed class UpdateEmployeeCommandHandler(
         var lastName = request.LastName ?? employee.LastName;
         var email = request.Email ?? employee.Email;
         var jobTitle = request.JobTitle ?? employee.JobTitle;
+        var employeeNumber = request.EmployeeNumber ?? employee.EmployeeNumber;
 
         var normalizedEmail = email.Trim().ToLowerInvariant();
+        var normalizedEmployeeNumber = string.IsNullOrWhiteSpace(employeeNumber)
+            ? null
+            : employeeNumber.Trim().ToUpperInvariant();
 
         // Check for duplicate email within tenant (only if email is changing)
         if (normalizedEmail != employee.Email)
@@ -61,6 +65,18 @@ public sealed class UpdateEmployeeCommandHandler(
             if (emailExists)
             {
                 throw new DuplicateEntityException("Employee", "email", normalizedEmail);
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(normalizedEmployeeNumber)
+            && !string.Equals(normalizedEmployeeNumber, employee.EmployeeNumber, StringComparison.Ordinal))
+        {
+            var employeeNumberExists = await dbContext.Employees
+                .AnyAsync(e => e.EmployeeNumber == normalizedEmployeeNumber && e.Id != request.EmployeeId, cancellationToken);
+
+            if (employeeNumberExists)
+            {
+                throw new DuplicateEntityException("Employee", "employeeNumber", normalizedEmployeeNumber);
             }
         }
 
@@ -82,7 +98,7 @@ public sealed class UpdateEmployeeCommandHandler(
         }
 
         // Update employee details
-        employee.UpdateDetails(firstName, lastName, email, employee.Department, jobTitle);
+        employee.UpdateDetails(firstName, lastName, email, employee.Department, jobTitle, employeeNumber);
 
         if (request.HireDate.HasValue)
         {
@@ -114,7 +130,7 @@ public sealed class UpdateEmployeeCommandHandler(
         }
         catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex))
         {
-            throw new DuplicateEntityException("Employee", "email", normalizedEmail);
+            throw ResolveDuplicateException(ex, normalizedEmail, normalizedEmployeeNumber);
         }
 
         // Load manager for response if assigned
@@ -137,6 +153,7 @@ public sealed class UpdateEmployeeCommandHandler(
     private static EmployeeDto MapToDto(Employee employee, Employee? manager, OrgUnit? orgUnit) => new(
         employee.Id,
         employee.TenantId,
+        employee.EmployeeNumber,
         employee.FirstName,
         employee.LastName,
         employee.PreferredName,
@@ -158,6 +175,20 @@ public sealed class UpdateEmployeeCommandHandler(
         return ex.InnerException?.Message.Contains("23505") == true
             || ex.InnerException?.Message.Contains("unique constraint") == true
             || ex.InnerException?.Message.Contains("duplicate key") == true;
+    }
+
+    private static DuplicateEntityException ResolveDuplicateException(
+        DbUpdateException ex,
+        string normalizedEmail,
+        string? normalizedEmployeeNumber)
+    {
+        if (ex.InnerException?.Message.Contains("IX_Employees_TenantId_EmployeeNumber") == true
+            && !string.IsNullOrWhiteSpace(normalizedEmployeeNumber))
+        {
+            return new DuplicateEntityException("Employee", "employeeNumber", normalizedEmployeeNumber);
+        }
+
+        return new DuplicateEntityException("Employee", "email", normalizedEmail);
     }
 
     private static void ValidateConfiguredRequiredField(

@@ -20,7 +20,7 @@ namespace EY.HRPlatform.CoreHR.Controllers;
 
 [ApiController]
 [Route("api/corehr/org-units")]
-[Authorize(Roles = PlatformRole.HRAdmin)]
+[Authorize(Roles = $"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin}")]
 public class OrgUnitsController(ISender sender) : ControllerBase
 {
     /// <summary>
@@ -79,6 +79,7 @@ public class OrgUnitsController(ISender sender) : ControllerBase
     /// Create a new org unit within the current tenant.
     /// </summary>
     [HttpPost]
+    [Authorize(Roles = PlatformRole.HRAdmin)]
     [ProducesResponseType(typeof(ApiResponseOfOrgUnitDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status409Conflict)]
@@ -107,6 +108,7 @@ public class OrgUnitsController(ISender sender) : ControllerBase
     /// Requires If-Match header with current version for optimistic concurrency.
     /// </summary>
     [HttpPut("{id:guid}")]
+    [Authorize(Roles = PlatformRole.HRAdmin)]
     [ProducesResponseType(typeof(ApiResponseOfOrgUnitDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
@@ -144,6 +146,7 @@ public class OrgUnitsController(ISender sender) : ControllerBase
     /// Requires If-Match header with current version for optimistic concurrency.
     /// </summary>
     [HttpDelete("{id:guid}")]
+    [Authorize(Roles = PlatformRole.HRAdmin)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]

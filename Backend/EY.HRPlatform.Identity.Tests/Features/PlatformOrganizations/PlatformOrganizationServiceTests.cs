@@ -221,7 +221,7 @@ public class PlatformOrganizationServiceTests
         Assert.Equal("Test Org", created.Organization.Name);
         Assert.Equal("invited", created.Organization.OperationalStatus);
         Assert.NotNull(created.InviteLink);
-        Assert.Contains("/core/invite/accept", created.InviteLink);
+        Assert.Contains("/invite/accept", created.InviteLink);
     }
 
     [Fact]
@@ -1317,7 +1317,6 @@ public class PlatformOrganizationServiceTests
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Application:PublicBaseUrl"] = "http://localhost:3000",
-                ["Application:InviteAcceptPath"] = "/core/invite/accept",
             })
             .Build();
     }

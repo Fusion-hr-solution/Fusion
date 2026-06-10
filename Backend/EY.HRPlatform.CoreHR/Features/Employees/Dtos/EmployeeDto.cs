@@ -8,6 +8,7 @@ namespace EY.HRPlatform.CoreHR.Features.Employees.Dtos;
 public sealed record EmployeeDto(
     Guid Id,
     Guid TenantId,
+    string? EmployeeNumber,
     string FirstName,
     string LastName,
     string? PreferredName,
@@ -24,6 +25,9 @@ public sealed record EmployeeDto(
     uint Version)
 {
     public string FullName => $"{FirstName} {LastName}";
+    public string DisplayName => !string.IsNullOrWhiteSpace(PreferredName)
+        ? $"{PreferredName} {LastName}"
+        : FullName;
 }
 
 /// <summary>

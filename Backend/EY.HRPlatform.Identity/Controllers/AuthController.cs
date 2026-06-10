@@ -164,6 +164,7 @@ public class AuthController : ControllerBase
             Email = user.Email!,
             FullName = user.FullName,
             Roles = roles.ToList(),
+            EmployeeId = user.EmployeeId,
             AccessToken = accessToken,
             RefreshToken = refreshTokenString,
             AccessTokenExpiration = DateTime.UtcNow.AddMinutes(

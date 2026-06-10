@@ -91,9 +91,9 @@ describe("employee readiness helpers", () => {
   });
 
   it("parses supported readiness filters and rejects unknown values", () => {
-    expect(parseEmployeeReadinessFilter("ManagerMissing")).toBe(
-      "ManagerMissing"
-    );
+    expect(parseEmployeeReadinessFilter("Ready")).toBe("Ready");
+    expect(parseEmployeeReadinessFilter("ManagerMissing")).toBe("ReportingIssue");
+    expect(parseEmployeeReadinessFilter("DeactivationBlocked")).toBeUndefined();
     expect(parseEmployeeReadinessFilter("unknown")).toBeUndefined();
   });
 

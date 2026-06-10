@@ -26,6 +26,7 @@ public sealed class EmployeeReadModelPolicy : IEmployeeReadModelPolicy
         => new(
             employee.Id,
             employee.TenantId,
+            employee.EmployeeNumber,
             employee.FirstName,
             employee.LastName,
             employee.PreferredName,
@@ -44,13 +45,12 @@ public sealed class EmployeeReadModelPolicy : IEmployeeReadModelPolicy
             employee.Version);
 
     public EmployeeListItemDto MapListItem(Employee employee, TenantSettingsDto settings, EmployeeReadAudience audience, int directReportCount = 0)
-    {
-        var hierarchyStatus = ResolveHierarchyStatus(employee, directReportCount);
-
-        return new EmployeeListItemDto(
+        => new(
             employee.Id,
+            employee.EmployeeNumber,
             employee.FirstName,
             employee.LastName,
+            employee.PreferredName,
             employee.Email,
             employee.OrgUnitId,
             employee.OrgUnit?.Name,
@@ -59,20 +59,17 @@ public sealed class EmployeeReadModelPolicy : IEmployeeReadModelPolicy
             employee.HireDate,
             employee.ManagerId,
             employee.Manager is not null ? employee.Manager.FirstName + " " + employee.Manager.LastName : null,
-            hierarchyStatus,
+            ResolveHierarchyStatus(employee, directReportCount),
             directReportCount,
             employee.Version)
         {
-            Readiness = EmployeeReadinessPolicy.BuildSummary(employee, settings, hierarchyStatus, directReportCount)
+            Readiness = EmployeeReadinessPolicy.BuildSummary(employee, settings, ResolveHierarchyStatus(employee, directReportCount), directReportCount)
         };
-    }
 
     public EmployeeProfileDto MapProfile(Employee employee, TenantSettingsDto settings, EmployeeReadAudience audience, int directReportCount)
-    {
-        var hierarchyStatus = ResolveHierarchyStatus(employee, directReportCount);
-
-        return new EmployeeProfileDto(
+        => new(
             employee.Id,
+            employee.EmployeeNumber,
             employee.FirstName,
             employee.LastName,
             employee.PreferredName,
@@ -86,13 +83,12 @@ public sealed class EmployeeReadModelPolicy : IEmployeeReadModelPolicy
             employee.Manager?.FirstName,
             employee.Manager?.LastName,
             employee.Manager?.Email,
-            hierarchyStatus,
+            ResolveHierarchyStatus(employee, directReportCount),
             directReportCount,
             employee.Version)
         {
-            Readiness = EmployeeReadinessPolicy.BuildSummary(employee, settings, hierarchyStatus, directReportCount)
+            Readiness = EmployeeReadinessPolicy.BuildSummary(employee, settings, ResolveHierarchyStatus(employee, directReportCount), directReportCount)
         };
-    }
 
     private static bool CanViewField(
         TenantSettingsDto settings,

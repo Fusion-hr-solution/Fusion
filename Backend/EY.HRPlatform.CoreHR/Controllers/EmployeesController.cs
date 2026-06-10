@@ -54,7 +54,7 @@ public class EmployeesController(ISender sender) : ControllerBase
     }
 
     [HttpGet("readiness-summary")]
-    [Authorize(Roles = PlatformRole.HRAdmin)]
+    [Authorize(Roles = $"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin}")]
     [ProducesResponseType(typeof(ApiResponseOfWorkforceReadinessSummaryDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetReadinessSummary(CancellationToken cancellationToken = default)
     {
@@ -238,7 +238,7 @@ public class EmployeesController(ISender sender) : ControllerBase
     /// Supports focus-employee root resolution, org unit scoping, and inactive visibility.
     /// </summary>
     [HttpGet("org-chart")]
-    [Authorize(Roles = PlatformRole.HRAdmin)]
+    [Authorize(Roles = $"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin}")]
     [ProducesResponseType(typeof(ApiResponseOfEmployeeOrgChartDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetOrgChart(
@@ -296,7 +296,7 @@ public class EmployeesController(ISender sender) : ControllerBase
     /// Get an employee by ID.
     /// </summary>
     [HttpGet("{id:guid}")]
-    [Authorize(Roles = PlatformRole.HRAdmin)]
+    [Authorize(Roles = $"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin}")]
     [ProducesResponseType(typeof(ApiResponseOfEmployeeDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
@@ -318,7 +318,7 @@ public class EmployeesController(ISender sender) : ControllerBase
     /// direct-report count, and hierarchy status in a single response.
     /// </summary>
     [HttpGet("{id:guid}/profile")]
-    [Authorize(Roles = PlatformRole.HRAdmin)]
+    [Authorize(Roles = $"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin}")]
     [ProducesResponseType(typeof(ApiResponseOfEmployeeProfileDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetProfile(Guid id, CancellationToken cancellationToken)
@@ -339,7 +339,7 @@ public class EmployeesController(ISender sender) : ControllerBase
     /// Get reporting-line summary for an employee, including manager chain, direct reports, and flat downline.
     /// </summary>
     [HttpGet("{id:guid}/reporting-lines")]
-    [Authorize(Roles = PlatformRole.HRAdmin)]
+    [Authorize(Roles = $"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin}")]
     [ProducesResponseType(typeof(ApiResponseOfEmployeeReportingLinesDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetReportingLines(Guid id, CancellationToken cancellationToken)

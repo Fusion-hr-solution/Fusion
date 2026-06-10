@@ -21,6 +21,9 @@ public sealed class CreateEmployeeCommandHandler(
     {
         var tenantId = tenantContext.TenantId;
         var normalizedEmail = request.Email.Trim().ToLowerInvariant();
+        var normalizedEmployeeNumber = string.IsNullOrWhiteSpace(request.EmployeeNumber)
+            ? null
+            : request.EmployeeNumber.Trim().ToUpperInvariant();
 
         // Check for duplicate email within tenant
         var emailExists = await dbContext.Employees
@@ -29,6 +32,17 @@ public sealed class CreateEmployeeCommandHandler(
         if (emailExists)
         {
             throw new DuplicateEntityException("Employee", "email", normalizedEmail);
+        }
+
+        if (!string.IsNullOrWhiteSpace(normalizedEmployeeNumber))
+        {
+            var employeeNumberExists = await dbContext.Employees
+                .AnyAsync(e => e.EmployeeNumber == normalizedEmployeeNumber, cancellationToken);
+
+            if (employeeNumberExists)
+            {
+                throw new DuplicateEntityException("Employee", "employeeNumber", normalizedEmployeeNumber);
+            }
         }
 
         OrgUnit? orgUnit = null;
@@ -55,7 +69,8 @@ public sealed class CreateEmployeeCommandHandler(
             request.LastName,
             request.Email,
             request.HireDate,
-            jobTitle: request.JobTitle);
+            jobTitle: request.JobTitle,
+            employeeNumber: request.EmployeeNumber);
 
         // Assign manager if specified
         if (request.ManagerId.HasValue)
@@ -80,7 +95,7 @@ public sealed class CreateEmployeeCommandHandler(
         }
         catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex))
         {
-            throw new DuplicateEntityException("Employee", "email", normalizedEmail);
+            throw ResolveDuplicateException(ex, normalizedEmail, normalizedEmployeeNumber);
         }
 
         // Load manager for response if assigned
@@ -97,6 +112,7 @@ public sealed class CreateEmployeeCommandHandler(
     private static EmployeeDto MapToDto(Employee employee, Employee? manager, OrgUnit? orgUnit) => new(
         employee.Id,
         employee.TenantId,
+        employee.EmployeeNumber,
         employee.FirstName,
         employee.LastName,
         employee.PreferredName,
@@ -118,5 +134,19 @@ public sealed class CreateEmployeeCommandHandler(
         return ex.InnerException?.Message.Contains("23505") == true
             || ex.InnerException?.Message.Contains("unique constraint") == true
             || ex.InnerException?.Message.Contains("duplicate key") == true;
+    }
+
+    private static DuplicateEntityException ResolveDuplicateException(
+        DbUpdateException ex,
+        string normalizedEmail,
+        string? normalizedEmployeeNumber)
+    {
+        if (ex.InnerException?.Message.Contains("IX_Employees_TenantId_EmployeeNumber") == true
+            && !string.IsNullOrWhiteSpace(normalizedEmployeeNumber))
+        {
+            return new DuplicateEntityException("Employee", "employeeNumber", normalizedEmployeeNumber);
+        }
+
+        return new DuplicateEntityException("Employee", "email", normalizedEmail);
     }
 }
