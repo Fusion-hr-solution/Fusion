@@ -112,3 +112,5 @@ opencode.json
 .opencode/
 #claude code 
 .claude
+#appsettings.Development.json
+appsettings.Development.json

@@ -63,6 +63,7 @@ interface BackendQuestionDto {
   language?: string;
   starterCode?: string;
   evaluationCriteria?: string;
+  testCases?: string;
 }
 
 interface CreateQuestionRequest {
@@ -78,6 +79,7 @@ interface CreateQuestionRequest {
   language: string;
   starterCode: string;
   evaluationCriteria: string;
+  testCases?: string;
 }
 
 const TEST_STATUSES: TestStatus[] = ["Active", "Draft", "Archived"];
@@ -170,7 +172,16 @@ function mapQuestion(dto: BackendQuestionDto): Question {
     language: dto.language,
     starterCode: dto.starterCode,
     evaluationCriteria: dto.evaluationCriteria,
+    testCases: dto.testCases ? tryParseJson(dto.testCases) : undefined,
   };
+}
+
+function tryParseJson<T>(value: string): T | undefined {
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return undefined;
+  }
 }
 
 function toCreateQuestionRequest(form: NewQuestionForm): CreateQuestionRequest {
@@ -209,6 +220,7 @@ function toCreateQuestionRequest(form: NewQuestionForm): CreateQuestionRequest {
     language: form.language,
     starterCode: form.starterCode,
     evaluationCriteria: form.evaluationCriteria,
+    testCases: form.testCases.length > 0 ? JSON.stringify(form.testCases) : undefined,
   };
 }
 

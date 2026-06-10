@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Mail, ShieldCheck, History, RotateCcw, Settings2, UserX, Clock3, Link2, Check, FileUp, Send, X, RefreshCw } from "lucide-react";
+import { Mail, ShieldCheck, History, RotateCcw, Settings2, UserX, Clock3, X, RefreshCw, ClipboardCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { InviteResultPopup } from "@/components/candidate-management/invite-result-popup";
 import { CsvImportReportPopup } from "@/components/candidate-management/csv-import-report-popup";
@@ -14,6 +15,7 @@ import { RetakeTab } from "@/components/candidate-management/tabs/retake-tab";
 import { AttemptLimitsTab } from "@/components/candidate-management/tabs/attempt-limits-tab";
 import { AnonymizeTab } from "@/components/candidate-management/tabs/anonymize-tab";
 import { RetentionTab } from "@/components/candidate-management/tabs/retention-tab";
+import { HumanReviewTab } from "@/components/candidate-management/tabs/human-review-tab";
 import type { CsvImportReport } from "@/services/models/csv_import_report_popup_model";
 import type { InviteResult } from "@/services/models/invite_result_popup_model";
 import type { InviteMethod } from "@/services/models/invite_tab_model";
@@ -30,6 +32,7 @@ import {
   applyCandidatePrivacyAction,
   regenerateCandidateLinkSecurityLink,
   resendInvitation,
+  deleteInvitation,
   saveCandidateAttemptSettings,
   saveCandidateLinkSecuritySettings,
   getCandidateRetentionState,
@@ -44,18 +47,12 @@ import {
   type CsvCandidateRow,
 } from "@/lib/candidate-management-utils";
 import type {
-  CandidateProgressTimeline,
-  CandidateTimelineCandidate,
-  CandidateInvitation,
   CandidateLinkPreview,
   CandidateLinkSecurityState,
-  CandidateManagementOverview,
   CandidatePrivacyActionType,
   CandidateRetentionSettings,
-  CandidateRetentionRun,
   GracePeriodUnit,
   LinkValidityUnit,
-  Test,
 } from "@/types";
 
 type CandidateTabKey =
@@ -66,7 +63,8 @@ type CandidateTabKey =
   | "retake"
   | "limits"
   | "anonymize"
-  | "retention";
+  | "retention"
+  | "review";
 
 interface TabConfig {
   key: CandidateTabKey;
@@ -75,7 +73,6 @@ interface TabConfig {
   description: string;
 }
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const TIMELINE_LIVE_REFRESH_MS = 5000;
 
 const TAB_CONFIG: TabConfig[] = [
@@ -127,6 +124,12 @@ const TAB_CONFIG: TabConfig[] = [
     icon: Clock3,
     description: "Auto-deletion policy and upcoming deletions",
   },
+  {
+    key: "review",
+    label: "Review Queue",
+    icon: ClipboardCheck,
+    description: "AI-graded responses that need manual verification",
+  },
 ];
 
 const TAB_SET = new Set<CandidateTabKey>(TAB_CONFIG.map((tab) => tab.key));
@@ -148,19 +151,18 @@ export function CandidateManagement() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const timelineNetworkOnline = useNetworkStatus();
-  const [overview, setOverview] = useState<CandidateManagementOverview | null>(null);
-  const [tests, setTests] = useState<Test[]>([]);
-  const [invitations, setInvitations] = useState<CandidateInvitation[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+
+  // ── UI / form state ──────────────────────────────────────────────────────────
   const [submitting, setSubmitting] = useState(false);
   const [resendSubmitting, setResendSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [resendError, setResendError] = useState<string | null>(null);
   const [resendSuccess, setResendSuccess] = useState<string | null>(null);
   const [resendSearch, setResendSearch] = useState("");
   const [resendStatusFilter, setResendStatusFilter] = useState<ResendStatusFilter>("all");
   const [resendTestFilter, setResendTestFilter] = useState("all");
-  const [resendModalItem, setResendModalItem] = useState<CandidateInvitation | null>(null);
+  const [resendModalItem, setResendModalItem] = useState<(typeof invitations)[number] | null>(null);
+  const [deleteSubmitting, setDeleteSubmitting] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
   const [inviteStep, setInviteStep] = useState<1 | 2 | 3>(1);
@@ -172,12 +174,13 @@ export function CandidateManagement() {
   const [timeLimitMinutes, setTimeLimitMinutes] = useState(60);
   const [customMessage, setCustomMessage] = useState("");
   const [sendNowNotification, setSendNowNotification] = useState(true);
-
   const [emailInput, setEmailInput] = useState("");
   const [emailChips, setEmailChips] = useState<string[]>([]);
   const [csvPreviewRows, setCsvPreviewRows] = useState<CsvCandidateRow[]>([]);
   const [inviteResultPopup, setInviteResultPopup] = useState<InviteResult | null>(null);
   const [csvImportReport, setCsvImportReport] = useState<CsvImportReport | null>(null);
+
+  // Link security form state (seeded from query, then user-editable)
   const [singleUseLinkEnabled, setSingleUseLinkEnabled] = useState(true);
   const [emailVerificationEnabled, setEmailVerificationEnabled] = useState(true);
   const [ipLockEnabled, setIpLockEnabled] = useState(false);
@@ -186,27 +189,23 @@ export function CandidateManagement() {
   const [linkValidForUnit, setLinkValidForUnit] = useState<LinkValidityUnit>("days");
   const [gracePeriodValue, setGracePeriodValue] = useState(30);
   const [gracePeriodUnit, setGracePeriodUnit] = useState<GracePeriodUnit>("minutes");
-  const [linkSecurityLoading, setLinkSecurityLoading] = useState(false);
   const [linkSecuritySaving, setLinkSecuritySaving] = useState(false);
   const [linkSecurityRegenerating, setLinkSecurityRegenerating] = useState(false);
-  const [linkSecurityError, setLinkSecurityError] = useState<string | null>(null);
+  const [linkSecurityMutationError, setLinkSecurityMutationError] = useState<string | null>(null);
   const [linkSecuritySuccess, setLinkSecuritySuccess] = useState<string | null>(null);
   const [linkPreview, setLinkPreview] = useState<CandidateLinkPreview | null>(null);
-  const [attemptSettingsLoading, setAttemptSettingsLoading] = useState(false);
+
+  // Attempt settings form state (seeded from query, then user-editable)
   const [attemptSettingsSaving, setAttemptSettingsSaving] = useState(false);
-  const [attemptSettingsError, setAttemptSettingsError] = useState<string | null>(null);
+  const [attemptSettingsMutationError, setAttemptSettingsMutationError] = useState<string | null>(null);
   const [attemptSettingsSuccess, setAttemptSettingsSuccess] = useState<string | null>(null);
   const [globalMaxAttempts, setGlobalMaxAttempts] = useState(0);
-  const [timelineCandidates, setTimelineCandidates] = useState<CandidateTimelineCandidate[]>([]);
-  const [timelineCandidatesForTestId, setTimelineCandidatesForTestId] = useState("");
-  const [timelineCandidatesLoading, setTimelineCandidatesLoading] = useState(false);
+
+  // Timeline UI state
   const [selectedTimelineCandidateEmail, setSelectedTimelineCandidateEmail] = useState("");
-  const [timelineData, setTimelineData] = useState<CandidateProgressTimeline | null>(null);
-  const [timelineLoading, setTimelineLoading] = useState(false);
   const [timelineLiveEnabled, setTimelineLiveEnabled] = useState(true);
-  const [timelineLiveSyncing, setTimelineLiveSyncing] = useState(false);
-  const [timelineLastUpdatedAtUtc, setTimelineLastUpdatedAtUtc] = useState<string | null>(null);
-  const [timelineError, setTimelineError] = useState<string | null>(null);
+
+  // Retake / privacy state
   const [grantRetakeSending, setGrantRetakeSending] = useState(false);
   const [grantRetakeError, setGrantRetakeError] = useState<string | null>(null);
   const [grantRetakeSuccess, setGrantRetakeSuccess] = useState<string | null>(null);
@@ -215,341 +214,168 @@ export function CandidateManagement() {
   const [privacySubmitting, setPrivacySubmitting] = useState(false);
   const [privacyError, setPrivacyError] = useState<string | null>(null);
   const [privacySuccess, setPrivacySuccess] = useState<string | null>(null);
-  const [retentionSettings, setRetentionSettings] = useState<CandidateRetentionSettings | null>(null);
-  const [retentionPendingCount, setRetentionPendingCount] = useState(0);
-  const [retentionRecentRuns, setRetentionRecentRuns] = useState<CandidateRetentionRun[]>([]);
-  const [retentionLoading, setRetentionLoading] = useState(false);
+
+  // Retention mutation state
   const [retentionSaving, setRetentionSaving] = useState(false);
   const [retentionRunning, setRetentionRunning] = useState(false);
   const [retentionSaveError, setRetentionSaveError] = useState<string | null>(null);
   const [retentionRunError, setRetentionRunError] = useState<string | null>(null);
   const [retentionRunSuccess, setRetentionRunSuccess] = useState<string | null>(null);
+
   const popupTimerRef = useRef<number | null>(null);
   const csvReportTimerRef = useRef<number | null>(null);
 
   const activeTab = parseTab(searchParams.get("tab"));
+  const timelineTabActive = activeTab === "timeline" || activeTab === "retake" || activeTab === "anonymize";
+
+  // ── Server state (React Query) ───────────────────────────────────────────────
+
+  const { data: overview, isLoading: loading, error: overviewQueryError } = useQuery({
+    queryKey: ["candidate-overview"],
+    queryFn: getCandidateManagementOverview,
+  });
+
+  const { data: tests = [] } = useQuery({
+    queryKey: ["tests"],
+    queryFn: () => getTests(),
+  });
+
+  const { data: invitations = [] } = useQuery({
+    queryKey: ["invitations"],
+    queryFn: () => getPendingInvitations(),
+    refetchInterval: activeTab === "resend" ? 15000 : false,
+    refetchOnWindowFocus: activeTab === "resend",
+  });
+
+  const {
+    data: linkSecurityData,
+    isLoading: linkSecurityLoading,
+    error: linkSecurityQueryError,
+  } = useQuery({
+    queryKey: ["link-security", selectedTestId],
+    queryFn: () => getCandidateLinkSecurityState(selectedTestId),
+    enabled: activeTab === "link-security" && !!selectedTestId,
+  });
+
+  const {
+    data: attemptSettingsData,
+    isLoading: attemptSettingsLoading,
+    error: attemptSettingsQueryError,
+  } = useQuery({
+    queryKey: ["attempt-settings"],
+    queryFn: getCandidateAttemptSettings,
+    enabled: activeTab === "limits",
+  });
+
+  const {
+    data: retentionData,
+    isLoading: retentionLoading,
+    error: retentionQueryError,
+  } = useQuery({
+    queryKey: ["retention"],
+    queryFn: getCandidateRetentionState,
+    enabled: activeTab === "retention",
+  });
+
+  const {
+    data: timelineCandidates = [],
+    isLoading: timelineCandidatesLoading,
+    error: timelineCandidatesQueryError,
+  } = useQuery({
+    queryKey: ["timeline-candidates", selectedTestId],
+    queryFn: () => getCandidateTimelineCandidates(selectedTestId),
+    enabled: timelineTabActive && !!selectedTestId,
+    refetchInterval:
+      activeTab === "timeline" && timelineLiveEnabled && timelineNetworkOnline
+        ? TIMELINE_LIVE_REFRESH_MS
+        : false,
+    refetchOnWindowFocus: activeTab === "timeline" && timelineLiveEnabled,
+  });
+
+  const timelineQuery = useQuery({
+    queryKey: ["timeline", selectedTestId, selectedTimelineCandidateEmail],
+    queryFn: () =>
+      getCandidateProgressTimeline(selectedTestId, selectedTimelineCandidateEmail),
+    enabled:
+      (activeTab === "timeline" || activeTab === "retake") &&
+      !!selectedTestId &&
+      !!selectedTimelineCandidateEmail &&
+      timelineCandidates.some((c) => c.candidateEmail === selectedTimelineCandidateEmail),
+    refetchInterval:
+      activeTab === "timeline" && timelineLiveEnabled && timelineNetworkOnline
+        ? TIMELINE_LIVE_REFRESH_MS
+        : false,
+    refetchOnWindowFocus: activeTab === "timeline" && timelineLiveEnabled,
+  });
+
+  // Derive timeline display values from query
+  const timelineData = timelineQuery.data ?? null;
+  const timelineLoading = timelineQuery.isLoading;
+  const timelineLiveSyncing = timelineQuery.isFetching && !timelineQuery.isLoading;
+  const timelineLastUpdatedAtUtc = timelineQuery.dataUpdatedAt
+    ? new Date(timelineQuery.dataUpdatedAt).toISOString()
+    : null;
+  const timelineError =
+    activeTab === "timeline" && timelineLiveEnabled && !timelineNetworkOnline
+      ? "Internet disconnected. Live updates will resume automatically when connection returns."
+      : (timelineCandidatesQueryError?.message ?? timelineQuery.error?.message ?? null);
+
+  // Derived error for the top-level banner
+  const error = overviewQueryError?.message ?? null;
+
+  // Derived link-security error (query fetch + mutation)
+  const linkSecurityError =
+    linkSecurityMutationError ?? linkSecurityQueryError?.message ?? null;
+
+  // Derived attempt-settings error (query fetch + mutation)
+  const attemptSettingsError =
+    attemptSettingsMutationError ?? attemptSettingsQueryError?.message ?? null;
+
+  // Derived retention save error (query fetch + mutation)
+  const retentionSaveErrorDisplay =
+    retentionSaveError ?? retentionQueryError?.message ?? null;
+
+  // ── Seeding & cleanup effects ────────────────────────────────────────────────
 
   useEffect(() => {
-    let isMounted = true;
-
-    async function loadOverview() {
-      setLoading(true);
-      setError(null);
-      try {
-        const [overviewData, testData, invitationData] = await Promise.all([
-          getCandidateManagementOverview(),
-          getTests(),
-          getPendingInvitations(),
-        ]);
-        if (!isMounted) return;
-        setOverview(overviewData);
-        setTests(testData);
-        setInvitations(invitationData);
-        if (!selectedTestId && testData.length > 0) {
-          setSelectedTestId(testData[0]?.id ?? "");
-        }
-      } catch (err) {
-        if (!isMounted) return;
-        setError(err instanceof Error ? err.message : "Failed to load candidate management overview.");
-      } finally {
-        if (!isMounted) return;
-        setLoading(false);
-      }
-    }
-
-    void loadOverview();
-
     return () => {
-      isMounted = false;
+      if (popupTimerRef.current !== null) window.clearTimeout(popupTimerRef.current);
+      if (csvReportTimerRef.current !== null) window.clearTimeout(csvReportTimerRef.current);
     };
   }, []);
 
+  // Auto-select first test when tests load
   useEffect(() => {
-    return () => {
-      if (popupTimerRef.current !== null) {
-        window.clearTimeout(popupTimerRef.current);
-      }
-      if (csvReportTimerRef.current !== null) {
-        window.clearTimeout(csvReportTimerRef.current);
-      }
-    };
-  }, []);
+    if (tests.length > 0 && !selectedTestId) {
+      setSelectedTestId(tests[0]?.id ?? "");
+    }
+  }, [tests, selectedTestId]);
 
+  // Seed link-security form from query data
   useEffect(() => {
-    if (activeTab !== "resend") {
+    if (linkSecurityData) applyLinkSecurityState(linkSecurityData);
+  // applyLinkSecurityState is defined below in the same scope and is stable
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linkSecurityData]);
+
+  // Seed attempt settings from query data
+  useEffect(() => {
+    if (attemptSettingsData) setGlobalMaxAttempts(attemptSettingsData.defaultMaxAttempts);
+  }, [attemptSettingsData]);
+
+  // Auto-select first timeline candidate when candidates load or test changes
+  useEffect(() => {
+    if (!timelineTabActive) return;
+    if (timelineCandidates.length === 0) {
+      setSelectedTimelineCandidateEmail("");
       return;
     }
-
-    let isMounted = true;
-
-    async function refreshResendInvitations() {
-      try {
-        const invitationData = await getPendingInvitations();
-        if (!isMounted) {
-          return;
-        }
-        setResendError(null);
-        setResendSuccess(null);
-
-        setInvitations(invitationData);
-      } catch (err) {
-        if (!isMounted) {
-          return;
-        }
-
-        setResendError(err instanceof Error ? err.message : "Failed to refresh invitations.");
-      }
-    }
-
-    void refreshResendInvitations();
-
-    const intervalId = window.setInterval(() => {
-      void refreshResendInvitations();
-    }, 15000);
-
-    function handleFocus() {
-      void refreshResendInvitations();
-    }
-
-    function handleVisibilityChange() {
-      if (document.visibilityState === "visible") {
-        void refreshResendInvitations();
-      }
-    }
-
-    window.addEventListener("focus", handleFocus);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    return () => {
-      isMounted = false;
-      window.clearInterval(intervalId);
-      window.removeEventListener("focus", handleFocus);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, [activeTab]);
-
-  useEffect(() => {
-    if (activeTab !== "link-security" || !selectedTestId) {
-      return;
-    }
-
-    let isMounted = true;
-
-    async function loadLinkSecurityState() {
-      setLinkSecurityLoading(true);
-      setLinkSecurityError(null);
-
-      try {
-        const state = await getCandidateLinkSecurityState(selectedTestId);
-        if (!isMounted) {
-          return;
-        }
-
-        applyLinkSecurityState(state);
-      } catch (err) {
-        if (!isMounted) {
-          return;
-        }
-
-        setLinkSecurityError(err instanceof Error ? err.message : "Failed to load link security settings.");
-      } finally {
-        if (!isMounted) {
-          return;
-        }
-
-        setLinkSecurityLoading(false);
-      }
-    }
-
-    void loadLinkSecurityState();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [activeTab, selectedTestId]);
-
-  useEffect(() => {
-    if (activeTab !== "limits") {
-      return;
-    }
-
-    let isMounted = true;
-
-    async function loadAttemptSettings() {
-      setAttemptSettingsLoading(true);
-      setAttemptSettingsError(null);
-
-      try {
-        const settings = await getCandidateAttemptSettings();
-        if (!isMounted) {
-          return;
-        }
-        setGlobalMaxAttempts(settings.defaultMaxAttempts);
-      } catch (err) {
-        if (!isMounted) {
-          return;
-        }
-        setAttemptSettingsError(err instanceof Error ? err.message : "Failed to load attempt settings.");
-      } finally {
-        if (!isMounted) {
-          return;
-        }
-        setAttemptSettingsLoading(false);
-      }
-    }
-
-    void loadAttemptSettings();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [activeTab]);
-
-  useEffect(() => {
-    if (activeTab !== "retention") {
-      return;
-    }
-
-    let isMounted = true;
-
-    async function loadRetentionState() {
-      setRetentionLoading(true);
-      setRetentionSaveError(null);
-      setRetentionRunError(null);
-      setRetentionRunSuccess(null);
-
-      try {
-        const state = await getCandidateRetentionState();
-        if (!isMounted) return;
-        setRetentionSettings(state.settings);
-        setRetentionPendingCount(state.pendingCount);
-        setRetentionRecentRuns(state.recentRuns);
-      } catch (err) {
-        if (!isMounted) return;
-        setRetentionSaveError(err instanceof Error ? err.message : "Failed to load retention settings.");
-      } finally {
-        if (!isMounted) return;
-        setRetentionLoading(false);
-      }
-    }
-
-    void loadRetentionState();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [activeTab]);
-
-  useEffect(() => {
-    if ((activeTab !== "timeline" && activeTab !== "retake" && activeTab !== "anonymize") || !selectedTestId) {
-      return;
-    }
-
-    setTimelineCandidates([]);
-    setTimelineCandidatesForTestId("");
-    setSelectedTimelineCandidateEmail("");
-    setTimelineData(null);
-
-    let isMounted = true;
-
-    async function loadTimelineCandidates() {
-      setTimelineCandidatesLoading(true);
-      setTimelineError(null);
-
-      try {
-        const candidates = await getCandidateTimelineCandidates(selectedTestId);
-        if (!isMounted) {
-          return;
-        }
-
-        setTimelineCandidates(candidates);
-        setTimelineCandidatesForTestId(selectedTestId);
-        setTimelineLastUpdatedAtUtc(new Date().toISOString());
-
-        if (candidates.length === 0) {
-          setSelectedTimelineCandidateEmail("");
-          setTimelineData(null);
-          return;
-        }
-
-        setSelectedTimelineCandidateEmail((prev) =>
-          candidates.some((item) => item.candidateEmail === prev)
-            ? prev
-            : candidates[0]?.candidateEmail ?? ""
-        );
-      } catch (err) {
-        if (!isMounted) {
-          return;
-        }
-
-        setTimelineError(err instanceof Error ? err.message : "Failed to load timeline candidates.");
-      } finally {
-        if (!isMounted) {
-          return;
-        }
-
-        setTimelineCandidatesLoading(false);
-      }
-    }
-
-    void loadTimelineCandidates();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [activeTab, selectedTestId]);
-
-  useEffect(() => {
-    if (
-      (activeTab !== "timeline" && activeTab !== "retake") ||
-      !selectedTestId ||
-      !selectedTimelineCandidateEmail ||
-      timelineCandidatesForTestId != selectedTestId
-    ) {
-      return;
-    }
-
-    let isMounted = true;
-
-    async function loadTimeline() {
-      setTimelineLoading(true);
-      setTimelineError(null);
-
-      try {
-        const data = await getCandidateProgressTimeline(selectedTestId, selectedTimelineCandidateEmail);
-        if (!isMounted) {
-          return;
-        }
-
-        setTimelineData(data);
-        setTimelineLastUpdatedAtUtc(new Date().toISOString());
-      } catch (err) {
-        if (!isMounted) {
-          return;
-        }
-
-        setTimelineData(null);
-        setTimelineError(err instanceof Error ? err.message : "Failed to load candidate timeline.");
-      } finally {
-        if (!isMounted) {
-          return;
-        }
-
-        setTimelineLoading(false);
-      }
-    }
-
-    void loadTimeline();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [
-    activeTab,
-    selectedTestId,
-    selectedTimelineCandidateEmail,
-    timelineCandidatesForTestId,
-  ]);
+    setSelectedTimelineCandidateEmail((prev) =>
+      timelineCandidates.some((c) => c.candidateEmail === prev)
+        ? prev
+        : timelineCandidates[0]?.candidateEmail ?? ""
+    );
+  }, [timelineCandidates, timelineTabActive]);
 
   useEffect(() => {
     setGrantRetakeError(null);
@@ -557,171 +383,18 @@ export function CandidateManagement() {
   }, [selectedTestId, selectedTimelineCandidateEmail]);
 
   useEffect(() => {
-    if (activeTab !== "anonymize") {
-      return;
-    }
-
+    if (activeTab !== "anonymize") return;
     setPrivacyError(null);
     setPrivacySuccess(null);
   }, [activeTab, selectedTestId, selectedTimelineCandidateEmail, privacyAction, privacyAdminId]);
 
   useEffect(() => {
-    if (activeTab !== "limits") {
-      return;
-    }
-
-    setAttemptSettingsError(null);
+    if (activeTab !== "limits") return;
+    setAttemptSettingsMutationError(null);
     setAttemptSettingsSuccess(null);
   }, [activeTab, globalMaxAttempts]);
 
-  useEffect(() => {
-    if (
-      activeTab !== "timeline" ||
-      !selectedTestId ||
-      !timelineLiveEnabled ||
-      timelineCandidatesLoading ||
-      timelineLoading
-    ) {
-      return;
-    }
-
-    let isMounted = true;
-    let refreshInFlight = false;
-    let offlineMessageShown = false;
-
-    function isOffline(): boolean {
-      return typeof navigator !== "undefined" && !navigator.onLine;
-    }
-
-    async function refreshTimelineLive() {
-      if (refreshInFlight) {
-        return;
-      }
-
-      if (isOffline()) {
-        if (isMounted && !offlineMessageShown) {
-          setTimelineError("Internet disconnected. Live updates will resume automatically when connection returns.");
-          setTimelineLiveSyncing(false);
-        }
-        offlineMessageShown = true;
-        return;
-      }
-
-      offlineMessageShown = false;
-
-      refreshInFlight = true;
-      if (isMounted) {
-        setTimelineLiveSyncing(true);
-      }
-
-      try {
-        const candidates = await getCandidateTimelineCandidates(selectedTestId);
-        if (!isMounted) {
-          return;
-        }
-
-        setTimelineCandidates(candidates);
-        setTimelineCandidatesForTestId(selectedTestId);
-
-        if (candidates.length === 0) {
-          setSelectedTimelineCandidateEmail("");
-          setTimelineData(null);
-          setTimelineError(null);
-          setTimelineLastUpdatedAtUtc(new Date().toISOString());
-          return;
-        }
-
-        const nextCandidateEmail = candidates.some((item) => item.candidateEmail === selectedTimelineCandidateEmail)
-          ? selectedTimelineCandidateEmail
-          : candidates[0]?.candidateEmail ?? "";
-
-        if (!nextCandidateEmail) {
-          setTimelineLastUpdatedAtUtc(new Date().toISOString());
-          return;
-        }
-
-        if (nextCandidateEmail !== selectedTimelineCandidateEmail) {
-          setSelectedTimelineCandidateEmail(nextCandidateEmail);
-        }
-
-        const data = await getCandidateProgressTimeline(selectedTestId, nextCandidateEmail);
-        if (!isMounted) {
-          return;
-        }
-
-        setTimelineData(data);
-        setTimelineError(null);
-        setTimelineLastUpdatedAtUtc(new Date().toISOString());
-      } catch (err) {
-        if (!isMounted) {
-          return;
-        }
-
-        const offlineNow = isOffline();
-        if (offlineNow) {
-          offlineMessageShown = true;
-          setTimelineError("Internet disconnected. Live updates will resume automatically when connection returns.");
-        } else {
-          setTimelineError(err instanceof Error ? err.message : "Failed to refresh candidate timeline.");
-        }
-      } finally {
-        refreshInFlight = false;
-        if (isMounted) {
-          setTimelineLiveSyncing(false);
-        }
-      }
-    }
-
-    const intervalId = window.setInterval(() => {
-      if (document.visibilityState === "visible") {
-        void refreshTimelineLive();
-      }
-    }, TIMELINE_LIVE_REFRESH_MS);
-
-    function handleFocus() {
-      void refreshTimelineLive();
-    }
-
-    function handleVisibilityChange() {
-      if (document.visibilityState === "visible") {
-        void refreshTimelineLive();
-      }
-    }
-
-    function handleOnline() {
-      offlineMessageShown = false;
-      void refreshTimelineLive();
-    }
-
-    function handleOffline() {
-      offlineMessageShown = true;
-      if (isMounted) {
-        setTimelineError("Internet disconnected. Live updates will resume automatically when connection returns.");
-        setTimelineLiveSyncing(false);
-      }
-    }
-
-    window.addEventListener("focus", handleFocus);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
-
-    return () => {
-      isMounted = false;
-      window.clearInterval(intervalId);
-      window.removeEventListener("focus", handleFocus);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-    };
-  }, [
-    activeTab,
-    selectedTestId,
-    selectedTimelineCandidateEmail,
-    timelineCandidatesLoading,
-    timelineLoading,
-    timelineLiveEnabled,
-  ]);
+  // ── Memos ────────────────────────────────────────────────────────────────────
 
   const activeConfig = useMemo(
     () => TAB_CONFIG.find((tab) => tab.key === activeTab) ?? DEFAULT_TAB_CONFIG,
@@ -744,6 +417,8 @@ export function CandidateManagement() {
     [selectedTestId, tests]
   );
 
+  // ── Helpers ──────────────────────────────────────────────────────────────────
+
   function applyLinkSecurityState(state: CandidateLinkSecurityState): void {
     setSingleUseLinkEnabled(state.settings.singleUseLinkEnabled);
     setEmailVerificationEnabled(state.settings.emailVerificationEnabled);
@@ -757,15 +432,9 @@ export function CandidateManagement() {
   }
 
   function formatUtcForCard(value?: string): string {
-    if (!value) {
-      return "Not generated";
-    }
-
+    if (!value) return "Not generated";
     const parsed = new Date(value);
-    if (Number.isNaN(parsed.getTime())) {
-      return value;
-    }
-
+    if (Number.isNaN(parsed.getTime())) return value;
     return parsed.toLocaleString("en-US", {
       month: "short",
       day: "2-digit",
@@ -775,9 +444,11 @@ export function CandidateManagement() {
     });
   }
 
+  // ── Mutation handlers ────────────────────────────────────────────────────────
+
   async function handleSaveAttemptSettings(): Promise<void> {
     setAttemptSettingsSaving(true);
-    setAttemptSettingsError(null);
+    setAttemptSettingsMutationError(null);
     setAttemptSettingsSuccess(null);
 
     try {
@@ -785,9 +456,12 @@ export function CandidateManagement() {
         defaultMaxAttempts: globalMaxAttempts,
       });
       setGlobalMaxAttempts(saved.defaultMaxAttempts);
+      void queryClient.invalidateQueries({ queryKey: ["attempt-settings"] });
       setAttemptSettingsSuccess("Attempt policy saved.");
     } catch (err) {
-      setAttemptSettingsError(err instanceof Error ? err.message : "Failed to save attempt settings.");
+      setAttemptSettingsMutationError(
+        err instanceof Error ? err.message : "Failed to save attempt settings."
+      );
     } finally {
       setAttemptSettingsSaving(false);
     }
@@ -845,9 +519,7 @@ export function CandidateManagement() {
 
   function showInviteResultPopup(status: "success" | "error", message: string): void {
     setInviteResultPopup({ status, message });
-    if (popupTimerRef.current !== null) {
-      window.clearTimeout(popupTimerRef.current);
-    }
+    if (popupTimerRef.current !== null) window.clearTimeout(popupTimerRef.current);
     popupTimerRef.current = window.setTimeout(() => {
       setInviteResultPopup(null);
       resetInviteWizard();
@@ -856,9 +528,7 @@ export function CandidateManagement() {
 
   function showCsvImportReport(report: CsvImportReport): void {
     setCsvImportReport(report);
-    if (csvReportTimerRef.current !== null) {
-      window.clearTimeout(csvReportTimerRef.current);
-    }
+    if (csvReportTimerRef.current !== null) window.clearTimeout(csvReportTimerRef.current);
     csvReportTimerRef.current = window.setTimeout(() => {
       setCsvImportReport(null);
     }, 3200);
@@ -877,10 +547,7 @@ export function CandidateManagement() {
         ? emails
             .map((email) => {
               const normalizedName = csvNameByEmail.get(email.toLowerCase())?.trim() || "";
-              return {
-                email,
-                candidateName: normalizedName || undefined,
-              };
+              return { email, candidateName: normalizedName || undefined };
             })
             .filter((entry) => Boolean(entry.candidateName))
         : undefined;
@@ -903,7 +570,9 @@ export function CandidateManagement() {
         candidateEntries,
         inviteMethod,
         candidateName: candidateName.trim() || undefined,
-        deadlineUtc: deadlineDate ? new Date(`${deadlineDate}T23:59:59.000Z`).toISOString() : undefined,
+        deadlineUtc: deadlineDate
+          ? new Date(`${deadlineDate}T23:59:59.000Z`).toISOString()
+          : undefined,
         linkExpiryHours: linkExpiryHours > 0 ? linkExpiryHours : undefined,
         timeLimitMinutes: timeLimitMinutes > 0 ? timeLimitMinutes : undefined,
         customMessage: customMessage.trim() || undefined,
@@ -915,6 +584,10 @@ export function CandidateManagement() {
 
       setEmailChips([]);
       setEmailInput("");
+
+      void queryClient.invalidateQueries({ queryKey: ["invitations"] });
+      void queryClient.invalidateQueries({ queryKey: ["candidate-overview"] });
+
       if (failedCount === 0) {
         setInviteSuccess(`${deliveredCount} invitation(s) sent.`);
         showInviteResultPopup("success", `${deliveredCount} invitation(s) sent successfully.`);
@@ -928,16 +601,6 @@ export function CandidateManagement() {
         setInviteError(`${failedCount} invitation(s) failed delivery. Check SMTP configuration or use the Resend tab.`);
         showInviteResultPopup("error", partialMessage);
       }
-      setInvitations((prev) => [...created, ...prev]);
-      setOverview((prev) =>
-        prev
-          ? {
-              ...prev,
-              pendingInvitations: prev.pendingInvitations + created.length,
-              generatedAtUtc: new Date().toISOString(),
-            }
-          : prev
-      );
     } catch (err) {
       const failureMessage = err instanceof Error ? err.message : "Failed to send invitations.";
       setInviteError(failureMessage);
@@ -948,25 +611,16 @@ export function CandidateManagement() {
   }
 
   function canProceedFromStep(step: 1 | 2): boolean {
-    if (step === 1) {
-      return Boolean(inviteMethod);
-    }
-
+    if (step === 1) return Boolean(inviteMethod);
     return recipients.length > 0;
   }
 
   function goNextStep(): void {
     setInviteError(null);
-    if (inviteStep === 1) {
-      setInviteStep(2);
-      return;
-    }
-
+    if (inviteStep === 1) { setInviteStep(2); return; }
     if (inviteStep === 2) {
       if (!canProceedFromStep(2)) {
-        setInviteError(
-          "Add at least one valid candidate email before continuing."
-        );
+        setInviteError("Add at least one valid candidate email before continuing.");
         return;
       }
       setInviteStep(3);
@@ -998,11 +652,7 @@ export function CandidateManagement() {
     const importedCount = merged.length - emailChips.length;
     const duplicateCount = parsed.duplicateCount + (parsed.emails.length - importedCount);
 
-    showCsvImportReport({
-      importedCount,
-      duplicateCount,
-      invalidCount: parsed.invalidCount,
-    });
+    showCsvImportReport({ importedCount, duplicateCount, invalidCount: parsed.invalidCount });
 
     if (parsed.emails.length === 0) {
       setInviteError("No valid emails found in CSV.");
@@ -1013,26 +663,16 @@ export function CandidateManagement() {
     setEmailChips(merged);
     setCsvPreviewRows((prev) => {
       const next = new Map<string, CsvCandidateRow>();
-
-      for (const item of prev) {
-        next.set(item.email, item);
-      }
-
+      for (const item of prev) next.set(item.email, item);
       for (const item of parsed.rows) {
         const existing = next.get(item.email);
-        if (!existing) {
-          next.set(item.email, item);
-          continue;
-        }
-
-        if (!existing.name && item.name) {
-          next.set(item.email, item);
-        }
+        if (!existing) { next.set(item.email, item); continue; }
+        if (!existing.name && item.name) next.set(item.email, item);
       }
-
       return Array.from(next.values());
     });
     setInviteError(null);
+
     if (importedCount === 0) {
       setInviteSuccess("No new emails were added. All valid emails are already in the list.");
       return;
@@ -1053,27 +693,22 @@ export function CandidateManagement() {
 
   const filteredResendInvitations = useMemo(() => {
     const keyword = resendSearch.trim().toLowerCase();
-
     return invitations.filter((item) => {
       const matchesKeyword =
         keyword.length === 0 ||
         item.email.toLowerCase().includes(keyword) ||
         (item.candidateName ?? "").toLowerCase().includes(keyword) ||
         item.testTitle.toLowerCase().includes(keyword);
-
       const matchesStatus = resendStatusFilter === "all" || item.status === resendStatusFilter;
       const matchesTest = resendTestFilter === "all" || item.testId === resendTestFilter;
-
       return matchesKeyword && matchesStatus && matchesTest;
     });
   }, [invitations, resendSearch, resendStatusFilter, resendTestFilter]);
 
-  function initialsFromInvitation(item: CandidateInvitation): string {
+  function initialsFromInvitation(item: (typeof invitations)[number]): string {
     const label = item.candidateName?.trim() || item.email;
     const parts = label.split(/\s+/).filter(Boolean);
-    if (parts.length >= 2) {
-      return `${parts[0]?.[0] ?? ""}${parts[1]?.[0] ?? ""}`.toUpperCase();
-    }
+    if (parts.length >= 2) return `${parts[0]?.[0] ?? ""}${parts[1]?.[0] ?? ""}`.toUpperCase();
     return (label.slice(0, 2) || "NA").toUpperCase();
   }
 
@@ -1085,11 +720,13 @@ export function CandidateManagement() {
     setResendSuccess(null);
     try {
       const updated = await resendInvitation(resendModalItem.id);
-      setInvitations((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+      void queryClient.invalidateQueries({ queryKey: ["invitations"] });
       if (updated.status === "Invited") {
         setResendSuccess(`Invitation resent to ${updated.email}.`);
       } else {
-        setResendError(`Resend attempted for ${updated.email}, but delivery failed. Check SMTP configuration.`);
+        setResendError(
+          `Resend attempted for ${updated.email}, but delivery failed. Check SMTP configuration.`
+        );
       }
       setResendModalItem(null);
     } catch (err) {
@@ -1099,14 +736,29 @@ export function CandidateManagement() {
     }
   }
 
+  async function handleDeleteCandidate(invitationId: string): Promise<void> {
+    setDeleteSubmitting(true);
+    setResendError(null);
+    setResendSuccess(null);
+    try {
+      await deleteInvitation(invitationId);
+      void queryClient.invalidateQueries({ queryKey: ["invitations"] });
+      setResendSuccess("Candidate invitation deleted successfully.");
+    } catch (err) {
+      setResendError(err instanceof Error ? err.message : "Failed to delete candidate invitation.");
+    } finally {
+      setDeleteSubmitting(false);
+    }
+  }
+
   async function handleSaveLinkSecuritySettings(): Promise<void> {
     if (!selectedTestId) {
-      setLinkSecurityError("Select a test before saving link security settings.");
+      setLinkSecurityMutationError("Select a test before saving link security settings.");
       return;
     }
 
     setLinkSecuritySaving(true);
-    setLinkSecurityError(null);
+    setLinkSecurityMutationError(null);
     setLinkSecuritySuccess(null);
 
     try {
@@ -1121,11 +773,13 @@ export function CandidateManagement() {
         gracePeriodValue,
         gracePeriodUnit,
       });
-
       applyLinkSecurityState(state);
+      void queryClient.invalidateQueries({ queryKey: ["link-security", selectedTestId] });
       setLinkSecuritySuccess("Link security settings saved.");
     } catch (err) {
-      setLinkSecurityError(err instanceof Error ? err.message : "Failed to save link security settings.");
+      setLinkSecurityMutationError(
+        err instanceof Error ? err.message : "Failed to save link security settings."
+      );
     } finally {
       setLinkSecuritySaving(false);
     }
@@ -1133,20 +787,23 @@ export function CandidateManagement() {
 
   async function handleRegenerateLinkSecurity(): Promise<void> {
     if (!selectedTestId) {
-      setLinkSecurityError("Select a test before regenerating a link.");
+      setLinkSecurityMutationError("Select a test before regenerating a link.");
       return;
     }
 
     setLinkSecurityRegenerating(true);
-    setLinkSecurityError(null);
+    setLinkSecurityMutationError(null);
     setLinkSecuritySuccess(null);
 
     try {
       const state = await regenerateCandidateLinkSecurityLink(selectedTestId);
       applyLinkSecurityState(state);
+      void queryClient.invalidateQueries({ queryKey: ["link-security", selectedTestId] });
       setLinkSecuritySuccess("Invite link regenerated.");
     } catch (err) {
-      setLinkSecurityError(err instanceof Error ? err.message : "Failed to regenerate invite link.");
+      setLinkSecurityMutationError(
+        err instanceof Error ? err.message : "Failed to regenerate invite link."
+      );
     } finally {
       setLinkSecurityRegenerating(false);
     }
@@ -1155,11 +812,11 @@ export function CandidateManagement() {
   async function handleCopyLinkSecurityPreview(): Promise<void> {
     const inviteLink = linkPreview?.inviteLink;
     if (!inviteLink) {
-      setLinkSecurityError("No active invitation link is available to copy.");
+      setLinkSecurityMutationError("No active invitation link is available to copy.");
       return;
     }
 
-    setLinkSecurityError(null);
+    setLinkSecurityMutationError(null);
 
     try {
       if (navigator.clipboard?.writeText) {
@@ -1175,10 +832,9 @@ export function CandidateManagement() {
         document.execCommand("copy");
         document.body.removeChild(tempInput);
       }
-
       setLinkSecuritySuccess("Invite link copied to clipboard.");
     } catch {
-      setLinkSecurityError("Failed to copy invite link. Please copy it manually.");
+      setLinkSecurityMutationError("Failed to copy invite link. Please copy it manually.");
     }
   }
 
@@ -1187,7 +843,6 @@ export function CandidateManagement() {
       setGrantRetakeError("Select a test before granting a retake.");
       return;
     }
-
     if (!selectedTimelineCandidateEmail) {
       setGrantRetakeError("Select a candidate before granting a retake.");
       return;
@@ -1202,18 +857,10 @@ export function CandidateManagement() {
         testId: selectedTestId,
         candidateEmail: selectedTimelineCandidateEmail,
       });
-
-      const [candidates, timeline] = await Promise.all([
-        getCandidateTimelineCandidates(selectedTestId),
-        getCandidateProgressTimeline(selectedTestId, selectedTimelineCandidateEmail),
-      ]);
-
-      setTimelineCandidates(candidates);
-      setTimelineCandidatesForTestId(selectedTestId);
-      setTimelineData(timeline);
-      setTimelineLastUpdatedAtUtc(new Date().toISOString());
-      setTimelineError(null);
-
+      void queryClient.invalidateQueries({ queryKey: ["timeline-candidates", selectedTestId] });
+      void queryClient.invalidateQueries({
+        queryKey: ["timeline", selectedTestId, selectedTimelineCandidateEmail],
+      });
       setGrantRetakeSuccess(
         `Granted attempt ${result.attemptNumber} for ${result.candidateEmail}. Email delivery was triggered.`
       );
@@ -1229,7 +876,6 @@ export function CandidateManagement() {
       setPrivacyError("Select a test before applying a privacy action.");
       return;
     }
-
     if (!selectedTimelineCandidateEmail) {
       setPrivacyError("Select a candidate before applying a privacy action.");
       return;
@@ -1254,18 +900,11 @@ export function CandidateManagement() {
         triggerSource: "UI",
       });
 
-      const candidates = await getCandidateTimelineCandidates(selectedTestId);
-      setTimelineCandidates(candidates);
-      setTimelineCandidatesForTestId(selectedTestId);
-      setTimelineData(null);
-      setTimelineLastUpdatedAtUtc(new Date().toISOString());
-
-      const nextCandidateEmail = candidates.some(
-        (item) => item.candidateEmail === result.candidateAliasEmail
-      )
-        ? result.candidateAliasEmail
-        : candidates[0]?.candidateEmail ?? "";
-      setSelectedTimelineCandidateEmail(nextCandidateEmail);
+      void queryClient.invalidateQueries({ queryKey: ["timeline-candidates", selectedTestId] });
+      void queryClient.invalidateQueries({
+        queryKey: ["timeline", selectedTestId, selectedTimelineCandidateEmail],
+      });
+      setSelectedTimelineCandidateEmail(result.candidateAliasEmail || "");
 
       const actionLabel = privacyAction === "anonymize" ? "Anonymized" : "PII deleted";
       setPrivacySuccess(`${actionLabel} for ${result.candidateAliasEmail}.`);
@@ -1281,15 +920,17 @@ export function CandidateManagement() {
     setRetentionSaveError(null);
 
     try {
-      const saved = await saveCandidateRetentionSettings({
+      await saveCandidateRetentionSettings({
         enabled: settings.enabled,
         retentionAction: settings.retentionAction,
         retentionPeriodDays: settings.retentionPeriodDays,
         scanIntervalHours: settings.scanIntervalHours,
       });
-      setRetentionSettings(saved);
+      void queryClient.invalidateQueries({ queryKey: ["retention"] });
     } catch (err) {
-      setRetentionSaveError(err instanceof Error ? err.message : "Failed to save retention settings.");
+      setRetentionSaveError(
+        err instanceof Error ? err.message : "Failed to save retention settings."
+      );
     } finally {
       setRetentionSaving(false);
     }
@@ -1302,19 +943,18 @@ export function CandidateManagement() {
 
     try {
       const run = await runCandidateRetention({ triggeredBy });
-      setRetentionRecentRuns((prev) => [run, ...prev].slice(0, 20));
+      void queryClient.invalidateQueries({ queryKey: ["retention"] });
       setRetentionRunSuccess(
         `Sweep complete — scanned ${run.candidatesScanned}, processed ${run.candidatesProcessed}.`
       );
-      const state = await getCandidateRetentionState();
-      setRetentionPendingCount(state.pendingCount);
-      setRetentionSettings(state.settings);
     } catch (err) {
       setRetentionRunError(err instanceof Error ? err.message : "Failed to run retention sweep.");
     } finally {
       setRetentionRunning(false);
     }
   }
+
+  // ── Render ───────────────────────────────────────────────────────────────────
 
   return (
     <div className="min-h-screen bg-zinc-50/70">
@@ -1337,11 +977,11 @@ export function CandidateManagement() {
                   {overview.pendingInvitations}
                 </p>
               </div>
-              {retentionPendingCount > 0 ? (
+              {(retentionData?.pendingCount ?? 0) > 0 ? (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2 text-center">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-amber-500">Retention Due</p>
                   <p className="text-[20px] font-bold leading-none text-amber-700 mt-0.5">
-                    {retentionPendingCount}
+                    {retentionData?.pendingCount}
                   </p>
                 </div>
               ) : null}
@@ -1463,6 +1103,8 @@ export function CandidateManagement() {
                 resendModalItem={resendModalItem}
                 resendSubmitting={resendSubmitting}
                 onConfirmResend={handleConfirmResend}
+                onDeleteCandidate={handleDeleteCandidate}
+                deleteSubmitting={deleteSubmitting}
               />
             ) : activeTab === "link-security" ? (
               <LinkSecurityTab
@@ -1565,18 +1207,20 @@ export function CandidateManagement() {
               />
             ) : activeTab === "retention" ? (
               <RetentionTab
-                settings={retentionSettings}
-                pendingCount={retentionPendingCount}
-                recentRuns={retentionRecentRuns}
+                settings={retentionData?.settings ?? null}
+                pendingCount={retentionData?.pendingCount ?? 0}
+                recentRuns={retentionData?.recentRuns ?? []}
                 loading={retentionLoading}
                 saving={retentionSaving}
                 running={retentionRunning}
-                saveError={retentionSaveError}
+                saveError={retentionSaveErrorDisplay}
                 runError={retentionRunError}
                 runSuccess={retentionRunSuccess}
                 onSaveSettings={handleSaveRetentionSettings}
                 onRunNow={handleRunRetention}
               />
+            ) : activeTab === "review" ? (
+              <HumanReviewTab />
             ) : null}
 
             {loading ? (
@@ -1598,5 +1242,3 @@ export function CandidateManagement() {
     </div>
   );
 }
-
-

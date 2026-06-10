@@ -1,3 +1,4 @@
+using EY.HRPlatform.Interview.Domain.Enums;
 using EY.HRPlatform.SharedKernel.Domain;
 
 namespace EY.HRPlatform.Interview.Domain.Entities;
@@ -13,6 +14,9 @@ public class CandidateTestAttempt : AggregateRoot
     public DateTime? SubmittedAtUtc { get; set; }
     public string AnswersJson { get; set; } = "[]";
     public string ResultJson { get; set; } = "{}";
+    public GradingStatus GradingStatus { get; set; } = GradingStatus.Pending;
+    public decimal? TotalScore { get; set; }
+    public decimal? MaxScore { get; set; }
 
     public CandidateInvitation Invitation { get; set; } = null!;
     public Test? Test { get; set; }

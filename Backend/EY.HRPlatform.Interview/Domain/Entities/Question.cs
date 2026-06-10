@@ -17,6 +17,7 @@ public class Question : AggregateRoot
     public string? Language { get; set; }
     public string? StarterCode { get; set; }
     public string? EvaluationCriteria { get; set; }
+    public string? TestCases { get; set; }
     //public DateTime CreatedAt { get; protected set; }
     //public DateTime UpdatedAt { get; protected set; }
     public ICollection<QuestionOption> Options { get; set; } = new List<QuestionOption>();

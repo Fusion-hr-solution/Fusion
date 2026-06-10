@@ -1,4 +1,4 @@
-import { Check, Clock3 } from "lucide-react";
+import { Check, Clock3, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DropdownSelect } from "@/components/candidate-management/dropdown-select";
 import type { TimelineTabProps } from "@/services/models/timeline_tab_model";
@@ -244,20 +244,38 @@ export function TimelineTab({
             >
               <div className="flex items-center justify-between gap-2 border-b border-zinc-100 pb-3">
                 <p className="text-[14px] font-semibold text-zinc-900">Attempt {attempt.attemptNumber}</p>
-                <span
-                  className={cn(
-                    "rounded-full px-2.5 py-0.5 text-[11px] font-semibold",
-                    attempt.status === "Submitted"
-                      ? "bg-emerald-100 text-emerald-700"
-                      : attempt.status === "PendingStart"
-                        ? "bg-sky-100 text-sky-700"
-                      : attempt.status === "InProgress"
-                        ? "bg-amber-100 text-amber-700"
-                        : "bg-zinc-100 text-zinc-600"
+                <div className="flex items-center gap-2">
+                  {attempt.status === "Submitted" && (
+                    attempt.gradingStatus === "Completed" && attempt.totalScore !== undefined && attempt.maxScore !== undefined ? (
+                      <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-[11px] font-semibold text-blue-700">
+                        {attempt.totalScore} / {attempt.maxScore} pts
+                      </span>
+                    ) : attempt.gradingStatus === "Failed" ? (
+                      <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-[11px] font-semibold text-red-600">
+                        Grading failed
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2.5 py-0.5 text-[11px] font-semibold text-zinc-500">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        Grading...
+                      </span>
+                    )
                   )}
-                >
-                  {attempt.status}
-                </span>
+                  <span
+                    className={cn(
+                      "rounded-full px-2.5 py-0.5 text-[11px] font-semibold",
+                      attempt.status === "Submitted"
+                        ? "bg-emerald-100 text-emerald-700"
+                        : attempt.status === "PendingStart"
+                          ? "bg-sky-100 text-sky-700"
+                        : attempt.status === "InProgress"
+                          ? "bg-amber-100 text-amber-700"
+                          : "bg-zinc-100 text-zinc-600"
+                    )}
+                  >
+                    {attempt.status}
+                  </span>
+                </div>
               </div>
 
               <ol className="mt-4 space-y-3">
