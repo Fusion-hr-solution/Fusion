@@ -30,4 +30,5 @@ public class CreateQuestionDto
     public string Language { get; set; } = string.Empty;
     public string StarterCode { get; set; } = string.Empty;
     public string EvaluationCriteria { get; set; } = string.Empty;
+    public string? TestCases { get; set; }
 }

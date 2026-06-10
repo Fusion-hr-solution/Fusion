@@ -141,4 +141,25 @@ public class SessionEnrollmentsController : ControllerBase
 
         return Ok(ApiResponse<List<MyEnrollmentSummaryDto>>.Success(result.Value));
     }
+
+    /// <summary>Scan a session QR code to mark the current employee's attendance.</summary>
+    [HttpPost("scan-qr")]
+    [ProducesResponseType(typeof(ApiResponse<ScanQrResultDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> ScanQr([FromBody] ScanQrAttendanceRequest request, CancellationToken cancellationToken)
+    {
+        var employeeId = User.GetUserId();
+        var result = await _sender.Send(
+            new ScanQrAttendanceCommand(employeeId, request.QrPayload), cancellationToken);
+
+        if (result.IsFailure)
+        {
+            if (result.Error.Code == "Enrollment.AlreadyAttended")
+                return Conflict(ApiResponse.Failure(result.Error.Message));
+            return BadRequest(ApiResponse.Failure(result.Error.Message));
+        }
+
+        return Ok(ApiResponse<ScanQrResultDto>.Success(result.Value!));
+    }
 }

@@ -8,4 +8,5 @@ public interface ICandidateInvitationService
     Task<IReadOnlyList<CandidateInvitationDto>> CreateBulkAsync(CreateBulkCandidateInvitationsDto request, CancellationToken cancellationToken);
     Task<IReadOnlyList<CandidateInvitationDto>> GetPendingAsync(string? testId, CancellationToken cancellationToken);
     Task<CandidateInvitationDto> ResendAsync(string invitationId, CancellationToken cancellationToken);
+    Task DeleteAsync(string invitationId, CancellationToken cancellationToken);
 }

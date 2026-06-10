@@ -6,3 +6,5 @@ export { SessionListTable } from "./session-list-table";
 export { PartsManagerSection } from "./parts-manager-section";
 export { SessionDetailView } from "./session-detail-view";
 export { SessionsPage } from "./sessions-page";
+export { SessionQrCard } from "./session-qr-card";
+export { SessionQrFullscreenDialog } from "./session-qr-fullscreen-dialog";

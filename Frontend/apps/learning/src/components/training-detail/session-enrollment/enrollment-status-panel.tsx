@@ -9,6 +9,9 @@ export function EnrollmentStatusPanel({
   enrollments,
   onCancelSession,
   isCancelling,
+  availableParts,
+  selections,
+  onSelectSession,
 }: EnrollmentStatusPanelProps) {
   const progressPct =
     enrollments.totalParts > 0
@@ -45,14 +48,29 @@ export function EnrollmentStatusPanel({
 
       {/* Part-by-part rows */}
       <div className="space-y-2">
-        {enrollments.parts.map((part) => (
-          <EnrollmentPartRow
-            key={part.partId}
-            part={part}
-            onCancel={onCancelSession}
-            isCancelling={isCancelling}
-          />
-        ))}
+        {enrollments.parts.map((part) => {
+          const partSessions = availableParts?.find((p) => p.partId === part.partId);
+          const isAbsent = part.enrollmentStatus === "Enrolled"
+            && part.sessionEndUtc
+            && new Date(part.sessionEndUtc) < new Date()
+            && !part.isAttended;
+          const showPicker = part.enrollmentStatus === "NotEnrolled" || isAbsent;
+          return (
+            <EnrollmentPartRow
+              key={part.partId}
+              part={part}
+              onCancel={onCancelSession}
+              isCancelling={isCancelling}
+              availableSessions={showPicker ? partSessions?.sessions : undefined}
+              selectedSessionId={selections?.[part.partId] ?? null}
+              onSelectSession={
+                showPicker && onSelectSession
+                  ? (sessionId) => onSelectSession(part.partId, sessionId)
+                  : undefined
+              }
+            />
+          );
+        })}
       </div>
     </div>
   );

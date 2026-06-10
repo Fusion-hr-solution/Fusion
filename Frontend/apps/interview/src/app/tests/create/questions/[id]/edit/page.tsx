@@ -28,6 +28,7 @@ function toForm(question: Question): NewQuestionForm {
     language: question.language || (question.type === "SQL" ? "SQL" : "Python"),
     starterCode: question.starterCode ?? "",
     evaluationCriteria: question.evaluationCriteria ?? "",
+    testCases: question.testCases ?? [],
   };
 }
 

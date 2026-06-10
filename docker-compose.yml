@@ -1,4 +1,13 @@
 services:
+  # ─── Cache ───────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: fusion-redis
+    ports:
+      - "6380:6379"
+    networks:
+      - fusion-net
+
   # ─── Database ────────────────────────────────────────────────────────────────
   postgres:
     image: postgres:16-alpine
@@ -112,6 +121,52 @@ services:
     container_name: fusion-frontend-core
     ports:
       - "${FRONTEND_CORE_PORT:-3002}:3002"
+    networks:
+      - fusion-net
+
+  # ─── Judge0 CE ───────────────────────────────────────────────────────────────
+  judge0-server:
+    image: judge0/judge0:1.13.1
+    container_name: fusion-judge0-server
+    ports:
+      - "2358:2358"
+    volumes:
+      - ./judge0.conf:/judge0.conf:ro
+    privileged: true
+    depends_on:
+      - judge0-redis
+      - judge0-db
+    networks:
+      - fusion-net
+
+  judge0-worker:
+    image: judge0/judge0:1.13.1
+    container_name: fusion-judge0-worker
+    command: ["./scripts/workers"]
+    volumes:
+      - ./judge0.conf:/judge0.conf:ro
+    privileged: true
+    depends_on:
+      - judge0-redis
+      - judge0-db
+    networks:
+      - fusion-net
+
+  judge0-redis:
+    image: redis:7-alpine
+    container_name: fusion-judge0-redis
+    # Judge0 always issues AUTH, so the Redis instance must require a password.
+    command: ["redis-server", "--requirepass", "judge0redis"]
+    networks:
+      - fusion-net
+
+  judge0-db:
+    image: postgres:16
+    container_name: fusion-judge0-db
+    environment:
+      POSTGRES_DB: judge0
+      POSTGRES_USER: judge0
+      POSTGRES_PASSWORD: judge0
     networks:
       - fusion-net
 

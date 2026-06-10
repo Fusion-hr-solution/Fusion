@@ -109,7 +109,7 @@ public sealed class EmployeeReadModelPolicy : IEmployeeReadModelPolicy
         };
     }
 
-    private static string ResolveHierarchyStatus(Employee employee, int directReportCount)
+    internal static string ResolveHierarchyStatus(Employee employee, int directReportCount)
     {
         if (!employee.ManagerId.HasValue)
         {

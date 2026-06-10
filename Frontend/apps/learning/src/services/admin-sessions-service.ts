@@ -1,4 +1,4 @@
-import { createPlatformApiClient } from "@repo/api";
+import { createPlatformApiClient, ApiError } from "@repo/api";
 import type {
   AdminTrainingPart,
   AdminSessionListItem,
@@ -12,8 +12,22 @@ import type {
   RoomConflict,
   SessionsListFilters,
 } from "@/types/admin";
+import type { SessionQrCode } from "@/types";
+import type { BackendSessionQrCodeDto } from "@/types/backend-dtos";
 
 const client = createPlatformApiClient();
+
+function mapSessionQrCode(dto: BackendSessionQrCodeDto): SessionQrCode {
+  return {
+    sessionId: dto.sessionId,
+    payload: dto.payload,
+    rotationSeconds: dto.rotationSeconds,
+    issuedAt: dto.issuedAt,
+    refreshAt: dto.refreshAt,
+    expiresAt: dto.expiresAt,
+    isRevoked: dto.isRevoked,
+  };
+}
 
 interface BackendPagedResponse<T> {
   items: T[];
@@ -56,6 +70,10 @@ export async function deletePart(trainingId: string, partId: string): Promise<vo
 
 export async function reorderParts(trainingId: string, partIds: string[]): Promise<void> {
   await client.put(`/training/admin/trainings/${encodeURIComponent(trainingId)}/parts/reorder`, { partIds });
+}
+
+export async function togglePartLock(trainingId: string, partId: string, lock: boolean): Promise<void> {
+  await client.put(`/training/admin/trainings/${encodeURIComponent(trainingId)}/parts/${encodeURIComponent(partId)}/lock`, { lock });
 }
 
 // --- Sessions ---
@@ -105,4 +123,60 @@ export async function detectRoomConflicts(params: {
   excludeSessionId?: string;
 }): Promise<RoomConflict[]> {
   return client.get<RoomConflict[]>("/training/admin/sessions/conflicts", { params });
+}
+
+// --- Participant exports ---
+
+export async function exportSessionParticipantsExcel(sessionId: string): Promise<Blob> {
+  return client.get<Blob>(
+    `/training/admin/sessions/${encodeURIComponent(sessionId)}/export/excel`,
+    { responseType: "blob" },
+  );
+}
+
+export async function exportSessionParticipantsPdf(sessionId: string): Promise<Blob> {
+  return client.get<Blob>(
+    `/training/admin/sessions/${encodeURIComponent(sessionId)}/export/pdf`,
+    { responseType: "blob" },
+  );
+}
+
+// --- Attendance ---
+
+export async function markAttendance(sessionId: string, employeeId: string): Promise<void> {
+  await client.post("/training/session-enrollments/mark-attendance", {
+    sessionId,
+    employeeId,
+  });
+}
+
+// --- QR code attendance (US-5.3.1) ---
+
+export async function generateSessionQrCode(
+  sessionId: string,
+  regenerate = false,
+): Promise<SessionQrCode> {
+  const dto = await client.post<BackendSessionQrCodeDto>(
+    `/training/admin/sessions/${encodeURIComponent(sessionId)}/qr-code`,
+    { regenerate },
+  );
+  return mapSessionQrCode(dto);
+}
+
+export async function getSessionQrCode(sessionId: string): Promise<SessionQrCode | null> {
+  try {
+    const dto = await client.get<BackendSessionQrCodeDto>(
+      `/training/admin/sessions/${encodeURIComponent(sessionId)}/qr-code`,
+    );
+    return mapSessionQrCode(dto);
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) {
+      return null;
+    }
+    throw err;
+  }
+}
+
+export async function revokeSessionQrCode(sessionId: string): Promise<void> {
+  await client.delete(`/training/admin/sessions/${encodeURIComponent(sessionId)}/qr-code`);
 }

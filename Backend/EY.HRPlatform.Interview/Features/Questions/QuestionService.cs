@@ -99,6 +99,7 @@ public class QuestionService(AppDbContext dbContext) : IQuestionService
             Language = string.IsNullOrWhiteSpace(request.Language) ? null : request.Language.Trim(),
             StarterCode = string.IsNullOrWhiteSpace(request.StarterCode) ? null : request.StarterCode,
             EvaluationCriteria = string.IsNullOrWhiteSpace(request.EvaluationCriteria) ? null : request.EvaluationCriteria.Trim(),
+            TestCases = string.IsNullOrWhiteSpace(request.TestCases) ? null : request.TestCases,
             Options = options.Select(o => new QuestionOption
             {
                 Text = o.Text.Trim(),
@@ -136,6 +137,7 @@ public class QuestionService(AppDbContext dbContext) : IQuestionService
         question.Language = string.IsNullOrWhiteSpace(request.Language) ? null : request.Language.Trim();
         question.StarterCode = string.IsNullOrWhiteSpace(request.StarterCode) ? null : request.StarterCode;
         question.EvaluationCriteria = string.IsNullOrWhiteSpace(request.EvaluationCriteria) ? null : request.EvaluationCriteria.Trim();
+        question.TestCases = string.IsNullOrWhiteSpace(request.TestCases) ? null : request.TestCases;
 
         // Mutate the tracked collection in-place to avoid duplicate delete tracking
         // (explicit RemoveRange + relationship orphan delete), which can trigger
@@ -196,7 +198,8 @@ public class QuestionService(AppDbContext dbContext) : IQuestionService
             }).ToList(),
             Language = question.Language ?? string.Empty,
             StarterCode = question.StarterCode ?? string.Empty,
-            EvaluationCriteria = question.EvaluationCriteria ?? string.Empty
+            EvaluationCriteria = question.EvaluationCriteria ?? string.Empty,
+            TestCases = question.TestCases
         };
     }
 

@@ -188,7 +188,16 @@ public class CandidateInvitationService(
                 invitation.Status = "DeliveryFailed";
                 logger.LogWarning(
                     ex,
-                    "Candidate invitation delivery failed. InvitationId={InvitationId} | Email={Email}",
+                    "Candidate invitation delivery failed (SMTP). InvitationId={InvitationId} | Email={Email}",
+                    invitation.Id.ToString(),
+                    invitation.Email);
+            }
+            catch (Exception ex)
+            {
+                invitation.Status = "DeliveryFailed";
+                logger.LogWarning(
+                    ex,
+                    "Candidate invitation delivery failed (unexpected error). InvitationId={InvitationId} | Email={Email}",
                     invitation.Id.ToString(),
                     invitation.Email);
             }
@@ -277,8 +286,17 @@ public class CandidateInvitationService(
             invitation.Status = "DeliveryFailed";
             logger.LogWarning(
                 ex,
-                "Candidate invitation resend failed. InvitationId={InvitationId} | Email={Email}",
-                    invitation.Id.ToString(),
+                "Candidate invitation resend failed (SMTP). InvitationId={InvitationId} | Email={Email}",
+                invitation.Id.ToString(),
+                invitation.Email);
+        }
+        catch (Exception ex)
+        {
+            invitation.Status = "DeliveryFailed";
+            logger.LogWarning(
+                ex,
+                "Candidate invitation resend failed (unexpected error). InvitationId={InvitationId} | Email={Email}",
+                invitation.Id.ToString(),
                 invitation.Email);
         }
 
@@ -295,6 +313,32 @@ public class CandidateInvitationService(
         );
 
         return MapToDto(invitation);
+    }
+
+    public async Task DeleteAsync(string invitationId, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (!Guid.TryParse(invitationId, out var parsedId))
+        {
+            throw new ApiException("Valid invitation id is required.", StatusCodes.Status400BadRequest);
+        }
+
+        var invitation = await dbContext.CandidateInvitations
+            .FirstOrDefaultAsync(item => item.Id == parsedId, cancellationToken);
+
+        if (invitation is null)
+        {
+            throw new ApiException("Invitation not found.", StatusCodes.Status404NotFound);
+        }
+
+        dbContext.CandidateInvitations.Remove(invitation);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation(
+            "Audit Event: CandidateInvitationDeleted | InvitationId={InvitationId} | Email={Email}",
+            invitation.Id.ToString(),
+            invitation.Email);
     }
 
     private async Task<IReadOnlyList<CandidateInvitationDto>> GetPendingInternalAsync(
