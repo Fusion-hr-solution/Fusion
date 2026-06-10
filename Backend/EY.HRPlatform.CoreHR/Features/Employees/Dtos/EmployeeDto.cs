@@ -10,6 +10,7 @@ public sealed record EmployeeDto(
     Guid TenantId,
     string FirstName,
     string LastName,
+    string? PreferredName,
     string Email,
     Guid? OrgUnitId,
     string? OrgUnitName,

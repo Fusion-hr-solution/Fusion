@@ -14,6 +14,7 @@ namespace EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployees;
 public sealed class GetEmployeesQueryHandler(
     CoreHRDbContext dbContext,
     IEmployeeReadModelPolicy employeeReadModelPolicy,
+    IEmployeeReadScopeService employeeReadScopeService,
     ITenantSettingsReadService tenantSettingsReadService) : IQueryHandler<GetEmployeesQuery, Result<PagedResponse<EmployeeListItemDto>>>
 {
     private const int MaxPageSize = 100;
@@ -29,6 +30,13 @@ public sealed class GetEmployeesQueryHandler(
             .Include(e => e.Manager)
             .Include(e => e.OrgUnit)
             .AsQueryable();
+
+        query = employeeReadScopeService.ApplyListScope(query, request.Audience, request.RequesterEmployeeId);
+
+        if (request.ManagerId.HasValue)
+        {
+            query = query.Where(employee => employee.ManagerId == request.ManagerId.Value);
+        }
 
         // Apply search filter (case-insensitive via ToLower)
         // Note: Using ToLower() instead of EF.Functions.ILike() for in-memory test compatibility.
@@ -90,7 +98,7 @@ public sealed class GetEmployeesQueryHandler(
                 .MapListItem(
                     employee,
                     settings,
-                    EmployeeReadAudience.HrAdmin,
+                        request.Audience,
                     directReportCounts.GetValueOrDefault(employee.Id)))
             .ToList();
 

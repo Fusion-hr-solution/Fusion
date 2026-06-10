@@ -33,6 +33,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IDraftStructureImportWorkflowService, DraftStructureImportWorkflowService>();
         services.AddScoped<IEmployeeHierarchyService, EmployeeHierarchyService>();
         services.AddScoped<IEmployeeReadModelPolicy, EmployeeReadModelPolicy>();
+        services.AddScoped<IEmployeeReadScopeService, EmployeeReadScopeService>();
         services.AddScoped<ITenantSettingsReadService, TenantSettingsReadService>();
         services.AddScoped<IEmployeeImportWorkflowService, EmployeeImportWorkflowService>();
 

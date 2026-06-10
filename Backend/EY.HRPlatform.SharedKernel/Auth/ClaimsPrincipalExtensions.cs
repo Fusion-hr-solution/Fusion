@@ -40,4 +40,15 @@ public static class ClaimsPrincipalExtensions
             ? tenantId
             : null;
     }
+
+    public static Guid? GetEmployeeId(this ClaimsPrincipal principal)
+    {
+        var claim = principal.FindFirst(CustomClaimTypes.EmployeeId);
+        if (claim is null)
+            return null;
+
+        return Guid.TryParse(claim.Value, out var employeeId) && employeeId != Guid.Empty
+            ? employeeId
+            : null;
+    }
 }

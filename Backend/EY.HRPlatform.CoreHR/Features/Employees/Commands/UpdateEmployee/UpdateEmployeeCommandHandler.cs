@@ -139,6 +139,7 @@ public sealed class UpdateEmployeeCommandHandler(
         employee.TenantId,
         employee.FirstName,
         employee.LastName,
+        employee.PreferredName,
         employee.Email,
         employee.OrgUnitId,
         orgUnit?.Name,

@@ -3,17 +3,22 @@ import {
   canAccessCorePeople,
   canAccessCoreSettings,
   canAccessCoreSetup,
+  canAccessCoreTeam,
+  canAccessOwnCoreProfile,
   canAccessOrganizations,
   canSeeCorePeopleNavigation,
   canSeeCoreSettingsNavigation,
   canSeeCoreSetupNavigation,
+  canSeeCoreTeamNavigation,
+  canSeeOwnCoreProfileNavigation,
   canSeeOrganizationsNavigation,
 } from "../roles";
 import type { AuthUser } from "../types";
 
-function makeUser(roles: string[]): AuthUser {
+function makeUser(roles: string[], employeeId: string | null = null): AuthUser {
   return {
     userId: "user-1",
+    employeeId,
     email: "user@example.com",
     fullName: "Test User",
     roles,
@@ -32,6 +37,25 @@ describe("role helpers", () => {
     expect(canSeeCoreSetupNavigation(user)).toBe(true);
     expect(canAccessOrganizations(user)).toBe(false);
     expect(canSeeOrganizationsNavigation(user)).toBe(false);
+  });
+
+  it("allows linked managers to access self and team workspaces", () => {
+    const user = makeUser(["Manager"], "employee-1");
+
+    expect(canAccessOwnCoreProfile(user)).toBe(true);
+    expect(canSeeOwnCoreProfileNavigation(user)).toBe(true);
+    expect(canAccessCoreTeam(user)).toBe(true);
+    expect(canSeeCoreTeamNavigation(user)).toBe(true);
+    expect(canAccessCorePeople(user)).toBe(false);
+  });
+
+  it("allows linked employees to access self workspace but not team workspace", () => {
+    const user = makeUser(["Employee"], "employee-1");
+
+    expect(canAccessOwnCoreProfile(user)).toBe(true);
+    expect(canSeeOwnCoreProfileNavigation(user)).toBe(true);
+    expect(canAccessCoreTeam(user)).toBe(false);
+    expect(canSeeCoreTeamNavigation(user)).toBe(false);
   });
 
   it("allows platform admins to access organizations but not setup", () => {

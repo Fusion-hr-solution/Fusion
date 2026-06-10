@@ -132,6 +132,39 @@ public class GetEmployeeReportingLinesQueryHandlerTests
         Assert.Contains("NotFound", result.Error.Code);
     }
 
+    [Fact]
+    public async Task GetEmployeeReportingLines_ManagerAudienceForNonDirectReport_ReturnsNotFound()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+
+        var manager = Employee.Create(TenantId, "Alex", "Manager", "alex.manager@example.com", DateTime.UtcNow);
+        var directReport = Employee.Create(TenantId, "Jordan", "Report", "jordan.report@example.com", DateTime.UtcNow);
+        directReport.AssignManager(manager.Id);
+        var otherEmployee = Employee.Create(TenantId, "Taylor", "Other", "taylor.other@example.com", DateTime.UtcNow);
+
+        seedContext.Employees.AddRange(manager, directReport, otherEmployee);
+        await seedContext.SaveChangesAsync();
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = CreateHandler(context);
+
+        var result = await handler.Handle(
+            new GetEmployeeReportingLinesQuery(
+                otherEmployee.Id,
+                EmployeeReadAudience.Manager,
+                manager.Id),
+            CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Contains("NotFound", result.Error.Code);
+    }
+
     private static GetEmployeeReportingLinesQueryHandler CreateHandler(CoreHRDbContext context)
-        => new(context, new EmployeeReadModelPolicy(), new TenantSettingsReadService(context));
+        => new(
+            context,
+            new EmployeeReadModelPolicy(),
+            new EmployeeReadScopeService(),
+            new TenantSettingsReadService(context));
 }

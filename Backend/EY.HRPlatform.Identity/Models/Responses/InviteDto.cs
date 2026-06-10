@@ -24,6 +24,8 @@ public class InviteDto
 
     public string Email { get; set; } = string.Empty;
 
+    public Guid? EmployeeId { get; set; }
+
     public Guid TenantId { get; set; }
 
     public string TenantName { get; set; } = string.Empty;
@@ -41,4 +43,10 @@ public class InviteDto
     public bool IsUsed { get; set; }
 
     public DateTime CreatedAt { get; set; }
+
+    public string? DeliveryStatus { get; set; }
+
+    public string? DeliveryMessage { get; set; }
+
+    public DateTime? DeliveryRecordedAt { get; set; }
 }

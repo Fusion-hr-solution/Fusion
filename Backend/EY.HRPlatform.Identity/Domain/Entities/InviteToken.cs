@@ -46,6 +46,11 @@ public class InviteToken : ITenantEntity
     public string? FirstName { get; private set; }
 
     /// <summary>
+    /// Optional: Core employee identifier to link when the invite is accepted.
+    /// </summary>
+    public Guid? EmployeeId { get; private set; }
+
+    /// <summary>
     /// Optional: pre-filled last name for the invited user.
     /// </summary>
     public string? LastName { get; private set; }
@@ -69,6 +74,21 @@ public class InviteToken : ITenantEntity
     /// When the invite was created.
     /// </summary>
     public DateTime CreatedAt { get; private set; }
+
+    /// <summary>
+    /// Last known delivery attempt state for the invitation email.
+    /// </summary>
+    public string? DeliveryStatus { get; private set; }
+
+    /// <summary>
+    /// Short product-facing message for the last delivery attempt.
+    /// </summary>
+    public string? DeliveryMessage { get; private set; }
+
+    /// <summary>
+    /// When delivery state was last recorded.
+    /// </summary>
+    public DateTime? DeliveryRecordedAt { get; private set; }
 
     /// <summary>
     /// The admin who created this invite.
@@ -117,12 +137,14 @@ public class InviteToken : ITenantEntity
         Guid createdByUserId,
         string? firstName = null,
         string? lastName = null,
+        Guid? employeeId = null,
         int expiryDays = 7)
     {
         ValidateEmail(email);
         ValidateTenantId(tenantId);
         ValidateRole(role);
         ValidateCreatedBy(createdByUserId);
+        ValidateEmployeeId(employeeId);
         ValidateExpiryDays(expiryDays);
 
         return new InviteToken
@@ -134,6 +156,7 @@ public class InviteToken : ITenantEntity
             Role = role,
             FirstName = NormalizeOptionalName(firstName),
             LastName = NormalizeOptionalName(lastName),
+            EmployeeId = employeeId,
             ExpiresAt = DateTime.UtcNow.AddDays(expiryDays),
             CreatedAt = DateTime.UtcNow,
             CreatedByUserId = createdByUserId
@@ -199,6 +222,16 @@ public class InviteToken : ITenantEntity
         RevokedAt = DateTime.UtcNow;
     }
 
+    public void RecordDeliveryAttempt(string status, string message)
+    {
+        if (string.IsNullOrWhiteSpace(status))
+            throw new ArgumentException("Delivery status is required.", nameof(status));
+
+        DeliveryStatus = status.Trim();
+        DeliveryMessage = string.IsNullOrWhiteSpace(message) ? null : message.Trim();
+        DeliveryRecordedAt = DateTime.UtcNow;
+    }
+
     /// <summary>
     /// Generates a cryptographically secure 32-byte token, base64url encoded.
     /// </summary>
@@ -234,6 +267,12 @@ public class InviteToken : ITenantEntity
     {
         if (tenantId == Guid.Empty)
             throw new ArgumentException("Tenant ID is required.", nameof(tenantId));
+    }
+
+    private static void ValidateEmployeeId(Guid? employeeId)
+    {
+        if (employeeId.HasValue && employeeId.Value == Guid.Empty)
+            throw new ArgumentException("Employee ID cannot be empty when provided.", nameof(employeeId));
     }
 
     private static void ValidateRole(string role)

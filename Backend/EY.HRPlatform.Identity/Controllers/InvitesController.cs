@@ -17,19 +17,22 @@ public class InvitesController : ControllerBase
 {
     private readonly AppIdentityDbContext _dbContext;
     private readonly UserManager<ApplicationUser> _userManager;
-    private readonly IConfiguration _configuration;
+    private readonly IInvitationLinkBuilder _invitationLinkBuilder;
     private readonly ITrainingServiceClient _trainingClient;
+    private readonly IWorkforceInvitationEmailSender _invitationEmailSender;
 
     public InvitesController(
         AppIdentityDbContext dbContext,
         UserManager<ApplicationUser> userManager,
-        IConfiguration configuration,
-        ITrainingServiceClient trainingClient)
+        IInvitationLinkBuilder invitationLinkBuilder,
+        ITrainingServiceClient trainingClient,
+        IWorkforceInvitationEmailSender invitationEmailSender)
     {
         _dbContext = dbContext;
         _userManager = userManager;
-        _configuration = configuration;
+        _invitationLinkBuilder = invitationLinkBuilder;
         _trainingClient = trainingClient;
+        _invitationEmailSender = invitationEmailSender;
     }
 
     /// <summary>
@@ -45,7 +48,8 @@ public class InvitesController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<InviteDto>), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ApiResponse<InviteDto>>> CreateInvite(
         Guid tenantId,
-        [FromBody] CreateInviteRequest request)
+        [FromBody] CreateInviteRequest request,
+        CancellationToken cancellationToken = default)
     {
         // Verify tenant exists
         var tenant = await _dbContext.Tenants.FindAsync(tenantId);
@@ -93,6 +97,21 @@ public class InvitesController : ControllerBase
         if (existingInvite is not null)
             return BadRequest(ApiResponse<InviteDto>.Failure("A pending invitation already exists for this email."));
 
+        if (request.EmployeeId.HasValue)
+        {
+            var employeeInviteExists = await _dbContext.InviteTokens
+                .AnyAsync(i => i.TenantId == tenantId
+                    && i.EmployeeId == request.EmployeeId
+                    && i.AcceptedAt == null
+                    && !i.IsRevoked
+                    && i.ExpiresAt > DateTime.UtcNow);
+
+            if (employeeInviteExists)
+            {
+                return Conflict(ApiResponse<InviteDto>.Failure("A pending invitation already exists for this employee."));
+            }
+        }
+
         // Get current user ID (GetUserId throws if not found, so wrap in try-catch)
         Guid currentUserId;
         try
@@ -111,15 +130,18 @@ public class InvitesController : ControllerBase
             role: request.Role,
             createdByUserId: currentUserId,
             firstName: request.FirstName,
-            lastName: request.LastName);
+            lastName: request.LastName,
+            employeeId: request.EmployeeId);
 
         _dbContext.InviteTokens.Add(invite);
         await _dbContext.SaveChangesAsync();
 
         // Build invite link
-        var baseUrl = _configuration["Application:BaseUrl"] ?? "http://localhost:3000";
-        baseUrl = baseUrl.TrimEnd('/');
-        var inviteLink = $"{baseUrl}/invite/{invite.Token}";
+        var inviteLink = _invitationLinkBuilder.BuildInviteLink(invite.Token);
+
+        var deliveryResult = await SendInvitationEmailAsync(invite, tenant.Name, inviteLink, cancellationToken);
+        invite.RecordDeliveryAttempt(deliveryResult.Status, deliveryResult.Message);
+        await _dbContext.SaveChangesAsync();
 
         var dto = new InviteDto
         {
@@ -127,6 +149,7 @@ public class InvitesController : ControllerBase
             Token = invite.Token,
             InviteLink = inviteLink,
             Email = invite.Email,
+            EmployeeId = invite.EmployeeId,
             TenantId = tenant.Id,
             TenantName = tenant.Name,
             Role = invite.Role,
@@ -135,7 +158,10 @@ public class InvitesController : ControllerBase
             ExpiresAt = invite.ExpiresAt,
             IsExpired = invite.IsExpired,
             IsUsed = invite.IsUsed,
-            CreatedAt = invite.CreatedAt
+            CreatedAt = invite.CreatedAt,
+            DeliveryStatus = invite.DeliveryStatus,
+            DeliveryMessage = invite.DeliveryMessage,
+            DeliveryRecordedAt = invite.DeliveryRecordedAt
         };
 
         return CreatedAtAction(nameof(ValidateInvite), new { token = invite.Token },
@@ -178,6 +204,7 @@ public class InvitesController : ControllerBase
         {
             Id = invite.Id,
             Email = invite.Email,
+            EmployeeId = invite.EmployeeId,
             TenantId = invite.TenantId,
             TenantName = invite.Tenant?.Name ?? string.Empty,
             Role = invite.Role,
@@ -186,7 +213,10 @@ public class InvitesController : ControllerBase
             ExpiresAt = invite.ExpiresAt,
             IsExpired = invite.IsExpired,
             IsUsed = invite.IsUsed,
-            CreatedAt = invite.CreatedAt
+            CreatedAt = invite.CreatedAt,
+            DeliveryStatus = invite.DeliveryStatus,
+            DeliveryMessage = invite.DeliveryMessage,
+            DeliveryRecordedAt = invite.DeliveryRecordedAt
         };
 
         return Ok(ApiResponse<InviteDto>.Success(dto));
@@ -253,6 +283,7 @@ public class InvitesController : ControllerBase
             {
                 UserName = invite.Email,
                 Email = invite.Email,
+                EmployeeId = invite.EmployeeId,
                 FirstName = firstName.Trim(),
                 LastName = lastName.Trim(),
                 TenantId = invite.TenantId,
@@ -289,6 +320,7 @@ public class InvitesController : ControllerBase
             var dto = new UserDto
             {
                 Id = user.Id,
+                EmployeeId = user.EmployeeId,
                 Email = user.Email!,
                 FullName = user.FullName,
                 Department = user.Department,
@@ -344,6 +376,7 @@ public class InvitesController : ControllerBase
             {
                 Id = i.Id,
                 Email = i.Email,
+                EmployeeId = i.EmployeeId,
                 TenantId = i.TenantId,
                 TenantName = tenant.Name,
                 Role = i.Role,
@@ -352,7 +385,10 @@ public class InvitesController : ControllerBase
                 ExpiresAt = i.ExpiresAt,
                 IsExpired = i.ExpiresAt < DateTime.UtcNow,
                 IsUsed = i.AcceptedAt != null,
-                CreatedAt = i.CreatedAt
+                CreatedAt = i.CreatedAt,
+                DeliveryStatus = i.DeliveryStatus,
+                DeliveryMessage = i.DeliveryMessage,
+                DeliveryRecordedAt = i.DeliveryRecordedAt
             })
             .ToListAsync();
 
@@ -399,7 +435,9 @@ public class InvitesController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<InviteDto>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<InviteDto>), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ApiResponse<InviteDto>), StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<ApiResponse<InviteDto>>> ResendInvite(Guid inviteId)
+    public async Task<ActionResult<ApiResponse<InviteDto>>> ResendInvite(
+        Guid inviteId,
+        CancellationToken cancellationToken = default)
     {
         var invite = await _dbContext.InviteTokens
             .Include(i => i.Tenant)
@@ -421,9 +459,15 @@ public class InvitesController : ControllerBase
         await _dbContext.SaveChangesAsync();
 
         // Build invite link
-        var baseUrl = _configuration["Application:BaseUrl"] ?? "http://localhost:3000";
-        baseUrl = baseUrl.TrimEnd('/');
-        var inviteLink = $"{baseUrl}/invite/{invite.Token}";
+        var inviteLink = _invitationLinkBuilder.BuildInviteLink(invite.Token);
+
+        var deliveryResult = await SendInvitationEmailAsync(
+            invite,
+            invite.Tenant?.Name ?? string.Empty,
+            inviteLink,
+            cancellationToken);
+        invite.RecordDeliveryAttempt(deliveryResult.Status, deliveryResult.Message);
+        await _dbContext.SaveChangesAsync();
 
         var dto = new InviteDto
         {
@@ -431,6 +475,7 @@ public class InvitesController : ControllerBase
             Token = invite.Token,
             InviteLink = inviteLink,
             Email = invite.Email,
+            EmployeeId = invite.EmployeeId,
             TenantId = invite.TenantId,
             TenantName = invite.Tenant?.Name ?? string.Empty,
             Role = invite.Role,
@@ -439,10 +484,31 @@ public class InvitesController : ControllerBase
             ExpiresAt = invite.ExpiresAt,
             IsExpired = invite.IsExpired,
             IsUsed = invite.IsUsed,
-            CreatedAt = invite.CreatedAt
+            CreatedAt = invite.CreatedAt,
+            DeliveryStatus = invite.DeliveryStatus,
+            DeliveryMessage = invite.DeliveryMessage,
+            DeliveryRecordedAt = invite.DeliveryRecordedAt
         };
 
         return Ok(ApiResponse<InviteDto>.Success(dto));
+    }
+
+    private async Task<WorkforceInvitationEmailDeliveryResult> SendInvitationEmailAsync(
+        InviteToken invite,
+        string tenantName,
+        string inviteLink,
+        CancellationToken cancellationToken)
+    {
+        return await _invitationEmailSender.SendInvitationAsync(
+            new WorkforceInvitationEmailMessage(
+                invite.Id,
+                invite.Email,
+                inviteLink,
+                tenantName,
+                invite.Role,
+                invite.FirstName,
+                invite.LastName),
+            cancellationToken);
     }
 
     private bool CanAccessTenant(Guid tenantId)

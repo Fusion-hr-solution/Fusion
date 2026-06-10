@@ -70,6 +70,7 @@ export type {
   PlatformOrganizationStatsDto,
   PlatformOrganizationSummaryDto,
   PlatformOrganizationPagedListDto,
+  TenantSummaryDto,
 } from "./platform-organizations";
 export {
   platformOrganizationsPaths,
@@ -77,3 +78,41 @@ export {
 } from "./platform-organizations";
 export type { AcceptInviteRequest, InviteDto } from "./invites";
 export { invitePaths, inviteQueryKeys } from "./invites";
+export type {
+  PermissionScope,
+  CorePermissionCatalogItemDto,
+  EffectivePermissionGrantDto,
+  AccessProfileAssignmentSummaryDto,
+  AccessProfileSummaryDto,
+  UserAccessAssignmentDto,
+  CurrentUserAccessDto,
+  AccessProfileGrantInputDto,
+  CreateAccessProfileRequest,
+  UpdateAccessProfileRequest,
+  SetUserAccessProfilesRequest,
+  BulkSetUserAccessProfilesRequest,
+} from "./core-access";
+export {
+  coreAccessPaths,
+  coreAccessQueryKeys,
+} from "./core-access";
+export type {
+  WorkforceManagerSummaryDto,
+  WorkforceOrgAssignmentDto,
+  WorkforceDataQualityDto,
+  WorkforceEmployeeSummaryDto,
+  WorkforceAccessState,
+  WorkforceAccessDeliveryState,
+  WorkforceAccessProfileSummaryDto,
+  WorkforceAccessSubjectSummaryDto,
+  WorkforceManagerScopeDto,
+  WorkforceCurrentUserContextDto,
+  WorkforceEmployeeResolveRequest,
+  WorkforceOrgUnitSummaryDto,
+  WorkforceOrgUnitTreeNodeDto,
+  WorkforceOrgUnitTreeDto,
+  WorkforceEmployeePageDto,
+  WorkforceAccessSubjectPageDto,
+  WorkforceAccessRosterSummaryDto,
+} from "./core-workforce";
+export { coreWorkforcePaths, coreWorkforceQueryKeys } from "./core-workforce";

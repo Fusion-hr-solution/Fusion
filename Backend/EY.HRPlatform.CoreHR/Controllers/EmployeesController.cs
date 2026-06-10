@@ -1,6 +1,8 @@
+using EY.HRPlatform.CoreHR.Features.Employees.Services;
 using EY.HRPlatform.CoreHR.Domain.Enums;
 using EY.HRPlatform.CoreHR.Features.Employees.Commands.CreateEmployee;
 using EY.HRPlatform.CoreHR.Features.Employees.Commands.DeactivateEmployee;
+using EY.HRPlatform.CoreHR.Features.Employees.Commands.UpdateMyProfile;
 using EY.HRPlatform.CoreHR.Features.Employees.Commands.UpdateEmployee;
 using EY.HRPlatform.CoreHR.Features.Employees.Dtos;
 using EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployeeById;
@@ -58,6 +60,177 @@ public class EmployeesController(ISender sender) : ControllerBase
     {
         var result = await sender.Send(new GetWorkforceReadinessSummaryQuery(), cancellationToken);
         return Ok(ApiResponseOfWorkforceReadinessSummaryDto.Success(result.Value));
+    }
+
+    [HttpGet("me/profile")]
+    [Authorize(Roles = $"{PlatformRole.Employee},{PlatformRole.Manager}")]
+    [ProducesResponseType(typeof(ApiResponseOfEmployeeProfileDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetMyProfile(CancellationToken cancellationToken = default)
+    {
+        if (!TryGetCurrentEmployeeId(out var employeeId, out var errorResult))
+        {
+            return errorResult!;
+        }
+
+        var result = await sender.Send(
+            new GetEmployeeProfileQuery(employeeId, EmployeeReadAudience.Employee, employeeId),
+            cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return NotFound(ApiResponse.Failure(result.Error.Message));
+        }
+
+        Response.Headers.ETag = $"\"{result.Value.Version}\"";
+        return Ok(ApiResponseOfEmployeeProfileDto.Success(result.Value));
+    }
+
+    [HttpGet("me/reporting-lines")]
+    [Authorize(Roles = $"{PlatformRole.Employee},{PlatformRole.Manager}")]
+    [ProducesResponseType(typeof(ApiResponseOfEmployeeReportingLinesDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetMyReportingLines(CancellationToken cancellationToken = default)
+    {
+        if (!TryGetCurrentEmployeeId(out var employeeId, out var errorResult))
+        {
+            return errorResult!;
+        }
+
+        var result = await sender.Send(
+            new GetEmployeeReportingLinesQuery(employeeId, EmployeeReadAudience.Employee, employeeId),
+            cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return NotFound(ApiResponse.Failure(result.Error.Message));
+        }
+
+        return Ok(ApiResponseOfEmployeeReportingLinesDto.Success(result.Value));
+    }
+
+    [HttpPatch("me")]
+    [Authorize(Roles = $"{PlatformRole.Employee},{PlatformRole.Manager}")]
+    [ProducesResponseType(typeof(ApiResponseOfEmployeeProfileDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status412PreconditionFailed)]
+    public async Task<IActionResult> UpdateMyProfile(
+        [FromBody] UpdateMyProfileRequest request,
+        [FromHeader(Name = "If-Match")] string? ifMatch,
+        CancellationToken cancellationToken = default)
+    {
+        if (!TryGetCurrentEmployeeId(out var employeeId, out var errorResult))
+        {
+            return errorResult!;
+        }
+
+        if (!TryParseVersion(ifMatch, out var expectedVersion))
+        {
+            return StatusCode(
+                StatusCodes.Status412PreconditionFailed,
+                ApiResponse.Failure("If-Match header with valid version is required for updates."));
+        }
+
+        await sender.Send(new UpdateMyProfileCommand(employeeId, expectedVersion, request.PreferredName), cancellationToken);
+
+        var profileResult = await sender.Send(
+            new GetEmployeeProfileQuery(employeeId, EmployeeReadAudience.Employee, employeeId),
+            cancellationToken);
+
+        if (profileResult.IsFailure)
+        {
+            return NotFound(ApiResponse.Failure(profileResult.Error.Message));
+        }
+
+        Response.Headers.ETag = $"\"{profileResult.Value.Version}\"";
+        return Ok(ApiResponseOfEmployeeProfileDto.Success(profileResult.Value));
+    }
+
+    [HttpGet("me/team")]
+    [Authorize(Roles = PlatformRole.Manager)]
+    [ProducesResponseType(typeof(ApiResponseOfPagedEmployeeList), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetMyTeam(
+        [FromQuery] string? search,
+        [FromQuery] EmployeeStatus? status,
+        [FromQuery] EmployeeSortField sortBy = EmployeeSortField.Name,
+        [FromQuery] SortDirection sortDir = SortDirection.Asc,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        if (!TryGetCurrentEmployeeId(out var employeeId, out var errorResult))
+        {
+            return errorResult!;
+        }
+
+        var query = new GetEmployeesQuery(
+            Search: search,
+            Status: status,
+            SortBy: sortBy,
+            SortDir: sortDir,
+            Page: page,
+            PageSize: pageSize,
+            ManagerId: employeeId,
+            Audience: EmployeeReadAudience.Manager,
+            RequesterEmployeeId: employeeId);
+
+        var result = await sender.Send(query, cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return NotFound(ApiResponse.Failure(result.Error.Message));
+        }
+
+        return Ok(ApiResponseOfPagedEmployeeList.Success(result.Value));
+    }
+
+    [HttpGet("team/{id:guid}/profile")]
+    [Authorize(Roles = PlatformRole.Manager)]
+    [ProducesResponseType(typeof(ApiResponseOfEmployeeProfileDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetTeamMemberProfile(Guid id, CancellationToken cancellationToken = default)
+    {
+        if (!TryGetCurrentEmployeeId(out var employeeId, out var errorResult))
+        {
+            return errorResult!;
+        }
+
+        var result = await sender.Send(
+            new GetEmployeeProfileQuery(id, EmployeeReadAudience.Manager, employeeId),
+            cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return NotFound(ApiResponse.Failure(result.Error.Message));
+        }
+
+        Response.Headers.ETag = $"\"{result.Value.Version}\"";
+        return Ok(ApiResponseOfEmployeeProfileDto.Success(result.Value));
+    }
+
+    [HttpGet("team/{id:guid}/reporting-lines")]
+    [Authorize(Roles = PlatformRole.Manager)]
+    [ProducesResponseType(typeof(ApiResponseOfEmployeeReportingLinesDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetTeamMemberReportingLines(Guid id, CancellationToken cancellationToken = default)
+    {
+        if (!TryGetCurrentEmployeeId(out var employeeId, out var errorResult))
+        {
+            return errorResult!;
+        }
+
+        var result = await sender.Send(
+            new GetEmployeeReportingLinesQuery(id, EmployeeReadAudience.Manager, employeeId),
+            cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return NotFound(ApiResponse.Failure(result.Error.Message));
+        }
+
+        return Ok(ApiResponseOfEmployeeReportingLinesDto.Success(result.Value));
     }
 
     /// <summary>
@@ -261,5 +434,21 @@ public class EmployeesController(ISender sender) : ControllerBase
         var trimmed = ifMatch.Trim().Trim('"');
 
         return uint.TryParse(trimmed, out version);
+    }
+
+    private bool TryGetCurrentEmployeeId(out Guid employeeId, out IActionResult? errorResult)
+    {
+        employeeId = Guid.Empty;
+        errorResult = null;
+
+        var currentEmployeeId = User.GetEmployeeId();
+        if (currentEmployeeId.HasValue)
+        {
+            employeeId = currentEmployeeId.Value;
+            return true;
+        }
+
+        errorResult = NotFound(ApiResponse.Failure("No employee profile is linked to the current account."));
+        return false;
     }
 }

@@ -21,11 +21,15 @@ import type {
 } from "./employee-import-validation";
 
 const PREVIEW_FIELD_COLUMNS = [
+  { key: "employeeNumber", label: "Employee number" },
   { key: "firstName", label: "First name" },
   { key: "lastName", label: "Last name" },
   { key: "email", label: "Email" },
+  { key: "phone", label: "Phone" },
   { key: "hireDate", label: "Hire date" },
   { key: "jobTitle", label: "Job title" },
+  { key: "workLocation", label: "Work location" },
+  { key: "employmentType", label: "Employment type" },
   { key: "orgUnitCode", label: "Org unit code" },
   { key: "managerEmail", label: "Manager email" },
 ] as const satisfies ReadonlyArray<{

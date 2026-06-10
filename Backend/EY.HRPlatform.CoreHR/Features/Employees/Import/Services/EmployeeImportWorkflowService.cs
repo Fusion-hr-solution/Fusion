@@ -21,7 +21,9 @@ namespace EY.HRPlatform.CoreHR.Features.Employees.Import.Services;
 public interface IEmployeeImportWorkflowService
 {
     Task<EmployeeImportSchemaDto> GetSchemaAsync(CancellationToken cancellationToken);
-    Task<(byte[] Content, string FileName)> BuildTemplateAsync(CancellationToken cancellationToken);
+    Task<(byte[] Content, string FileName)> BuildTemplateAsync(
+        IReadOnlyCollection<string>? fields,
+        CancellationToken cancellationToken);
     Task<EmployeeImportSessionDto> UploadAsync(IFormFile file, CancellationToken cancellationToken);
     Task<EmployeeImportSessionDto> ValidateAsync(Guid sessionId, CancellationToken cancellationToken);
     Task<EmployeeImportSessionDto> ValidateAsync(
@@ -65,7 +67,7 @@ public sealed class EmployeeImportWorkflowService(
     private const int MaxSourceFileNameLength = 260;
     private const int MaxRowCount = 5000;
     private const int SampleRowCount = 12;
-    private const int DefaultPreviewPageSize = 25;
+    private const int DefaultPreviewPageSize = 5;
     private const int MaxPreviewPageSize = 100;
     private const int MaxHistoryPageSize = 50;
     private static readonly TimeSpan SessionLifetime = TimeSpan.FromHours(2);
@@ -118,17 +120,26 @@ public sealed class EmployeeImportWorkflowService(
             "alex.manager@contoso.com")
     ];
 
+    private static readonly HashSet<string> CanonicalFieldKeys =
+        CanonicalFields.Select(field => field.Key).ToHashSet(StringComparer.Ordinal);
+
     public async Task<EmployeeImportSchemaDto> GetSchemaAsync(CancellationToken cancellationToken)
     {
         await EnsureImportAvailableAsync(cancellationToken);
         return await BuildSchemaAsync(cancellationToken);
     }
 
-    public async Task<(byte[] Content, string FileName)> BuildTemplateAsync(CancellationToken cancellationToken)
+    public async Task<(byte[] Content, string FileName)> BuildTemplateAsync(
+        IReadOnlyCollection<string>? fields,
+        CancellationToken cancellationToken)
     {
         await EnsureImportAvailableAsync(cancellationToken);
 
-        var headerLine = string.Join(",", CanonicalFields.Select(field => field.Key));
+        var selectedFields = fields is { Count: > 0 }
+            ? ResolveTemplateFields(fields)
+            : CanonicalFields;
+
+        var headerLine = string.Join(",", selectedFields.Select(field => field.Key));
         return (Encoding.UTF8.GetBytes($"{headerLine}\r\n"), "employee-import-template.csv");
     }
 
@@ -246,8 +257,9 @@ public sealed class EmployeeImportWorkflowService(
         }
 
         var sourceRows = Deserialize<List<EmployeeImportSourceRowDto>>(session.SourceRowsJson) ?? [];
+        var headers = Deserialize<List<string>>(session.SourceHeadersJson) ?? [];
         var settings = await tenantSettingsReader.GetCurrentAsync(cancellationToken);
-        var validation = await ValidateRowsAsync(sourceRows, settings, cancellationToken);
+        var validation = await ValidateRowsAsync(sourceRows, headers, settings, cancellationToken);
 
         session.SetValidationResult(
             JsonSerializer.Serialize(validation.NormalizedRows, JsonOptions),
@@ -255,7 +267,6 @@ public sealed class EmployeeImportWorkflowService(
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        var headers = Deserialize<List<string>>(session.SourceHeadersJson) ?? [];
         var previewRows = Deserialize<List<EmployeeImportPreviewRowDto>>(session.PreviewRowsJson) ?? [];
 
         return await BuildSessionDtoAsync(
@@ -532,6 +543,28 @@ public sealed class EmployeeImportWorkflowService(
             ? fieldConfig.Required
             : fallbackRequired);
 
+    private static bool IsFieldRequiredForImport(
+        IReadOnlyList<string> sourceHeaders,
+        string fieldKey,
+        TenantSettingsDto settings,
+        bool fallbackRequired)
+        => CanonicalFieldKeys.Contains(fieldKey)
+        && sourceHeaders.Select(CleanHeader).Contains(fieldKey)
+        && ResolveImportFieldRequired(fieldKey, settings, fallbackRequired);
+
+    private static IReadOnlyList<EmployeeImportCanonicalFieldDto> ResolveTemplateFields(
+        IReadOnlyCollection<string> fields)
+    {
+        var requestedFieldKeys = fields
+            .Select(CleanHeader)
+            .Where(field => !string.IsNullOrWhiteSpace(field))
+            .ToHashSet(StringComparer.Ordinal);
+
+        return CanonicalFields
+            .Where(field => requestedFieldKeys.Contains(field.Key))
+            .ToList();
+    }
+
     private static string ValidateUpload(IFormFile? file)
     {
         if (file is null)
@@ -567,20 +600,16 @@ public sealed class EmployeeImportWorkflowService(
 
     private static void EnsureTemplateHeaders(IReadOnlyList<string> actualHeaders)
     {
-        var expectedHeaders = CanonicalFields.Select(field => field.Key).ToArray();
-        if (actualHeaders.Count != expectedHeaders.Length)
+        var normalized = actualHeaders.Select(CleanHeader).ToArray();
+
+        var recognized = normalized
+            .Where(header => CanonicalFieldKeys.Contains(header))
+            .ToArray();
+
+        if (recognized.Length == 0)
         {
             throw new ArgumentException(
-                "Use the official employee import template. Column headers must match exactly in the expected order.");
-        }
-
-        for (var index = 0; index < expectedHeaders.Length; index++)
-        {
-            if (!string.Equals(actualHeaders[index], expectedHeaders[index], StringComparison.Ordinal))
-            {
-                throw new ArgumentException(
-                    "Use the official employee import template. Column headers must match exactly in the expected order.");
-            }
+                "The uploaded file does not contain any recognized employee import columns.");
         }
     }
 
@@ -659,6 +688,7 @@ public sealed class EmployeeImportWorkflowService(
 
     private async Task<ValidationResult> ValidateRowsAsync(
         IReadOnlyCollection<EmployeeImportSourceRowDto> sourceRows,
+        IReadOnlyList<string> sourceHeaders,
         TenantSettingsDto settings,
         CancellationToken cancellationToken)
     {
@@ -681,19 +711,19 @@ public sealed class EmployeeImportWorkflowService(
             var orgUnitCode = NormalizeOrgUnitCode(ReadValue(sourceRow, "orgUnitCode"));
             var managerEmail = NormalizeEmail(ReadValue(sourceRow, "managerEmail"));
 
-            if (ResolveImportFieldRequired("firstName", settings, true)
+            if (IsFieldRequiredForImport(sourceHeaders, "firstName", settings, true)
                 && string.IsNullOrWhiteSpace(firstName))
             {
                 AddIssue(issues, issueKeys, sourceRow.RowNumber, "firstName", "missingFirstName", "First name is required.", rowErrorNumbers: rowErrorNumbers, issueCodesByRow: issueCodesByRow);
             }
 
-            if (ResolveImportFieldRequired("lastName", settings, true)
+            if (IsFieldRequiredForImport(sourceHeaders, "lastName", settings, true)
                 && string.IsNullOrWhiteSpace(lastName))
             {
                 AddIssue(issues, issueKeys, sourceRow.RowNumber, "lastName", "missingLastName", "Last name is required.", rowErrorNumbers: rowErrorNumbers, issueCodesByRow: issueCodesByRow);
             }
 
-            if (ResolveImportFieldRequired("email", settings, true)
+            if (IsFieldRequiredForImport(sourceHeaders, "email", settings, true)
                 && string.IsNullOrWhiteSpace(email))
             {
                 AddIssue(issues, issueKeys, sourceRow.RowNumber, "email", "missingEmail", "Email is required.", rowErrorNumbers: rowErrorNumbers, issueCodesByRow: issueCodesByRow);
@@ -705,7 +735,7 @@ public sealed class EmployeeImportWorkflowService(
 
             DateTime? hireDate = null;
             DateTime parsedHireDate = default;
-            if (ResolveImportFieldRequired("hireDate", settings, true)
+            if (IsFieldRequiredForImport(sourceHeaders, "hireDate", settings, true)
                 && string.IsNullOrWhiteSpace(hireDateText))
             {
                 AddIssue(issues, issueKeys, sourceRow.RowNumber, "hireDate", "missingHireDate", "Hire date is required.", rowErrorNumbers: rowErrorNumbers, issueCodesByRow: issueCodesByRow);
@@ -719,7 +749,7 @@ public sealed class EmployeeImportWorkflowService(
                 hireDate = parsedHireDate;
             }
 
-            if (ResolveImportFieldRequired("jobTitle", settings, false)
+            if (IsFieldRequiredForImport(sourceHeaders, "jobTitle", settings, false)
                 && string.IsNullOrWhiteSpace(jobTitle))
             {
                 AddIssue(
@@ -894,15 +924,15 @@ public sealed class EmployeeImportWorkflowService(
 
         var normalizedRows = candidates
             .Where(candidate => !HasErrors(rowErrorNumbers, candidate.RowNumber)
-                && (!ResolveImportFieldRequired("firstName", settings, true)
+                && (!IsFieldRequiredForImport(sourceHeaders, "firstName", settings, true)
                     || !string.IsNullOrWhiteSpace(candidate.FirstName))
-                && (!ResolveImportFieldRequired("lastName", settings, true)
+                && (!IsFieldRequiredForImport(sourceHeaders, "lastName", settings, true)
                     || !string.IsNullOrWhiteSpace(candidate.LastName))
-                && (!ResolveImportFieldRequired("email", settings, true)
+                && (!IsFieldRequiredForImport(sourceHeaders, "email", settings, true)
                     || !string.IsNullOrWhiteSpace(candidate.Email))
-                && (!ResolveImportFieldRequired("hireDate", settings, true)
+                && (!IsFieldRequiredForImport(sourceHeaders, "hireDate", settings, true)
                     || candidate.HireDate.HasValue)
-                && (!ResolveImportFieldRequired("jobTitle", settings, false)
+                && (!IsFieldRequiredForImport(sourceHeaders, "jobTitle", settings, false)
                     || !string.IsNullOrWhiteSpace(candidate.JobTitle)))
             .Select(candidate => new StoredNormalizedRow(
                 candidate.RowNumber,

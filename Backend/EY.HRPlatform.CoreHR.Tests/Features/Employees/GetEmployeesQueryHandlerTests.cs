@@ -822,8 +822,41 @@ public class GetEmployeesQueryHandlerTests
         Assert.Contains(item.Readiness.BlockingIssues, issue => issue.Code == EmployeeReadinessIssueCodes.DeactivationBlocked);
     }
 
+    [Fact]
+    public async Task GetEmployees_ManagerAudience_ReturnsOnlyDirectReports()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+
+        var manager = Employee.Create(TenantId, "Alex", "Manager", "alex.manager@example.com", DateTime.UtcNow, null, "Manager");
+        var directReport = Employee.Create(TenantId, "Jordan", "Report", "jordan.report@example.com", DateTime.UtcNow, null, "Developer");
+        directReport.AssignManager(manager.Id);
+        var otherEmployee = Employee.Create(TenantId, "Taylor", "Other", "taylor.other@example.com", DateTime.UtcNow, null, "Developer");
+
+        seedContext.Employees.AddRange(manager, directReport, otherEmployee);
+        await seedContext.SaveChangesAsync();
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = CreateHandler(context);
+
+        var result = await handler.Handle(
+            new GetEmployeesQuery(
+                Audience: EmployeeReadAudience.Manager,
+                RequesterEmployeeId: manager.Id),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var item = Assert.Single(result.Value.Items);
+        Assert.Equal(directReport.Id, item.Id);
+    }
+
     #endregion
 
     private static GetEmployeesQueryHandler CreateHandler(CoreHRDbContext context)
-        => new(context, new EmployeeReadModelPolicy(), new TenantSettingsReadService(context));
+        => new(
+            context,
+            new EmployeeReadModelPolicy(),
+            new EmployeeReadScopeService(),
+            new TenantSettingsReadService(context));
 }

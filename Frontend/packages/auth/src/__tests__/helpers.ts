@@ -8,6 +8,7 @@ export function makeAuthResponse(
 ): AuthResponse {
   return {
     userId: "user-1",
+    employeeId: "employee-1",
     email: "john@example.com",
     fullName: "John Doe",
     roles: ["Employee"],
@@ -36,6 +37,7 @@ export function makeApiError(
 export function makeAuthUser(overrides: Partial<AuthUser> = {}): AuthUser {
   return {
     userId: "user-1",
+    employeeId: "employee-1",
     email: "john@example.com",
     fullName: "John Doe",
     roles: ["Employee"],

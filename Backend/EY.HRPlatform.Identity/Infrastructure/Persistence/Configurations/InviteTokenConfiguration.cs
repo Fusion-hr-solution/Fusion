@@ -30,6 +30,12 @@ public class InviteTokenConfiguration : IEntityTypeConfiguration<InviteToken>
         builder.Property(i => i.LastName)
             .HasMaxLength(100);
 
+        builder.Property(i => i.DeliveryStatus)
+            .HasMaxLength(50);
+
+        builder.Property(i => i.DeliveryMessage)
+            .HasMaxLength(500);
+
         builder.Property(i => i.IsRevoked)
             .IsRequired()
             .HasDefaultValue(false);
@@ -47,6 +53,11 @@ public class InviteTokenConfiguration : IEntityTypeConfiguration<InviteToken>
             .HasFilter("\"AcceptedAt\" IS NULL AND \"IsRevoked\" = false")
             .IsUnique()
             .HasDatabaseName("IX_InviteTokens_TenantId_Email_Pending");
+
+        builder.HasIndex(i => new { i.TenantId, i.EmployeeId })
+            .HasFilter("\"EmployeeId\" IS NOT NULL AND \"AcceptedAt\" IS NULL AND \"IsRevoked\" = false")
+            .IsUnique()
+            .HasDatabaseName("IX_InviteTokens_TenantId_EmployeeId_Pending");
 
         // Foreign key to Tenant
         builder.HasOne(i => i.Tenant)

@@ -99,6 +99,7 @@ public sealed class CreateEmployeeCommandHandler(
         employee.TenantId,
         employee.FirstName,
         employee.LastName,
+        employee.PreferredName,
         employee.Email,
         employee.OrgUnitId,
         orgUnit?.Name,

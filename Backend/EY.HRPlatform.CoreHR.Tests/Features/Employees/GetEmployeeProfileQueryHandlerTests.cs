@@ -223,6 +223,37 @@ public class GetEmployeeProfileQueryHandlerTests
         Assert.Contains("NotFound", result.Error.Code);
     }
 
+    [Fact]
+    public async Task GetEmployeeProfile_EmployeeAudienceForDifferentEmployee_ReturnsNotFound()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+
+        var employee = Employee.Create(TenantId, "Alice", "Viewer", "alice.viewer@example.com", DateTime.UtcNow);
+        var otherEmployee = Employee.Create(TenantId, "Ben", "Target", "ben.target@example.com", DateTime.UtcNow);
+
+        seedContext.Employees.AddRange(employee, otherEmployee);
+        await seedContext.SaveChangesAsync();
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = CreateHandler(context);
+
+        var result = await handler.Handle(
+            new GetEmployeeProfileQuery(
+                otherEmployee.Id,
+                EmployeeReadAudience.Employee,
+                employee.Id),
+            CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Contains("NotFound", result.Error.Code);
+    }
+
     private static GetEmployeeProfileQueryHandler CreateHandler(CoreHRDbContext context)
-        => new(context, new EmployeeReadModelPolicy(), new TenantSettingsReadService(context));
+        => new(
+            context,
+            new EmployeeReadModelPolicy(),
+            new EmployeeReadScopeService(),
+            new TenantSettingsReadService(context));
 }

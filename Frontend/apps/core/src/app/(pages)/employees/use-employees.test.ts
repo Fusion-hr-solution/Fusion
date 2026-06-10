@@ -39,6 +39,12 @@ vi.mock("@repo/api/query", async () => {
   return actual;
 });
 
+vi.mock("@/lib/employee-roster-access", () => ({
+  canAccessEmployeeProfile: () => true,
+  canAccessEmployeeRoster: () => true,
+  canAccessTeamWorkspace: () => true,
+}));
+
 import { ApiQueryProvider, createApiQueryClient } from "@repo/api/query";
 import {
   useDeactivateEmployee,
