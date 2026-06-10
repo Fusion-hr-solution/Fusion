@@ -202,13 +202,13 @@ export default function EmployeeImportWorkspace() {
 
   const handleDownloadTemplate = useCallback(async () => {
     try {
-      const blob = await downloadTemplate.mutateAsync(canonicalFieldKeys);
+      const blob = await downloadTemplate.mutateAsync();
       downloadBlob(blob, "employee-import-template.csv");
       toast.success("Employee import template downloaded.");
     } catch (error) {
       toast.error(getErrorMessage(error));
     }
-  }, [canonicalFieldKeys, downloadTemplate]);
+  }, [downloadTemplate]);
 
   const handleFileSelected = useCallback(
     async (event: React.ChangeEvent<HTMLInputElement>) => {

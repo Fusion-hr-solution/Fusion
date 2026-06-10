@@ -1,26 +1,11 @@
 using System.Reflection;
 using EY.HRPlatform.CoreHR.Controllers;
-using EY.HRPlatform.SharedKernel.Auth;
 using Microsoft.AspNetCore.Authorization;
 
 namespace EY.HRPlatform.CoreHR.Tests.Features.Employees;
 
 public class EmployeesControllerAuthorizationTests
 {
-    [Theory]
-    [InlineData(nameof(EmployeesController.Create))]
-    [InlineData(nameof(EmployeesController.Update))]
-    [InlineData(nameof(EmployeesController.Deactivate))]
-    public void WriteEndpoints_RequireHrAdmin(string methodName)
-    {
-        var method = GetControllerMethod(methodName);
-
-        var authorizeAttribute = method.GetCustomAttribute<AuthorizeAttribute>(inherit: false);
-
-        Assert.NotNull(authorizeAttribute);
-        Assert.Equal(PlatformRole.HRAdmin, authorizeAttribute.Roles);
-    }
-
     [Fact]
     public void Controller_RequiresAuthenticatedUserAtClassLevel()
     {
@@ -28,7 +13,24 @@ public class EmployeesControllerAuthorizationTests
             .GetCustomAttribute<AuthorizeAttribute>(inherit: false);
 
         Assert.NotNull(authorizeAttribute);
-        Assert.Null(authorizeAttribute.Roles);
+        Assert.Null(authorizeAttribute!.Roles);
+    }
+
+    [Theory]
+    [InlineData(nameof(EmployeesController.GetAll))]
+    [InlineData(nameof(EmployeesController.GetReadinessSummary))]
+    [InlineData(nameof(EmployeesController.GetOrgChart))]
+    [InlineData(nameof(EmployeesController.Create))]
+    [InlineData(nameof(EmployeesController.GetById))]
+    [InlineData(nameof(EmployeesController.Update))]
+    [InlineData(nameof(EmployeesController.UpdateSelfProfile))]
+    [InlineData(nameof(EmployeesController.Deactivate))]
+    public void PermissionControlledEndpoints_DoNotDeclareMethodRoleAttributes(string methodName)
+    {
+        var method = GetControllerMethod(methodName);
+        var authorizeAttribute = method.GetCustomAttribute<AuthorizeAttribute>(inherit: false);
+
+        Assert.True(authorizeAttribute is null || string.IsNullOrWhiteSpace(authorizeAttribute.Roles));
     }
 
     private static MethodInfo GetControllerMethod(string methodName)

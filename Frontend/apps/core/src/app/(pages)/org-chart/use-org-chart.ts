@@ -7,8 +7,8 @@ import {
   useApiQuery,
   type UseApiQueryResult,
 } from "@repo/api/query";
-import { useAuth } from "@repo/auth";
-import { canAccessEmployeeRoster } from "@/lib/employee-roster-access";
+import { canAccessCoreOrgChart, useAuth } from "@repo/auth";
+import { useTenantContext } from "@/shell/tenant-context/core-tenant-context-provider";
 import { normalizeOrgChartQuery, orgChartQueryKeys } from "./org-chart-query-keys";
 import type { EmployeeOrgChartDto, OrgChartQueryParams } from "./org-chart.types";
 
@@ -18,8 +18,11 @@ export function useOrgChart(
   query?: OrgChartQueryParams
 ): UseApiQueryResult<EmployeeOrgChartDto> {
   const { user, isAuthenticated } = useAuth();
+  const { tenantId } = useTenantContext();
   const client = useMemo(() => createPlatformApiClient(), []);
-  const canAccess = canAccessEmployeeRoster(user);
+  const canAccess =
+    canAccessCoreOrgChart(user) ||
+    (!!user?.roles.includes("PlatformAdmin") && !!tenantId);
   const normalizedQuery = normalizeOrgChartQuery(query);
 
   const queryFn = useCallback(
@@ -29,7 +32,10 @@ export function useOrgChart(
         params: {
           rootEmployeeId: normalizedQuery.rootEmployeeId ?? undefined,
           focusEmployeeId: normalizedQuery.focusEmployeeId ?? undefined,
+          rootEmployeeKey: normalizedQuery.rootEmployeeKey ?? undefined,
+          focusEmployeeKey: normalizedQuery.focusEmployeeKey ?? undefined,
           orgUnitId: normalizedQuery.orgUnitId ?? undefined,
+          orgUnitCode: normalizedQuery.orgUnitCode ?? undefined,
           maxDepth: normalizedQuery.maxDepth,
           includeInactive: normalizedQuery.includeInactive || undefined,
         },
@@ -37,10 +43,13 @@ export function useOrgChart(
     [
       client,
       normalizedQuery.focusEmployeeId,
+      normalizedQuery.focusEmployeeKey,
       normalizedQuery.includeInactive,
       normalizedQuery.maxDepth,
+      normalizedQuery.orgUnitCode,
       normalizedQuery.orgUnitId,
       normalizedQuery.rootEmployeeId,
+      normalizedQuery.rootEmployeeKey,
     ]
   );
 

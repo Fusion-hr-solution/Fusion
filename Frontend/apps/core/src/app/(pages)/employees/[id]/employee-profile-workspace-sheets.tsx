@@ -1,31 +1,34 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { ApiError } from "@repo/api";
 import { toast } from "sonner";
-import { AlertTriangle, ShieldAlert } from "lucide-react";
+import { AlertTriangle, Search } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Spinner } from "@/components/ui/spinner";
 import type {
   EmployeeOrgUnitOption,
   EmployeeProfileDto,
 } from "../employee-roster.types";
 import {
-  useDeactivateEmployee,
   useEmployeeOrgUnitOptions,
+  useEmployeeReportingLines,
   useUpdateEmployeeRecord,
 } from "../use-employees";
+import { EmployeeConfirmDialog } from "../employee-confirm-dialog";
+import { ManagerChangeSection } from "../employee-reporting-lines-sheet";
 
 interface EmployeeProfileSheetProps {
   profile: EmployeeProfileDto;
@@ -33,36 +36,38 @@ interface EmployeeProfileSheetProps {
   onOpenChange: (open: boolean) => void;
 }
 
-interface EmployeeStatusSheetProps extends EmployeeProfileSheetProps {
-  onManageReportingRelationship: () => void;
+interface EmployeeEditSheetProps extends EmployeeProfileSheetProps {
+  employeeKey: string;
+  defaultTab?: string;
+  showPhone: boolean;
+  requirePhone: boolean;
+  showJobTitle: boolean;
+  showHireDate: boolean;
+  showWorkLocation: boolean;
+  showEmploymentType: boolean;
+  requireJobTitle: boolean;
+  requireHireDate: boolean;
+  requireWorkLocation: boolean;
+  requireEmploymentType: boolean;
 }
 
 interface IdentityFormValues {
+  employeeNumber: string;
   firstName: string;
   lastName: string;
+  preferredName: string;
   email: string;
-}
-
-interface EmploymentFormValues {
+  phone: string;
   jobTitle: string;
   hireDate: string;
-}
-
-interface OrganizationFormValues {
-  orgUnitId: string;
-}
-
-interface EmployeeEmploymentEditSheetProps extends EmployeeProfileSheetProps {
-  showJobTitle: boolean;
-  showHireDate: boolean;
-  requireJobTitle: boolean;
-  requireHireDate: boolean;
+  workLocation: string;
+  employmentType: string;
 }
 
 function getMutationErrorMessage(error: unknown) {
   if (error instanceof ApiError) {
     if (error.status === 409 || error.status === 412) {
-      return "This employee record changed in another session. Refresh the profile and try again.";
+      return "This record was changed by another user. Refresh and try again.";
     }
 
     return error.errors[0] ?? error.message;
@@ -91,15 +96,7 @@ function getDateInputValue(value: string) {
 }
 
 function toApiHireDate(value: string) {
-  return new Date(`${value}T00:00:00`).toISOString();
-}
-
-function formatActiveDirectReportCount(count: number) {
-  if (count === 1) {
-    return "1 active direct report";
-  }
-
-  return `${count} active direct reports`;
+  return `${value}T00:00:00.000Z`;
 }
 
 function getOrgUnitDisplayLabel(option: EmployeeOrgUnitOption) {
@@ -110,660 +107,952 @@ function isTextPresent(value: string | null | undefined) {
   return !!value?.trim();
 }
 
-function ProfileSheetFrame({
-  title,
-  description,
-  open,
-  onOpenChange,
+const DEFAULT_ORG_UNIT_SUGGESTION_COUNT = 5;
+
+type EmployeeEditTabKey = "personal" | "work" | "manager" | "organization";
+
+function getEmptyDirtyTabs() {
+  return {
+    personal: false,
+    work: false,
+    manager: false,
+    organization: false,
+  } satisfies Record<EmployeeEditTabKey, boolean>;
+}
+
+// ── EmployeeEditTabLayout (reusable) ─────────────────────────────────────
+
+function EmployeeEditTabLayout({
+  error,
+  footer,
   children,
 }: {
-  title: string;
-  description: string;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  children: ReactNode;
+  error?: React.ReactNode;
+  footer: React.ReactNode;
+  children: React.ReactNode;
 }) {
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="flex w-full flex-col gap-0 p-0 sm:max-w-xl">
-        <SheetHeader className="border-b px-6 pb-4 pt-6 pr-14">
-          <SheetTitle>{title}</SheetTitle>
-          <SheetDescription>{description}</SheetDescription>
-        </SheetHeader>
-        <div className="flex-1 overflow-y-auto px-6 pb-6 pt-6">{children}</div>
-      </SheetContent>
-    </Sheet>
+    <>
+      <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
+        {children}
+      </div>
+      {error ? <div className="mt-4">{error}</div> : null}
+      <DialogFooter className="shrink-0 border-t pt-4">{footer}</DialogFooter>
+    </>
   );
 }
 
-function ProfileSheetActions({ children }: { children: ReactNode }) {
-  return (
-    <div className="flex flex-wrap justify-end gap-2 border-t pt-5">
-      {children}
-    </div>
-  );
-}
+// ── EmployeeEditDialog (unified) ──────────────────────────────────────────
 
-export function EmployeeIdentityEditSheet({
+export function EmployeeEditDialog({
   profile,
+  employeeKey,
   open,
   onOpenChange,
-}: EmployeeProfileSheetProps) {
+  defaultTab = "personal",
+  showPhone,
+  requirePhone,
+  showJobTitle,
+  showHireDate,
+  showWorkLocation,
+  showEmploymentType,
+  requireJobTitle,
+  requireHireDate,
+  requireWorkLocation,
+  requireEmploymentType,
+}: EmployeeEditSheetProps) {
+  const [activeTab, setActiveTab] = useState(defaultTab);
+  const [dirtyTabs, setDirtyTabs] = useState(getEmptyDirtyTabs);
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+  const hasUnsavedChanges = Object.values(dirtyTabs).some(Boolean);
+
+  useEffect(() => {
+    if (open) {
+      setActiveTab(defaultTab);
+      return;
+    }
+
+    setDirtyTabs(getEmptyDirtyTabs());
+    setShowDiscardConfirm(false);
+  }, [open, defaultTab]);
+
+  function setDirtyTab(tab: EmployeeEditTabKey, isDirty: boolean) {
+    setDirtyTabs((current) =>
+      current[tab] === isDirty ? current : { ...current, [tab]: isDirty }
+    );
+  }
+
+  function handleOpenStateChange(nextOpen: boolean) {
+    if (nextOpen) {
+      onOpenChange(true);
+      return;
+    }
+
+    if (hasUnsavedChanges) {
+      setShowDiscardConfirm(true);
+      return;
+    }
+
+    onOpenChange(false);
+  }
+
+  return (
+    <>
+      <Dialog open={open} onOpenChange={handleOpenStateChange}>
+        <DialogContent
+          className="sm:max-w-xl flex flex-col h-[540px] max-h-[85vh]"
+          aria-describedby={undefined}
+        >
+          <DialogHeader className="shrink-0">
+            <DialogTitle>Edit employee</DialogTitle>
+          </DialogHeader>
+
+          <Tabs
+            value={activeTab}
+            onValueChange={setActiveTab}
+            className="flex min-h-0 flex-1 flex-col"
+          >
+            <TabsList className="w-full shrink-0">
+              <TabsTrigger value="personal" className="flex-1">
+                Personal
+              </TabsTrigger>
+              <TabsTrigger value="work" className="flex-1">
+                Work
+              </TabsTrigger>
+              <TabsTrigger value="manager" className="flex-1">
+                Manager
+              </TabsTrigger>
+              <TabsTrigger value="organization" className="flex-1">
+                Organization
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="personal" className="min-h-0 flex flex-col">
+              <PersonalTab
+                profile={profile}
+                open={open}
+                showPhone={showPhone}
+                requirePhone={requirePhone}
+                onDirtyChange={(isDirty) => setDirtyTab("personal", isDirty)}
+              />
+            </TabsContent>
+
+            <TabsContent value="work" className="min-h-0 flex flex-col">
+              <WorkTab
+                profile={profile}
+                open={open}
+                showJobTitle={showJobTitle}
+                showHireDate={showHireDate}
+                showWorkLocation={showWorkLocation}
+                showEmploymentType={showEmploymentType}
+                requireJobTitle={requireJobTitle}
+                requireHireDate={requireHireDate}
+                requireWorkLocation={requireWorkLocation}
+                requireEmploymentType={requireEmploymentType}
+                onDirtyChange={(isDirty) => setDirtyTab("work", isDirty)}
+              />
+            </TabsContent>
+
+            <TabsContent value="manager" className="min-h-0 flex flex-col">
+              <ManagerTab
+                employeeKey={employeeKey}
+                showJobTitle={showJobTitle}
+                onDirtyChange={(isDirty) => setDirtyTab("manager", isDirty)}
+              />
+            </TabsContent>
+
+            <TabsContent value="organization" className="min-h-0 flex flex-col">
+              <OrganizationTab
+                profile={profile}
+                open={open}
+                onDirtyChange={(isDirty) =>
+                  setDirtyTab("organization", isDirty)
+                }
+              />
+            </TabsContent>
+          </Tabs>
+        </DialogContent>
+      </Dialog>
+
+      <EmployeeConfirmDialog
+        open={showDiscardConfirm}
+        onOpenChange={setShowDiscardConfirm}
+        title="Discard changes?"
+        description="Your unsaved edits will be lost."
+        confirmLabel="Discard changes"
+        onConfirm={() => {
+          setDirtyTabs(getEmptyDirtyTabs());
+          setShowDiscardConfirm(false);
+          onOpenChange(false);
+        }}
+      />
+    </>
+  );
+}
+
+// ── PersonalTab ─────────────────────────────────────────────────────────────
+
+function PersonalTab({
+  profile,
+  showPhone,
+  requirePhone,
+  open,
+  onDirtyChange,
+}: {
+  profile: EmployeeProfileDto;
+  showPhone: boolean;
+  requirePhone: boolean;
+  open: boolean;
+  onDirtyChange: (isDirty: boolean) => void;
+}) {
   const updateEmployeeRecord = useUpdateEmployeeRecord();
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const wasOpenRef = useRef(false);
   const form = useForm<IdentityFormValues>({
     defaultValues: {
+      employeeNumber: profile.employeeNumber ?? "",
       firstName: profile.firstName,
       lastName: profile.lastName,
+      preferredName: profile.preferredName ?? "",
       email: profile.email,
+      phone: profile.phone ?? "",
+      jobTitle: "",
+      hireDate: "",
+      workLocation: "",
+      employmentType: "",
     },
   });
 
   useEffect(() => {
-    if (!open) {
-      return;
-    }
+    const justOpened = open && !wasOpenRef.current;
+    wasOpenRef.current = open;
+
+    if (!justOpened) return;
 
     form.reset({
+      employeeNumber: profile.employeeNumber ?? "",
       firstName: profile.firstName,
       lastName: profile.lastName,
+      preferredName: profile.preferredName ?? "",
       email: profile.email,
+      phone: profile.phone ?? "",
+      jobTitle: "",
+      hireDate: "",
+      workLocation: "",
+      employmentType: "",
     });
     setSubmitError(null);
-  }, [form, open, profile.email, profile.firstName, profile.lastName]);
+  }, [
+    form,
+    open,
+    profile.employeeNumber,
+    profile.firstName,
+    profile.lastName,
+    profile.preferredName,
+    profile.email,
+    profile.phone,
+  ]);
+
+  useEffect(() => {
+    onDirtyChange(form.formState.isDirty);
+  }, [form.formState.isDirty, onDirtyChange]);
 
   async function handleSubmit(values: IdentityFormValues) {
     setSubmitError(null);
-
     try {
       await updateEmployeeRecord.mutateAsync({
         employeeId: profile.id,
         expectedVersion: profile.version,
+        employeeNumber: values.employeeNumber.trim() || null,
         firstName: values.firstName.trim(),
         lastName: values.lastName.trim(),
+        preferredName: values.preferredName,
         email: values.email.trim().toLowerCase(),
+        ...(showPhone ? { phone: values.phone.trim() || null } : {}),
       });
-
-      toast.success("Identity and contact details updated.");
-      onOpenChange(false);
+      form.reset({
+        employeeNumber: values.employeeNumber.trim(),
+        firstName: values.firstName.trim(),
+        lastName: values.lastName.trim(),
+        preferredName: values.preferredName.trim(),
+        email: values.email.trim().toLowerCase(),
+        phone: values.phone.trim(),
+        jobTitle: "",
+        hireDate: "",
+        workLocation: "",
+        employmentType: "",
+      });
+      toast.success("Details updated.");
     } catch (error) {
       setSubmitError(getMutationErrorMessage(error));
     }
   }
 
   return (
-    <ProfileSheetFrame
-      title="Edit identity & contact"
-      description="Update the employee's primary identity fields used across Core."
-      open={open}
-      onOpenChange={onOpenChange}
+    <form
+      className="flex min-h-0 flex-1 flex-col"
+      onSubmit={form.handleSubmit((values) => void handleSubmit(values))}
     >
-      <form
-        className="space-y-6"
-        onSubmit={form.handleSubmit((values) => void handleSubmit(values))}
-      >
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="identity-first-name">First name</Label>
-            <Input
-              id="identity-first-name"
-              autoComplete="given-name"
-              {...form.register("firstName", {
-                required: "First name is required.",
-              })}
-            />
-            {form.formState.errors.firstName ? (
-              <p className="text-sm text-destructive">
-                {form.formState.errors.firstName.message}
-              </p>
-            ) : null}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="identity-last-name">Last name</Label>
-            <Input
-              id="identity-last-name"
-              autoComplete="family-name"
-              {...form.register("lastName", {
-                required: "Last name is required.",
-              })}
-            />
-            {form.formState.errors.lastName ? (
-              <p className="text-sm text-destructive">
-                {form.formState.errors.lastName.message}
-              </p>
-            ) : null}
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="identity-email">Work email</Label>
-          <Input
-            id="identity-email"
-            type="email"
-            autoComplete="email"
-            {...form.register("email", {
-              required: "Work email is required.",
-            })}
-          />
-          {form.formState.errors.email ? (
-            <p className="text-sm text-destructive">
-              {form.formState.errors.email.message}
-            </p>
-          ) : null}
-        </div>
-
-        {submitError ? (
-          <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Update failed</AlertTitle>
-            <AlertDescription>{submitError}</AlertDescription>
-          </Alert>
-        ) : null}
-
-        <ProfileSheetActions>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={updateEmployeeRecord.isLoading}
-          >
-            Cancel
-          </Button>
+      <EmployeeEditTabLayout
+        error={
+          submitError ? (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Update failed</AlertTitle>
+              <AlertDescription>{submitError}</AlertDescription>
+            </Alert>
+          ) : undefined
+        }
+        footer={
           <Button
             type="submit"
             disabled={!form.formState.isDirty || updateEmployeeRecord.isLoading}
           >
-            {updateEmployeeRecord.isLoading ? (
-              <>
-                <Spinner className="mr-2 h-4 w-4" />
-                Saving
-              </>
-            ) : (
-              "Save changes"
-            )}
+            {updateEmployeeRecord.isLoading
+              ? "Saving..."
+              : "Save personal details"}
           </Button>
-        </ProfileSheetActions>
-      </form>
-    </ProfileSheetFrame>
+        }
+      >
+        <div className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="personal-employee-number">Employee number</Label>
+              <Input
+                id="personal-employee-number"
+                autoComplete="off"
+                maxLength={64}
+                placeholder="e.g. EMP001"
+                {...form.register("employeeNumber")}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="personal-first-name">First name</Label>
+              <Input
+                id="personal-first-name"
+                autoComplete="given-name"
+                placeholder="e.g. John"
+                {...form.register("firstName", {
+                  required: "First name is required.",
+                })}
+              />
+              {form.formState.errors.firstName ? (
+                <p className="text-sm text-destructive">
+                  {form.formState.errors.firstName.message}
+                </p>
+              ) : null}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="personal-last-name">Last name</Label>
+              <Input
+                id="personal-last-name"
+                autoComplete="family-name"
+                placeholder="e.g. Smith"
+                {...form.register("lastName", {
+                  required: "Last name is required.",
+                })}
+              />
+              {form.formState.errors.lastName ? (
+                <p className="text-sm text-destructive">
+                  {form.formState.errors.lastName.message}
+                </p>
+              ) : null}
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="personal-preferred-name">Preferred name</Label>
+              <Input
+                id="personal-preferred-name"
+                autoComplete="nickname"
+                maxLength={100}
+                placeholder="e.g. Jordy"
+                {...form.register("preferredName")}
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="personal-email">Work email</Label>
+            <Input
+              id="personal-email"
+              type="email"
+              autoComplete="email"
+              placeholder="e.g. john.smith@company.com"
+              {...form.register("email", {
+                required: "Work email is required.",
+              })}
+            />
+            {form.formState.errors.email ? (
+              <p className="text-sm text-destructive">
+                {form.formState.errors.email.message}
+              </p>
+            ) : null}
+          </div>
+          {showPhone ? (
+            <div className="space-y-2">
+              <Label htmlFor="personal-phone">Phone</Label>
+              <Input
+                id="personal-phone"
+                autoComplete="tel"
+                placeholder="e.g. +1 555 123 4567"
+                {...form.register(
+                  "phone",
+                  requirePhone
+                    ? {
+                        validate: (value) =>
+                          value.trim().length > 0 || "Phone is required.",
+                      }
+                    : undefined
+                )}
+              />
+              {form.formState.errors.phone ? (
+                <p className="text-sm text-destructive">
+                  {form.formState.errors.phone.message}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      </EmployeeEditTabLayout>
+    </form>
   );
 }
 
-export function EmployeeEmploymentEditSheet({
+// ── WorkTab ─────────────────────────────────────────────────────────────────
+
+function WorkTab({
   profile,
   open,
-  onOpenChange,
   showJobTitle,
   showHireDate,
+  showWorkLocation,
+  showEmploymentType,
   requireJobTitle,
   requireHireDate,
-}: EmployeeEmploymentEditSheetProps) {
+  requireWorkLocation,
+  requireEmploymentType,
+  onDirtyChange,
+}: {
+  profile: EmployeeProfileDto;
+  open: boolean;
+  showJobTitle: boolean;
+  showHireDate: boolean;
+  showWorkLocation: boolean;
+  showEmploymentType: boolean;
+  requireJobTitle: boolean;
+  requireHireDate: boolean;
+  requireWorkLocation: boolean;
+  requireEmploymentType: boolean;
+  onDirtyChange: (isDirty: boolean) => void;
+}) {
   const updateEmployeeRecord = useUpdateEmployeeRecord();
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const form = useForm<EmploymentFormValues>({
+  const wasOpenRef = useRef(false);
+  const form = useForm<IdentityFormValues>({
     defaultValues: {
+      employeeNumber: "",
+      firstName: "",
+      lastName: "",
+      preferredName: "",
+      email: "",
+      phone: "",
       jobTitle: profile.jobTitle ?? "",
       hireDate: getDateInputValue(profile.hireDate),
+      workLocation: profile.workLocation ?? "",
+      employmentType: profile.employmentType ?? "",
     },
   });
 
   useEffect(() => {
-    if (!open) {
+    const justOpened = open && !wasOpenRef.current;
+    wasOpenRef.current = open;
+
+    if (!justOpened) {
       return;
     }
 
     form.reset({
+      employeeNumber: "",
+      firstName: "",
+      lastName: "",
+      preferredName: "",
+      email: "",
+      phone: "",
       jobTitle: profile.jobTitle ?? "",
       hireDate: getDateInputValue(profile.hireDate),
+      workLocation: profile.workLocation ?? "",
+      employmentType: profile.employmentType ?? "",
     });
     setSubmitError(null);
-  }, [form, open, profile.hireDate, profile.jobTitle]);
+  }, [
+    form,
+    open,
+    profile.jobTitle,
+    profile.hireDate,
+    profile.workLocation,
+    profile.employmentType,
+  ]);
 
-  async function handleSubmit(values: EmploymentFormValues) {
+  useEffect(() => {
+    onDirtyChange(form.formState.isDirty);
+  }, [form.formState.isDirty, onDirtyChange]);
+
+  async function handleSubmit(values: IdentityFormValues) {
     setSubmitError(null);
-
     try {
-      const updatePayload = {
+      await updateEmployeeRecord.mutateAsync({
         employeeId: profile.id,
         expectedVersion: profile.version,
         ...(showJobTitle ? { jobTitle: values.jobTitle.trim() } : {}),
         ...(showHireDate ? { hireDate: toApiHireDate(values.hireDate) } : {}),
-      };
-
-      await updateEmployeeRecord.mutateAsync({
-        ...updatePayload,
+        ...(showWorkLocation
+          ? { workLocation: values.workLocation.trim() || null }
+          : {}),
+        ...(showEmploymentType
+          ? { employmentType: values.employmentType.trim() || null }
+          : {}),
       });
-
-      toast.success("Employment details updated.");
-      onOpenChange(false);
+      form.reset({
+        employeeNumber: "",
+        firstName: "",
+        lastName: "",
+        preferredName: "",
+        email: "",
+        phone: "",
+        jobTitle: values.jobTitle.trim(),
+        hireDate: values.hireDate,
+        workLocation: values.workLocation.trim(),
+        employmentType: values.employmentType.trim(),
+      });
+      toast.success("Details updated.");
     } catch (error) {
       setSubmitError(getMutationErrorMessage(error));
     }
   }
 
+  const showAnyField =
+    showJobTitle || showHireDate || showWorkLocation || showEmploymentType;
+
+  if (!showAnyField) return null;
+
   return (
-    <ProfileSheetFrame
-      title="Edit employment details"
-      description="Maintain the core employment facts used throughout the workforce record."
-      open={open}
-      onOpenChange={onOpenChange}
+    <form
+      className="flex min-h-0 flex-1 flex-col"
+      onSubmit={form.handleSubmit((values) => void handleSubmit(values))}
     >
-      <form
-        className="space-y-6"
-        onSubmit={form.handleSubmit((values) => void handleSubmit(values))}
-      >
-        {showJobTitle ? (
-          <div className="space-y-2">
-            <Label htmlFor="employment-job-title">Job title</Label>
-            <Input
-              id="employment-job-title"
-              placeholder="e.g. Senior HR Manager"
-              {...form.register(
-                "jobTitle",
-                requireJobTitle
-                  ? {
-                      validate: (value) =>
-                        value.trim().length > 0 || "Job title is required.",
-                    }
-                  : undefined
-              )}
-            />
-            {form.formState.errors.jobTitle ? (
-              <p className="text-sm text-destructive">
-                {form.formState.errors.jobTitle.message}
-              </p>
-            ) : null}
-          </div>
-        ) : null}
-
-        {showHireDate ? (
-          <div className="space-y-2">
-            <Label htmlFor="employment-hire-date">Hire date</Label>
-            <Input
-              id="employment-hire-date"
-              type="date"
-              {...form.register(
-                "hireDate",
-                showHireDate && requireHireDate
-                  ? {
-                      required: "Hire date is required.",
-                    }
-                  : undefined
-              )}
-            />
-            {form.formState.errors.hireDate ? (
-              <p className="text-sm text-destructive">
-                {form.formState.errors.hireDate.message}
-              </p>
-            ) : null}
-          </div>
-        ) : null}
-
-        {submitError ? (
-          <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Update failed</AlertTitle>
-            <AlertDescription>{submitError}</AlertDescription>
-          </Alert>
-        ) : null}
-
-        <ProfileSheetActions>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={updateEmployeeRecord.isLoading}
-          >
-            Cancel
-          </Button>
+      <EmployeeEditTabLayout
+        error={
+          submitError ? (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Update failed</AlertTitle>
+              <AlertDescription>{submitError}</AlertDescription>
+            </Alert>
+          ) : undefined
+        }
+        footer={
           <Button
             type="submit"
             disabled={!form.formState.isDirty || updateEmployeeRecord.isLoading}
           >
-            {updateEmployeeRecord.isLoading ? (
-              <>
-                <Spinner className="mr-2 h-4 w-4" />
-                Saving
-              </>
-            ) : (
-              "Save changes"
-            )}
+            {updateEmployeeRecord.isLoading ? "Saving..." : "Save work details"}
           </Button>
-        </ProfileSheetActions>
-      </form>
-    </ProfileSheetFrame>
+        }
+      >
+        <div className="space-y-4">
+          {showJobTitle ? (
+            <div className="space-y-2">
+              <Label htmlFor="work-job-title">Job title</Label>
+              <Input
+                id="work-job-title"
+                placeholder="e.g. Software Engineer"
+                {...form.register(
+                  "jobTitle",
+                  requireJobTitle
+                    ? {
+                        validate: (value) =>
+                          value.trim().length > 0 || "Job title is required.",
+                      }
+                    : undefined
+                )}
+              />
+              {form.formState.errors.jobTitle ? (
+                <p className="text-sm text-destructive">
+                  {form.formState.errors.jobTitle.message}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+          {showHireDate ? (
+            <div className="space-y-2">
+              <Label htmlFor="work-hire-date">Hire date</Label>
+              <Input
+                id="work-hire-date"
+                type="date"
+                {...form.register(
+                  "hireDate",
+                  requireHireDate
+                    ? { required: "Hire date is required." }
+                    : undefined
+                )}
+              />
+              {form.formState.errors.hireDate ? (
+                <p className="text-sm text-destructive">
+                  {form.formState.errors.hireDate.message}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+          {showWorkLocation ? (
+            <div className="space-y-2">
+              <Label htmlFor="work-location">Work location</Label>
+              <Input
+                id="work-location"
+                placeholder="e.g. London"
+                {...form.register(
+                  "workLocation",
+                  requireWorkLocation
+                    ? {
+                        validate: (value) =>
+                          value.trim().length > 0 ||
+                          "Work location is required.",
+                      }
+                    : undefined
+                )}
+              />
+              {form.formState.errors.workLocation ? (
+                <p className="text-sm text-destructive">
+                  {form.formState.errors.workLocation.message}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+          {showEmploymentType ? (
+            <div className="space-y-2">
+              <Label htmlFor="work-employment-type">Employment type</Label>
+              <Input
+                id="work-employment-type"
+                placeholder="e.g. Full-time"
+                {...form.register(
+                  "employmentType",
+                  requireEmploymentType
+                    ? {
+                        validate: (value) =>
+                          value.trim().length > 0 ||
+                          "Employment type is required.",
+                      }
+                    : undefined
+                )}
+              />
+              {form.formState.errors.employmentType ? (
+                <p className="text-sm text-destructive">
+                  {form.formState.errors.employmentType.message}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      </EmployeeEditTabLayout>
+    </form>
   );
 }
 
-export function EmployeeOrganizationEditSheet({
+// ── ManagerTab ─────────────────────────────────────────────────────────────
+
+function ManagerTab({
+  employeeKey,
+  showJobTitle,
+  onDirtyChange,
+}: {
+  employeeKey: string;
+  showJobTitle: boolean;
+  onDirtyChange: (isDirty: boolean) => void;
+}) {
+  const { data, error, isLoading } = useEmployeeReportingLines(employeeKey);
+  const controllerRef = useRef<
+    { save: () => void; remove: () => void } | undefined
+  >(undefined);
+  const [buttonState, setButtonState] = useState({
+    canSave: false,
+    isSaving: false,
+  });
+
+  useEffect(() => {
+    onDirtyChange(buttonState.canSave);
+  }, [buttonState.canSave, onDirtyChange]);
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-0 flex-1 items-center justify-center">
+        <Spinner />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex min-h-0 flex-1">
+        <Alert variant="destructive">
+          <AlertTriangle className="size-4" />
+          <AlertTitle>Couldn&apos;t load reporting relationship</AlertTitle>
+          <AlertDescription>
+            Reporting details couldn&apos;t be loaded. Try again.
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  if (!data) return null;
+
+  const emp = data.employee;
+  const hasManager =
+    emp.managerId !== null &&
+    emp.hierarchyStatus !== "Root" &&
+    emp.hierarchyStatus !== "ManagerMissing";
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <EmployeeEditTabLayout
+        footer={
+          <Button
+            onClick={() => void controllerRef.current?.save()}
+            disabled={!buttonState.canSave || buttonState.isSaving}
+          >
+            {buttonState.isSaving
+              ? "Saving..."
+              : hasManager
+                ? "Change manager"
+                : "Assign manager"}
+          </Button>
+        }
+      >
+        <ManagerChangeSection
+          data={data}
+          showJobTitle={showJobTitle}
+          embedded
+          hideFooter
+          controllerRef={controllerRef}
+          onButtonStateChange={setButtonState}
+        />
+      </EmployeeEditTabLayout>
+    </div>
+  );
+}
+
+// ── OrganizationTab ────────────────────────────────────────────────────────
+
+function OrganizationTab({
   profile,
   open,
-  onOpenChange,
-}: EmployeeProfileSheetProps) {
+  onDirtyChange,
+}: {
+  profile: EmployeeProfileDto;
+  open: boolean;
+  onDirtyChange: (isDirty: boolean) => void;
+}) {
   const updateEmployeeRecord = useUpdateEmployeeRecord();
   const [search, setSearch] = useState("");
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const form = useForm<OrganizationFormValues>({
-    defaultValues: {
-      orgUnitId: profile.orgUnitId ?? "",
-    },
-  });
   const orgUnitOptionsQuery = useEmployeeOrgUnitOptions({
     search,
-    enabled: open,
+    enabled: true,
   });
+  const orgUnits = orgUnitOptionsQuery.data?.items ?? [];
+  const hasSearch = search.trim().length > 0;
+  const visibleOrgUnits = hasSearch
+    ? orgUnits
+    : orgUnits.slice(0, DEFAULT_ORG_UNIT_SUGGESTION_COUNT);
+  const [selectedOrgUnitId, setSelectedOrgUnitId] = useState(
+    profile.orgUnitId ?? ""
+  );
+  const [selectedOrgUnitName, setSelectedOrgUnitName] = useState<string | null>(
+    profile.orgUnitName ?? null
+  );
+  const [initialOrgUnitId, setInitialOrgUnitId] = useState(
+    profile.orgUnitId ?? ""
+  );
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const wasOpenRef = useRef(false);
+  const hasChanges = selectedOrgUnitId !== initialOrgUnitId;
+  const isClearingAssignment = !!initialOrgUnitId && selectedOrgUnitId === "";
 
   useEffect(() => {
-    if (!open) {
+    const justOpened = open && !wasOpenRef.current;
+    wasOpenRef.current = open;
+
+    if (!justOpened) {
       return;
     }
 
-    form.reset({
-      orgUnitId: profile.orgUnitId ?? "",
-    });
+    setSelectedOrgUnitId(profile.orgUnitId ?? "");
+    setSelectedOrgUnitName(profile.orgUnitName ?? null);
+    setInitialOrgUnitId(profile.orgUnitId ?? "");
     setSearch("");
     setSubmitError(null);
-  }, [form, open, profile.orgUnitId]);
+    setShowClearConfirm(false);
+  }, [open, profile.orgUnitId, profile.orgUnitName]);
 
-  const orgUnits = orgUnitOptionsQuery.data?.items ?? [];
+  useEffect(() => {
+    onDirtyChange(hasChanges);
+  }, [hasChanges, onDirtyChange]);
 
-  async function handleSubmit(values: OrganizationFormValues) {
+  async function saveOrganizationAssignment() {
     setSubmitError(null);
 
     try {
       await updateEmployeeRecord.mutateAsync({
         employeeId: profile.id,
         expectedVersion: profile.version,
-        orgUnitId: values.orgUnitId || null,
+        orgUnitId: selectedOrgUnitId || null,
       });
-
-      toast.success("Organization assignment updated.");
-      onOpenChange(false);
+      setInitialOrgUnitId(selectedOrgUnitId);
+      toast.success("Organization updated.");
     } catch (error) {
       setSubmitError(getMutationErrorMessage(error));
+    } finally {
+      setShowClearConfirm(false);
     }
   }
 
-  const selectedOrgUnitId = form.watch("orgUnitId");
-
-  return (
-    <ProfileSheetFrame
-      title="Edit organization assignment"
-      description="Assign the employee to the live org-unit structure used across Core."
-      open={open}
-      onOpenChange={onOpenChange}
-    >
-      <form
-        className="space-y-6"
-        onSubmit={form.handleSubmit((values) => void handleSubmit(values))}
-      >
-        <div className="space-y-2">
-          <Label htmlFor="organization-search">Find org unit</Label>
-          <Input
-            id="organization-search"
-            value={search}
-            placeholder="Search by unit name or code"
-            onChange={(event) => setSearch(event.target.value)}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label>Assignment</Label>
-          <div className="overflow-hidden rounded-lg border">
-            <button
-              type="button"
-              className={`flex w-full items-start justify-between gap-3 px-4 py-3.5 text-left text-sm transition hover:bg-muted/40 ${
-                selectedOrgUnitId === "" ? "bg-muted/50" : ""
-              }`}
-              onClick={() =>
-                form.setValue("orgUnitId", "", { shouldDirty: true })
-              }
-            >
-              <div className="space-y-1">
-                <p className="font-medium">Not assigned</p>
-                <p className="text-xs text-muted-foreground">
-                  Remove this employee from the current org-unit assignment.
-                </p>
-              </div>
-              {selectedOrgUnitId === "" ? (
-                <span className="text-xs font-medium text-foreground">
-                  Selected
-                </span>
-              ) : null}
-            </button>
-
-            <div className="border-t">
-              {orgUnitOptionsQuery.isLoading ? (
-                <div className="flex items-center gap-2 px-4 py-3 text-sm text-muted-foreground">
-                  <Spinner className="h-4 w-4" />
-                  Loading active org units...
-                </div>
-              ) : orgUnitOptionsQuery.error ? (
-                <div className="px-4 py-3 text-sm text-destructive">
-                  {orgUnitOptionsQuery.error.message ||
-                    "Unable to load org units right now."}
-                </div>
-              ) : orgUnits.length === 0 ? (
-                <div className="px-4 py-3 text-sm text-muted-foreground">
-                  No active org units matched this search.
-                </div>
-              ) : (
-                <div className="max-h-72 overflow-y-auto divide-y">
-                  {orgUnits.map((option) => {
-                    const isSelected = selectedOrgUnitId === option.id;
-
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        className={`flex w-full items-start justify-between gap-3 px-4 py-3.5 text-left text-sm transition hover:bg-muted/40 ${
-                          isSelected ? "bg-muted/50" : ""
-                        }`}
-                        onClick={() =>
-                          form.setValue("orgUnitId", option.id, {
-                            shouldDirty: true,
-                          })
-                        }
-                      >
-                        <div className="space-y-1">
-                          <p className="font-medium">
-                            {getOrgUnitDisplayLabel(option)}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {option.type}
-                            {isTextPresent(option.parentName)
-                              ? ` · Reports into ${option.parentName}`
-                              : " · Root unit"}
-                          </p>
-                        </div>
-                        {isSelected ? (
-                          <span className="text-xs font-medium text-foreground">
-                            Selected
-                          </span>
-                        ) : null}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {submitError ? (
-          <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Update failed</AlertTitle>
-            <AlertDescription>{submitError}</AlertDescription>
-          </Alert>
-        ) : null}
-
-        <ProfileSheetActions>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={updateEmployeeRecord.isLoading}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            disabled={!form.formState.isDirty || updateEmployeeRecord.isLoading}
-          >
-            {updateEmployeeRecord.isLoading ? (
-              <>
-                <Spinner className="mr-2 h-4 w-4" />
-                Saving
-              </>
-            ) : (
-              "Save changes"
-            )}
-          </Button>
-        </ProfileSheetActions>
-      </form>
-    </ProfileSheetFrame>
-  );
-}
-
-export function EmployeeStatusSheet({
-  profile,
-  open,
-  onOpenChange,
-  onManageReportingRelationship,
-}: EmployeeStatusSheetProps) {
-  const deactivateEmployee = useDeactivateEmployee();
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const hasActiveDirectReports =
-    profile.status === "Active" && profile.directReportCount > 0;
-
-  useEffect(() => {
-    if (!open) {
+  async function handleSave() {
+    if (!hasChanges) {
       return;
     }
 
-    setSubmitError(null);
-  }, [open, profile.id, profile.version]);
-
-  async function handleDeactivate() {
-    setSubmitError(null);
-
-    try {
-      await deactivateEmployee.mutateAsync({
-        employeeId: profile.id,
-        expectedVersion: profile.version,
-      });
-
-      toast.success("Employee deactivated.");
-      onOpenChange(false);
-    } catch (error) {
-      setSubmitError(getMutationErrorMessage(error));
+    if (isClearingAssignment) {
+      setShowClearConfirm(true);
+      return;
     }
+
+    await saveOrganizationAssignment();
   }
 
   return (
-    <ProfileSheetFrame
-      title="Manage employment status"
-      description="Review the employee's current status and handle deactivation safely within the workforce record."
-      open={open}
-      onOpenChange={onOpenChange}
-    >
-      <div className="space-y-6">
-        <div className="rounded-lg border bg-muted/30 p-4">
-          <div className="flex items-start gap-3">
-            <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-            <div className="space-y-1 text-sm">
-              <p className="font-medium">Current status</p>
-              <p className="text-muted-foreground">
-                {profile.status === "Active"
-                  ? "Active employees remain visible in roster, reporting, and assignment workflows."
-                  : "This employee is already inactive. Reactivation is not available from this workspace."}
-              </p>
+    <>
+      <div className="flex min-h-0 flex-1 flex-col">
+        <EmployeeEditTabLayout
+          error={
+            submitError ? (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Update failed</AlertTitle>
+                <AlertDescription>{submitError}</AlertDescription>
+              </Alert>
+            ) : undefined
+          }
+          footer={
+            <Button
+              onClick={() => void handleSave()}
+              disabled={!hasChanges || updateEmployeeRecord.isLoading}
+            >
+              {updateEmployeeRecord.isLoading
+                ? "Saving..."
+                : "Save organization"}
+            </Button>
+          }
+        >
+          <div className="space-y-4">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                id="organization-search"
+                value={search}
+                placeholder="Search org units..."
+                className="pl-8"
+                onChange={(event) => setSearch(event.target.value)}
+              />
             </div>
-          </div>
-        </div>
 
-        {profile.status === "Inactive" ? (
-          <Alert>
-            <ShieldAlert className="h-4 w-4" />
-            <AlertTitle>Employee is inactive</AlertTitle>
-            <AlertDescription>
-              This record stays available for review, but reactivation is not
-              available from this workspace.
-            </AlertDescription>
-          </Alert>
-        ) : hasActiveDirectReports ? (
-          <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Deactivation is blocked</AlertTitle>
-            <AlertDescription className="space-y-3">
-              <p>
-                This employee currently manages{" "}
-                {formatActiveDirectReportCount(profile.directReportCount)}.
-                Reassign or clear those relationships before deactivation.
-              </p>
-              <div>
+            {selectedOrgUnitId ? (
+              <div className="flex items-center justify-between gap-3 rounded-lg border px-4 py-3">
+                <div>
+                  <p className="text-sm font-medium">
+                    {selectedOrgUnitName ?? "Selected org unit"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {selectedOrgUnitId === initialOrgUnitId
+                      ? "Current assignment"
+                      : "Pending change"}
+                  </p>
+                </div>
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="ghost"
                   size="sm"
                   onClick={() => {
-                    onOpenChange(false);
-                    onManageReportingRelationship();
+                    setSelectedOrgUnitId("");
+                    setSelectedOrgUnitName(null);
                   }}
                 >
-                  Open reporting relationship
+                  Remove
                 </Button>
               </div>
-            </AlertDescription>
-          </Alert>
-        ) : (
-          <Alert>
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Deactivate this employee</AlertTitle>
-            <AlertDescription>
-              Deactivation keeps the employee record intact, but marks the
-              employee inactive for Core workforce operations.
-            </AlertDescription>
-          </Alert>
-        )}
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No org unit assigned.
+              </p>
+            )}
 
-        {submitError ? (
-          <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Status update failed</AlertTitle>
-            <AlertDescription>{submitError}</AlertDescription>
-          </Alert>
-        ) : null}
-
-        <ProfileSheetActions>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={deactivateEmployee.isLoading}
-          >
-            Close
-          </Button>
-          {profile.status === "Active" && !hasActiveDirectReports ? (
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={() => void handleDeactivate()}
-              disabled={deactivateEmployee.isLoading}
-            >
-              {deactivateEmployee.isLoading ? (
-                <>
-                  <Spinner className="mr-2 h-4 w-4" />
-                  Deactivating
-                </>
+            <div className="overflow-hidden rounded-lg border">
+              {orgUnitOptionsQuery.isLoading ? (
+                <div className="flex items-center gap-2 px-4 py-3 text-sm text-muted-foreground">
+                  <Spinner className="h-4 w-4" />
+                  {hasSearch ? "Searching..." : "Loading suggestions..."}
+                </div>
+              ) : orgUnitOptionsQuery.error ? (
+                <div className="px-4 py-3 text-sm text-destructive">
+                  Unable to load org units right now.
+                </div>
+              ) : visibleOrgUnits.length === 0 ? (
+                <div className="px-4 py-3 text-sm text-muted-foreground">
+                  {hasSearch
+                    ? "No results found."
+                    : "No suggested org units available."}
+                </div>
               ) : (
-                "Deactivate employee"
+                <div className="divide-y">
+                  {visibleOrgUnits.map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      className={`flex w-full items-start justify-between gap-3 px-4 py-3.5 text-left text-sm transition hover:bg-muted ${
+                        selectedOrgUnitId === option.id ? "bg-muted/50" : ""
+                      }`}
+                      onClick={() => {
+                        setSelectedOrgUnitId(option.id);
+                        setSelectedOrgUnitName(option.name);
+                      }}
+                    >
+                      <div className="space-y-1">
+                        <p className="font-medium">
+                          {getOrgUnitDisplayLabel(option)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {option.type}
+                          {isTextPresent(option.parentName)
+                            ? ` · Reports into ${option.parentName}`
+                            : " · Root unit"}
+                        </p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
               )}
-            </Button>
-          ) : null}
-        </ProfileSheetActions>
+            </div>
+          </div>
+        </EmployeeEditTabLayout>
       </div>
-    </ProfileSheetFrame>
+
+      <EmployeeConfirmDialog
+        open={showClearConfirm}
+        onOpenChange={setShowClearConfirm}
+        title="Remove organization assignment?"
+        description="This clears the current organization assignment."
+        confirmLabel="Remove assignment"
+        confirmVariant="destructive"
+        loading={updateEmployeeRecord.isLoading}
+        loadingLabel="Saving..."
+        onConfirm={() => void saveOrganizationAssignment()}
+      />
+    </>
   );
 }

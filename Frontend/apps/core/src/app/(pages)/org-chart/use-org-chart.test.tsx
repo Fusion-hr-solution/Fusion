@@ -28,6 +28,18 @@ vi.mock("@repo/auth", () => ({
   canAccessCorePeople: (user: { roles?: string[] } | null) =>
     !!user?.roles?.includes("HRAdmin") &&
     !user?.roles?.includes("PlatformAdmin"),
+  canAccessCoreOrgChart: (user: { roles?: string[] } | null) =>
+    !!user?.roles?.includes("HRAdmin") &&
+    !user?.roles?.includes("PlatformAdmin"),
+}));
+
+vi.mock("@/shell/tenant-context/core-tenant-context-provider", () => ({
+  useTenantContext: () => ({
+    tenantId: null,
+    tenantSummary: null,
+    isLoading: false,
+    clearTenantContext: vi.fn(),
+  }),
 }));
 
 vi.mock("@repo/api/query", async () => {

@@ -14,12 +14,17 @@ public class Employee : AggregateRoot, ITenantEntity
     /// Row version for optimistic concurrency control (mapped to PostgreSQL xmin).
     /// </summary>
     public uint Version { get; private set; }
+    public string? EmployeeNumber { get; private set; }
+    public string StableEmployeeKey { get; private set; } = string.Empty;
     public string FirstName { get; private set; } = string.Empty;
     public string LastName { get; private set; } = string.Empty;
     public string? PreferredName { get; private set; }
     public string Email { get; private set; } = string.Empty;
+    public string? Phone { get; private set; }
     public string? Department { get; private set; }
     public string? JobTitle { get; private set; }
+    public string? WorkLocation { get; private set; }
+    public string? EmploymentType { get; private set; }
     public DateTime HireDate { get; private set; }
     public EmployeeStatus Status { get; private set; }
     public Guid? ManagerId { get; private set; }
@@ -28,6 +33,9 @@ public class Employee : AggregateRoot, ITenantEntity
     public OrgUnit? OrgUnit { get; private set; }
 
     public string FullName => $"{FirstName} {LastName}";
+    public string DisplayName => !string.IsNullOrWhiteSpace(PreferredName)
+        ? $"{PreferredName} {LastName}"
+        : FullName;
 
     public static Employee Create(
         Guid tenantId,
@@ -36,7 +44,11 @@ public class Employee : AggregateRoot, ITenantEntity
         string email,
         DateTime hireDate,
         string? department = null,
-        string? jobTitle = null)
+        string? jobTitle = null,
+        string? employeeNumber = null,
+        string? phone = null,
+        string? workLocation = null,
+        string? employmentType = null)
     {
         if (tenantId == Guid.Empty)
             throw new ArgumentException("TenantId cannot be empty.", nameof(tenantId));
@@ -52,15 +64,22 @@ public class Employee : AggregateRoot, ITenantEntity
 
         hireDate = NormalizeHireDate(hireDate, nameof(hireDate));
 
+        var id = Guid.NewGuid();
         return new Employee
         {
+            Id = id,
             TenantId = tenantId,
+            EmployeeNumber = NormalizeEmployeeNumber(employeeNumber),
+            StableEmployeeKey = GenerateStableKey(id),
             FirstName = firstName.Trim(),
             LastName = lastName.Trim(),
             Email = email.Trim().ToLowerInvariant(),
+            Phone = NormalizePhone(phone),
             HireDate = hireDate,
             Department = department?.Trim(),
             JobTitle = jobTitle?.Trim(),
+            WorkLocation = NormalizeWorkLocation(workLocation),
+            EmploymentType = NormalizeEmploymentType(employmentType),
             Status = EmployeeStatus.Active
         };
     }
@@ -88,7 +107,11 @@ public class Employee : AggregateRoot, ITenantEntity
         string lastName,
         string email,
         string? department,
-        string? jobTitle)
+        string? jobTitle,
+        string? employeeNumber = null,
+        string? phone = null,
+        string? workLocation = null,
+        string? employmentType = null)
     {
         if (string.IsNullOrWhiteSpace(firstName))
             throw new ArgumentException("First name cannot be empty.", nameof(firstName));
@@ -99,23 +122,33 @@ public class Employee : AggregateRoot, ITenantEntity
         if (string.IsNullOrWhiteSpace(email))
             throw new ArgumentException("Email cannot be empty.", nameof(email));
 
+        EmployeeNumber = NormalizeEmployeeNumber(employeeNumber);
         FirstName = firstName.Trim();
         LastName = lastName.Trim();
         Email = email.Trim().ToLowerInvariant();
+        Phone = NormalizePhone(phone);
         Department = department?.Trim();
         JobTitle = jobTitle?.Trim();
-        UpdatedAt = DateTime.UtcNow;
-    }
-
-    public void UpdatePreferredName(string? preferredName)
-    {
-        PreferredName = NormalizeOptionalName(preferredName);
+        WorkLocation = NormalizeWorkLocation(workLocation);
+        EmploymentType = NormalizeEmploymentType(employmentType);
         UpdatedAt = DateTime.UtcNow;
     }
 
     public void UpdateHireDate(DateTime hireDate)
     {
         HireDate = NormalizeHireDate(hireDate, nameof(hireDate));
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void UpdatePreferredName(string? preferredName)
+    {
+        PreferredName = NormalizePreferredName(preferredName);
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void UpdatePhone(string? phone)
+    {
+        Phone = NormalizePhone(phone);
         UpdatedAt = DateTime.UtcNow;
     }
 
@@ -155,13 +188,73 @@ public class Employee : AggregateRoot, ITenantEntity
         };
     }
 
-    private static string? NormalizeOptionalName(string? value)
+    private static string? NormalizePreferredName(string? preferredName)
     {
-        if (string.IsNullOrWhiteSpace(value))
-        {
+        if (string.IsNullOrWhiteSpace(preferredName))
             return null;
+
+        return preferredName.Trim();
+    }
+
+    private static string GenerateStableKey(Guid id)
+    {
+        var shortId = id.ToString("N")[..8].ToUpperInvariant();
+        return $"E-{shortId}";
+    }
+
+    private static string? NormalizeEmployeeNumber(string? employeeNumber)
+    {
+        if (string.IsNullOrWhiteSpace(employeeNumber))
+            return null;
+
+        var normalized = employeeNumber.Trim().ToUpperInvariant();
+        if (normalized.Length > 64)
+        {
+            throw new ArgumentException("EmployeeNumber cannot exceed 64 characters.", nameof(employeeNumber));
         }
 
-        return value.Trim();
+        return normalized;
+    }
+
+    private static string? NormalizePhone(string? phone)
+    {
+        if (string.IsNullOrWhiteSpace(phone))
+            return null;
+
+        var normalized = phone.Trim();
+        if (normalized.Length > 50)
+        {
+            throw new ArgumentException("Phone cannot exceed 50 characters.", nameof(phone));
+        }
+
+        return normalized;
+    }
+
+    private static string? NormalizeWorkLocation(string? workLocation)
+    {
+        if (string.IsNullOrWhiteSpace(workLocation))
+            return null;
+
+        var normalized = workLocation.Trim();
+        if (normalized.Length > 100)
+        {
+            throw new ArgumentException("WorkLocation cannot exceed 100 characters.", nameof(workLocation));
+        }
+
+        return normalized;
+    }
+
+    private static string? NormalizeEmploymentType(string? employmentType)
+    {
+        if (string.IsNullOrWhiteSpace(employmentType))
+            return null;
+
+        var normalized = employmentType.Trim();
+        if (normalized.Length > 50)
+        {
+            throw new ArgumentException("EmploymentType cannot exceed 50 characters.", nameof(employmentType));
+        }
+
+        return normalized;
     }
 }

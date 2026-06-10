@@ -1,6 +1,6 @@
 "use client";
 
-import { Building2, Mail, CheckCircle2 } from "lucide-react";
+import { Building2, Mail, CheckCircle2, FileText, Pause, Archive } from "lucide-react";
 import type { PlatformOrganizationStatsDto } from "@repo/api";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -17,15 +17,33 @@ const CARDS = [
     format: formatCount,
   },
   {
+    key: "activeOrganizations" as const,
+    label: "Active Orgs",
+    icon: CheckCircle2,
+    format: formatCount,
+  },
+  {
     key: "invitedPending" as const,
     label: "Invites Pending",
     icon: Mail,
     format: formatCount,
   },
   {
-    key: "activeOrganizations" as const,
-    label: "Active Orgs",
-    icon: CheckCircle2,
+    key: "draftOrganizations" as const,
+    label: "Draft Orgs",
+    icon: FileText,
+    format: formatCount,
+  },
+  {
+    key: "suspendedOrganizations" as const,
+    label: "Suspended Orgs",
+    icon: Pause,
+    format: formatCount,
+  },
+  {
+    key: "archivedOrganizations" as const,
+    label: "Archived Orgs",
+    icon: Archive,
     format: formatCount,
   },
 ];
@@ -38,7 +56,7 @@ function formatCount(n: number): string {
 
 export function StatsCards({ stats, isLoading }: StatsCardsProps) {
   return (
-    <div className="grid grid-cols-3 gap-3">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
       {CARDS.map((card) => {
         const Icon = card.icon;
         return (

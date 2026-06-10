@@ -22,6 +22,7 @@ public class GetEmployeeProfileQueryHandlerTests
 
         var manager = Employee.Create(TenantId, "Alice", "Manager", "alice.manager@example.com", new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc));
         var employee = Employee.Create(TenantId, "Bob", "Worker", "bob.worker@example.com", new DateTime(2021, 6, 1, 0, 0, 0, DateTimeKind.Utc));
+        employee.UpdatePreferredName("Bobby");
         employee.AssignManager(manager.Id);
 
         // Two active direct reports of employee under test
@@ -43,6 +44,7 @@ public class GetEmployeeProfileQueryHandlerTests
         Assert.Equal(employee.Id, profile.Id);
         Assert.Equal("Bob", profile.FirstName);
         Assert.Equal("Worker", profile.LastName);
+        Assert.Equal("Bobby", profile.PreferredName);
         Assert.Equal("bob.worker@example.com", profile.Email);
         Assert.Equal(manager.Id, profile.ManagerId);
         Assert.Equal("Alice", profile.ManagerFirstName);
@@ -223,37 +225,6 @@ public class GetEmployeeProfileQueryHandlerTests
         Assert.Contains("NotFound", result.Error.Code);
     }
 
-    [Fact]
-    public async Task GetEmployeeProfile_EmployeeAudienceForDifferentEmployee_ReturnsNotFound()
-    {
-        var dbName = Guid.NewGuid().ToString();
-        var tenantContext = TestTenantContext.WithTenant(TenantId);
-        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
-
-        var employee = Employee.Create(TenantId, "Alice", "Viewer", "alice.viewer@example.com", DateTime.UtcNow);
-        var otherEmployee = Employee.Create(TenantId, "Ben", "Target", "ben.target@example.com", DateTime.UtcNow);
-
-        seedContext.Employees.AddRange(employee, otherEmployee);
-        await seedContext.SaveChangesAsync();
-
-        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = CreateHandler(context);
-
-        var result = await handler.Handle(
-            new GetEmployeeProfileQuery(
-                otherEmployee.Id,
-                EmployeeReadAudience.Employee,
-                employee.Id),
-            CancellationToken.None);
-
-        Assert.True(result.IsFailure);
-        Assert.Contains("NotFound", result.Error.Code);
-    }
-
     private static GetEmployeeProfileQueryHandler CreateHandler(CoreHRDbContext context)
-        => new(
-            context,
-            new EmployeeReadModelPolicy(),
-            new EmployeeReadScopeService(),
-            new TenantSettingsReadService(context));
+        => new(context, new EmployeeReadModelPolicy(), new TenantSettingsReadService(context));
 }

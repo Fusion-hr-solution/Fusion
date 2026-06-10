@@ -8,21 +8,26 @@ export type EmployeeFixSheet =
   | "identity"
   | "employment"
   | "organization"
-  | "reporting"
-  | "status";
+  | "reporting";
 
 export const EMPLOYEE_READINESS_FILTER_OPTIONS: Array<{
   value: EmployeeReadinessFilter;
   label: string;
 }> = [
-  { value: "NeedsAttention", label: "Needs attention" },
-  { value: "MissingRequiredField", label: "Missing required fields" },
-  { value: "MissingOrgUnit", label: "Missing org unit" },
-  { value: "NoManagerAssigned", label: "No manager assigned" },
-  { value: "ManagerInactive", label: "Inactive manager" },
-  { value: "ManagerMissing", label: "Missing manager" },
-  { value: "DeactivationBlocked", label: "Deactivation blocked" },
+  { value: "Ready", label: "Complete records" },
+  { value: "NeedsAttention", label: "Incomplete records" },
 ];
+
+const REPORTING_ISSUE_CODES = new Set<EmployeeReadinessIssueDto["code"]>([
+  "NoManagerAssigned",
+  "ManagerInactive",
+  "ManagerMissing",
+]);
+
+export interface EmployeeReadinessStateMeta {
+  label: string;
+  variant: "destructive" | "secondary" | "outline";
+}
 
 export function parseEmployeeReadinessFilter(
   value: string | null | undefined
@@ -31,7 +36,21 @@ export function parseEmployeeReadinessFilter(
     return undefined;
   }
 
-  return EMPLOYEE_READINESS_FILTER_OPTIONS.some((option) => option.value === value)
+  if (
+    value === "NoManagerAssigned" ||
+    value === "ManagerInactive" ||
+    value === "ManagerMissing"
+  ) {
+    return "ReportingIssue";
+  }
+
+  if (value === "DeactivationBlocked") {
+    return "DeactivationBlocked";
+  }
+
+  return EMPLOYEE_READINESS_FILTER_OPTIONS.some(
+    (option) => option.value === value
+  )
     ? (value as EmployeeReadinessFilter)
     : undefined;
 }
@@ -108,6 +127,46 @@ export function getEmployeeReadinessBadgeVariant(
   }
 }
 
+export function getEmployeeReadinessStateMeta(
+  readiness: EmployeeReadinessSummaryDto | null | undefined
+): EmployeeReadinessStateMeta {
+  const actionIssues = getEmployeeActionIssues(readiness);
+  const blockingIssues = getEmployeeBlockingIssues(readiness);
+  const issueCodes = new Set(
+    [...actionIssues, ...blockingIssues].map((issue) => issue.code)
+  );
+
+  if (issueCodes.has("DeactivationBlocked")) {
+    return { label: "Has direct reports", variant: "outline" };
+  }
+
+  if (issueCodes.size === 0) {
+    return { label: "Ready", variant: "outline" };
+  }
+
+  if (issueCodes.size === 1 && issueCodes.has("MissingRequiredField")) {
+    return { label: "Missing required info", variant: "secondary" };
+  }
+
+  if (issueCodes.size === 1 && issueCodes.has("MissingOrgUnit")) {
+    return { label: "Missing org unit", variant: "secondary" };
+  }
+
+  if (issueCodes.has("ManagerInactive")) {
+    return { label: "Manager inactive", variant: "destructive" };
+  }
+
+  if (issueCodes.has("ManagerMissing")) {
+    return { label: "Manager missing", variant: "destructive" };
+  }
+
+  if ([...issueCodes].every((code) => REPORTING_ISSUE_CODES.has(code))) {
+    return { label: "Manager issue", variant: "destructive" };
+  }
+
+  return { label: "Has issues", variant: "secondary" };
+}
+
 export function getEmployeeFixSheet(
   issue: EmployeeReadinessIssueDto
 ): EmployeeFixSheet | null {
@@ -121,7 +180,7 @@ export function getEmployeeFixSheet(
     case "ReportingRelationships":
       return "reporting";
     case "ProfileStatus":
-      return "status";
+      return null;
     default:
       return null;
   }
@@ -130,15 +189,15 @@ export function getEmployeeFixSheet(
 export function buildEmployeeFixHref(
   issue: EmployeeReadinessIssueDto
 ): string | null {
-  const employeeId = issue.fixTarget.employeeId;
+  const employeeKey = issue.fixTarget.employeeKey;
   const sheet = getEmployeeFixSheet(issue);
 
-  if (!employeeId || !sheet) {
+  if (!employeeKey || !sheet) {
     return null;
   }
 
   const params = new URLSearchParams({ sheet });
-  return `/employees/${employeeId}?${params.toString()}`;
+  return `/employees/${employeeKey}?${params.toString()}`;
 }
 
 export function buildImportHistoryHref(historyId?: string | null): string {

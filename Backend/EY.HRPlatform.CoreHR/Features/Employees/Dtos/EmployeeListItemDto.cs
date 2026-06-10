@@ -7,8 +7,11 @@ namespace EY.HRPlatform.CoreHR.Features.Employees.Dtos;
 /// </summary>
 public sealed record EmployeeListItemDto(
     Guid Id,
+    string StableEmployeeKey,
+    string? EmployeeNumber,
     string FirstName,
     string LastName,
+    string? PreferredName,
     string Email,
     Guid? OrgUnitId,
     string? OrgUnitName,
@@ -22,6 +25,9 @@ public sealed record EmployeeListItemDto(
     uint Version)
 {
     public string FullName => $"{FirstName} {LastName}";
+    public string DisplayName => !string.IsNullOrWhiteSpace(PreferredName)
+        ? $"{PreferredName} {LastName}"
+        : FullName;
 
     public EmployeeReadinessSummaryDto Readiness { get; init; } = EmployeeReadinessSummaryDto.Empty;
 }

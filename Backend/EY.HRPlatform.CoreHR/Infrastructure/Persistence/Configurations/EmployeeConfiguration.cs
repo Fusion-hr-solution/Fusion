@@ -17,6 +17,9 @@ public class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
         builder.Property(e => e.Version).IsRowVersion();
 
         builder.Property(e => e.TenantId).IsRequired();
+        builder.Property(e => e.EmployeeNumber).HasMaxLength(64);
+
+        builder.Property(e => e.StableEmployeeKey).HasMaxLength(64).IsRequired();
 
         builder.Property(e => e.FirstName).HasMaxLength(100).IsRequired();
         builder.Property(e => e.LastName).HasMaxLength(100).IsRequired();
@@ -26,9 +29,12 @@ public class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
         // The unique index therefore operates on a consistent value without
         // a DB-level value converter.
         builder.Property(e => e.Email).HasMaxLength(256).IsRequired();
+        builder.Property(e => e.Phone).HasMaxLength(50);
 
         builder.Property(e => e.Department).HasMaxLength(100);
         builder.Property(e => e.JobTitle).HasMaxLength(100);
+        builder.Property(e => e.WorkLocation).HasMaxLength(100);
+        builder.Property(e => e.EmploymentType).HasMaxLength(50);
 
         // HireDate stored as UTC timestamp. The global UtcDateTimeConverter
         // convention in CoreHRDbContext.ConfigureConventions handles read-side
@@ -73,6 +79,15 @@ public class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
             .IsUnique()
             .HasDatabaseName("IX_Employees_TenantId_Email");
 
+        builder.HasIndex(e => new { e.TenantId, e.StableEmployeeKey })
+            .IsUnique()
+            .HasDatabaseName("IX_Employees_TenantId_StableEmployeeKey");
+
+        builder.HasIndex(e => new { e.TenantId, e.EmployeeNumber })
+            .IsUnique()
+            .HasFilter("\"EmployeeNumber\" IS NOT NULL")
+            .HasDatabaseName("IX_Employees_TenantId_EmployeeNumber");
+
         builder.HasIndex(e => e.ManagerId)
             .HasDatabaseName("IX_Employees_ManagerId");
 
@@ -81,6 +96,7 @@ public class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
 
         // FullName is a computed property — not persisted.
         builder.Ignore(e => e.FullName);
+        builder.Ignore(e => e.DisplayName);
 
         // DomainEvents from AggregateRoot must be explicitly ignored;
         // EF would otherwise attempt to map the public collection.

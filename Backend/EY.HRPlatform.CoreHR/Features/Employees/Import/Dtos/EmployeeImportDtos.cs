@@ -36,11 +36,15 @@ public sealed record EmployeeImportValidationSummaryDto(
 
 public sealed record EmployeeImportPreviewRowDto(
     int RowNumber,
+    string? EmployeeNumber,
     string? FirstName,
     string? LastName,
     string? Email,
+    string? Phone,
     string? HireDate,
     string? JobTitle,
+    string? WorkLocation,
+    string? EmploymentType,
     string? OrgUnitCode,
     string? ManagerEmail);
 
@@ -73,7 +77,10 @@ public sealed record EmployeeImportHistoryListItemDto(
     DateTime AppliedAt,
     Guid ActorUserId,
     string ActorFullName,
-    string ActorRole);
+    string ActorRole,
+    string EventType,
+    int ErrorCount,
+    int WarningCount);
 
 public sealed record EmployeeImportHistoryDetailDto(
     Guid Id,
@@ -90,7 +97,10 @@ public sealed record EmployeeImportHistoryDetailDto(
     Guid ActorUserId,
     string ActorFullName,
     string ActorRole,
-    string? FailureReason)
+    string? FailureReason,
+    string EventType,
+    int ErrorCount,
+    int WarningCount)
 {
     public IReadOnlyList<EmployeeImportFollowUpIssueDto> UnresolvedFollowUpIssues { get; init; } = Array.Empty<EmployeeImportFollowUpIssueDto>();
 }

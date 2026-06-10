@@ -9,24 +9,35 @@ namespace EY.HRPlatform.CoreHR.Features.Employees.Dtos;
 /// </summary>
 public sealed record EmployeeProfileDto(
     Guid Id,
+    string StableEmployeeKey,
+    string? EmployeeNumber,
     string FirstName,
     string LastName,
     string? PreferredName,
     string Email,
+    string? Phone,
     string? JobTitle,
+    string? WorkLocation,
+    string? EmploymentType,
     DateTime HireDate,
     EmployeeStatus Status,
     Guid? OrgUnitId,
     string? OrgUnitName,
+    string? OrgUnitType,
     Guid? ManagerId,
     string? ManagerFirstName,
     string? ManagerLastName,
     string? ManagerEmail,
     string HierarchyStatus,
     int DirectReportCount,
+    DateTime CreatedAt,
+    DateTime? UpdatedAt,
     uint Version)
 {
     public string FullName => $"{FirstName} {LastName}";
+    public string DisplayName => !string.IsNullOrWhiteSpace(PreferredName)
+        ? $"{PreferredName} {LastName}"
+        : FullName;
     public string? ManagerFullName => ManagerFirstName is not null && ManagerLastName is not null
         ? $"{ManagerFirstName} {ManagerLastName}"
         : null;

@@ -156,7 +156,7 @@ export function ManagerReassignDialog({
         {error ? (
           <Alert variant="destructive">
             <AlertTriangle className="size-4" />
-            <AlertDescription>{error}</AlertDescription>
+            <AlertDescription>Reassignment failed. Check the employee status and try again.</AlertDescription>
           </Alert>
         ) : null}
 

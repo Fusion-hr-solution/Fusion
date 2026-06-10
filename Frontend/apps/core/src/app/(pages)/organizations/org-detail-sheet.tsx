@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { useForm } from "react-hook-form";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import type {
   PlatformOrganizationDetailDto,
@@ -25,6 +26,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+
 import {
   Tooltip,
   TooltipContent,
@@ -36,14 +38,13 @@ import { toast } from "sonner";
 import {
   useOrganizationDetail,
   useUpdateOrganization,
-  useResendFirstAdminInvite,
   useRevokeFirstAdminInvite,
-} from "./use-organizations";
+} from "@/features/organizations/api/use-organizations";
 import {
+  ArrowRight,
   Pencil,
   X,
   Check,
-  Copy,
   ExternalLink,
   Users,
   Mail,
@@ -101,12 +102,6 @@ function DetailSkeleton() {
 function DetailContent({ org }: { org: PlatformOrganizationDetailDto }) {
   const [editing, setEditing] = useState(false);
 
-  const resend = useResendFirstAdminInvite({
-    onSuccess: () => {
-      toast.success("Invite re-sent successfully");
-    },
-  });
-
   const revoke = useRevokeFirstAdminInvite({
     onSuccess: () => {
       toast.success("Invite revoked");
@@ -117,7 +112,16 @@ function DetailContent({ org }: { org: PlatformOrganizationDetailDto }) {
     org.firstAdminInvite.status === "pending" ||
     org.firstAdminInvite.status === "expired";
   const canRevoke = org.firstAdminInvite.status === "pending";
-  const inviteActionsLoading = resend.isLoading || revoke.isLoading;
+
+  const handleCopyInviteLink = () => {
+    const link = org.firstAdminInvite.inviteLink;
+    if (link) {
+      navigator.clipboard.writeText(link);
+      toast.success("Invite link copied to clipboard");
+    } else {
+      toast.error("No invite link available");
+    }
+  };
 
   return (
     <>
@@ -195,26 +199,9 @@ function DetailContent({ org }: { org: PlatformOrganizationDetailDto }) {
 
             <Separator />
 
-            {/* Tenant ID */}
-            <section className="space-y-1.5">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                Tenant ID
-              </p>
-              <div className="flex items-center gap-2">
-                <code className="min-w-0 flex-1 rounded bg-muted px-2 py-1 text-xs font-mono select-all truncate">
-                  {org.id}
-                </code>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={() => {
-                    navigator.clipboard.writeText(org.id);
-                    toast.success("Tenant ID copied");
-                  }}
-                >
-                  <Copy className="size-3.5" />
-                </Button>
-              </div>
+            {/* Open Core workspace */}
+            <section>
+              <OpenCoreWorkspaceButton tenantId={org.id} tenantSlug={org.slug} />
             </section>
 
             <Separator />
@@ -268,97 +255,34 @@ function DetailContent({ org }: { org: PlatformOrganizationDetailDto }) {
                 )}
               </div>
 
-              {/* Invite link + actions */}
-              {(org.firstAdminInvite.inviteLink || canResend || canRevoke) && (
-                <div className="border-t px-4 py-3 space-y-3">
-                  {org.firstAdminInvite.inviteLink && (
-                    <div className="space-y-1.5">
-                      <p className="text-xs font-medium text-muted-foreground">
-                        Invite Link
-                      </p>
-                      <div className="flex items-center gap-2">
-                        <code className="flex-1 rounded bg-muted px-2 py-1 text-xs font-mono select-all truncate min-w-0">
-                          {org.firstAdminInvite.inviteLink}
-                        </code>
-                        <div className="flex shrink-0 items-center gap-1">
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  size="icon-sm"
-                                  onClick={() => {
-                                    navigator.clipboard.writeText(
-                                      org.firstAdminInvite.inviteLink!
-                                    );
-                                    toast.success("Invite link copied");
-                                  }}
-                                >
-                                  <Copy className="size-3.5" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>Copy link</TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  size="icon-sm"
-                                  asChild
-                                >
-                                  <a
-                                    href={org.firstAdminInvite.inviteLink}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                  >
-                                    <ExternalLink className="size-3.5" />
-                                  </a>
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>Open in new tab</TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        </div>
-                      </div>
-                    </div>
+              {/* Invite actions */}
+              {(canResend || canRevoke) && (
+                <div className="border-t px-4 py-3 flex items-center gap-2">
+                  {canResend && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleCopyInviteLink}
+                    >
+                      <Send className="size-3" />
+                      Resend Invite
+                    </Button>
                   )}
-
-                  {(canResend || canRevoke) && (
-                    <div className="flex items-center gap-2">
-                      {canResend && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={inviteActionsLoading}
-                          onClick={() => resend.mutate(org.id)}
-                        >
-                          {resend.isLoading ? (
-                            <Spinner className="mr-1" />
-                          ) : (
-                            <Send className="size-3" />
-                          )}
-                          Resend Invite
-                        </Button>
+                  {canRevoke && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-destructive hover:text-destructive"
+                      disabled={revoke.isLoading}
+                      onClick={() => revoke.mutate(org.id)}
+                    >
+                      {revoke.isLoading ? (
+                        <Spinner className="mr-1" />
+                      ) : (
+                        <Ban className="size-3" />
                       )}
-                      {canRevoke && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-destructive hover:text-destructive"
-                          disabled={inviteActionsLoading}
-                          onClick={() => revoke.mutate(org.id)}
-                        >
-                          {revoke.isLoading ? (
-                            <Spinner className="mr-1" />
-                          ) : (
-                            <Ban className="size-3" />
-                          )}
-                          Revoke
-                        </Button>
-                      )}
-                    </div>
+                      Revoke
+                    </Button>
                   )}
                 </div>
               )}
@@ -582,6 +506,41 @@ function MetricCard({
   }
 
   return content;
+}
+
+/* ------------------------------------------------------------------ */
+/* Open Core workspace button                                          */
+/* ------------------------------------------------------------------ */
+
+function OpenCoreWorkspaceButton({
+  tenantId,
+  tenantSlug,
+}: {
+  tenantId: string;
+  tenantSlug: string;
+}) {
+  const router = useRouter();
+
+  return (
+    <div className="pt-1">
+      <Button
+        variant="default"
+        className="w-full gap-2"
+        onClick={() =>
+          router.push(
+            tenantSlug ? `/?tenant=${encodeURIComponent(tenantSlug)}` : `/?tenantId=${tenantId}`
+          )
+        }
+      >
+        <ExternalLink className="size-4" />
+        Open tenant overview
+        <ArrowRight className="size-4" />
+      </Button>
+      <p className="mt-1.5 text-xs text-muted-foreground">
+        View this tenant&apos;s Core overview as a platform administrator.
+      </p>
+    </div>
+  );
 }
 
 /* ------------------------------------------------------------------ */
