@@ -215,6 +215,10 @@ namespace EY.HRPlatform.CoreHR.Infrastructure.Persistence.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
 
+                    b.Property<string>("EmployeeNumber")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
                     b.Property<string>("FirstName")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -237,6 +241,10 @@ namespace EY.HRPlatform.CoreHR.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid?>("OrgUnitId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("PreferredName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -275,6 +283,11 @@ namespace EY.HRPlatform.CoreHR.Infrastructure.Persistence.Migrations
                     b.HasIndex("TenantId", "Email")
                         .IsUnique()
                         .HasDatabaseName("IX_Employees_TenantId_Email");
+
+                    b.HasIndex("TenantId", "EmployeeNumber")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Employees_TenantId_EmployeeNumber")
+                        .HasFilter("\"EmployeeNumber\" IS NOT NULL");
 
                     b.ToTable("Employees", "corehr");
                 });
@@ -723,6 +736,11 @@ namespace EY.HRPlatform.CoreHR.Infrastructure.Persistence.Migrations
 
                     b.Property<DateTime?>("OperationalAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("PublishedStructureVersion")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
 
                     b.Property<DateTime?>("StructurallyGovernedAt")
                         .HasColumnType("timestamp with time zone");

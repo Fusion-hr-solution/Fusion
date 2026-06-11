@@ -72,6 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 email: d.email,
                 fullName: d.fullName,
                 roles: d.roles,
+                employeeId: d.employeeId ?? null,
               },
             };
 
@@ -120,6 +121,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           email: d.email,
           fullName: d.fullName,
           roles: d.roles,
+          employeeId: d.employeeId ?? null,
         };
         setUser(authUser);
         setAccessToken(d.accessToken);
@@ -150,6 +152,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           email: d.email,
           fullName: d.fullName,
           roles: d.roles,
+          employeeId: d.employeeId ?? null,
         };
         setUser(authUser);
         setAccessToken(d.accessToken);

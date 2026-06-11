@@ -1,6 +1,7 @@
 using EY.HRPlatform.Identity.Domain.Entities;
 using EY.HRPlatform.Identity.Features.PlatformOrganizations.Dtos;
 using EY.HRPlatform.Identity.Infrastructure.Persistence;
+using EY.HRPlatform.Identity.Infrastructure.Services;
 using EY.HRPlatform.SharedKernel.Auth;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -69,7 +70,13 @@ public sealed class PlatformOrganizationService(
             InvitedPending = allSummaries.Count(s =>
                 s.OperationalStatus.Equals(OrganizationOperationalStatus.Invited, StringComparison.OrdinalIgnoreCase)),
             ActiveOrganizations = allSummaries.Count(s =>
-                s.OperationalStatus.Equals(OrganizationOperationalStatus.Active, StringComparison.OrdinalIgnoreCase))
+                s.OperationalStatus.Equals(OrganizationOperationalStatus.Active, StringComparison.OrdinalIgnoreCase)),
+            DraftOrganizations = allSummaries.Count(s =>
+                s.OperationalStatus.Equals(OrganizationOperationalStatus.Draft, StringComparison.OrdinalIgnoreCase)),
+            SuspendedOrganizations = allSummaries.Count(s =>
+                s.OperationalStatus.Equals(OrganizationOperationalStatus.Suspended, StringComparison.OrdinalIgnoreCase)),
+            ArchivedOrganizations = allSummaries.Count(s =>
+                s.OperationalStatus.Equals(OrganizationOperationalStatus.Archived, StringComparison.OrdinalIgnoreCase))
         };
 
         // Apply search filter for paginated list
@@ -349,14 +356,7 @@ public sealed class PlatformOrganizationService(
     }
 
     private string BuildInviteLink(string token)
-    {
-        var publicBase = configuration["Application:PublicBaseUrl"] ?? "http://localhost:3000";
-        var path = configuration["Application:InviteAcceptPath"] ?? "/core/invite/accept";
-        publicBase = publicBase.TrimEnd('/');
-        if (!path.StartsWith('/'))
-            path = "/" + path;
-        return $"{publicBase}{path}?token={Uri.EscapeDataString(token)}";
-    }
+        => InvitationLinkBuilder.Build(configuration, token);
 
     private async Task<string?> GetPrimaryHrAdminEmailAsync(Guid tenantId, CancellationToken cancellationToken)
     {

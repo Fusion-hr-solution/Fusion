@@ -26,15 +26,21 @@ export type { AuthContextValue } from "./auth-context";
 export {
   PLATFORM_ADMIN_ROLE,
   HR_ADMIN_ROLE,
+  MANAGER_ROLE,
+  EMPLOYEE_ROLE,
   hasAnyRole,
   canAccessCoreSetup,
   canAccessCoreSettings,
   canSeeCoreSetupNavigation,
   canSeeCoreSettingsNavigation,
   canAccessCorePeople,
+  canAccessCoreTeam,
+  canAccessOwnCoreProfile,
   canSeeCorePeopleNavigation,
   canAccessOrganizations,
   canSeeOrganizationsNavigation,
+  canAccessTenantContext,
+  canAccessTenantSurfaces,
 } from "./roles";
 
 // Components

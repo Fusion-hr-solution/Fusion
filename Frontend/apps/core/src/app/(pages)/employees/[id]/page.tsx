@@ -8,6 +8,7 @@ import {
   Calendar,
   CheckCircle2,
   ChevronRight,
+  Hash,
   Mail,
   ShieldAlert,
   Star,
@@ -17,6 +18,7 @@ import {
 import { useAuth } from "@repo/auth";
 import { EmptyState } from "@repo/ui";
 import { CorePageLoadingState } from "@/components/core-page-loading-state";
+import { useTenantContext } from "@/components/core-tenant-context-provider";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -29,14 +31,26 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { useBreadcrumbLabel } from "@/components/breadcrumb-overrides";
-import { canAccessEmployeeRoster } from "@/lib/employee-roster-access";
+import {
+  canAccessEmployeeProfile,
+  canAccessEmployeeRoster,
+} from "@/lib/employee-roster-access";
+import { buildTenantContextHref } from "@/lib/tenant-navigation";
 import { useEmployeeFieldPolicy } from "../employee-field-visibility";
 import {
   getEmployeeActionIssues,
   getEmployeeFixSheet,
 } from "../employee-readiness";
+import {
+  getAccessBadgeTone,
+  getAccessDisplayState,
+  getInvitationEligibility,
+  getSuggestedInviteRole,
+  type AccessInviteRole,
+} from "../employee-access";
 import {
   EmployeeEmploymentEditSheet,
   EmployeeIdentityEditSheet,
@@ -47,10 +61,19 @@ import { EmployeeReportingLinesSheet } from "../employee-reporting-lines-sheet";
 import {
   useEmployeeProfile,
   useEmployeeReportingLines,
+  useUpdateMyProfile,
 } from "../use-employees";
+import {
+  useDeactivateWorkforceAccount,
+  useProvisionWorkforceAccountInvite,
+  useReactivateWorkforceAccount,
+  useResendWorkforceAccountInvite,
+  useWorkforceAccountStatus,
+} from "../use-workforce-accounts";
 import type {
   EmployeeHierarchyNodeDto,
   EmployeeHierarchyStatus,
+  WorkforceAccountStatusDto,
 } from "../employee-roster.types";
 
 // ── Small display helpers ──────────────────────────────────────────────────
@@ -203,12 +226,621 @@ function getInitials(firstName: string, lastName: string): string {
   return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
 }
 
+function WorkforceAccountStateBadge({
+  account,
+}: {
+  account: WorkforceAccountStatusDto | null;
+}) {
+  const displayState = getAccessDisplayState(account);
+
+  return (
+    <Badge variant={getAccessBadgeTone(displayState)}>{displayState}</Badge>
+  );
+}
+
+function getWorkforceDeliveryBadgeVariant(
+  deliveryStatus: WorkforceAccountStatusDto["deliveryStatus"]
+): "secondary" | "outline" | "destructive" {
+  switch (deliveryStatus) {
+    case "Failed":
+      return "destructive";
+    case "Suppressed":
+    case "Skipped":
+    case "NotAttempted":
+      return "outline";
+    default:
+      return "secondary";
+  }
+}
+
+function getWorkforceDeliveryBadgeLabel(
+  deliveryStatus: WorkforceAccountStatusDto["deliveryStatus"]
+): string {
+  switch (deliveryStatus) {
+    case "Failed":
+      return "Email failed";
+    case "Suppressed":
+    case "Skipped":
+      return "Fallback link available";
+    case "NotAttempted":
+      return "Email not attempted";
+    default:
+      return "Email sent";
+  }
+}
+
+function formatTimestamp(value: string | null | undefined): string {
+  if (!value?.trim()) {
+    return "Not set";
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return "Not set";
+  }
+
+  return parsed.toLocaleString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function getActionErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+
+  return "An unexpected error occurred.";
+}
+
+function PersonalProfileCard({
+  employeeId,
+  fullName,
+  workEmail,
+  preferredName,
+  expectedVersion,
+}: {
+  employeeId: string;
+  fullName: string;
+  workEmail: string;
+  preferredName: string | null;
+  expectedVersion: number;
+}) {
+  const { tenantId } = useTenantContext();
+  const isTenantContextReadOnly = !!tenantId;
+  const updateMyProfile = useUpdateMyProfile();
+  const [isEditing, setIsEditing] = useState(false);
+  const [draftPreferredName, setDraftPreferredName] = useState(
+    preferredName ?? ""
+  );
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setDraftPreferredName(preferredName ?? "");
+  }, [employeeId, expectedVersion, preferredName]);
+
+  const normalizedDraftPreferredName = draftPreferredName.trim() || null;
+  const hasChanges =
+    (preferredName ?? "") !== (normalizedDraftPreferredName ?? "");
+
+  async function handleSave() {
+    setActionError(null);
+
+    try {
+      await updateMyProfile.mutateAsync({
+        employeeId,
+        expectedVersion,
+        preferredName: normalizedDraftPreferredName,
+      });
+      setIsEditing(false);
+    } catch (error) {
+      setActionError(getActionErrorMessage(error));
+    }
+  }
+
+  return (
+    <Card className={WORKSPACE_CARD_CLASS_NAME}>
+      <CardHeader className={WORKSPACE_CARD_HEADER_CLASS_NAME}>
+        <CardTitle className="text-base">Personal profile</CardTitle>
+        <CardDescription>
+          Review your Core profile details and choose the preferred name shown
+          in daily use.
+        </CardDescription>
+        <CardAction>
+          {!isEditing && !isTenantContextReadOnly ? (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setIsEditing(true)}
+            >
+              Edit
+            </Button>
+          ) : null}
+        </CardAction>
+      </CardHeader>
+      <CardContent className={WORKSPACE_CARD_CONTENT_CLASS_NAME}>
+        <DetailRow icon={User} label="Full name" value={fullName} />
+        <Separator />
+        <DetailRow icon={Mail} label="Work email" value={workEmail} />
+        <Separator />
+        {!isEditing ? (
+          <DetailRow
+            icon={User}
+            label="Preferred name"
+            value={
+              preferredName ? (
+                preferredName
+              ) : (
+                <span className="font-normal text-muted-foreground">
+                  Not set
+                </span>
+              )
+            }
+          />
+        ) : (
+          <div className="space-y-3 rounded-xl border bg-muted/10 p-4">
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Preferred name</p>
+              <p className="text-xs text-muted-foreground">
+                Leave empty to clear your preferred name. Legal name and work
+                email remain HR-managed.
+              </p>
+            </div>
+            <Input
+              value={draftPreferredName}
+              maxLength={100}
+              placeholder="Preferred name"
+              onChange={(event) => setDraftPreferredName(event.target.value)}
+            />
+            <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                onClick={() => void handleSave()}
+                disabled={!hasChanges || updateMyProfile.isLoading}
+              >
+                {updateMyProfile.isLoading ? "Saving..." : "Save"}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setDraftPreferredName(preferredName ?? "");
+                  setActionError(null);
+                  setIsEditing(false);
+                }}
+                disabled={updateMyProfile.isLoading}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {actionError ? (
+          <Alert variant="destructive">
+            <AlertTitle>Preferred name update failed</AlertTitle>
+            <AlertDescription>{actionError}</AlertDescription>
+          </Alert>
+        ) : null}
+      </CardContent>
+    </Card>
+  );
+}
+
+function WorkforceAccountCard({
+  employeeId,
+  firstName,
+  lastName,
+  email,
+  directReportCount,
+}: {
+  employeeId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  directReportCount: number;
+}) {
+  const { tenantId } = useTenantContext();
+  const isTenantContextReadOnly = !!tenantId;
+  const { data, error, isLoading } = useWorkforceAccountStatus({
+    employeeId,
+    email,
+    firstName,
+    lastName,
+  });
+  const deactivateAccount = useDeactivateWorkforceAccount();
+  const provisionInvite = useProvisionWorkforceAccountInvite();
+  const reactivateAccount = useReactivateWorkforceAccount();
+  const resendInvite = useResendWorkforceAccountInvite();
+  const [selectedRole, setSelectedRole] = useState<AccessInviteRole>(
+    getSuggestedInviteRole(directReportCount)
+  );
+  const [copyMessage, setCopyMessage] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (data?.role === "Manager" || data?.role === "Employee") {
+      setSelectedRole(data.role);
+      return;
+    }
+
+    setSelectedRole(getSuggestedInviteRole(directReportCount));
+  }, [data?.role, directReportCount, employeeId]);
+
+  const eligibility = getInvitationEligibility(data ?? null);
+  const conflict = data?.conflict ?? null;
+  const hasConflict = !!data?.conflict;
+  const hasLinkedAccount = !!data?.userId;
+  const hasInvite = !!data?.inviteId;
+  const canInviteWithEmail = hasTextValue(email);
+  const canSendInvite = canInviteWithEmail && eligibility.canInvite;
+  const canResendInvite = eligibility.canResend;
+  const canDeactivate = eligibility.canDeactivate;
+  const canReactivate = eligibility.canReactivate;
+  const showInviteDetails = hasInvite && !hasLinkedAccount;
+  const actionMessage =
+    copyMessage ??
+    (showInviteDetails && data?.deliveryStatus !== "Sent"
+      ? (data?.deliveryMessage ?? null)
+      : null);
+  const effectiveEmail = data?.email || email || "Not set";
+  const effectiveRole = data?.role || selectedRole;
+  const emailLabel = hasLinkedAccount
+    ? "Account email"
+    : hasInvite
+      ? "Invitation email"
+      : "Work email for access";
+  const roleLabel = hasLinkedAccount ? "Account role" : "Invited role";
+  const showRoleDetail = hasLinkedAccount || hasInvite;
+  const showLastSignIn = hasLinkedAccount;
+  const showInviteCreated = showInviteDetails && !!data?.inviteCreatedAt;
+  const showDeliveryStatus = showInviteDetails && !!data?.deliveryStatus;
+
+  async function handleSendInvite() {
+    setCopyMessage(null);
+    setActionError(null);
+
+    try {
+      await provisionInvite.mutateAsync({
+        employeeId,
+        email,
+        firstName,
+        lastName,
+        role: selectedRole,
+      });
+    } catch (error) {
+      setActionError(getActionErrorMessage(error));
+    }
+  }
+
+  async function handleResendInvite() {
+    setCopyMessage(null);
+    setActionError(null);
+
+    try {
+      await resendInvite.mutateAsync({ employeeId });
+    } catch (error) {
+      setActionError(getActionErrorMessage(error));
+    }
+  }
+
+  async function handleCopyInviteLink() {
+    if (!data?.inviteLink) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(data.inviteLink);
+      setActionError(null);
+      setCopyMessage("Invite link copied.");
+    } catch {
+      setCopyMessage("Invite link could not be copied from this browser.");
+    }
+  }
+
+  async function handleDeactivate() {
+    setCopyMessage(null);
+    setActionError(null);
+
+    try {
+      await deactivateAccount.mutateAsync({ employeeId });
+      setCopyMessage("Account deactivated.");
+    } catch (error) {
+      setActionError(getActionErrorMessage(error));
+    }
+  }
+
+  async function handleReactivate() {
+    setCopyMessage(null);
+    setActionError(null);
+
+    try {
+      await reactivateAccount.mutateAsync({ employeeId });
+      setCopyMessage("Account reactivated.");
+    } catch (error) {
+      setActionError(getActionErrorMessage(error));
+    }
+  }
+
+  return (
+    <Card className={WORKSPACE_CARD_CLASS_NAME}>
+      <CardHeader className={WORKSPACE_CARD_HEADER_CLASS_NAME}>
+        <CardTitle className="text-base">Access &amp; account</CardTitle>
+        <CardDescription>
+          Manage invitation status, fallback links, and account access for this
+          employee.
+        </CardDescription>
+        <CardAction>
+          <WorkforceAccountStateBadge account={data ?? null} />
+        </CardAction>
+      </CardHeader>
+      <CardContent className={WORKSPACE_CARD_CONTENT_CLASS_NAME}>
+        {isLoading ? (
+          <div className="space-y-3">
+            <div className="h-10 rounded-xl border bg-muted/20" />
+            <div className="h-10 rounded-xl border bg-muted/20" />
+            <div className="h-10 rounded-xl border bg-muted/20" />
+          </div>
+        ) : error ? (
+          <Alert variant="destructive">
+            <AlertTitle>Failed to load account status</AlertTitle>
+            <AlertDescription>
+              {error.message || "An unexpected error occurred."}
+            </AlertDescription>
+          </Alert>
+        ) : (
+          <>
+            <DetailRow icon={Mail} label={emailLabel} value={effectiveEmail} />
+            {showRoleDetail ? (
+              <>
+                <Separator />
+                <DetailRow
+                  icon={User}
+                  label={roleLabel}
+                  value={
+                    effectiveRole || (
+                      <span className="font-normal text-muted-foreground">
+                        Not assigned
+                      </span>
+                    )
+                  }
+                />
+              </>
+            ) : null}
+            {showLastSignIn ? (
+              <>
+                <Separator />
+                <DetailRow
+                  icon={Calendar}
+                  label="Last sign-in"
+                  value={
+                    data?.lastLoginAt ? (
+                      formatTimestamp(data.lastLoginAt)
+                    ) : (
+                      <span className="font-normal text-muted-foreground">
+                        No sign-in recorded
+                      </span>
+                    )
+                  }
+                />
+              </>
+            ) : null}
+            {showDeliveryStatus ? (
+              <>
+                <Separator />
+                <DetailRow
+                  icon={Mail}
+                  label="Invitation delivery"
+                  value={
+                    <Badge
+                      variant={getWorkforceDeliveryBadgeVariant(
+                        data?.deliveryStatus ?? null
+                      )}
+                    >
+                      {getWorkforceDeliveryBadgeLabel(
+                        data?.deliveryStatus ?? null
+                      )}
+                    </Badge>
+                  }
+                />
+              </>
+            ) : null}
+
+            {showInviteCreated ? (
+              <>
+                <Separator />
+                <DetailRow
+                  icon={Calendar}
+                  label="Invite created"
+                  value={formatTimestamp(data?.inviteCreatedAt)}
+                />
+              </>
+            ) : null}
+
+            {!hasLinkedAccount && !hasInvite && canInviteWithEmail ? (
+              <>
+                <Separator />
+                <div className="rounded-xl border bg-muted/10 px-4 py-3 text-sm text-muted-foreground">
+                  No platform access has been provisioned yet.
+                </div>
+              </>
+            ) : null}
+
+            {conflict ? (
+              <>
+                <Separator />
+                <Alert variant={conflict.blocking ? "destructive" : "default"}>
+                  <AlertTitle>
+                    {conflict.blocking ? "Account conflict" : "Account warning"}
+                  </AlertTitle>
+                  <AlertDescription>
+                    <p>{conflict.message}</p>
+                    {conflict.suggestedAction ? (
+                      <p className="mt-1">{conflict.suggestedAction}</p>
+                    ) : null}
+                  </AlertDescription>
+                </Alert>
+              </>
+            ) : null}
+
+            {!hasLinkedAccount && !hasInvite && !canInviteWithEmail ? (
+              <>
+                <Separator />
+                <div className="rounded-xl border bg-muted/10 px-4 py-3 text-sm text-muted-foreground">
+                  Add a work email in the identity details before sending an
+                  invite.
+                </div>
+              </>
+            ) : null}
+
+            {!isTenantContextReadOnly && (canDeactivate || canReactivate) ? (
+              <>
+                <Separator />
+                <div className="flex flex-wrap gap-2">
+                  {canDeactivate ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => void handleDeactivate()}
+                      disabled={deactivateAccount.isLoading}
+                    >
+                      {deactivateAccount.isLoading
+                        ? "Deactivating..."
+                        : "Deactivate account"}
+                    </Button>
+                  ) : null}
+                  {canReactivate ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => void handleReactivate()}
+                      disabled={reactivateAccount.isLoading}
+                    >
+                      {reactivateAccount.isLoading
+                        ? "Reactivating..."
+                        : "Reactivate account"}
+                    </Button>
+                  ) : null}
+                </div>
+              </>
+            ) : null}
+
+            {!isTenantContextReadOnly && canSendInvite ? (
+              <>
+                <Separator />
+                <div className="space-y-3 rounded-xl border bg-muted/20 p-4">
+                  <p className="text-sm font-medium">Send access invitation</p>
+                  <p className="text-xs text-muted-foreground">
+                    Choose the role that should apply when the employee
+                    activates access.
+                  </p>
+                  {directReportCount > 0 ? (
+                    <p className="text-xs text-muted-foreground">
+                      Suggested: Manager · has {directReportCount} direct report
+                      {directReportCount === 1 ? "" : "s"}.
+                    </p>
+                  ) : null}
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={
+                        selectedRole === "Employee" ? "default" : "outline"
+                      }
+                      onClick={() => setSelectedRole("Employee")}
+                    >
+                      Employee
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={
+                        selectedRole === "Manager" ? "default" : "outline"
+                      }
+                      onClick={() => setSelectedRole("Manager")}
+                    >
+                      Manager
+                    </Button>
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => void handleSendInvite()}
+                    disabled={provisionInvite.isLoading}
+                  >
+                    {provisionInvite.isLoading
+                      ? "Sending invite..."
+                      : "Send invite"}
+                  </Button>
+                </div>
+              </>
+            ) : null}
+
+            {!isTenantContextReadOnly && canResendInvite ? (
+              <>
+                <Separator />
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void handleResendInvite()}
+                    disabled={resendInvite.isLoading}
+                  >
+                    {resendInvite.isLoading ? "Resending..." : "Resend invite"}
+                  </Button>
+                  {data?.inviteLink ? (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => void handleCopyInviteLink()}
+                    >
+                      Copy invite link
+                    </Button>
+                  ) : null}
+                </div>
+              </>
+            ) : null}
+
+            {showInviteDetails && data?.inviteExpiresAt ? (
+              <>
+                <Separator />
+                <DetailRow
+                  icon={Calendar}
+                  label="Invite expires"
+                  value={formatTimestamp(data.inviteExpiresAt)}
+                />
+              </>
+            ) : null}
+
+            {actionMessage ? (
+              <div className="rounded-xl border bg-muted/10 px-4 py-3 text-sm text-muted-foreground">
+                {actionMessage}
+              </div>
+            ) : null}
+
+            {actionError ? (
+              <Alert variant="destructive">
+                <AlertTitle>Invite action failed</AlertTitle>
+                <AlertDescription>{actionError}</AlertDescription>
+              </Alert>
+            ) : null}
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export default function EmployeeProfilePage() {
   const { user } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { tenantId } = useTenantContext();
+  const isTenantContextReadOnly = !!tenantId;
   const requestedSheet = searchParams.get("sheet");
   const params = useParams<{ id: string }>();
   const employeeId =
@@ -216,21 +848,23 @@ export default function EmployeeProfilePage() {
       ? params.id
       : null;
   const canAccess = canAccessEmployeeRoster(user);
-  const fieldPolicy = useEmployeeFieldPolicy(canAccess);
+  const fieldPolicy = useEmployeeFieldPolicy(canAccess || isTenantContextReadOnly);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [activeWorkspaceSheet, setActiveWorkspaceSheet] = useState<
     "identity" | "employment" | "organization" | "status" | null
   >(null);
   const lastHandledSheetRef = useRef<string | null>(null);
 
+  const effectiveEmployeeId = (canAccess || isTenantContextReadOnly) && employeeId ? employeeId : null;
+
   const {
     data: profile,
     error,
     isLoading,
-  } = useEmployeeProfile(canAccess && employeeId ? employeeId : null);
+  } = useEmployeeProfile(effectiveEmployeeId);
 
   const { data: reportingLines } = useEmployeeReportingLines(
-    canAccess && employeeId ? employeeId : null
+    effectiveEmployeeId
   );
 
   // Register employee name in the top breadcrumb (Core > Employees > Jane Smith)
@@ -246,14 +880,18 @@ export default function EmployeeProfilePage() {
       return;
     }
 
-    if (requestedSheet === "reporting") {
-      setSheetOpen(true);
-    } else if (
+    const isReportingSheetRequest = requestedSheet === "reporting";
+    const isWorkspaceSheetRequest =
       requestedSheet === "identity" ||
       requestedSheet === "employment" ||
       requestedSheet === "organization" ||
-      requestedSheet === "status"
-    ) {
+      requestedSheet === "status";
+
+    if (isTenantContextReadOnly && (isReportingSheetRequest || isWorkspaceSheetRequest)) {
+      lastHandledSheetRef.current = requestedSheet;
+    } else if (isReportingSheetRequest) {
+      setSheetOpen(true);
+    } else if (isWorkspaceSheetRequest) {
       setActiveWorkspaceSheet(requestedSheet);
     } else {
       return;
@@ -268,9 +906,9 @@ export default function EmployeeProfilePage() {
     const nextUrl = nextSearch ? `${nextPath}?${nextSearch}` : nextPath;
 
     window.history.replaceState(window.history.state, "", nextUrl);
-  }, [profile, requestedSheet, searchParams]);
+  }, [isTenantContextReadOnly, profile, requestedSheet, searchParams]);
 
-  const isInitialLoading = canAccess && isLoading && !profile && !error;
+  const isInitialLoading = (canAccess || isTenantContextReadOnly) && isLoading && !profile && !error;
 
   if (isInitialLoading) {
     return (
@@ -283,7 +921,9 @@ export default function EmployeeProfilePage() {
     );
   }
 
-  if (!canAccess) {
+  const isViewable = canAccess || isTenantContextReadOnly;
+
+  if (!isViewable) {
     return (
       <div className="flex flex-col gap-6 p-6">
         <EmptyState
@@ -321,6 +961,7 @@ export default function EmployeeProfilePage() {
 
   if (!profile) return null;
 
+  const canEditOwnPreferredName = user?.employeeId === profile.id;
   const hireDate = formatDate(profile.hireDate);
   const tenure = getTenure(profile.hireDate);
   const showHireDate = fieldPolicy.showHireDate;
@@ -343,6 +984,10 @@ export default function EmployeeProfilePage() {
   const hierarchyIsHealthy = profile.hierarchyStatus === "Healthy";
 
   const handleOpenReadinessIssue = (issue: (typeof attentionItems)[number]) => {
+    if (isTenantContextReadOnly) {
+      return;
+    }
+
     const sheet = getEmployeeFixSheet(issue);
 
     if (sheet === "reporting") {
@@ -479,13 +1124,15 @@ export default function EmployeeProfilePage() {
                 Maintain the employee&apos;s primary identity fields.
               </CardDescription>
               <CardAction>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setActiveWorkspaceSheet("identity")}
-                >
-                  Edit
-                </Button>
+                {!isTenantContextReadOnly ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setActiveWorkspaceSheet("identity")}
+                  >
+                    Edit
+                  </Button>
+                ) : null}
               </CardAction>
             </CardHeader>
             <CardContent className={WORKSPACE_CARD_CONTENT_CLASS_NAME}>
@@ -493,6 +1140,20 @@ export default function EmployeeProfilePage() {
                 icon={User}
                 label="Full name"
                 value={profile.fullName}
+              />
+              <Separator />
+              <DetailRow
+                icon={Hash}
+                label="Employee number"
+                value={
+                  hasTextValue(profile.employeeNumber) ? (
+                    profile.employeeNumber
+                  ) : (
+                    <span className="font-normal text-muted-foreground">
+                      Not set
+                    </span>
+                  )
+                }
               />
               <Separator />
               <DetailRow icon={Mail} label="Work email" value={email} />
@@ -506,7 +1167,7 @@ export default function EmployeeProfilePage() {
                 Keep role, hire date, and status details current.
               </CardDescription>
               <CardAction className="flex flex-wrap gap-2">
-                {canEditEmploymentDetails ? (
+                {canEditEmploymentDetails && !isTenantContextReadOnly ? (
                   <Button
                     size="sm"
                     variant="outline"
@@ -515,13 +1176,15 @@ export default function EmployeeProfilePage() {
                     Edit
                   </Button>
                 ) : null}
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setActiveWorkspaceSheet("status")}
-                >
-                  Manage status
-                </Button>
+                {!isTenantContextReadOnly ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setActiveWorkspaceSheet("status")}
+                  >
+                    Manage status
+                  </Button>
+                ) : null}
               </CardAction>
             </CardHeader>
             <CardContent className={WORKSPACE_CARD_CONTENT_CLASS_NAME}>
@@ -589,13 +1252,15 @@ export default function EmployeeProfilePage() {
                             : "Open the linked workforce surface to fix this issue."}
                         </p>
                       </div>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleOpenReadinessIssue(issue)}
-                      >
-                        Open fix
-                      </Button>
+                      {!isTenantContextReadOnly ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleOpenReadinessIssue(issue)}
+                        >
+                          Open fix
+                        </Button>
+                      ) : null}
                     </div>
                   ))}
                 </div>
@@ -620,22 +1285,29 @@ export default function EmployeeProfilePage() {
               </CardDescription>
               <CardAction>
                 <div className="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() =>
-                      router.push(`/org-chart?focusEmployeeId=${profile.id}`)
-                    }
-                  >
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() =>
+                        router.push(
+                          buildTenantContextHref(
+                            `/org-chart?focusEmployeeId=${profile.id}`,
+                            tenantId
+                          )
+                        )
+                      }
+                    >
                     View in org chart
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setActiveWorkspaceSheet("organization")}
-                  >
-                    Edit
-                  </Button>
+                  {!isTenantContextReadOnly ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setActiveWorkspaceSheet("organization")}
+                    >
+                      Edit
+                    </Button>
+                  ) : null}
                 </div>
               </CardAction>
             </CardHeader>
@@ -708,13 +1380,15 @@ export default function EmployeeProfilePage() {
                     Update the manager and review the chain.
                   </p>
                 </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setSheetOpen(true)}
-                >
-                  Open
-                </Button>
+                {!isTenantContextReadOnly ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setSheetOpen(true)}
+                  >
+                    Open
+                  </Button>
+                ) : null}
               </div>
             </CardContent>
           </Card>
@@ -760,7 +1434,11 @@ export default function EmployeeProfilePage() {
         profile={profile}
         open={activeWorkspaceSheet === "status"}
         onOpenChange={(open) => setActiveWorkspaceSheet(open ? "status" : null)}
-        onManageReportingRelationship={() => setSheetOpen(true)}
+        onManageReportingRelationship={() => {
+          if (!isTenantContextReadOnly) {
+            setSheetOpen(true);
+          }
+        }}
       />
     </div>
   );

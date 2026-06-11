@@ -50,6 +50,9 @@ namespace EY.HRPlatform.Identity.Infrastructure.Persistence.Migrations
                     b.Property<bool>("EmailConfirmed")
                         .HasColumnType("boolean");
 
+                    b.Property<Guid?>("EmployeeId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("FirstName")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -120,6 +123,10 @@ namespace EY.HRPlatform.Identity.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("TenantId");
 
+                    b.HasIndex("TenantId", "EmployeeId")
+                        .IsUnique()
+                        .HasFilter("\"EmployeeId\" IS NOT NULL");
+
                     b.ToTable("AspNetUsers", "identity");
                 });
 
@@ -145,6 +152,9 @@ namespace EY.HRPlatform.Identity.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
+
+                    b.Property<Guid?>("EmployeeId")
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime>("ExpiresAt")
                         .HasColumnType("timestamp with time zone");
@@ -189,6 +199,8 @@ namespace EY.HRPlatform.Identity.Infrastructure.Persistence.Migrations
                         .IsUnique()
                         .HasDatabaseName("IX_InviteTokens_TenantId_Email_Pending")
                         .HasFilter("\"AcceptedAt\" IS NULL AND \"IsRevoked\" = false");
+
+                    b.HasIndex("TenantId", "EmployeeId");
 
                     b.ToTable("InviteTokens", "identity");
                 });

@@ -44,18 +44,18 @@ public sealed class GetEmployeeReportingLinesQueryHandler(
 
         var directReportCounts = await LoadDirectReportCountsAsync(relevantEmployeeIds, cancellationToken);
         var managerChain = managerChainEmployees
-            .Select((manager, index) => MapNode(manager, settings, directReportCounts, index + 1))
+            .Select((manager, index) => MapNode(manager, settings, request.Audience, directReportCounts, index + 1))
             .ToList();
         var directReports = downlineEmployees
             .Where(node => node.Depth == 1)
-            .Select(node => MapNode(node.Employee, settings, directReportCounts, node.Depth))
+            .Select(node => MapNode(node.Employee, settings, request.Audience, directReportCounts, node.Depth))
             .ToList();
         var downline = downlineEmployees
-            .Select(node => MapNode(node.Employee, settings, directReportCounts, node.Depth))
+            .Select(node => MapNode(node.Employee, settings, request.Audience, directReportCounts, node.Depth))
             .ToList();
 
         return Result.Success(new EmployeeReportingLinesDto(
-            MapListItem(employee, settings, directReportCounts),
+            MapListItem(employee, settings, request.Audience, directReportCounts),
             managerChain,
             directReports,
             downline,
@@ -165,17 +165,19 @@ public sealed class GetEmployeeReportingLinesQueryHandler(
     private EmployeeHierarchyNodeDto MapNode(
         Employee employee,
         TenantSettingsDto settings,
+        EmployeeReadAudience audience,
         IReadOnlyDictionary<Guid, int> directReportCounts,
         int depth)
-        => new(MapListItem(employee, settings, directReportCounts), depth);
+        => new(MapListItem(employee, settings, audience, directReportCounts), depth);
 
     private EmployeeListItemDto MapListItem(
         Employee employee,
         TenantSettingsDto settings,
+        EmployeeReadAudience audience,
         IReadOnlyDictionary<Guid, int> directReportCounts)
         => employeeReadModelPolicy.MapListItem(
             employee,
             settings,
-            EmployeeReadAudience.HrAdmin,
+            audience,
             directReportCounts.GetValueOrDefault(employee.Id));
-}
+    }

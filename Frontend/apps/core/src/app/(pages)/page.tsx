@@ -1,274 +1,948 @@
 "use client";
 
 import Link from "next/link";
-import {
-  ArrowRight,
-  Building,
-  ClipboardList,
-  LayoutDashboard,
-  Users,
-  type LucideIcon,
-} from "lucide-react";
-import {
-  canSeeCoreSetupNavigation,
-  canSeeOrganizationsNavigation,
-  useAuth,
-} from "@repo/auth";
-import { PageHeader } from "@/components/page-header";
+import { AlertTriangle, ArrowRight, Building, Building2, ClipboardList, ExternalLink, Mail, Network, Pause, Plus, Settings2, User, Users } from "lucide-react";
+import { canAccessOrganizations, canSeeCoreSetupNavigation, canSeeCoreSettingsNavigation, useAuth } from "@repo/auth";
 import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { canSeeEmployeeRosterNavigation } from "@/lib/employee-roster-access";
+import { canAccessEmployeeRoster, canAccessSelfEmployeeProfile, canAccessTeamWorkspace } from "@/lib/employee-roster-access";
+import { buildTenantContextHref } from "@/lib/tenant-navigation";
+import { useTenantContext } from "@/components/core-tenant-context-provider";
 import { buildImportHistoryHref } from "./employees/employee-readiness";
-import { useWorkforceReadinessSummary } from "./employees/use-employees";
+import { useEmployeeProfile, useEmployeeReportingLines, useWorkforceReadinessSummary } from "./employees/use-employees";
+import { StatusBadge } from "./organizations/status-badge";
+import { StatsCards } from "./organizations/stats-cards";
+import { useOrganizationList } from "./organizations/use-organizations";
 
-interface WorkspaceArea {
-  title: string;
-  description: string;
-  href: string;
-  icon: LucideIcon;
-  available: boolean;
+function LoadingSkeleton() {
+  return (
+    <div className="flex min-h-full flex-col gap-6 p-6">
+      <div className="space-y-2">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-4 w-96" />
+      </div>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Card key={i}>
+            <CardHeader>
+              <Skeleton className="h-5 w-32" />
+              <Skeleton className="h-4 w-48" />
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-10 w-28" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
 }
 
-export default function DashboardPage() {
-  const { user } = useAuth();
-  const canSeeEmployees = canSeeEmployeeRosterNavigation(user);
-  const {
-    data: readinessSummary,
-    error: readinessError,
-    isLoading: isReadinessLoading,
-  } = useWorkforceReadinessSummary();
+interface DashboardCardProps {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  description?: string;
+  href: string;
+  cta?: string;
+  children?: React.ReactNode;
+}
 
-  const workspaceAreas: WorkspaceArea[] = [
-    {
-      title: "Setup",
-      description:
-        "Tenant structure, draft workspace progress, and publish readiness.",
-      href: "/setup",
-      icon: ClipboardList,
-      available: canSeeCoreSetupNavigation(user),
-    },
-    {
-      title: "Organizations",
-      description: "Tenant organization records and lifecycle administration.",
-      href: "/organizations",
-      icon: Building,
-      available: canSeeOrganizationsNavigation(user),
-    },
-    {
-      title: "Employees",
-      description:
-        "Roster operations, import workflow, and employee history surfaces.",
-      href: "/employees",
-      icon: Users,
-      available: canSeeEmployees,
-    },
-  ];
-  const availableAreas = workspaceAreas.filter((area) => area.available);
+function DashboardCard({ icon: Icon, title, description, href, cta, children }: DashboardCardProps) {
+  return (
+    <Card className="flex flex-col">
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
+            <Icon className="size-4" />
+          </div>
+          <CardTitle className="text-base">{title}</CardTitle>
+        </div>
+        {description ? <CardDescription>{description}</CardDescription> : null}
+      </CardHeader>
+      {children ? <CardContent className="flex-1">{children}</CardContent> : null}
+      <CardContent className="pt-0">
+        <Link
+          href={href}
+          className="group inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary/80"
+        >
+          {cta ?? `Open ${title.toLowerCase()}`}
+          <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+        </Link>
+      </CardContent>
+    </Card>
+  );
+}
+
+function HRAdminDashboard() {
+  const { user } = useAuth();
+  const { data: rs, error: rsError, isLoading: isRsLoading } = useWorkforceReadinessSummary();
+  const reportingIssueCount = rs
+    ? rs.issueCounts.noManagerAssigned + rs.issueCounts.managerInactive + rs.issueCounts.managerMissing
+    : 0;
+  const canSeeSetup = canSeeCoreSetupNavigation(user);
+  const canSeeSettings = canSeeCoreSettingsNavigation(user);
 
   return (
     <div className="flex min-h-full flex-col gap-6 p-6">
-      <PageHeader
-        title="Core workspace"
-        description="Summary of active Core workspaces."
-      />
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">Core workspace</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Manage structure, employees, access, and workforce readiness.</p>
+      </div>
 
-      <Card className="py-0">
-        <CardContent className="grid gap-6  p-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
-          <div className="flex flex-col gap-8">
-            <div className="space-y-2">
-              <div className="inline-flex items-center gap-2 rounded-full border bg-muted/20 px-3 py-1 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
-                <LayoutDashboard className="size-3.5" />
-                Operational focus
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {/* Workforce health — spans 2 columns */}
+        <Card className="xl:col-span-2 flex flex-col">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                <Users className="size-4" />
               </div>
-              <div>
-                <h2 className="text-2xl font-semibold tracking-tight text-foreground">
-                  Setup, organizations, and employee operations.
-                </h2>
-              </div>
+              <CardTitle className="text-base">Workforce health</CardTitle>
             </div>
-
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {availableAreas.map((area) => {
-                const Icon = area.icon;
-
-                return (
-                  <div
-                    key={area.href}
-                    className="flex h-full flex-col rounded-xl border p-4"
+            <CardDescription>Employee record issues and operational blockers.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex-1">
+            {rs ? (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between rounded-lg border bg-muted/20 px-3 py-2">
+                  <span className="text-sm font-medium">Readiness score</span>
+                  <Badge variant="secondary">{rs.readinessScore}%</Badge>
+                </div>
+                <div className="grid gap-1.5">
+                  <Link
+                    href="/employees?readiness=NeedsAttention"
+                    className="flex items-center justify-between rounded-lg border px-3 py-1.5 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-2">
-                        <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                          <Icon className="size-4" />
-                        </div>
-                        <p className="font-medium">{area.title}</p>
-                      </div>
-                      <Badge variant="secondary">Available</Badge>
-                    </div>
-                    <p className="mt-3 text-sm text-muted-foreground">
-                      {area.description}
-                    </p>
-                  </div>
-                );
-              })}
+                    <span>Employees needing attention</span>
+                    <span className="font-medium tabular-nums">{rs.employeesNeedingAttention}</span>
+                  </Link>
+                  <Link
+                    href="/employees?readiness=MissingRequiredField"
+                    className="flex items-center justify-between rounded-lg border px-3 py-1.5 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
+                  >
+                    <span>Missing required fields</span>
+                    <span className="font-medium tabular-nums">{rs.issueCounts.missingRequiredFields}</span>
+                  </Link>
+                  <Link
+                    href="/employees?readiness=MissingOrgUnit"
+                    className="flex items-center justify-between rounded-lg border px-3 py-1.5 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
+                  >
+                    <span>Missing org units</span>
+                    <span className="font-medium tabular-nums">{rs.issueCounts.missingOrgUnit}</span>
+                  </Link>
+                  <Link
+                    href="/employees?readiness=ReportingIssue"
+                    className="flex items-center justify-between rounded-lg border px-3 py-1.5 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
+                  >
+                    <span>Reporting issues</span>
+                    <span className="font-medium tabular-nums">{reportingIssueCount}</span>
+                  </Link>
+                  <Link
+                    href={buildImportHistoryHref()}
+                    className="flex items-center justify-between rounded-lg border px-3 py-1.5 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
+                  >
+                    <span>Unresolved import follow-up</span>
+                    <span className="font-medium tabular-nums">{rs.issueCounts.unresolvedImportIssues}</span>
+                  </Link>
+                </div>
+              </div>
+            ) : isRsLoading ? (
+              <div className="space-y-3">
+                <Skeleton className="h-9 w-full rounded-lg" />
+                <div className="grid gap-1.5">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Skeleton key={i} className="h-8 w-full rounded-lg" />
+                  ))}
+                </div>
+              </div>
+            ) : rsError ? (
+              <div className="flex items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground">
+                <AlertTriangle className="size-4" />
+                Workforce health is temporarily unavailable.
+              </div>
+            ) : (
+              <div className="rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground">
+                No employee data available.
+              </div>
+            )}
+          </CardContent>
+          <CardContent className="pt-0">
+            <Link
+              href="/employees"
+              className="group inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary/80"
+            >
+              Open employees
+              <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+            </Link>
+          </CardContent>
+        </Card>
+
+        {/* Right column */}
+        <div className="flex flex-col gap-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                  <User className="size-4" />
+                </div>
+                <CardTitle className="text-base">Access activation</CardTitle>
+              </div>
+              <CardDescription>Invite employees and manage platform access.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Link
+                href="/employees?access=NotInvited"
+                className="group inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary/80"
+              >
+                Review access invitations
+                <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+              </Link>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                  <ClipboardList className="size-4" />
+                </div>
+                <CardTitle className="text-base">Setup</CardTitle>
+              </div>
+              <CardDescription>
+                {canSeeSetup ? "Organization structure is published and live." : "Organization structure management."}
+              </CardDescription>
+            </CardHeader>
+            {canSeeSetup && (
+              <CardContent>
+                <Link
+                  href="/setup"
+                  className="group inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary/80"
+                >
+                  Open setup
+                  <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+                </Link>
+              </CardContent>
+            )}
+          </Card>
+        </div>
+
+        <DashboardCard icon={Users} title="Employees" description="Roster operations, import workflow, and employee profiles." href="/employees" />
+
+        <DashboardCard icon={Network} title="Org chart" description="Organizational hierarchy and reporting visibility." href="/org-chart" />
+
+        {canSeeSettings ? (
+          <DashboardCard icon={Settings2} title="Settings" description="Configuration surface for tenant preferences." href="/settings" />
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function ManagerDashboard() {
+  const { user } = useAuth();
+  const employeeId = user?.employeeId ?? null;
+  const { data: profile, isLoading: isProfileLoading } = useEmployeeProfile(employeeId);
+  const { data: reportingLines, isLoading: isReportingLoading } = useEmployeeReportingLines(employeeId);
+  const directReportCount = reportingLines?.directReportCount ?? 0;
+  const hasReportingData = profile?.managerFullName ?? profile?.orgUnitName ?? null;
+
+  if (isProfileLoading && !profile) {
+    return <LoadingSkeleton />;
+  }
+
+  return (
+    <div className="flex min-h-full flex-col gap-6 p-6">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">My workspace</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Review your profile and team context.</p>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <Card className="flex flex-col">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                <User className="size-4" />
+              </div>
+              <CardTitle className="text-base">My Profile</CardTitle>
             </div>
-          </div>
-
-          <div className="flex flex-col gap-4">
-            {canSeeEmployees ? (
-              <Card className="border-dashed bg-muted/10 shadow-none">
-                <CardHeader>
-                  <CardTitle>Workforce health</CardTitle>
-                  <CardDescription>
-                    Review the current employee record issues and operational blockers.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="grid gap-3">
-                  {readinessSummary ? (
-                    <div className="rounded-xl border border-primary/20 bg-background p-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-medium text-foreground">
-                            Workforce readiness
-                          </p>
-                          <p className="mt-1 text-sm text-muted-foreground">
-                            {readinessSummary.readyEmployeeCount} of {" "}
-                            {readinessSummary.activeEmployeeCount} active employee
-                            {readinessSummary.activeEmployeeCount === 1 ? "" : "s"}{" "}
-                            are clean.
-                          </p>
-                        </div>
-                        <Badge variant="secondary">
-                          {readinessSummary.readinessScore}% ready
-                        </Badge>
-                      </div>
-
-                      <div className="mt-4 grid gap-2">
-                        <Link
-                          href="/employees?readiness=NeedsAttention"
-                          className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
-                        >
-                          <span>Employees needing attention</span>
-                          <span className="font-medium">
-                            {readinessSummary.employeesNeedingAttention}
-                          </span>
-                        </Link>
-                        <Link
-                          href="/employees?readiness=MissingRequiredField"
-                          className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
-                        >
-                          <span>Missing required fields</span>
-                          <span className="font-medium">
-                            {readinessSummary.issueCounts.missingRequiredFields}
-                          </span>
-                        </Link>
-                        <Link
-                          href="/employees?readiness=MissingOrgUnit"
-                          className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
-                        >
-                          <span>Missing org units</span>
-                          <span className="font-medium">
-                            {readinessSummary.issueCounts.missingOrgUnit}
-                          </span>
-                        </Link>
-                        <Link
-                          href={buildImportHistoryHref()}
-                          className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
-                        >
-                          <span>Unresolved import follow-up</span>
-                          <span className="font-medium">
-                            {readinessSummary.issueCounts.unresolvedImportIssues}
-                          </span>
-                        </Link>
-                        <Link
-                          href="/employees?readiness=DeactivationBlocked"
-                          className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
-                        >
-                          <span>Deactivation blockers</span>
-                          <span className="font-medium">
-                            {readinessSummary.issueCounts.deactivationBlocked}
-                          </span>
-                        </Link>
-                      </div>
-                    </div>
-                  ) : isReadinessLoading ? (
-                    <div className="space-y-3 rounded-xl border bg-background p-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="space-y-2">
-                          <Skeleton className="h-4 w-32" />
-                          <Skeleton className="h-4 w-56" />
-                        </div>
-                        <Skeleton className="h-6 w-20 rounded-full" />
-                      </div>
-                      <div className="grid gap-2">
-                        {Array.from({ length: 5 }).map((_, index) => (
-                          <Skeleton key={index} className="h-10 w-full rounded-lg" />
-                        ))}
-                      </div>
-                    </div>
-                  ) : readinessError ? (
-                    <div className="rounded-xl border border-dashed bg-background p-4 text-sm text-muted-foreground">
-                      Workforce health is temporarily unavailable.
-                    </div>
-                  ) : null}
-                </CardContent>
-              </Card>
+            <CardDescription>
+              {profile ? `${profile.fullName}${profile.jobTitle ? ` · ${profile.jobTitle}` : ""}` : "Your linked employee record."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex-1">
+            {profile ? (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between rounded-lg border px-3 py-1.5 text-sm">
+                  <span className="text-muted-foreground">Status</span>
+                  <Badge variant={profile.status === "Active" ? "secondary" : "outline"}>{profile.status}</Badge>
+                </div>
+                {profile.managerFullName ? (
+                  <div className="flex items-center justify-between rounded-lg border px-3 py-1.5 text-sm">
+                    <span className="text-muted-foreground">Manager</span>
+                    <span className="font-medium">{profile.managerFullName}</span>
+                  </div>
+                ) : null}
+                {profile.orgUnitName ? (
+                  <div className="flex items-center justify-between rounded-lg border px-3 py-1.5 text-sm">
+                    <span className="text-muted-foreground">Org unit</span>
+                    <span className="font-medium">{profile.orgUnitName}</span>
+                  </div>
+                ) : null}
+              </div>
             ) : null}
+          </CardContent>
+          <CardContent className="pt-0">
+            <Link
+              href="/profile"
+              className="group inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary/80"
+            >
+              Open profile
+              <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+            </Link>
+          </CardContent>
+        </Card>
 
-            <Card className="border-dashed bg-muted/10 shadow-none">
-              <CardHeader>
-                <CardTitle>Workspace actions</CardTitle>
-                <CardDescription>
-                  Launch the live Core workspaces available to your current role.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="grid gap-3">
-                {availableAreas.length > 0 ? (
-                  availableAreas.map((area) => {
-                    const Icon = area.icon;
+        <Card className="flex flex-col">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                <Users className="size-4" />
+              </div>
+              <CardTitle className="text-base">My Team</CardTitle>
+            </div>
+            <CardDescription>
+              {isReportingLoading ? "Loading..." : `${directReportCount} direct report${directReportCount === 1 ? "" : "s"}`}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex-1">
+            {isReportingLoading ? (
+              <Skeleton className="h-9 w-full rounded-lg" />
+            ) : directReportCount > 0 ? (
+              <div className="rounded-lg border bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
+                Manager scope includes employees who report directly to you.
+              </div>
+            ) : (
+              <div className="rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground">No direct reports currently assigned.</div>
+            )}
+          </CardContent>
+          <CardContent className="pt-0">
+            <Link
+              href="/team"
+              className="group inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary/80"
+            >
+              Open team
+              <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+            </Link>
+          </CardContent>
+        </Card>
 
-                    return (
+        {hasReportingData ? (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                  <Network className="size-4" />
+                </div>
+                <CardTitle className="text-base">Reporting context</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-1.5 text-sm">
+                {profile?.managerFullName ? (
+                  <div className="flex items-center justify-between rounded-lg border px-3 py-1.5">
+                    <span className="text-muted-foreground">Reports to</span>
+                    <span className="font-medium">{profile.managerFullName}</span>
+                  </div>
+                ) : null}
+                {profile?.orgUnitName ? (
+                  <div className="flex items-center justify-between rounded-lg border px-3 py-1.5">
+                    <span className="text-muted-foreground">Org unit</span>
+                    <span className="font-medium">{profile.orgUnitName}</span>
+                  </div>
+                ) : null}
+              </div>
+            </CardContent>
+          </Card>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function EmployeeDashboard() {
+  const { user } = useAuth();
+  const employeeId = user?.employeeId ?? null;
+  const { data: profile, isLoading: isProfileLoading } = useEmployeeProfile(employeeId);
+
+  if (isProfileLoading && !profile) {
+    return <LoadingSkeleton />;
+  }
+
+  return (
+    <div className="flex min-h-full flex-col gap-6 p-6">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">My workspace</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Review your Core profile and work context.</p>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <Card className="flex flex-col">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                <User className="size-4" />
+              </div>
+              <CardTitle className="text-base">My Profile</CardTitle>
+            </div>
+            <CardDescription>
+              {profile ? `${profile.fullName}${profile.jobTitle ? ` · ${profile.jobTitle}` : ""}` : "Your linked employee record."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex-1">
+            {profile ? (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between rounded-lg border px-3 py-1.5 text-sm">
+                  <span className="text-muted-foreground">Status</span>
+                  <Badge variant={profile.status === "Active" ? "secondary" : "outline"}>{profile.status}</Badge>
+                </div>
+                {profile.managerFullName ? (
+                  <div className="flex items-center justify-between rounded-lg border px-3 py-1.5 text-sm">
+                    <span className="text-muted-foreground">Manager</span>
+                    <span className="font-medium">{profile.managerFullName}</span>
+                  </div>
+                ) : null}
+                {profile.orgUnitName ? (
+                  <div className="flex items-center justify-between rounded-lg border px-3 py-1.5 text-sm">
+                    <span className="text-muted-foreground">Org unit</span>
+                    <span className="font-medium">{profile.orgUnitName}</span>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+          </CardContent>
+          <CardContent className="pt-0">
+            <Link
+              href="/profile"
+              className="group inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary/80"
+            >
+              Open profile
+              <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+            </Link>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                <Settings2 className="size-4" />
+              </div>
+              <CardTitle className="text-base">Profile preferences</CardTitle>
+            </div>
+            <CardDescription>
+              {profile?.preferredName ? `Preferred name: ${profile.preferredName}` : "Set your preferred display name."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Link
+              href={employeeId ? `/employees/${employeeId}` : "/profile"}
+              className="group inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary/80"
+            >
+              Edit profile preferences
+              <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function PlatformAdminDashboard() {
+  const {
+    data: recentData,
+    error: dashboardError,
+    isLoading: isDashboardLoading,
+    refetch: refetchDashboard,
+  } = useOrganizationList({ skip: 0, take: 5 });
+  const {
+    data: attentionData,
+    error: attentionError,
+    isLoading: isAttentionLoading,
+    refetch: refetchAttention,
+  } = useOrganizationList({
+    skip: 0,
+    take: 5,
+    filterByStatus: ["invited", "suspended"],
+  });
+  const stats = recentData?.stats;
+  const recentOrgs = recentData?.items ?? [];
+  const attentionOrgs = attentionData?.items ?? [];
+  const totalAttentionCount =
+    (stats?.invitedPending ?? 0) + (stats?.suspendedOrganizations ?? 0);
+  const remainingAttentionCount = Math.max(
+    totalAttentionCount - attentionOrgs.length,
+    0
+  );
+
+  return (
+    <div className="flex min-h-full flex-col gap-6 p-6">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold tracking-tight">Platform workspace</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Manage tenant organizations and platform operations.
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-3">
+          <Link
+            href="/organizations?create=1"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            <Plus className="size-4" />
+            New organization
+          </Link>
+          <Link
+            href="/organizations"
+            className="group inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary/80"
+          >
+            Open organizations
+            <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+          </Link>
+        </div>
+      </div>
+
+      {dashboardError && !recentData ? (
+        <Alert variant="destructive">
+          <AlertTitle>Failed to load platform dashboard</AlertTitle>
+          <AlertDescription className="flex items-center justify-between gap-4">
+            <span>{dashboardError.message || "An unexpected error occurred."}</span>
+            <Button variant="outline" size="sm" onClick={() => refetchDashboard()}>
+              Retry
+            </Button>
+          </AlertDescription>
+        </Alert>
+      ) : (
+        <>
+          {/* KPI strip */}
+          <StatsCards stats={stats} isLoading={isDashboardLoading && !recentData} />
+
+          {/* Main content: attention + quick actions */}
+          <div className="grid gap-4 md:grid-cols-3">
+            <Card className="md:col-span-2 flex flex-col">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                <AlertTriangle className="size-4" />
+              </div>
+              <CardTitle className="text-base">Needs attention</CardTitle>
+            </div>
+            <CardDescription>Organizations requiring platform admin action.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex-1">
+            {attentionError && !attentionData ? (
+              <Alert variant="destructive">
+                <AlertTitle>Failed to load organizations needing attention</AlertTitle>
+                <AlertDescription className="flex items-center justify-between gap-4">
+                  <span>{attentionError.message || "An unexpected error occurred."}</span>
+                  <Button variant="outline" size="sm" onClick={() => refetchAttention()}>
+                    Retry
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            ) : isAttentionLoading && !attentionData ? (
+              <div className="space-y-2">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <Skeleton key={i} className="h-12 w-full rounded-lg" />
+                ))}
+              </div>
+            ) : totalAttentionCount > 0 ? (
+              <div className="space-y-3">
+                {attentionOrgs.length > 0 ? (
+                  <div className="space-y-1.5">
+                    {attentionOrgs.map((org) => (
                       <Link
-                        key={area.href}
-                        href={area.href}
-                        className="group rounded-xl border bg-background p-4 transition-colors hover:border-primary/40 hover:bg-muted/10"
+                        key={org.id}
+                        href={`/organizations?detail=${org.id}`}
+                        className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
                       >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex items-start gap-3">
-                            <div className="mt-0.5 flex size-9 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors group-hover:bg-primary/10 group-hover:text-primary">
-                              <Icon className="size-4" />
-                            </div>
-                            <div>
-                              <p className="font-medium text-foreground">
-                                {area.title}
-                              </p>
-                              <p className="mt-1 text-sm text-muted-foreground">
-                                {area.description}
-                              </p>
-                            </div>
-                          </div>
-                          <ArrowRight className="mt-1 size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
+                        <div className="flex min-w-0 items-center gap-2">
+                          <span className="truncate font-medium">{org.name}</span>
+                          <StatusBadge status={org.operationalStatus} />
+                        </div>
+                        <div className="flex shrink-0 items-center gap-3 text-xs text-muted-foreground">
+                          {org.pendingInviteCount > 0 && (
+                            <span>{org.pendingInviteCount} invite{org.pendingInviteCount !== 1 ? "s" : ""}</span>
+                          )}
+                          {org.activeUserCount > 0 && (
+                            <span>{org.activeUserCount} user{org.activeUserCount !== 1 ? "s" : ""}</span>
+                          )}
+                          <ExternalLink className="size-3.5" />
                         </div>
                       </Link>
-                    );
-                  })
+                    ))}
+                  </div>
                 ) : (
-                  <div className="rounded-xl border border-dashed bg-background p-4 text-sm text-muted-foreground">
-                    No workspaces are available for your current role.
+                  <div className="rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground">
+                    Organizations still need attention. Open the organizations table to review them.
                   </div>
                 )}
-              </CardContent>
+                {remainingAttentionCount > 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    {remainingAttentionCount} more organization{remainingAttentionCount === 1 ? "" : "s"} need attention.
+                  </p>
+                ) : null}
+              </div>
+            ) : (
+              <div className="rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground">
+                All organizations are in good standing.
+              </div>
+            )}
+          </CardContent>
+          <CardContent className="pt-0">
+            <Link
+              href="/organizations"
+              className="group inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary/80"
+            >
+              All organizations
+              <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+            </Link>
+          </CardContent>
+            </Card>
+
+            <Card className="flex flex-col">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                <Building className="size-4" />
+              </div>
+              <CardTitle className="text-base">Quick actions</CardTitle>
+            </div>
+            <CardDescription>Common platform administration tasks.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-1 flex-col gap-2">
+            <Link
+              href="/organizations?create=1"
+              className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors hover:border-primary/40 hover:bg-muted/10"
+            >
+              <Plus className="size-4 text-muted-foreground" />
+              Create organization
+            </Link>
+            <Link
+              href="/organizations?status=invited"
+              className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors hover:border-primary/40 hover:bg-muted/10"
+            >
+              <Mail className="size-4 text-muted-foreground" />
+              Review invited orgs
+            </Link>
+            <Link
+              href="/organizations?status=suspended"
+              className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors hover:border-primary/40 hover:bg-muted/10"
+            >
+              <Pause className="size-4 text-muted-foreground" />
+              Manage suspended orgs
+            </Link>
+            <Link
+              href="/organizations"
+              className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors hover:border-primary/40 hover:bg-muted/10"
+            >
+              <Building2 className="size-4 text-muted-foreground" />
+              Full organizations table
+            </Link>
+          </CardContent>
             </Card>
           </div>
-        </CardContent>
-      </Card>
+
+          {/* Recent organizations */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                  <Building className="size-4" />
+                </div>
+                <CardTitle className="text-base">Recently created organizations</CardTitle>
+              </div>
+              <CardDescription>Most recently added tenant organizations.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isDashboardLoading && !recentData ? (
+                <div className="space-y-2">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Skeleton key={i} className="h-10 w-full rounded-lg" />
+                  ))}
+                </div>
+              ) : recentOrgs.length > 0 ? (
+                <div className="divide-y">
+                  {recentOrgs.map((org) => (
+                    <Link
+                      key={org.id}
+                      href={`/organizations?detail=${org.id}`}
+                      className="flex items-center justify-between px-1 py-2.5 text-sm transition-colors hover:text-primary"
+                    >
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span className="truncate font-medium">{org.name}</span>
+                        <StatusBadge status={org.operationalStatus} />
+                      </div>
+                      <div className="flex shrink-0 items-center gap-3 text-xs text-muted-foreground">
+                        <span>Created {new Date(org.createdAt).toLocaleDateString()}</span>
+                        <ExternalLink className="size-3.5" />
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground">
+                  No organizations created yet.
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </>
+      )}
+    </div>
+  );
+}
+
+function PlatformAdminTenantDashboard() {
+  const { tenantId, tenantName, isLoading, isReady } = useTenantContext();
+  const tenantHref = (href: string) => buildTenantContextHref(href, tenantId);
+  const { data: rs, isLoading: isRsLoading } = useWorkforceReadinessSummary();
+  const reportingIssueCount = rs
+    ? rs.issueCounts.noManagerAssigned + rs.issueCounts.managerInactive + rs.issueCounts.managerMissing
+    : 0;
+
+  if (isLoading && !isReady) {
+    return <LoadingSkeleton />;
+  }
+
+  return (
+    <div className="flex min-h-full flex-col gap-6 p-6">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold tracking-tight">{tenantName ?? tenantId ?? "Tenant context"}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {isReady
+              ? "Tenant overview and workforce readiness."
+              : "Tenant summary is still loading. Read-only tenant surfaces are available now."}
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <Link
+            href={tenantHref("/setup")}
+            className="group inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary/80"
+          >
+            View setup
+            <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+          </Link>
+        </div>
+      </div>
+
+      {/* Readiness KPI strip */}
+      {rs ? (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="flex flex-col gap-1 rounded-xl border bg-card p-4 ring-1 ring-foreground/5">
+            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Readiness</span>
+            <span className="text-2xl font-bold tabular-nums text-foreground">{rs.readinessScore}%</span>
+          </div>
+          <div className="flex flex-col gap-1 rounded-xl border bg-card p-4 ring-1 ring-foreground/5">
+            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Need Attention</span>
+            <span className="text-2xl font-bold tabular-nums text-foreground">{rs.employeesNeedingAttention}</span>
+          </div>
+          <div className="flex flex-col gap-1 rounded-xl border bg-card p-4 ring-1 ring-foreground/5">
+            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Missing Fields</span>
+            <span className="text-2xl font-bold tabular-nums text-foreground">{rs.issueCounts.missingRequiredFields}</span>
+          </div>
+          <div className="flex flex-col gap-1 rounded-xl border bg-card p-4 ring-1 ring-foreground/5">
+            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Reporting Issues</span>
+            <span className="text-2xl font-bold tabular-nums text-foreground">{reportingIssueCount}</span>
+          </div>
+        </div>
+      ) : isRsLoading ? (
+        <div className="grid grid-cols-4 gap-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-20 rounded-xl" />
+          ))}
+        </div>
+      ) : null}
+
+      <div className="grid gap-4 md:grid-cols-3">
+        {/* Workforce health */}
+        <Card className="md:col-span-2 flex flex-col">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                <Users className="size-4" />
+              </div>
+              <CardTitle className="text-base">Workforce health</CardTitle>
+            </div>
+            <CardDescription>Employee record issues and operational blockers.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex-1">
+            {rs ? (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between rounded-lg border bg-muted/20 px-3 py-2">
+                  <span className="text-sm font-medium">Readiness score</span>
+                  <Badge variant="secondary">{rs.readinessScore}%</Badge>
+                </div>
+                <div className="grid gap-1.5">
+                  <Link
+                    href={tenantHref("/employees?readiness=NeedsAttention")}
+                    className="flex items-center justify-between rounded-lg border px-3 py-1.5 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
+                  >
+                    <span>Employees needing attention</span>
+                    <span className="font-medium tabular-nums">{rs.employeesNeedingAttention}</span>
+                  </Link>
+                  <Link
+                    href={tenantHref("/employees?readiness=MissingRequiredField")}
+                    className="flex items-center justify-between rounded-lg border px-3 py-1.5 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
+                  >
+                    <span>Missing required fields</span>
+                    <span className="font-medium tabular-nums">{rs.issueCounts.missingRequiredFields}</span>
+                  </Link>
+                  <Link
+                    href={tenantHref("/employees?readiness=MissingOrgUnit")}
+                    className="flex items-center justify-between rounded-lg border px-3 py-1.5 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
+                  >
+                    <span>Missing org units</span>
+                    <span className="font-medium tabular-nums">{rs.issueCounts.missingOrgUnit}</span>
+                  </Link>
+                  <Link
+                    href={tenantHref("/employees?readiness=ReportingIssue")}
+                    className="flex items-center justify-between rounded-lg border px-3 py-1.5 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
+                  >
+                    <span>Reporting issues</span>
+                    <span className="font-medium tabular-nums">{reportingIssueCount}</span>
+                  </Link>
+                  <Link
+                    href={tenantHref(buildImportHistoryHref())}
+                    className="flex items-center justify-between rounded-lg border px-3 py-1.5 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
+                  >
+                    <span>Unresolved import follow-up</span>
+                    <span className="font-medium tabular-nums">{rs.issueCounts.unresolvedImportIssues}</span>
+                  </Link>
+                </div>
+              </div>
+            ) : isRsLoading ? (
+              <div className="space-y-3">
+                <Skeleton className="h-9 w-full rounded-lg" />
+                <div className="grid gap-1.5">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Skeleton key={i} className="h-8 w-full rounded-lg" />
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground">
+                Workforce health data unavailable.
+              </div>
+            )}
+          </CardContent>
+          <CardContent className="pt-0">
+            <Link
+              href={tenantHref("/employees")}
+              className="group inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary/80"
+            >
+              Open employees
+              <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+            </Link>
+          </CardContent>
+        </Card>
+
+        {/* Quick actions */}
+        <Card className="flex flex-col">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                <Settings2 className="size-4" />
+              </div>
+              <CardTitle className="text-base">Quick actions</CardTitle>
+            </div>
+            <CardDescription>Tenant administration and navigation.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-1 flex-col gap-2">
+            <Link
+              href={tenantHref("/setup")}
+              className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors hover:border-primary/40 hover:bg-muted/10"
+            >
+              <ClipboardList className="size-4 text-muted-foreground" />
+              Setup
+            </Link>
+            <Link
+              href={tenantHref("/settings")}
+              className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors hover:border-primary/40 hover:bg-muted/10"
+            >
+              <Settings2 className="size-4 text-muted-foreground" />
+              Settings
+            </Link>
+            <Link
+              href={tenantHref("/org-chart")}
+              className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors hover:border-primary/40 hover:bg-muted/10"
+            >
+              <Network className="size-4 text-muted-foreground" />
+              Org chart
+            </Link>
+            <Link
+              href={tenantHref("/employees")}
+              className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors hover:border-primary/40 hover:bg-muted/10"
+            >
+              <Users className="size-4 text-muted-foreground" />
+              Employees
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+export default function DashboardPage() {
+  const { user, isLoading } = useAuth();
+  const { tenantId } = useTenantContext();
+  const isInTenantContext = !!tenantId;
+  const isHrAdmin = canAccessEmployeeRoster(user);
+  const isPlatformAdmin = canAccessOrganizations(user);
+  const isManager = canAccessTeamWorkspace(user);
+  const isEmployee = canAccessSelfEmployeeProfile(user);
+
+  if (isLoading) {
+    return <LoadingSkeleton />;
+  }
+
+  if (isInTenantContext && isPlatformAdmin) {
+    return <PlatformAdminTenantDashboard />;
+  }
+
+  if (isPlatformAdmin) {
+    return <PlatformAdminDashboard />;
+  }
+
+  if (isHrAdmin) {
+    return <HRAdminDashboard />;
+  }
+
+  if (isManager) {
+    return <ManagerDashboard />;
+  }
+
+  if (isEmployee) {
+    return <EmployeeDashboard />;
+  }
+
+  return (
+    <div className="flex min-h-full flex-col gap-6 p-6">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">Core workspace</h1>
+        <p className="mt-1 text-sm text-muted-foreground">No workspaces are available for your current role.</p>
+      </div>
+      <div className="rounded-xl border border-dashed bg-muted/10 p-8 text-center text-sm text-muted-foreground">
+        Contact your platform administrator to configure access.
+      </div>
     </div>
   );
 }

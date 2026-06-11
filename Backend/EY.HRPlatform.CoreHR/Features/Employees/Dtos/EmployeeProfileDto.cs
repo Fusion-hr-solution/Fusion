@@ -9,8 +9,10 @@ namespace EY.HRPlatform.CoreHR.Features.Employees.Dtos;
 /// </summary>
 public sealed record EmployeeProfileDto(
     Guid Id,
+    string? EmployeeNumber,
     string FirstName,
     string LastName,
+    string? PreferredName,
     string Email,
     string? JobTitle,
     DateTime HireDate,
@@ -26,6 +28,9 @@ public sealed record EmployeeProfileDto(
     uint Version)
 {
     public string FullName => $"{FirstName} {LastName}";
+    public string DisplayName => !string.IsNullOrWhiteSpace(PreferredName)
+        ? $"{PreferredName} {LastName}"
+        : FullName;
     public string? ManagerFullName => ManagerFirstName is not null && ManagerLastName is not null
         ? $"{ManagerFirstName} {ManagerLastName}"
         : null;

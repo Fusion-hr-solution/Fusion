@@ -19,6 +19,18 @@ const authState = vi.hoisted(() => ({
   },
 }));
 
+const tenantContextState = vi.hoisted(() => ({
+  tenantId: null as string | null,
+  tenantName: null as string | null,
+  tenantStatus: null as string | null,
+  isActive: false,
+  isArchived: false,
+  isReady: false,
+  isLoading: false,
+  setTenant: vi.fn(),
+  clearTenant: vi.fn(),
+}));
+
 vi.mock("@repo/api", () => ({
   createPlatformApiClient: () => ({
     delete: mockDelete,
@@ -32,6 +44,14 @@ vi.mock("@repo/auth", () => ({
   canAccessCorePeople: (user: { roles?: string[] } | null) =>
     !!user?.roles?.includes("HRAdmin") &&
     !user?.roles?.includes("PlatformAdmin"),
+  canAccessCoreTeam: (user: { employeeId?: string | null; roles?: string[] } | null) =>
+    !!user?.employeeId && !!user.roles?.includes("Manager"),
+  canAccessOwnCoreProfile: (user: { employeeId?: string | null } | null) =>
+    !!user?.employeeId,
+}));
+
+vi.mock("@/components/core-tenant-context-provider", () => ({
+  useTenantContext: () => tenantContextState,
 }));
 
 vi.mock("@repo/api/query", async () => {
@@ -47,6 +67,7 @@ import {
   useEmployeeProfile,
   useEmployeeReportingLines,
   useEmployeeRoster,
+  useUpdateMyProfile,
   useWorkforceReadinessSummary,
   useUpdateEmployeeRecord,
   useUpdateEmployeeManager,
@@ -78,6 +99,13 @@ beforeEach(() => {
     fullName: "HR Admin",
     roles: ["HRAdmin"],
   };
+  tenantContextState.tenantId = null;
+  tenantContextState.tenantName = null;
+  tenantContextState.tenantStatus = null;
+  tenantContextState.isActive = false;
+  tenantContextState.isArchived = false;
+  tenantContextState.isReady = false;
+  tenantContextState.isLoading = false;
 });
 
 describe("useEmployeeRoster", () => {
@@ -98,6 +126,7 @@ describe("useEmployeeRoster", () => {
         useEmployeeRoster({
           search: "pat",
           status: "Active",
+          access: "NotInvited",
           readiness: "MissingOrgUnit",
           sortBy: "HireDate",
           sortDir: "Desc",
@@ -115,6 +144,7 @@ describe("useEmployeeRoster", () => {
         params: expect.objectContaining({
           search: "pat",
           status: "Active",
+          access: "NotInvited",
           readiness: "MissingOrgUnit",
           sortBy: "HireDate",
           sortDir: "Desc",
@@ -522,6 +552,34 @@ describe("useUpdateEmployeeRecord", () => {
   });
 });
 
+describe("useUpdateMyProfile", () => {
+  it("sends preferred-name updates to the dedicated self-profile endpoint", async () => {
+    mockPut.mockResolvedValue(undefined);
+
+    const { result } = renderHook(() => useUpdateMyProfile(), {
+      wrapper: createWrapper(),
+    });
+
+    await result.current.mutateAsync({
+      employeeId: "emp-1",
+      expectedVersion: 12,
+      preferredName: "Sally",
+    });
+
+    expect(mockPut).toHaveBeenCalledWith(
+      "/corehr/employees/emp-1/self-profile",
+      {
+        preferredName: "Sally",
+      },
+      {
+        headers: {
+          "If-Match": '"12"',
+        },
+      }
+    );
+  });
+});
+
 describe("useDeactivateEmployee", () => {
   it("sends the deactivate request with optimistic concurrency headers", async () => {
     mockDelete.mockResolvedValue(undefined);
@@ -549,6 +607,7 @@ describe("useEmployeeProfile", () => {
       id: "emp-1",
       firstName: "Alice",
       lastName: "Smith",
+      preferredName: "Ali",
       fullName: "Alice Smith",
       email: "alice@example.com",
       jobTitle: "Senior Engineer",

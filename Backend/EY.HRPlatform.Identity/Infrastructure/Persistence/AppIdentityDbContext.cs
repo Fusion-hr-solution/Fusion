@@ -82,6 +82,10 @@ public class AppIdentityDbContext : IdentityDbContext<ApplicationUser, IdentityR
                 .IsRequired();
 
             entity.HasIndex(u => u.TenantId);
+
+            entity.HasIndex(u => new { u.TenantId, u.EmployeeId })
+                .IsUnique()
+                .HasFilter("\"EmployeeId\" IS NOT NULL");
         });
 
         // RefreshToken table configuration

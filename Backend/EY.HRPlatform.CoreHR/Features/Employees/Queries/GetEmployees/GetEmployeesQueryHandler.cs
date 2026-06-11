@@ -14,7 +14,8 @@ namespace EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployees;
 public sealed class GetEmployeesQueryHandler(
     CoreHRDbContext dbContext,
     IEmployeeReadModelPolicy employeeReadModelPolicy,
-    ITenantSettingsReadService tenantSettingsReadService) : IQueryHandler<GetEmployeesQuery, Result<PagedResponse<EmployeeListItemDto>>>
+    ITenantSettingsReadService tenantSettingsReadService,
+    IWorkforceAccountStatusReader workforceAccountStatusReader) : IQueryHandler<GetEmployeesQuery, Result<PagedResponse<EmployeeListItemDto>>>
 {
     private const int MaxPageSize = 100;
     private readonly IEmployeeReadModelPolicy employeeReadModelPolicy = employeeReadModelPolicy;
@@ -40,6 +41,7 @@ public sealed class GetEmployeesQueryHandler(
                 e.FirstName.ToLower().Contains(searchTerm) ||
                 e.LastName.ToLower().Contains(searchTerm) ||
                 e.Email.ToLower().Contains(searchTerm) ||
+                (e.EmployeeNumber != null && e.EmployeeNumber.ToLower().Contains(searchTerm)) ||
                 (e.FirstName + " " + e.LastName).ToLower().Contains(searchTerm));
         }
 
@@ -54,15 +56,71 @@ public sealed class GetEmployeesQueryHandler(
             query = ApplyReadinessFilter(query, request.Readiness.Value, settings);
         }
 
-        // Get total count before pagination
-        var totalCount = await query.CountAsync(cancellationToken);
-
         // Apply sorting
         query = ApplySorting(query, request.SortBy, request.SortDir);
 
         // Validate and clamp pagination parameters
         var page = Math.Max(1, request.Page);
         var pageSize = Math.Clamp(request.PageSize, 1, MaxPageSize);
+
+        if (request.Access.HasValue)
+        {
+            var candidateEmployees = await query.ToListAsync(cancellationToken);
+            var candidateStatuses = await workforceAccountStatusReader.GetStatusesAsync(
+                candidateEmployees.Select(employee => new WorkforceAccountSubjectDto(
+                    employee.Id,
+                    employee.Email,
+                    employee.FirstName,
+                    employee.LastName)).ToList(),
+                cancellationToken);
+
+            var filteredEmployees = candidateEmployees
+                .Where(employee => MatchesAccessFilter(
+                    candidateStatuses.GetValueOrDefault(employee.Id),
+                    request.Access.Value))
+                .ToList();
+
+            var filteredTotalCount = filteredEmployees.Count;
+            var pagedEmployees = filteredEmployees
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+
+            var filteredPageEmployeeIds = pagedEmployees
+                .Select(employee => employee.Id)
+                .ToList();
+
+            var filteredDirectReportCounts = filteredPageEmployeeIds.Count == 0
+                ? new Dictionary<Guid, int>()
+                : await dbContext.Employees
+                    .AsNoTracking()
+                    .Where(employee => employee.ManagerId.HasValue
+                        && employee.Status == EmployeeStatus.Active
+                        && filteredPageEmployeeIds.Contains(employee.ManagerId.Value))
+                    .GroupBy(employee => employee.ManagerId!.Value)
+                    .Select(group => new { ManagerId = group.Key, Count = group.Count() })
+                    .ToDictionaryAsync(group => group.ManagerId, group => group.Count, cancellationToken);
+
+            var filteredItems = pagedEmployees
+                .Select(employee => employeeReadModelPolicy
+                    .MapListItem(
+                        employee,
+                        settings,
+                        EmployeeReadAudience.HrAdmin,
+                        filteredDirectReportCounts.GetValueOrDefault(employee.Id)))
+                .ToList();
+
+            return Result.Success(new PagedResponse<EmployeeListItemDto>
+            {
+                Items = filteredItems,
+                TotalCount = filteredTotalCount,
+                Page = page,
+                PageSize = pageSize
+            });
+        }
+
+        // Get total count before pagination
+        var totalCount = await query.CountAsync(cancellationToken);
 
         // Apply pagination and project to DTO
         var employees = await query
@@ -138,11 +196,15 @@ public sealed class GetEmployeesQueryHandler(
         var requiresJobTitle = settings.EmployeeFieldConfig.TryGetValue("jobTitle", out var jobTitleField)
             && jobTitleField.Required;
 
-        bool NeedsMissingRequiredField(Employee employee)
-            => requiresJobTitle && (employee.JobTitle == null || employee.JobTitle == string.Empty);
-
         return readiness switch
         {
+            EmployeeReadinessFilter.Ready => query.Where(employee =>
+                !(requiresJobTitle && (employee.JobTitle == null || employee.JobTitle == string.Empty))
+                && employee.OrgUnitId != null
+                && (employee.ManagerId.HasValue
+                    || dbContext.Employees.Any(report => report.ManagerId == employee.Id && report.Status == Domain.Enums.EmployeeStatus.Active))
+                && (!employee.ManagerId.HasValue || employee.Manager != null)
+                && (!employee.ManagerId.HasValue || employee.Manager == null || employee.Manager.Status == Domain.Enums.EmployeeStatus.Active)),
             EmployeeReadinessFilter.NeedsAttention => query.Where(employee =>
                 (requiresJobTitle && (employee.JobTitle == null || employee.JobTitle == string.Empty))
                 || employee.OrgUnitId == null
@@ -153,6 +215,10 @@ public sealed class GetEmployeesQueryHandler(
                 ? query.Where(employee => employee.JobTitle == null || employee.JobTitle == string.Empty)
                 : query.Where(_ => false),
             EmployeeReadinessFilter.MissingOrgUnit => query.Where(employee => employee.OrgUnitId == null),
+            EmployeeReadinessFilter.ReportingIssue => query.Where(employee =>
+                (!employee.ManagerId.HasValue && !dbContext.Employees.Any(report => report.ManagerId == employee.Id && report.Status == Domain.Enums.EmployeeStatus.Active))
+                || (employee.ManagerId.HasValue && employee.Manager == null)
+                || (employee.ManagerId.HasValue && employee.Manager != null && employee.Manager.Status != Domain.Enums.EmployeeStatus.Active)),
             EmployeeReadinessFilter.NoManagerAssigned => query.Where(employee =>
                 !employee.ManagerId.HasValue
                 && !dbContext.Employees.Any(report => report.ManagerId == employee.Id && report.Status == Domain.Enums.EmployeeStatus.Active)),
@@ -165,6 +231,18 @@ public sealed class GetEmployeesQueryHandler(
                 employee.Status == Domain.Enums.EmployeeStatus.Active
                 && dbContext.Employees.Any(report => report.ManagerId == employee.Id && report.Status == Domain.Enums.EmployeeStatus.Active)),
             _ => query
+        };
+    }
+
+    private static bool MatchesAccessFilter(WorkforceAccountStatusDto? account, EmployeeAccessFilter access)
+    {
+        return access switch
+        {
+            EmployeeAccessFilter.NotInvited => account is null || account.ProvisioningState == "Unprovisioned",
+            EmployeeAccessFilter.Invited => account?.ProvisioningState == "InvitePending",
+            EmployeeAccessFilter.AccountActive => account?.ProvisioningState == "Active",
+            EmployeeAccessFilter.NeedsReview => account is not null && account.ProvisioningState is "InviteAccepted" or "InviteExpired" or "InviteRevoked" or "Inactive" or "Conflict",
+            _ => false
         };
     }
 }

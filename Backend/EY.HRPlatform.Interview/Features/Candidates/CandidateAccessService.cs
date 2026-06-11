@@ -305,6 +305,12 @@ public class CandidateAccessService(AppDbContext dbContext) : ICandidateAccessSe
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
+        dbContext.GradingJobs.Add(new GradingJob
+        {
+            AttemptId = attempt.Id,
+        });
+        await dbContext.SaveChangesAsync(cancellationToken);
+
         return new CandidateAccessSubmissionDto
         {
             InvitationId = invitation.Id.ToString(),

@@ -17,9 +17,11 @@ public class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
         builder.Property(e => e.Version).IsRowVersion();
 
         builder.Property(e => e.TenantId).IsRequired();
+        builder.Property(e => e.EmployeeNumber).HasMaxLength(64);
 
         builder.Property(e => e.FirstName).HasMaxLength(100).IsRequired();
         builder.Property(e => e.LastName).HasMaxLength(100).IsRequired();
+        builder.Property(e => e.PreferredName).HasMaxLength(100);
 
         // Email is normalised (trimmed + lowercased) at the domain boundary.
         // The unique index therefore operates on a consistent value without
@@ -72,6 +74,11 @@ public class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
             .IsUnique()
             .HasDatabaseName("IX_Employees_TenantId_Email");
 
+        builder.HasIndex(e => new { e.TenantId, e.EmployeeNumber })
+            .IsUnique()
+            .HasFilter("\"EmployeeNumber\" IS NOT NULL")
+            .HasDatabaseName("IX_Employees_TenantId_EmployeeNumber");
+
         builder.HasIndex(e => e.ManagerId)
             .HasDatabaseName("IX_Employees_ManagerId");
 
@@ -80,6 +87,7 @@ public class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
 
         // FullName is a computed property — not persisted.
         builder.Ignore(e => e.FullName);
+        builder.Ignore(e => e.DisplayName);
 
         // DomainEvents from AggregateRoot must be explicitly ignored;
         // EF would otherwise attempt to map the public collection.

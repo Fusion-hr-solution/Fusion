@@ -41,6 +41,8 @@ public class InviteTokenConfiguration : IEntityTypeConfiguration<InviteToken>
         // Index for listing invites by tenant
         builder.HasIndex(i => i.TenantId);
 
+        builder.HasIndex(i => new { i.TenantId, i.EmployeeId });
+
         // Filtered unique index to prevent duplicate pending invites per {TenantId, Email}
         // Active invites = not accepted, not revoked
         builder.HasIndex(i => new { i.TenantId, i.Email })

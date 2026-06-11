@@ -72,13 +72,17 @@ function getManagerLabel(employee: EmployeeRosterItem) {
   return employee.managerName ?? "Manager needs attention";
 }
 
-export function buildEmployeeColumns(
+export function buildEmployeeColumns<TEmployee extends EmployeeRosterItem>(
   fieldVisibility: EmployeeFieldVisibility
-): ColumnDef<EmployeeRosterItem>[] {
-  const columns: ColumnDef<EmployeeRosterItem>[] = [
+): ColumnDef<TEmployee>[] {
+  const columns: ColumnDef<TEmployee>[] = [
     {
       id: "Name",
       accessorFn: getEmployeeName,
+      meta: {
+        headerClassName: "w-[14rem] min-[1700px]:w-[17rem]",
+        cellClassName: "w-[14rem] min-[1700px]:w-[17rem]",
+      },
       header: ({ column }) => <SortHeader label="Name" column={column} />,
       cell: ({ row }) => {
         const issues = getEmployeeActionIssues(row.original.readiness);
@@ -86,8 +90,10 @@ export function buildEmployeeColumns(
         const remainingCount = issues.length - visibleIssues.length;
 
         return (
-          <div className="min-w-[220px] space-y-1.5">
-            <div className="font-medium">{getEmployeeName(row.original)}</div>
+          <div className="min-w-0 space-y-1.5">
+            <div className="truncate font-medium">
+              {getEmployeeName(row.original)}
+            </div>
             {visibleIssues.length > 0 ? (
               <div className="flex flex-wrap gap-1.5">
                 {visibleIssues.map((issue) => {
@@ -125,12 +131,28 @@ export function buildEmployeeColumns(
     {
       id: "Email",
       accessorKey: "email",
+      meta: {
+        headerClassName: "w-[17rem] min-[1700px]:w-[20rem]",
+        cellClassName: "w-[17rem] min-[1700px]:w-[20rem]",
+      },
       header: ({ column }) => <SortHeader label="Email" column={column} />,
+      cell: ({ row }) => (
+        <span
+          className="block truncate text-muted-foreground"
+          title={row.original.email}
+        >
+          {row.original.email}
+        </span>
+      ),
       enableSorting: true,
     },
     {
       id: "Manager",
       accessorKey: "managerName",
+      meta: {
+        headerClassName: "w-[12rem] min-[1700px]:w-[15rem]",
+        cellClassName: "w-[12rem] min-[1700px]:w-[15rem]",
+      },
       header: "Manager",
       cell: ({ row }) => {
         const issueMeta = getHierarchyIssueMeta(row.original.hierarchyStatus);
@@ -138,9 +160,14 @@ export function buildEmployeeColumns(
           row.original.hierarchyStatus === "NoManagerAssigned";
 
         return (
-          <div className="min-w-[180px] space-y-1">
+          <div className="min-w-0 space-y-1">
             <div
-              className={isUnassigned ? "text-muted-foreground" : "font-medium"}
+              className={
+                isUnassigned
+                  ? "truncate text-muted-foreground"
+                  : "truncate font-medium"
+              }
+              title={getManagerLabel(row.original)}
             >
               {getManagerLabel(row.original)}
             </div>
@@ -155,6 +182,12 @@ export function buildEmployeeColumns(
     {
       id: "Status",
       accessorKey: "status",
+      meta: {
+        headerClassName:
+          "hidden w-[7rem] min-[1500px]:table-cell min-[1700px]:w-[8rem]",
+        cellClassName:
+          "hidden w-[7rem] min-[1500px]:table-cell min-[1700px]:w-[8rem]",
+      },
       header: ({ column }) => <SortHeader label="Status" column={column} />,
       cell: ({ row }) => (
         <Badge
@@ -187,6 +220,7 @@ export function buildEmployeeColumns(
 
   if (fieldVisibility.showJobTitle) {
     columns.push({
+      id: "JobTitle",
       accessorKey: "jobTitle",
       header: "Job title",
       cell: ({ row }) => renderValue(row.original.jobTitle),
@@ -195,10 +229,18 @@ export function buildEmployeeColumns(
   }
 
   columns.push({
+    id: "OrgUnit",
     accessorKey: "orgUnitName",
+    meta: {
+      headerClassName: "hidden w-[17rem] min-[1800px]:table-cell",
+      cellClassName: "hidden w-[17rem] min-[1800px]:table-cell",
+    },
     header: "Org unit",
     cell: ({ row }) => (
-      <span className="text-muted-foreground">
+      <span
+        className="block truncate text-muted-foreground"
+        title={row.original.orgUnitName ?? undefined}
+      >
         {row.original.orgUnitName ?? "—"}
       </span>
     ),

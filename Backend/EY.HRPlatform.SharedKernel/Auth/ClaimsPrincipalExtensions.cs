@@ -40,4 +40,18 @@ public static class ClaimsPrincipalExtensions
             ? tenantId
             : null;
     }
+
+    /// <summary>
+    /// Extracts the linked employee ID from the "employee_id" claim if present.
+    /// </summary>
+    public static Guid? GetEmployeeId(this ClaimsPrincipal principal)
+    {
+        var claim = principal.FindFirst(CustomClaimTypes.EmployeeId);
+        if (claim is null)
+            return null;
+
+        return Guid.TryParse(claim.Value, out var employeeId) && employeeId != Guid.Empty
+            ? employeeId
+            : null;
+    }
 }

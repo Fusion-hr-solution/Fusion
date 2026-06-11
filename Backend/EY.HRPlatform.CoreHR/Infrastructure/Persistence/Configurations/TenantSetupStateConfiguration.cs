@@ -20,6 +20,10 @@ public class TenantSetupStateConfiguration : IEntityTypeConfiguration<TenantSetu
             .HasMaxLength(64)
             .IsRequired();
 
+        builder.Property(ts => ts.PublishedStructureVersion)
+            .HasDefaultValue(0)
+            .IsRequired();
+
         builder.Property(ts => ts.ApprovedByFullName).HasMaxLength(256);
         builder.Property(ts => ts.ApprovedByRole).HasMaxLength(64);
 

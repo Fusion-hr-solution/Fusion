@@ -3,6 +3,8 @@ import {
   canAccessCorePeople,
   canAccessCoreSettings,
   canAccessCoreSetup,
+  canAccessCoreTeam,
+  canAccessOwnCoreProfile,
   canAccessOrganizations,
   canSeeCorePeopleNavigation,
   canSeeCoreSettingsNavigation,
@@ -11,12 +13,13 @@ import {
 } from "../roles";
 import type { AuthUser } from "../types";
 
-function makeUser(roles: string[]): AuthUser {
+function makeUser(roles: string[], employeeId?: string | null): AuthUser {
   return {
     userId: "user-1",
     email: "user@example.com",
     fullName: "Test User",
     roles,
+    employeeId,
   };
 }
 
@@ -30,6 +33,8 @@ describe("role helpers", () => {
     expect(canSeeCorePeopleNavigation(user)).toBe(true);
     expect(canSeeCoreSettingsNavigation(user)).toBe(true);
     expect(canSeeCoreSetupNavigation(user)).toBe(true);
+    expect(canAccessCoreTeam(user)).toBe(false);
+    expect(canAccessOwnCoreProfile(user)).toBe(false);
     expect(canAccessOrganizations(user)).toBe(false);
     expect(canSeeOrganizationsNavigation(user)).toBe(false);
   });
@@ -58,5 +63,28 @@ describe("role helpers", () => {
     expect(canSeeCorePeopleNavigation(user)).toBe(false);
     expect(canSeeCoreSettingsNavigation(user)).toBe(false);
     expect(canSeeCoreSetupNavigation(user)).toBe(false);
+  });
+
+  it("allows linked employees to access only their own profile", () => {
+    const user = makeUser(["Employee"], "employee-1");
+
+    expect(canAccessOwnCoreProfile(user)).toBe(true);
+    expect(canAccessCoreTeam(user)).toBe(false);
+    expect(canAccessCorePeople(user)).toBe(false);
+  });
+
+  it("allows linked managers to access team scope", () => {
+    const user = makeUser(["Manager"], "employee-1");
+
+    expect(canAccessOwnCoreProfile(user)).toBe(true);
+    expect(canAccessCoreTeam(user)).toBe(true);
+    expect(canAccessCorePeople(user)).toBe(false);
+  });
+
+  it("blocks unlinked managers from team scope", () => {
+    const user = makeUser(["Manager"]);
+
+    expect(canAccessOwnCoreProfile(user)).toBe(false);
+    expect(canAccessCoreTeam(user)).toBe(false);
   });
 });
