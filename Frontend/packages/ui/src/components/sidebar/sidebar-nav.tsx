@@ -30,7 +30,7 @@ export function SidebarNav({
   section,
   activePath,
   collapsed = false,
-  basePath = "",
+  basePath: _basePath = "",
 }: SidebarNavProps) {
   return (
     <TooltipProvider delayDuration={150}>

@@ -161,8 +161,8 @@ function isCoreBrowserPath(): boolean {
     return false;
   }
 
-  const { pathname } = window.location;
-  return pathname === "/core" || pathname.startsWith("/core/");
+  const pathname = window.location?.pathname;
+  return typeof pathname === "string" && (pathname === "/core" || pathname.startsWith("/core/"));
 }
 
 function getBrowserTenantId(): string | null {
@@ -302,7 +302,7 @@ export function createPlatformApiClient(
   const baseUrl =
     config.baseUrl ??
     (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_API_BASE_URL
-      ? process.env.NEXT_PUBLIC_API_BASE_URL
+      ? process.env.NEXT_PUBLIC_API_BASE_URL!
       : "/api");
 
   const usesBrowserSessionRefresh = !config.getToken && isBrowser();
