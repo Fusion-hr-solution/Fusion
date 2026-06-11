@@ -77,3 +77,17 @@ export {
 } from "./platform-organizations";
 export type { AcceptInviteRequest, InviteDto } from "./invites";
 export { invitePaths, inviteQueryKeys } from "./invites";
+export type {
+  WorkforceManagerSummaryDto,
+  WorkforceOrgAssignmentDto,
+  WorkforceDataQualityDto,
+  WorkforceEmployeeSummaryDto,
+  WorkforceManagerScopeDto,
+  WorkforceCurrentUserContextDto,
+  WorkforceEmployeeResolveRequest,
+  WorkforceOrgUnitSummaryDto,
+  WorkforceOrgUnitTreeNodeDto,
+  WorkforceOrgUnitTreeDto,
+  WorkforceEmployeePageDto,
+} from "./core-workforce";
+export { coreWorkforcePaths, coreWorkforceQueryKeys } from "./core-workforce";

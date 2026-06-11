@@ -46,6 +46,7 @@ interface UpdateEmployeeManagerInput {
 interface UpdateEmployeeRecordInput {
   employeeId: string;
   expectedVersion: number;
+  employeeNumber?: string | null;
   firstName?: string;
   lastName?: string;
   email?: string;
@@ -271,6 +272,7 @@ export function useEmployeeOrgUnitOptions({
 }
 
 function buildEmployeeUpdatePayload({
+  employeeNumber,
   firstName,
   lastName,
   email,
@@ -279,6 +281,10 @@ function buildEmployeeUpdatePayload({
   hireDate,
 }: Omit<UpdateEmployeeRecordInput, "employeeId" | "expectedVersion">) {
   const payload: Record<string, unknown> = {};
+
+  if (employeeNumber !== undefined) {
+    payload.employeeNumber = employeeNumber?.trim() || null;
+  }
 
   if (firstName !== undefined) {
     payload.firstName = firstName;

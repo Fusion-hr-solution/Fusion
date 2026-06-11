@@ -32,6 +32,8 @@ public class TenantSetupState : BaseEntity, ITenantEntity
 
     public DateTime? StructurallyPublishedAt { get; private set; }
 
+    public int PublishedStructureVersion { get; private set; }
+
     public DateTime? OperationalAt { get; private set; }
 
     public ICollection<TenantSetupActivity> Activities { get; private set; } = new List<TenantSetupActivity>();
@@ -125,6 +127,7 @@ public class TenantSetupState : BaseEntity, ITenantEntity
 
         CurrentPhase = TenantSetupPhase.StructurallyPublished;
         StructurallyPublishedAt = publishedAt;
+        PublishedStructureVersion += 1;
         UpdatedAt = publishedAt;
     }
 

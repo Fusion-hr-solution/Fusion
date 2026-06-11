@@ -8,6 +8,7 @@ import {
   Calendar,
   CheckCircle2,
   ChevronRight,
+  Hash,
   Mail,
   ShieldAlert,
   Star,
@@ -1117,6 +1118,20 @@ export default function EmployeeProfilePage() {
                 icon={User}
                 label="Full name"
                 value={profile.fullName}
+              />
+              <Separator />
+              <DetailRow
+                icon={Hash}
+                label="Employee number"
+                value={
+                  hasTextValue(profile.employeeNumber) ? (
+                    profile.employeeNumber
+                  ) : (
+                    <span className="font-normal text-muted-foreground">
+                      Not set
+                    </span>
+                  )
+                }
               />
               <Separator />
               <DetailRow icon={Mail} label="Work email" value={email} />
