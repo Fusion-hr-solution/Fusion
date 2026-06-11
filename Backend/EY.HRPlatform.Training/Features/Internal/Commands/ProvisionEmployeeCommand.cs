@@ -4,8 +4,8 @@ using EY.HRPlatform.SharedKernel.Results;
 namespace EY.HRPlatform.Training.Features.Internal.Commands;
 
 /// <summary>
-/// Creates an empty EmployeeProfile for the given employee if one does not already exist.
-/// Idempotent: succeeds silently if the profile already exists.
-/// Published by the Identity service when a user is assigned the Employee role.
+/// Upserts the EmployeeProfile for the given employee, refreshing the synced identity snapshot
+/// (full name + email). Idempotent: creates the profile if missing, otherwise refreshes it.
+/// Published by the Identity service when a user is created or assigned the Employee role.
 /// </summary>
-public record ProvisionEmployeeCommand(Guid EmployeeId) : ICommand<Result>;
+public record ProvisionEmployeeCommand(Guid EmployeeId, string? FullName = null, string? Email = null) : ICommand<Result>;
