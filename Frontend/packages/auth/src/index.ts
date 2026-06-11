@@ -32,6 +32,8 @@ export {
   canSeeCoreSetupNavigation,
   canSeeCoreSettingsNavigation,
   canAccessCorePeople,
+  canAccessCoreTeam,
+  canAccessOwnCoreProfile,
   canSeeCorePeopleNavigation,
   canAccessOrganizations,
   canSeeOrganizationsNavigation,

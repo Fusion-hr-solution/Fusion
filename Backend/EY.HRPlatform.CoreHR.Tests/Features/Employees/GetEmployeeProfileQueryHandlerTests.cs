@@ -22,6 +22,7 @@ public class GetEmployeeProfileQueryHandlerTests
 
         var manager = Employee.Create(TenantId, "Alice", "Manager", "alice.manager@example.com", new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc));
         var employee = Employee.Create(TenantId, "Bob", "Worker", "bob.worker@example.com", new DateTime(2021, 6, 1, 0, 0, 0, DateTimeKind.Utc));
+        employee.UpdatePreferredName("Bobby");
         employee.AssignManager(manager.Id);
 
         // Two active direct reports of employee under test
@@ -43,6 +44,7 @@ public class GetEmployeeProfileQueryHandlerTests
         Assert.Equal(employee.Id, profile.Id);
         Assert.Equal("Bob", profile.FirstName);
         Assert.Equal("Worker", profile.LastName);
+        Assert.Equal("Bobby", profile.PreferredName);
         Assert.Equal("bob.worker@example.com", profile.Email);
         Assert.Equal(manager.Id, profile.ManagerId);
         Assert.Equal("Alice", profile.ManagerFirstName);

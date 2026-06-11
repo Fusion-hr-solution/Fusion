@@ -15,13 +15,11 @@ export const EMPLOYEE_READINESS_FILTER_OPTIONS: Array<{
   value: EmployeeReadinessFilter;
   label: string;
 }> = [
+  { value: "Ready", label: "Ready" },
   { value: "NeedsAttention", label: "Needs attention" },
-  { value: "MissingRequiredField", label: "Missing required fields" },
+  { value: "MissingRequiredField", label: "Missing required info" },
   { value: "MissingOrgUnit", label: "Missing org unit" },
-  { value: "NoManagerAssigned", label: "No manager assigned" },
-  { value: "ManagerInactive", label: "Inactive manager" },
-  { value: "ManagerMissing", label: "Missing manager" },
-  { value: "DeactivationBlocked", label: "Deactivation blocked" },
+  { value: "ReportingIssue", label: "Reporting issue" },
 ];
 
 export function parseEmployeeReadinessFilter(
@@ -31,7 +29,17 @@ export function parseEmployeeReadinessFilter(
     return undefined;
   }
 
-  return EMPLOYEE_READINESS_FILTER_OPTIONS.some((option) => option.value === value)
+  if (
+    value === "NoManagerAssigned" ||
+    value === "ManagerInactive" ||
+    value === "ManagerMissing"
+  ) {
+    return "ReportingIssue";
+  }
+
+  return EMPLOYEE_READINESS_FILTER_OPTIONS.some(
+    (option) => option.value === value
+  )
     ? (value as EmployeeReadinessFilter)
     : undefined;
 }

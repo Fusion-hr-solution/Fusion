@@ -2,6 +2,8 @@ import type { AuthUser } from "./types";
 
 export const PLATFORM_ADMIN_ROLE = "PlatformAdmin";
 export const HR_ADMIN_ROLE = "HRAdmin";
+export const MANAGER_ROLE = "Manager";
+export const EMPLOYEE_ROLE = "Employee";
 
 export function hasAnyRole(
   user: AuthUser | null,
@@ -39,6 +41,14 @@ export function canSeeCoreSettingsNavigation(user: AuthUser | null): boolean {
 
 export function canAccessCorePeople(user: AuthUser | null): boolean {
   return isTenantHrAdminOnly(user);
+}
+
+export function canAccessCoreTeam(user: AuthUser | null): boolean {
+  return !!user?.employeeId && hasAnyRole(user, [MANAGER_ROLE]);
+}
+
+export function canAccessOwnCoreProfile(user: AuthUser | null): boolean {
+  return !!user?.employeeId;
 }
 
 export function canSeeCorePeopleNavigation(user: AuthUser | null): boolean {

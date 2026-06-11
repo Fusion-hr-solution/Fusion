@@ -116,10 +116,7 @@ public class InvitesController : ControllerBase
         _dbContext.InviteTokens.Add(invite);
         await _dbContext.SaveChangesAsync();
 
-        // Build invite link
-        var baseUrl = _configuration["Application:BaseUrl"] ?? "http://localhost:3000";
-        baseUrl = baseUrl.TrimEnd('/');
-        var inviteLink = $"{baseUrl}/invite/{invite.Token}";
+        var inviteLink = InvitationLinkBuilder.Build(_configuration, invite.Token);
 
         var dto = new InviteDto
         {
@@ -256,6 +253,7 @@ public class InvitesController : ControllerBase
                 FirstName = firstName.Trim(),
                 LastName = lastName.Trim(),
                 TenantId = invite.TenantId,
+                EmployeeId = invite.EmployeeId,
                 EmailConfirmed = true, // Invited users are pre-verified
                 HireDate = DateTime.UtcNow
             };
@@ -282,8 +280,8 @@ public class InvitesController : ControllerBase
 
             await transaction.CommitAsync();
 
-            // Fire-and-forget: provision empty EmployeeProfile in Training service
-            if (invite.Role == PlatformRole.Employee)
+            // Fire-and-forget: provision downstream employee profile for workforce users.
+            if (invite.EmployeeId.HasValue && IsWorkforceUserRole(invite.Role))
                 _ = _trainingClient.ProvisionEmployeeAsync(user.Id);
 
             var dto = new UserDto
@@ -295,6 +293,7 @@ public class InvitesController : ControllerBase
                 JobTitle = user.JobTitle,
                 HireDate = user.HireDate,
                 TenantId = user.TenantId,
+                EmployeeId = user.EmployeeId,
                 Roles = [invite.Role]
             };
 
@@ -420,10 +419,7 @@ public class InvitesController : ControllerBase
         invite.ExtendExpiry();
         await _dbContext.SaveChangesAsync();
 
-        // Build invite link
-        var baseUrl = _configuration["Application:BaseUrl"] ?? "http://localhost:3000";
-        baseUrl = baseUrl.TrimEnd('/');
-        var inviteLink = $"{baseUrl}/invite/{invite.Token}";
+        var inviteLink = InvitationLinkBuilder.Build(_configuration, invite.Token);
 
         var dto = new InviteDto
         {
@@ -453,4 +449,7 @@ public class InvitesController : ControllerBase
         var userTenantId = User.GetTenantId();
         return userTenantId.HasValue && userTenantId.Value == tenantId;
     }
+
+    private static bool IsWorkforceUserRole(string role)
+        => role == PlatformRole.Employee || role == PlatformRole.Manager;
 }

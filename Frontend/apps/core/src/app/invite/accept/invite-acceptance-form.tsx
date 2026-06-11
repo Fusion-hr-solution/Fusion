@@ -24,6 +24,7 @@ import {
   useAcceptInvite,
   type AcceptInvitePayload,
 } from "./use-invite";
+import { resolveInviteAcceptanceDestination } from "./invite-acceptance-routing";
 import {
   CheckCircle2Icon,
   CircleIcon,
@@ -141,6 +142,7 @@ export function InviteAcceptanceForm({ token }: { token: string | null }) {
       // 3. Persist session (localStorage + cookie)
       const user: AuthUser = {
         userId: authResponse.userId,
+        employeeId: authResponse.employeeId ?? null,
         email: authResponse.email,
         fullName: authResponse.fullName,
         roles: authResponse.roles,
@@ -152,8 +154,8 @@ export function InviteAcceptanceForm({ token }: { token: string | null }) {
         user,
       } satisfies StoredAuth);
 
-      // 4. Redirect to the authenticated app
-      router.push("/");
+      // 4. Redirect to the role-scoped app entry.
+      router.push(resolveInviteAcceptanceDestination(user));
     } catch (err) {
       setIsAutoLoginning(false);
       if (err instanceof ApiError) {
@@ -169,7 +171,8 @@ export function InviteAcceptanceForm({ token }: { token: string | null }) {
   };
 
   const isSubmitting = accept.isLoading || isAutoLoginning;
-  const isInviteLoading = !!token && (isValidating || (!invite && !validateError));
+  const isInviteLoading =
+    !!token && (isValidating || (!invite && !validateError));
 
   // ── Missing token ───────────────────────────────────────────────
 

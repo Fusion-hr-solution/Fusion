@@ -20,6 +20,7 @@ public class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
 
         builder.Property(e => e.FirstName).HasMaxLength(100).IsRequired();
         builder.Property(e => e.LastName).HasMaxLength(100).IsRequired();
+        builder.Property(e => e.PreferredName).HasMaxLength(100);
 
         // Email is normalised (trimmed + lowercased) at the domain boundary.
         // The unique index therefore operates on a consistent value without
