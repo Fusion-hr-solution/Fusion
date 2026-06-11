@@ -1,0 +1,201 @@
+{
+  "nav": {
+    "sections": {
+      "learning": "Formation",
+      "administration": "Administration"
+    },
+    "items": {
+      "dashboard": "Tableau de bord",
+      "catalog": "Catalogue",
+      "myTrainings": "Mes Formations",
+      "mySessions": "Mes Séances",
+      "scanQr": "Scanner un QR",
+      "cursus": "Mon Cursus",
+      "certificates": "Certificats",
+      "badges": "Badges",
+      "manageTrainings": "Gérer les formations",
+      "employeeProgress": "Progression des employés",
+      "assignments": "Affectations",
+      "grades": "Grades",
+      "serviceLines": "Service Lines",
+      "employeeProfiles": "Profils des employés",
+      "curriculum": "Curriculum",
+      "sessions": "Séances",
+      "attendance": "Présences",
+      "certificateRegistry": "Registre des certificats",
+      "settings": "Paramètres"
+    },
+    "comingSoon": "Bientôt disponible",
+    "brandSubtitle": "Plateforme de formation",
+    "quickStats": {
+      "title": "Aperçu rapide",
+      "completed": "Terminées",
+      "inProgress": "En cours",
+      "certificates": "Certificats",
+      "completedShort": "Finies",
+      "inProgressShort": "Actives",
+      "certificatesShort": "Certif."
+    }
+  },
+  "languageSwitcher": {
+    "label": "Langue",
+    "switchToEn": "Passer à l'anglais",
+    "switchToFr": "Passer au français"
+  },
+  "common": {
+    "status": {
+      "in-progress": "En cours",
+      "completed": "Terminée",
+      "not-started": "Non commencée"
+    },
+    "statusAction": {
+      "in-progress": "Continuer",
+      "completed": "Revoir",
+      "not-started": "Commencer"
+    },
+    "category": {
+      "leadership": "Leadership",
+      "technical": "Technique",
+      "compliance": "Conformité",
+      "soft-skills": "Soft Skills",
+      "finance": "Finance",
+      "data-analytics": "Data & Analytics"
+    },
+    "level": {
+      "beginner": "Débutant",
+      "intermediate": "Intermédiaire",
+      "advanced": "Avancé"
+    },
+    "tabs": {
+      "all": "Toutes",
+      "in-progress": "En cours",
+      "completed": "Terminées",
+      "not-started": "Non commencées"
+    }
+  },
+  "dashboard": {
+    "moduleTitle": "Tableau de bord Formation",
+    "title": "Bon retour",
+    "description": "Voici votre parcours de formation en un coup d'œil. Continuez, vous progressez bien.",
+    "kpi": {
+      "inProgress": "En cours",
+      "completed": "Terminées",
+      "hoursLearned": "Heures de formation",
+      "completionRate": "Taux de complétion"
+    },
+    "continueLearning": "Reprendre vos formations",
+    "viewAll": "Voir tout",
+    "recommended": "Recommandées pour vous",
+    "browseCatalog": "Parcourir le catalogue",
+    "continueAria": "Continuer {title}",
+    "chapterOf": "Chapitre {current} sur {total}",
+    "chaptersCount": "{count} chapitres",
+    "progressOverview": {
+      "title": "Aperçu de la progression",
+      "complete": "Terminé",
+      "completed": "Terminées",
+      "inProgress": "En cours",
+      "notStarted": "Non commencées",
+      "avgProgress": "Progression moy."
+    },
+    "categoryBreakdown": {
+      "title": "Formations par catégorie"
+    },
+    "achievements": {
+      "title": "Réussites",
+      "firstSteps": "Premiers pas",
+      "firstStepsDesc": "Terminez votre première formation",
+      "quickLearner": "Apprenant rapide",
+      "quickLearnerDesc": "Terminez 3 formations",
+      "knowledgeSeeker": "En quête de savoir",
+      "knowledgeSeekerDesc": "Terminez 5 formations",
+      "masterScholar": "Érudit confirmé",
+      "masterScholarDesc": "Terminez 10 formations"
+    },
+    "hours": {
+      "title": "Heures de formation en présentiel",
+      "subtitle": "Votre assiduité et l'équilibre entre vos formats d'apprentissage.",
+      "inPersonShare": "{share} % en présentiel",
+      "thisMonth": "Ce mois-ci",
+      "thisQuarter": "Ce trimestre",
+      "thisYear": "Cette année",
+      "allTime": "Au total",
+      "formatMix": "Répartition des formats",
+      "noHours": "Aucune heure comptabilisée pour le moment.",
+      "attendedSessions": "Séances suivies",
+      "totalCount": "{count} au total",
+      "noSessions": "Vous n'avez encore assisté à aucune séance en présentiel.",
+      "loadError": "Impossible de charger vos heures de formation en présentiel pour le moment.",
+      "onSite": "Présentiel",
+      "eLearning": "E-learning"
+    }
+  },
+  "myTrainings": {
+    "moduleTitle": "Mon apprentissage",
+    "title": "Mes Formations",
+    "description": "Suivez vos formations, reprenez là où vous vous êtes arrêté et célébrez vos formations terminées.",
+    "stats": {
+      "inProgress": "En cours",
+      "completed": "Terminées",
+      "totalHours": "Heures totales",
+      "enrolled": "Inscriptions"
+    },
+    "searchPlaceholder": "Rechercher des formations...",
+    "searchAria": "Rechercher dans vos formations",
+    "emptyTitle": "Aucune formation dans cette catégorie pour le moment",
+    "emptySubtitle": "Parcourez le catalogue pour découvrir de nouvelles formations.",
+    "loading": "Chargement de vos formations...",
+    "errorTitle": "Impossible de charger les formations",
+    "errorSubtitle": "Veuillez vous connecter ou réessayer plus tard.",
+    "due": "Échéance {date}"
+  },
+  "cursus": {
+    "title": "Mon Cursus",
+    "subtitle": "Votre parcours de formation personnalisé",
+    "loading": "Chargement de votre cursus...",
+    "emptyTitle": "Aucun cursus disponible",
+    "emptyDescription": "Votre profil n'a pas encore de grade ni de service line attribués. Contactez votre administrateur pour configurer votre parcours de formation.",
+    "requiredFormations": "Formations obligatoires",
+    "optionalFormations": "Formations optionnelles",
+    "estimatedRemaining": "Temps restant estimé : {hours}h {minutes}min",
+    "summary": {
+      "overallProgress": "Progression globale",
+      "completed": "Terminées",
+      "inProgress": "En cours",
+      "creditsEarned": "Crédits obtenus"
+    },
+    "requiredBadge": "Obligatoire",
+    "sharedBadge": "Partagée",
+    "progress": "Progression",
+    "credits": "{count, plural, one {# crédit} other {# crédits}}",
+    "minutes": "{count} min",
+    "status": {
+      "completed": "Terminée",
+      "in-progress": "En cours",
+      "not-started": "Non commencée"
+    }
+  },
+  "certificates": {
+    "moduleTitle": "EY Academy",
+    "title": "Mes Certificats",
+    "description": "Vos certificats obtenus. Téléchargez le PDF ou partagez le lien de vérification public.",
+    "errorTitle": "Impossible de charger les certificats",
+    "errorSubtitle": "Veuillez réessayer plus tard.",
+    "emptyTitle": "Aucun certificat pour le moment",
+    "emptySubtitle": "Terminez une formation pour obtenir votre premier certificat.",
+    "valid": "Valide",
+    "revoked": "Révoqué",
+    "issuedLine": "Délivré le {date} · {credits, plural, one {# crédit} other {# crédits}}",
+    "revokedReason": "Révoqué : {reason}",
+    "downloadAria": "Télécharger le certificat {number}",
+    "downloadError": "Impossible de télécharger le certificat.",
+    "share": {
+      "button": "Partager",
+      "buttonAria": "Partager le certificat",
+      "linkedin": "Ajouter à LinkedIn",
+      "copyLink": "Copier le lien",
+      "copied": "Lien de vérification copié.",
+      "copyError": "Impossible de copier le lien."
+    }
+  }
+}

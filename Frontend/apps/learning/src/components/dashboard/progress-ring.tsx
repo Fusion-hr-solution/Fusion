@@ -1,4 +1,5 @@
 import { BarChart3 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@repo/ui";
 import type { ProgressRingProps } from "@/types/component-props";
 
@@ -9,6 +10,7 @@ export function ProgressRing({
   completed,
   inProgress,
 }: ProgressRingProps) {
+  const t = useTranslations("dashboard.progressOverview");
   const circumference = 2 * Math.PI * 54;
   const completedStroke = (completed / Math.max(total, 1)) * circumference;
   const inProgressStroke = (inProgress / Math.max(total, 1)) * circumference;
@@ -24,9 +26,7 @@ export function ProgressRing({
               aria-hidden="true"
             />
           </div>
-          <h3 className="text-sm font-bold text-foreground">
-            Progress Overview
-          </h3>
+          <h3 className="text-sm font-bold text-foreground">{t("title")}</h3>
         </div>
 
         {/* Ring chart */}
@@ -70,7 +70,7 @@ export function ProgressRing({
                 {completionRate}%
               </span>
               <span className="text-[10px] text-muted-foreground mt-1">
-                Complete
+                {t("complete")}
               </span>
             </div>
           </div>
@@ -81,7 +81,7 @@ export function ProgressRing({
           <div className="flex items-center justify-between text-xs">
             <div className="flex items-center gap-2">
               <span className="h-2.5 w-2.5 rounded-full bg-[hsl(var(--ey-green-500))]" />
-              <span className="text-muted-foreground">Completed</span>
+              <span className="text-muted-foreground">{t("completed")}</span>
             </div>
             <span className="font-bold text-foreground tabular-nums">
               {completed}
@@ -90,7 +90,7 @@ export function ProgressRing({
           <div className="flex items-center justify-between text-xs">
             <div className="flex items-center gap-2">
               <span className="h-2.5 w-2.5 rounded-full bg-[hsl(var(--ey-blue-400))]" />
-              <span className="text-muted-foreground">In Progress</span>
+              <span className="text-muted-foreground">{t("inProgress")}</span>
             </div>
             <span className="font-bold text-foreground tabular-nums">
               {inProgress}
@@ -99,7 +99,7 @@ export function ProgressRing({
           <div className="flex items-center justify-between text-xs">
             <div className="flex items-center gap-2">
               <span className="h-2.5 w-2.5 rounded-full bg-muted" />
-              <span className="text-muted-foreground">Not Started</span>
+              <span className="text-muted-foreground">{t("notStarted")}</span>
             </div>
             <span className="font-bold text-foreground tabular-nums">
               {total - completed - inProgress}
@@ -112,7 +112,7 @@ export function ProgressRing({
           <div className="mt-4 pt-4 border-t border-border/40">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs text-muted-foreground">
-                Avg. Progress
+                {t("avgProgress")}
               </span>
               <span className="text-xs font-bold text-foreground tabular-nums">
                 {avgProgress}%

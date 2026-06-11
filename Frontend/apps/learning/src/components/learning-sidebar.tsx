@@ -3,11 +3,18 @@
 import { usePathname } from "next/navigation";
 import { useCallback, useMemo } from "react";
 import { GraduationCap, BarChart3 } from "lucide-react";
-import { AppSidebar } from "@repo/ui";
-import { SidebarUserPanel, useAuth, hasAnyRole, HR_ADMIN_ROLE } from "@repo/auth";
+import { useTranslations } from "next-intl";
+import { AppSidebar, type NavSection } from "@repo/ui";
+import {
+  SidebarUserPanel,
+  useAuth,
+  hasAnyRole,
+  HR_ADMIN_ROLE,
+} from "@repo/auth";
 import { useApiQuery } from "@repo/api/react";
 import { EMPLOYEE_NAV, ADMIN_NAV } from "@/data/sidebar-nav";
 import { getMyTrainings } from "@/services/learning-service";
+import { LanguageSwitcher } from "./language-switcher";
 import { StatRow } from "./stat-row";
 
 function SidebarNavSkeleton() {
@@ -26,20 +33,43 @@ function SidebarNavSkeleton() {
 }
 
 function QuickStatsFooter({ collapsed }: { collapsed: boolean }) {
+  const t = useTranslations("nav.quickStats");
+
   if (collapsed) {
     return (
       <div className="flex flex-col items-center gap-2 py-1">
-        <div className="flex flex-col items-center gap-0.5" title="Completed">
-          <span className="text-xs font-bold tabular-nums text-foreground">12</span>
-          <span className="text-[9px] text-muted-foreground">Done</span>
+        <div
+          className="flex flex-col items-center gap-0.5"
+          title={t("completed")}
+        >
+          <span className="text-xs font-bold tabular-nums text-foreground">
+            12
+          </span>
+          <span className="text-[9px] text-muted-foreground">
+            {t("completedShort")}
+          </span>
         </div>
-        <div className="flex flex-col items-center gap-0.5" title="In Progress">
-          <span className="text-xs font-bold tabular-nums text-foreground">3</span>
-          <span className="text-[9px] text-muted-foreground">Active</span>
+        <div
+          className="flex flex-col items-center gap-0.5"
+          title={t("inProgress")}
+        >
+          <span className="text-xs font-bold tabular-nums text-foreground">
+            3
+          </span>
+          <span className="text-[9px] text-muted-foreground">
+            {t("inProgressShort")}
+          </span>
         </div>
-        <div className="flex flex-col items-center gap-0.5" title="Certificates">
-          <span className="text-xs font-bold tabular-nums text-foreground">8</span>
-          <span className="text-[9px] text-muted-foreground">Certs</span>
+        <div
+          className="flex flex-col items-center gap-0.5"
+          title={t("certificates")}
+        >
+          <span className="text-xs font-bold tabular-nums text-foreground">
+            8
+          </span>
+          <span className="text-[9px] text-muted-foreground">
+            {t("certificatesShort")}
+          </span>
         </div>
       </div>
     );
@@ -53,13 +83,13 @@ function QuickStatsFooter({ collapsed }: { collapsed: boolean }) {
           aria-hidden="true"
         />
         <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Quick Stats
+          {t("title")}
         </p>
       </div>
       <div className="mt-2.5 space-y-2">
-        <StatRow label="Completed" value="12" />
-        <StatRow label="In Progress" value="3" />
-        <StatRow label="Certificates" value="8" />
+        <StatRow label={t("completed")} value="12" />
+        <StatRow label={t("inProgress")} value="3" />
+        <StatRow label={t("certificates")} value="8" />
       </div>
     </div>
   );
@@ -68,27 +98,52 @@ function QuickStatsFooter({ collapsed }: { collapsed: boolean }) {
 export function LearningSidebar() {
   const pathname = usePathname();
   const activePath = pathname.replace(/^\/learning/, "") || "/";
+  const t = useTranslations("nav");
 
   const { user, isLoading } = useAuth();
   const isAdmin = hasAnyRole(user, [HR_ADMIN_ROLE]);
 
   const fetchMyTrainings = useCallback(() => getMyTrainings(), []);
-  const { data: myTrainings } = useApiQuery(fetchMyTrainings, { enabled: !isAdmin && !isLoading });
+  const { data: myTrainings } = useApiQuery(fetchMyTrainings, {
+    enabled: !isAdmin && !isLoading,
+  });
   const myTrainingsCount = myTrainings?.length ?? 0;
 
-  const employeeNavWithCount = useMemo(() => ({
-    ...EMPLOYEE_NAV,
-    items: EMPLOYEE_NAV.items.map((item) =>
-      item.href === "/my-trainings"
-        ? { ...item, badge: myTrainingsCount > 0 ? String(myTrainingsCount) : undefined }
-        : item
-    ),
-  }), [myTrainingsCount]);
+  const translateSection = useCallback(
+    (section: NavSection): NavSection => ({
+      ...section,
+      title: t(`sections.${section.title}`),
+      items: section.items.map((item) => ({
+        ...item,
+        label: t(`items.${item.label}`),
+        disabledReason: item.disabledReason
+          ? t(item.disabledReason)
+          : undefined,
+      })),
+    }),
+    [t]
+  );
+
+  const employeeNavWithCount = useMemo(() => {
+    const section = translateSection(EMPLOYEE_NAV);
+    return {
+      ...section,
+      items: section.items.map((item) =>
+        item.href === "/my-trainings"
+          ? {
+              ...item,
+              badge:
+                myTrainingsCount > 0 ? String(myTrainingsCount) : undefined,
+            }
+          : item
+      ),
+    };
+  }, [translateSection, myTrainingsCount]);
 
   const sections = useMemo(() => {
     if (isLoading) return [];
-    return isAdmin ? [ADMIN_NAV] : [employeeNavWithCount];
-  }, [isLoading, isAdmin, employeeNavWithCount]);
+    return isAdmin ? [translateSection(ADMIN_NAV)] : [employeeNavWithCount];
+  }, [isLoading, isAdmin, translateSection, employeeNavWithCount]);
 
   if (isLoading) {
     return (
@@ -98,8 +153,12 @@ export function LearningSidebar() {
             <GraduationCap className="h-4 w-4 text-primary" />
           </div>
           <div>
-            <p className="text-sm font-bold leading-none text-foreground">EY Academy</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">Learning Platform</p>
+            <p className="text-sm font-bold leading-none text-foreground">
+              EY Academy
+            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {t("brandSubtitle")}
+            </p>
           </div>
         </div>
         <SidebarNavSkeleton />
@@ -114,9 +173,18 @@ export function LearningSidebar() {
       sections={sections}
       brandIcon={GraduationCap}
       brandTitle="EY Academy"
-      brandSubtitle="Learning Platform"
+      brandSubtitle={t("brandSubtitle")}
       basePath="/learning"
-      footer={(collapsed) => <QuickStatsFooter collapsed={collapsed} />}
+      footer={(collapsed) => (
+        <div
+          className={
+            collapsed ? "flex flex-col items-center gap-2" : "space-y-2.5"
+          }
+        >
+          <LanguageSwitcher collapsed={collapsed} />
+          <QuickStatsFooter collapsed={collapsed} />
+        </div>
+      )}
       userPanel={(collapsed) => <SidebarUserPanel collapsed={collapsed} />}
     />
   );

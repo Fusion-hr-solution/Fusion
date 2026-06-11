@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getMessages } from "next-intl/server";
 import { AuthProvider } from "@repo/auth";
 import { ModuleLayout } from "@repo/ui";
 import { Toaster } from "sonner";
@@ -11,20 +13,25 @@ export const metadata: Metadata = {
   description: "Learning management microfrontend",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = await getLocale();
+  const messages = await getMessages();
+
   return (
-    <html lang="en">
+    <html lang={locale}>
       <body className="min-h-screen antialiased">
-        <AuthProvider>
-          <ModuleLayout sidebar={<LearningSidebar />}>
-            {children}
-          </ModuleLayout>
-          <Toaster richColors closeButton position="top-right" />
-        </AuthProvider>
+        <NextIntlClientProvider messages={messages}>
+          <AuthProvider>
+            <ModuleLayout sidebar={<LearningSidebar />}>
+              {children}
+            </ModuleLayout>
+            <Toaster richColors closeButton position="top-right" />
+          </AuthProvider>
+        </NextIntlClientProvider>
       </body>
     </html>
   );

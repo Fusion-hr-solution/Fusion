@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import type { TrainingStatusTabsProps } from "@/types/component-props";
 import { TABS } from "@/data/training-tabs";
 
@@ -8,6 +9,7 @@ export function TrainingStatusTabs({
   counts,
   onChange,
 }: TrainingStatusTabsProps) {
+  const t = useTranslations("common.tabs");
   return (
     <div className="inline-flex gap-1 rounded-xl border border-border/60 bg-white p-1 shadow-sm">
       {TABS.map((tab) => {
@@ -22,7 +24,7 @@ export function TrainingStatusTabs({
                 : "text-muted-foreground hover:bg-muted hover:text-foreground"
             }`}
           >
-            {tab.label}
+            {t(tab.value)}
             <span
               className={`flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-bold transition-all ${
                 isActive

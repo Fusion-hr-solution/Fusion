@@ -1,0 +1,201 @@
+{
+  "nav": {
+    "sections": {
+      "learning": "Learning",
+      "administration": "Administration"
+    },
+    "items": {
+      "dashboard": "Dashboard",
+      "catalog": "Catalog",
+      "myTrainings": "My Trainings",
+      "mySessions": "My Sessions",
+      "scanQr": "Scan QR",
+      "cursus": "Mon Cursus",
+      "certificates": "Certificates",
+      "badges": "Badges",
+      "manageTrainings": "Manage Trainings",
+      "employeeProgress": "Employee Progress",
+      "assignments": "Assignments",
+      "grades": "Grades",
+      "serviceLines": "Service Lines",
+      "employeeProfiles": "Employee Profiles",
+      "curriculum": "Curriculum",
+      "sessions": "Sessions",
+      "attendance": "Attendance",
+      "certificateRegistry": "Certificate Registry",
+      "settings": "Settings"
+    },
+    "comingSoon": "Coming soon",
+    "brandSubtitle": "Learning Platform",
+    "quickStats": {
+      "title": "Quick Stats",
+      "completed": "Completed",
+      "inProgress": "In Progress",
+      "certificates": "Certificates",
+      "completedShort": "Done",
+      "inProgressShort": "Active",
+      "certificatesShort": "Certs"
+    }
+  },
+  "languageSwitcher": {
+    "label": "Language",
+    "switchToEn": "Switch to English",
+    "switchToFr": "Switch to French"
+  },
+  "common": {
+    "status": {
+      "in-progress": "In Progress",
+      "completed": "Completed",
+      "not-started": "Not Started"
+    },
+    "statusAction": {
+      "in-progress": "Continue",
+      "completed": "Review",
+      "not-started": "Start"
+    },
+    "category": {
+      "leadership": "Leadership",
+      "technical": "Technical",
+      "compliance": "Compliance",
+      "soft-skills": "Soft Skills",
+      "finance": "Finance",
+      "data-analytics": "Data & Analytics"
+    },
+    "level": {
+      "beginner": "Beginner",
+      "intermediate": "Intermediate",
+      "advanced": "Advanced"
+    },
+    "tabs": {
+      "all": "All",
+      "in-progress": "In Progress",
+      "completed": "Completed",
+      "not-started": "Not Started"
+    }
+  },
+  "dashboard": {
+    "moduleTitle": "Learning Dashboard",
+    "title": "Welcome back",
+    "description": "Here's your learning journey at a glance. Keep pushing, you're making great progress.",
+    "kpi": {
+      "inProgress": "In Progress",
+      "completed": "Completed",
+      "hoursLearned": "Hours Learned",
+      "completionRate": "Completion Rate"
+    },
+    "continueLearning": "Continue Learning",
+    "viewAll": "View all",
+    "recommended": "Recommended for You",
+    "browseCatalog": "Browse catalog",
+    "continueAria": "Continue {title}",
+    "chapterOf": "Chapter {current} of {total}",
+    "chaptersCount": "{count} chapters",
+    "progressOverview": {
+      "title": "Progress Overview",
+      "complete": "Complete",
+      "completed": "Completed",
+      "inProgress": "In Progress",
+      "notStarted": "Not Started",
+      "avgProgress": "Avg. Progress"
+    },
+    "categoryBreakdown": {
+      "title": "Learning by Category"
+    },
+    "achievements": {
+      "title": "Achievements",
+      "firstSteps": "First Steps",
+      "firstStepsDesc": "Complete your first training",
+      "quickLearner": "Quick Learner",
+      "quickLearnerDesc": "Complete 3 trainings",
+      "knowledgeSeeker": "Knowledge Seeker",
+      "knowledgeSeekerDesc": "Complete 5 trainings",
+      "masterScholar": "Master Scholar",
+      "masterScholarDesc": "Complete 10 trainings"
+    },
+    "hours": {
+      "title": "In-Person Training Hours",
+      "subtitle": "Your attendance and learning balance across formats.",
+      "inPersonShare": "{share}% in-person",
+      "thisMonth": "This Month",
+      "thisQuarter": "This Quarter",
+      "thisYear": "This Year",
+      "allTime": "All Time",
+      "formatMix": "Format Mix",
+      "noHours": "No completed hours yet.",
+      "attendedSessions": "Attended Sessions",
+      "totalCount": "{count} total",
+      "noSessions": "You haven't attended any in-person sessions yet.",
+      "loadError": "Unable to load your in-person training hours right now.",
+      "onSite": "On-site",
+      "eLearning": "E-learning"
+    }
+  },
+  "myTrainings": {
+    "moduleTitle": "My Learning",
+    "title": "My Trainings",
+    "description": "Track your enrolled trainings, pick up where you left off, and celebrate your completed courses.",
+    "stats": {
+      "inProgress": "In Progress",
+      "completed": "Completed",
+      "totalHours": "Total Hours",
+      "enrolled": "Enrolled"
+    },
+    "searchPlaceholder": "Search trainings...",
+    "searchAria": "Search enrolled trainings",
+    "emptyTitle": "No trainings in this category yet",
+    "emptySubtitle": "Browse the catalog to discover new trainings.",
+    "loading": "Loading your trainings...",
+    "errorTitle": "Unable to load trainings",
+    "errorSubtitle": "Please sign in or try again later.",
+    "due": "Due {date}"
+  },
+  "cursus": {
+    "title": "Mon Cursus",
+    "subtitle": "Your personalized learning curriculum",
+    "loading": "Loading your cursus...",
+    "emptyTitle": "No Cursus Available",
+    "emptyDescription": "Your profile has not been assigned a grade and service line yet. Contact your administrator to set up your learning curriculum.",
+    "requiredFormations": "Required Formations",
+    "optionalFormations": "Optional Formations",
+    "estimatedRemaining": "Estimated remaining time: {hours}h {minutes}min",
+    "summary": {
+      "overallProgress": "Overall Progress",
+      "completed": "Completed",
+      "inProgress": "In Progress",
+      "creditsEarned": "Credits Earned"
+    },
+    "requiredBadge": "Required",
+    "sharedBadge": "Shared",
+    "progress": "Progress",
+    "credits": "{count, plural, one {# credit} other {# credits}}",
+    "minutes": "{count} min",
+    "status": {
+      "completed": "Completed",
+      "in-progress": "In Progress",
+      "not-started": "Not Started"
+    }
+  },
+  "certificates": {
+    "moduleTitle": "EY Academy",
+    "title": "My Certificates",
+    "description": "Your earned certificates. Download the PDF or share the public verification link.",
+    "errorTitle": "Could not load certificates",
+    "errorSubtitle": "Please try again later.",
+    "emptyTitle": "No certificates yet",
+    "emptySubtitle": "Complete a formation to earn your first certificate.",
+    "valid": "Valid",
+    "revoked": "Revoked",
+    "issuedLine": "Issued {date} · {credits, plural, one {# credit} other {# credits}}",
+    "revokedReason": "Revoked: {reason}",
+    "downloadAria": "Download certificate {number}",
+    "downloadError": "Could not download the certificate.",
+    "share": {
+      "button": "Share",
+      "buttonAria": "Share certificate",
+      "linkedin": "Add to LinkedIn",
+      "copyLink": "Copy link",
+      "copied": "Verification link copied.",
+      "copyError": "Could not copy the link."
+    }
+  }
+}

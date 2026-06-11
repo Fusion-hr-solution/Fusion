@@ -1,9 +1,12 @@
 import { GraduationCap } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@repo/ui";
 import type { CategoryBreakdownProps } from "@/types/component-props";
 import { CATEGORY_CONFIG } from "@/data/categories";
 
 export function CategoryBreakdown({ items }: CategoryBreakdownProps) {
+  const t = useTranslations("dashboard.categoryBreakdown");
+  const tCommon = useTranslations("common");
   return (
     <Card className="overflow-hidden border border-border/60 bg-white">
       <CardContent className="p-5">
@@ -14,9 +17,7 @@ export function CategoryBreakdown({ items }: CategoryBreakdownProps) {
               aria-hidden="true"
             />
           </div>
-          <h3 className="text-sm font-bold text-foreground">
-            Learning by Category
-          </h3>
+          <h3 className="text-sm font-bold text-foreground">{t("title")}</h3>
         </div>
 
         <div className="space-y-3.5">
@@ -28,7 +29,7 @@ export function CategoryBreakdown({ items }: CategoryBreakdownProps) {
                   <span
                     className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase ${config.badgeClass}`}
                   >
-                    {config.label}
+                    {tCommon(`category.${item.category}`)}
                   </span>
                   <span className="text-xs font-bold text-foreground tabular-nums">
                     {item.count}

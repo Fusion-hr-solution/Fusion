@@ -1,11 +1,14 @@
 import Link from "next/link";
 import { Play } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@repo/ui";
 import type { ContinueCardProps } from "@/types/component-props";
 import { CATEGORY_CONFIG } from "@/data/categories";
 import { STATUS_CONFIG } from "@/data/status-config";
 
 export function ContinueCard({ training }: ContinueCardProps) {
+  const t = useTranslations("dashboard");
+  const tCommon = useTranslations("common");
   const category = CATEGORY_CONFIG[training.category];
   const status = STATUS_CONFIG[training.status];
   const StatusIcon = status.icon;
@@ -13,7 +16,7 @@ export function ContinueCard({ training }: ContinueCardProps) {
   return (
     <Link
       href={`/training/${training.id}/learn`}
-      aria-label={`Continue ${training.title}`}
+      aria-label={t("continueAria", { title: training.title })}
       className="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <Card className="group overflow-hidden border border-border/60 bg-white transition-all duration-300 hover:shadow-lg hover:shadow-black/5 hover:-translate-y-0.5 cursor-pointer">
@@ -56,21 +59,24 @@ export function ContinueCard({ training }: ContinueCardProps) {
                 <span
                   className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase ${category.badgeClass}`}
                 >
-                  {category.label}
+                  {tCommon(`category.${training.category}`)}
                 </span>
                 <span
                   className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${status.className}`}
                 >
                   <StatusIcon className="h-2.5 w-2.5" aria-hidden="true" />
-                  {status.label}
+                  {tCommon(`status.${training.status}`)}
                 </span>
               </div>
               <h3 className="text-sm font-semibold text-foreground line-clamp-1 group-hover:text-[hsl(var(--ey-blue-600))] transition-colors">
                 {training.title}
               </h3>
               <p className="mt-1 text-xs text-muted-foreground">
-                Chapter {training.currentChapter} of {training.chaptersCount} ·{" "}
-                {training.duration}
+                {t("chapterOf", {
+                  current: training.currentChapter,
+                  total: training.chaptersCount,
+                })}{" "}
+                · {training.duration}
               </p>
             </div>
 

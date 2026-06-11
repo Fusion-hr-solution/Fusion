@@ -21,6 +21,7 @@
     "@yudiel/react-qr-scanner": "^2.6.0",
     "dompurify": "^3.4.2",
     "next": "^15.1.0",
+    "next-intl": "^4.13.0",
     "qrcode": "^1.5.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

@@ -1,6 +1,8 @@
 import path from "node:path";
 import type { NextConfig } from "next";
+import createNextIntlPlugin from "next-intl/plugin";
 
+const withNextIntl = createNextIntlPlugin();
 const frontendWorkspaceRoot = path.resolve(process.cwd(), "../..");
 
 const nextConfig: NextConfig = {
@@ -33,4 +35,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withNextIntl(nextConfig);
