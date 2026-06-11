@@ -31,7 +31,13 @@ export const EMPLOYEE_NAV: NavSection = {
     { label: "Scan QR", href: "/my-sessions/scan", icon: ScanLine },
     { label: "Mon Cursus", href: "/cursus", icon: Route },
     { label: "Certificates", href: "/certificates", icon: Award },
-    { label: "Badges", href: "/badges", icon: Trophy },
+    {
+      label: "Badges",
+      href: "/badges",
+      icon: Trophy,
+      disabled: true,
+      disabledReason: "Coming soon",
+    },
   ],
 };
 
@@ -48,11 +54,19 @@ export const ADMIN_NAV: NavSection = {
     { label: "Assignments", href: "/admin/assignments", icon: Users },
     { label: "Grades", href: "/admin/grades", icon: Layers },
     { label: "Service Lines", href: "/admin/service-lines", icon: Building2 },
-    { label: "Employee Profiles", href: "/admin/employee-profiles", icon: UserCog },
+    {
+      label: "Employee Profiles",
+      href: "/admin/employee-profiles",
+      icon: UserCog,
+    },
     { label: "Curriculum", href: "/admin/curriculum", icon: Grid3X3 },
     { label: "Sessions", href: "/admin/sessions", icon: CalendarClock },
     { label: "Attendance", href: "/admin/attendance", icon: BarChart2 },
-    { label: "Certificate Registry", href: "/admin/certificates", icon: BadgeCheck },
+    {
+      label: "Certificate Registry",
+      href: "/admin/certificates",
+      icon: BadgeCheck,
+    },
     { label: "Settings", href: "/admin/settings", icon: Settings },
   ],
 };
