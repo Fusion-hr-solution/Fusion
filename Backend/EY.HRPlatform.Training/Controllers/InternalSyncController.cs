@@ -49,7 +49,8 @@ public class InternalSyncController : ControllerBase
             return Unauthorized();
         }
 
-        var result = await _sender.Send(new ProvisionEmployeeCommand(request.EmployeeId), cancellationToken);
+        var result = await _sender.Send(
+            new ProvisionEmployeeCommand(request.EmployeeId, request.FullName, request.Email), cancellationToken);
 
         if (result.IsFailure)
         {

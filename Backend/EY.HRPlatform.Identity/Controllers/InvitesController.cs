@@ -313,9 +313,9 @@ public class InvitesController : ControllerBase
 
             await transaction.CommitAsync();
 
-            // Fire-and-forget: provision empty EmployeeProfile in Training service
+            // Fire-and-forget: provision/sync EmployeeProfile (name + email) in Training service
             if (invite.Role == PlatformRole.Employee)
-                _ = _trainingClient.ProvisionEmployeeAsync(user.Id);
+                _ = _trainingClient.ProvisionEmployeeAsync(user.Id, user.FullName, user.Email);
 
             var dto = new UserDto
             {

@@ -17,13 +17,13 @@ public class HttpTrainingServiceClient : ITrainingServiceClient
         _logger = logger;
     }
 
-    public async Task ProvisionEmployeeAsync(Guid userId, CancellationToken cancellationToken = default)
+    public async Task ProvisionEmployeeAsync(Guid userId, string? fullName = null, string? email = null, CancellationToken cancellationToken = default)
     {
         try
         {
             var response = await _httpClient.PostAsJsonAsync(
                 "/api/training/internal/employees/provision",
-                new { EmployeeId = userId },
+                new { EmployeeId = userId, FullName = fullName, Email = email },
                 cancellationToken);
 
             if (!response.IsSuccessStatusCode)
