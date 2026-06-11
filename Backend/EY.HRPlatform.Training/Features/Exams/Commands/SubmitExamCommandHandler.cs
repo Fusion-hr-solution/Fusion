@@ -2,7 +2,6 @@ using EY.HRPlatform.SharedKernel.CQRS;
 using EY.HRPlatform.SharedKernel.Results;
 using EY.HRPlatform.Training.Domain.Entities;
 using EY.HRPlatform.Training.Domain.Enums;
-using EY.HRPlatform.Training.Features.Certifications.Services;
 using EY.HRPlatform.Training.Infrastructure.Persistence;
 using EY.HRPlatform.Training.Models.Responses;
 using Microsoft.EntityFrameworkCore;
@@ -12,13 +11,8 @@ namespace EY.HRPlatform.Training.Features.Exams.Commands;
 public class SubmitExamCommandHandler : ICommandHandler<SubmitExamCommand, Result<ExamSubmissionResultDto>>
 {
     private readonly TrainingDbContext _db;
-    private readonly ICertificateIssuanceService _certificates;
 
-    public SubmitExamCommandHandler(TrainingDbContext db, ICertificateIssuanceService certificates)
-    {
-        _db = db;
-        _certificates = certificates;
-    }
+    public SubmitExamCommandHandler(TrainingDbContext db) => _db = db;
 
     public async Task<Result<ExamSubmissionResultDto>> Handle(SubmitExamCommand request, CancellationToken cancellationToken)
     {
@@ -109,11 +103,6 @@ public class SubmitExamCommandHandler : ICommandHandler<SubmitExamCommand, Resul
             {
                 progress.Complete();
             }
-
-            // Stage the certificate into this same unit of work so it commits atomically with
-            // completion. Idempotent: a re-submitted pass returns the existing active certificate.
-            await _certificates.IssueForCompletionAsync(
-                request.EmployeeId, request.TrainingId, request.FullName, cancellationToken);
 
             trainingCompleted = true;
         }
