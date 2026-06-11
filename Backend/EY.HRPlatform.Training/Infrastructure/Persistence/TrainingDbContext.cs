@@ -76,6 +76,7 @@ public class TrainingDbContext : DbContext
             e.Property(t => t.Duration).HasMaxLength(50);
             e.Property(t => t.BadgeLevel).HasConversion<string>().HasMaxLength(20);
             e.Property(t => t.TrainingType).HasConversion<string>().HasMaxLength(20).HasDefaultValue(Domain.Enums.TrainingType.ELearning);
+            e.Property(t => t.IssuesCertificate).HasDefaultValue(true);
             e.HasQueryFilter(t => !t.IsDeleted);
             e.HasOne(t => t.Category)
                 .WithMany(c => c.Trainings)
@@ -310,12 +311,30 @@ public class TrainingDbContext : DbContext
         modelBuilder.Entity<Certification>(e =>
         {
             e.HasKey(c => c.Id);
-            e.Property(c => c.CertificateUri).HasMaxLength(500);
-            e.HasOne(c => c.Training)
-                .WithMany()
-                .HasForeignKey(c => c.TrainingId)
-                .OnDelete(DeleteBehavior.Cascade);
-            e.HasIndex(c => new { c.EmployeeId, c.TrainingId }).IsUnique();
+            e.Property(c => c.CertificateNumber).HasMaxLength(40).IsRequired();
+            e.Property(c => c.EmployeeFullName).HasMaxLength(256).IsRequired();
+            e.Property(c => c.GradeName).HasMaxLength(100);
+            e.Property(c => c.ServiceLineName).HasMaxLength(100);
+            e.Property(c => c.TrainingTitle).HasMaxLength(300).IsRequired();
+            e.Property(c => c.TrainingDescription).HasMaxLength(2000);
+            e.Property(c => c.Duration).HasMaxLength(50);
+            e.Property(c => c.TrainerName).HasMaxLength(200);
+            e.Property(c => c.Status).HasConversion<string>().HasMaxLength(20);
+            e.Property(c => c.RevokedReason).HasMaxLength(1000);
+            e.Property(c => c.RevokedBy).HasMaxLength(256);
+            e.Property(c => c.PdfContentType).HasMaxLength(100);
+
+            // No FK on TrainingId/EmployeeId/GradeId/ServiceLineId — soft references; the
+            // certificate is an immutable snapshot that must survive deletion of what it references.
+            e.HasIndex(c => c.CertificateNumber).IsUnique();
+            // At most one ACTIVE certificate per (employee, formation); revoked rows are excluded
+            // so a re-completed formation can issue a fresh certificate.
+            e.HasIndex(c => new { c.EmployeeId, c.TrainingId })
+                .IsUnique()
+                .HasFilter("\"Status\" = 'Valid'");
+            e.HasIndex(c => c.TrainingId);
+            e.HasIndex(c => c.Status);
+            e.HasIndex(c => c.IssuedAt);
         });
 
         // --- Grade ---
@@ -365,6 +384,8 @@ public class TrainingDbContext : DbContext
         modelBuilder.Entity<EmployeeProfile>(e =>
         {
             e.HasKey(p => p.Id);
+            e.Property(p => p.FullName).HasMaxLength(256);
+            e.Property(p => p.Email).HasMaxLength(320);
             e.HasOne(p => p.Grade)
                 .WithMany()
                 .HasForeignKey(p => p.GradeId)

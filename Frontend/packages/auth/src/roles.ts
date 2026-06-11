@@ -5,6 +5,7 @@ export const PLATFORM_ADMIN_ROLE = "PlatformAdmin";
 export const HR_ADMIN_ROLE = "HRAdmin";
 export const MANAGER_ROLE = "Manager";
 export const EMPLOYEE_ROLE = "Employee";
+const CORE_TENANT_CONTEXT_STORAGE_KEY = "ey_core_tenant_context";
 
 export const CORE_TENANT_CONTEXT_STORAGE_KEY = "ey_core_tenant_context";
 
@@ -131,6 +132,30 @@ function hasCoreTenantContext(): boolean {
 
 function isPlatformAdminOutsideCoreTenantContext(user: AuthUser | null): boolean {
   return hasAnyRole(user, [PLATFORM_ADMIN_ROLE]) && !hasCoreTenantContext();
+}
+
+function isPlatformAdminInCoreTenantContext(user: AuthUser | null): boolean {
+  return hasAnyRole(user, [PLATFORM_ADMIN_ROLE]) && hasCoreTenantContext();
+}
+
+function hasCoreTenantContext(): boolean {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  const { pathname } = window.location;
+  if (
+    pathname !== "/core" &&
+    !pathname.startsWith("/core/")
+  ) {
+    return false;
+  }
+
+  try {
+    return !!sessionStorage.getItem(CORE_TENANT_CONTEXT_STORAGE_KEY);
+  } catch {
+    return false;
+  }
 }
 
 function isPlatformAdminInCoreTenantContext(user: AuthUser | null): boolean {

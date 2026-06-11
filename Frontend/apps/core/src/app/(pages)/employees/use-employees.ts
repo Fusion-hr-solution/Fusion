@@ -10,6 +10,7 @@ import {
 } from "@repo/api/query";
 import type { AuthUser } from "@repo/auth";
 import { useAuth } from "@repo/auth";
+import { useTenantContext } from "@/components/core-tenant-context-provider";
 import {
   canAccessEmployeeProfile,
   canAccessEmployeeRoster,
@@ -28,6 +29,18 @@ import type {
   EmployeeRosterQueryParams,
   WorkforceReadinessSummaryDto,
 } from "./employee-roster.types";
+
+function useCanAccessRoster(): boolean {
+  const { user } = useAuth();
+  const { tenantId } = useTenantContext();
+  return canAccessEmployeeRoster(user) || (!!user?.roles.includes("PlatformAdmin") && !!tenantId);
+}
+
+function useCanAccessProfile(): boolean {
+  const { user } = useAuth();
+  const { tenantId } = useTenantContext();
+  return canAccessEmployeeProfile(user) || (!!user?.roles.includes("PlatformAdmin") && !!tenantId);
+}
 
 const EMPLOYEE_ROSTER_PATH = "/corehr/employees";
 const ORG_UNIT_OPTIONS_PATH = "/corehr/org-units";
@@ -124,7 +137,7 @@ interface UpdateMyProfileInput {
 export function useEmployeeRoster(
   params: EmployeeRosterQueryParams
 ): UseApiQueryResult<EmployeeRosterPageDto> {
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const client = useMemo(() => createPlatformApiClient(), []);
   const canAccess = canAccessEmployeeRoster(user);
   const { page, pageSize, readiness, search, sortBy, sortDir, status } = params;
@@ -236,9 +249,9 @@ export function useResolveEmployeeRoster() {
 }
 
 export function useWorkforceReadinessSummary(): UseApiQueryResult<WorkforceReadinessSummaryDto> {
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const client = useMemo(() => createPlatformApiClient(), []);
-  const canAccess = canAccessEmployeeRoster(user);
+  const canAccess = useCanAccessRoster();
 
   const queryFn = useCallback(
     (signal: AbortSignal) =>
@@ -363,9 +376,9 @@ export function useEmployeeManagerOptions({
   search: string;
   enabled?: boolean;
 }): UseApiQueryResult<EmployeeRosterPageDto> {
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const client = useMemo(() => createPlatformApiClient(), []);
-  const canAccess = canAccessEmployeeRoster(user);
+  const canAccess = useCanAccessRoster();
   const normalizedSearch = search.trim();
 
   const queryFn = useCallback(
@@ -405,9 +418,9 @@ export function useEmployeeOrgUnitOptions({
   search: string;
   enabled?: boolean;
 }): UseApiQueryResult<EmployeeOrgUnitPageDto> {
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const client = useMemo(() => createPlatformApiClient(), []);
-  const canAccess = canAccessEmployeeRoster(user);
+  const canAccess = useCanAccessRoster();
   const normalizedSearch = search.trim();
 
   const queryFn = useCallback(
@@ -589,7 +602,7 @@ export function useUpdateMyProfile() {
 export function useEmployeeProfile(
   employeeId: string | null
 ): UseApiQueryResult<EmployeeProfileDto> {
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const client = useMemo(() => createPlatformApiClient(), []);
   const canAccess = canAccessEmployeeProfile(user);
   const profilePath = useMemo(
