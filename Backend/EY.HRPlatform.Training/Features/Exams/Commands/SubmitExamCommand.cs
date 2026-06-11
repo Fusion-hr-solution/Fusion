@@ -7,7 +7,6 @@ namespace EY.HRPlatform.Training.Features.Exams.Commands;
 public record SubmitExamCommand(
     Guid EmployeeId,
     Guid TrainingId,
-    List<SubmitExamAnswer> Answers,
-    string? FullName = null) : ICommand<Result<ExamSubmissionResultDto>>;
+    List<SubmitExamAnswer> Answers) : ICommand<Result<ExamSubmissionResultDto>>;
 
 public record SubmitExamAnswer(Guid QuestionId, List<Guid> SelectedOptionIds);

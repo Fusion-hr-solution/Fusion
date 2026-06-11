@@ -1,8 +1,6 @@
 using EY.HRPlatform.SharedKernel.CQRS;
 using EY.HRPlatform.SharedKernel.Results;
 using EY.HRPlatform.Training.Domain.Entities;
-using EY.HRPlatform.Training.Domain.Enums;
-using EY.HRPlatform.Training.Features.Certifications.Services;
 using EY.HRPlatform.Training.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,13 +9,8 @@ namespace EY.HRPlatform.Training.Features.MyTrainings.Commands;
 public class UpdateContentBlockProgressCommandHandler : ICommandHandler<UpdateContentBlockProgressCommand, Result>
 {
     private readonly TrainingDbContext _db;
-    private readonly ICertificateIssuanceService _certificates;
 
-    public UpdateContentBlockProgressCommandHandler(TrainingDbContext db, ICertificateIssuanceService certificates)
-    {
-        _db = db;
-        _certificates = certificates;
-    }
+    public UpdateContentBlockProgressCommandHandler(TrainingDbContext db) => _db = db;
 
     public async Task<Result> Handle(UpdateContentBlockProgressCommand request, CancellationToken cancellationToken)
     {
@@ -64,15 +57,7 @@ public class UpdateContentBlockProgressCommandHandler : ICommandHandler<UpdateCo
         await _db.SaveChangesAsync(cancellationToken);
 
         // Recalculate overall training progress
-        var justCompleted = await RecalculateTrainingProgressAsync(
-            request.EmployeeId, request.TrainingId, hasExam, cancellationToken);
-
-        // On the no-exam completion transition, stage the certificate atomically with the save below.
-        if (justCompleted)
-        {
-            await _certificates.IssueForCompletionAsync(
-                request.EmployeeId, request.TrainingId, request.FullName, cancellationToken);
-        }
+        await RecalculateTrainingProgressAsync(request.EmployeeId, request.TrainingId, hasExam, cancellationToken);
 
         await _db.SaveChangesAsync(cancellationToken);
         return Result.Success();
@@ -112,11 +97,10 @@ public class UpdateContentBlockProgressCommandHandler : ICommandHandler<UpdateCo
         }
     }
 
-    /// <returns>True when this call transitioned the training into the Completed state.</returns>
-    private async Task<bool> RecalculateTrainingProgressAsync(Guid employeeId, Guid trainingId, bool hasExam, CancellationToken cancellationToken)
+    private async Task RecalculateTrainingProgressAsync(Guid employeeId, Guid trainingId, bool hasExam, CancellationToken cancellationToken)
     {
         var totalChapters = await _db.Chapters.CountAsync(c => c.TrainingId == trainingId, cancellationToken);
-        if (totalChapters == 0) return false;
+        if (totalChapters == 0) return;
 
         var chapterIds = await _db.Chapters
             .Where(c => c.TrainingId == trainingId)
@@ -147,11 +131,10 @@ public class UpdateContentBlockProgressCommandHandler : ICommandHandler<UpdateCo
         if (hasExam)
         {
             trainingProgress.SetProgressPercentage(percentage);
-            return false;
         }
-
-        var wasCompleted = trainingProgress.Status == TrainingStatus.Completed;
-        trainingProgress.UpdateProgress(percentage);
-        return !wasCompleted && trainingProgress.Status == TrainingStatus.Completed;
+        else
+        {
+            trainingProgress.UpdateProgress(percentage);
+        }
     }
 }

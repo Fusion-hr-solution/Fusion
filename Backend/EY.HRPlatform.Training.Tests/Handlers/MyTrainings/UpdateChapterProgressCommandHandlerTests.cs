@@ -17,7 +17,7 @@ public class UpdateContentBlockProgressCommandHandlerTests
         var block = context.ContentBlocks.First(b => b.ChapterId == chapter.Id);
         var employeeId = Guid.NewGuid();
 
-        var handler = new UpdateContentBlockProgressCommandHandler(context, NoOpCertificateIssuanceService.Instance);
+        var handler = new UpdateContentBlockProgressCommandHandler(context);
         var command = new UpdateContentBlockProgressCommand(employeeId, training.Id, chapter.Id, block.Id, true);
 
         var result = await handler.Handle(command, CancellationToken.None);
@@ -38,7 +38,7 @@ public class UpdateContentBlockProgressCommandHandlerTests
         context.Assignments.Add(assignment);
         await context.SaveChangesAsync();
 
-        var handler = new UpdateContentBlockProgressCommandHandler(context, NoOpCertificateIssuanceService.Instance);
+        var handler = new UpdateContentBlockProgressCommandHandler(context);
         var command = new UpdateContentBlockProgressCommand(employeeId, training.Id, chapter.Id, Guid.NewGuid(), true);
 
         var result = await handler.Handle(command, CancellationToken.None);
@@ -60,7 +60,7 @@ public class UpdateContentBlockProgressCommandHandlerTests
         context.Assignments.Add(assignment);
         await context.SaveChangesAsync();
 
-        var handler = new UpdateContentBlockProgressCommandHandler(context, NoOpCertificateIssuanceService.Instance);
+        var handler = new UpdateContentBlockProgressCommandHandler(context);
         var command = new UpdateContentBlockProgressCommand(employeeId, training.Id, chapter.Id, block.Id, true);
 
         var result = await handler.Handle(command, CancellationToken.None);
@@ -86,7 +86,7 @@ public class UpdateContentBlockProgressCommandHandlerTests
         context.Assignments.Add(assignment);
         await context.SaveChangesAsync();
 
-        var handler = new UpdateContentBlockProgressCommandHandler(context, NoOpCertificateIssuanceService.Instance);
+        var handler = new UpdateContentBlockProgressCommandHandler(context);
 
         foreach (var block in blocks)
         {
@@ -114,7 +114,7 @@ public class UpdateContentBlockProgressCommandHandlerTests
         context.Assignments.Add(assignment);
         await context.SaveChangesAsync();
 
-        var handler = new UpdateContentBlockProgressCommandHandler(context, NoOpCertificateIssuanceService.Instance);
+        var handler = new UpdateContentBlockProgressCommandHandler(context);
         var command = new UpdateContentBlockProgressCommand(employeeId, training.Id, chapter.Id, block.Id, false);
 
         var result = await handler.Handle(command, CancellationToken.None);
@@ -146,7 +146,7 @@ public class UpdateContentBlockProgressCommandHandlerTests
         context.Exams.Add(new Exam("Final Exam", 70, training.Id));
         await context.SaveChangesAsync();
 
-        var handler = new UpdateContentBlockProgressCommandHandler(context, NoOpCertificateIssuanceService.Instance);
+        var handler = new UpdateContentBlockProgressCommandHandler(context);
 
         // Complete every block in every chapter
         foreach (var chapter in training.Chapters)
@@ -180,7 +180,7 @@ public class UpdateContentBlockProgressCommandHandlerTests
         context.Assignments.Add(assignment);
         await context.SaveChangesAsync();
 
-        var handler = new UpdateContentBlockProgressCommandHandler(context, NoOpCertificateIssuanceService.Instance);
+        var handler = new UpdateContentBlockProgressCommandHandler(context);
 
         // Complete every block in every chapter
         foreach (var chapter in training.Chapters)
