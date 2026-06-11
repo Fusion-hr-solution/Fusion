@@ -109,7 +109,7 @@ public class ChaptersController : ControllerBase
         {
             var employeeId = User.GetUserId();
             var result = await _sender.Send(
-                new UpdateContentBlockProgressCommand(employeeId, trainingId, chapterId, contentBlockId, request.Completed),
+                new UpdateContentBlockProgressCommand(employeeId, trainingId, chapterId, contentBlockId, request.Completed, User.GetFullName()),
                 cancellationToken);
 
             if (result.IsFailure)
