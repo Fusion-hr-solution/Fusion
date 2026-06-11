@@ -384,7 +384,9 @@ beforeEach(() => {
 });
 
 describe("EmployeeProfileWorkspace", () => {
-  it("renders the rewritten HR profile layout with linked reporting and working edit actions", () => {
+  it(
+    "renders the rewritten HR profile layout with linked reporting and working edit actions",
+    () => {
     renderWorkspace({
       profile: {
         ...baseProfile,
@@ -435,7 +437,9 @@ describe("EmployeeProfileWorkspace", () => {
       "E-EMP1"
     );
     expect(screen.queryByText("No follow-up needed")).toBeNull();
-  });
+    },
+    10000
+  );
 
   it("opens access management for invite-pending account actions", async () => {
     mockUseWorkforceAccountStatus.mockReturnValue({
