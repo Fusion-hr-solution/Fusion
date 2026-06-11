@@ -1,13 +1,9 @@
 using EY.HRPlatform.SharedKernel.CQRS;
 using EY.HRPlatform.SharedKernel.Results;
 
-namespace EY.HRPlatform.CoreHR.Features.DraftStructure.Commands.DeleteDraftOrgUnit;
+namespace EY.HRPlatform.CoreHR.Features.DraftStructure.Commands.ClearDraftStructure;
 
-public sealed record DeleteDraftOrgUnitCommand(
-    Guid Id,
-    uint ExpectedVersion,
-    Guid? ReplacementParentId,
-    bool PromoteChildrenToRoot,
+public sealed record ClearDraftStructureCommand(
     Guid? ActorUserId = null,
     string? ActorFullName = null,
     string? ActorRole = null,

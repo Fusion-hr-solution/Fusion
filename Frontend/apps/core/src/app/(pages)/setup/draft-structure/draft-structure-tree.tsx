@@ -18,6 +18,7 @@ import type { DraftStructureTreeNodeModel } from "./draft-structure-tree-utils";
 import { countDraftTreeNodes } from "./draft-structure-tree-utils";
 
 interface DraftStructureTreeProps {
+  embedded?: boolean;
   nodes: DraftStructureTreeNodeModel[];
   selectedId: string | null;
   onSelect: (node: DraftStructureTreeNodeModel) => void;
@@ -31,6 +32,7 @@ interface DraftStructureTreeProps {
 }
 
 export function DraftStructureTree({
+  embedded = false,
   nodes,
   selectedId,
   onSelect,
@@ -63,52 +65,73 @@ export function DraftStructureTree({
   };
 
   return (
-    <div className="flex h-full min-h-128 flex-col overflow-hidden rounded-2xl border bg-card">
-      <div className="border-b p-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-              Structure
-            </p>
-            <div className="mt-1 flex items-center gap-2">
-              <Building2 className="size-4 text-muted-foreground" />
-              <p className="text-sm font-medium">Organization root</p>
+    <div
+      className={cn(
+        "flex h-full min-h-0 flex-col overflow-hidden",
+        embedded ? "bg-transparent" : "rounded-2xl border bg-card"
+      )}
+    >
+      {!embedded ? (
+        <div className="border-b bg-muted/10 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                Structure
+              </p>
+              <div className="mt-2 flex items-center gap-3">
+                <div className="flex size-9 items-center justify-center rounded-lg border bg-background text-muted-foreground">
+                  <Building2 className="size-4" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Organization root</p>
+                  <p className="text-xs text-muted-foreground">
+                    Top-level branches start here
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {onDownloadCsv ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={onDownloadCsv}
+                  disabled={isDownloadDisabled}
+                >
+                  <Download className="size-4" />
+                  Download CSV
+                </Button>
+              ) : null}
+
+              {!readOnly && onAddRoot ? (
+                <Button type="button" size="sm" onClick={onAddRoot}>
+                  <Plus className="size-4" />
+                  Add top-level unit
+                </Button>
+              ) : null}
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            {onDownloadCsv ? (
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={onDownloadCsv}
-                disabled={isDownloadDisabled}
-              >
-                <Download className="size-4" />
-                Download CSV
-              </Button>
-            ) : null}
-
-            {!readOnly && onAddRoot ? (
-              <Button type="button" size="sm" onClick={onAddRoot}>
-                <Plus className="size-4" />
-                Add top-level unit
-              </Button>
-            ) : null}
-          </div>
+          <p className="mt-3 text-sm text-muted-foreground">
+            {totalNodeCount === 0
+              ? emptyDescription
+              : `${totalNodeCount} units are currently planned beneath the organization root.`}
+          </p>
         </div>
-
-        <p className="mt-3 text-sm text-muted-foreground">
-          {totalNodeCount === 0
-            ? emptyDescription
-            : `${totalNodeCount} units are currently planned beneath the organization root.`}
-        </p>
-      </div>
+      ) : null}
 
       {nodes.length === 0 ? (
-        <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
-          <div className="flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
+        <div
+          className={cn(
+            "flex flex-1 flex-col items-center justify-center gap-3 text-center",
+            embedded
+              ? "m-6 rounded-2xl border border-dashed bg-muted/10 p-10"
+              : "m-4 rounded-2xl border border-dashed bg-muted/10 p-8"
+          )}
+        >
+          <div className="flex size-12 items-center justify-center rounded-full border bg-background text-muted-foreground">
             <FolderTree className="size-5" />
           </div>
           <div className="space-y-1">
@@ -119,7 +142,7 @@ export function DraftStructureTree({
           </div>
         </div>
       ) : (
-        <ScrollArea className="flex-1 p-3">
+        <ScrollArea className="min-h-0 flex-1 p-4">
           <ul className="space-y-1">
             {nodes.map((node) => (
               <TreeBranch
@@ -165,13 +188,15 @@ function TreeBranch({
     <li>
       <div
         className={cn(
-          "group/tree-row rounded-xl border border-transparent transition-colors",
-          isSelected ? "border-border bg-muted/40" : "hover:bg-muted/20"
+          "group/tree-row rounded-2xl border border-transparent bg-background/80 transition-colors",
+          isSelected
+            ? "border-border bg-accent/60"
+            : "hover:border-border/60 hover:bg-muted/15"
         )}
       >
         <div
-          className="flex items-start gap-2 p-2"
-          style={{ paddingLeft: `${node.level * 18 + 8}px` }}
+          className="flex items-start gap-2 p-3"
+          style={{ paddingLeft: `${node.level * 20 + 12}px` }}
         >
           {hasChildren ? (
             <Button
@@ -234,7 +259,7 @@ function TreeBranch({
               type="button"
               variant="ghost"
               size="icon-sm"
-              className="opacity-0 transition-opacity group-hover/tree-row:opacity-100"
+              className="opacity-100 transition-opacity md:opacity-0 md:group-hover/tree-row:opacity-100"
               onClick={() => onAddChild(node)}
             >
               <Plus className="size-4" />

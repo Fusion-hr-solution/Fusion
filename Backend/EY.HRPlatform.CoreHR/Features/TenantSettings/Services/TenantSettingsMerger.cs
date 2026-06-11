@@ -39,7 +39,8 @@ public static class TenantSettingsMerger
             Version = version,
             DraftStructureSchema = draftStructureSchema,
             EmployeeFieldConfig = MergeFieldConfig(defaults.EmployeeFieldConfig, overrides.EmployeeFieldConfig),
-            Branding = MergeBranding(defaults.Branding, overrides.Branding)
+            Branding = MergeBranding(defaults.Branding, overrides.Branding),
+            SelfService = MergeSelfService(defaults.SelfService, overrides.SelfService)
         };
     }
 
@@ -133,6 +134,20 @@ public static class TenantSettingsMerger
         };
     }
 
+    private static SelfServiceSettings MergeSelfService(
+        SelfServiceSettings defaults,
+        SelfServiceSettingsOverrides? overrides)
+    {
+        if (overrides is null)
+        {
+            return defaults;
+        }
+
+        return new SelfServiceSettings(
+            CanEditPreferredName: overrides.CanEditPreferredName ?? defaults.CanEditPreferredName,
+            CanEditPhone: overrides.CanEditPhone ?? defaults.CanEditPhone);
+    }
+
     /// <summary>
     /// Internal type for deserializing partial overrides (all properties nullable).
     /// </summary>
@@ -142,6 +157,7 @@ public static class TenantSettingsMerger
         public DraftStructureSchemaOverrides? DraftStructureSchema { get; init; }
         public Dictionary<string, FieldConfigOverrides>? EmployeeFieldConfig { get; init; }
         public BrandingSettingsOverrides? Branding { get; init; }
+        public SelfServiceSettingsOverrides? SelfService { get; init; }
     }
 
     private sealed record DraftStructureSchemaOverrides
@@ -178,6 +194,12 @@ public static class TenantSettingsMerger
     {
         public string? LogoUrl { get; init; }
         public string? PrimaryColor { get; init; }
+    }
+
+    private sealed record SelfServiceSettingsOverrides
+    {
+        public bool? CanEditPreferredName { get; init; }
+        public bool? CanEditPhone { get; init; }
     }
 
     private static string NormalizeKey(string value)

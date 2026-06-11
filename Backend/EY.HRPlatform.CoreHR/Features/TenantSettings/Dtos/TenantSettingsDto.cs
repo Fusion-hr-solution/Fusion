@@ -50,7 +50,9 @@ public sealed record TenantSettingsDto
         ["email"] = new(Visible: true, Required: true, VisibleToEmployee: true, VisibleToManager: true),
         ["hireDate"] = new(Visible: true, Required: true, VisibleToEmployee: true, VisibleToManager: true),
         ["phone"] = new(Visible: true, Required: false, VisibleToEmployee: true, VisibleToManager: true),
-        ["jobTitle"] = new(Visible: true, Required: false, VisibleToEmployee: true, VisibleToManager: true)
+        ["jobTitle"] = new(Visible: true, Required: false, VisibleToEmployee: true, VisibleToManager: true),
+        ["workLocation"] = new(Visible: true, Required: false, VisibleToEmployee: true, VisibleToManager: true),
+        ["employmentType"] = new(Visible: true, Required: false, VisibleToEmployee: true, VisibleToManager: true)
     };
 
     /// <summary>

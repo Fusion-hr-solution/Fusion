@@ -40,9 +40,10 @@ public sealed class PublishTenantStructureCommandHandler(
             throw new InvalidTenantSetupStateException("Setup is already complete.");
         }
 
-        if (state.CurrentPhase != TenantSetupPhase.StructurallyGoverned)
+        if (state.CurrentPhase != TenantSetupPhase.Activated
+            && state.CurrentPhase != TenantSetupPhase.StructurallyGoverned)
         {
-            throw new InvalidTenantSetupStateException("Approve the structure before publishing it to live.");
+            throw new InvalidTenantSetupStateException("Return to the active draft before publishing it to live.");
         }
 
         var draftUnits = await dbContext.DraftOrgUnits
@@ -53,7 +54,7 @@ public sealed class PublishTenantStructureCommandHandler(
 
         if (!readiness.IsReadyForApproval)
         {
-            throw new InvalidTenantSetupStateException("Reopen the draft and fix the remaining structure issues before publishing.");
+            throw new InvalidTenantSetupStateException("Fix the remaining structure issues before publishing the draft to live.");
         }
 
         var useTransaction = !string.Equals(
@@ -108,7 +109,12 @@ public sealed class PublishTenantStructureCommandHandler(
             .Take(10)
             .ToListAsync(cancellationToken);
 
-        return Result.Success(TenantSetupStateMapper.Map(state, recentActivities));
+        return Result.Success(
+            await TenantSetupStateProjection.MapAsync(
+                dbContext,
+                state,
+                recentActivities,
+                cancellationToken));
     }
 
     private async Task ReplaceLiveStructureAsync(
