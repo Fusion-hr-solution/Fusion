@@ -34,7 +34,9 @@ public interface IPlatformOrganizationService
 
 public sealed class PlatformOrganizationService(
     AppIdentityDbContext db,
-    IConfiguration configuration) : IPlatformOrganizationService
+    IConfiguration configuration,
+    IInvitationLinkBuilder invitationLinkBuilder,
+    IWorkforceInvitationEmailSender? invitationEmailSender = null) : IPlatformOrganizationService
 {
     public async Task<PlatformOrganizationPagedListDto> ListAsync(
         PlatformOrganizationListQueryDto query,
@@ -219,13 +221,25 @@ public sealed class PlatformOrganizationService(
 
             db.InviteTokens.Add(invite);
             await db.SaveChangesAsync(cancellationToken);
+
+        var link = invitationLinkBuilder.BuildInviteLink(invite.Token);
+            if (invitationEmailSender is not null)
+            {
+                var deliveryResult = await SendFirstAdminInviteEmailAsync(
+                    invite,
+                    tenant.Name,
+                    link,
+                    cancellationToken);
+                invite.RecordDeliveryAttempt(deliveryResult.Status, deliveryResult.Message);
+                await db.SaveChangesAsync(cancellationToken);
+            }
+
             if (tx is not null)
                 await tx.CommitAsync(cancellationToken);
 
             var detail = await GetAsync(tenant.Id, cancellationToken)
                          ?? throw new InvalidOperationException("Failed to load created organization.");
 
-            var link = BuildInviteLink(invite.Token);
             return new PlatformOrganizationCreatedDto
             {
                 Organization = detail,
@@ -284,6 +298,7 @@ public sealed class PlatformOrganizationService(
 
         var invite = await db.InviteTokens
             .IgnoreQueryFilters()
+            .Include(i => i.Tenant)
             .Where(i => i.TenantId == tenantId && i.Role == PlatformRole.HRAdmin && i.AcceptedAt == null && !i.IsRevoked)
             .OrderByDescending(i => i.CreatedAt)
             .FirstOrDefaultAsync(cancellationToken);
@@ -293,6 +308,18 @@ public sealed class PlatformOrganizationService(
 
         invite.ExtendExpiry();
         await db.SaveChangesAsync(cancellationToken);
+        var link = invitationLinkBuilder.BuildInviteLink(invite.Token);
+
+        if (invitationEmailSender is not null)
+        {
+            var deliveryResult = await SendFirstAdminInviteEmailAsync(
+                invite,
+                invite.Tenant?.Name ?? "Fusion",
+                link,
+                cancellationToken);
+            invite.RecordDeliveryAttempt(deliveryResult.Status, deliveryResult.Message);
+            await db.SaveChangesAsync(cancellationToken);
+        }
 
         return new PlatformOrganizationInviteStatusDto
         {
@@ -301,7 +328,10 @@ public sealed class PlatformOrganizationService(
             Email = invite.Email,
             SentAt = invite.CreatedAt,
             ExpiresAt = invite.ExpiresAt,
-            InviteLink = BuildInviteLink(invite.Token)
+            InviteLink = link,
+            DeliveryStatus = invite.DeliveryStatus,
+            DeliveryMessage = invite.DeliveryMessage,
+            DeliveryRecordedAt = invite.DeliveryRecordedAt
         };
     }
 
@@ -355,8 +385,24 @@ public sealed class PlatformOrganizationService(
         return MapDetail(tenant, metrics, primaryEmail);
     }
 
-    private string BuildInviteLink(string token)
-        => InvitationLinkBuilder.Build(configuration, token);
+
+    private async Task<WorkforceInvitationEmailDeliveryResult> SendFirstAdminInviteEmailAsync(
+        InviteToken invite,
+        string tenantName,
+        string inviteLink,
+        CancellationToken cancellationToken)
+    {
+        return await invitationEmailSender!.SendInvitationAsync(
+            new WorkforceInvitationEmailMessage(
+                invite.Id,
+                invite.Email,
+                inviteLink,
+                tenantName,
+                invite.Role,
+                invite.FirstName,
+                invite.LastName),
+            cancellationToken);
+    }
 
     private async Task<string?> GetPrimaryHrAdminEmailAsync(Guid tenantId, CancellationToken cancellationToken)
     {
@@ -520,7 +566,10 @@ public sealed class PlatformOrganizationService(
                 Email = accepted.Email,
                 SentAt = accepted.CreatedAt,
                 ExpiresAt = accepted.ExpiresAt,
-                InviteLink = null
+                InviteLink = null,
+                DeliveryStatus = accepted.DeliveryStatus,
+                DeliveryMessage = accepted.DeliveryMessage,
+                DeliveryRecordedAt = accepted.DeliveryRecordedAt
             };
         }
 
@@ -538,7 +587,10 @@ public sealed class PlatformOrganizationService(
                 Email = pending.Email,
                 SentAt = pending.CreatedAt,
                 ExpiresAt = pending.ExpiresAt,
-                InviteLink = BuildInviteLink(pending.Token)
+                InviteLink = invitationLinkBuilder.BuildInviteLink(pending.Token),
+                DeliveryStatus = pending.DeliveryStatus,
+                DeliveryMessage = pending.DeliveryMessage,
+                DeliveryRecordedAt = pending.DeliveryRecordedAt
             };
         }
 
@@ -556,7 +608,10 @@ public sealed class PlatformOrganizationService(
                 Email = expired.Email,
                 SentAt = expired.CreatedAt,
                 ExpiresAt = expired.ExpiresAt,
-                InviteLink = null
+                InviteLink = null,
+                DeliveryStatus = expired.DeliveryStatus,
+                DeliveryMessage = expired.DeliveryMessage,
+                DeliveryRecordedAt = expired.DeliveryRecordedAt
             };
         }
 
@@ -567,7 +622,10 @@ public sealed class PlatformOrganizationService(
             Email = null,
             SentAt = null,
             ExpiresAt = null,
-            InviteLink = null
+            InviteLink = null,
+            DeliveryStatus = null,
+            DeliveryMessage = null,
+            DeliveryRecordedAt = null
         };
     }
 

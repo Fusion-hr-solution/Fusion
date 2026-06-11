@@ -88,6 +88,7 @@ export type EmployeeRosterSortDirection = "Asc" | "Desc";
 
 export interface EmployeeRosterItem {
   id: string;
+  stableEmployeeKey?: string;
   employeeNumber?: string | null;
   firstName: string;
   lastName: string;
@@ -162,6 +163,7 @@ export interface EmployeeOrgUnitPageDto {
 
 export interface EmployeeProfileDto {
   id: string;
+  stableEmployeeKey?: string;
   employeeNumber?: string | null;
   firstName: string;
   lastName: string;

@@ -1,149 +1,139 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import "@testing-library/jest-dom/vitest";
 import { render, screen } from "@testing-library/react";
-import {
-  AppliedResultPanel,
-  ImportHistoryPanel,
-} from "./employee-import-panels";
-import type { EmployeeImportSessionDto } from "./employee-import.types";
+import type { ComponentPropsWithoutRef, ReactNode } from "react";
+import type {
+  EmployeeImportSessionDto,
+  EmployeeImportHistoryPageDto,
+} from "./employee-import.types";
+import { AppliedResultPanel, ImportHistoryPanel } from "./employee-import-panels";
 
-function buildAppliedImportSession(
-  overrides: Partial<EmployeeImportSessionDto> = {}
-): EmployeeImportSessionDto {
-  return {
-    id: "session-1",
-    stage: "Applied",
-    version: 1,
-    sourceFileName: "employees.csv",
-    sourceFileSizeBytes: 512,
-    sourceRowCount: 12,
-    sourceHeaders: ["first_name", "last_name", "email"],
-    sampleRows: [],
-    previewRows: [],
-    previewPageNumber: 1,
-    previewPageSize: 10,
-    previewPageCount: 1,
-    totalPreviewRowCount: 12,
-    hasMorePreviewRows: false,
-    validationSummary: {
-      totalRows: 12,
-      validRows: 12,
-      errorCount: 0,
-      warningCount: 0,
-    },
-    validationIssues: [],
-    appliedAt: "2026-05-13T09:00:00Z",
-    expiresAt: "2026-05-14T09:00:00Z",
-    employeeImportSchema: { canonicalFields: [] },
-    canValidate: false,
-    canApply: false,
-    ...overrides,
-  };
-}
+const {
+  mockCanAccessCoreAccess,
+  mockCanAccessCorePeople,
+  mockCanManageCoreAccessProfiles,
+  mockUseAuth,
+} =
+  vi.hoisted(() => ({
+    mockCanAccessCoreAccess: vi.fn(),
+    mockCanAccessCorePeople: vi.fn(),
+    mockCanManageCoreAccessProfiles: vi.fn(),
+    mockUseAuth: vi.fn(),
+  }));
 
-describe("AppliedResultPanel", () => {
-  it("routes import completion into access review", () => {
-    render(
-      <AppliedResultPanel
-        session={buildAppliedImportSession()}
-        applyResult={null}
-        onUpload={() => undefined}
-        onReviewHistory={() => undefined}
-      />
-    );
+vi.mock("@repo/auth", () => ({
+  canAccessCoreAccess: mockCanAccessCoreAccess,
+  canAccessCorePeople: mockCanAccessCorePeople,
+  canManageCoreAccessProfiles: mockCanManageCoreAccessProfiles,
+  useAuth: mockUseAuth,
+}));
 
-    const reviewLink = screen.getByRole("link", {
-      name: "Review access invitations",
-    });
-    expect(reviewLink.getAttribute("href")).toBe(
-      "/employees?access=NotInvited&review=access"
-    );
+vi.mock("next/link", () => ({
+  default: ({
+    href,
+    children,
+    ...props
+  }: {
+    href: string | URL;
+    children: ReactNode;
+  } & ComponentPropsWithoutRef<"a">) => (
+    <a href={typeof href === "string" ? href : String(href)} {...props}>
+      {children}
+    </a>
+  ),
+}));
 
-    const rosterLink = screen.getByRole("link", {
-      name: "Open employee roster",
-    });
-    expect(rosterLink.getAttribute("href")).toBe(
-      "/employees?access=NotInvited"
-    );
-  });
-});
+const historyItem = {
+  id: "history-1",
+  sessionId: "session-1",
+  sourceFileName: "employees-june.csv",
+  sourceFileSizeBytes: 2048,
+  sourceRowCount: 5,
+  validRowCount: 4,
+  createdCount: 3,
+  skippedCount: 1,
+  status: "Applied",
+  appliedAt: "2025-06-05T10:20:00.000Z",
+  actorUserId: "user-1",
+  actorFullName: "Alex Morgan",
+  actorRole: "HR Admin",
+  eventType: "Import" as const,
+  errorCount: 0,
+  warningCount: 0,
+};
+
+const historyPage: EmployeeImportHistoryPageDto = {
+  items: [historyItem],
+  pageNumber: 1,
+  pageSize: 10,
+  totalCount: 1,
+  pageCount: 1,
+};
 
 describe("ImportHistoryPanel", () => {
-  it("renders unresolved follow-up items with fix links", () => {
+  vi.mocked(mockCanAccessCoreAccess).mockReturnValue(true);
+  vi.mocked(mockCanAccessCorePeople).mockReturnValue(false);
+  vi.mocked(mockCanManageCoreAccessProfiles).mockReturnValue(true);
+  vi.mocked(mockUseAuth).mockReturnValue({
+    user: {
+      userId: "user-1",
+      tenantId: "tenant-1",
+      email: "alex.morgan@example.com",
+      fullName: "Alex Morgan",
+      roles: ["HRAdmin"],
+      employeeId: "emp-1",
+      accessProfiles: [],
+      effectivePermissions: [],
+    },
+    isLoading: false,
+  });
+
+  it("renders a compact history row with the useful summary fields", async () => {
     render(
       <ImportHistoryPanel
-        historyPage={{
-          items: [
-            {
-              id: "history-1",
-              sessionId: "session-1",
-              sourceFileName: "employees.csv",
-              sourceFileSizeBytes: 512,
-              sourceRowCount: 1,
-              validRowCount: 1,
-              createdCount: 1,
-              skippedCount: 0,
-              status: "Applied",
-              appliedAt: "2026-05-13T09:00:00Z",
-              actorUserId: "hr-1",
-              actorFullName: "HR Admin",
-              actorRole: "HRAdmin",
-            },
-          ],
-          pageNumber: 1,
-          pageSize: 5,
-          totalCount: 1,
-          pageCount: 1,
-        }}
-        historyDetail={{
-          id: "history-1",
-          sessionId: "session-1",
-          version: 1,
-          sourceFileName: "employees.csv",
-          sourceFileSizeBytes: 512,
-          sourceRowCount: 1,
-          validRowCount: 1,
-          createdCount: 1,
-          skippedCount: 0,
-          status: "Applied",
-          appliedAt: "2026-05-13T09:00:00Z",
-          actorUserId: "hr-1",
-          actorFullName: "HR Admin",
-          actorRole: "HRAdmin",
-          failureReason: null,
-          unresolvedFollowUpIssues: [
-            {
-              id: "follow-up-1",
-              sourceRowNumber: 4,
-              employeeId: "emp-1",
-              employeeFullName: "Jordan Solo",
-              employeeEmail: "jordan.solo@example.com",
-              code: "MissingOrgUnit",
-              label: "Org unit is missing",
-              fieldKey: "orgUnitId",
-              fixTarget: {
-                kind: "ProfileOrganization",
-                employeeId: "emp-1",
-                fieldKey: "orgUnitId",
-              },
-            },
-          ],
-        }}
-        selectedHistoryId="history-1"
+        historyPage={historyPage}
         isHistoryLoading={false}
-        isHistoryDetailLoading={false}
         historyError={null}
-        historyDetailError={null}
-        onSelectHistory={() => undefined}
-        onPageChange={() => undefined}
+        onPageChange={vi.fn()}
       />
     );
 
-    expect(screen.getByText("Unresolved follow-up items")).toBeTruthy();
+    expect(screen.getByText("employees-june.csv")).toBeInTheDocument();
+    expect(screen.getByText("Applied")).toBeInTheDocument();
+    expect(screen.getByText("3 created · 1 skipped · 5 rows")).toBeInTheDocument();
+    expect(screen.getByText("Alex Morgan")).toBeInTheDocument();
+    expect(screen.queryByText("session-1")).not.toBeInTheDocument();
+    expect(screen.queryByText("user-1")).not.toBeInTheDocument();
+  });
 
-    const fixLink = screen.getByRole("link", { name: "Open fix" });
-    expect(fixLink.getAttribute("href")).toBe(
-      "/employees/emp-1?sheet=organization"
+  it("routes the import CTA to plain access without query context", () => {
+    const appliedSession = {
+      stage: "Applied",
+      sourceFileName: "employees-june.csv",
+      sourceRowCount: 5,
+      sourceFileSizeBytes: 2048,
+      appliedAt: "2025-06-05T10:20:00.000Z",
+      canApply: false,
+      canValidate: false,
+      validationSummary: {
+        validRows: 3,
+        errorCount: 0,
+        warningCount: 0,
+      },
+    } as unknown as EmployeeImportSessionDto;
+
+    render(
+      <AppliedResultPanel
+        session={appliedSession}
+        applyResult={null}
+        onUpload={vi.fn()}
+      />
     );
+
+    const link = screen.getByRole("link", { name: /activate access/i });
+
+    expect(link).toHaveAttribute("href", "/access");
+    expect(link.getAttribute("href")).not.toContain("access=NotInvited");
   });
 });

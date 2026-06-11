@@ -46,6 +46,11 @@ public class InviteToken : ITenantEntity
     public string? FirstName { get; private set; }
 
     /// <summary>
+    /// Optional: Core employee identifier to link when the invite is accepted.
+    /// </summary>
+    public Guid? EmployeeId { get; private set; }
+
+    /// <summary>
     /// Optional: pre-filled last name for the invited user.
     /// </summary>
     public string? LastName { get; private set; }
@@ -71,14 +76,24 @@ public class InviteToken : ITenantEntity
     public DateTime CreatedAt { get; private set; }
 
     /// <summary>
+    /// Last known delivery attempt state for the invitation email.
+    /// </summary>
+    public string? DeliveryStatus { get; private set; }
+
+    /// <summary>
+    /// Short product-facing message for the last delivery attempt.
+    /// </summary>
+    public string? DeliveryMessage { get; private set; }
+
+    /// <summary>
+    /// When delivery state was last recorded.
+    /// </summary>
+    public DateTime? DeliveryRecordedAt { get; private set; }
+
+    /// <summary>
     /// The admin who created this invite.
     /// </summary>
     public Guid CreatedByUserId { get; private set; }
-
-    /// <summary>
-    /// Optional CoreHR employee record this invite provisions access for.
-    /// </summary>
-    public Guid? EmployeeId { get; private set; }
 
     /// <summary>
     /// Whether this invite has been revoked (soft-deleted).
@@ -129,8 +144,8 @@ public class InviteToken : ITenantEntity
         ValidateTenantId(tenantId);
         ValidateRole(role);
         ValidateCreatedBy(createdByUserId);
-        ValidateExpiryDays(expiryDays);
         ValidateEmployeeId(employeeId);
+        ValidateExpiryDays(expiryDays);
 
         return new InviteToken
         {
@@ -217,6 +232,16 @@ public class InviteToken : ITenantEntity
         RevokedAt = DateTime.UtcNow;
     }
 
+    public void RecordDeliveryAttempt(string status, string message)
+    {
+        if (string.IsNullOrWhiteSpace(status))
+            throw new ArgumentException("Delivery status is required.", nameof(status));
+
+        DeliveryStatus = status.Trim();
+        DeliveryMessage = string.IsNullOrWhiteSpace(message) ? null : message.Trim();
+        DeliveryRecordedAt = DateTime.UtcNow;
+    }
+
     /// <summary>
     /// Generates a cryptographically secure 32-byte token, base64url encoded.
     /// </summary>
@@ -254,6 +279,12 @@ public class InviteToken : ITenantEntity
             throw new ArgumentException("Tenant ID is required.", nameof(tenantId));
     }
 
+    private static void ValidateEmployeeId(Guid? employeeId)
+    {
+        if (employeeId.HasValue && employeeId.Value == Guid.Empty)
+            throw new ArgumentException("Employee ID cannot be empty when provided.", nameof(employeeId));
+    }
+
     private static void ValidateRole(string role)
     {
         if (string.IsNullOrWhiteSpace(role))
@@ -267,12 +298,6 @@ public class InviteToken : ITenantEntity
     {
         if (createdByUserId == Guid.Empty)
             throw new ArgumentException("Creator user ID is required.", nameof(createdByUserId));
-    }
-
-    private static void ValidateEmployeeId(Guid? employeeId)
-    {
-        if (employeeId == Guid.Empty)
-            throw new ArgumentException("Employee ID cannot be empty.", nameof(employeeId));
     }
 
     private static void ValidateExpiryDays(int expiryDays)

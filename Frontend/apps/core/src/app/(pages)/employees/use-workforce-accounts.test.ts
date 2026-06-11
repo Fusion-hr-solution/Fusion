@@ -7,6 +7,16 @@ const { mockPost } = vi.hoisted(() => ({
   mockPost: vi.fn(),
 }));
 
+const authState = vi.hoisted(() => ({
+  isAuthenticated: true,
+  user: {
+    userId: "hr-1",
+    email: "hr@example.com",
+    fullName: "HR Admin",
+    roles: ["HRAdmin"],
+  },
+}));
+
 vi.mock("@repo/api", () => ({
   createPlatformApiClient: () => ({
     post: mockPost,
@@ -17,6 +27,14 @@ vi.mock("@repo/api/query", async () => {
   const actual = await vi.importActual("@repo/api/query");
   return actual;
 });
+
+vi.mock("@repo/auth", () => ({
+  useAuth: () => authState,
+}));
+
+vi.mock("@/lib/employee-roster-access", () => ({
+  canAccessEmployeeRoster: () => true,
+}));
 
 import { ApiQueryProvider, createApiQueryClient } from "@repo/api/query";
 import {
@@ -63,9 +81,9 @@ describe("useResolveWorkforceAccountStatuses", () => {
     ]);
 
     expect(mockPost).toHaveBeenCalledWith(
-      "/corehr/employees/workforce-accounts/statuses",
+      "/identity/workforce-accounts/statuses",
       {
-        subjects: [
+        employees: [
           {
             employeeId: "emp-1",
             email: "user@example.com",
@@ -102,7 +120,7 @@ describe("useBulkProvisionWorkforceAccountInvites", () => {
     });
 
     expect(mockPost).toHaveBeenCalledWith(
-      "/corehr/employees/workforce-accounts/bulk-provision",
+      "/identity/workforce-accounts/invite/bulk",
       {
         items: [
           {

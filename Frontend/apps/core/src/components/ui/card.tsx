@@ -20,7 +20,13 @@ function Card({
   )
 }
 
-function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
+function CardHeader({
+  className,
+  density: _density = "default",
+  ...props
+}: React.ComponentProps<"div"> & {
+  density?: "default" | "compact";
+}) {
   return (
     <div
       data-slot="card-header"
@@ -69,7 +75,13 @@ function CardAction({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
-function CardContent({ className, ...props }: React.ComponentProps<"div">) {
+function CardContent({
+  className,
+  density: _density = "default",
+  ...props
+}: React.ComponentProps<"div"> & {
+  density?: "default" | "compact";
+}) {
   return (
     <div
       data-slot="card-content"

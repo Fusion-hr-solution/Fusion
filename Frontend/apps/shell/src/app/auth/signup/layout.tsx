@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Sign Up - Frontend Platform",
-  description: "Create a new account",
+  title: "Invitation Required - Frontend Platform",
+  description: "Platform access requires an invitation from an administrator.",
 };
 
 export default function AuthSignUpLayout({

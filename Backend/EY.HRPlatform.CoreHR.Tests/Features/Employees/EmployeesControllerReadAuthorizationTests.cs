@@ -41,7 +41,7 @@ public class EmployeesControllerReadAuthorizationTests
     }
 
     [Fact]
-    public void GetReportingLines_AllowsLinkedEmployeeReadRoles()
+    public void GetReportingLines_AllowsPlatformAdminAndHrAdminRoles()
     {
         // Arrange
         var method = typeof(EmployeesController).GetMethod(nameof(EmployeesController.GetReportingLines));
@@ -52,7 +52,7 @@ public class EmployeesControllerReadAuthorizationTests
         // Assert
         Assert.NotNull(method);
         Assert.NotNull(authorize);
-        Assert.Equal(LinkedEmployeeReadRoles, authorize!.Roles);
+        Assert.Equal(HrAdminPlatformReadRoles, authorize!.Roles);
     }
 
     [Fact]
@@ -71,7 +71,7 @@ public class EmployeesControllerReadAuthorizationTests
     }
 
     [Fact]
-    public void GetProfile_AllowsLinkedEmployeeReadRoles()
+    public void GetProfile_AllowsPlatformAdminAndHrAdminRoles()
     {
         // Arrange
         // Specify parameter types to uniquely identify the method (Guid id, CancellationToken cancellationToken)
@@ -83,6 +83,6 @@ public class EmployeesControllerReadAuthorizationTests
         // Assert
         Assert.NotNull(method);
         Assert.NotNull(authorize);
-        Assert.Equal(LinkedEmployeeReadRoles, authorize!.Roles);
+        Assert.Equal(HrAdminPlatformReadRoles, authorize!.Roles);
     }
 }

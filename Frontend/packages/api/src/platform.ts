@@ -27,19 +27,49 @@ interface BrowserStoredAuth {
   accessTokenExpiration: string;
   user: {
     userId: string;
+    tenantId: string;
     email: string;
     fullName: string;
     roles: string[];
     employeeId?: string | null;
+    accessProfiles?: Array<{
+      id: string;
+      name: string;
+      type: string;
+      isSystemProtected: boolean;
+    }>;
+    effectivePermissions?: Array<{
+      permissionKey: string;
+      scope: string;
+      label: string;
+      group: string;
+      helperText: string | null;
+      allowedScopes: string[];
+    }>;
   };
 }
 
 interface RefreshResponse {
   userId: string;
+  tenantId: string;
   email: string;
   fullName: string;
   roles: string[];
   employeeId?: string | null;
+  accessProfiles?: Array<{
+    id: string;
+    name: string;
+    type: string;
+    isSystemProtected: boolean;
+  }>;
+  effectivePermissions?: Array<{
+    permissionKey: string;
+    scope: string;
+    label: string;
+    group: string;
+    helperText: string | null;
+    allowedScopes: string[];
+  }>;
   accessToken: string;
   refreshToken: string;
   accessTokenExpiration: string;
@@ -72,10 +102,13 @@ function persistBrowserAuth(auth: RefreshResponse): void {
     accessTokenExpiration: auth.accessTokenExpiration,
     user: {
       userId: auth.userId,
+      tenantId: auth.tenantId,
       email: auth.email,
       fullName: auth.fullName,
       roles: auth.roles,
       employeeId: auth.employeeId ?? null,
+      accessProfiles: auth.accessProfiles ?? [],
+      effectivePermissions: auth.effectivePermissions ?? [],
     },
   };
 
@@ -124,7 +157,7 @@ function loadBrowserTenantId(): string | null {
 }
 
 function isCoreBrowserPath(): boolean {
-  if (!isBrowser()) {
+  if (!isBrowser() || !window.location) {
     return false;
   }
 

@@ -1,8 +1,11 @@
 import type { EmployeeImportPreviewFilter } from "./import/employee-import.types";
-import type { EmployeeRosterQueryParams } from "./employee-roster.types";
+import type {
+  EmployeeRosterQueryParams,
+  WorkforceAccountSubject,
+} from "./employee-roster.types";
 
 export const DEFAULT_EMPLOYEE_IMPORT_HISTORY_PAGE_SIZE = 10;
-export const DEFAULT_EMPLOYEE_IMPORT_PREVIEW_PAGE_SIZE = 25;
+export const DEFAULT_EMPLOYEE_IMPORT_PREVIEW_PAGE_SIZE = 5;
 export const MIN_EMPLOYEE_IMPORT_PREVIEW_PAGE_SIZE = 1;
 export const MAX_EMPLOYEE_IMPORT_PREVIEW_PAGE_SIZE = 100;
 
@@ -23,6 +26,23 @@ function normalizeEmployeeRosterSearch(search?: string): string | null {
   return trimmed ? trimmed : null;
 }
 
+function normalizeWorkforceAccountSubject(subject: WorkforceAccountSubject) {
+  return {
+    employeeId: subject.employeeId,
+    email: normalizeEmployeeRosterSearch(subject.email)?.toLowerCase() ?? null,
+    firstName: normalizeEmployeeRosterSearch(subject.firstName ?? undefined),
+    lastName: normalizeEmployeeRosterSearch(subject.lastName ?? undefined),
+  };
+}
+
+function normalizeWorkforceAccountSubjects(
+  subjects: WorkforceAccountSubject[]
+) {
+  return [...subjects]
+    .map(normalizeWorkforceAccountSubject)
+    .sort((left, right) => left.employeeId.localeCompare(right.employeeId));
+}
+
 export function normalizeEmployeeRosterQuery(
   params: EmployeeRosterQueryParams
 ) {
@@ -41,6 +61,8 @@ export function normalizeEmployeeRosterQuery(
 export const employeeRosterQueryKeys = {
   all: () => ["corehr", "employees", "roster"] as const,
   lists: () => [...employeeRosterQueryKeys.all(), "list"] as const,
+  workforceAccounts: () =>
+    [...employeeRosterQueryKeys.all(), "workforce-accounts"] as const,
   list: (params: EmployeeRosterQueryParams) =>
     [
       ...employeeRosterQueryKeys.lists(),
@@ -58,16 +80,30 @@ export const employeeRosterQueryKeys = {
       "org-unit-options",
       normalizeEmployeeRosterSearch(search),
     ] as const,
-  reportingLines: (employeeId: string) =>
-    [...employeeRosterQueryKeys.all(), "reporting-lines", employeeId] as const,
-  profile: (employeeId: string) =>
-    [...employeeRosterQueryKeys.all(), "profile", employeeId] as const,
+  reportingLines: (employeeId: string, scope?: string) =>
+    [...employeeRosterQueryKeys.all(), "reporting-lines", employeeId, ...(scope ? [scope] : [])] as const,
+  profile: (employeeId: string, scope?: string) =>
+    [...employeeRosterQueryKeys.all(), "profile", employeeId, ...(scope ? [scope] : [])] as const,
+  team: (params: EmployeeRosterQueryParams) =>
+    [
+      ...employeeRosterQueryKeys.all(),
+      "team",
+      normalizeEmployeeRosterQuery(params),
+    ] as const,
   readinessSummary: () =>
     [...employeeRosterQueryKeys.all(), "readiness-summary"] as const,
-  workforceAccounts: () =>
-    [...employeeRosterQueryKeys.all(), "workforce-accounts"] as const,
-  workforceAccount: (employeeId: string) =>
-    [...employeeRosterQueryKeys.workforceAccounts(), employeeId] as const,
+  workforceAccount: (subject: WorkforceAccountSubject) =>
+    [
+      ...employeeRosterQueryKeys.workforceAccounts(),
+      "detail",
+      normalizeWorkforceAccountSubject(subject),
+    ] as const,
+  workforceAccountBatch: (subjects: WorkforceAccountSubject[]) =>
+    [
+      ...employeeRosterQueryKeys.workforceAccounts(),
+      "batch",
+      normalizeWorkforceAccountSubjects(subjects),
+    ] as const,
 };
 
 export function normalizeEmployeeImportPreviewQuery(

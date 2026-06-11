@@ -47,9 +47,7 @@ function buildPreviewQueryString(query?: EmployeeImportPreviewQuery) {
     params.set("previewPageNumber", String(normalizedQuery.pageNumber));
   }
 
-  if (normalizedQuery.pageSize !== DEFAULT_EMPLOYEE_IMPORT_PREVIEW_PAGE_SIZE) {
-    params.set("previewPageSize", String(normalizedQuery.pageSize));
-  }
+  params.set("previewPageSize", String(normalizedQuery.pageSize));
 
   if (normalizedQuery.previewFilter === "affected") {
     params.set("previewFilter", normalizedQuery.previewFilter);
@@ -74,6 +72,20 @@ function buildHistoryQueryString(query?: EmployeeImportHistoryQuery) {
   if (normalizedQuery.pageSize !== DEFAULT_EMPLOYEE_IMPORT_HISTORY_PAGE_SIZE) {
     params.set("pageSize", String(normalizedQuery.pageSize));
   }
+
+  const queryString = params.toString();
+  return queryString ? `?${queryString}` : "";
+}
+
+function buildTemplateFieldsQueryString(fields?: readonly string[]) {
+  const params = new URLSearchParams();
+  const normalizedFields = Array.from(
+    new Set(fields?.map((field) => field.trim()).filter(Boolean) ?? [])
+  );
+
+  normalizedFields.forEach((field) => {
+    params.append("fields", field);
+  });
 
   const queryString = params.toString();
   return queryString ? `?${queryString}` : "";
@@ -153,15 +165,22 @@ export function useUploadEmployeeImport(): UseApiMutationResult<
 > {
   const client = useMemo(() => createPlatformApiClient(), []);
 
-  return useApiMutation(async (file: File) => {
-    const formData = new FormData();
-    formData.append("file", file);
+  return useApiMutation(
+    async (file: File) => {
+      const formData = new FormData();
+      formData.append("file", file);
 
-    return client.post<EmployeeImportSessionDto>(
-      EMPLOYEE_IMPORT_BASE_PATH,
-      formData
-    );
-  });
+      return client.post<EmployeeImportSessionDto>(
+        EMPLOYEE_IMPORT_BASE_PATH,
+        formData
+      );
+    },
+    {
+      invalidateQueries: () => [
+        { queryKey: employeeImportQueryKeys.history() },
+      ],
+    }
+  );
 }
 
 export function useValidateEmployeeImport(): UseApiMutationResult<
@@ -179,6 +198,7 @@ export function useValidateEmployeeImport(): UseApiMutationResult<
     {
       invalidateQueries: (_data, args) => [
         { queryKey: employeeImportQueryKeys.session(args.sessionId) },
+        { queryKey: employeeImportQueryKeys.history() },
       ],
     }
   );
@@ -273,13 +293,16 @@ export function useEmployeeImportHistoryDetail(
 
 export function useDownloadEmployeeImportTemplate(): UseApiMutationResult<
   Blob,
-  void
+  string[]
 > {
   const client = useMemo(() => createPlatformApiClient(), []);
 
-  return useApiMutation(() =>
-    client.get<Blob>(`${EMPLOYEE_IMPORT_BASE_PATH}/template`, {
-      responseType: "blob",
-    })
+  return useApiMutation((fields: string[]) =>
+    client.get<Blob>(
+      `${EMPLOYEE_IMPORT_BASE_PATH}/template${buildTemplateFieldsQueryString(fields)}`,
+      {
+        responseType: "blob",
+      }
+    )
   );
 }
