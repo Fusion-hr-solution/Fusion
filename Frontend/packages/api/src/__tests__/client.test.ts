@@ -273,6 +273,41 @@ describe("createApiClient", () => {
     });
   });
 
+  describe("tenant header", () => {
+    it("attaches X-Tenant-Id from getTenantId callback", async () => {
+      fetchSpy.mockResolvedValueOnce(
+        jsonResponse({ data: {}, errors: [], isSuccess: true })
+      );
+
+      const api = createApiClient({
+        getTenantId: () => "tenant-123",
+      });
+      await api.get("/tenant-scoped");
+
+      const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      const headers = init.headers as Record<string, string>;
+      expect(headers["X-Tenant-Id"]).toBe("tenant-123");
+    });
+
+    it.each([null, ""])(
+      "omits X-Tenant-Id when getTenantId returns %p",
+      async (tenantId) => {
+        fetchSpy.mockResolvedValueOnce(
+          jsonResponse({ data: {}, errors: [], isSuccess: true })
+        );
+
+        const api = createApiClient({
+          getTenantId: () => tenantId,
+        });
+        await api.get("/tenant-scoped");
+
+        const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+        const headers = init.headers as Record<string, string>;
+        expect(headers["X-Tenant-Id"]).toBeUndefined();
+      }
+    );
+  });
+
   // ── Error handling ─────────────────────────────────────────────
   // All API failures must throw ApiError. The backend can signal failure two ways:
   //   1. A non-2xx HTTP status (e.g. 401, 404, 500)

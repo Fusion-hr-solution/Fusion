@@ -10,6 +10,7 @@ namespace EY.HRPlatform.CoreHR.Models.Requests;
 /// To clear OrgUnitId, send Guid.Empty.
 /// </summary>
 public sealed record UpdateEmployeeRequest(
+    [StringLength(64)] string? EmployeeNumber,
     [StringLength(100, MinimumLength = 1)] string? FirstName,
     [StringLength(100, MinimumLength = 1)] string? LastName,
     [EmailAddress] string? Email,

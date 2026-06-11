@@ -15,11 +15,12 @@ public class TenantSetupPublishingCommandHandlerTests
     private const string SettingsJson = """{"orgUnitTypes":["Department","Team"]}""";
 
     [Fact]
-    public async Task Handle_WithApprovedDraft_PublishesSetupReplacesLiveOrgUnitsAndUnlocksCore()
+    public async Task Handle_WithApprovedDraft_PublishesSetupPreservesMatchingLiveOrgUnitsAndUnlocksCore()
     {
         var dbName = Guid.NewGuid().ToString();
         var tenantContext = TestTenantContext.WithTenant(TenantId);
         uint expectedVersion;
+        Guid existingEngineeringId;
 
         await using (var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName))
         {
@@ -61,10 +62,12 @@ public class TenantSetupPublishingCommandHandlerTests
                     null,
                     rootDraftUnit.Id));
 
-            seedContext.OrgUnits.AddRange(
-                OrgUnit.Create(TenantId, "OLD", "Old Structure", "Department", null),
-                OrgUnit.Create(TenantId, "OPS", "Operations", "Department", null));
+            var existingEngineering = OrgUnit.Create(TenantId, "ENG", "Old Engineering", "Department", null);
+            var operations = OrgUnit.Create(TenantId, "OPS", "Operations", "Department", null);
+            seedContext.OrgUnits.AddRange(existingEngineering, operations);
             await seedContext.SaveChangesAsync();
+
+            existingEngineeringId = existingEngineering.Id;
 
             expectedVersion = state.Version;
         }
@@ -95,14 +98,86 @@ public class TenantSetupPublishingCommandHandlerTests
 
         var savedState = await context.TenantSetupStates.AsNoTracking().FirstAsync();
 
-        Assert.Equal(2, liveUnits.Count);
-        Assert.Equal(["ENG", "ENG-PLT"], liveUnits.Select(unit => unit.Code).ToArray());
+        Assert.Equal(3, liveUnits.Count);
+        Assert.Equal(["ENG", "ENG-PLT", "OPS"], liveUnits.Select(unit => unit.Code).ToArray());
+        Assert.Equal(existingEngineeringId, liveUnits.Single(unit => unit.Code == "ENG").Id);
         Assert.Equal("Department", liveUnits.Single(unit => unit.Code == "ENG").Type);
         Assert.Equal("Team", liveUnits.Single(unit => unit.Code == "ENG-PLT").Type);
         Assert.Equal(
             liveUnits.Single(unit => unit.Code == "ENG").Id,
             liveUnits.Single(unit => unit.Code == "ENG-PLT").ParentId);
         Assert.Equal(TenantSetupPhase.Operational, savedState.CurrentPhase);
+        Assert.Equal(1, savedState.PublishedStructureVersion);
+        Assert.False(liveUnits.Single(unit => unit.Code == "OPS").IsActive);
+    }
+
+    [Fact]
+    public async Task Handle_WithRemovedLiveUnitAssignedToActiveEmployees_ThrowsInvalidTenantSetupStateException()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        uint expectedVersion;
+
+        await using (var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName))
+        {
+            var state = TenantSetupState.CreateActivated(TenantId);
+            state.Approve(ActorUserId, "Jordan Approver", "HRAdmin", false);
+
+            seedContext.TenantSetupStates.Add(state);
+            seedContext.TenantSetupActivities.Add(
+                TenantSetupActivity.Create(
+                    TenantId,
+                    state.Id,
+                    TenantSetupActivityType.Approved,
+                    ActorUserId,
+                    "Jordan Approver",
+                    "HRAdmin",
+                    false));
+            seedContext.TenantSettings.Add(DomainTenantSettings.Create(TenantId, SettingsJson));
+
+            seedContext.DraftOrgUnits.Add(
+                DraftOrgUnit.Create(
+                    TenantId,
+                    "ENG",
+                    "Engineering",
+                    "department",
+                    null,
+                    null,
+                    null,
+                    null));
+
+            var legacyUnit = OrgUnit.Create(TenantId, "LEGACY", "Legacy Unit", "Department", null);
+            seedContext.OrgUnits.Add(legacyUnit);
+            await seedContext.SaveChangesAsync();
+
+            var assignedEmployee = Employee.Create(
+                TenantId,
+                "Jordan",
+                "Employee",
+                "jordan.employee@example.com",
+                DateTime.UtcNow,
+                employeeNumber: "E-200");
+            assignedEmployee.AssignOrgUnit(legacyUnit.Id);
+            seedContext.Employees.Add(assignedEmployee);
+            await seedContext.SaveChangesAsync();
+
+            expectedVersion = state.Version;
+        }
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = new PublishTenantStructureCommandHandler(context);
+
+        var ex = await Assert.ThrowsAsync<InvalidTenantSetupStateException>(
+            () => handler.Handle(
+                new PublishTenantStructureCommand(
+                    expectedVersion,
+                    ActorUserId,
+                    "Jordan Approver",
+                    "HRAdmin",
+                    false),
+                CancellationToken.None));
+
+        Assert.Contains("LEGACY", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

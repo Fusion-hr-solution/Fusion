@@ -117,15 +117,48 @@ public sealed class PublishTenantStructureCommandHandler(
         CancellationToken cancellationToken)
     {
         var existingUnits = await dbContext.OrgUnits.ToListAsync(cancellationToken);
-        if (existingUnits.Count > 0)
+        var draftCodes = draftUnits
+            .Select(unit => unit.ReferenceKey.Trim().ToUpperInvariant())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var existingByCode = existingUnits
+            .ToDictionary(unit => unit.Code, StringComparer.OrdinalIgnoreCase);
+        var retiredUnits = existingUnits
+            .Where(unit => !draftCodes.Contains(unit.Code))
+            .ToList();
+
+        if (retiredUnits.Count > 0)
         {
-            var existingById = existingUnits.ToDictionary(unit => unit.Id);
-            var existingByDepth = existingUnits
-                .OrderByDescending(unit => GetDepth(unit, existingById))
+            var retiredUnitIds = retiredUnits
+                .Select(unit => unit.Id)
                 .ToList();
 
-            dbContext.OrgUnits.RemoveRange(existingByDepth);
-            await dbContext.SaveChangesAsync(cancellationToken);
+            var activeAssignments = retiredUnitIds.Count == 0
+                ? []
+                : await dbContext.Employees
+                    .AsNoTracking()
+                    .Where(employee => employee.Status == Domain.Enums.EmployeeStatus.Active
+                        && employee.OrgUnitId.HasValue
+                        && retiredUnitIds.Contains(employee.OrgUnitId.Value))
+                    .GroupBy(employee => employee.OrgUnitId!.Value)
+                    .Select(group => new { OrgUnitId = group.Key, Count = group.Count() })
+                    .ToListAsync(cancellationToken);
+
+            if (activeAssignments.Count > 0)
+            {
+                var blockedCodes = retiredUnits
+                    .Where(unit => activeAssignments.Any(assignment => assignment.OrgUnitId == unit.Id))
+                    .Select(unit => unit.Code)
+                    .OrderBy(code => code, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                throw new InvalidTenantSetupStateException(
+                    $"Reassign active employees from the live org units being removed before publishing: {string.Join(", ", blockedCodes)}.");
+            }
+
+            foreach (var retiredUnit in retiredUnits.Where(unit => unit.IsActive))
+            {
+                retiredUnit.Deactivate();
+            }
         }
 
         var kindLabelLookup = DraftStructureRules.CreateOrgUnitKindLabelLookup(schema);
@@ -148,15 +181,29 @@ public sealed class PublishTenantStructureCommandHandler(
                 ? liveUnitsByDraftId[draftUnit.ParentId.Value].Id
                 : (Guid?)null;
 
-            var orgUnit = OrgUnit.Create(
-                draftUnit.TenantId,
-                draftUnit.ReferenceKey,
-                draftUnit.DisplayName,
-                kindLabel,
-                parentId);
+            var normalizedCode = draftUnit.ReferenceKey.Trim().ToUpperInvariant();
+            if (existingByCode.TryGetValue(normalizedCode, out var orgUnit))
+            {
+                if (!orgUnit.IsActive)
+                {
+                    orgUnit.Activate();
+                }
+
+                orgUnit.Update(draftUnit.DisplayName, kindLabel, parentId);
+            }
+            else
+            {
+                orgUnit = OrgUnit.Create(
+                    draftUnit.TenantId,
+                    draftUnit.ReferenceKey,
+                    draftUnit.DisplayName,
+                    kindLabel,
+                    parentId);
+                dbContext.OrgUnits.Add(orgUnit);
+                existingByCode[normalizedCode] = orgUnit;
+            }
 
             liveUnitsByDraftId[draftUnit.Id] = orgUnit;
-            dbContext.OrgUnits.Add(orgUnit);
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);

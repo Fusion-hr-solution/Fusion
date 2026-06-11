@@ -36,6 +36,7 @@ public sealed record EmployeeImportValidationSummaryDto(
 
 public sealed record EmployeeImportPreviewRowDto(
     int RowNumber,
+    string? EmployeeNumber,
     string? FirstName,
     string? LastName,
     string? Email,

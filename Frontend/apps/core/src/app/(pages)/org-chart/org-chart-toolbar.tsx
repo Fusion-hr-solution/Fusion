@@ -102,6 +102,7 @@ interface OrgChartToolbarProps {
   onResetView: () => void;
   onIncludeInactiveChange: (include: boolean) => void;
   onOrgUnitChange: (orgUnitId: string | null) => void;
+  isTenantContextReadOnly?: boolean;
 }
 
 export function OrgChartToolbar({
@@ -122,6 +123,7 @@ export function OrgChartToolbar({
   onSelectSearchResult,
   onFocusSelectedBranch,
   onShowFullOrganization,
+  isTenantContextReadOnly,
   onToggleReassignMode,
   onFitToScreen,
   onResetView,
@@ -345,15 +347,26 @@ export function OrgChartToolbar({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <Button
-              variant={isReassignMode ? "secondary" : "outline"}
-              size="sm"
-              disabled={!isCanvasReady || totalVisibleNodeCount === 0}
-              onClick={onToggleReassignMode}
-            >
-              <ArrowRightLeft />
-              {isReassignMode ? "Reassign mode on" : "Reassign by drag"}
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={isReassignMode ? "secondary" : "outline"}
+                  size="sm"
+                  disabled={
+                    !isCanvasReady || totalVisibleNodeCount === 0 || isTenantContextReadOnly
+                  }
+                  onClick={onToggleReassignMode}
+                >
+                  <ArrowRightLeft />
+                  {isReassignMode ? "Reassign mode on" : "Reassign by drag"}
+                </Button>
+              </TooltipTrigger>
+              {isTenantContextReadOnly ? (
+                <TooltipContent side="bottom">
+                  Reassignment is not available in read-only mode.
+                </TooltipContent>
+              ) : null}
+            </Tooltip>
 
             <Tooltip>
               <TooltipTrigger asChild>

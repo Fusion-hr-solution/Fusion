@@ -18,6 +18,8 @@ const AUTH_STORAGE_KEY = "ey_hr_auth";
 const AUTH_COOKIE_NAME = "ey_hr_authenticated";
 const AUTH_STORAGE_EVENT = "ey_hr_auth:changed";
 const ACCESS_TOKEN_REFRESH_BUFFER_MS = 60_000;
+const PLATFORM_ADMIN_ROLE = "PlatformAdmin";
+const CORE_TENANT_CONTEXT_STORAGE_KEY = "ey_core_tenant_context";
 
 interface BrowserStoredAuth {
   accessToken: string;
@@ -28,6 +30,7 @@ interface BrowserStoredAuth {
     email: string;
     fullName: string;
     roles: string[];
+    employeeId?: string | null;
   };
 }
 
@@ -36,6 +39,7 @@ interface RefreshResponse {
   email: string;
   fullName: string;
   roles: string[];
+  employeeId?: string | null;
   accessToken: string;
   refreshToken: string;
   accessTokenExpiration: string;
@@ -71,6 +75,7 @@ function persistBrowserAuth(auth: RefreshResponse): void {
       email: auth.email,
       fullName: auth.fullName,
       roles: auth.roles,
+      employeeId: auth.employeeId ?? null,
     },
   };
 
@@ -104,6 +109,40 @@ function loadBrowserAuth(): BrowserStoredAuth | null {
   } catch {
     return null;
   }
+}
+
+function loadBrowserTenantId(): string | null {
+  if (!isBrowser()) {
+    return null;
+  }
+
+  try {
+    return sessionStorage.getItem(CORE_TENANT_CONTEXT_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function isCoreBrowserPath(): boolean {
+  if (!isBrowser()) {
+    return false;
+  }
+
+  const pathname = window.location?.pathname;
+  return typeof pathname === "string" && (pathname === "/core" || pathname.startsWith("/core/"));
+}
+
+function getBrowserTenantId(): string | null {
+  if (!isCoreBrowserPath()) {
+    return null;
+  }
+
+  const stored = loadBrowserAuth();
+  if (!stored?.user.roles.includes(PLATFORM_ADMIN_ROLE)) {
+    return null;
+  }
+
+  return loadBrowserTenantId();
 }
 
 function isAccessTokenUsable(accessTokenExpiration: string): boolean {
@@ -201,6 +240,12 @@ export interface PlatformApiClientConfig {
    */
   getToken?: () => string | null;
   /**
+   * Optional tenant ID callback for PlatformAdmin tenant-context operations.
+   * When set and returns a non-null value, the client attaches
+   * `X-Tenant-Id` header to every request.
+   */
+  getTenantId?: () => string | null;
+  /**
    * Called once when the server responds with 401 Unauthorized.
    *
    * Fires at most once per client instance to prevent redirect loops.
@@ -224,17 +269,19 @@ export function createPlatformApiClient(
   const baseUrl =
     config.baseUrl ??
     (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_API_BASE_URL
-      ? process.env.NEXT_PUBLIC_API_BASE_URL
+      ? process.env.NEXT_PUBLIC_API_BASE_URL!
       : "/api");
 
   const usesBrowserSessionRefresh = !config.getToken && isBrowser();
   const getToken =
     config.getToken ??
     (() => getBrowserAccessToken(baseUrl));
+  const getTenantId = config.getTenantId ?? getBrowserTenantId;
 
   const client = createApiClient({
     baseUrl,
     getToken,
+    getTenantId,
   });
 
   let authErrorFired = false;

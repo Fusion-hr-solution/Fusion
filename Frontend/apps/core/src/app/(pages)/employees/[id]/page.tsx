@@ -8,6 +8,7 @@ import {
   Calendar,
   CheckCircle2,
   ChevronRight,
+  Hash,
   Mail,
   ShieldAlert,
   Star,
@@ -17,6 +18,7 @@ import {
 import { useAuth } from "@repo/auth";
 import { EmptyState } from "@repo/ui";
 import { CorePageLoadingState } from "@/components/core-page-loading-state";
+import { useTenantContext } from "@/components/core-tenant-context-provider";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -36,6 +38,7 @@ import {
   canAccessEmployeeProfile,
   canAccessEmployeeRoster,
 } from "@/lib/employee-roster-access";
+import { buildTenantContextHref } from "@/lib/tenant-navigation";
 import { useEmployeeFieldPolicy } from "../employee-field-visibility";
 import {
   getEmployeeActionIssues,
@@ -306,6 +309,8 @@ function PersonalProfileCard({
   preferredName: string | null;
   expectedVersion: number;
 }) {
+  const { tenantId } = useTenantContext();
+  const isTenantContextReadOnly = !!tenantId;
   const updateMyProfile = useUpdateMyProfile();
   const [isEditing, setIsEditing] = useState(false);
   const [draftPreferredName, setDraftPreferredName] = useState(
@@ -345,7 +350,7 @@ function PersonalProfileCard({
           in daily use.
         </CardDescription>
         <CardAction>
-          {!isEditing ? (
+          {!isEditing && !isTenantContextReadOnly ? (
             <Button
               size="sm"
               variant="outline"
@@ -438,6 +443,8 @@ function WorkforceAccountCard({
   email: string;
   directReportCount: number;
 }) {
+  const { tenantId } = useTenantContext();
+  const isTenantContextReadOnly = !!tenantId;
   const { data, error, isLoading } = useWorkforceAccountStatus({
     employeeId,
     email,
@@ -689,7 +696,7 @@ function WorkforceAccountCard({
               </>
             ) : null}
 
-            {canDeactivate || canReactivate ? (
+            {!isTenantContextReadOnly && (canDeactivate || canReactivate) ? (
               <>
                 <Separator />
                 <div className="flex flex-wrap gap-2">
@@ -721,7 +728,7 @@ function WorkforceAccountCard({
               </>
             ) : null}
 
-            {canSendInvite ? (
+            {!isTenantContextReadOnly && canSendInvite ? (
               <>
                 <Separator />
                 <div className="space-y-3 rounded-xl border bg-muted/20 p-4">
@@ -771,7 +778,7 @@ function WorkforceAccountCard({
               </>
             ) : null}
 
-            {canResendInvite ? (
+            {!isTenantContextReadOnly && canResendInvite ? (
               <>
                 <Separator />
                 <div className="flex flex-wrap gap-2">
@@ -832,6 +839,8 @@ export default function EmployeeProfilePage() {
   const { user } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { tenantId } = useTenantContext();
+  const isTenantContextReadOnly = !!tenantId;
   const requestedSheet = searchParams.get("sheet");
   const params = useParams<{ id: string }>();
   const employeeId =
@@ -839,21 +848,23 @@ export default function EmployeeProfilePage() {
       ? params.id
       : null;
   const canAccess = canAccessEmployeeRoster(user);
-  const fieldPolicy = useEmployeeFieldPolicy(canAccess);
+  const fieldPolicy = useEmployeeFieldPolicy(canAccess || isTenantContextReadOnly);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [activeWorkspaceSheet, setActiveWorkspaceSheet] = useState<
     "identity" | "employment" | "organization" | "status" | null
   >(null);
   const lastHandledSheetRef = useRef<string | null>(null);
 
+  const effectiveEmployeeId = (canAccess || isTenantContextReadOnly) && employeeId ? employeeId : null;
+
   const {
     data: profile,
     error,
     isLoading,
-  } = useEmployeeProfile(canAccess && employeeId ? employeeId : null);
+  } = useEmployeeProfile(effectiveEmployeeId);
 
   const { data: reportingLines } = useEmployeeReportingLines(
-    canAccess && employeeId ? employeeId : null
+    effectiveEmployeeId
   );
 
   // Register employee name in the top breadcrumb (Core > Employees > Jane Smith)
@@ -869,14 +880,18 @@ export default function EmployeeProfilePage() {
       return;
     }
 
-    if (requestedSheet === "reporting") {
-      setSheetOpen(true);
-    } else if (
+    const isReportingSheetRequest = requestedSheet === "reporting";
+    const isWorkspaceSheetRequest =
       requestedSheet === "identity" ||
       requestedSheet === "employment" ||
       requestedSheet === "organization" ||
-      requestedSheet === "status"
-    ) {
+      requestedSheet === "status";
+
+    if (isTenantContextReadOnly && (isReportingSheetRequest || isWorkspaceSheetRequest)) {
+      lastHandledSheetRef.current = requestedSheet;
+    } else if (isReportingSheetRequest) {
+      setSheetOpen(true);
+    } else if (isWorkspaceSheetRequest) {
       setActiveWorkspaceSheet(requestedSheet);
     } else {
       return;
@@ -891,9 +906,9 @@ export default function EmployeeProfilePage() {
     const nextUrl = nextSearch ? `${nextPath}?${nextSearch}` : nextPath;
 
     window.history.replaceState(window.history.state, "", nextUrl);
-  }, [profile, requestedSheet, searchParams]);
+  }, [isTenantContextReadOnly, profile, requestedSheet, searchParams]);
 
-  const isInitialLoading = canAccess && isLoading && !profile && !error;
+  const isInitialLoading = (canAccess || isTenantContextReadOnly) && isLoading && !profile && !error;
 
   if (isInitialLoading) {
     return (
@@ -906,7 +921,9 @@ export default function EmployeeProfilePage() {
     );
   }
 
-  if (!canAccess) {
+  const isViewable = canAccess || isTenantContextReadOnly;
+
+  if (!isViewable) {
     return (
       <div className="flex flex-col gap-6 p-6">
         <EmptyState
@@ -967,6 +984,10 @@ export default function EmployeeProfilePage() {
   const hierarchyIsHealthy = profile.hierarchyStatus === "Healthy";
 
   const handleOpenReadinessIssue = (issue: (typeof attentionItems)[number]) => {
+    if (isTenantContextReadOnly) {
+      return;
+    }
+
     const sheet = getEmployeeFixSheet(issue);
 
     if (sheet === "reporting") {
@@ -1103,13 +1124,15 @@ export default function EmployeeProfilePage() {
                 Maintain the employee&apos;s primary identity fields.
               </CardDescription>
               <CardAction>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setActiveWorkspaceSheet("identity")}
-                >
-                  Edit
-                </Button>
+                {!isTenantContextReadOnly ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setActiveWorkspaceSheet("identity")}
+                  >
+                    Edit
+                  </Button>
+                ) : null}
               </CardAction>
             </CardHeader>
             <CardContent className={WORKSPACE_CARD_CONTENT_CLASS_NAME}>
@@ -1117,6 +1140,20 @@ export default function EmployeeProfilePage() {
                 icon={User}
                 label="Full name"
                 value={profile.fullName}
+              />
+              <Separator />
+              <DetailRow
+                icon={Hash}
+                label="Employee number"
+                value={
+                  hasTextValue(profile.employeeNumber) ? (
+                    profile.employeeNumber
+                  ) : (
+                    <span className="font-normal text-muted-foreground">
+                      Not set
+                    </span>
+                  )
+                }
               />
               <Separator />
               <DetailRow icon={Mail} label="Work email" value={email} />
@@ -1130,7 +1167,7 @@ export default function EmployeeProfilePage() {
                 Keep role, hire date, and status details current.
               </CardDescription>
               <CardAction className="flex flex-wrap gap-2">
-                {canEditEmploymentDetails ? (
+                {canEditEmploymentDetails && !isTenantContextReadOnly ? (
                   <Button
                     size="sm"
                     variant="outline"
@@ -1139,13 +1176,15 @@ export default function EmployeeProfilePage() {
                     Edit
                   </Button>
                 ) : null}
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setActiveWorkspaceSheet("status")}
-                >
-                  Manage status
-                </Button>
+                {!isTenantContextReadOnly ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setActiveWorkspaceSheet("status")}
+                  >
+                    Manage status
+                  </Button>
+                ) : null}
               </CardAction>
             </CardHeader>
             <CardContent className={WORKSPACE_CARD_CONTENT_CLASS_NAME}>
@@ -1213,13 +1252,15 @@ export default function EmployeeProfilePage() {
                             : "Open the linked workforce surface to fix this issue."}
                         </p>
                       </div>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleOpenReadinessIssue(issue)}
-                      >
-                        Open fix
-                      </Button>
+                      {!isTenantContextReadOnly ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleOpenReadinessIssue(issue)}
+                        >
+                          Open fix
+                        </Button>
+                      ) : null}
                     </div>
                   ))}
                 </div>
@@ -1244,22 +1285,29 @@ export default function EmployeeProfilePage() {
               </CardDescription>
               <CardAction>
                 <div className="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() =>
-                      router.push(`/org-chart?focusEmployeeId=${profile.id}`)
-                    }
-                  >
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() =>
+                        router.push(
+                          buildTenantContextHref(
+                            `/org-chart?focusEmployeeId=${profile.id}`,
+                            tenantId
+                          )
+                        )
+                      }
+                    >
                     View in org chart
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setActiveWorkspaceSheet("organization")}
-                  >
-                    Edit
-                  </Button>
+                  {!isTenantContextReadOnly ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setActiveWorkspaceSheet("organization")}
+                    >
+                      Edit
+                    </Button>
+                  ) : null}
                 </div>
               </CardAction>
             </CardHeader>
@@ -1332,13 +1380,15 @@ export default function EmployeeProfilePage() {
                     Update the manager and review the chain.
                   </p>
                 </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setSheetOpen(true)}
-                >
-                  Open
-                </Button>
+                {!isTenantContextReadOnly ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setSheetOpen(true)}
+                  >
+                    Open
+                  </Button>
+                ) : null}
               </div>
             </CardContent>
           </Card>
@@ -1384,7 +1434,11 @@ export default function EmployeeProfilePage() {
         profile={profile}
         open={activeWorkspaceSheet === "status"}
         onOpenChange={(open) => setActiveWorkspaceSheet(open ? "status" : null)}
-        onManageReportingRelationship={() => setSheetOpen(true)}
+        onManageReportingRelationship={() => {
+          if (!isTenantContextReadOnly) {
+            setSheetOpen(true);
+          }
+        }}
       />
     </div>
   );

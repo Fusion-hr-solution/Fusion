@@ -6,6 +6,7 @@ namespace EY.HRPlatform.CoreHR.Models.Requests;
 /// Request body for creating a new employee.
 /// </summary>
 public sealed record CreateEmployeeRequest(
+    [StringLength(64)] string? EmployeeNumber,
     [Required] string FirstName,
     [Required] string LastName,
     [Required, EmailAddress] string Email,

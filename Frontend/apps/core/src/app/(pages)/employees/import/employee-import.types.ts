@@ -54,6 +54,7 @@ export interface EmployeeImportValidationSummaryDto {
 
 export interface EmployeeImportPreviewRowDto {
   rowNumber: number;
+  employeeNumber: string | null;
   firstName: string | null;
   lastName: string | null;
   email: string | null;

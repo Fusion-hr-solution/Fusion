@@ -4,6 +4,8 @@ import type { LucideIcon } from "lucide-react";
 export interface NavItem {
   label: string;
   href: string;
+  /** Optional navigation target when the rendered URL must differ from the active-match path. */
+  navigateHref?: string;
   icon: LucideIcon;
   badge?: string;
   disabled?: boolean;
