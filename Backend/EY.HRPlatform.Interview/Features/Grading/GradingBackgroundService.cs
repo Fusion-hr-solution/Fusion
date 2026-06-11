@@ -89,6 +89,10 @@ public class GradingBackgroundService(
             job.CompletedAt = DateTime.UtcNow;
             job.LockedAt = null;
             job.LockedBy = null;
+            // Clear any error state left by earlier transient failures so a job that
+            // ultimately succeeds doesn't carry a misleading ErrorMessage/FailedAt.
+            job.ErrorMessage = null;
+            job.FailedAt = null;
             await db.SaveChangesAsync(ct);
 
             await transaction.CommitAsync(ct);
