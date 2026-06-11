@@ -38,11 +38,11 @@ export async function getPendingReviews(): Promise<ReviewQueueItem[]> {
 
 export async function approveReview(
   resultId: string,
-  score: number,
-  reviewerEmail: string
+  score: number
 ): Promise<void> {
+  // Reviewer identity is derived server-side from the authenticated token, so the
+  // client only sends the score.
   await client.post(`/interview/grading/review/${resultId}/approve`, {
     score,
-    reviewerEmail,
   });
 }

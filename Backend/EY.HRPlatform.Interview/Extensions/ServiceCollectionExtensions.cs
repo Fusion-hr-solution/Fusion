@@ -8,8 +8,11 @@ using EY.HRPlatform.Interview.Features.Questions;
 using EY.HRPlatform.Interview.Features.TestQuestions;
 using EY.HRPlatform.Interview.Features.Tests;
 using EY.HRPlatform.Interview.Infrastructure;
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.IdentityModel.Tokens;
 using StackExchange.Redis;
 
 namespace EY.HRPlatform.Interview.Extensions;
@@ -25,8 +28,12 @@ public static class ServiceCollectionExtensions
                           ?? Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT")
                           ?? configuration["ASPNETCORE_ENVIRONMENT"]
                           ?? configuration["DOTNET_ENVIRONMENT"];
-        if (!string.IsNullOrWhiteSpace(environment) &&
-            string.Equals(environment, "Testing", StringComparison.OrdinalIgnoreCase))
+        var isTesting = !string.IsNullOrWhiteSpace(environment) &&
+            string.Equals(environment, "Testing", StringComparison.OrdinalIgnoreCase);
+
+        AddJwtAuthentication(services, configuration, isTesting);
+
+        if (isTesting)
         {
             var inMemoryName = configuration["Database:InMemoryName"] ?? "InterviewTestingDb";
             services.AddDbContext<AppDbContext>(options => options.UseInMemoryDatabase(inMemoryName));
@@ -121,5 +128,47 @@ public static class ServiceCollectionExtensions
         }
 
         return services;
+    }
+
+    /// <summary>
+    /// Registers JWT bearer authentication so protected endpoints can trust the
+    /// caller identity from the Identity-issued token instead of request bodies.
+    /// Must use the same signing secret / issuer / audience as the Identity service.
+    /// </summary>
+    private static void AddJwtAuthentication(IServiceCollection services, IConfiguration configuration, bool isTesting)
+    {
+        var jwtSecret = configuration["Jwt:Secret"];
+        if (string.IsNullOrWhiteSpace(jwtSecret))
+        {
+            if (!isTesting)
+                throw new InvalidOperationException("Jwt:Secret is not configured.");
+
+            // Integration tests boot the full pipeline but never exercise the
+            // authenticated endpoints; a dummy key lets the scheme register without
+            // requiring real secrets.
+            jwtSecret = "interview-testing-signing-key-not-used-0123456789";
+        }
+
+        services.AddAuthentication(options =>
+        {
+            options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+            options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+        })
+        .AddJwtBearer(options =>
+        {
+            options.TokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateIssuer = true,
+                ValidateAudience = true,
+                ValidateLifetime = true,
+                ValidateIssuerSigningKey = true,
+                ValidIssuer = configuration["Jwt:Issuer"],
+                ValidAudience = configuration["Jwt:Audience"],
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
+                ClockSkew = TimeSpan.Zero
+            };
+        });
+
+        services.AddAuthorization();
     }
 }

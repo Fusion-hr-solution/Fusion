@@ -22,7 +22,12 @@ public class QuestionGradeResultConfiguration : IEntityTypeConfiguration<Questio
         builder.Property(x => x.NeedsHumanReview).HasDefaultValue(false).IsRequired();
         builder.Property(x => x.ReviewedBy).HasMaxLength(320);
 
-        builder.HasIndex(x => x.AttemptId);
+        // One grade result per (attempt, question). A unique index enforces this at the
+        // DB level so duplicates are impossible even if two workers grade the same attempt
+        // concurrently (e.g. after a stale-lock reclaim) — the second insert fails and its
+        // transaction rolls back. The composite also serves AttemptId-prefix lookups, so a
+        // separate AttemptId index is unnecessary.
+        builder.HasIndex(x => new { x.AttemptId, x.QuestionId }).IsUnique();
         builder.HasIndex(x => new { x.NeedsHumanReview, x.ReviewedAt });
 
         builder.HasOne(x => x.Attempt)
