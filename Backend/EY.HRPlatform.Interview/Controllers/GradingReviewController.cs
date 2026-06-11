@@ -1,11 +1,14 @@
+using System.Security.Claims;
 using EY.HRPlatform.Interview.Features.Grading.Dtos;
 using EY.HRPlatform.Interview.Features.Grading.HumanReview;
 using EY.HRPlatform.Interview.Models.Common;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace EY.HRPlatform.Interview.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/interview/grading/review")]
 public class GradingReviewController(HumanReviewService reviewService) : ControllerBase
 {
@@ -26,12 +29,15 @@ public class GradingReviewController(HumanReviewService reviewService) : Control
         [FromBody] ApproveReviewRequest request,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.ReviewerEmail))
-            return BadRequest(ApiResponse.Failure("ReviewerEmail is required."));
+        // Reviewer identity is taken from the authenticated token, never the request
+        // body — the browser cannot spoof who approved a review.
+        var reviewerEmail = User.FindFirstValue(ClaimTypes.Email);
+        if (string.IsNullOrWhiteSpace(reviewerEmail))
+            return Unauthorized(ApiResponse.Failure("Authenticated user has no email claim."));
 
         try
         {
-            await reviewService.ApproveAsync(resultId, request.Score, request.ReviewerEmail, cancellationToken);
+            await reviewService.ApproveAsync(resultId, request.Score, reviewerEmail, cancellationToken);
             return Ok(ApiResponse.Success("Review approved."));
         }
         catch (InvalidOperationException ex)

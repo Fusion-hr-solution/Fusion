@@ -31,4 +31,4 @@ public record ReviewQueueItemDto(
     decimal MaxScore
 );
 
-public record ApproveReviewRequest(decimal Score, string ReviewerEmail);
+public record ApproveReviewRequest(decimal Score);
