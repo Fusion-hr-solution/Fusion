@@ -35,8 +35,8 @@ function buildAccount(
 
 describe("employee access helpers", () => {
   it("parses known access filters and rejects unknown values", () => {
-    expect(parseEmployeeAccessFilter("NeedsAccess")).toBe("NeedsAccess");
-    expect(parseEmployeeAccessFilter("InviteExpired")).toBe("InviteExpired");
+    expect(parseEmployeeAccessFilter("NotInvited")).toBe("NotInvited");
+    expect(parseEmployeeAccessFilter("NeedsReview")).toBe("NeedsReview");
     expect(parseEmployeeAccessFilter("Provisioned")).toBeUndefined();
   });
 
@@ -97,14 +97,14 @@ describe("employee access helpers", () => {
     expect(
       matchesEmployeeAccessFilter(
         buildAccount({ provisioningState: "InviteExpired" }),
-        "InviteExpired"
+        "NotInvited"
       )
     ).toBe(true);
 
     expect(
       matchesEmployeeAccessFilter(
-        buildAccount({ provisioningState: "InviteRevoked" }),
-        "InviteRevoked"
+        buildAccount({ provisioningState: "Inactive" }),
+        "NeedsReview"
       )
     ).toBe(true);
   });

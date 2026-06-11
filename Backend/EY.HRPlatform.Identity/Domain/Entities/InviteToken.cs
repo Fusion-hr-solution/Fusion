@@ -96,11 +96,6 @@ public class InviteToken : ITenantEntity
     public Guid CreatedByUserId { get; private set; }
 
     /// <summary>
-    /// Optional CoreHR employee record this invite provisions access for.
-    /// </summary>
-    public Guid? EmployeeId { get; private set; }
-
-    /// <summary>
     /// Whether this invite has been revoked (soft-deleted).
     /// </summary>
     public bool IsRevoked { get; private set; }
@@ -151,7 +146,6 @@ public class InviteToken : ITenantEntity
         ValidateCreatedBy(createdByUserId);
         ValidateEmployeeId(employeeId);
         ValidateExpiryDays(expiryDays);
-        ValidateEmployeeId(employeeId);
 
         return new InviteToken
         {
@@ -304,12 +298,6 @@ public class InviteToken : ITenantEntity
     {
         if (createdByUserId == Guid.Empty)
             throw new ArgumentException("Creator user ID is required.", nameof(createdByUserId));
-    }
-
-    private static void ValidateEmployeeId(Guid? employeeId)
-    {
-        if (employeeId == Guid.Empty)
-            throw new ArgumentException("Employee ID cannot be empty.", nameof(employeeId));
     }
 
     private static void ValidateExpiryDays(int expiryDays)

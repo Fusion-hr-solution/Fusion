@@ -8,12 +8,12 @@ namespace EY.HRPlatform.Identity.Tests.Controllers;
 public class WorkforceAccountsControllerAuthorizationTests
 {
     [Fact]
-    public void Controller_RequiresHrAdminRole()
+    public void Controller_AllowsPlatformAdminAndHrAdminRoles()
     {
         var authorize = typeof(WorkforceAccountsController)
             .GetCustomAttribute<AuthorizeAttribute>(inherit: false);
 
         Assert.NotNull(authorize);
-        Assert.Equal(PlatformRole.HRAdmin, authorize!.Roles);
+        Assert.Equal($"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin}", authorize!.Roles);
     }
 }

@@ -14,6 +14,7 @@ public class Employee : AggregateRoot, ITenantEntity
     /// Row version for optimistic concurrency control (mapped to PostgreSQL xmin).
     /// </summary>
     public uint Version { get; private set; }
+    public string? EmployeeNumber { get; private set; }
     public string FirstName { get; private set; } = string.Empty;
     public string LastName { get; private set; } = string.Empty;
     public string? PreferredName { get; private set; }
@@ -28,6 +29,9 @@ public class Employee : AggregateRoot, ITenantEntity
     public OrgUnit? OrgUnit { get; private set; }
 
     public string FullName => $"{FirstName} {LastName}";
+    public string DisplayName => !string.IsNullOrWhiteSpace(PreferredName)
+        ? $"{PreferredName} {LastName}"
+        : FullName;
 
     public static Employee Create(
         Guid tenantId,
@@ -36,7 +40,8 @@ public class Employee : AggregateRoot, ITenantEntity
         string email,
         DateTime hireDate,
         string? department = null,
-        string? jobTitle = null)
+        string? jobTitle = null,
+        string? employeeNumber = null)
     {
         if (tenantId == Guid.Empty)
             throw new ArgumentException("TenantId cannot be empty.", nameof(tenantId));
@@ -55,6 +60,7 @@ public class Employee : AggregateRoot, ITenantEntity
         return new Employee
         {
             TenantId = tenantId,
+            EmployeeNumber = NormalizeEmployeeNumber(employeeNumber),
             FirstName = firstName.Trim(),
             LastName = lastName.Trim(),
             Email = email.Trim().ToLowerInvariant(),
@@ -88,7 +94,8 @@ public class Employee : AggregateRoot, ITenantEntity
         string lastName,
         string email,
         string? department,
-        string? jobTitle)
+        string? jobTitle,
+        string? employeeNumber = null)
     {
         if (string.IsNullOrWhiteSpace(firstName))
             throw new ArgumentException("First name cannot be empty.", nameof(firstName));
@@ -102,6 +109,7 @@ public class Employee : AggregateRoot, ITenantEntity
         FirstName = firstName.Trim();
         LastName = lastName.Trim();
         Email = email.Trim().ToLowerInvariant();
+        EmployeeNumber = NormalizeEmployeeNumber(employeeNumber);
         Department = department?.Trim();
         JobTitle = jobTitle?.Trim();
         UpdatedAt = DateTime.UtcNow;
@@ -163,5 +171,15 @@ public class Employee : AggregateRoot, ITenantEntity
         }
 
         return value.Trim();
+    }
+
+    private static string? NormalizeEmployeeNumber(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        return value.Trim().ToUpperInvariant();
     }
 }

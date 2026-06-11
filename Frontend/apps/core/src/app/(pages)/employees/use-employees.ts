@@ -115,6 +115,7 @@ interface UpdateEmployeeManagerInput {
 interface UpdateEmployeeRecordInput {
   employeeId: string;
   expectedVersion: number;
+  employeeNumber?: string | null;
   firstName?: string;
   lastName?: string;
   email?: string;
@@ -137,13 +138,15 @@ interface UpdateMyProfileInput {
 export function useEmployeeRoster(
   params: EmployeeRosterQueryParams
 ): UseApiQueryResult<EmployeeRosterPageDto> {
-  const { isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const client = useMemo(() => createPlatformApiClient(), []);
   const canAccess = canAccessEmployeeRoster(user);
-  const { page, pageSize, readiness, search, sortBy, sortDir, status } = params;
+  const { access, page, pageSize, readiness, search, sortBy, sortDir, status } =
+    params;
   const normalizedQuery = useMemo(
     () =>
       normalizeEmployeeRosterQuery({
+        access,
         page,
         pageSize,
         readiness,
@@ -152,7 +155,7 @@ export function useEmployeeRoster(
         sortDir,
         status,
       }),
-    [page, pageSize, readiness, search, sortBy, sortDir, status]
+    [access, page, pageSize, readiness, search, sortBy, sortDir, status]
   );
 
   const queryFn = useCallback(
@@ -162,6 +165,7 @@ export function useEmployeeRoster(
         params: {
           search: normalizedQuery.search ?? undefined,
           status: normalizedQuery.status ?? undefined,
+          access: normalizedQuery.access ?? undefined,
           readiness: normalizedQuery.readiness ?? undefined,
           sortBy: normalizedQuery.sortBy,
           sortDir: normalizedQuery.sortDir,
@@ -171,6 +175,7 @@ export function useEmployeeRoster(
       }),
     [
       client,
+      normalizedQuery.access,
       normalizedQuery.page,
       normalizedQuery.pageSize,
       normalizedQuery.readiness,
@@ -185,6 +190,7 @@ export function useEmployeeRoster(
     employeeRosterQueryKeys.list({
       search: normalizedQuery.search ?? undefined,
       status: normalizedQuery.status ?? undefined,
+      access: normalizedQuery.access ?? undefined,
       readiness: normalizedQuery.readiness ?? undefined,
       sortBy: normalizedQuery.sortBy,
       sortDir: normalizedQuery.sortDir,
@@ -228,6 +234,7 @@ export function useResolveEmployeeRoster() {
             params: {
               search: normalizedQuery.search ?? undefined,
               status: normalizedQuery.status ?? undefined,
+              access: normalizedQuery.access ?? undefined,
               readiness: normalizedQuery.readiness ?? undefined,
               sortBy: normalizedQuery.sortBy,
               sortDir: normalizedQuery.sortDir,
@@ -450,6 +457,7 @@ export function useEmployeeOrgUnitOptions({
 }
 
 function buildEmployeeUpdatePayload({
+  employeeNumber,
   firstName,
   lastName,
   email,
@@ -461,6 +469,10 @@ function buildEmployeeUpdatePayload({
 
   if (firstName !== undefined) {
     payload.firstName = firstName;
+  }
+
+  if (employeeNumber !== undefined) {
+    payload.employeeNumber = employeeNumber?.trim() || null;
   }
 
   if (lastName !== undefined) {
@@ -602,7 +614,7 @@ export function useUpdateMyProfile() {
 export function useEmployeeProfile(
   employeeId: string | null
 ): UseApiQueryResult<EmployeeProfileDto> {
-  const { isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const client = useMemo(() => createPlatformApiClient(), []);
   const canAccess = canAccessEmployeeProfile(user);
   const profilePath = useMemo(

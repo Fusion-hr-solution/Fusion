@@ -14,7 +14,6 @@ public class ApplicationUser : IdentityUser<Guid>, ITenantEntity
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? LastLoginAt { get; set; }
-    public Guid? EmployeeId { get; set; }
 
     /// <summary>
     /// The tenant this user belongs to. Required for all users.

@@ -1,22 +1,21 @@
 export type EmployeeRosterStatus = "Active" | "Inactive";
 
 export type EmployeeReadinessFilter =
+  | "Ready"
   | "NeedsAttention"
   | "MissingRequiredField"
   | "MissingOrgUnit"
+  | "ReportingIssue"
   | "NoManagerAssigned"
   | "ManagerInactive"
   | "ManagerMissing"
   | "DeactivationBlocked";
 
 export type EmployeeAccessFilter =
-  | "NeedsAccess"
-  | "InvitePending"
+  | "NotInvited"
+  | "Invited"
   | "AccountActive"
-  | "AccountInactive"
-  | "Conflict"
-  | "InviteExpired"
-  | "InviteRevoked";
+  | "NeedsReview";
 
 export type EmployeeReadinessSeverity = "Attention" | "Blocker";
 
@@ -89,6 +88,8 @@ export type EmployeeRosterSortDirection = "Asc" | "Desc";
 
 export interface EmployeeRosterItem {
   id: string;
+  stableEmployeeKey?: string;
+  employeeNumber?: string | null;
   firstName: string;
   lastName: string;
   email: string;
@@ -118,6 +119,7 @@ export interface EmployeeRosterPageDto {
 export interface EmployeeRosterQueryParams {
   search?: string;
   status?: EmployeeRosterStatus;
+  access?: EmployeeAccessFilter;
   readiness?: EmployeeReadinessFilter;
   sortBy: EmployeeRosterSortField;
   sortDir: EmployeeRosterSortDirection;
@@ -161,8 +163,11 @@ export interface EmployeeOrgUnitPageDto {
 
 export interface EmployeeProfileDto {
   id: string;
+  stableEmployeeKey?: string;
+  employeeNumber?: string | null;
   firstName: string;
   lastName: string;
+  preferredName: string | null;
   fullName: string;
   email: string;
   jobTitle: string | null;

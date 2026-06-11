@@ -77,6 +77,12 @@ public sealed class EmployeeImportWorkflowService(
     private static readonly IReadOnlyList<EmployeeImportCanonicalFieldDto> CanonicalFields =
     [
         new(
+            "employeeNumber",
+            "Employee number",
+            false,
+            "Optional tenant-specific employee identifier.",
+            "E-1024"),
+        new(
             "firstName",
             "First name",
             true,
@@ -667,6 +673,7 @@ public sealed class EmployeeImportWorkflowService(
 
     private static EmployeeImportPreviewRowDto CreatePreviewRow(EmployeeImportSourceRowDto row)
     {
+        row.Values.TryGetValue("employeeNumber", out var employeeNumber);
         row.Values.TryGetValue("firstName", out var firstName);
         row.Values.TryGetValue("lastName", out var lastName);
         row.Values.TryGetValue("email", out var email);
@@ -677,6 +684,7 @@ public sealed class EmployeeImportWorkflowService(
 
         return new EmployeeImportPreviewRowDto(
             row.RowNumber,
+            NormalizeOptional(employeeNumber),
             NormalizeOptional(firstName),
             NormalizeOptional(lastName),
             NormalizeEmail(email),

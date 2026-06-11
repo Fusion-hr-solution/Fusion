@@ -78,13 +78,10 @@ export const EMPLOYEE_ACCESS_FILTER_OPTIONS: Array<{
   value: EmployeeAccessFilter;
   label: string;
 }> = [
-  { value: "NeedsAccess", label: "Not invited" },
-  { value: "InvitePending", label: "Invite pending" },
+  { value: "NotInvited", label: "Not invited" },
+  { value: "Invited", label: "Invited" },
   { value: "AccountActive", label: "Account active" },
-  { value: "AccountInactive", label: "Account inactive" },
-  { value: "Conflict", label: "Access conflict" },
-  { value: "InviteExpired", label: "Invite expired" },
-  { value: "InviteRevoked", label: "Invite revoked" },
+  { value: "NeedsReview", label: "Needs review" },
 ];
 
 const ACCESS_FILTER_VALUES = new Set<EmployeeAccessFilter>(
@@ -340,23 +337,20 @@ export function matchesEmployeeAccessFilter(
   filter: EmployeeAccessFilter
 ): boolean {
   switch (filter) {
-    case "NeedsAccess":
+    case "NotInvited":
       return canStartEmployeeAccess(account);
-    case "InvitePending":
+    case "Invited":
       return account?.provisioningState === "InvitePending";
     case "AccountActive":
       return (
         account?.provisioningState === "Active" ||
         account?.provisioningState === "InviteAccepted"
       );
-    case "AccountInactive":
-      return account?.provisioningState === "Inactive";
-    case "Conflict":
-      return account?.provisioningState === "Conflict";
-    case "InviteExpired":
-      return account?.provisioningState === "InviteExpired";
-    case "InviteRevoked":
-      return account?.provisioningState === "InviteRevoked";
+    case "NeedsReview":
+      return (
+        account?.provisioningState === "Inactive" ||
+        account?.provisioningState === "Conflict"
+      );
     default:
       return false;
   }
