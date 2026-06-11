@@ -1,6 +1,7 @@
 using EY.HRPlatform.Interview.Features.Candidates;
 using EY.HRPlatform.Interview.Models.Candidates;
 using EY.HRPlatform.Interview.Models.Common;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace EY.HRPlatform.Interview.Controllers;
@@ -41,8 +42,12 @@ public class CandidateInvitationsController(ICandidateInvitationService invitati
         return Ok(ApiResponse<CandidateInvitationDto>.Success(data));
     }
 
+    // Destructive operation — require an authenticated admin so invitations can't be
+    // deleted anonymously by anyone who can reach the service.
+    [Authorize]
     [HttpDelete("{id}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Delete(string id, CancellationToken cancellationToken)
     {
         await invitationService.DeleteAsync(id, cancellationToken);

@@ -37,7 +37,7 @@ export function HumanReviewTab() {
     const score = getScore(item);
 
     try {
-      await approveReview(item.resultId, score, "admin@platform.internal");
+      await approveReview(item.resultId, score);
       setApproveSuccess(`Approved: ${item.candidateName} — ${item.questionTitle}`);
       setOverrideScores((prev) => {
         const next = { ...prev };

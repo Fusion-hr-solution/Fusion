@@ -24,10 +24,7 @@ export function ResendTab({
   onConfirmResend,
   onDeleteCandidate,
   deleteSubmitting = false,
-}: ResendTabProps & {
-  onDeleteCandidate?: (id: string) => Promise<void>;
-  deleteSubmitting?: boolean;
-}) {
+}: ResendTabProps) {
   const [deleteConfirmItem, setDeleteConfirmItem] = useState<CandidateInvitation | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 

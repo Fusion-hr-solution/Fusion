@@ -31,6 +31,14 @@ public class GradingOrchestrator(
 
         var answers = CandidateAnswerParser.Parse(attempt.AnswersJson);
 
+        // Idempotency safeguard: a job only reaches grading while uncompleted, so any
+        // existing results for this attempt are leftovers from a previous crashed or
+        // rolled-back pass. Remove them first so a re-grade never accumulates duplicates.
+        // This enlists in the caller's ambient transaction when one is active.
+        await dbContext.QuestionGradeResults
+            .Where(r => r.AttemptId == attemptId)
+            .ExecuteDeleteAsync(ct);
+
         attempt.GradingStatus = GradingStatus.InProgress;
         await dbContext.SaveChangesAsync(ct);
 
