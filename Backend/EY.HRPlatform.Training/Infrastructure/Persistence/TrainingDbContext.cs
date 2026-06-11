@@ -16,6 +16,7 @@ public class TrainingDbContext : DbContext
     public DbSet<TrainingPart> TrainingParts => Set<TrainingPart>();
     public DbSet<TrainingSession> TrainingSessions => Set<TrainingSession>();
     public DbSet<SessionEnrollment> SessionEnrollments => Set<SessionEnrollment>();
+    public DbSet<SessionAttendanceToken> SessionAttendanceTokens => Set<SessionAttendanceToken>();
     public DbSet<ChapterProgress> ChapterProgress => Set<ChapterProgress>();
     public DbSet<ContentBlockProgress> ContentBlockProgress => Set<ContentBlockProgress>();
     public DbSet<Exam> Exams => Set<Exam>();
@@ -171,6 +172,18 @@ public class TrainingDbContext : DbContext
                 .HasFilter("\"Status\" != 'Cancelled'");
             e.HasIndex(se => se.SessionId);
             e.HasIndex(se => se.EmployeeId);
+        });
+
+        // --- SessionAttendanceToken ---
+        modelBuilder.Entity<SessionAttendanceToken>(e =>
+        {
+            e.HasKey(t => t.Id);
+            e.Property(t => t.Secret).HasMaxLength(128).IsRequired();
+            e.HasOne(t => t.Session)
+                .WithMany()
+                .HasForeignKey(t => t.SessionId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(t => t.SessionId).IsUnique();
         });
 
         // --- ChapterProgress ---

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { CalendarPlus, Loader2, ChevronRight } from "lucide-react";
 import { Button } from "@repo/ui";
 import { Skeleton } from "@repo/ui";
@@ -8,6 +9,7 @@ import { useSessionEnrollment } from "@/hooks/use-session-enrollment";
 import { SessionPickerPart } from "./session-picker-part";
 import { EnrollmentStatusPanel } from "./enrollment-status-panel";
 import { EnrollmentResultDialog } from "./enrollment-result-dialog";
+import { CancelEnrollmentDialog } from "./cancel-enrollment-dialog";
 
 export function SessionEnrollmentPanel({ trainingId }: SessionEnrollmentPanelProps) {
   const {
@@ -26,7 +28,11 @@ export function SessionEnrollmentPanel({ trainingId }: SessionEnrollmentPanelPro
     resetEnrollResult,
     doCancel,
     cancelling,
+    unenrolledPartsWithSessions,
+    allUnenrolledPartsSelected,
   } = useSessionEnrollment(trainingId);
+
+  const [cancelSessionId, setCancelSessionId] = useState<string | null>(null);
 
   const isLoading = loadingAvailable || loadingMyEnrollments;
 
@@ -53,7 +59,51 @@ export function SessionEnrollmentPanel({ trainingId }: SessionEnrollmentPanelPro
 
         <EnrollmentStatusPanel
           enrollments={myEnrollments}
-          onCancelSession={doCancel}
+          onCancelSession={(sessionId) => setCancelSessionId(sessionId)}
+          isCancelling={cancelling}
+          availableParts={available?.parts}
+          selections={selections}
+          onSelectSession={selectSession}
+        />
+
+        {/* Enroll button for unenrolled parts */}
+        {unenrolledPartsWithSessions.length > 0 && (
+          <Button
+            onClick={() => doEnroll()}
+            disabled={!allUnenrolledPartsSelected || enrolling}
+            className="w-full gap-2 h-12 text-sm font-semibold shadow-lg transition-all hover:shadow-xl"
+          >
+            {enrolling ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Enrolling...
+              </>
+            ) : (
+              <>
+                <CalendarPlus className="h-4 w-4" />
+                Enroll in Selected Sessions
+                <ChevronRight className="h-4 w-4" />
+              </>
+            )}
+          </Button>
+        )}
+
+        <EnrollmentResultDialog
+          result={enrollResult}
+          trainingTitle={myEnrollments.trainingTitle}
+          open={!!enrollResult}
+          onClose={resetEnrollResult}
+        />
+
+        <CancelEnrollmentDialog
+          open={!!cancelSessionId}
+          onOpenChange={(open) => { if (!open) setCancelSessionId(null); }}
+          onConfirm={() => {
+            if (cancelSessionId) {
+              doCancel(cancelSessionId);
+              setCancelSessionId(null);
+            }
+          }}
           isCancelling={cancelling}
         />
       </div>
@@ -77,7 +127,7 @@ export function SessionEnrollmentPanel({ trainingId }: SessionEnrollmentPanelPro
       <div>
         <h2 className="text-lg font-semibold text-foreground">Choose Your Sessions</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Select one time slot for each part to complete your enrollment.
+          Select a time slot for each part you want to enroll in.
         </p>
       </div>
 
@@ -90,7 +140,7 @@ export function SessionEnrollmentPanel({ trainingId }: SessionEnrollmentPanelPro
           parts selected
         </p>
         {allPartsSelected && (
-          <span className="text-xs font-medium text-emerald-600">All parts ready</span>
+          <span className="text-xs font-medium text-emerald-600">Ready to enroll</span>
         )}
       </div>
 
@@ -128,6 +178,7 @@ export function SessionEnrollmentPanel({ trainingId }: SessionEnrollmentPanelPro
 
       <EnrollmentResultDialog
         result={enrollResult}
+        trainingTitle={available?.trainingTitle}
         open={!!enrollResult}
         onClose={resetEnrollResult}
       />

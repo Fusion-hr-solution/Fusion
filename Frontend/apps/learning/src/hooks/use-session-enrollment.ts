@@ -53,6 +53,27 @@ export function useSessionEnrollment(trainingId: string) {
     );
   }, [myEnrollments]);
 
+  // Parts where employee is NOT enrolled (or absent on completed session) but sessions are available
+  const unenrolledPartsWithSessions = useMemo(() => {
+    if (!myEnrollments || !available) return [];
+    const eligiblePartIds = myEnrollments.parts
+      .filter((p) => {
+        if (p.enrollmentStatus === "NotEnrolled") return true;
+        // Absent: enrolled on completed session but not attended
+        if (
+          p.enrollmentStatus === "Enrolled" &&
+          p.sessionEndUtc &&
+          new Date(p.sessionEndUtc) < new Date() &&
+          !p.isAttended
+        ) return true;
+        return false;
+      })
+      .map((p) => p.partId);
+    return available.parts.filter(
+      (p) => eligiblePartIds.includes(p.partId) && p.sessions.length > 0,
+    );
+  }, [myEnrollments, available]);
+
   const selectSession = useCallback((partId: string, sessionId: string) => {
     setSelections((prev) => ({ ...prev, [partId]: sessionId }));
   }, []);
@@ -64,13 +85,26 @@ export function useSessionEnrollment(trainingId: string) {
 
   const allPartsSelected = useMemo(() => {
     if (selectableParts.length === 0) return false;
-    return selectableParts.every((p) => selections[p.partId]);
+    return selectableParts.some((p) => selections[p.partId]);
   }, [selectableParts, selections]);
 
-  const selectionsList: SessionSelection[] = useMemo(
-    () => Object.entries(selections).map(([partId, sessionId]) => ({ partId, sessionId })),
-    [selections],
-  );
+  // Check if at least one unenrolled part has a session selected
+  const allUnenrolledPartsSelected = useMemo(() => {
+    if (unenrolledPartsWithSessions.length === 0) return false;
+    return unenrolledPartsWithSessions.some((p) => selections[p.partId]);
+  }, [unenrolledPartsWithSessions, selections]);
+
+  // Build selections list: only include unenrolled parts when partially enrolled
+  const selectionsList: SessionSelection[] = useMemo(() => {
+    if (hasActiveEnrollments) {
+      // Only send selections for unenrolled parts
+      const unenrolledPartIds = new Set(unenrolledPartsWithSessions.map((p) => p.partId));
+      return Object.entries(selections)
+        .filter(([partId]) => unenrolledPartIds.has(partId))
+        .map(([partId, sessionId]) => ({ partId, sessionId }));
+    }
+    return Object.entries(selections).map(([partId, sessionId]) => ({ partId, sessionId }));
+  }, [selections, hasActiveEnrollments, unenrolledPartsWithSessions]);
 
   const { mutate: doEnroll, isLoading: enrolling } = useApiMutation(
     () => enrollInSessions(trainingId, selectionsList),
@@ -136,5 +170,8 @@ export function useSessionEnrollment(trainingId: string) {
     resetEnrollResult,
     doCancel,
     cancelling,
+    unenrolledPartsWithSessions,
+    allUnenrolledPartsSelected,
   };
 }
+

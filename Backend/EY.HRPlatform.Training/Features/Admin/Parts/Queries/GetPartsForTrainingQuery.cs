@@ -37,6 +37,7 @@ public class GetPartsForTrainingQueryHandler : IQueryHandler<GetPartsForTraining
                 Description = p.Description,
                 OrderIndex = p.OrderIndex,
                 DurationHours = p.DurationHours,
+                IsLocked = p.IsLocked,
                 SessionCount = p.Sessions.Count,
                 CreatedAt = p.CreatedAt,
                 UpdatedAt = p.UpdatedAt,

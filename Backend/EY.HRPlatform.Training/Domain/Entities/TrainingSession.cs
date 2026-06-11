@@ -80,6 +80,20 @@ public class TrainingSession : BaseEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
+    /// <summary>Update only trainer info and notes (allowed on completed sessions).</summary>
+    public void UpdateTrainerAndNotes(
+        string? notes,
+        Guid? trainerEmployeeId,
+        string? trainerName,
+        string? trainerEmail)
+    {
+        Notes = notes;
+        TrainerEmployeeId = trainerEmployeeId;
+        TrainerName = trainerName;
+        TrainerEmail = trainerEmail;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
     public void Cancel(string reason)
     {
         Status = SessionStatus.Cancelled;

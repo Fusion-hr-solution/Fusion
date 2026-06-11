@@ -32,6 +32,12 @@ public class CancelSessionEnrollmentCommandHandler : ICommandHandler<CancelSessi
                 "SessionEnrollment.NotFound",
                 $"No active enrollment found for EmployeeId '{request.EmployeeId}' and SessionId '{request.SessionId}'."));
 
+        // Cannot cancel an attended session
+        if (enrollment.Status == EnrollmentStatus.Attended)
+            return Result.Failure(Error.Validation(
+                "Enrollment.AlreadyAttended",
+                "Cannot cancel enrollment for a session you have already attended."));
+
         // Check cancellation deadline
         var nowUtc = DateTime.UtcNow;
         var deadline = enrollment.Session.StartUtc.AddHours(-request.CancellationDeadlineHours);
