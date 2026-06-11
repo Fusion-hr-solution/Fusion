@@ -132,7 +132,7 @@ describe("useEmployeeImportSession", () => {
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     expect(mockGet).toHaveBeenCalledWith(
-      "/corehr/employees/import/session-1",
+      "/corehr/employees/import/session-1?previewPageSize=5",
       expect.objectContaining({ signal: expect.any(AbortSignal) })
     );
   });
@@ -267,11 +267,11 @@ describe("useDownloadEmployeeImportTemplate", () => {
     });
 
     await act(async () => {
-      await result.current.mutateAsync(undefined);
+      await result.current.mutateAsync(["firstName", "lastName", "email", "hireDate"]);
     });
 
     expect(mockGet).toHaveBeenCalledWith(
-      "/corehr/employees/import/template",
+      "/corehr/employees/import/template?fields=firstName&fields=lastName&fields=email&fields=hireDate",
       expect.objectContaining({ responseType: "blob" })
     );
   });
@@ -290,7 +290,7 @@ describe("useValidateEmployeeImport", () => {
     });
 
     expect(mockPost).toHaveBeenCalledWith(
-      "/corehr/employees/import/session-1/validate",
+      "/corehr/employees/import/session-1/validate?previewPageSize=5",
       undefined
     );
   });

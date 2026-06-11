@@ -8,4 +8,5 @@ public record UpdateContentBlockProgressCommand(
     Guid TrainingId,
     Guid ChapterId,
     Guid ContentBlockId,
-    bool Completed) : ICommand<Result>;
+    bool Completed,
+    string? FullName = null) : ICommand<Result>;

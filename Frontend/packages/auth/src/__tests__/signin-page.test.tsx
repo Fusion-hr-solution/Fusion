@@ -65,16 +65,13 @@ describe("SignInPage", () => {
       expect(screen.getByRole("button", { name: /sign in/i })).toBeInTheDocument();
     });
 
-    it("renders sign up link with default URL", () => {
+    it("does not expose self-service signup", () => {
       renderSignInPage();
-      const link = screen.getByRole("link", { name: /sign up/i });
-      expect(link).toHaveAttribute("href", "/auth/signup");
-    });
 
-    it("renders sign up link with custom URL", () => {
-      renderSignInPage({ signUpUrl: "/custom/signup" });
-      const link = screen.getByRole("link", { name: /sign up/i });
-      expect(link).toHaveAttribute("href", "/custom/signup");
+      expect(screen.queryByRole("link", { name: /sign up/i })).toBeNull();
+      expect(
+        screen.getByText(/ask your HR administrator for an invitation link/i)
+      ).toBeInTheDocument();
     });
   });
 

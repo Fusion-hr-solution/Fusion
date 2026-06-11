@@ -12,6 +12,11 @@ export interface BrandingSettingsDto {
   primaryColor: string | null;
 }
 
+export interface SelfServiceSettingsDto {
+  canEditPreferredName: boolean;
+  canEditPhone: boolean;
+}
+
 export interface FieldConfigInputDto {
   visible?: boolean | null;
   required?: boolean | null;
@@ -24,12 +29,18 @@ export interface BrandingSettingsInputDto {
   primaryColor?: string | null;
 }
 
+export interface SelfServiceSettingsInputDto {
+  canEditPreferredName?: boolean | null;
+  canEditPhone?: boolean | null;
+}
+
 export interface TenantSettingsDto {
   version: number | null;
   draftStructureSchema: DraftStructureSchemaDto;
   orgUnitTypes: string[];
   employeeFieldConfig: Record<string, FieldConfigDto>;
   branding: BrandingSettingsDto;
+  selfService: SelfServiceSettingsDto;
 }
 
 export interface UpdateTenantSettingsRequest {
@@ -37,6 +48,7 @@ export interface UpdateTenantSettingsRequest {
   draftStructureSchema?: DraftStructureSchemaDto | null;
   employeeFieldConfig?: Record<string, FieldConfigInputDto> | null;
   branding?: BrandingSettingsInputDto | null;
+  selfService?: SelfServiceSettingsInputDto | null;
 }
 
 export const tenantSettingsPaths = {

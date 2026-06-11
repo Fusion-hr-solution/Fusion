@@ -1,46 +1,58 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { User } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@repo/auth";
 import { EmptyState } from "@repo/ui";
 import { CorePageLoadingState } from "@/components/core-page-loading-state";
 import { PageHeader } from "@/components/page-header";
+import { canAccessSelfEmployeeProfile } from "@/lib/employee-roster-access";
 
 export default function MyProfilePage() {
-  const router = useRouter();
   const { user, isLoading } = useAuth();
-  const employeeId = user?.employeeId ?? null;
+  const router = useRouter();
+  const canAccess = canAccessSelfEmployeeProfile(user);
 
   useEffect(() => {
-    if (!isLoading && employeeId) {
-      router.replace(`/employees/${employeeId}`);
+    if (!isLoading && canAccess && user?.employeeId) {
+      router.replace(`/employees/${user.employeeId}`);
     }
-  }, [employeeId, isLoading, router]);
+  }, [canAccess, isLoading, router, user?.employeeId]);
 
-  if (isLoading || employeeId) {
+  if (isLoading) {
     return (
       <CorePageLoadingState
         title="My Profile"
-        description="Loading your linked employee profile..."
+        description="Loading your employee workspace..."
         message="Loading profile..."
         variant="summary-list"
       />
     );
   }
 
+  if (!canAccess || !user?.employeeId) {
+    return (
+      <div className="flex flex-col gap-6 p-6">
+        <PageHeader
+          title="My Profile"
+          description="Your linked employee workspace appears here when your account is connected."
+        />
+        <EmptyState
+          icon={User}
+          title="Employee profile is not linked yet"
+          description="Ask a tenant HR administrator to connect your platform account to an employee record."
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col gap-6 p-6">
-      <PageHeader
-        title="My Profile"
-        description="Your account is not linked to an employee record yet."
-      />
-      <EmptyState
-        icon={User}
-        title="No linked employee profile"
-        description="Ask a tenant HR administrator to invite you from the employee roster."
-      />
-    </div>
+    <CorePageLoadingState
+      title="My Profile"
+      description="Opening your employee workspace..."
+      message="Opening profile..."
+      variant="redirect"
+    />
   );
 }

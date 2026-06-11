@@ -6,5 +6,6 @@ using EY.HRPlatform.SharedKernel.Results;
 namespace EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployeeProfile;
 
 public sealed record GetEmployeeProfileQuery(
-    Guid EmployeeId,
-    EmployeeReadAudience Audience = EmployeeReadAudience.HrAdmin) : IQuery<Result<EmployeeProfileDto>>;
+	Guid EmployeeId,
+	EmployeeReadAudience Audience = EmployeeReadAudience.HrAdmin,
+	Guid? RequesterEmployeeId = null) : IQuery<Result<EmployeeProfileDto>>;

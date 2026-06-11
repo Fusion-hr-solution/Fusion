@@ -1,5 +1,6 @@
 using EY.HRPlatform.CoreHR.Domain.Enums;
 using EY.HRPlatform.CoreHR.Features.Employees.Dtos;
+using EY.HRPlatform.CoreHR.Features.Employees.Services;
 using EY.HRPlatform.CoreHR.Models.Responses;
 using EY.HRPlatform.SharedKernel.CQRS;
 using EY.HRPlatform.SharedKernel.Results;
@@ -17,5 +18,8 @@ public record GetEmployeesQuery(
     EmployeeSortField SortBy = EmployeeSortField.Name,
     SortDirection SortDir = SortDirection.Asc,
     int Page = 1,
-    int PageSize = 20
+    int PageSize = 20,
+    Guid? ManagerId = null,
+    EmployeeReadAudience Audience = EmployeeReadAudience.HrAdmin,
+    Guid? RequesterEmployeeId = null
 ) : IQuery<Result<PagedResponse<EmployeeListItemDto>>>;

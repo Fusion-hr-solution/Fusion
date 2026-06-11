@@ -75,7 +75,7 @@ public class ExamsController : ControllerBase
                 .ToList();
 
             var result = await _sender.Send(
-                new SubmitExamCommand(employeeId, trainingId, answers), cancellationToken);
+                new SubmitExamCommand(employeeId, trainingId, answers, User.GetFullName()), cancellationToken);
 
             if (result.IsFailure)
             {

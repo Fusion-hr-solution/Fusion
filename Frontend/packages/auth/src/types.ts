@@ -1,3 +1,8 @@
+import type {
+  AccessProfileAssignmentSummaryDto,
+  EffectivePermissionGrantDto,
+} from "@repo/api";
+
 // ── Request DTOs (matches backend models) ───────────────────────────
 
 export interface LoginRequest {
@@ -23,6 +28,7 @@ export interface RefreshTokenRequest {
 
 export interface AuthResponse {
   userId: string;
+  tenantId: string;
   email: string;
   fullName: string;
   roles: string[];
@@ -30,16 +36,21 @@ export interface AuthResponse {
   refreshToken: string;
   accessTokenExpiration: string; // ISO date string
   employeeId?: string | null;
+  accessProfiles: AccessProfileAssignmentSummaryDto[];
+  effectivePermissions: EffectivePermissionGrantDto[];
 }
 
 // ── Client-side auth state ───────────────────────────────────────────
 
 export interface AuthUser {
   userId: string;
+  tenantId: string;
   email: string;
   fullName: string;
   roles: string[];
   employeeId?: string | null;
+  accessProfiles: AccessProfileAssignmentSummaryDto[];
+  effectivePermissions: EffectivePermissionGrantDto[];
 }
 
 export interface AuthState {

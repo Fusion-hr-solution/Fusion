@@ -106,24 +106,24 @@ public class Employee : AggregateRoot, ITenantEntity
         if (string.IsNullOrWhiteSpace(email))
             throw new ArgumentException("Email cannot be empty.", nameof(email));
 
-        EmployeeNumber = NormalizeEmployeeNumber(employeeNumber);
         FirstName = firstName.Trim();
         LastName = lastName.Trim();
         Email = email.Trim().ToLowerInvariant();
+        EmployeeNumber = NormalizeEmployeeNumber(employeeNumber);
         Department = department?.Trim();
         JobTitle = jobTitle?.Trim();
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void UpdatePreferredName(string? preferredName)
+    {
+        PreferredName = NormalizeOptionalName(preferredName);
         UpdatedAt = DateTime.UtcNow;
     }
 
     public void UpdateHireDate(DateTime hireDate)
     {
         HireDate = NormalizeHireDate(hireDate, nameof(hireDate));
-        UpdatedAt = DateTime.UtcNow;
-    }
-
-    public void UpdatePreferredName(string? preferredName)
-    {
-        PreferredName = NormalizePreferredName(preferredName);
         UpdatedAt = DateTime.UtcNow;
     }
 
@@ -163,25 +163,23 @@ public class Employee : AggregateRoot, ITenantEntity
         };
     }
 
-    private static string? NormalizePreferredName(string? preferredName)
+    private static string? NormalizeOptionalName(string? value)
     {
-        if (string.IsNullOrWhiteSpace(preferredName))
-            return null;
-
-        return preferredName.Trim();
-    }
-
-    private static string? NormalizeEmployeeNumber(string? employeeNumber)
-    {
-        if (string.IsNullOrWhiteSpace(employeeNumber))
-            return null;
-
-        var normalized = employeeNumber.Trim().ToUpperInvariant();
-        if (normalized.Length > 64)
+        if (string.IsNullOrWhiteSpace(value))
         {
-            throw new ArgumentException("EmployeeNumber cannot exceed 64 characters.", nameof(employeeNumber));
+            return null;
         }
 
-        return normalized;
+        return value.Trim();
+    }
+
+    private static string? NormalizeEmployeeNumber(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        return value.Trim().ToUpperInvariant();
     }
 }

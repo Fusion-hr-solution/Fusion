@@ -21,6 +21,7 @@ export interface PlatformOrganizationInviteStatusDto {
 export interface PlatformOrganizationSummaryDto {
   id: string;
   name: string;
+  slug: string;
   operationalStatus: string;
   activeUserCount: number;
   pendingInviteCount: number;
@@ -33,6 +34,7 @@ export interface PlatformOrganizationSummaryDto {
 export interface PlatformOrganizationDetailDto {
   id: string;
   name: string;
+  slug: string;
   operationalStatus: string;
   createdAt: string;
   updatedAt: string | null;
@@ -54,6 +56,7 @@ export interface PlatformOrganizationCreatedDto {
 export interface TenantSummaryDto {
   tenantId: string;
   name: string;
+  slug: string;
   operationalStatus: string;
   isActive: boolean;
   isArchived: boolean;

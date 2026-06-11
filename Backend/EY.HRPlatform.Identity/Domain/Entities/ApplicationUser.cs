@@ -7,13 +7,13 @@ public class ApplicationUser : IdentityUser<Guid>, ITenantEntity
 {
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
+    public Guid? EmployeeId { get; set; }
     public string? Department { get; set; }
     public string? JobTitle { get; set; }
     public DateTime HireDate { get; set; } = DateTime.UtcNow;
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? LastLoginAt { get; set; }
-    public Guid? EmployeeId { get; set; }
 
     /// <summary>
     /// The tenant this user belongs to. Required for all users.
