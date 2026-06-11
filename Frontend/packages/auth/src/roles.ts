@@ -76,14 +76,6 @@ export function canAccessOwnCoreProfile(user: AuthUser | null): boolean {
   return !!user?.employeeId;
 }
 
-export function canAccessCoreTeam(user: AuthUser | null): boolean {
-  return !!user?.employeeId && hasAnyRole(user, [MANAGER_ROLE]);
-}
-
-export function canAccessOwnCoreProfile(user: AuthUser | null): boolean {
-  return !!user?.employeeId;
-}
-
 export function canSeeCorePeopleNavigation(user: AuthUser | null): boolean {
   return canAccessCorePeople(user);
 }
