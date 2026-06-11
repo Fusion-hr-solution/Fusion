@@ -32,13 +32,13 @@ namespace EY.HRPlatform.CoreHR.Controllers;
 [Authorize]
 public class EmployeesController(ISender sender) : ControllerBase
 {
-    private const string LinkedEmployeeReadRoles = PlatformRole.HRAdmin + "," + PlatformRole.Employee + "," + PlatformRole.Manager;
+    private const string LinkedEmployeeReadRoles = PlatformRole.PlatformAdmin + "," + PlatformRole.HRAdmin + "," + PlatformRole.Employee + "," + PlatformRole.Manager;
 
     /// <summary>
     /// List employees with optional search, status filtering, sorting, and pagination.
     /// </summary>
     [HttpGet]
-    [Authorize(Roles = PlatformRole.HRAdmin)]
+    [Authorize(Roles = $"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin}")]
     [ProducesResponseType(typeof(ApiResponseOfPagedEmployeeList), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAll(
         [FromQuery] string? search,
@@ -57,7 +57,7 @@ public class EmployeesController(ISender sender) : ControllerBase
     }
 
     [HttpGet("readiness-summary")]
-    [Authorize(Roles = PlatformRole.HRAdmin)]
+    [Authorize(Roles = $"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin}")]
     [ProducesResponseType(typeof(ApiResponseOfWorkforceReadinessSummaryDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetReadinessSummary(CancellationToken cancellationToken = default)
     {
@@ -70,7 +70,7 @@ public class EmployeesController(ISender sender) : ControllerBase
     /// Supports focus-employee root resolution, org unit scoping, and inactive visibility.
     /// </summary>
     [HttpGet("org-chart")]
-    [Authorize(Roles = PlatformRole.HRAdmin)]
+    [Authorize(Roles = $"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin}")]
     [ProducesResponseType(typeof(ApiResponseOfEmployeeOrgChartDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetOrgChart(
@@ -129,7 +129,7 @@ public class EmployeesController(ISender sender) : ControllerBase
     /// Get an employee by ID.
     /// </summary>
     [HttpGet("{id:guid}")]
-    [Authorize(Roles = PlatformRole.HRAdmin)]
+    [Authorize(Roles = $"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin}")]
     [ProducesResponseType(typeof(ApiResponseOfEmployeeDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
@@ -316,7 +316,7 @@ public class EmployeesController(ISender sender) : ControllerBase
 
     private EmployeeReadAudience GetCurrentReadAudience()
     {
-        if (User.IsInRole(PlatformRole.HRAdmin))
+        if (User.IsInRole(PlatformRole.HRAdmin) || User.IsInRole(PlatformRole.PlatformAdmin))
         {
             return EmployeeReadAudience.HrAdmin;
         }
@@ -328,7 +328,7 @@ public class EmployeesController(ISender sender) : ControllerBase
 
     private bool CanReadProfile(EmployeeProfileDto profile)
     {
-        if (User.IsInRole(PlatformRole.HRAdmin))
+        if (User.IsInRole(PlatformRole.HRAdmin) || User.IsInRole(PlatformRole.PlatformAdmin))
         {
             return true;
         }
@@ -349,7 +349,7 @@ public class EmployeesController(ISender sender) : ControllerBase
 
     private bool CanReadReportingLines(Guid employeeId)
     {
-        if (User.IsInRole(PlatformRole.HRAdmin))
+        if (User.IsInRole(PlatformRole.HRAdmin) || User.IsInRole(PlatformRole.PlatformAdmin))
         {
             return true;
         }
@@ -366,7 +366,7 @@ public class EmployeesController(ISender sender) : ControllerBase
 
     private EmployeeReportingLinesDto ApplyReportingScope(EmployeeReportingLinesDto reportingLines)
     {
-        if (User.IsInRole(PlatformRole.HRAdmin))
+        if (User.IsInRole(PlatformRole.HRAdmin) || User.IsInRole(PlatformRole.PlatformAdmin))
         {
             return reportingLines;
         }
