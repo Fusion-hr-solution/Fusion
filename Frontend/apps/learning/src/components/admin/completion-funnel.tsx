@@ -1,3 +1,6 @@
+"use client";
+
+import { useTranslations } from "next-intl";
 import { Shield } from "lucide-react";
 import {
   Card,
@@ -14,23 +17,25 @@ export function CompletionFunnel({
   notStarted,
   total,
 }: CompletionFunnelProps) {
+  const t = useTranslations("adminDashboard");
+  const tCommon = useTranslations("common");
   const segments = [
     {
-      label: "Completed",
+      label: tCommon("status.completed"),
       value: completed,
       pct: total > 0 ? Math.round((completed / total) * 100) : 0,
       color: "bg-[hsl(var(--ey-green-500))]",
       dotColor: "bg-[hsl(var(--ey-green-500))]",
     },
     {
-      label: "In Progress",
+      label: tCommon("status.in-progress"),
       value: inProgress,
       pct: total > 0 ? Math.round((inProgress / total) * 100) : 0,
       color: "bg-[hsl(var(--ey-blue-400))]",
       dotColor: "bg-[hsl(var(--ey-blue-400))]",
     },
     {
-      label: "Not Started",
+      label: tCommon("status.not-started"),
       value: notStarted,
       pct: total > 0 ? Math.round((notStarted / total) * 100) : 0,
       color: "bg-muted",
@@ -50,7 +55,7 @@ export function CompletionFunnel({
             />
           </div>
           <h3 className="text-sm font-bold text-foreground">
-            Completion Funnel
+            {t("funnel.heading")}
           </h3>
         </div>
 
@@ -82,9 +87,7 @@ export function CompletionFunnel({
               className="flex items-center justify-between text-xs"
             >
               <div className="flex items-center gap-2">
-                <span
-                  className={`h-2.5 w-2.5 rounded-full ${seg.dotColor}`}
-                />
+                <span className={`h-2.5 w-2.5 rounded-full ${seg.dotColor}`} />
                 <span className="text-muted-foreground">{seg.label}</span>
               </div>
               <div className="flex items-center gap-2">

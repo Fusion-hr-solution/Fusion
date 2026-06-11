@@ -1,18 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Loader2, Save, X } from "lucide-react";
-import {
-  Button,
-  Card,
-  CardContent,
-  Input,
-  Label,
-  Checkbox,
-} from "@repo/ui";
+import { Button, Card, CardContent, Input, Label, Checkbox } from "@repo/ui";
 import { useApiMutation } from "@repo/api/react";
 import { createServiceLine, updateServiceLine } from "@/services/admin-service";
-import type { AdminServiceLine, CreateServiceLineInput, UpdateServiceLineInput } from "@/types/admin";
+import type {
+  AdminServiceLine,
+  CreateServiceLineInput,
+  UpdateServiceLineInput,
+} from "@/types/admin";
 
 interface ServiceLineFormProps {
   serviceLine?: AdminServiceLine;
@@ -20,22 +18,33 @@ interface ServiceLineFormProps {
   onCancel: () => void;
 }
 
-export function ServiceLineForm({ serviceLine, onSaved, onCancel }: ServiceLineFormProps) {
+export function ServiceLineForm({
+  serviceLine,
+  onSaved,
+  onCancel,
+}: ServiceLineFormProps) {
+  const t = useTranslations("adminServiceLines");
+  const tCommon = useTranslations("common");
   const isEditing = Boolean(serviceLine);
   const [name, setName] = useState(serviceLine?.name ?? "");
   const [code, setCode] = useState(serviceLine?.code ?? "");
   const [color, setColor] = useState(serviceLine?.color ?? "#2563eb");
-  const [description, setDescription] = useState(serviceLine?.description ?? "");
-  const [isShared, setIsShared] = useState(serviceLine?.isSharedAcrossAllServiceLines ?? false);
+  const [description, setDescription] = useState(
+    serviceLine?.description ?? ""
+  );
+  const [isShared, setIsShared] = useState(
+    serviceLine?.isSharedAcrossAllServiceLines ?? false
+  );
 
   const { mutateAsync: doCreate, isLoading: creating } = useApiMutation(
     (input: CreateServiceLineInput) => createServiceLine(input),
-    { onSuccess: onSaved },
+    { onSuccess: onSaved }
   );
 
   const { mutateAsync: doUpdate, isLoading: updating } = useApiMutation(
-    (input: UpdateServiceLineInput) => updateServiceLine(serviceLine!.id, input),
-    { onSuccess: onSaved },
+    (input: UpdateServiceLineInput) =>
+      updateServiceLine(serviceLine!.id, input),
+    { onSuccess: onSaved }
   );
 
   const isSaving = creating || updating;
@@ -59,31 +68,37 @@ export function ServiceLineForm({ serviceLine, onSaved, onCancel }: ServiceLineF
         <form onSubmit={handleSubmit} className="space-y-3">
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="sl-name" className="text-xs">Name *</Label>
+              <Label htmlFor="sl-name" className="text-xs">
+                {t("form.nameLabel")}
+              </Label>
               <Input
                 id="sl-name"
                 required
                 maxLength={200}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Assurance"
+                placeholder={t("form.namePlaceholder")}
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="sl-code" className="text-xs">Code *</Label>
+              <Label htmlFor="sl-code" className="text-xs">
+                {t("form.codeLabel")}
+              </Label>
               <Input
                 id="sl-code"
                 required
                 maxLength={20}
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
-                placeholder="e.g. ASR"
+                placeholder={t("form.codePlaceholder")}
               />
             </div>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="sl-color" className="text-xs">Color *</Label>
+              <Label htmlFor="sl-color" className="text-xs">
+                {t("form.colorLabel")}
+              </Label>
               <div className="flex items-center gap-2">
                 <input
                   id="sl-color"
@@ -102,13 +117,15 @@ export function ServiceLineForm({ serviceLine, onSaved, onCancel }: ServiceLineF
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="sl-desc" className="text-xs">Description</Label>
+              <Label htmlFor="sl-desc" className="text-xs">
+                {t("form.descriptionLabel")}
+              </Label>
               <Input
                 id="sl-desc"
                 maxLength={500}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Optional description"
+                placeholder={t("form.descriptionPlaceholder")}
               />
             </div>
           </div>
@@ -119,16 +136,25 @@ export function ServiceLineForm({ serviceLine, onSaved, onCancel }: ServiceLineF
               onCheckedChange={(checked) => setIsShared(checked === true)}
             />
             <Label htmlFor="sl-shared" className="text-xs cursor-pointer">
-              Shared across all service lines (formations visible to everyone)
+              {t("form.sharedLabel")}
             </Label>
           </div>
           <div className="flex items-center gap-2">
-            <Button type="submit" size="sm" disabled={isSaving} className="ey-bg-dark hover:opacity-90">
-              {isSaving ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Save className="mr-1 h-3.5 w-3.5" />}
-              {isEditing ? "Update" : "Create"}
+            <Button
+              type="submit"
+              size="sm"
+              disabled={isSaving}
+              className="ey-bg-dark hover:opacity-90"
+            >
+              {isSaving ? (
+                <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Save className="mr-1 h-3.5 w-3.5" />
+              )}
+              {isEditing ? t("form.update") : t("form.create")}
             </Button>
             <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
-              <X className="mr-1 h-3.5 w-3.5" /> Cancel
+              <X className="mr-1 h-3.5 w-3.5" /> {tCommon("actions.cancel")}
             </Button>
           </div>
         </form>

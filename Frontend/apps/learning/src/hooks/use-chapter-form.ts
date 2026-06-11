@@ -1,8 +1,18 @@
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { useApiMutation } from "@repo/api/react";
 import { ApiError } from "@repo/api";
-import { addChapter, updateChapter, uploadChapterFile } from "@/services/admin-service";
-import type { CreateChapterInput, UpdateChapterInput, AdminChapter, ArticleTemplate } from "@/types/admin";
+import {
+  addChapter,
+  updateChapter,
+  uploadChapterFile,
+} from "@/services/admin-service";
+import type {
+  CreateChapterInput,
+  UpdateChapterInput,
+  AdminChapter,
+  ArticleTemplate,
+} from "@/types/admin";
 
 interface UseChapterFormOptions {
   trainingId: string;
@@ -11,7 +21,13 @@ interface UseChapterFormOptions {
   onSuccess: () => void;
 }
 
-export function useChapterForm({ trainingId, chapter, open, onSuccess }: UseChapterFormOptions) {
+export function useChapterForm({
+  trainingId,
+  chapter,
+  open,
+  onSuccess,
+}: UseChapterFormOptions) {
+  const t = useTranslations("adminChapters");
   const isEditing = Boolean(chapter);
   const [step, setStep] = useState(0);
   const [formError, setFormError] = useState<string | null>(null);
@@ -26,9 +42,14 @@ export function useChapterForm({ trainingId, chapter, open, onSuccess }: UseChap
   const [estimatedDuration, setEstimatedDuration] = useState<number | "">("");
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState<ArticleTemplate | null>(null);
-  const [sectionValues, setSectionValues] = useState<Record<string, string>>({});
-  const [initialTemplateName, setInitialTemplateName] = useState<string | undefined>(undefined);
+  const [selectedTemplate, setSelectedTemplate] =
+    useState<ArticleTemplate | null>(null);
+  const [sectionValues, setSectionValues] = useState<Record<string, string>>(
+    {}
+  );
+  const [initialTemplateName, setInitialTemplateName] = useState<
+    string | undefined
+  >(undefined);
 
   useEffect(() => {
     if (chapter) {
@@ -49,7 +70,12 @@ export function useChapterForm({ trainingId, chapter, open, onSuccess }: UseChap
           // For now, store the raw parsed sections for label-based restoration.
           if (Array.isArray(parsed.sections)) {
             setSectionValues(
-              Object.fromEntries(parsed.sections.map((s: { label: string; content: string }) => [s.label, s.content])),
+              Object.fromEntries(
+                parsed.sections.map((s: { label: string; content: string }) => [
+                  s.label,
+                  s.content,
+                ])
+              )
             );
           } else if (parsed.sections) {
             // Legacy format: Record<sectionId, content>
@@ -88,45 +114,58 @@ export function useChapterForm({ trainingId, chapter, open, onSuccess }: UseChap
   function extractErrorMessage(err: unknown): string {
     if (err instanceof ApiError) return err.errors[0] ?? err.message;
     if (err instanceof Error) return err.message;
-    return "An unexpected error occurred.";
+    return t("errors.unexpected");
   }
 
   const { mutateAsync: doAdd, isLoading: adding } = useApiMutation(
     (input: CreateChapterInput) => addChapter(trainingId, input),
     {
-      onSuccess: () => { setFormError(null); onSuccess(); },
+      onSuccess: () => {
+        setFormError(null);
+        onSuccess();
+      },
       onError: (err) => setFormError(extractErrorMessage(err)),
-    },
+    }
   );
 
   const { mutateAsync: doUpdate, isLoading: updating } = useApiMutation(
-    (input: UpdateChapterInput) => updateChapter(trainingId, chapter!.id, input),
+    (input: UpdateChapterInput) =>
+      updateChapter(trainingId, chapter!.id, input),
     {
-      onSuccess: () => { setFormError(null); onSuccess(); },
+      onSuccess: () => {
+        setFormError(null);
+        onSuccess();
+      },
       onError: (err) => setFormError(extractErrorMessage(err)),
-    },
+    }
   );
 
   const isSaving = adding || updating || isUploading;
 
   function validateStep0(): boolean {
     const errors: Record<string, string> = {};
-    if (!title.trim()) errors.title = "Title is required.";
-    else if (title.trim().length < 2) errors.title = "Title must be at least 2 characters.";
-    if (orderIndex < 0) errors.orderIndex = "Order index must be 0 or greater.";
+    if (!title.trim()) errors.title = t("errors.titleRequired");
+    else if (title.trim().length < 2) errors.title = t("errors.titleMinLength");
+    if (orderIndex < 0) errors.orderIndex = t("errors.orderIndexNonNegative");
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
   }
 
   function validateStep1(): boolean {
     const errors: Record<string, string> = {};
-    const needsFile = contentType === "Pdf" || (contentType === "Video" && !videoUrl);
+    const needsFile =
+      contentType === "Pdf" || (contentType === "Video" && !videoUrl);
     if (needsFile && !file && !contentUri)
-      errors.file = `Please upload a ${contentType === "Pdf" ? "PDF" : "video"} file.`;
-    if (contentType === "Video" && videoUrl && !/^https?:\/\/.+/i.test(videoUrl))
-      errors.videoUrl = "Video URL must be a valid URL (https://...).";
+      errors.file =
+        contentType === "Pdf" ? t("errors.uploadPdf") : t("errors.uploadVideo");
+    if (
+      contentType === "Video" &&
+      videoUrl &&
+      !/^https?:\/\/.+/i.test(videoUrl)
+    )
+      errors.videoUrl = t("errors.videoUrlInvalid");
     if (estimatedDuration !== "" && estimatedDuration <= 0)
-      errors.estimatedDuration = "Duration must be greater than 0.";
+      errors.estimatedDuration = t("errors.durationPositive");
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
   }
@@ -140,24 +179,32 @@ export function useChapterForm({ trainingId, chapter, open, onSuccess }: UseChap
     }
   }, [step, title, orderIndex]);
 
-  const handleSectionChange = useCallback((sectionId: string, value: string) => {
-    setSectionValues((prev) => ({ ...prev, [sectionId]: value }));
-  }, []);
+  const handleSectionChange = useCallback(
+    (sectionId: string, value: string) => {
+      setSectionValues((prev) => ({ ...prev, [sectionId]: value }));
+    },
+    []
+  );
 
   // When a template is selected, remap any label-keyed section values to section-ID keys
-  const handleTemplateChange = useCallback((template: ArticleTemplate | null) => {
-    setSelectedTemplate(template);
-    if (!template) return;
-    setSectionValues((prev) => {
-      const hasLabelKeys = template.sections.some((s) => prev[s.label] !== undefined);
-      if (!hasLabelKeys) return prev;
-      const remapped: Record<string, string> = {};
-      for (const section of template.sections) {
-        remapped[section.id] = prev[section.label] ?? prev[section.id] ?? "";
-      }
-      return remapped;
-    });
-  }, []);
+  const handleTemplateChange = useCallback(
+    (template: ArticleTemplate | null) => {
+      setSelectedTemplate(template);
+      if (!template) return;
+      setSectionValues((prev) => {
+        const hasLabelKeys = template.sections.some(
+          (s) => prev[s.label] !== undefined
+        );
+        if (!hasLabelKeys) return prev;
+        const remapped: Record<string, string> = {};
+        for (const section of template.sections) {
+          remapped[section.id] = prev[section.label] ?? prev[section.id] ?? "";
+        }
+        return remapped;
+      });
+    },
+    []
+  );
 
   const handleSubmit = useCallback(async () => {
     if (!validateStep1()) return;
@@ -183,7 +230,10 @@ export function useChapterForm({ trainingId, chapter, open, onSuccess }: UseChap
       const sectionArray = [...selectedTemplate.sections]
         .sort((a, b) => a.orderIndex - b.orderIndex)
         .map((s) => ({ label: s.label, content: sectionValues[s.id] ?? "" }));
-      resolvedTextContent = JSON.stringify({ templateName: selectedTemplate.name, sections: sectionArray });
+      resolvedTextContent = JSON.stringify({
+        templateName: selectedTemplate.name,
+        sections: sectionArray,
+      });
     } else {
       resolvedTextContent = textContent || undefined;
     }
@@ -194,26 +244,63 @@ export function useChapterForm({ trainingId, chapter, open, onSuccess }: UseChap
       contentUri: uploadedUri || undefined,
       orderIndex,
       textContent: resolvedTextContent,
-      videoUrl: (!file && videoUrl) ? videoUrl : undefined,
+      videoUrl: !file && videoUrl ? videoUrl : undefined,
       estimatedDurationMinutes: estimatedDuration || undefined,
     };
     if (isEditing) await doUpdate(payload);
     else await doAdd(payload);
-  }, [title, contentType, contentUri, orderIndex, textContent, videoUrl, estimatedDuration, file, isEditing, doUpdate, doAdd, selectedTemplate, sectionValues]);
+  }, [
+    title,
+    contentType,
+    contentUri,
+    orderIndex,
+    textContent,
+    videoUrl,
+    estimatedDuration,
+    file,
+    isEditing,
+    doUpdate,
+    doAdd,
+    selectedTemplate,
+    sectionValues,
+  ]);
 
   const canAdvance = title.trim().length > 0;
-  const clearFieldError = (field: string) => setFieldErrors((p) => ({ ...p, [field]: "" }));
+  const clearFieldError = (field: string) =>
+    setFieldErrors((p) => ({ ...p, [field]: "" }));
 
   return {
-    isEditing, step, setStep, formError, fieldErrors, clearFieldError,
-    title, setTitle, contentType, setContentType,
-    contentUri, setContentUri, orderIndex, setOrderIndex,
-    textContent, setTextContent, videoUrl, setVideoUrl,
-    estimatedDuration, setEstimatedDuration,
-    file, setFile, isUploading,
-    selectedTemplate, handleTemplateChange,
-    sectionValues, handleSectionChange,
+    isEditing,
+    step,
+    setStep,
+    formError,
+    fieldErrors,
+    clearFieldError,
+    title,
+    setTitle,
+    contentType,
+    setContentType,
+    contentUri,
+    setContentUri,
+    orderIndex,
+    setOrderIndex,
+    textContent,
+    setTextContent,
+    videoUrl,
+    setVideoUrl,
+    estimatedDuration,
+    setEstimatedDuration,
+    file,
+    setFile,
+    isUploading,
+    selectedTemplate,
+    handleTemplateChange,
+    sectionValues,
+    handleSectionChange,
     initialTemplateName,
-    isSaving, handleNext, handleSubmit, canAdvance,
+    isSaving,
+    handleNext,
+    handleSubmit,
+    canAdvance,
   };
 }

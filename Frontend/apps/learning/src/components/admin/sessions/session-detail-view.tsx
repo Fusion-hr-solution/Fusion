@@ -31,6 +31,7 @@ import {
   Separator,
 } from "@repo/ui";
 import { toast } from "sonner";
+import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { useApiQuery, useApiMutation } from "@repo/api/react";
 import {
   getSessionDetail,
@@ -55,6 +56,10 @@ interface SessionDetailViewProps {
 }
 
 export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
+  const t = useTranslations("adminSessions");
+  const tCommon = useTranslations("common");
+  const format = useFormatter();
+  const locale = useLocale();
   const fetcher = useCallback(() => getSessionDetail(sessionId), [sessionId]);
   const { data: session, isLoading, refetch } = useApiQuery(fetcher);
   const identityFetcher = useCallback(() => getIdentityUsers(), []);
@@ -102,14 +107,14 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
         await markAttendance(sessionId, employeeId);
         refetch();
       } catch {
-        toast.error("Could not mark attendance", {
-          description: "The change was not saved. Please try again.",
+        toast.error(t("detail.markAttendanceErrorTitle"), {
+          description: t("detail.markAttendanceErrorDescription"),
         });
       } finally {
         setMarkingId(null);
       }
     },
-    [sessionId, refetch]
+    [sessionId, refetch, t]
   );
 
   const handleExport = useCallback(
@@ -148,10 +153,11 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
   if (!session) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
-        <p className="text-sm text-destructive">Session not found.</p>
+        <p className="text-sm text-destructive">{t("detail.notFound")}</p>
         <Link href="/admin/sessions">
           <Button variant="outline" size="sm" className="mt-3">
-            <ArrowLeft className="mr-1.5 h-4 w-4" /> Back to Sessions
+            <ArrowLeft className="mr-1.5 h-4 w-4" />{" "}
+            {t("detail.backToSessions")}
           </Button>
         </Link>
       </div>
@@ -173,7 +179,7 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
             size="sm"
             className="gap-1.5 text-muted-foreground hover:text-foreground"
           >
-            <ArrowLeft className="h-4 w-4" /> Sessions
+            <ArrowLeft className="h-4 w-4" /> {t("detail.breadcrumb")}
           </Button>
         </Link>
         <span className="text-muted-foreground/40">/</span>
@@ -189,7 +195,7 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
           <CardContent className="py-6 space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-base font-semibold text-foreground">
-                Session Details
+                {t("detail.sessionDetails")}
               </h2>
               {session.status !== "Cancelled" &&
                 session.status !== "Completed" &&
@@ -201,7 +207,7 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
                     className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
                   >
                     <X className="h-3.5 w-3.5" />
-                    Cancel Session
+                    {t("detail.cancelSession")}
                   </Button>
                 )}
             </div>
@@ -212,7 +218,9 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
                   <FileText className="h-4 w-4 text-muted-foreground" />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Part</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t("detail.part")}
+                  </p>
                   <p className="text-sm font-medium">{session.partTitle}</p>
                 </div>
               </div>
@@ -222,9 +230,11 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
                   <Calendar className="h-4 w-4 text-muted-foreground" />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Date</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t("detail.date")}
+                  </p>
                   <p className="text-sm font-medium">
-                    {formatSessionDate(session.startUtc)}
+                    {formatSessionDate(session.startUtc, locale)}
                   </p>
                 </div>
               </div>
@@ -234,9 +244,15 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
                   <Clock className="h-4 w-4 text-muted-foreground" />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Time</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t("detail.time")}
+                  </p>
                   <p className="text-sm font-medium font-mono">
-                    {formatSessionTimeRange(session.startUtc, session.endUtc)}
+                    {formatSessionTimeRange(
+                      session.startUtc,
+                      session.endUtc,
+                      locale
+                    )}
                   </p>
                 </div>
               </div>
@@ -246,7 +262,9 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
                   <MapPin className="h-4 w-4 text-muted-foreground" />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Room</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t("detail.room")}
+                  </p>
                   <p className="text-sm font-medium">{session.room}</p>
                 </div>
               </div>
@@ -256,9 +274,11 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
                   <User className="h-4 w-4 text-muted-foreground" />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Trainer</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t("detail.trainer")}
+                  </p>
                   <p className="text-sm font-medium">
-                    {session.trainerName ?? "Not assigned"}
+                    {session.trainerName ?? t("detail.trainerNotAssigned")}
                   </p>
                   {session.trainerEmail && (
                     <p className="text-xs text-muted-foreground">
@@ -273,13 +293,17 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
                   <Users className="h-4 w-4 text-muted-foreground" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-xs text-muted-foreground">Capacity</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t("detail.capacity")}
+                  </p>
                   <p
                     className={`text-sm font-medium ${session.capacityWarning ? "text-[hsl(var(--ey-orange-500))]" : ""}`}
                   >
                     {session.enrolledCount} / {session.maxCapacity}
                     <span className="text-xs text-muted-foreground ml-1.5">
-                      ({Math.round(ratio)}%)
+                      {t("detail.capacityPercent", {
+                        percent: Math.round(ratio),
+                      })}
                     </span>
                   </p>
                   <Progress value={ratio} className="mt-2 h-2" />
@@ -290,9 +314,7 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
             {session.capacityWarning && (
               <div className="flex items-center gap-2.5 rounded-lg border border-[hsl(var(--ey-yellow))]/40 bg-[hsl(var(--ey-yellow))]/10 px-4 py-3 text-sm text-[hsl(var(--ey-orange-500))]">
                 <AlertTriangle className="h-4 w-4 shrink-0" />
-                <span>
-                  Capacity is at or above 90%. Consider adding another session.
-                </span>
+                <span>{t("detail.capacityWarning")}</span>
               </div>
             )}
 
@@ -300,7 +322,9 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
               <>
                 <Separator />
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1">Notes</p>
+                  <p className="text-xs text-muted-foreground mb-1">
+                    {t("detail.notes")}
+                  </p>
                   <p className="text-sm text-foreground">{session.notes}</p>
                 </div>
               </>
@@ -310,7 +334,7 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
               <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3">
                 <p className="text-sm">
                   <span className="font-medium text-destructive">
-                    Cancellation reason:
+                    {t("detail.cancellationReasonLabel")}
                   </span>{" "}
                   <span className="text-foreground">
                     {session.cancelReason}
@@ -336,15 +360,15 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
               <div className="flex items-center gap-2">
                 <CalendarPlus className="h-4 w-4 text-muted-foreground" />
                 <h3 className="text-sm font-semibold text-foreground">
-                  Duplicate Session
+                  {t("detail.duplicateTitle")}
                 </h3>
               </div>
               <p className="text-xs text-muted-foreground">
-                Create a copy of this session at a new date/time.
+                {t("detail.duplicateDescription")}
               </p>
               <div className="space-y-2">
                 <Label htmlFor="dupStart" className="text-xs">
-                  New start time
+                  {t("detail.newStartTime")}
                 </Label>
                 <Input
                   id="dupStart"
@@ -361,7 +385,9 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
                 className="w-full ey-bg-dark hover:opacity-90"
               >
                 <Copy className="mr-1.5 h-3.5 w-3.5" />
-                {dupPending ? "Duplicating..." : "Duplicate"}
+                {dupPending
+                  ? t("detail.duplicating")
+                  : tCommon("actions.duplicate")}
               </Button>
             </CardContent>
           </Card>
@@ -373,11 +399,11 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
                 <div className="flex items-center gap-2">
                   <Users className="h-4 w-4 text-muted-foreground" />
                   <h3 className="text-sm font-semibold text-foreground">
-                    Enrolled
+                    {t("detail.enrolled")}
                   </h3>
                 </div>
                 <span className="text-xs text-muted-foreground">
-                  {resolvedAttendees.length} people
+                  {t("detail.peopleCount", { count: resolvedAttendees.length })}
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -387,7 +413,7 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
                   className="flex-1 gap-1.5 border-emerald-200 bg-emerald-50/50 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
                   disabled={resolvedAttendees.length === 0 || exportingExcel}
                   onClick={() => handleExport("excel")}
-                  aria-label="Export participant list as Excel"
+                  aria-label={t("detail.exportExcelAria")}
                 >
                   {exportingExcel ? (
                     <Loader2
@@ -408,7 +434,7 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
                   className="flex-1 gap-1.5 border-rose-200 bg-rose-50/50 text-rose-700 hover:bg-rose-50 hover:text-rose-800"
                   disabled={resolvedAttendees.length === 0 || exportingPdf}
                   onClick={() => handleExport("pdf")}
-                  aria-label="Export participant list as PDF"
+                  aria-label={t("detail.exportPdfAria")}
                 >
                   {exportingPdf ? (
                     <Loader2
@@ -425,7 +451,7 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
                 <div className="flex flex-col items-center py-4 text-center">
                   <Users className="h-6 w-6 text-muted-foreground/40" />
                   <p className="mt-1.5 text-xs text-muted-foreground">
-                    No enrolled employees yet.
+                    {t("detail.noEnrolled")}
                   </p>
                 </div>
               ) : (
@@ -454,7 +480,7 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
                           className="shrink-0 border-emerald-200 bg-emerald-50 text-emerald-700 text-[10px] px-1.5 py-0.5"
                         >
                           <CheckCircle2 className="h-3 w-3 mr-0.5" />
-                          Attended
+                          {t("detail.attended")}
                         </Badge>
                       ) : (
                         <Button
@@ -469,7 +495,7 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
                           ) : (
                             <>
                               <CheckCircle2 className="h-3 w-3 mr-0.5" />
-                              Mark
+                              {t("detail.mark")}
                             </>
                           )}
                         </Button>
@@ -491,17 +517,22 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
         <CardContent className="py-5 space-y-4">
           <div className="flex items-center gap-2">
             <History className="h-4 w-4 text-muted-foreground" />
-            <h3 className="text-sm font-semibold text-foreground">History</h3>
+            <h3 className="text-sm font-semibold text-foreground">
+              {t("detail.history")}
+            </h3>
           </div>
           <ol className="relative border-l border-border/60 ml-2 space-y-4">
             {/* Created */}
             <li className="ml-4">
               <div className="absolute -left-1.5 mt-1 h-3 w-3 rounded-full border-2 border-background bg-muted-foreground/40" />
               <p className="text-xs font-medium text-foreground">
-                Session created
+                {t("detail.sessionCreated")}
               </p>
               <time className="text-[10px] text-muted-foreground">
-                {new Date(session.createdAt).toLocaleString()}
+                {format.dateTime(new Date(session.createdAt), {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                })}
               </time>
             </li>
 
@@ -511,10 +542,13 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
                 <li className="ml-4">
                   <div className="absolute -left-1.5 mt-1 h-3 w-3 rounded-full border-2 border-background bg-blue-400" />
                   <p className="text-xs font-medium text-foreground">
-                    Session started
+                    {t("detail.sessionStarted")}
                   </p>
                   <time className="text-[10px] text-muted-foreground">
-                    {new Date(session.startUtc).toLocaleString()}
+                    {format.dateTime(new Date(session.startUtc), {
+                      dateStyle: "medium",
+                      timeStyle: "short",
+                    })}
                   </time>
                 </li>
               )}
@@ -525,10 +559,13 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
                 <li className="ml-4">
                   <div className="absolute -left-1.5 mt-1 h-3 w-3 rounded-full border-2 border-background bg-emerald-500" />
                   <p className="text-xs font-medium text-foreground">
-                    Session completed
+                    {t("detail.sessionCompleted")}
                   </p>
                   <time className="text-[10px] text-muted-foreground">
-                    {new Date(session.endUtc).toLocaleString()}
+                    {format.dateTime(new Date(session.endUtc), {
+                      dateStyle: "medium",
+                      timeStyle: "short",
+                    })}
                   </time>
                 </li>
               )}
@@ -538,14 +575,17 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
               <li className="ml-4">
                 <div className="absolute -left-1.5 mt-1 h-3 w-3 rounded-full border-2 border-background bg-destructive" />
                 <p className="text-xs font-medium text-destructive">
-                  Session cancelled
+                  {t("detail.sessionCancelled")}
                 </p>
                 <time className="text-[10px] text-muted-foreground">
-                  {new Date(session.cancelledAt).toLocaleString()}
+                  {format.dateTime(new Date(session.cancelledAt), {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  })}
                 </time>
                 {session.cancelReason && (
                   <p className="text-[10px] text-muted-foreground mt-0.5">
-                    Reason: {session.cancelReason}
+                    {t("detail.reasonPrefix", { reason: session.cancelReason })}
                   </p>
                 )}
               </li>
@@ -557,12 +597,12 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
               <li className="ml-4">
                 <div className="absolute -left-1.5 mt-1 h-3 w-3 rounded-full border-2 border-background bg-emerald-400" />
                 <p className="text-xs font-medium text-foreground">
-                  Attendance recorded (
-                  {
-                    resolvedAttendees.filter((a) => a.status === "Attended")
-                      .length
-                  }
-                  /{resolvedAttendees.length})
+                  {t("detail.attendanceRecorded", {
+                    present: resolvedAttendees.filter(
+                      (a) => a.status === "Attended"
+                    ).length,
+                    total: resolvedAttendees.length,
+                  })}
                 </p>
               </li>
             )}

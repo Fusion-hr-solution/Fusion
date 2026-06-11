@@ -1,3 +1,6 @@
+"use client";
+
+import { useTranslations } from "next-intl";
 import { Users, TrendingUp, CheckCircle2, BookOpen } from "lucide-react";
 
 function KpiTile({
@@ -30,13 +33,35 @@ interface KpiRowProps {
 }
 
 export function CellKpiRow({ enrichedCount, kpis }: KpiRowProps) {
+  const t = useTranslations("adminCells");
+  const tCommon = useTranslations("common");
   if (!kpis) return null;
   return (
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-      <KpiTile icon={Users} label="Total Employees" value={enrichedCount} accent="bg-blue-50" />
-      <KpiTile icon={TrendingUp} label="Avg. Completion" value={`${kpis.avg}%`} accent="bg-primary/10" />
-      <KpiTile icon={CheckCircle2} label="Fully Completed" value={kpis.fully} accent="bg-emerald-50" />
-      <KpiTile icon={BookOpen} label="In Progress" value={kpis.inProg} accent="bg-amber-50" />
+      <KpiTile
+        icon={Users}
+        label={t("kpi.totalEmployees")}
+        value={enrichedCount}
+        accent="bg-blue-50"
+      />
+      <KpiTile
+        icon={TrendingUp}
+        label={t("kpi.avgCompletion")}
+        value={`${kpis.avg}%`}
+        accent="bg-primary/10"
+      />
+      <KpiTile
+        icon={CheckCircle2}
+        label={t("kpi.fullyCompleted")}
+        value={kpis.fully}
+        accent="bg-emerald-50"
+      />
+      <KpiTile
+        icon={BookOpen}
+        label={tCommon("status.in-progress")}
+        value={kpis.inProg}
+        accent="bg-amber-50"
+      />
     </div>
   );
 }

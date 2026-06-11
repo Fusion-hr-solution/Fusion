@@ -34,6 +34,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { Badge, Button, Card, CardContent } from "@repo/ui";
+import { useLocale, useTranslations } from "next-intl";
 import { useApiQuery, useApiMutation } from "@repo/api/react";
 import {
   getPartsForTraining,
@@ -77,8 +78,16 @@ function SortablePartCard({
   onCancelSession,
   onToggleLock,
 }: SortablePartCardProps) {
-  const isPartCompleted = part.sessions.length > 0 &&
-    part.sessions.every((s) => s.status === "Completed" || s.status === "Cancelled" || new Date(s.endUtc) < new Date());
+  const t = useTranslations("adminSessions");
+  const locale = useLocale();
+  const isPartCompleted =
+    part.sessions.length > 0 &&
+    part.sessions.every(
+      (s) =>
+        s.status === "Completed" ||
+        s.status === "Cancelled" ||
+        new Date(s.endUtc) < new Date()
+    );
   const [expanded, setExpanded] = useState(!isPartCompleted);
 
   const {
@@ -98,7 +107,9 @@ function SortablePartCard({
 
   const sortedSessions = part.sessions
     .slice()
-    .sort((a, b) => new Date(a.startUtc).getTime() - new Date(b.startUtc).getTime());
+    .sort(
+      (a, b) => new Date(a.startUtc).getTime() - new Date(b.startUtc).getTime()
+    );
 
   return (
     <div
@@ -118,7 +129,7 @@ function SortablePartCard({
           {...attributes}
           {...listeners}
           disabled={isDeleted}
-          aria-label="Drag to reorder"
+          aria-label={t("partsManager.dragToReorder")}
         >
           <GripVertical className="h-5 w-5" />
         </button>
@@ -131,24 +142,38 @@ function SortablePartCard({
           type="button"
           className="flex items-center gap-1.5 text-muted-foreground/60 hover:text-muted-foreground transition-colors"
           onClick={() => setExpanded(!expanded)}
-          aria-label={expanded ? "Collapse" : "Expand"}
+          aria-label={
+            expanded ? t("partsManager.collapse") : t("partsManager.expand")
+          }
         >
-          {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+          {expanded ? (
+            <ChevronDown className="h-4 w-4" />
+          ) : (
+            <ChevronRight className="h-4 w-4" />
+          )}
         </button>
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <p className="truncate text-sm font-semibold text-foreground">{part.title}</p>
+            <p className="truncate text-sm font-semibold text-foreground">
+              {part.title}
+            </p>
             {isPartCompleted && (
-              <Badge variant="outline" className="shrink-0 border-emerald-200 bg-emerald-50 text-emerald-700 text-[10px] px-1.5 py-0.5">
+              <Badge
+                variant="outline"
+                className="shrink-0 border-emerald-200 bg-emerald-50 text-emerald-700 text-[10px] px-1.5 py-0.5"
+              >
                 <CheckCircle2 className="h-3 w-3 mr-0.5" />
-                Completed
+                {t("partsManager.completed")}
               </Badge>
             )}
             {part.isLocked && (
-              <Badge variant="outline" className="shrink-0 border-amber-200 bg-amber-50 text-amber-700 text-[10px] px-1.5 py-0.5">
+              <Badge
+                variant="outline"
+                className="shrink-0 border-amber-200 bg-amber-50 text-amber-700 text-[10px] px-1.5 py-0.5"
+              >
                 <Lock className="h-3 w-3 mr-0.5" />
-                Locked
+                {t("partsManager.locked")}
               </Badge>
             )}
           </div>
@@ -158,11 +183,13 @@ function SortablePartCard({
             )}
             <span className="flex items-center gap-1">
               <Clock className="h-3 w-3" />
-              {part.durationHours}h
+              {t("partDialog.reviewDurationValue", {
+                hours: part.durationHours,
+              })}
             </span>
             <span className="flex items-center gap-1">
               <Calendar className="h-3 w-3" />
-              {part.sessions.length} session{part.sessions.length !== 1 ? "s" : ""}
+              {t("partsManager.sessionCount", { count: part.sessions.length })}
             </span>
           </div>
         </div>
@@ -174,19 +201,29 @@ function SortablePartCard({
               variant="ghost"
               size="sm"
               onClick={onToggleLock}
-              aria-label={part.isLocked ? "Unlock part" : "Lock part"}
+              aria-label={
+                part.isLocked
+                  ? t("partsManager.unlockPart")
+                  : t("partsManager.lockPart")
+              }
               className={`h-8 w-8 p-0 ${part.isLocked ? "text-amber-600 hover:text-amber-700 hover:bg-amber-50" : ""}`}
             >
               <Lock className="h-3.5 w-3.5" />
             </Button>
-            <Button variant="ghost" size="sm" onClick={onEdit} aria-label="Edit part" className="h-8 w-8 p-0">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onEdit}
+              aria-label={t("partsManager.editPart")}
+              className="h-8 w-8 p-0"
+            >
               <Pencil className="h-3.5 w-3.5" />
             </Button>
             <Button
               variant="ghost"
               size="sm"
               onClick={onDelete}
-              aria-label="Delete part"
+              aria-label={t("partsManager.deletePart")}
               className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
             >
               <Trash2 className="h-3.5 w-3.5" />
@@ -203,7 +240,7 @@ function SortablePartCard({
               <div>
                 <Calendar className="mx-auto h-6 w-6 text-muted-foreground/40" />
                 <p className="mt-1.5 text-xs text-muted-foreground">
-                  No sessions scheduled yet
+                  {t("partsManager.noSessions")}
                 </p>
               </div>
             </div>
@@ -225,16 +262,18 @@ function SortablePartCard({
                     <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-3 gap-1 text-xs">
                       <span className="flex items-center gap-1.5 font-medium text-foreground">
                         <Calendar className="h-3 w-3 text-muted-foreground" />
-                        {formatSessionDate(s.startUtc)}
+                        {formatSessionDate(s.startUtc, locale)}
                         <span className="text-muted-foreground font-normal">
-                          {formatSessionTimeRange(s.startUtc, s.endUtc)}
+                          {formatSessionTimeRange(s.startUtc, s.endUtc, locale)}
                         </span>
                       </span>
                       <span className="flex items-center gap-1.5 text-muted-foreground">
                         <MapPin className="h-3 w-3" />
                         {s.room}
                       </span>
-                      <span className={`flex items-center gap-1.5 ${warn ? "font-semibold text-[hsl(var(--ey-orange-500))]" : "text-muted-foreground"}`}>
+                      <span
+                        className={`flex items-center gap-1.5 ${warn ? "font-semibold text-[hsl(var(--ey-orange-500))]" : "text-muted-foreground"}`}
+                      >
                         <Users className="h-3 w-3" />
                         {s.enrolledCount}/{s.maxCapacity}
                       </span>
@@ -242,10 +281,22 @@ function SortablePartCard({
 
                     {!isDeleted && !isCancelled && (
                       <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover/session:opacity-100">
-                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => onEditSession(s)} aria-label="Edit session">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0"
+                          onClick={() => onEditSession(s)}
+                          aria-label={t("partsManager.editSession")}
+                        >
                           <Pencil className="h-3 w-3" />
                         </Button>
-                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => onCancelSession(s.id)} aria-label="Cancel session">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => onCancelSession(s.id)}
+                          aria-label={t("partsManager.cancelSession")}
+                        >
                           <X className="h-3 w-3" />
                         </Button>
                       </div>
@@ -265,7 +316,7 @@ function SortablePartCard({
               className="mt-1 border-dashed hover:border-solid transition-all"
             >
               <Plus className="mr-1.5 h-3.5 w-3.5" />
-              Add Session
+              {t("partsManager.addSession")}
             </Button>
           )}
         </div>
@@ -276,7 +327,14 @@ function SortablePartCard({
 
 /* ── Drag overlay preview ── */
 
-function PartDragPreview({ part, index }: { part: AdminTrainingPart; index: number }) {
+function PartDragPreview({
+  part,
+  index,
+}: {
+  part: AdminTrainingPart;
+  index: number;
+}) {
+  const t = useTranslations("adminSessions");
   return (
     <div className="flex items-center gap-4 rounded-xl border border-foreground/20 bg-background px-5 py-4 shadow-2xl ring-2 ring-foreground/5">
       <GripVertical className="h-5 w-5 text-muted-foreground/30" />
@@ -284,8 +342,15 @@ function PartDragPreview({ part, index }: { part: AdminTrainingPart; index: numb
         {index + 1}
       </span>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-foreground">{part.title}</p>
-        <p className="text-xs text-muted-foreground">{part.durationHours}h · {part.sessions.length} sessions</p>
+        <p className="truncate text-sm font-semibold text-foreground">
+          {part.title}
+        </p>
+        <p className="text-xs text-muted-foreground">
+          {t("partsManager.previewSummary", {
+            hours: part.durationHours,
+            count: part.sessions.length,
+          })}
+        </p>
       </div>
     </div>
   );
@@ -298,22 +363,34 @@ interface PartsManagerSectionProps {
   isDeleted?: boolean;
 }
 
-export function PartsManagerSection({ trainingId, isDeleted }: PartsManagerSectionProps) {
-  const fetchParts = useCallback(() => getPartsForTraining(trainingId), [trainingId]);
+export function PartsManagerSection({
+  trainingId,
+  isDeleted,
+}: PartsManagerSectionProps) {
+  const t = useTranslations("adminSessions");
+  const fetchParts = useCallback(
+    () => getPartsForTraining(trainingId),
+    [trainingId]
+  );
   const { data: parts, isLoading, refetch } = useApiQuery(fetchParts);
 
   const [ordered, setOrdered] = useState<AdminTrainingPart[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
 
   const [partDialogOpen, setPartDialogOpen] = useState(false);
-  const [editingPart, setEditingPart] = useState<AdminTrainingPart | null>(null);
+  const [editingPart, setEditingPart] = useState<AdminTrainingPart | null>(
+    null
+  );
 
   const [sessionDialogOpen, setSessionDialogOpen] = useState(false);
   const [activePartId, setActivePartId] = useState<string | null>(null);
-  const [editingSession, setEditingSession] = useState<AdminTrainingSession | null>(null);
+  const [editingSession, setEditingSession] =
+    useState<AdminTrainingSession | null>(null);
 
   const [cancelOpen, setCancelOpen] = useState(false);
-  const [cancellingSessionId, setCancellingSessionId] = useState<string | null>(null);
+  const [cancellingSessionId, setCancellingSessionId] = useState<string | null>(
+    null
+  );
 
   useEffect(() => {
     if (parts) {
@@ -323,22 +400,23 @@ export function PartsManagerSection({ trainingId, isDeleted }: PartsManagerSecti
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor),
+    useSensor(KeyboardSensor)
   );
 
   const { mutateAsync: doDeletePart } = useApiMutation(
     (partId: string) => deletePart(trainingId, partId),
-    { onSuccess: () => refetch() },
+    { onSuccess: () => refetch() }
   );
 
   const { mutateAsync: doReorder } = useApiMutation(
     (partIds: string[]) => reorderParts(trainingId, partIds),
-    { onSuccess: () => refetch() },
+    { onSuccess: () => refetch() }
   );
 
   const { mutateAsync: doToggleLock } = useApiMutation(
-    ({ partId, lock }: { partId: string; lock: boolean }) => togglePartLock(trainingId, partId, lock),
-    { onSuccess: () => refetch() },
+    ({ partId, lock }: { partId: string; lock: boolean }) =>
+      togglePartLock(trainingId, partId, lock),
+    { onSuccess: () => refetch() }
   );
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
@@ -364,11 +442,12 @@ export function PartsManagerSection({ trainingId, isDeleted }: PartsManagerSecti
         setOrdered(ordered);
       }
     },
-    [ordered, doReorder],
+    [ordered, doReorder]
   );
 
   async function handleDeletePart(part: AdminTrainingPart) {
-    if (!confirm(`Delete part "${part.title}" and all its sessions?`)) return;
+    if (!confirm(t("partsManager.deleteConfirm", { title: part.title })))
+      return;
     await doDeletePart(part.id);
   }
 
@@ -393,33 +472,45 @@ export function PartsManagerSection({ trainingId, isDeleted }: PartsManagerSecti
     return (
       <div className="space-y-3">
         {[1, 2].map((i) => (
-          <div key={i} className="h-24 animate-pulse rounded-xl border border-border/40 bg-muted/30" />
+          <div
+            key={i}
+            className="h-24 animate-pulse rounded-xl border border-border/40 bg-muted/30"
+          />
         ))}
       </div>
     );
   }
 
-  const activeChapter = activeId ? ordered.find((p) => p.id === activeId) : null;
-  const activeIndex = activeId ? ordered.findIndex((p) => p.id === activeId) : -1;
+  const activeChapter = activeId
+    ? ordered.find((p) => p.id === activeId)
+    : null;
+  const activeIndex = activeId
+    ? ordered.findIndex((p) => p.id === activeId)
+    : -1;
 
   return (
     <div className="space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-base font-semibold text-foreground">Parts & Sessions</h2>
+          <h2 className="text-base font-semibold text-foreground">
+            {t("partsManager.heading")}
+          </h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Drag to reorder parts. Each part can have multiple time-slot sessions.
+            {t("partsManager.headingSubtitle")}
           </p>
         </div>
         {!isDeleted && (
           <Button
             size="sm"
-            onClick={() => { setEditingPart(null); setPartDialogOpen(true); }}
+            onClick={() => {
+              setEditingPart(null);
+              setPartDialogOpen(true);
+            }}
             className="ey-bg-dark hover:opacity-90"
           >
             <Plus className="mr-1.5 h-4 w-4" />
-            Add Part
+            {t("partsManager.addPart")}
           </Button>
         )}
       </div>
@@ -431,18 +522,23 @@ export function PartsManagerSection({ trainingId, isDeleted }: PartsManagerSecti
             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted/60">
               <Calendar className="h-7 w-7 text-muted-foreground/50" />
             </div>
-            <p className="mt-3 text-sm font-medium text-foreground">No parts yet</p>
+            <p className="mt-3 text-sm font-medium text-foreground">
+              {t("partsManager.emptyTitle")}
+            </p>
             <p className="mt-1 text-xs text-muted-foreground max-w-[280px]">
-              Add a Part to start scheduling in-person sessions for this training.
+              {t("partsManager.emptyDescription")}
             </p>
             {!isDeleted && (
               <Button
                 size="sm"
                 className="mt-4 ey-bg-dark hover:opacity-90"
-                onClick={() => { setEditingPart(null); setPartDialogOpen(true); }}
+                onClick={() => {
+                  setEditingPart(null);
+                  setPartDialogOpen(true);
+                }}
               >
                 <Plus className="mr-1.5 h-4 w-4" />
-                Add First Part
+                {t("partsManager.addFirstPart")}
               </Button>
             )}
           </CardContent>
@@ -468,19 +564,26 @@ export function PartsManagerSection({ trainingId, isDeleted }: PartsManagerSecti
                   part={part}
                   index={index}
                   isDeleted={!!isDeleted}
-                  onEdit={() => { setEditingPart(part); setPartDialogOpen(true); }}
+                  onEdit={() => {
+                    setEditingPart(part);
+                    setPartDialogOpen(true);
+                  }}
                   onDelete={() => handleDeletePart(part)}
                   onAddSession={() => openAddSession(part.id)}
                   onEditSession={(s) => openEditSession(part.id, s)}
                   onCancelSession={(id) => openCancel(id)}
-                  onToggleLock={() => doToggleLock({ partId: part.id, lock: !part.isLocked })}
+                  onToggleLock={() =>
+                    doToggleLock({ partId: part.id, lock: !part.isLocked })
+                  }
                 />
               ))}
             </div>
           </SortableContext>
 
           <DragOverlay dropAnimation={{ duration: 200, easing: "ease" }}>
-            {activeChapter && <PartDragPreview part={activeChapter} index={activeIndex} />}
+            {activeChapter && (
+              <PartDragPreview part={activeChapter} index={activeIndex} />
+            )}
           </DragOverlay>
         </DndContext>
       )}

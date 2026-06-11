@@ -1,19 +1,20 @@
 "use client";
 
 import { Check } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 const ELEARNING_STEPS = [
-  { label: "Basic Info", sub: "Title & category" },
-  { label: "Details", sub: "Credits & duration" },
-  { label: "Chapters", sub: "Build content" },
-  { label: "Review", sub: "Final check" },
-];
+  { labelKey: "steps.basicInfo.label", subKey: "steps.basicInfo.sub" },
+  { labelKey: "steps.details.label", subKey: "steps.details.subELearning" },
+  { labelKey: "steps.chapters.label", subKey: "steps.chapters.sub" },
+  { labelKey: "steps.review.label", subKey: "steps.review.sub" },
+] as const;
 
 const ONSITE_STEPS = [
-  { label: "Basic Info", sub: "Title & category" },
-  { label: "Details", sub: "Credits & schedule" },
-  { label: "Review", sub: "Final check" },
-];
+  { labelKey: "steps.basicInfo.label", subKey: "steps.basicInfo.sub" },
+  { labelKey: "steps.details.label", subKey: "steps.details.subOnSite" },
+  { labelKey: "steps.review.label", subKey: "steps.review.sub" },
+] as const;
 
 interface WizardStepperProps {
   currentStep: number;
@@ -21,7 +22,12 @@ interface WizardStepperProps {
   isOnSite?: boolean;
 }
 
-export function WizardStepper({ currentStep, onStepClick, isOnSite }: WizardStepperProps) {
+export function WizardStepper({
+  currentStep,
+  onStepClick,
+  isOnSite,
+}: WizardStepperProps) {
+  const t = useTranslations("adminWizard");
   const STEPS = isOnSite ? ONSITE_STEPS : ELEARNING_STEPS;
   return (
     <div className="border-b border-border px-8 py-5">
@@ -32,7 +38,7 @@ export function WizardStepper({ currentStep, onStepClick, isOnSite }: WizardStep
           const isDone = currentStep > num;
 
           return (
-            <div key={s.label} className="flex flex-1 items-center">
+            <div key={s.labelKey} className="flex flex-1 items-center">
               {i > 0 && (
                 <div
                   className={`h-[2px] flex-1 rounded-full transition-all duration-500 ${
@@ -53,7 +59,11 @@ export function WizardStepper({ currentStep, onStepClick, isOnSite }: WizardStep
                         : "cursor-default border-2 border-border bg-background text-muted-foreground"
                   }`}
                 >
-                  {isDone ? <Check className="h-4 w-4" strokeWidth={2.5} /> : num}
+                  {isDone ? (
+                    <Check className="h-4 w-4" strokeWidth={2.5} />
+                  ) : (
+                    num
+                  )}
                   {isActive && (
                     <span className="absolute inset-0 animate-ping rounded-full bg-foreground opacity-10" />
                   )}
@@ -62,17 +72,29 @@ export function WizardStepper({ currentStep, onStepClick, isOnSite }: WizardStep
                 <div className="text-center" style={{ minWidth: 72 }}>
                   <p
                     className={`text-[12px] font-semibold leading-tight transition-colors ${
-                      isActive ? "text-foreground" : isDone ? "text-muted-foreground" : "text-muted-foreground/60"
+                      isActive
+                        ? "text-foreground"
+                        : isDone
+                          ? "text-muted-foreground"
+                          : "text-muted-foreground/60"
                     }`}
                   >
-                    {s.label}
+                    {t(s.labelKey)}
                   </p>
                   <p
                     className={`mt-0.5 text-[10px] leading-tight ${
-                      isDone ? "text-muted-foreground" : isActive ? "text-muted-foreground" : "text-muted-foreground/40"
+                      isDone
+                        ? "text-muted-foreground"
+                        : isActive
+                          ? "text-muted-foreground"
+                          : "text-muted-foreground/40"
                     }`}
                   >
-                    {isDone ? "Complete ✓" : isActive ? "In progress" : s.sub}
+                    {isDone
+                      ? `${t("steps.complete")} ✓`
+                      : isActive
+                        ? t("steps.inProgress")
+                        : t(s.subKey)}
                   </p>
                 </div>
               </div>

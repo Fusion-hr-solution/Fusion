@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 import { EmployeeAttendanceView } from "@/components/admin/attendance";
 
-export const metadata: Metadata = {
-  title: "Employee Attendance — Admin",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("adminMeta");
+  return { title: t("employeeAttendance") };
+}
 
 interface PageProps {
   params: Promise<{ employeeId: string }>;
