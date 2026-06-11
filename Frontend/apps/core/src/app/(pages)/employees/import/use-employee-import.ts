@@ -77,20 +77,6 @@ function buildHistoryQueryString(query?: EmployeeImportHistoryQuery) {
   return queryString ? `?${queryString}` : "";
 }
 
-function buildTemplateFieldsQueryString(fields?: readonly string[]) {
-  const params = new URLSearchParams();
-  const normalizedFields = Array.from(
-    new Set(fields?.map((field) => field.trim()).filter(Boolean) ?? [])
-  );
-
-  normalizedFields.forEach((field) => {
-    params.append("fields", field);
-  });
-
-  const queryString = params.toString();
-  return queryString ? `?${queryString}` : "";
-}
-
 export function useEmployeeImportSchema(): UseApiQueryResult<EmployeeImportSchemaDto> {
   const { user, isAuthenticated } = useAuth();
   const client = useMemo(() => createPlatformApiClient(), []);
@@ -293,16 +279,13 @@ export function useEmployeeImportHistoryDetail(
 
 export function useDownloadEmployeeImportTemplate(): UseApiMutationResult<
   Blob,
-  string[]
+  void
 > {
   const client = useMemo(() => createPlatformApiClient(), []);
 
-  return useApiMutation((fields: string[]) =>
-    client.get<Blob>(
-      `${EMPLOYEE_IMPORT_BASE_PATH}/template${buildTemplateFieldsQueryString(fields)}`,
-      {
-        responseType: "blob",
-      }
-    )
+  return useApiMutation(() =>
+    client.get<Blob>(`${EMPLOYEE_IMPORT_BASE_PATH}/template`, {
+      responseType: "blob",
+    })
   );
 }

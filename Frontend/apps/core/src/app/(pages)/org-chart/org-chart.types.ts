@@ -5,6 +5,7 @@ import type {
 
 export interface EmployeeOrgChartNodeDto {
   employeeId: string;
+  stableEmployeeKey: string;
   fullName: string;
   firstName: string;
   lastName: string;
@@ -46,7 +47,10 @@ export interface EmployeeOrgChartDto {
 export interface OrgChartQueryParams {
   rootEmployeeId?: string | null;
   focusEmployeeId?: string | null;
+  rootEmployeeKey?: string | null;
+  focusEmployeeKey?: string | null;
   orgUnitId?: string | null;
+  orgUnitCode?: string | null;
   maxDepth?: number;
   includeInactive?: boolean;
 }

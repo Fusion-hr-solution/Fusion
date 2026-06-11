@@ -18,7 +18,6 @@ function extractErrorMessage(err: Error, fallback: string): string {
   }
   return fallback;
 }
-
 export function useSessionEnrollment(trainingId: string) {
   const [selections, setSelections] = useState<Record<string, string>>({});
   const [enrollResult, setEnrollResult] = useState<EnrollInSessionsResult | null>(null);
@@ -174,4 +173,3 @@ export function useSessionEnrollment(trainingId: string) {
     allUnenrolledPartsSelected,
   };
 }
-

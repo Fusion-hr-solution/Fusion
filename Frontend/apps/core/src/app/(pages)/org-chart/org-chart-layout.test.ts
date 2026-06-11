@@ -12,6 +12,8 @@ function createEmployee(
 ): EmployeeOrgChartNodeDto {
   return {
     employeeId: overrides.employeeId ?? crypto.randomUUID(),
+    stableEmployeeKey:
+      overrides.stableEmployeeKey ?? `E-${crypto.randomUUID().slice(0, 8)}`,
     fullName: overrides.fullName ?? "Employee Name",
     firstName: overrides.firstName ?? "Employee",
     lastName: overrides.lastName ?? "Name",

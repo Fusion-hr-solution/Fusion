@@ -17,6 +17,7 @@ function buildAccount(
     email: "employee@example.com",
     fullName: "Employee One",
     role: "Employee",
+    accessProfiles: [],
     provisioningState: "Unprovisioned",
     userId: null,
     isActive: null,
@@ -36,7 +37,9 @@ function buildAccount(
 describe("employee access helpers", () => {
   it("parses known access filters and rejects unknown values", () => {
     expect(parseEmployeeAccessFilter("NotInvited")).toBe("NotInvited");
+    expect(parseEmployeeAccessFilter("Invited")).toBe("Invited");
     expect(parseEmployeeAccessFilter("NeedsReview")).toBe("NeedsReview");
+    expect(parseEmployeeAccessFilter("InviteExpired")).toBeUndefined();
     expect(parseEmployeeAccessFilter("Provisioned")).toBeUndefined();
   });
 
@@ -93,7 +96,7 @@ describe("employee access helpers", () => {
     expect(summary.activeCount).toBe(1);
   });
 
-  it("matches invite lifecycle filters", () => {
+  it("matches current access filters for invite lifecycle states", () => {
     expect(
       matchesEmployeeAccessFilter(
         buildAccount({ provisioningState: "InviteExpired" }),
@@ -103,8 +106,15 @@ describe("employee access helpers", () => {
 
     expect(
       matchesEmployeeAccessFilter(
-        buildAccount({ provisioningState: "Inactive" }),
-        "NeedsReview"
+        buildAccount({ provisioningState: "InviteRevoked" }),
+        "NotInvited"
+      )
+    ).toBe(true);
+
+    expect(
+      matchesEmployeeAccessFilter(
+        buildAccount({ provisioningState: "InvitePending" }),
+        "Invited"
       )
     ).toBe(true);
   });

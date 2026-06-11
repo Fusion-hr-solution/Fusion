@@ -7,6 +7,7 @@ namespace EY.HRPlatform.CoreHR.Features.Employees.Dtos;
 /// </summary>
 public sealed record EmployeeListItemDto(
     Guid Id,
+    string StableEmployeeKey,
     string? EmployeeNumber,
     string FirstName,
     string LastName,

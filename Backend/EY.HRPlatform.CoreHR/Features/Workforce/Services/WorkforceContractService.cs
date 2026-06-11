@@ -19,19 +19,37 @@ public interface IWorkforceContractService
     Task<WorkforceEmployeeSummaryDto?> GetEmployeeAsync(Guid employeeId, ClaimsPrincipal user, CancellationToken cancellationToken);
     Task<IReadOnlyList<WorkforceEmployeeSummaryDto>> ResolveEmployeesAsync(IReadOnlyCollection<Guid> employeeIds, ClaimsPrincipal user, CancellationToken cancellationToken);
     Task<PagedResponse<WorkforceEmployeeSummaryDto>> SearchEmployeesAsync(string? search, int page, int pageSize, ClaimsPrincipal user, CancellationToken cancellationToken);
+    Task<PagedResponse<WorkforceAccessSubjectSummaryDto>> SearchAccessSubjectsAsync(
+        string? search,
+        string? access,
+        Guid? profileId,
+        string? employeeStatus,
+        string? deliveryState,
+        string? employeeKey,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken);
+    Task<WorkforceAccessRosterSummaryDto> GetAccessRosterSummaryAsync(CancellationToken cancellationToken);
     Task<IReadOnlyList<WorkforceEmployeeSummaryDto>> GetTeamAsync(Guid employeeId, ClaimsPrincipal user, CancellationToken cancellationToken);
     Task<IReadOnlyList<WorkforceEmployeeSummaryDto>> GetManagerChainAsync(Guid employeeId, ClaimsPrincipal user, CancellationToken cancellationToken);
     Task<IReadOnlyList<WorkforceOrgUnitSummaryDto>> GetPublishedOrgUnitsAsync(bool includeInactive, CancellationToken cancellationToken);
     Task<WorkforceOrgUnitTreeDto> GetPublishedOrgUnitTreeAsync(Guid? rootId, int maxDepth, bool includeInactive, CancellationToken cancellationToken);
+    Task<WorkforceBulkInviteResponseDto> BulkInviteAsync(WorkforceBulkInviteRequest request, ClaimsPrincipal user, CancellationToken cancellationToken);
 }
 
 public sealed class WorkforceContractService(
     CoreHRDbContext dbContext,
     ITenantContext tenantContext,
     ITenantSettingsReadService tenantSettingsReadService,
-    IEmployeeReadModelPolicy employeeReadModelPolicy) : IWorkforceContractService
+    IEmployeeReadModelPolicy employeeReadModelPolicy,
+    IWorkforceAccountStatusReader workforceAccountStatusReader,
+    IWorkforceBulkProvisioner workforceBulkProvisioner) : IWorkforceContractService
 {
     private const int MaxSearchPageSize = 100;
+    private const string AccessStateNotInvited = "NotInvited";
+    private const string AccessStateInvitePending = "InvitePending";
+    private const string AccessStateActiveAccount = "ActiveAccount";
+    private const string AccessStateNeedsReview = "NeedsReview";
 
     public async Task<WorkforceCurrentUserContextDto> GetCurrentUserContextAsync(
         ClaimsPrincipal user,
@@ -166,6 +184,319 @@ public sealed class WorkforceContractService(
             Page = currentPage,
             PageSize = currentPageSize
         };
+    }
+
+    public async Task<PagedResponse<WorkforceAccessSubjectSummaryDto>> SearchAccessSubjectsAsync(
+        string? search,
+        string? access,
+        Guid? profileId,
+        string? employeeStatus,
+        string? deliveryState,
+        string? employeeKey,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken)
+    {
+        var currentPage = Math.Max(1, page);
+        var currentPageSize = Math.Clamp(pageSize, 1, MaxSearchPageSize);
+        var normalizedAccess = NormalizeAccessFilter(access);
+        var normalizedDeliveryState = NormalizeDeliveryStateFilter(deliveryState);
+
+        var query = dbContext.Employees
+            .AsNoTracking()
+            .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var searchTerm = search.Trim().ToLowerInvariant();
+            query = query.Where(current =>
+                current.FirstName.ToLower().Contains(searchTerm) ||
+                current.LastName.ToLower().Contains(searchTerm) ||
+                current.Email.ToLower().Contains(searchTerm) ||
+                (current.EmployeeNumber != null && current.EmployeeNumber.ToLower().Contains(searchTerm)) ||
+                (current.FirstName + " " + current.LastName).ToLower().Contains(searchTerm));
+        }
+
+        if (!string.IsNullOrWhiteSpace(employeeKey))
+        {
+            var normalizedEmployeeKey = employeeKey.Trim();
+            query = query.Where(current => current.StableEmployeeKey == normalizedEmployeeKey);
+        }
+
+        if (TryParseEmployeeStatusFilter(employeeStatus, out var statusFilter))
+        {
+            query = query.Where(current => current.Status == statusFilter);
+        }
+
+        var requiresAccountFiltering =
+            normalizedAccess is not null
+            || profileId.HasValue
+            || normalizedDeliveryState is not null;
+
+        List<Employee> pageEmployees;
+        IReadOnlyDictionary<Guid, WorkforceAccountStatusDto> statuses;
+        int totalCount;
+
+        if (requiresAccountFiltering)
+        {
+            var candidateEmployees = await query
+                .OrderBy(current => current.LastName)
+                .ThenBy(current => current.FirstName)
+                .ToListAsync(cancellationToken);
+
+            statuses = await LoadWorkforceAccountStatusesAsync(candidateEmployees, cancellationToken);
+            var filteredEmployees = candidateEmployees
+                .Where(employee => MatchesAccessFilters(
+                    statuses.GetValueOrDefault(employee.Id),
+                    normalizedAccess,
+                    profileId,
+                    normalizedDeliveryState))
+                .ToList();
+
+            totalCount = filteredEmployees.Count;
+            pageEmployees = filteredEmployees
+                .Skip((currentPage - 1) * currentPageSize)
+                .Take(currentPageSize)
+                .ToList();
+        }
+        else
+        {
+            totalCount = await query.CountAsync(cancellationToken);
+            pageEmployees = await query
+                .OrderBy(current => current.LastName)
+                .ThenBy(current => current.FirstName)
+                .Skip((currentPage - 1) * currentPageSize)
+                .Take(currentPageSize)
+                .ToListAsync(cancellationToken);
+            statuses = await LoadWorkforceAccountStatusesAsync(pageEmployees, cancellationToken);
+        }
+
+        var directReportCounts = await LoadDirectReportCountsAsync(
+            pageEmployees.Select(employee => employee.Id).ToList(),
+            cancellationToken);
+        var employees = pageEmployees
+            .Select(employee => BuildAccessSubjectSummary(
+                employee,
+                statuses.GetValueOrDefault(employee.Id),
+                directReportCounts.GetValueOrDefault(employee.Id)))
+            .ToList();
+
+        return new PagedResponse<WorkforceAccessSubjectSummaryDto>
+        {
+            Items = employees,
+            TotalCount = totalCount,
+            Page = currentPage,
+            PageSize = currentPageSize,
+        };
+    }
+
+    public async Task<WorkforceAccessRosterSummaryDto> GetAccessRosterSummaryAsync(
+        CancellationToken cancellationToken)
+    {
+        var employees = await dbContext.Employees
+            .AsNoTracking()
+            .OrderBy(current => current.LastName)
+            .ThenBy(current => current.FirstName)
+            .ToListAsync(cancellationToken);
+        var statuses = await LoadWorkforceAccountStatusesAsync(employees, cancellationToken);
+        var accessStates = employees
+            .Select(employee => ClassifyAccessState(statuses.GetValueOrDefault(employee.Id)))
+            .ToList();
+
+        return new WorkforceAccessRosterSummaryDto(
+            employees.Count,
+            accessStates.Count(state => state == AccessStateNotInvited),
+            accessStates.Count(state => state == AccessStateInvitePending),
+            accessStates.Count(state => state == AccessStateActiveAccount),
+            accessStates.Count(state => state == AccessStateNeedsReview));
+    }
+
+    public async Task<WorkforceBulkInviteResponseDto> BulkInviteAsync(
+        WorkforceBulkInviteRequest request,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken)
+    {
+        var access = BuildAccessContext(user);
+        if (!access.IsHrAdmin)
+        {
+            throw new InvalidOperationException("Only HR admins can perform bulk invites.");
+        }
+
+        List<Employee> matchingEmployees;
+
+        if (request.SpecificEmployeeIds is { Count: > 0 })
+        {
+            var employees = await dbContext.Employees
+                .AsNoTracking()
+                .Where(e => request.SpecificEmployeeIds.Contains(e.Id))
+                .ToListAsync(cancellationToken);
+
+            matchingEmployees = employees;
+        }
+        else
+        {
+            var query = dbContext.Employees
+                .AsNoTracking()
+                .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(request.Search))
+            {
+                var searchTerm = request.Search.Trim().ToLowerInvariant();
+                query = query.Where(current =>
+                    current.FirstName.ToLower().Contains(searchTerm) ||
+                    current.LastName.ToLower().Contains(searchTerm) ||
+                    current.Email.ToLower().Contains(searchTerm) ||
+                    (current.EmployeeNumber != null && current.EmployeeNumber.ToLower().Contains(searchTerm)) ||
+                    (current.FirstName + " " + current.LastName).ToLower().Contains(searchTerm));
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.EmployeeKey))
+            {
+                var normalizedKey = request.EmployeeKey.Trim();
+                query = query.Where(current => current.StableEmployeeKey == normalizedKey);
+            }
+
+            if (TryParseEmployeeStatusFilter(request.EmployeeStatus, out var statusFilter))
+            {
+                query = query.Where(current => current.Status == statusFilter);
+            }
+
+            var hasAccountFilters = request.Access is not null
+                || request.ProfileId.HasValue
+                || request.DeliveryState is not null;
+
+            if (hasAccountFilters)
+            {
+                var candidateEmployees = await query
+                    .OrderBy(current => current.LastName)
+                    .ThenBy(current => current.FirstName)
+                    .ToListAsync(cancellationToken);
+
+                var statuses = await LoadWorkforceAccountStatusesAsync(candidateEmployees, cancellationToken);
+                var normalizedAccess = NormalizeAccessFilter(request.Access);
+                var normalizedDeliveryState = NormalizeDeliveryStateFilter(request.DeliveryState);
+
+                matchingEmployees = candidateEmployees
+                    .Where(employee => MatchesAccessFilters(
+                        statuses.GetValueOrDefault(employee.Id),
+                        normalizedAccess,
+                        request.ProfileId,
+                        normalizedDeliveryState))
+                    .ToList();
+            }
+            else
+            {
+                matchingEmployees = await query
+                    .OrderBy(current => current.LastName)
+                    .ThenBy(current => current.FirstName)
+                    .ToListAsync(cancellationToken);
+            }
+        }
+
+        if (matchingEmployees.Count == 0)
+        {
+            return new WorkforceBulkInviteResponseDto([], 0, 0, 0, 0, 0);
+        }
+
+        var allStatuses = await LoadWorkforceAccountStatusesAsync(matchingEmployees, cancellationToken);
+
+        var freshInviteEmployees = new List<Employee>();
+        var refreshInviteEmployees = new List<Employee>();
+        var alreadyActiveEmployees = new List<Employee>();
+        var skippedEmployees = new List<Employee>();
+
+        foreach (var employee in matchingEmployees)
+        {
+            var status = allStatuses.GetValueOrDefault(employee.Id);
+            var provisioningState = status?.ProvisioningState ?? "Unprovisioned";
+
+            switch (provisioningState)
+            {
+                case "Unprovisioned":
+                case "InviteRevoked":
+                    freshInviteEmployees.Add(employee);
+                    break;
+                case "InvitePending":
+                case "InviteExpired":
+                case "InviteAccepted":
+                    refreshInviteEmployees.Add(employee);
+                    break;
+                case "Active":
+                    alreadyActiveEmployees.Add(employee);
+                    break;
+                default:
+                    skippedEmployees.Add(employee);
+                    break;
+            }
+        }
+
+        var sendToIdentity = freshInviteEmployees.Concat(refreshInviteEmployees).ToList();
+        var freshIds = freshInviteEmployees.Select(e => e.Id).ToHashSet();
+
+        var items = new List<WorkforceBulkInviteResultItemDto>();
+        int invitedCount = 0;
+        int refreshedCount = 0;
+
+        if (sendToIdentity.Count > 0)
+        {
+            var subjects = sendToIdentity
+                .Select(e => new WorkforceBulkProvisionSubject(e.Id, e.Email, e.FirstName, e.LastName))
+                .ToList();
+
+            var provisionResult = await workforceBulkProvisioner.BulkProvisionAsync(
+                subjects,
+                request.AccessProfileId,
+                cancellationToken);
+
+            var employeeLookup = matchingEmployees.ToDictionary(e => e.Id);
+
+            foreach (var result in provisionResult.Items)
+            {
+                var employee = employeeLookup.GetValueOrDefault(result.EmployeeId);
+                items.Add(new WorkforceBulkInviteResultItemDto(
+                    result.EmployeeId,
+                    employee?.DisplayName ?? "Unknown",
+                    employee?.Email ?? "",
+                    result.Outcome,
+                    result.Message));
+
+                if (result.Outcome is "Created")
+                {
+                    if (freshIds.Contains(result.EmployeeId))
+                        invitedCount++;
+                    else
+                        refreshedCount++;
+                }
+            }
+        }
+
+        foreach (var employee in alreadyActiveEmployees)
+        {
+            items.Add(new WorkforceBulkInviteResultItemDto(
+                employee.Id,
+                employee.DisplayName,
+                employee.Email,
+                "Active",
+                "Account is already active."));
+        }
+
+        foreach (var employee in skippedEmployees)
+        {
+            items.Add(new WorkforceBulkInviteResultItemDto(
+                employee.Id,
+                employee.DisplayName,
+                employee.Email,
+                "Skipped",
+                "Account is not eligible for invitation."));
+        }
+
+        return new WorkforceBulkInviteResponseDto(
+            items,
+            matchingEmployees.Count,
+            invitedCount,
+            refreshedCount,
+            alreadyActiveEmployees.Count,
+            skippedEmployees.Count);
     }
 
     public async Task<IReadOnlyList<WorkforceEmployeeSummaryDto>> GetTeamAsync(
@@ -328,7 +659,7 @@ public sealed class WorkforceContractService(
                 var profile = employeeReadModelPolicy.MapProfile(employee, settings, audience, directReportCount);
                 return new WorkforceEmployeeSummaryDto(
                     employee.Id,
-                    employee.EmployeeNumber ?? employee.Id.ToString(),
+                    employee.StableEmployeeKey,
                     employee.EmployeeNumber,
                     profile.FirstName,
                     profile.LastName,
@@ -472,6 +803,294 @@ public sealed class WorkforceContractService(
             children);
     }
 
+    private async Task<IReadOnlyDictionary<Guid, WorkforceAccountStatusDto>> LoadWorkforceAccountStatusesAsync(
+        IReadOnlyCollection<Employee> employees,
+        CancellationToken cancellationToken)
+    {
+        if (employees.Count == 0)
+        {
+            return new Dictionary<Guid, WorkforceAccountStatusDto>();
+        }
+
+        return await workforceAccountStatusReader.GetStatusesAsync(
+            employees.Select(employee => new WorkforceAccountSubjectDto(
+                employee.Id,
+                employee.Email,
+                employee.FirstName,
+                employee.LastName)).ToList(),
+            cancellationToken);
+    }
+
+    private async Task<Dictionary<Guid, int>> LoadDirectReportCountsAsync(
+        IReadOnlyCollection<Guid> employeeIds,
+        CancellationToken cancellationToken)
+    {
+        if (employeeIds.Count == 0)
+        {
+            return [];
+        }
+
+        return await dbContext.Employees
+            .AsNoTracking()
+            .Where(employee => employee.ManagerId.HasValue
+                && employee.Status == EmployeeStatus.Active
+                && employeeIds.Contains(employee.ManagerId.Value))
+            .GroupBy(employee => employee.ManagerId!.Value)
+            .Select(group => new { ManagerId = group.Key, Count = group.Count() })
+            .ToDictionaryAsync(group => group.ManagerId, group => group.Count, cancellationToken);
+    }
+
+    private WorkforceAccessSubjectSummaryDto BuildAccessSubjectSummary(
+        Employee employee,
+        WorkforceAccountStatusDto? account,
+        int directReportCount)
+    {
+        var accessState = ClassifyAccessState(account);
+
+        return new WorkforceAccessSubjectSummaryDto(
+            employee.Id,
+            employee.StableEmployeeKey,
+            employee.EmployeeNumber,
+            employee.FirstName,
+            employee.LastName,
+            employee.PreferredName,
+            employee.DisplayName,
+            employee.Email,
+            employee.Status.ToString(),
+            employee.Status == EmployeeStatus.Active,
+            directReportCount,
+            accessState,
+            GetAccessStateLabel(accessState),
+            GetAccessStateDetail(account),
+            account?.AccessProfiles
+                .Select(profile => new WorkforceAccessProfileSummaryDto(profile.Id, profile.Name))
+                .ToList()
+                ?? [],
+            GetInvitationLabel(account),
+            GetLastActivityLabel(account),
+            GetLastActivityAt(account),
+            account?.DeliveryStatus,
+            GetReviewReason(account),
+            account?.ProvisioningState ?? "Unprovisioned",
+            account?.UserId);
+    }
+
+    private static string ClassifyAccessState(WorkforceAccountStatusDto? account)
+    {
+        if (account is null || string.Equals(account.ProvisioningState, "Unprovisioned", StringComparison.OrdinalIgnoreCase))
+        {
+            return AccessStateNotInvited;
+        }
+
+        if (string.Equals(account.ProvisioningState, "Active", StringComparison.OrdinalIgnoreCase))
+        {
+            return AccessStateActiveAccount;
+        }
+
+        if (string.Equals(account.ProvisioningState, "InvitePending", StringComparison.OrdinalIgnoreCase)
+            && account.AccessProfiles.Count > 0)
+        {
+            return AccessStateInvitePending;
+        }
+
+        return AccessStateNeedsReview;
+    }
+
+    private static string GetAccessStateLabel(string accessState)
+    {
+        return accessState switch
+        {
+            AccessStateNotInvited => "Not invited",
+            AccessStateInvitePending => "Invite pending",
+            AccessStateActiveAccount => "Active account",
+            _ => "Needs review",
+        };
+    }
+
+    private static string? GetAccessStateDetail(WorkforceAccountStatusDto? account)
+    {
+        if (account is null)
+        {
+            return null;
+        }
+
+        if (!string.Equals(
+                ClassifyAccessState(account),
+                AccessStateNeedsReview,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return GetReviewReason(account);
+    }
+
+    private static string GetInvitationLabel(WorkforceAccountStatusDto? account)
+    {
+        if (account is null || string.Equals(account.ProvisioningState, "Unprovisioned", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Not sent";
+        }
+
+        if (string.Equals(account.ProvisioningState, "InvitePending", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Pending";
+        }
+
+        return account.ProvisioningState switch
+        {
+            "InviteExpired" => "Expired",
+            "InviteRevoked" => "Revoked",
+            "InviteAccepted" => "Accepted",
+            "Active" => "Accepted",
+            _ => GetIssueSummary(account),
+        };
+    }
+
+    private static string GetLastActivityLabel(WorkforceAccountStatusDto? account)
+    {
+        if (account?.LastLoginAt is not null)
+            return FormatDateLabel(account.LastLoginAt, "Activated");
+
+        return "No activity";
+    }
+
+    private static DateTime? GetLastActivityAt(WorkforceAccountStatusDto? account)
+        => account?.LastLoginAt;
+
+    private static string? GetReviewReason(WorkforceAccountStatusDto? account)
+    {
+        if (account is null)
+        {
+            return null;
+        }
+
+        if (account.Conflict is not null && !string.IsNullOrWhiteSpace(account.Conflict.Message))
+        {
+            return account.Conflict.Message;
+        }
+
+        if (string.Equals(account.ProvisioningState, "InvitePending", StringComparison.OrdinalIgnoreCase)
+            && account.AccessProfiles.Count == 0)
+        {
+            return "Choose an access profile before continuing.";
+        }
+
+        return account.ProvisioningState switch
+        {
+            "Inactive" => "This account is inactive.",
+            "InviteExpired" => "Invite expired",
+            "InviteRevoked" => "Invitation revoked",
+            "InviteAccepted" => "The invitation was accepted, but activation is not complete.",
+            _ => null,
+        };
+    }
+
+    private static string GetIssueSummary(WorkforceAccountStatusDto account)
+    {
+        if (account.Conflict is not null && !string.IsNullOrWhiteSpace(account.Conflict.Message))
+        {
+            return account.Conflict.Message;
+        }
+
+        return account.ProvisioningState switch
+        {
+            "Inactive" => "Account inactive",
+            "InviteExpired" => "Invitation expired",
+            "InviteRevoked" => "Invitation revoked",
+            "InviteAccepted" => "Activation incomplete",
+            _ => "Needs review",
+        };
+    }
+
+    private static bool MatchesAccessFilters(
+        WorkforceAccountStatusDto? account,
+        string? access,
+        Guid? profileId,
+        string? deliveryState)
+    {
+        if (access is not null && !string.Equals(ClassifyAccessState(account), access, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (profileId.HasValue)
+        {
+            var hasProfile = account?.AccessProfiles.Any(profile => profile.Id == profileId.Value) == true;
+            if (!hasProfile)
+            {
+                return false;
+            }
+        }
+
+        if (deliveryState is not null
+            && !string.Equals(account?.DeliveryStatus, deliveryState, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private static string? NormalizeAccessFilter(string? access)
+    {
+        if (string.IsNullOrWhiteSpace(access))
+        {
+            return null;
+        }
+
+        var normalized = access.Trim();
+        return normalized switch
+        {
+            "NotInvited" => AccessStateNotInvited,
+            "InvitePending" => AccessStateInvitePending,
+            "ActiveAccount" => AccessStateActiveAccount,
+            "NeedsReview" => AccessStateNeedsReview,
+            _ => null,
+        };
+    }
+
+    private static string? NormalizeDeliveryStateFilter(string? deliveryState)
+    {
+        if (string.IsNullOrWhiteSpace(deliveryState))
+        {
+            return null;
+        }
+
+        var normalized = deliveryState.Trim();
+        return normalized is "Sent" or "Suppressed" or "Failed"
+            ? normalized
+            : null;
+    }
+
+    private static bool TryParseEmployeeStatusFilter(string? employeeStatus, out EmployeeStatus status)
+    {
+        status = default;
+
+        if (string.IsNullOrWhiteSpace(employeeStatus))
+        {
+            return false;
+        }
+
+        if (!Enum.TryParse<EmployeeStatus>(employeeStatus.Trim(), true, out var parsedStatus))
+        {
+            return false;
+        }
+
+        status = parsedStatus;
+        return true;
+    }
+
+    private static string FormatDateLabel(DateTime? value, string prefix)
+    {
+        if (!value.HasValue)
+        {
+            return prefix;
+        }
+
+        return $"{prefix} {value.Value:MMM d}";
+    }
+
     private async Task<(int PublishedStructureVersion, bool IsOperational)> GetStructureInfoAsync(CancellationToken cancellationToken)
     {
         var setupState = await dbContext.TenantSetupStates
@@ -517,21 +1136,28 @@ public sealed class WorkforceContractService(
     }
 
     private static WorkforceAccessContext BuildAccessContext(ClaimsPrincipal user)
-        => new(
-            user.IsInRole(PlatformRole.HRAdmin),
-            user.IsInRole(PlatformRole.Manager),
-            user.IsInRole(PlatformRole.Employee),
+    {
+        var isPlatformAdmin = user.IsInRole(PlatformRole.PlatformAdmin);
+        var isTenantReader = isPlatformAdmin
+            || user.HasCorePermission(CorePermissions.EmployeeView, PermissionScopes.Tenant);
+        var isDirectReportReader = !isTenantReader
+            && (user.HasCorePermission(CorePermissions.TeamView, PermissionScopes.DirectReports)
+                || user.HasCorePermission(CorePermissions.EmployeeView, PermissionScopes.DirectReports));
+
+        return new WorkforceAccessContext(
+            isTenantReader,
+            isDirectReportReader,
             user.GetEmployeeId(),
-            user.IsInRole(PlatformRole.HRAdmin)
+            isTenantReader
                 ? EmployeeReadAudience.HrAdmin
-                : user.IsInRole(PlatformRole.Manager)
+                : isDirectReportReader
                     ? EmployeeReadAudience.Manager
                     : EmployeeReadAudience.Employee);
+    }
 
     private sealed record WorkforceAccessContext(
         bool IsHrAdmin,
         bool IsManager,
-        bool IsEmployee,
         Guid? LinkedEmployeeId,
         EmployeeReadAudience Audience);
 }

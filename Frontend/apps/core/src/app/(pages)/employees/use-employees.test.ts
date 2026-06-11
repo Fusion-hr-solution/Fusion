@@ -3,10 +3,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 import { createElement, type PropsWithChildren } from "react";
 
-const { mockDelete, mockGet, mockPatch, mockPut } = vi.hoisted(() => ({
+const { mockDelete, mockGet, mockPost, mockPut } = vi.hoisted(() => ({
   mockDelete: vi.fn(),
   mockGet: vi.fn(),
-  mockPatch: vi.fn(),
+  mockPost: vi.fn(),
   mockPut: vi.fn(),
 }));
 
@@ -20,23 +20,11 @@ const authState = vi.hoisted(() => ({
   },
 }));
 
-const tenantContextState = vi.hoisted(() => ({
-  tenantId: null as string | null,
-  tenantName: null as string | null,
-  tenantStatus: null as string | null,
-  isActive: false,
-  isArchived: false,
-  isReady: false,
-  isLoading: false,
-  setTenant: vi.fn(),
-  clearTenant: vi.fn(),
-}));
-
 vi.mock("@repo/api", () => ({
   createPlatformApiClient: () => ({
     delete: mockDelete,
     get: mockGet,
-    patch: mockPatch,
+    post: mockPost,
     put: mockPut,
   }),
 }));
@@ -52,8 +40,13 @@ vi.mock("@repo/auth", () => ({
     !!user?.employeeId,
 }));
 
-vi.mock("@/components/core-tenant-context-provider", () => ({
-  useTenantContext: () => tenantContextState,
+vi.mock("@/shell/tenant-context/core-tenant-context-provider", () => ({
+  useTenantContext: () => ({
+    tenantId: null,
+    tenantSummary: null,
+    isLoading: false,
+    clearTenantContext: vi.fn(),
+  }),
 }));
 
 vi.mock("@repo/api/query", async () => {
@@ -61,14 +54,9 @@ vi.mock("@repo/api/query", async () => {
   return actual;
 });
 
-vi.mock("@/lib/employee-roster-access", () => ({
-  canAccessEmployeeProfile: () => true,
-  canAccessEmployeeRoster: () => true,
-  canAccessTeamWorkspace: () => true,
-}));
-
 import { ApiQueryProvider, createApiQueryClient } from "@repo/api/query";
 import {
+  useCreateEmployeeRecord,
   useDeactivateEmployee,
   useEmployeeOrgUnitOptions,
   useEmployeeManagerOptions,
@@ -107,13 +95,6 @@ beforeEach(() => {
     fullName: "HR Admin",
     roles: ["HRAdmin"],
   };
-  tenantContextState.tenantId = null;
-  tenantContextState.tenantName = null;
-  tenantContextState.tenantStatus = null;
-  tenantContextState.isActive = false;
-  tenantContextState.isArchived = false;
-  tenantContextState.isReady = false;
-  tenantContextState.isLoading = false;
 });
 
 describe("useEmployeeRoster", () => {
@@ -134,6 +115,8 @@ describe("useEmployeeRoster", () => {
         useEmployeeRoster({
           search: "pat",
           status: "Active",
+          orgUnitId: "ou-1",
+          managerId: "mgr-7",
           access: "NotInvited",
           readiness: "MissingOrgUnit",
           sortBy: "HireDate",
@@ -152,6 +135,8 @@ describe("useEmployeeRoster", () => {
         params: expect.objectContaining({
           search: "pat",
           status: "Active",
+          orgUnitId: "ou-1",
+          managerId: "mgr-7",
           access: "NotInvited",
           readiness: "MissingOrgUnit",
           sortBy: "HireDate",
@@ -290,6 +275,7 @@ describe("useEmployeeReportingLines", () => {
     const mockData = {
       employee: {
         id: "emp-1",
+        stableEmployeeKey: "E-EMP1",
         firstName: "Sarah",
         lastName: "Chen",
         email: "sarah.chen@ey-hr.com",
@@ -312,14 +298,14 @@ describe("useEmployeeReportingLines", () => {
     };
     mockGet.mockResolvedValue(mockData);
 
-    const { result } = renderHook(() => useEmployeeReportingLines("emp-1"), {
+    const { result } = renderHook(() => useEmployeeReportingLines("E-EMP1"), {
       wrapper: createWrapper(),
     });
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     expect(mockGet).toHaveBeenCalledWith(
-      "/corehr/employees/emp-1/reporting-lines",
+      "/corehr/employees/by-key/E-EMP1/reporting-lines",
       expect.objectContaining({
         signal: expect.any(AbortSignal),
       })
@@ -369,7 +355,7 @@ describe("useEmployeeManagerOptions", () => {
       items: [],
       totalCount: 0,
       page: 1,
-      pageSize: 8,
+      pageSize: 100,
       totalPages: 0,
       hasNextPage: false,
       hasPreviousPage: false,
@@ -395,7 +381,45 @@ describe("useEmployeeManagerOptions", () => {
           sortBy: "Name",
           sortDir: "Asc",
           page: 1,
-          pageSize: 8,
+          pageSize: 100,
+        }),
+        signal: expect.any(AbortSignal),
+      })
+    );
+  });
+
+  it("loads manager options on open even before a search term is entered", async () => {
+    mockGet.mockResolvedValue({
+      items: [],
+      totalCount: 0,
+      page: 1,
+      pageSize: 100,
+      totalPages: 0,
+      hasNextPage: false,
+      hasPreviousPage: false,
+    });
+
+    renderHook(
+      () =>
+        useEmployeeManagerOptions({
+          employeeId: null,
+          search: "",
+        }),
+      { wrapper: createWrapper() }
+    );
+
+    await waitFor(() => expect(mockGet).toHaveBeenCalled());
+
+    expect(mockGet).toHaveBeenCalledWith(
+      "/corehr/employees",
+      expect.objectContaining({
+        params: expect.objectContaining({
+          search: undefined,
+          status: "Active",
+          sortBy: "Name",
+          sortDir: "Asc",
+          page: 1,
+          pageSize: 100,
         }),
         signal: expect.any(AbortSignal),
       })
@@ -434,6 +458,34 @@ describe("useEmployeeOrgUnitOptions", () => {
         }),
         signal: expect.any(AbortSignal),
       })
+    );
+  });
+});
+
+describe("useCreateEmployeeRecord", () => {
+  it("posts a minimal create payload and omits empty optional fields", async () => {
+    mockPost.mockResolvedValue({ id: "emp-7" });
+
+    const { result } = renderHook(() => useCreateEmployeeRecord(), {
+      wrapper: createWrapper(),
+    });
+
+    await result.current.mutateAsync({
+      firstName: "  Alice  ",
+      lastName: "  Smith  ",
+      email: "  Alice.Smith@Example.com  ",
+      hireDate: "2026-06-01T00:00:00.000Z",
+      jobTitle: "   ",
+    });
+
+    expect(mockPost).toHaveBeenCalledWith(
+      "/corehr/employees",
+      {
+        firstName: "Alice",
+        lastName: "Smith",
+        email: "alice.smith@example.com",
+        hireDate: "2026-06-01T00:00:00.000Z",
+      }
     );
   });
 });
@@ -562,7 +614,7 @@ describe("useUpdateEmployeeRecord", () => {
 
 describe("useUpdateMyProfile", () => {
   it("sends preferred-name updates to the dedicated self-profile endpoint", async () => {
-    mockPatch.mockResolvedValue(undefined);
+    mockPut.mockResolvedValue(undefined);
 
     const { result } = renderHook(() => useUpdateMyProfile(), {
       wrapper: createWrapper(),
@@ -574,8 +626,8 @@ describe("useUpdateMyProfile", () => {
       preferredName: "Sally",
     });
 
-    expect(mockPatch).toHaveBeenCalledWith(
-      "/corehr/employees/me",
+    expect(mockPut).toHaveBeenCalledWith(
+      "/corehr/employees/emp-1/self-profile",
       {
         preferredName: "Sally",
       },
@@ -613,6 +665,7 @@ describe("useEmployeeProfile", () => {
   it("calls the profile endpoint for the given employee", async () => {
     const mockProfile = {
       id: "emp-1",
+      stableEmployeeKey: "E-EMP1",
       firstName: "Alice",
       lastName: "Smith",
       preferredName: "Ali",
@@ -635,14 +688,14 @@ describe("useEmployeeProfile", () => {
 
     mockGet.mockResolvedValue(mockProfile);
 
-    const { result } = renderHook(() => useEmployeeProfile("emp-1"), {
+    const { result } = renderHook(() => useEmployeeProfile("E-EMP1"), {
       wrapper: createWrapper(),
     });
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     expect(mockGet).toHaveBeenCalledWith(
-      "/corehr/employees/emp-1/profile",
+      "/corehr/employees/by-key/E-EMP1/profile",
       expect.objectContaining({ signal: expect.any(AbortSignal) })
     );
     expect(result.current.data).toMatchObject({

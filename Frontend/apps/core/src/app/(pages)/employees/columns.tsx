@@ -5,19 +5,9 @@ import Link from "next/link";
 import { ArrowUpDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  getEmployeeActionIssues,
-  buildEmployeeFixHref,
-  getEmployeeReadinessBadgeLabel,
-  getEmployeeReadinessBadgeVariant,
-} from "./employee-readiness";
-import { getHierarchyIssueMeta } from "./employee-hierarchy-status";
-import type { EmployeeFieldVisibility } from "./employee-field-visibility";
+import type { EmployeeFieldVisibility } from "@/features/employees/shared/employee-field-visibility";
+import { buildTenantContextHref } from "@/lib/tenant-navigation";
 import type { EmployeeRosterItem } from "./employee-roster.types";
-
-const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
-  dateStyle: "medium",
-});
 
 function SortHeader({
   label,
@@ -35,7 +25,7 @@ function SortHeader({
     <Button
       variant="ghost"
       size="sm"
-      className="-ml-2 gap-1 font-medium"
+      className="gap-1 font-medium"
       onClick={() => column.toggleSorting(sorted === "asc")}
     >
       {label}
@@ -45,84 +35,85 @@ function SortHeader({
 }
 
 function getEmployeeName(employee: EmployeeRosterItem) {
-  return `${employee.firstName} ${employee.lastName}`;
-}
-
-function formatDate(value: string) {
-  return DATE_FORMATTER.format(new Date(value));
+  return (
+    employee.displayName?.trim() ||
+    (employee.preferredName?.trim()
+      ? `${employee.preferredName} ${employee.lastName}`
+      : `${employee.firstName} ${employee.lastName}`)
+  );
 }
 
 function renderValue(value: string | null) {
-  return value?.trim() || "Not set";
+  return value?.trim() || "—";
 }
 
-function getManagerLabel(employee: EmployeeRosterItem) {
-  if (employee.hierarchyStatus === "ManagerMissing") {
-    return employee.managerName ?? "Manager needs attention";
-  }
+function formatDate(value: string): string {
+  if (!value?.trim()) return "—";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "—";
+  return parsed.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
 
-  if (employee.hierarchyStatus === "Root") {
-    return "Top-level leader";
+function getManagerBadge(employee: EmployeeRosterItem): {
+  label: string;
+  variant: "secondary" | "destructive";
+} | null {
+  switch (employee.hierarchyStatus) {
+    case "Root":
+      return { label: "Top-level leader", variant: "secondary" };
+    case "NoManagerAssigned":
+      return { label: "No manager assigned", variant: "secondary" };
+    case "ManagerInactive":
+      return { label: "Manager inactive", variant: "destructive" };
+    case "ManagerMissing":
+      return { label: "Manager missing", variant: "destructive" };
+    default:
+      return null;
   }
-
-  if (employee.hierarchyStatus === "NoManagerAssigned") {
-    return "No manager assigned";
-  }
-
-  return employee.managerName ?? "Manager needs attention";
 }
 
 export function buildEmployeeColumns<TEmployee extends EmployeeRosterItem>(
-  fieldVisibility: EmployeeFieldVisibility
+  fieldVisibility: EmployeeFieldVisibility,
+  options?: {
+    tenantId?: string | null;
+    tenantSlug?: string | null;
+  }
 ): ColumnDef<TEmployee>[] {
   const columns: ColumnDef<TEmployee>[] = [
     {
       id: "Name",
       accessorFn: getEmployeeName,
       meta: {
-        headerClassName: "w-[14rem] min-[1700px]:w-[17rem]",
-        cellClassName: "w-[14rem] min-[1700px]:w-[17rem]",
+        headerClassName: "w-[10rem]",
+        cellClassName: "w-[10rem]",
       },
-      header: ({ column }) => <SortHeader label="Name" column={column} />,
+      header: ({ column }) => <SortHeader label="Employee" column={column} />,
       cell: ({ row }) => {
-        const issues = getEmployeeActionIssues(row.original.readiness);
-        const visibleIssues = issues.slice(0, 2);
-        const remainingCount = issues.length - visibleIssues.length;
+        const profileHref = buildTenantContextHref(
+          `/employees/${row.original.stableEmployeeKey}`,
+          options?.tenantId ?? null,
+          options?.tenantSlug ?? null
+        );
 
         return (
-          <div className="min-w-0 space-y-1.5">
-            <div className="truncate font-medium">
-              {getEmployeeName(row.original)}
+          <div className="min-w-0">
+            <div className="flex min-w-0 items-center justify-center gap-2">
+              <Link
+                href={profileHref}
+                className="truncate font-medium hover:underline focus-visible:underline"
+                title={getEmployeeName(row.original)}
+                onClick={(event) => event.stopPropagation()}
+              >
+                {getEmployeeName(row.original)}
+              </Link>
+              {row.original.status === "Inactive" ? (
+                <Badge variant="outline">Inactive</Badge>
+              ) : null}
             </div>
-            {visibleIssues.length > 0 ? (
-              <div className="flex flex-wrap gap-1.5">
-                {visibleIssues.map((issue) => {
-                  const href = buildEmployeeFixHref(issue);
-                  const badge = (
-                    <Badge variant={getEmployeeReadinessBadgeVariant(issue)}>
-                      {getEmployeeReadinessBadgeLabel(issue)}
-                    </Badge>
-                  );
-
-                  return href ? (
-                    <Link
-                      key={`${issue.code}:${issue.fieldKey ?? "none"}`}
-                      href={href}
-                      onClick={(event) => event.stopPropagation()}
-                    >
-                      {badge}
-                    </Link>
-                  ) : (
-                    <span key={`${issue.code}:${issue.fieldKey ?? "none"}`}>
-                      {badge}
-                    </span>
-                  );
-                })}
-                {remainingCount > 0 ? (
-                  <Badge variant="outline">+{remainingCount} more</Badge>
-                ) : null}
-              </div>
-            ) : null}
           </div>
         );
       },
@@ -132,98 +123,57 @@ export function buildEmployeeColumns<TEmployee extends EmployeeRosterItem>(
       id: "Email",
       accessorKey: "email",
       meta: {
-        headerClassName: "w-[17rem] min-[1700px]:w-[20rem]",
-        cellClassName: "w-[17rem] min-[1700px]:w-[20rem]",
+        headerClassName: "w-[9rem]",
+        cellClassName: "w-[9rem]",
       },
       header: ({ column }) => <SortHeader label="Email" column={column} />,
       cell: ({ row }) => (
-        <span
-          className="block truncate text-muted-foreground"
-          title={row.original.email}
-        >
-          {row.original.email}
-        </span>
+        <div className="flex items-center justify-center">
+          <span className="truncate text-muted-foreground" title={row.original.email}>
+            {row.original.email}
+          </span>
+        </div>
       ),
       enableSorting: true,
     },
     {
-      id: "Manager",
-      accessorKey: "managerName",
+      id: "HireDate",
+      accessorKey: "hireDate",
       meta: {
-        headerClassName: "w-[12rem] min-[1700px]:w-[15rem]",
-        cellClassName: "w-[12rem] min-[1700px]:w-[15rem]",
+        headerClassName: "w-[9rem]",
+        cellClassName: "w-[9rem]",
       },
-      header: "Manager",
-      cell: ({ row }) => {
-        const issueMeta = getHierarchyIssueMeta(row.original.hierarchyStatus);
-        const isUnassigned =
-          row.original.hierarchyStatus === "NoManagerAssigned";
-
-        return (
-          <div className="min-w-0 space-y-1">
-            <div
-              className={
-                isUnassigned
-                  ? "truncate text-muted-foreground"
-                  : "truncate font-medium"
-              }
-              title={getManagerLabel(row.original)}
-            >
-              {getManagerLabel(row.original)}
-            </div>
-            {issueMeta ? (
-              <Badge variant={issueMeta.variant}>{issueMeta.label}</Badge>
-            ) : null}
-          </div>
-        );
-      },
-      enableSorting: false,
-    },
-    {
-      id: "Status",
-      accessorKey: "status",
-      meta: {
-        headerClassName:
-          "hidden w-[7rem] min-[1500px]:table-cell min-[1700px]:w-[8rem]",
-        cellClassName:
-          "hidden w-[7rem] min-[1500px]:table-cell min-[1700px]:w-[8rem]",
-      },
-      header: ({ column }) => <SortHeader label="Status" column={column} />,
+      header: ({ column }) => <SortHeader label="Hire date" column={column} />,
       cell: ({ row }) => (
-        <Badge
-          variant={row.original.status === "Active" ? "secondary" : "outline"}
-        >
-          {row.original.status}
-        </Badge>
+        <div className="flex items-center justify-center">
+          <span className="truncate text-muted-foreground" title={row.original.hireDate}>
+            {formatDate(row.original.hireDate)}
+          </span>
+        </div>
       ),
       enableSorting: true,
     },
   ];
 
-  if (fieldVisibility.showHireDate) {
-    columns.push({
-      id: "HireDate",
-      accessorKey: "hireDate",
-      header: ({ column }) => (
-        <div className="text-right">
-          <SortHeader label="Hire date" column={column} />
-        </div>
-      ),
-      cell: ({ row }) => (
-        <span className="block text-right tabular-nums">
-          {formatDate(row.original.hireDate)}
-        </span>
-      ),
-      enableSorting: true,
-    });
-  }
-
   if (fieldVisibility.showJobTitle) {
     columns.push({
       id: "JobTitle",
       accessorKey: "jobTitle",
+      meta: {
+        headerClassName: "w-[10rem]",
+        cellClassName: "w-[10rem]",
+      },
       header: "Job title",
-      cell: ({ row }) => renderValue(row.original.jobTitle),
+      cell: ({ row }) => (
+        <div className="flex items-center justify-center">
+          <span
+            className="truncate text-muted-foreground"
+            title={row.original.jobTitle ?? undefined}
+          >
+            {renderValue(row.original.jobTitle)}
+          </span>
+        </div>
+      ),
       enableSorting: false,
     });
   }
@@ -232,18 +182,49 @@ export function buildEmployeeColumns<TEmployee extends EmployeeRosterItem>(
     id: "OrgUnit",
     accessorKey: "orgUnitName",
     meta: {
-      headerClassName: "hidden w-[17rem] min-[1800px]:table-cell",
-      cellClassName: "hidden w-[17rem] min-[1800px]:table-cell",
+      headerClassName: "w-[10rem]",
+      cellClassName: "w-[10rem]",
     },
     header: "Org unit",
     cell: ({ row }) => (
-      <span
-        className="block truncate text-muted-foreground"
-        title={row.original.orgUnitName ?? undefined}
-      >
-        {row.original.orgUnitName ?? "—"}
-      </span>
+      <div className="flex items-center justify-center">
+        <span
+          className="truncate text-muted-foreground"
+          title={row.original.orgUnitName ?? undefined}
+        >
+          {renderValue(row.original.orgUnitName)}
+        </span>
+      </div>
     ),
+    enableSorting: false,
+  });
+
+  columns.push({
+    id: "Manager",
+    accessorKey: "managerName",
+    meta: {
+      headerClassName: "w-[11rem]",
+      cellClassName: "w-[11rem]",
+    },
+    header: "Manager",
+    cell: ({ row }) => {
+      const badge = getManagerBadge(row.original);
+
+      if (badge) {
+        return <Badge variant={badge.variant}>{badge.label}</Badge>;
+      }
+
+      return (
+        <div className="flex items-center justify-center">
+          <span
+            className="truncate font-medium"
+            title={row.original.managerName ?? undefined}
+          >
+            {row.original.managerName}
+          </span>
+        </div>
+      );
+    },
     enableSorting: false,
   });
 

@@ -35,6 +35,11 @@ public sealed record TenantSettingsDto
     public BrandingSettings Branding { get; init; } = new();
 
     /// <summary>
+    /// Employee self-service editing policies.
+    /// </summary>
+    public SelfServiceSettings SelfService { get; init; } = new();
+
+    /// <summary>
     /// Default field configuration for employee records.
     /// All fields default to visible for all roles.
     /// </summary>
@@ -53,3 +58,7 @@ public sealed record TenantSettingsDto
     /// </summary>
     public static TenantSettingsDto Defaults => new();
 }
+
+public sealed record SelfServiceSettings(
+    bool CanEditPreferredName = true,
+    bool CanEditPhone = true);

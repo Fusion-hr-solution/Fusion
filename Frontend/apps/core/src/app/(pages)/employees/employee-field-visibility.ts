@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import type { FieldConfigDto, TenantSettingsDto } from "@repo/api";
-import { useTenantSettings } from "../setup/draft-structure/use-tenant-settings";
+import { useTenantSettings } from "@/features/settings/api/use-tenant-settings";
 
 export type EmployeeFieldKey =
   | "firstName"

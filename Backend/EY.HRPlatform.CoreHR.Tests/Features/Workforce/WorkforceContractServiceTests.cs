@@ -94,12 +94,299 @@ public class WorkforceContractServiceTests
         Assert.Equal(1, platformTeam.PublishedStructureVersion);
     }
 
-    private static WorkforceContractService CreateService(CoreHRDbContext context, TestTenantContext tenantContext)
+    [Fact]
+    public async Task GetAccessRosterSummaryAsync_ReturnsTenantHeadcountBreakdown()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+
+        await using (var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName))
+        {
+            seedContext.TenantSettings.Add(DomainTenantSettings.Create(TenantId, SettingsJson));
+
+            var activeEmployee = Employee.Create(
+                TenantId,
+                "Alex",
+                "Active",
+                "alex.active@example.com",
+                DateTime.UtcNow,
+                jobTitle: "Analyst",
+                employeeNumber: "E-200");
+            var inactiveEmployee = Employee.Create(
+                TenantId,
+                "Iris",
+                "Inactive",
+                "iris.inactive@example.com",
+                DateTime.UtcNow,
+                jobTitle: "Analyst",
+                employeeNumber: "E-201");
+            inactiveEmployee.Deactivate();
+
+            seedContext.Employees.AddRange(activeEmployee, inactiveEmployee);
+            await seedContext.SaveChangesAsync();
+        }
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var service = CreateService(context, tenantContext);
+
+        var summary = await service.GetAccessRosterSummaryAsync(CancellationToken.None);
+
+        Assert.Equal(2, summary.TotalCount);
+        Assert.Equal(2, summary.NotInvitedCount);
+        Assert.Equal(0, summary.InvitePendingCount);
+        Assert.Equal(0, summary.ActiveAccountCount);
+        Assert.Equal(0, summary.NeedsReviewCount);
+    }
+
+    [Fact]
+    public async Task SearchAccessSubjectsAsync_UsesOperationalStateLabelsAndInviteCopy()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        Guid notInvitedId;
+        Guid pendingId;
+        Guid activeId;
+        var inviteCreatedAt = new DateTime(2026, 6, 6, 10, 0, 0, DateTimeKind.Utc);
+        var lastLoginAt = new DateTime(2026, 6, 7, 8, 30, 0, DateTimeKind.Utc);
+
+        await using (var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName))
+        {
+            seedContext.TenantSettings.Add(DomainTenantSettings.Create(TenantId, SettingsJson));
+
+            var notInvited = Employee.Create(
+                TenantId,
+                "Alex",
+                "Ready",
+                "alex.ready@example.com",
+                DateTime.UtcNow,
+                jobTitle: "Analyst",
+                employeeNumber: "E-300");
+            var pending = Employee.Create(
+                TenantId,
+                "Blair",
+                "Pending",
+                "blair.pending@example.com",
+                DateTime.UtcNow,
+                jobTitle: "Analyst",
+                employeeNumber: "E-301");
+            var active = Employee.Create(
+                TenantId,
+                "Casey",
+                "Active",
+                "casey.active@example.com",
+                DateTime.UtcNow,
+                jobTitle: "Manager",
+                employeeNumber: "E-302");
+
+            seedContext.Employees.AddRange(notInvited, pending, active);
+            await seedContext.SaveChangesAsync();
+
+            notInvitedId = notInvited.Id;
+            pendingId = pending.Id;
+            activeId = active.Id;
+        }
+
+        var statuses = new Dictionary<Guid, WorkforceAccountStatusDto>
+        {
+            [pendingId] = new(
+                pendingId,
+                "blair.pending@example.com",
+                "Blair Pending",
+                "Employee",
+                [new WorkforceAccountAccessProfileDto(Guid.NewGuid(), "Employee", "SystemSeeded", true)],
+                "InvitePending",
+                null,
+                false,
+                null,
+                Guid.NewGuid(),
+                inviteCreatedAt,
+                inviteCreatedAt.AddDays(7),
+                "https://example.com/invite/blair",
+                "Suppressed",
+                null,
+                inviteCreatedAt,
+                null),
+            [activeId] = new(
+                activeId,
+                "casey.active@example.com",
+                "Casey Active",
+                "Manager",
+                [new WorkforceAccountAccessProfileDto(Guid.NewGuid(), "Manager", "SystemSeeded", true)],
+                "Active",
+                Guid.NewGuid(),
+                true,
+                lastLoginAt,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                lastLoginAt,
+                null),
+        };
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var service = CreateService(
+            context,
+            tenantContext,
+            new StaticWorkforceAccountStatusReader(statuses));
+
+        var result = await service.SearchAccessSubjectsAsync(
+            search: null,
+            access: null,
+            profileId: null,
+            employeeStatus: null,
+            deliveryState: null,
+            employeeKey: null,
+            page: 1,
+            pageSize: 20,
+            cancellationToken: CancellationToken.None);
+
+        Assert.Equal(3, result.TotalCount);
+
+        var notInvitedItem = Assert.Single(result.Items.Where(item => item.EmployeeId == notInvitedId));
+        Assert.Equal("NotInvited", notInvitedItem.AccessState);
+        Assert.Equal("Not invited", notInvitedItem.AccessStateLabel);
+        Assert.Equal("Not sent", notInvitedItem.InvitationLabel);
+        Assert.Equal("No activity", notInvitedItem.LastActivityLabel);
+
+        var pendingItem = Assert.Single(result.Items.Where(item => item.EmployeeId == pendingId));
+        Assert.Equal("InvitePending", pendingItem.AccessState);
+        Assert.Equal("Invite pending", pendingItem.AccessStateLabel);
+        Assert.Equal("Pending", pendingItem.InvitationLabel);
+        Assert.Equal("No activity", pendingItem.LastActivityLabel);
+
+        var activeItem = Assert.Single(result.Items.Where(item => item.EmployeeId == activeId));
+        Assert.Equal("ActiveAccount", activeItem.AccessState);
+        Assert.Equal("Active account", activeItem.AccessStateLabel);
+        Assert.Equal("Accepted", activeItem.InvitationLabel);
+        Assert.Equal("Activated Jun 7", activeItem.LastActivityLabel);
+    }
+
+    [Fact]
+    public async Task SearchAccessSubjectsAsync_CollapsesInactiveAndConflictAccountsIntoNeedsReview()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        Guid inactiveId;
+        Guid conflictId;
+
+        await using (var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName))
+        {
+            seedContext.TenantSettings.Add(DomainTenantSettings.Create(TenantId, SettingsJson));
+
+            var inactive = Employee.Create(
+                TenantId,
+                "Iris",
+                "Inactive",
+                "iris.inactive@example.com",
+                DateTime.UtcNow,
+                jobTitle: "Analyst",
+                employeeNumber: "E-303");
+            var conflict = Employee.Create(
+                TenantId,
+                "Morgan",
+                "Conflict",
+                "morgan.conflict@example.com",
+                DateTime.UtcNow,
+                jobTitle: "Analyst",
+                employeeNumber: "E-304");
+
+            seedContext.Employees.AddRange(inactive, conflict);
+            await seedContext.SaveChangesAsync();
+
+            inactiveId = inactive.Id;
+            conflictId = conflict.Id;
+        }
+
+        var statuses = new Dictionary<Guid, WorkforceAccountStatusDto>
+        {
+            [inactiveId] = new(
+                inactiveId,
+                "iris.inactive@example.com",
+                "Iris Inactive",
+                "Employee",
+                [new WorkforceAccountAccessProfileDto(Guid.NewGuid(), "Employee", "SystemSeeded", true)],
+                "Inactive",
+                Guid.NewGuid(),
+                false,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null),
+            [conflictId] = new(
+                conflictId,
+                "morgan.conflict@example.com",
+                "Morgan Conflict",
+                "Employee",
+                [],
+                "Conflict",
+                null,
+                false,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                new WorkforceAccountConflictDto(
+                    "EmailAlreadyRegistered",
+                    "This email is already linked to another account.",
+                    true,
+                    "Check the existing account before sending a new invitation."))
+        };
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var service = CreateService(
+            context,
+            tenantContext,
+            new StaticWorkforceAccountStatusReader(statuses));
+
+        var result = await service.SearchAccessSubjectsAsync(
+            search: null,
+            access: null,
+            profileId: null,
+            employeeStatus: null,
+            deliveryState: null,
+            employeeKey: null,
+            page: 1,
+            pageSize: 20,
+            cancellationToken: CancellationToken.None);
+
+        var inactiveItem = Assert.Single(result.Items.Where(item => item.EmployeeId == inactiveId));
+        Assert.Equal("NeedsReview", inactiveItem.AccessState);
+        Assert.Equal("Needs review", inactiveItem.AccessStateLabel);
+        Assert.Equal("Account inactive", inactiveItem.InvitationLabel);
+        Assert.Equal("This account is inactive.", inactiveItem.ReviewReason);
+
+        var conflictItem = Assert.Single(result.Items.Where(item => item.EmployeeId == conflictId));
+        Assert.Equal("NeedsReview", conflictItem.AccessState);
+        Assert.Equal("Needs review", conflictItem.AccessStateLabel);
+        Assert.Equal("This email is already linked to another account.", conflictItem.InvitationLabel);
+        Assert.Equal("This email is already linked to another account.", conflictItem.AccessStateDetail);
+        Assert.Equal("This email is already linked to another account.", conflictItem.ReviewReason);
+    }
+
+    private static WorkforceContractService CreateService(
+        CoreHRDbContext context,
+        TestTenantContext tenantContext,
+        IWorkforceAccountStatusReader? workforceAccountStatusReader = null,
+        IWorkforceBulkProvisioner? workforceBulkProvisioner = null)
         => new(
             context,
             tenantContext,
             new TenantSettingsReadService(context),
-            new EmployeeReadModelPolicy());
+            new EmployeeReadModelPolicy(),
+            workforceAccountStatusReader ?? new StaticWorkforceAccountStatusReader(new Dictionary<Guid, WorkforceAccountStatusDto>()),
+            workforceBulkProvisioner ?? new StaticWorkforceBulkProvisioner());
 
     private static ClaimsPrincipal CreatePrincipal(Guid userId, string role, Guid? employeeId = null)
     {
@@ -115,6 +402,85 @@ public class WorkforceContractServiceTests
             claims.Add(new Claim(CustomClaimTypes.EmployeeId, employeeId.Value.ToString()));
         }
 
+        foreach (var grant in BuildRoleGrants(role))
+        {
+            claims.Add(new Claim(
+                CustomClaimTypes.CorePermission,
+                CorePermissionClaimValue.Encode(grant.PermissionKey, grant.Scope)));
+        }
+
         return new ClaimsPrincipal(new ClaimsIdentity(claims, "TestAuth", ClaimTypes.Name, ClaimTypes.Role));
+    }
+
+    private static IEnumerable<EffectivePermissionGrant> BuildRoleGrants(string role)
+        => role switch
+        {
+            PlatformRole.HRAdmin =>
+            [
+                new EffectivePermissionGrant(CorePermissions.EmployeeView, PermissionScopes.Tenant),
+                new EffectivePermissionGrant(CorePermissions.EmployeeManage, PermissionScopes.Tenant),
+                new EffectivePermissionGrant(CorePermissions.StructureView, PermissionScopes.Tenant),
+                new EffectivePermissionGrant(CorePermissions.StructureManage, PermissionScopes.Tenant),
+                new EffectivePermissionGrant(CorePermissions.SetupView, PermissionScopes.Tenant),
+                new EffectivePermissionGrant(CorePermissions.SetupManage, PermissionScopes.Tenant),
+                new EffectivePermissionGrant(CorePermissions.ProfileSelfView, PermissionScopes.Self),
+                new EffectivePermissionGrant(CorePermissions.ProfileSelfUpdate, PermissionScopes.Self),
+                new EffectivePermissionGrant(CorePermissions.TeamView, PermissionScopes.DirectReports),
+            ],
+            PlatformRole.Manager =>
+            [
+                new EffectivePermissionGrant(CorePermissions.ProfileSelfView, PermissionScopes.Self),
+                new EffectivePermissionGrant(CorePermissions.ProfileSelfUpdate, PermissionScopes.Self),
+                new EffectivePermissionGrant(CorePermissions.TeamView, PermissionScopes.DirectReports),
+                new EffectivePermissionGrant(CorePermissions.EmployeeView, PermissionScopes.DirectReports),
+            ],
+            PlatformRole.Employee =>
+            [
+                new EffectivePermissionGrant(CorePermissions.ProfileSelfView, PermissionScopes.Self),
+                new EffectivePermissionGrant(CorePermissions.ProfileSelfUpdate, PermissionScopes.Self),
+            ],
+            _ => [],
+        };
+
+    private sealed class StaticWorkforceAccountStatusReader(
+        IReadOnlyDictionary<Guid, WorkforceAccountStatusDto> statuses) : IWorkforceAccountStatusReader
+    {
+        public Task<IReadOnlyDictionary<Guid, WorkforceAccountStatusDto>> GetStatusesAsync(
+            IReadOnlyCollection<WorkforceAccountSubjectDto> subjects,
+            CancellationToken cancellationToken)
+        {
+            var result = statuses
+                .Where(entry => subjects.Any(subject => subject.EmployeeId == entry.Key))
+                .ToDictionary(entry => entry.Key, entry => entry.Value);
+
+            return Task.FromResult<IReadOnlyDictionary<Guid, WorkforceAccountStatusDto>>(result);
+        }
+    }
+
+    private sealed class StaticWorkforceBulkProvisioner : IWorkforceBulkProvisioner
+    {
+        private readonly WorkforceAccountStatusDto? _status;
+
+        public StaticWorkforceBulkProvisioner(WorkforceAccountStatusDto? status = null)
+        {
+            _status = status;
+        }
+
+        public Task<WorkforceBulkProvisionResponse> BulkProvisionAsync(
+            List<WorkforceBulkProvisionSubject> subjects,
+            Guid accessProfileId,
+            CancellationToken cancellationToken)
+        {
+            var provisionState = _status?.ProvisioningState ?? "Unprovisioned";
+            var outcome = provisionState is "InvitePending" or "InviteExpired" or "InviteAccepted"
+                ? "Created"
+                : "Created";
+
+            var items = subjects
+                .Select(s => new WorkforceBulkProvisionResultItem(s.EmployeeId, outcome, "Invitation created."))
+                .ToList();
+
+            return Task.FromResult(new WorkforceBulkProvisionResponse(items));
+        }
     }
 }

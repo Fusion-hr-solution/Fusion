@@ -219,6 +219,10 @@ namespace EY.HRPlatform.CoreHR.Infrastructure.Persistence.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
+                    b.Property<string>("EmploymentType")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
                     b.Property<string>("FirstName")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -242,9 +246,18 @@ namespace EY.HRPlatform.CoreHR.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("OrgUnitId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("Phone")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
                     b.Property<string>("PreferredName")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
+
+                    b.Property<string>("StableEmployeeKey")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -269,6 +282,10 @@ namespace EY.HRPlatform.CoreHR.Infrastructure.Persistence.Migrations
                         .HasColumnType("xid")
                         .HasColumnName("xmin");
 
+                    b.Property<string>("WorkLocation")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ManagerId")
@@ -288,6 +305,10 @@ namespace EY.HRPlatform.CoreHR.Infrastructure.Persistence.Migrations
                         .IsUnique()
                         .HasDatabaseName("IX_Employees_TenantId_EmployeeNumber")
                         .HasFilter("\"EmployeeNumber\" IS NOT NULL");
+
+                    b.HasIndex("TenantId", "StableEmployeeKey")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Employees_TenantId_StableEmployeeKey");
 
                     b.ToTable("Employees", "corehr");
                 });
@@ -386,6 +407,14 @@ namespace EY.HRPlatform.CoreHR.Infrastructure.Persistence.Migrations
                     b.Property<int>("CreatedCount")
                         .HasColumnType("integer");
 
+                    b.Property<int>("ErrorCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
                     b.Property<string>("FailureReason")
                         .HasMaxLength(2048)
                         .HasColumnType("character varying(2048)");
@@ -430,6 +459,9 @@ namespace EY.HRPlatform.CoreHR.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("xid")
                         .HasColumnName("xmin");
+
+                    b.Property<int>("WarningCount")
+                        .HasColumnType("integer");
 
                     b.HasKey("Id");
 
