@@ -2,9 +2,13 @@
 
 import { Button, Badge } from "@repo/ui";
 import { Trophy, XCircle, RotateCcw, ArrowLeft, Clock } from "lucide-react";
+import { useFormatter, useTranslations } from "next-intl";
 import type { ExamResultViewProps } from "@/types/component-props";
 
 export function ExamResultView({ result, attempts, onRetry, onBack }: ExamResultViewProps) {
+  const t = useTranslations("exam");
+  const tCommon = useTranslations("common");
+  const format = useFormatter();
   const passed = result.passed;
 
   return (
@@ -29,16 +33,14 @@ export function ExamResultView({ result, attempts, onRetry, onBack }: ExamResult
           )}
         </div>
         <h2 className="text-xl font-bold text-foreground">
-          {passed ? "Congratulations! You passed!" : "Not quite there yet"}
+          {passed ? t("result.passedTitle") : t("result.failedTitle")}
         </h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          {passed
-            ? "You have successfully completed the exam."
-            : "Review the material and try again when you're ready."}
+          {passed ? t("result.passedDescription") : t("result.failedDescription")}
         </p>
         {passed && result.trainingCompleted && (
           <Badge className="mt-3 bg-[hsl(var(--ey-green-500))]/15 text-[hsl(var(--ey-green-500))] border-[hsl(var(--ey-green-500))]/30">
-            Training Completed
+            {t("result.trainingCompleted")}
           </Badge>
         )}
       </div>
@@ -46,9 +48,9 @@ export function ExamResultView({ result, attempts, onRetry, onBack }: ExamResult
       {/* Score details */}
       <div className="ey-animate-fade-up mb-8 grid grid-cols-3 gap-4">
         {[
-          { label: "Your Score", value: `${result.score}%`, highlight: passed },
-          { label: "Passing Score", value: `${result.passingScore}%`, highlight: false },
-          { label: "Correct Answers", value: `${result.correctAnswers}/${result.totalQuestions}`, highlight: false },
+          { label: t("result.yourScore"), value: `${result.score}%`, highlight: passed },
+          { label: t("passingScore"), value: `${result.passingScore}%`, highlight: false },
+          { label: t("result.correctAnswers"), value: `${result.correctAnswers}/${result.totalQuestions}`, highlight: false },
         ].map((stat) => (
           <div
             key={stat.label}
@@ -67,19 +69,19 @@ export function ExamResultView({ result, attempts, onRetry, onBack }: ExamResult
         {!passed && (
           <Button onClick={onRetry} className="gap-2 ey-bg-dark hover:ey-bg-dark-deep text-white">
             <RotateCcw className="h-4 w-4" aria-hidden="true" />
-            Try Again
+            {tCommon("actions.retry")}
           </Button>
         )}
         <Button variant="outline" onClick={onBack} className="gap-2">
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-          {passed ? "Back to Overview" : "Review Chapters"}
+          {passed ? t("result.backToOverview") : t("result.reviewChapters")}
         </Button>
       </div>
 
       {/* Past attempts */}
       {attempts.length > 0 && (
         <div className="ey-animate-fade-up mt-10" style={{ animationDelay: "150ms" }}>
-          <h3 className="mb-3 text-sm font-semibold text-foreground">Attempt History</h3>
+          <h3 className="mb-3 text-sm font-semibold text-foreground">{t("result.attemptHistory")}</h3>
           <div className="space-y-2">
             {attempts.map((a, i) => (
               <div
@@ -91,16 +93,16 @@ export function ExamResultView({ result, attempts, onRetry, onBack }: ExamResult
                     #{attempts.length - i}
                   </span>
                   <Badge variant={a.passed ? "default" : "destructive"} className="text-xs">
-                    {a.passed ? "Passed" : "Failed"}
+                    {a.passed ? t("attempts.passed") : t("attempts.failed")}
                   </Badge>
                   <span className="text-sm font-semibold text-foreground">{a.score}%</span>
                   <span className="text-xs text-muted-foreground">
-                    ({a.correctAnswers}/{a.totalQuestions} correct)
+                    {t("attempts.correctRatio", { correct: a.correctAnswers, total: a.totalQuestions })}
                   </span>
                 </div>
                 <span className="flex items-center gap-1 text-xs text-muted-foreground">
                   <Clock className="h-3 w-3" aria-hidden="true" />
-                  {new Date(a.attemptedAt).toLocaleDateString("en-US", {
+                  {format.dateTime(new Date(a.attemptedAt), {
                     month: "short",
                     day: "numeric",
                     hour: "2-digit",

@@ -120,13 +120,13 @@ export function ContentBlockView({
             <object data={`${resolveAssetUrl(block.contentUri)}#toolbar=1&view=FitH`} type="application/pdf" title={block.title ?? "PDF"} className="h-full w-full">
               <div className="flex h-full flex-col items-center justify-center gap-3 bg-muted/30 p-6 text-center">
                 <FileText className="h-10 w-10 text-muted-foreground/40" aria-hidden="true" />
-                <p className="text-sm text-muted-foreground">Your browser cannot display this PDF inline.</p>
-                <a href={resolveAssetUrl(block.contentUri)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity">Open PDF</a>
+                <p className="text-sm text-muted-foreground">{t("block.pdfInlineUnsupported")}</p>
+                <a href={resolveAssetUrl(block.contentUri)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity">{t("block.openPdf")}</a>
               </div>
             </object>
           </div>
           <a href={resolveAssetUrl(block.contentUri)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs font-medium text-[hsl(var(--ey-blue-500))] hover:underline">
-            <FileText className="h-3.5 w-3.5" /> Open PDF in new tab
+            <FileText className="h-3.5 w-3.5" /> {t("block.openPdfNewTab")}
           </a>
         </div>
       )}
@@ -135,7 +135,7 @@ export function ContentBlockView({
 
       {!block.textContent && !block.videoUrl && !block.contentUri && (
         <div className="rounded-xl border border-dashed border-border/60 bg-muted/30 px-6 py-10 text-center">
-          <p className="text-sm text-muted-foreground">Content not yet available.</p>
+          <p className="text-sm text-muted-foreground">{t("block.empty")}</p>
         </div>
       )}
     </div>
