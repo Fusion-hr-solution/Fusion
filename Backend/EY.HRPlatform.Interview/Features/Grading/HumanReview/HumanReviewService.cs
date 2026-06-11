@@ -19,10 +19,25 @@ public class HumanReviewService(AppDbContext dbContext)
             .OrderBy(r => r.Attempt.SubmittedAtUtc)
             .ToListAsync(ct);
 
-        return results.Select(r =>
+        // An attempt can have several flagged questions in the queue, and parsing the
+        // full AnswersJson resolves every answer at once. Parse each attempt's payload
+        // a single time and reuse the map across all of that attempt's rows.
+        var answersByAttempt = new Dictionary<Guid, IReadOnlyDictionary<string, CandidateAnswer>>();
+        var items = new List<ReviewQueueItemDto>(results.Count);
+
+        foreach (var r in results)
         {
-            var answer = CandidateAnswerParser.For(r.Attempt.AnswersJson, r.QuestionId.ToString());
-            return new ReviewQueueItemDto(
+            if (!answersByAttempt.TryGetValue(r.AttemptId, out var answers))
+            {
+                answers = CandidateAnswerParser.Parse(r.Attempt.AnswersJson);
+                answersByAttempt[r.AttemptId] = answers;
+            }
+
+            var answer = answers.TryGetValue(r.QuestionId.ToString(), out var parsed)
+                ? parsed
+                : CandidateAnswer.Empty;
+
+            items.Add(new ReviewQueueItemDto(
                 ResultId: r.Id,
                 AttemptId: r.AttemptId,
                 CandidateName: r.Attempt.CandidateName ?? r.Attempt.CandidateEmail,
@@ -32,8 +47,10 @@ public class HumanReviewService(AppDbContext dbContext)
                 AiSuggestedFeedback: r.Feedback,
                 AiSuggestedScore: r.Score,
                 MaxScore: r.MaxScore
-            );
-        }).ToList();
+            ));
+        }
+
+        return items;
     }
 
     public async Task ApproveAsync(Guid resultId, decimal overrideScore, string reviewerEmail, CancellationToken ct)

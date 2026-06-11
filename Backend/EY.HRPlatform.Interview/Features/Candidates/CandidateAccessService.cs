@@ -296,12 +296,13 @@ public class CandidateAccessService(AppDbContext dbContext) : ICandidateAccessSe
             UserAgent = request.UserAgent,
         });
 
-        await dbContext.SaveChangesAsync(cancellationToken);
-
+        // Enqueue the grading job in the SAME unit of work as the submission so the
+        // attempt is never left Submitted-but-never-graded if the save fails partway.
         dbContext.GradingJobs.Add(new GradingJob
         {
             AttemptId = attempt.Id,
         });
+
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return new CandidateAccessSubmissionDto

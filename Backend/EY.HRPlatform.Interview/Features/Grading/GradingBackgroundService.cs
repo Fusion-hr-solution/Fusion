@@ -75,10 +75,23 @@ public class GradingBackgroundService(
         try
         {
             var orchestrator = scope.ServiceProvider.GetRequiredService<GradingOrchestrator>();
+
+            // Grade the attempt and mark the job complete inside ONE transaction so the
+            // QuestionGradeResults, attempt totals, and job.CompletedAt all commit
+            // together or not at all. The orchestrator shares this DbContext, so its
+            // SaveChanges enlist in this transaction. Without it, a crash after grading
+            // but before CompletedAt is saved would leave results committed and the job
+            // reclaimable — re-grading it and producing duplicate results / wrong totals.
+            await using var transaction = await db.Database.BeginTransactionAsync(ct);
+
             await orchestrator.GradeAttemptAsync(job.AttemptId, ct);
 
             job.CompletedAt = DateTime.UtcNow;
+            job.LockedAt = null;
+            job.LockedBy = null;
             await db.SaveChangesAsync(ct);
+
+            await transaction.CommitAsync(ct);
 
             logger.LogInformation("GradingBackgroundService: completed job {JobId}.", job.Id);
         }
