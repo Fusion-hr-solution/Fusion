@@ -10,4 +10,7 @@ public sealed class PlatformOrganizationInviteStatusDto
     public DateTime? ExpiresAt { get; init; }
     /// <summary>Absolute URL for the first admin to accept (contains opaque token).</summary>
     public string? InviteLink { get; init; }
+    public string? DeliveryStatus { get; init; }
+    public string? DeliveryMessage { get; init; }
+    public DateTime? DeliveryRecordedAt { get; init; }
 }

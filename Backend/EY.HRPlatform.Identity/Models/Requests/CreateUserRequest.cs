@@ -30,9 +30,10 @@ public class CreateUserRequest
     public DateTime HireDate { get; set; }
 
     /// <summary>
-    /// Role to assign to the new user. Defaults to Employee if not specified.
-    /// HRAdmin can only assign Employee or Manager roles.
-    /// PlatformAdmin can assign any role.
+    /// Required role to assign to the new user. Employee and Manager access must be
+    /// activated from trusted CoreHR employee records through invitations.
+    /// PlatformAdmin can use this endpoint for non-workforce admin accounts.
     /// </summary>
+    [Required]
     public string? Role { get; set; }
 }

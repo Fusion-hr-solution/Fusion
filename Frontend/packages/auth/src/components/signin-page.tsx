@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
 import {
   Button,
   Card,
@@ -19,7 +18,7 @@ import { useAuth } from "../auth-context";
 export interface SignInPageProps {
   /** Called after successful login or when already authenticated. Defaults to callbackUrl/next or "/" */
   onSuccess?: () => void;
-  /** URL for sign up link. Defaults to "/auth/signup" */
+  /** @deprecated Self-service registration is disabled; this is retained for API compatibility. */
   signUpUrl?: string;
 }
 
@@ -34,7 +33,6 @@ function resolveRedirectTarget(searchParams: Pick<URLSearchParams, "get">): stri
 
 export function SignInPage({
   onSuccess,
-  signUpUrl = "/auth/signup",
 }: SignInPageProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -136,13 +134,7 @@ export function SignInPage({
             </Button>
 
             <p className="text-sm text-muted-foreground text-center">
-              Don&apos;t have an account?{" "}
-              <Link
-                href={signUpUrl}
-                className="text-primary underline-offset-4 hover:underline font-medium"
-              >
-                Sign Up
-              </Link>
+              Need platform access? Ask your HR administrator for an invitation link.
             </p>
           </CardFooter>
         </form>

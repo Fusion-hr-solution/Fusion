@@ -45,6 +45,44 @@ export interface WorkforceEmployeeSummaryDto {
   version: number;
 }
 
+export type WorkforceAccessState =
+  | "NotInvited"
+  | "InvitePending"
+  | "ActiveAccount"
+  | "NeedsReview";
+
+export type WorkforceAccessDeliveryState = "Sent" | "Suppressed" | "Failed";
+
+export interface WorkforceAccessProfileSummaryDto {
+  id: string;
+  name: string;
+}
+
+export interface WorkforceAccessSubjectSummaryDto {
+  employeeId: string;
+  stableEmployeeKey: string;
+  employeeNumber: string | null;
+  firstName: string;
+  lastName: string;
+  preferredName: string | null;
+  displayName: string;
+  workEmail: string;
+  employmentStatus: string;
+  isActive: boolean;
+  directReportCount: number;
+  accessState: WorkforceAccessState;
+  accessStateLabel: string;
+  accessStateDetail: string | null;
+  accessProfiles: WorkforceAccessProfileSummaryDto[];
+  invitationLabel: string;
+  lastActivityLabel: string;
+  lastActivityAt: string | null;
+  deliveryState: WorkforceAccessDeliveryState | null;
+  reviewReason: string | null;
+  provisioningState: string;
+  userId: string | null;
+}
+
 export interface WorkforceManagerScopeDto {
   scopeType: string;
   managerEmployeeId: string;
@@ -108,11 +146,31 @@ export interface WorkforceEmployeePageDto {
   hasPreviousPage: boolean;
 }
 
+export interface WorkforceAccessSubjectPageDto {
+  items: WorkforceAccessSubjectSummaryDto[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+}
+
+export interface WorkforceAccessRosterSummaryDto {
+  totalCount: number;
+  notInvitedCount: number;
+  invitePendingCount: number;
+  activeAccountCount: number;
+  needsReviewCount: number;
+}
+
 export const coreWorkforcePaths = {
   me: () => "/corehr/workforce/me",
   employee: (employeeId: string) => `/corehr/workforce/employees/${employeeId}`,
   resolve: () => "/corehr/workforce/employees/resolve",
   search: () => "/corehr/workforce/employees/search",
+  accessSubjects: () => "/corehr/workforce/access-subjects",
+  accessSubjectsSummary: () => "/corehr/workforce/access-subjects/summary",
   team: (employeeId: string) => `/corehr/workforce/employees/${employeeId}/team`,
   managerChain: (employeeId: string) => `/corehr/workforce/employees/${employeeId}/manager-chain`,
   orgUnits: () => "/corehr/workforce/org-units",
@@ -137,6 +195,32 @@ export const coreWorkforceQueryKeys = {
         pageSize: params.pageSize,
       },
     ] as const,
+  accessSubjects: (params: {
+    search?: string | null;
+    access?: WorkforceAccessState | null;
+    profileId?: string | null;
+    employeeStatus?: "Active" | "Inactive" | null;
+    deliveryState?: WorkforceAccessDeliveryState | null;
+    employeeKey?: string | null;
+    page: number;
+    pageSize: number;
+  }) =>
+    [
+      ...coreWorkforceQueryKeys.all(),
+      "access-subjects",
+      {
+        search: params.search?.trim() || null,
+        access: params.access ?? null,
+        profileId: params.profileId ?? null,
+        employeeStatus: params.employeeStatus ?? null,
+        deliveryState: params.deliveryState ?? null,
+        employeeKey: params.employeeKey ?? null,
+        page: params.page,
+        pageSize: params.pageSize,
+      },
+    ] as const,
+  accessSubjectsSummary: () =>
+    [...coreWorkforceQueryKeys.all(), "access-subjects-summary"] as const,
   team: (employeeId: string) =>
     [...coreWorkforceQueryKeys.employees(), employeeId, "team"] as const,
   managerChain: (employeeId: string) =>

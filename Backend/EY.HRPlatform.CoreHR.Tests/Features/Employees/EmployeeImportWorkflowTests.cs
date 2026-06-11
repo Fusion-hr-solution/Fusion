@@ -26,7 +26,7 @@ public class EmployeeImportWorkflowTests
         await using var context = TestDbContextFactory.Create(TestTenantContext.WithTenant(TenantId), dbName);
         var service = new EmployeeImportWorkflowService(context, TestTenantContext.WithTenant(TenantId), new EmployeeHierarchyService(context));
 
-        var template = await service.BuildTemplateAsync(CancellationToken.None);
+        var template = await service.BuildTemplateAsync(null, CancellationToken.None);
         var csv = Encoding.UTF8.GetString(template.Content);
 
         Assert.Equal("employee-import-template.csv", template.FileName);
@@ -201,7 +201,7 @@ public class EmployeeImportWorkflowTests
     }
 
     [Fact]
-    public async Task UploadAsync_RejectsUnexpectedHeaders()
+    public async Task UploadAsync_AcceptsUnrecognizedHeaders()
     {
         var dbName = Guid.NewGuid().ToString();
         await SeedPublishedSetupAsync(dbName);
@@ -215,10 +215,9 @@ public class EmployeeImportWorkflowTests
             Sarah,Chen,sarah.chen@contoso.com,2024-01-15,Senior Engineer,ENG-PLATFORM,alex.manager@contoso.com
             """);
 
-        var exception = await Assert.ThrowsAsync<ArgumentException>(() =>
-            service.UploadAsync(file, CancellationToken.None));
+        var session = await service.UploadAsync(file, CancellationToken.None);
 
-        Assert.Contains("official employee import template", exception.Message);
+        Assert.Equal(1, session.SourceRowCount);
     }
 
     [Fact]
