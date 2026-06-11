@@ -5,21 +5,6 @@ import { createPlatformApiClient, isBrowser } from "../platform";
 
 let fetchSpy: ReturnType<typeof vi.fn>;
 
-type StoredAuthSnapshot = {
-  user: {
-    employeeId?: string | null;
-  };
-};
-
-function readStoredAuth(storage: Record<string, string>, key: string): StoredAuthSnapshot {
-  const raw = storage[key];
-  if (raw === undefined) {
-    throw new Error(`Expected ${key} to be present in storage`);
-  }
-
-  return JSON.parse(raw) as StoredAuthSnapshot;
-}
-
 beforeEach(() => {
   fetchSpy = vi
     .fn()
