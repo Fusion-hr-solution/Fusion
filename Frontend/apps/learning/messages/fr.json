@@ -71,6 +71,53 @@
       "in-progress": "En cours",
       "completed": "Terminées",
       "not-started": "Non commencées"
+    },
+    "actions": {
+      "save": "Enregistrer",
+      "saving": "Enregistrement...",
+      "cancel": "Annuler",
+      "delete": "Supprimer",
+      "edit": "Modifier",
+      "close": "Fermer",
+      "back": "Retour",
+      "retry": "Réessayer",
+      "search": "Rechercher",
+      "export": "Exporter",
+      "view": "Voir",
+      "add": "Ajouter",
+      "remove": "Retirer",
+      "confirm": "Confirmer",
+      "create": "Créer",
+      "duplicate": "Dupliquer",
+      "download": "Télécharger",
+      "loading": "Chargement...",
+      "next": "Suivant",
+      "previous": "Précédent",
+      "none": "Aucun"
+    },
+    "trainingType": {
+      "ELearning": "E-learning",
+      "ELearningShort": "En ligne",
+      "OnSite": "Présentiel",
+      "OnSiteShort": "Sur site",
+      "all": "Tous les formats"
+    },
+    "sessionStatus": {
+      "Planned": "Planifiée",
+      "InProgress": "En cours",
+      "Completed": "Terminée",
+      "Cancelled": "Annulée"
+    },
+    "badgeLevel": {
+      "bronze": "Bronze",
+      "silver": "Argent",
+      "gold": "Or"
+    },
+    "sort": {
+      "rating": "Mieux notées",
+      "newest": "Plus récentes",
+      "enrolled": "Plus populaires",
+      "duration": "Plus courtes"
     }
   },
   "dashboard": {
@@ -196,6 +243,445 @@
       "copyLink": "Copier le lien",
       "copied": "Lien de vérification copié.",
       "copyError": "Impossible de copier le lien."
+    }
+  },
+  "catalog": {
+    "header": {
+      "moduleTitle": "Catalogue",
+      "title": "Catalogue des formations",
+      "description": "Explorez notre bibliothèque de programmes de développement professionnel. Filtrez par catégorie, recherchez par sujet et développez les compétences qui comptent."
+    },
+    "search": {
+      "placeholder": "Rechercher une formation par titre, sujet ou mot-clé...",
+      "aria": "Rechercher des formations",
+      "defaultPlaceholder": "Rechercher..."
+    },
+    "filters": {
+      "active": "Actifs :",
+      "removeFilterAria": "Retirer le filtre {filter}",
+      "removeSearchAria": "Retirer le filtre de recherche",
+      "clearAll": "Tout effacer",
+      "categoryGroupAria": "Filtrer par catégorie",
+      "levelGroupAria": "Filtrer par niveau",
+      "allLevels": "Tous les niveaux",
+      "format": "Format",
+      "formatAria": "Filtrer les formations par format"
+    },
+    "sort": {
+      "aria": "Trier les formations"
+    },
+    "results": {
+      "onPage": "{count, plural, one {formation} other {formations}} sur cette page",
+      "ofTotal": "(sur {total} au total)"
+    },
+    "empty": {
+      "title": "Aucune formation trouvée",
+      "subtitle": "Essayez d'ajuster vos filtres ou vos termes de recherche.",
+      "clearFilters": "Effacer tous les filtres"
+    },
+    "pagination": {
+      "showing": "Affichage de <b>{from}–{to}</b> sur <b>{total}</b> formations",
+      "aria": "Pagination",
+      "previousPage": "Page précédente",
+      "nextPage": "Page suivante",
+      "pageAria": "Page {page}"
+    },
+    "card": {
+      "mandatory": "Obligatoire",
+      "viewDetailsAria": "Voir les détails de {title}",
+      "coursesCount": "{count, plural, one {# cours} other {# cours}}",
+      "chaptersCount": "{count, plural, one {# chapitre} other {# chapitres}}",
+      "credits": "{count, plural, one {# crédit} other {# crédits}}"
+    },
+    "formatBadge": {
+      "aria": "Format : {format}"
+    },
+    "courseCard": {
+      "progress": "Progression",
+      "start": "Commencer le cours"
+    },
+    "progressBar": {
+      "chaptersCompleted": "{count, plural, one {# chapitre terminé} other {# chapitres terminés}}"
+    }
+  },
+  "trainingDetail": {
+    "header": {
+      "moduleTitle": "Détails de la formation"
+    },
+    "breadcrumb": {
+      "catalog": "Catalogue"
+    },
+    "mandatory": "Obligatoire",
+    "onSiteTraining": "Formation en présentiel",
+    "lastUpdated": "Dernière mise à jour le {date}",
+    "updated": "Mise à jour le {date}",
+    "topics": "Sujets",
+    "blocksCount": "{count, plural, one {# bloc} other {# blocs}}",
+    "banner": {
+      "breadcrumbAria": "Fil d'Ariane",
+      "backToCatalog": "Retour au catalogue"
+    },
+    "stats": {
+      "duration": "Durée",
+      "totalDuration": "Durée totale",
+      "chapters": "Chapitres",
+      "credits": "Crédits",
+      "enrolled": "Inscrits",
+      "rating": "Note"
+    },
+    "instructor": {
+      "title": "Formateur"
+    },
+    "outline": {
+      "title": "Plan du cours",
+      "chaptersCount": "({count, plural, one {# chapitre} other {# chapitres}})"
+    },
+    "chapters": {
+      "title": "Contenu du cours",
+      "count": "{count, plural, one {# chapitre} other {# chapitres}}"
+    },
+    "exam": {
+      "sectionTitle": "Évaluation finale",
+      "noExam": "Aucun examen requis pour cette formation. Terminez tous les chapitres pour obtenir votre certificat.",
+      "title": "Examen de certification",
+      "subtitle": "Validez vos connaissances pour obtenir votre certificat",
+      "questionsValue": "{count, plural, one {# question} other {# questions}}",
+      "totalQuestions": "Questions au total",
+      "passingScore": "Score de réussite",
+      "timeLimit": "Durée limite",
+      "attemptsValue": "{count, plural, one {# tentative} other {# tentatives}}",
+      "maxAttempts": "Tentatives max",
+      "unlockHint": "Terminez les <b>{count, plural, one {# chapitre} other {# chapitres}}</b> pour débloquer l'examen"
+    },
+    "enroll": {
+      "enrollNow": "S'inscrire maintenant",
+      "enrolling": "Inscription...",
+      "continueLearning": "Continuer la formation",
+      "accessCourses": "Accéder aux cours"
+    },
+    "onsite": {
+      "scheduledSession": "Séance planifiée",
+      "scheduledAt": "{date} à {time}",
+      "materialsTitle": "Supports de cours",
+      "materialsCount": "{count, plural, one {# document PDF disponible pour cette formation} other {# documents PDF disponibles pour cette formation}}",
+      "materialIndex": "Support de cours {index}",
+      "noMaterials": "Aucun support de cours n'a encore été ajouté."
+    },
+    "sessions": {
+      "status": {
+        "Enrolled": "Inscrit",
+        "Waitlisted": "Liste d'attente",
+        "Attended": "Présent",
+        "Cancelled": "Annulé",
+        "NotEnrolled": "Non inscrit"
+      },
+      "cancelTooltip": "Annuler cette séance",
+      "missedHint": "Vous avez manqué cette séance. Sélectionnez-en une nouvelle ci-dessous pour vous réinscrire.",
+      "availableSessions": "Séances disponibles :",
+      "selectSession": "Sélectionner une séance :",
+      "progress": {
+        "title": "Progression des séances",
+        "partsAttended": "{completed} sur {total} parties suivies"
+      },
+      "picker": {
+        "full": "Complet",
+        "waitlistTooltip": "En sélectionnant cette séance, vous serez placé sur la liste d'attente",
+        "spots": "{count, plural, one {# place} other {# places}}",
+        "hours": "{count}h",
+        "sessionsCount": "{count, plural, one {# séance} other {# séances}}",
+        "selected": "Sélectionnée",
+        "availableCount": "{count, plural, one {# disponible} other {# disponibles}}",
+        "noSessions": "Aucune séance planifiée pour cette partie pour le moment."
+      },
+      "panel": {
+        "myEnrollmentsTitle": "Mes inscriptions aux séances",
+        "myEnrollmentsSubtitle": "Votre statut d'inscription pour chaque partie de cette formation.",
+        "enrollSelected": "S'inscrire aux séances sélectionnées",
+        "noSessionsAvailable": "Aucune séance n'est actuellement disponible pour inscription.",
+        "chooseTitle": "Choisissez vos séances",
+        "chooseSubtitle": "Sélectionnez un créneau pour chaque partie à laquelle vous souhaitez vous inscrire.",
+        "partsSelected": "parties sélectionnées",
+        "readyToEnroll": "Prêt pour l'inscription",
+        "confirmEnrollment": "Confirmer l'inscription"
+      },
+      "cancelDialog": {
+        "title": "Annuler l'inscription",
+        "description": "Voulez-vous vraiment annuler cette inscription à la séance ? Vous risquez de perdre votre place et de devoir vous réinscrire si des places sont disponibles.",
+        "keep": "Conserver l'inscription",
+        "cancelling": "Annulation...",
+        "confirm": "Oui, annuler"
+      },
+      "result": {
+        "confirmedTitle": "Inscription confirmée",
+        "submittedTitle": "Inscription soumise",
+        "confirmedCount": "{count, plural, one {# séance confirmée} other {# séances confirmées}}",
+        "confirmedDesc": "Vous êtes inscrit et votre place est réservée.",
+        "waitlistedCount": "{count, plural, one {# séance en liste d'attente} other {# séances en liste d'attente}}",
+        "position": "Position n°{position}",
+        "waitlistedDesc": "{positions}. Vous serez automatiquement inscrit dès qu'une place se libère.",
+        "gotIt": "Compris"
+      },
+      "toast": {
+        "enrollConfirmedTitle": "Inscription confirmée",
+        "enrollConfirmedDesc": "Vous êtes inscrit à toutes les séances.",
+        "enrollSubmittedTitle": "Inscription soumise",
+        "enrollWaitlistedDesc": "{count, plural, one {# séance est en liste d'attente.} other {# séances sont en liste d'attente.}}",
+        "enrollFailedTitle": "Échec de l'inscription",
+        "enrollFailedFallback": "Votre inscription n'a pas pu être finalisée. Veuillez réessayer.",
+        "cancelSuccessTitle": "Séance annulée",
+        "cancelSuccessDesc": "Votre réservation a été annulée avec succès.",
+        "cancelFailedTitle": "Échec de l'annulation",
+        "cancelFailedFallback": "Cette séance n'a pas pu être annulée. Veuillez réessayer."
+      }
+    }
+  },
+  "appShell": {
+    "error": {
+      "title": "Une erreur est survenue",
+      "fallbackMessage": "Une erreur inattendue est survenue dans le module Learning. Veuillez réessayer."
+    },
+    "notFound": {
+      "message": "Cette page n'existe pas dans le module Learning. Elle a peut-être été déplacée ou supprimée.",
+      "backToLearning": "Retour au module Learning"
+    }
+  },
+  "learn": {
+    "page": {
+      "loadingCourse": "Chargement du cours...",
+      "loadErrorTitle": "Échec du chargement du cours",
+      "loadErrorMessage": "Le cours n'a pas pu être chargé. Veuillez réessayer."
+    },
+    "player": {
+      "noChapters": "Cette formation ne contient pas encore de chapitres."
+    },
+    "sidebar": {
+      "backToMyTrainings": "Mes formations",
+      "chaptersNavLabel": "Chapitres du cours",
+      "blocksCount": "{completed}/{total} blocs",
+      "finalExam": "Examen final",
+      "examInProgress": "En cours",
+      "examReady": "Prêt à passer",
+      "examLocked": "Terminez d'abord tous les chapitres"
+    },
+    "chapter": {
+      "blocksProgress": "{count, plural, one {# bloc} other {# blocs}} · {completed}/{count} terminés",
+      "empty": "Le contenu de ce chapitre n'est pas encore disponible.",
+      "loadErrorTitle": "Échec du chargement du chapitre",
+      "loadErrorGeneric": "Une erreur est survenue. Veuillez réessayer."
+    },
+    "navigation": {
+      "allBlocksCompleted": "Tous les blocs sont terminés",
+      "completeAllHint": "Terminez tous les blocs pour finir ce chapitre",
+      "takeExam": "Passer l'examen",
+      "lastChapter": "Dernier chapitre"
+    },
+    "block": {
+      "type": {
+        "video": "Leçon vidéo",
+        "pdf": "Document PDF",
+        "article": "Article",
+        "exercise": "Exercice"
+      },
+      "videoFallbackTitle": "Vidéo",
+      "durationMinutes": "{minutes} min",
+      "done": "Terminé",
+      "markDone": "Marquer comme terminé",
+      "pdfInlineUnsupported": "Votre navigateur ne peut pas afficher ce PDF directement.",
+      "openPdf": "Ouvrir le PDF",
+      "openPdfNewTab": "Ouvrir le PDF dans un nouvel onglet",
+      "empty": "Le contenu n'est pas encore disponible."
+    },
+    "onsite": {
+      "courseMaterials": "Supports de cours ({count})",
+      "open": "Ouvrir",
+      "noMaterials": "Aucun support de cours disponible pour le moment."
+    }
+  },
+  "exam": {
+    "passingScore": "Score de réussite",
+    "banner": {
+      "ready": "Tous les chapitres sont terminés ! Vous pouvez maintenant passer l'examen final.",
+      "startExam": "Commencer l'examen",
+      "locked": "Terminez tous les chapitres pour déverrouiller l'examen : <strong>{completed}/{total}</strong> chapitres terminés"
+    },
+    "player": {
+      "loadError": "Échec du chargement de l'examen. Vous devez peut-être d'abord terminer tous les chapitres.",
+      "backToChapters": "Retour aux chapitres"
+    },
+    "taking": {
+      "answeredCount": "{answered}/{total} questions répondues",
+      "allAnswered": "Toutes les questions ont une réponse. Vous pouvez soumettre l'examen.",
+      "remaining": "{count, plural, one {# question restante} other {# questions restantes}}",
+      "submitting": "Envoi en cours...",
+      "submit": "Soumettre l'examen"
+    },
+    "intro": {
+      "questions": "Questions",
+      "timeLimit": "Temps imparti",
+      "minutes": "{minutes} min",
+      "alreadyPassed": "Vous avez déjà réussi cet examen. Vous pouvez le repasser si vous le souhaitez.",
+      "retake": "Repasser l'examen",
+      "begin": "Commencer l'examen",
+      "previousAttempts": "Tentatives précédentes"
+    },
+    "attempts": {
+      "passed": "Réussi",
+      "failed": "Échoué",
+      "correctRatio": "({correct}/{total} correctes)"
+    },
+    "question": {
+      "label": "Q{number}.",
+      "points": "{count, plural, one {# pt} other {# pts}}",
+      "selectAll": "Sélectionnez toutes les réponses applicables"
+    },
+    "result": {
+      "passedTitle": "Félicitations ! Examen réussi !",
+      "failedTitle": "Pas encore réussi",
+      "passedDescription": "Vous avez terminé l'examen avec succès.",
+      "failedDescription": "Revoyez le contenu et réessayez quand vous serez prêt.",
+      "trainingCompleted": "Formation terminée",
+      "yourScore": "Votre score",
+      "correctAnswers": "Bonnes réponses",
+      "attemptHistory": "Historique des tentatives",
+      "backToOverview": "Retour à la vue d'ensemble",
+      "reviewChapters": "Revoir les chapitres"
+    }
+  },
+  "mySessions": {
+    "title": "Mes Séances",
+    "subtitle": "Gérez vos séances de formation en présentiel et votre présence",
+    "backToMySessions": "Retour à Mes Séances",
+    "trainingCount": "{count, plural, one {# formation} other {# formations}}",
+    "partTitle": "Partie {number} : {title}",
+    "stats": {
+      "upcoming": "À venir",
+      "past": "Terminées / Passées",
+      "total": "Réservations totales"
+    },
+    "filter": {
+      "upcoming": "À venir",
+      "past": "Passées",
+      "all": "Toutes"
+    },
+    "empty": {
+      "upcoming": {
+        "title": "Aucune séance à venir",
+        "description": "Vous n'êtes inscrit à aucune séance en présentiel à venir. Parcourez le catalogue pour trouver des formations."
+      },
+      "past": {
+        "title": "Aucune séance passée",
+        "description": "Vous n'avez encore assisté à aucune séance en présentiel."
+      },
+      "all": {
+        "title": "Aucune séance réservée",
+        "description": "Vous n'êtes inscrit à aucune séance de formation en présentiel. Visitez le catalogue pour trouver des formations sur site et vous inscrire."
+      }
+    },
+    "enrollmentStatus": {
+      "attended": "Présent",
+      "waitlisted": "Liste d'attente",
+      "inProgress": "En cours",
+      "missed": "Manquée",
+      "confirmed": "Confirmée"
+    },
+    "group": {
+      "sessionsBooked": "{count, plural, one {# séance réservée} other {# séances réservées}}",
+      "nextSession": "· Prochaine : {date}",
+      "viewTraining": "Voir la formation"
+    },
+    "timeline": {
+      "timeRange": "{start} – {end}",
+      "waitlistPosition": "Position sur liste d'attente : n°{position}",
+      "viewDetails": "Voir les détails"
+    },
+    "cancelToast": {
+      "successTitle": "Séance annulée",
+      "successDescription": "Votre réservation a été annulée avec succès.",
+      "errorTitle": "Échec de l'annulation",
+      "errorFallback": "Cette séance n'a pas pu être annulée. Veuillez réessayer."
+    },
+    "timelineCancelToast": {
+      "successDescription": "« {title} » a été retirée de vos réservations."
+    },
+    "detail": {
+      "notFoundTitle": "Séance introuvable",
+      "notFoundDescription": "Cette séance a peut-être été annulée ou ne vous appartient pas.",
+      "labels": {
+        "date": "Date",
+        "time": "Heure",
+        "room": "Salle",
+        "capacity": "Capacité",
+        "trainer": "Formateur",
+        "contact": "Contact"
+      },
+      "timeRange": "{start} – {end} ({hours}h)",
+      "capacityValue": "{count} participants max",
+      "waitlistBanner": "Vous êtes <b>n°{position}</b> sur la liste d'attente. Vous serez automatiquement inscrit dès qu'une place se libère.",
+      "attendedBanner": "Présence confirmée. Cette séance est terminée.",
+      "cancelledBanner": "Cette séance a été retirée de vos réservations.",
+      "cancelButton": "Annuler cette séance",
+      "cancelPolicy": "L'annulation doit être effectuée au moins 24 heures avant le début de la séance.",
+      "enrolledOn": "Inscrit le {date}"
+    },
+    "scanner": {
+      "title": "Scanner le QR de présence",
+      "subtitle": "Pointez votre caméra vers le QR code projeté par votre formateur.",
+      "successToast": "Présence confirmée",
+      "errorToast": "Échec du scan",
+      "errorTitle": "Impossible d'enregistrer la présence",
+      "cameraUnavailable": "Caméra indisponible.",
+      "cameraHelp": "Autorisez l'accès à la caméra dans votre navigateur, puis rechargez la page.",
+      "confirming": "Confirmation de la présence…",
+      "holdSteady": "Restez stable — la détection est automatique.",
+      "errors": {
+        "network": "Erreur réseau — veuillez réessayer.",
+        "qrExpired": "QR expiré — demandez-en un nouveau au formateur.",
+        "qrRevoked": "Ce QR code a été révoqué par le formateur.",
+        "qrInvalid": "QR code invalide — vérifiez que vous avez scanné le bon.",
+        "notEnrolled": "Vous n'êtes pas inscrit à cette séance.",
+        "waitlisted": "Vous êtes encore sur la liste d'attente pour cette séance.",
+        "alreadyAttended": "La présence a déjà été enregistrée.",
+        "fallback": "Impossible d'enregistrer la présence."
+      },
+      "success": {
+        "recorded": "Présence enregistrée",
+        "trainingLabel": "Formation",
+        "sessionOn": "Séance le {date}",
+        "scanAgain": "Scanner une autre"
+      },
+      "manual": {
+        "summary": "La caméra ne fonctionne pas ? Saisissez le code manuellement",
+        "submit": "Envoyer"
+      }
+    }
+  },
+  "adminTrainings": {
+    "badge": {
+      "mandatory": "Obligatoire",
+      "deleted": "Supprimée",
+      "active": "Active"
+    },
+    "row": {
+      "coursesCount": "{count, plural, one {# cours} other {# cours}}",
+      "chaptersShort": "{count} ch."
+    },
+    "list": {
+      "title": "Gérer les formations",
+      "subtitle": "Créez, modifiez et gérez les programmes de formation",
+      "newTraining": "Nouvelle formation",
+      "loading": "Chargement des formations...",
+      "empty": "Aucune formation trouvée",
+      "confirmDelete": "Supprimer « {title} » ? La formation sera supprimée de façon réversible.",
+      "columns": {
+        "title": "Titre",
+        "category": "Catégorie",
+        "type": "Type",
+        "content": "Contenu",
+        "enrolled": "Inscrits",
+        "level": "Niveau",
+        "status": "Statut",
+        "actions": "Actions"
+      }
     }
   }
 }

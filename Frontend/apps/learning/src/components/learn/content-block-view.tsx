@@ -1,5 +1,6 @@
 import { Video, FileText, BookOpen, Dumbbell, CheckCircle2, Circle } from "lucide-react";
 import { Button } from "@repo/ui";
+import { useTranslations } from "next-intl";
 import type { ContentBlock } from "@/types";
 import { resolveAssetUrl, isEmbedUrl, toEmbedUrl, renderMarkdown } from "./chapter-content-utils";
 
@@ -10,33 +11,26 @@ const BLOCK_TYPE_ICON = {
   exercise: Dumbbell,
 } as const;
 
-const BLOCK_TYPE_LABEL = {
-  video: "Video Lesson",
-  pdf: "PDF Document",
-  article: "Article",
-  exercise: "Exercise",
-} as const;
-
-function renderVideoContent(block: ContentBlock) {
+function renderVideoContent(block: ContentBlock, fallbackTitle: string) {
   if (block.contentUri) {
     const src = resolveAssetUrl(block.contentUri);
     return (
       <div className="overflow-hidden rounded-xl border border-border bg-black aspect-video">
-        <video src={src} title={block.title ?? "Video"} className="h-full w-full" controls controlsList="nodownload" preload="metadata" />
+        <video src={src} title={block.title ?? fallbackTitle} className="h-full w-full" controls controlsList="nodownload" preload="metadata" />
       </div>
     );
   }
   if (block.videoUrl && isEmbedUrl(block.videoUrl)) {
     return (
       <div className="overflow-hidden rounded-xl border border-border bg-black aspect-video">
-        <iframe src={toEmbedUrl(block.videoUrl)} title={block.title ?? "Video"} className="h-full w-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
+        <iframe src={toEmbedUrl(block.videoUrl)} title={block.title ?? fallbackTitle} className="h-full w-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
       </div>
     );
   }
   if (block.videoUrl) {
     return (
       <div className="overflow-hidden rounded-xl border border-border bg-black aspect-video">
-        <video src={block.videoUrl} title={block.title ?? "Video"} className="h-full w-full" controls controlsList="nodownload" preload="metadata" />
+        <video src={block.videoUrl} title={block.title ?? fallbackTitle} className="h-full w-full" controls controlsList="nodownload" preload="metadata" />
       </div>
     );
   }
@@ -93,8 +87,9 @@ export function ContentBlockView({
   onMarkComplete: () => void;
   isLoading: boolean;
 }) {
+  const t = useTranslations("learn");
   const TypeIcon = BLOCK_TYPE_ICON[block.type];
-  const typeLabel = BLOCK_TYPE_LABEL[block.type];
+  const typeLabel = t(`block.type.${block.type}`);
 
   return (
     <div className="ey-animate-fade-up rounded-2xl border border-border/50 bg-white p-6 shadow-sm" style={{ animationDelay: `${index * 80}ms` }}>
@@ -104,20 +99,20 @@ export function ContentBlockView({
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-foreground truncate">{block.title ?? typeLabel}</p>
-          <span className="text-xs text-muted-foreground">{typeLabel}{block.estimatedDurationMinutes && ` · ${block.estimatedDurationMinutes} min`}</span>
+          <span className="text-xs text-muted-foreground">{typeLabel}{block.estimatedDurationMinutes && ` · ${t("block.durationMinutes", { minutes: block.estimatedDurationMinutes })}`}</span>
         </div>
         {isCompleted ? (
           <span className="flex items-center gap-1.5 text-xs font-semibold text-[hsl(var(--ey-green-500))]">
-            <CheckCircle2 className="h-4 w-4" aria-hidden="true" /> Done
+            <CheckCircle2 className="h-4 w-4" aria-hidden="true" /> {t("block.done")}
           </span>
         ) : (
           <Button variant="outline" size="sm" onClick={onMarkComplete} disabled={isLoading} className="gap-1.5 text-xs">
-            <Circle className="h-3.5 w-3.5" aria-hidden="true" /> Mark done
+            <Circle className="h-3.5 w-3.5" aria-hidden="true" /> {t("block.markDone")}
           </Button>
         )}
       </div>
 
-      {block.type === "video" && renderVideoContent(block)}
+      {block.type === "video" && renderVideoContent(block, t("block.videoFallbackTitle"))}
 
       {block.type === "pdf" && block.contentUri && (
         <div className="space-y-2">

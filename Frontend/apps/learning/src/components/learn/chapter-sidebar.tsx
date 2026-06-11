@@ -3,6 +3,7 @@
 import { CheckCircle2, Circle, Lock, GraduationCap, ChevronLeft } from "lucide-react";
 import { Progress } from "@repo/ui";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import type { ChapterSidebarProps } from "@/types/component-props";
 
 export function ChapterSidebar({
@@ -15,6 +16,7 @@ export function ChapterSidebar({
   onOpenExam,
   isExamActive,
 }: ChapterSidebarProps) {
+  const t = useTranslations("learn");
   return (
     <aside className="flex w-80 shrink-0 flex-col border-r border-border bg-white">
       {/* Header */}
@@ -24,7 +26,7 @@ export function ChapterSidebar({
           className="mb-3 inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
         >
           <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
-          My Trainings
+          {t("sidebar.backToMyTrainings")}
         </Link>
         <h2 className="text-sm font-bold text-foreground line-clamp-2 leading-snug">
           {trainingTitle}
@@ -38,7 +40,7 @@ export function ChapterSidebar({
       </div>
 
       {/* Chapter list */}
-      <nav className="flex-1 overflow-y-auto py-2" aria-label="Course chapters">
+      <nav className="flex-1 overflow-y-auto py-2" aria-label={t("sidebar.chaptersNavLabel")}>
         <ul className="space-y-0.5 px-2">
           {chapters.map((chapter, i) => {
             const isActive = chapter.id === activeChapterId;
@@ -85,7 +87,10 @@ export function ChapterSidebar({
                       {i + 1}. {chapter.title}
                     </p>
                     <span className="text-xs text-muted-foreground">
-                      {chapter.completedBlockCount}/{chapter.blockCount} blocks
+                      {t("sidebar.blocksCount", {
+                        completed: chapter.completedBlockCount,
+                        total: chapter.blockCount,
+                      })}
                     </span>
                   </div>
                 </button>
@@ -117,10 +122,10 @@ export function ChapterSidebar({
               </div>
               <div className="flex-1 min-w-0">
                 <p className={`text-sm font-medium ${isExamActive ? "text-foreground font-semibold" : examAvailable ? "text-foreground" : "text-muted-foreground"}`}>
-                  Final Exam
+                  {t("sidebar.finalExam")}
                 </p>
                 <span className="text-xs text-muted-foreground">
-                  {isExamActive ? "In progress" : examAvailable ? "Ready to take" : "Complete all chapters first"}
+                  {isExamActive ? t("sidebar.examInProgress") : examAvailable ? t("sidebar.examReady") : t("sidebar.examLocked")}
                 </span>
               </div>
             </button>

@@ -71,6 +71,53 @@
       "in-progress": "In Progress",
       "completed": "Completed",
       "not-started": "Not Started"
+    },
+    "actions": {
+      "save": "Save",
+      "saving": "Saving...",
+      "cancel": "Cancel",
+      "delete": "Delete",
+      "edit": "Edit",
+      "close": "Close",
+      "back": "Back",
+      "retry": "Try again",
+      "search": "Search",
+      "export": "Export",
+      "view": "View",
+      "add": "Add",
+      "remove": "Remove",
+      "confirm": "Confirm",
+      "create": "Create",
+      "duplicate": "Duplicate",
+      "download": "Download",
+      "loading": "Loading...",
+      "next": "Next",
+      "previous": "Previous",
+      "none": "None"
+    },
+    "trainingType": {
+      "ELearning": "E-Learning",
+      "ELearningShort": "Online",
+      "OnSite": "In-Person",
+      "OnSiteShort": "On-Site",
+      "all": "All formats"
+    },
+    "sessionStatus": {
+      "Planned": "Planned",
+      "InProgress": "In Progress",
+      "Completed": "Completed",
+      "Cancelled": "Cancelled"
+    },
+    "badgeLevel": {
+      "bronze": "Bronze",
+      "silver": "Silver",
+      "gold": "Gold"
+    },
+    "sort": {
+      "rating": "Highest Rated",
+      "newest": "Newest First",
+      "enrolled": "Most Enrolled",
+      "duration": "Shortest First"
     }
   },
   "dashboard": {
@@ -196,6 +243,445 @@
       "copyLink": "Copy link",
       "copied": "Verification link copied.",
       "copyError": "Could not copy the link."
+    }
+  },
+  "catalog": {
+    "header": {
+      "moduleTitle": "Catalog",
+      "title": "Training Catalog",
+      "description": "Explore our curated library of professional development programs. Filter by category, search by topic, and start building the skills that matter."
+    },
+    "search": {
+      "placeholder": "Search trainings by title, topic, or tag...",
+      "aria": "Search trainings",
+      "defaultPlaceholder": "Search..."
+    },
+    "filters": {
+      "active": "Active:",
+      "removeFilterAria": "Remove {filter} filter",
+      "removeSearchAria": "Remove search filter",
+      "clearAll": "Clear all",
+      "categoryGroupAria": "Filter by category",
+      "levelGroupAria": "Filter by level",
+      "allLevels": "All Levels",
+      "format": "Format",
+      "formatAria": "Filter trainings by format"
+    },
+    "sort": {
+      "aria": "Sort trainings"
+    },
+    "results": {
+      "onPage": "{count, plural, one {training} other {trainings}} on this page",
+      "ofTotal": "(of {total} total)"
+    },
+    "empty": {
+      "title": "No trainings found",
+      "subtitle": "Try adjusting your filters or search terms.",
+      "clearFilters": "Clear all filters"
+    },
+    "pagination": {
+      "showing": "Showing <b>{from}–{to}</b> of <b>{total}</b> trainings",
+      "aria": "Pagination",
+      "previousPage": "Previous page",
+      "nextPage": "Next page",
+      "pageAria": "Page {page}"
+    },
+    "card": {
+      "mandatory": "Mandatory",
+      "viewDetailsAria": "View details for {title}",
+      "coursesCount": "{count, plural, one {# course} other {# courses}}",
+      "chaptersCount": "{count, plural, one {# chapter} other {# chapters}}",
+      "credits": "{count, plural, one {# credit} other {# credits}}"
+    },
+    "formatBadge": {
+      "aria": "Format: {format}"
+    },
+    "courseCard": {
+      "progress": "Progress",
+      "start": "Start Course"
+    },
+    "progressBar": {
+      "chaptersCompleted": "{count, plural, one {# chapter completed} other {# chapters completed}}"
+    }
+  },
+  "trainingDetail": {
+    "header": {
+      "moduleTitle": "Training Details"
+    },
+    "breadcrumb": {
+      "catalog": "Catalog"
+    },
+    "mandatory": "Mandatory",
+    "onSiteTraining": "On-Site Training",
+    "lastUpdated": "Last updated {date}",
+    "updated": "Updated {date}",
+    "topics": "Topics",
+    "blocksCount": "{count, plural, one {# block} other {# blocks}}",
+    "banner": {
+      "breadcrumbAria": "Breadcrumb",
+      "backToCatalog": "Back to Catalog"
+    },
+    "stats": {
+      "duration": "Duration",
+      "totalDuration": "Total Duration",
+      "chapters": "Chapters",
+      "credits": "Credits",
+      "enrolled": "Enrolled",
+      "rating": "Rating"
+    },
+    "instructor": {
+      "title": "Instructor"
+    },
+    "outline": {
+      "title": "Course Outline",
+      "chaptersCount": "({count, plural, one {# chapter} other {# chapters}})"
+    },
+    "chapters": {
+      "title": "Course Content",
+      "count": "{count, plural, one {# chapter} other {# chapters}}"
+    },
+    "exam": {
+      "sectionTitle": "Final Assessment",
+      "noExam": "No exam required for this training. Complete all chapters to earn your certificate.",
+      "title": "Certification Exam",
+      "subtitle": "Validate your knowledge to earn your certificate",
+      "questionsValue": "{count, plural, one {# question} other {# questions}}",
+      "totalQuestions": "Total Questions",
+      "passingScore": "Passing Score",
+      "timeLimit": "Time Limit",
+      "attemptsValue": "{count, plural, one {# attempt} other {# attempts}}",
+      "maxAttempts": "Max Attempts",
+      "unlockHint": "Complete all <b>{count, plural, one {# chapter} other {# chapters}}</b> to unlock the exam"
+    },
+    "enroll": {
+      "enrollNow": "Enroll Now",
+      "enrolling": "Enrolling...",
+      "continueLearning": "Continue Learning",
+      "accessCourses": "Access Courses"
+    },
+    "onsite": {
+      "scheduledSession": "Scheduled Session",
+      "scheduledAt": "{date} at {time}",
+      "materialsTitle": "Course Materials",
+      "materialsCount": "{count, plural, one {# PDF document available for this training} other {# PDF documents available for this training}}",
+      "materialIndex": "Course material {index}",
+      "noMaterials": "No course materials have been added yet."
+    },
+    "sessions": {
+      "status": {
+        "Enrolled": "Enrolled",
+        "Waitlisted": "Waitlisted",
+        "Attended": "Attended",
+        "Cancelled": "Cancelled",
+        "NotEnrolled": "Not Enrolled"
+      },
+      "cancelTooltip": "Cancel this session",
+      "missedHint": "You missed this session. Select a new one below to re-enroll.",
+      "availableSessions": "Available sessions:",
+      "selectSession": "Select a session:",
+      "progress": {
+        "title": "Session Progress",
+        "partsAttended": "{completed} of {total} parts attended"
+      },
+      "picker": {
+        "full": "Full",
+        "waitlistTooltip": "Selecting this session will place you on the waitlist",
+        "spots": "{count, plural, one {# spot} other {# spots}}",
+        "hours": "{count}h",
+        "sessionsCount": "{count, plural, one {# session} other {# sessions}}",
+        "selected": "Selected",
+        "availableCount": "{count, plural, one {# available} other {# available}}",
+        "noSessions": "No sessions scheduled for this part yet."
+      },
+      "panel": {
+        "myEnrollmentsTitle": "My Session Enrollments",
+        "myEnrollmentsSubtitle": "Your enrollment status for each part of this training.",
+        "enrollSelected": "Enroll in Selected Sessions",
+        "noSessionsAvailable": "No sessions are currently available for enrollment.",
+        "chooseTitle": "Choose Your Sessions",
+        "chooseSubtitle": "Select a time slot for each part you want to enroll in.",
+        "partsSelected": "parts selected",
+        "readyToEnroll": "Ready to enroll",
+        "confirmEnrollment": "Confirm Enrollment"
+      },
+      "cancelDialog": {
+        "title": "Cancel Enrollment",
+        "description": "Are you sure you want to cancel this session enrollment? You may lose your spot and need to re-enroll if space is available.",
+        "keep": "Keep Enrollment",
+        "cancelling": "Cancelling...",
+        "confirm": "Yes, Cancel"
+      },
+      "result": {
+        "confirmedTitle": "Enrollment Confirmed",
+        "submittedTitle": "Enrollment Submitted",
+        "confirmedCount": "{count, plural, one {# session confirmed} other {# sessions confirmed}}",
+        "confirmedDesc": "You're enrolled and your spot is reserved.",
+        "waitlistedCount": "{count, plural, one {# session waitlisted} other {# sessions waitlisted}}",
+        "position": "Position #{position}",
+        "waitlistedDesc": "{positions}. You'll be auto-enrolled when a spot opens up.",
+        "gotIt": "Got it"
+      },
+      "toast": {
+        "enrollConfirmedTitle": "Enrollment confirmed",
+        "enrollConfirmedDesc": "You're enrolled in all sessions.",
+        "enrollSubmittedTitle": "Enrollment submitted",
+        "enrollWaitlistedDesc": "{count, plural, one {# session is on the waitlist.} other {# sessions are on the waitlist.}}",
+        "enrollFailedTitle": "Enrollment failed",
+        "enrollFailedFallback": "Could not complete your enrollment. Please try again.",
+        "cancelSuccessTitle": "Session cancelled",
+        "cancelSuccessDesc": "Your booking has been cancelled successfully.",
+        "cancelFailedTitle": "Cancellation failed",
+        "cancelFailedFallback": "Could not cancel this session. Please try again."
+      }
+    }
+  },
+  "appShell": {
+    "error": {
+      "title": "Something went wrong",
+      "fallbackMessage": "An unexpected error occurred in the Learning module. Please try again."
+    },
+    "notFound": {
+      "message": "This page doesn't exist in the Learning module. It may have been moved or removed.",
+      "backToLearning": "Back to Learning"
+    }
+  },
+  "learn": {
+    "page": {
+      "loadingCourse": "Loading course...",
+      "loadErrorTitle": "Failed to load course",
+      "loadErrorMessage": "The course could not be loaded. Please try again."
+    },
+    "player": {
+      "noChapters": "This training has no chapters yet."
+    },
+    "sidebar": {
+      "backToMyTrainings": "My Trainings",
+      "chaptersNavLabel": "Course chapters",
+      "blocksCount": "{completed}/{total} blocks",
+      "finalExam": "Final Exam",
+      "examInProgress": "In progress",
+      "examReady": "Ready to take",
+      "examLocked": "Complete all chapters first"
+    },
+    "chapter": {
+      "blocksProgress": "{count, plural, one {# block} other {# blocks}} · {completed}/{count} completed",
+      "empty": "Content for this chapter is not yet available.",
+      "loadErrorTitle": "Failed to load chapter",
+      "loadErrorGeneric": "Something went wrong. Please try again."
+    },
+    "navigation": {
+      "allBlocksCompleted": "All blocks completed",
+      "completeAllHint": "Complete all blocks to finish this chapter",
+      "takeExam": "Take Exam",
+      "lastChapter": "Last Chapter"
+    },
+    "block": {
+      "type": {
+        "video": "Video Lesson",
+        "pdf": "PDF Document",
+        "article": "Article",
+        "exercise": "Exercise"
+      },
+      "videoFallbackTitle": "Video",
+      "durationMinutes": "{minutes} min",
+      "done": "Done",
+      "markDone": "Mark done",
+      "pdfInlineUnsupported": "Your browser cannot display this PDF inline.",
+      "openPdf": "Open PDF",
+      "openPdfNewTab": "Open PDF in new tab",
+      "empty": "Content not yet available."
+    },
+    "onsite": {
+      "courseMaterials": "Course Materials ({count})",
+      "open": "Open",
+      "noMaterials": "No course materials available yet."
+    }
+  },
+  "exam": {
+    "passingScore": "Passing Score",
+    "banner": {
+      "ready": "All chapters completed! You can now take the final exam.",
+      "startExam": "Start Exam",
+      "locked": "Complete all chapters to unlock the exam: <strong>{completed}/{total}</strong> chapters done"
+    },
+    "player": {
+      "loadError": "Failed to load exam. You may need to complete all chapters first.",
+      "backToChapters": "Back to chapters"
+    },
+    "taking": {
+      "answeredCount": "{answered}/{total} questions answered",
+      "allAnswered": "All questions answered. Ready to submit!",
+      "remaining": "{count, plural, one {# question remaining} other {# questions remaining}}",
+      "submitting": "Submitting...",
+      "submit": "Submit Exam"
+    },
+    "intro": {
+      "questions": "Questions",
+      "timeLimit": "Time Limit",
+      "minutes": "{minutes} min",
+      "alreadyPassed": "You have already passed this exam. You can retake it if you wish.",
+      "retake": "Retake Exam",
+      "begin": "Begin Exam",
+      "previousAttempts": "Previous Attempts"
+    },
+    "attempts": {
+      "passed": "Passed",
+      "failed": "Failed",
+      "correctRatio": "({correct}/{total} correct)"
+    },
+    "question": {
+      "label": "Q{number}.",
+      "points": "{count, plural, one {# pt} other {# pts}}",
+      "selectAll": "Select all that apply"
+    },
+    "result": {
+      "passedTitle": "Congratulations! You passed!",
+      "failedTitle": "Not quite there yet",
+      "passedDescription": "You have successfully completed the exam.",
+      "failedDescription": "Review the material and try again when you are ready.",
+      "trainingCompleted": "Training Completed",
+      "yourScore": "Your Score",
+      "correctAnswers": "Correct Answers",
+      "attemptHistory": "Attempt History",
+      "backToOverview": "Back to Overview",
+      "reviewChapters": "Review Chapters"
+    }
+  },
+  "mySessions": {
+    "title": "My Sessions",
+    "subtitle": "Manage your in-person training sessions and attendance",
+    "backToMySessions": "Back to My Sessions",
+    "trainingCount": "{count, plural, one {# training} other {# trainings}}",
+    "partTitle": "Part {number}: {title}",
+    "stats": {
+      "upcoming": "Upcoming",
+      "past": "Completed / Past",
+      "total": "Total Bookings"
+    },
+    "filter": {
+      "upcoming": "Upcoming",
+      "past": "Past",
+      "all": "All"
+    },
+    "empty": {
+      "upcoming": {
+        "title": "No upcoming sessions",
+        "description": "You haven't enrolled in any upcoming in-person sessions yet. Browse the catalog to find trainings."
+      },
+      "past": {
+        "title": "No past sessions",
+        "description": "You haven't attended any in-person sessions yet."
+      },
+      "all": {
+        "title": "No sessions booked",
+        "description": "You haven't enrolled in any in-person training sessions. Visit the catalog to find on-site trainings and enroll."
+      }
+    },
+    "enrollmentStatus": {
+      "attended": "Attended",
+      "waitlisted": "Waitlisted",
+      "inProgress": "In Progress",
+      "missed": "Missed",
+      "confirmed": "Confirmed"
+    },
+    "group": {
+      "sessionsBooked": "{count, plural, one {# session} other {# sessions}} booked",
+      "nextSession": "· Next: {date}",
+      "viewTraining": "View Training"
+    },
+    "timeline": {
+      "timeRange": "{start} – {end}",
+      "waitlistPosition": "Waitlist position: #{position}",
+      "viewDetails": "View details"
+    },
+    "cancelToast": {
+      "successTitle": "Session cancelled",
+      "successDescription": "Your booking has been cancelled successfully.",
+      "errorTitle": "Cancellation failed",
+      "errorFallback": "Could not cancel this session. Please try again."
+    },
+    "timelineCancelToast": {
+      "successDescription": "\"{title}\" has been removed from your bookings."
+    },
+    "detail": {
+      "notFoundTitle": "Session not found",
+      "notFoundDescription": "This session may have been cancelled or doesn't belong to you.",
+      "labels": {
+        "date": "Date",
+        "time": "Time",
+        "room": "Room",
+        "capacity": "Capacity",
+        "trainer": "Trainer",
+        "contact": "Contact"
+      },
+      "timeRange": "{start} – {end} ({hours}h)",
+      "capacityValue": "{count} participants max",
+      "waitlistBanner": "You are <b>#{position}</b> on the waitlist. You'll be automatically enrolled when a spot opens up.",
+      "attendedBanner": "Attendance confirmed. This session is complete.",
+      "cancelledBanner": "This session has been cancelled from your bookings.",
+      "cancelButton": "Cancel This Session",
+      "cancelPolicy": "Cancellation must be made at least 24 hours before the session starts.",
+      "enrolledOn": "Enrolled on {date}"
+    },
+    "scanner": {
+      "title": "Scan attendance QR",
+      "subtitle": "Point your camera at the QR code projected by your trainer.",
+      "successToast": "Attendance confirmed",
+      "errorToast": "Scan failed",
+      "errorTitle": "Could not record attendance",
+      "cameraUnavailable": "Camera unavailable.",
+      "cameraHelp": "Allow camera access in your browser, then reload the page.",
+      "confirming": "Confirming attendance…",
+      "holdSteady": "Hold steady — detection happens automatically.",
+      "errors": {
+        "network": "Network error — please try again.",
+        "qrExpired": "QR expired — ask the trainer for a fresh one.",
+        "qrRevoked": "This QR code was revoked by the trainer.",
+        "qrInvalid": "Invalid QR code — make sure you scanned the right one.",
+        "notEnrolled": "You are not enrolled in this session.",
+        "waitlisted": "You are still on the waitlist for this session.",
+        "alreadyAttended": "Attendance has already been recorded.",
+        "fallback": "Could not record attendance."
+      },
+      "success": {
+        "recorded": "Attendance recorded",
+        "trainingLabel": "Training",
+        "sessionOn": "Session on {date}",
+        "scanAgain": "Scan another"
+      },
+      "manual": {
+        "summary": "Camera not working? Enter the code manually",
+        "submit": "Submit"
+      }
+    }
+  },
+  "adminTrainings": {
+    "badge": {
+      "mandatory": "Mandatory",
+      "deleted": "Deleted",
+      "active": "Active"
+    },
+    "row": {
+      "coursesCount": "{count, plural, one {# course} other {# courses}}",
+      "chaptersShort": "{count} ch."
+    },
+    "list": {
+      "title": "Manage Trainings",
+      "subtitle": "Create, edit, and manage training programs",
+      "newTraining": "New Training",
+      "loading": "Loading trainings...",
+      "empty": "No trainings found",
+      "confirmDelete": "Delete \"{title}\"? This will soft-delete the training.",
+      "columns": {
+        "title": "Title",
+        "category": "Category",
+        "type": "Type",
+        "content": "Content",
+        "enrolled": "Enrolled",
+        "level": "Level",
+        "status": "Status",
+        "actions": "Actions"
+      }
     }
   }
 }
