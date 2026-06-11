@@ -3,7 +3,6 @@ using EY.HRPlatform.Identity.Domain.Entities;
 using EY.HRPlatform.Identity.Features.PlatformOrganizations.Dtos;
 using EY.HRPlatform.Identity.Features.PlatformOrganizations.Services;
 using EY.HRPlatform.Identity.Infrastructure.Persistence;
-using EY.HRPlatform.Identity.Infrastructure.Services;
 using EY.HRPlatform.SharedKernel.Auth;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -14,12 +13,12 @@ namespace EY.HRPlatform.Identity.Tests.Features.PlatformOrganizations;
 public class PlatformOrganizationServiceTests
 {
     [Fact]
-    public async Task ListAsync_ReturnsDraft_WhenNoHrAdminUserOrPendingInvite()
+    public async Task ListAsync_ReturnsDraft_WhenNoOrgAdminUserOrPendingInvite()
     {
         // Arrange
         var db = CreateDbContext();
         var configuration = CreateConfiguration();
-        var service = new PlatformOrganizationService(db, configuration, CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, configuration);
 
         var tenant = Tenant.Create("Draft Tenant");
         db.Tenants.Add(tenant);
@@ -37,19 +36,19 @@ public class PlatformOrganizationServiceTests
     }
 
     [Fact]
-    public async Task ListAsync_ReturnsInvited_WhenPendingHrAdminInviteExists()
+    public async Task ListAsync_ReturnsInvited_WhenPendingOrgAdminInviteExists()
     {
         // Arrange
         var db = CreateDbContext();
         var configuration = CreateConfiguration();
-        var service = new PlatformOrganizationService(db, configuration, CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, configuration);
 
         var tenant = Tenant.Create("Invited Tenant");
         var createdBy = Guid.NewGuid();
         var invite = InviteToken.Create(
             "admin@example.com",
             tenant.Id,
-            PlatformRole.HRAdmin,
+            PlatformRole.OrgAdmin,
             createdBy,
             expiryDays: 7);
 
@@ -68,43 +67,43 @@ public class PlatformOrganizationServiceTests
     }
 
     [Fact]
-    public async Task ListAsync_ReturnsActive_WhenHrAdminUserRoleExists()
+    public async Task ListAsync_ReturnsActive_WhenOrgAdminUserRoleExists()
     {
         // Arrange
         var db = CreateDbContext();
         var configuration = CreateConfiguration();
-        var service = new PlatformOrganizationService(db, configuration, CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, configuration);
 
         var tenant = Tenant.Create("Active Tenant");
 
-        var hrRole = new IdentityRole<Guid>
+        var orgRole = new IdentityRole<Guid>
         {
             Id = Guid.NewGuid(),
-            Name = PlatformRole.HRAdmin,
-            NormalizedName = PlatformRole.HRAdmin.ToUpperInvariant(),
+            Name = PlatformRole.OrgAdmin,
+            NormalizedName = PlatformRole.OrgAdmin.ToUpperInvariant(),
         };
 
-        var hrAdminUser = new ApplicationUser
+        var orgAdminUser = new ApplicationUser
         {
             Id = Guid.NewGuid(),
-            UserName = "hradmin@example.com",
-            Email = "hradmin@example.com",
-            NormalizedEmail = "HRADMIN@EXAMPLE.COM",
+            UserName = "orgadmin@example.com",
+            Email = "orgadmin@example.com",
+            NormalizedEmail = "ORGADMIN@EXAMPLE.COM",
             EmailConfirmed = true,
             TenantId = tenant.Id,
             IsActive = true,
-            FirstName = "Hr",
+            FirstName = "Org",
             LastName = "Admin",
             LastLoginAt = DateTime.UtcNow.AddMinutes(-10),
         };
 
         db.Tenants.Add(tenant);
-        db.Roles.Add(hrRole);
-        db.Users.Add(hrAdminUser);
+        db.Roles.Add(orgRole);
+        db.Users.Add(orgAdminUser);
         db.UserRoles.Add(new IdentityUserRole<Guid>
         {
-            UserId = hrAdminUser.Id,
-            RoleId = hrRole.Id
+            UserId = orgAdminUser.Id,
+            RoleId = orgRole.Id
         });
 
         await db.SaveChangesAsync();
@@ -120,12 +119,12 @@ public class PlatformOrganizationServiceTests
     }
 
     [Fact]
-    public async Task ListAsync_ReturnsInvited_WhenHrAdminInviteExpiredAndNoHrAdminUser()
+    public async Task ListAsync_ReturnsInvited_WhenOrgAdminInviteExpiredAndNoOrgAdminUser()
     {
         // Arrange
         var db = CreateDbContext();
         var configuration = CreateConfiguration();
-        var service = new PlatformOrganizationService(db, configuration, CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, configuration);
 
         var tenant = Tenant.Create("Attention Tenant");
         var createdBy = Guid.NewGuid();
@@ -133,7 +132,7 @@ public class PlatformOrganizationServiceTests
         var invite = InviteToken.Create(
             "admin@example.com",
             tenant.Id,
-            PlatformRole.HRAdmin,
+            PlatformRole.OrgAdmin,
             createdBy,
             expiryDays: 1);
 
@@ -159,7 +158,7 @@ public class PlatformOrganizationServiceTests
         // Arrange
         var db = CreateDbContext();
         var configuration = CreateConfiguration();
-        var service = new PlatformOrganizationService(db, configuration, CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, configuration);
 
         var tenant = Tenant.Create("Suspended Tenant");
         tenant.Deactivate();
@@ -181,7 +180,7 @@ public class PlatformOrganizationServiceTests
         // Arrange
         var db = CreateDbContext();
         var configuration = CreateConfiguration();
-        var service = new PlatformOrganizationService(db, configuration, CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, configuration);
 
         var tenant = Tenant.Create("Archived Tenant");
         tenant.Archive();
@@ -203,7 +202,7 @@ public class PlatformOrganizationServiceTests
         // Arrange
         var db = CreateDbContext();
         var configuration = CreateConfiguration();
-        var service = new PlatformOrganizationService(db, configuration, CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, configuration);
 
         var createdBy = Guid.NewGuid();
         var request = new CreatePlatformOrganizationRequest
@@ -230,7 +229,7 @@ public class PlatformOrganizationServiceTests
         // Arrange
         var db = CreateDbContext();
         var configuration = CreateConfiguration();
-        var service = new PlatformOrganizationService(db, configuration, CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, configuration);
 
         var createdBy = Guid.NewGuid();
 
@@ -268,7 +267,7 @@ public class PlatformOrganizationServiceTests
         // Arrange
         var db = CreateDbContext();
         var configuration = CreateConfiguration();
-        var service = new PlatformOrganizationService(db, configuration, CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, configuration);
 
         var tenant = Tenant.Create("Resend Tenant");
         var createdBy = Guid.NewGuid();
@@ -276,7 +275,7 @@ public class PlatformOrganizationServiceTests
         var invite = InviteToken.Create(
             "admin@example.com",
             tenant.Id,
-            PlatformRole.HRAdmin,
+            PlatformRole.OrgAdmin,
             createdBy,
             expiryDays: 1);
 
@@ -304,7 +303,7 @@ public class PlatformOrganizationServiceTests
         // Arrange
         var db = CreateDbContext();
         var configuration = CreateConfiguration();
-        var service = new PlatformOrganizationService(db, configuration, CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, configuration);
 
         var tenant = Tenant.Create("Revoke Tenant");
         var createdBy = Guid.NewGuid();
@@ -312,18 +311,18 @@ public class PlatformOrganizationServiceTests
         var invite1 = InviteToken.Create(
             "admin1@example.com",
             tenant.Id,
-            PlatformRole.HRAdmin,
+            PlatformRole.OrgAdmin,
             createdBy);
         var invite2 = InviteToken.Create(
             "admin2@example.com",
             tenant.Id,
-            PlatformRole.HRAdmin,
+            PlatformRole.OrgAdmin,
             createdBy);
 
         var accepted = InviteToken.Create(
             "accepted@example.com",
             tenant.Id,
-            PlatformRole.HRAdmin,
+            PlatformRole.OrgAdmin,
             createdBy);
         accepted.MarkAccepted(Guid.NewGuid());
 
@@ -339,7 +338,7 @@ public class PlatformOrganizationServiceTests
 
         // Records still exist but are soft-revoked
         var allInvites = db.InviteTokens
-            .Where(i => i.TenantId == tenant.Id && i.Role == PlatformRole.HRAdmin)
+            .Where(i => i.TenantId == tenant.Id && i.Role == PlatformRole.OrgAdmin)
             .ToList();
         Assert.Equal(3, allInvites.Count);
 
@@ -361,7 +360,7 @@ public class PlatformOrganizationServiceTests
         // Arrange
         var db = CreateDbContext();
         var configuration = CreateConfiguration();
-        var service = new PlatformOrganizationService(db, configuration, CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, configuration);
 
         var tenant = Tenant.Create("Original Name");
         db.Tenants.Add(tenant);
@@ -383,7 +382,7 @@ public class PlatformOrganizationServiceTests
         // Arrange
         var db = CreateDbContext();
         var configuration = CreateConfiguration();
-        var service = new PlatformOrganizationService(db, configuration, CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, configuration);
 
         var tenant = Tenant.Create("Notes Org");
         db.Tenants.Add(tenant);
@@ -406,7 +405,7 @@ public class PlatformOrganizationServiceTests
         // Arrange
         var db = CreateDbContext();
         var configuration = CreateConfiguration();
-        var service = new PlatformOrganizationService(db, configuration, CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, configuration);
 
         var tenant = Tenant.Create("Both Org");
         db.Tenants.Add(tenant);
@@ -433,7 +432,7 @@ public class PlatformOrganizationServiceTests
         // Arrange
         var db = CreateDbContext();
         var configuration = CreateConfiguration();
-        var service = new PlatformOrganizationService(db, configuration, CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, configuration);
 
         var request = new UpdatePlatformOrganizationRequest { Name = "Nonexistent" };
 
@@ -450,19 +449,19 @@ public class PlatformOrganizationServiceTests
         // Arrange
         var db = CreateDbContext();
         var configuration = CreateConfiguration();
-        var service = new PlatformOrganizationService(db, configuration, CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, configuration);
 
         var activeTenant = Tenant.Create("Active Org");
         var draftTenant = Tenant.Create("Draft Org");
 
-        var hrRole = new IdentityRole<Guid>
+        var orgRole = new IdentityRole<Guid>
         {
             Id = Guid.NewGuid(),
-            Name = PlatformRole.HRAdmin,
-            NormalizedName = PlatformRole.HRAdmin.ToUpperInvariant(),
+            Name = PlatformRole.OrgAdmin,
+            NormalizedName = PlatformRole.OrgAdmin.ToUpperInvariant(),
         };
 
-        var hrAdmin = new ApplicationUser
+        var orgAdmin = new ApplicationUser
         {
             Id = Guid.NewGuid(),
             UserName = "admin@active.com",
@@ -471,17 +470,17 @@ public class PlatformOrganizationServiceTests
             EmailConfirmed = true,
             TenantId = activeTenant.Id,
             IsActive = true,
-            FirstName = "Hr",
+            FirstName = "Org",
             LastName = "Admin",
         };
 
         db.Tenants.AddRange(activeTenant, draftTenant);
-        db.Roles.Add(hrRole);
-        db.Users.Add(hrAdmin);
+        db.Roles.Add(orgRole);
+        db.Users.Add(orgAdmin);
         db.UserRoles.Add(new IdentityUserRole<Guid>
         {
-            UserId = hrAdmin.Id,
-            RoleId = hrRole.Id
+            UserId = orgAdmin.Id,
+            RoleId = orgRole.Id
         });
         await db.SaveChangesAsync();
 
@@ -499,7 +498,7 @@ public class PlatformOrganizationServiceTests
     public async Task SuspendAsync_SuspendsTenant_ReturnsTrue()
     {
         var db = CreateDbContext();
-        var service = new PlatformOrganizationService(db, CreateConfiguration(), CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
 
         var tenant = Tenant.Create("Suspend Me");
         db.Tenants.Add(tenant);
@@ -516,7 +515,7 @@ public class PlatformOrganizationServiceTests
     public async Task SuspendAsync_ReturnsFalse_WhenNotFound()
     {
         var db = CreateDbContext();
-        var service = new PlatformOrganizationService(db, CreateConfiguration(), CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
 
         var ok = await service.SuspendAsync(Guid.NewGuid());
         Assert.False(ok);
@@ -526,7 +525,7 @@ public class PlatformOrganizationServiceTests
     public async Task SuspendAsync_Throws_WhenAlreadySuspended()
     {
         var db = CreateDbContext();
-        var service = new PlatformOrganizationService(db, CreateConfiguration(), CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
 
         var tenant = Tenant.Create("Already Suspended");
         tenant.Deactivate();
@@ -540,7 +539,7 @@ public class PlatformOrganizationServiceTests
     public async Task ReactivateAsync_ReactivatesTenant_ReturnsTrue()
     {
         var db = CreateDbContext();
-        var service = new PlatformOrganizationService(db, CreateConfiguration(), CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
 
         var tenant = Tenant.Create("Reactivate Me");
         tenant.Deactivate();
@@ -558,7 +557,7 @@ public class PlatformOrganizationServiceTests
     public async Task ReactivateAsync_ReturnsFalse_WhenNotFound()
     {
         var db = CreateDbContext();
-        var service = new PlatformOrganizationService(db, CreateConfiguration(), CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
 
         var ok = await service.ReactivateAsync(Guid.NewGuid());
         Assert.False(ok);
@@ -568,7 +567,7 @@ public class PlatformOrganizationServiceTests
     public async Task ReactivateAsync_Throws_WhenAlreadyActive()
     {
         var db = CreateDbContext();
-        var service = new PlatformOrganizationService(db, CreateConfiguration(), CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
 
         var tenant = Tenant.Create("Already Active");
         db.Tenants.Add(tenant);
@@ -581,7 +580,7 @@ public class PlatformOrganizationServiceTests
     public async Task ArchiveAsync_ArchivesTenant_ReturnsTrue()
     {
         var db = CreateDbContext();
-        var service = new PlatformOrganizationService(db, CreateConfiguration(), CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
 
         var tenant = Tenant.Create("Archive Me");
         db.Tenants.Add(tenant);
@@ -599,7 +598,7 @@ public class PlatformOrganizationServiceTests
     public async Task ArchiveAsync_ReturnsFalse_WhenNotFound()
     {
         var db = CreateDbContext();
-        var service = new PlatformOrganizationService(db, CreateConfiguration(), CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
 
         var ok = await service.ArchiveAsync(Guid.NewGuid());
         Assert.False(ok);
@@ -609,7 +608,7 @@ public class PlatformOrganizationServiceTests
     public async Task ArchiveAsync_Throws_WhenAlreadyArchived()
     {
         var db = CreateDbContext();
-        var service = new PlatformOrganizationService(db, CreateConfiguration(), CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
 
         var tenant = Tenant.Create("Already Archived");
         tenant.Archive();
@@ -625,7 +624,7 @@ public class PlatformOrganizationServiceTests
     public async Task GetAsync_ReturnsDetail_WhenTenantExists()
     {
         var db = CreateDbContext();
-        var service = new PlatformOrganizationService(db, CreateConfiguration(), CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
 
         var tenant = Tenant.Create("Detail Org");
         tenant.SetInternalNotes("Admin notes");
@@ -644,7 +643,7 @@ public class PlatformOrganizationServiceTests
     public async Task GetAsync_ReturnsNull_WhenTenantNotFound()
     {
         var db = CreateDbContext();
-        var service = new PlatformOrganizationService(db, CreateConfiguration(), CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
 
         var detail = await service.GetAsync(Guid.NewGuid());
         Assert.Null(detail);
@@ -656,7 +655,7 @@ public class PlatformOrganizationServiceTests
     public async Task ListAsync_SearchByName_FiltersResults()
     {
         var db = CreateDbContext();
-        var service = new PlatformOrganizationService(db, CreateConfiguration(), CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
 
         db.Tenants.AddRange(
             Tenant.Create("Acme Corp"),
@@ -677,7 +676,7 @@ public class PlatformOrganizationServiceTests
     public async Task ListAsync_FilterByStatus_FiltersCorrectly()
     {
         var db = CreateDbContext();
-        var service = new PlatformOrganizationService(db, CreateConfiguration(), CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
 
         var active = Tenant.Create("Active T");
         var draft = Tenant.Create("Draft T");
@@ -700,7 +699,7 @@ public class PlatformOrganizationServiceTests
     public async Task ListAsync_SortByName_Ascending()
     {
         var db = CreateDbContext();
-        var service = new PlatformOrganizationService(db, CreateConfiguration(), CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
 
         db.Tenants.AddRange(
             Tenant.Create("Charlie"),
@@ -722,7 +721,7 @@ public class PlatformOrganizationServiceTests
     public async Task ListAsync_Pagination_ReturnsCorrectPage()
     {
         var db = CreateDbContext();
-        var service = new PlatformOrganizationService(db, CreateConfiguration(), CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
 
         for (int i = 0; i < 5; i++)
             db.Tenants.Add(Tenant.Create($"Org {i}"));
@@ -743,7 +742,7 @@ public class PlatformOrganizationServiceTests
     public async Task CreateAsync_WithInternalNotes_SetsNotes()
     {
         var db = CreateDbContext();
-        var service = new PlatformOrganizationService(db, CreateConfiguration(), CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
 
         var request = new CreatePlatformOrganizationRequest
         {
@@ -760,7 +759,7 @@ public class PlatformOrganizationServiceTests
     public async Task CreateAsync_Throws_WhenDuplicateName()
     {
         var db = CreateDbContext();
-        var service = new PlatformOrganizationService(db, CreateConfiguration(), CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
 
         var request1 = new CreatePlatformOrganizationRequest
         {
@@ -786,7 +785,7 @@ public class PlatformOrganizationServiceTests
     public async Task ResendFirstAdminInviteAsync_ReturnsNull_WhenNoPendingInvite()
     {
         var db = CreateDbContext();
-        var service = new PlatformOrganizationService(db, CreateConfiguration(), CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
 
         var tenant = Tenant.Create("No Invite Tenant");
         db.Tenants.Add(tenant);
@@ -800,7 +799,7 @@ public class PlatformOrganizationServiceTests
     public async Task RevokePendingFirstAdminInvitesAsync_ReturnsFalse_WhenNoPending()
     {
         var db = CreateDbContext();
-        var service = new PlatformOrganizationService(db, CreateConfiguration(), CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
 
         var tenant = Tenant.Create("No Pending Tenant");
         db.Tenants.Add(tenant);
@@ -814,11 +813,11 @@ public class PlatformOrganizationServiceTests
     public async Task RevokePendingFirstAdminInvitesAsync_ExcludesAlreadyRevoked()
     {
         var db = CreateDbContext();
-        var service = new PlatformOrganizationService(db, CreateConfiguration(), CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
 
         var tenant = Tenant.Create("Double Revoke Tenant");
         var createdBy = Guid.NewGuid();
-        var invite = InviteToken.Create("admin@dr.com", tenant.Id, PlatformRole.HRAdmin, createdBy);
+        var invite = InviteToken.Create("admin@dr.com", tenant.Id, PlatformRole.OrgAdmin, createdBy);
 
         db.Tenants.Add(tenant);
         db.InviteTokens.Add(invite);
@@ -837,7 +836,7 @@ public class PlatformOrganizationServiceTests
     public async Task ListAsync_SortByName_Descending()
     {
         var db = CreateDbContext();
-        var service = new PlatformOrganizationService(db, CreateConfiguration(), CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
 
         db.Tenants.AddRange(
             Tenant.Create("Alpha"),
@@ -859,7 +858,7 @@ public class PlatformOrganizationServiceTests
     public async Task ListAsync_SortByCreatedAt_Ascending()
     {
         var db = CreateDbContext();
-        var service = new PlatformOrganizationService(db, CreateConfiguration(), CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
 
         var t1 = Tenant.Create("First");
         SetPrivateProperty(t1, "CreatedAt", DateTime.UtcNow.AddDays(-3));
@@ -885,7 +884,7 @@ public class PlatformOrganizationServiceTests
     public async Task ListAsync_DefaultSort_IsCreatedAtDescending()
     {
         var db = CreateDbContext();
-        var service = new PlatformOrganizationService(db, CreateConfiguration(), CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
 
         var t1 = Tenant.Create("First");
         SetPrivateProperty(t1, "CreatedAt", DateTime.UtcNow.AddDays(-3));
@@ -912,7 +911,7 @@ public class PlatformOrganizationServiceTests
     public async Task ListAsync_FilterByMultipleStatuses()
     {
         var db = CreateDbContext();
-        var service = new PlatformOrganizationService(db, CreateConfiguration(), CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
 
         var draft = Tenant.Create("Draft T");
         var suspended = Tenant.Create("Suspended T");
@@ -937,7 +936,7 @@ public class PlatformOrganizationServiceTests
     public async Task ListAsync_Search_NoMatches_ReturnsEmpty()
     {
         var db = CreateDbContext();
-        var service = new PlatformOrganizationService(db, CreateConfiguration(), CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
 
         db.Tenants.AddRange(Tenant.Create("Acme Corp"), Tenant.Create("Beta Inc"));
         await db.SaveChangesAsync();
@@ -957,7 +956,7 @@ public class PlatformOrganizationServiceTests
     public async Task ListAsync_EmptyDatabase_ReturnsEmptyWithZeroStats()
     {
         var db = CreateDbContext();
-        var service = new PlatformOrganizationService(db, CreateConfiguration(), CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
 
         var paged = await service.ListAsync(new PlatformOrganizationListQueryDto
         {
@@ -975,7 +974,7 @@ public class PlatformOrganizationServiceTests
     public async Task ListAsync_TakeClampedTo100()
     {
         var db = CreateDbContext();
-        var service = new PlatformOrganizationService(db, CreateConfiguration(), CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
 
         for (int i = 0; i < 3; i++)
             db.Tenants.Add(Tenant.Create($"Org {i}"));
@@ -995,7 +994,7 @@ public class PlatformOrganizationServiceTests
     public async Task ListAsync_NegativeSkip_TreatedAsZero()
     {
         var db = CreateDbContext();
-        var service = new PlatformOrganizationService(db, CreateConfiguration(), CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
 
         db.Tenants.Add(Tenant.Create("Single Org"));
         await db.SaveChangesAsync();
@@ -1014,11 +1013,11 @@ public class PlatformOrganizationServiceTests
     public async Task GetAsync_WithPendingInvite_ShowsPendingStatus()
     {
         var db = CreateDbContext();
-        var service = new PlatformOrganizationService(db, CreateConfiguration(), CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
 
         var tenant = Tenant.Create("Pending Invite Org");
         var invite = InviteToken.Create(
-            "admin@pending.com", tenant.Id, PlatformRole.HRAdmin, Guid.NewGuid());
+            "admin@pending.com", tenant.Id, PlatformRole.OrgAdmin, Guid.NewGuid());
 
         db.Tenants.Add(tenant);
         db.InviteTokens.Add(invite);
@@ -1038,11 +1037,11 @@ public class PlatformOrganizationServiceTests
     public async Task GetAsync_WithAcceptedInvite_ShowsAcceptedStatus()
     {
         var db = CreateDbContext();
-        var service = new PlatformOrganizationService(db, CreateConfiguration(), CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
 
         var tenant = Tenant.Create("Accepted Invite Org");
         var invite = InviteToken.Create(
-            "admin@accepted.com", tenant.Id, PlatformRole.HRAdmin, Guid.NewGuid());
+            "admin@accepted.com", tenant.Id, PlatformRole.OrgAdmin, Guid.NewGuid());
         invite.MarkAccepted(Guid.NewGuid());
 
         db.Tenants.Add(tenant);
@@ -1061,11 +1060,11 @@ public class PlatformOrganizationServiceTests
     public async Task GetAsync_WithExpiredInvite_ShowsExpiredStatus()
     {
         var db = CreateDbContext();
-        var service = new PlatformOrganizationService(db, CreateConfiguration(), CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
 
         var tenant = Tenant.Create("Expired Invite Org");
         var invite = InviteToken.Create(
-            "admin@expired.com", tenant.Id, PlatformRole.HRAdmin, Guid.NewGuid(), expiryDays: 1);
+            "admin@expired.com", tenant.Id, PlatformRole.OrgAdmin, Guid.NewGuid(), expiryDays: 1);
         SetPrivateProperty(invite, "ExpiresAt", DateTime.UtcNow.AddMinutes(-1));
 
         db.Tenants.Add(tenant);
@@ -1084,7 +1083,7 @@ public class PlatformOrganizationServiceTests
     public async Task GetAsync_WithNoInvites_ShowsNoneStatus()
     {
         var db = CreateDbContext();
-        var service = new PlatformOrganizationService(db, CreateConfiguration(), CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
 
         var tenant = Tenant.Create("No Invite Org");
         db.Tenants.Add(tenant);
@@ -1104,11 +1103,11 @@ public class PlatformOrganizationServiceTests
     public async Task GetAsync_WithRevokedInvites_ShowsNoneStatus()
     {
         var db = CreateDbContext();
-        var service = new PlatformOrganizationService(db, CreateConfiguration(), CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
 
         var tenant = Tenant.Create("Revoked Invite Org");
         var invite = InviteToken.Create(
-            "admin@revoked.com", tenant.Id, PlatformRole.HRAdmin, Guid.NewGuid());
+            "admin@revoked.com", tenant.Id, PlatformRole.OrgAdmin, Guid.NewGuid());
         invite.Revoke();
 
         db.Tenants.Add(tenant);
@@ -1118,7 +1117,7 @@ public class PlatformOrganizationServiceTests
         var detail = await service.GetAsync(tenant.Id);
 
         Assert.NotNull(detail);
-        // Revoked invites are excluded from HrInvites (filtered by !IsRevoked in metrics)
+        // Revoked invites are excluded from OrgAdminInvites (filtered by !IsRevoked in metrics)
         Assert.NotNull(detail!.FirstAdminInvite);
         Assert.Equal("none", detail.FirstAdminInvite.Status);
     }
@@ -1129,7 +1128,7 @@ public class PlatformOrganizationServiceTests
     public async Task UpdateAsync_DuplicateName_Throws()
     {
         var db = CreateDbContext();
-        var service = new PlatformOrganizationService(db, CreateConfiguration(), CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
 
         var tenant1 = Tenant.Create("Existing Org");
         var tenant2 = Tenant.Create("To Be Renamed");
@@ -1147,7 +1146,7 @@ public class PlatformOrganizationServiceTests
     public async Task UpdateAsync_SameNameAsSelf_Succeeds()
     {
         var db = CreateDbContext();
-        var service = new PlatformOrganizationService(db, CreateConfiguration(), CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
 
         var tenant = Tenant.Create("Keep Me");
         db.Tenants.Add(tenant);
@@ -1165,7 +1164,7 @@ public class PlatformOrganizationServiceTests
     public async Task UpdateAsync_ClearsInternalNotes_WhenSetToEmpty()
     {
         var db = CreateDbContext();
-        var service = new PlatformOrganizationService(db, CreateConfiguration(), CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
 
         var tenant = Tenant.Create("Notes Clear Org");
         tenant.SetInternalNotes("Old notes");
@@ -1185,7 +1184,7 @@ public class PlatformOrganizationServiceTests
     public async Task SuspendAsync_WhenArchived_Throws()
     {
         var db = CreateDbContext();
-        var service = new PlatformOrganizationService(db, CreateConfiguration(), CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
 
         var tenant = Tenant.Create("Archived for Suspend");
         tenant.Archive();
@@ -1199,7 +1198,7 @@ public class PlatformOrganizationServiceTests
     public async Task ReactivateAsync_WhenArchived_Throws()
     {
         var db = CreateDbContext();
-        var service = new PlatformOrganizationService(db, CreateConfiguration(), CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
 
         var tenant = Tenant.Create("Archived for Reactivate");
         tenant.Archive();
@@ -1215,11 +1214,11 @@ public class PlatformOrganizationServiceTests
     public async Task ResendFirstAdminInviteAsync_ExtendsExpiredInvite()
     {
         var db = CreateDbContext();
-        var service = new PlatformOrganizationService(db, CreateConfiguration(), CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
 
         var tenant = Tenant.Create("Expired Invite Tenant");
         var invite = InviteToken.Create(
-            "admin@expired.com", tenant.Id, PlatformRole.HRAdmin, Guid.NewGuid(), expiryDays: 1);
+            "admin@expired.com", tenant.Id, PlatformRole.OrgAdmin, Guid.NewGuid(), expiryDays: 1);
 
         // Expire the invite via reflection (private setter)
         var expiresAtProp = invite.GetType().GetProperty("ExpiresAt")!;
@@ -1244,11 +1243,11 @@ public class PlatformOrganizationServiceTests
     public async Task ResendFirstAdminInviteAsync_IgnoresAcceptedInvites()
     {
         var db = CreateDbContext();
-        var service = new PlatformOrganizationService(db, CreateConfiguration(), CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
 
         var tenant = Tenant.Create("Accepted Only Tenant");
         var invite = InviteToken.Create(
-            "admin@accepted.com", tenant.Id, PlatformRole.HRAdmin, Guid.NewGuid());
+            "admin@accepted.com", tenant.Id, PlatformRole.OrgAdmin, Guid.NewGuid());
         invite.MarkAccepted(Guid.NewGuid());
 
         db.Tenants.Add(tenant);
@@ -1264,11 +1263,11 @@ public class PlatformOrganizationServiceTests
     public async Task ResendFirstAdminInviteAsync_IgnoresRevokedInvites()
     {
         var db = CreateDbContext();
-        var service = new PlatformOrganizationService(db, CreateConfiguration(), CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
 
         var tenant = Tenant.Create("Revoked Only Tenant");
         var invite = InviteToken.Create(
-            "admin@revoked.com", tenant.Id, PlatformRole.HRAdmin, Guid.NewGuid());
+            "admin@revoked.com", tenant.Id, PlatformRole.OrgAdmin, Guid.NewGuid());
         invite.Revoke();
 
         db.Tenants.Add(tenant);
@@ -1286,7 +1285,7 @@ public class PlatformOrganizationServiceTests
     public async Task CreateAsync_WithoutInternalNotes_OmitsNotes()
     {
         var db = CreateDbContext();
-        var service = new PlatformOrganizationService(db, CreateConfiguration(), CreateInvitationLinkBuilder());
+        var service = new PlatformOrganizationService(db, CreateConfiguration());
 
         var request = new CreatePlatformOrganizationRequest
         {
@@ -1320,9 +1319,6 @@ public class PlatformOrganizationServiceTests
             })
             .Build();
     }
-
-    private static IInvitationLinkBuilder CreateInvitationLinkBuilder()
-        => new InvitationLinkBuilder(CreateConfiguration());
 
     private static void SetPrivateProperty<T>(T instance, string propertyName, object value)
     {

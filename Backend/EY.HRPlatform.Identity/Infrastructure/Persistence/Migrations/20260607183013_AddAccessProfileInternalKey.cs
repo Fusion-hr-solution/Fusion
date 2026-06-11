@@ -1,13 +1,12 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
-
-using System;
+﻿using System;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
 namespace EY.HRPlatform.Identity.Infrastructure.Persistence.Migrations
 {
     /// <inheritdoc />
-    public partial class AddInviteDeliveryTracking : Migration
+    public partial class AddAccessProfileInternalKey : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -16,8 +15,8 @@ namespace EY.HRPlatform.Identity.Infrastructure.Persistence.Migrations
                 name: "DeliveryMessage",
                 schema: "identity",
                 table: "InviteTokens",
-                type: "character varying(500)",
-                maxLength: 500,
+                type: "character varying(512)",
+                maxLength: 512,
                 nullable: true);
 
             migrationBuilder.AddColumn<DateTime>(
@@ -31,8 +30,15 @@ namespace EY.HRPlatform.Identity.Infrastructure.Persistence.Migrations
                 name: "DeliveryStatus",
                 schema: "identity",
                 table: "InviteTokens",
-                type: "character varying(50)",
-                maxLength: 50,
+                type: "character varying(32)",
+                maxLength: 32,
+                nullable: true);
+
+            migrationBuilder.AddColumn<string>(
+                name: "InternalKey",
+                schema: "identity",
+                table: "AccessProfiles",
+                type: "text",
                 nullable: true);
         }
 
@@ -53,6 +59,11 @@ namespace EY.HRPlatform.Identity.Infrastructure.Persistence.Migrations
                 name: "DeliveryStatus",
                 schema: "identity",
                 table: "InviteTokens");
+
+            migrationBuilder.DropColumn(
+                name: "InternalKey",
+                schema: "identity",
+                table: "AccessProfiles");
         }
     }
 }

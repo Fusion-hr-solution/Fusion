@@ -34,9 +34,7 @@ public interface IPlatformOrganizationService
 
 public sealed class PlatformOrganizationService(
     AppIdentityDbContext db,
-    IConfiguration configuration,
-    IInvitationLinkBuilder invitationLinkBuilder,
-    IWorkforceInvitationEmailSender? invitationEmailSender = null) : IPlatformOrganizationService
+    IConfiguration configuration) : IPlatformOrganizationService
 {
     public async Task<PlatformOrganizationPagedListDto> ListAsync(
         PlatformOrganizationListQueryDto query,
@@ -164,7 +162,7 @@ public sealed class PlatformOrganizationService(
             return null;
 
         var metrics = await LoadMetricsAsync([tenantId], cancellationToken);
-        var primaryEmail = await GetPrimaryHrAdminEmailAsync(tenantId, cancellationToken);
+        var primaryEmail = await GetPrimaryOrgAdminEmailAsync(tenantId, cancellationToken);
         return MapDetail(tenant, metrics, primaryEmail);
     }
 
@@ -173,19 +171,23 @@ public sealed class PlatformOrganizationService(
         Guid createdByUserId,
         CancellationToken cancellationToken = default)
     {
-        // EF InMemory doesn't support transactions; skip them in tests.
         IDbContextTransaction? tx = null;
-        try
-        {
+        if (db.Database.IsRelational())
             tx = await db.Database.BeginTransactionAsync(cancellationToken);
-        }
-        catch (InvalidOperationException)
-        {
-            tx = null;
-        }
+
         try
         {
-            var tenant = Tenant.Create(request.Name.Trim());
+            // Generate unique slug from the name
+            var baseSlug = Tenant.GenerateSlug(request.Name);
+            var slug = baseSlug;
+            var slugSuffix = 2;
+            while (await db.Tenants.AnyAsync(t => t.Slug == slug, cancellationToken))
+            {
+                slug = $"{baseSlug}-{slugSuffix}";
+                slugSuffix++;
+            }
+
+            var tenant = Tenant.Create(Guid.NewGuid(), request.Name.Trim(), slug);
             if (!string.IsNullOrWhiteSpace(request.InternalNotes))
                 tenant.SetInternalNotes(request.InternalNotes);
 
@@ -214,32 +216,20 @@ public sealed class PlatformOrganizationService(
             var invite = InviteToken.Create(
                 normalizedEmail,
                 tenant.Id,
-                PlatformRole.HRAdmin,
+                PlatformRole.OrgAdmin,
                 createdByUserId,
                 request.FirstAdminFirstName,
                 request.FirstAdminLastName);
 
             db.InviteTokens.Add(invite);
             await db.SaveChangesAsync(cancellationToken);
-
-        var link = invitationLinkBuilder.BuildInviteLink(invite.Token);
-            if (invitationEmailSender is not null)
-            {
-                var deliveryResult = await SendFirstAdminInviteEmailAsync(
-                    invite,
-                    tenant.Name,
-                    link,
-                    cancellationToken);
-                invite.RecordDeliveryAttempt(deliveryResult.Status, deliveryResult.Message);
-                await db.SaveChangesAsync(cancellationToken);
-            }
-
             if (tx is not null)
                 await tx.CommitAsync(cancellationToken);
 
             var detail = await GetAsync(tenant.Id, cancellationToken)
                          ?? throw new InvalidOperationException("Failed to load created organization.");
 
+            var link = BuildInviteLink(invite.Token);
             return new PlatformOrganizationCreatedDto
             {
                 Organization = detail,
@@ -298,8 +288,7 @@ public sealed class PlatformOrganizationService(
 
         var invite = await db.InviteTokens
             .IgnoreQueryFilters()
-            .Include(i => i.Tenant)
-            .Where(i => i.TenantId == tenantId && i.Role == PlatformRole.HRAdmin && i.AcceptedAt == null && !i.IsRevoked)
+            .Where(i => i.TenantId == tenantId && i.Role == PlatformRole.OrgAdmin && i.AcceptedAt == null && !i.IsRevoked)
             .OrderByDescending(i => i.CreatedAt)
             .FirstOrDefaultAsync(cancellationToken);
 
@@ -308,18 +297,6 @@ public sealed class PlatformOrganizationService(
 
         invite.ExtendExpiry();
         await db.SaveChangesAsync(cancellationToken);
-        var link = invitationLinkBuilder.BuildInviteLink(invite.Token);
-
-        if (invitationEmailSender is not null)
-        {
-            var deliveryResult = await SendFirstAdminInviteEmailAsync(
-                invite,
-                invite.Tenant?.Name ?? "Fusion",
-                link,
-                cancellationToken);
-            invite.RecordDeliveryAttempt(deliveryResult.Status, deliveryResult.Message);
-            await db.SaveChangesAsync(cancellationToken);
-        }
 
         return new PlatformOrganizationInviteStatusDto
         {
@@ -328,10 +305,7 @@ public sealed class PlatformOrganizationService(
             Email = invite.Email,
             SentAt = invite.CreatedAt,
             ExpiresAt = invite.ExpiresAt,
-            InviteLink = link,
-            DeliveryStatus = invite.DeliveryStatus,
-            DeliveryMessage = invite.DeliveryMessage,
-            DeliveryRecordedAt = invite.DeliveryRecordedAt
+            InviteLink = BuildInviteLink(invite.Token)
         };
     }
 
@@ -341,7 +315,7 @@ public sealed class PlatformOrganizationService(
     {
         var pending = await db.InviteTokens
             .IgnoreQueryFilters()
-            .Where(i => i.TenantId == tenantId && i.Role == PlatformRole.HRAdmin && i.AcceptedAt == null && !i.IsRevoked)
+            .Where(i => i.TenantId == tenantId && i.Role == PlatformRole.OrgAdmin && i.AcceptedAt == null && !i.IsRevoked)
             .ToListAsync(cancellationToken);
 
         if (pending.Count == 0)
@@ -381,42 +355,26 @@ public sealed class PlatformOrganizationService(
         await db.SaveChangesAsync(cancellationToken);
 
         var metrics = await LoadMetricsAsync([tenantId], cancellationToken);
-        var primaryEmail = await GetPrimaryHrAdminEmailAsync(tenantId, cancellationToken);
+        var primaryEmail = await GetPrimaryOrgAdminEmailAsync(tenantId, cancellationToken);
         return MapDetail(tenant, metrics, primaryEmail);
     }
 
+    private string BuildInviteLink(string token)
+        => InvitationLinkBuilder.Build(configuration, token);
 
-    private async Task<WorkforceInvitationEmailDeliveryResult> SendFirstAdminInviteEmailAsync(
-        InviteToken invite,
-        string tenantName,
-        string inviteLink,
-        CancellationToken cancellationToken)
+    private async Task<string?> GetPrimaryOrgAdminEmailAsync(Guid tenantId, CancellationToken cancellationToken)
     {
-        return await invitationEmailSender!.SendInvitationAsync(
-            new WorkforceInvitationEmailMessage(
-                invite.Id,
-                invite.Email,
-                inviteLink,
-                tenantName,
-                invite.Role,
-                invite.FirstName,
-                invite.LastName),
-            cancellationToken);
-    }
-
-    private async Task<string?> GetPrimaryHrAdminEmailAsync(Guid tenantId, CancellationToken cancellationToken)
-    {
-        var hrAdminRoleId = await db.Roles.AsNoTracking()
-            .Where(r => r.Name == PlatformRole.HRAdmin)
+        var orgAdminRoleId = await db.Roles.AsNoTracking()
+            .Where(r => r.Name == PlatformRole.OrgAdmin)
             .Select(r => r.Id)
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (hrAdminRoleId == Guid.Empty)
+        if (orgAdminRoleId == Guid.Empty)
             return null;
 
         var userId = await (from u in db.Users.IgnoreQueryFilters().AsNoTracking()
                 join ur in db.UserRoles.AsNoTracking() on u.Id equals ur.UserId
-                where u.TenantId == tenantId && ur.RoleId == hrAdminRoleId
+                where u.TenantId == tenantId && ur.RoleId == orgAdminRoleId
                 select (Guid?)u.Id)
             .FirstOrDefaultAsync(cancellationToken);
 
@@ -433,8 +391,8 @@ public sealed class PlatformOrganizationService(
     {
         public int ActiveUserCount { get; init; }
         public int PendingInviteCount { get; init; }
-        public bool HasHrAdminUser { get; init; }
-        public List<InviteToken> HrInvites { get; init; } = [];
+        public bool HasOrgAdminUser { get; init; }
+        public List<InviteToken> OrgAdminInvites { get; init; } = [];
         public DateTime? LastActivityAt { get; init; }
     }
 
@@ -442,8 +400,8 @@ public sealed class PlatformOrganizationService(
         List<Guid> tenantIds,
         CancellationToken cancellationToken)
     {
-        var hrAdminRoleId = await db.Roles.AsNoTracking()
-            .Where(r => r.Name == PlatformRole.HRAdmin)
+        var orgAdminRoleId = await db.Roles.AsNoTracking()
+            .Where(r => r.Name == PlatformRole.OrgAdmin)
             .Select(r => r.Id)
             .FirstOrDefaultAsync(cancellationToken);
 
@@ -455,27 +413,27 @@ public sealed class PlatformOrganizationService(
         var userCounts = usersInTenants.GroupBy(u => u.TenantId).ToDictionary(g => g.Key, g => g.Count());
 
         var tenantUserIds = usersInTenants.Select(u => u.Id).ToHashSet();
-        HashSet<Guid> hrAdminUserIds = [];
-        if (hrAdminRoleId != Guid.Empty && tenantUserIds.Count > 0)
+        HashSet<Guid> orgAdminUserIds = [];
+        if (orgAdminRoleId != Guid.Empty && tenantUserIds.Count > 0)
         {
-            hrAdminUserIds = (await db.UserRoles.AsNoTracking()
-                    .Where(ur => tenantUserIds.Contains(ur.UserId) && ur.RoleId == hrAdminRoleId)
+            orgAdminUserIds = (await db.UserRoles.AsNoTracking()
+                    .Where(ur => tenantUserIds.Contains(ur.UserId) && ur.RoleId == orgAdminRoleId)
                     .Select(ur => ur.UserId)
                     .ToListAsync(cancellationToken))
                 .ToHashSet();
         }
 
-        var hasHrAdminByTenant = usersInTenants
-            .Where(u => hrAdminUserIds.Contains(u.Id))
+        var hasOrgAdminByTenant = usersInTenants
+            .Where(u => orgAdminUserIds.Contains(u.Id))
             .Select(u => u.TenantId)
             .Distinct()
             .ToHashSet();
 
-        var hrInvitesByTenant = await db.InviteTokens.IgnoreQueryFilters().AsNoTracking()
-            .Where(i => tenantIds.Contains(i.TenantId) && i.Role == PlatformRole.HRAdmin && !i.IsRevoked)
+        var orgAdminInvitesByTenant = await db.InviteTokens.IgnoreQueryFilters().AsNoTracking()
+            .Where(i => tenantIds.Contains(i.TenantId) && i.Role == PlatformRole.OrgAdmin && !i.IsRevoked)
             .ToListAsync(cancellationToken);
 
-        var pendingByTenant = hrInvitesByTenant
+        var pendingByTenant = orgAdminInvitesByTenant
             .Where(i => i.AcceptedAt == null && i.ExpiresAt > DateTime.UtcNow)
             .GroupBy(i => i.TenantId)
             .ToDictionary(g => g.Key, g => g.Count());
@@ -485,7 +443,7 @@ public sealed class PlatformOrganizationService(
         {
             userCounts.TryGetValue(tid, out var uc);
             pendingByTenant.TryGetValue(tid, out var pc);
-            var invites = hrInvitesByTenant.Where(i => i.TenantId == tid).ToList();
+            var invites = orgAdminInvitesByTenant.Where(i => i.TenantId == tid).ToList();
             var lastUser = usersInTenants.Where(u => u.TenantId == tid).ToList();
             DateTime? lastLogin = lastUser.Count == 0
                 ? null
@@ -495,8 +453,8 @@ public sealed class PlatformOrganizationService(
             {
                 ActiveUserCount = uc,
                 PendingInviteCount = pc,
-                HasHrAdminUser = hasHrAdminByTenant.Contains(tid),
-                HrInvites = invites,
+                HasOrgAdminUser = hasOrgAdminByTenant.Contains(tid),
+                OrgAdminInvites = invites,
                 LastActivityAt = lastLogin
             };
         }
@@ -516,6 +474,7 @@ public sealed class PlatformOrganizationService(
         {
             Id = tenant.Id,
             Name = tenant.Name,
+            Slug = tenant.Slug,
             OperationalStatus = status,
             ActiveUserCount = m.ActiveUserCount,
             PendingInviteCount = m.PendingInviteCount,
@@ -534,12 +493,13 @@ public sealed class PlatformOrganizationService(
         metrics.TryGetValue(tenant.Id, out var m);
         m ??= new TenantMetrics();
         var status = ComputeOperationalStatus(tenant, m);
-        var inviteDto = BuildInviteStatus(m.HrInvites);
+        var inviteDto = BuildInviteStatus(m.OrgAdminInvites);
 
         return new PlatformOrganizationDetailDto
         {
             Id = tenant.Id,
             Name = tenant.Name,
+            Slug = tenant.Slug,
             OperationalStatus = status,
             CreatedAt = tenant.CreatedAt,
             UpdatedAt = tenant.UpdatedAt,
@@ -554,9 +514,9 @@ public sealed class PlatformOrganizationService(
         };
     }
 
-    private PlatformOrganizationInviteStatusDto BuildInviteStatus(List<InviteToken> hrInvites)
+    private PlatformOrganizationInviteStatusDto BuildInviteStatus(List<InviteToken> orgAdminInvites)
     {
-        var accepted = hrInvites.FirstOrDefault(i => i.AcceptedAt != null);
+        var accepted = orgAdminInvites.FirstOrDefault(i => i.AcceptedAt != null);
         if (accepted != null)
         {
             return new PlatformOrganizationInviteStatusDto
@@ -566,14 +526,11 @@ public sealed class PlatformOrganizationService(
                 Email = accepted.Email,
                 SentAt = accepted.CreatedAt,
                 ExpiresAt = accepted.ExpiresAt,
-                InviteLink = null,
-                DeliveryStatus = accepted.DeliveryStatus,
-                DeliveryMessage = accepted.DeliveryMessage,
-                DeliveryRecordedAt = accepted.DeliveryRecordedAt
+                InviteLink = null
             };
         }
 
-        var pending = hrInvites
+        var pending = orgAdminInvites
             .Where(i => i.AcceptedAt == null && i.ExpiresAt > DateTime.UtcNow)
             .OrderByDescending(i => i.CreatedAt)
             .FirstOrDefault();
@@ -587,14 +544,11 @@ public sealed class PlatformOrganizationService(
                 Email = pending.Email,
                 SentAt = pending.CreatedAt,
                 ExpiresAt = pending.ExpiresAt,
-                InviteLink = invitationLinkBuilder.BuildInviteLink(pending.Token),
-                DeliveryStatus = pending.DeliveryStatus,
-                DeliveryMessage = pending.DeliveryMessage,
-                DeliveryRecordedAt = pending.DeliveryRecordedAt
+                InviteLink = BuildInviteLink(pending.Token)
             };
         }
 
-        var expired = hrInvites
+        var expired = orgAdminInvites
             .Where(i => i.AcceptedAt == null && i.ExpiresAt <= DateTime.UtcNow)
             .OrderByDescending(i => i.CreatedAt)
             .FirstOrDefault();
@@ -608,10 +562,7 @@ public sealed class PlatformOrganizationService(
                 Email = expired.Email,
                 SentAt = expired.CreatedAt,
                 ExpiresAt = expired.ExpiresAt,
-                InviteLink = null,
-                DeliveryStatus = expired.DeliveryStatus,
-                DeliveryMessage = expired.DeliveryMessage,
-                DeliveryRecordedAt = expired.DeliveryRecordedAt
+                InviteLink = null
             };
         }
 
@@ -622,10 +573,7 @@ public sealed class PlatformOrganizationService(
             Email = null,
             SentAt = null,
             ExpiresAt = null,
-            InviteLink = null,
-            DeliveryStatus = null,
-            DeliveryMessage = null,
-            DeliveryRecordedAt = null
+            InviteLink = null
         };
     }
 
@@ -635,16 +583,16 @@ public sealed class PlatformOrganizationService(
             return OrganizationOperationalStatus.Archived;
         if (!tenant.IsActive)
             return OrganizationOperationalStatus.Suspended;
-        if (m.HasHrAdminUser)
+        if (m.HasOrgAdminUser)
             return OrganizationOperationalStatus.Active;
 
-        var hasPendingHrInvite = m.HrInvites.Any(i =>
+        var hasPendingOrgAdminInvite = m.OrgAdminInvites.Any(i =>
             i.AcceptedAt == null && i.ExpiresAt > DateTime.UtcNow);
 
-        if (hasPendingHrInvite)
+        if (hasPendingOrgAdminInvite)
             return OrganizationOperationalStatus.Invited;
 
-        if (m.HrInvites.Count == 0)
+        if (m.OrgAdminInvites.Count == 0)
             return OrganizationOperationalStatus.Draft;
 
         // Has invites but all expired/failed — still in "invited" lifecycle stage

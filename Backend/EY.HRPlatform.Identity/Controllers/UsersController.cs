@@ -49,13 +49,13 @@ public class UsersController : ControllerBase
             .Select(u => new UserDto
             {
                 Id = u.Id,
-                EmployeeId = u.EmployeeId,
                 Email = u.Email!,
                 FullName = u.FullName,
                 Department = u.Department,
                 JobTitle = u.JobTitle,
                 HireDate = u.HireDate,
-                TenantId = u.TenantId
+                TenantId = u.TenantId,
+                EmployeeId = u.EmployeeId
             })
             .ToListAsync();
 
@@ -83,13 +83,13 @@ public class UsersController : ControllerBase
         var dto = new UserDto
         {
             Id = user.Id,
-            EmployeeId = user.EmployeeId,
             Email = user.Email!,
             FullName = user.FullName,
             Department = user.Department,
             JobTitle = user.JobTitle,
             HireDate = user.HireDate,
             TenantId = user.TenantId,
+            EmployeeId = user.EmployeeId,
             Roles = roles.ToList()
         };
 
@@ -129,21 +129,9 @@ public class UsersController : ControllerBase
             return BadRequest(ApiResponse<UserDto>.Failure("Email is already registered."));
 
         // Validate and determine role
-        if (string.IsNullOrWhiteSpace(request.Role))
-        {
-            return BadRequest(ApiResponse<UserDto>.Failure(
-                "Role is required for admin-created users. Use workforce invitations for Employee or Manager access."));
-        }
-
-        var role = request.Role.Trim();
+        var role = request.Role ?? PlatformRole.Employee;
         if (!PlatformRole.All.Contains(role))
             return BadRequest(ApiResponse<UserDto>.Failure($"Invalid role: {role}"));
-
-        if (role is PlatformRole.Employee or PlatformRole.Manager)
-        {
-            return BadRequest(ApiResponse<UserDto>.Failure(
-                "Core workforce access for employees and managers must be activated from a trusted employee record invitation."));
-        }
 
         // HRAdmin cannot assign PlatformAdmin or HRAdmin roles
         if (!User.IsInRole(PlatformRole.PlatformAdmin) &&
@@ -190,13 +178,13 @@ public class UsersController : ControllerBase
         var dto = new UserDto
         {
             Id = user.Id,
-            EmployeeId = user.EmployeeId,
             Email = user.Email!,
             FullName = user.FullName,
             Department = user.Department,
             JobTitle = user.JobTitle,
             HireDate = user.HireDate,
             TenantId = user.TenantId,
+            EmployeeId = user.EmployeeId,
             Roles = [role],
             TemporaryPassword = temporaryPassword // Only returned on creation
         };

@@ -36,25 +36,6 @@ public class InviteTokenTests
     }
 
     [Fact]
-    public void RecordDeliveryAttempt_WithValidInputs_StoresLatestDeliveryState()
-    {
-        // Arrange
-        var invite = InviteToken.Create(
-            ValidEmail,
-            _validTenantId,
-            ValidRole,
-            _validUserId);
-
-        // Act
-        invite.RecordDeliveryAttempt("Suppressed", "Email disabled.");
-
-        // Assert
-        Assert.Equal("Suppressed", invite.DeliveryStatus);
-        Assert.Equal("Email disabled.", invite.DeliveryMessage);
-        Assert.NotNull(invite.DeliveryRecordedAt);
-    }
-
-    [Fact]
     public void Create_WithOptionalNames_SetsNames()
     {
         // Act

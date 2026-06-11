@@ -1,4 +1,5 @@
 using EY.HRPlatform.Identity.Domain.Entities;
+using EY.HRPlatform.Identity.Features.AccessProfiles;
 using EY.HRPlatform.Identity.Infrastructure.Persistence;
 using EY.HRPlatform.Identity.Infrastructure.Services;
 using EY.HRPlatform.Identity.Models.Requests;
@@ -8,6 +9,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace EY.HRPlatform.Identity.Controllers;
 
@@ -17,22 +19,22 @@ public class InvitesController : ControllerBase
 {
     private readonly AppIdentityDbContext _dbContext;
     private readonly UserManager<ApplicationUser> _userManager;
-    private readonly IInvitationLinkBuilder _invitationLinkBuilder;
+    private readonly IConfiguration _configuration;
     private readonly ITrainingServiceClient _trainingClient;
-    private readonly IWorkforceInvitationEmailSender _invitationEmailSender;
+    private readonly IAccessProfileService _accessProfileService;
 
     public InvitesController(
         AppIdentityDbContext dbContext,
         UserManager<ApplicationUser> userManager,
-        IInvitationLinkBuilder invitationLinkBuilder,
+        IConfiguration configuration,
         ITrainingServiceClient trainingClient,
-        IWorkforceInvitationEmailSender invitationEmailSender)
+        IAccessProfileService accessProfileService)
     {
         _dbContext = dbContext;
         _userManager = userManager;
-        _invitationLinkBuilder = invitationLinkBuilder;
+        _configuration = configuration;
         _trainingClient = trainingClient;
-        _invitationEmailSender = invitationEmailSender;
+        _accessProfileService = accessProfileService;
     }
 
     /// <summary>
@@ -48,8 +50,7 @@ public class InvitesController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<InviteDto>), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ApiResponse<InviteDto>>> CreateInvite(
         Guid tenantId,
-        [FromBody] CreateInviteRequest request,
-        CancellationToken cancellationToken = default)
+        [FromBody] CreateInviteRequest request)
     {
         // Verify tenant exists
         var tenant = await _dbContext.Tenants.FindAsync(tenantId);
@@ -97,21 +98,6 @@ public class InvitesController : ControllerBase
         if (existingInvite is not null)
             return BadRequest(ApiResponse<InviteDto>.Failure("A pending invitation already exists for this email."));
 
-        if (request.EmployeeId.HasValue)
-        {
-            var employeeInviteExists = await _dbContext.InviteTokens
-                .AnyAsync(i => i.TenantId == tenantId
-                    && i.EmployeeId == request.EmployeeId
-                    && i.AcceptedAt == null
-                    && !i.IsRevoked
-                    && i.ExpiresAt > DateTime.UtcNow);
-
-            if (employeeInviteExists)
-            {
-                return Conflict(ApiResponse<InviteDto>.Failure("A pending invitation already exists for this employee."));
-            }
-        }
-
         // Get current user ID (GetUserId throws if not found, so wrap in try-catch)
         Guid currentUserId;
         try
@@ -130,18 +116,12 @@ public class InvitesController : ControllerBase
             role: request.Role,
             createdByUserId: currentUserId,
             firstName: request.FirstName,
-            lastName: request.LastName,
-            employeeId: request.EmployeeId);
+            lastName: request.LastName);
 
         _dbContext.InviteTokens.Add(invite);
         await _dbContext.SaveChangesAsync();
 
-        // Build invite link
-        var inviteLink = _invitationLinkBuilder.BuildInviteLink(invite.Token);
-
-        var deliveryResult = await SendInvitationEmailAsync(invite, tenant.Name, inviteLink, cancellationToken);
-        invite.RecordDeliveryAttempt(deliveryResult.Status, deliveryResult.Message);
-        await _dbContext.SaveChangesAsync();
+        var inviteLink = InvitationLinkBuilder.Build(_configuration, invite.Token);
 
         var dto = new InviteDto
         {
@@ -153,15 +133,13 @@ public class InvitesController : ControllerBase
             TenantId = tenant.Id,
             TenantName = tenant.Name,
             Role = invite.Role,
+            AccessProfiles = (await _accessProfileService.GetInviteAccessProfilesAsync(invite.Id)).ToList(),
             FirstName = invite.FirstName,
             LastName = invite.LastName,
             ExpiresAt = invite.ExpiresAt,
             IsExpired = invite.IsExpired,
             IsUsed = invite.IsUsed,
-            CreatedAt = invite.CreatedAt,
-            DeliveryStatus = invite.DeliveryStatus,
-            DeliveryMessage = invite.DeliveryMessage,
-            DeliveryRecordedAt = invite.DeliveryRecordedAt
+            CreatedAt = invite.CreatedAt
         };
 
         return CreatedAtAction(nameof(ValidateInvite), new { token = invite.Token },
@@ -208,15 +186,13 @@ public class InvitesController : ControllerBase
             TenantId = invite.TenantId,
             TenantName = invite.Tenant?.Name ?? string.Empty,
             Role = invite.Role,
+            AccessProfiles = (await _accessProfileService.GetInviteAccessProfilesAsync(invite.Id)).ToList(),
             FirstName = invite.FirstName,
             LastName = invite.LastName,
             ExpiresAt = invite.ExpiresAt,
             IsExpired = invite.IsExpired,
             IsUsed = invite.IsUsed,
-            CreatedAt = invite.CreatedAt,
-            DeliveryStatus = invite.DeliveryStatus,
-            DeliveryMessage = invite.DeliveryMessage,
-            DeliveryRecordedAt = invite.DeliveryRecordedAt
+            CreatedAt = invite.CreatedAt
         };
 
         return Ok(ApiResponse<InviteDto>.Success(dto));
@@ -274,8 +250,14 @@ public class InvitesController : ControllerBase
         if (emailTaken)
             return BadRequest(ApiResponse<UserDto>.Failure("Email is already registered."));
 
-        // Use transaction to ensure atomicity of user creation + role assignment + invite marking
-        await using var transaction = await _dbContext.Database.BeginTransactionAsync();
+        // The local Development profile uses EF InMemory, which does not support transactions.
+        IDbContextTransaction? transaction = null;
+        if (_dbContext.Database.IsRelational())
+            transaction = await _dbContext.Database.BeginTransactionAsync();
+
+        // Track whether we created the user so we can clean up on partial failure
+        ApplicationUser? createdUser = null;
+
         try
         {
             // Create the user
@@ -283,10 +265,10 @@ public class InvitesController : ControllerBase
             {
                 UserName = invite.Email,
                 Email = invite.Email,
-                EmployeeId = invite.EmployeeId,
                 FirstName = firstName.Trim(),
                 LastName = lastName.Trim(),
                 TenantId = invite.TenantId,
+                EmployeeId = invite.EmployeeId,
                 EmailConfirmed = true, // Invited users are pre-verified
                 HireDate = DateTime.UtcNow
             };
@@ -298,36 +280,46 @@ public class InvitesController : ControllerBase
                 return BadRequest(ApiResponse<UserDto>.Failure(errors));
             }
 
+            createdUser = user;
+
             // Assign role
             var roleResult = await _userManager.AddToRoleAsync(user, invite.Role);
             if (!roleResult.Succeeded)
             {
-                await transaction.RollbackAsync();
+                if (transaction is not null)
+                    await transaction.RollbackAsync();
+
                 var errors = roleResult.Errors.Select(e => e.Description).ToArray();
                 return BadRequest(ApiResponse<UserDto>.Failure(errors));
             }
+
+            await _accessProfileService.ApplyInviteProfilesAsync(invite, user);
 
             // Mark invite as used
             invite.MarkAccepted(user.Id);
             await _dbContext.SaveChangesAsync();
 
-            await transaction.CommitAsync();
+            if (transaction is not null)
+                await transaction.CommitAsync();
 
-            // Fire-and-forget: provision empty EmployeeProfile in Training service
-            if (invite.Role == PlatformRole.Employee)
+            createdUser = null; // Success — don't clean up
+
+            // Fire-and-forget: provision downstream employee profile for workforce users.
+            if (invite.EmployeeId.HasValue && IsWorkforceUserRole(invite.Role))
                 _ = _trainingClient.ProvisionEmployeeAsync(user.Id);
 
             var dto = new UserDto
             {
                 Id = user.Id,
-                EmployeeId = user.EmployeeId,
                 Email = user.Email!,
                 FullName = user.FullName,
                 Department = user.Department,
                 JobTitle = user.JobTitle,
                 HireDate = user.HireDate,
                 TenantId = user.TenantId,
-                Roles = [invite.Role]
+                EmployeeId = user.EmployeeId,
+                Roles = [invite.Role],
+                AccessProfiles = (await _accessProfileService.GetAssignedProfilesAsync(user)).ToList(),
             };
 
             return StatusCode(StatusCodes.Status201Created,
@@ -335,8 +327,21 @@ public class InvitesController : ControllerBase
         }
         catch
         {
-            await transaction.RollbackAsync();
+            if (transaction is not null)
+                await transaction.RollbackAsync();
+
             throw;
+        }
+        finally
+        {
+            if (transaction is not null)
+                await transaction.DisposeAsync();
+
+            // InMemory cleanup: if user was created but not fully processed, remove it
+            if (createdUser is not null && transaction is null)
+            {
+                try { await _userManager.DeleteAsync(createdUser); } catch { /* best-effort */ }
+            }
         }
     }
 
@@ -372,27 +377,30 @@ public class InvitesController : ControllerBase
 
         var invites = await query
             .OrderByDescending(i => i.CreatedAt)
-            .Select(i => new InviteDto
-            {
-                Id = i.Id,
-                Email = i.Email,
-                EmployeeId = i.EmployeeId,
-                TenantId = i.TenantId,
-                TenantName = tenant.Name,
-                Role = i.Role,
-                FirstName = i.FirstName,
-                LastName = i.LastName,
-                ExpiresAt = i.ExpiresAt,
-                IsExpired = i.ExpiresAt < DateTime.UtcNow,
-                IsUsed = i.AcceptedAt != null,
-                CreatedAt = i.CreatedAt,
-                DeliveryStatus = i.DeliveryStatus,
-                DeliveryMessage = i.DeliveryMessage,
-                DeliveryRecordedAt = i.DeliveryRecordedAt
-            })
             .ToListAsync();
 
-        return Ok(ApiResponse<List<InviteDto>>.Success(invites));
+        var dtos = new List<InviteDto>(invites.Count);
+        foreach (var invite in invites)
+        {
+            dtos.Add(new InviteDto
+            {
+                Id = invite.Id,
+                Email = invite.Email,
+                EmployeeId = invite.EmployeeId,
+                TenantId = invite.TenantId,
+                TenantName = tenant.Name,
+                Role = invite.Role,
+                AccessProfiles = (await _accessProfileService.GetInviteAccessProfilesAsync(invite.Id)).ToList(),
+                FirstName = invite.FirstName,
+                LastName = invite.LastName,
+                ExpiresAt = invite.ExpiresAt,
+                IsExpired = invite.ExpiresAt < DateTime.UtcNow,
+                IsUsed = invite.AcceptedAt != null,
+                CreatedAt = invite.CreatedAt,
+            });
+        }
+
+        return Ok(ApiResponse<List<InviteDto>>.Success(dtos));
     }
 
     /// <summary>
@@ -435,9 +443,7 @@ public class InvitesController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<InviteDto>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<InviteDto>), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ApiResponse<InviteDto>), StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<ApiResponse<InviteDto>>> ResendInvite(
-        Guid inviteId,
-        CancellationToken cancellationToken = default)
+    public async Task<ActionResult<ApiResponse<InviteDto>>> ResendInvite(Guid inviteId)
     {
         var invite = await _dbContext.InviteTokens
             .Include(i => i.Tenant)
@@ -458,16 +464,7 @@ public class InvitesController : ControllerBase
         invite.ExtendExpiry();
         await _dbContext.SaveChangesAsync();
 
-        // Build invite link
-        var inviteLink = _invitationLinkBuilder.BuildInviteLink(invite.Token);
-
-        var deliveryResult = await SendInvitationEmailAsync(
-            invite,
-            invite.Tenant?.Name ?? string.Empty,
-            inviteLink,
-            cancellationToken);
-        invite.RecordDeliveryAttempt(deliveryResult.Status, deliveryResult.Message);
-        await _dbContext.SaveChangesAsync();
+        var inviteLink = InvitationLinkBuilder.Build(_configuration, invite.Token);
 
         var dto = new InviteDto
         {
@@ -479,36 +476,39 @@ public class InvitesController : ControllerBase
             TenantId = invite.TenantId,
             TenantName = invite.Tenant?.Name ?? string.Empty,
             Role = invite.Role,
+            AccessProfiles = (await _accessProfileService.GetInviteAccessProfilesAsync(invite.Id)).ToList(),
             FirstName = invite.FirstName,
             LastName = invite.LastName,
             ExpiresAt = invite.ExpiresAt,
             IsExpired = invite.IsExpired,
             IsUsed = invite.IsUsed,
-            CreatedAt = invite.CreatedAt,
-            DeliveryStatus = invite.DeliveryStatus,
-            DeliveryMessage = invite.DeliveryMessage,
-            DeliveryRecordedAt = invite.DeliveryRecordedAt
+            CreatedAt = invite.CreatedAt
         };
 
         return Ok(ApiResponse<InviteDto>.Success(dto));
     }
 
-    private async Task<WorkforceInvitationEmailDeliveryResult> SendInvitationEmailAsync(
-        InviteToken invite,
-        string tenantName,
-        string inviteLink,
-        CancellationToken cancellationToken)
+    /// <summary>
+    /// Dev-only: remove an orphaned user by email (partial-failure cleanup on InMemory).
+    /// </summary>
+    [HttpDelete("dev/users/{email}")]
+    [Authorize(Roles = PlatformRole.PlatformAdmin)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ApiResponse>> DeleteUserByEmail(string email)
     {
-        return await _invitationEmailSender.SendInvitationAsync(
-            new WorkforceInvitationEmailMessage(
-                invite.Id,
-                invite.Email,
-                inviteLink,
-                tenantName,
-                invite.Role,
-                invite.FirstName,
-                invite.LastName),
-            cancellationToken);
+        var user = await _userManager.FindByEmailAsync(email);
+        if (user is null)
+            return NotFound(ApiResponse.Failure("User not found."));
+
+        var result = await _userManager.DeleteAsync(user);
+        if (!result.Succeeded)
+        {
+            var errors = result.Errors.Select(e => e.Description).ToArray();
+            return BadRequest(ApiResponse.Failure(errors));
+        }
+
+        return Ok(ApiResponse.Success());
     }
 
     private bool CanAccessTenant(Guid tenantId)
@@ -519,4 +519,7 @@ public class InvitesController : ControllerBase
         var userTenantId = User.GetTenantId();
         return userTenantId.HasValue && userTenantId.Value == tenantId;
     }
+
+    private static bool IsWorkforceUserRole(string role)
+        => role == PlatformRole.Employee || role == PlatformRole.Manager;
 }

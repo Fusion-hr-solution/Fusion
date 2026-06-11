@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace EY.HRPlatform.Identity.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(AppIdentityDbContext))]
-    [Migration("20260514011839_AddInviteDeliveryTracking")]
-    partial class AddInviteDeliveryTracking
+    [Migration("20260607183013_AddAccessProfileInternalKey")]
+    partial class AddAccessProfileInternalKey
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -25,6 +25,95 @@ namespace EY.HRPlatform.Identity.Infrastructure.Persistence.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+
+            modelBuilder.Entity("EY.HRPlatform.Identity.Domain.Entities.AccessProfile", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(280)
+                        .HasColumnType("character varying(280)");
+
+                    b.Property<string>("InternalKey")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsSystemProtected")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "NormalizedName")
+                        .IsUnique()
+                        .HasDatabaseName("IX_AccessProfiles_TenantId_NormalizedName");
+
+                    b.ToTable("AccessProfiles", "identity");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Identity.Domain.Entities.AccessProfileGrant", b =>
+                {
+                    b.Property<Guid>("AccessProfileId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PermissionKey")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<string>("Scope")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("AccessProfileId", "PermissionKey");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "PermissionKey");
+
+                    b.ToTable("AccessProfileGrants", "identity");
+                });
 
             modelBuilder.Entity("EY.HRPlatform.Identity.Domain.Entities.ApplicationUser", b =>
                 {
@@ -128,10 +217,32 @@ namespace EY.HRPlatform.Identity.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("TenantId", "EmployeeId")
                         .IsUnique()
-                        .HasDatabaseName("IX_AspNetUsers_TenantId_EmployeeId")
                         .HasFilter("\"EmployeeId\" IS NOT NULL");
 
                     b.ToTable("AspNetUsers", "identity");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Identity.Domain.Entities.InviteAccessProfile", b =>
+                {
+                    b.Property<Guid>("InviteTokenId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AccessProfileId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("InviteTokenId", "AccessProfileId");
+
+                    b.HasIndex("AccessProfileId");
+
+                    b.HasIndex("TenantId");
+
+                    b.ToTable("InviteAccessProfiles", "identity");
                 });
 
             modelBuilder.Entity("EY.HRPlatform.Identity.Domain.Entities.InviteToken", b =>
@@ -153,15 +264,15 @@ namespace EY.HRPlatform.Identity.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<string>("DeliveryMessage")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
 
                     b.Property<DateTime?>("DeliveryRecordedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("DeliveryStatus")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
 
                     b.Property<string>("Email")
                         .IsRequired()
@@ -215,10 +326,7 @@ namespace EY.HRPlatform.Identity.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("IX_InviteTokens_TenantId_Email_Pending")
                         .HasFilter("\"AcceptedAt\" IS NULL AND \"IsRevoked\" = false");
 
-                    b.HasIndex("TenantId", "EmployeeId")
-                        .IsUnique()
-                        .HasDatabaseName("IX_InviteTokens_TenantId_EmployeeId_Pending")
-                        .HasFilter("\"EmployeeId\" IS NOT NULL AND \"AcceptedAt\" IS NULL AND \"IsRevoked\" = false");
+                    b.HasIndex("TenantId", "EmployeeId");
 
                     b.ToTable("InviteTokens", "identity");
                 });
@@ -284,6 +392,11 @@ namespace EY.HRPlatform.Identity.Infrastructure.Persistence.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -298,7 +411,34 @@ namespace EY.HRPlatform.Identity.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("IX_Tenants_Name_Active")
                         .HasFilter("\"IsArchived\" = false");
 
+                    b.HasIndex("Slug")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Tenants_Slug");
+
                     b.ToTable("Tenants", "identity");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Identity.Domain.Entities.UserAccessProfile", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AccessProfileId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("UserId", "AccessProfileId");
+
+                    b.HasIndex("AccessProfileId");
+
+                    b.HasIndex("TenantId");
+
+                    b.ToTable("UserAccessProfiles", "identity");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole<System.Guid>", b =>
@@ -431,6 +571,17 @@ namespace EY.HRPlatform.Identity.Infrastructure.Persistence.Migrations
                     b.ToTable("AspNetUserTokens", "identity");
                 });
 
+            modelBuilder.Entity("EY.HRPlatform.Identity.Domain.Entities.AccessProfileGrant", b =>
+                {
+                    b.HasOne("EY.HRPlatform.Identity.Domain.Entities.AccessProfile", "AccessProfile")
+                        .WithMany("Grants")
+                        .HasForeignKey("AccessProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AccessProfile");
+                });
+
             modelBuilder.Entity("EY.HRPlatform.Identity.Domain.Entities.ApplicationUser", b =>
                 {
                     b.HasOne("EY.HRPlatform.Identity.Domain.Entities.Tenant", "Tenant")
@@ -442,6 +593,25 @@ namespace EY.HRPlatform.Identity.Infrastructure.Persistence.Migrations
                     b.Navigation("Tenant");
                 });
 
+            modelBuilder.Entity("EY.HRPlatform.Identity.Domain.Entities.InviteAccessProfile", b =>
+                {
+                    b.HasOne("EY.HRPlatform.Identity.Domain.Entities.AccessProfile", "AccessProfile")
+                        .WithMany("InviteAssignments")
+                        .HasForeignKey("AccessProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("EY.HRPlatform.Identity.Domain.Entities.InviteToken", "InviteToken")
+                        .WithMany("AccessProfileAssignments")
+                        .HasForeignKey("InviteTokenId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AccessProfile");
+
+                    b.Navigation("InviteToken");
+                });
+
             modelBuilder.Entity("EY.HRPlatform.Identity.Domain.Entities.InviteToken", b =>
                 {
                     b.HasOne("EY.HRPlatform.Identity.Domain.Entities.Tenant", "Tenant")
@@ -451,6 +621,25 @@ namespace EY.HRPlatform.Identity.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Identity.Domain.Entities.UserAccessProfile", b =>
+                {
+                    b.HasOne("EY.HRPlatform.Identity.Domain.Entities.AccessProfile", "AccessProfile")
+                        .WithMany("UserAssignments")
+                        .HasForeignKey("AccessProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("EY.HRPlatform.Identity.Domain.Entities.ApplicationUser", "User")
+                        .WithMany("AccessProfileAssignments")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AccessProfile");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
@@ -502,6 +691,25 @@ namespace EY.HRPlatform.Identity.Infrastructure.Persistence.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Identity.Domain.Entities.AccessProfile", b =>
+                {
+                    b.Navigation("Grants");
+
+                    b.Navigation("InviteAssignments");
+
+                    b.Navigation("UserAssignments");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Identity.Domain.Entities.ApplicationUser", b =>
+                {
+                    b.Navigation("AccessProfileAssignments");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Identity.Domain.Entities.InviteToken", b =>
+                {
+                    b.Navigation("AccessProfileAssignments");
                 });
 #pragma warning restore 612, 618
         }
