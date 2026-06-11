@@ -98,7 +98,7 @@ public class SubmitExamCommandHandlerTests
     {
         await using var db = await TestDbContextFactory.CreateWithSeedDataAsync();
         var training = db.Trainings.First();
-        var handler = new SubmitExamCommandHandler(db);
+        var handler = new SubmitExamCommandHandler(db, NoOpCertificateIssuanceService.Instance);
 
         var result = await handler.Handle(
             new SubmitExamCommand(Guid.NewGuid(), training.Id, []),
@@ -121,7 +121,7 @@ public class SubmitExamCommandHandlerTests
         db.Exams.Add(new Exam("Locked Exam", 60, training.Id));
         await db.SaveChangesAsync();
 
-        var handler = new SubmitExamCommandHandler(db);
+        var handler = new SubmitExamCommandHandler(db, NoOpCertificateIssuanceService.Instance);
 
         var result = await handler.Handle(
             new SubmitExamCommand(employeeId, training.Id, []),
@@ -141,7 +141,7 @@ public class SubmitExamCommandHandlerTests
         await using var s = await ArrangeExamScenarioAsync(passingScore: 60);
         var (q, correctOpt) = await AddSingleChoiceQuestionAsync(s.Db, s.Exam.Id, 0, points: 10);
 
-        var handler = new SubmitExamCommandHandler(s.Db);
+        var handler = new SubmitExamCommandHandler(s.Db, NoOpCertificateIssuanceService.Instance);
         var answers = new List<SubmitExamAnswer> { new(q.Id, [correctOpt.Id]) };
 
         var result = await handler.Handle(
@@ -160,7 +160,7 @@ public class SubmitExamCommandHandlerTests
         await using var s = await ArrangeExamScenarioAsync(passingScore: 60);
         var (q, _) = await AddSingleChoiceQuestionAsync(s.Db, s.Exam.Id, 0, points: 10);
 
-        var handler = new SubmitExamCommandHandler(s.Db);
+        var handler = new SubmitExamCommandHandler(s.Db, NoOpCertificateIssuanceService.Instance);
         var answers = new List<SubmitExamAnswer> { new(q.Id, [Guid.NewGuid()]) };
 
         var result = await handler.Handle(
@@ -180,7 +180,7 @@ public class SubmitExamCommandHandlerTests
         var (q1, correct1) = await AddSingleChoiceQuestionAsync(s.Db, s.Exam.Id, 0, points: 10);
         var (q2, _) = await AddSingleChoiceQuestionAsync(s.Db, s.Exam.Id, 1, points: 10);
 
-        var handler = new SubmitExamCommandHandler(s.Db);
+        var handler = new SubmitExamCommandHandler(s.Db, NoOpCertificateIssuanceService.Instance);
         var answers = new List<SubmitExamAnswer>
         {
             new(q1.Id, [correct1.Id]),   // correct
@@ -207,7 +207,7 @@ public class SubmitExamCommandHandlerTests
         await using var s = await ArrangeExamScenarioAsync(passingScore: 60);
         var (q, c1, _, _) = await AddMultipleChoiceQuestionAsync(s.Db, s.Exam.Id, 0, points: 10);
 
-        var handler = new SubmitExamCommandHandler(s.Db);
+        var handler = new SubmitExamCommandHandler(s.Db, NoOpCertificateIssuanceService.Instance);
         // Select only ONE of the two correct options — partial selection earns 0 points.
         var answers = new List<SubmitExamAnswer> { new(q.Id, [c1.Id]) };
 
@@ -226,7 +226,7 @@ public class SubmitExamCommandHandlerTests
         await using var s = await ArrangeExamScenarioAsync(passingScore: 60);
         var (q, c1, c2, _) = await AddMultipleChoiceQuestionAsync(s.Db, s.Exam.Id, 0, points: 10);
 
-        var handler = new SubmitExamCommandHandler(s.Db);
+        var handler = new SubmitExamCommandHandler(s.Db, NoOpCertificateIssuanceService.Instance);
         var answers = new List<SubmitExamAnswer> { new(q.Id, [c1.Id, c2.Id]) };
 
         var result = await handler.Handle(
@@ -248,7 +248,7 @@ public class SubmitExamCommandHandlerTests
         await using var s = await ArrangeExamScenarioAsync(passingScore: 60);
         var (q, correctOpt) = await AddSingleChoiceQuestionAsync(s.Db, s.Exam.Id, 0, points: 10);
 
-        var handler = new SubmitExamCommandHandler(s.Db);
+        var handler = new SubmitExamCommandHandler(s.Db, NoOpCertificateIssuanceService.Instance);
         var answers = new List<SubmitExamAnswer> { new(q.Id, [correctOpt.Id]) };
 
         var result = await handler.Handle(
@@ -270,7 +270,7 @@ public class SubmitExamCommandHandlerTests
         await using var s = await ArrangeExamScenarioAsync(passingScore: 60);
         var (q, _) = await AddSingleChoiceQuestionAsync(s.Db, s.Exam.Id, 0, points: 10);
 
-        var handler = new SubmitExamCommandHandler(s.Db);
+        var handler = new SubmitExamCommandHandler(s.Db, NoOpCertificateIssuanceService.Instance);
         var answers = new List<SubmitExamAnswer> { new(q.Id, [Guid.NewGuid()]) };
 
         var result = await handler.Handle(
@@ -291,7 +291,7 @@ public class SubmitExamCommandHandlerTests
         await using var s = await ArrangeExamScenarioAsync(passingScore: 60);
         var (q, correctOpt) = await AddSingleChoiceQuestionAsync(s.Db, s.Exam.Id, 0, points: 10);
 
-        var handler = new SubmitExamCommandHandler(s.Db);
+        var handler = new SubmitExamCommandHandler(s.Db, NoOpCertificateIssuanceService.Instance);
         var answers = new List<SubmitExamAnswer> { new(q.Id, [correctOpt.Id]) };
 
         var result = await handler.Handle(

@@ -280,9 +280,9 @@ public class InvitesController : ControllerBase
 
             await transaction.CommitAsync();
 
-            // Fire-and-forget: provision downstream employee profile for workforce users.
+            // Fire-and-forget: provision/sync EmployeeProfile (name + email) in Training service
             if (invite.EmployeeId.HasValue && IsWorkforceUserRole(invite.Role))
-                _ = _trainingClient.ProvisionEmployeeAsync(user.Id);
+                _ = _trainingClient.ProvisionEmployeeAsync(user.Id, user.FullName, user.Email);
 
             var dto = new UserDto
             {

@@ -189,9 +189,9 @@ public class UsersController : ControllerBase
             TemporaryPassword = temporaryPassword // Only returned on creation
         };
 
-        // Fire-and-forget: provision empty EmployeeProfile in Training service
+        // Fire-and-forget: provision/sync EmployeeProfile (name + email) in Training service
         if (role == PlatformRole.Employee)
-            _ = _trainingClient.ProvisionEmployeeAsync(user.Id);
+            _ = _trainingClient.ProvisionEmployeeAsync(user.Id, user.FullName, user.Email);
 
         return CreatedAtAction(nameof(GetById), new { id = user.Id },
             ApiResponse<UserDto>.Success(dto));
@@ -232,9 +232,9 @@ public class UsersController : ControllerBase
             return BadRequest(ApiResponse.Failure(
                 result.Errors.Select(e => e.Description).ToArray()));
 
-        // Fire-and-forget: provision empty EmployeeProfile in Training service
+        // Fire-and-forget: provision/sync EmployeeProfile (name + email) in Training service
         if (role == PlatformRole.Employee)
-            _ = _trainingClient.ProvisionEmployeeAsync(id);
+            _ = _trainingClient.ProvisionEmployeeAsync(id, user.FullName, user.Email);
 
         return Ok(ApiResponse.Success());
     }
@@ -271,6 +271,27 @@ public class UsersController : ControllerBase
                 result.Errors.Select(e => e.Description).ToArray()));
 
         return Ok(ApiResponse.Success());
+    }
+
+    /// <summary>
+    /// One-time backfill: re-syncs every existing Employee user's name + email into the Training
+    /// service. Idempotent (provisioning upserts). PlatformAdmin only.
+    /// </summary>
+    [HttpPost("sync-to-training")]
+    [Authorize(Roles = PlatformRole.PlatformAdmin)]
+    [ProducesResponseType(typeof(ApiResponse<int>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiResponse<int>>> SyncEmployeesToTraining(CancellationToken cancellationToken)
+    {
+        var employees = await _userManager.GetUsersInRoleAsync(PlatformRole.Employee);
+
+        var count = 0;
+        foreach (var employee in employees)
+        {
+            await _trainingClient.ProvisionEmployeeAsync(employee.Id, employee.FullName, employee.Email, cancellationToken);
+            count++;
+        }
+
+        return Ok(ApiResponse<int>.Success(count));
     }
 
     /// <summary>

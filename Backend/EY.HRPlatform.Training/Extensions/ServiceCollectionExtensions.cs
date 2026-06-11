@@ -1,6 +1,8 @@
 using System.Text;
 using EY.HRPlatform.Training.Features.Admin.Sessions.Export;
 using EY.HRPlatform.Training.Features.Admin.Sessions.Services;
+using EY.HRPlatform.Training.Features.Certifications.Export;
+using EY.HRPlatform.Training.Features.Certifications.Services;
 using EY.HRPlatform.Training.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -56,6 +58,14 @@ public static class ServiceCollectionExtensions
 
         // 5. Register QR token service (rotating HMAC payloads for session attendance)
         services.AddSingleton<IQrTokenService, QrTokenService>();
+
+        // 6. Register certificate services (number/QR/PDF/URL are stateless singletons; issuance is scoped)
+        services.AddSingleton<ICertificateNumberGenerator, CertificateNumberGenerator>();
+        services.AddSingleton<ICertificateQrService, CertificateQrService>();
+        services.AddSingleton<ICertificatePdfService, CertificatePdfService>();
+        services.AddSingleton<ICertificateUrlBuilder, CertificateUrlBuilder>();
+        services.AddSingleton<ICertificateRegistryExporter, CertificateRegistryExporter>();
+        services.AddScoped<ICertificateIssuanceService, CertificateIssuanceService>();
 
         return services;
     }

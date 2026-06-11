@@ -11,3 +11,5 @@ export * from "./admin-service";
 export * from "./admin-sessions-service";
 export * from "./admin-attendance-service";
 export * from "./enrollment-service";
+export * from "./certificate-service";
+export * from "./admin-certificate-service";
