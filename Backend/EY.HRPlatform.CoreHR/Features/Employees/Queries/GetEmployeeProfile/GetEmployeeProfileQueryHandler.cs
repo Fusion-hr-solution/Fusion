@@ -12,6 +12,7 @@ namespace EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployeeProfile;
 public sealed class GetEmployeeProfileQueryHandler(
     CoreHRDbContext dbContext,
     IEmployeeReadModelPolicy employeeReadModelPolicy,
+    IEmployeeReadScopeService employeeReadScopeService,
     ITenantSettingsReadService tenantSettingsReadService) : IQueryHandler<GetEmployeeProfileQuery, Result<EmployeeProfileDto>>
 {
     public async Task<Result<EmployeeProfileDto>> Handle(GetEmployeeProfileQuery request, CancellationToken cancellationToken)
@@ -22,6 +23,11 @@ public sealed class GetEmployeeProfileQueryHandler(
             .FirstOrDefaultAsync(e => e.Id == request.EmployeeId, cancellationToken);
 
         if (employee is null)
+        {
+            return Result.Failure<EmployeeProfileDto>(Error.NotFound("Employee", request.EmployeeId));
+        }
+
+        if (!employeeReadScopeService.CanAccessEmployee(employee, request.Audience, request.RequesterEmployeeId))
         {
             return Result.Failure<EmployeeProfileDto>(Error.NotFound("Employee", request.EmployeeId));
         }

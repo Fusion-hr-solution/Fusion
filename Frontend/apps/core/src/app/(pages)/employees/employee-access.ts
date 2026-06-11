@@ -1,7 +1,78 @@
 import type {
   EmployeeAccessFilter,
+  WorkforceAccountProvisioningState,
   WorkforceAccountStatusDto,
 } from "./employee-roster.types";
+
+type AccessBadgeTone = "default" | "secondary" | "outline" | "destructive";
+
+export type AccessDisplayState =
+  | "Not invited"
+  | "Invite pending"
+  | "Invite expired"
+  | "Invite revoked"
+  | "Account active"
+  | "Account inactive"
+  | "Access conflict";
+
+export type AccessInviteRole = "Employee" | "Manager";
+
+export interface InvitationEligibility {
+  canInvite: boolean;
+  canResend: boolean;
+  canCopyInviteLink: boolean;
+  canDeactivate: boolean;
+  canReactivate: boolean;
+  inviteLink: string | null;
+  accountState: WorkforceAccountProvisioningState;
+  inviteState:
+    | "NotInvited"
+    | "Pending"
+    | "Expired"
+    | "Revoked"
+    | "Accepted"
+    | null;
+  deliveryState: WorkforceAccountStatusDto["deliveryStatus"];
+  conflictKind:
+    | NonNullable<WorkforceAccountStatusDto["conflict"]>["kind"]
+    | null;
+  conflictMessage: string | null;
+  notIncludedReason: string | null;
+}
+
+type SelectionSummaryRow = {
+  directReportCount: number;
+  workforceAccount: WorkforceAccountStatusDto | null;
+};
+
+export interface BulkSelectionSummary {
+  selectedCount: number;
+  readyToInviteCount: number;
+  managerSuggestionCount: number;
+  pendingCount: number;
+  activeCount: number;
+  inactiveCount: number;
+  conflictCount: number;
+  pendingWithLinkCount: number;
+  notIncludedCount: number;
+  hasInviteReadyRows: boolean;
+  hasOnlyPendingRows: boolean;
+}
+
+export interface ReviewDrawerInviteableRow<TRow> {
+  employee: TRow;
+  suggestedRole: AccessInviteRole;
+}
+
+export interface ReviewDrawerNotIncludedRow<TRow> {
+  employee: TRow;
+  reason: string;
+}
+
+export interface ReviewDrawerRows<TRow> {
+  inviteableRows: ReviewDrawerInviteableRow<TRow>[];
+  notIncludedRows: ReviewDrawerNotIncludedRow<TRow>[];
+}
 
 export const EMPLOYEE_ACCESS_FILTER_OPTIONS: Array<{
   value: EmployeeAccessFilter;
@@ -13,157 +84,34 @@ export const EMPLOYEE_ACCESS_FILTER_OPTIONS: Array<{
   { value: "NeedsReview", label: "Needs review" },
 ];
 
-export type AccessInviteRole = "Employee" | "Manager";
-
-export interface InvitationEligibility {
-  canInvite: boolean;
-  canResend: boolean;
-  canCopyInviteLink: boolean;
-  canReactivate: boolean;
-  canDeactivate: boolean;
-  inviteLink: string | null;
-  isActive: boolean;
-  hasPendingInvite: boolean;
-  hasConflict: boolean;
-  notIncludedReason: string | null;
-}
+const ACCESS_FILTER_VALUES = new Set<EmployeeAccessFilter>(
+  EMPLOYEE_ACCESS_FILTER_OPTIONS.map((option) => option.value)
+);
 
 export function parseEmployeeAccessFilter(
-  rawValue: string | null
+  value: string | null
 ): EmployeeAccessFilter | undefined {
-  if (!rawValue) {
+  if (!value) {
     return undefined;
   }
 
-  return EMPLOYEE_ACCESS_FILTER_OPTIONS.find(
-    (option) => option.value === rawValue
-  )?.value;
+  return ACCESS_FILTER_VALUES.has(value as EmployeeAccessFilter)
+    ? (value as EmployeeAccessFilter)
+    : undefined;
 }
 
-export function getAccessDisplayState(
+export function canStartEmployeeAccess(
   account: WorkforceAccountStatusDto | null
-): string {
-  if (!account) {
-    return "Not invited";
-  }
-
-  switch (account.provisioningState) {
-    case "Unprovisioned":
-      return "Not invited";
-    case "InvitePending":
-      return "Invited";
-    case "InviteExpired":
-    case "InviteRevoked":
-    case "InviteAccepted":
-      return "Needs review";
-    case "Active":
-      return "Account active";
-    case "Inactive":
-    case "Conflict":
-      return "Needs review";
-    default:
-      return "Needs review";
-  }
-}
-
-export function getAccessBadgeTone(
-  accessState: string
-): "default" | "secondary" | "destructive" | "outline" {
-  switch (accessState) {
-    case "Account active":
-      return "default";
-    case "Invited":
-      return "secondary";
-    case "Needs review":
-      return "destructive";
-    case "Not invited":
-    default:
-      return "outline";
-  }
-}
-
-export function matchesEmployeeAccessFilter(
-  account: WorkforceAccountStatusDto | null,
-  access: EmployeeAccessFilter | undefined
 ): boolean {
-  if (!access) {
+  if (!account) {
     return true;
   }
 
-  if (!account) {
-    return access === "NotInvited";
-  }
-
-  switch (access) {
-    case "NotInvited":
-      return account.provisioningState === "Unprovisioned";
-    case "Invited":
-      return account.provisioningState === "InvitePending";
-    case "AccountActive":
-      return account.provisioningState === "Active";
-    case "NeedsReview":
-      return (
-        account.provisioningState === "InviteAccepted" ||
-        account.provisioningState === "InviteExpired" ||
-        account.provisioningState === "InviteRevoked" ||
-        account.provisioningState === "Inactive" ||
-        account.provisioningState === "Conflict"
-      );
-    default:
-      return false;
-  }
-}
-
-export function getInvitationEligibility(
-  account: WorkforceAccountStatusDto | null
-): InvitationEligibility {
-  if (!account) {
-    return {
-      canInvite: true,
-      canResend: false,
-      canCopyInviteLink: false,
-      canReactivate: false,
-      canDeactivate: false,
-      inviteLink: null,
-      isActive: false,
-      hasPendingInvite: false,
-      hasConflict: false,
-      notIncludedReason: null,
-    };
-  }
-
-  const hasInviteLink = !!account.inviteLink;
-  const hasPendingInvite = account.provisioningState === "InvitePending";
-  const isActive = account.provisioningState === "Active";
-  const isInactive = account.provisioningState === "Inactive";
-  const isConflict = account.provisioningState === "Conflict";
-  const isExpired = account.provisioningState === "InviteExpired";
-  const isRevoked = account.provisioningState === "InviteRevoked";
-
-  return {
-    canInvite:
-      account.provisioningState === "Unprovisioned" ||
-      account.provisioningState === "Inactive" ||
-      account.provisioningState === "Conflict",
-    canResend: hasPendingInvite || isExpired || isRevoked,
-    canCopyInviteLink: hasInviteLink,
-    canReactivate: isInactive,
-    canDeactivate: isActive,
-    inviteLink: account.inviteLink,
-    isActive,
-    hasPendingInvite,
-    hasConflict: isConflict,
-    notIncludedReason:
-      account.provisioningState === "Active"
-        ? "Already active"
-        : account.provisioningState === "InviteAccepted"
-        ? "Invite already accepted"
-        : account.provisioningState === "Inactive"
-        ? "Already inactive"
-        : account.provisioningState === "Conflict"
-        ? account.conflict?.message ?? "Account conflict"
-        : null,
-  };
+  return (
+    account.provisioningState === "Unprovisioned" ||
+    account.provisioningState === "InviteExpired" ||
+    account.provisioningState === "InviteRevoked"
+  );
 }
 
 export function getSuggestedInviteRole(
@@ -172,123 +120,238 @@ export function getSuggestedInviteRole(
   return directReportCount > 0 ? "Manager" : "Employee";
 }
 
-export interface ReviewDrawerRow {
-  employee: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-    directReportCount: number;
+export function getAccessDisplayState(
+  account: WorkforceAccountStatusDto | null
+): AccessDisplayState {
+  if (!account || account.provisioningState === "Unprovisioned") {
+    return "Not invited";
+  }
+
+  switch (account.provisioningState) {
+    case "InvitePending":
+      return "Invite pending";
+    case "InviteExpired":
+      return "Invite expired";
+    case "InviteRevoked":
+      return "Invite revoked";
+    case "Active":
+    case "InviteAccepted":
+      return "Account active";
+    case "Inactive":
+      return "Account inactive";
+    case "Conflict":
+      return "Access conflict";
+    default:
+      return "Not invited";
+  }
+}
+
+export function getAccessBadgeTone(state: AccessDisplayState): AccessBadgeTone {
+  switch (state) {
+    case "Account active":
+      return "default";
+    case "Account inactive":
+    case "Invite revoked":
+      return "secondary";
+    case "Access conflict":
+      return "destructive";
+    default:
+      return "outline";
+  }
+}
+
+export function needsFallbackInviteLink(
+  account: WorkforceAccountStatusDto | null
+): boolean {
+  if (!account?.inviteLink || account.provisioningState !== "InvitePending") {
+    return false;
+  }
+
+  return (
+    account.deliveryStatus === "Failed" ||
+    account.deliveryStatus === "NotAttempted" ||
+    account.deliveryStatus === "Suppressed" ||
+    account.deliveryStatus === "Skipped"
+  );
+}
+
+function getInviteState(
+  account: WorkforceAccountStatusDto | null
+): InvitationEligibility["inviteState"] {
+  if (!account) {
+    return "NotInvited";
+  }
+
+  switch (account.provisioningState) {
+    case "InvitePending":
+      return "Pending";
+    case "InviteExpired":
+      return "Expired";
+    case "InviteRevoked":
+      return "Revoked";
+    case "InviteAccepted":
+      return "Accepted";
+    case "Unprovisioned":
+      return "NotInvited";
+    default:
+      return null;
+  }
+}
+
+function getNotIncludedReason(
+  account: WorkforceAccountStatusDto | null
+): string | null {
+  if (!account || canStartEmployeeAccess(account)) {
+    return null;
+  }
+
+  switch (account.provisioningState) {
+    case "InvitePending":
+      return "Already invited";
+    case "InviteAccepted":
+    case "Active":
+      return "Already active";
+    case "Inactive":
+      return "Account inactive";
+    case "Conflict":
+      return "Access conflict";
+    default:
+      return "Not included";
+  }
+}
+
+export function getInvitationEligibility(
+  account: WorkforceAccountStatusDto | null
+): InvitationEligibility {
+  const accountState = account?.provisioningState ?? "Unprovisioned";
+  const hasConflict = !!account?.conflict;
+
+  return {
+    canInvite:
+      !hasConflict &&
+      (accountState === "Unprovisioned" ||
+        accountState === "InviteExpired" ||
+        accountState === "InviteRevoked"),
+    canResend:
+      !hasConflict &&
+      (accountState === "InvitePending" || accountState === "InviteExpired"),
+    canCopyInviteLink: !!account?.inviteLink,
+    canDeactivate: !hasConflict && accountState === "Active",
+    canReactivate: !hasConflict && accountState === "Inactive",
+    inviteLink: account?.inviteLink ?? null,
+    accountState,
+    inviteState: getInviteState(account),
+    deliveryState: account?.deliveryStatus ?? null,
+    conflictKind: account?.conflict?.kind ?? null,
+    conflictMessage: account?.conflict?.message ?? null,
+    notIncludedReason: getNotIncludedReason(account),
   };
-  suggestedRole: AccessInviteRole;
-  workforceAccount: WorkforceAccountStatusDto | null;
-}
-
-export interface ReviewDrawerRows {
-  inviteableRows: ReviewDrawerRow[];
-  notIncludedRows: Array<ReviewDrawerRow & { reason: string }>;
-}
-
-export function getReviewDrawerRows(
-  selectedEmployees: Array<{
-    id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-    directReportCount: number;
-    workforceAccount: WorkforceAccountStatusDto | null;
-  }>
-): ReviewDrawerRows {
-  const inviteableRows: ReviewDrawerRow[] = [];
-  const notIncludedRows: Array<ReviewDrawerRow & { reason: string }> = [];
-
-  selectedEmployees.forEach((employee) => {
-    const eligibility = getInvitationEligibility(employee.workforceAccount);
-    const suggestedRole = getSuggestedInviteRole(employee.directReportCount);
-
-    if (eligibility.canInvite || eligibility.canResend) {
-      inviteableRows.push({
-        employee: {
-          id: employee.id,
-          firstName: employee.firstName,
-          lastName: employee.lastName,
-          email: employee.email,
-          directReportCount: employee.directReportCount,
-        },
-        suggestedRole,
-        workforceAccount: employee.workforceAccount,
-      });
-      return;
-    }
-
-    const reason =
-      eligibility.notIncludedReason ??
-      (employee.workforceAccount ? "Not included" : "No action available");
-
-    notIncludedRows.push({
-      employee: {
-        id: employee.id,
-        firstName: employee.firstName,
-        lastName: employee.lastName,
-        email: employee.email,
-        directReportCount: employee.directReportCount,
-      },
-      suggestedRole,
-      workforceAccount: employee.workforceAccount,
-      reason,
-    });
-  });
-
-  return { inviteableRows, notIncludedRows };
-}
-
-export interface BulkSelectionSummary {
-  readyToInviteCount: number;
-  pendingWithLinkCount: number;
-  managerSuggestionCount: number;
-  notIncludedCount: number;
 }
 
 export function getBulkSelectionSummary(
-  selectedEmployees: Array<{
-    workforceAccount: WorkforceAccountStatusDto | null;
-    directReportCount: number;
-  }>
+  employees: SelectionSummaryRow[]
 ): BulkSelectionSummary {
   let readyToInviteCount = 0;
-  let pendingWithLinkCount = 0;
   let managerSuggestionCount = 0;
-  let notIncludedCount = 0;
+  let pendingCount = 0;
+  let activeCount = 0;
+  let inactiveCount = 0;
+  let conflictCount = 0;
+  let pendingWithLinkCount = 0;
 
-  selectedEmployees.forEach((employee) => {
+  for (const employee of employees) {
     const eligibility = getInvitationEligibility(employee.workforceAccount);
+    const accountState = eligibility.accountState;
 
     if (eligibility.canInvite) {
       readyToInviteCount += 1;
-    }
-
-    if (eligibility.hasPendingInvite && eligibility.canCopyInviteLink) {
-      pendingWithLinkCount += 1;
-    }
-
-    if (
-      !employee.workforceAccount ||
-      employee.workforceAccount.provisioningState === "Unprovisioned"
-    ) {
       if (employee.directReportCount > 0) {
         managerSuggestionCount += 1;
       }
     }
 
-    if (!eligibility.canInvite && !eligibility.canResend) {
-      notIncludedCount += 1;
+    if (accountState === "InvitePending") {
+      pendingCount += 1;
+    } else if (accountState === "Active" || accountState === "InviteAccepted") {
+      activeCount += 1;
+    } else if (accountState === "Inactive") {
+      inactiveCount += 1;
+    } else if (accountState === "Conflict") {
+      conflictCount += 1;
     }
-  });
+
+    if (accountState === "InvitePending" && eligibility.canCopyInviteLink) {
+      pendingWithLinkCount += 1;
+    }
+  }
+
+  const selectedCount = employees.length;
+  const notIncludedCount = selectedCount - readyToInviteCount;
 
   return {
+    selectedCount,
     readyToInviteCount,
-    pendingWithLinkCount,
     managerSuggestionCount,
+    pendingCount,
+    activeCount,
+    inactiveCount,
+    conflictCount,
+    pendingWithLinkCount,
     notIncludedCount,
+    hasInviteReadyRows: readyToInviteCount > 0,
+    hasOnlyPendingRows: selectedCount > 0 && pendingCount === selectedCount,
   };
+}
+
+export function getReviewDrawerRows<TRow extends SelectionSummaryRow>(
+  employees: TRow[]
+): ReviewDrawerRows<TRow> {
+  const inviteableRows: ReviewDrawerInviteableRow<TRow>[] = [];
+  const notIncludedRows: ReviewDrawerNotIncludedRow<TRow>[] = [];
+
+  for (const employee of employees) {
+    const eligibility = getInvitationEligibility(employee.workforceAccount);
+
+    if (eligibility.canInvite) {
+      inviteableRows.push({
+        employee,
+        suggestedRole: getSuggestedInviteRole(employee.directReportCount),
+      });
+      continue;
+    }
+
+    notIncludedRows.push({
+      employee,
+      reason: eligibility.notIncludedReason ?? "Not included",
+    });
+  }
+
+  return {
+    inviteableRows,
+    notIncludedRows,
+  };
+}
+
+export function matchesEmployeeAccessFilter(
+  account: WorkforceAccountStatusDto | null,
+  filter: EmployeeAccessFilter
+): boolean {
+  switch (filter) {
+    case "NotInvited":
+      return canStartEmployeeAccess(account);
+    case "Invited":
+      return account?.provisioningState === "InvitePending";
+    case "AccountActive":
+      return (
+        account?.provisioningState === "Active" ||
+        account?.provisioningState === "InviteAccepted"
+      );
+    case "NeedsReview":
+      return (
+        account?.provisioningState === "Inactive" ||
+        account?.provisioningState === "Conflict"
+      );
+    default:
+      return false;
+  }
 }

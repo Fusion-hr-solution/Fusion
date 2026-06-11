@@ -3,9 +3,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 import { createElement, type PropsWithChildren } from "react";
 
-const { mockDelete, mockGet, mockPut } = vi.hoisted(() => ({
+const { mockDelete, mockGet, mockPatch, mockPut } = vi.hoisted(() => ({
   mockDelete: vi.fn(),
   mockGet: vi.fn(),
+  mockPatch: vi.fn(),
   mockPut: vi.fn(),
 }));
 
@@ -35,6 +36,7 @@ vi.mock("@repo/api", () => ({
   createPlatformApiClient: () => ({
     delete: mockDelete,
     get: mockGet,
+    patch: mockPatch,
     put: mockPut,
   }),
 }));
@@ -58,6 +60,12 @@ vi.mock("@repo/api/query", async () => {
   const actual = await vi.importActual("@repo/api/query");
   return actual;
 });
+
+vi.mock("@/lib/employee-roster-access", () => ({
+  canAccessEmployeeProfile: () => true,
+  canAccessEmployeeRoster: () => true,
+  canAccessTeamWorkspace: () => true,
+}));
 
 import { ApiQueryProvider, createApiQueryClient } from "@repo/api/query";
 import {
@@ -554,7 +562,7 @@ describe("useUpdateEmployeeRecord", () => {
 
 describe("useUpdateMyProfile", () => {
   it("sends preferred-name updates to the dedicated self-profile endpoint", async () => {
-    mockPut.mockResolvedValue(undefined);
+    mockPatch.mockResolvedValue(undefined);
 
     const { result } = renderHook(() => useUpdateMyProfile(), {
       wrapper: createWrapper(),
@@ -566,8 +574,8 @@ describe("useUpdateMyProfile", () => {
       preferredName: "Sally",
     });
 
-    expect(mockPut).toHaveBeenCalledWith(
-      "/corehr/employees/emp-1/self-profile",
+    expect(mockPatch).toHaveBeenCalledWith(
+      "/corehr/employees/me",
       {
         preferredName: "Sally",
       },

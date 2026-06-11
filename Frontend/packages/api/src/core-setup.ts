@@ -9,7 +9,13 @@ export type TenantSetupActivityType =
   | "approved"
   | "reopened"
   | "published"
-  | "completed";
+  | "completed"
+  | "draftCreated"
+  | "draftUpdated"
+  | "draftDeleted"
+  | "draftCleared"
+  | "draftImportUploaded"
+  | "draftImportApplied";
 
 export type DraftSetupIssueSeverity = "error" | "warning";
 
@@ -58,6 +64,11 @@ export interface TenantSetupStateDto {
   pendingSteps: string[];
   canStartSetup: boolean;
   canResumeSetup: boolean;
+  hasDraftStructure: boolean;
+  hasPublishedStructure: boolean;
+  isDraftCycleActive: boolean;
+  requiresRepublish: boolean;
+  publishedStructureVersion: number;
   activatedAt: string | null;
   structurallyGovernedAt: string | null;
   approvedAt: string | null;
@@ -74,9 +85,9 @@ export const coreSetupPaths = {
   state: () => "/corehr/setup",
   activate: () => "/corehr/setup/activate",
   readiness: () => "/corehr/setup/readiness",
-  approve: () => "/corehr/setup/approve",
   reopen: () => "/corehr/setup/reopen",
   publish: () => "/corehr/setup/publish",
+  approve: () => "/corehr/setup/approve",
   complete: () => "/corehr/setup/complete",
 } as const;
 

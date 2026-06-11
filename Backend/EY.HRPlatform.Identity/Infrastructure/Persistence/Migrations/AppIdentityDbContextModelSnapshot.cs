@@ -125,6 +125,7 @@ namespace EY.HRPlatform.Identity.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("TenantId", "EmployeeId")
                         .IsUnique()
+                        .HasDatabaseName("IX_AspNetUsers_TenantId_EmployeeId")
                         .HasFilter("\"EmployeeId\" IS NOT NULL");
 
                     b.ToTable("AspNetUsers", "identity");
@@ -147,6 +148,17 @@ namespace EY.HRPlatform.Identity.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid>("CreatedByUserId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("DeliveryMessage")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTime?>("DeliveryRecordedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeliveryStatus")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
 
                     b.Property<string>("Email")
                         .IsRequired()
@@ -200,7 +212,10 @@ namespace EY.HRPlatform.Identity.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("IX_InviteTokens_TenantId_Email_Pending")
                         .HasFilter("\"AcceptedAt\" IS NULL AND \"IsRevoked\" = false");
 
-                    b.HasIndex("TenantId", "EmployeeId");
+                    b.HasIndex("TenantId", "EmployeeId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_InviteTokens_TenantId_EmployeeId_Pending")
+                        .HasFilter("\"EmployeeId\" IS NOT NULL AND \"AcceptedAt\" IS NULL AND \"IsRevoked\" = false");
 
                     b.ToTable("InviteTokens", "identity");
                 });

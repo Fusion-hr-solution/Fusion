@@ -21,7 +21,9 @@ namespace EY.HRPlatform.CoreHR.Features.Employees.Import.Services;
 public interface IEmployeeImportWorkflowService
 {
     Task<EmployeeImportSchemaDto> GetSchemaAsync(CancellationToken cancellationToken);
-    Task<(byte[] Content, string FileName)> BuildTemplateAsync(CancellationToken cancellationToken);
+    Task<(byte[] Content, string FileName)> BuildTemplateAsync(
+        IReadOnlyCollection<string>? fields,
+        CancellationToken cancellationToken);
     Task<EmployeeImportSessionDto> UploadAsync(IFormFile file, CancellationToken cancellationToken);
     Task<EmployeeImportSessionDto> ValidateAsync(Guid sessionId, CancellationToken cancellationToken);
     Task<EmployeeImportSessionDto> ValidateAsync(
@@ -65,7 +67,7 @@ public sealed class EmployeeImportWorkflowService(
     private const int MaxSourceFileNameLength = 260;
     private const int MaxRowCount = 5000;
     private const int SampleRowCount = 12;
-    private const int DefaultPreviewPageSize = 25;
+    private const int DefaultPreviewPageSize = 5;
     private const int MaxPreviewPageSize = 100;
     private const int MaxHistoryPageSize = 50;
     private static readonly TimeSpan SessionLifetime = TimeSpan.FromHours(2);
@@ -78,8 +80,8 @@ public sealed class EmployeeImportWorkflowService(
             "employeeNumber",
             "Employee number",
             false,
-            "Optional stable workforce reference used across imports and downstream modules.",
-            "E-10428"),
+            "Optional tenant-specific employee identifier.",
+            "E-1024"),
         new(
             "firstName",
             "First name",
@@ -124,17 +126,26 @@ public sealed class EmployeeImportWorkflowService(
             "alex.manager@contoso.com")
     ];
 
+    private static readonly HashSet<string> CanonicalFieldKeys =
+        CanonicalFields.Select(field => field.Key).ToHashSet(StringComparer.Ordinal);
+
     public async Task<EmployeeImportSchemaDto> GetSchemaAsync(CancellationToken cancellationToken)
     {
         await EnsureImportAvailableAsync(cancellationToken);
         return await BuildSchemaAsync(cancellationToken);
     }
 
-    public async Task<(byte[] Content, string FileName)> BuildTemplateAsync(CancellationToken cancellationToken)
+    public async Task<(byte[] Content, string FileName)> BuildTemplateAsync(
+        IReadOnlyCollection<string>? fields,
+        CancellationToken cancellationToken)
     {
         await EnsureImportAvailableAsync(cancellationToken);
 
-        var headerLine = string.Join(",", CanonicalFields.Select(field => field.Key));
+        var selectedFields = fields is { Count: > 0 }
+            ? ResolveTemplateFields(fields)
+            : CanonicalFields;
+
+        var headerLine = string.Join(",", selectedFields.Select(field => field.Key));
         return (Encoding.UTF8.GetBytes($"{headerLine}\r\n"), "employee-import-template.csv");
     }
 
@@ -252,8 +263,9 @@ public sealed class EmployeeImportWorkflowService(
         }
 
         var sourceRows = Deserialize<List<EmployeeImportSourceRowDto>>(session.SourceRowsJson) ?? [];
+        var headers = Deserialize<List<string>>(session.SourceHeadersJson) ?? [];
         var settings = await tenantSettingsReader.GetCurrentAsync(cancellationToken);
-        var validation = await ValidateRowsAsync(sourceRows, settings, cancellationToken);
+        var validation = await ValidateRowsAsync(sourceRows, headers, settings, cancellationToken);
 
         session.SetValidationResult(
             JsonSerializer.Serialize(validation.NormalizedRows, JsonOptions),
@@ -261,7 +273,6 @@ public sealed class EmployeeImportWorkflowService(
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        var headers = Deserialize<List<string>>(session.SourceHeadersJson) ?? [];
         var previewRows = Deserialize<List<EmployeeImportPreviewRowDto>>(session.PreviewRowsJson) ?? [];
 
         return await BuildSessionDtoAsync(
@@ -330,31 +341,10 @@ public sealed class EmployeeImportWorkflowService(
             .OrderBy(email => email)
             .ToListAsync(cancellationToken);
 
-        var importedEmployeeNumbers = normalizedRows
-            .Where(row => !string.IsNullOrWhiteSpace(row.EmployeeNumber))
-            .Select(row => row.EmployeeNumber!)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        var duplicateEmployeeNumbers = importedEmployeeNumbers.Count == 0
-            ? []
-            : await dbContext.Employees
-                .AsNoTracking()
-                .Where(employee => employee.EmployeeNumber != null && importedEmployeeNumbers.Contains(employee.EmployeeNumber))
-                .Select(employee => employee.EmployeeNumber!)
-                .OrderBy(employeeNumber => employeeNumber)
-                .ToListAsync(cancellationToken);
-
         if (duplicateEmails.Count > 0)
         {
             throw new ArgumentException(
                 "One or more employee emails already exist in this tenant. Validate the file again before applying.",
-                nameof(sessionId));
-        }
-
-        if (duplicateEmployeeNumbers.Count > 0)
-        {
-            throw new ArgumentException(
-                "One or more employee numbers already exist in this tenant. Validate the file again before applying.",
                 nameof(sessionId));
         }
 
@@ -377,8 +367,7 @@ public sealed class EmployeeImportWorkflowService(
                 row.Email,
                 row.HireDate,
                 null,
-                row.JobTitle,
-                row.EmployeeNumber);
+                row.JobTitle);
 
             if (row.OrgUnitId.HasValue)
             {
@@ -560,6 +549,28 @@ public sealed class EmployeeImportWorkflowService(
             ? fieldConfig.Required
             : fallbackRequired);
 
+    private static bool IsFieldRequiredForImport(
+        IReadOnlyList<string> sourceHeaders,
+        string fieldKey,
+        TenantSettingsDto settings,
+        bool fallbackRequired)
+        => CanonicalFieldKeys.Contains(fieldKey)
+        && sourceHeaders.Select(CleanHeader).Contains(fieldKey)
+        && ResolveImportFieldRequired(fieldKey, settings, fallbackRequired);
+
+    private static IReadOnlyList<EmployeeImportCanonicalFieldDto> ResolveTemplateFields(
+        IReadOnlyCollection<string> fields)
+    {
+        var requestedFieldKeys = fields
+            .Select(CleanHeader)
+            .Where(field => !string.IsNullOrWhiteSpace(field))
+            .ToHashSet(StringComparer.Ordinal);
+
+        return CanonicalFields
+            .Where(field => requestedFieldKeys.Contains(field.Key))
+            .ToList();
+    }
+
     private static string ValidateUpload(IFormFile? file)
     {
         if (file is null)
@@ -595,36 +606,17 @@ public sealed class EmployeeImportWorkflowService(
 
     private static void EnsureTemplateHeaders(IReadOnlyList<string> actualHeaders)
     {
-        var expectedHeaders = CanonicalFields.Select(field => field.Key).ToArray();
-        var legacyHeaders = expectedHeaders
-            .Where(header => !string.Equals(header, "employeeNumber", StringComparison.Ordinal))
+        var normalized = actualHeaders.Select(CleanHeader).ToArray();
+
+        var recognized = normalized
+            .Where(header => CanonicalFieldKeys.Contains(header))
             .ToArray();
 
-        if (HeadersMatch(actualHeaders, expectedHeaders) || HeadersMatch(actualHeaders, legacyHeaders))
+        if (recognized.Length == 0)
         {
-            return;
+            throw new ArgumentException(
+                "The uploaded file does not contain any recognized employee import columns.");
         }
-
-        throw new ArgumentException(
-            "Use the official employee import template. Column headers must match exactly in the expected order.");
-    }
-
-    private static bool HeadersMatch(IReadOnlyList<string> actualHeaders, IReadOnlyList<string> expectedHeaders)
-    {
-        if (actualHeaders.Count != expectedHeaders.Count)
-        {
-            return false;
-        }
-
-        for (var index = 0; index < expectedHeaders.Count; index++)
-        {
-            if (!string.Equals(CleanHeader(actualHeaders[index]), expectedHeaders[index], StringComparison.Ordinal))
-            {
-                return false;
-            }
-        }
-
-        return true;
     }
 
     private static async Task<ParsedCsvFile> ParseCsvAsync(IFormFile file, CancellationToken cancellationToken)
@@ -692,7 +684,7 @@ public sealed class EmployeeImportWorkflowService(
 
         return new EmployeeImportPreviewRowDto(
             row.RowNumber,
-            NormalizeEmployeeNumber(employeeNumber),
+            NormalizeOptional(employeeNumber),
             NormalizeOptional(firstName),
             NormalizeOptional(lastName),
             NormalizeEmail(email),
@@ -704,6 +696,7 @@ public sealed class EmployeeImportWorkflowService(
 
     private async Task<ValidationResult> ValidateRowsAsync(
         IReadOnlyCollection<EmployeeImportSourceRowDto> sourceRows,
+        IReadOnlyList<string> sourceHeaders,
         TenantSettingsDto settings,
         CancellationToken cancellationToken)
     {
@@ -718,7 +711,6 @@ public sealed class EmployeeImportWorkflowService(
 
         foreach (var sourceRow in sourceRows)
         {
-            var employeeNumber = NormalizeEmployeeNumber(ReadValue(sourceRow, "employeeNumber"));
             var firstName = ReadValue(sourceRow, "firstName");
             var lastName = ReadValue(sourceRow, "lastName");
             var email = NormalizeEmail(ReadValue(sourceRow, "email"));
@@ -727,33 +719,19 @@ public sealed class EmployeeImportWorkflowService(
             var orgUnitCode = NormalizeOrgUnitCode(ReadValue(sourceRow, "orgUnitCode"));
             var managerEmail = NormalizeEmail(ReadValue(sourceRow, "managerEmail"));
 
-            if (!string.IsNullOrWhiteSpace(employeeNumber) && employeeNumber.Length > 64)
-            {
-                AddIssue(
-                    issues,
-                    issueKeys,
-                    sourceRow.RowNumber,
-                    "employeeNumber",
-                    "invalidEmployeeNumber",
-                    "Employee number must be 64 characters or fewer.",
-                    value: employeeNumber,
-                    rowErrorNumbers: rowErrorNumbers,
-                    issueCodesByRow: issueCodesByRow);
-            }
-
-            if (ResolveImportFieldRequired("firstName", settings, true)
+            if (IsFieldRequiredForImport(sourceHeaders, "firstName", settings, true)
                 && string.IsNullOrWhiteSpace(firstName))
             {
                 AddIssue(issues, issueKeys, sourceRow.RowNumber, "firstName", "missingFirstName", "First name is required.", rowErrorNumbers: rowErrorNumbers, issueCodesByRow: issueCodesByRow);
             }
 
-            if (ResolveImportFieldRequired("lastName", settings, true)
+            if (IsFieldRequiredForImport(sourceHeaders, "lastName", settings, true)
                 && string.IsNullOrWhiteSpace(lastName))
             {
                 AddIssue(issues, issueKeys, sourceRow.RowNumber, "lastName", "missingLastName", "Last name is required.", rowErrorNumbers: rowErrorNumbers, issueCodesByRow: issueCodesByRow);
             }
 
-            if (ResolveImportFieldRequired("email", settings, true)
+            if (IsFieldRequiredForImport(sourceHeaders, "email", settings, true)
                 && string.IsNullOrWhiteSpace(email))
             {
                 AddIssue(issues, issueKeys, sourceRow.RowNumber, "email", "missingEmail", "Email is required.", rowErrorNumbers: rowErrorNumbers, issueCodesByRow: issueCodesByRow);
@@ -765,7 +743,7 @@ public sealed class EmployeeImportWorkflowService(
 
             DateTime? hireDate = null;
             DateTime parsedHireDate = default;
-            if (ResolveImportFieldRequired("hireDate", settings, true)
+            if (IsFieldRequiredForImport(sourceHeaders, "hireDate", settings, true)
                 && string.IsNullOrWhiteSpace(hireDateText))
             {
                 AddIssue(issues, issueKeys, sourceRow.RowNumber, "hireDate", "missingHireDate", "Hire date is required.", rowErrorNumbers: rowErrorNumbers, issueCodesByRow: issueCodesByRow);
@@ -779,7 +757,7 @@ public sealed class EmployeeImportWorkflowService(
                 hireDate = parsedHireDate;
             }
 
-            if (ResolveImportFieldRequired("jobTitle", settings, false)
+            if (IsFieldRequiredForImport(sourceHeaders, "jobTitle", settings, false)
                 && string.IsNullOrWhiteSpace(jobTitle))
             {
                 AddIssue(
@@ -828,7 +806,6 @@ public sealed class EmployeeImportWorkflowService(
 
             candidates.Add(new CandidateRow(
                 sourceRow.RowNumber,
-                employeeNumber,
                 firstName,
                 lastName,
                 email,
@@ -856,29 +833,6 @@ public sealed class EmployeeImportWorkflowService(
             }
         }
 
-        var employeeNumberOccurrences = candidates
-            .Where(candidate => !string.IsNullOrWhiteSpace(candidate.EmployeeNumber))
-            .GroupBy(candidate => candidate.EmployeeNumber!, StringComparer.OrdinalIgnoreCase)
-            .Where(group => group.Count() > 1)
-            .ToList();
-
-        foreach (var occurrence in employeeNumberOccurrences)
-        {
-            foreach (var candidate in occurrence)
-            {
-                AddIssue(
-                    issues,
-                    issueKeys,
-                    candidate.RowNumber,
-                    "employeeNumber",
-                    "duplicateEmployeeNumberInFile",
-                    $"Employee number '{occurrence.Key}' is duplicated in the uploaded file.",
-                    value: occurrence.Key,
-                    rowErrorNumbers: rowErrorNumbers,
-                    issueCodesByRow: issueCodesByRow);
-            }
-        }
-
         var existingEmployeesByEmail = await dbContext.Employees
             .AsNoTracking()
             .Where(employee => emailOccurrences.Keys.Contains(employee.Email) || referencedManagerEmails.Contains(employee.Email))
@@ -888,24 +842,6 @@ public sealed class EmployeeImportWorkflowService(
         var existingEmployeesByEmailLookup = existingEmployeesByEmail
             .GroupBy(employee => employee.Email, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
-
-        var employeeNumbers = candidates
-            .Where(candidate => !string.IsNullOrWhiteSpace(candidate.EmployeeNumber))
-            .Select(candidate => candidate.EmployeeNumber!)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        var existingEmployeeNumbers = employeeNumbers.Count == 0
-            ? []
-            : await dbContext.Employees
-                .AsNoTracking()
-                .Where(employee => employee.EmployeeNumber != null && employeeNumbers.Contains(employee.EmployeeNumber))
-                .Select(employee => employee.EmployeeNumber!)
-                .Distinct()
-                .ToListAsync(cancellationToken);
-
-        var existingEmployeeNumberLookup = existingEmployeeNumbers
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         foreach (var candidate in candidates)
         {
@@ -920,21 +856,6 @@ public sealed class EmployeeImportWorkflowService(
                     "duplicateEmailInTenant",
                     $"Email '{candidate.Email}' already exists in this tenant.",
                     value: candidate.Email,
-                    rowErrorNumbers: rowErrorNumbers,
-                    issueCodesByRow: issueCodesByRow);
-            }
-
-            if (!string.IsNullOrWhiteSpace(candidate.EmployeeNumber)
-                && existingEmployeeNumberLookup.Contains(candidate.EmployeeNumber))
-            {
-                AddIssue(
-                    issues,
-                    issueKeys,
-                    candidate.RowNumber,
-                    "employeeNumber",
-                    "duplicateEmployeeNumberInTenant",
-                    $"Employee number '{candidate.EmployeeNumber}' already exists in this tenant.",
-                    value: candidate.EmployeeNumber,
                     rowErrorNumbers: rowErrorNumbers,
                     issueCodesByRow: issueCodesByRow);
             }
@@ -1011,19 +932,18 @@ public sealed class EmployeeImportWorkflowService(
 
         var normalizedRows = candidates
             .Where(candidate => !HasErrors(rowErrorNumbers, candidate.RowNumber)
-                && (!ResolveImportFieldRequired("firstName", settings, true)
+                && (!IsFieldRequiredForImport(sourceHeaders, "firstName", settings, true)
                     || !string.IsNullOrWhiteSpace(candidate.FirstName))
-                && (!ResolveImportFieldRequired("lastName", settings, true)
+                && (!IsFieldRequiredForImport(sourceHeaders, "lastName", settings, true)
                     || !string.IsNullOrWhiteSpace(candidate.LastName))
-                && (!ResolveImportFieldRequired("email", settings, true)
+                && (!IsFieldRequiredForImport(sourceHeaders, "email", settings, true)
                     || !string.IsNullOrWhiteSpace(candidate.Email))
-                && (!ResolveImportFieldRequired("hireDate", settings, true)
+                && (!IsFieldRequiredForImport(sourceHeaders, "hireDate", settings, true)
                     || candidate.HireDate.HasValue)
-                && (!ResolveImportFieldRequired("jobTitle", settings, false)
+                && (!IsFieldRequiredForImport(sourceHeaders, "jobTitle", settings, false)
                     || !string.IsNullOrWhiteSpace(candidate.JobTitle)))
             .Select(candidate => new StoredNormalizedRow(
                 candidate.RowNumber,
-                candidate.EmployeeNumber,
                 candidate.FirstName!,
                 candidate.LastName!,
                 candidate.Email!,
@@ -1655,7 +1575,7 @@ public sealed class EmployeeImportWorkflowService(
         {
             _ when IsMissingRequiredFieldCode(code)
                 => $"missingRequiredData:row:{rowNumber}",
-            "duplicateEmailInFile" or "duplicateEmailInTenant" or "duplicateEmployeeNumberInFile" or "duplicateEmployeeNumberInTenant" or "orgUnitNotFound" or "orgUnitInactive"
+            "duplicateEmailInFile" or "duplicateEmailInTenant" or "orgUnitNotFound" or "orgUnitInactive"
                 or "ambiguousManagerEmail" or "managerNotFound" or "managerInvalidInBatch" or "managerInactive"
                 => string.IsNullOrWhiteSpace(value)
                     ? $"{code}:row:{rowNumber}"
@@ -1668,9 +1588,9 @@ public sealed class EmployeeImportWorkflowService(
         {
             _ when IsMissingRequiredFieldCode(code)
                 => "missingRequiredData",
-            "invalidEmail" or "invalidHireDate" or "invalidManagerEmail" or "invalidEmployeeNumber"
+            "invalidEmail" or "invalidHireDate" or "invalidManagerEmail"
                 => "invalidFormat",
-            "duplicateEmailInFile" or "duplicateEmailInTenant" or "duplicateEmployeeNumberInFile" or "duplicateEmployeeNumberInTenant"
+            "duplicateEmailInFile" or "duplicateEmailInTenant"
                 => "duplicateIdentity",
             "orgUnitNotFound" or "orgUnitInactive"
                 => "invalidStructureReference",
@@ -1688,15 +1608,12 @@ public sealed class EmployeeImportWorkflowService(
             "missingLastName" => "Add a last name for this row.",
             "missingEmail" => "Add a unique work email address for this row.",
             "invalidEmail" => "Enter a valid work email address for this row.",
-            "invalidEmployeeNumber" => "Keep the employee number to 64 characters or fewer, using one stable value per employee.",
             "missingHireDate" => "Add a hire date in YYYY-MM-DD format for this row.",
             "missingJobTitle" => "Add a job title for this row.",
             "invalidHireDate" => "Use YYYY-MM-DD format for the hire date in this row.",
             "invalidManagerEmail" => "Enter a valid manager email address or leave it blank.",
             "duplicateEmailInFile" => "Keep only one employee per unique email in this batch, or correct the mistaken row.",
             "duplicateEmailInTenant" => "Use a different email for this new employee or remove the row from the import.",
-            "duplicateEmployeeNumberInFile" => "Keep only one employee per unique employee number in this batch, or correct the mistaken row.",
-            "duplicateEmployeeNumberInTenant" => "Use a different employee number for this new employee or remove the row from the import.",
             "orgUnitNotFound" => "Replace this with an active org unit code that already exists in the tenant.",
             "orgUnitInactive" => "Replace this with an active org unit code that already exists in the tenant.",
             "ambiguousManagerEmail" => "Ensure the manager email appears only once in the uploaded file or references an existing employee.",
@@ -1754,9 +1671,6 @@ public sealed class EmployeeImportWorkflowService(
     private static string? NormalizeEmail(string? value)
         => NormalizeOptional(value)?.ToLowerInvariant();
 
-    private static string? NormalizeEmployeeNumber(string? value)
-        => NormalizeOptional(value)?.ToUpperInvariant();
-
     private static string? NormalizeOrgUnitCode(string? value)
         => NormalizeOptional(value)?.ToUpperInvariant();
 
@@ -1766,7 +1680,6 @@ public sealed class EmployeeImportWorkflowService(
 
     private sealed class CandidateRow(
         int rowNumber,
-        string? employeeNumber,
         string? firstName,
         string? lastName,
         string? email,
@@ -1777,7 +1690,6 @@ public sealed class EmployeeImportWorkflowService(
         string? managerEmail)
     {
         public int RowNumber { get; } = rowNumber;
-        public string? EmployeeNumber { get; } = employeeNumber;
         public string? FirstName { get; } = firstName;
         public string? LastName { get; } = lastName;
         public string? Email { get; } = email;
@@ -1792,7 +1704,6 @@ public sealed class EmployeeImportWorkflowService(
 
     private sealed record StoredNormalizedRow(
         int RowNumber,
-        string? EmployeeNumber,
         string FirstName,
         string LastName,
         string Email,

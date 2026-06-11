@@ -1,538 +1,785 @@
 using EY.HRPlatform.Identity.Domain.Entities;
-using EY.HRPlatform.Identity.Infrastructure.Services;
 using EY.HRPlatform.Identity.Infrastructure.Persistence;
+using EY.HRPlatform.Identity.Infrastructure.Services;
+using EY.HRPlatform.Identity.Models.Requests;
 using EY.HRPlatform.Identity.Models.Responses;
-using EY.HRPlatform.Identity.Models.WorkforceAccounts;
 using EY.HRPlatform.SharedKernel.Auth;
-using EY.HRPlatform.SharedKernel.Multitenancy;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace EY.HRPlatform.Identity.Controllers;
 
 [ApiController]
-[Route("api/corehr/employees/workforce-accounts")]
-[Authorize(Roles = PlatformRole.HRAdmin)]
+[Route("api/identity/workforce-accounts")]
+[Authorize(Roles = $"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin}")]
 public sealed class WorkforceAccountsController(
     AppIdentityDbContext dbContext,
-    UserManager<ApplicationUser> userManager,
-    ITenantContext tenantContext,
-    IConfiguration configuration) : ControllerBase
+    IInvitationLinkBuilder invitationLinkBuilder,
+    IWorkforceInvitationEmailSender invitationEmailSender) : ControllerBase
 {
-    private const string StateUnprovisioned = "Unprovisioned";
-    private const string StateInvitePending = "InvitePending";
-    private const string StateInviteExpired = "InviteExpired";
-    private const string StateInviteRevoked = "InviteRevoked";
-    private const string StateInviteAccepted = "InviteAccepted";
-    private const string StateActive = "Active";
-    private const string StateInactive = "Inactive";
-    private const string StateConflict = "Conflict";
-
-    private const string OutcomeCreated = "Created";
-    private const string OutcomePending = "Pending";
-    private const string OutcomeActive = "Active";
-    private const string OutcomeInactive = "Inactive";
-    private const string OutcomeConflict = "Conflict";
-
-    [HttpPost("statuses")]
-    [ProducesResponseType(typeof(ApiResponse<List<WorkforceAccountStatusDto>>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ApiResponse<List<WorkforceAccountStatusDto>>), StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<ApiResponse<List<WorkforceAccountStatusDto>>>> GetStatuses(
-        [FromBody] WorkforceAccountStatusesRequest request,
+    [HttpGet("{employeeId:guid}")]
+    [ProducesResponseType(typeof(ApiResponse<WorkforceAccountStatusDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<WorkforceAccountStatusDto>), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ApiResponse<WorkforceAccountStatusDto>>> GetStatus(
+        Guid employeeId,
+        [FromQuery] string? email,
+        [FromQuery] string? firstName,
+        [FromQuery] string? lastName,
         CancellationToken cancellationToken)
     {
-        if (!TryGetTenantId(out var tenantId, out var tenantError))
-            return BadRequest(ApiResponse<List<WorkforceAccountStatusDto>>.Failure(tenantError));
-
-        var validationError = ValidateSubjects(request.Subjects);
-        if (validationError is not null)
-            return BadRequest(ApiResponse<List<WorkforceAccountStatusDto>>.Failure(validationError));
-
-        var statuses = new List<WorkforceAccountStatusDto>();
-        foreach (var subject in DistinctSubjects(request.Subjects))
+        var tenantId = GetEffectiveTenantId();
+        if (!tenantId.HasValue)
         {
-            statuses.Add(await ResolveStatusAsync(tenantId, subject, cancellationToken));
+            return BadRequest(ApiResponse<WorkforceAccountStatusDto>.Failure(
+                "Tenant context is required to inspect workforce account status."));
         }
 
-        if (dbContext.ChangeTracker.HasChanges())
-            await dbContext.SaveChangesAsync(cancellationToken);
-
-        return Ok(ApiResponse<List<WorkforceAccountStatusDto>>.Success(statuses));
+        var snapshot = new WorkforceAccountSnapshot(employeeId, email, firstName, lastName);
+        var dto = await BuildStatusDtoAsync(snapshot, tenantId.Value, cancellationToken);
+        return Ok(ApiResponse<WorkforceAccountStatusDto>.Success(dto));
     }
 
-    [HttpPost("bulk-provision")]
-    [ProducesResponseType(typeof(ApiResponse<List<WorkforceAccountBulkProvisionResultDto>>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ApiResponse<List<WorkforceAccountBulkProvisionResultDto>>), StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<ApiResponse<List<WorkforceAccountBulkProvisionResultDto>>>> BulkProvision(
-        [FromBody] WorkforceAccountBulkProvisionRequest request,
+    [HttpPost("statuses")]
+    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<WorkforceAccountStatusDto>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<WorkforceAccountStatusDto>>), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<WorkforceAccountStatusDto>>>> GetStatuses(
+        [FromBody] ResolveWorkforceAccountStatusesRequest request,
         CancellationToken cancellationToken)
     {
-        if (!TryGetTenantId(out var tenantId, out var tenantError))
-            return BadRequest(ApiResponse<List<WorkforceAccountBulkProvisionResultDto>>.Failure(tenantError));
-
-        var validationError = ValidateSubjects(request.Items);
-        if (validationError is not null)
-            return BadRequest(ApiResponse<List<WorkforceAccountBulkProvisionResultDto>>.Failure(validationError));
-
-        var results = new List<WorkforceAccountBulkProvisionResultDto>();
-        foreach (var item in DistinctSubjects(request.Items))
+        var tenantId = GetEffectiveTenantId();
+        if (!tenantId.HasValue)
         {
-            var role = NormalizeWorkforceRole(item.Role);
-            if (role is null)
-                return BadRequest(ApiResponse<List<WorkforceAccountBulkProvisionResultDto>>.Failure("Role must be Employee or Manager."));
-
-            results.Add(await ProvisionInviteAsync(tenantId, item, role, cancellationToken));
+            return BadRequest(ApiResponse<IReadOnlyList<WorkforceAccountStatusDto>>.Failure(
+                "Tenant context is required to inspect workforce account status."));
         }
 
-        return Ok(ApiResponse<List<WorkforceAccountBulkProvisionResultDto>>.Success(results));
+        var snapshots = request.Employees
+            .Select(ToSnapshot)
+            .ToArray();
+
+        var statuses = await BuildStatusesAsync(snapshots, tenantId.Value, cancellationToken);
+        return Ok(ApiResponse<IReadOnlyList<WorkforceAccountStatusDto>>.Success(statuses));
     }
 
     [HttpPost("{employeeId:guid}/invite")]
-    [ProducesResponseType(typeof(ApiResponse<WorkforceAccountStatusDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<WorkforceAccountStatusDto>), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ApiResponse<WorkforceAccountStatusDto>), StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<ApiResponse<WorkforceAccountStatusDto>>> ProvisionInvite(
+    [ProducesResponseType(typeof(ApiResponse<WorkforceAccountStatusDto>), StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<ApiResponse<WorkforceAccountStatusDto>>> CreateInvite(
         Guid employeeId,
         [FromBody] ProvisionWorkforceAccountInviteRequest request,
         CancellationToken cancellationToken)
     {
-        if (!TryGetTenantId(out var tenantId, out var tenantError))
-            return BadRequest(ApiResponse<WorkforceAccountStatusDto>.Failure(tenantError));
-
-        var subject = new WorkforceAccountProvisionItemDto
+        var tenantId = GetEffectiveTenantId();
+        if (!tenantId.HasValue)
         {
-            EmployeeId = employeeId,
-            Email = request.Email,
-            FirstName = request.FirstName,
-            LastName = request.LastName,
-            Role = request.Role
-        };
+            return BadRequest(ApiResponse<WorkforceAccountStatusDto>.Failure(
+                "Tenant context is required to provision a workforce account."));
+        }
 
-        var validationError = ValidateSubject(subject);
-        if (validationError is not null)
-            return BadRequest(ApiResponse<WorkforceAccountStatusDto>.Failure(validationError));
+        if (!PlatformRole.All.Contains(request.Role))
+        {
+            return BadRequest(ApiResponse<WorkforceAccountStatusDto>.Failure($"Invalid role: {request.Role}"));
+        }
 
-        var role = NormalizeWorkforceRole(request.Role);
-        if (role is null)
-            return BadRequest(ApiResponse<WorkforceAccountStatusDto>.Failure("Role must be Employee or Manager."));
+        if (!CanProvisionRole(request.Role))
+        {
+            return StatusCode(
+                StatusCodes.Status403Forbidden,
+                ApiResponse<WorkforceAccountStatusDto>.Failure(
+                    "You do not have permission to provision this role from Core."));
+        }
 
-        var result = await ProvisionInviteAsync(tenantId, subject, role, cancellationToken);
-        return Ok(ApiResponse<WorkforceAccountStatusDto>.Success(result.Account));
+        var normalizedEmail = NormalizeEmail(request.Email);
+        if (string.IsNullOrWhiteSpace(normalizedEmail))
+        {
+            return BadRequest(ApiResponse<WorkforceAccountStatusDto>.Failure("Email is required."));
+        }
+
+        var snapshot = new WorkforceAccountSnapshot(employeeId, normalizedEmail, request.FirstName, request.LastName);
+        var currentStatus = await BuildStatusDtoAsync(snapshot, tenantId.Value, cancellationToken);
+        if (TryGetProvisioningBlockedMessage(currentStatus, out var blockedMessage))
+        {
+            return Conflict(ApiResponse<WorkforceAccountStatusDto>.Failure(blockedMessage));
+        }
+
+        var invite = InviteToken.Create(
+            email: normalizedEmail,
+            tenantId: tenantId.Value,
+            role: request.Role,
+            createdByUserId: User.GetUserId(),
+            firstName: request.FirstName,
+            lastName: request.LastName,
+            employeeId: employeeId);
+
+        dbContext.InviteTokens.Add(invite);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        var deliveryResult = await SendInvitationAsync(invite, request.FirstName, request.LastName, cancellationToken);
+        var dto = CreateStatusDto(snapshot, linkedUser: null, latestInvite: invite, role: invite.Role, deliveryResult, conflict: null);
+
+        return CreatedAtAction(nameof(GetStatus), new { employeeId }, ApiResponse<WorkforceAccountStatusDto>.Success(dto));
     }
 
-    [HttpPost("{employeeId:guid}/resend")]
-    [ProducesResponseType(typeof(ApiResponse<WorkforceAccountStatusDto>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ApiResponse<WorkforceAccountStatusDto>), StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<ApiResponse<WorkforceAccountStatusDto>>> ResendInvite(
-        Guid employeeId,
+    [HttpPost("invite/bulk")]
+    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<WorkforceAccountBulkProvisionResultDto>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<WorkforceAccountBulkProvisionResultDto>>), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<WorkforceAccountBulkProvisionResultDto>>>> BulkCreateInvites(
+        [FromBody] BulkProvisionWorkforceAccountInvitesRequest request,
         CancellationToken cancellationToken)
     {
-        if (!TryGetTenantId(out var tenantId, out var tenantError))
-            return BadRequest(ApiResponse<WorkforceAccountStatusDto>.Failure(tenantError));
+        var tenantId = GetEffectiveTenantId();
+        if (!tenantId.HasValue)
+        {
+            return BadRequest(ApiResponse<IReadOnlyList<WorkforceAccountBulkProvisionResultDto>>.Failure(
+                "Tenant context is required to provision workforce accounts."));
+        }
 
-        var invite = await FindLatestInviteByEmployeeAsync(tenantId, employeeId, cancellationToken);
+        var results = new List<WorkforceAccountBulkProvisionResultDto>(request.Items.Count);
+        foreach (var item in request.Items)
+        {
+            var normalizedEmail = NormalizeEmail(item.Email);
+            if (string.IsNullOrWhiteSpace(normalizedEmail))
+            {
+                results.Add(new WorkforceAccountBulkProvisionResultDto
+                {
+                    EmployeeId = item.EmployeeId,
+                    Outcome = WorkforceAccountBulkProvisionOutcomes.Conflict,
+                    Message = "Email is required.",
+                });
+                continue;
+            }
+
+            var snapshot = new WorkforceAccountSnapshot(item.EmployeeId, normalizedEmail, item.FirstName, item.LastName);
+            var currentStatus = await BuildStatusDtoAsync(snapshot, tenantId.Value, cancellationToken);
+
+            if (!PlatformRole.All.Contains(item.Role))
+            {
+                results.Add(new WorkforceAccountBulkProvisionResultDto
+                {
+                    EmployeeId = item.EmployeeId,
+                    Outcome = WorkforceAccountBulkProvisionOutcomes.Conflict,
+                    Message = $"Invalid role: {item.Role}",
+                    Account = currentStatus,
+                });
+                continue;
+            }
+
+            if (!CanProvisionRole(item.Role))
+            {
+                results.Add(new WorkforceAccountBulkProvisionResultDto
+                {
+                    EmployeeId = item.EmployeeId,
+                    Outcome = WorkforceAccountBulkProvisionOutcomes.Conflict,
+                    Message = "You do not have permission to provision this role from Core.",
+                    Account = currentStatus,
+                });
+                continue;
+            }
+
+            if (TryGetProvisioningBlockedMessage(currentStatus, out var blockedMessage))
+            {
+                results.Add(new WorkforceAccountBulkProvisionResultDto
+                {
+                    EmployeeId = item.EmployeeId,
+                    Outcome = GetOutcome(currentStatus),
+                    Message = blockedMessage,
+                    Account = currentStatus,
+                });
+                continue;
+            }
+
+            var invite = InviteToken.Create(
+                email: normalizedEmail,
+                tenantId: tenantId.Value,
+                role: item.Role,
+                createdByUserId: User.GetUserId(),
+                firstName: item.FirstName,
+                lastName: item.LastName,
+                employeeId: item.EmployeeId);
+
+            dbContext.InviteTokens.Add(invite);
+            await dbContext.SaveChangesAsync(cancellationToken);
+
+            var deliveryResult = await SendInvitationAsync(invite, item.FirstName, item.LastName, cancellationToken);
+            results.Add(new WorkforceAccountBulkProvisionResultDto
+            {
+                EmployeeId = item.EmployeeId,
+                Outcome = WorkforceAccountBulkProvisionOutcomes.Created,
+                Message = "Workforce invitation created.",
+                Account = CreateStatusDto(snapshot, linkedUser: null, latestInvite: invite, role: invite.Role, deliveryResult, conflict: null),
+            });
+        }
+
+        return Ok(ApiResponse<IReadOnlyList<WorkforceAccountBulkProvisionResultDto>>.Success(results));
+    }
+
+    [HttpPost("{employeeId:guid}/invite/resend")]
+    [ProducesResponseType(typeof(ApiResponse<WorkforceAccountStatusDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<WorkforceAccountStatusDto>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<WorkforceAccountStatusDto>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<WorkforceAccountStatusDto>), StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<ApiResponse<WorkforceAccountStatusDto>>> ResendInvite(
+        Guid employeeId,
+        [FromQuery] string? email,
+        [FromQuery] string? firstName,
+        [FromQuery] string? lastName,
+        CancellationToken cancellationToken)
+    {
+        var tenantId = GetEffectiveTenantId();
+        if (!tenantId.HasValue)
+        {
+            return BadRequest(ApiResponse<WorkforceAccountStatusDto>.Failure(
+                "Tenant context is required to resend a workforce invitation."));
+        }
+
+        var snapshot = new WorkforceAccountSnapshot(employeeId, email, firstName, lastName);
+        var resolution = await ResolveStatusDataAsync([snapshot], tenantId.Value, cancellationToken);
+        var currentStatus = resolution.Statuses[employeeId];
+        var linkedUser = resolution.LinkedUsersByEmployeeId.GetValueOrDefault(employeeId);
+        var invite = resolution.LatestInvitesByEmployeeId.GetValueOrDefault(employeeId);
+
+        if (linkedUser is not null)
+        {
+            var message = linkedUser.IsActive
+                ? "An active platform account is already linked to this employee."
+                : "An inactive platform account is already linked to this employee.";
+
+            return Conflict(ApiResponse<WorkforceAccountStatusDto>.Failure(message));
+        }
+
         if (invite is null)
-            return NotFound(ApiResponse<WorkforceAccountStatusDto>.Failure("Invitation not found."));
+        {
+            return NotFound(ApiResponse<WorkforceAccountStatusDto>.Failure(
+                "No workforce invitation exists for this employee."));
+        }
 
         if (invite.IsUsed)
-            return BadRequest(ApiResponse<WorkforceAccountStatusDto>.Failure("Cannot resend an accepted invitation."));
+        {
+            return Conflict(ApiResponse<WorkforceAccountStatusDto>.Failure(
+                "This invitation has already been accepted."));
+        }
 
         if (invite.IsRevoked)
         {
-            invite = await CreateInviteAsync(
-                tenantId,
-                new WorkforceAccountSubjectDto
-                {
-                    EmployeeId = employeeId,
-                    Email = invite.Email,
-                    FirstName = invite.FirstName,
-                    LastName = invite.LastName
-                },
-                invite.Role,
-                cancellationToken);
-        }
-        else
-        {
-            invite.ExtendExpiry();
-            await dbContext.SaveChangesAsync(cancellationToken);
+            return Conflict(ApiResponse<WorkforceAccountStatusDto>.Failure(
+                "This invitation has been revoked and cannot be resent."));
         }
 
-        return Ok(ApiResponse<WorkforceAccountStatusDto>.Success(BuildInviteStatus(employeeId, invite)));
+        if (currentStatus.Conflict?.Blocking == true)
+        {
+            return Conflict(ApiResponse<WorkforceAccountStatusDto>.Failure(currentStatus.Conflict.Message));
+        }
+
+        invite.ExtendExpiry();
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        var deliveryResult = await SendInvitationAsync(invite, invite.FirstName, invite.LastName, cancellationToken);
+        var dto = CreateStatusDto(
+            new WorkforceAccountSnapshot(employeeId, invite.Email, invite.FirstName, invite.LastName),
+            linkedUser: null,
+            latestInvite: invite,
+            role: invite.Role,
+            deliveryResult,
+            conflict: null);
+
+        return Ok(ApiResponse<WorkforceAccountStatusDto>.Success(dto));
+    }
+
+    [HttpPost("{employeeId:guid}/deactivate")]
+    [ProducesResponseType(typeof(ApiResponse<WorkforceAccountStatusDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<WorkforceAccountStatusDto>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<WorkforceAccountStatusDto>), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ApiResponse<WorkforceAccountStatusDto>>> Deactivate(
+        Guid employeeId,
+        CancellationToken cancellationToken)
+    {
+        return await SetLinkedUserActiveState(employeeId, isActive: false, cancellationToken);
     }
 
     [HttpPost("{employeeId:guid}/reactivate")]
     [ProducesResponseType(typeof(ApiResponse<WorkforceAccountStatusDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<WorkforceAccountStatusDto>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<WorkforceAccountStatusDto>), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ApiResponse<WorkforceAccountStatusDto>>> Reactivate(
         Guid employeeId,
         CancellationToken cancellationToken)
     {
-        if (!TryGetTenantId(out var tenantId, out var tenantError))
-            return BadRequest(ApiResponse<WorkforceAccountStatusDto>.Failure(tenantError));
-
-        var user = await FindUserByEmployeeAsync(tenantId, employeeId, cancellationToken);
-        if (user is null)
-            return NotFound(ApiResponse<WorkforceAccountStatusDto>.Failure("Account not found."));
-
-        user.IsActive = true;
-        await dbContext.SaveChangesAsync(cancellationToken);
-
-        return Ok(ApiResponse<WorkforceAccountStatusDto>.Success(await BuildUserStatusAsync(employeeId, user)));
+        return await SetLinkedUserActiveState(employeeId, isActive: true, cancellationToken);
     }
 
-    [HttpDelete("{employeeId:guid}")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> Deactivate(
+    private Guid? GetEffectiveTenantId()
+    {
+        if (User.IsInRole(PlatformRole.PlatformAdmin)
+            && Request.Headers.TryGetValue("X-Tenant-Id", out var headerValue)
+            && Guid.TryParse(headerValue.FirstOrDefault(), out var platformTenantId)
+            && platformTenantId != Guid.Empty)
+        {
+            return platformTenantId;
+        }
+
+        return User.GetTenantId();
+    }
+
+    private async Task<ActionResult<ApiResponse<WorkforceAccountStatusDto>>> SetLinkedUserActiveState(
         Guid employeeId,
+        bool isActive,
         CancellationToken cancellationToken)
     {
-        if (!TryGetTenantId(out var tenantId, out var tenantError))
-            return BadRequest(ApiResponse.Failure(tenantError));
+        var tenantId = GetEffectiveTenantId();
+        if (!tenantId.HasValue)
+        {
+            return BadRequest(ApiResponse<WorkforceAccountStatusDto>.Failure(
+                "Tenant context is required to manage workforce accounts."));
+        }
 
-        var user = await FindUserByEmployeeAsync(tenantId, employeeId, cancellationToken);
-        if (user is null)
-            return NotFound(ApiResponse.Failure("Account not found."));
+        var linkedUser = await dbContext.Users
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(
+                user => user.TenantId == tenantId.Value && user.EmployeeId == employeeId,
+                cancellationToken);
 
-        user.IsActive = false;
+        if (linkedUser is null)
+        {
+            return NotFound(ApiResponse<WorkforceAccountStatusDto>.Failure(
+                "No linked platform account exists for this employee."));
+        }
+
+        linkedUser.IsActive = isActive;
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        return NoContent();
-    }
-
-    private async Task<WorkforceAccountBulkProvisionResultDto> ProvisionInviteAsync(
-        Guid tenantId,
-        WorkforceAccountSubjectDto subject,
-        string role,
-        CancellationToken cancellationToken)
-    {
-        var status = await ResolveStatusAsync(tenantId, subject, cancellationToken);
-
-        switch (status.ProvisioningState)
-        {
-            case StateUnprovisioned:
-            case StateInviteRevoked:
-            {
-                var invite = await CreateInviteAsync(tenantId, subject, role, cancellationToken);
-                var account = BuildInviteStatus(subject.EmployeeId, invite);
-                return BuildBulkResult(subject.EmployeeId, OutcomeCreated, "Invitation created.", account);
-            }
-
-            case StateInviteExpired:
-            {
-                var invite = await FindLatestInviteAsync(tenantId, subject, cancellationToken)
-                    ?? await CreateInviteAsync(tenantId, subject, role, cancellationToken);
-                if (!invite.IsRevoked && !invite.IsUsed)
-                {
-                    invite.ExtendExpiry();
-                    invite.LinkEmployee(subject.EmployeeId);
-                    await dbContext.SaveChangesAsync(cancellationToken);
-                }
-
-                var account = BuildInviteStatus(subject.EmployeeId, invite);
-                return BuildBulkResult(subject.EmployeeId, OutcomeCreated, "Invitation refreshed.", account);
-            }
-
-            case StateInvitePending:
-                return BuildBulkResult(subject.EmployeeId, OutcomePending, "Invitation is already pending.", status);
-            case StateActive:
-                return BuildBulkResult(subject.EmployeeId, OutcomeActive, "Account is already active.", status);
-            case StateInactive:
-                return BuildBulkResult(subject.EmployeeId, OutcomeInactive, "Account is inactive.", status);
-            default:
-                return BuildBulkResult(subject.EmployeeId, OutcomeConflict, status.Conflict?.Message ?? "Access conflict.", status);
-        }
-    }
-
-    private async Task<WorkforceAccountStatusDto> ResolveStatusAsync(
-        Guid tenantId,
-        WorkforceAccountSubjectDto subject,
-        CancellationToken cancellationToken)
-    {
-        var normalizedEmail = NormalizeEmail(subject.Email);
-        var normalizedEmailUpper = normalizedEmail.ToUpperInvariant();
-
-        var userByEmployee = await FindUserByEmployeeAsync(tenantId, subject.EmployeeId, cancellationToken);
-        if (userByEmployee is not null)
-        {
-            if (!string.Equals(userByEmployee.NormalizedEmail, normalizedEmailUpper, StringComparison.Ordinal))
-                return BuildConflictStatus(subject, "EmployeeEmailMismatch", "This employee is linked to a different account email.", "Review the employee email or deactivate the linked account first.");
-
-            return await BuildUserStatusAsync(subject.EmployeeId, userByEmployee);
-        }
-
-        var userByEmail = await dbContext.Users
+        var latestInvite = await dbContext.InviteTokens
             .IgnoreQueryFilters()
-            .FirstOrDefaultAsync(user => user.TenantId == tenantId && user.NormalizedEmail == normalizedEmailUpper, cancellationToken);
-
-        if (userByEmail is not null)
-        {
-            if (userByEmail.EmployeeId.HasValue && userByEmail.EmployeeId.Value != subject.EmployeeId)
-                return BuildConflictStatus(subject, "EmployeeEmailMismatch", "This email is already linked to a different employee.", "Review duplicate employee records before inviting.");
-
-            userByEmail.EmployeeId = subject.EmployeeId;
-            return await BuildUserStatusAsync(subject.EmployeeId, userByEmail);
-        }
-
-        var crossTenantUserExists = await dbContext.Users
-            .IgnoreQueryFilters()
-            .AnyAsync(user => user.TenantId != tenantId && user.NormalizedEmail == normalizedEmailUpper, cancellationToken);
-        if (crossTenantUserExists)
-            return BuildConflictStatus(subject, "EmailAlreadyRegistered", "Email is already registered in another tenant.", "Use another email or contact platform support.");
-
-        var inviteByEmployee = await FindLatestInviteByEmployeeAsync(tenantId, subject.EmployeeId, cancellationToken);
-        if (inviteByEmployee is not null)
-        {
-            if (!string.Equals(inviteByEmployee.Email, normalizedEmail, StringComparison.OrdinalIgnoreCase))
-                return BuildConflictStatus(subject, "EmployeeEmailMismatch", "This employee has an invitation for a different email.", "Revoke the old invitation before sending a new one.");
-
-            return BuildInviteStatus(subject.EmployeeId, inviteByEmployee);
-        }
-
-        var inviteByEmail = await dbContext.InviteTokens
-            .IgnoreQueryFilters()
-            .Where(invite => invite.TenantId == tenantId && invite.Email == normalizedEmail)
+            .Where(invite => invite.TenantId == tenantId.Value && invite.EmployeeId == employeeId)
             .OrderByDescending(invite => invite.CreatedAt)
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (inviteByEmail is not null)
-        {
-            if (inviteByEmail.EmployeeId.HasValue && inviteByEmail.EmployeeId.Value != subject.EmployeeId)
-                return BuildConflictStatus(subject, "EmployeeEmailMismatch", "This email already has an invitation for a different employee.", "Review duplicate employee records before inviting.");
-
-            inviteByEmail.LinkEmployee(subject.EmployeeId);
-            return BuildInviteStatus(subject.EmployeeId, inviteByEmail);
-        }
-
-        return BuildUnprovisionedStatus(subject);
-    }
-
-    private async Task<InviteToken> CreateInviteAsync(
-        Guid tenantId,
-        WorkforceAccountSubjectDto subject,
-        string role,
-        CancellationToken cancellationToken)
-    {
-        var tenantExists = await dbContext.Tenants
-            .IgnoreQueryFilters()
-            .AnyAsync(tenant => tenant.Id == tenantId && tenant.IsActive && !tenant.IsArchived, cancellationToken);
-        if (!tenantExists)
-            throw new InvalidOperationException("Tenant not found or inactive.");
-
-        var currentUserId = User.GetUserId();
-        var invite = InviteToken.Create(
-            NormalizeEmail(subject.Email),
-            tenantId,
+        var role = await GetPrimaryRoleAsync(linkedUser.Id, cancellationToken);
+        var dto = CreateStatusDto(
+            new WorkforceAccountSnapshot(employeeId, linkedUser.Email, linkedUser.FirstName, linkedUser.LastName),
+            linkedUser,
+            latestInvite,
             role,
-            currentUserId,
-            subject.FirstName,
-            subject.LastName,
-            subject.EmployeeId);
+            deliveryResult: null,
+            conflict: null);
 
-        dbContext.InviteTokens.Add(invite);
-        await dbContext.SaveChangesAsync(cancellationToken);
-        return invite;
+        return Ok(ApiResponse<WorkforceAccountStatusDto>.Success(dto));
     }
 
-    private async Task<ApplicationUser?> FindUserByEmployeeAsync(
+    private async Task<WorkforceAccountStatusDto> BuildStatusDtoAsync(
+        WorkforceAccountSnapshot snapshot,
         Guid tenantId,
-        Guid employeeId,
         CancellationToken cancellationToken)
-        => await dbContext.Users
-            .IgnoreQueryFilters()
-            .FirstOrDefaultAsync(user => user.TenantId == tenantId && user.EmployeeId == employeeId, cancellationToken);
+    {
+        var statuses = await BuildStatusesAsync([snapshot], tenantId, cancellationToken);
+        return statuses[0];
+    }
 
-    private async Task<InviteToken?> FindLatestInviteByEmployeeAsync(
+    private async Task<IReadOnlyList<WorkforceAccountStatusDto>> BuildStatusesAsync(
+        IReadOnlyCollection<WorkforceAccountSnapshot> snapshots,
         Guid tenantId,
-        Guid employeeId,
         CancellationToken cancellationToken)
-        => await dbContext.InviteTokens
+    {
+        var resolution = await ResolveStatusDataAsync(snapshots, tenantId, cancellationToken);
+        return snapshots
+            .Select(snapshot => resolution.Statuses[snapshot.EmployeeId])
+            .ToArray();
+    }
+
+    private async Task<ResolvedWorkforceAccountData> ResolveStatusDataAsync(
+        IReadOnlyCollection<WorkforceAccountSnapshot> snapshots,
+        Guid tenantId,
+        CancellationToken cancellationToken)
+    {
+        var employeeIds = snapshots
+            .Select(snapshot => snapshot.EmployeeId)
+            .Distinct()
+            .ToArray();
+        var normalizedEmails = snapshots
+            .Select(snapshot => NormalizeEmail(snapshot.Email))
+            .Where(email => !string.IsNullOrWhiteSpace(email))
+            .Cast<string>()
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        var normalizedUserEmails = normalizedEmails
+            .Select(ToNormalizedUserEmail)
+            .ToArray();
+
+        var linkedUsers = await dbContext.Users
             .IgnoreQueryFilters()
-            .Where(invite => invite.TenantId == tenantId && invite.EmployeeId == employeeId)
+            .Where(user => user.TenantId == tenantId
+                && user.EmployeeId.HasValue
+                && employeeIds.Contains(user.EmployeeId.Value))
+            .ToListAsync(cancellationToken);
+
+        var latestInvites = await dbContext.InviteTokens
+            .IgnoreQueryFilters()
+            .Where(invite => invite.TenantId == tenantId
+                && invite.EmployeeId.HasValue
+                && employeeIds.Contains(invite.EmployeeId.Value))
             .OrderByDescending(invite => invite.CreatedAt)
-            .FirstOrDefaultAsync(cancellationToken);
+            .ToListAsync(cancellationToken);
 
-    private async Task<InviteToken?> FindLatestInviteAsync(
-        Guid tenantId,
-        WorkforceAccountSubjectDto subject,
-        CancellationToken cancellationToken)
-    {
-        var normalizedEmail = NormalizeEmail(subject.Email);
-        return await dbContext.InviteTokens
-            .IgnoreQueryFilters()
-            .Where(invite => invite.TenantId == tenantId && (invite.EmployeeId == subject.EmployeeId || invite.Email == normalizedEmail))
-            .OrderByDescending(invite => invite.CreatedAt)
-            .FirstOrDefaultAsync(cancellationToken);
-    }
+        var emailUsers = normalizedEmails.Length == 0
+            ? new List<ApplicationUser>()
+            : await dbContext.Users
+                .IgnoreQueryFilters()
+                .Where(user => user.NormalizedEmail != null
+                    && normalizedUserEmails.Contains(user.NormalizedEmail))
+                .ToListAsync(cancellationToken);
 
-    private async Task<WorkforceAccountStatusDto> BuildUserStatusAsync(Guid employeeId, ApplicationUser user)
-    {
-        var roles = await userManager.GetRolesAsync(user);
-        return new WorkforceAccountStatusDto
-        {
-            EmployeeId = employeeId,
-            Email = user.Email ?? string.Empty,
-            FullName = user.FullName,
-            Role = PickWorkforceRole(roles),
-            ProvisioningState = user.IsActive ? StateActive : StateInactive,
-            UserId = user.Id,
-            IsActive = user.IsActive,
-            LastLoginAt = user.LastLoginAt
-        };
-    }
+        var pendingEmailInvites = normalizedEmails.Length == 0
+            ? new List<InviteToken>()
+            : await dbContext.InviteTokens
+                .IgnoreQueryFilters()
+                .Where(invite => invite.TenantId == tenantId
+                    && normalizedEmails.Contains(invite.Email)
+                    && invite.AcceptedAt == null
+                    && !invite.IsRevoked
+                    && invite.ExpiresAt > DateTime.UtcNow)
+                .OrderByDescending(invite => invite.CreatedAt)
+                .ToListAsync(cancellationToken);
 
-    private WorkforceAccountStatusDto BuildInviteStatus(Guid employeeId, InviteToken invite)
-    {
-        var state = invite.IsRevoked
-            ? StateInviteRevoked
-            : invite.IsUsed
-                ? StateInviteAccepted
-                : invite.IsExpired
-                    ? StateInviteExpired
-                    : StateInvitePending;
-        var linkable = state == StateInvitePending;
+        var linkedUserIds = linkedUsers.Select(user => user.Id).ToArray();
+        var linkedUserRoles = linkedUserIds.Length == 0
+            ? new List<UserRoleLookup>()
+            : await dbContext.UserRoles
+                .AsNoTracking()
+                .Where(userRole => linkedUserIds.Contains(userRole.UserId))
+                .Join(
+                    dbContext.Roles.AsNoTracking(),
+                    userRole => userRole.RoleId,
+                    role => role.Id,
+                    (userRole, role) => new UserRoleLookup(userRole.UserId, role.Name ?? string.Empty))
+                .ToListAsync(cancellationToken);
 
-        return new WorkforceAccountStatusDto
-        {
-            EmployeeId = employeeId,
-            Email = invite.Email,
-            FullName = BuildFullName(invite.FirstName, invite.LastName),
-            Role = invite.Role,
-            ProvisioningState = state,
-            InviteId = invite.Id,
-            InviteCreatedAt = invite.CreatedAt,
-            InviteExpiresAt = invite.ExpiresAt,
-            InviteLink = linkable ? BuildInviteLink(invite.Token) : null,
-            DeliveryStatus = linkable ? "Suppressed" : null,
-            DeliveryMessage = linkable ? "Email delivery is disabled in this environment." : null,
-            DeliveryRecordedAt = linkable ? invite.CreatedAt : null
-        };
-    }
+        var rolesByUserId = linkedUserRoles
+            .GroupBy(entry => entry.UserId)
+            .ToDictionary(group => group.Key, group => group.Select(entry => entry.Role).FirstOrDefault() ?? string.Empty);
 
-    private static WorkforceAccountStatusDto BuildUnprovisionedStatus(WorkforceAccountSubjectDto subject)
-        => new()
-        {
-            EmployeeId = subject.EmployeeId,
-            Email = NormalizeEmail(subject.Email),
-            FullName = BuildFullName(subject.FirstName, subject.LastName),
-            Role = PlatformRole.Employee,
-            ProvisioningState = StateUnprovisioned
-        };
+        var linkedUsersByEmployeeId = linkedUsers
+            .Where(user => user.EmployeeId.HasValue)
+            .ToDictionary(user => user.EmployeeId!.Value);
 
-    private static WorkforceAccountStatusDto BuildConflictStatus(
-        WorkforceAccountSubjectDto subject,
-        string kind,
-        string message,
-        string suggestedAction)
-        => new()
-        {
-            EmployeeId = subject.EmployeeId,
-            Email = NormalizeEmail(subject.Email),
-            FullName = BuildFullName(subject.FirstName, subject.LastName),
-            Role = PlatformRole.Employee,
-            ProvisioningState = StateConflict,
-            Conflict = new WorkforceAccountConflictDto
+        var latestInvitesByEmployeeId = latestInvites
+            .GroupBy(invite => invite.EmployeeId!.Value)
+            .ToDictionary(group => group.Key, group => group.First());
+
+        var emailUsersByNormalizedEmail = emailUsers
+            .Where(user => !string.IsNullOrWhiteSpace(user.NormalizedEmail))
+            .GroupBy(user => user.NormalizedEmail!, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
+
+        var pendingInvitesByEmail = pendingEmailInvites
+            .GroupBy(invite => invite.Email, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
+
+        var statuses = snapshots.ToDictionary(
+            snapshot => snapshot.EmployeeId,
+            snapshot =>
             {
-                Kind = kind,
-                Message = message,
+                var linkedUser = linkedUsersByEmployeeId.GetValueOrDefault(snapshot.EmployeeId);
+                var latestInvite = latestInvitesByEmployeeId.GetValueOrDefault(snapshot.EmployeeId);
+                var normalizedEmail = NormalizeEmail(snapshot.Email);
+                var emailMatchedUser = normalizedEmail is null
+                    ? null
+                    : emailUsersByNormalizedEmail.GetValueOrDefault(ToNormalizedUserEmail(normalizedEmail));
+                var pendingInviteByEmail = normalizedEmail is null
+                    ? null
+                    : pendingInvitesByEmail.GetValueOrDefault(normalizedEmail);
+                var role = linkedUser is not null && rolesByUserId.TryGetValue(linkedUser.Id, out var linkedRole)
+                    ? linkedRole
+                    : latestInvite?.Role ?? string.Empty;
+                var conflict = ResolveConflict(snapshot, linkedUser, latestInvite, emailMatchedUser, pendingInviteByEmail);
+
+                return CreateStatusDto(snapshot, linkedUser, latestInvite, role, deliveryResult: null, conflict);
+            });
+
+        return new ResolvedWorkforceAccountData(statuses, linkedUsersByEmployeeId, latestInvitesByEmployeeId);
+    }
+
+    private WorkforceAccountStatusDto CreateStatusDto(
+        WorkforceAccountSnapshot snapshot,
+        ApplicationUser? linkedUser,
+        InviteToken? latestInvite,
+        string role,
+        WorkforceInvitationEmailDeliveryResult? deliveryResult,
+        WorkforceAccountConflictDto? conflict)
+    {
+        var inviteLink = latestInvite is not null && !latestInvite.IsUsed
+            ? invitationLinkBuilder.BuildInviteLink(latestInvite.Token)
+            : null;
+
+        return new WorkforceAccountStatusDto
+        {
+            EmployeeId = snapshot.EmployeeId,
+            Email = linkedUser?.Email ?? latestInvite?.Email ?? snapshot.Email ?? string.Empty,
+            FullName = linkedUser?.FullName ?? ResolveFullName(snapshot, latestInvite),
+            Role = role,
+            ProvisioningState = ResolveProvisioningState(linkedUser, latestInvite, conflict),
+            UserId = linkedUser?.Id,
+            IsActive = linkedUser?.IsActive,
+            LastLoginAt = linkedUser?.LastLoginAt,
+            InviteId = latestInvite?.Id,
+            InviteCreatedAt = latestInvite?.CreatedAt,
+            InviteExpiresAt = latestInvite?.ExpiresAt,
+            InviteLink = inviteLink,
+            DeliveryStatus = deliveryResult?.Status ?? latestInvite?.DeliveryStatus,
+            DeliveryMessage = deliveryResult?.Message ?? latestInvite?.DeliveryMessage,
+            DeliveryRecordedAt = deliveryResult is not null
+                ? latestInvite?.DeliveryRecordedAt ?? DateTime.UtcNow
+                : latestInvite?.DeliveryRecordedAt,
+            Conflict = conflict,
+        };
+    }
+
+    private async Task<WorkforceInvitationEmailDeliveryResult> SendInvitationAsync(
+        InviteToken invite,
+        string? firstName,
+        string? lastName,
+        CancellationToken cancellationToken)
+    {
+        var tenant = await dbContext.Tenants
+            .AsNoTracking()
+            .FirstOrDefaultAsync(currentTenant => currentTenant.Id == invite.TenantId, cancellationToken);
+
+        var message = new WorkforceInvitationEmailMessage(
+            invite.Id,
+            invite.Email,
+            invitationLinkBuilder.BuildInviteLink(invite.Token),
+            tenant?.Name ?? "Fusion",
+            invite.Role,
+            firstName,
+            lastName);
+
+        var deliveryResult = await invitationEmailSender.SendInvitationAsync(message, cancellationToken);
+        invite.RecordDeliveryAttempt(deliveryResult.Status, deliveryResult.Message);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return deliveryResult;
+    }
+
+    private async Task<string> GetPrimaryRoleAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        return await dbContext.UserRoles
+            .AsNoTracking()
+            .Where(userRole => userRole.UserId == userId)
+            .Join(
+                dbContext.Roles.AsNoTracking(),
+                userRole => userRole.RoleId,
+                role => role.Id,
+                (_, role) => role.Name)
+            .FirstOrDefaultAsync(cancellationToken)
+            ?? string.Empty;
+    }
+
+    private bool CanProvisionRole(string role)
+    {
+        return User.IsInRole(PlatformRole.PlatformAdmin)
+            || role is PlatformRole.Employee or PlatformRole.Manager;
+    }
+
+    private static bool TryGetProvisioningBlockedMessage(
+        WorkforceAccountStatusDto status,
+        out string blockedMessage)
+    {
+        if (status.Conflict?.Blocking == true)
+        {
+            blockedMessage = status.Conflict.Message;
+            return true;
+        }
+
+        blockedMessage = status.ProvisioningState switch
+        {
+            WorkforceAccountProvisioningStates.Active => "An active platform account is already linked to this employee.",
+            WorkforceAccountProvisioningStates.Inactive => "An inactive platform account is already linked to this employee.",
+            WorkforceAccountProvisioningStates.InvitePending => "A pending workforce invitation already exists for this employee or email.",
+            WorkforceAccountProvisioningStates.InviteAccepted => "This invitation has already been accepted.",
+            _ => string.Empty,
+        };
+
+        return !string.IsNullOrWhiteSpace(blockedMessage);
+    }
+
+    private static string GetOutcome(WorkforceAccountStatusDto status)
+    {
+        return status.ProvisioningState switch
+        {
+            WorkforceAccountProvisioningStates.Active => WorkforceAccountBulkProvisionOutcomes.Active,
+            WorkforceAccountProvisioningStates.Inactive => WorkforceAccountBulkProvisionOutcomes.Inactive,
+            WorkforceAccountProvisioningStates.InvitePending => WorkforceAccountBulkProvisionOutcomes.Pending,
+            _ when status.Conflict?.Blocking == true => WorkforceAccountBulkProvisionOutcomes.Conflict,
+            _ => WorkforceAccountBulkProvisionOutcomes.Conflict,
+        };
+    }
+
+    private static WorkforceAccountConflictDto? ResolveConflict(
+        WorkforceAccountSnapshot snapshot,
+        ApplicationUser? linkedUser,
+        InviteToken? latestInvite,
+        ApplicationUser? emailMatchedUser,
+        InviteToken? pendingInviteByEmail)
+    {
+        var normalizedEmployeeEmail = NormalizeEmail(snapshot.Email);
+        if (string.IsNullOrWhiteSpace(normalizedEmployeeEmail))
+        {
+            return null;
+        }
+
+        if (linkedUser is not null && !EmailsMatch(linkedUser.Email, normalizedEmployeeEmail))
+        {
+            return new WorkforceAccountConflictDto
+            {
+                Kind = WorkforceAccountConflictKinds.EmployeeEmailMismatch,
+                Message = "Employee work email differs from the linked platform account email.",
+                Blocking = false,
+                SuggestedAction = "Review the employee email before reprovisioning or resending access.",
+            };
+        }
+
+        if (linkedUser is null
+            && emailMatchedUser is not null
+            && emailMatchedUser.EmployeeId != snapshot.EmployeeId)
+        {
+            return new WorkforceAccountConflictDto
+            {
+                Kind = WorkforceAccountConflictKinds.EmailAlreadyRegistered,
+                Message = "This work email is already registered to a different platform account.",
                 Blocking = true,
-                SuggestedAction = suggestedAction
-            }
-        };
-
-    private static WorkforceAccountBulkProvisionResultDto BuildBulkResult(
-        Guid employeeId,
-        string outcome,
-        string message,
-        WorkforceAccountStatusDto account)
-        => new()
-        {
-            EmployeeId = employeeId,
-            Outcome = outcome,
-            Message = message,
-            Account = account
-        };
-
-    private string BuildInviteLink(string token)
-        => InvitationLinkBuilder.Build(configuration, token);
-
-    private bool TryGetTenantId(out Guid tenantId, out string error)
-    {
-        var resolvedTenantId = tenantContext.TenantIdOrDefault ?? User.GetTenantId();
-        if (!resolvedTenantId.HasValue || resolvedTenantId.Value == Guid.Empty)
-        {
-            tenantId = Guid.Empty;
-            error = "Tenant context required.";
-            return false;
+                SuggestedAction = "Resolve the existing account before provisioning access for this employee.",
+            };
         }
 
-        tenantId = resolvedTenantId.Value;
-        error = string.Empty;
-        return true;
-    }
-
-    private static string? ValidateSubjects<TSubject>(IEnumerable<TSubject>? subjects)
-        where TSubject : WorkforceAccountSubjectDto
-    {
-        if (subjects is null)
-            return "At least one workforce account subject is required.";
-
-        foreach (var subject in subjects)
+        if (linkedUser is null
+            && pendingInviteByEmail is not null
+            && pendingInviteByEmail.EmployeeId != snapshot.EmployeeId)
         {
-            var error = ValidateSubject(subject);
-            if (error is not null)
-                return error;
+            return new WorkforceAccountConflictDto
+            {
+                Kind = WorkforceAccountConflictKinds.PendingInviteExists,
+                Message = "A pending invitation already exists for this work email.",
+                Blocking = true,
+                SuggestedAction = "Use the existing invitation or wait until it is resolved before provisioning another account.",
+            };
+        }
+
+        if (latestInvite is not null
+            && !latestInvite.IsUsed
+            && !latestInvite.IsRevoked
+            && !latestInvite.IsExpired
+            && !EmailsMatch(latestInvite.Email, normalizedEmployeeEmail))
+        {
+            return new WorkforceAccountConflictDto
+            {
+                Kind = WorkforceAccountConflictKinds.EmployeeEmailMismatch,
+                Message = "A pending invitation exists for a different email than the employee record.",
+                Blocking = true,
+                SuggestedAction = "Resolve the email mismatch before resending or provisioning a new invitation.",
+            };
         }
 
         return null;
     }
 
-    private static string? ValidateSubject(WorkforceAccountSubjectDto subject)
+    private static string? ResolveFullName(WorkforceAccountSnapshot snapshot, InviteToken? invite)
     {
-        if (subject.EmployeeId == Guid.Empty)
-            return "Employee ID is required.";
+        var snapshotFullName = string.Join(
+            " ",
+            new[] { snapshot.FirstName, snapshot.LastName }
+                .Where(value => !string.IsNullOrWhiteSpace(value))
+                .Select(value => value!.Trim()));
 
-        if (string.IsNullOrWhiteSpace(subject.Email))
-            return "Email is required.";
+        if (!string.IsNullOrWhiteSpace(snapshotFullName))
+        {
+            return snapshotFullName;
+        }
 
-        return null;
+        return ResolveInviteFullName(invite);
     }
 
-    private static IEnumerable<TSubject> DistinctSubjects<TSubject>(IEnumerable<TSubject> subjects)
-        where TSubject : WorkforceAccountSubjectDto
-        => subjects
-            .GroupBy(subject => subject.EmployeeId)
-            .Select(group => group.Last());
-
-    private static string NormalizeEmail(string email)
-        => email.Trim().ToLowerInvariant();
-
-    private static string? NormalizeWorkforceRole(string? role)
+    private static string? ResolveInviteFullName(InviteToken? invite)
     {
-        if (string.Equals(role, PlatformRole.Manager, StringComparison.OrdinalIgnoreCase))
-            return PlatformRole.Manager;
+        if (invite is null)
+        {
+            return null;
+        }
 
-        if (string.Equals(role, PlatformRole.Employee, StringComparison.OrdinalIgnoreCase))
-            return PlatformRole.Employee;
+        var fullName = string.Join(
+            " ",
+            new[] { invite.FirstName, invite.LastName }
+                .Where(value => !string.IsNullOrWhiteSpace(value))
+                .Select(value => value!.Trim()));
 
-        return null;
-    }
-
-    private static string PickWorkforceRole(IEnumerable<string> roles)
-    {
-        if (roles.Contains(PlatformRole.Manager))
-            return PlatformRole.Manager;
-
-        if (roles.Contains(PlatformRole.Employee))
-            return PlatformRole.Employee;
-
-        return roles.FirstOrDefault() ?? PlatformRole.Employee;
-    }
-
-    private static string? BuildFullName(string? firstName, string? lastName)
-    {
-        var fullName = $"{firstName} {lastName}".Trim();
         return string.IsNullOrWhiteSpace(fullName) ? null : fullName;
     }
+
+    private static string ResolveProvisioningState(
+        ApplicationUser? linkedUser,
+        InviteToken? latestInvite,
+        WorkforceAccountConflictDto? conflict)
+    {
+        if (linkedUser is not null)
+        {
+            return linkedUser.IsActive
+                ? WorkforceAccountProvisioningStates.Active
+                : WorkforceAccountProvisioningStates.Inactive;
+        }
+
+        if (latestInvite is null)
+        {
+            return conflict?.Blocking == true
+                ? WorkforceAccountProvisioningStates.Conflict
+                : WorkforceAccountProvisioningStates.Unprovisioned;
+        }
+
+        if (latestInvite.IsUsed)
+        {
+            return WorkforceAccountProvisioningStates.InviteAccepted;
+        }
+
+        if (latestInvite.IsRevoked)
+        {
+            return WorkforceAccountProvisioningStates.InviteRevoked;
+        }
+
+        if (latestInvite.IsExpired)
+        {
+            return WorkforceAccountProvisioningStates.InviteExpired;
+        }
+
+        return WorkforceAccountProvisioningStates.InvitePending;
+    }
+
+    private static WorkforceAccountSnapshot ToSnapshot(WorkforceAccountEmployeeSnapshotRequest request)
+        => new(request.EmployeeId, request.Email, request.FirstName, request.LastName);
+
+    private static string? NormalizeEmail(string? email)
+    {
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            return null;
+        }
+
+        return email.Trim().ToLowerInvariant();
+    }
+
+    private static string ToNormalizedUserEmail(string email)
+        => email.Trim().ToUpperInvariant();
+
+    private static bool EmailsMatch(string? left, string? right)
+        => string.Equals(NormalizeEmail(left), NormalizeEmail(right), StringComparison.OrdinalIgnoreCase);
+
+    private sealed record WorkforceAccountSnapshot(
+        Guid EmployeeId,
+        string? Email,
+        string? FirstName,
+        string? LastName);
+
+    private sealed record UserRoleLookup(Guid UserId, string Role);
+
+    private sealed record ResolvedWorkforceAccountData(
+        IReadOnlyDictionary<Guid, WorkforceAccountStatusDto> Statuses,
+        IReadOnlyDictionary<Guid, ApplicationUser> LinkedUsersByEmployeeId,
+        IReadOnlyDictionary<Guid, InviteToken> LatestInvitesByEmployeeId);
 }

@@ -33,62 +33,21 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
-    /// Register a new user. Requires HRAdmin or PlatformAdmin role.
-    /// For B2B HR platforms, users are provisioned by admins, not self-registered.
-    /// Use POST /api/identity/tenants/{tenantId}/users for admin-provisioned user creation.
+    /// Registration is disabled for workforce users.
+    /// CoreHR employees and managers must activate access from an employee-linked invitation.
     /// </summary>
     [HttpPost("register")]
     [Authorize(Roles = $"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin}")]
-    [ProducesResponseType(typeof(ApiResponse<AuthResponse>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<AuthResponse>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    public async Task<ActionResult<ApiResponse<AuthResponse>>> Register(
+    public ActionResult<ApiResponse<AuthResponse>> Register(
         [FromBody] RegisterRequest request)
     {
-        // Get the caller's tenant ID for the new user
-        var callerTenantId = User.GetTenantId();
-        if (!callerTenantId.HasValue || callerTenantId.Value == Guid.Empty)
-        {
-            return BadRequest(ApiResponse<AuthResponse>.Failure(
-                "Cannot determine tenant context. Use POST /api/identity/tenants/{tenantId}/users instead."));
-        }
+        _ = request;
 
-        // Check if email already exists (cross-tenant uniqueness)
-        var normalizedRegEmail = request.Email?.Trim().ToUpperInvariant();
-        var existingUser = await _dbContext.Users
-            .IgnoreQueryFilters()
-            .AnyAsync(u => u.NormalizedEmail == normalizedRegEmail);
-        if (existingUser)
-            return BadRequest(ApiResponse<AuthResponse>.Failure("Email is already registered."));
-
-        // Create the user entity
-        var user = new ApplicationUser
-        {
-            UserName = request.Email,
-            Email = request.Email,
-            FirstName = request.FirstName,
-            LastName = request.LastName,
-            Department = request.Department,
-            JobTitle = request.JobTitle,
-            HireDate = DateTime.SpecifyKind(request.HireDate, DateTimeKind.Utc),
-            TenantId = callerTenantId.Value
-        };
-
-        // Save to database with hashed password
-        var result = await _userManager.CreateAsync(user, request.Password);
-        if (!result.Succeeded)
-        {
-            var errors = result.Errors.Select(e => e.Description).ToArray();
-            return BadRequest(ApiResponse<AuthResponse>.Failure(errors));
-        }
-
-        // Assign default role
-        await _userManager.AddToRoleAsync(user, PlatformRole.Employee);
-
-        // Generate tokens and return
-        var authResponse = await GenerateAuthResponseAsync(user);
-        return Ok(ApiResponse<AuthResponse>.Success(authResponse));
+        return BadRequest(ApiResponse<AuthResponse>.Failure(
+            "Self-service registration is disabled. Core workforce access must be activated from a trusted employee record invitation."));
     }
 
     [HttpPost("login")]
@@ -201,10 +160,10 @@ public class AuthController : ControllerBase
         return new AuthResponse
         {
             UserId = user.Id,
+            EmployeeId = user.EmployeeId,
             Email = user.Email!,
             FullName = user.FullName,
             Roles = roles.ToList(),
-            EmployeeId = user.EmployeeId,
             AccessToken = accessToken,
             RefreshToken = refreshTokenString,
             AccessTokenExpiration = DateTime.UtcNow.AddMinutes(

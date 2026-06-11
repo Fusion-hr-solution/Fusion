@@ -69,10 +69,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               accessTokenExpiration: d.accessTokenExpiration,
               user: {
                 userId: d.userId,
+                tenantId: d.tenantId,
                 email: d.email,
                 fullName: d.fullName,
                 roles: d.roles,
                 employeeId: d.employeeId ?? null,
+                accessProfiles: d.accessProfiles ?? [],
+                effectivePermissions: d.effectivePermissions ?? [],
               },
             };
 
@@ -118,10 +121,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const d = await apiLogin(req);
         const authUser: AuthUser = {
           userId: d.userId,
+          tenantId: d.tenantId,
           email: d.email,
           fullName: d.fullName,
           roles: d.roles,
           employeeId: d.employeeId ?? null,
+          accessProfiles: d.accessProfiles ?? [],
+          effectivePermissions: d.effectivePermissions ?? [],
         };
         setUser(authUser);
         setAccessToken(d.accessToken);
@@ -149,10 +155,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const d = await apiRegister(req);
         const authUser: AuthUser = {
           userId: d.userId,
+          tenantId: d.tenantId,
           email: d.email,
           fullName: d.fullName,
           roles: d.roles,
           employeeId: d.employeeId ?? null,
+          accessProfiles: d.accessProfiles ?? [],
+          effectivePermissions: d.effectivePermissions ?? [],
         };
         setUser(authUser);
         setAccessToken(d.accessToken);

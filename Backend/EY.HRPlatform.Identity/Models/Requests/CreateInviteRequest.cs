@@ -14,6 +14,11 @@ public class CreateInviteRequest
     public string Email { get; set; } = string.Empty;
 
     /// <summary>
+    /// Optional: Core employee identifier to link when the invite is accepted.
+    /// </summary>
+    public Guid? EmployeeId { get; set; }
+
+    /// <summary>
     /// Role to assign when the invite is accepted.
     /// HRAdmin can only invite as Employee or Manager.
     /// PlatformAdmin can invite as any role.

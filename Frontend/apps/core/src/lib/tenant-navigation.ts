@@ -1,14 +1,17 @@
 export function buildTenantContextHref(
   href: string,
-  tenantId: string | null
+  tenantId: string | null,
+  tenantSlug?: string | null
 ): string {
-  if (!tenantId) {
+  if (!tenantId && !tenantSlug) {
     return href;
   }
 
   const url = new URL(href, "http://localhost");
 
-  if (!url.searchParams.has("tenantId")) {
+  if (tenantSlug && !url.searchParams.has("tenant")) {
+    url.searchParams.set("tenant", tenantSlug);
+  } else if (tenantId && !url.searchParams.has("tenantId")) {
     url.searchParams.set("tenantId", tenantId);
   }
 
