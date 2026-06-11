@@ -7,7 +7,8 @@ namespace EY.HRPlatform.CoreHR.Tests.Features.Workforce;
 
 public class WorkforceControllerAuthorizationTests
 {
-    private const string WorkforceReadRoles = PlatformRole.HRAdmin + "," + PlatformRole.Employee + "," + PlatformRole.Manager;
+    private const string WorkforceReadRoles = PlatformRole.PlatformAdmin + "," + PlatformRole.HRAdmin + "," + PlatformRole.Employee + "," + PlatformRole.Manager;
+    private const string OrgUnitReadRoles = PlatformRole.PlatformAdmin + "," + PlatformRole.HRAdmin;
 
     [Fact]
     public void GetCurrentContext_AllowsWorkforceReadRoles()
@@ -32,13 +33,13 @@ public class WorkforceControllerAuthorizationTests
     }
 
     [Fact]
-    public void GetPublishedOrgUnits_RequiresHrAdminRole()
+    public void GetPublishedOrgUnits_AllowsPlatformAdminAndHrAdminRoles()
     {
         var method = typeof(WorkforceController).GetMethod(nameof(WorkforceController.GetPublishedOrgUnits));
         var authorize = method?.GetCustomAttribute<AuthorizeAttribute>(inherit: false);
 
         Assert.NotNull(method);
         Assert.NotNull(authorize);
-        Assert.Equal(PlatformRole.HRAdmin, authorize!.Roles);
+        Assert.Equal(OrgUnitReadRoles, authorize!.Roles);
     }
 }

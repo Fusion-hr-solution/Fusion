@@ -128,8 +128,8 @@ function isCoreBrowserPath(): boolean {
     return false;
   }
 
-  const { pathname } = window.location;
-  return pathname === "/core" || pathname.startsWith("/core/");
+  const pathname = window.location?.pathname;
+  return typeof pathname === "string" && (pathname === "/core" || pathname.startsWith("/core/"));
 }
 
 function getBrowserTenantId(): string | null {
