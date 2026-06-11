@@ -684,5 +684,16 @@
         "actions": "Actions"
       }
     }
+  },
+  "verify": {
+    "subtitle": "Vérification de certificat",
+    "notFoundTitle": "Certificat introuvable",
+    "notFoundBody": "Nous n'avons trouvé aucun certificat portant le numéro <mono>{number}</mono>.",
+    "valid": "Valide",
+    "revoked": "Révoqué",
+    "awardedTo": "Délivré à",
+    "training": "Formation",
+    "issued": "Délivré le",
+    "certificateNumber": "Certificat n°"
   }
 }

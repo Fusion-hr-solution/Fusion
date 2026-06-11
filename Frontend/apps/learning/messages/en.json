@@ -684,5 +684,16 @@
         "actions": "Actions"
       }
     }
+  },
+  "verify": {
+    "subtitle": "Certificate verification",
+    "notFoundTitle": "Certificate not found",
+    "notFoundBody": "We couldn't find a certificate with the number <mono>{number}</mono>.",
+    "valid": "Valid",
+    "revoked": "Revoked",
+    "awardedTo": "Awarded to",
+    "training": "Training",
+    "issued": "Issued",
+    "certificateNumber": "Certificate No."
   }
 }
