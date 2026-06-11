@@ -15,6 +15,8 @@ import {
   Users,
   type LucideIcon,
 } from "lucide-react";
+import { useTenantContext } from "@/components/core-tenant-context-provider";
+import { buildTenantContextHref } from "@/lib/tenant-navigation";
 import { ApiError, type FieldConfigDto } from "@repo/api";
 import { canAccessCoreSettings, useAuth } from "@repo/auth";
 import { EmptyState } from "@repo/ui";
@@ -175,7 +177,10 @@ function SettingsPageSkeleton() {
 export default function SettingsPage() {
   const router = useRouter();
   const { user } = useAuth();
-  const canAccess = canAccessCoreSettings(user);
+  const { tenantId } = useTenantContext();
+  const setupHref = buildTenantContextHref("/setup", tenantId);
+  const isTenantContextReadOnly = !!tenantId;
+  const canAccess = canAccessCoreSettings(user) || isTenantContextReadOnly;
   const { setupState } = useCoreSetupAccess();
   const {
     data: settings,
@@ -226,6 +231,10 @@ export default function SettingsPage() {
     property: keyof FieldConfigDto,
     nextValue: boolean
   ) => {
+    if (isTenantContextReadOnly) {
+      return;
+    }
+
     const fieldDefinition = ACTIVE_EMPLOYEE_FIELD_DEFINITIONS.find(
       (field) => field.key === fieldKey
     );
@@ -270,12 +279,16 @@ export default function SettingsPage() {
   };
 
   const handleReset = () => {
+    if (isTenantContextReadOnly) {
+      return;
+    }
+
     setDraftFieldConfig(settingsFieldConfig);
     setSaveError(null);
   };
 
   const handleSave = async () => {
-    if (!settings) {
+    if (!settings || isTenantContextReadOnly) {
       return;
     }
 
@@ -335,7 +348,7 @@ export default function SettingsPage() {
       <PageHeader
         title="Core Configuration"
         actions={
-          <Button variant="outline" onClick={() => router.push("/setup")}>
+          <Button variant="outline" onClick={() => router.push(setupHref)}>
             Open setup
           </Button>
         }
@@ -427,7 +440,7 @@ export default function SettingsPage() {
                           <TableCell>
                             <MatrixSwitch
                               checked={config.visible}
-                              disabled={hrAdminLocked}
+                              disabled={isTenantContextReadOnly || hrAdminLocked}
                               ariaLabel={`${field.label} visible in Core`}
                               onCheckedChange={(checked) =>
                                 handleToggle(field.key, "visible", checked)
@@ -438,6 +451,7 @@ export default function SettingsPage() {
                             <MatrixSwitch
                               checked={config.required}
                               disabled={
+                                isTenantContextReadOnly ||
                                 field.locked ||
                                 field.requiredLocked ||
                                 !config.visible
@@ -457,23 +471,29 @@ export default function SettingsPage() {
 
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-muted/20 px-4 py-3">
                 <p className="text-sm text-muted-foreground">
-                  {hasChanges
-                    ? "Changes are ready to save."
-                    : "No unsaved changes."}
+                  {isTenantContextReadOnly
+                    ? "Read-only view — settings cannot be modified."
+                    : hasChanges
+                      ? "Changes are ready to save."
+                      : "No unsaved changes."}
                 </p>
-                <Button
-                  variant="ghost"
-                  disabled={!hasChanges}
-                  onClick={handleReset}
-                >
-                  Reset
-                </Button>
-                <Button
-                  disabled={!hasChanges || updateSettings.isLoading}
-                  onClick={handleSave}
-                >
-                  {updateSettings.isLoading ? "Saving..." : "Save field rules"}
-                </Button>
+                {!isTenantContextReadOnly ? (
+                  <>
+                    <Button
+                      variant="ghost"
+                      disabled={!hasChanges}
+                      onClick={handleReset}
+                    >
+                      Reset
+                    </Button>
+                    <Button
+                      disabled={!hasChanges || updateSettings.isLoading}
+                      onClick={handleSave}
+                    >
+                      {updateSettings.isLoading ? "Saving..." : "Save field rules"}
+                    </Button>
+                  </>
+                ) : null}
               </div>
             </CardContent>
           </Card>
@@ -491,14 +511,14 @@ export default function SettingsPage() {
                   <DraftOrgUnitKindManager
                     schema={settings.draftStructureSchema}
                     existingUnits={[]}
-                    disabled={false}
+                    disabled={isTenantContextReadOnly}
                     triggerLabel="Manage org-unit kinds"
                   />
                 ) : (
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => router.push("/setup")}
+                    onClick={() => router.push(setupHref)}
                   >
                     Open setup
                   </Button>
@@ -512,6 +532,8 @@ export default function SettingsPage() {
                 ) : null}
                 {!isOrgStructureEditable ? (
                   <Badge variant="outline">Managed in Setup</Badge>
+                ) : isTenantContextReadOnly ? (
+                  <Badge variant="outline">Read-only</Badge>
                 ) : (
                   <Badge variant="secondary">Editable now</Badge>
                 )}
@@ -521,6 +543,11 @@ export default function SettingsPage() {
                 <div className="rounded-xl border border-dashed bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
                   Org-unit kinds are managed from the active setup draft. Open
                   Setup to make changes.
+                </div>
+              ) : isTenantContextReadOnly ? (
+                <div className="rounded-xl border border-dashed bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
+                  Org-unit kinds are visible here, but tenant-context browsing is
+                  read-only.
                 </div>
               ) : null}
 

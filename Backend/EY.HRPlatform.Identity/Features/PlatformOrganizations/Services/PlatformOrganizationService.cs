@@ -70,7 +70,13 @@ public sealed class PlatformOrganizationService(
             InvitedPending = allSummaries.Count(s =>
                 s.OperationalStatus.Equals(OrganizationOperationalStatus.Invited, StringComparison.OrdinalIgnoreCase)),
             ActiveOrganizations = allSummaries.Count(s =>
-                s.OperationalStatus.Equals(OrganizationOperationalStatus.Active, StringComparison.OrdinalIgnoreCase))
+                s.OperationalStatus.Equals(OrganizationOperationalStatus.Active, StringComparison.OrdinalIgnoreCase)),
+            DraftOrganizations = allSummaries.Count(s =>
+                s.OperationalStatus.Equals(OrganizationOperationalStatus.Draft, StringComparison.OrdinalIgnoreCase)),
+            SuspendedOrganizations = allSummaries.Count(s =>
+                s.OperationalStatus.Equals(OrganizationOperationalStatus.Suspended, StringComparison.OrdinalIgnoreCase)),
+            ArchivedOrganizations = allSummaries.Count(s =>
+                s.OperationalStatus.Equals(OrganizationOperationalStatus.Archived, StringComparison.OrdinalIgnoreCase))
         };
 
         // Apply search filter for paginated list

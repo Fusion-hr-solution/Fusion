@@ -5,21 +5,6 @@ import { createPlatformApiClient, isBrowser } from "../platform";
 
 let fetchSpy: ReturnType<typeof vi.fn>;
 
-type StoredAuthSnapshot = {
-  user: {
-    employeeId?: string | null;
-  };
-};
-
-function readStoredAuth(storage: Record<string, string>, key: string): StoredAuthSnapshot {
-  const raw = storage[key];
-  if (raw === undefined) {
-    throw new Error(`Expected ${key} to be present in storage`);
-  }
-
-  return JSON.parse(raw) as StoredAuthSnapshot;
-}
-
 beforeEach(() => {
   fetchSpy = vi
     .fn()
@@ -171,7 +156,7 @@ describe("createPlatformApiClient", () => {
     const [, protectedInit] = fetchSpy.mock.calls[1] as [string, RequestInit];
     const headers = protectedInit.headers as Record<string, string>;
     expect(headers["Authorization"]).toBe("Bearer fresh-token");
-    expect(readStoredAuth(storage, "ey_hr_auth").user.employeeId).toBe("employee-1");
+    expect(JSON.parse(storage.ey_hr_auth!).user.employeeId).toBe("employee-1");
   });
 
   it("retries once after a 401 by refreshing the stored session", async () => {

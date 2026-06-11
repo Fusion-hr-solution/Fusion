@@ -13,6 +13,7 @@ import { useApiQueryClient } from "@repo/api/query";
 import { useAuth } from "@repo/auth";
 import { DEFAULT_PAGE_SIZE, EmptyState, type PageSize } from "@repo/ui";
 import { CorePageLoadingState } from "@/components/core-page-loading-state";
+import { useTenantContext } from "@/components/core-tenant-context-provider";
 import { PageHeader } from "@/components/page-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -57,6 +58,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useToast } from "@/components/ui/use-toast";
 import { canAccessEmployeeRoster } from "@/lib/employee-roster-access";
+import { buildTenantContextHref } from "@/lib/tenant-navigation";
 import {
   type AccessInviteRole,
   getAccessBadgeTone,
@@ -693,7 +695,9 @@ export default function EmployeesPage() {
   const queryClient = useApiQueryClient();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const canAccess = canAccessEmployeeRoster(user);
+  const { tenantId } = useTenantContext();
+  const isTenantContextReadOnly = !!tenantId;
+  const canAccess = canAccessEmployeeRoster(user) || isTenantContextReadOnly;
   const shouldAutoReviewAccess = searchParams.get("review") === "access";
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<PageSize>(DEFAULT_PAGE_SIZE);
@@ -1045,9 +1049,9 @@ export default function EmployeesPage() {
 
   const handleRowClick = useCallback(
     (employee: EmployeeRosterRow) => {
-      router.push(`/employees/${employee.id}`);
+      router.push(buildTenantContextHref(`/employees/${employee.id}`, tenantId));
     },
-    [router]
+    [router, tenantId]
   );
 
   const handleRowSelectionChange = useCallback(
@@ -1321,12 +1325,14 @@ export default function EmployeesPage() {
         title="Employees"
         description="Manage the tenant roster and send access invitations when employees are ready."
         actions={
-          <Button asChild>
-            <Link href="/employees/import">
-              <Upload />
-              Import employees
-            </Link>
-          </Button>
+          !isTenantContextReadOnly ? (
+            <Button asChild>
+              <Link href="/employees/import">
+                <Upload />
+                Import employees
+              </Link>
+            </Button>
+          ) : null
         }
       />
 
@@ -1377,7 +1383,7 @@ export default function EmployeesPage() {
         </Alert>
       ) : null}
 
-      {selectedEmployees.length > 0 ? (
+      {selectedEmployees.length > 0 && !isTenantContextReadOnly ? (
         <SelectedAccessActionBar
           canOfferSelectAllMatching={canOfferSelectAllMatching}
           isSelectingAllMatching={isSelectingAllMatching}
