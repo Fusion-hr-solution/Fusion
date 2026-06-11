@@ -93,6 +93,7 @@ export function TestDashboard() {
 
   async function handleEdit(test: Test, targetStep = 1): Promise<void> {
     setActionBusyId(test.id);
+    setMutationError(null);
     try {
       await loadTestIntoWizard(test, targetStep);
       router.push("/tests/create");
@@ -105,6 +106,7 @@ export function TestDashboard() {
 
   async function handleOpenCandidatePreview(test: Test): Promise<void> {
     setActionBusyId(test.id);
+    setMutationError(null);
     try {
       await loadTestIntoWizard(test, 4);
       closePreview();
@@ -118,6 +120,7 @@ export function TestDashboard() {
 
   async function handleDuplicate(test: Test): Promise<void> {
     setActionBusyId(test.id);
+    setMutationError(null);
     try {
       await duplicateTest(test);
       await invalidateTests();
@@ -137,6 +140,7 @@ export function TestDashboard() {
     }
 
     setActionBusyId(test.id);
+    setMutationError(null);
     try {
       await setTestStatus(test, status);
       await invalidateTests();
@@ -184,6 +188,7 @@ export function TestDashboard() {
 
     const { test, type } = pendingAction;
     setActionBusyId(test.id);
+    setMutationError(null);
     try {
       if (type === "archive") {
         await archiveTest(test);
