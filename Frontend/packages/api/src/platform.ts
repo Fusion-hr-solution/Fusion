@@ -269,7 +269,7 @@ export function createPlatformApiClient(
   const baseUrl =
     config.baseUrl ??
     (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_API_BASE_URL
-      ? process.env.NEXT_PUBLIC_API_BASE_URL
+      ? process.env.NEXT_PUBLIC_API_BASE_URL!
       : "/api");
 
   const usesBrowserSessionRefresh = !config.getToken && isBrowser();
