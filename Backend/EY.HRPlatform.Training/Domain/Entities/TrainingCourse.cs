@@ -9,6 +9,10 @@ public class TrainingCourse : AggregateRoot
     public string? Description { get; private set; }
     public int Credits { get; private set; }
     public bool IsMandatory { get; private set; }
+
+    /// <summary>Whether completing this formation issues a nominative certificate. Defaults to true.</summary>
+    public bool IssuesCertificate { get; private set; } = true;
+
     public BadgeLevel BadgeLevel { get; private set; }
     public string? Duration { get; private set; }
     public TrainingType TrainingType { get; private set; } = TrainingType.ELearning;
@@ -104,6 +108,12 @@ public class TrainingCourse : AggregateRoot
     public void UpdateCategory(Guid categoryId)
     {
         CategoryId = categoryId;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void SetIssuesCertificate(bool issuesCertificate)
+    {
+        IssuesCertificate = issuesCertificate;
         UpdatedAt = DateTime.UtcNow;
     }
 
