@@ -1,3 +1,5 @@
+"use client";
+
 import {
   GraduationCap,
   HelpCircle,
@@ -6,25 +8,27 @@ import {
   RotateCcw,
   Lock,
 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { ExamCardProps } from "@/types/component-props";
 
 export function ExamCard({ exam, chaptersCount, isEnrolled }: ExamCardProps) {
+  const t = useTranslations("trainingDetail.exam");
   const stats = [
     {
       icon: HelpCircle,
-      value: `${exam.questionsCount} questions`,
-      label: "Total Questions",
+      value: t("questionsValue", { count: exam.questionsCount }),
+      labelKey: "totalQuestions",
     },
     {
       icon: Target,
       value: `${exam.passingScore}%`,
-      label: "Passing Score",
+      labelKey: "passingScore",
     },
     ...(exam.timeLimit
-      ? [{ icon: Clock, value: exam.timeLimit, label: "Time Limit" }]
+      ? [{ icon: Clock, value: exam.timeLimit, labelKey: "timeLimit" }]
       : []),
     ...(exam.maxAttempts
-      ? [{ icon: RotateCcw, value: `${exam.maxAttempts} attempts`, label: "Max Attempts" }]
+      ? [{ icon: RotateCcw, value: t("attemptsValue", { count: exam.maxAttempts }), labelKey: "maxAttempts" }]
       : []),
   ];
 
@@ -40,10 +44,10 @@ export function ExamCard({ exam, chaptersCount, isEnrolled }: ExamCardProps) {
         </div>
         <div>
           <h3 className="text-sm font-bold text-foreground">
-            Certification Exam
+            {t("title")}
           </h3>
           <p className="text-xs text-muted-foreground">
-            Validate your knowledge to earn your certificate
+            {t("subtitle")}
           </p>
         </div>
       </div>
@@ -54,7 +58,7 @@ export function ExamCard({ exam, chaptersCount, isEnrolled }: ExamCardProps) {
           const Icon = stat.icon;
           return (
             <div
-              key={stat.label}
+              key={stat.labelKey}
               className="flex flex-col items-center gap-2 bg-white px-4 py-5 text-center"
             >
               <Icon
@@ -65,7 +69,7 @@ export function ExamCard({ exam, chaptersCount, isEnrolled }: ExamCardProps) {
                 {stat.value}
               </span>
               <span className="text-xs text-muted-foreground">
-                {stat.label}
+                {t(stat.labelKey)}
               </span>
             </div>
           );
@@ -80,11 +84,10 @@ export function ExamCard({ exam, chaptersCount, isEnrolled }: ExamCardProps) {
             aria-hidden="true"
           />
           <p className="text-xs text-muted-foreground">
-            Complete all{" "}
-            <span className="font-semibold text-foreground">
-              {chaptersCount} chapters
-            </span>{" "}
-            to unlock the exam
+            {t.rich("unlockHint", {
+              count: chaptersCount,
+              b: (chunks) => <span className="font-semibold text-foreground">{chunks}</span>,
+            })}
           </p>
         </div>
       )}

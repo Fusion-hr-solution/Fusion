@@ -3,10 +3,12 @@
 import { ChevronDown, Clock } from "lucide-react";
 import { useState } from "react";
 import { Badge } from "@repo/ui";
+import { useTranslations } from "next-intl";
 import type { SessionPickerPartProps } from "@/types/component-props";
 import { SessionPickerCard } from "./session-picker-card";
 
 export function SessionPickerPart({ part, selectedSessionId, onSelect }: SessionPickerPartProps) {
+  const t = useTranslations("trainingDetail.sessions.picker");
   const [expanded, setExpanded] = useState(true);
   const totalSessions = part.sessions.length;
   const availableSessions = part.sessions.filter((s) => !s.isFull).length;
@@ -26,9 +28,9 @@ export function SessionPickerPart({ part, selectedSessionId, onSelect }: Session
             <p className="text-sm font-semibold text-foreground truncate">{part.title}</p>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Clock className="h-3 w-3" />
-              <span>{part.durationHours}h</span>
+              <span>{t("hours", { count: part.durationHours })}</span>
               <span className="text-border">·</span>
-              <span>{totalSessions} {totalSessions === 1 ? "session" : "sessions"}</span>
+              <span>{t("sessionsCount", { count: totalSessions })}</span>
             </div>
           </div>
         </div>
@@ -36,11 +38,11 @@ export function SessionPickerPart({ part, selectedSessionId, onSelect }: Session
         <div className="flex items-center gap-2 shrink-0">
           {selectedSessionId ? (
             <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-xs">
-              Selected
+              {t("selected")}
             </Badge>
           ) : (
             <Badge variant="outline" className="text-xs text-muted-foreground">
-              {availableSessions} available
+              {t("availableCount", { count: availableSessions })}
             </Badge>
           )}
           <ChevronDown
@@ -66,7 +68,7 @@ export function SessionPickerPart({ part, selectedSessionId, onSelect }: Session
           </div>
           {totalSessions === 0 && (
             <p className="py-4 text-center text-sm text-muted-foreground">
-              No sessions scheduled for this part yet.
+              {t("noSessions")}
             </p>
           )}
         </div>

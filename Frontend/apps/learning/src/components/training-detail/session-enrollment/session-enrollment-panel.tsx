@@ -4,6 +4,7 @@ import { useState } from "react";
 import { CalendarPlus, Loader2, ChevronRight } from "lucide-react";
 import { Button } from "@repo/ui";
 import { Skeleton } from "@repo/ui";
+import { useTranslations } from "next-intl";
 import type { SessionEnrollmentPanelProps } from "@/types/component-props";
 import { useSessionEnrollment } from "@/hooks/use-session-enrollment";
 import { SessionPickerPart } from "./session-picker-part";
@@ -12,6 +13,7 @@ import { EnrollmentResultDialog } from "./enrollment-result-dialog";
 import { CancelEnrollmentDialog } from "./cancel-enrollment-dialog";
 
 export function SessionEnrollmentPanel({ trainingId }: SessionEnrollmentPanelProps) {
+  const t = useTranslations("trainingDetail");
   const {
     available,
     loadingAvailable,
@@ -51,9 +53,9 @@ export function SessionEnrollmentPanel({ trainingId }: SessionEnrollmentPanelPro
     return (
       <div className="ey-animate-fade-up space-y-4" style={{ animationDelay: "280ms" }}>
         <div>
-          <h2 className="text-lg font-semibold text-foreground">My Session Enrollments</h2>
+          <h2 className="text-lg font-semibold text-foreground">{t("sessions.panel.myEnrollmentsTitle")}</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Your enrollment status for each part of this training.
+            {t("sessions.panel.myEnrollmentsSubtitle")}
           </p>
         </div>
 
@@ -76,12 +78,12 @@ export function SessionEnrollmentPanel({ trainingId }: SessionEnrollmentPanelPro
             {enrolling ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Enrolling...
+                {t("enroll.enrolling")}
               </>
             ) : (
               <>
                 <CalendarPlus className="h-4 w-4" />
-                Enroll in Selected Sessions
+                {t("sessions.panel.enrollSelected")}
                 <ChevronRight className="h-4 w-4" />
               </>
             )}
@@ -116,7 +118,7 @@ export function SessionEnrollmentPanel({ trainingId }: SessionEnrollmentPanelPro
       <div className="ey-animate-fade-up rounded-xl border border-border/50 bg-white p-8 text-center" style={{ animationDelay: "280ms" }}>
         <CalendarPlus className="mx-auto h-8 w-8 text-muted-foreground/40" />
         <p className="mt-2 text-sm text-muted-foreground">
-          No sessions are currently available for enrollment.
+          {t("sessions.panel.noSessionsAvailable")}
         </p>
       </div>
     );
@@ -125,9 +127,9 @@ export function SessionEnrollmentPanel({ trainingId }: SessionEnrollmentPanelPro
   return (
     <div className="ey-animate-fade-up space-y-5" style={{ animationDelay: "280ms" }}>
       <div>
-        <h2 className="text-lg font-semibold text-foreground">Choose Your Sessions</h2>
+        <h2 className="text-lg font-semibold text-foreground">{t("sessions.panel.chooseTitle")}</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Select a time slot for each part you want to enroll in.
+          {t("sessions.panel.chooseSubtitle")}
         </p>
       </div>
 
@@ -137,10 +139,10 @@ export function SessionEnrollmentPanel({ trainingId }: SessionEnrollmentPanelPro
           <span className="font-semibold">
             {Object.keys(selections).length}/{selectableParts.length}
           </span>{" "}
-          parts selected
+          {t("sessions.panel.partsSelected")}
         </p>
         {allPartsSelected && (
-          <span className="text-xs font-medium text-emerald-600">Ready to enroll</span>
+          <span className="text-xs font-medium text-emerald-600">{t("sessions.panel.readyToEnroll")}</span>
         )}
       </div>
 
@@ -165,12 +167,12 @@ export function SessionEnrollmentPanel({ trainingId }: SessionEnrollmentPanelPro
         {enrolling ? (
           <>
             <Loader2 className="h-4 w-4 animate-spin" />
-            Enrolling...
+            {t("enroll.enrolling")}
           </>
         ) : (
           <>
             <CalendarPlus className="h-4 w-4" />
-            Confirm Enrollment
+            {t("sessions.panel.confirmEnrollment")}
             <ChevronRight className="h-4 w-4" />
           </>
         )}

@@ -1,7 +1,11 @@
+"use client";
+
+import { useTranslations } from "next-intl";
 import type { Training } from "@/types";
 import { getTrainingDetailStats } from "@/data/training-detail-stats";
 
 export function TrainingStatsGrid({ training }: { training: Training }) {
+  const t = useTranslations("trainingDetail.stats");
   const stats = getTrainingDetailStats(training);
 
   return (
@@ -13,7 +17,7 @@ export function TrainingStatsGrid({ training }: { training: Training }) {
         const Icon = stat.icon;
         return (
           <div
-            key={stat.label}
+            key={stat.labelKey}
             className="flex flex-col items-center gap-2 rounded-xl border border-border/50 bg-white p-4 text-center transition-all hover:shadow-md hover:shadow-black/5 hover:-translate-y-0.5"
           >
             <div
@@ -28,7 +32,7 @@ export function TrainingStatsGrid({ training }: { training: Training }) {
               {stat.value}
             </span>
             <span className="text-xs text-muted-foreground">
-              {stat.label}
+              {t(stat.labelKey)}
             </span>
           </div>
         );

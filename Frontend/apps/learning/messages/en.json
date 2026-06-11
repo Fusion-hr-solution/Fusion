@@ -265,7 +265,8 @@
       "levelGroupAria": "Filter by level",
       "allLevels": "All Levels",
       "format": "Format",
-      "formatAria": "Filter trainings by format"
+      "formatAria": "Filter trainings by format",
+      "allCategories": "All"
     },
     "sort": {
       "aria": "Sort trainings"

@@ -1,7 +1,11 @@
+"use client";
+
 import { User } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { InstructorCardProps } from "@/types/component-props";
 
 export function InstructorCard({ name, role }: InstructorCardProps) {
+  const t = useTranslations("trainingDetail.instructor");
   return (
     <div
       className="ey-animate-fade-up rounded-2xl border border-border/50 bg-white p-6"
@@ -13,7 +17,7 @@ export function InstructorCard({ name, role }: InstructorCardProps) {
           aria-hidden="true"
         />
         <h3 className="text-sm font-bold text-foreground">
-          Instructor
+          {t("title")}
         </h3>
       </div>
 

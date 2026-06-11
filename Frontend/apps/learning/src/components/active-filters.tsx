@@ -1,6 +1,7 @@
 "use client";
 
 import { X, Filter } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { ActiveFiltersProps } from "@/types/component-props";
 import { CATEGORY_CONFIG, LEVEL_CONFIG } from "@/data/categories";
 
@@ -13,6 +14,8 @@ export function ActiveFilters({
   onClearSearch,
   onClearAll,
 }: ActiveFiltersProps) {
+  const t = useTranslations("catalog.filters");
+  const tCommon = useTranslations("common");
   const hasFilters = category || level || search.trim();
   if (!hasFilters) return null;
 
@@ -20,16 +23,16 @@ export function ActiveFilters({
     <div className="ey-animate-fade-in flex flex-wrap items-center gap-2">
       <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
         <Filter className="h-3 w-3" aria-hidden="true" />
-        Active:
+        {t("active")}
       </span>
 
       {category && (
         <button
           onClick={onClearCategory}
-          aria-label={`Remove ${CATEGORY_CONFIG[category].label} filter`}
+          aria-label={t("removeFilterAria", { filter: tCommon(`category.${category}`) })}
           className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium transition-all hover:shadow-sm hover:opacity-80 ${CATEGORY_CONFIG[category].badgeClass}`}
         >
-          {CATEGORY_CONFIG[category].label}
+          {tCommon(`category.${category}`)}
           <X className="h-3 w-3" aria-hidden="true" />
         </button>
       )}
@@ -37,13 +40,13 @@ export function ActiveFilters({
       {level && (
         <button
           onClick={onClearLevel}
-          aria-label={`Remove ${LEVEL_CONFIG[level].label} filter`}
+          aria-label={t("removeFilterAria", { filter: tCommon(`level.${level}`) })}
           className="inline-flex items-center gap-1.5 rounded-full border border-border bg-white px-2.5 py-0.5 text-xs font-medium text-foreground transition-all hover:bg-muted hover:shadow-sm"
         >
           <span
             className={`h-1.5 w-1.5 rounded-full ${LEVEL_CONFIG[level].dotClass}`}
           />
-          {LEVEL_CONFIG[level].label}
+          {tCommon(`level.${level}`)}
           <X className="h-3 w-3" aria-hidden="true" />
         </button>
       )}
@@ -51,7 +54,7 @@ export function ActiveFilters({
       {search.trim() && (
         <button
           onClick={onClearSearch}
-          aria-label="Remove search filter"
+          aria-label={t("removeSearchAria")}
           className="inline-flex items-center gap-1.5 rounded-full border border-border bg-white px-2.5 py-0.5 text-xs font-medium text-foreground transition-all hover:bg-muted hover:shadow-sm"
         >
           &ldquo;{search}&rdquo;
@@ -63,7 +66,7 @@ export function ActiveFilters({
         onClick={onClearAll}
         className="text-xs font-semibold ey-text-link transition-colors hover:text-[hsl(var(--ey-blue-400))] hover:underline"
       >
-        Clear all
+        {t("clearAll")}
       </button>
     </div>
   );

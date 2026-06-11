@@ -3,23 +3,16 @@
 import { Clock, MapPin, User, Users, AlertCircle } from "lucide-react";
 import { Badge } from "@repo/ui";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@repo/ui";
+import { useFormatter, useTranslations } from "next-intl";
 import type { SessionPickerCardProps } from "@/types/component-props";
 
-function formatSessionTime(startUtc: string, endUtc: string) {
-  const start = new Date(startUtc);
-  const end = new Date(endUtc);
-  const dateStr = start.toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  });
-  const startTime = start.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
-  const endTime = end.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
-  return { dateStr, timeRange: `${startTime} – ${endTime}` };
-}
-
 export function SessionPickerCard({ session, isSelected, onSelect }: SessionPickerCardProps) {
-  const { dateStr, timeRange } = formatSessionTime(session.startUtc, session.endUtc);
+  const t = useTranslations("trainingDetail.sessions.picker");
+  const format = useFormatter();
+  const start = new Date(session.startUtc);
+  const end = new Date(session.endUtc);
+  const dateStr = format.dateTime(start, { weekday: "short", month: "short", day: "numeric" });
+  const timeRange = `${format.dateTime(start, { hour: "2-digit", minute: "2-digit" })} – ${format.dateTime(end, { hour: "2-digit", minute: "2-digit" })}`;
   const spotsRatio = session.availableSpots / session.maxCapacity;
 
   return (
@@ -72,17 +65,17 @@ export function SessionPickerCard({ session, isSelected, onSelect }: SessionPick
                 <TooltipTrigger asChild>
                   <Badge variant="destructive" className="text-xs">
                     <AlertCircle className="mr-1 h-3 w-3" />
-                    Full
+                    {t("full")}
                   </Badge>
                 </TooltipTrigger>
-                <TooltipContent>Selecting this session will place you on the waitlist</TooltipContent>
+                <TooltipContent>{t("waitlistTooltip")}</TooltipContent>
               </Tooltip>
             </TooltipProvider>
           ) : (
             <div className="space-y-1">
               <div className="flex items-center gap-1 text-xs text-muted-foreground">
                 <Users className="h-3.5 w-3.5" />
-                <span>{session.availableSpots} spots</span>
+                <span>{t("spots", { count: session.availableSpots })}</span>
               </div>
               <div className="h-1.5 w-16 overflow-hidden rounded-full bg-muted">
                 <div

@@ -1,7 +1,11 @@
+"use client";
+
 import { BookOpen, Play } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { ChapterListProps } from "@/types/component-props";
 
 export function ChapterList({ chapters, chaptersCount }: ChapterListProps) {
+  const t = useTranslations("trainingDetail");
   return (
     <section
       className="ey-animate-fade-up"
@@ -13,10 +17,10 @@ export function ChapterList({ chapters, chaptersCount }: ChapterListProps) {
           aria-hidden="true"
         />
         <h2 className="text-base font-bold text-foreground sm:text-lg">
-          Course Content
+          {t("chapters.title")}
         </h2>
         <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
-          {chaptersCount} chapters
+          {t("chapters.count", { count: chaptersCount })}
         </span>
       </div>
 
@@ -43,7 +47,7 @@ export function ChapterList({ chapters, chaptersCount }: ChapterListProps) {
                 </span>
                 <div className="flex items-center gap-3 shrink-0">
                   <span className="text-xs tabular-nums text-muted-foreground">
-                    {chapter.duration ?? `${chapter.blockCount} block${chapter.blockCount === 1 ? "" : "s"}`}
+                    {chapter.duration ?? t("blocksCount", { count: chapter.blockCount })}
                   </span>
                   <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-muted-foreground/60 transition-all group-hover/ch:bg-[hsl(var(--ey-yellow))]/20 group-hover/ch:text-muted-foreground">
                     <Play

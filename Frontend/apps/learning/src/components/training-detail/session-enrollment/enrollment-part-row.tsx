@@ -4,27 +4,17 @@ import { Calendar, MapPin, User, CheckCircle2, Clock, XCircle, Loader2, Info } f
 import { Badge } from "@repo/ui";
 import { Button } from "@repo/ui";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@repo/ui";
+import { useFormatter, useTranslations } from "next-intl";
 import type { EnrollmentPartRowProps } from "@/types/component-props";
 import { SessionPickerCard } from "./session-picker-card";
 
 const STATUS_CONFIG = {
-  Enrolled: { label: "Enrolled", icon: CheckCircle2, className: "bg-blue-100 text-blue-700 border-blue-200" },
-  Waitlisted: { label: "Waitlisted", icon: Clock, className: "bg-amber-100 text-amber-700 border-amber-200" },
-  Attended: { label: "Attended", icon: CheckCircle2, className: "bg-emerald-100 text-emerald-700 border-emerald-200" },
-  Cancelled: { label: "Cancelled", icon: XCircle, className: "bg-red-100 text-red-700 border-red-200" },
-  NotEnrolled: { label: "Not Enrolled", icon: Clock, className: "bg-muted text-muted-foreground border-border" },
+  Enrolled: { icon: CheckCircle2, className: "bg-blue-100 text-blue-700 border-blue-200" },
+  Waitlisted: { icon: Clock, className: "bg-amber-100 text-amber-700 border-amber-200" },
+  Attended: { icon: CheckCircle2, className: "bg-emerald-100 text-emerald-700 border-emerald-200" },
+  Cancelled: { icon: XCircle, className: "bg-red-100 text-red-700 border-red-200" },
+  NotEnrolled: { icon: Clock, className: "bg-muted text-muted-foreground border-border" },
 } as const;
-
-function formatDateTime(dateStr: string) {
-  const d = new Date(dateStr);
-  return d.toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
 
 export function EnrollmentPartRow({
   part,
@@ -34,7 +24,13 @@ export function EnrollmentPartRow({
   selectedSessionId,
   onSelectSession,
 }: EnrollmentPartRowProps) {
-  const config = STATUS_CONFIG[part.enrollmentStatus] ?? STATUS_CONFIG.NotEnrolled;
+  const t = useTranslations("trainingDetail.sessions");
+  const format = useFormatter();
+  const statusKey: keyof typeof STATUS_CONFIG =
+    part.enrollmentStatus in STATUS_CONFIG
+      ? (part.enrollmentStatus as keyof typeof STATUS_CONFIG)
+      : "NotEnrolled";
+  const config = STATUS_CONFIG[statusKey];
   const StatusIcon = config.icon;
   const canCancel = part.enrollmentStatus === "Enrolled" || part.enrollmentStatus === "Waitlisted";
   const showSessions = part.enrollmentStatus === "NotEnrolled" && availableSessions && availableSessions.length > 0;
@@ -60,7 +56,13 @@ export function EnrollmentPartRow({
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
               <span className="flex items-center gap-1">
                 <Calendar className="h-3 w-3" />
-                {formatDateTime(part.sessionStartUtc)}
+                {format.dateTime(new Date(part.sessionStartUtc), {
+                  weekday: "short",
+                  month: "short",
+                  day: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
               </span>
               {part.room && (
                 <span className="flex items-center gap-1">
@@ -81,7 +83,7 @@ export function EnrollmentPartRow({
         <div className="flex items-center gap-2 shrink-0">
           <Badge className={`${config.className} text-xs`}>
             <StatusIcon className="mr-1 h-3 w-3" />
-            {config.label}
+            {t(`status.${statusKey}`)}
           </Badge>
 
           {canCancel && (
@@ -98,7 +100,7 @@ export function EnrollmentPartRow({
                     {isCancelling ? <Loader2 className="h-3 w-3 animate-spin" /> : <XCircle className="h-3.5 w-3.5" />}
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Cancel this session</TooltipContent>
+                <TooltipContent>{t("cancelTooltip")}</TooltipContent>
               </Tooltip>
             </TooltipProvider>
           )}
@@ -111,11 +113,11 @@ export function EnrollmentPartRow({
           <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 mb-3">
             <Info className="h-3.5 w-3.5 text-amber-600 shrink-0" />
             <p className="text-xs text-amber-700">
-              You missed this session. Select a new one below to re-enroll.
+              {t("missedHint")}
             </p>
           </div>
           <p className="mb-2 text-xs font-medium text-muted-foreground">
-            Available sessions:
+            {t("availableSessions")}
           </p>
           <div className="grid gap-2 sm:grid-cols-2">
             {availableSessions!.map((session) => (
@@ -134,7 +136,7 @@ export function EnrollmentPartRow({
       {showSessions && onSelectSession && (
         <div className="border-t border-border/40 px-4 pb-4 pt-3">
           <p className="mb-2 text-xs font-medium text-muted-foreground">
-            Select a session:
+            {t("selectSession")}
           </p>
           <div className="grid gap-2 sm:grid-cols-2">
             {availableSessions.map((session) => (
