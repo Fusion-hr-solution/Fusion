@@ -8,6 +8,7 @@
     "start": "next start --port 3003",
     "lint": "next lint",
     "type-check": "tsc --noEmit",
+    "check:i18n": "node scripts/check-messages.cjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },
