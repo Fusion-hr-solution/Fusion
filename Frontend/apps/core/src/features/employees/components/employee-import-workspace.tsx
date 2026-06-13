@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, RefreshCcw, Users } from "lucide-react";
 import { useAuth } from "@repo/auth";
-import { EmptyState } from "@repo/ui";
+import { EmptyState, type PageSize } from "@repo/ui";
 import { toast } from "sonner";
 import { CorePageLoadingState } from "@/components/core-page-loading-state";
 import { PageHeader } from "@/components/page-header";
@@ -68,7 +68,7 @@ export default function EmployeeImportWorkspace() {
     null
   );
   const [currentPreviewPage, setCurrentPreviewPage] = useState(1);
-  const [previewPageSize, setPreviewPageSize] = useState(
+  const [previewPageSize, setPreviewPageSize] = useState<PageSize>(
     DEFAULT_EMPLOYEE_IMPORT_PREVIEW_PAGE_SIZE
   );
   const [historyPageNumber, setHistoryPageNumber] = useState(1);
@@ -202,13 +202,13 @@ export default function EmployeeImportWorkspace() {
 
   const handleDownloadTemplate = useCallback(async () => {
     try {
-      const blob = await downloadTemplate.mutateAsync(canonicalFieldKeys);
+      const blob = await downloadTemplate.mutateAsync(undefined);
       downloadBlob(blob, "employee-import-template.csv");
       toast.success("Employee import template downloaded.");
     } catch (error) {
       toast.error(getErrorMessage(error));
     }
-  }, [canonicalFieldKeys, downloadTemplate]);
+  }, [downloadTemplate]);
 
   const handleFileSelected = useCallback(
     async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -406,7 +406,7 @@ export default function EmployeeImportWorkspace() {
   );
 
   const handlePreviewPageSizeChange = useCallback(
-    (nextPageSize: number) => {
+    (nextPageSize: PageSize) => {
       if (nextPageSize === previewPageSize) {
         return;
       }

@@ -5,6 +5,7 @@ public sealed class PlatformOrganizationSummaryDto
 {
     public Guid Id { get; init; }
     public required string Name { get; init; }
+    public required string Slug { get; init; }
     /// <summary>draft | invited | active | suspended | archived</summary>
     public required string OperationalStatus { get; init; }
     public int ActiveUserCount { get; init; }

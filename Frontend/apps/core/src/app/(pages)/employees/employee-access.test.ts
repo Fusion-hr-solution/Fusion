@@ -17,6 +17,7 @@ function buildAccount(
     email: "employee@example.com",
     fullName: "Employee One",
     role: "Employee",
+    accessProfiles: [],
     provisioningState: "Unprovisioned",
     userId: null,
     isActive: null,

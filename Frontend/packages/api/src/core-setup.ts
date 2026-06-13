@@ -87,8 +87,6 @@ export const coreSetupPaths = {
   readiness: () => "/corehr/setup/readiness",
   reopen: () => "/corehr/setup/reopen",
   publish: () => "/corehr/setup/publish",
-  approve: () => "/corehr/setup/approve",
-  complete: () => "/corehr/setup/complete",
 } as const;
 
 export const coreSetupQueryKeys = {

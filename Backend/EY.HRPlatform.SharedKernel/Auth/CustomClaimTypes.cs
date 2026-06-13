@@ -11,4 +11,5 @@ public static class CustomClaimTypes
     public const string FullName = "full_name";
     public const string Department = "department";
     public const string JobTitle = "job_title";
+    public const string CorePermission = "core_permission";
 }

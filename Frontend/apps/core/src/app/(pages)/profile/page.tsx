@@ -1,58 +1,143 @@
 "use client";
 
-import { useEffect } from "react";
+export const dynamic = "force-dynamic";
+
 import { User } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useAuth } from "@repo/auth";
+import {
+  canAccessCoreAccess,
+  canAccessCoreOrgChart,
+  canManageCoreAccess,
+  canManageCoreEmployees,
+  canManageCoreReporting,
+  useAuth,
+} from "@repo/auth";
 import { EmptyState } from "@repo/ui";
 import { CorePageLoadingState } from "@/components/core-page-loading-state";
 import { PageHeader } from "@/components/page-header";
-import { canAccessSelfEmployeeProfile } from "@/lib/employee-roster-access";
+import { useTenantContext } from "@/shell/tenant-context/core-tenant-context-provider";
+import { useTenantSettings } from "@/features/settings/api/use-tenant-settings";
+import { useEmployeeFieldPolicy } from "@/features/employees/shared/employee-field-visibility";
+import {
+  EmployeeProfileWorkspace,
+  type EmployeeProfileWorkspaceProps,
+} from "@/features/employees/profile/employee-profile-workspace";
+import {
+  useEmployeeProfile,
+  useEmployeeReportingLines,
+} from "../employees/use-employees";
 
 export default function MyProfilePage() {
-  const { user, isLoading } = useAuth();
-  const router = useRouter();
-  const canAccess = canAccessSelfEmployeeProfile(user);
+  const { user, isLoading: authLoading } = useAuth();
+  const { tenantId } = useTenantContext();
+  const employeeId = user?.employeeId ?? null;
+  const isTenantContextReadOnly = !!tenantId;
+  const canManageEmployee =
+    canManageCoreEmployees(user) && !isTenantContextReadOnly;
+  const canManageReporting =
+    canManageCoreReporting(user) && !isTenantContextReadOnly;
+  const canManageAccess = canManageCoreAccess(user) && !isTenantContextReadOnly;
+  const canViewAccess =
+    canAccessCoreAccess(user) || canManageAccess || isTenantContextReadOnly;
+  const canUseOrgChart = canAccessCoreOrgChart(user) || isTenantContextReadOnly;
+  const canViewProfile = !!employeeId;
 
-  useEffect(() => {
-    if (!isLoading && canAccess && user?.employeeId) {
-      router.replace(`/employees/${user.employeeId}`);
-    }
-  }, [canAccess, isLoading, router, user?.employeeId]);
+  const fieldPolicy = useEmployeeFieldPolicy(canViewProfile, "employee");
+  const { data: settings } = useTenantSettings(canViewProfile);
 
-  if (isLoading) {
+  const {
+    data: profile,
+    error,
+    isLoading,
+  } = useEmployeeProfile(canViewProfile ? employeeId : null);
+
+  const { data: reportingLines } = useEmployeeReportingLines(
+    canViewProfile ? employeeId : null
+  );
+
+  if (authLoading) {
     return (
       <CorePageLoadingState
         title="My Profile"
-        description="Loading your employee workspace..."
-        message="Loading profile..."
+        description="Loading profile."
+        message="Loading your profile..."
         variant="summary-list"
       />
     );
   }
 
-  if (!canAccess || !user?.employeeId) {
+  if (!employeeId) {
     return (
       <div className="flex flex-col gap-6 p-6">
         <PageHeader
           title="My Profile"
-          description="Your linked employee workspace appears here when your account is connected."
+          description="No linked employee record."
         />
         <EmptyState
           icon={User}
-          title="Employee profile is not linked yet"
-          description="Ask a tenant HR administrator to connect your platform account to an employee record."
+          title="No linked employee profile"
+          description="Contact a tenant HR administrator to link your record."
         />
       </div>
     );
   }
 
-  return (
-    <CorePageLoadingState
-      title="My Profile"
-      description="Opening your employee workspace..."
-      message="Opening profile..."
-      variant="redirect"
-    />
-  );
+  if (isLoading && !profile && !error) {
+    return (
+      <CorePageLoadingState
+        title="My Profile"
+        description="Loading profile."
+        message="Loading your profile..."
+        variant="summary-list"
+      />
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col gap-6 p-6">
+        <EmptyState
+          icon={User}
+          title="Your profile could not be found"
+          description="Your linked employee profile is not available right now."
+        />
+      </div>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <div className="flex flex-col gap-6 p-6">
+        <PageHeader title="My Profile" description="Profile unavailable." />
+        <EmptyState
+          icon={User}
+          title="Unable to load profile"
+          description="Your employee profile is not available right now."
+        />
+      </div>
+    );
+  }
+
+  const canEditOwnPreferredName =
+    user?.employeeId === profile.id &&
+    settings?.selfService.canEditPreferredName !== false;
+  const canEditOwnPhone =
+    user?.employeeId === profile.id &&
+    settings?.selfService.canEditPhone !== false;
+
+  const workspaceProps: EmployeeProfileWorkspaceProps = {
+    profile,
+    reportingLines,
+    fieldPolicy,
+    user,
+    isTenantContextReadOnly,
+    canManageEmployee,
+    canManageReporting,
+    canViewAccess,
+    canManageAccess,
+    canUseOrgChart,
+    canEditOwnPreferredName,
+    canEditOwnPhone,
+  };
+
+  return <EmployeeProfileWorkspace {...workspaceProps} />;
 }

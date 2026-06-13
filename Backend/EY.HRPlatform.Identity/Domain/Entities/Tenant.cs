@@ -9,6 +9,7 @@ public class Tenant
 
     public Guid Id { get; private set; }
     public string Name { get; private set; } = string.Empty;
+    public string Slug { get; private set; } = string.Empty;
     public bool IsActive { get; private set; } = true;
     /// <summary>Soft-offboarded customer; distinct from suspended (governance pause).</summary>
     public bool IsArchived { get; private set; }
@@ -34,6 +35,7 @@ public class Tenant
         {
             Id = id,
             Name = name.Trim(),
+            Slug = GenerateSlug(name),
             IsActive = true,
             IsArchived = false,
             CreatedAt = DateTime.UtcNow
@@ -46,6 +48,57 @@ public class Tenant
     /// <param name="name">Display name (2-100 characters).</param>
     /// <returns>A new Tenant instance.</returns>
     public static Tenant Create(string name) => Create(Guid.NewGuid(), name);
+
+    public static Tenant Create(Guid id, string name, string slug)
+    {
+        if (id == Guid.Empty)
+            throw new ArgumentException("Id cannot be empty.", nameof(id));
+
+        ValidateName(name);
+        ValidateSlug(slug);
+
+        return new Tenant
+        {
+            Id = id,
+            Name = name.Trim(),
+            Slug = slug.Trim().ToLowerInvariant(),
+            IsActive = true,
+            IsArchived = false,
+            CreatedAt = DateTime.UtcNow
+        };
+    }
+
+    public static string GenerateSlug(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            throw new ArgumentException("Name is required to generate slug.", nameof(name));
+
+        var slug = System.Text.RegularExpressions.Regex.Replace(
+            name.Trim().ToLowerInvariant(),
+            @"[^a-z0-9]+",
+            "-").Trim('-');
+
+        if (slug.Length > 100)
+            slug = slug[..100].Trim('-');
+
+        if (slug.Length == 0)
+            slug = "tenant";
+
+        return slug;
+    }
+
+    private static void ValidateSlug(string slug)
+    {
+        if (string.IsNullOrWhiteSpace(slug))
+            throw new ArgumentException("Slug is required.", nameof(slug));
+
+        var trimmed = slug.Trim().ToLowerInvariant();
+        if (trimmed.Length < 2 || trimmed.Length > 100)
+            throw new ArgumentException("Slug must be 2-100 characters.", nameof(slug));
+
+        if (!System.Text.RegularExpressions.Regex.IsMatch(trimmed, @"^[a-z0-9]([a-z0-9-]*[a-z0-9])?$"))
+            throw new ArgumentException("Slug must contain only lowercase letters, digits, and hyphens, and cannot start or end with a hyphen.", nameof(slug));
+    }
 
     /// <summary>
     /// Updates the tenant name.

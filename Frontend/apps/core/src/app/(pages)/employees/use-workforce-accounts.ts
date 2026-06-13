@@ -1,274 +1,226 @@
 "use client";
 
 import { useCallback, useMemo } from "react";
-import { createPlatformApiClient } from "@repo/api";
 import {
-  useApiMutation,
-  useApiQuery,
-  type UseApiMutationResult,
-  type UseApiQueryResult,
-} from "@repo/api/query";
-import { useAuth } from "@repo/auth";
-import { canAccessEmployeeRoster } from "@/lib/employee-roster-access";
+  coreAccessQueryKeys,
+  coreWorkforceQueryKeys,
+  createPlatformApiClient,
+} from "@repo/api";
+import { useApiMutation, useApiQuery } from "@repo/api/query";
 import { employeeRosterQueryKeys } from "./employee-query-keys";
 import type {
-  WorkforceAccountBulkProvisionResultDto,
+  WorkforceAccountSummaryDto,
   WorkforceAccountStatusDto,
   WorkforceAccountSubject,
+  WorkforceBulkInviteResponseDto,
 } from "./employee-roster.types";
 
-const WORKFORCE_ACCOUNT_PATH = "/identity/workforce-accounts";
-const WORKFORCE_ACCOUNT_BATCH_SIZE = 100;
-
-export interface ProvisionWorkforceAccountInviteInput extends WorkforceAccountSubject {
-  role: "Employee" | "Manager";
-}
-
-export interface BulkProvisionWorkforceAccountInviteInput {
-  items: ProvisionWorkforceAccountInviteInput[];
-}
-
-function buildStatusQueryParams(subject: WorkforceAccountSubject) {
-  return {
-    email: subject.email,
-    firstName: subject.firstName ?? undefined,
-    lastName: subject.lastName ?? undefined,
-  };
-}
-
-export function useWorkforceAccountStatus(
-  subject: WorkforceAccountSubject | null
-): UseApiQueryResult<WorkforceAccountStatusDto> {
-  const { user, isAuthenticated } = useAuth();
-  const client = useMemo(() => createPlatformApiClient(), []);
-  const canAccess = canAccessEmployeeRoster(user);
-
-  const queryFn = useCallback(
-    (signal: AbortSignal) => {
-      if (!subject) {
-        throw new Error(
-          "Employee ID is required to load workforce account status."
-        );
-      }
-
-      return client.get<WorkforceAccountStatusDto>(
-        `${WORKFORCE_ACCOUNT_PATH}/${subject.employeeId}`,
-        {
-          signal,
-          params: buildStatusQueryParams(subject),
-        }
-      );
-    },
-    [client, subject]
-  );
-
-  return useApiQuery(
-    employeeRosterQueryKeys.workforceAccount(
-      subject ?? {
-        employeeId: "pending",
-        email: "pending@example.com",
-      }
-    ),
-    queryFn,
-    {
-      enabled: isAuthenticated && canAccess && !!subject,
-    }
-  );
-}
+const WORKFORCE_ACCOUNTS_PATH = "/corehr/employees/workforce-accounts";
+const WORKFORCE_ACCOUNT_SUMMARY_PATH = `${WORKFORCE_ACCOUNTS_PATH}/summary`;
+const WORKFORCE_ACCOUNT_STATUSES_PATH = `${WORKFORCE_ACCOUNTS_PATH}/statuses`;
+const EMPTY_WORKFORCE_ACCOUNT_STATUSES: WorkforceAccountStatusDto[] = [];
+const WORKFORCE_ACCOUNT_MUTATION_INVALIDATIONS = [
+  { queryKey: coreWorkforceQueryKeys.all() },
+  { queryKey: employeeRosterQueryKeys.workforceAccounts() },
+  { queryKey: employeeRosterQueryKeys.workforceAccountSummary() },
+  { queryKey: coreAccessQueryKeys.profiles() },
+];
+const BULK_WORKFORCE_ACCOUNT_MUTATION_INVALIDATIONS = [
+  ...WORKFORCE_ACCOUNT_MUTATION_INVALIDATIONS,
+  { queryKey: employeeRosterQueryKeys.lists() },
+];
 
 export function useWorkforceAccountStatuses(
   subjects: WorkforceAccountSubject[]
-): UseApiQueryResult<WorkforceAccountStatusDto[]> {
-  const { user, isAuthenticated } = useAuth();
+) {
   const client = useMemo(() => createPlatformApiClient(), []);
-  const canAccess = canAccessEmployeeRoster(user);
-
+  const subjectKey = useMemo(
+    () => subjects.map((subject) => subject.employeeId).join("|"),
+    [subjects]
+  );
   const queryFn = useCallback(
     (signal: AbortSignal) =>
       client.post<WorkforceAccountStatusDto[]>(
-        `${WORKFORCE_ACCOUNT_PATH}/statuses`,
-        {
-          employees: subjects.map((subject) => ({
-            employeeId: subject.employeeId,
-            email: subject.email,
-            firstName: subject.firstName ?? undefined,
-            lastName: subject.lastName ?? undefined,
-          })),
-        },
+        WORKFORCE_ACCOUNT_STATUSES_PATH,
+        { subjects },
         { signal }
       ),
     [client, subjects]
   );
 
   return useApiQuery(
-    employeeRosterQueryKeys.workforceAccountBatch(subjects),
+    [...employeeRosterQueryKeys.workforceAccounts(), subjectKey] as const,
     queryFn,
     {
-      enabled: isAuthenticated && canAccess && subjects.length > 0,
+      enabled: subjects.length > 0,
+      placeholderData: EMPTY_WORKFORCE_ACCOUNT_STATUSES,
     }
   );
 }
 
-export function useResolveWorkforceAccountStatuses() {
-  const { user, isAuthenticated } = useAuth();
+export function useWorkforceAccountSummary(enabled = true) {
   const client = useMemo(() => createPlatformApiClient(), []);
-  const canAccess = canAccessEmployeeRoster(user);
+  const queryFn = useCallback(
+    (signal: AbortSignal) =>
+      client.get<WorkforceAccountSummaryDto>(WORKFORCE_ACCOUNT_SUMMARY_PATH, {
+        signal,
+      }),
+    [client]
+  );
 
-  return useCallback(
-    async (
-      subjects: WorkforceAccountSubject[]
-    ): Promise<WorkforceAccountStatusDto[]> => {
-      if (!isAuthenticated || !canAccess) {
-        throw new Error("Workforce account access is not available.");
-      }
-
-      if (subjects.length === 0) {
-        return [];
-      }
-
-      const chunks: WorkforceAccountSubject[][] = [];
-      for (
-        let startIndex = 0;
-        startIndex < subjects.length;
-        startIndex += WORKFORCE_ACCOUNT_BATCH_SIZE
-      ) {
-        chunks.push(
-          subjects.slice(startIndex, startIndex + WORKFORCE_ACCOUNT_BATCH_SIZE)
-        );
-      }
-
-      const responses = await Promise.all(
-        chunks.map((chunk) =>
-          client.post<WorkforceAccountStatusDto[]>(
-            `${WORKFORCE_ACCOUNT_PATH}/statuses`,
-            {
-              employees: chunk.map((subject) => ({
-                employeeId: subject.employeeId,
-                email: subject.email,
-                firstName: subject.firstName ?? undefined,
-                lastName: subject.lastName ?? undefined,
-              })),
-            }
-          )
-        )
-      );
-
-      return responses.flat();
-    },
-    [canAccess, client, isAuthenticated]
+  return useApiQuery(
+    employeeRosterQueryKeys.workforceAccountSummary(),
+    queryFn,
+    {
+      enabled,
+    }
   );
 }
 
-export function useProvisionWorkforceAccountInvite(): UseApiMutationResult<
-  WorkforceAccountStatusDto,
-  ProvisionWorkforceAccountInviteInput
-> {
+const BULK_INVITE_PATH = "/corehr/workforce/access-subjects/bulk-invite";
+
+export function useBulkProvisionWorkforceAccountInvites() {
+  const client = useMemo(() => createPlatformApiClient(), []);
+
+  return useApiMutation<
+    WorkforceBulkInviteResponseDto,
+    {
+      accessProfileId: string;
+      search?: string | null;
+      access?: string | null;
+      profileId?: string | null;
+      employeeStatus?: string | null;
+      deliveryState?: string | null;
+      employeeKey?: string | null;
+      employeeIds?: string[] | null;
+    }
+  >(
+    (request) =>
+      client.post<WorkforceBulkInviteResponseDto>(BULK_INVITE_PATH, request),
+    {
+      invalidateQueries: BULK_WORKFORCE_ACCOUNT_MUTATION_INVALIDATIONS,
+    }
+  );
+}
+
+export function useWorkforceAccountStatus(
+  subject: WorkforceAccountSubject | null
+) {
+  const client = useMemo(() => createPlatformApiClient(), []);
+
+  const queryFn = useCallback(
+    async (signal: AbortSignal) => {
+      if (!subject?.employeeId) {
+        throw new Error("Workforce account subject is required.");
+      }
+
+      const results = await client.post<WorkforceAccountStatusDto[]>(
+        WORKFORCE_ACCOUNT_STATUSES_PATH,
+        { subjects: [subject] },
+        { signal }
+      );
+
+      return results[0] ?? null;
+    },
+    [client, subject]
+  );
+
+  return useApiQuery(
+    subject?.employeeId
+      ? employeeRosterQueryKeys.workforceAccount(subject.employeeId)
+      : ([...employeeRosterQueryKeys.workforceAccounts(), "pending"] as const),
+    queryFn,
+    {
+      enabled: !!subject?.employeeId,
+    }
+  );
+}
+
+export function useProvisionWorkforceAccountInvite() {
   const client = useMemo(() => createPlatformApiClient(), []);
 
   return useApiMutation<
     WorkforceAccountStatusDto,
-    ProvisionWorkforceAccountInviteInput
-  >(
-    ({ employeeId, ...input }) =>
-      client.post<WorkforceAccountStatusDto>(
-        `${WORKFORCE_ACCOUNT_PATH}/${employeeId}/invite`,
-        input
-      ),
     {
-      invalidateQueries: () => [
-        { queryKey: employeeRosterQueryKeys.workforceAccounts() },
-      ],
+      employeeId: string;
+      email: string;
+      firstName: string;
+      lastName: string;
+      accessProfileId: string;
     }
-  );
-}
-
-export function useBulkProvisionWorkforceAccountInvites(): UseApiMutationResult<
-  WorkforceAccountBulkProvisionResultDto[],
-  BulkProvisionWorkforceAccountInviteInput
-> {
-  const client = useMemo(() => createPlatformApiClient(), []);
-
-  return useApiMutation<
-    WorkforceAccountBulkProvisionResultDto[],
-    BulkProvisionWorkforceAccountInviteInput
   >(
-    ({ items }) =>
-      client.post<WorkforceAccountBulkProvisionResultDto[]>(
-        `${WORKFORCE_ACCOUNT_PATH}/invite/bulk`,
+    ({ employeeId, email, firstName, lastName, accessProfileId }) =>
+      client.post<WorkforceAccountStatusDto>(
+        `${WORKFORCE_ACCOUNTS_PATH}/${employeeId}/invite`,
         {
-          items: items.map((item) => ({
-            employeeId: item.employeeId,
-            email: item.email,
-            firstName: item.firstName ?? undefined,
-            lastName: item.lastName ?? undefined,
-            role: item.role,
-          })),
+          email,
+          firstName,
+          lastName,
+          accessProfileId,
         }
       ),
     {
-      invalidateQueries: () => [
-        { queryKey: employeeRosterQueryKeys.workforceAccounts() },
-      ],
+      invalidateQueries: WORKFORCE_ACCOUNT_MUTATION_INVALIDATIONS,
     }
   );
 }
 
-export function useResendWorkforceAccountInvite(): UseApiMutationResult<
-  WorkforceAccountStatusDto,
-  { employeeId: string }
-> {
+export function useReactivateWorkforceAccount() {
   const client = useMemo(() => createPlatformApiClient(), []);
 
   return useApiMutation<WorkforceAccountStatusDto, { employeeId: string }>(
     ({ employeeId }) =>
       client.post<WorkforceAccountStatusDto>(
-        `${WORKFORCE_ACCOUNT_PATH}/${employeeId}/invite/resend`,
-        {}
+        `${WORKFORCE_ACCOUNTS_PATH}/${employeeId}/reactivate`
       ),
     {
-      invalidateQueries: () => [
-        { queryKey: employeeRosterQueryKeys.workforceAccounts() },
-      ],
+      invalidateQueries: WORKFORCE_ACCOUNT_MUTATION_INVALIDATIONS,
     }
   );
 }
 
-export function useDeactivateWorkforceAccount(): UseApiMutationResult<
-  WorkforceAccountStatusDto,
-  { employeeId: string }
-> {
+export function useResendWorkforceAccountInvite() {
   const client = useMemo(() => createPlatformApiClient(), []);
 
   return useApiMutation<WorkforceAccountStatusDto, { employeeId: string }>(
     ({ employeeId }) =>
       client.post<WorkforceAccountStatusDto>(
-        `${WORKFORCE_ACCOUNT_PATH}/${employeeId}/deactivate`,
-        {}
+        `${WORKFORCE_ACCOUNTS_PATH}/${employeeId}/resend`
       ),
     {
-      invalidateQueries: () => [
-        { queryKey: employeeRosterQueryKeys.workforceAccounts() },
-      ],
+      invalidateQueries: WORKFORCE_ACCOUNT_MUTATION_INVALIDATIONS,
     }
   );
 }
 
-export function useReactivateWorkforceAccount(): UseApiMutationResult<
-  WorkforceAccountStatusDto,
-  { employeeId: string }
-> {
+export function useSetPendingInviteAccessProfiles() {
   const client = useMemo(() => createPlatformApiClient(), []);
 
-  return useApiMutation<WorkforceAccountStatusDto, { employeeId: string }>(
-    ({ employeeId }) =>
-      client.post<WorkforceAccountStatusDto>(
-        `${WORKFORCE_ACCOUNT_PATH}/${employeeId}/reactivate`,
-        {}
+  return useApiMutation<
+    WorkforceAccountStatusDto,
+    { employeeId: string; accessProfileIds: string[] }
+  >(
+    ({ employeeId, accessProfileIds }) =>
+      client.put<WorkforceAccountStatusDto>(
+        `${WORKFORCE_ACCOUNTS_PATH}/${employeeId}/invite-profiles`,
+        {
+          accessProfileIds,
+        }
       ),
     {
-      invalidateQueries: () => [
-        { queryKey: employeeRosterQueryKeys.workforceAccounts() },
-      ],
+      invalidateQueries: WORKFORCE_ACCOUNT_MUTATION_INVALIDATIONS,
+    }
+  );
+}
+
+export function useDeactivateWorkforceAccount() {
+  const client = useMemo(() => createPlatformApiClient(), []);
+
+  return useApiMutation<void, { employeeId: string }>(
+    ({ employeeId }) =>
+      client.delete<void>(`${WORKFORCE_ACCOUNTS_PATH}/${employeeId}`),
+    {
+      invalidateQueries: WORKFORCE_ACCOUNT_MUTATION_INVALIDATIONS,
     }
   );
 }

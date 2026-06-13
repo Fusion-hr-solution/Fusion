@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   AlertCircle,
   LockKeyhole,
@@ -16,7 +16,6 @@ import {
   type UserAccessAssignmentDto,
 } from "@repo/api";
 import {
-  canAccessCoreAccess,
   canManageCoreAccessProfiles,
   useAuth,
 } from "@repo/auth";
@@ -57,7 +56,6 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { AccessWorkspaceShell } from "@/app/(pages)/access/access-workspace-shell";
 import {
   useAccessProfiles,
   useCorePermissionCatalog,
@@ -355,14 +353,12 @@ function formatWorkforceContext(user: UserAccessAssignmentDto): string {
 }
 
 function AccessProfilesPageSkeleton({
-  showPeople,
-  showProfiles,
+  children,
 }: {
-  showPeople: boolean;
-  showProfiles: boolean;
+  children?: ReactNode;
 }) {
   return (
-    <AccessWorkspaceShell active="profiles" showPeople={showPeople} showProfiles={showProfiles}>
+    <>
       <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
         <Card>
           <CardHeader className="space-y-3">
@@ -380,13 +376,17 @@ function AccessProfilesPageSkeleton({
           </CardHeader>
         </Card>
       </div>
-    </AccessWorkspaceShell>
+      {children}
+    </>
   );
 }
 
-export function AccessProfilesWorkspace() {
+export function AccessProfilesWorkspace({
+  embedded: _embedded = false,
+}: {
+  embedded?: boolean;
+} = {}) {
   const { user } = useAuth();
-  const canViewAccess = canAccessCoreAccess(user);
   const canManageProfiles = canManageCoreAccessProfiles(user);
 
   const { data: permissionCatalogData, isLoading: isCatalogLoading } =
@@ -685,7 +685,7 @@ export function AccessProfilesWorkspace() {
 
   if (!canManageProfiles) {
     return (
-      <AccessWorkspaceShell active="profiles" showPeople={canViewAccess} showProfiles={false}>
+      <>
         <Card>
           <CardContent className="pt-6">
             <EmptyState
@@ -695,16 +695,16 @@ export function AccessProfilesWorkspace() {
             />
           </CardContent>
         </Card>
-      </AccessWorkspaceShell>
+      </>
     );
   }
 
   if (isProfilesLoading && accessProfiles.length === 0) {
-    return <AccessProfilesPageSkeleton showPeople={canViewAccess} showProfiles={canManageProfiles} />;
+    return <AccessProfilesPageSkeleton />;
   }
 
   return (
-    <AccessWorkspaceShell active="profiles" showPeople={canViewAccess} showProfiles={canManageProfiles}>
+    <>
       <div className="grid gap-6 xl:grid-cols-[minmax(280px,340px)_minmax(0,1fr)]">
         <Card>
           <CardHeader density="compact">
@@ -1320,6 +1320,6 @@ export function AccessProfilesWorkspace() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </AccessWorkspaceShell>
+    </>
   );
 }

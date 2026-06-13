@@ -24,6 +24,8 @@ export type {
   BrandingSettingsInputDto,
   FieldConfigDto,
   FieldConfigInputDto,
+  SelfServiceSettingsDto,
+  SelfServiceSettingsInputDto,
   TenantSettingsDto,
   UpdateTenantSettingsRequest,
 } from "./tenant-settings";

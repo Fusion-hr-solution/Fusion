@@ -1,8 +1,8 @@
 using EY.HRPlatform.CoreHR.Features.TenantSettings.Commands.UpdateTenantSettings;
 using EY.HRPlatform.CoreHR.Features.TenantSettings.Dtos;
 using EY.HRPlatform.CoreHR.Features.TenantSettings.Queries.GetTenantSettings;
+using EY.HRPlatform.CoreHR.Features.Security;
 using EY.HRPlatform.SharedKernel.Api;
-using EY.HRPlatform.SharedKernel.Auth;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -11,8 +11,10 @@ namespace EY.HRPlatform.CoreHR.Controllers;
 
 [ApiController]
 [Route("api/corehr/settings")]
-[Authorize(Roles = $"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin}")]
-public class TenantSettingsController(ISender sender) : ControllerBase
+[Authorize]
+public class TenantSettingsController(
+    ISender sender,
+    ICoreAccessPolicyService accessPolicy) : ControllerBase
 {
     /// <summary>
     /// Get tenant settings for the current tenant.
@@ -22,6 +24,11 @@ public class TenantSettingsController(ISender sender) : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<TenantSettingsDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> Get(CancellationToken cancellationToken)
     {
+        if (!accessPolicy.CanViewSettings(User))
+        {
+            return Forbid();
+        }
+
         var settings = await sender.Send(new GetTenantSettingsQuery(), cancellationToken);
 
         if (settings.Version.HasValue)
@@ -44,6 +51,11 @@ public class TenantSettingsController(ISender sender) : ControllerBase
         [FromHeader(Name = "If-Match")] string? ifMatch,
         CancellationToken cancellationToken)
     {
+        if (!accessPolicy.CanManageSettings(User))
+        {
+            return Forbid();
+        }
+
         // Parse If-Match header (optional for creation, required for updates)
         uint? expectedVersion = TryParseVersion(ifMatch, out var version) ? version : null;
 
@@ -52,7 +64,8 @@ public class TenantSettingsController(ISender sender) : ControllerBase
             request.OrgUnitTypes,
             request.EmployeeFieldConfig,
             request.Branding,
-            request.DraftStructureSchema);
+            request.DraftStructureSchema,
+            request.SelfService);
 
         var result = await sender.Send(command, cancellationToken);
 

@@ -1,4 +1,9 @@
 # ========================
+# Project artifacts (local only)
+# ========================
+.artifacts/
+
+# ========================
 # Project docs (local only)
 # ========================
 EY_ACADEMY_MODULE.md
@@ -15,6 +20,7 @@ Thumbs.db
 *.swo
 *~
 .vscode/
+.claude/
 .idea/
 *.suo
 *.user
@@ -88,6 +94,7 @@ yarn-error.log*
 # Testing
 coverage/
 .nyc_output/
+test-results/
 
 # ========================
 # Misc
@@ -110,8 +117,6 @@ PROJECT_SUMMARY.md
 #opencode
 opencode.json
 .opencode/
-#claude code 
-.claude
-#appsettings.Development.json
-appsettings.Development.json
-appsettings.json
+
+# Windows accidental null redirection artifact
+nul

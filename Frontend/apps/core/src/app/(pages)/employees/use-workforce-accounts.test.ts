@@ -1,45 +1,33 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { renderHook } from "@testing-library/react";
+import { renderHook, waitFor } from "@testing-library/react";
 import { createElement, type PropsWithChildren } from "react";
 
-const { mockPost } = vi.hoisted(() => ({
+const { mockGet, mockPost } = vi.hoisted(() => ({
+  mockGet: vi.fn(),
   mockPost: vi.fn(),
 }));
 
-const authState = vi.hoisted(() => ({
-  isAuthenticated: true,
-  user: {
-    userId: "hr-1",
-    email: "hr@example.com",
-    fullName: "HR Admin",
-    roles: ["HRAdmin"],
-  },
-}));
-
-vi.mock("@repo/api", () => ({
-  createPlatformApiClient: () => ({
-    post: mockPost,
-  }),
-}));
+vi.mock("@repo/api", async () => {
+  const actual = await vi.importActual<typeof import("@repo/api")>("@repo/api");
+  return {
+    ...actual,
+    createPlatformApiClient: () => ({
+      get: mockGet,
+      post: mockPost,
+    }),
+  };
+});
 
 vi.mock("@repo/api/query", async () => {
   const actual = await vi.importActual("@repo/api/query");
   return actual;
 });
 
-vi.mock("@repo/auth", () => ({
-  useAuth: () => authState,
-}));
-
-vi.mock("@/lib/employee-roster-access", () => ({
-  canAccessEmployeeRoster: () => true,
-}));
-
 import { ApiQueryProvider, createApiQueryClient } from "@repo/api/query";
 import {
   useBulkProvisionWorkforceAccountInvites,
-  useResolveWorkforceAccountStatuses,
+  useWorkforceAccountSummary,
 } from "./use-workforce-accounts";
 
 function createWrapper() {
@@ -63,42 +51,42 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-describe("useResolveWorkforceAccountStatuses", () => {
-  it("calls the workforce account statuses endpoint", async () => {
-    mockPost.mockResolvedValue([]);
+describe("useWorkforceAccountSummary", () => {
+  it("calls the workforce account summary endpoint", async () => {
+    mockGet.mockResolvedValue({
+      activeAccountCount: 14,
+      inactiveAccountCount: 2,
+      pendingInviteCount: 3,
+      acceptedInviteCount: 1,
+      expiredInviteCount: 1,
+      revokedInviteCount: 1,
+      trackedEmployeeCount: 22,
+      attentionQueueCount: 5,
+    });
 
-    const { result } = renderHook(() => useResolveWorkforceAccountStatuses(), {
+    renderHook(() => useWorkforceAccountSummary(), {
       wrapper: createWrapper(),
     });
 
-    await result.current([
-      {
-        employeeId: "emp-1",
-        email: "user@example.com",
-        firstName: "User",
-        lastName: "Example",
-      },
-    ]);
-
-    expect(mockPost).toHaveBeenCalledWith(
-      "/identity/workforce-accounts/statuses",
-      {
-        employees: [
-          {
-            employeeId: "emp-1",
-            email: "user@example.com",
-            firstName: "User",
-            lastName: "Example",
-          },
-        ],
-      }
-    );
+    await waitFor(() => {
+      expect(mockGet).toHaveBeenCalledWith(
+        "/corehr/employees/workforce-accounts/summary",
+        expect.objectContaining({ signal: expect.any(AbortSignal) })
+      );
+    });
   });
 });
 
 describe("useBulkProvisionWorkforceAccountInvites", () => {
-  it("calls the workforce bulk-provision endpoint", async () => {
-    mockPost.mockResolvedValue([]);
+  it("calls the corehr bulk-invite endpoint", async () => {
+    mockPost.mockResolvedValue({
+      items: [],
+      totalRequested: 2,
+      invitedCount: 1,
+      refreshedCount: 0,
+      alreadyActiveCount: 1,
+      skippedCount: 0,
+    });
 
     const { result } = renderHook(
       () => useBulkProvisionWorkforceAccountInvites(),
@@ -108,29 +96,25 @@ describe("useBulkProvisionWorkforceAccountInvites", () => {
     );
 
     await result.current.mutateAsync({
-      items: [
-        {
-          employeeId: "emp-1",
-          email: "user@example.com",
-          firstName: "User",
-          lastName: "Example",
-          role: "Employee",
-        },
-      ],
+      accessProfileId: "profile-employee",
+      search: null,
+      access: null,
+      profileId: null,
+      employeeStatus: null,
+      employeeKey: null,
+      employeeIds: ["emp-1", "emp-2"],
     });
 
     expect(mockPost).toHaveBeenCalledWith(
-      "/identity/workforce-accounts/invite/bulk",
+      "/corehr/workforce/access-subjects/bulk-invite",
       {
-        items: [
-          {
-            employeeId: "emp-1",
-            email: "user@example.com",
-            firstName: "User",
-            lastName: "Example",
-            role: "Employee",
-          },
-        ],
+        accessProfileId: "profile-employee",
+        search: null,
+        access: null,
+        profileId: null,
+        employeeStatus: null,
+        employeeKey: null,
+        employeeIds: ["emp-1", "emp-2"],
       }
     );
   });

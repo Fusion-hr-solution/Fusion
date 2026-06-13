@@ -11,4 +11,8 @@ public sealed record CreateDraftOrgUnitCommand(
     string? Location,
     string? Description,
     Guid? ParentId,
-    Dictionary<string, object?>? Attributes) : ICommand<Result<DraftOrgUnitDto>>;
+    Dictionary<string, object?>? Attributes,
+    Guid? ActorUserId = null,
+    string? ActorFullName = null,
+    string? ActorRole = null,
+    bool IsPlatformAssisted = false) : ICommand<Result<DraftOrgUnitDto>>;

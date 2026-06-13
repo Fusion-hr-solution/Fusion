@@ -12,14 +12,36 @@ public sealed record WorkforceAccountSubjectDto(
 public sealed record WorkforceAccountStatusesRequestDto(
     List<WorkforceAccountSubjectDto> Subjects);
 
+public sealed record WorkforceAccountAccessProfileDto(
+    Guid Id,
+    string Name,
+    string Type,
+    bool IsSystemProtected);
+
+public sealed record WorkforceAccountConflictDto(
+    string Kind,
+    string Message,
+    bool Blocking,
+    string? SuggestedAction);
+
 public sealed record WorkforceAccountStatusDto(
     Guid EmployeeId,
     string Email,
+    string? FullName,
     string Role,
+    IReadOnlyList<WorkforceAccountAccessProfileDto> AccessProfiles,
     string ProvisioningState,
     Guid? UserId,
+    bool? IsActive,
+    DateTime? LastLoginAt,
     Guid? InviteId,
-    string? InviteLink);
+    DateTime? InviteCreatedAt,
+    DateTime? InviteExpiresAt,
+    string? InviteLink,
+    string? DeliveryStatus,
+    string? DeliveryMessage,
+    DateTime? DeliveryRecordedAt,
+    WorkforceAccountConflictDto? Conflict);
 
 public interface IWorkforceAccountStatusReader
 {

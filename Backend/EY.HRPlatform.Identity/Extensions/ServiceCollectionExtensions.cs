@@ -1,8 +1,10 @@
 ﻿using System.Diagnostics;
 using System.Text;
 using EY.HRPlatform.Identity.Domain.Entities;
+using EY.HRPlatform.Identity.Features.AccessProfiles;
 using EY.HRPlatform.Identity.Features.PlatformOrganizations.Services;
 using EY.HRPlatform.Identity.Features.Tenants.Services;
+using EY.HRPlatform.Identity.Features.WorkforceAccounts;
 using EY.HRPlatform.Identity.Infrastructure.Persistence;
 using EY.HRPlatform.Identity.Infrastructure.Services;
 using EY.HRPlatform.SharedKernel.Multitenancy;
@@ -102,13 +104,13 @@ public static class ServiceCollectionExtensions
             });
 
         // 4. Register our custom services
-        services.AddSingleton<IInvitationLinkBuilder, InvitationLinkBuilder>();
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<ITenantService, TenantService>();
         services.AddScoped<IPlatformOrganizationService, PlatformOrganizationService>();
-
+        services.AddScoped<IAccessProfileService, AccessProfileService>();
         services.Configure<WorkforceInvitationEmailOptions>(
-            configuration.GetSection(WorkforceInvitationEmailOptions.SectionName));
+            configuration.GetSection("WorkforceInvitationEmail"));
+        services.AddScoped<IWorkforceInvitationEmailSender, SmtpWorkforceInvitationEmailSender>();
 
         // 5. Training service client (service-to-service)
         // This integration is fire-and-forget only. When local config is blank,
@@ -128,18 +130,6 @@ public static class ServiceCollectionExtensions
                 client.DefaultRequestHeaders.Add("X-Service-Key", serviceApiKey);
                 client.Timeout = TimeSpan.FromSeconds(5);
             });
-        }
-
-        var invitationEmailEnabled = configuration.GetValue<bool>($"{WorkforceInvitationEmailOptions.SectionName}:Enabled");
-        var invitationSmtpHost = configuration[$"{WorkforceInvitationEmailOptions.SectionName}:SmtpHost"]?.Trim();
-
-        if (!invitationEmailEnabled || string.IsNullOrWhiteSpace(invitationSmtpHost))
-        {
-            services.AddSingleton<IWorkforceInvitationEmailSender, NoOpWorkforceInvitationEmailSender>();
-        }
-        else
-        {
-            services.AddSingleton<IWorkforceInvitationEmailSender, SmtpWorkforceInvitationEmailSender>();
         }
 
         return services;

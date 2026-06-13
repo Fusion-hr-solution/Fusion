@@ -13,9 +13,10 @@ type CorePageLoadingStateVariant =
 
 interface CorePageLoadingStateProps {
   title: string;
-  description: string;
+  description?: string;
   message: string;
   variant?: CorePageLoadingStateVariant;
+  headerSize?: "default" | "compact";
 }
 
 export function CorePageLoadingState({
@@ -23,10 +24,11 @@ export function CorePageLoadingState({
   description,
   message,
   variant = "list",
+  headerSize = variant === "redirect" ? "compact" : "default",
 }: CorePageLoadingStateProps) {
   return (
-    <div className="flex flex-col gap-6 p-6">
-      <PageHeader title={title} description={description} />
+    <div className="flex flex-col gap-5 p-6">
+      <PageHeader title={title} description={description} size={headerSize} />
       <p aria-live="polite" className="sr-only">
         {message}
       </p>

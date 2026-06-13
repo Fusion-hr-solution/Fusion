@@ -31,7 +31,7 @@ import { buildDraftOrgUnitKindKey } from "./draft-structure-form-utils";
 import {
   useTenantSettings,
   useUpdateTenantSettings,
-} from "./use-tenant-settings";
+} from "@/features/settings/api/use-tenant-settings";
 
 interface EditableOrgUnitKind {
   id: string;
@@ -45,6 +45,9 @@ interface DraftOrgUnitKindManagerProps {
   existingUnits: DraftOrgUnitDto[];
   onSchemaUpdated?: (schema: DraftStructureSchemaDto) => void;
   currentKindKey?: string;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  hideTrigger?: boolean;
   disabled?: boolean;
   triggerLabel?: string;
   triggerVariant?: ComponentProps<typeof Button>["variant"];
@@ -111,18 +114,23 @@ export function DraftOrgUnitKindManager({
   existingUnits,
   onSchemaUpdated,
   currentKindKey,
+  open: controlledOpen,
+  onOpenChange,
+  hideTrigger = false,
   disabled = false,
   triggerLabel = "Manage types",
   triggerVariant = "outline",
   triggerSize = "sm",
 }: DraftOrgUnitKindManagerProps) {
-  const [open, setOpen] = useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
   const [draftKinds, setDraftKinds] = useState<EditableOrgUnitKind[]>(() =>
     createEditableKinds(schema)
   );
   const [newKindLabel, setNewKindLabel] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const nextNewId = useRef(0);
+  const open = controlledOpen ?? uncontrolledOpen;
+  const setOpen = onOpenChange ?? setUncontrolledOpen;
 
   const {
     data: settings,
@@ -276,16 +284,18 @@ export function DraftOrgUnitKindManager({
 
   return (
     <>
-      <Button
-        type="button"
-        variant={triggerVariant}
-        size={triggerSize}
-        disabled={disabled}
-        onClick={() => setOpen(true)}
-      >
-        <PencilLine className="size-4" />
-        {triggerLabel}
-      </Button>
+      {!hideTrigger ? (
+        <Button
+          type="button"
+          variant={triggerVariant}
+          size={triggerSize}
+          disabled={disabled}
+          onClick={() => setOpen(true)}
+        >
+          <PencilLine className="size-4" />
+          {triggerLabel}
+        </Button>
+      ) : null}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-2xl">
@@ -326,9 +336,6 @@ export function DraftOrgUnitKindManager({
                           placeholder="Department"
                         />
                         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                          <span className="font-mono uppercase tracking-[0.14em]">
-                            {kind.key || "pending-key"}
-                          </span>
                           {usageCount > 0 ? (
                             <Badge variant="outline">
                               {usageCount} planned unit
