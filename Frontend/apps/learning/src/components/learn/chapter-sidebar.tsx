@@ -18,7 +18,7 @@ export function ChapterSidebar({
 }: ChapterSidebarProps) {
   const t = useTranslations("learn");
   return (
-    <aside className="flex w-80 shrink-0 flex-col border-r border-border bg-white">
+    <aside className="flex w-80 shrink-0 flex-col border-r border-border bg-card">
       {/* Header */}
       <div className="border-b border-border p-5">
         <Link

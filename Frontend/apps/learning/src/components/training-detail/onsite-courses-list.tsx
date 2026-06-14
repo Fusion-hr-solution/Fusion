@@ -50,7 +50,7 @@ export function OnSiteCoursesList({ courses, scheduledDate }: OnSiteCoursesListP
         {sorted.map((course, index) => (
           <div
             key={course.id}
-            className="flex items-center gap-3 rounded-xl border border-border/50 bg-white p-4 transition-all hover:shadow-md hover:shadow-black/5"
+            className="flex items-center gap-3 rounded-xl border border-border/50 bg-card p-4 transition-all hover:shadow-md hover:shadow-black/5"
           >
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-red-100">
               <FileText className="h-4 w-4 text-red-600" />

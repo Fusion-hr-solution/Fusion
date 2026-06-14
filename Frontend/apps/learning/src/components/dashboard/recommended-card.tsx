@@ -15,7 +15,7 @@ export function RecommendedCard({ training }: RecommendedCardProps) {
       href={`/training/${training.id}`}
       className="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
-      <Card className="group relative flex h-full flex-col overflow-hidden border border-border/60 bg-white transition-all duration-300 hover:shadow-xl hover:shadow-black/8 hover:-translate-y-1 cursor-pointer">
+      <Card className="group relative flex h-full flex-col overflow-hidden border border-border/60 bg-card transition-all duration-300 hover:shadow-xl hover:shadow-black/8 hover:-translate-y-1 cursor-pointer">
         <div
           className={`h-1 w-full ey-animate-stripe ${category.stripClass}`}
         />

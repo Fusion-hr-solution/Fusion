@@ -146,7 +146,7 @@ export function PartFormDialog({
                           ? "border-[hsl(var(--ey-green-500))] bg-[hsl(var(--ey-green-500))] text-white"
                           : isCurrent
                             ? "border-[hsl(var(--ey-black))] bg-[hsl(var(--ey-black))] text-white shadow-md"
-                            : "border-border bg-white text-muted-foreground"
+                            : "border-border bg-card text-muted-foreground"
                       }`}
                     >
                       {isCompleted ? (

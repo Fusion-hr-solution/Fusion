@@ -1,16 +1,8 @@
-import { cookies } from "next/headers";
-import { getRequestConfig } from "next-intl/server";
-import { DEFAULT_LOCALE, LOCALE_COOKIE, LOCALES, type Locale } from "./config";
+import { createI18nRequestConfig } from "@repo/i18n/request";
 
-export default getRequestConfig(async () => {
-  const cookieValue = (await cookies()).get(LOCALE_COOKIE)?.value;
-  const locale: Locale = LOCALES.includes(cookieValue as Locale)
-    ? (cookieValue as Locale)
-    : DEFAULT_LOCALE;
-
-  return {
-    locale,
-    timeZone: "Africa/Tunis",
-    messages: (await import(`../../messages/${locale}.json`)).default,
-  };
+// Locale resolution, default + time zone come from the shared @repo/i18n
+// package; the learning module only supplies its own message catalogs.
+export default createI18nRequestConfig({
+  loadMessages: async (locale) =>
+    (await import(`../../messages/${locale}.json`)).default,
 });

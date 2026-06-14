@@ -24,7 +24,7 @@ export function EnrollmentStatusPanel({
   return (
     <div className="space-y-5">
       {/* Progress header */}
-      <div className="rounded-xl border border-border/50 bg-white p-5">
+      <div className="rounded-xl border border-border/50 bg-card p-5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4 text-primary" />

@@ -43,7 +43,7 @@ export function ProgrammeMatrixTable({
   );
 
   return (
-    <div className="ey-animate-fade-up overflow-x-auto rounded-xl border border-border/60 bg-white shadow-sm">
+    <div className="ey-animate-fade-up overflow-x-auto rounded-xl border border-border/60 bg-card shadow-sm">
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/40">
@@ -72,7 +72,7 @@ export function ProgrammeMatrixTable({
               key={grade.id}
               className="hover:bg-muted/20 transition-colors"
             >
-              <TableCell className="sticky left-0 z-10 bg-white font-medium text-sm">
+              <TableCell className="sticky left-0 z-10 bg-card font-medium text-sm">
                 {grade.name}
               </TableCell>
               {serviceLines.map((sl) => {

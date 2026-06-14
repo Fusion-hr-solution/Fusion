@@ -135,7 +135,7 @@ function ExamIntro({
         {stats.map((stat) => {
           const Icon = stat.icon;
           return (
-            <div key={stat.label} className="rounded-xl border border-border/60 bg-white p-5 text-center">
+            <div key={stat.label} className="rounded-xl border border-border/60 bg-card p-5 text-center">
               <Icon className="mx-auto h-5 w-5 text-muted-foreground mb-2" aria-hidden="true" />
               <p className="text-lg font-bold text-foreground">{stat.value}</p>
               <p className="text-xs text-muted-foreground">{stat.label}</p>
@@ -173,7 +173,7 @@ function ExamIntro({
             {attempts.map((a, i) => (
               <div
                 key={a.id}
-                className="flex items-center justify-between rounded-lg border border-border/60 bg-white px-4 py-3"
+                className="flex items-center justify-between rounded-lg border border-border/60 bg-card px-4 py-3"
               >
                 <div className="flex items-center gap-3">
                   <span className="text-xs font-medium text-muted-foreground">

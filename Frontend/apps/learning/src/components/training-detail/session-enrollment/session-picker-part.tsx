@@ -14,7 +14,7 @@ export function SessionPickerPart({ part, selectedSessionId, onSelect }: Session
   const availableSessions = part.sessions.filter((s) => !s.isFull).length;
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border/60 bg-white">
+    <div className="overflow-hidden rounded-xl border border-border/60 bg-card">
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}

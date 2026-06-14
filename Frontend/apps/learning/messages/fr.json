@@ -42,6 +42,12 @@
     "switchToEn": "Passer à l'anglais",
     "switchToFr": "Passer au français"
   },
+  "theme": {
+    "label": "Thème",
+    "light": "Clair",
+    "system": "Système",
+    "dark": "Sombre"
+  },
   "common": {
     "status": {
       "in-progress": "En cours",

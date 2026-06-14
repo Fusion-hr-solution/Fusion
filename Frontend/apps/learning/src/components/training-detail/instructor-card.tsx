@@ -8,7 +8,7 @@ export function InstructorCard({ name, role }: InstructorCardProps) {
   const t = useTranslations("trainingDetail.instructor");
   return (
     <div
-      className="ey-animate-fade-up rounded-2xl border border-border/50 bg-white p-6"
+      className="ey-animate-fade-up rounded-2xl border border-border/50 bg-card p-6"
       style={{ animationDelay: "200ms" }}
     >
       <div className="flex items-center gap-2 mb-5">

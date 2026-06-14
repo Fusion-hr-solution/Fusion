@@ -48,7 +48,7 @@ export function TrainingStatsStrip({
             key={stat.labelKey}
             className="flex flex-col items-center gap-1.5 text-center"
           >
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white shadow-sm">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-card shadow-sm">
               <Icon
                 className={`h-4 w-4 ${stat.className}`}
                 aria-hidden="true"

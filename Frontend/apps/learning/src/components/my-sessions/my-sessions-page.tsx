@@ -157,7 +157,7 @@ function StatCard({
 }) {
   return (
     <div className={`flex items-center gap-3 rounded-xl border border-border/50 ${bgAccent} p-4`}>
-      <div className={`flex h-9 w-9 items-center justify-center rounded-lg bg-white shadow-sm ${accent}`}>
+      <div className={`flex h-9 w-9 items-center justify-center rounded-lg bg-card shadow-sm ${accent}`}>
         {icon}
       </div>
       <div>

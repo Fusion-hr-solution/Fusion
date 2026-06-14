@@ -55,7 +55,7 @@ export function TrainingDetailPage({ training }: TrainingDetailPageProps) {
           <aside className="space-y-6">
             <InstructorCard name={training.instructor} role={training.instructorRole} />
             <TrainingTagsCard tags={training.tags} />
-            <div className="ey-animate-fade-up rounded-2xl border border-border/50 bg-white p-6" style={{ animationDelay: "300ms" }}>
+            <div className="ey-animate-fade-up rounded-2xl border border-border/50 bg-card p-6" style={{ animationDelay: "300ms" }}>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <CalendarDays className="h-4 w-4" aria-hidden="true" />
                 <span>{t("lastUpdated", { date: format.dateTime(new Date(training.updatedAt + "T00:00:00"), { month: "long", day: "numeric", year: "numeric" }) })}</span>

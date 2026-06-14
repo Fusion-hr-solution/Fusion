@@ -43,7 +43,7 @@ export function EmployeeRow({
         expanded
           ? "border-border shadow-lg shadow-black/5"
           : "border-border/60 hover:shadow-md hover:shadow-black/4 hover:border-border"
-      } bg-white`}
+      } bg-card`}
     >
       <button
         className="flex w-full items-center gap-4 p-4 text-left transition-colors hover:bg-muted/50"
@@ -55,7 +55,7 @@ export function EmployeeRow({
             : t("rowExpandAria", { name: employee.name })
         }
       >
-        <Avatar className="h-10 w-10 ring-2 ring-white shadow-sm">
+        <Avatar className="h-10 w-10 ring-2 ring-card shadow-sm">
           <AvatarFallback
             className={`${AVATAR_COLOR} text-white text-xs font-bold`}
           >

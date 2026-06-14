@@ -49,7 +49,7 @@ export function SidebarNav({
               item.disabled
                 ? "cursor-not-allowed text-muted-foreground/55"
                 : isActive
-                  ? "bg-foreground text-primary shadow-sm"
+                  ? "bg-foreground text-primary shadow-sm dark:bg-secondary"
                   : "text-muted-foreground hover:bg-accent hover:text-foreground"
             );
 

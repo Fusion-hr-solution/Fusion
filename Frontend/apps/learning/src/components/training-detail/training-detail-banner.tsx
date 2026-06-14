@@ -15,7 +15,7 @@ export function TrainingDetailBanner({ training }: { training: Training }) {
   const badge = BADGE_LEVEL_CONFIG[training.badgeLevel];
 
   return (
-    <div className="relative overflow-hidden bg-white border-b border-border/50">
+    <div className="relative overflow-hidden bg-card border-b border-border/50">
       <div
         className={`absolute inset-x-0 top-0 h-1 ey-animate-stripe ${category.stripClass}`}
       />

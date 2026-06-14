@@ -24,7 +24,7 @@ export function ChapterList({ chapters, chaptersCount }: ChapterListProps) {
         </span>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-border/50 bg-white">
+      <div className="overflow-hidden rounded-2xl border border-border/50 bg-card">
         <div className="ey-stagger-list">
           {chapters.map((chapter, i) => (
             <div

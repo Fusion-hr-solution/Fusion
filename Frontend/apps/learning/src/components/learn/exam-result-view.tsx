@@ -54,7 +54,7 @@ export function ExamResultView({ result, attempts, onRetry, onBack }: ExamResult
         ].map((stat) => (
           <div
             key={stat.label}
-            className="rounded-xl border border-border/60 bg-white p-4 text-center"
+            className="rounded-xl border border-border/60 bg-card p-4 text-center"
           >
             <p className={`text-2xl font-bold ${stat.highlight ? (passed ? "text-[hsl(var(--ey-green-500))]" : "text-destructive") : "text-foreground"}`}>
               {stat.value}
@@ -86,7 +86,7 @@ export function ExamResultView({ result, attempts, onRetry, onBack }: ExamResult
             {attempts.map((a, i) => (
               <div
                 key={a.id}
-                className="flex items-center justify-between rounded-lg border border-border/60 bg-white px-4 py-3"
+                className="flex items-center justify-between rounded-lg border border-border/60 bg-card px-4 py-3"
               >
                 <div className="flex items-center gap-3">
                   <span className="text-xs font-medium text-muted-foreground">
