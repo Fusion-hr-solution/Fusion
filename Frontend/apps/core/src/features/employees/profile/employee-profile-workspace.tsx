@@ -1578,6 +1578,23 @@ export function EmployeeProfileWorkspace({
             </CardContent>
           </Card>
 
+          {canViewAccess ? (
+            <div ref={accessSectionRef}>
+              <WorkforceAccountCard
+                employeeId={profile.id}
+                firstName={profile.firstName}
+                lastName={profile.lastName}
+                email={profile.email}
+                canManageAccess={canManageAccess}
+                onManageAccess={
+                  canManageAccess ? openAccessManagement : undefined
+                }
+              />
+            </div>
+          ) : null}
+        </div>
+
+        <div className="flex flex-col gap-6">
           <div ref={reportingSectionRef}>
             <Card className={WORKSPACE_CARD_CLASS_NAME}>
               <CardHeader className="px-6 pb-4 pt-5">
@@ -1712,23 +1729,6 @@ export function EmployeeProfileWorkspace({
               </CardContent>
             </Card>
           </div>
-        </div>
-
-        <div className="flex flex-col gap-6">
-          {canViewAccess ? (
-            <div ref={accessSectionRef}>
-              <WorkforceAccountCard
-                employeeId={profile.id}
-                firstName={profile.firstName}
-                lastName={profile.lastName}
-                email={profile.email}
-                canManageAccess={canManageAccess}
-                onManageAccess={
-                  canManageAccess ? openAccessManagement : undefined
-                }
-              />
-            </div>
-          ) : null}
 
           {!isRecordComplete ? (
             <Card className={WORKSPACE_CARD_CLASS_NAME}>

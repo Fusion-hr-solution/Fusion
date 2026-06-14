@@ -45,7 +45,8 @@ export function EmployeesTable<TRow extends EmployeeRosterItem>({
       emptyTitle={emptyTitle}
       emptyContent={emptyContent}
       skeletonRowCount={6}
-      minWidth="980px"
+      minWidth="920px"
+      tableClassName="table-fixed"
     />
   );
 }

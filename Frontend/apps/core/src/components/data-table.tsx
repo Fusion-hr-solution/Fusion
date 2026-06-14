@@ -52,6 +52,7 @@ export interface DataTableProps<TData> {
   emptyContent?: ReactNode;
   skeletonRowCount?: number;
   minWidth?: string;
+  tableClassName?: string;
 }
 
 export function DataTable<TData>({
@@ -72,6 +73,7 @@ export function DataTable<TData>({
   emptyContent,
   skeletonRowCount = 6,
   minWidth,
+  tableClassName,
 }: DataTableProps<TData>) {
   const table = useReactTable({
     data,
@@ -126,9 +128,7 @@ export function DataTable<TData>({
         <div className="bg-background/50 absolute inset-0 z-10 rounded-xl" />
       )}
 
-      <Table
-        style={minWidth ? { minWidth } : undefined}
-      >
+      <Table className={tableClassName} style={minWidth ? { minWidth } : undefined}>
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>

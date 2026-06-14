@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { TableFilterToolbar } from "@/components/table-filter-toolbar";
 
 const ACCESS_FILTER_OPTIONS = [
   { value: "all", label: "All access states" },
@@ -61,9 +62,6 @@ export function AccessToolbar({
   onClearFilters,
 }: AccessToolbarProps) {
   const [localSearch, setLocalSearch] = useState(search);
-  const [showAdvanced, setShowAdvanced] = useState(
-    employeeStatusFilter !== "all"
-  );
   const hasFilters =
     localSearch.trim().length > 0 ||
     accessFilter !== "all" ||
@@ -95,130 +93,141 @@ export function AccessToolbar({
   }, [localSearch, onSearchChange, search]);
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <div className="relative min-w-[16rem] max-w-md flex-[1_1_18rem]">
-        <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={localSearch}
-          onChange={(event) => setLocalSearch(event.target.value)}
-          placeholder="Search by name or email"
-          className="pl-8"
-        />
-      </div>
+    <TableFilterToolbar
+      search={
+        <div className="relative min-w-[16rem] max-w-md flex-[1_1_18rem]">
+          <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={localSearch}
+            onChange={(event) => setLocalSearch(event.target.value)}
+            placeholder="Search by name or email"
+            className="pl-8"
+          />
+        </div>
+      }
+      primaryFilters={
+        <>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant={accessFilter !== "all" ? "secondary" : "outline"}
+                size="sm"
+                className="gap-1"
+              >
+                <ListFilter className="size-3.5" />
+                {selectedAccessOption
+                  ? selectedAccessOption.label
+                  : "Access state"}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuLabel>Filter access state</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuRadioGroup
+                value={accessFilter}
+                onValueChange={(value) =>
+                  onAccessFilterChange(value as AccessFilterValue)
+                }
+              >
+                {ACCESS_FILTER_OPTIONS.map((option) => (
+                  <DropdownMenuRadioItem
+                    key={option.value}
+                    value={option.value}
+                  >
+                    {option.label}
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant={accessFilter !== "all" ? "secondary" : "outline"}
-            size="sm"
-            className="gap-1"
-          >
-            <ListFilter className="size-3.5" />
-            {selectedAccessOption
-              ? selectedAccessOption.label
-              : "Access state"}
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start">
-          <DropdownMenuLabel>Filter access state</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuRadioGroup
-            value={accessFilter}
-            onValueChange={(value) =>
-              onAccessFilterChange(value as AccessFilterValue)
-            }
-          >
-            {ACCESS_FILTER_OPTIONS.map((option) => (
-              <DropdownMenuRadioItem key={option.value} value={option.value}>
-                {option.label}
-              </DropdownMenuRadioItem>
-            ))}
-          </DropdownMenuRadioGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
-
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant={profileId ? "secondary" : "outline"}
-            size="sm"
-            className="gap-1"
-            disabled={isProfilesLoading}
-          >
-            <ListFilter className="size-3.5" />
-            {selectedProfile ? selectedProfile.name : "Access profile"}
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start">
-          <DropdownMenuLabel>Filter access profile</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuRadioGroup
-            value={profileId ?? "all"}
-            onValueChange={(value) =>
-              onProfileIdChange(value === "all" ? null : value)
-            }
-          >
-            <DropdownMenuRadioItem value="all">
-              All access profiles
-            </DropdownMenuRadioItem>
-            {accessProfiles.map((profile) => (
-              <DropdownMenuRadioItem key={profile.id} value={profile.id}>
-                {profile.name}
-              </DropdownMenuRadioItem>
-            ))}
-          </DropdownMenuRadioGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
-
-      <Button
-        variant="ghost"
-        size="sm"
-        className="gap-1 text-muted-foreground"
-        onClick={() => setShowAdvanced((v) => !v)}
-      >
-        <ListFilter className="size-3.5" />
-        Advanced
-      </Button>
-
-      {showAdvanced ? (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant={employeeStatusFilter !== "all" ? "secondary" : "outline"}
-              size="sm"
-              className="gap-1"
-            >
-              <ListFilter className="size-3.5" />
-              {selectedEmployeeOption
-                ? selectedEmployeeOption.label
-                : "Employee status"}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start">
-            <DropdownMenuLabel>Filter employee status</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuRadioGroup
-              value={employeeStatusFilter}
-              onValueChange={(value) =>
-                onEmployeeStatusFilterChange(value as EmployeeStatusFilterValue)
-              }
-            >
-              {EMPLOYEE_STATUS_OPTIONS.map((option) => (
-                <DropdownMenuRadioItem key={option.value} value={option.value}>
-                  {option.label}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant={profileId ? "secondary" : "outline"}
+                size="sm"
+                className="gap-1"
+                disabled={isProfilesLoading}
+              >
+                <ListFilter className="size-3.5" />
+                {selectedProfile ? selectedProfile.name : "Access profile"}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuLabel>Filter access profile</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuRadioGroup
+                value={profileId ?? "all"}
+                onValueChange={(value) =>
+                  onProfileIdChange(value === "all" ? null : value)
+                }
+              >
+                <DropdownMenuRadioItem value="all">
+                  All access profiles
                 </DropdownMenuRadioItem>
-              ))}
-            </DropdownMenuRadioGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      ) : null}
+                {accessProfiles.map((profile) => (
+                  <DropdownMenuRadioItem key={profile.id} value={profile.id}>
+                    {profile.name}
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
-      {hasFilters ? (
-        <Button variant="ghost" size="sm" onClick={() => { setLocalSearch(""); onClearFilters(); }}>
-          <X className="size-3.5" />
-          Clear
-        </Button>
-      ) : null}
-    </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant={
+                  employeeStatusFilter !== "all" ? "secondary" : "outline"
+                }
+                size="sm"
+                className="gap-1"
+              >
+                <ListFilter className="size-3.5" />
+                {selectedEmployeeOption
+                  ? selectedEmployeeOption.label
+                  : "Employee status"}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuLabel>Filter employee status</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuRadioGroup
+                value={employeeStatusFilter}
+                onValueChange={(value) =>
+                  onEmployeeStatusFilterChange(
+                    value as EmployeeStatusFilterValue
+                  )
+                }
+              >
+                {EMPLOYEE_STATUS_OPTIONS.map((option) => (
+                  <DropdownMenuRadioItem
+                    key={option.value}
+                    value={option.value}
+                  >
+                    {option.label}
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </>
+      }
+      clearAction={
+        hasFilters ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setLocalSearch("");
+              onClearFilters();
+            }}
+          >
+            <X className="size-3.5" />
+            Clear
+          </Button>
+        ) : null
+      }
+    />
   );
 }

@@ -22,13 +22,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { employeeRosterQueryKeys } from "@/app/(pages)/employees/employee-query-keys";
 import type { WorkforceAccountStatusDto } from "@/app/(pages)/employees/employee-roster.types";
@@ -124,23 +117,28 @@ function ProfileValue({
   emptyLabel?: string;
 }) {
   if (!profile) {
-    return <span className="font-normal text-muted-foreground">{emptyLabel}</span>;
+    return (
+      <span className="font-normal text-muted-foreground">{emptyLabel}</span>
+    );
   }
 
   return <span>{profile.name}</span>;
 }
 
-function AccessSheetSkeleton({
+function AccessDialogLoadingState({
   open,
   onOpenChange,
-}: Pick<EmployeeAccessManagementSheetProps, "open" | "onOpenChange">) {
+  title,
+}: Pick<EmployeeAccessManagementSheetProps, "open" | "onOpenChange"> & {
+  title: string;
+}) {
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="flex w-full flex-col gap-0 p-0 sm:max-w-2xl">
-        <SheetHeader className="sr-only">
-          <SheetTitle>Manage access</SheetTitle>
-          <SheetDescription>Loading access details.</SheetDescription>
-        </SheetHeader>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>Loading access details.</DialogDescription>
+        </DialogHeader>
         <div className="space-y-6 p-6">
           <Skeleton className="h-7 w-48" />
           <Skeleton className="h-4 w-64" />
@@ -151,8 +149,8 @@ function AccessSheetSkeleton({
           </div>
           <Skeleton className="h-44 rounded-lg" />
         </div>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -175,7 +173,14 @@ function getSheetTitle(
   }
 }
 
-function getSheetSubtitle(mode: EmployeeAccessSheetMode): string {
+function getSheetSubtitle(
+  mode: EmployeeAccessSheetMode,
+  canManageAccess: boolean
+): string {
+  if (!canManageAccess) {
+    return "Review current access details for this person.";
+  }
+
   switch (mode) {
     case "invite":
       return "This will create an activation invitation for this person.";
@@ -254,19 +259,23 @@ export function EmployeeAccessManagementSheet({
   }, [accessProfiles, account?.accessProfiles, directReportCount, open]);
 
   const hasBlockingLoadError = !!error && !account;
+  const isInitialLoading = open && isLoading && !account && !error;
   const accessState =
     hasBlockingLoadError
       ? "Access unavailable"
       : getAccessDisplayState(account ?? null);
   const stateTone =
     hasBlockingLoadError ? "outline" : getAccessBadgeTone(accessState);
-  const mode = resolveSheetModeForAccount(
-    account ?? null,
-    initialMode,
-    hasBlockingLoadError
-  );
+  const mode =
+    isInitialLoading && initialMode
+      ? initialMode
+      : resolveSheetModeForAccount(
+          account ?? null,
+          initialMode,
+          hasBlockingLoadError
+        );
   const sheetTitle = getSheetTitle(mode, canManageAccess);
-  const sheetSubtitle = getSheetSubtitle(mode);
+  const sheetSubtitle = getSheetSubtitle(mode, canManageAccess);
   const currentPrimaryProfile = useMemo(
     () => getPrimaryAccessProfile(account?.accessProfiles ?? []),
     [account?.accessProfiles]
@@ -277,9 +286,6 @@ export function EmployeeAccessManagementSheet({
     !!selectedProfileId &&
     selectedProfileId !== currentProfileId;
   const canInviteWithEmail = email.trim().length > 0;
-  const selectedProfileName =
-    accessProfiles.find((profile) => profile.id === selectedProfileId)?.name ??
-    "Not selected";
 
   async function handleInvite() {
     if (!selectedInviteProfileId) {
@@ -365,73 +371,20 @@ export function EmployeeAccessManagementSheet({
     }
   }
 
-  function renderProfileSection(params: {
-    title: string;
-    description: string;
-    saveLabel: string;
-    saveLoadingLabel: string;
-    isSaving: boolean;
-    isSaveDisabled: boolean;
-    onSave: () => Promise<void>;
-  }) {
+  if (isInitialLoading) {
+    const loadingTitle = initialMode
+      ? getSheetTitle(initialMode, canManageAccess)
+      : canManageAccess
+        ? "Manage access"
+        : "View access";
+
     return (
-      <div className="space-y-3 rounded-lg border bg-muted/10 p-4">
-        <div className="space-y-1">
-          <p className="text-sm font-medium">{params.title}</p>
-          <p className="text-xs text-muted-foreground">{params.description}</p>
-        </div>
-
-        <DetailFact
-          label="Current profile"
-          value={
-            <ProfileValue
-              profile={currentPrimaryProfile}
-              emptyLabel="Not set"
-            />
-          }
-        />
-
-        {isProfilesLoading ? (
-          <Skeleton className="h-10 w-full rounded-lg" />
-        ) : accessProfiles.length > 0 ? (
-          <div className="space-y-2">
-            <p className="text-sm font-medium">New profile</p>
-            <Select value={selectedProfileId} onValueChange={setSelectedProfileId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Access profile" />
-              </SelectTrigger>
-              <SelectContent>
-                {accessProfiles.map((profile) => (
-                  <SelectItem key={profile.id} value={profile.id}>
-                    {profile.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              Selected: {selectedProfileName}
-            </p>
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            No access profiles are available right now.
-          </p>
-        )}
-
-        <div className="flex flex-wrap gap-2">
-          <Button
-            onClick={() => void params.onSave()}
-            disabled={params.isSaveDisabled}
-          >
-            {params.isSaving ? params.saveLoadingLabel : params.saveLabel}
-          </Button>
-        </div>
-      </div>
+      <AccessDialogLoadingState
+        open={open}
+        onOpenChange={onOpenChange}
+        title={loadingTitle}
+      />
     );
-  }
-
-  if (open && isLoading && !account && !error) {
-    return <AccessSheetSkeleton open={open} onOpenChange={onOpenChange} />;
   }
 
   const reviewNextStep = getNeedsReviewNextStep(account ?? null);
@@ -618,69 +571,72 @@ export function EmployeeAccessManagementSheet({
   }
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="flex w-full flex-col gap-0 p-0 sm:max-w-2xl">
-        <SheetHeader className="border-b px-6 pb-4 pt-6 pr-14">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
           <div className="space-y-3">
             <div className="flex flex-wrap items-start gap-2">
-              <SheetTitle className="min-w-0 text-lg">
+              <DialogTitle className="min-w-0 text-lg">
                 {sheetTitle}
-              </SheetTitle>
+              </DialogTitle>
               <Badge variant={stateTone}>{accessState}</Badge>
             </div>
-            <SheetDescription className="space-y-1">
+            <DialogDescription className="space-y-1">
               <span className="block font-medium text-foreground">
                 {displayName}
               </span>
               <span className="block break-all">{email}</span>
               <span className="block">{sheetSubtitle}</span>
-            </SheetDescription>
+            </DialogDescription>
           </div>
-        </SheetHeader>
+        </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto px-6 py-6">
-          <div className="space-y-6">
-            {hasBlockingLoadError ? (
-              <Alert variant="destructive">
-                <AlertTitle>Access details couldn&apos;t be loaded</AlertTitle>
-                <AlertDescription>
-                  Something went wrong. Try again in a moment.
-                </AlertDescription>
-              </Alert>
-            ) : null}
+        <div className="space-y-6">
+          {hasBlockingLoadError ? (
+            <Alert variant="destructive">
+              <AlertTitle>Access details couldn&apos;t be loaded</AlertTitle>
+              <AlertDescription>
+                Something went wrong. Try again in a moment.
+              </AlertDescription>
+            </Alert>
+          ) : null}
 
-            {actionError ? (
-              <Alert variant="destructive">
-                <AlertTitle>Access action failed</AlertTitle>
-                <AlertDescription>{actionError}</AlertDescription>
-              </Alert>
-            ) : null}
+          {actionError ? (
+            <Alert variant="destructive">
+              <AlertTitle>Access action failed</AlertTitle>
+              <AlertDescription>{actionError}</AlertDescription>
+            </Alert>
+          ) : null}
 
-            {!hasBlockingLoadError && mode === "review" ? (
-              <>
-                <div className="grid gap-3 md:grid-cols-3">
-                  <DetailFact
-                    label="Account state"
-                    value={<Badge variant={stateTone}>{accessState}</Badge>}
-                  />
-                  <DetailFact
-                    label="Access profile"
-                    value={<ProfileValue profile={currentPrimaryProfile} />}
-                  />
-                  <DetailFact
-                    label="Latest activity"
-                    value={
-                      account?.lastLoginAt
-                        ? new Date(account.lastLoginAt).toLocaleDateString("en-GB", {
+          {!hasBlockingLoadError ? (
+            <>
+              <div className="grid gap-3 md:grid-cols-3">
+                <DetailFact
+                  label="Account state"
+                  value={<Badge variant={stateTone}>{accessState}</Badge>}
+                />
+                <DetailFact
+                  label="Access profile"
+                  value={<ProfileValue profile={currentPrimaryProfile} />}
+                />
+                <DetailFact
+                  label="Latest activity"
+                  value={
+                    account?.lastLoginAt
+                      ? new Date(account.lastLoginAt).toLocaleDateString(
+                          "en-GB",
+                          {
                             day: "numeric",
                             month: "short",
                             year: "numeric",
-                          })
-                        : "—"
-                    }
-                  />
-                </div>
+                          }
+                        )
+                      : "—"
+                  }
+                />
+              </div>
 
+              {mode === "review" ? (
                 <section className="space-y-4 rounded-lg border bg-muted/10 p-4">
                   <div className="space-y-1">
                     <h2 className="text-sm font-semibold">Needs review</h2>
@@ -693,48 +649,55 @@ export function EmployeeAccessManagementSheet({
                       label="Issue"
                       value={getNeedsReviewReason(account ?? null)}
                     />
-                    <DetailFact
-                      label="Next step"
-                      value={reviewNextStep}
-                    />
+                    <DetailFact label="Next step" value={reviewNextStep} />
                   </div>
                 </section>
+              ) : null}
 
-                {canManageAccess && (account?.inviteLink || account?.provisioningState === "InvitePending") ? (
-                  <section className="space-y-4 rounded-lg border bg-muted/10 p-4">
-                    <div className="space-y-1">
-                      <h2 className="text-sm font-semibold">Available actions</h2>
-                      <p className="text-sm text-muted-foreground">
-                        Use the safest next step available for this access issue.
-                      </p>
-                    </div>
+              {canManageAccess &&
+              (account?.inviteLink ||
+                account?.provisioningState === "InvitePending") ? (
+                <section className="space-y-4 rounded-lg border bg-muted/10 p-4">
+                  <div className="space-y-1">
+                    <h2 className="text-sm font-semibold">Available actions</h2>
+                    <p className="text-sm text-muted-foreground">
+                      Use the safest next step available for this access issue.
+                    </p>
+                  </div>
 
-                    <div className="flex flex-wrap gap-2">
-                      {account?.inviteLink ? (
-                        <Button
-                          variant="outline"
-                          onClick={() => void handleCopyInviteLink()}
-                        >
-                          Copy invite link
-                        </Button>
-                      ) : null}
-                      {account?.provisioningState === "InvitePending" ? (
-                        <Button
-                          variant="outline"
-                          onClick={() => void handleResend()}
-                          disabled={resendInvite.isLoading}
-                        >
-                          {resendInvite.isLoading ? "Resending..." : "Resend invite"}
-                        </Button>
-                      ) : null}
-                    </div>
-                  </section>
-                ) : null}
-              </>
-            ) : null}
-          </div>
+                  <div className="flex flex-wrap gap-2">
+                    {account?.inviteLink ? (
+                      <Button
+                        variant="outline"
+                        onClick={() => void handleCopyInviteLink()}
+                      >
+                        Copy invite link
+                      </Button>
+                    ) : null}
+                    {account?.provisioningState === "InvitePending" ? (
+                      <Button
+                        variant="outline"
+                        onClick={() => void handleResend()}
+                        disabled={resendInvite.isLoading}
+                      >
+                        {resendInvite.isLoading
+                          ? "Resending..."
+                          : "Resend invite"}
+                      </Button>
+                    ) : null}
+                  </div>
+                </section>
+              ) : null}
+            </>
+          ) : null}
         </div>
-      </SheetContent>
-    </Sheet>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Close
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

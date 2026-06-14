@@ -276,6 +276,26 @@ describe("EmployeeAccessManagementSheet", () => {
     expect(screen.queryByText("Account conflict")).not.toBeInTheDocument();
   });
 
+  it("keeps the requested modal context while access details are still loading", () => {
+    mockUseWorkforceAccountStatus.mockReturnValue({
+      data: null,
+      error: null,
+      isLoading: true,
+    });
+
+    render(
+      <EmployeeAccessManagementSheet
+        {...baseProps}
+        initialMode="pending"
+      />
+    );
+
+    expect(
+      screen.getByRole("dialog", { name: "Update access profile" })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Loading access details.")).toBeInTheDocument();
+  });
+
   it("maps profile update failures to user-facing copy instead of raw errors", async () => {
     const user = userEvent.setup();
     const mutateAsync = vi

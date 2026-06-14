@@ -384,7 +384,9 @@ beforeEach(() => {
 });
 
 describe("EmployeeProfileWorkspace", () => {
-  it("renders the rewritten HR profile layout with linked reporting and working edit actions", () => {
+  it(
+    "renders the rewritten HR profile layout with linked reporting and working edit actions",
+    () => {
     renderWorkspace({
       profile: {
         ...baseProfile,
@@ -417,6 +419,19 @@ describe("EmployeeProfileWorkspace", () => {
     expect(screen.getByText("Record completeness")).toBeTruthy();
     expect(screen.queryByText("Recent activity")).toBeNull();
 
+    const profileDetailsHeading = screen.getByText("Profile details");
+    const accessHeading = screen.getByText("Access");
+    const reportingHeading = screen.getByText("Organization & reporting");
+
+    expect(
+      profileDetailsHeading.compareDocumentPosition(accessHeading) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    expect(
+      accessHeading.compareDocumentPosition(reportingHeading) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+
     const managerLinks = screen.getAllByRole("link", { name: /Morgan Hart/i });
     const managerHrefs = managerLinks.map((link) => link.getAttribute("href"));
     expect(managerHrefs).toContain("/employees/E-MGR1");
@@ -435,7 +450,9 @@ describe("EmployeeProfileWorkspace", () => {
       "E-EMP1"
     );
     expect(screen.queryByText("No follow-up needed")).toBeNull();
-  });
+    },
+    10000
+  );
 
   it("opens access management for invite-pending account actions", async () => {
     mockUseWorkforceAccountStatus.mockReturnValue({

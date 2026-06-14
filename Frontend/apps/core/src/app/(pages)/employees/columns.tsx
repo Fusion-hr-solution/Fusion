@@ -88,8 +88,8 @@ export function buildEmployeeColumns<TEmployee extends EmployeeRosterItem>(
       id: "Name",
       accessorFn: getEmployeeName,
       meta: {
-        headerClassName: "w-[10rem]",
-        cellClassName: "w-[10rem]",
+        headerClassName: "w-[8.5rem]",
+        cellClassName: "w-[8.5rem]",
       },
       header: ({ column }) => <SortHeader label="Employee" column={column} />,
       cell: ({ row }) => {
@@ -123,13 +123,16 @@ export function buildEmployeeColumns<TEmployee extends EmployeeRosterItem>(
       id: "Email",
       accessorKey: "email",
       meta: {
-        headerClassName: "w-[9rem]",
-        cellClassName: "w-[9rem]",
+        headerClassName: "w-[6.5rem]",
+        cellClassName: "w-[6.5rem]",
       },
       header: ({ column }) => <SortHeader label="Email" column={column} />,
       cell: ({ row }) => (
         <div className="flex items-center justify-center">
-          <span className="truncate text-muted-foreground" title={row.original.email}>
+          <span
+            className="block max-w-[6.5rem] truncate text-muted-foreground"
+            title={row.original.email}
+          >
             {row.original.email}
           </span>
         </div>
@@ -140,8 +143,8 @@ export function buildEmployeeColumns<TEmployee extends EmployeeRosterItem>(
       id: "HireDate",
       accessorKey: "hireDate",
       meta: {
-        headerClassName: "w-[9rem]",
-        cellClassName: "w-[9rem]",
+        headerClassName: "w-[7.5rem]",
+        cellClassName: "w-[7.5rem]",
       },
       header: ({ column }) => <SortHeader label="Hire date" column={column} />,
       cell: ({ row }) => (
@@ -160,14 +163,14 @@ export function buildEmployeeColumns<TEmployee extends EmployeeRosterItem>(
       id: "JobTitle",
       accessorKey: "jobTitle",
       meta: {
-        headerClassName: "w-[10rem]",
-        cellClassName: "w-[10rem]",
+        headerClassName: "w-[8rem]",
+        cellClassName: "w-[8rem]",
       },
       header: "Job title",
       cell: ({ row }) => (
         <div className="flex items-center justify-center">
           <span
-            className="truncate text-muted-foreground"
+            className="block max-w-[8rem] truncate text-muted-foreground"
             title={row.original.jobTitle ?? undefined}
           >
             {renderValue(row.original.jobTitle)}
@@ -182,14 +185,14 @@ export function buildEmployeeColumns<TEmployee extends EmployeeRosterItem>(
     id: "OrgUnit",
     accessorKey: "orgUnitName",
     meta: {
-      headerClassName: "w-[10rem]",
-      cellClassName: "w-[10rem]",
+      headerClassName: "w-[8rem]",
+      cellClassName: "w-[8rem]",
     },
     header: "Org unit",
     cell: ({ row }) => (
       <div className="flex items-center justify-center">
         <span
-          className="truncate text-muted-foreground"
+          className="block max-w-[8rem] truncate text-muted-foreground"
           title={row.original.orgUnitName ?? undefined}
         >
           {renderValue(row.original.orgUnitName)}
@@ -203,8 +206,8 @@ export function buildEmployeeColumns<TEmployee extends EmployeeRosterItem>(
     id: "Manager",
     accessorKey: "managerName",
     meta: {
-      headerClassName: "w-[11rem]",
-      cellClassName: "w-[11rem]",
+      headerClassName: "w-[8.5rem]",
+      cellClassName: "w-[8.5rem]",
     },
     header: "Manager",
     cell: ({ row }) => {
@@ -217,7 +220,7 @@ export function buildEmployeeColumns<TEmployee extends EmployeeRosterItem>(
       return (
         <div className="flex items-center justify-center">
           <span
-            className="truncate font-medium"
+            className="block max-w-[8.5rem] truncate font-medium"
             title={row.original.managerName ?? undefined}
           >
             {row.original.managerName}

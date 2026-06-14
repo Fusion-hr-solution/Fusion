@@ -339,6 +339,12 @@ describe("AccessPeopleWorkspace", () => {
     expect(
       screen.getByPlaceholderText("Search by name or email")
     ).toHaveValue("");
+    expect(
+      screen.getByRole("button", { name: "All employee statuses" })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Advanced" })
+    ).not.toBeInTheDocument();
     expect(screen.getByText("Alex Morgan")).toBeInTheDocument();
     expect(screen.queryByText("E-001")).not.toBeInTheDocument();
   });
