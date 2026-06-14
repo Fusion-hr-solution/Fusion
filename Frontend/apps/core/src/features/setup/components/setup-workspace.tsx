@@ -391,7 +391,7 @@ function getSetupSummaryLine(options: {
 }
 
 function formatStructureCounts(unitCount: number, rootUnitCount: number): string {
-  return `${unitCount} unit${unitCount === 1 ? "" : "s"} — ${rootUnitCount} top-level`;
+  return `${unitCount} unit${unitCount === 1 ? "" : "s"} • ${rootUnitCount} top-level`;
 }
 
 function getReadinessStatusLabel(options: {
