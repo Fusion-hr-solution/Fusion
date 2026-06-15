@@ -25,7 +25,7 @@ export function SessionPickerCard({ session, isSelected, onSelect }: SessionPick
           ? "border-primary bg-primary/5 shadow-md ring-1 ring-primary/20"
           : session.isFull
             ? "cursor-not-allowed border-border/50 bg-muted/30 opacity-60"
-            : "border-border/50 bg-white hover:border-primary/40 hover:shadow-sm"
+            : "border-border/50 bg-card hover:border-primary/40 hover:shadow-sm"
       }`}
     >
       {isSelected && (

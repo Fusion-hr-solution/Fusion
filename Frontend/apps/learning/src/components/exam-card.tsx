@@ -33,7 +33,7 @@ export function ExamCard({ exam, chaptersCount, isEnrolled }: ExamCardProps) {
   ];
 
   return (
-    <div className="ey-animate-fade-up rounded-2xl border border-border/60 bg-white overflow-hidden">
+    <div className="ey-animate-fade-up rounded-2xl border border-border/60 bg-card overflow-hidden">
       {/* Exam header with accent */}
       <div className="relative flex items-center gap-3 border-b border-border/40 bg-gradient-to-r from-[hsl(var(--ey-yellow))]/8 to-transparent px-6 py-4">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[hsl(var(--ey-yellow))]/15 ring-1 ring-[hsl(var(--ey-yellow))]/20">
@@ -59,7 +59,7 @@ export function ExamCard({ exam, chaptersCount, isEnrolled }: ExamCardProps) {
           return (
             <div
               key={stat.labelKey}
-              className="flex flex-col items-center gap-2 bg-white px-4 py-5 text-center"
+              className="flex flex-col items-center gap-2 bg-card px-4 py-5 text-center"
             >
               <Icon
                 className="h-4 w-4 text-muted-foreground"

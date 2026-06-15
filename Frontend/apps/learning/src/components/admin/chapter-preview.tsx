@@ -53,7 +53,7 @@ export function ChapterPreview({
 }: ChapterPreviewProps) {
   const t = useTranslations("adminChapters");
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-white">
+    <div className="flex h-full flex-col overflow-hidden bg-card">
       {/* Preview header bar */}
       <div className="flex items-center justify-between border-b border-border bg-muted/30 px-6 py-3">
         <div className="flex items-center gap-2">
@@ -162,7 +162,7 @@ function PreviewBlockView({
 
   return (
     <div
-      className="rounded-2xl border border-border/50 bg-white p-6 shadow-sm"
+      className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm"
       style={{ animationDelay: `${index * 80}ms` }}
     >
       {/* Block header */}

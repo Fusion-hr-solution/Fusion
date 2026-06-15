@@ -19,7 +19,7 @@ export function ContinueCard({ training }: ContinueCardProps) {
       aria-label={t("continueAria", { title: training.title })}
       className="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
-      <Card className="group overflow-hidden border border-border/60 bg-white transition-all duration-300 hover:shadow-lg hover:shadow-black/5 hover:-translate-y-0.5 cursor-pointer">
+      <Card className="group overflow-hidden border border-border/60 bg-card transition-all duration-300 hover:shadow-lg hover:shadow-black/5 hover:-translate-y-0.5 cursor-pointer">
         <div
           className={`h-1 w-full ey-animate-stripe ${category.stripClass}`}
         />

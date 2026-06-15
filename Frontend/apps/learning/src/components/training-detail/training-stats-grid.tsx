@@ -18,7 +18,7 @@ export function TrainingStatsGrid({ training }: { training: Training }) {
         return (
           <div
             key={stat.labelKey}
-            className="flex flex-col items-center gap-2 rounded-xl border border-border/50 bg-white p-4 text-center transition-all hover:shadow-md hover:shadow-black/5 hover:-translate-y-0.5"
+            className="flex flex-col items-center gap-2 rounded-xl border border-border/50 bg-card p-4 text-center transition-all hover:shadow-md hover:shadow-black/5 hover:-translate-y-0.5"
           >
             <div
               className={`flex h-9 w-9 items-center justify-center rounded-lg ${stat.bgClass}`}

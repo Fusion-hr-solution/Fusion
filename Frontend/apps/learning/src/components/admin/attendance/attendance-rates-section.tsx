@@ -94,7 +94,7 @@ export function AttendanceRatesSection() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap items-end gap-3 rounded-xl border border-border/60 bg-white p-4 shadow-sm">
+      <div className="flex flex-wrap items-end gap-3 rounded-xl border border-border/60 bg-card p-4 shadow-sm">
         <div className="space-y-1.5">
           <Label className="text-xs">{t("rates.grade")}</Label>
           <Select value={gradeId} onValueChange={setGradeId}>
@@ -212,7 +212,7 @@ export function AttendanceRatesSection() {
         ) : trend && trend.points.length > 0 ? (
           <AttendanceTrendChart points={trend.points} />
         ) : (
-          <div className="flex h-[320px] items-center justify-center rounded-xl border border-border/60 bg-white text-xs text-muted-foreground">
+          <div className="flex h-[320px] items-center justify-center rounded-xl border border-border/60 bg-card text-xs text-muted-foreground">
             {t("rates.noTrendData")}
           </div>
         )}

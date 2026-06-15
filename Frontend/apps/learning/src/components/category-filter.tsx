@@ -17,7 +17,7 @@ export function CategoryFilter({ selected, onChange }: CategoryFilterProps) {
         className={`rounded-full border px-4 py-1.5 text-sm font-medium transition-all duration-200 ${
           selected === null
             ? "ey-bg-dark border-transparent text-white shadow-md shadow-border/20"
-            : "border-border bg-white text-muted-foreground hover:border-border hover:text-foreground hover:shadow-sm"
+            : "border-border bg-card text-muted-foreground hover:border-border hover:text-foreground hover:shadow-sm"
         }`}
       >
         {t("allCategories")}
@@ -32,7 +32,7 @@ export function CategoryFilter({ selected, onChange }: CategoryFilterProps) {
             className={`rounded-full border px-4 py-1.5 text-sm font-medium transition-all duration-200 ${
               isActive
                 ? `border-transparent ${config.chipClass} shadow-md`
-                : "border-border bg-white text-muted-foreground hover:border-border hover:text-foreground hover:shadow-sm"
+                : "border-border bg-card text-muted-foreground hover:border-border hover:text-foreground hover:shadow-sm"
             }`}
           >
             {tCommon(`category.${cat}`)}

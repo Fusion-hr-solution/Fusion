@@ -2,7 +2,7 @@ export default function Loading() {
   return (
     <div>
       {/* Hero skeleton */}
-      <section className="border-b border-border/50 bg-white">
+      <section className="border-b border-border/50 bg-card">
         <div className="px-8 py-12 lg:py-16">
           <div className="flex items-end gap-3 mb-1">
             <div className="h-9 w-1 rounded-full ey-shimmer" />
@@ -42,7 +42,7 @@ export default function Loading() {
           {Array.from({ length: 6 }).map((_, i) => (
             <div
               key={i}
-              className="rounded-lg border border-border/40 bg-white overflow-hidden"
+              className="rounded-lg border border-border/40 bg-card overflow-hidden"
             >
               <div className="h-1 w-full ey-shimmer" />
               <div className="p-5 space-y-4">

@@ -157,7 +157,7 @@ function ScanSuccessCard({
             </p>
           </div>
         </div>
-        <div className="rounded-lg border border-emerald-200/60 bg-white p-3 space-y-1">
+        <div className="rounded-lg border border-emerald-200/60 bg-card p-3 space-y-1">
           <p className="text-xs uppercase tracking-wider text-muted-foreground">
             {t("scanner.success.trainingLabel")}
           </p>

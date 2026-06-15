@@ -38,7 +38,7 @@ export function CertificateRegistryFiltersBar({
 }: CertificateRegistryFiltersBarProps) {
   const t = useTranslations("adminCertificates");
   return (
-    <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-white p-4">
+    <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-card p-4">
       <Field label={t("filters.search")}>
         <Input
           className="w-52"

@@ -25,7 +25,7 @@ export function ExamSection({ exam, chaptersCount }: ExamSectionProps) {
       {exam ? (
         <ExamCard exam={exam} chaptersCount={chaptersCount} />
       ) : (
-        <div className="rounded-2xl border border-dashed border-border/60 bg-white px-6 py-8 text-center">
+        <div className="rounded-2xl border border-dashed border-border/60 bg-card px-6 py-8 text-center">
           <p className="text-sm text-muted-foreground">
             {t("noExam")}
           </p>

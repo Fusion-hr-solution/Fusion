@@ -54,7 +54,7 @@ export function ExamQuestionItem({
                 className={`flex w-full items-center gap-3 rounded-lg border px-4 py-3 text-left text-sm transition-all ${
                   selected
                     ? "border-[hsl(var(--ey-blue-500))] bg-[hsl(var(--ey-blue-500))]/5 text-foreground"
-                    : "border-border/60 bg-white text-foreground hover:border-border hover:bg-muted/30"
+                    : "border-border/60 bg-card text-foreground hover:border-border hover:bg-muted/30"
                 }`}
               >
                 {selected ? (

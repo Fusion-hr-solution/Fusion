@@ -11,7 +11,7 @@ export function TrainingStatusTabs({
 }: TrainingStatusTabsProps) {
   const t = useTranslations("common.tabs");
   return (
-    <div className="inline-flex gap-1 rounded-xl border border-border/60 bg-white p-1 shadow-sm">
+    <div className="inline-flex gap-1 rounded-xl border border-border/60 bg-card p-1 shadow-sm">
       {TABS.map((tab) => {
         const isActive = activeTab === tab.value;
         return (

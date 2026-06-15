@@ -20,7 +20,7 @@ interface CompletionTrendChartProps {
 export function CompletionTrendChart({ points }: CompletionTrendChartProps) {
   const t = useTranslations("adminDashboard");
   return (
-    <div className="ey-animate-fade-up rounded-xl border border-border/60 bg-white p-5 shadow-sm">
+    <div className="ey-animate-fade-up rounded-xl border border-border/60 bg-card p-5 shadow-sm">
       <h3 className="mb-4 text-sm font-semibold text-foreground">
         {t("charts.trendTitle")}
       </h3>

@@ -41,7 +41,7 @@ export function ActiveFilters({
         <button
           onClick={onClearLevel}
           aria-label={t("removeFilterAria", { filter: tCommon(`level.${level}`) })}
-          className="inline-flex items-center gap-1.5 rounded-full border border-border bg-white px-2.5 py-0.5 text-xs font-medium text-foreground transition-all hover:bg-muted hover:shadow-sm"
+          className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-0.5 text-xs font-medium text-foreground transition-all hover:bg-muted hover:shadow-sm"
         >
           <span
             className={`h-1.5 w-1.5 rounded-full ${LEVEL_CONFIG[level].dotClass}`}
@@ -55,7 +55,7 @@ export function ActiveFilters({
         <button
           onClick={onClearSearch}
           aria-label={t("removeSearchAria")}
-          className="inline-flex items-center gap-1.5 rounded-full border border-border bg-white px-2.5 py-0.5 text-xs font-medium text-foreground transition-all hover:bg-muted hover:shadow-sm"
+          className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-0.5 text-xs font-medium text-foreground transition-all hover:bg-muted hover:shadow-sm"
         >
           &ldquo;{search}&rdquo;
           <X className="h-3 w-3" aria-hidden="true" />

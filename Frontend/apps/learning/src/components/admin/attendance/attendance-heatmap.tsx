@@ -44,14 +44,14 @@ export function AttendanceHeatmapGrid({ data }: AttendanceHeatmapGridProps) {
 
   if (data.months.length === 0 || data.grades.length === 0) {
     return (
-      <div className="flex h-[160px] items-center justify-center rounded-xl border border-border/60 bg-white text-xs text-muted-foreground">
+      <div className="flex h-[160px] items-center justify-center rounded-xl border border-border/60 bg-card text-xs text-muted-foreground">
         {t("heatmap.empty")}
       </div>
     );
   }
 
   return (
-    <div className="ey-animate-fade-up overflow-x-auto rounded-xl border border-border/60 bg-white p-5 shadow-sm">
+    <div className="ey-animate-fade-up overflow-x-auto rounded-xl border border-border/60 bg-card p-5 shadow-sm">
       <h3 className="mb-4 text-sm font-semibold text-foreground">
         {t("heatmap.title")}
       </h3>

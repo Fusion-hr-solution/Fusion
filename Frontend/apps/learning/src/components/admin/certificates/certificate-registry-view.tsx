@@ -169,7 +169,7 @@ export function CertificateRegistryView() {
           </div>
         </div>
 
-        <div className="rounded-lg border bg-white">
+        <div className="rounded-lg border bg-card">
           {isLoading ? (
             <div className="space-y-2 p-4">
               {[0, 1, 2, 3, 4].map((i) => (

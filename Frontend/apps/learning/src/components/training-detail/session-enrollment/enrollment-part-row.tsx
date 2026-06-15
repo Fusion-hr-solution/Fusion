@@ -43,7 +43,7 @@ export function EnrollmentPartRow({
   const showAbsentSessions = isAbsent && availableSessions && availableSessions.length > 0;
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border/50 bg-white transition-all hover:shadow-sm">
+    <div className="overflow-hidden rounded-xl border border-border/50 bg-card transition-all hover:shadow-sm">
       <div className="flex items-center gap-4 p-4">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-sm font-bold text-primary">
           {part.orderIndex + 1}

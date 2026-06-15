@@ -37,7 +37,7 @@ export function SessionQrFullscreenDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] sm:max-w-3xl bg-white">
+      <DialogContent className="max-w-[95vw] sm:max-w-3xl bg-card">
         <DialogTitle className="sr-only">
           {t("qrFullscreen.srTitle")}
         </DialogTitle>
