@@ -14,7 +14,6 @@ import {
 import { useApiQuery } from "@repo/api/react";
 import { EMPLOYEE_NAV, ADMIN_NAV } from "@/data/sidebar-nav";
 import { getMyTrainings } from "@/services/learning-service";
-import { LanguageSwitcher } from "./language-switcher";
 import { StatRow } from "./stat-row";
 
 function SidebarNavSkeleton() {
@@ -149,7 +148,7 @@ export function LearningSidebar() {
     return (
       <aside className="group/sidebar relative flex h-full shrink-0 flex-col border-r border-sidebar-border bg-sidebar w-[260px]">
         <div className="flex items-center gap-2.5 border-b border-sidebar-border px-5 py-4">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-foreground shadow-sm">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-foreground shadow-sm dark:bg-secondary">
             <GraduationCap className="h-4 w-4 text-primary" />
           </div>
           <div>
@@ -175,16 +174,7 @@ export function LearningSidebar() {
       brandTitle="EY Academy"
       brandSubtitle={t("brandSubtitle")}
       basePath="/learning"
-      footer={(collapsed) => (
-        <div
-          className={
-            collapsed ? "flex flex-col items-center gap-2" : "space-y-2.5"
-          }
-        >
-          <LanguageSwitcher collapsed={collapsed} />
-          <QuickStatsFooter collapsed={collapsed} />
-        </div>
-      )}
+      footer={(collapsed) => <QuickStatsFooter collapsed={collapsed} />}
       userPanel={(collapsed) => <SidebarUserPanel collapsed={collapsed} />}
     />
   );

@@ -8,7 +8,7 @@ const frontendWorkspaceRoot = path.resolve(process.cwd(), "../..");
 const nextConfig: NextConfig = {
   basePath: "/learning",
   outputFileTracingRoot: frontendWorkspaceRoot,
-  transpilePackages: ["@repo/ui", "@repo/auth", "@repo/api"],
+  transpilePackages: ["@repo/ui", "@repo/auth", "@repo/api", "@repo/i18n"],
   allowedDevOrigins: ["http://localhost:3000"],
   experimental: {
     staleTimes: { dynamic: 0 },

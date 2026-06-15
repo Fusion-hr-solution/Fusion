@@ -2,9 +2,10 @@ import type { Metadata } from "next";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import { AuthProvider } from "@repo/auth";
-import { ModuleLayout } from "@repo/ui";
+import { ModuleLayout, ThemeProvider, ThemeScript } from "@repo/ui";
 import { Toaster } from "sonner";
 import { LearningSidebar } from "@/components/learning-sidebar";
+import { LearningHeader } from "@/components/learning-header";
 import "@repo/ui/src/ey-brand.css";
 import "./globals.css";
 
@@ -22,15 +23,24 @@ export default async function RootLayout({
   const messages = await getMessages();
 
   return (
-    <html lang={locale}>
+    <html lang={locale} suppressHydrationWarning>
       <body className="min-h-screen antialiased">
+        <ThemeScript />
         <NextIntlClientProvider messages={messages}>
-          <AuthProvider>
-            <ModuleLayout sidebar={<LearningSidebar />}>
-              {children}
-            </ModuleLayout>
-            <Toaster richColors closeButton position="top-right" />
-          </AuthProvider>
+          <ThemeProvider>
+            <AuthProvider>
+              <ModuleLayout sidebar={<LearningSidebar />}>
+                <LearningHeader />
+                {children}
+              </ModuleLayout>
+              <Toaster
+                richColors
+                closeButton
+                position="top-right"
+                theme="system"
+              />
+            </AuthProvider>
+          </ThemeProvider>
         </NextIntlClientProvider>
       </body>
     </html>

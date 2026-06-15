@@ -42,6 +42,12 @@
     "switchToEn": "Switch to English",
     "switchToFr": "Switch to French"
   },
+  "theme": {
+    "label": "Theme",
+    "light": "Light",
+    "system": "System",
+    "dark": "Dark"
+  },
   "common": {
     "status": {
       "in-progress": "In Progress",
