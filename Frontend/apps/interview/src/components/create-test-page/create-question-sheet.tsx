@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { X, Plus, CheckCircle2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { X, Plus, CheckCircle2, Sparkles, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { QUESTION_TYPES, CODING_LANGUAGES, GRADING_METHODS } from "@/config/constants";
 import { DropdownSelect } from "@/components/candidate-management/dropdown-select";
 import { TestCasesEditor } from "@/components/create-test-page/test-cases-editor";
+import { generateQuestions } from "@/services/test-service";
 import type { NewQuestionForm, QuestionType, Difficulty, GradingMethod } from "@/types";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -100,6 +101,18 @@ export function CreateQuestionSheet({
   const [tagInput, setTagInput] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [aiOpen,  setAiOpen]  = useState(false);
+  const [aiTopic, setAiTopic] = useState("");
+  const [aiBusy,  setAiBusy]  = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const aiTopicRef = useRef<HTMLTextAreaElement | null>(null);
+
+  useEffect(() => {
+    if (aiOpen) {
+      const t = setTimeout(() => aiTopicRef.current?.focus(), 40);
+      return () => clearTimeout(t);
+    }
+  }, [aiOpen]);
 
   useEffect(() => {
     if (!open) return;
@@ -171,6 +184,42 @@ export function CreateQuestionSheet({
     }
   }
 
+  async function handleGenerate() {
+    const topic = aiTopic.trim();
+    if (!topic) {
+      setAiError("Describe what the question should be about.");
+      return;
+    }
+    setAiBusy(true);
+    setAiError(null);
+    try {
+      // Pass the author's current selections as constraints; the AI infers the rest.
+      const drafts = await generateQuestions({
+        topic,
+        type: form.type || undefined,
+        difficulty: form.difficulty || undefined,
+        gradingMethod: form.gradingMethod || undefined,
+        language: form.language || undefined,
+        points: form.points > 0 ? form.points : undefined,
+        durationMinutes: form.durationMinutes > 0 ? form.durationMinutes : undefined,
+        count: 1,
+      });
+      const [draft] = drafts;
+      if (!draft) {
+        setAiError("The AI didn't return a usable question. Try refining the topic.");
+        return;
+      }
+      setForm(draft);
+      setSubmitError(null);
+      setAiOpen(false);
+      setAiTopic("");
+    } catch (err) {
+      setAiError(err instanceof Error ? err.message : "AI generation failed. Please try again.");
+    } finally {
+      setAiBusy(false);
+    }
+  }
+
   if (!fullPage && !open) return null;
 
   return (
@@ -208,13 +257,78 @@ export function CreateQuestionSheet({
                   : "Save to your library, then optionally add it to this test"}
               </p>
             </div>
-            <button
-              onClick={onClose}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-zinc-400 transition-colors duration-150 hover:bg-zinc-100 hover:text-zinc-700"
-            >
-              <X className="h-4 w-4" />
-            </button>
+            <div className="flex shrink-0 items-center gap-2">
+              <button
+                type="button"
+                onClick={() => { setAiOpen((v) => !v); setAiError(null); }}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-[12px] font-semibold transition-colors duration-150",
+                  aiOpen
+                    ? "border-violet-300 bg-violet-100 text-violet-700"
+                    : "border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100"
+                )}
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                Generate with AI
+              </button>
+              <button
+                onClick={onClose}
+                className="flex h-8 w-8 items-center justify-center rounded-xl text-zinc-400 transition-colors duration-150 hover:bg-zinc-100 hover:text-zinc-700"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
           </div>
+
+          {/* ── AI generation panel ─────────────────────────────────── */}
+          {aiOpen && (
+            <div className="mt-4 rounded-2xl border border-violet-200 bg-violet-50/50 p-4">
+              <label className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-violet-700">
+                Describe the question for the AI
+              </label>
+              <textarea
+                ref={aiTopicRef}
+                value={aiTopic}
+                onChange={(e) => setAiTopic(e.target.value)}
+                onKeyDown={(e) => {
+                  if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && !aiBusy && aiTopic.trim()) {
+                    e.preventDefault();
+                    void handleGenerate();
+                  }
+                }}
+                rows={2}
+                placeholder="e.g. useEffect cleanup functions and dependency arrays in React"
+                className="w-full resize-none rounded-xl border border-violet-200 bg-white px-3 py-2 text-[13px] text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-300"
+              />
+              <p className="mt-1.5 text-[11px] text-zinc-500">
+                Uses your selected Type, Difficulty, and Language above as constraints. You can edit everything after generating.
+              </p>
+              {aiError && (
+                <div className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-700">
+                  {aiError}
+                </div>
+              )}
+              <div className="mt-3 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => { setAiOpen(false); setAiError(null); }}
+                  disabled={aiBusy}
+                  className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-[12px] font-semibold text-zinc-600 transition-colors hover:bg-zinc-50 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleGenerate()}
+                  disabled={aiBusy || !aiTopic.trim()}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-violet-600 px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {aiBusy ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                  {aiBusy ? "Generating…" : "Generate"}
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Progress bar */}
           <div className="mt-5">

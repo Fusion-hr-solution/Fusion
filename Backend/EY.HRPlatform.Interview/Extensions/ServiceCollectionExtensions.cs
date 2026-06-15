@@ -38,6 +38,7 @@ public static class ServiceCollectionExtensions
             var inMemoryName = configuration["Database:InMemoryName"] ?? "InterviewTestingDb";
             services.AddDbContext<AppDbContext>(options => options.UseInMemoryDatabase(inMemoryName));
             services.AddScoped<IQuestionService, QuestionService>();
+            services.AddScoped<IQuestionGeneratorService, QuestionGeneratorService>();
             services.AddScoped<ITestService, TestService>();
             services.AddScoped<ITestQuestionService, TestQuestionService>();
             services.AddScoped<ICandidatePrivacyActionExecutor, CandidatePrivacyActionExecutor>();
@@ -68,6 +69,7 @@ public static class ServiceCollectionExtensions
             }
         });
         services.AddScoped<IQuestionService, QuestionService>();
+        services.AddScoped<IQuestionGeneratorService, QuestionGeneratorService>();
         services.AddScoped<ITestService, TestService>();
         services.AddScoped<ITestQuestionService, TestQuestionService>();
         services.AddScoped<ICandidatePrivacyActionExecutor, CandidatePrivacyActionExecutor>();
