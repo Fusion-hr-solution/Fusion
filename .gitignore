@@ -6,6 +6,17 @@ docs/corehr/
 artifacts/
 external-skills/
 
+# Impeccable scripts & skills (local design tooling — not for version control)
+.impeccable/
+
+# Local planning / design docs (not for version control)
+docs/
+DESIGN.md
+PRODUCT.md
+PROJECT_KNOWLEDGE.md
+FEATURE_7_1_CERTIFICATION.md
+.github/CONVENTIONS.md
+
 # ========================
 # OS & Editor
 # ========================
