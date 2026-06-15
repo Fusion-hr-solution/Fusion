@@ -36,7 +36,10 @@ export function getTrainingDetailStats(training: Training): TrainingStatItem[] {
     },
     {
       icon: Users,
-      value: training.enrolledCount.toLocaleString(),
+      // Deterministic across server/client. `toLocaleString()` with no explicit
+      // locale uses the runtime default (Node = en-US, browser = user locale),
+      // which differs and breaks hydration on this server-rendered page.
+      value: String(training.enrolledCount),
       labelKey: "enrolled",
       iconClass: "text-muted-foreground",
       bgClass: "bg-muted",
