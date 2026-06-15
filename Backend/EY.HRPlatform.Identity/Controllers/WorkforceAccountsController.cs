@@ -669,10 +669,13 @@ public sealed class WorkforceAccountsController(
     private bool CanViewWorkforceAccess()
         => (User.IsInRole(PlatformRole.PlatformAdmin) && tenantContext.IsResolved)
             || User.HasCorePermission(CorePermissions.AccessView, PermissionScopes.Tenant)
-            || User.HasCorePermission(CorePermissions.AccessManage, PermissionScopes.Tenant);
+            || User.HasCorePermission(CorePermissions.AccessManage, PermissionScopes.Tenant)
+            || User.HasCorePermission(CorePermissions.AccessAssignmentsView, PermissionScopes.Tenant)
+            || User.HasCorePermission(CorePermissions.AccessAssignmentsManage, PermissionScopes.Tenant);
 
     private bool CanManageWorkforceAccess()
-        => User.HasCorePermission(CorePermissions.AccessManage, PermissionScopes.Tenant);
+        => User.HasCorePermission(CorePermissions.AccessManage, PermissionScopes.Tenant)
+            || User.HasCorePermission(CorePermissions.AccessAssignmentsManage, PermissionScopes.Tenant);
 
     private bool TryGetTenantId(out Guid tenantId, out string error)
     {

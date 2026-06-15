@@ -99,7 +99,23 @@ public class CoreAccessControllerPermissionTests
     }
 
     [Fact]
-    public async Task CreateProfile_WithPlatformAdminRole_ReturnsCreated()
+    public async Task CreateProfile_WithAccessProfilesManagePermission_ReturnsCreated()
+    {
+        var controller = CreateController((CorePermissions.AccessProfilesManageV2, PermissionScopes.Tenant));
+
+        var result = await controller.CreateProfile(
+            new CreateAccessProfileRequest
+            {
+                Name = "Profile Definition Admin",
+                Grants = [],
+            },
+            CancellationToken.None);
+
+        Assert.IsType<CreatedAtActionResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task CreateProfile_WithPlatformAdminRole_ReturnsForbid()
     {
         var controller = CreateController(roles: [PlatformRole.PlatformAdmin]);
 
@@ -111,7 +127,27 @@ public class CoreAccessControllerPermissionTests
             },
             CancellationToken.None);
 
-        Assert.IsType<CreatedAtActionResult>(result.Result);
+        Assert.IsType<ForbidResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task GetAssignments_WithAssignmentsViewPermission_ReturnsOk()
+    {
+        var controller = CreateController((CorePermissions.AccessAssignmentsView, PermissionScopes.Tenant));
+
+        var result = await controller.GetAssignments(CancellationToken.None);
+
+        Assert.IsType<OkObjectResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task GetCatalog_WithAccessProfilesViewPermission_ReturnsOk()
+    {
+        var controller = CreateController((CorePermissions.AccessProfilesView, PermissionScopes.Tenant));
+
+        var result = await controller.GetCatalog(CancellationToken.None);
+
+        Assert.IsType<OkObjectResult>(result.Result);
     }
 
     private static CoreAccessController CreateController(
@@ -124,6 +160,7 @@ public class CoreAccessControllerPermissionTests
     {
         var controller = new CoreAccessController(
             new StubAccessProfileService(),
+            new StubAccessAuditService(),
             TestTenantContext.WithTenant(Guid.NewGuid()))
         {
             ControllerContext = new ControllerContext
@@ -221,5 +258,26 @@ public class CoreAccessControllerPermissionTests
 
         public string ResolveCompatibilityRole(IReadOnlyCollection<EffectivePermissionGrant> grants)
             => PlatformRole.Employee;
+    }
+
+    private sealed class StubAccessAuditService : IAccessAuditService
+    {
+        public Task RecordAsync(
+            Guid tenantId,
+            string action,
+            string resourceType,
+            string? resourceId,
+            string summary,
+            object? before,
+            object? after,
+            ClaimsPrincipal actor,
+            CancellationToken cancellationToken)
+            => Task.CompletedTask;
+
+        public Task<IReadOnlyList<AccessAuditEventDto>> GetRecentAsync(
+            Guid tenantId,
+            int take,
+            CancellationToken cancellationToken)
+            => Task.FromResult<IReadOnlyList<AccessAuditEventDto>>([]);
     }
 }

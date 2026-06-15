@@ -66,6 +66,7 @@ public class CoreAccessPolicyServiceTests
         Assert.True(_service.CanViewOverview(user));
         Assert.True(_service.CanViewAccess(user));
         Assert.True(_service.CanViewTenantEmployees(user));
+        Assert.False(_service.CanViewSettings(user));
         Assert.False(_service.CanManageAccess(user));
         Assert.False(_service.CanManageEmployees(user));
         Assert.Equal(PermissionScopes.Tenant, _service.GetEmployeeViewScope(user));
@@ -94,13 +95,43 @@ public class CoreAccessPolicyServiceTests
     }
 
     [Fact]
-    public void AccessProfileManagement_DoesNotGrantSettingsVisibility()
+    public void AccessProfileManagement_GrantsOnlyAccessPermissionsSettingsSection()
     {
         var user = CreatePrincipal(
             null,
-            (CorePermissions.AccessProfilesManage, PermissionScopes.Tenant));
+            (CorePermissions.AccessProfilesManageV2, PermissionScopes.Tenant));
 
-        Assert.False(_service.CanViewSettings(user));
+        Assert.True(_service.CanViewSettings(user));
+        Assert.True(_service.CanViewAccessProfiles(user));
+        Assert.True(_service.CanManageAccessProfiles(user));
+        Assert.False(_service.CanManageSettings(user));
+        Assert.False(_service.CanViewPeopleDataSettings(user));
+    }
+
+    [Fact]
+    public void PeopleDataAdmin_GrantsOnlyPeopleDataSettingsSection()
+    {
+        var user = CreatePrincipal(
+            null,
+            (CorePermissions.SettingsPeopleDataManage, PermissionScopes.Tenant));
+
+        Assert.True(_service.CanViewSettings(user));
+        Assert.True(_service.CanViewPeopleDataSettings(user));
+        Assert.True(_service.CanManagePeopleDataSettings(user));
+        Assert.True(_service.CanManageSettings(user));
+        Assert.False(_service.CanViewAccessProfiles(user));
+        Assert.False(_service.CanViewProvisioningSettings(user));
+    }
+
+    [Fact]
+    public void GovernanceReader_IsReadOnly()
+    {
+        var user = CreatePrincipal(
+            null,
+            (CorePermissions.SettingsGovernanceView, PermissionScopes.Tenant));
+
+        Assert.True(_service.CanViewSettings(user));
+        Assert.True(_service.CanViewGovernanceSettings(user));
         Assert.False(_service.CanManageSettings(user));
     }
 

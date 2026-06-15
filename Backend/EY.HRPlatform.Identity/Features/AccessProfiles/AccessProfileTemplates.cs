@@ -47,7 +47,12 @@ public static class AccessProfileTemplates
             new(CorePermissions.OrgChartView, PermissionScopes.Tenant),
             new(CorePermissions.AccessView, PermissionScopes.Tenant),
             new(CorePermissions.AccessManage, PermissionScopes.Tenant),
-            new(CorePermissions.SettingsView, PermissionScopes.Tenant),
+            new(CorePermissions.AccessAssignmentsView, PermissionScopes.Tenant),
+            new(CorePermissions.AccessAssignmentsManage, PermissionScopes.Tenant),
+            new(CorePermissions.SettingsPeopleDataView, PermissionScopes.Tenant),
+            new(CorePermissions.SettingsStructureView, PermissionScopes.Tenant),
+            new(CorePermissions.SettingsProvisioningView, PermissionScopes.Tenant),
+            new(CorePermissions.SettingsGovernanceView, PermissionScopes.Tenant),
         ]);
 
     public static readonly SeededAccessProfileTemplate OrgAdmin = new(
@@ -68,9 +73,19 @@ public static class AccessProfileTemplates
             new(CorePermissions.OrgChartView, PermissionScopes.Tenant),
             new(CorePermissions.AccessView, PermissionScopes.Tenant),
             new(CorePermissions.AccessManage, PermissionScopes.Tenant),
-            new(CorePermissions.SettingsView, PermissionScopes.Tenant),
-            new(CorePermissions.SettingsManage, PermissionScopes.Tenant),
-            new(CorePermissions.AccessProfilesManage, PermissionScopes.Tenant),
+            new(CorePermissions.AccessAssignmentsView, PermissionScopes.Tenant),
+            new(CorePermissions.AccessAssignmentsManage, PermissionScopes.Tenant),
+            new(CorePermissions.SettingsOrganizationView, PermissionScopes.Tenant),
+            new(CorePermissions.SettingsOrganizationManage, PermissionScopes.Tenant),
+            new(CorePermissions.SettingsPeopleDataView, PermissionScopes.Tenant),
+            new(CorePermissions.SettingsPeopleDataManage, PermissionScopes.Tenant),
+            new(CorePermissions.SettingsStructureView, PermissionScopes.Tenant),
+            new(CorePermissions.SettingsStructureManage, PermissionScopes.Tenant),
+            new(CorePermissions.SettingsProvisioningView, PermissionScopes.Tenant),
+            new(CorePermissions.SettingsProvisioningManage, PermissionScopes.Tenant),
+            new(CorePermissions.SettingsGovernanceView, PermissionScopes.Tenant),
+            new(CorePermissions.AccessProfilesView, PermissionScopes.Tenant),
+            new(CorePermissions.AccessProfilesManageV2, PermissionScopes.Tenant),
         ]);
 
     public static IReadOnlyList<SeededAccessProfileTemplate> All => [Employee, Manager, HrAdmin, OrgAdmin];

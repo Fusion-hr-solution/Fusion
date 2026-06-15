@@ -335,7 +335,7 @@ describe("AccessPeopleWorkspace", () => {
     ).not.toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: /access profiles/i })
-    ).toHaveAttribute("href", "/settings?tab=access-profiles");
+    ).toHaveAttribute("href", "/settings?tab=access-permissions");
     expect(
       screen.getByPlaceholderText("Search by name or email")
     ).toHaveValue("");

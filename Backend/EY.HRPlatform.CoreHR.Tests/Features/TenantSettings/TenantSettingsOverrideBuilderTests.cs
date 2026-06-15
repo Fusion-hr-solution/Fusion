@@ -410,5 +410,30 @@ public class TenantSettingsOverrideBuilderTests
         Assert.False(jobTitle.TryGetProperty("required", out _));
     }
 
+    [Fact]
+    public void Build_WithProvisioning_WritesProvisioningPolicy()
+    {
+        var profileId = Guid.NewGuid();
+
+        var result = TenantSettingsOverrideBuilder.Build(
+            null,
+            null,
+            null,
+            null,
+            provisioning: new ProvisioningSettingsInput(
+                profileId,
+                InviteExpiryDays: 30,
+                ResendCooldownHours: 6,
+                PendingInviteBehavior: "KeepExisting"));
+
+        Assert.NotNull(result);
+        var json = JsonDocument.Parse(result);
+        var provisioning = json.RootElement.GetProperty("provisioning");
+        Assert.Equal(profileId, provisioning.GetProperty("defaultAccessProfileId").GetGuid());
+        Assert.Equal(30, provisioning.GetProperty("inviteExpiryDays").GetInt32());
+        Assert.Equal(6, provisioning.GetProperty("resendCooldownHours").GetInt32());
+        Assert.Equal("KeepExisting", provisioning.GetProperty("pendingInviteBehavior").GetString());
+    }
+
     #endregion
 }

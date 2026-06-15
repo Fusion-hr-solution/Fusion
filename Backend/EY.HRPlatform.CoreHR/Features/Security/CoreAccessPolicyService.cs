@@ -14,6 +14,17 @@ public interface ICoreAccessPolicyService
     bool CanManageStructure(ClaimsPrincipal user);
     bool CanViewSettings(ClaimsPrincipal user);
     bool CanManageSettings(ClaimsPrincipal user);
+    bool CanViewOrganizationSettings(ClaimsPrincipal user);
+    bool CanManageOrganizationSettings(ClaimsPrincipal user);
+    bool CanViewPeopleDataSettings(ClaimsPrincipal user);
+    bool CanManagePeopleDataSettings(ClaimsPrincipal user);
+    bool CanViewStructureSettings(ClaimsPrincipal user);
+    bool CanManageStructureSettings(ClaimsPrincipal user);
+    bool CanViewProvisioningSettings(ClaimsPrincipal user);
+    bool CanManageProvisioningSettings(ClaimsPrincipal user);
+    bool CanViewGovernanceSettings(ClaimsPrincipal user);
+    bool CanViewAccessProfiles(ClaimsPrincipal user);
+    bool CanManageAccessProfiles(ClaimsPrincipal user);
     bool CanViewOrgChart(ClaimsPrincipal user);
     bool CanViewAccess(ClaimsPrincipal user);
     bool CanManageAccess(ClaimsPrincipal user);
@@ -59,12 +70,70 @@ public sealed class CoreAccessPolicyService : ICoreAccessPolicyService
         => user.HasCorePermission(CorePermissions.StructureManage, PermissionScopes.Tenant);
 
     public bool CanViewSettings(ClaimsPrincipal user)
-        => user.HasCorePermission(CorePermissions.SettingsView, PermissionScopes.Tenant)
-            || user.HasCorePermission(CorePermissions.SettingsManage, PermissionScopes.Tenant)
-            || user.IsInRole(PlatformRole.PlatformAdmin);
+        => CanViewOrganizationSettings(user)
+            || CanViewPeopleDataSettings(user)
+            || CanViewStructureSettings(user)
+            || CanViewProvisioningSettings(user)
+            || CanViewGovernanceSettings(user)
+            || CanViewAccessProfiles(user);
 
     public bool CanManageSettings(ClaimsPrincipal user)
-        => user.HasCorePermission(CorePermissions.SettingsManage, PermissionScopes.Tenant);
+        => CanManageOrganizationSettings(user)
+            || CanManagePeopleDataSettings(user)
+            || CanManageStructureSettings(user)
+            || CanManageProvisioningSettings(user);
+
+    public bool CanViewOrganizationSettings(ClaimsPrincipal user)
+        => HasTenantPermission(user, CorePermissions.SettingsOrganizationView)
+            || CanManageOrganizationSettings(user)
+            || HasLegacySettingsView(user);
+
+    public bool CanManageOrganizationSettings(ClaimsPrincipal user)
+        => HasTenantPermission(user, CorePermissions.SettingsOrganizationManage)
+            || HasLegacySettingsManage(user);
+
+    public bool CanViewPeopleDataSettings(ClaimsPrincipal user)
+        => HasTenantPermission(user, CorePermissions.SettingsPeopleDataView)
+            || CanManagePeopleDataSettings(user)
+            || HasLegacySettingsView(user);
+
+    public bool CanManagePeopleDataSettings(ClaimsPrincipal user)
+        => HasTenantPermission(user, CorePermissions.SettingsPeopleDataManage)
+            || HasLegacySettingsManage(user);
+
+    public bool CanViewStructureSettings(ClaimsPrincipal user)
+        => HasTenantPermission(user, CorePermissions.SettingsStructureView)
+            || CanManageStructureSettings(user)
+            || HasLegacySettingsView(user)
+            || user.HasCorePermission(CorePermissions.StructureView, PermissionScopes.Tenant)
+            || user.HasCorePermission(CorePermissions.StructureManage, PermissionScopes.Tenant);
+
+    public bool CanManageStructureSettings(ClaimsPrincipal user)
+        => HasTenantPermission(user, CorePermissions.SettingsStructureManage)
+            || HasLegacySettingsManage(user);
+
+    public bool CanViewProvisioningSettings(ClaimsPrincipal user)
+        => HasTenantPermission(user, CorePermissions.SettingsProvisioningView)
+            || CanManageProvisioningSettings(user)
+            || HasLegacySettingsView(user);
+
+    public bool CanManageProvisioningSettings(ClaimsPrincipal user)
+        => HasTenantPermission(user, CorePermissions.SettingsProvisioningManage)
+            || HasLegacySettingsManage(user);
+
+    public bool CanViewGovernanceSettings(ClaimsPrincipal user)
+        => HasTenantPermission(user, CorePermissions.SettingsGovernanceView)
+            || HasLegacySettingsView(user);
+
+    public bool CanViewAccessProfiles(ClaimsPrincipal user)
+        => HasTenantPermission(user, CorePermissions.AccessProfilesView)
+            || CanManageAccessProfiles(user)
+            || user.HasCorePermission(CorePermissions.AccessView, PermissionScopes.Tenant)
+            || user.HasCorePermission(CorePermissions.AccessManage, PermissionScopes.Tenant);
+
+    public bool CanManageAccessProfiles(ClaimsPrincipal user)
+        => HasTenantPermission(user, CorePermissions.AccessProfilesManageV2)
+            || user.HasCorePermission(CorePermissions.AccessProfilesManage, PermissionScopes.Tenant);
 
     public bool CanViewOrgChart(ClaimsPrincipal user)
         => user.HasCorePermission(CorePermissions.OrgChartView, PermissionScopes.Tenant)
@@ -74,10 +143,13 @@ public sealed class CoreAccessPolicyService : ICoreAccessPolicyService
     public bool CanViewAccess(ClaimsPrincipal user)
         => user.HasCorePermission(CorePermissions.AccessView, PermissionScopes.Tenant)
             || user.HasCorePermission(CorePermissions.AccessManage, PermissionScopes.Tenant)
+            || user.HasCorePermission(CorePermissions.AccessAssignmentsView, PermissionScopes.Tenant)
+            || user.HasCorePermission(CorePermissions.AccessAssignmentsManage, PermissionScopes.Tenant)
             || user.IsInRole(PlatformRole.PlatformAdmin);
 
     public bool CanManageAccess(ClaimsPrincipal user)
-        => user.HasCorePermission(CorePermissions.AccessManage, PermissionScopes.Tenant);
+        => user.HasCorePermission(CorePermissions.AccessManage, PermissionScopes.Tenant)
+            || user.HasCorePermission(CorePermissions.AccessAssignmentsManage, PermissionScopes.Tenant);
 
     public bool CanViewTenantEmployees(ClaimsPrincipal user)
         => user.HasCorePermission(CorePermissions.EmployeeView, PermissionScopes.Tenant)
@@ -139,4 +211,14 @@ public sealed class CoreAccessPolicyService : ICoreAccessPolicyService
 
         return null;
     }
+
+    private static bool HasTenantPermission(ClaimsPrincipal user, string permissionKey)
+        => user.HasCorePermission(permissionKey, PermissionScopes.Tenant);
+
+    private static bool HasLegacySettingsView(ClaimsPrincipal user)
+        => user.HasCorePermission(CorePermissions.SettingsView, PermissionScopes.Tenant)
+            || HasLegacySettingsManage(user);
+
+    private static bool HasLegacySettingsManage(ClaimsPrincipal user)
+        => user.HasCorePermission(CorePermissions.SettingsManage, PermissionScopes.Tenant);
 }

@@ -27,7 +27,6 @@ import {
   canAccessOrganizations,
   canManageCoreAccessProfiles,
   canSeeCoreSetupNavigation,
-  canSeeCoreSettingsNavigation,
   type AuthUser,
   useAuth,
 } from "@repo/auth";
@@ -149,7 +148,7 @@ function HRAdminDashboard() {
       rs.issueCounts.managerMissing
     : 0;
   const canSeeSetup = canSeeCoreSetupNavigation(user);
-  const canSeeSettings = canSeeCoreSettingsNavigation(user);
+  const canSeeSettings = canAccessCoreSettings(user);
   const recentHireItems = recentEmployees?.items ?? [];
 
   return (
@@ -1131,7 +1130,7 @@ function CoreOperationsDashboard() {
         }
       : canManageCoreAccessProfiles(user)
         ? {
-            href: moduleHref("/settings?tab=access-profiles"),
+            href: moduleHref("/settings?tab=access-permissions"),
             title: "Settings",
             badge: "Access profiles",
             icon: ShieldCheck,
@@ -1145,7 +1144,7 @@ function CoreOperationsDashboard() {
           icon: ClipboardList,
         }
       : null,
-    canSeeCoreSettingsNavigation(user)
+    canAccessCoreSettings(user)
       ? {
           href: moduleHref("/settings"),
           title: "Settings",
@@ -1253,7 +1252,7 @@ function getFallbackWorkspace(user: AuthUser | null): {
   }
 
   if (canManageCoreAccessProfiles(user)) {
-    return { href: "/settings?tab=access-profiles", label: "Settings" };
+    return { href: "/settings?tab=access-permissions", label: "Settings" };
   }
 
   if (canAccessCoreSetup(user)) {

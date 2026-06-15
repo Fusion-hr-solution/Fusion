@@ -6,6 +6,7 @@ import {
   coreAccessQueryKeys,
   coreWorkforceQueryKeys,
   createPlatformApiClient,
+  type AccessAuditEventDto,
   type AccessProfileSummaryDto,
   type BulkSetUserAccessProfilesRequest,
   type CorePermissionCatalogItemDto,
@@ -88,6 +89,23 @@ export function useUserAccessAssignments(enabled = true) {
   });
 }
 
+export function useAccessAudit(enabled = true) {
+  const { isAuthenticated } = useAuth();
+  const client = useMemo(() => createPlatformApiClient(), []);
+
+  const queryFn = useCallback(
+    (signal: AbortSignal) =>
+      client.get<AccessAuditEventDto[]>(coreAccessPaths.audit(), {
+        signal,
+      }),
+    [client]
+  );
+
+  return useApiQuery(coreAccessQueryKeys.audit(), queryFn, {
+    enabled: isAuthenticated && enabled,
+  });
+}
+
 export function useCreateAccessProfile(opts?: {
   onSuccess?: (data: AccessProfileSummaryDto) => void;
 }) {
@@ -104,6 +122,9 @@ export function useCreateAccessProfile(opts?: {
         });
         await queryClient.invalidateQueries({
           queryKey: coreAccessQueryKeys.assignments(),
+        });
+        await queryClient.invalidateQueries({
+          queryKey: coreAccessQueryKeys.audit(),
         });
         await opts?.onSuccess?.(data);
       },
@@ -134,6 +155,9 @@ export function useUpdateAccessProfile(opts?: {
         await queryClient.invalidateQueries({
           queryKey: coreAccessQueryKeys.assignments(),
         });
+        await queryClient.invalidateQueries({
+          queryKey: coreAccessQueryKeys.audit(),
+        });
         await opts?.onSuccess?.(data);
       },
     }
@@ -153,6 +177,9 @@ export function useDeleteAccessProfile(opts?: { onSuccess?: () => void }) {
         });
         await queryClient.invalidateQueries({
           queryKey: coreAccessQueryKeys.assignments(),
+        });
+        await queryClient.invalidateQueries({
+          queryKey: coreAccessQueryKeys.audit(),
         });
         await opts?.onSuccess?.();
       },
@@ -188,6 +215,9 @@ export function useSetUserAccessProfiles(opts?: {
             queryKey: coreAccessQueryKeys.profiles(),
           }),
           queryClient.invalidateQueries({
+            queryKey: coreAccessQueryKeys.audit(),
+          }),
+          queryClient.invalidateQueries({
             queryKey: coreWorkforceQueryKeys.all(),
           }),
           queryClient.invalidateQueries({
@@ -220,6 +250,9 @@ export function useSetUserAccessProfiles(opts?: {
             }),
             queryClient.invalidateQueries({
               queryKey: coreAccessQueryKeys.profiles(),
+            }),
+            queryClient.invalidateQueries({
+              queryKey: coreAccessQueryKeys.audit(),
             }),
             queryClient.invalidateQueries({
               queryKey: coreWorkforceQueryKeys.all(),

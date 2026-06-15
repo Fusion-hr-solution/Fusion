@@ -7,10 +7,13 @@ public static class PermissionScopes
     public const string None = "None";
     public const string Self = "Self";
     public const string DirectReports = "DirectReports";
+    public const string OrgUnit = "OrgUnit";
     public const string Tenant = "Tenant";
+    public const string Module = "Module";
+    public const string Platform = "Platform";
 
     public static readonly ReadOnlyCollection<string> All =
-        Array.AsReadOnly([None, Self, DirectReports, Tenant]);
+        Array.AsReadOnly([None, Self, DirectReports, OrgUnit, Tenant, Module, Platform]);
 
     public static bool IsValid(string scope)
         => All.Contains(scope, StringComparer.Ordinal);
@@ -20,7 +23,10 @@ public static class PermissionScopes
         {
             Self => 1,
             DirectReports => 2,
+            OrgUnit => 2,
             Tenant => 3,
+            Module => 3,
+            Platform => 4,
             _ => 0,
         };
 
@@ -48,6 +54,20 @@ public static class CorePermissions
     public const string AccessView = "core.access.view";
     public const string AccessManage = "core.access.manage";
 
+    public const string SettingsOrganizationView = "settings.organization.view";
+    public const string SettingsOrganizationManage = "settings.organization.manage";
+    public const string SettingsPeopleDataView = "settings.peopleData.view";
+    public const string SettingsPeopleDataManage = "settings.peopleData.manage";
+    public const string SettingsStructureView = "settings.structure.view";
+    public const string SettingsStructureManage = "settings.structure.manage";
+    public const string SettingsProvisioningView = "settings.provisioning.view";
+    public const string SettingsProvisioningManage = "settings.provisioning.manage";
+    public const string SettingsGovernanceView = "settings.governance.view";
+    public const string AccessProfilesView = "access.profiles.view";
+    public const string AccessProfilesManageV2 = "access.profiles.manage";
+    public const string AccessAssignmentsView = "access.assignments.view";
+    public const string AccessAssignmentsManage = "access.assignments.manage";
+
     public const string SettingsView = "core.settings.view";
     public const string SettingsManage = "core.settings.manage";
     public const string AccessProfilesManage = "core.accessprofiles.manage";
@@ -71,6 +91,19 @@ public static class CorePermissions
             OrgChartView,
             AccessView,
             AccessManage,
+            SettingsOrganizationView,
+            SettingsOrganizationManage,
+            SettingsPeopleDataView,
+            SettingsPeopleDataManage,
+            SettingsStructureView,
+            SettingsStructureManage,
+            SettingsProvisioningView,
+            SettingsProvisioningManage,
+            SettingsGovernanceView,
+            AccessProfilesView,
+            AccessProfilesManageV2,
+            AccessAssignmentsView,
+            AccessAssignmentsManage,
             SettingsView,
             SettingsManage,
             AccessProfilesManage,
@@ -106,12 +139,29 @@ public static class CorePermissionCatalog
             new(CorePermissions.OrgChartView, "View org chart", "Org Chart", [PermissionScopes.DirectReports, PermissionScopes.Tenant]),
             new(CorePermissions.AccessView, "View access invitations", "Access", [PermissionScopes.Tenant]),
             new(CorePermissions.AccessManage, "Manage access invitations", "Access", [PermissionScopes.Tenant]),
-            new(CorePermissions.SettingsView, "View Core settings", "Settings", [PermissionScopes.Tenant]),
-            new(CorePermissions.SettingsManage, "Manage Core settings", "Settings", [PermissionScopes.Tenant]),
-            new(CorePermissions.AccessProfilesManage, "Manage access profiles", "Settings", [PermissionScopes.Tenant]),
+            new(CorePermissions.SettingsOrganizationView, "View organization settings", "Settings", [PermissionScopes.Tenant]),
+            new(CorePermissions.SettingsOrganizationManage, "Manage organization settings", "Settings", [PermissionScopes.Tenant]),
+            new(CorePermissions.SettingsPeopleDataView, "View people data settings", "Settings", [PermissionScopes.Tenant]),
+            new(CorePermissions.SettingsPeopleDataManage, "Manage people data settings", "Settings", [PermissionScopes.Tenant]),
+            new(CorePermissions.SettingsStructureView, "View structure settings", "Settings", [PermissionScopes.Tenant]),
+            new(CorePermissions.SettingsStructureManage, "Manage structure settings", "Settings", [PermissionScopes.Tenant]),
+            new(CorePermissions.SettingsProvisioningView, "View provisioning settings", "Settings", [PermissionScopes.Tenant]),
+            new(CorePermissions.SettingsProvisioningManage, "Manage provisioning settings", "Settings", [PermissionScopes.Tenant]),
+            new(CorePermissions.SettingsGovernanceView, "View governance and audit", "Settings", [PermissionScopes.Tenant]),
+            new(CorePermissions.AccessProfilesView, "View access profiles", "Access profiles", [PermissionScopes.Tenant]),
+            new(CorePermissions.AccessProfilesManageV2, "Manage access profiles", "Access profiles", [PermissionScopes.Tenant]),
+            new(CorePermissions.AccessAssignmentsView, "View access assignments", "Access", [PermissionScopes.Tenant]),
+            new(CorePermissions.AccessAssignmentsManage, "Manage access assignments", "Access", [PermissionScopes.Tenant]),
+            new(CorePermissions.SettingsView, "View all Core settings (legacy)", "Settings", [PermissionScopes.Tenant], "Compatibility grant. Prefer section-specific settings permissions."),
+            new(CorePermissions.SettingsManage, "Manage all Core settings (legacy)", "Settings", [PermissionScopes.Tenant], "Compatibility grant. Prefer section-specific settings permissions."),
+            new(CorePermissions.AccessProfilesManage, "Manage access profiles (legacy)", "Access profiles", [PermissionScopes.Tenant], "Compatibility grant. Prefer access.profiles.manage."),
             new(CorePermissions.ProfileSelfView, "View own profile", "Self & Team", [PermissionScopes.Self]),
             new(CorePermissions.ProfileSelfUpdate, "Update own profile", "Self & Team", [PermissionScopes.Self]),
             new(CorePermissions.TeamView, "View direct team", "Self & Team", [PermissionScopes.DirectReports]),
+            new("settings.modules.view:learning", "View Learning module settings", "Module settings", [PermissionScopes.Module]),
+            new("settings.modules.manage:learning", "Manage Learning module settings", "Module settings", [PermissionScopes.Module]),
+            new("settings.modules.view:interview", "View Interview module settings", "Module settings", [PermissionScopes.Module]),
+            new("settings.modules.manage:interview", "Manage Interview module settings", "Module settings", [PermissionScopes.Module]),
         ]);
 
     private static readonly IReadOnlyDictionary<string, CorePermissionDefinition> ByKey =

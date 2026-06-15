@@ -9,7 +9,8 @@ public sealed record UpdateTenantSettingsRequest(
     DraftStructureSchemaDto? DraftStructureSchema,
     Dictionary<string, FieldConfigInput>? EmployeeFieldConfig,
     BrandingSettingsInput? Branding,
-    SelfServiceSettingsInput? SelfService
+    SelfServiceSettingsInput? SelfService,
+    ProvisioningSettingsInput? Provisioning
 );
 
 /// <summary>
@@ -30,3 +31,9 @@ public sealed record BrandingSettingsInput(string? LogoUrl, string? PrimaryColor
 public sealed record SelfServiceSettingsInput(
     bool? CanEditPreferredName,
     bool? CanEditPhone);
+
+public sealed record ProvisioningSettingsInput(
+    Guid? DefaultAccessProfileId,
+    int? InviteExpiryDays,
+    int? ResendCooldownHours,
+    string? PendingInviteBehavior);

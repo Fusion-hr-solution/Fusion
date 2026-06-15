@@ -19,6 +19,7 @@ public class AppIdentityDbContext : IdentityDbContext<ApplicationUser, IdentityR
     public DbSet<AccessProfileGrant> AccessProfileGrants => Set<AccessProfileGrant>();
     public DbSet<UserAccessProfile> UserAccessProfiles => Set<UserAccessProfile>();
     public DbSet<InviteAccessProfile> InviteAccessProfiles => Set<InviteAccessProfile>();
+    public DbSet<AccessAuditEvent> AccessAuditEvents => Set<AccessAuditEvent>();
 
     /// <summary>
     /// Runtime constructor with tenant context for production use.
@@ -137,5 +138,8 @@ public class AppIdentityDbContext : IdentityDbContext<ApplicationUser, IdentityR
 
         builder.Entity<InviteAccessProfile>()
             .HasQueryFilter(assignment => CurrentTenantId == Guid.Empty || assignment.TenantId == CurrentTenantId);
+
+        builder.Entity<AccessAuditEvent>()
+            .HasQueryFilter(auditEvent => CurrentTenantId == Guid.Empty || auditEvent.TenantId == CurrentTenantId);
     }
 }

@@ -40,6 +40,8 @@ public static class ServiceCollectionExtensions
         if (string.IsNullOrEmpty(jwtSecret))
             throw new InvalidOperationException("Jwt:Secret is not configured. Set it via environment variable or appsettings.");
 
+        services.AddHttpContextAccessor();
+
         var databaseProvider = configuration["Database:Provider"] ?? "postgres";
         var inMemoryName = configuration["Database:InMemoryName"] ?? "identity_inmemory";
 
@@ -108,6 +110,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ITenantService, TenantService>();
         services.AddScoped<IPlatformOrganizationService, PlatformOrganizationService>();
         services.AddScoped<IAccessProfileService, AccessProfileService>();
+        services.AddScoped<IAccessAuditService, AccessAuditService>();
         services.Configure<WorkforceInvitationEmailOptions>(
             configuration.GetSection("WorkforceInvitationEmail"));
         services.AddScoped<IWorkforceInvitationEmailSender, SmtpWorkforceInvitationEmailSender>();

@@ -40,6 +40,11 @@ public sealed record TenantSettingsDto
     public SelfServiceSettings SelfService { get; init; } = new();
 
     /// <summary>
+    /// Workforce account provisioning and invitation defaults.
+    /// </summary>
+    public ProvisioningSettings Provisioning { get; init; } = new();
+
+    /// <summary>
     /// Default field configuration for employee records.
     /// All fields default to visible for all roles.
     /// </summary>
@@ -64,3 +69,9 @@ public sealed record TenantSettingsDto
 public sealed record SelfServiceSettings(
     bool CanEditPreferredName = true,
     bool CanEditPhone = true);
+
+public sealed record ProvisioningSettings(
+    Guid? DefaultAccessProfileId = null,
+    int InviteExpiryDays = 14,
+    int ResendCooldownHours = 24,
+    string PendingInviteBehavior = "RefreshExisting");

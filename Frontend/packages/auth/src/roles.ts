@@ -10,7 +10,10 @@ export const CORE_TENANT_CONTEXT_STORAGE_KEY = "ey_core_tenant_context";
 
 const SELF_SCOPE_RANK = 1;
 const DIRECT_REPORTS_SCOPE_RANK = 2;
+const ORG_UNIT_SCOPE_RANK = 2;
 const TENANT_SCOPE_RANK = 3;
+const MODULE_SCOPE_RANK = 3;
+const PLATFORM_SCOPE_RANK = 4;
 
 const CORE_PERMISSION = {
   overviewView: "core.overview.view",
@@ -26,6 +29,19 @@ const CORE_PERMISSION = {
   orgChartView: "core.orgchart.view",
   accessView: "core.access.view",
   accessManage: "core.access.manage",
+  accessAssignmentsView: "access.assignments.view",
+  accessAssignmentsManage: "access.assignments.manage",
+  settingsOrganizationView: "settings.organization.view",
+  settingsOrganizationManage: "settings.organization.manage",
+  settingsPeopleDataView: "settings.peopleData.view",
+  settingsPeopleDataManage: "settings.peopleData.manage",
+  settingsStructureView: "settings.structure.view",
+  settingsStructureManage: "settings.structure.manage",
+  settingsProvisioningView: "settings.provisioning.view",
+  settingsProvisioningManage: "settings.provisioning.manage",
+  settingsGovernanceView: "settings.governance.view",
+  accessProfilesView: "access.profiles.view",
+  accessProfilesManageV2: "access.profiles.manage",
   settingsView: "core.settings.view",
   settingsManage: "core.settings.manage",
   accessProfilesManage: "core.accessprofiles.manage",
@@ -51,10 +67,14 @@ function getScopeRank(scope: PermissionScope | null | undefined): number {
       return TENANT_SCOPE_RANK;
     case "DirectReports":
       return DIRECT_REPORTS_SCOPE_RANK;
+    case "OrgUnit":
+      return ORG_UNIT_SCOPE_RANK;
     case "Self":
       return SELF_SCOPE_RANK;
+    case "Module":
+      return MODULE_SCOPE_RANK;
     default:
-      return 0;
+      return scope === "Platform" ? PLATFORM_SCOPE_RANK : 0;
   }
 }
 
@@ -112,6 +132,15 @@ export function hasAnyCorePermission(
   return permissions.some((permission) => hasCorePermission(user, permission));
 }
 
+function hasAnyTenantPermission(
+  user: AuthUser | null,
+  permissions: readonly string[]
+): boolean {
+  return permissions.some((permission) =>
+    hasCorePermission(user, permission, "Tenant")
+  );
+}
+
 function hasCoreTenantContext(): boolean {
   if (typeof window === "undefined") {
     return false;
@@ -155,25 +184,53 @@ export function canSeeCoreSetupNavigation(user: AuthUser | null): boolean {
 }
 
 export function canAccessCoreSettings(user: AuthUser | null): boolean {
-  return (
-    hasCorePermission(user, CORE_PERMISSION.settingsView, "Tenant") ||
-    hasCorePermission(user, CORE_PERMISSION.settingsManage, "Tenant")
-  );
+  return hasAnyTenantPermission(user, [
+    CORE_PERMISSION.settingsOrganizationView,
+    CORE_PERMISSION.settingsOrganizationManage,
+    CORE_PERMISSION.settingsPeopleDataView,
+    CORE_PERMISSION.settingsPeopleDataManage,
+    CORE_PERMISSION.settingsStructureView,
+    CORE_PERMISSION.settingsStructureManage,
+    CORE_PERMISSION.settingsProvisioningView,
+    CORE_PERMISSION.settingsProvisioningManage,
+    CORE_PERMISSION.settingsGovernanceView,
+    CORE_PERMISSION.settingsView,
+    CORE_PERMISSION.settingsManage,
+  ]);
 }
 
 export function canManageCoreSettings(user: AuthUser | null): boolean {
-  return hasCorePermission(user, CORE_PERMISSION.settingsManage, "Tenant");
+  return hasAnyTenantPermission(user, [
+    CORE_PERMISSION.settingsOrganizationManage,
+    CORE_PERMISSION.settingsPeopleDataManage,
+    CORE_PERMISSION.settingsStructureManage,
+    CORE_PERMISSION.settingsProvisioningManage,
+    CORE_PERMISSION.settingsManage,
+  ]);
+}
+
+export function canViewCoreAccessProfiles(user: AuthUser | null): boolean {
+  return hasAnyTenantPermission(user, [
+    CORE_PERMISSION.accessProfilesView,
+    CORE_PERMISSION.accessProfilesManageV2,
+    CORE_PERMISSION.accessProfilesManage,
+    CORE_PERMISSION.accessView,
+    CORE_PERMISSION.accessManage,
+  ]);
 }
 
 export function canManageCoreAccessProfiles(user: AuthUser | null): boolean {
-  return (
-    hasCorePermission(user, CORE_PERMISSION.accessProfilesManage, "Tenant") ||
-    isPlatformAdminInCoreTenantContext(user)
-  );
+  return hasAnyTenantPermission(user, [
+    CORE_PERMISSION.accessProfilesManageV2,
+    CORE_PERMISSION.accessProfilesManage,
+  ]);
 }
 
 export function canSeeCoreSettingsNavigation(user: AuthUser | null): boolean {
-  return canAccessCoreSettings(user) || isPlatformAdminInCoreTenantContext(user);
+  return (
+    canAccessCoreSettings(user) ||
+    canViewCoreAccessProfiles(user)
+  );
 }
 
 export function canAccessCorePeople(user: AuthUser | null): boolean {
@@ -248,18 +305,23 @@ export function canAccessCoreAccess(user: AuthUser | null): boolean {
   return (
     hasCorePermission(user, CORE_PERMISSION.accessView, "Tenant") ||
     hasCorePermission(user, CORE_PERMISSION.accessManage, "Tenant") ||
+    hasCorePermission(user, CORE_PERMISSION.accessAssignmentsView, "Tenant") ||
+    hasCorePermission(user, CORE_PERMISSION.accessAssignmentsManage, "Tenant") ||
     isPlatformAdminInCoreTenantContext(user)
   );
 }
 
 export function canManageCoreAccess(user: AuthUser | null): boolean {
-  return hasCorePermission(user, CORE_PERMISSION.accessManage, "Tenant");
+  return (
+    hasCorePermission(user, CORE_PERMISSION.accessManage, "Tenant") ||
+    hasCorePermission(user, CORE_PERMISSION.accessAssignmentsManage, "Tenant")
+  );
 }
 
 export function canSeeCoreAccessNavigation(user: AuthUser | null): boolean {
   return (
     canAccessCoreAccess(user) ||
-    canManageCoreAccessProfiles(user) ||
+    canViewCoreAccessProfiles(user) ||
     isPlatformAdminInCoreTenantContext(user)
   );
 }

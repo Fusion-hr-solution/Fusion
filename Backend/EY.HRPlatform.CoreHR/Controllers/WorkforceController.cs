@@ -137,11 +137,6 @@ public class WorkforceController(
             return Forbid();
         }
 
-        if (request.AccessProfileId == Guid.Empty)
-        {
-            return BadRequest(ApiResponse.Failure("Access profile is required."));
-        }
-
         try
         {
             var result = await workforceContractService.BulkInviteAsync(request, User, cancellationToken);

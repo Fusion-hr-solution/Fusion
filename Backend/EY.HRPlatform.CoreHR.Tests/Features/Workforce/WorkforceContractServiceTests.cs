@@ -375,6 +375,72 @@ public class WorkforceContractServiceTests
         Assert.Equal("This email is already linked to another account.", conflictItem.ReviewReason);
     }
 
+    [Fact]
+    public async Task BulkInviteAsync_UsesProvisioningDefaultProfile_WhenRequestOmitsProfile()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        var defaultProfileId = Guid.NewGuid();
+        Guid employeeId;
+
+        await using (var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName))
+        {
+            seedContext.TenantSettings.Add(DomainTenantSettings.Create(
+                TenantId,
+                $$"""
+                {
+                    "employeeFieldConfig": {
+                        "jobTitle": {
+                            "visible": true,
+                            "required": false,
+                            "visibleToEmployee": true,
+                            "visibleToManager": true
+                        }
+                    },
+                    "provisioning": {
+                        "defaultAccessProfileId": "{{defaultProfileId}}"
+                    }
+                }
+                """));
+
+            var employee = Employee.Create(
+                TenantId,
+                "Priya",
+                "Invitee",
+                "priya.invitee@example.com",
+                DateTime.UtcNow,
+                jobTitle: "Analyst",
+                employeeNumber: "E-900");
+            seedContext.Employees.Add(employee);
+            await seedContext.SaveChangesAsync();
+            employeeId = employee.Id;
+        }
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var provisioner = new StaticWorkforceBulkProvisioner();
+        var service = CreateService(
+            context,
+            tenantContext,
+            workforceBulkProvisioner: provisioner);
+        var hrAdmin = CreatePrincipal(Guid.NewGuid(), PlatformRole.HRAdmin);
+
+        var result = await service.BulkInviteAsync(
+            new WorkforceBulkInviteRequest(
+                Search: null,
+                Access: null,
+                ProfileId: null,
+                EmployeeStatus: null,
+                DeliveryState: null,
+                EmployeeKey: null,
+                SpecificEmployeeIds: [employeeId],
+                AccessProfileId: Guid.Empty),
+            hrAdmin,
+            CancellationToken.None);
+
+        Assert.Equal(defaultProfileId, provisioner.LastAccessProfileId);
+        Assert.Equal(1, result.InvitedCount);
+    }
+
     private static WorkforceContractService CreateService(
         CoreHRDbContext context,
         TestTenantContext tenantContext,
@@ -461,6 +527,8 @@ public class WorkforceContractServiceTests
     {
         private readonly WorkforceAccountStatusDto? _status;
 
+        public Guid? LastAccessProfileId { get; private set; }
+
         public StaticWorkforceBulkProvisioner(WorkforceAccountStatusDto? status = null)
         {
             _status = status;
@@ -471,6 +539,7 @@ public class WorkforceContractServiceTests
             Guid accessProfileId,
             CancellationToken cancellationToken)
         {
+            LastAccessProfileId = accessProfileId;
             var provisionState = _status?.ProvisioningState ?? "Unprovisioned";
             var outcome = provisionState is "InvitePending" or "InviteExpired" or "InviteAccepted"
                 ? "Created"

@@ -15,6 +15,7 @@ namespace EY.HRPlatform.Identity.Controllers;
 [Authorize]
 public sealed class CoreAccessController(
     IAccessProfileService accessProfileService,
+    IAccessAuditService accessAuditService,
     ITenantContext tenantContext) : ControllerBase
 {
     [HttpGet("me")]
@@ -47,7 +48,7 @@ public sealed class CoreAccessController(
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<ApiResponse<IReadOnlyList<CorePermissionCatalogItemDto>>>> GetCatalog(CancellationToken cancellationToken)
     {
-        if (!CanManageAccessProfiles())
+        if (!CanReadPermissionCatalog())
         {
             return Forbid();
         }
@@ -74,6 +75,28 @@ public sealed class CoreAccessController(
 
         var response = await accessProfileService.GetProfilesAsync(tenantId.Value, cancellationToken);
         return Ok(ApiResponse<IReadOnlyList<AccessProfileSummaryDto>>.Success(response));
+    }
+
+    [HttpGet("audit")]
+    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<AccessAuditEventDto>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<AccessAuditEventDto>>>> GetAudit(
+        [FromQuery] int take = 50,
+        CancellationToken cancellationToken = default)
+    {
+        var tenantId = ResolveTenantId();
+        if (!tenantId.HasValue)
+        {
+            return BadRequest(ApiResponse<IReadOnlyList<AccessAuditEventDto>>.Failure("Tenant context is required."));
+        }
+
+        if (!CanReadAccessAudit())
+        {
+            return Forbid();
+        }
+
+        var response = await accessAuditService.GetRecentAsync(tenantId.Value, take, cancellationToken);
+        return Ok(ApiResponse<IReadOnlyList<AccessAuditEventDto>>.Success(response));
     }
 
     [HttpGet("profiles/{profileId:guid}")]
@@ -113,7 +136,7 @@ public sealed class CoreAccessController(
             return BadRequest(ApiResponse<AccessProfileSummaryDto>.Failure("Tenant context is required."));
         }
 
-        if (!CanManageAccessProfiles())
+        if (!CanReadAssignments())
         {
             return Forbid();
         }
@@ -121,6 +144,16 @@ public sealed class CoreAccessController(
         try
         {
             var response = await accessProfileService.CreateProfileAsync(tenantId.Value, request, cancellationToken);
+            await accessAuditService.RecordAsync(
+                tenantId.Value,
+                "access.profile.created",
+                "AccessProfile",
+                response.Id.ToString(),
+                $"Access profile '{response.Name}' created.",
+                null,
+                response,
+                User,
+                cancellationToken);
             return CreatedAtAction(nameof(GetProfile), new { profileId = response.Id }, ApiResponse<AccessProfileSummaryDto>.Success(response));
         }
         catch (InvalidOperationException exception)
@@ -158,7 +191,18 @@ public sealed class CoreAccessController(
 
         try
         {
+            var before = await accessProfileService.GetProfileAsync(tenantId.Value, profileId, cancellationToken);
             var response = await accessProfileService.UpdateProfileAsync(tenantId.Value, profileId, version, request, cancellationToken);
+            await accessAuditService.RecordAsync(
+                tenantId.Value,
+                "access.profile.updated",
+                "AccessProfile",
+                response.Id.ToString(),
+                $"Access profile '{response.Name}' updated.",
+                before,
+                response,
+                User,
+                cancellationToken);
             Response.Headers.ETag = $"\"{response.Version}\"";
             return Ok(ApiResponse<AccessProfileSummaryDto>.Success(response));
         }
@@ -191,7 +235,18 @@ public sealed class CoreAccessController(
 
         try
         {
+            var before = await accessProfileService.GetProfileAsync(tenantId.Value, profileId, cancellationToken);
             await accessProfileService.DeleteProfileAsync(tenantId.Value, profileId, cancellationToken);
+            await accessAuditService.RecordAsync(
+                tenantId.Value,
+                "access.profile.deleted",
+                "AccessProfile",
+                profileId.ToString(),
+                before is null ? "Access profile deleted." : $"Access profile '{before.Name}' deleted.",
+                before,
+                null,
+                User,
+                cancellationToken);
             return NoContent();
         }
         catch (InvalidOperationException exception)
@@ -235,17 +290,30 @@ public sealed class CoreAccessController(
             return BadRequest(ApiResponse<UserAccessAssignmentDto>.Failure("Tenant context is required."));
         }
 
-        if (!CanManageAccess() && !CanManageAccessProfiles())
+        if (!CanManageAccess())
         {
             return Forbid();
         }
 
         try
         {
+            var before = (await accessProfileService.GetUserAssignmentsAsync(tenantId.Value, cancellationToken))
+                .FirstOrDefault(assignment => assignment.UserId == userId);
             var response = await accessProfileService.SetUserAccessProfilesAsync(
                 tenantId.Value,
                 userId,
                 request.AccessProfileIds,
+                cancellationToken);
+
+            await accessAuditService.RecordAsync(
+                tenantId.Value,
+                "access.assignment.updated",
+                "UserAccessAssignment",
+                userId.ToString(),
+                $"Access profiles updated for '{response.Email}'.",
+                before,
+                response,
+                User,
                 cancellationToken);
 
             return Ok(ApiResponse<UserAccessAssignmentDto>.Success(response));
@@ -270,17 +338,31 @@ public sealed class CoreAccessController(
             return BadRequest(ApiResponse<IReadOnlyList<UserAccessAssignmentDto>>.Failure("Tenant context is required."));
         }
 
-        if (!CanManageAccess() && !CanManageAccessProfiles())
+        if (!CanManageAccess())
         {
             return Forbid();
         }
 
         try
         {
+            var before = (await accessProfileService.GetUserAssignmentsAsync(tenantId.Value, cancellationToken))
+                .Where(assignment => request.UserIds.Contains(assignment.UserId))
+                .ToList();
             var response = await accessProfileService.SetUserAccessProfilesBulkAsync(
                 tenantId.Value,
                 request.UserIds,
                 request.AccessProfileIds,
+                cancellationToken);
+
+            await accessAuditService.RecordAsync(
+                tenantId.Value,
+                "access.assignment.bulkUpdated",
+                "UserAccessAssignment",
+                null,
+                $"Access profiles updated for {response.Count} users.",
+                before,
+                response,
+                User,
                 cancellationToken);
 
             return Ok(ApiResponse<IReadOnlyList<UserAccessAssignmentDto>>.Success(response));
@@ -296,15 +378,31 @@ public sealed class CoreAccessController(
 
     private bool CanReadAccessProfiles()
         => CanManageAccessProfiles()
+            || User.HasCorePermission(CorePermissions.AccessProfilesView, PermissionScopes.Tenant)
             || User.HasCorePermission(CorePermissions.AccessView, PermissionScopes.Tenant)
-            || User.HasCorePermission(CorePermissions.AccessManage, PermissionScopes.Tenant);
+            || User.HasCorePermission(CorePermissions.AccessManage, PermissionScopes.Tenant)
+            || User.HasCorePermission(CorePermissions.SettingsProvisioningView, PermissionScopes.Tenant)
+            || User.HasCorePermission(CorePermissions.SettingsProvisioningManage, PermissionScopes.Tenant);
 
     private bool CanManageAccess()
-        => User.HasCorePermission(CorePermissions.AccessManage, PermissionScopes.Tenant);
+        => User.HasCorePermission(CorePermissions.AccessManage, PermissionScopes.Tenant)
+            || User.HasCorePermission(CorePermissions.AccessAssignmentsManage, PermissionScopes.Tenant);
+
+    private bool CanReadAssignments()
+        => CanManageAccess()
+            || User.HasCorePermission(CorePermissions.AccessAssignmentsView, PermissionScopes.Tenant);
+
+    private bool CanReadPermissionCatalog()
+        => CanReadAccessProfiles()
+            || CanReadAssignments();
 
     private bool CanManageAccessProfiles()
-        => User.HasCorePermission(CorePermissions.AccessProfilesManage, PermissionScopes.Tenant)
-            || User.IsInRole(PlatformRole.PlatformAdmin);
+        => User.HasCorePermission(CorePermissions.AccessProfilesManageV2, PermissionScopes.Tenant)
+            || User.HasCorePermission(CorePermissions.AccessProfilesManage, PermissionScopes.Tenant);
+
+    private bool CanReadAccessAudit()
+        => User.HasCorePermission(CorePermissions.SettingsGovernanceView, PermissionScopes.Tenant)
+            || CanReadAccessProfiles();
 
     private static bool TryParseVersion(string? ifMatch, out uint version)
     {

@@ -12,7 +12,7 @@ export default function AccessProfilesPage() {
   const router = useRouter();
   const { tenantId, tenantSlug } = useTenantContext();
   const settingsHref = buildTenantContextHref(
-    "/settings?tab=access-profiles",
+    "/settings?tab=access-permissions",
     tenantId,
     tenantSlug
   );

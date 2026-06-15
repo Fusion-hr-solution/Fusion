@@ -594,7 +594,7 @@ export default function AccessPeopleWorkspace() {
   const canManageProfiles = canManageCoreAccessProfiles(user);
   const canOpenEmployeeProfile = canAccessEmployeeProfile(user);
   const profilesHref = buildTenantContextHref(
-    "/settings?tab=access-profiles",
+    "/settings?tab=access-permissions",
     tenantId,
     tenantSlug
   );

@@ -12,8 +12,8 @@ import {
 } from "lucide-react";
 import { useAuth } from "../auth-context";
 import {
-  canAccessCoreSettings,
   canAccessOwnCoreProfile,
+  canSeeCoreSettingsNavigation,
   PLATFORM_ADMIN_ROLE,
 } from "../roles";
 
@@ -43,7 +43,7 @@ export function SidebarUserPanel({ collapsed }: SidebarUserPanelProps) {
           }`
         : user.accessProfiles[0]?.name ?? user.roles?.[0] ?? "User";
     const canOpenProfile = canAccessOwnCoreProfile(user);
-    const canOpenSettings = canAccessCoreSettings(user);
+    const canOpenSettings = canSeeCoreSettingsNavigation(user);
 
     if (collapsed) {
       return (

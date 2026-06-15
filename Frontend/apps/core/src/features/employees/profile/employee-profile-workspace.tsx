@@ -935,7 +935,7 @@ export function EmployeeProfileWorkspace({
   const isOwnProfile = user?.employeeId === profile.id;
   const canManageProfiles = canManageCoreAccessProfiles(user);
   const profilesHref = buildTenantContextHref(
-    "/settings?tab=access-profiles",
+    "/settings?tab=access-permissions",
     tenantId,
     tenantSlug
   );

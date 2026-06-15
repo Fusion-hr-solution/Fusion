@@ -40,7 +40,8 @@ public static class TenantSettingsMerger
             DraftStructureSchema = draftStructureSchema,
             EmployeeFieldConfig = MergeFieldConfig(defaults.EmployeeFieldConfig, overrides.EmployeeFieldConfig),
             Branding = MergeBranding(defaults.Branding, overrides.Branding),
-            SelfService = MergeSelfService(defaults.SelfService, overrides.SelfService)
+            SelfService = MergeSelfService(defaults.SelfService, overrides.SelfService),
+            Provisioning = MergeProvisioning(defaults.Provisioning, overrides.Provisioning)
         };
     }
 
@@ -148,6 +149,22 @@ public static class TenantSettingsMerger
             CanEditPhone: overrides.CanEditPhone ?? defaults.CanEditPhone);
     }
 
+    private static ProvisioningSettings MergeProvisioning(
+        ProvisioningSettings defaults,
+        ProvisioningSettingsOverrides? overrides)
+    {
+        if (overrides is null)
+        {
+            return defaults;
+        }
+
+        return new ProvisioningSettings(
+            DefaultAccessProfileId: overrides.DefaultAccessProfileId ?? defaults.DefaultAccessProfileId,
+            InviteExpiryDays: overrides.InviteExpiryDays ?? defaults.InviteExpiryDays,
+            ResendCooldownHours: overrides.ResendCooldownHours ?? defaults.ResendCooldownHours,
+            PendingInviteBehavior: overrides.PendingInviteBehavior ?? defaults.PendingInviteBehavior);
+    }
+
     /// <summary>
     /// Internal type for deserializing partial overrides (all properties nullable).
     /// </summary>
@@ -158,6 +175,7 @@ public static class TenantSettingsMerger
         public Dictionary<string, FieldConfigOverrides>? EmployeeFieldConfig { get; init; }
         public BrandingSettingsOverrides? Branding { get; init; }
         public SelfServiceSettingsOverrides? SelfService { get; init; }
+        public ProvisioningSettingsOverrides? Provisioning { get; init; }
     }
 
     private sealed record DraftStructureSchemaOverrides
@@ -200,6 +218,14 @@ public static class TenantSettingsMerger
     {
         public bool? CanEditPreferredName { get; init; }
         public bool? CanEditPhone { get; init; }
+    }
+
+    private sealed record ProvisioningSettingsOverrides
+    {
+        public Guid? DefaultAccessProfileId { get; init; }
+        public int? InviteExpiryDays { get; init; }
+        public int? ResendCooldownHours { get; init; }
+        public string? PendingInviteBehavior { get; init; }
     }
 
     private static string NormalizeKey(string value)

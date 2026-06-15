@@ -398,6 +398,10 @@ public sealed class WorkforceContractService(
             return new WorkforceBulkInviteResponseDto([], 0, 0, 0, 0, 0);
         }
 
+        var accessProfileId = await ResolveProvisioningAccessProfileIdAsync(
+            request.AccessProfileId,
+            cancellationToken);
+
         var allStatuses = await LoadWorkforceAccountStatusesAsync(matchingEmployees, cancellationToken);
 
         var freshInviteEmployees = new List<Employee>();
@@ -445,7 +449,7 @@ public sealed class WorkforceContractService(
 
             var provisionResult = await workforceBulkProvisioner.BulkProvisionAsync(
                 subjects,
-                request.AccessProfileId,
+                accessProfileId,
                 cancellationToken);
 
             var employeeLookup = matchingEmployees.ToDictionary(e => e.Id);
@@ -497,6 +501,26 @@ public sealed class WorkforceContractService(
             refreshedCount,
             alreadyActiveEmployees.Count,
             skippedEmployees.Count);
+    }
+
+    private async Task<Guid> ResolveProvisioningAccessProfileIdAsync(
+        Guid requestedAccessProfileId,
+        CancellationToken cancellationToken)
+    {
+        if (requestedAccessProfileId != Guid.Empty)
+        {
+            return requestedAccessProfileId;
+        }
+
+        var settings = await tenantSettingsReadService.GetCurrentAsync(cancellationToken);
+        if (settings.Provisioning.DefaultAccessProfileId.HasValue
+            && settings.Provisioning.DefaultAccessProfileId.Value != Guid.Empty)
+        {
+            return settings.Provisioning.DefaultAccessProfileId.Value;
+        }
+
+        throw new InvalidOperationException(
+            "Access profile is required. Configure a provisioning default or choose a profile before inviting employees.");
     }
 
     public async Task<IReadOnlyList<WorkforceEmployeeSummaryDto>> GetTeamAsync(

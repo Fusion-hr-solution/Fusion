@@ -49,6 +49,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IEmployeeReadModelPolicy, EmployeeReadModelPolicy>();
         services.AddScoped<ICoreAccessPolicyService, CoreAccessPolicyService>();
         services.AddScoped<ITenantSettingsReadService, TenantSettingsReadService>();
+        services.AddScoped<ISettingsSectionRegistry, SettingsSectionRegistry>();
+        services.AddScoped<ISettingsAuditService, SettingsAuditService>();
         services.AddScoped<IEmployeeImportWorkflowService, EmployeeImportWorkflowService>();
         services.AddScoped<IWorkforceContractService, WorkforceContractService>();
 

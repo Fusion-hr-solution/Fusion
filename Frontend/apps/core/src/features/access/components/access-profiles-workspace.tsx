@@ -1,26 +1,27 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   AlertCircle,
   LockKeyhole,
   Plus,
-  Search,
-  ShieldAlert,
 } from "lucide-react";
 import {
   ApiError,
   type AccessProfileSummaryDto,
   type CorePermissionCatalogItemDto,
   type PermissionScope,
-  type UserAccessAssignmentDto,
 } from "@repo/api";
 import {
   canManageCoreAccessProfiles,
+  canViewCoreAccessProfiles,
   useAuth,
 } from "@repo/auth";
 import { EmptyState } from "@repo/ui";
 import { toast } from "sonner";
+import { buildTenantContextHref } from "@/lib/tenant-navigation";
+import { useTenantContext } from "@/shell/tenant-context/core-tenant-context-provider";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Accordion,
@@ -61,9 +62,7 @@ import {
   useCorePermissionCatalog,
   useCreateAccessProfile,
   useDeleteAccessProfile,
-  useSetUserAccessProfiles,
   useUpdateAccessProfile,
-  useUserAccessAssignments,
 } from "@/features/access/api/use-core-access";
 
 const PERMISSION_GROUP_ORDER = [
@@ -72,7 +71,9 @@ const PERMISSION_GROUP_ORDER = [
   "Employees",
   "Org Chart",
   "Access",
+  "Access profiles",
   "Settings",
+  "Module settings",
   "Self & Team",
 ] as const;
 
@@ -87,7 +88,9 @@ const PERMISSION_GROUP_LABELS: Record<
   Employees: "Employees",
   "Org Chart": "Org chart",
   Access: "Access",
+  "Access profiles": "Access profiles",
   Settings: "Settings",
+  "Module settings": "Module settings",
   "Self & Team": "Self & team",
 };
 
@@ -95,7 +98,10 @@ const PERMISSION_SCOPE_LABELS: Record<GrantScopeDraft, string> = {
   None: "No access",
   Self: "Own profile",
   DirectReports: "Direct reports",
-  Tenant: "Whole tenant",
+  OrgUnit: "Org unit",
+  Tenant: "Whole organization",
+  Module: "Module",
+  Platform: "Platform",
 };
 
 const PERMISSION_LABEL_OVERRIDES: Record<string, string> = {
@@ -113,21 +119,8 @@ const PERMISSION_HELPER_TEXT_OVERRIDES: Record<string, string> = {
   "core.employee.view": "Includes the roster and employee profile pages.",
 };
 
-const ACCESS_PROFILE_MANAGER_PERMISSION_KEY = "core.accessprofiles.manage";
-
 const EMPTY_PERMISSION_CATALOG: CorePermissionCatalogItemDto[] = [];
 const EMPTY_ACCESS_PROFILES: AccessProfileSummaryDto[] = [];
-const EMPTY_ASSIGNMENTS: UserAccessAssignmentDto[] = [];
-
-const ADMIN_CAPABILITY_PERMISSION_KEYS = new Set([
-  ACCESS_PROFILE_MANAGER_PERMISSION_KEY,
-  "core.settings.manage",
-  "core.employee.manage",
-  "core.structure.manage",
-  "core.setup.manage",
-  "core.access.manage",
-]);
-
 const ROLE_LIKE_PROFILE_NAME_PATTERN =
   /^\s*(ceo|cfo|coo|cio|cto|chief(?:\s+\w+){0,2}|president|vice president|vp|director|manager|partner|associate|analyst|lead|head)\s*$/i;
 
@@ -137,19 +130,6 @@ function buildAccessErrorMessage(error: unknown) {
   }
 
   return "The access profile update failed.";
-}
-
-function getScopeRank(scope: GrantScopeDraft): number {
-  switch (scope) {
-    case "Tenant":
-      return 3;
-    case "DirectReports":
-      return 2;
-    case "Self":
-      return 1;
-    default:
-      return 0;
-  }
 }
 
 function getScopeLabel(scope: GrantScopeDraft): string {
@@ -168,7 +148,11 @@ function getPermissionLabel(permission: {
 function getPermissionHelperText(
   permission: CorePermissionCatalogItemDto
 ): string | null {
-  return PERMISSION_HELPER_TEXT_OVERRIDES[permission.permissionKey] ?? null;
+  return (
+    PERMISSION_HELPER_TEXT_OVERRIDES[permission.permissionKey] ??
+    permission.helperText ??
+    null
+  );
 }
 
 function getPermissionGroupLabel(group: string): string {
@@ -201,113 +185,6 @@ function isJobTitleLikeProfileName(name: string): boolean {
   return ROLE_LIKE_PROFILE_NAME_PATTERN.test(name.trim());
 }
 
-function matchesAssignmentSearch(
-  assignment: UserAccessAssignmentDto,
-  searchTerm: string
-): boolean {
-  if (!searchTerm) {
-    return true;
-  }
-
-  return [
-    assignment.fullName,
-    assignment.email,
-    assignment.department ?? "",
-    assignment.jobTitle ?? "",
-  ].some((value) => value.toLowerCase().includes(searchTerm));
-}
-
-function compareAssignmentsByName(
-  left: UserAccessAssignmentDto,
-  right: UserAccessAssignmentDto
-): number {
-  return (
-    left.fullName.localeCompare(right.fullName) ||
-    left.email.localeCompare(right.email)
-  );
-}
-
-function buildEffectiveGrantMap(
-  profiles: AccessProfileSummaryDto[]
-): Map<string, PermissionScope> {
-  const effective = new Map<string, PermissionScope>();
-
-  for (const profile of profiles) {
-    for (const grant of profile.grants) {
-      const currentScope = effective.get(grant.permissionKey);
-
-      if (
-        !currentScope ||
-        getScopeRank(grant.scope) > getScopeRank(currentScope)
-      ) {
-        effective.set(grant.permissionKey, grant.scope);
-      }
-    }
-  }
-
-  return effective;
-}
-
-function getAssignmentRemovalGuardMessage(params: {
-  assignments: UserAccessAssignmentDto[];
-  profileId: string;
-  userId: string;
-  accessProfilesById: Map<string, AccessProfileSummaryDto>;
-}): string | null {
-  let hasAccessProfileManager = false;
-  let hasAdminCapability = false;
-
-  for (const assignment of params.assignments) {
-    if (!assignment.isActive) {
-      continue;
-    }
-
-    const remainingProfiles = assignment.accessProfiles
-      .map((profile) => profile.id)
-      .filter(
-        (profileId) =>
-          !(
-            assignment.userId === params.userId &&
-            profileId === params.profileId
-          )
-      )
-      .map((profileId) => params.accessProfilesById.get(profileId))
-      .filter((profile): profile is AccessProfileSummaryDto => !!profile);
-
-    const effectiveGrants = buildEffectiveGrantMap(remainingProfiles);
-
-    if (
-      effectiveGrants.get(ACCESS_PROFILE_MANAGER_PERMISSION_KEY) === "Tenant"
-    ) {
-      hasAccessProfileManager = true;
-    }
-
-    if (
-      Array.from(effectiveGrants.entries()).some(
-        ([permissionKey, scope]) =>
-          scope === "Tenant" &&
-          ADMIN_CAPABILITY_PERMISSION_KEYS.has(permissionKey)
-      )
-    ) {
-      hasAdminCapability = true;
-    }
-
-    if (hasAccessProfileManager && hasAdminCapability) {
-      return null;
-    }
-  }
-
-  if (!hasAccessProfileManager) {
-    return "Keep at least one active access manager assigned.";
-  }
-
-  if (!hasAdminCapability) {
-    return "Keep at least one active Core admin assigned.";
-  }
-
-  return null;
-}
-
 function buildGrantDraft(
   profile: AccessProfileSummaryDto | null,
   catalog: CorePermissionCatalogItemDto[]
@@ -336,20 +213,6 @@ function buildGrantInput(
       permissionKey,
       scope: scope as PermissionScope,
     }));
-}
-
-function formatWorkforceContext(user: UserAccessAssignmentDto): string {
-  const contextParts = [user.department, user.jobTitle].filter(Boolean);
-
-  if (contextParts.length > 0) {
-    return contextParts.join(" · ");
-  }
-
-  if (user.employeeId) {
-    return "Linked employee record";
-  }
-
-  return "No linked employee record";
 }
 
 function AccessProfilesPageSkeleton({
@@ -387,18 +250,17 @@ export function AccessProfilesWorkspace({
   embedded?: boolean;
 } = {}) {
   const { user } = useAuth();
+  const { tenantId, tenantSlug } = useTenantContext();
+  const canViewProfiles = canViewCoreAccessProfiles(user);
   const canManageProfiles = canManageCoreAccessProfiles(user);
 
   const { data: permissionCatalogData, isLoading: isCatalogLoading } =
-    useCorePermissionCatalog(canManageProfiles);
+    useCorePermissionCatalog(canViewProfiles);
   const { data: accessProfilesData, isLoading: isProfilesLoading } =
-    useAccessProfiles(canManageProfiles);
-  const { data: assignmentsData, isLoading: isAssignmentsLoading } =
-    useUserAccessAssignments(canManageProfiles);
+    useAccessProfiles(canViewProfiles);
 
   const permissionCatalog = permissionCatalogData ?? EMPTY_PERMISSION_CATALOG;
   const accessProfiles = accessProfilesData ?? EMPTY_ACCESS_PROFILES;
-  const assignments = assignmentsData ?? EMPTY_ASSIGNMENTS;
 
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(
     null
@@ -409,7 +271,6 @@ export function AccessProfilesWorkspace({
     Record<string, GrantScopeDraft>
   >({});
   const [profileSaveError, setProfileSaveError] = useState<string | null>(null);
-  const [assignmentSearch, setAssignmentSearch] = useState("");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [newProfileName, setNewProfileName] = useState("");
   const [newProfileDescription, setNewProfileDescription] = useState("");
@@ -436,14 +297,9 @@ export function AccessProfilesWorkspace({
       toast.success("Access profile deleted.");
     },
   });
-  const setUserProfiles = useSetUserAccessProfiles({
-    onSuccess: () => {
-      toast.success("Access profile assignment updated.");
-    },
-  });
 
   useEffect(() => {
-    if (!canManageProfiles || accessProfiles.length === 0) {
+    if (!canViewProfiles || accessProfiles.length === 0) {
       setSelectedProfileId(null);
       return;
     }
@@ -456,7 +312,7 @@ export function AccessProfilesWorkspace({
     ) {
       setSelectedProfileId(firstProfile.id);
     }
-  }, [accessProfiles, canManageProfiles, selectedProfileId]);
+  }, [accessProfiles, canViewProfiles, selectedProfileId]);
 
   const selectedProfile = useMemo(
     () =>
@@ -486,44 +342,6 @@ export function AccessProfilesWorkspace({
     })).filter((group) => group.items.length > 0);
   }, [permissionCatalog]);
 
-  const accessProfilesById = useMemo(
-    () => new Map(accessProfiles.map((profile) => [profile.id, profile])),
-    [accessProfiles]
-  );
-
-  const selectedProfileCanManageAccessProfiles = !!selectedProfile?.grants.some(
-    (grant) => grant.permissionKey === ACCESS_PROFILE_MANAGER_PERMISSION_KEY
-  );
-
-  const selectedProfileHasAdminCapability = !!selectedProfile?.grants.some(
-    (grant) =>
-      grant.scope === "Tenant" &&
-      ADMIN_CAPABILITY_PERMISSION_KEYS.has(grant.permissionKey)
-  );
-
-  const assignedUsers = useMemo(() => {
-    if (!selectedProfile) {
-      return [];
-    }
-
-    return assignments
-      .filter((assignment) =>
-        assignment.accessProfiles.some(
-          (profile) => profile.id === selectedProfile.id
-        )
-      )
-      .slice()
-      .sort(compareAssignmentsByName);
-  }, [assignments, selectedProfile]);
-
-  const filteredAssignedUsers = useMemo(() => {
-    const searchTerm = assignmentSearch.trim().toLowerCase();
-
-    return assignedUsers.filter((assignment) =>
-      matchesAssignmentSearch(assignment, searchTerm)
-    );
-  }, [assignedUsers, assignmentSearch]);
-
   const grantedPermissionCount = useMemo(
     () =>
       Object.values(draftProfileGrants).filter((scope) => scope !== "None")
@@ -531,53 +349,13 @@ export function AccessProfilesWorkspace({
     [draftProfileGrants]
   );
 
-  const filteredAssignableUsers = useMemo(() => {
-    if (!selectedProfile) {
-      return [];
-    }
-
-    const searchTerm = assignmentSearch.trim().toLowerCase();
-
-    return assignments
-      .filter(
-        (assignment) =>
-          !assignment.accessProfiles.some(
-            (profile) => profile.id === selectedProfile.id
-          )
+  const selectedProfileAssignmentsHref = selectedProfile
+    ? buildTenantContextHref(
+        `/access?profileId=${encodeURIComponent(selectedProfile.id)}`,
+        tenantId,
+        tenantSlug
       )
-      .filter((assignment) => matchesAssignmentSearch(assignment, searchTerm))
-      .slice()
-      .sort(compareAssignmentsByName);
-  }, [assignmentSearch, assignments, selectedProfile]);
-
-  const assignmentRemovalGuards = useMemo(() => {
-    const guards = new Map<string, string>();
-
-    if (!selectedProfile || !selectedProfileHasAdminCapability) {
-      return guards;
-    }
-
-    for (const assignment of assignedUsers) {
-      const guardMessage = getAssignmentRemovalGuardMessage({
-        assignments,
-        profileId: selectedProfile.id,
-        userId: assignment.userId,
-        accessProfilesById,
-      });
-
-      if (guardMessage) {
-        guards.set(assignment.userId, guardMessage);
-      }
-    }
-
-    return guards;
-  }, [
-    accessProfilesById,
-    assignedUsers,
-    assignments,
-    selectedProfile,
-    selectedProfileHasAdminCapability,
-  ]);
+    : "";
 
   const hasProfileChanges = useMemo(() => {
     if (!selectedProfile) {
@@ -606,7 +384,7 @@ export function AccessProfilesWorkspace({
     isJobTitleLikeProfileName(newProfileName);
 
   const handleSaveProfile = async () => {
-    if (!selectedProfile) {
+    if (!selectedProfile || !canManageProfiles) {
       return;
     }
 
@@ -628,6 +406,10 @@ export function AccessProfilesWorkspace({
   };
 
   const handleCreateProfile = async () => {
+    if (!canManageProfiles) {
+      return;
+    }
+
     try {
       await createProfile.mutateAsync({
         name: newProfileName.trim(),
@@ -640,7 +422,7 @@ export function AccessProfilesWorkspace({
   };
 
   const handleDeleteProfile = async () => {
-    if (!selectedProfile) {
+    if (!selectedProfile || !canManageProfiles) {
       return;
     }
 
@@ -651,39 +433,7 @@ export function AccessProfilesWorkspace({
     }
   };
 
-  const handleToggleAssignment = async (
-    assignment: UserAccessAssignmentDto
-  ) => {
-    if (!selectedProfile) {
-      return;
-    }
-
-    const currentlyAssigned = assignment.accessProfiles.some(
-      (profile) => profile.id === selectedProfile.id
-    );
-
-    const nextIds = currentlyAssigned
-      ? assignment.accessProfiles
-          .filter((profile) => profile.id !== selectedProfile.id)
-          .map((profile) => profile.id)
-      : [
-          ...assignment.accessProfiles.map((profile) => profile.id),
-          selectedProfile.id,
-        ];
-
-    try {
-      await setUserProfiles.mutateAsync({
-        userId: assignment.userId,
-        input: {
-          accessProfileIds: nextIds,
-        },
-      });
-    } catch (assignmentError) {
-      toast.error(buildAccessErrorMessage(assignmentError));
-    }
-  };
-
-  if (!canManageProfiles) {
+  if (!canViewProfiles) {
     return (
       <>
         <Card>
@@ -712,13 +462,18 @@ export function AccessProfilesWorkspace({
               <div className="flex items-center justify-between w-full">
                 <CardTitle>Access profiles</CardTitle>
 
-                <Button size="sm" onClick={() => setIsCreateDialogOpen(true)}>
-                  <Plus className="mr-1 size-4 " />
-                  New profile
-                </Button>
+                {canManageProfiles ? (
+                  <Button size="sm" onClick={() => setIsCreateDialogOpen(true)}>
+                    <Plus className="mr-1 size-4 " />
+                    New profile
+                  </Button>
+                ) : null}
               </div>
 
-              <CardDescription>Reusable permission profiles.</CardDescription>
+              <CardDescription>
+                Reusable permission profiles.
+                {!canManageProfiles ? " Read-only." : ""}
+              </CardDescription>
             </div>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -755,33 +510,16 @@ export function AccessProfilesWorkspace({
                           </p>
                         ) : null}
                       </div>
-                      <div className="flex shrink-0 flex-wrap justify-end gap-1.5">
-                        <Badge
-                          variant={
-                            profile.type === "SystemSeeded"
-                              ? "secondary"
-                              : "outline"
-                          }
-                        >
-                          {profile.type === "SystemSeeded"
-                            ? "System"
-                            : "Custom"}
-                        </Badge>
-                        {profile.isSystemProtected ? (
-                          <Badge variant="secondary">Protected</Badge>
-                        ) : null}
-                      </div>
-                    </div>
-                    <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
-                      <Badge variant="outline">
+                      <span className="shrink-0 text-xs text-muted-foreground">
                         {formatAssignedUserCount(profile.assignedUserCount)}
-                      </Badge>
-                      <Badge variant="outline">
-                        {profile.grants.length === 0
-                          ? "No access"
-                          : `${profile.grants.length} permissions`}
-                      </Badge>
+                      </span>
                     </div>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      {profile.grants.length === 0
+                        ? "No access"
+                        : `${profile.grants.length} permissions`}
+                      {profile.isSystemProtected ? " · Protected" : ""}
+                    </p>
                   </button>
                 );
               })
@@ -794,44 +532,22 @@ export function AccessProfilesWorkspace({
             <CardHeader density="compact" className="pb-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="space-y-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <CardTitle>
-                      {selectedProfile?.name ?? "Select an access profile"}
-                    </CardTitle>
-                    {selectedProfile ? (
-                      <>
-                        <Badge
-                          variant={
-                            selectedProfile.type === "SystemSeeded"
-                              ? "secondary"
-                              : "outline"
-                          }
-                        >
-                          {selectedProfile.type === "SystemSeeded"
-                            ? "System"
-                            : "Custom"}
-                        </Badge>
-                        {selectedProfile.isSystemProtected ? (
-                          <Badge variant="secondary">Protected</Badge>
-                        ) : null}
-                      </>
-                    ) : null}
-                  </div>
+                  <CardTitle>
+                    {selectedProfile?.name ?? "Select an access profile"}
+                  </CardTitle>
                   {selectedProfile ? (
-                    <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
-                      <Badge variant="outline">
-                        {formatAssignedUserCount(
-                          selectedProfile.assignedUserCount
-                        )}
-                      </Badge>
-                      <Badge variant="outline">
-                        {grantedPermissionCount === 0
-                          ? "No access"
-                          : grantedPermissionCount === 1
-                            ? "1 permission"
-                            : `${grantedPermissionCount} permissions`}
-                      </Badge>
-                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      {formatAssignedUserCount(
+                        selectedProfile.assignedUserCount
+                      )}{" "}
+                      ·{" "}
+                      {grantedPermissionCount === 0
+                        ? "No access"
+                        : grantedPermissionCount === 1
+                          ? "1 permission"
+                          : `${grantedPermissionCount} permissions`}
+                      {selectedProfile.isSystemProtected ? " · Protected" : ""}
+                    </p>
                   ) : (
                     <CardDescription>Choose a profile.</CardDescription>
                   )}
@@ -853,20 +569,15 @@ export function AccessProfilesWorkspace({
                     </Alert>
                   ) : null}
 
-                  {selectedProfileCanManageAccessProfiles ? (
-                    <div className="flex items-center gap-2 rounded-lg border bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
-                      <ShieldAlert className="size-4 shrink-0" />
-                      <span>This profile can manage Core access.</span>
-                    </div>
-                  ) : null}
-
                   <div className="grid gap-3 md:grid-cols-2">
                     <div className="space-y-2">
                       <Label htmlFor="profile-name">Profile name</Label>
                       <Input
                         id="profile-name"
                         value={draftProfileName}
-                        disabled={selectedProfile.isSystemProtected}
+                        disabled={
+                          !canManageProfiles || selectedProfile.isSystemProtected
+                        }
                         placeholder="e.g. Core Data Steward"
                         onChange={(event) =>
                           setDraftProfileName(event.target.value)
@@ -884,47 +595,14 @@ export function AccessProfilesWorkspace({
                       <Input
                         id="profile-description"
                         value={draftProfileDescription}
-                        disabled={selectedProfile.isSystemProtected}
+                        disabled={
+                          !canManageProfiles || selectedProfile.isSystemProtected
+                        }
                         onChange={(event) =>
                           setDraftProfileDescription(event.target.value)
                         }
                         placeholder="Optional summary"
                       />
-                    </div>
-                  </div>
-
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    <div className="rounded-lg border px-3 py-3">
-                      <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                        People with this profile
-                      </p>
-                      <p className="mt-1 font-medium">
-                        {formatAssignedUserCount(
-                          selectedProfile.assignedUserCount
-                        )}
-                      </p>
-                    </div>
-                    <div className="rounded-lg border px-3 py-3">
-                      <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                        Permission coverage
-                      </p>
-                      <p className="mt-1 font-medium">
-                        {grantedPermissionCount === 0
-                          ? "No access"
-                          : `${grantedPermissionCount} granted`}
-                      </p>
-                    </div>
-                    <div className="rounded-lg border px-3 py-3">
-                      <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                        Profile type
-                      </p>
-                      <p className="mt-1 font-medium">
-                        {selectedProfile.type === "SystemSeeded"
-                          ? selectedProfile.isSystemProtected
-                            ? "System · Protected"
-                            : "System"
-                          : "Custom"}
-                      </p>
                     </div>
                   </div>
 
@@ -992,6 +670,7 @@ export function AccessProfilesWorkspace({
                                           <Select
                                             value={selectedScope}
                                             disabled={
+                                              !canManageProfiles ||
                                               selectedProfile.isSystemProtected
                                             }
                                             onValueChange={(value) =>
@@ -1007,6 +686,7 @@ export function AccessProfilesWorkspace({
                                             <SelectTrigger
                                               className="h-9 w-full"
                                               disabled={
+                                                !canManageProfiles ||
                                                 selectedProfile.isSystemProtected
                                               }
                                             >
@@ -1055,6 +735,7 @@ export function AccessProfilesWorkspace({
                       <Button
                         variant="outline"
                         disabled={
+                          !canManageProfiles ||
                           selectedProfile.isSystemProtected ||
                           deleteProfile.isLoading
                         }
@@ -1068,6 +749,7 @@ export function AccessProfilesWorkspace({
                         disabled={
                           !hasProfileChanges ||
                           updateProfile.isLoading ||
+                          !canManageProfiles ||
                           selectedProfile.isSystemProtected
                         }
                         onClick={() => void handleSaveProfile()}
@@ -1085,179 +767,28 @@ export function AccessProfilesWorkspace({
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle>Assignments</CardTitle>
+                <CardDescription>
+                  Assignments are managed in the Access workspace.
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-4">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      className="pl-9"
-                      value={assignmentSearch}
-                      onChange={(event) =>
-                        setAssignmentSearch(event.target.value)
-                      }
-                      placeholder="Search people"
-                    />
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/10 px-4 py-3">
+                  <div>
+                    <p className="text-sm font-medium">
+                      {formatAssignedUserCount(
+                        selectedProfile.assignedUserCount
+                      )}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Use Access to invite people, update profile assignments,
+                      and handle account activation.
+                    </p>
                   </div>
-
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm font-medium">Assigned users</p>
-                      <Badge variant="outline">
-                        {formatAssignedUserCount(
-                          selectedProfile.assignedUserCount
-                        )}
-                      </Badge>
-                    </div>
-
-                    {isAssignmentsLoading ? (
-                      Array.from({ length: 3 }).map((_, index) => (
-                        <Skeleton key={index} className="h-20 rounded-lg" />
-                      ))
-                    ) : assignedUsers.length === 0 ? (
-                      <div className="rounded-lg border border-dashed px-4 py-6 text-sm text-muted-foreground">
-                        No users assigned.
-                      </div>
-                    ) : filteredAssignedUsers.length === 0 ? (
-                      <div className="rounded-lg border border-dashed px-4 py-6 text-sm text-muted-foreground">
-                        No assigned users match your search.
-                      </div>
-                    ) : (
-                      filteredAssignedUsers.map((assignment) => {
-                        const removalGuard = assignmentRemovalGuards.get(
-                          assignment.userId
-                        );
-
-                        return (
-                          <div
-                            key={assignment.userId}
-                            className="rounded-lg border bg-background px-4 py-3"
-                          >
-                            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                              <div className="min-w-0 space-y-2">
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <p className="font-medium text-foreground">
-                                    {assignment.fullName}
-                                  </p>
-                                  {!assignment.isActive ? (
-                                    <Badge variant="outline">Inactive</Badge>
-                                  ) : null}
-                                </div>
-                                <p className="text-sm text-muted-foreground">
-                                  {assignment.email}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  {formatWorkforceContext(assignment)}
-                                </p>
-                                <div className="flex flex-wrap gap-1.5">
-                                  {assignment.accessProfiles.map((profile) => (
-                                    <Badge
-                                      key={`${assignment.userId}:${profile.id}`}
-                                      variant={
-                                        profile.id === selectedProfile.id
-                                          ? "secondary"
-                                          : "outline"
-                                      }
-                                    >
-                                      {profile.name}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              </div>
-
-                              <div className="flex flex-col items-start gap-2 lg:items-end">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  disabled={
-                                    setUserProfiles.isLoading || !!removalGuard
-                                  }
-                                  onClick={() =>
-                                    void handleToggleAssignment(assignment)
-                                  }
-                                >
-                                  {setUserProfiles.isLoading
-                                    ? "Updating..."
-                                    : "Remove"}
-                                </Button>
-                                {removalGuard ? (
-                                  <p className="max-w-56 text-xs text-muted-foreground lg:text-right">
-                                    {removalGuard}
-                                  </p>
-                                ) : null}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-
-                  <div className="space-y-3">
-                    <p className="text-sm font-medium">Available to assign</p>
-
-                    {isAssignmentsLoading ? (
-                      Array.from({ length: 2 }).map((_, index) => (
-                        <Skeleton key={index} className="h-20 rounded-lg" />
-                      ))
-                    ) : filteredAssignableUsers.length === 0 ? (
-                      <div className="rounded-lg border border-dashed px-4 py-6 text-sm text-muted-foreground">
-                        {assignmentSearch.trim()
-                          ? "No results."
-                          : "No other users available."}
-                      </div>
-                    ) : (
-                      filteredAssignableUsers.map((assignment) => (
-                        <div
-                          key={assignment.userId}
-                          className="rounded-lg border bg-background px-4 py-3"
-                        >
-                          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                            <div className="min-w-0 space-y-2">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <p className="font-medium text-foreground">
-                                  {assignment.fullName}
-                                </p>
-                                {!assignment.isActive ? (
-                                  <Badge variant="outline">Inactive</Badge>
-                                ) : null}
-                              </div>
-                              <p className="text-sm text-muted-foreground">
-                                {assignment.email}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {formatWorkforceContext(assignment)}
-                              </p>
-                              {assignment.accessProfiles.length > 0 ? (
-                                <div className="flex flex-wrap gap-1.5">
-                                  {assignment.accessProfiles.map((profile) => (
-                                    <Badge
-                                      key={`${assignment.userId}:${profile.id}`}
-                                      variant="outline"
-                                    >
-                                      {profile.name}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              ) : null}
-                            </div>
-
-                            <Button
-                              size="sm"
-                              disabled={setUserProfiles.isLoading}
-                              onClick={() =>
-                                void handleToggleAssignment(assignment)
-                              }
-                            >
-                              {setUserProfiles.isLoading
-                                ? "Assigning..."
-                                : "Assign"}
-                            </Button>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
+                  <Button asChild variant="outline" size="sm">
+                    <Link href={selectedProfileAssignmentsHref}>
+                      Manage assignments
+                    </Link>
+                  </Button>
                 </div>
               </CardContent>
             </Card>

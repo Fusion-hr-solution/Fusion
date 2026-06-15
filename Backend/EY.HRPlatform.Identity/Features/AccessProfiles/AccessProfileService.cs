@@ -43,7 +43,13 @@ public sealed class AccessProfileService(
 
     private static readonly string[] AdminCapabilityPermissions = [
         CorePermissions.AccessProfilesManage,
+        CorePermissions.AccessProfilesManageV2,
+        CorePermissions.AccessAssignmentsManage,
         CorePermissions.SettingsManage,
+        CorePermissions.SettingsOrganizationManage,
+        CorePermissions.SettingsPeopleDataManage,
+        CorePermissions.SettingsStructureManage,
+        CorePermissions.SettingsProvisioningManage,
         CorePermissions.EmployeeManage,
         CorePermissions.StructureManage,
         CorePermissions.SetupManage,
@@ -1100,7 +1106,9 @@ public sealed class AccessProfileService(
     private static void EnsureTenantSafety(IReadOnlyDictionary<Guid, IReadOnlyList<EffectivePermissionGrant>> permissionsByUserId)
     {
         var hasAccessProfileManager = permissionsByUserId.Values.Any(grants =>
-            grants.Any(grant => grant.PermissionKey == CorePermissions.AccessProfilesManage && grant.Scope == PermissionScopes.Tenant));
+            grants.Any(grant =>
+                (grant.PermissionKey is CorePermissions.AccessProfilesManage or CorePermissions.AccessProfilesManageV2)
+                && grant.Scope == PermissionScopes.Tenant));
 
         if (!hasAccessProfileManager)
         {

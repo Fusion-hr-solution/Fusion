@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   canAccessCorePeople,
   canAccessCoreSettings,
+  canManageCoreSettings,
   canAccessCoreSetup,
   canAccessCoreTeam,
   CORE_TENANT_CONTEXT_STORAGE_KEY,
@@ -15,6 +16,8 @@ import {
   canSeeCoreAccessNavigation,
   canSeeCoreTeamNavigation,
   canSeeOrganizationsNavigation,
+  canViewCoreAccessProfiles,
+  canManageCoreAccessProfiles,
 } from "../roles";
 import type { AuthUser } from "../types";
 
@@ -37,13 +40,14 @@ function makeUser(
 
 function grant(
   permissionKey: string,
-  scope: "Self" | "DirectReports" | "Tenant"
+  scope: AuthUser["effectivePermissions"][number]["scope"]
 ): AuthUser["effectivePermissions"][number] {
   return {
     permissionKey,
     scope,
     label: permissionKey,
     group: "Test",
+    helperText: null,
     allowedScopes: [scope],
   };
 }
@@ -164,6 +168,7 @@ describe("role helpers", () => {
         scope: "Tenant",
         label: "View employees",
         group: "Employees",
+        helperText: null,
         allowedScopes: ["Self", "DirectReports", "Tenant"],
       },
     ]);
@@ -179,6 +184,7 @@ describe("role helpers", () => {
         scope: "Tenant",
         label: "View employees",
         group: "Employees",
+        helperText: null,
         allowedScopes: ["Self", "DirectReports", "Tenant"],
       },
     ]);
@@ -196,12 +202,54 @@ describe("role helpers", () => {
         scope: "Tenant",
         label: "View Core settings",
         group: "Settings",
+        helperText: null,
         allowedScopes: ["Tenant"],
       },
     ]);
 
     expect(canAccessCoreSettings(user)).toBe(true);
     expect(canSeeCoreSettingsNavigation(user)).toBe(true);
+  });
+
+  it("uses section settings permissions for settings access", () => {
+    const peopleDataAdmin = makeUser([], null, [
+      grant("settings.peopleData.manage", "Tenant"),
+    ]);
+    const auditReader = makeUser([], null, [
+      grant("settings.governance.view", "Tenant"),
+    ]);
+
+    expect(canAccessCoreSettings(peopleDataAdmin)).toBe(true);
+    expect(canManageCoreSettings(peopleDataAdmin)).toBe(true);
+    expect(canSeeCoreSettingsNavigation(peopleDataAdmin)).toBe(true);
+    expect(canAccessCoreSettings(auditReader)).toBe(true);
+    expect(canManageCoreSettings(auditReader)).toBe(false);
+  });
+
+  it("separates access profile view and manage capabilities", () => {
+    const profileViewer = makeUser([], null, [
+      grant("access.profiles.view", "Tenant"),
+    ]);
+    const profileManager = makeUser([], null, [
+      grant("access.profiles.manage", "Tenant"),
+    ]);
+
+    expect(canViewCoreAccessProfiles(profileViewer)).toBe(true);
+    expect(canManageCoreAccessProfiles(profileViewer)).toBe(false);
+    expect(canSeeCoreSettingsNavigation(profileViewer)).toBe(true);
+    expect(canViewCoreAccessProfiles(profileManager)).toBe(true);
+    expect(canManageCoreAccessProfiles(profileManager)).toBe(true);
+  });
+
+  it("does not give platform admins tenant settings or profile management by tenant context alone", () => {
+    window.history.replaceState({}, "", "/core/settings");
+    window.sessionStorage.setItem(CORE_TENANT_CONTEXT_STORAGE_KEY, "tenant-1");
+
+    const user = makeUser(["PlatformAdmin"]);
+
+    expect(canAccessCoreSettings(user)).toBe(false);
+    expect(canManageCoreAccessProfiles(user)).toBe(false);
+    expect(canSeeCoreSettingsNavigation(user)).toBe(false);
   });
 
   it("shows access navigation for access-only and profile managers", () => {
@@ -214,5 +262,6 @@ describe("role helpers", () => {
 
     expect(canSeeCoreAccessNavigation(accessViewer)).toBe(true);
     expect(canSeeCoreAccessNavigation(profileManager)).toBe(true);
+    expect(canSeeCoreSettingsNavigation(profileManager)).toBe(true);
   });
 });

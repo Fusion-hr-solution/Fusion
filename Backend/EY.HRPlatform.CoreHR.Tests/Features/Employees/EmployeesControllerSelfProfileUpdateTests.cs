@@ -90,6 +90,17 @@ public class EmployeesControllerSelfProfileUpdateTests
         public bool CanManageStructure(ClaimsPrincipal user) => true;
         public bool CanViewSettings(ClaimsPrincipal user) => true;
         public bool CanManageSettings(ClaimsPrincipal user) => true;
+        public bool CanViewOrganizationSettings(ClaimsPrincipal user) => true;
+        public bool CanManageOrganizationSettings(ClaimsPrincipal user) => true;
+        public bool CanViewPeopleDataSettings(ClaimsPrincipal user) => true;
+        public bool CanManagePeopleDataSettings(ClaimsPrincipal user) => true;
+        public bool CanViewStructureSettings(ClaimsPrincipal user) => true;
+        public bool CanManageStructureSettings(ClaimsPrincipal user) => true;
+        public bool CanViewProvisioningSettings(ClaimsPrincipal user) => true;
+        public bool CanManageProvisioningSettings(ClaimsPrincipal user) => true;
+        public bool CanViewGovernanceSettings(ClaimsPrincipal user) => true;
+        public bool CanViewAccessProfiles(ClaimsPrincipal user) => true;
+        public bool CanManageAccessProfiles(ClaimsPrincipal user) => true;
         public bool CanViewOrgChart(ClaimsPrincipal user) => true;
         public bool CanViewAccess(ClaimsPrincipal user) => true;
         public bool CanManageAccess(ClaimsPrincipal user) => true;

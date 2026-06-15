@@ -1021,4 +1021,66 @@ public class UpdateTenantSettingsCommandHandlerTests
     }
 
     #endregion
+
+    #region Provisioning
+
+    [Fact]
+    public async Task Handle_WithProvisioningSettings_PersistsProvisioningPolicy()
+    {
+        var profileId = Guid.NewGuid();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        await using var context = TestDbContextFactory.Create(tenantContext);
+        var handler = new UpdateTenantSettingsCommandHandler(context, tenantContext);
+
+        var command = new UpdateTenantSettingsCommand(
+            ExpectedVersion: null,
+            OrgUnitTypes: null,
+            EmployeeFieldConfig: null,
+            Branding: null,
+            Provisioning: new ProvisioningSettingsInput(
+                profileId,
+                InviteExpiryDays: 30,
+                ResendCooldownHours: 6,
+                PendingInviteBehavior: "KeepExisting"));
+
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(profileId, result.Value.Provisioning.DefaultAccessProfileId);
+        Assert.Equal(30, result.Value.Provisioning.InviteExpiryDays);
+        Assert.Equal(6, result.Value.Provisioning.ResendCooldownHours);
+        Assert.Equal("KeepExisting", result.Value.Provisioning.PendingInviteBehavior);
+    }
+
+    [Theory]
+    [InlineData(0, 24, "RefreshExisting")]
+    [InlineData(91, 24, "RefreshExisting")]
+    [InlineData(14, -1, "RefreshExisting")]
+    [InlineData(14, 721, "RefreshExisting")]
+    [InlineData(14, 24, "ReplaceExisting")]
+    public async Task Handle_WithInvalidProvisioningSettings_ThrowsArgumentException(
+        int inviteExpiryDays,
+        int resendCooldownHours,
+        string pendingInviteBehavior)
+    {
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        await using var context = TestDbContextFactory.Create(tenantContext);
+        var handler = new UpdateTenantSettingsCommandHandler(context, tenantContext);
+
+        var command = new UpdateTenantSettingsCommand(
+            ExpectedVersion: null,
+            OrgUnitTypes: null,
+            EmployeeFieldConfig: null,
+            Branding: null,
+            Provisioning: new ProvisioningSettingsInput(
+                Guid.NewGuid(),
+                inviteExpiryDays,
+                resendCooldownHours,
+                pendingInviteBehavior));
+
+        await Assert.ThrowsAsync<ArgumentException>(
+            () => handler.Handle(command, CancellationToken.None));
+    }
+
+    #endregion
 }
