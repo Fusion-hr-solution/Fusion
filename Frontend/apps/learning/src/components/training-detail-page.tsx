@@ -58,7 +58,7 @@ export function TrainingDetailPage({ training }: TrainingDetailPageProps) {
             <div className="ey-animate-fade-up rounded-2xl border border-border/50 bg-card p-6" style={{ animationDelay: "300ms" }}>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <CalendarDays className="h-4 w-4" aria-hidden="true" />
-                <span>{t("lastUpdated", { date: format.dateTime(new Date(training.updatedAt + "T00:00:00"), { month: "long", day: "numeric", year: "numeric" }) })}</span>
+                <span>{t("lastUpdated", { date: format.dateTime(new Date(training.updatedAt + "T00:00:00Z"), { month: "long", day: "numeric", year: "numeric" }) })}</span>
               </div>
             </div>
             <div className="ey-animate-fade-up sticky top-6" style={{ animationDelay: "350ms" }}>
