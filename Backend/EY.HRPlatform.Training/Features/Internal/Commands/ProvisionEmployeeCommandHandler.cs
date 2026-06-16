@@ -14,13 +14,19 @@ public class ProvisionEmployeeCommandHandler : ICommandHandler<ProvisionEmployee
 
     public async Task<Result> Handle(ProvisionEmployeeCommand request, CancellationToken cancellationToken)
     {
-        var exists = await _db.EmployeeProfiles
-            .AnyAsync(p => p.EmployeeId == request.EmployeeId, cancellationToken);
+        var existing = await _db.EmployeeProfiles
+            .FirstOrDefaultAsync(p => p.EmployeeId == request.EmployeeId, cancellationToken);
 
-        if (exists)
-            return Result.Success(); // already provisioned — idempotent
+        if (existing is not null)
+        {
+            // Refresh the identity snapshot. Incoming nulls never overwrite an existing value.
+            existing.SetIdentity(request.FullName ?? existing.FullName, request.Email ?? existing.Email);
+            await _db.SaveChangesAsync(cancellationToken);
+            return Result.Success();
+        }
 
-        _db.EmployeeProfiles.Add(new EmployeeProfile(request.EmployeeId, gradeId: null, serviceLineId: null));
+        _db.EmployeeProfiles.Add(new EmployeeProfile(
+            request.EmployeeId, gradeId: null, serviceLineId: null, fullName: request.FullName, email: request.Email));
 
         try
         {
@@ -28,14 +34,15 @@ public class ProvisionEmployeeCommandHandler : ICommandHandler<ProvisionEmployee
         }
         catch (DbUpdateException)
         {
-            // Concurrent provision — check if profile was inserted by the other request
-            var alreadyProvisioned = await _db.EmployeeProfiles
-                .AnyAsync(p => p.EmployeeId == request.EmployeeId, cancellationToken);
+            // Concurrent provision — if the other request inserted the profile, refresh and succeed.
+            var concurrent = await _db.EmployeeProfiles
+                .FirstOrDefaultAsync(p => p.EmployeeId == request.EmployeeId, cancellationToken);
 
-            if (alreadyProvisioned)
-                return Result.Success();
+            if (concurrent is null)
+                throw;
 
-            throw;
+            concurrent.SetIdentity(request.FullName ?? concurrent.FullName, request.Email ?? concurrent.Email);
+            await _db.SaveChangesAsync(cancellationToken);
         }
 
         return Result.Success();

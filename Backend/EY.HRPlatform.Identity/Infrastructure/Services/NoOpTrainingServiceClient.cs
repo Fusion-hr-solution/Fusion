@@ -7,7 +7,7 @@ namespace EY.HRPlatform.Identity.Infrastructure.Services;
 public sealed class NoOpTrainingServiceClient(
     ILogger<NoOpTrainingServiceClient> logger) : ITrainingServiceClient
 {
-    public Task ProvisionEmployeeAsync(Guid userId, CancellationToken cancellationToken = default)
+    public Task ProvisionEmployeeAsync(Guid userId, string? fullName = null, string? email = null, CancellationToken cancellationToken = default)
     {
         logger.LogWarning(
             "Skipping Training employee provisioning for user {UserId} because the Training integration is not configured.",
