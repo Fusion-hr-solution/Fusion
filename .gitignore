@@ -10,6 +10,7 @@ EY_ACADEMY_MODULE.md
 docs/corehr/
 artifacts/
 external-skills/
+.local-docs/
 
 # ========================
 # OS & Editor
@@ -113,6 +114,8 @@ test-results/
 Frontend/.github/
 PROJECT_SUMMARY.md
 *.postman_collection.json
+
+CLAUDE.md
 
 #opencode
 opencode.json
