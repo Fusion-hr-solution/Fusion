@@ -9,13 +9,13 @@ interface AttendanceHeatmapGridProps {
 
 const EMPTY_GUID = "00000000-0000-0000-0000-000000000000";
 
-/** Map an attendance rate (0–100) to a Tailwind background + text color. */
+/** Map an attendance rate (0–100) to an EY-token background + readable text color. */
 function cellStyle(rate: number): string {
-  if (rate >= 80) return "bg-emerald-500 text-white";
-  if (rate >= 60) return "bg-emerald-300 text-emerald-950";
-  if (rate >= 40) return "bg-amber-300 text-amber-950";
-  if (rate >= 20) return "bg-orange-400 text-white";
-  return "bg-red-500 text-white";
+  if (rate >= 80) return "bg-[hsl(var(--ey-green-500))] text-white";
+  if (rate >= 60) return "bg-[hsl(var(--ey-green-500))]/50 text-foreground";
+  if (rate >= 40) return "bg-[hsl(var(--ey-orange-500))]/25 text-foreground";
+  if (rate >= 20) return "bg-[hsl(var(--ey-orange-500))]/80 text-foreground";
+  return "bg-[hsl(var(--ey-red-500))] text-white";
 }
 
 /**
@@ -35,14 +35,14 @@ export function AttendanceHeatmapGrid({ data }: AttendanceHeatmapGridProps) {
 
   if (data.months.length === 0 || data.grades.length === 0) {
     return (
-      <div className="flex h-[160px] items-center justify-center rounded-xl border border-border/60 bg-white text-xs text-muted-foreground">
+      <div className="flex h-[160px] items-center justify-center rounded-xl border border-border/60 bg-card text-xs text-muted-foreground">
         No closed sessions in the selected period.
       </div>
     );
   }
 
   return (
-    <div className="ey-animate-fade-up overflow-x-auto rounded-xl border border-border/60 bg-white p-5 shadow-sm">
+    <div className="overflow-x-auto rounded-xl border border-border/60 bg-card p-5 shadow-sm">
       <h3 className="mb-4 text-sm font-semibold text-foreground">
         Attendance Rate Heatmap (Grade × Month)
       </h3>
