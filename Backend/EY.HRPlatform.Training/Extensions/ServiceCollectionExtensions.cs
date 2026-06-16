@@ -1,5 +1,6 @@
 using System.Text;
 using EY.HRPlatform.Training.Features.Admin.Budget;
+using EY.HRPlatform.Training.Features.Admin.Budget.Export;
 using EY.HRPlatform.Training.Features.Admin.Sessions.Export;
 using EY.HRPlatform.Training.Features.Admin.Sessions.Services;
 using EY.HRPlatform.Training.Features.Certifications.Services;
@@ -81,6 +82,9 @@ public static class ServiceCollectionExtensions
 
         // 8. Budget threshold notifier (scoped — uses the scoped DbContext)
         services.AddScoped<IBudgetAlertNotifier, BudgetAlertNotifier>();
+
+        // 9. Budget report exporter (Excel + PDF)
+        services.AddSingleton<IBudgetReportExporter, BudgetReportExporter>();
 
         return services;
     }

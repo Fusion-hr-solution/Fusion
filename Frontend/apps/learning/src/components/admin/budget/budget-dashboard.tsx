@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { Wallet, TrendingDown, PiggyBank, Percent, AlertTriangle } from "lucide-react";
+import { Wallet, TrendingDown, PiggyBank, Percent, AlertTriangle, Download } from "lucide-react";
 import {
   Button,
   Input,
@@ -16,8 +16,10 @@ import {
 import { useApiQuery } from "@repo/api/react";
 import { getServiceLines } from "@/services/admin-service";
 import { useBudgetSummary, useBudgetTrend, useBudgetSpendDetail } from "@/hooks/use-budget-dashboard";
+import { exportBudgetReportExcel, exportBudgetReportPdf } from "@/services/budget-dashboard-service";
 import { KpiCard } from "@/components/kpi-card";
 import { formatCurrency } from "@/lib/utils";
+import { downloadBlob } from "@/lib/download";
 import { pctBarClass } from "./budget-colors";
 import { BudgetVsSpendBarChart } from "./budget-vs-spend-bar-chart";
 import { BudgetTrendChart } from "./budget-trend-chart";
@@ -31,6 +33,7 @@ export function BudgetDashboard() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [selectedSl, setSelectedSl] = useState<string | null>(null);
+  const [exporting, setExporting] = useState<"excel" | "pdf" | null>(null);
 
   const filters: BudgetFilters = useMemo(
     () => ({ serviceLineId: serviceLineId || undefined, from: from || undefined, to: to || undefined }),
@@ -52,6 +55,21 @@ export function BudgetDashboard() {
     setFrom("");
     setTo("");
     setSelectedSl(null);
+  }
+
+  async function handleExport(format: "excel" | "pdf") {
+    setExporting(format);
+    try {
+      const blob = format === "excel" ? await exportBudgetReportExcel(filters) : await exportBudgetReportPdf(filters);
+      const slLabel = serviceLineId
+        ? serviceLines?.find((s) => s.id === serviceLineId)?.name ?? "ServiceLine"
+        : "All";
+      const periodLabel = from && to ? `${from}_${to}` : from ? `from_${from}` : to ? `until_${to}` : "AllTime";
+      const slug = (s: string) => s.replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+      downloadBlob(blob, `Budget_Training_${slug(slLabel)}_${slug(periodLabel)}.${format === "excel" ? "xlsx" : "pdf"}`);
+    } finally {
+      setExporting(null);
+    }
   }
 
   return (
@@ -76,6 +94,14 @@ export function BudgetDashboard() {
           <Input id="db-to" type="date" className="w-40" value={to} onChange={(e) => setTo(e.target.value)} />
         </div>
         <Button variant="ghost" size="sm" onClick={reset}>Reset</Button>
+        <div className="ml-auto flex items-center gap-2">
+          <Button variant="outline" size="sm" disabled={exporting !== null} onClick={() => handleExport("excel")}>
+            <Download className="mr-1.5 h-4 w-4" /> Excel
+          </Button>
+          <Button variant="outline" size="sm" disabled={exporting !== null} onClick={() => handleExport("pdf")}>
+            <Download className="mr-1.5 h-4 w-4" /> PDF
+          </Button>
+        </div>
       </div>
 
       {/* Threshold alert banner */}
