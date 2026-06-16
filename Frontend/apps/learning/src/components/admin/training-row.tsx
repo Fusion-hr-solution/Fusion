@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Pencil, Eye, Trash2, BookOpen, Users, AlertTriangle, Monitor, MapPin } from "lucide-react";
 import { buttonVariants, Badge, TableRow, TableCell } from "@repo/ui";
 import type { TrainingRowProps } from "@/types/admin-props";
+import { COST_TYPE_CONFIG } from "@/data/cost-type-config";
 
 export function TrainingRow({
   training,
@@ -31,6 +32,11 @@ export function TrainingRow({
         ) : (
           <Badge variant="outline" className="text-[10px] border-blue-500/30 text-blue-600 bg-blue-500/5">
             <Monitor className="mr-1 h-3 w-3" /> E-Learning
+          </Badge>
+        )}
+        {training.trainingType === "OnSite" && training.costType && (
+          <Badge variant="outline" className={`ml-1 text-[10px] ${COST_TYPE_CONFIG[training.costType].badgeClass}`}>
+            {COST_TYPE_CONFIG[training.costType].label}
           </Badge>
         )}
       </TableCell>

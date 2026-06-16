@@ -94,7 +94,8 @@ public class AdminTrainingsController : ControllerBase
                     request.IsMandatory, request.BadgeLevel, request.Duration,
                     request.CategoryId, request.TrainingType, request.ScheduledDate, chapters,
                     request.OnSiteCourses.Select(c => new CreateOnSiteCourseItem(
-                        c.Title, c.ContentUri, c.OrderIndex)).ToList()),
+                        c.Title, c.ContentUri, c.OrderIndex)).ToList(),
+                    request.CostType, request.SponsoringServiceLineId),
                 cancellationToken);
 
             if (result.IsFailure)
@@ -123,7 +124,8 @@ public class AdminTrainingsController : ControllerBase
             var result = await _sender.Send(
                 new UpdateTrainingCommand(trainingId, request.Title, request.Description,
                     request.Credits, request.IsMandatory, request.BadgeLevel,
-                    request.Duration, request.CategoryId, request.TrainingType, request.ScheduledDate),
+                    request.Duration, request.CategoryId, request.TrainingType, request.ScheduledDate,
+                    request.CostType, request.SponsoringServiceLineId),
                 cancellationToken);
 
             if (result.IsFailure)

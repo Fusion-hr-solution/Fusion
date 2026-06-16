@@ -96,6 +96,10 @@ export function TrainingForm({ trainingId }: TrainingFormProps) {
           isMandatory={form.isMandatory} onMandatoryChange={form.setIsMandatory}
           trainingType={form.trainingType}
           scheduledDate={form.scheduledDate} onScheduledDateChange={form.setScheduledDate}
+          costType={form.costType} onCostTypeChange={form.setCostType}
+          sponsoringServiceLineId={form.sponsoringServiceLineId}
+          onSponsoringServiceLineIdChange={(v) => { form.setSponsoringServiceLineId(v); form.clearFieldError("sponsoringServiceLineId"); }}
+          serviceLines={form.serviceLines}
           fieldErrors={form.fieldErrors}
         />
       )}
@@ -105,6 +109,7 @@ export function TrainingForm({ trainingId }: TrainingFormProps) {
           title={form.title} description={form.description} categoryName={form.categoryName}
           badgeLevel={form.badgeLevel} credits={form.credits} duration={form.duration} isMandatory={form.isMandatory}
           trainingType={form.trainingType} scheduledDate={form.scheduledDate}
+          costType={form.costType} sponsoringServiceLineName={form.sponsoringServiceLineName}
         />
       )}
 

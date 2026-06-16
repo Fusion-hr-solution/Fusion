@@ -4,6 +4,7 @@ import { Clock, BookOpen, Users, Star, ArrowUpRight, AlertTriangle, Award } from
 import type { Training } from "@/types";
 import { CATEGORY_CONFIG, LEVEL_CONFIG } from "@/data/categories";
 import { BADGE_LEVEL_CONFIG } from "@/data/badge-config";
+import { COST_TYPE_CONFIG } from "@/data/cost-type-config";
 import { FormatBadge } from "./format-badge";
 
 export function TrainingCard({ training }: { training: Training }) {
@@ -33,6 +34,13 @@ export function TrainingCard({ training }: { training: Training }) {
               </span>
             )}
             <FormatBadge type={training.trainingType} />
+            {training.trainingType === "OnSite" && training.costType && (
+              <span
+                className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold shrink-0 ${COST_TYPE_CONFIG[training.costType].badgeClass}`}
+              >
+                {COST_TYPE_CONFIG[training.costType].label}
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <span className="flex items-center gap-1.5 text-xs text-muted-foreground">

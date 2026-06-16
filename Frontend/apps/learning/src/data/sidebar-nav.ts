@@ -17,6 +17,7 @@ import {
   CalendarClock,
   CalendarCheck2,
   ScanLine,
+  Wallet,
 } from "lucide-react";
 import type { NavSection } from "@repo/ui";
 
@@ -49,6 +50,7 @@ export const ADMIN_NAV: NavSection = {
     { label: "Service Lines", href: "/admin/service-lines", icon: Building2 },
     { label: "Employee Profiles", href: "/admin/employee-profiles", icon: UserCog },
     { label: "Curriculum", href: "/admin/curriculum", icon: Grid3X3 },
+    { label: "Training Budgets", href: "/admin/budgets", icon: Wallet },
     { label: "Sessions", href: "/admin/sessions", icon: CalendarClock },
     { label: "Attendance", href: "/admin/attendance", icon: BarChart2 },
     { label: "Settings", href: "/admin/settings", icon: Settings },

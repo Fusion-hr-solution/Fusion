@@ -15,7 +15,11 @@ public record UpdateSessionCommand(
     string? Notes,
     Guid? TrainerEmployeeId,
     string? TrainerName,
-    string? TrainerEmail) : ICommand<Result<UpdateSessionResult>>;
+    string? TrainerEmail,
+    decimal? ExternalTrainerCost = null,
+    decimal? VenueCost = null,
+    decimal? MaterialsCost = null,
+    decimal? OtherCost = null) : ICommand<Result<UpdateSessionResult>>;
 
 public record UpdateSessionResult(List<RoomConflictItem> RoomConflicts);
 
@@ -69,7 +73,11 @@ public class UpdateSessionCommandHandler : ICommandHandler<UpdateSessionCommand,
             request.Notes,
             request.TrainerEmployeeId,
             request.TrainerName?.Trim(),
-            request.TrainerEmail?.Trim());
+            request.TrainerEmail?.Trim(),
+            request.ExternalTrainerCost,
+            request.VenueCost,
+            request.MaterialsCost,
+            request.OtherCost);
 
         await _db.SaveChangesAsync(cancellationToken);
 

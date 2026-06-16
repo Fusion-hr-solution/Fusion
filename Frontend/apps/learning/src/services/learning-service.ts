@@ -63,6 +63,7 @@ function mapBackendToTraining(dto: BackendTrainingDto): Training {
     badgeLevel: mapBadgeLevel(dto.badgeLevel),
     credits: dto.credits,
     trainingType: (dto.trainingType as TrainingType) ?? "ELearning",
+    costType: (dto.costType ?? undefined) as Training["costType"],
     scheduledDate: dto.scheduledDate ?? undefined,
   };
 }
@@ -269,6 +270,7 @@ export async function getTrainingProgress(trainingId: string): Promise<TrainingL
     categoryName: data.categoryName,
     chapterCount: data.totalChapters,
     trainingType: "ELearning",
+    costType: "Internal",
     scheduledDate: null,
     createdAt: new Date().toISOString(),
   });

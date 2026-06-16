@@ -2,9 +2,9 @@ import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useApiQuery, useApiMutation } from "@repo/api/react";
 import { ApiError } from "@repo/api";
-import { getAdminCategories, createTraining } from "@/services/admin-service";
-import type { AdminCategory, CreateTrainingInput, WizardChapter } from "@/types/admin";
-import type { TrainingType } from "@/types";
+import { getAdminCategories, getServiceLines, createTraining } from "@/services/admin-service";
+import type { AdminCategory, AdminServiceLine, CreateTrainingInput, WizardChapter } from "@/types/admin";
+import type { CostType, TrainingType } from "@/types";
 
 interface UseTrainingWizardOptions {
   mode?: "create";
@@ -28,6 +28,8 @@ export function useTrainingWizard(_options?: UseTrainingWizardOptions) {
   const [isMandatory, setIsMandatory] = useState(false);
   const [trainingType, setTrainingType] = useState<TrainingType>("ELearning");
   const [scheduledDate, setScheduledDate] = useState("");
+  const [costType, setCostType] = useState<CostType>("Internal");
+  const [sponsoringServiceLineId, setSponsoringServiceLineId] = useState("");
 
   // Step 3
   const [chapters, setChapters] = useState<WizardChapter[]>([]);
@@ -39,6 +41,12 @@ export function useTrainingWizard(_options?: UseTrainingWizardOptions) {
 
   const { data: categories } = useApiQuery<AdminCategory[]>(
     fetchCategories,
+    { enabled: true },
+  );
+
+  const fetchServiceLines = useCallback(() => getServiceLines(), []);
+  const { data: serviceLines } = useApiQuery<AdminServiceLine[]>(
+    fetchServiceLines,
     { enabled: true },
   );
 
@@ -76,6 +84,10 @@ export function useTrainingWizard(_options?: UseTrainingWizardOptions) {
       setFormError("Scheduled date must be in the future.");
       return false;
     }
+    if (trainingType === "OnSite" && costType === "External" && !sponsoringServiceLineId) {
+      setFormError("Sponsoring service line is required for external trainings.");
+      return false;
+    }
     setFormError(null);
     return true;
   }
@@ -111,6 +123,11 @@ export function useTrainingWizard(_options?: UseTrainingWizardOptions) {
         categoryId,
         trainingType,
         scheduledDate: scheduledDate || undefined,
+        costType: trainingType === "OnSite" ? costType : undefined,
+        sponsoringServiceLineId:
+          trainingType === "OnSite" && costType === "External" && sponsoringServiceLineId
+            ? sponsoringServiceLineId
+            : undefined,
         chapters: resolvedChapters,
       });
 
@@ -141,6 +158,9 @@ export function useTrainingWizard(_options?: UseTrainingWizardOptions) {
     categories: categories ?? [],
     credits, setCredits, duration, setDuration, isMandatory, setIsMandatory,
     trainingType, setTrainingType, scheduledDate, setScheduledDate,
+    costType, setCostType,
+    sponsoringServiceLineId, setSponsoringServiceLineId,
+    serviceLines: serviceLines ?? [],
     chapters, addChapter, updateChapter, removeChapter, reorderChapters,
     handleNext, prevStep, handleSubmit,
     canAdvanceStep1, isReady, categoryName,
