@@ -271,12 +271,19 @@ export interface GenerateQuestionsInput {
 }
 
 /**
+ * The /generate endpoint returns unsaved CreateQuestionDto drafts — i.e. a question
+ * without the persisted-only `id`/`usageCount`. Modelling that here keeps us from
+ * accidentally relying on fields that are undefined at runtime.
+ */
+type BackendQuestionDraft = Omit<BackendQuestionDto, "id" | "usageCount">;
+
+/**
  * Asks the AI to draft one or more questions. The drafts are returned as editable
  * NewQuestionForm objects — nothing is persisted until they're saved via
  * createQuestion. Throws on failure (e.g. 503 when AI isn't configured).
  */
 export async function generateQuestions(input: GenerateQuestionsInput): Promise<NewQuestionForm[]> {
-  const drafts = await client.post<BackendQuestionDto[]>("/interview/questions/generate", {
+  const drafts = await client.post<BackendQuestionDraft[]>("/interview/questions/generate", {
     topic: input.topic,
     type: input.type,
     difficulty: input.difficulty,
@@ -289,7 +296,7 @@ export async function generateQuestions(input: GenerateQuestionsInput): Promise<
   return (drafts ?? []).map(mapDraftToForm);
 }
 
-function mapDraftToForm(dto: BackendQuestionDto): NewQuestionForm {
+function mapDraftToForm(dto: BackendQuestionDraft): NewQuestionForm {
   const options =
     dto.options && dto.options.length > 0
       ? dto.options.map((o) => ({ text: o.text, correct: o.correct }))

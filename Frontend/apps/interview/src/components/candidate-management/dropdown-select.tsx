@@ -33,6 +33,7 @@ interface MenuPosition {
 }
 
 const GAP = 6;
+const VIEWPORT_MARGIN = 8;
 const MAX_MENU_HEIGHT = 256;
 
 export function DropdownSelect({
@@ -63,11 +64,15 @@ export function DropdownSelect({
     const rect = buttonRef.current?.getBoundingClientRect();
     if (!rect) return;
 
-    const spaceBelow = window.innerHeight - rect.bottom - GAP;
-    const spaceAbove = rect.top - GAP;
+    const spaceBelow = window.innerHeight - rect.bottom - GAP - VIEWPORT_MARGIN;
+    const spaceAbove = rect.top - GAP - VIEWPORT_MARGIN;
     const desired = Math.min(MAX_MENU_HEIGHT, options.length * 40 + 8);
     const dropUp = spaceBelow < desired && spaceAbove > spaceBelow;
-    const maxHeight = Math.max(96, Math.min(MAX_MENU_HEIGHT, dropUp ? spaceAbove : spaceBelow));
+    // Never exceed the available space on the chosen side — the menu scrolls
+    // internally (overflow-y-auto) when its content is taller than what fits, so
+    // it can't render off-screen near a viewport edge.
+    const available = Math.max(0, dropUp ? spaceAbove : spaceBelow);
+    const maxHeight = Math.min(MAX_MENU_HEIGHT, available);
 
     setPos({
       left: rect.left,

@@ -139,6 +139,11 @@ public class QuestionGeneratorService(
         if (string.IsNullOrWhiteSpace(title) && string.IsNullOrWhiteSpace(description))
             return null;
 
+        // Title is required on save; if the model omitted it, derive one from the
+        // description so the draft is immediately saveable/editable.
+        if (string.IsNullOrWhiteSpace(title))
+            title = DeriveTitleFromDescription(description);
+
         var type = forcedType
             ?? NormalizeOrNull(GetString(el, "type"), ValidTypes)
             ?? "Multiple Choice";
@@ -232,6 +237,26 @@ public class QuestionGeneratorService(
         }
 
         return tags;
+    }
+
+    private static string DeriveTitleFromDescription(string description)
+    {
+        var firstLine = description
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(firstLine))
+            return "Untitled question";
+
+        const int maxLength = 80;
+        if (firstLine.Length <= maxLength)
+            return firstLine;
+
+        // Trim to a word boundary near the limit so the title reads cleanly.
+        var truncated = firstLine[..maxLength];
+        var lastSpace = truncated.LastIndexOf(' ');
+        if (lastSpace > 40)
+            truncated = truncated[..lastSpace];
+        return truncated.TrimEnd() + "…";
     }
 
     private static string DefaultGradingFor(string type) => type switch

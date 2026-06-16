@@ -140,10 +140,9 @@ export function AiBatchGenerateModal({ open, onClose, onSaved }: Props) {
     setBusy(true);
     setError(null);
     try {
-      const created: Question[] = [];
-      for (const draft of toSave) {
-        created.push(await createQuestion(draft));
-      }
+      // Independent inserts — save in parallel. Promise.all preserves order, so the
+      // created questions come back in the same order as the accepted drafts.
+      const created = await Promise.all(toSave.map((draft) => createQuestion(draft)));
       onSaved(created);
       close();
     } catch (err) {
