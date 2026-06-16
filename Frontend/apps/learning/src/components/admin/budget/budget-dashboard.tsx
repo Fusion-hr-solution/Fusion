@@ -75,7 +75,7 @@ export function BudgetDashboard() {
   return (
     <div className="space-y-6">
       {/* Filters */}
-      <div className="flex flex-wrap items-end gap-3 rounded-xl border border-border/60 bg-white p-4 shadow-sm">
+      <div className="flex flex-wrap items-end gap-3 rounded-xl border border-border/60 bg-card p-4 shadow-sm">
         <div className="space-y-1.5">
           <Label htmlFor="db-sl" className="text-xs">Service Line</Label>
           <select id="db-sl" className={SELECT_CLASS} value={serviceLineId} onChange={(e) => setServiceLineId(e.target.value)}>
@@ -145,7 +145,7 @@ export function BudgetDashboard() {
       ) : (
         <>
           {/* Per-service-line consumption (click a row to drill into spending) */}
-          <div className="space-y-3 rounded-xl border border-border/60 bg-white p-5 shadow-sm">
+          <div className="space-y-3 rounded-xl border border-border/60 bg-card p-5 shadow-sm">
             <h3 className="text-sm font-semibold text-foreground">Per–Service Line Consumption</h3>
             {rows.map((r) => (
               <button
@@ -180,7 +180,7 @@ export function BudgetDashboard() {
 
           {/* Spending drill-down */}
           {selectedSl && detail && (
-            <div className="rounded-xl border border-border/60 bg-white p-5 shadow-sm">
+            <div className="rounded-xl border border-border/60 bg-card p-5 shadow-sm">
               <h3 className="mb-3 text-sm font-semibold text-foreground">
                 Spending detail — {detail.serviceLineName}
               </h3>
