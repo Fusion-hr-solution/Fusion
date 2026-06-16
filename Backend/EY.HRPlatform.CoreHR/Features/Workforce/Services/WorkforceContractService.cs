@@ -29,6 +29,14 @@ public interface IWorkforceContractService
         int page,
         int pageSize,
         CancellationToken cancellationToken);
+    Task<IReadOnlyList<WorkforceAccessSubjectSummaryDto>> GetAccessSubjectSelectionPreviewAsync(
+        string? search,
+        string? access,
+        Guid? profileId,
+        string? employeeStatus,
+        string? deliveryState,
+        string? employeeKey,
+        CancellationToken cancellationToken);
     Task<WorkforceAccessRosterSummaryDto> GetAccessRosterSummaryAsync(CancellationToken cancellationToken);
     Task<IReadOnlyList<WorkforceEmployeeSummaryDto>> GetTeamAsync(Guid employeeId, ClaimsPrincipal user, CancellationToken cancellationToken);
     Task<IReadOnlyList<WorkforceEmployeeSummaryDto>> GetManagerChainAsync(Guid employeeId, ClaimsPrincipal user, CancellationToken cancellationToken);
@@ -202,31 +210,13 @@ public sealed class WorkforceContractService(
         var normalizedAccess = NormalizeAccessFilter(access);
         var normalizedDeliveryState = NormalizeDeliveryStateFilter(deliveryState);
 
-        var query = dbContext.Employees
-            .AsNoTracking()
-            .AsQueryable();
-
-        if (!string.IsNullOrWhiteSpace(search))
-        {
-            var searchTerm = search.Trim().ToLowerInvariant();
-            query = query.Where(current =>
-                current.FirstName.ToLower().Contains(searchTerm) ||
-                current.LastName.ToLower().Contains(searchTerm) ||
-                current.Email.ToLower().Contains(searchTerm) ||
-                (current.EmployeeNumber != null && current.EmployeeNumber.ToLower().Contains(searchTerm)) ||
-                (current.FirstName + " " + current.LastName).ToLower().Contains(searchTerm));
-        }
-
-        if (!string.IsNullOrWhiteSpace(employeeKey))
-        {
-            var normalizedEmployeeKey = employeeKey.Trim();
-            query = query.Where(current => current.StableEmployeeKey == normalizedEmployeeKey);
-        }
-
-        if (TryParseEmployeeStatusFilter(employeeStatus, out var statusFilter))
-        {
-            query = query.Where(current => current.Status == statusFilter);
-        }
+        var query = ApplyAccessSubjectFilters(
+            dbContext.Employees
+                .AsNoTracking()
+                .AsQueryable(),
+            search,
+            employeeStatus,
+            employeeKey);
 
         var requiresAccountFiltering =
             normalizedAccess is not null
@@ -290,6 +280,30 @@ public sealed class WorkforceContractService(
         };
     }
 
+    public async Task<IReadOnlyList<WorkforceAccessSubjectSummaryDto>> GetAccessSubjectSelectionPreviewAsync(
+        string? search,
+        string? access,
+        Guid? profileId,
+        string? employeeStatus,
+        string? deliveryState,
+        string? employeeKey,
+        CancellationToken cancellationToken)
+    {
+        var (matchingEmployees, statuses) = await LoadMatchingAccessSubjectEmployeesAsync(
+            search,
+            access,
+            profileId,
+            employeeStatus,
+            deliveryState,
+            employeeKey,
+            cancellationToken);
+
+        return await BuildAccessSubjectSummariesAsync(
+            matchingEmployees,
+            statuses,
+            cancellationToken);
+    }
+
     public async Task<WorkforceAccessRosterSummaryDto> GetAccessRosterSummaryAsync(
         CancellationToken cancellationToken)
     {
@@ -323,74 +337,26 @@ public sealed class WorkforceContractService(
         }
 
         List<Employee> matchingEmployees;
+        IReadOnlyDictionary<Guid, WorkforceAccountStatusDto> statuses;
 
         if (request.SpecificEmployeeIds is { Count: > 0 })
         {
-            var employees = await dbContext.Employees
+            matchingEmployees = await dbContext.Employees
                 .AsNoTracking()
                 .Where(e => request.SpecificEmployeeIds.Contains(e.Id))
                 .ToListAsync(cancellationToken);
-
-            matchingEmployees = employees;
+            statuses = await LoadWorkforceAccountStatusesAsync(matchingEmployees, cancellationToken);
         }
         else
         {
-            var query = dbContext.Employees
-                .AsNoTracking()
-                .AsQueryable();
-
-            if (!string.IsNullOrWhiteSpace(request.Search))
-            {
-                var searchTerm = request.Search.Trim().ToLowerInvariant();
-                query = query.Where(current =>
-                    current.FirstName.ToLower().Contains(searchTerm) ||
-                    current.LastName.ToLower().Contains(searchTerm) ||
-                    current.Email.ToLower().Contains(searchTerm) ||
-                    (current.EmployeeNumber != null && current.EmployeeNumber.ToLower().Contains(searchTerm)) ||
-                    (current.FirstName + " " + current.LastName).ToLower().Contains(searchTerm));
-            }
-
-            if (!string.IsNullOrWhiteSpace(request.EmployeeKey))
-            {
-                var normalizedKey = request.EmployeeKey.Trim();
-                query = query.Where(current => current.StableEmployeeKey == normalizedKey);
-            }
-
-            if (TryParseEmployeeStatusFilter(request.EmployeeStatus, out var statusFilter))
-            {
-                query = query.Where(current => current.Status == statusFilter);
-            }
-
-            var hasAccountFilters = request.Access is not null
-                || request.ProfileId.HasValue
-                || request.DeliveryState is not null;
-
-            if (hasAccountFilters)
-            {
-                var candidateEmployees = await query
-                    .OrderBy(current => current.LastName)
-                    .ThenBy(current => current.FirstName)
-                    .ToListAsync(cancellationToken);
-
-                var statuses = await LoadWorkforceAccountStatusesAsync(candidateEmployees, cancellationToken);
-                var normalizedAccess = NormalizeAccessFilter(request.Access);
-                var normalizedDeliveryState = NormalizeDeliveryStateFilter(request.DeliveryState);
-
-                matchingEmployees = candidateEmployees
-                    .Where(employee => MatchesAccessFilters(
-                        statuses.GetValueOrDefault(employee.Id),
-                        normalizedAccess,
-                        request.ProfileId,
-                        normalizedDeliveryState))
-                    .ToList();
-            }
-            else
-            {
-                matchingEmployees = await query
-                    .OrderBy(current => current.LastName)
-                    .ThenBy(current => current.FirstName)
-                    .ToListAsync(cancellationToken);
-            }
+            (matchingEmployees, statuses) = await LoadMatchingAccessSubjectEmployeesAsync(
+                request.Search,
+                request.Access,
+                request.ProfileId,
+                request.EmployeeStatus,
+                request.DeliveryState,
+                request.EmployeeKey,
+                cancellationToken);
         }
 
         if (matchingEmployees.Count == 0)
@@ -402,8 +368,6 @@ public sealed class WorkforceContractService(
             request.AccessProfileId,
             cancellationToken);
 
-        var allStatuses = await LoadWorkforceAccountStatusesAsync(matchingEmployees, cancellationToken);
-
         var freshInviteEmployees = new List<Employee>();
         var refreshInviteEmployees = new List<Employee>();
         var alreadyActiveEmployees = new List<Employee>();
@@ -411,7 +375,7 @@ public sealed class WorkforceContractService(
 
         foreach (var employee in matchingEmployees)
         {
-            var status = allStatuses.GetValueOrDefault(employee.Id);
+            var status = statuses.GetValueOrDefault(employee.Id);
             var provisioningState = status?.ProvisioningState ?? "Unprovisioned";
 
             switch (provisioningState)
@@ -843,6 +807,103 @@ public sealed class WorkforceContractService(
                 employee.FirstName,
                 employee.LastName)).ToList(),
             cancellationToken);
+    }
+
+    private async Task<(List<Employee> Employees, IReadOnlyDictionary<Guid, WorkforceAccountStatusDto> Statuses)>
+        LoadMatchingAccessSubjectEmployeesAsync(
+            string? search,
+            string? access,
+            Guid? profileId,
+            string? employeeStatus,
+            string? deliveryState,
+            string? employeeKey,
+            CancellationToken cancellationToken)
+    {
+        var query = ApplyAccessSubjectFilters(
+            dbContext.Employees
+                .AsNoTracking()
+                .AsQueryable(),
+            search,
+            employeeStatus,
+            employeeKey);
+        var normalizedAccess = NormalizeAccessFilter(access);
+        var normalizedDeliveryState = NormalizeDeliveryStateFilter(deliveryState);
+        var requiresAccountFiltering =
+            normalizedAccess is not null
+            || profileId.HasValue
+            || normalizedDeliveryState is not null;
+
+        var candidateEmployees = await query
+            .OrderBy(current => current.LastName)
+            .ThenBy(current => current.FirstName)
+            .ToListAsync(cancellationToken);
+
+        var statuses = await LoadWorkforceAccountStatusesAsync(candidateEmployees, cancellationToken);
+        if (requiresAccountFiltering)
+        {
+            candidateEmployees = candidateEmployees
+                .Where(employee => MatchesAccessFilters(
+                    statuses.GetValueOrDefault(employee.Id),
+                    normalizedAccess,
+                    profileId,
+                    normalizedDeliveryState))
+                .ToList();
+        }
+
+        return (candidateEmployees, statuses);
+    }
+
+    private async Task<IReadOnlyList<WorkforceAccessSubjectSummaryDto>> BuildAccessSubjectSummariesAsync(
+        IReadOnlyCollection<Employee> employees,
+        IReadOnlyDictionary<Guid, WorkforceAccountStatusDto> statuses,
+        CancellationToken cancellationToken)
+    {
+        if (employees.Count == 0)
+        {
+            return [];
+        }
+
+        var directReportCounts = await LoadDirectReportCountsAsync(
+            employees.Select(employee => employee.Id).ToList(),
+            cancellationToken);
+
+        return employees
+            .Select(employee => BuildAccessSubjectSummary(
+                employee,
+                statuses.GetValueOrDefault(employee.Id),
+                directReportCounts.GetValueOrDefault(employee.Id)))
+            .ToList();
+    }
+
+    private static IQueryable<Employee> ApplyAccessSubjectFilters(
+        IQueryable<Employee> query,
+        string? search,
+        string? employeeStatus,
+        string? employeeKey)
+    {
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var searchTerm = search.Trim().ToLowerInvariant();
+            query = query.Where(current =>
+                current.FirstName.ToLower().Contains(searchTerm) ||
+                current.LastName.ToLower().Contains(searchTerm) ||
+                current.Email.ToLower().Contains(searchTerm) ||
+                (current.EmployeeNumber != null && current.EmployeeNumber.ToLower().Contains(searchTerm)) ||
+                (current.FirstName + " " + current.LastName).ToLower().Contains(searchTerm));
+        }
+
+        if (!string.IsNullOrWhiteSpace(employeeKey))
+        {
+            var normalizedEmployeeKey = employeeKey.Trim();
+            query = query.Where(current => current.StableEmployeeKey == normalizedEmployeeKey);
+        }
+
+        if (TryParseEmployeeStatusFilter(employeeStatus, out var statusFilter))
+        {
+            query = query.Where(current => current.Status == statusFilter);
+        }
+
+        return query;
     }
 
     private async Task<Dictionary<Guid, int>> LoadDirectReportCountsAsync(

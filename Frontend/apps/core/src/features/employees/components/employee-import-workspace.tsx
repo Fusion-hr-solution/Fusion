@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, RefreshCcw, Users } from "lucide-react";
-import { useAuth } from "@repo/auth";
+import { canImportCoreEmployees, useAuth } from "@repo/auth";
 import { EmptyState, type PageSize } from "@repo/ui";
 import { toast } from "sonner";
 import { CorePageLoadingState } from "@/components/core-page-loading-state";
@@ -14,11 +14,9 @@ import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { canAccessEmployeeRoster } from "@/lib/employee-roster-access";
 import type {
   EmployeeImportApplyResultDto,
   EmployeeImportPreviewFilter,
@@ -57,7 +55,7 @@ const HISTORY_PAGE_SIZE = 5;
 
 export default function EmployeeImportWorkspace() {
   const { user } = useAuth();
-  const canAccess = canAccessEmployeeRoster(user);
+  const canAccess = canImportCoreEmployees(user);
   const router = useRouter();
   const searchParams = useSearchParams();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -111,11 +109,6 @@ export default function EmployeeImportWorkspace() {
   });
 
   const activeSchema = session?.employeeImportSchema ?? schema;
-  const canonicalFieldKeys =
-    activeSchema?.canonicalFields.map((field) => field.key) ?? [];
-  const activeHeaders = (session?.sourceHeaders ?? canonicalFieldKeys).filter(
-    (header) => canonicalFieldKeys.includes(header)
-  );
   const validationUi = useMemo(
     () => (session ? buildEmployeeImportValidationUiModel(session) : null),
     [session]

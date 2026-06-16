@@ -66,6 +66,7 @@ import { DataTablePagination } from "@/components/data-table-pagination";
 import { AccessToolbar } from "@/app/(pages)/access/access-toolbar";
 import {
   useAccessSubjectSummary,
+  useAccessSubjectSelectionPreview,
   useAccessSubjects,
   type AccessSubjectQueryParams,
 } from "@/app/(pages)/access/use-access-subjects";
@@ -88,6 +89,7 @@ import {
   getBulkInviteSuccessMessage,
   getResendSuccessMessage,
   getSheetModeForSubject,
+  reviewBulkInviteEligibility,
   summarizeBulkInviteResults,
   suggestProfileForSubject,
   summarizeProfileSuggestions,
@@ -235,12 +237,8 @@ export function BulkInviteDialog({
   accessProfiles,
   isSubmitting,
   onConfirm,
-  onViewPendingInvites,
   canManageProfiles = false,
   profilesHref = "",
-  queryParams,
-  allResultsSelected = false,
-  totalCount = 0,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -249,19 +247,10 @@ export function BulkInviteDialog({
   isSubmitting: boolean;
   onConfirm: (request: {
     accessProfileId: string;
-    employeeIds?: string[] | null;
-    search?: string | null;
-    access?: string | null;
-    profileId?: string | null;
-    employeeStatus?: string | null;
-    employeeKey?: string | null;
+    employeeIds: string[];
   }) => Promise<WorkforceBulkInviteResponseDto>;
-  onViewPendingInvites: () => void;
   canManageProfiles?: boolean;
   profilesHref?: string;
-  queryParams: AccessSubjectQueryParams;
-  allResultsSelected?: boolean;
-  totalCount?: number;
 }) {
   const [profileAssignments, setProfileAssignments] = useState<
     Record<string, string>
@@ -271,7 +260,21 @@ export function BulkInviteDialog({
     useState<BulkInviteResultSummary | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const selectedCount = allResultsSelected ? totalCount : subjects.length;
+  const selectedCount = subjects.length;
+  const eligibilityReview = useMemo(
+    () => reviewBulkInviteEligibility(subjects),
+    [subjects]
+  );
+  const processableCount = eligibilityReview.eligibleSubjects.length;
+  const skippedCount = eligibilityReview.skippedReasons.reduce(
+    (sum, entry) => sum + entry.count,
+    0
+  );
+  const canSubmit =
+    selectedCount > 0 &&
+    accessProfiles.length > 0 &&
+    !!pickMajorityProfile() &&
+    processableCount > 0;
 
   useEffect(() => {
     if (!open) return;
@@ -288,7 +291,7 @@ export function BulkInviteDialog({
       );
     }
     setProfileAssignments(assignments);
-  }, [open]);
+  }, [accessProfiles, open, subjects]);
 
   useEffect(() => {
     if (!open) return;
@@ -347,12 +350,7 @@ export function BulkInviteDialog({
     try {
       const response = await onConfirm({
         accessProfileId: pickMajorityProfile(),
-        search: queryParams.search,
-        access: queryParams.access,
-        profileId: queryParams.profileId,
-        employeeStatus: queryParams.employeeStatus,
-        employeeKey: queryParams.employeeKey,
-        employeeIds: allResultsSelected ? undefined : subjects.map((s) => s.employeeId),
+        employeeIds: subjects.map((s) => s.employeeId),
       });
       setResultSummary(summarizeBulkInviteResults(response));
       setActionError(null);
@@ -432,18 +430,35 @@ export function BulkInviteDialog({
             <DialogHeader>
               <DialogTitle>Review invitations</DialogTitle>
               <DialogDescription>
-                Send invitations to {selectedCount} selected {selectedCount === 1 ? "person" : "people"}.
+                Send invitations to {selectedCount} selected{" "}
+                {selectedCount === 1 ? "person" : "people"}.
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4">
-              <div className="rounded-xl border bg-muted/10 p-3 text-sm">
+              <div className="grid gap-2 rounded-xl border bg-muted/10 p-3 text-sm sm:grid-cols-3">
                 <div>
                   <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
                     Selected
                   </p>
                   <p className="mt-1 font-medium tabular-nums">
                     {selectedCount}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
+                    Will process
+                  </p>
+                  <p className="mt-1 font-medium tabular-nums">
+                    {processableCount}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
+                    Skipped
+                  </p>
+                  <p className="mt-1 font-medium tabular-nums">
+                    {skippedCount}
                   </p>
                 </div>
               </div>
@@ -453,6 +468,17 @@ export function BulkInviteDialog({
                   <AlertTriangle className="size-4" />
                   <AlertTitle>Invitation could not be created</AlertTitle>
                   <AlertDescription>{actionError}</AlertDescription>
+                </Alert>
+              ) : null}
+
+              {skippedCount > 0 ? (
+                <Alert>
+                  <CircleAlert className="size-4" />
+                  <AlertTitle>
+                    {processableCount > 0
+                      ? "Some selected people will be skipped"
+                      : "No selected people can be processed"}
+                  </AlertTitle>
                 </Alert>
               ) : null}
 
@@ -529,8 +555,8 @@ export function BulkInviteDialog({
                     ) : null}
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    Each person is assigned a suggested profile based on
-                    their role.
+                    Each person is assigned a suggested profile based on their
+                    role.
                   </p>
 
                   <div className="flex flex-wrap gap-2">
@@ -567,7 +593,8 @@ export function BulkInviteDialog({
                   isSubmitting ||
                   selectedCount === 0 ||
                   accessProfiles.length === 0 ||
-                  !pickMajorityProfile()
+                  !pickMajorityProfile() ||
+                  !canSubmit
                 }
               >
                 {isSubmitting
@@ -649,19 +676,48 @@ export default function AccessPeopleWorkspace() {
   } = useAccessSubjectSummary(canViewAccess);
   const { data: accessProfiles = [], isLoading: isProfilesLoading } =
     useAccessProfiles(canViewAccess || canManageProfiles);
+  const selectionPreviewParams = useMemo(
+    () => ({
+      search: queryParams.search,
+      access: queryParams.access,
+      profileId: queryParams.profileId,
+      employeeStatus: queryParams.employeeStatus,
+      employeeKey: queryParams.employeeKey,
+    }),
+    [
+      queryParams.access,
+      queryParams.employeeKey,
+      queryParams.employeeStatus,
+      queryParams.profileId,
+      queryParams.search,
+    ]
+  );
 
   const bulkProvisionInvites = useBulkProvisionWorkforceAccountInvites();
   const resendInvite = useResendWorkforceAccountInvite();
+  const [isPreparingBulkInviteSelection, setIsPreparingBulkInviteSelection] =
+    useState(false);
 
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [allResultsSelected, setAllResultsSelected] = useState(false);
   const [activeEmployee, setActiveEmployee] =
     useState<AccessEmployeeRef | null>(null);
   const [isBulkInviteOpen, setIsBulkInviteOpen] = useState(false);
+  const [bulkInviteSubjects, setBulkInviteSubjects] = useState<
+    WorkforceAccessSubjectSummaryDto[] | null
+  >(null);
   const [pendingRowAction, setPendingRowAction] = useState<{
     employeeId: string;
     kind: "copyInviteLink" | "resendInvite";
   } | null>(null);
+  const {
+    data: selectionPreviewSubjects,
+    error: selectionPreviewError,
+    isLoading: isSelectionPreviewLoading,
+  } = useAccessSubjectSelectionPreview(
+    selectionPreviewParams,
+    canManageAccess && isPreparingBulkInviteSelection && allResultsSelected
+  );
 
   const items = useMemo(() => accessPage?.items ?? [], [accessPage?.items]);
   const totalCount = accessPage?.totalCount ?? 0;
@@ -678,7 +734,9 @@ export default function AccessPeopleWorkspace() {
           ),
     [allResultsSelected, items, selectedEmployeeIds]
   );
-  const selectedSubjectCount = allResultsSelected ? totalCount : selectedSubjects.length;
+  const selectedSubjectCount = allResultsSelected
+    ? totalCount
+    : selectedSubjects.length;
   const isAllVisibleSelected =
     items.length > 0 && selectedEmployeeIds.length === items.length;
   const hasMorePages = totalCount > items.length;
@@ -764,6 +822,38 @@ export default function AccessPeopleWorkspace() {
     queryParams.employeeStatus,
     page,
     pageSize,
+  ]);
+
+  useEffect(() => {
+    if (allResultsSelected || !isPreparingBulkInviteSelection) {
+      return;
+    }
+
+    setIsPreparingBulkInviteSelection(false);
+  }, [allResultsSelected, isPreparingBulkInviteSelection]);
+
+  useEffect(() => {
+    if (!isPreparingBulkInviteSelection) {
+      return;
+    }
+
+    if (selectionPreviewError) {
+      toast.error("Selected people could not be loaded.");
+      setIsPreparingBulkInviteSelection(false);
+      return;
+    }
+
+    if (!selectionPreviewSubjects) {
+      return;
+    }
+
+    setBulkInviteSubjects(selectionPreviewSubjects);
+    setIsBulkInviteOpen(true);
+    setIsPreparingBulkInviteSelection(false);
+  }, [
+    isPreparingBulkInviteSelection,
+    selectionPreviewError,
+    selectionPreviewSubjects,
   ]);
 
   useEffect(() => {
@@ -895,25 +985,13 @@ export default function AccessPeopleWorkspace() {
     openEmployee(subject, primaryAction.mode);
   }
 
-  async function handleBulkInvite(
-    request: {
-      accessProfileId: string;
-      employeeIds?: string[] | null;
-      search?: string | null;
-      access?: string | null;
-      profileId?: string | null;
-      employeeStatus?: string | null;
-      employeeKey?: string | null;
-    }
-  ): Promise<WorkforceBulkInviteResponseDto> {
+  async function handleBulkInvite(request: {
+    accessProfileId: string;
+    employeeIds: string[];
+  }): Promise<WorkforceBulkInviteResponseDto> {
     const payload = {
       accessProfileId: request.accessProfileId,
-      specificEmployeeIds: allResultsSelected ? null : request.employeeIds,
-      search: request.search,
-      access: request.access,
-      profileId: request.profileId,
-      employeeStatus: request.employeeStatus,
-      employeeKey: request.employeeKey,
+      specificEmployeeIds: request.employeeIds,
     };
     const result = await bulkProvisionInvites.mutateAsync(payload);
     setRowSelection({});
@@ -922,11 +1000,20 @@ export default function AccessPeopleWorkspace() {
     return result;
   }
 
-  function viewPendingInvites() {
-    updateSearchParam({
-      access: "InvitePending",
-      page: "1",
-    });
+  function closeBulkInviteDialog() {
+    setIsBulkInviteOpen(false);
+    setBulkInviteSubjects(null);
+    setIsPreparingBulkInviteSelection(false);
+  }
+
+  function openBulkInviteDialog() {
+    if (allResultsSelected) {
+      setIsPreparingBulkInviteSelection(true);
+      return;
+    }
+
+    setBulkInviteSubjects(selectedSubjects);
+    setIsBulkInviteOpen(true);
   }
 
   const columns = useMemo<ColumnDef<WorkforceAccessSubjectSummaryDto>[]>(() => {
@@ -1434,12 +1521,16 @@ export default function AccessPeopleWorkspace() {
                 <>
                   <Button
                     size="sm"
-                    onClick={() => setIsBulkInviteOpen(true)}
+                    onClick={() => void openBulkInviteDialog()}
                     disabled={
-                      selectedSubjects.length === 0 || accessProfiles.length === 0
+                      selectedSubjects.length === 0 ||
+                      accessProfiles.length === 0 ||
+                      isPreparingBulkInviteSelection
                     }
                   >
-                    {`Send ${selectedSubjectCount} invite${selectedSubjectCount === 1 ? "" : "s"}`}
+                    {isPreparingBulkInviteSelection && isSelectionPreviewLoading
+                      ? "Preparing selection..."
+                      : `Send ${selectedSubjectCount} invite${selectedSubjectCount === 1 ? "" : "s"}`}
                   </Button>
                   <Button
                     variant="ghost"
@@ -1447,6 +1538,8 @@ export default function AccessPeopleWorkspace() {
                     onClick={() => {
                       setRowSelection({});
                       setAllResultsSelected(false);
+                      setBulkInviteSubjects(null);
+                      setIsPreparingBulkInviteSelection(false);
                     }}
                   >
                     Clear
@@ -1526,17 +1619,20 @@ export default function AccessPeopleWorkspace() {
 
       <BulkInviteDialog
         open={isBulkInviteOpen}
-        onOpenChange={setIsBulkInviteOpen}
-        subjects={selectedSubjects}
+        onOpenChange={(open) => {
+          if (open) {
+            setIsBulkInviteOpen(true);
+            return;
+          }
+
+          closeBulkInviteDialog();
+        }}
+        subjects={bulkInviteSubjects ?? selectedSubjects}
         accessProfiles={accessProfiles}
         isSubmitting={bulkProvisionInvites.isLoading}
         onConfirm={handleBulkInvite}
-        onViewPendingInvites={viewPendingInvites}
         canManageProfiles={canManageProfiles}
         profilesHref={profilesHref}
-        queryParams={queryParams}
-        allResultsSelected={allResultsSelected}
-        totalCount={totalCount}
       />
 
       <EmployeeAccessManagementSheet

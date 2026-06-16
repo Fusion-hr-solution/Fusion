@@ -21,7 +21,9 @@ const {
   mockUseAccessProfiles,
   mockUseAccessSubjectSummary,
   mockUseAccessSubjects,
+  mockUseAccessSubjectSelectionPreview,
   mockUseAuth,
+  mockBulkInviteMutate,
   mockUseBulkProvisionWorkforceAccountInvites,
   mockUseBulkSetUserAccessProfiles,
   mockUseResendWorkforceAccountInvite,
@@ -37,7 +39,9 @@ const {
   mockUseAccessProfiles: vi.fn(),
   mockUseAccessSubjectSummary: vi.fn(),
   mockUseAccessSubjects: vi.fn(),
+  mockUseAccessSubjectSelectionPreview: vi.fn(),
   mockUseAuth: vi.fn(),
+  mockBulkInviteMutate: vi.fn(),
   mockUseBulkProvisionWorkforceAccountInvites: vi.fn(),
   mockUseBulkSetUserAccessProfiles: vi.fn(),
   mockUseResendWorkforceAccountInvite: vi.fn(),
@@ -46,6 +50,7 @@ const {
 vi.mock("@repo/api", () => ({
   coreWorkforcePaths: {
     accessSubjects: () => "/corehr/workforce/access-subjects",
+    accessSubjectsPreview: () => "/corehr/workforce/access-subjects/preview",
   },
   createPlatformApiClient: () => ({
     get: mockApiGet,
@@ -99,6 +104,7 @@ vi.mock("@/shell/tenant-context/core-tenant-context-provider", () => ({
 
 vi.mock("@/app/(pages)/access/use-access-subjects", () => ({
   useAccessSubjectSummary: mockUseAccessSubjectSummary,
+  useAccessSubjectSelectionPreview: mockUseAccessSubjectSelectionPreview,
   useAccessSubjects: mockUseAccessSubjects,
 }));
 
@@ -168,6 +174,37 @@ function createSubject(
   };
 }
 
+function createSubjects(
+  count: number,
+  overrides?: (index: number) => Partial<WorkforceAccessSubjectSummaryDto>
+): WorkforceAccessSubjectSummaryDto[] {
+  return Array.from({ length: count }, (_, index) =>
+    createSubject({
+      employeeId: `emp-${index + 1}`,
+      stableEmployeeKey: `EMP-${index + 1}`,
+      employeeNumber: `E-${String(index + 1).padStart(3, "0")}`,
+      firstName: `Person${index + 1}`,
+      lastName: "Selected",
+      displayName: `Person ${index + 1}`,
+      workEmail: `person${index + 1}@example.com`,
+      accessState: "NotInvited",
+      accessStateLabel: "Not invited",
+      accessStateDetail: null,
+      accessProfiles: [],
+      invitationLabel: "Not sent",
+      lastActivityLabel: "No activity",
+      lastActivityAt: null,
+      deliveryState: null,
+      reviewReason: null,
+      provisioningState: "Unprovisioned",
+      userId: null,
+      directReportCount: index % 3,
+      isActive: true,
+      ...overrides?.(index),
+    })
+  );
+}
+
 const accessProfiles: AccessProfileSummaryDto[] = [
   {
     id: "profile-1",
@@ -211,12 +248,14 @@ function setSearchParams(params: Record<string, string>) {
 function mockAccessHooks({
   items = [baseSubject],
   totalCount = items.length,
+  selectionPreviewSubjects = [],
   canViewAccess = true,
   canManageAccess = true,
   canManageProfiles = true,
 }: {
   items?: WorkforceAccessSubjectSummaryDto[];
   totalCount?: number;
+  selectionPreviewSubjects?: WorkforceAccessSubjectSummaryDto[];
   canViewAccess?: boolean;
   canManageAccess?: boolean;
   canManageProfiles?: boolean;
@@ -275,8 +314,14 @@ function mockAccessHooks({
     error: null,
     refetch: vi.fn(),
   });
+  mockUseAccessSubjectSelectionPreview.mockImplementation((_, enabled) => ({
+    data: enabled ? selectionPreviewSubjects : undefined,
+    isLoading: !!enabled,
+    error: null,
+    refetch: vi.fn(),
+  }));
   mockUseBulkProvisionWorkforceAccountInvites.mockReturnValue({
-    mutateAsync: vi.fn(),
+    mutateAsync: mockBulkInviteMutate,
     isLoading: false,
   });
   mockUseResendWorkforceAccountInvite.mockReturnValue({
@@ -296,6 +341,14 @@ describe("AccessPeopleWorkspace", () => {
     vi.clearAllMocks();
     resetSearchParams();
     mockAccessHooks();
+    mockBulkInviteMutate.mockResolvedValue({
+      items: [],
+      totalRequested: 0,
+      invitedCount: 0,
+      refreshedCount: 0,
+      alreadyActiveCount: 0,
+      skippedCount: 0,
+    });
     mockApiGet.mockResolvedValue({
       items: [baseSubject],
       totalCount: 1,
@@ -528,18 +581,6 @@ describe("AccessPeopleWorkspace", () => {
           alreadyActiveCount: 1,
           skippedCount: 0,
         })}
-        onViewPendingInvites={vi.fn()}
-        queryParams={{
-          search: null,
-          access: null,
-          profileId: null,
-          employeeStatus: null,
-          employeeKey: null,
-          page: 1,
-          pageSize: 20,
-        }}
-        allResultsSelected={false}
-        totalCount={2}
       />
     );
 
@@ -551,11 +592,76 @@ describe("AccessPeopleWorkspace", () => {
     expect(
       within(dialog).getByText("Send invitations to 2 selected people.")
     ).toBeInTheDocument();
+    expect(within(dialog).getByText("Selected")).toBeInTheDocument();
+    expect(within(dialog).getByText("Will process")).toBeInTheDocument();
+    expect(within(dialog).getByText("Skipped")).toBeInTheDocument();
     expect(
       within(dialog).getByText(
         /each person is assigned a suggested profile based on their role/i
       )
     ).toBeInTheDocument();
+  });
+
+  it("hydrates the full selection before bulk invite review when all results are selected", async () => {
+    const user = userEvent.setup();
+    const visibleItems = createSubjects(2);
+    const previewSubjects = createSubjects(148);
+    mockAccessHooks({
+      items: visibleItems,
+      totalCount: 148,
+      selectionPreviewSubjects: previewSubjects,
+    });
+
+    render(<AccessPeopleWorkspace />);
+
+    for (const subject of visibleItems) {
+      await user.click(
+        screen.getByRole("checkbox", {
+          name: `Select ${subject.displayName}`,
+        })
+      );
+    }
+
+    await user.click(
+      await screen.findByRole("button", { name: "Select all 148" })
+    );
+    await user.click(
+      await screen.findByRole("button", { name: "Send 148 invites" })
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("dialog", { name: "Review invitations" })
+      ).toBeInTheDocument();
+    });
+
+    expect(
+      screen.getByText("Send invitations to 148 selected people.")
+    ).toBeInTheDocument();
+    expect(screen.getByText("Will process")).toBeInTheDocument();
+    expect(screen.getAllByText("148")).toHaveLength(2);
+
+    mockBulkInviteMutate.mockResolvedValueOnce({
+      items: [],
+      totalRequested: 148,
+      invitedCount: 148,
+      refreshedCount: 0,
+      alreadyActiveCount: 0,
+      skippedCount: 0,
+    });
+
+    await user.click(screen.getByRole("button", { name: "Send 148 invites" }));
+
+    await waitFor(() => {
+      expect(mockBulkInviteMutate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          accessProfileId: expect.any(String),
+          specificEmployeeIds: previewSubjects.map(
+            (subject) => subject.employeeId
+          ),
+        })
+      );
+    });
   });
 
   it("shows 'Assigned on invite' for NotInvited rows without profiles", () => {

@@ -125,6 +125,33 @@ public class WorkforceController(
         return Ok(ApiResponse<WorkforceAccessRosterSummaryDto>.Success(result));
     }
 
+    [HttpGet("access-subjects/preview")]
+    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<WorkforceAccessSubjectSummaryDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAccessSubjectSelectionPreview(
+        [FromQuery] string? search,
+        [FromQuery] string? access,
+        [FromQuery] Guid? profileId,
+        [FromQuery] string? employeeStatus,
+        [FromQuery] string? deliveryState,
+        [FromQuery] string? employeeKey,
+        CancellationToken cancellationToken = default)
+    {
+        if (!accessPolicy.CanManageAccess(User))
+        {
+            return Forbid();
+        }
+
+        var result = await workforceContractService.GetAccessSubjectSelectionPreviewAsync(
+            search,
+            access,
+            profileId,
+            employeeStatus,
+            deliveryState,
+            employeeKey,
+            cancellationToken);
+        return Ok(ApiResponse<IReadOnlyList<WorkforceAccessSubjectSummaryDto>>.Success(result));
+    }
+
     [HttpPost("access-subjects/bulk-invite")]
     [ProducesResponseType(typeof(ApiResponse<WorkforceBulkInviteResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
@@ -132,7 +159,7 @@ public class WorkforceController(
         [FromBody] WorkforceBulkInviteRequest request,
         CancellationToken cancellationToken = default)
     {
-        if (!accessPolicy.CanViewAccess(User))
+        if (!accessPolicy.CanManageAccess(User))
         {
             return Forbid();
         }

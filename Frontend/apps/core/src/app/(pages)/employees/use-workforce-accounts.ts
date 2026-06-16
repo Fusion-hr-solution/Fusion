@@ -3,6 +3,7 @@
 import { useCallback, useMemo } from "react";
 import {
   coreAccessQueryKeys,
+  coreWorkforcePaths,
   coreWorkforceQueryKeys,
   createPlatformApiClient,
 } from "@repo/api";
@@ -77,8 +78,6 @@ export function useWorkforceAccountSummary(enabled = true) {
   );
 }
 
-const BULK_INVITE_PATH = "/corehr/workforce/access-subjects/bulk-invite";
-
 export function useBulkProvisionWorkforceAccountInvites() {
   const client = useMemo(() => createPlatformApiClient(), []);
 
@@ -96,7 +95,10 @@ export function useBulkProvisionWorkforceAccountInvites() {
     }
   >(
     (request) =>
-      client.post<WorkforceBulkInviteResponseDto>(BULK_INVITE_PATH, request),
+      client.post<WorkforceBulkInviteResponseDto>(
+        coreWorkforcePaths.bulkInvite(),
+        request
+      ),
     {
       invalidateQueries: BULK_WORKFORCE_ACCOUNT_MUTATION_INVALIDATIONS,
     }

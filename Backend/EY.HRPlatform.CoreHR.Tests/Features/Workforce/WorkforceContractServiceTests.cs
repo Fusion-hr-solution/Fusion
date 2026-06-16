@@ -2,6 +2,7 @@ using System.Security.Claims;
 using EY.HRPlatform.CoreHR.Domain.Entities;
 using EY.HRPlatform.CoreHR.Features.Employees.Services;
 using EY.HRPlatform.CoreHR.Features.TenantSettings.Services;
+using EY.HRPlatform.CoreHR.Features.Workforce.Dtos;
 using EY.HRPlatform.CoreHR.Features.Workforce.Services;
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
 using EY.HRPlatform.CoreHR.Tests.TestHelpers;
@@ -373,6 +374,54 @@ public class WorkforceContractServiceTests
         Assert.Equal("This email is already linked to another account.", conflictItem.InvitationLabel);
         Assert.Equal("This email is already linked to another account.", conflictItem.AccessStateDetail);
         Assert.Equal("This email is already linked to another account.", conflictItem.ReviewReason);
+    }
+
+    [Fact]
+    public async Task GetAccessSubjectSelectionPreviewAsync_ReturnsAllMatchingSubjects()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        var lastEmployeeId = Guid.Empty;
+
+        await using (var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName))
+        {
+            seedContext.TenantSettings.Add(DomainTenantSettings.Create(TenantId, SettingsJson));
+
+            for (var index = 1; index <= 12; index++)
+            {
+                var employee = Employee.Create(
+                    TenantId,
+                    $"Person{index}",
+                    "Preview",
+                    $"person{index}@example.com",
+                    DateTime.UtcNow,
+                    jobTitle: "Analyst",
+                    employeeNumber: $"E-{index:000}");
+
+                seedContext.Employees.Add(employee);
+                if (index == 12)
+                {
+                    lastEmployeeId = employee.Id;
+                }
+            }
+
+            await seedContext.SaveChangesAsync();
+        }
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var service = CreateService(context, tenantContext);
+
+        var preview = await service.GetAccessSubjectSelectionPreviewAsync(
+            search: null,
+            access: null,
+            profileId: null,
+            employeeStatus: null,
+            deliveryState: null,
+            employeeKey: null,
+            CancellationToken.None);
+
+        Assert.Equal(12, preview.Count);
+        Assert.Contains(preview, item => item.EmployeeId == lastEmployeeId);
     }
 
     [Fact]

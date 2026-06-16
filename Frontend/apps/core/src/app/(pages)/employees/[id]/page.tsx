@@ -27,7 +27,6 @@ import {
 import {
   useEmployeeProfile,
   useEmployeeReportingLines,
-  useUpdateMyProfile,
 } from "../use-employees";
 
 export default function EmployeeProfilePage() {
@@ -48,20 +47,6 @@ export default function EmployeeProfilePage() {
     typeof params.id === "string" && params.id.trim().length > 0
       ? params.id
       : null;
-  const isOwnProfile = !!employeeKey && user?.employeeId === employeeKey;
-  const fieldAudience =
-    canManageEmployee || isTenantContextReadOnly
-      ? "hrAdmin"
-      : isOwnProfile
-        ? "employee"
-        : "manager";
-  const fieldPolicy = useEmployeeFieldPolicy(
-    canViewProfile || isTenantContextReadOnly,
-    fieldAudience
-  );
-  const { data: settings } = useTenantSettings(
-    canViewProfile || isTenantContextReadOnly
-  );
 
   const effectiveEmployeeKey =
     (canViewProfile || isTenantContextReadOnly) && employeeKey
@@ -76,6 +61,20 @@ export default function EmployeeProfilePage() {
 
   const { data: reportingLines } =
     useEmployeeReportingLines(effectiveEmployeeKey);
+  const isLoadedOwnProfile = !!profile && user?.employeeId === profile.id;
+  const fieldAudience =
+    canManageEmployee || isTenantContextReadOnly
+      ? "hrAdmin"
+      : isLoadedOwnProfile
+        ? "employee"
+        : "manager";
+  const fieldPolicy = useEmployeeFieldPolicy(
+    canViewProfile || isTenantContextReadOnly,
+    fieldAudience
+  );
+  const { data: settings } = useTenantSettings(
+    canViewProfile || isTenantContextReadOnly
+  );
 
   // Register employee name in the top breadcrumb (Core > Employees > Jane Smith)
   useBreadcrumbLabel(employeeKey ?? "", profile?.fullName);

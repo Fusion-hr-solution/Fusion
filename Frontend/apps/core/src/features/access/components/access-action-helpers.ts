@@ -69,16 +69,14 @@ function getInviteSkippedReason(subject: WorkforceAccessSubjectSummaryDto): stri
   switch (subject.provisioningState) {
     case "Unprovisioned":
     case "InviteExpired":
-    case "InviteRevoked":
-      return null;
     case "InvitePending":
-      return "Already has a pending invitation";
+    case "InviteRevoked":
+    case "InviteAccepted":
+      return null;
     case "Active":
       return "Already has an active account";
     case "Inactive":
       return "Needs review";
-    case "InviteAccepted":
-      return "Activation is still incomplete";
     case "Conflict":
       return subject.accessStateDetail ?? subject.reviewReason ?? "Needs review";
     default:

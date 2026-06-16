@@ -1,6 +1,15 @@
 using System.Reflection;
+using System.Security.Claims;
 using EY.HRPlatform.CoreHR.Controllers;
+using EY.HRPlatform.CoreHR.Features.Employees.Services;
+using EY.HRPlatform.CoreHR.Features.Security;
+using EY.HRPlatform.CoreHR.Features.Workforce.Dtos;
+using EY.HRPlatform.CoreHR.Features.Workforce.Services;
+using EY.HRPlatform.CoreHR.Models.Responses;
+using EY.HRPlatform.SharedKernel.Api;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 
 namespace EY.HRPlatform.CoreHR.Tests.Features.Workforce;
 
@@ -20,6 +29,7 @@ public class WorkforceControllerAuthorizationTests
     [InlineData(nameof(WorkforceController.GetCurrentContext))]
     [InlineData(nameof(WorkforceController.GetEmployee))]
     [InlineData(nameof(WorkforceController.SearchAccessSubjects))]
+    [InlineData(nameof(WorkforceController.GetAccessSubjectSelectionPreview))]
     [InlineData(nameof(WorkforceController.GetAccessRosterSummary))]
     [InlineData(nameof(WorkforceController.GetPublishedOrgUnits))]
     [InlineData(nameof(WorkforceController.BulkInvite))]
@@ -30,5 +40,177 @@ public class WorkforceControllerAuthorizationTests
 
         Assert.NotNull(method);
         Assert.True(authorize is null || string.IsNullOrWhiteSpace(authorize.Roles));
+    }
+
+    [Fact]
+    public async Task BulkInvite_WithViewOnlyAccess_ReturnsForbid()
+    {
+        var service = new StubWorkforceContractService();
+        var controller = CreateController(service, canViewAccess: true, canManageAccess: false);
+
+        var result = await controller.BulkInvite(CreateBulkInviteRequest(), CancellationToken.None);
+
+        Assert.IsType<ForbidResult>(result);
+        Assert.False(service.BulkInviteCalled);
+    }
+
+    [Fact]
+    public async Task BulkInvite_WithManageAccess_CallsService()
+    {
+        var service = new StubWorkforceContractService();
+        var controller = CreateController(service, canViewAccess: true, canManageAccess: true);
+
+        var result = await controller.BulkInvite(CreateBulkInviteRequest(), CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        Assert.IsType<ApiResponse<WorkforceBulkInviteResponseDto>>(ok.Value);
+        Assert.True(service.BulkInviteCalled);
+    }
+
+    [Fact]
+    public async Task AccessSubjectSelectionPreview_WithViewOnlyAccess_ReturnsForbid()
+    {
+        var service = new StubWorkforceContractService();
+        var controller = CreateController(service, canViewAccess: true, canManageAccess: false);
+
+        var result = await controller.GetAccessSubjectSelectionPreview(
+            search: null,
+            access: null,
+            profileId: null,
+            employeeStatus: null,
+            deliveryState: null,
+            employeeKey: null,
+            CancellationToken.None);
+
+        Assert.IsType<ForbidResult>(result);
+        Assert.False(service.AccessSubjectSelectionPreviewCalled);
+    }
+
+    [Fact]
+    public async Task AccessSubjectSelectionPreview_WithManageAccess_CallsService()
+    {
+        var service = new StubWorkforceContractService();
+        var controller = CreateController(service, canViewAccess: true, canManageAccess: true);
+
+        var result = await controller.GetAccessSubjectSelectionPreview(
+            search: null,
+            access: null,
+            profileId: null,
+            employeeStatus: null,
+            deliveryState: null,
+            employeeKey: null,
+            CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        Assert.IsType<ApiResponse<IReadOnlyList<WorkforceAccessSubjectSummaryDto>>>(ok.Value);
+        Assert.True(service.AccessSubjectSelectionPreviewCalled);
+    }
+
+    private static WorkforceController CreateController(
+        StubWorkforceContractService service,
+        bool canViewAccess,
+        bool canManageAccess)
+    {
+        var controller = new WorkforceController(
+            service,
+            new StubCoreAccessPolicyService(canViewAccess, canManageAccess))
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext
+                {
+                    User = new ClaimsPrincipal(new ClaimsIdentity("TestAuth")),
+                },
+            },
+        };
+
+        return controller;
+    }
+
+    private static WorkforceBulkInviteRequest CreateBulkInviteRequest()
+        => new(
+            Search: null,
+            Access: null,
+            ProfileId: null,
+            EmployeeStatus: null,
+            DeliveryState: null,
+            EmployeeKey: null,
+            SpecificEmployeeIds: [],
+            AccessProfileId: Guid.NewGuid());
+
+    private sealed class StubCoreAccessPolicyService(
+        bool canViewAccess,
+        bool canManageAccess) : ICoreAccessPolicyService
+    {
+        public bool CanViewOverview(ClaimsPrincipal user) => false;
+        public bool CanViewSetup(ClaimsPrincipal user) => false;
+        public bool CanManageSetup(ClaimsPrincipal user) => false;
+        public bool CanPublishStructure(ClaimsPrincipal user) => false;
+        public bool CanViewStructure(ClaimsPrincipal user) => false;
+        public bool CanManageStructure(ClaimsPrincipal user) => false;
+        public bool CanViewSettings(ClaimsPrincipal user) => false;
+        public bool CanManageSettings(ClaimsPrincipal user) => false;
+        public bool CanViewOrganizationSettings(ClaimsPrincipal user) => false;
+        public bool CanManageOrganizationSettings(ClaimsPrincipal user) => false;
+        public bool CanViewPeopleDataSettings(ClaimsPrincipal user) => false;
+        public bool CanManagePeopleDataSettings(ClaimsPrincipal user) => false;
+        public bool CanViewStructureSettings(ClaimsPrincipal user) => false;
+        public bool CanManageStructureSettings(ClaimsPrincipal user) => false;
+        public bool CanViewProvisioningSettings(ClaimsPrincipal user) => false;
+        public bool CanManageProvisioningSettings(ClaimsPrincipal user) => false;
+        public bool CanViewGovernanceSettings(ClaimsPrincipal user) => false;
+        public bool CanViewAccessProfiles(ClaimsPrincipal user) => false;
+        public bool CanManageAccessProfiles(ClaimsPrincipal user) => false;
+        public bool CanViewOrgChart(ClaimsPrincipal user) => false;
+        public bool CanViewAccess(ClaimsPrincipal user) => canViewAccess;
+        public bool CanManageAccess(ClaimsPrincipal user) => canManageAccess;
+        public bool CanViewTenantEmployees(ClaimsPrincipal user) => false;
+        public bool CanManageEmployees(ClaimsPrincipal user) => false;
+        public bool CanImportEmployees(ClaimsPrincipal user) => false;
+        public bool CanManageReporting(ClaimsPrincipal user) => false;
+        public bool CanViewOwnProfile(ClaimsPrincipal user) => false;
+        public bool CanUpdateOwnProfile(ClaimsPrincipal user) => false;
+        public bool CanViewTeam(ClaimsPrincipal user) => false;
+        public EmployeeReadAudience GetEmployeeReadAudience(ClaimsPrincipal user) => EmployeeReadAudience.Employee;
+        public string? GetEmployeeViewScope(ClaimsPrincipal user) => null;
+    }
+
+    private sealed class StubWorkforceContractService : IWorkforceContractService
+    {
+        public bool BulkInviteCalled { get; private set; }
+        public bool AccessSubjectSelectionPreviewCalled { get; private set; }
+
+        public Task<WorkforceBulkInviteResponseDto> BulkInviteAsync(
+            WorkforceBulkInviteRequest request,
+            ClaimsPrincipal user,
+            CancellationToken cancellationToken)
+        {
+            BulkInviteCalled = true;
+            return Task.FromResult(new WorkforceBulkInviteResponseDto([], 0, 0, 0, 0, 0));
+        }
+
+        public Task<IReadOnlyList<WorkforceAccessSubjectSummaryDto>> GetAccessSubjectSelectionPreviewAsync(
+            string? search,
+            string? access,
+            Guid? profileId,
+            string? employeeStatus,
+            string? deliveryState,
+            string? employeeKey,
+            CancellationToken cancellationToken)
+        {
+            AccessSubjectSelectionPreviewCalled = true;
+            return Task.FromResult<IReadOnlyList<WorkforceAccessSubjectSummaryDto>>([]);
+        }
+
+        public Task<WorkforceCurrentUserContextDto> GetCurrentUserContextAsync(ClaimsPrincipal user, CancellationToken cancellationToken) => throw new NotImplementedException();
+        public Task<WorkforceEmployeeSummaryDto?> GetEmployeeAsync(Guid employeeId, ClaimsPrincipal user, CancellationToken cancellationToken) => throw new NotImplementedException();
+        public Task<IReadOnlyList<WorkforceEmployeeSummaryDto>> ResolveEmployeesAsync(IReadOnlyCollection<Guid> employeeIds, ClaimsPrincipal user, CancellationToken cancellationToken) => throw new NotImplementedException();
+        public Task<PagedResponse<WorkforceEmployeeSummaryDto>> SearchEmployeesAsync(string? search, int page, int pageSize, ClaimsPrincipal user, CancellationToken cancellationToken) => throw new NotImplementedException();
+        public Task<PagedResponse<WorkforceAccessSubjectSummaryDto>> SearchAccessSubjectsAsync(string? search, string? access, Guid? profileId, string? employeeStatus, string? deliveryState, string? employeeKey, int page, int pageSize, CancellationToken cancellationToken) => throw new NotImplementedException();
+        public Task<WorkforceAccessRosterSummaryDto> GetAccessRosterSummaryAsync(CancellationToken cancellationToken) => throw new NotImplementedException();
+        public Task<IReadOnlyList<WorkforceEmployeeSummaryDto>> GetTeamAsync(Guid employeeId, ClaimsPrincipal user, CancellationToken cancellationToken) => throw new NotImplementedException();
+        public Task<IReadOnlyList<WorkforceEmployeeSummaryDto>> GetManagerChainAsync(Guid employeeId, ClaimsPrincipal user, CancellationToken cancellationToken) => throw new NotImplementedException();
+        public Task<IReadOnlyList<WorkforceOrgUnitSummaryDto>> GetPublishedOrgUnitsAsync(bool includeInactive, CancellationToken cancellationToken) => throw new NotImplementedException();
+        public Task<WorkforceOrgUnitTreeDto> GetPublishedOrgUnitTreeAsync(Guid? rootId, int maxDepth, bool includeInactive, CancellationToken cancellationToken) => throw new NotImplementedException();
     }
 }

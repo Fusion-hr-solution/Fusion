@@ -136,7 +136,7 @@ public sealed class CoreAccessController(
             return BadRequest(ApiResponse<AccessProfileSummaryDto>.Failure("Tenant context is required."));
         }
 
-        if (!CanReadAssignments())
+        if (!CanManageAccessProfiles())
         {
             return Forbid();
         }
@@ -266,7 +266,7 @@ public sealed class CoreAccessController(
             return BadRequest(ApiResponse<IReadOnlyList<UserAccessAssignmentDto>>.Failure("Tenant context is required."));
         }
 
-        if (!CanManageAccessProfiles())
+        if (!CanReadAssignments())
         {
             return Forbid();
         }

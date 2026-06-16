@@ -8,6 +8,7 @@ import {
   type WorkforceAccessRosterSummaryDto,
   type WorkforceAccessState,
   type WorkforceAccessSubjectPageDto,
+  type WorkforceAccessSubjectSummaryDto,
 } from "@repo/api";
 import { useApiQuery } from "@repo/api/query";
 import { useAuth } from "@repo/auth";
@@ -20,6 +21,14 @@ export interface AccessSubjectQueryParams {
   employeeKey?: string | null;
   page: number;
   pageSize: number;
+}
+
+export interface AccessSubjectSelectionPreviewParams {
+  search?: string | null;
+  access?: WorkforceAccessState | null;
+  profileId?: string | null;
+  employeeStatus?: "Active" | "Inactive" | null;
+  employeeKey?: string | null;
 }
 
 export function useAccessSubjects(
@@ -80,6 +89,47 @@ export function useAccessSubjectSummary(enabled = true) {
 
   return useApiQuery(
     coreWorkforceQueryKeys.accessSubjectsSummary(),
+    queryFn,
+    {
+      enabled: isAuthenticated && enabled,
+    }
+  );
+}
+
+export function useAccessSubjectSelectionPreview(
+  params: AccessSubjectSelectionPreviewParams,
+  enabled = true
+) {
+  const { isAuthenticated } = useAuth();
+  const client = useMemo(() => createPlatformApiClient(), []);
+
+  const queryFn = useCallback(
+    (signal: AbortSignal) =>
+      client.get<WorkforceAccessSubjectSummaryDto[]>(
+        coreWorkforcePaths.accessSubjectsPreview(),
+        {
+          signal,
+          params: {
+            search: params.search?.trim() || undefined,
+            access: params.access || undefined,
+            profileId: params.profileId || undefined,
+            employeeStatus: params.employeeStatus || undefined,
+            employeeKey: params.employeeKey?.trim() || undefined,
+          },
+        }
+      ),
+    [
+      client,
+      params.access,
+      params.employeeKey,
+      params.employeeStatus,
+      params.profileId,
+      params.search,
+    ]
+  );
+
+  return useApiQuery(
+    coreWorkforceQueryKeys.accessSubjectsPreview(params),
     queryFn,
     {
       enabled: isAuthenticated && enabled,

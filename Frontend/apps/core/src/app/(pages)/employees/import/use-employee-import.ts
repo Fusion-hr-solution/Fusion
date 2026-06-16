@@ -9,11 +9,9 @@ import {
   type UseApiMutationResult,
   type UseApiQueryResult,
 } from "@repo/api/query";
-import { useAuth } from "@repo/auth";
-import { canAccessEmployeeRoster } from "@/lib/employee-roster-access";
+import { canImportCoreEmployees, useAuth } from "@repo/auth";
 import {
   DEFAULT_EMPLOYEE_IMPORT_HISTORY_PAGE_SIZE,
-  DEFAULT_EMPLOYEE_IMPORT_PREVIEW_PAGE_SIZE,
   employeeImportQueryKeys,
   employeeRosterQueryKeys,
   normalizeEmployeeImportHistoryQuery,
@@ -80,7 +78,7 @@ function buildHistoryQueryString(query?: EmployeeImportHistoryQuery) {
 export function useEmployeeImportSchema(): UseApiQueryResult<EmployeeImportSchemaDto> {
   const { user, isAuthenticated } = useAuth();
   const client = useMemo(() => createPlatformApiClient(), []);
-  const canAccess = canAccessEmployeeRoster(user);
+  const canAccess = canImportCoreEmployees(user);
 
   const queryFn = useCallback(
     (signal: AbortSignal) =>
@@ -104,15 +102,10 @@ export function useEmployeeImportSession(
 ): UseApiQueryResult<EmployeeImportSessionDto> {
   const { user, isAuthenticated } = useAuth();
   const client = useMemo(() => createPlatformApiClient(), []);
-  const canAccess = canAccessEmployeeRoster(user);
+  const canAccess = canImportCoreEmployees(user);
   const normalizedPreviewQuery = useMemo(
     () => normalizeEmployeeImportPreviewQuery(previewQuery),
-    [
-      previewQuery?.groupKey,
-      previewQuery?.pageNumber,
-      previewQuery?.pageSize,
-      previewQuery?.previewFilter,
-    ]
+    [previewQuery]
   );
   const previewQueryString = buildPreviewQueryString(normalizedPreviewQuery);
 
@@ -217,10 +210,10 @@ export function useEmployeeImportHistory(
 ): UseApiQueryResult<EmployeeImportHistoryPageDto> {
   const { user, isAuthenticated } = useAuth();
   const client = useMemo(() => createPlatformApiClient(), []);
-  const canAccess = canAccessEmployeeRoster(user);
+  const canAccess = canImportCoreEmployees(user);
   const normalizedHistoryQuery = useMemo(
     () => normalizeEmployeeImportHistoryQuery(query),
-    [query?.pageNumber, query?.pageSize]
+    [query]
   );
   const historyQueryString = buildHistoryQueryString(query);
 
@@ -250,7 +243,7 @@ export function useEmployeeImportHistoryDetail(
 ): UseApiQueryResult<EmployeeImportHistoryDetailDto> {
   const { user, isAuthenticated } = useAuth();
   const client = useMemo(() => createPlatformApiClient(), []);
-  const canAccess = canAccessEmployeeRoster(user);
+  const canAccess = canImportCoreEmployees(user);
 
   const queryFn = useCallback(
     (signal: AbortSignal) => {

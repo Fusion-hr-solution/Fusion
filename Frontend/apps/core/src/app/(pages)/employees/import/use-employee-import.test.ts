@@ -27,7 +27,7 @@ vi.mock("@repo/api", () => ({
 
 vi.mock("@repo/auth", () => ({
   useAuth: () => authState,
-  canAccessCorePeople: (user: { roles?: string[] } | null) =>
+  canImportCoreEmployees: (user: { roles?: string[] } | null) =>
     !!user?.roles?.includes("HRAdmin") &&
     !user?.roles?.includes("PlatformAdmin"),
 }));
