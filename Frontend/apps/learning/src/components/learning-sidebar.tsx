@@ -25,21 +25,25 @@ function SidebarNavSkeleton() {
   );
 }
 
-function QuickStatsFooter({ collapsed }: { collapsed: boolean }) {
+function QuickStatsFooter({
+  collapsed,
+  completed,
+  inProgress,
+}: {
+  collapsed: boolean;
+  completed: number;
+  inProgress: number;
+}) {
   if (collapsed) {
     return (
       <div className="flex flex-col items-center gap-2 py-1">
         <div className="flex flex-col items-center gap-0.5" title="Completed">
-          <span className="text-xs font-bold tabular-nums text-foreground">12</span>
+          <span className="text-xs font-bold tabular-nums text-foreground">{completed}</span>
           <span className="text-[9px] text-muted-foreground">Done</span>
         </div>
         <div className="flex flex-col items-center gap-0.5" title="In Progress">
-          <span className="text-xs font-bold tabular-nums text-foreground">3</span>
+          <span className="text-xs font-bold tabular-nums text-foreground">{inProgress}</span>
           <span className="text-[9px] text-muted-foreground">Active</span>
-        </div>
-        <div className="flex flex-col items-center gap-0.5" title="Certificates">
-          <span className="text-xs font-bold tabular-nums text-foreground">8</span>
-          <span className="text-[9px] text-muted-foreground">Certs</span>
         </div>
       </div>
     );
@@ -57,9 +61,8 @@ function QuickStatsFooter({ collapsed }: { collapsed: boolean }) {
         </p>
       </div>
       <div className="mt-2.5 space-y-2">
-        <StatRow label="Completed" value="12" />
-        <StatRow label="In Progress" value="3" />
-        <StatRow label="Certificates" value="8" />
+        <StatRow label="Completed" value={String(completed)} />
+        <StatRow label="In Progress" value={String(inProgress)} />
       </div>
     </div>
   );
@@ -75,6 +78,8 @@ export function LearningSidebar() {
   const fetchMyTrainings = useCallback(() => getMyTrainings(), []);
   const { data: myTrainings } = useApiQuery(fetchMyTrainings, { enabled: !isAdmin && !isLoading });
   const myTrainingsCount = myTrainings?.length ?? 0;
+  const completedCount = myTrainings?.filter((t) => t.status === "completed").length ?? 0;
+  const inProgressCount = myTrainings?.filter((t) => t.status === "in-progress").length ?? 0;
 
   const employeeNavWithCount = useMemo(() => ({
     ...EMPLOYEE_NAV,
@@ -116,7 +121,11 @@ export function LearningSidebar() {
       brandTitle="EY Academy"
       brandSubtitle="Learning Platform"
       basePath="/learning"
-      footer={(collapsed) => <QuickStatsFooter collapsed={collapsed} />}
+      footer={(collapsed) =>
+        isAdmin ? null : (
+          <QuickStatsFooter collapsed={collapsed} completed={completedCount} inProgress={inProgressCount} />
+        )
+      }
       userPanel={(collapsed) => <SidebarUserPanel collapsed={collapsed} />}
     />
   );
