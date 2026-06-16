@@ -20,6 +20,7 @@ import {
   CheckCircle2,
   History,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Badge, Button, Card, CardContent, Input, Label, Progress, Separator } from "@repo/ui";
 import { useApiQuery, useApiMutation } from "@repo/api/react";
 import {
@@ -83,6 +84,12 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
       try {
         await markAttendance(sessionId, employeeId);
         refetch();
+      } catch (e) {
+        toast.error(
+          e instanceof Error && e.message
+            ? `Couldn't save attendance: ${e.message}`
+            : "Couldn't save attendance. Please try again — the record was not changed.",
+        );
       } finally {
         setMarkingId(null);
       }
