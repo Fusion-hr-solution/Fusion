@@ -30,7 +30,7 @@ export function ExamQuestionItem({
     >
       <CardContent className="p-6">
         <div className="mb-4 flex items-start justify-between gap-3">
-          <h3 className="text-sm font-semibold text-foreground leading-relaxed">
+          <h3 id={`exam-q-${question.id}`} className="text-sm font-semibold text-foreground leading-relaxed">
             <span className="text-muted-foreground mr-2">Q{index + 1}.</span>
             {question.questionText}
           </h3>
@@ -41,13 +41,19 @@ export function ExamQuestionItem({
         {isMulti && (
           <p className="mb-3 text-xs text-muted-foreground">Select all that apply</p>
         )}
-        <div className="space-y-2">
+        <div
+          className="space-y-2"
+          role={isMulti ? "group" : "radiogroup"}
+          aria-labelledby={`exam-q-${question.id}`}
+        >
           {question.options.map((option) => {
             const selected = selectedOptionIds.includes(option.id);
             return (
               <button
                 key={option.id}
                 type="button"
+                role={isMulti ? "checkbox" : "radio"}
+                aria-checked={selected}
                 onClick={() => handleSelect(option.id)}
                 className={`flex w-full items-center gap-3 rounded-lg border px-4 py-3 text-left text-sm transition-all ${
                   selected
