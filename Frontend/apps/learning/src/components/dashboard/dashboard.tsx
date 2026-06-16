@@ -29,7 +29,7 @@ export function Dashboard({ trainings, enrolledTrainings }: DashboardProps) {
       <PageHeader
         moduleTitle="Learning Dashboard"
         title="Welcome back"
-        description="Here's your learning journey at a glance. Keep pushing — you're making great progress."
+        description="Your trainings, progress, and what's next at a glance."
       >
           <div className="mt-8 grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
             {[

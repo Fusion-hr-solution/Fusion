@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Clock, BookOpen, ArrowUpRight } from "lucide-react";
 import { Card, CardContent } from "@repo/ui";
 import type { RecommendedCardProps } from "@/types/component-props";
@@ -7,7 +8,11 @@ export function RecommendedCard({ training }: RecommendedCardProps) {
   const category = CATEGORY_CONFIG[training.category];
 
   return (
-    <Card className="group relative flex flex-col overflow-hidden border border-border/60 bg-white transition-all duration-300 hover:shadow-xl hover:shadow-black/8 hover:-translate-y-1 cursor-pointer">
+    <Link
+      href={`/training/${training.id}`}
+      className="group block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+    <Card className="relative flex flex-col overflow-hidden border border-border/60 bg-white transition-all duration-300 hover:shadow-xl hover:shadow-black/8 hover:-translate-y-1">
       <div className={`h-1 w-full ey-animate-stripe ${category.stripClass}`} />
       <CardContent className="flex flex-1 flex-col gap-3 p-4">
         <div className="flex items-center justify-between">
@@ -45,5 +50,6 @@ export function RecommendedCard({ training }: RecommendedCardProps) {
         </div>
       </CardContent>
     </Card>
+    </Link>
   );
 }

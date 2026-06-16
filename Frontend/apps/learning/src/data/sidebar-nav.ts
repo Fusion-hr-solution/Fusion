@@ -1,8 +1,6 @@
 import {
   BookOpen,
   LayoutDashboard,
-  Award,
-  Trophy,
   GraduationCap,
   Users,
   BarChart3,
@@ -29,8 +27,8 @@ export const EMPLOYEE_NAV: NavSection = {
     { label: "My Sessions", href: "/my-sessions", icon: CalendarCheck2 },
     { label: "Scan QR", href: "/my-sessions/scan", icon: ScanLine },
     { label: "Mon Cursus", href: "/cursus", icon: Route },
-    { label: "Certificates", href: "/certificates", icon: Award },
-    { label: "Badges", href: "/badges", icon: Trophy },
+    // "Certificates" and "Badges" removed: their routes don't exist on this
+    // branch, so the links 404. Re-add once the certificate frontend ships.
   ],
 };
 
