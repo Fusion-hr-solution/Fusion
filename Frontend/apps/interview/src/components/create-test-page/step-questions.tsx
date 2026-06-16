@@ -6,7 +6,7 @@ import {
   Search, Plus, Eye, Minus, GripVertical, X, Inbox,
   CheckCircle2, BarChart2, Zap, Clock, ChevronLeft,
   ChevronRight, SlidersHorizontal, ArrowLeft, ArrowRight, ListChecks,
-  Filter, Flag, Pencil, MoreHorizontal, AlertTriangle,
+  Filter, Flag, Pencil, MoreHorizontal, AlertTriangle, Sparkles,
 } from "lucide-react";
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor,
@@ -20,6 +20,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { useWizardStore } from "@/store/wizard-store";
 import { getQuestions, deleteQuestion } from "@/services/test-service";
 import { QUESTION_TYPES, DIFFICULTIES, GRADING_METHODS, SORT_OPTIONS } from "@/config/constants";
+import { AiBatchGenerateModal } from "@/components/create-test-page/ai-batch-generate-modal";
 import { cn } from "@/lib/utils";
 import type { Question, QuestionFilterState, SortOption, Difficulty } from "@/types";
 
@@ -133,7 +134,14 @@ export function StepQuestions() {
   const [isLoadingLibrary, setIsLoadingLibrary] = useState(true);
   const [libraryError, setLibraryError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [aiBatchOpen, setAiBatchOpen] = useState(false);
   const PAGE_SIZE = 8;
+
+  function handleAiSaved(created: Question[]) {
+    // Surface the new questions in the library and select them into the test.
+    setQuestionLibrary((prev) => [...created, ...prev]);
+    created.forEach((q) => addQuestion(q));
+  }
   useEffect(() => {
     let isMounted = true;
 
@@ -318,6 +326,15 @@ export function StepQuestions() {
             </div>
           )}
         </div>
+
+        {/* generate with AI */}
+        <button
+          onClick={() => setAiBatchOpen(true)}
+          className="flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-[13px] font-semibold text-violet-700 shadow-sm hover:bg-violet-100 active:scale-[0.98] transition-all duration-150"
+        >
+          <Sparkles className="h-4 w-4" />
+          Generate with AI
+        </button>
 
         {/* new question CTA */}
         <button
@@ -792,6 +809,13 @@ export function StepQuestions() {
           Continue to Configuration <ArrowRight className="h-4 w-4" />
         </button>
       </div>
+
+      {/* ── AI batch generation modal ───────────────────────────── */}
+      <AiBatchGenerateModal
+        open={aiBatchOpen}
+        onClose={() => setAiBatchOpen(false)}
+        onSaved={handleAiSaved}
+      />
 
       {/* ── Question preview modal ──────────────────────────────── */}
       {previewQ && (

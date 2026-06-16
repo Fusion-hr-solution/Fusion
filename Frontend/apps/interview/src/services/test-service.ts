@@ -7,6 +7,7 @@ import type {
   Question,
   QuestionType,
   Test,
+  TestCase,
   TestStatus,
 } from "@/types";
 
@@ -256,6 +257,66 @@ export async function updateQuestion(questionId: string, form: NewQuestionForm):
     toCreateQuestionRequest(form)
   );
   return mapQuestion(updated);
+}
+
+export interface GenerateQuestionsInput {
+  topic: string;
+  type?: QuestionType;
+  difficulty?: Difficulty;
+  gradingMethod?: GradingMethod;
+  language?: string;
+  points?: number;
+  durationMinutes?: number;
+  count?: number;
+}
+
+/**
+ * The /generate endpoint returns unsaved CreateQuestionDto drafts — i.e. a question
+ * without the persisted-only `id`/`usageCount`. Modelling that here keeps us from
+ * accidentally relying on fields that are undefined at runtime.
+ */
+type BackendQuestionDraft = Omit<BackendQuestionDto, "id" | "usageCount">;
+
+/**
+ * Asks the AI to draft one or more questions. The drafts are returned as editable
+ * NewQuestionForm objects — nothing is persisted until they're saved via
+ * createQuestion. Throws on failure (e.g. 503 when AI isn't configured).
+ */
+export async function generateQuestions(input: GenerateQuestionsInput): Promise<NewQuestionForm[]> {
+  const drafts = await client.post<BackendQuestionDraft[]>("/interview/questions/generate", {
+    topic: input.topic,
+    type: input.type,
+    difficulty: input.difficulty,
+    gradingMethod: input.gradingMethod,
+    language: input.language,
+    points: input.points,
+    durationMinutes: input.durationMinutes,
+    count: input.count ?? 1,
+  });
+  return (drafts ?? []).map(mapDraftToForm);
+}
+
+function mapDraftToForm(dto: BackendQuestionDraft): NewQuestionForm {
+  const options =
+    dto.options && dto.options.length > 0
+      ? dto.options.map((o) => ({ text: o.text, correct: o.correct }))
+      : [{ text: "", correct: false }, { text: "", correct: false }];
+
+  return {
+    type: asQuestionType(dto.type),
+    title: dto.title ?? "",
+    description: dto.description ?? "",
+    difficulty: asDifficulty(dto.difficulty),
+    points: dto.points || 10,
+    durationMinutes: dto.durationMinutes || 10,
+    gradingMethod: asGradingMethod(dto.gradingMethod),
+    tags: dto.tags ?? [],
+    options,
+    language: dto.language || "Python",
+    starterCode: dto.starterCode ?? "",
+    evaluationCriteria: dto.evaluationCriteria ?? "",
+    testCases: dto.testCases ? tryParseJson<TestCase[]>(dto.testCases) ?? [] : [],
+  };
 }
 
 export async function getTestQuestions(testId: string): Promise<Question[]> {

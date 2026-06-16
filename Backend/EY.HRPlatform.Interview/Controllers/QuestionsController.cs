@@ -7,7 +7,9 @@ namespace EY.HRPlatform.Interview.Controllers;
 
 [ApiController]
 [Route("api/interview/questions")]
-public class QuestionsController(IQuestionService questionService) : ControllerBase
+public class QuestionsController(
+    IQuestionService questionService,
+    IQuestionGeneratorService questionGenerator) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType(typeof(ApiResponse<PagedResultDto<QuestionDto>>), StatusCodes.Status200OK)]
@@ -31,6 +33,15 @@ public class QuestionsController(IQuestionService questionService) : ControllerB
     {
         var data = await questionService.CreateAsync(request, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = data.Id }, ApiResponse<QuestionDto>.Success(data));
+    }
+
+    [HttpPost("generate")]
+    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<CreateQuestionDto>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
+    public async Task<IActionResult> Generate([FromBody] GenerateQuestionsRequestDto request, CancellationToken cancellationToken)
+    {
+        var drafts = await questionGenerator.GenerateAsync(request, cancellationToken);
+        return Ok(ApiResponse<IReadOnlyList<CreateQuestionDto>>.Success(drafts));
     }
 
     [HttpPut("{id:guid}")]
