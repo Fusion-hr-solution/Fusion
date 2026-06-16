@@ -35,3 +35,11 @@ export async function getBudgetSpendDetail(
   if (range.to) params.set("to", range.to);
   return client.get<BudgetSpendDetail>(`${BASE}/detail?${params.toString()}`);
 }
+
+export async function exportBudgetReportExcel(filters: BudgetFilters = {}): Promise<Blob> {
+  return client.get<Blob>(`${BASE}/export/excel${buildFilterQuery(filters)}`, { responseType: "blob" });
+}
+
+export async function exportBudgetReportPdf(filters: BudgetFilters = {}): Promise<Blob> {
+  return client.get<Blob>(`${BASE}/export/pdf${buildFilterQuery(filters)}`, { responseType: "blob" });
+}
