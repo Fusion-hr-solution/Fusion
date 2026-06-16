@@ -17,7 +17,7 @@ const compact = (v: number) => new Intl.NumberFormat("en-US", { notation: "compa
 
 export function BudgetTrendChart({ points }: { points: BudgetTrendPoint[] }) {
   return (
-    <div className="ey-animate-fade-up rounded-xl border border-border/60 bg-white p-5 shadow-sm">
+    <div className="ey-animate-fade-up rounded-xl border border-border/60 bg-card p-5 shadow-sm">
       <h3 className="mb-4 text-sm font-semibold text-foreground">Monthly Spending Trend</h3>
       <div className="h-[260px]">
         <ResponsiveContainer width="100%" height="100%">
@@ -28,18 +28,26 @@ export function BudgetTrendChart({ points }: { points: BudgetTrendPoint[] }) {
                 <stop offset="100%" stopColor="#2563eb" stopOpacity={0.02} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-            <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#6b7280" }} tickLine={false} axisLine={{ stroke: "#e5e7eb" }} />
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+            <XAxis dataKey="label" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={{ stroke: "hsl(var(--border))" }} />
             <YAxis
               width={64}
-              tick={{ fontSize: 11, fill: "#6b7280" }}
+              tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
               tickLine={false}
-              axisLine={{ stroke: "#e5e7eb" }}
+              axisLine={{ stroke: "hsl(var(--border))" }}
               tickFormatter={compact}
             />
             <Tooltip
               formatter={(value: number) => [formatCurrency(value), "Spend"]}
-              contentStyle={{ borderRadius: "8px", border: "1px solid #e5e7eb", fontSize: "12px" }}
+              contentStyle={{
+                borderRadius: "8px",
+                border: "1px solid hsl(var(--border))",
+                backgroundColor: "hsl(var(--card))",
+                color: "hsl(var(--foreground))",
+                fontSize: "12px",
+              }}
+              labelStyle={{ color: "hsl(var(--foreground))" }}
+              itemStyle={{ color: "hsl(var(--foreground))" }}
             />
             <Area type="monotone" dataKey="spend" fill="url(#budgetTrendFill)" stroke="none" />
             <Line
@@ -48,7 +56,7 @@ export function BudgetTrendChart({ points }: { points: BudgetTrendPoint[] }) {
               stroke="#2563eb"
               strokeWidth={2.5}
               dot={{ r: 3, fill: "#2563eb", strokeWidth: 0 }}
-              activeDot={{ r: 5, strokeWidth: 2, stroke: "#fff" }}
+              activeDot={{ r: 5, strokeWidth: 2, stroke: "hsl(var(--card))" }}
             />
           </ComposedChart>
         </ResponsiveContainer>
