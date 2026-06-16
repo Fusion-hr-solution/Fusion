@@ -19,7 +19,7 @@ public class GetTrainingBudgetsQueryHandlerTests
         TrainingDbContext ctx, Guid trainingId, Guid partId, DateTime start,
         decimal? trainer = null, decimal? venue = null, decimal? materials = null, decimal? other = null)
     {
-        var add = await new AddSessionCommandHandler(ctx).Handle(new AddSessionCommand(
+        var add = await new AddSessionCommandHandler(ctx, new NoOpBudgetAlertNotifier()).Handle(new AddSessionCommand(
             trainingId, partId, start, start.AddHours(3), "Room", 20, null, null, "Ext", "ext@x.com",
             trainer, venue, materials, other), CancellationToken.None);
         return add.Value.SessionId;

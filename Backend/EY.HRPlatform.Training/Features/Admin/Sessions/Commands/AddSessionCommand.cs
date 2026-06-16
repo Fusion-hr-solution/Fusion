@@ -1,6 +1,7 @@
 using EY.HRPlatform.SharedKernel.CQRS;
 using EY.HRPlatform.SharedKernel.Results;
 using EY.HRPlatform.Training.Domain.Entities;
+using EY.HRPlatform.Training.Features.Admin.Budget;
 using EY.HRPlatform.Training.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -27,8 +28,13 @@ public record AddSessionResult(Guid SessionId, List<RoomConflictItem> RoomConfli
 public class AddSessionCommandHandler : ICommandHandler<AddSessionCommand, Result<AddSessionResult>>
 {
     private readonly TrainingDbContext _db;
+    private readonly IBudgetAlertNotifier _notifier;
 
-    public AddSessionCommandHandler(TrainingDbContext db) => _db = db;
+    public AddSessionCommandHandler(TrainingDbContext db, IBudgetAlertNotifier notifier)
+    {
+        _db = db;
+        _notifier = notifier;
+    }
 
     public async Task<Result<AddSessionResult>> Handle(AddSessionCommand request, CancellationToken cancellationToken)
     {
@@ -71,6 +77,11 @@ public class AddSessionCommandHandler : ICommandHandler<AddSessionCommand, Resul
 
         _db.TrainingSessions.Add(session);
         await _db.SaveChangesAsync(cancellationToken);
+
+        // Budget threshold alert (best-effort): a new session adds cost from a zero baseline.
+        var newTotal = (request.ExternalTrainerCost ?? 0m) + (request.VenueCost ?? 0m)
+                     + (request.MaterialsCost ?? 0m) + (request.OtherCost ?? 0m);
+        await _notifier.NotifyOnSessionCostChangeAsync(session.Id, 0m, newTotal, cancellationToken);
 
         var conflicts = await RoomConflictDetector.DetectAsync(
             _db, session.Room, session.StartUtc, session.EndUtc, session.Id, cancellationToken);
