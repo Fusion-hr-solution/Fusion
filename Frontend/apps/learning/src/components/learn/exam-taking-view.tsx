@@ -106,7 +106,7 @@ function ExamIntro({
     { icon: HelpCircle, value: `${exam.questionCount}`, label: "Questions" },
     { icon: Target, value: `${exam.passingScore}%`, label: "Passing Score" },
     ...(exam.durationMinutes
-      ? [{ icon: Clock, value: `${exam.durationMinutes} min`, label: "Time Limit" }]
+      ? [{ icon: Clock, value: `${exam.durationMinutes} min`, label: "Suggested time" }]
       : []),
   ];
 
