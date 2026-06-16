@@ -75,9 +75,7 @@ export function AttendanceRatesSection() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="mb-1 text-sm font-semibold uppercase tracking-wider text-foreground">
-          Attendance Rates
-        </h2>
+        <h2 className="mb-1 text-sm font-semibold text-foreground">Attendance Rates</h2>
         <p className="text-xs text-muted-foreground">
           In-person attendance across closed sessions. Absences are derived once a session
           has ended.
@@ -85,7 +83,7 @@ export function AttendanceRatesSection() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap items-end gap-3 rounded-xl border border-border/60 bg-white p-4 shadow-sm">
+      <div className="flex flex-wrap items-end gap-3 rounded-xl border border-border/60 bg-card p-4 shadow-sm">
         <div className="space-y-1.5">
           <Label className="text-xs">Grade</Label>
           <Select value={gradeId} onValueChange={setGradeId}>
@@ -173,7 +171,7 @@ export function AttendanceRatesSection() {
         ) : trend && trend.points.length > 0 ? (
           <AttendanceTrendChart points={trend.points} />
         ) : (
-          <div className="flex h-[320px] items-center justify-center rounded-xl border border-border/60 bg-white text-xs text-muted-foreground">
+          <div className="flex h-[320px] items-center justify-center rounded-xl border border-border/60 bg-card text-xs text-muted-foreground">
             No attendance trend data for the selected period.
           </div>
         )}
