@@ -12,6 +12,8 @@ export function TrainingFormReviewStep({
   isMandatory,
   trainingType,
   scheduledDate,
+  costType,
+  sponsoringServiceLineName,
 }: TrainingFormReviewStepProps) {
   return (
     <Card className="border-border/60">
@@ -32,6 +34,10 @@ export function TrainingFormReviewStep({
           <Row label="Duration" value={duration || "—"} />
           {trainingType === "OnSite" && scheduledDate && (
             <Row label="Scheduled Date" value={new Date(scheduledDate).toLocaleString()} />
+          )}
+          {trainingType === "OnSite" && <Row label="Cost Type" value={costType} />}
+          {trainingType === "OnSite" && costType === "External" && (
+            <Row label="Sponsoring Service Line" value={sponsoringServiceLineName} />
           )}
           <Row
             label="Mandatory"

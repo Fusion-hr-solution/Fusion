@@ -8,9 +8,11 @@ import type {
   AdminCategory,
   AdminOnSiteCourse,
   AdminExamDetail,
+  AdminTrainingBudget,
 } from "@/types/admin";
 import type { ChapterLayout, TrainingType } from "@/types";
 import type {
+  BackendTrainingBudgetDto,
   BackendAdminTrainingDto,
   BackendAdminChapterDto,
   BackendAdminContentBlockDto,
@@ -38,6 +40,8 @@ export function mapTraining(dto: BackendAdminTrainingDto): AdminTraining {
     chapterCount: dto.chapterCount,
     enrollmentCount: dto.enrollmentCount,
     trainingType: (dto.trainingType ?? "ELearning") as TrainingType,
+    costType: (dto.costType ?? undefined) as AdminTraining["costType"],
+    sponsoringServiceLineId: dto.sponsoringServiceLineId ?? undefined,
     scheduledDate: dto.scheduledDate ?? undefined,
     isDeleted: dto.isDeleted,
     createdAt: dto.createdAt,
@@ -115,6 +119,20 @@ export function mapAssignment(dto: BackendAssignmentDto): AdminAssignment {
     dueDate: dto.dueDate ?? undefined,
     status: dto.status ?? "NotStarted",
     progressPercentage: dto.progressPercentage,
+  };
+}
+
+export function mapBudget(dto: BackendTrainingBudgetDto): AdminTrainingBudget {
+  return {
+    id: dto.id,
+    serviceLineId: dto.serviceLineId,
+    periodType: dto.periodType as AdminTrainingBudget["periodType"],
+    periodStart: dto.periodStart,
+    periodEnd: dto.periodEnd,
+    allocatedAmount: dto.allocatedAmount,
+    spend: dto.spend,
+    remaining: dto.remaining,
+    percentage: dto.percentage,
   };
 }
 

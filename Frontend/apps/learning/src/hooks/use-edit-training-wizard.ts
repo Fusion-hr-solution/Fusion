@@ -5,14 +5,15 @@ import { ApiError } from "@repo/api";
 import {
   getAdminTrainingDetail,
   getAdminCategories,
+  getServiceLines,
   updateTraining,
   addChapter,
   updateChapter,
   deleteChapter,
   reorderChapters as reorderChaptersApi,
 } from "@/services/admin-service";
-import type { AdminCategory, WizardChapter, UpdateTrainingInput } from "@/types/admin";
-import type { TrainingType } from "@/types";
+import type { AdminCategory, AdminServiceLine, WizardChapter, UpdateTrainingInput } from "@/types/admin";
+import type { CostType, TrainingType } from "@/types";
 
 export function useEditTrainingWizard(trainingId: string) {
   const router = useRouter();
@@ -32,6 +33,8 @@ export function useEditTrainingWizard(trainingId: string) {
   const [isMandatory, setIsMandatory] = useState(false);
   const [trainingType, setTrainingType] = useState<TrainingType>("ELearning");
   const [scheduledDate, setScheduledDate] = useState("");
+  const [costType, setCostType] = useState<CostType>("Internal");
+  const [sponsoringServiceLineId, setSponsoringServiceLineId] = useState("");
 
   // Step 3 — chapters (title + layout only, content blocks managed separately)
   const [chapters, setChapters] = useState<WizardChapter[]>([]);
@@ -52,6 +55,12 @@ export function useEditTrainingWizard(trainingId: string) {
     { enabled: true },
   );
 
+  const fetchServiceLines = useCallback(() => getServiceLines(), []);
+  const { data: serviceLines } = useApiQuery<AdminServiceLine[]>(
+    fetchServiceLines,
+    { enabled: true },
+  );
+
   const { data: existing, isLoading: loadingDetail } = useApiQuery(
     fetchExistingTraining,
     { enabled: true },
@@ -68,6 +77,8 @@ export function useEditTrainingWizard(trainingId: string) {
     setIsMandatory(existing.isMandatory);
     setTrainingType(existing.trainingType as TrainingType);
     setScheduledDate(existing.scheduledDate ?? "");
+    setCostType((existing.costType ?? "Internal") as CostType);
+    setSponsoringServiceLineId(existing.sponsoringServiceLineId ?? "");
     setChapters(
       [...existing.chapters]
         .sort((a, b) => a.orderIndex - b.orderIndex)
@@ -120,6 +131,10 @@ export function useEditTrainingWizard(trainingId: string) {
       setFormError("Scheduled date must be in the future.");
       return false;
     }
+    if (trainingType === "OnSite" && costType === "External" && !sponsoringServiceLineId) {
+      setFormError("Sponsoring service line is required for external trainings.");
+      return false;
+    }
     setFormError(null);
     return true;
   }
@@ -149,6 +164,11 @@ export function useEditTrainingWizard(trainingId: string) {
         categoryId,
         trainingType,
         scheduledDate: scheduledDate || undefined,
+        costType: trainingType === "OnSite" ? costType : undefined,
+        sponsoringServiceLineId:
+          trainingType === "OnSite" && costType === "External" && sponsoringServiceLineId
+            ? sponsoringServiceLineId
+            : undefined,
       });
 
       for (const id of deletedServerIds) {
@@ -198,6 +218,9 @@ export function useEditTrainingWizard(trainingId: string) {
     categories: categories ?? [],
     credits, setCredits, duration, setDuration, isMandatory, setIsMandatory,
     trainingType, setTrainingType, scheduledDate, setScheduledDate,
+    costType, setCostType,
+    sponsoringServiceLineId, setSponsoringServiceLineId,
+    serviceLines: serviceLines ?? [],
     chapters,
     addChapter: addWizardChapter,
     updateChapter: updateWizardChapter,
