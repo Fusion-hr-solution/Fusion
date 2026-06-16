@@ -74,6 +74,8 @@ export { ServiceLinesManager } from "./admin/service-lines-manager";
 export { ServiceLineForm } from "./admin/service-line-form";
 export { TrainingBudgetsManager } from "./admin/training-budgets-manager";
 export { TrainingBudgetForm } from "./admin/training-budget-form";
+export { BudgetDashboard } from "./admin/budget/budget-dashboard";
+export { BudgetsPageShell } from "./admin/budget/budgets-page-shell";
 export { EmployeeProfilesManager } from "./admin/employee-profiles-manager";
 export { EmployeeProfileForm } from "./admin/employee-profile-form";
 export { CurriculumMatrixView } from "./admin/curriculum-matrix-view";

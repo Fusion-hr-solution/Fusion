@@ -23,7 +23,7 @@ public class TrainingSessionCostTests
         var (ctx, trainingId, partId) = await SeedAsync();
         var start = DateTime.UtcNow.AddDays(7);
 
-        var add = await new AddSessionCommandHandler(ctx).Handle(new AddSessionCommand(
+        var add = await new AddSessionCommandHandler(ctx, new NoOpBudgetAlertNotifier()).Handle(new AddSessionCommand(
             trainingId, partId, start, start.AddHours(3), "Room A", 20, null, null, "Ext", "ext@x.com",
             ExternalTrainerCost: 1000m, VenueCost: 500m, MaterialsCost: 250m, OtherCost: null),
             CancellationToken.None);
@@ -41,7 +41,7 @@ public class TrainingSessionCostTests
         var (ctx, trainingId, partId) = await SeedAsync();
         var start = DateTime.UtcNow.AddDays(7);
 
-        var add = await new AddSessionCommandHandler(ctx).Handle(new AddSessionCommand(
+        var add = await new AddSessionCommandHandler(ctx, new NoOpBudgetAlertNotifier()).Handle(new AddSessionCommand(
             trainingId, partId, start, start.AddHours(3), "Room A", 20, null, null, null, null),
             CancellationToken.None);
 
@@ -54,7 +54,7 @@ public class TrainingSessionCostTests
     {
         var (ctx, trainingId, partId) = await SeedAsync();
         var start = DateTime.UtcNow.AddDays(7);
-        var add = await new AddSessionCommandHandler(ctx).Handle(new AddSessionCommand(
+        var add = await new AddSessionCommandHandler(ctx, new NoOpBudgetAlertNotifier()).Handle(new AddSessionCommand(
             trainingId, partId, start, start.AddHours(3), "Room A", 20, null, null, "Ext", "ext@x.com",
             ExternalTrainerCost: 800m, VenueCost: 200m), CancellationToken.None);
 
