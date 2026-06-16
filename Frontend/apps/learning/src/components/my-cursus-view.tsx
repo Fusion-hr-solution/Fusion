@@ -20,7 +20,7 @@ export function MyCursusView() {
   }, [cursus]);
 
   if (isLoading) {
-    return <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">Loading your cursus...</div>;
+    return <div role="status" className="flex items-center justify-center py-12 text-sm text-muted-foreground">Loading your cursus...</div>;
   }
 
   if (!cursus) {
