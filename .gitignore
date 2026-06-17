@@ -131,6 +131,7 @@ AGENTS.md
 #opencode
 opencode.json
 .opencode/
+.mcp.json
 
 # Windows accidental null redirection artifact
 nul
