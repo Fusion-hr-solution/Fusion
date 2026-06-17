@@ -635,6 +635,8 @@ describe("AccessPeopleWorkspace", () => {
       ).toBeInTheDocument();
     });
 
+    const dialog = screen.getByRole("dialog", { name: "Review invitations" });
+
     expect(
       screen.getByText("Send invitations to 148 selected people.")
     ).toBeInTheDocument();
@@ -650,7 +652,9 @@ describe("AccessPeopleWorkspace", () => {
       skippedCount: 0,
     });
 
-    await user.click(screen.getByRole("button", { name: "Send 148 invites" }));
+    await user.click(
+      within(dialog).getByRole("button", { name: "Send 148 invites" })
+    );
 
     await waitFor(() => {
       expect(mockBulkInviteMutate).toHaveBeenCalledWith(
