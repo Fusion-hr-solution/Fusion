@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { BookOpen, GraduationCap, Clock, CheckCircle2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@repo/ui";
 import type { TrainingStatus, EnrolledTraining } from "@/types";
 import type { MyTrainingsListProps } from "@/types/component-props";
@@ -14,6 +15,7 @@ import { EnrolledTrainingCard } from "./enrolled-training-card";
 import { SearchInput } from "./search-input";
 
 export function MyTrainingsList({ trainings }: MyTrainingsListProps) {
+  const t = useTranslations("myTrainings");
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TrainingStatus | "all">("all");
   const [search, setSearch] = useState("");
@@ -33,7 +35,8 @@ export function MyTrainingsList({ trainings }: MyTrainingsListProps) {
 
   const filtered = useMemo(() => {
     let result = trainings;
-    if (activeTab !== "all") result = result.filter((t) => t.status === activeTab);
+    if (activeTab !== "all")
+      result = result.filter((t) => t.status === activeTab);
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       result = result.filter((t) => t.title.toLowerCase().includes(q));
@@ -52,18 +55,22 @@ export function MyTrainingsList({ trainings }: MyTrainingsListProps) {
   };
 
   const stats = [
-    { icon: BookOpen, value: inProgress, label: "In Progress" },
-    { icon: CheckCircle2, value: completed, label: "Completed" },
-    { icon: Clock, value: `${totalHours}h`, label: "Total Hours" },
-    { icon: GraduationCap, value: trainings.length, label: "Enrolled" },
+    { icon: BookOpen, value: inProgress, label: t("stats.inProgress") },
+    { icon: CheckCircle2, value: completed, label: t("stats.completed") },
+    { icon: Clock, value: `${totalHours}h`, label: t("stats.totalHours") },
+    {
+      icon: GraduationCap,
+      value: trainings.length,
+      label: t("stats.enrolled"),
+    },
   ];
 
   return (
     <>
       <PageHeader
-        moduleTitle="My Learning"
-        title="My Trainings"
-        description="Track your enrolled trainings, pick up where you left off, and celebrate your completed courses."
+        moduleTitle={t("moduleTitle")}
+        title={t("title")}
+        description={t("description")}
       >
         <div className="mt-6 grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:gap-4">
           {stats.map((stat, i) => (
@@ -86,8 +93,8 @@ export function MyTrainingsList({ trainings }: MyTrainingsListProps) {
               <SearchInput
                 value={search}
                 onChange={setSearch}
-                placeholder="Search trainings..."
-                ariaLabel="Search enrolled trainings"
+                placeholder={t("searchPlaceholder")}
+                ariaLabel={t("searchAria")}
               />
             </div>
             <TrainingStatusTabs
@@ -110,8 +117,8 @@ export function MyTrainingsList({ trainings }: MyTrainingsListProps) {
           ) : (
             <EmptyState
               icon={GraduationCap}
-              title="No trainings in this category yet"
-              subtitle="Browse the catalog to discover new trainings."
+              title={t("emptyTitle")}
+              subtitle={t("emptySubtitle")}
             />
           )}
         </div>

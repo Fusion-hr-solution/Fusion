@@ -1,4 +1,7 @@
+"use client";
+
 import { Progress } from "@repo/ui";
+import { useTranslations } from "next-intl";
 import type { TrainingProgressBarProps } from "@/types/component-props";
 
 export function TrainingProgressBar({
@@ -8,6 +11,7 @@ export function TrainingProgressBar({
   size = "md",
   showLabel = true,
 }: TrainingProgressBarProps) {
+  const t = useTranslations("catalog.progressBar");
   const clampedProgress = Math.min(100, Math.max(0, progress));
   const isCompleted = clampedProgress === 100;
   const barHeight = size === "sm" ? "h-2" : "h-3";
@@ -66,7 +70,7 @@ export function TrainingProgressBar({
             {currentChapter}
           </span>
           <span className="mx-0.5 text-muted-foreground/50">/</span>
-          <span>{totalChapters} chapters completed</span>
+          <span>{t("chaptersCompleted", { count: totalChapters! })}</span>
         </p>
       )}
     </div>

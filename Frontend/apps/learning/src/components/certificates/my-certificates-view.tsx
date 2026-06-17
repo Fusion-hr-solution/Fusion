@@ -1,6 +1,7 @@
 "use client";
 
 import { Award } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Skeleton } from "@repo/ui";
 import { PageHeader } from "@/components/page-header";
 import { EmptyState } from "@/components/empty-state";
@@ -8,14 +9,15 @@ import { useMyCertificates } from "@/hooks";
 import { CertificateCard } from "./certificate-card";
 
 export function MyCertificatesView() {
+  const t = useTranslations("certificates");
   const { data, isLoading, error } = useMyCertificates();
 
   return (
     <div className="min-h-screen bg-muted/20">
       <PageHeader
-        moduleTitle="EY Academy"
-        title="Mes Certificats"
-        description="Your earned certificates. Download the PDF or share the public verification link."
+        moduleTitle={t("moduleTitle")}
+        title={t("title")}
+        description={t("description")}
       />
       <div className="px-8 py-8">
         {isLoading ? (
@@ -25,12 +27,16 @@ export function MyCertificatesView() {
             ))}
           </div>
         ) : error ? (
-          <EmptyState icon={Award} title="Could not load certificates" subtitle="Please try again later." />
+          <EmptyState
+            icon={Award}
+            title={t("errorTitle")}
+            subtitle={t("errorSubtitle")}
+          />
         ) : !data || data.length === 0 ? (
           <EmptyState
             icon={Award}
-            title="No certificates yet"
-            subtitle="Complete a formation to earn your first certificate."
+            title={t("emptyTitle")}
+            subtitle={t("emptySubtitle")}
           />
         ) : (
           <div className="ey-stagger-list space-y-3">
