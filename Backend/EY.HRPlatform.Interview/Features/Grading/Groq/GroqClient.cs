@@ -21,7 +21,8 @@ public class GroqClient(HttpClient httpClient)
     };
 
     public async Task<string> CompleteAsync(
-        string systemPrompt, string userMessage, CancellationToken ct, double temperature = 0.2)
+        string systemPrompt, string userMessage, CancellationToken ct,
+        double temperature = 0.2, int maxTokens = 512)
     {
         var body = new
         {
@@ -32,7 +33,7 @@ public class GroqClient(HttpClient httpClient)
                 new { role = "user", content = userMessage },
             },
             temperature,
-            max_tokens = 512,
+            max_tokens = maxTokens,
         };
 
         await Gate.WaitAsync(ct);
