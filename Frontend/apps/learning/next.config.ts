@@ -1,12 +1,14 @@
 import path from "node:path";
 import type { NextConfig } from "next";
+import createNextIntlPlugin from "next-intl/plugin";
 
+const withNextIntl = createNextIntlPlugin();
 const frontendWorkspaceRoot = path.resolve(process.cwd(), "../..");
 
 const nextConfig: NextConfig = {
   basePath: "/learning",
   outputFileTracingRoot: frontendWorkspaceRoot,
-  transpilePackages: ["@repo/ui", "@repo/auth", "@repo/api"],
+  transpilePackages: ["@repo/ui", "@repo/auth", "@repo/api", "@repo/i18n"],
   allowedDevOrigins: ["http://localhost:3000"],
   experimental: {
     staleTimes: { dynamic: 0 },
@@ -33,4 +35,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withNextIntl(nextConfig);

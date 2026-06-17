@@ -1,3 +1,5 @@
+"use client";
+
 import {
   Button,
   Card,
@@ -8,16 +10,19 @@ import {
   CardFooter,
   Badge,
 } from "@repo/ui";
+import { useTranslations } from "next-intl";
 import type { CourseCardProps } from "@/types/component-props";
-import { LEVEL_VARIANT, LEVEL_LABEL } from "@/data/level-config";
+import { LEVEL_VARIANT } from "@/data/level-config";
 
 export function CourseCard({ course }: CourseCardProps) {
+  const t = useTranslations("catalog.courseCard");
+  const tCommon = useTranslations("common");
   return (
     <Card className="flex flex-col">
       <CardHeader>
         <div className="flex items-center justify-between mb-2">
           <Badge variant={LEVEL_VARIANT[course.level]}>
-            {LEVEL_LABEL[course.level]}
+            {tCommon(`level.${course.level}`)}
           </Badge>
           <span className="text-xs text-muted-foreground">
             {course.duration}
@@ -29,7 +34,7 @@ export function CourseCard({ course }: CourseCardProps) {
       <CardContent className="flex-1">
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
-            <span>Progress</span>
+            <span>{t("progress")}</span>
             <span className="font-medium">{course.progress}%</span>
           </div>
           <div className="w-full bg-secondary rounded-full h-2">
@@ -46,10 +51,10 @@ export function CourseCard({ course }: CourseCardProps) {
           variant={course.progress === 100 ? "secondary" : "default"}
         >
           {course.progress === 0
-            ? "Start Course"
+            ? t("start")
             : course.progress === 100
-              ? "Review"
-              : "Continue"}
+              ? tCommon("statusAction.completed")
+              : tCommon("statusAction.in-progress")}
         </Button>
       </CardFooter>
     </Card>

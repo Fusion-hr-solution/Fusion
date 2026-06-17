@@ -8,6 +8,7 @@ import {
   Target,
   Zap,
 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { DashboardProps } from "@/types/component-props";
 import { useDashboardData } from "@/hooks/use-dashboard-data";
 import { PageHeader } from "../page-header";
@@ -21,26 +22,50 @@ import { AchievementsCard } from "./achievements-card";
 import { InPersonHoursWidget } from "./in-person-hours-widget";
 
 export function Dashboard({ trainings, enrolledTrainings }: DashboardProps) {
+  const t = useTranslations("dashboard");
   const { stats, categoryBreakdown, continueTrainings, recommended } =
     useDashboardData(enrolledTrainings, trainings);
 
   return (
     <>
       <PageHeader
-        moduleTitle="Learning Dashboard"
-        title="Welcome back"
-        description="Here's your learning journey at a glance. Keep pushing — you're making great progress."
+        moduleTitle={t("moduleTitle")}
+        title={t("title")}
+        description={t("description")}
       >
-          <div className="mt-8 grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
-            {[
-              { icon: BookOpen, value: stats.inProgress.length, label: "In Progress" },
-              { icon: CheckCircle2, value: stats.completed.length, label: "Completed" },
-              { icon: Clock, value: `${stats.completedHours}h`, label: "Hours Learned" },
-              { icon: TrendingUp, value: `${stats.completionRate}%`, label: "Completion Rate" },
-            ].map((kpi, i) => (
-              <KpiCard key={kpi.label} icon={kpi.icon} value={kpi.value} label={kpi.label} index={i} delayBase={280} />
-            ))}
-          </div>
+        <div className="mt-8 grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
+          {[
+            {
+              icon: BookOpen,
+              value: stats.inProgress.length,
+              label: t("kpi.inProgress"),
+            },
+            {
+              icon: CheckCircle2,
+              value: stats.completed.length,
+              label: t("kpi.completed"),
+            },
+            {
+              icon: Clock,
+              value: `${stats.completedHours}h`,
+              label: t("kpi.hoursLearned"),
+            },
+            {
+              icon: TrendingUp,
+              value: `${stats.completionRate}%`,
+              label: t("kpi.completionRate"),
+            },
+          ].map((kpi, i) => (
+            <KpiCard
+              key={kpi.label}
+              icon={kpi.icon}
+              value={kpi.value}
+              label={kpi.label}
+              index={i}
+              delayBase={280}
+            />
+          ))}
+        </div>
       </PageHeader>
 
       {/* ── Dashboard grid ── */}
@@ -56,9 +81,9 @@ export function Dashboard({ trainings, enrolledTrainings }: DashboardProps) {
               <div className="ey-animate-fade-up">
                 <SectionHeader
                   icon={Zap}
-                  title="Continue Learning"
+                  title={t("continueLearning")}
                   linkHref="/my-trainings"
-                  linkLabel="View all"
+                  linkLabel={t("viewAll")}
                 />
 
                 <div className="ey-stagger-list space-y-3">
@@ -70,14 +95,17 @@ export function Dashboard({ trainings, enrolledTrainings }: DashboardProps) {
             )}
 
             {recommended.length > 0 && (
-              <div className="ey-animate-fade-up" style={{ animationDelay: "120ms" }}>
+              <div
+                className="ey-animate-fade-up"
+                style={{ animationDelay: "120ms" }}
+              >
                 <SectionHeader
                   icon={Target}
                   iconClassName="bg-[hsl(var(--ey-yellow))]/15"
                   iconColorClassName="text-muted-foreground"
-                  title="Recommended for You"
+                  title={t("recommended")}
                   linkHref="/"
-                  linkLabel="Browse catalog"
+                  linkLabel={t("browseCatalog")}
                 />
 
                 <div className="grid gap-3 sm:grid-cols-2 ey-stagger-grid">
@@ -91,7 +119,10 @@ export function Dashboard({ trainings, enrolledTrainings }: DashboardProps) {
 
           {/* ── RIGHT COLUMN (1/3) ── */}
           <div className="space-y-6">
-            <div className="ey-animate-fade-up" style={{ animationDelay: "60ms" }}>
+            <div
+              className="ey-animate-fade-up"
+              style={{ animationDelay: "60ms" }}
+            >
               <ProgressRing
                 completionRate={stats.completionRate}
                 avgProgress={stats.avgProgress}
@@ -102,12 +133,18 @@ export function Dashboard({ trainings, enrolledTrainings }: DashboardProps) {
             </div>
 
             {categoryBreakdown.length > 0 && (
-              <div className="ey-animate-fade-up" style={{ animationDelay: "180ms" }}>
+              <div
+                className="ey-animate-fade-up"
+                style={{ animationDelay: "180ms" }}
+              >
                 <CategoryBreakdown items={categoryBreakdown} />
               </div>
             )}
 
-            <div className="ey-animate-fade-up" style={{ animationDelay: "240ms" }}>
+            <div
+              className="ey-animate-fade-up"
+              style={{ animationDelay: "240ms" }}
+            >
               <AchievementsCard completedCount={stats.completed.length} />
             </div>
           </div>

@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { BookOpen } from "lucide-react";
 import type { TrainingCategory, TrainingLevel, SortOption, TrainingType } from "@/types";
 import type { TrainingCatalogProps } from "@/types/component-props";
@@ -18,6 +19,7 @@ import { FormatFilter } from "./format-filter";
 import { sortTrainings } from "./catalog-helpers";
 
 export function TrainingCatalog({ trainings, totalCount, page, pageSize }: TrainingCatalogProps) {
+  const t = useTranslations("catalog");
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -75,9 +77,9 @@ export function TrainingCatalog({ trainings, totalCount, page, pageSize }: Train
 
   return (
     <>
-      <PageHeader moduleTitle="Catalog" title="Training Catalog" description="Explore our curated library of professional development programs. Filter by category, search by topic, and start building the skills that matter.">
+      <PageHeader moduleTitle={t("header.moduleTitle")} title={t("header.title")} description={t("header.description")}>
         <div className="ey-animate-fade-up mt-6" style={{ animationDelay: "200ms" }}>
-          <SearchInput value={inputSearch} onChange={setInputSearch} placeholder="Search trainings by title, topic, or tag..." ariaLabel="Search trainings" />
+          <SearchInput value={inputSearch} onChange={setInputSearch} placeholder={t("search.placeholder")} ariaLabel={t("search.aria")} />
         </div>
       </PageHeader>
 
@@ -94,8 +96,11 @@ export function TrainingCatalog({ trainings, totalCount, page, pageSize }: Train
 
         <div className="mt-6 mb-5 flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
-            <span className="font-semibold text-foreground">{filtered.length}</span> {filtered.length === 1 ? "training" : "trainings"} on this page
-            {totalCount > pageSize && <span className="ml-1 text-muted-foreground/70">(of {totalCount} total)</span>}
+            <span className="font-semibold text-foreground">{filtered.length}</span>{" "}
+            {t("results.onPage", { count: filtered.length })}
+            {totalCount > pageSize && (
+              <span className="ml-1 text-muted-foreground/70">{t("results.ofTotal", { total: totalCount })}</span>
+            )}
           </p>
           <SortSelect value={sort} onChange={setSort} />
         </div>
@@ -105,8 +110,8 @@ export function TrainingCatalog({ trainings, totalCount, page, pageSize }: Train
             {filtered.map((training) => <TrainingCard key={training.id} training={training} />)}
           </div>
         ) : (
-          <EmptyState icon={BookOpen} title="No trainings found" subtitle="Try adjusting your filters or search terms."
-            action={<button onClick={clearAll} className="mt-4 rounded-lg ey-bg-dark px-4 py-2 text-xs font-semibold text-white transition-all hover:ey-bg-dark-deep hover:shadow-md">Clear all filters</button>} />
+          <EmptyState icon={BookOpen} title={t("empty.title")} subtitle={t("empty.subtitle")}
+            action={<button onClick={clearAll} className="mt-4 rounded-lg ey-bg-dark px-4 py-2 text-xs font-semibold text-white transition-all hover:ey-bg-dark-deep hover:shadow-md">{t("empty.clearFilters")}</button>} />
         )}
 
         <CatalogPagination page={page} totalCount={totalCount} pageSize={pageSize} />
