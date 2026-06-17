@@ -96,6 +96,16 @@ yarn-error.log*
 coverage/
 .nyc_output/
 test-results/
+.test-output/
+.vitest/
+.jest/
+
+# Temp / cache artifacts
+tmp/
+temp/
+*.tsbuildinfo
+.eslintcache
+.sass-cache/
 
 # ========================
 # Misc
@@ -116,6 +126,7 @@ PROJECT_SUMMARY.md
 *.postman_collection.json
 
 CLAUDE.md
+AGENTS.md
 
 #opencode
 opencode.json
