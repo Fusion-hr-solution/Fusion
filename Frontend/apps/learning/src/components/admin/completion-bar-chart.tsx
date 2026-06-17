@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import {
   BarChart,
   Bar,
@@ -24,9 +25,14 @@ function getBarFill(rate: number, defaultColor?: string): string {
   return "#ef4444";
 }
 
-export function CompletionBarChart({ data, title, barColor }: CompletionBarChartProps) {
+export function CompletionBarChart({
+  data,
+  title,
+  barColor,
+}: CompletionBarChartProps) {
+  const t = useTranslations("adminDashboard");
   return (
-    <div className="ey-animate-fade-up rounded-xl border border-border/60 bg-white p-5 shadow-sm">
+    <div className="ey-animate-fade-up rounded-xl border border-border/60 bg-card p-5 shadow-sm">
       <h3 className="mb-4 text-sm font-semibold text-foreground">{title}</h3>
       <div className="h-[260px]">
         <ResponsiveContainer width="100%" height="100%">
@@ -49,7 +55,10 @@ export function CompletionBarChart({ data, title, barColor }: CompletionBarChart
               tickFormatter={(v: number) => `${v}%`}
             />
             <Tooltip
-              formatter={(value: number) => [`${value}%`, "Completion"]}
+              formatter={(value: number) => [
+                `${value}%`,
+                t("charts.completion"),
+              ]}
               contentStyle={{
                 borderRadius: "8px",
                 border: "1px solid #e5e7eb",

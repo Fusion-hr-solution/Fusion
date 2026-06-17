@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { useTranslations } from "next-intl";
 import type { AttendanceHeatmap } from "@/types/admin";
 
 interface AttendanceHeatmapGridProps {
@@ -24,27 +25,35 @@ function cellStyle(rate: number): string {
  * sessions are left blank.
  */
 export function AttendanceHeatmapGrid({ data }: AttendanceHeatmapGridProps) {
+  const t = useTranslations("adminAttendance");
   const cellLookup = useMemo(() => {
-    const map = new Map<string, { rate: number; present: number; counted: number }>();
+    const map = new Map<
+      string,
+      { rate: number; present: number; counted: number }
+    >();
     for (const c of data.cells) {
       const key = `${c.gradeId ?? EMPTY_GUID}|${c.year}-${c.month}`;
-      map.set(key, { rate: c.attendanceRate, present: c.presentCount, counted: c.countedTotal });
+      map.set(key, {
+        rate: c.attendanceRate,
+        present: c.presentCount,
+        counted: c.countedTotal,
+      });
     }
     return map;
   }, [data.cells]);
 
   if (data.months.length === 0 || data.grades.length === 0) {
     return (
-      <div className="flex h-[160px] items-center justify-center rounded-xl border border-border/60 bg-white text-xs text-muted-foreground">
-        No closed sessions in the selected period.
+      <div className="flex h-[160px] items-center justify-center rounded-xl border border-border/60 bg-card text-xs text-muted-foreground">
+        {t("heatmap.empty")}
       </div>
     );
   }
 
   return (
-    <div className="ey-animate-fade-up overflow-x-auto rounded-xl border border-border/60 bg-white p-5 shadow-sm">
+    <div className="ey-animate-fade-up overflow-x-auto rounded-xl border border-border/60 bg-card p-5 shadow-sm">
       <h3 className="mb-4 text-sm font-semibold text-foreground">
-        Attendance Rate Heatmap (Grade × Month)
+        {t("heatmap.title")}
       </h3>
       <div
         className="grid gap-1"
@@ -85,7 +94,13 @@ export function AttendanceHeatmapGrid({ data }: AttendanceHeatmapGridProps) {
                 <div
                   key={`${grade.id}-${m.year}-${m.month}`}
                   className={`flex h-9 items-center justify-center rounded-md text-[11px] font-semibold tabular-nums ${cellStyle(entry.rate)}`}
-                  title={`${grade.name} · ${m.label}: ${entry.rate}% (${entry.present}/${entry.counted})`}
+                  title={t("heatmap.cellTitle", {
+                    grade: grade.name,
+                    month: m.label,
+                    rate: entry.rate,
+                    present: entry.present,
+                    counted: entry.counted,
+                  })}
                 >
                   {Math.round(entry.rate)}%
                 </div>

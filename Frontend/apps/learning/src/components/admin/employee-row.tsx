@@ -1,8 +1,7 @@
-import {
-  AlertTriangle,
-  ChevronDown,
-  ChevronUp,
-} from "lucide-react";
+"use client";
+
+import { useTranslations } from "next-intl";
+import { AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
 import {
   Card,
   Avatar,
@@ -21,7 +20,10 @@ export function EmployeeRow({
   onToggle,
   statusFilter,
 }: EmployeeRowProps) {
-  const completed = employee.trainings.filter((t) => t.status === "completed").length;
+  const t = useTranslations("adminEmployees");
+  const completed = employee.trainings.filter(
+    (t) => t.status === "completed"
+  ).length;
   const total = employee.trainings.length;
   const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
 
@@ -41,23 +43,31 @@ export function EmployeeRow({
         expanded
           ? "border-border shadow-lg shadow-black/5"
           : "border-border/60 hover:shadow-md hover:shadow-black/4 hover:border-border"
-      } bg-white`}
+      } bg-card`}
     >
       <button
         className="flex w-full items-center gap-4 p-4 text-left transition-colors hover:bg-muted/50"
         onClick={onToggle}
         aria-expanded={expanded}
-        aria-label={`${expanded ? "Collapse" : "Expand"} details for ${employee.name}`}
+        aria-label={
+          expanded
+            ? t("rowCollapseAria", { name: employee.name })
+            : t("rowExpandAria", { name: employee.name })
+        }
       >
-        <Avatar className="h-10 w-10 ring-2 ring-white shadow-sm">
-          <AvatarFallback className={`${AVATAR_COLOR} text-white text-xs font-bold`}>
+        <Avatar className="h-10 w-10 ring-2 ring-card shadow-sm">
+          <AvatarFallback
+            className={`${AVATAR_COLOR} text-white text-xs font-bold`}
+          >
             {initials(employee.name)}
           </AvatarFallback>
         </Avatar>
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <p className="text-sm font-semibold text-foreground truncate">{employee.name}</p>
+            <p className="text-sm font-semibold text-foreground truncate">
+              {employee.name}
+            </p>
             {overdue.length > 0 && (
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -67,7 +77,7 @@ export function EmployeeRow({
                   </span>
                 </TooltipTrigger>
                 <TooltipContent side="top" className="text-xs">
-                  {overdue.length} overdue {overdue.length === 1 ? "training" : "trainings"}
+                  {t("overdueCount", { count: overdue.length })}
                 </TooltipContent>
               </Tooltip>
             )}
@@ -79,7 +89,9 @@ export function EmployeeRow({
 
         <div className="hidden sm:flex items-center gap-3">
           <div className="flex flex-col items-end gap-1">
-            <span className="text-xs font-bold text-foreground tabular-nums">{completed}/{total}</span>
+            <span className="text-xs font-bold text-foreground tabular-nums">
+              {completed}/{total}
+            </span>
             <div className="h-1.5 w-20 rounded-full bg-muted overflow-hidden">
               <div
                 className="h-full rounded-full bg-[hsl(var(--ey-green-500))] transition-all duration-500"
@@ -88,7 +100,11 @@ export function EmployeeRow({
             </div>
           </div>
           <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-muted text-muted-foreground transition-transform duration-200">
-            {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            {expanded ? (
+              <ChevronUp className="h-4 w-4" />
+            ) : (
+              <ChevronDown className="h-4 w-4" />
+            )}
           </span>
         </div>
       </button>
@@ -97,11 +113,14 @@ export function EmployeeRow({
         <div className="ey-animate-fade-up border-t border-border/40">
           <div className="px-4 py-3 space-y-2">
             {filteredTrainings.map((training) => (
-              <EmployeeTrainingRow key={training.trainingId} training={training} />
+              <EmployeeTrainingRow
+                key={training.trainingId}
+                training={training}
+              />
             ))}
             {filteredTrainings.length === 0 && (
               <p className="py-4 text-center text-xs text-muted-foreground">
-                No trainings match the selected status filter.
+                {t("noTrainingsMatchFilter")}
               </p>
             )}
           </div>

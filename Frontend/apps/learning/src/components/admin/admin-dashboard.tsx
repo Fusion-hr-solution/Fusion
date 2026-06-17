@@ -2,6 +2,7 @@
 
 import { useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { BarChart3, Grid3X3, TrendingUp, Users } from "lucide-react";
 import { TooltipProvider, Skeleton } from "@repo/ui";
 import {
@@ -19,6 +20,7 @@ import { AttendanceRatesSection } from "./attendance";
 
 export function AdminDashboard() {
   const router = useRouter();
+  const t = useTranslations("adminDashboard");
   const { data: matrix, isLoading: loadingMatrix } = useProgrammeMatrix();
   const { data: byGrade, isLoading: loadingGrade } = useCompletionByGrade();
   const { data: bySL, isLoading: loadingSL } = useCompletionByServiceLine();
@@ -37,22 +39,31 @@ export function AdminDashboard() {
       });
       router.push(`/admin/cell-employees?${params.toString()}`);
     },
-    [matrix, router],
+    [matrix, router]
   );
 
   // Compute KPI summary from matrix cells
   const kpis = matrix
     ? (() => {
-        const totalCells = matrix.cells.filter((c) => c.employeeCount > 0).length;
-        const totalEmployees = matrix.cells.reduce((s, c) => s + c.employeeCount, 0);
+        const totalCells = matrix.cells.filter(
+          (c) => c.employeeCount > 0
+        ).length;
+        const totalEmployees = matrix.cells.reduce(
+          (s, c) => s + c.employeeCount,
+          0
+        );
         const avgRate =
           totalCells > 0
             ? Math.round(
-                matrix.cells.reduce((s, c) => s + (c.employeeCount > 0 ? c.avgCompletionRate : 0), 0) /
-                  totalCells,
+                matrix.cells.reduce(
+                  (s, c) => s + (c.employeeCount > 0 ? c.avgCompletionRate : 0),
+                  0
+                ) / totalCells
               )
             : 0;
-        const greenCells = matrix.cells.filter((c) => c.avgCompletionRate >= 80 && c.employeeCount > 0).length;
+        const greenCells = matrix.cells.filter(
+          (c) => c.avgCompletionRate >= 80 && c.employeeCount > 0
+        ).length;
         return { totalEmployees, totalCells, avgRate, greenCells };
       })()
     : null;
@@ -73,9 +84,9 @@ export function AdminDashboard() {
   return (
     <TooltipProvider delayDuration={200}>
       <PageHeader
-        moduleTitle="Administration"
-        title="Programme Matrix & Progress"
-        description="Click any cell to see detailed employee stats. Grade × Service Line completion matrix and advancement rates."
+        moduleTitle={t("moduleTitle")}
+        title={t("title")}
+        description={t("description")}
       >
         <div className="mt-8 grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
           {loadingMatrix ? (
@@ -84,10 +95,30 @@ export function AdminDashboard() {
             ))
           ) : (
             <>
-              <KpiCard icon={Users} value={kpis?.totalEmployees ?? 0} label="Profiled Employees" index={0} />
-              <KpiCard icon={Grid3X3} value={kpis?.totalCells ?? 0} label="Active Cells" index={1} />
-              <KpiCard icon={TrendingUp} value={`${kpis?.avgRate ?? 0}%`} label="Avg. Completion" index={2} />
-              <KpiCard icon={BarChart3} value={kpis?.greenCells ?? 0} label="Cells ≥ 80%" index={3} />
+              <KpiCard
+                icon={Users}
+                value={kpis?.totalEmployees ?? 0}
+                label={t("kpi.profiledEmployees")}
+                index={0}
+              />
+              <KpiCard
+                icon={Grid3X3}
+                value={kpis?.totalCells ?? 0}
+                label={t("kpi.activeCells")}
+                index={1}
+              />
+              <KpiCard
+                icon={TrendingUp}
+                value={`${kpis?.avgRate ?? 0}%`}
+                label={t("kpi.avgCompletion")}
+                index={2}
+              />
+              <KpiCard
+                icon={BarChart3}
+                value={kpis?.greenCells ?? 0}
+                label={t("kpi.greenCells")}
+                index={3}
+              />
             </>
           )}
         </div>
@@ -97,17 +128,22 @@ export function AdminDashboard() {
         {/* ── Programme Matrix ── */}
         <div>
           <h2 className="mb-3 text-sm font-semibold text-foreground uppercase tracking-wider">
-            Programme Matrix
+            {t("matrix.heading")}
           </h2>
           <p className="mb-4 text-xs text-muted-foreground">
-            Click a cell to open a detailed page with per-employee progress.
+            {t("matrix.hint")}
           </p>
           {loadingMatrix ? (
             <Skeleton className="h-[300px] rounded-xl" />
           ) : matrix ? (
-            <ProgrammeMatrixTable matrix={matrix} onCellClick={handleCellClick} />
+            <ProgrammeMatrixTable
+              matrix={matrix}
+              onCellClick={handleCellClick}
+            />
           ) : (
-            <p className="text-sm text-muted-foreground">No data available.</p>
+            <p className="text-sm text-muted-foreground">
+              {t("matrix.noData")}
+            </p>
           )}
         </div>
 
@@ -116,12 +152,18 @@ export function AdminDashboard() {
           {loadingGrade ? (
             <Skeleton className="h-[320px] rounded-xl" />
           ) : (
-            <CompletionBarChart data={gradeChartData} title="Completion Rate by Grade" />
+            <CompletionBarChart
+              data={gradeChartData}
+              title={t("charts.byGrade")}
+            />
           )}
           {loadingSL ? (
             <Skeleton className="h-[320px] rounded-xl" />
           ) : (
-            <CompletionBarChart data={slChartData} title="Completion Rate by Service Line" />
+            <CompletionBarChart
+              data={slChartData}
+              title={t("charts.byServiceLine")}
+            />
           )}
         </div>
 

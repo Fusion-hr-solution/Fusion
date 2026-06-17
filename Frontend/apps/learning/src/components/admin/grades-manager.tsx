@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Plus, Pencil, Trash2, Layers } from "lucide-react";
 import {
   Button,
@@ -16,26 +17,28 @@ import type { AdminGrade } from "@/types/admin";
 import { GradeForm } from "./grade-form";
 
 export function GradesManager() {
+  const t = useTranslations("adminGrades");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
 
   const fetchGrades = useCallback(() => getGrades(), []);
-  const { data: grades, isLoading, refetch } = useApiQuery<AdminGrade[]>(
-    fetchGrades,
-    { enabled: true },
-  );
+  const {
+    data: grades,
+    isLoading,
+    refetch,
+  } = useApiQuery<AdminGrade[]>(fetchGrades, { enabled: true });
 
   const { mutateAsync: doDelete } = useApiMutation(
     (id: string) => deleteGrade(id),
-    { onSuccess: () => refetch() },
+    { onSuccess: () => refetch() }
   );
 
   const handleDelete = useCallback(
     async (grade: AdminGrade) => {
-      if (!confirm(`Delete grade "${grade.name}"?`)) return;
+      if (!confirm(t("confirmDelete", { name: grade.name }))) return;
       await doDelete(grade.id);
     },
-    [doDelete],
+    [doDelete, t]
   );
 
   const sorted = grades?.slice().sort((a, b) => a.level - b.level) ?? [];
@@ -45,36 +48,40 @@ export function GradesManager() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            Manage Grades
+            {t("title")}
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Define the grade hierarchy for curriculum mapping
-          </p>
+          <p className="mt-1 text-sm text-muted-foreground">{t("subtitle")}</p>
         </div>
         <Button
-          onClick={() => { setShowCreate(true); setEditingId(null); }}
+          onClick={() => {
+            setShowCreate(true);
+            setEditingId(null);
+          }}
           className="ey-bg-dark hover:opacity-90"
         >
           <Plus className="mr-2 h-4 w-4" />
-          New Grade
+          {t("newGrade")}
         </Button>
       </div>
 
       {showCreate && (
         <GradeForm
-          onSaved={() => { setShowCreate(false); refetch(); }}
+          onSaved={() => {
+            setShowCreate(false);
+            refetch();
+          }}
           onCancel={() => setShowCreate(false)}
         />
       )}
 
       {isLoading ? (
         <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
-          Loading grades...
+          {t("loading")}
         </div>
       ) : !sorted.length ? (
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <Layers className="h-10 w-10 text-muted-foreground/40 mb-3" />
-          <p className="text-sm text-muted-foreground">No grades yet</p>
+          <p className="text-sm text-muted-foreground">{t("empty")}</p>
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -83,14 +90,19 @@ export function GradesManager() {
               <GradeForm
                 key={grade.id}
                 grade={grade}
-                onSaved={() => { setEditingId(null); refetch(); }}
+                onSaved={() => {
+                  setEditingId(null);
+                  refetch();
+                }}
                 onCancel={() => setEditingId(null)}
               />
             ) : (
               <Card key={grade.id} className="border-border/60">
                 <CardHeader className="flex flex-row items-start justify-between pb-2">
                   <div className="space-y-1">
-                    <CardTitle className="text-sm font-semibold">{grade.name}</CardTitle>
+                    <CardTitle className="text-sm font-semibold">
+                      {grade.name}
+                    </CardTitle>
                     {grade.description && (
                       <p className="text-xs text-muted-foreground line-clamp-2">
                         {grade.description}
@@ -101,8 +113,11 @@ export function GradesManager() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => { setEditingId(grade.id); setShowCreate(false); }}
-                      aria-label={`Edit ${grade.name}`}
+                      onClick={() => {
+                        setEditingId(grade.id);
+                        setShowCreate(false);
+                      }}
+                      aria-label={t("editAria", { name: grade.name })}
                     >
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>
@@ -110,7 +125,7 @@ export function GradesManager() {
                       variant="ghost"
                       size="sm"
                       onClick={() => handleDelete(grade)}
-                      aria-label={`Delete ${grade.name}`}
+                      aria-label={t("deleteAria", { name: grade.name })}
                       className="text-destructive hover:text-destructive hover:bg-destructive/10"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -119,11 +134,11 @@ export function GradesManager() {
                 </CardHeader>
                 <CardContent className="pt-0">
                   <Badge variant="secondary" className="text-xs">
-                    Level {grade.level}
+                    {t("levelValue", { level: grade.level })}
                   </Badge>
                 </CardContent>
               </Card>
-            ),
+            )
           )}
         </div>
       )}

@@ -1,35 +1,43 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
-import { Pencil, UserCog, ChevronLeft, ChevronRight, BarChart2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import {
-  Button,
-  Badge,
-  Card,
-  CardContent,
-} from "@repo/ui";
+  Pencil,
+  UserCog,
+  ChevronLeft,
+  ChevronRight,
+  BarChart2,
+} from "lucide-react";
+import { Button, Badge, Card, CardContent } from "@repo/ui";
 import Link from "next/link";
 import { useApiQuery } from "@repo/api/react";
-import { getEmployeeProfiles, getIdentityUsers } from "@/services/admin-service";
+import {
+  getEmployeeProfiles,
+  getIdentityUsers,
+} from "@/services/admin-service";
 import { EmployeeProfileForm } from "./employee-profile-form";
 
 export function EmployeeProfilesManager() {
+  const t = useTranslations("adminEmployees");
   const [page, setPage] = useState(1);
   const pageSize = 20;
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  const fetchProfiles = useCallback(() => getEmployeeProfiles(page, pageSize), [page, pageSize]);
-  const { data, isLoading, refetch } = useApiQuery(
-    fetchProfiles,
-    { enabled: true },
+  const fetchProfiles = useCallback(
+    () => getEmployeeProfiles(page, pageSize),
+    [page, pageSize]
   );
+  const { data, isLoading, refetch } = useApiQuery(fetchProfiles, {
+    enabled: true,
+  });
 
   const fetchUsers = useCallback(() => getIdentityUsers(), []);
   const { data: identityUsers } = useApiQuery(fetchUsers, { enabled: true });
 
   const userMap = useMemo(() => {
     const map = new Map<string, { fullName: string; email: string }>();
-    for (const u of (identityUsers ?? [])) {
+    for (const u of identityUsers ?? []) {
       map.set(u.id.toLowerCase(), { fullName: u.fullName, email: u.email });
     }
     return map;
@@ -43,21 +51,19 @@ export function EmployeeProfilesManager() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          Employee Profiles
+          {t("title")}
         </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Assign grades and service lines to employees for curriculum mapping
-        </p>
+        <p className="mt-1 text-sm text-muted-foreground">{t("subtitle")}</p>
       </div>
 
       {isLoading ? (
         <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
-          Loading employee profiles...
+          {t("loading")}
         </div>
       ) : !profiles.length ? (
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <UserCog className="h-10 w-10 text-muted-foreground/40 mb-3" />
-          <p className="text-sm text-muted-foreground">No employee profiles found</p>
+          <p className="text-sm text-muted-foreground">{t("empty")}</p>
         </div>
       ) : (
         <>
@@ -67,7 +73,10 @@ export function EmployeeProfilesManager() {
                 <EmployeeProfileForm
                   key={profile.employeeId}
                   profile={profile}
-                  onSaved={() => { setEditingId(null); refetch(); }}
+                  onSaved={() => {
+                    setEditingId(null);
+                    refetch();
+                  }}
                   onCancel={() => setEditingId(null)}
                 />
               ) : (
@@ -76,37 +85,47 @@ export function EmployeeProfilesManager() {
                     <div className="flex items-center gap-4">
                       <div>
                         {(() => {
-                          const user = userMap.get(profile.employeeId.toLowerCase());
+                          const user = userMap.get(
+                            profile.employeeId.toLowerCase()
+                          );
                           return (
                             <>
                               <p className="text-sm font-medium">
                                 {user?.fullName ?? profile.employeeId}
                               </p>
                               {user?.email && (
-                                <p className="text-xs text-muted-foreground">{user.email}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {user.email}
+                                </p>
                               )}
                             </>
                           );
                         })()}
                         <div className="mt-1 flex items-center gap-2">
                           {profile.gradeName ? (
-                            <Badge variant="secondary" className="text-xs">{profile.gradeName}</Badge>
+                            <Badge variant="secondary" className="text-xs">
+                              {profile.gradeName}
+                            </Badge>
                           ) : (
-                            <span className="text-xs text-muted-foreground">No grade</span>
+                            <span className="text-xs text-muted-foreground">
+                              {t("noGrade")}
+                            </span>
                           )}
                           {profile.serviceLineName ? (
-                            <Badge
-                              variant="outline"
-                              className="text-xs gap-1"
-                            >
+                            <Badge variant="outline" className="text-xs gap-1">
                               <div
                                 className="h-2 w-2 rounded-full"
-                                style={{ backgroundColor: profile.serviceLineColor ?? undefined }}
+                                style={{
+                                  backgroundColor:
+                                    profile.serviceLineColor ?? undefined,
+                                }}
                               />
                               {profile.serviceLineName}
                             </Badge>
                           ) : (
-                            <span className="text-xs text-muted-foreground">No service line</span>
+                            <span className="text-xs text-muted-foreground">
+                              {t("noServiceLine")}
+                            </span>
                           )}
                         </div>
                       </div>
@@ -116,9 +135,15 @@ export function EmployeeProfilesManager() {
                         variant="ghost"
                         size="sm"
                         asChild
-                        aria-label={`View attendance for ${userMap.get(profile.employeeId.toLowerCase())?.fullName ?? profile.employeeId}`}
+                        aria-label={t("viewAttendanceAria", {
+                          name:
+                            userMap.get(profile.employeeId.toLowerCase())
+                              ?.fullName ?? profile.employeeId,
+                        })}
                       >
-                        <Link href={`/admin/employees/${profile.employeeId}/attendance`}>
+                        <Link
+                          href={`/admin/employees/${profile.employeeId}/attendance`}
+                        >
                           <BarChart2 className="h-3.5 w-3.5" />
                         </Link>
                       </Button>
@@ -126,20 +151,24 @@ export function EmployeeProfilesManager() {
                         variant="ghost"
                         size="sm"
                         onClick={() => setEditingId(profile.employeeId)}
-                        aria-label={`Edit ${userMap.get(profile.employeeId.toLowerCase())?.fullName ?? profile.employeeId}`}
+                        aria-label={t("editAria", {
+                          name:
+                            userMap.get(profile.employeeId.toLowerCase())
+                              ?.fullName ?? profile.employeeId,
+                        })}
                       >
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
                     </div>
                   </CardContent>
                 </Card>
-              ),
+              )
             )}
           </div>
 
           {/* Pagination */}
           <div className="flex items-center justify-between text-sm text-muted-foreground">
-            <span>{totalCount} profile{totalCount !== 1 ? "s" : ""}</span>
+            <span>{t("profilesCount", { count: totalCount })}</span>
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
@@ -149,7 +178,7 @@ export function EmployeeProfilesManager() {
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <span>Page {page} of {totalPages}</span>
+              <span>{t("pageOf", { page, totalPages })}</span>
               <Button
                 variant="outline"
                 size="sm"
