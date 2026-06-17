@@ -38,7 +38,7 @@ export { EmployeeRow } from "./admin/employee-row";
 export { CompletionFunnel } from "./admin/completion-funnel";
 export { CategoryPerformance } from "./admin/category-performance";
 export { TopTrainings } from "./admin/top-trainings";
-export { ProgrammeMatrixTable } from "./admin/programme-matrix-table";
+export { ProgrammeAttentionList } from "./admin/programme-attention-list";
 export { CompletionBarChart } from "./admin/completion-bar-chart";
 export { CompletionTrendChart } from "./admin/completion-trend-chart";
 export { CellDrillDownDialog } from "./admin/cell-drill-down-dialog";
