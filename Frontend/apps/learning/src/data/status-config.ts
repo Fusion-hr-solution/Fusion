@@ -16,7 +16,7 @@ export const STATUS_CONFIG: Record<TrainingStatus, StatusConfigEntry> = {
       "bg-[hsl(var(--ey-green-500))]/10 text-[hsl(var(--ey-green-500))]",
     buttonLabel: "Review",
     buttonClass:
-      "border border-border bg-white text-foreground hover:bg-muted",
+      "border border-border bg-card text-foreground hover:bg-muted",
   },
   "not-started": {
     icon: CircleDashed,

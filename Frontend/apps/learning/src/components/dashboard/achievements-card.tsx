@@ -1,52 +1,45 @@
-import {
-  CheckCircle2,
-  Zap,
-  Flame,
-  Award,
-  GraduationCap,
-} from "lucide-react";
+import { CheckCircle2, Zap, Flame, Award, GraduationCap } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@repo/ui";
 import type { AchievementsCardProps } from "@/types/component-props";
 
 export function AchievementsCard({ completedCount }: AchievementsCardProps) {
+  const t = useTranslations("dashboard.achievements");
   const badges = [
     {
-      name: "First Steps",
-      description: "Complete your first training",
+      name: t("firstSteps"),
+      description: t("firstStepsDesc"),
       unlocked: completedCount >= 1,
       icon: Zap,
     },
     {
-      name: "Quick Learner",
-      description: "Complete 3 trainings",
+      name: t("quickLearner"),
+      description: t("quickLearnerDesc"),
       unlocked: completedCount >= 3,
       icon: Flame,
     },
     {
-      name: "Knowledge Seeker",
-      description: "Complete 5 trainings",
+      name: t("knowledgeSeeker"),
+      description: t("knowledgeSeekerDesc"),
       unlocked: completedCount >= 5,
       icon: Award,
     },
     {
-      name: "Master Scholar",
-      description: "Complete 10 trainings",
+      name: t("masterScholar"),
+      description: t("masterScholarDesc"),
       unlocked: completedCount >= 10,
       icon: GraduationCap,
     },
   ];
 
   return (
-    <Card className="overflow-hidden border border-border/60 bg-white">
+    <Card className="overflow-hidden border border-border/60 bg-card">
       <CardContent className="p-5">
         <div className="flex items-center gap-2.5 mb-5">
           <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[hsl(var(--ey-yellow))]/15">
-            <Award
-              className="h-3.5 w-3.5 ey-text-accent"
-              aria-hidden="true"
-            />
+            <Award className="h-3.5 w-3.5 ey-text-accent" aria-hidden="true" />
           </div>
-          <h3 className="text-sm font-bold text-foreground">Achievements</h3>
+          <h3 className="text-sm font-bold text-foreground">{t("title")}</h3>
         </div>
 
         <div className="space-y-3">
@@ -56,16 +49,12 @@ export function AchievementsCard({ completedCount }: AchievementsCardProps) {
               <div
                 key={badge.name}
                 className={`flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors ${
-                  badge.unlocked
-                    ? "bg-[hsl(var(--ey-yellow))]/8"
-                    : "bg-muted"
+                  badge.unlocked ? "bg-[hsl(var(--ey-yellow))]/8" : "bg-muted"
                 }`}
               >
                 <div
                   className={`flex h-8 w-8 items-center justify-center rounded-lg ${
-                    badge.unlocked
-                      ? "ey-bg-accent"
-                      : "bg-muted"
+                    badge.unlocked ? "ey-bg-accent" : "bg-muted"
                   }`}
                 >
                   <Icon

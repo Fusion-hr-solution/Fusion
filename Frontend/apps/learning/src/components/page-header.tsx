@@ -12,7 +12,7 @@ export function PageHeader({
   children,
 }: PageHeaderProps) {
   return (
-    <section className="relative overflow-hidden border-b border-border/50 bg-white">
+    <section className="relative overflow-hidden border-b border-border/50 bg-card">
       <div className="ey-hero-pattern absolute inset-0 opacity-30" />
       <div className="absolute right-0 top-0 h-full w-2/5 bg-gradient-to-l from-[hsl(var(--ey-yellow))]/5 to-transparent" />
 
