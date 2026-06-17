@@ -1,16 +1,20 @@
+"use client";
+
 import { BookOpen } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { CourseOutlineProps } from "@/types/component-props";
 
 export function CourseOutline({ chapters }: CourseOutlineProps) {
+  const t = useTranslations("trainingDetail");
   return (
     <div className="mx-6 mt-5">
       <div className="flex items-center gap-2 mb-3">
         <BookOpen className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
         <h4 className="text-sm font-semibold text-foreground">
-          Course Outline
+          {t("outline.title")}
         </h4>
         <span className="text-xs text-muted-foreground">
-          ({chapters.length} chapters)
+          {t("outline.chaptersCount", { count: chapters.length })}
         </span>
       </div>
       <div className="space-y-0.5 rounded-xl border border-border/40 overflow-hidden">
@@ -26,7 +30,7 @@ export function CourseOutline({ chapters }: CourseOutlineProps) {
               <span className="text-foreground font-medium">{chapter.title}</span>
             </div>
             <span className="text-xs text-muted-foreground tabular-nums">
-              {chapter.duration ?? `${chapter.blockCount} block${chapter.blockCount === 1 ? "" : "s"}`}
+              {chapter.duration ?? t("blocksCount", { count: chapter.blockCount })}
             </span>
           </div>
         ))}

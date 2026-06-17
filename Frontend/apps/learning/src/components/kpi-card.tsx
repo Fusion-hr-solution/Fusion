@@ -19,7 +19,7 @@ export function KpiCard({
 }: KpiCardProps) {
   return (
     <div
-      className="ey-animate-fade-up group flex items-center gap-3.5 rounded-xl border border-border/60 bg-white px-4 py-4 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5"
+      className="ey-animate-fade-up group flex items-center gap-3.5 rounded-xl border border-border/60 bg-card px-4 py-4 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5"
       style={{ animationDelay: `${delayBase + index * delayStep}ms` }}
     >
       <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted transition-transform duration-300 group-hover:scale-105">
