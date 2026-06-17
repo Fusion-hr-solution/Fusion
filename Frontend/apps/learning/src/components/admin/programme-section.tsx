@@ -11,7 +11,7 @@ import {
   useCompletionTrend,
 } from "@/hooks/use-programme-dashboard";
 import { KpiCard } from "../kpi-card";
-import { ProgrammeMatrixTable } from "./programme-matrix-table";
+import { ProgrammeAttentionList } from "./programme-attention-list";
 import { CompletionBarChart } from "./completion-bar-chart";
 import { CompletionTrendChart } from "./completion-trend-chart";
 
@@ -87,16 +87,17 @@ export function ProgrammeSection() {
         )}
       </div>
 
-      {/* Programme Matrix */}
+      {/* Completion by group (grade x service line) */}
       <div>
-        <h2 className="mb-1 text-sm font-semibold text-foreground">Programme Matrix</h2>
+        <h2 className="mb-1 text-sm font-semibold text-foreground">Completion by group</h2>
         <p className="mb-4 text-xs text-muted-foreground">
-          Each cell is a grade × service line group. Click one to see per-employee progress.
+          Each grade × service line group, sorted by lowest completion first. Click a group for
+          per-employee progress.
         </p>
         {loadingMatrix ? (
-          <Skeleton className="h-[300px] rounded-xl" />
+          <Skeleton className="h-[320px] rounded-xl" />
         ) : matrix ? (
-          <ProgrammeMatrixTable matrix={matrix} onCellClick={handleCellClick} />
+          <ProgrammeAttentionList matrix={matrix} onCellClick={handleCellClick} />
         ) : (
           <p className="text-sm text-muted-foreground">No data available.</p>
         )}
