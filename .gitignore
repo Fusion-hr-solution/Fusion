@@ -15,7 +15,12 @@ DESIGN.md
 PRODUCT.md
 PROJECT_KNOWLEDGE.md
 FEATURE_7_1_CERTIFICATION.md
+FEATURE_7_2_BUDGET.md
+BRANCHES_STATUS.md
 .github/CONVENTIONS.md
+
+# Local DB seed dumps (not for version control)
+seed_*.sql
 
 # ========================
 # OS & Editor
