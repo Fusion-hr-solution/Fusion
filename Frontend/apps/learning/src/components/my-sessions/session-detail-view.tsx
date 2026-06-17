@@ -178,9 +178,9 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
 
           {/* Waitlist info */}
           {session.status === "Waitlisted" && session.waitlistPosition > 0 && (
-            <div className="mt-6 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
-              <AlertCircle className="h-4 w-4 text-amber-600" />
-              <p className="text-sm text-amber-800">
+            <div className="mt-6 flex items-center gap-2 rounded-lg border border-[hsl(var(--ey-orange-500))]/30 bg-[hsl(var(--ey-orange-500))]/10 p-3">
+              <AlertCircle className="h-4 w-4 text-[hsl(var(--ey-orange-500))]" />
+              <p className="text-sm text-foreground">
                 You are <span className="font-semibold">#{session.waitlistPosition}</span> on the waitlist.
                 You&apos;ll be automatically enrolled when a spot opens up.
               </p>
@@ -189,9 +189,9 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
 
           {/* Attended confirmation */}
           {session.status === "Attended" && (
-            <div className="mt-6 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
-              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-              <p className="text-sm text-emerald-800">
+            <div className="mt-6 flex items-center gap-2 rounded-lg border border-[hsl(var(--ey-green-500))]/30 bg-[hsl(var(--ey-green-500))]/10 p-3">
+              <CheckCircle2 className="h-4 w-4 text-[hsl(var(--ey-green-500))]" />
+              <p className="text-sm text-[hsl(var(--ey-green-500))]">
                 Attendance confirmed. This session is complete.
               </p>
             </div>
@@ -199,9 +199,9 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
 
           {/* Cancelled confirmation */}
           {cancelled && (
-            <div className="mt-6 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3">
-              <XCircle className="h-4 w-4 text-red-600" />
-              <p className="text-sm text-red-800">
+            <div className="mt-6 flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3">
+              <XCircle className="h-4 w-4 text-destructive" />
+              <p className="text-sm text-destructive">
                 This session has been cancelled from your bookings.
               </p>
             </div>
@@ -278,9 +278,9 @@ function DetailItem({
 }
 
 function getHeaderGradient(status: string, isPast: boolean): string {
-  if (status === "Attended") return "bg-gradient-to-r from-emerald-600 to-emerald-500";
-  if (status === "Waitlisted") return "bg-gradient-to-r from-amber-600 to-amber-500";
-  if (isPast) return "bg-gradient-to-r from-gray-500 to-gray-400";
+  if (status === "Attended") return "bg-gradient-to-r from-[hsl(var(--ey-green-500))] to-[hsl(var(--ey-green-500))]/80";
+  if (status === "Waitlisted") return "bg-gradient-to-r from-[hsl(var(--ey-orange-500))] to-[hsl(var(--ey-orange-500))]/80";
+  if (isPast) return "bg-gradient-to-r from-muted-foreground to-muted-foreground/80";
   return "bg-gradient-to-r from-primary to-primary/80";
 }
 

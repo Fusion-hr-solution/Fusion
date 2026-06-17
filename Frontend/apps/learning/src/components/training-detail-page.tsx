@@ -23,10 +23,10 @@ export function TrainingDetailPage({ training }: TrainingDetailPageProps) {
           <span className="flex items-center gap-1.5 text-sm text-muted-foreground"><span className={`h-2 w-2 rounded-full ${level.dotClass}`} />{level.label}</span>
           <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${badge.className}`}><Award className="h-3 w-3" aria-hidden="true" />{badge.label}</span>
           {training.isMandatory && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2.5 py-0.5 text-xs font-semibold text-amber-700"><AlertTriangle className="h-3 w-3" aria-hidden="true" />Mandatory</span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-[hsl(var(--ey-orange-500))]/10 border border-[hsl(var(--ey-orange-500))]/30 px-2.5 py-0.5 text-xs font-semibold text-foreground"><AlertTriangle className="h-3 w-3 text-[hsl(var(--ey-orange-500))]" aria-hidden="true" />Mandatory</span>
           )}
           {training.trainingType === "OnSite" && (
-            <span className="inline-flex items-center rounded-full bg-blue-50 border border-blue-200 px-2.5 py-0.5 text-xs font-semibold text-blue-700">On-Site Training</span>
+            <span className="inline-flex items-center rounded-full bg-[hsl(var(--ey-blue-500))]/10 border border-[hsl(var(--ey-blue-500))]/30 px-2.5 py-0.5 text-xs font-semibold text-[hsl(var(--ey-blue-500))]">On-Site Training</span>
           )}
         </div>
       </PageHeader>
@@ -51,7 +51,7 @@ export function TrainingDetailPage({ training }: TrainingDetailPageProps) {
           <aside className="space-y-6">
             <InstructorCard name={training.instructor} role={training.instructorRole} />
             <TrainingTagsCard tags={training.tags} />
-            <div className="ey-animate-fade-up rounded-2xl border border-border/50 bg-white p-6" style={{ animationDelay: "300ms" }}>
+            <div className="ey-animate-fade-up rounded-2xl border border-border/50 bg-card p-6" style={{ animationDelay: "300ms" }}>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <CalendarDays className="h-4 w-4" aria-hidden="true" />
                 <span>Last updated {new Date(training.updatedAt + "T00:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</span>

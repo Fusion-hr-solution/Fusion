@@ -31,8 +31,8 @@ export function TrainingCard({ training }: { training: Training }) {
               {tCommon(`category.${training.category}`)}
             </span>
             {training.isMandatory && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-xs font-semibold text-amber-700 shrink-0">
-                <AlertTriangle className="h-3 w-3" aria-hidden="true" />
+              <span className="inline-flex items-center gap-1 rounded-full bg-[hsl(var(--ey-orange-500))]/10 border border-[hsl(var(--ey-orange-500))]/30 px-2 py-0.5 text-xs font-semibold text-foreground shrink-0">
+                <AlertTriangle className="h-3 w-3 text-[hsl(var(--ey-orange-500))]" aria-hidden="true" />
                 {t("mandatory")}
               </span>
             )}

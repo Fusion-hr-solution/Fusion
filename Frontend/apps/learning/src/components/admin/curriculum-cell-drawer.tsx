@@ -183,7 +183,7 @@ export function CurriculumCellDrawer({
                       className="h-7 w-7 p-0"
                     >
                       <Check
-                        className={`h-3.5 w-3.5 ${m.isRequired ? "text-[var(--ey-green-500)]" : "text-muted-foreground"}`}
+                        className={`h-3.5 w-3.5 ${m.isRequired ? "text-[hsl(var(--ey-green-500))]" : "text-muted-foreground"}`}
                       />
                     </Button>
                     <Button

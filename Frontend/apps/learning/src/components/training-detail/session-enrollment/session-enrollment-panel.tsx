@@ -113,7 +113,7 @@ export function SessionEnrollmentPanel({ trainingId }: SessionEnrollmentPanelPro
   // Show session picker for new enrollment
   if (!available || available.parts.length === 0) {
     return (
-      <div className="ey-animate-fade-up rounded-xl border border-border/50 bg-white p-8 text-center" style={{ animationDelay: "280ms" }}>
+      <div className="ey-animate-fade-up rounded-xl border border-border/50 bg-card p-8 text-center" style={{ animationDelay: "280ms" }}>
         <CalendarPlus className="mx-auto h-8 w-8 text-muted-foreground/40" />
         <p className="mt-2 text-sm text-muted-foreground">
           No sessions are currently available for enrollment.
@@ -140,7 +140,7 @@ export function SessionEnrollmentPanel({ trainingId }: SessionEnrollmentPanelPro
           parts selected
         </p>
         {allPartsSelected && (
-          <span className="text-xs font-medium text-emerald-600">Ready to enroll</span>
+          <span className="text-xs font-medium text-[hsl(var(--ey-green-500))]">Ready to enroll</span>
         )}
       </div>
 

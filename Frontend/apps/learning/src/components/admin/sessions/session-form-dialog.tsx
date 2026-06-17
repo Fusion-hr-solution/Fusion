@@ -262,9 +262,9 @@ export function SessionFormDialog({
             <div className="space-y-5 pt-2">
               {/* Lock banner for completed sessions */}
               {isCompleted && (
-                <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
-                  <Lock className="h-4 w-4 text-amber-600 shrink-0" />
-                  <p className="text-xs text-amber-700">
+                <div className="flex items-center gap-2 rounded-lg border border-[hsl(var(--ey-orange-500))]/30 bg-[hsl(var(--ey-orange-500))]/10 px-4 py-3">
+                  <Lock className="h-4 w-4 text-[hsl(var(--ey-orange-500))] shrink-0" />
+                  <p className="text-xs text-foreground">
                     {t("sessionDialog.endedBanner")}
                   </p>
                 </div>

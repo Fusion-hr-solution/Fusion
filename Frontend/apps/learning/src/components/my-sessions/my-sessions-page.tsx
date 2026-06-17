@@ -95,8 +95,8 @@ export function MySessionsPage() {
           icon={<Clock className="h-4 w-4" />}
           label="Completed / Past"
           value={totalPast}
-          accent="text-emerald-600"
-          bgAccent="bg-emerald-50"
+          accent="text-[hsl(var(--ey-green-500))]"
+          bgAccent="bg-[hsl(var(--ey-green-500))]/10"
         />
         <StatCard
           icon={<CalendarCheck2 className="h-4 w-4" />}
@@ -157,7 +157,7 @@ function StatCard({
 }) {
   return (
     <div className={`flex items-center gap-3 rounded-xl border border-border/50 ${bgAccent} p-4`}>
-      <div className={`flex h-9 w-9 items-center justify-center rounded-lg bg-white shadow-sm ${accent}`}>
+      <div className={`flex h-9 w-9 items-center justify-center rounded-lg bg-card shadow-sm ${accent}`}>
         {icon}
       </div>
       <div>

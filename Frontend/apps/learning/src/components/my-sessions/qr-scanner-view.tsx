@@ -136,20 +136,20 @@ function ScanSuccessCard({
   onScanAgain: () => void;
 }) {
   return (
-    <Card className="border-emerald-200/60 bg-emerald-50/40">
+    <Card className="border-[hsl(var(--ey-green-500))]/30 bg-[hsl(var(--ey-green-500))]/5">
       <CardContent className="py-6 space-y-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[hsl(var(--ey-green-500))]/10 text-[hsl(var(--ey-green-500))]">
             <CheckCircle2 className="h-6 w-6" />
           </div>
           <div>
-            <p className="text-sm font-medium text-emerald-900">Attendance recorded</p>
-            <p className="text-xs text-emerald-800/80">
+            <p className="text-sm font-medium text-[hsl(var(--ey-green-500))]">Attendance recorded</p>
+            <p className="text-xs text-muted-foreground">
               {new Date(result.attendedAt).toLocaleString()}
             </p>
           </div>
         </div>
-        <div className="rounded-lg border border-emerald-200/60 bg-white p-3 space-y-1">
+        <div className="rounded-lg border border-[hsl(var(--ey-green-500))]/30 bg-card p-3 space-y-1">
           <p className="text-xs uppercase tracking-wider text-muted-foreground">Training</p>
           <p className="text-sm font-semibold text-foreground">{result.trainingTitle}</p>
           <p className="text-xs text-muted-foreground">{result.partTitle}</p>

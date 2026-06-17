@@ -10,13 +10,17 @@ interface AttendanceHeatmapGridProps {
 
 const EMPTY_GUID = "00000000-0000-0000-0000-000000000000";
 
-/** Map an attendance rate (0–100) to a Tailwind background + text color. */
+/** Map an attendance rate (0–100) to an EY-token background + text color. */
 function cellStyle(rate: number): string {
-  if (rate >= 80) return "bg-emerald-500 text-white";
-  if (rate >= 60) return "bg-emerald-300 text-emerald-950";
-  if (rate >= 40) return "bg-amber-300 text-amber-950";
-  if (rate >= 20) return "bg-orange-400 text-white";
-  return "bg-red-500 text-white";
+  if (rate >= 80)
+    return "bg-[hsl(var(--ey-green-500))] text-white";
+  if (rate >= 60)
+    return "bg-[hsl(var(--ey-green-500))]/30 text-foreground";
+  if (rate >= 40)
+    return "bg-[hsl(var(--ey-orange-500))]/30 text-foreground";
+  if (rate >= 20)
+    return "bg-[hsl(var(--ey-orange-500))] text-white";
+  return "bg-[hsl(var(--ey-red-500))] text-white";
 }
 
 /**

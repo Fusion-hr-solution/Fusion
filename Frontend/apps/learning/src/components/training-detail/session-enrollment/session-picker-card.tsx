@@ -32,7 +32,7 @@ export function SessionPickerCard({ session, isSelected, onSelect }: SessionPick
           ? "border-primary bg-primary/5 shadow-md ring-1 ring-primary/20"
           : session.isFull
             ? "cursor-not-allowed border-border/50 bg-muted/30 opacity-60"
-            : "border-border/50 bg-white hover:border-primary/40 hover:shadow-sm"
+            : "border-border/50 bg-card hover:border-primary/40 hover:shadow-sm"
       }`}
     >
       {isSelected && (
@@ -88,10 +88,10 @@ export function SessionPickerCard({ session, isSelected, onSelect }: SessionPick
                 <div
                   className={`h-full rounded-full transition-all ${
                     spotsRatio > 0.5
-                      ? "bg-emerald-500"
+                      ? "bg-[hsl(var(--ey-green-500))]"
                       : spotsRatio > 0.2
-                        ? "bg-amber-500"
-                        : "bg-red-500"
+                        ? "bg-[hsl(var(--ey-orange-500))]"
+                        : "bg-destructive"
                   }`}
                   style={{ width: `${Math.max(5, (1 - spotsRatio) * 100)}%` }}
                 />

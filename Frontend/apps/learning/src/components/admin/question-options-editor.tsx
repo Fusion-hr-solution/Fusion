@@ -50,7 +50,7 @@ export function QuestionOptionsEditor({
             <button
               type="button"
               onClick={() => onToggleCorrect(opt.clientId)}
-              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${opt.isCorrect ? "border-green-500 bg-green-500 text-white" : "border-border hover:border-muted-foreground"}`}
+              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${opt.isCorrect ? "border-[hsl(var(--ey-green-500))] bg-[hsl(var(--ey-green-500))] text-white" : "border-border hover:border-muted-foreground"}`}
               aria-label={opt.isCorrect ? "Marked correct" : "Mark as correct"}
             >
               {opt.isCorrect && (

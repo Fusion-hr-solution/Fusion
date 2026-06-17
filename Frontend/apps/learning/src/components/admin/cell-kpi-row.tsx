@@ -42,7 +42,7 @@ export function CellKpiRow({ enrichedCount, kpis }: KpiRowProps) {
         icon={Users}
         label={t("kpi.totalEmployees")}
         value={enrichedCount}
-        accent="bg-blue-50"
+        accent="bg-[hsl(var(--ey-blue-500))]/10"
       />
       <KpiTile
         icon={TrendingUp}
@@ -54,13 +54,13 @@ export function CellKpiRow({ enrichedCount, kpis }: KpiRowProps) {
         icon={CheckCircle2}
         label={t("kpi.fullyCompleted")}
         value={kpis.fully}
-        accent="bg-emerald-50"
+        accent="bg-[hsl(var(--ey-green-500))]/10"
       />
       <KpiTile
         icon={BookOpen}
         label={tCommon("status.in-progress")}
         value={kpis.inProg}
-        accent="bg-amber-50"
+        accent="bg-[hsl(var(--ey-orange-500))]/10"
       />
     </div>
   );

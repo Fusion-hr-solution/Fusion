@@ -37,18 +37,20 @@ type SortField =
 function completionBadge(pct: number) {
   if (pct >= 80)
     return (
-      <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200">
+      <Badge className="bg-[hsl(var(--ey-green-500))]/10 text-[hsl(var(--ey-green-500))] border-[hsl(var(--ey-green-500))]/30">
         {pct}%
       </Badge>
     );
   if (pct >= 50)
     return (
-      <Badge className="bg-amber-100 text-amber-800 border-amber-200">
+      <Badge className="bg-[hsl(var(--ey-orange-500))]/10 text-foreground border-[hsl(var(--ey-orange-500))]/30">
         {pct}%
       </Badge>
     );
   return (
-    <Badge className="bg-red-100 text-red-800 border-red-200">{pct}%</Badge>
+    <Badge className="bg-destructive/10 text-destructive border-destructive/30">
+      {pct}%
+    </Badge>
   );
 }
 

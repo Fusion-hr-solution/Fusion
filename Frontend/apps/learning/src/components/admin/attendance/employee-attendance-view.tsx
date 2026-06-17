@@ -27,7 +27,7 @@ function statusBadge(status: AttendanceStatus, t: (key: string) => string) {
       return (
         <Badge
           variant="outline"
-          className="border-emerald-200 bg-emerald-50 text-emerald-700"
+          className="border-[hsl(var(--ey-green-500))]/30 bg-[hsl(var(--ey-green-500))]/10 text-[hsl(var(--ey-green-500))]"
         >
           <CheckCircle2 className="mr-1 h-3 w-3" /> {t("employee.present")}
         </Badge>
@@ -36,7 +36,7 @@ function statusBadge(status: AttendanceStatus, t: (key: string) => string) {
       return (
         <Badge
           variant="outline"
-          className="border-red-200 bg-red-50 text-red-700"
+          className="border-destructive/30 bg-destructive/10 text-destructive"
         >
           <XCircle className="mr-1 h-3 w-3" /> {t("employee.absent")}
         </Badge>
@@ -45,7 +45,7 @@ function statusBadge(status: AttendanceStatus, t: (key: string) => string) {
       return (
         <Badge
           variant="outline"
-          className="border-amber-200 bg-amber-50 text-amber-700"
+          className="border-[hsl(var(--ey-orange-500))]/30 bg-[hsl(var(--ey-orange-500))]/10 text-foreground"
         >
           <Clock3 className="mr-1 h-3 w-3" /> {t("employee.pending")}
         </Badge>

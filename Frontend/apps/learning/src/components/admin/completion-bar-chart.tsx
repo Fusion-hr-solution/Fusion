@@ -20,9 +20,9 @@ interface CompletionBarChartProps {
 
 function getBarFill(rate: number, defaultColor?: string): string {
   if (defaultColor) return defaultColor;
-  if (rate >= 80) return "#10b981";
-  if (rate >= 50) return "#f59e0b";
-  return "#ef4444";
+  if (rate >= 80) return "hsl(var(--ey-green-500))";
+  if (rate >= 50) return "hsl(var(--ey-orange-500))";
+  return "hsl(var(--ey-red-500))";
 }
 
 export function CompletionBarChart({
@@ -40,18 +40,18 @@ export function CompletionBarChart({
             data={data}
             margin={{ top: 4, right: 16, bottom: 4, left: 0 }}
           >
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
             <XAxis
               dataKey="name"
-              tick={{ fontSize: 11, fill: "#6b7280" }}
+              tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
               tickLine={false}
-              axisLine={{ stroke: "#e5e7eb" }}
+              axisLine={{ stroke: "hsl(var(--border))" }}
             />
             <YAxis
               domain={[0, 100]}
-              tick={{ fontSize: 11, fill: "#6b7280" }}
+              tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
               tickLine={false}
-              axisLine={{ stroke: "#e5e7eb" }}
+              axisLine={{ stroke: "hsl(var(--border))" }}
               tickFormatter={(v: number) => `${v}%`}
             />
             <Tooltip
@@ -61,9 +61,13 @@ export function CompletionBarChart({
               ]}
               contentStyle={{
                 borderRadius: "8px",
-                border: "1px solid #e5e7eb",
+                border: "1px solid hsl(var(--border))",
+                backgroundColor: "hsl(var(--card))",
+                color: "hsl(var(--foreground))",
                 fontSize: "12px",
               }}
+              labelStyle={{ color: "hsl(var(--foreground))" }}
+              itemStyle={{ color: "hsl(var(--foreground))" }}
             />
             <Bar dataKey="rate" radius={[6, 6, 0, 0]} maxBarSize={48}>
               {data.map((entry, i) => (

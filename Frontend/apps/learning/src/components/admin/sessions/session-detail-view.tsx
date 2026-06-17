@@ -410,7 +410,7 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="flex-1 gap-1.5 border-emerald-200 bg-emerald-50/50 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+                  className="flex-1 gap-1.5 border-[hsl(var(--ey-green-500))]/30 bg-[hsl(var(--ey-green-500))]/5 text-[hsl(var(--ey-green-500))] hover:bg-[hsl(var(--ey-green-500))]/10 hover:text-[hsl(var(--ey-green-500))]"
                   disabled={resolvedAttendees.length === 0 || exportingExcel}
                   onClick={() => handleExport("excel")}
                   aria-label={t("detail.exportExcelAria")}
@@ -431,7 +431,7 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="flex-1 gap-1.5 border-rose-200 bg-rose-50/50 text-rose-700 hover:bg-rose-50 hover:text-rose-800"
+                  className="flex-1 gap-1.5 border-destructive/30 bg-destructive/5 text-destructive hover:bg-destructive/10 hover:text-destructive"
                   disabled={resolvedAttendees.length === 0 || exportingPdf}
                   onClick={() => handleExport("pdf")}
                   aria-label={t("detail.exportPdfAria")}
@@ -477,7 +477,7 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
                       {a.status === "Attended" ? (
                         <Badge
                           variant="outline"
-                          className="shrink-0 border-emerald-200 bg-emerald-50 text-emerald-700 text-[10px] px-1.5 py-0.5"
+                          className="shrink-0 border-[hsl(var(--ey-green-500))]/30 bg-[hsl(var(--ey-green-500))]/10 text-[hsl(var(--ey-green-500))] text-[10px] px-1.5 py-0.5"
                         >
                           <CheckCircle2 className="h-3 w-3 mr-0.5" />
                           {t("detail.attended")}
@@ -486,7 +486,7 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="shrink-0 h-6 px-2 text-[10px] text-muted-foreground hover:text-emerald-700 hover:bg-emerald-50"
+                          className="shrink-0 h-6 px-2 text-[10px] text-muted-foreground hover:text-[hsl(var(--ey-green-500))] hover:bg-[hsl(var(--ey-green-500))]/10"
                           disabled={markingId === a.employeeId}
                           onClick={() => handleMarkAttendance(a.employeeId)}
                         >
@@ -540,7 +540,7 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
             {new Date(session.startUtc) <= new Date() &&
               session.status !== "Cancelled" && (
                 <li className="ml-4">
-                  <div className="absolute -left-1.5 mt-1 h-3 w-3 rounded-full border-2 border-background bg-blue-400" />
+                  <div className="absolute -left-1.5 mt-1 h-3 w-3 rounded-full border-2 border-background bg-[hsl(var(--ey-blue-400))]" />
                   <p className="text-xs font-medium text-foreground">
                     {t("detail.sessionStarted")}
                   </p>
@@ -557,7 +557,7 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
             {new Date(session.endUtc) <= new Date() &&
               session.status !== "Cancelled" && (
                 <li className="ml-4">
-                  <div className="absolute -left-1.5 mt-1 h-3 w-3 rounded-full border-2 border-background bg-emerald-500" />
+                  <div className="absolute -left-1.5 mt-1 h-3 w-3 rounded-full border-2 border-background bg-[hsl(var(--ey-green-500))]" />
                   <p className="text-xs font-medium text-foreground">
                     {t("detail.sessionCompleted")}
                   </p>
@@ -595,7 +595,7 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
             {resolvedAttendees.filter((a) => a.status === "Attended").length >
               0 && (
               <li className="ml-4">
-                <div className="absolute -left-1.5 mt-1 h-3 w-3 rounded-full border-2 border-background bg-emerald-400" />
+                <div className="absolute -left-1.5 mt-1 h-3 w-3 rounded-full border-2 border-background bg-[hsl(var(--ey-green-500))]" />
                 <p className="text-xs font-medium text-foreground">
                   {t("detail.attendanceRecorded", {
                     present: resolvedAttendees.filter(

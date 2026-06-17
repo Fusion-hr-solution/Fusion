@@ -60,7 +60,7 @@ function CertificateResult({ data }: { data: CertificateVerification }) {
         {isRevoked ? (
           <ShieldX className="h-6 w-6 text-destructive" aria-hidden="true" />
         ) : (
-          <CheckCircle2 className="h-6 w-6 text-emerald-600" aria-hidden="true" />
+          <CheckCircle2 className="h-6 w-6 text-[hsl(var(--ey-green-500))]" aria-hidden="true" />
         )}
         <Badge variant={isRevoked ? "destructive" : "secondary"}>{isRevoked ? "Revoked" : "Valid"}</Badge>
       </div>

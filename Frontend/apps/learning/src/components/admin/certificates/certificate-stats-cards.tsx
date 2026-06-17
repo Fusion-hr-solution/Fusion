@@ -27,7 +27,7 @@ export function CertificateStatsCards({ stats }: CertificateStatsCardsProps) {
         icon={CheckCircle2}
         label={t("status.valid")}
         value={stats.validCount}
-        tone="text-emerald-600"
+        tone="text-[hsl(var(--ey-green-500))]"
       />
       <Kpi
         icon={ShieldX}

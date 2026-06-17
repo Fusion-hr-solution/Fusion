@@ -39,22 +39,30 @@ export function AttendanceTrendChart({ points }: AttendanceTrendChartProps) {
                 x2="0"
                 y2="1"
               >
-                <stop offset="0%" stopColor="#10b981" stopOpacity={0.15} />
-                <stop offset="100%" stopColor="#10b981" stopOpacity={0.02} />
+                <stop
+                  offset="0%"
+                  stopColor="hsl(var(--ey-green-500))"
+                  stopOpacity={0.15}
+                />
+                <stop
+                  offset="100%"
+                  stopColor="hsl(var(--ey-green-500))"
+                  stopOpacity={0.02}
+                />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
             <XAxis
               dataKey="label"
-              tick={{ fontSize: 10, fill: "#6b7280" }}
+              tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
               tickLine={false}
-              axisLine={{ stroke: "#e5e7eb" }}
+              axisLine={{ stroke: "hsl(var(--border))" }}
             />
             <YAxis
               domain={[0, 100]}
-              tick={{ fontSize: 11, fill: "#6b7280" }}
+              tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
               tickLine={false}
-              axisLine={{ stroke: "#e5e7eb" }}
+              axisLine={{ stroke: "hsl(var(--border))" }}
               tickFormatter={(v: number) => `${v}%`}
             />
             <Tooltip
@@ -64,9 +72,13 @@ export function AttendanceTrendChart({ points }: AttendanceTrendChartProps) {
               ]}
               contentStyle={{
                 borderRadius: "8px",
-                border: "1px solid #e5e7eb",
+                border: "1px solid hsl(var(--border))",
+                backgroundColor: "hsl(var(--card))",
+                color: "hsl(var(--foreground))",
                 fontSize: "12px",
               }}
+              labelStyle={{ color: "hsl(var(--foreground))" }}
+              itemStyle={{ color: "hsl(var(--foreground))" }}
             />
             <Area
               type="monotone"
@@ -77,10 +89,10 @@ export function AttendanceTrendChart({ points }: AttendanceTrendChartProps) {
             <Line
               type="monotone"
               dataKey="attendanceRate"
-              stroke="#10b981"
+              stroke="hsl(var(--ey-green-500))"
               strokeWidth={2.5}
-              dot={{ r: 3, fill: "#10b981", strokeWidth: 0 }}
-              activeDot={{ r: 5, strokeWidth: 2, stroke: "#fff" }}
+              dot={{ r: 3, fill: "hsl(var(--ey-green-500))", strokeWidth: 0 }}
+              activeDot={{ r: 5, strokeWidth: 2, stroke: "hsl(var(--card))" }}
             />
           </ComposedChart>
         </ResponsiveContainer>

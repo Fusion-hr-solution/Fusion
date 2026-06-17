@@ -19,15 +19,17 @@ interface ProgrammeMatrixTableProps {
 }
 
 function cellColor(rate: number): string {
-  if (rate >= 80) return "bg-emerald-100 text-emerald-800 border-emerald-200";
-  if (rate >= 50) return "bg-amber-100 text-amber-800 border-amber-200";
-  return "bg-red-100 text-red-800 border-red-200";
+  if (rate >= 80)
+    return "bg-[hsl(var(--ey-green-500))]/10 text-[hsl(var(--ey-green-500))] border-[hsl(var(--ey-green-500))]/30";
+  if (rate >= 50)
+    return "bg-[hsl(var(--ey-orange-500))]/10 text-foreground border-[hsl(var(--ey-orange-500))]/30";
+  return "bg-[hsl(var(--ey-red-500))]/10 text-[hsl(var(--ey-red-500))] border-[hsl(var(--ey-red-500))]/30";
 }
 
 function cellDot(rate: number): string {
-  if (rate >= 80) return "bg-emerald-500";
-  if (rate >= 50) return "bg-amber-500";
-  return "bg-red-500";
+  if (rate >= 80) return "bg-[hsl(var(--ey-green-500))]";
+  if (rate >= 50) return "bg-[hsl(var(--ey-orange-500))]";
+  return "bg-[hsl(var(--ey-red-500))]";
 }
 
 export function ProgrammeMatrixTable({ matrix, onCellClick }: ProgrammeMatrixTableProps) {
@@ -38,7 +40,7 @@ export function ProgrammeMatrixTable({ matrix, onCellClick }: ProgrammeMatrixTab
   );
 
   return (
-    <div className="ey-animate-fade-up overflow-x-auto rounded-xl border border-border/60 bg-white shadow-sm">
+    <div className="ey-animate-fade-up overflow-x-auto rounded-xl border border-border/60 bg-card shadow-sm">
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/40">
@@ -64,7 +66,7 @@ export function ProgrammeMatrixTable({ matrix, onCellClick }: ProgrammeMatrixTab
         <TableBody>
           {grades.map((grade) => (
             <TableRow key={grade.id} className="hover:bg-muted/20 transition-colors">
-              <TableCell className="sticky left-0 z-10 bg-white font-medium text-sm">
+              <TableCell className="sticky left-0 z-10 bg-card font-medium text-sm">
                 {grade.name}
               </TableCell>
               {serviceLines.map((sl) => {

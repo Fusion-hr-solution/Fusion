@@ -28,11 +28,11 @@ export function TrainingRow({
       <TableCell className="text-muted-foreground">{training.categoryName}</TableCell>
       <TableCell className="text-center">
         {training.trainingType === "OnSite" ? (
-          <Badge variant="outline" className="text-[10px] border-amber-500/30 text-amber-600 bg-amber-500/5">
+          <Badge variant="outline" className="text-[10px] border-[hsl(var(--ey-orange-500))]/30 text-foreground bg-[hsl(var(--ey-orange-500))]/5">
             <MapPin className="mr-1 h-3 w-3" /> {tCommon("trainingType.OnSiteShort")}
           </Badge>
         ) : (
-          <Badge variant="outline" className="text-[10px] border-blue-500/30 text-blue-600 bg-blue-500/5">
+          <Badge variant="outline" className="text-[10px] border-[hsl(var(--ey-blue-500))]/30 text-[hsl(var(--ey-blue-500))] bg-[hsl(var(--ey-blue-500))]/5">
             <Monitor className="mr-1 h-3 w-3" /> {tCommon("trainingType.ELearning")}
           </Badge>
         )}

@@ -21,14 +21,14 @@ export function EnrollmentStatusPanel({
   return (
     <div className="space-y-5">
       {/* Progress header */}
-      <div className="rounded-xl border border-border/50 bg-white p-5">
+      <div className="rounded-xl border border-border/50 bg-card p-5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4 text-primary" />
             <h3 className="text-sm font-semibold text-foreground">Session Progress</h3>
           </div>
           {enrollments.isTrainingCompleted && (
-            <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600">
+            <span className="flex items-center gap-1.5 text-xs font-semibold text-[hsl(var(--ey-green-500))]">
               <CheckCircle2 className="h-4 w-4" />
               Completed
             </span>

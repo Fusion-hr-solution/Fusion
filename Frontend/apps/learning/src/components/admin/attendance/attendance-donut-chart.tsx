@@ -17,9 +17,9 @@ interface AttendanceDonutChartProps {
 }
 
 const COLORS = {
-  present: "#10b981",
-  absent: "#ef4444",
-  pending: "#f59e0b",
+  present: "hsl(var(--ey-green-500))",
+  absent: "hsl(var(--ey-red-500))",
+  pending: "hsl(var(--ey-orange-500))",
 };
 
 /** Present / Absent / Pending breakdown for a single session (AC#1). */
@@ -66,9 +66,13 @@ export function AttendanceDonutChart({
             formatter={(value: number, name: string) => [`${value}`, name]}
             contentStyle={{
               borderRadius: "8px",
-              border: "1px solid #e5e7eb",
+              border: "1px solid hsl(var(--border))",
+              backgroundColor: "hsl(var(--card))",
+              color: "hsl(var(--foreground))",
               fontSize: "12px",
             }}
+            labelStyle={{ color: "hsl(var(--foreground))" }}
+            itemStyle={{ color: "hsl(var(--foreground))" }}
           />
           <Legend iconType="circle" wrapperStyle={{ fontSize: "12px" }} />
         </PieChart>

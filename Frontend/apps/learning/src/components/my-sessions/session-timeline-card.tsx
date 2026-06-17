@@ -110,7 +110,7 @@ export function SessionTimelineCard({ session, isLast }: SessionTimelineCardProp
             </div>
 
             {session.status === "Waitlisted" && session.waitlistPosition > 0 && (
-              <p className="mt-2 text-xs text-amber-600">
+              <p className="mt-2 text-xs text-[hsl(var(--ey-orange-500))]">
                 Waitlist position: #{session.waitlistPosition}
               </p>
             )}
@@ -160,24 +160,24 @@ function getStatusConfig(
 } {
   if (status === "Attended") {
     return {
-      dotClass: "border-emerald-500 bg-emerald-500",
-      cardClass: "border-emerald-200 bg-emerald-50/50",
+      dotClass: "border-[hsl(var(--ey-green-500))] bg-[hsl(var(--ey-green-500))]",
+      cardClass: "border-[hsl(var(--ey-green-500))]/30 bg-[hsl(var(--ey-green-500))]/5",
       badgeVariant: "default",
       label: "Attended",
     };
   }
   if (status === "Waitlisted") {
     return {
-      dotClass: "border-amber-400 bg-amber-400",
-      cardClass: "border-amber-200 bg-amber-50/50",
+      dotClass: "border-[hsl(var(--ey-orange-500))] bg-[hsl(var(--ey-orange-500))]",
+      cardClass: "border-[hsl(var(--ey-orange-500))]/30 bg-[hsl(var(--ey-orange-500))]/5",
       badgeVariant: "secondary",
       label: "Waitlisted",
     };
   }
   if (isOngoing) {
     return {
-      dotClass: "border-blue-500 bg-blue-500 animate-pulse",
-      cardClass: "border-blue-200 bg-blue-50/50",
+      dotClass: "border-[hsl(var(--ey-blue-500))] bg-[hsl(var(--ey-blue-500))] animate-pulse",
+      cardClass: "border-[hsl(var(--ey-blue-500))]/30 bg-[hsl(var(--ey-blue-500))]/5",
       badgeVariant: "default",
       label: "In Progress",
     };

@@ -12,7 +12,7 @@ export function SessionPickerPart({ part, selectedSessionId, onSelect }: Session
   const availableSessions = part.sessions.filter((s) => !s.isFull).length;
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border/60 bg-white">
+    <div className="overflow-hidden rounded-xl border border-border/60 bg-card">
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
@@ -35,7 +35,7 @@ export function SessionPickerPart({ part, selectedSessionId, onSelect }: Session
 
         <div className="flex items-center gap-2 shrink-0">
           {selectedSessionId ? (
-            <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-xs">
+            <Badge className="bg-[hsl(var(--ey-green-500))]/10 text-[hsl(var(--ey-green-500))] border-[hsl(var(--ey-green-500))]/30 text-xs">
               Selected
             </Badge>
           ) : (

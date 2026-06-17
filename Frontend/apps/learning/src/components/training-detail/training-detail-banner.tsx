@@ -10,7 +10,7 @@ export function TrainingDetailBanner({ training }: { training: Training }) {
   const badge = BADGE_LEVEL_CONFIG[training.badgeLevel];
 
   return (
-    <div className="relative overflow-hidden bg-white border-b border-border/50">
+    <div className="relative overflow-hidden bg-card border-b border-border/50">
       <div
         className={`absolute inset-x-0 top-0 h-1 ey-animate-stripe ${category.stripClass}`}
       />
@@ -55,8 +55,8 @@ export function TrainingDetailBanner({ training }: { training: Training }) {
             {badge.label}
           </span>
           {training.isMandatory && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
-              <AlertTriangle className="h-3 w-3" aria-hidden="true" />
+            <span className="inline-flex items-center gap-1 rounded-full bg-[hsl(var(--ey-orange-500))]/10 border border-[hsl(var(--ey-orange-500))]/30 px-2.5 py-0.5 text-xs font-semibold text-foreground">
+              <AlertTriangle className="h-3 w-3 text-[hsl(var(--ey-orange-500))]" aria-hidden="true" />
               Mandatory
             </span>
           )}

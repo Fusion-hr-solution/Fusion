@@ -12,11 +12,11 @@ export function OnSiteCoursesList({ courses, scheduledDate }: OnSiteCoursesListP
   return (
     <div className="ey-animate-fade-up space-y-4" style={{ animationDelay: "280ms" }}>
       {scheduledDate && (
-        <div className="flex items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4">
-          <Calendar className="h-5 w-5 text-blue-600 shrink-0" />
+        <div className="flex items-center gap-3 rounded-xl border border-[hsl(var(--ey-blue-500))]/30 bg-[hsl(var(--ey-blue-500))]/10 p-4">
+          <Calendar className="h-5 w-5 text-[hsl(var(--ey-blue-500))] shrink-0" />
           <div>
-            <p className="text-sm font-semibold text-blue-900">Scheduled Session</p>
-            <p className="text-sm text-blue-700">
+            <p className="text-sm font-semibold text-[hsl(var(--ey-blue-500))]">Scheduled Session</p>
+            <p className="text-sm text-[hsl(var(--ey-blue-500))]">
               {new Date(scheduledDate).toLocaleDateString("en-US", {
                 weekday: "long",
                 year: "numeric",
@@ -44,10 +44,10 @@ export function OnSiteCoursesList({ courses, scheduledDate }: OnSiteCoursesListP
         {sorted.map((course, index) => (
           <div
             key={course.id}
-            className="flex items-center gap-3 rounded-xl border border-border/50 bg-white p-4 transition-all hover:shadow-md hover:shadow-black/5"
+            className="flex items-center gap-3 rounded-xl border border-border/50 bg-card p-4 transition-all hover:shadow-md hover:shadow-black/5"
           >
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-red-100">
-              <FileText className="h-4 w-4 text-red-600" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-destructive/10">
+              <FileText className="h-4 w-4 text-destructive" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-foreground">{course.title}</p>
