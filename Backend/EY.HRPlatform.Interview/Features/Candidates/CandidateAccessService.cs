@@ -3,16 +3,32 @@ using System.Text;
 using System.Text.Json;
 using EY.HRPlatform.Interview.Domain.Entities;
 using EY.HRPlatform.Interview.Domain.Enums;
+using EY.HRPlatform.Interview.Features.Grading.Judge0;
 using EY.HRPlatform.Interview.Infrastructure;
 using EY.HRPlatform.Interview.Models.Candidates;
 using EY.HRPlatform.Interview.Models.Common;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace EY.HRPlatform.Interview.Features.Candidates;
 
-public class CandidateAccessService(AppDbContext dbContext) : ICandidateAccessService
+public class CandidateAccessService(
+    AppDbContext dbContext,
+    IServiceProvider serviceProvider,
+    ICodeRunThrottle runThrottle,
+    ILogger<CandidateAccessService> logger) : ICandidateAccessService
 {
+    // Hard sandbox limits for candidate runs: no network, short CPU/wall time, 256 MB,
+    // and Judge0's default process cap — candidate code can't open sockets (SSRF),
+    // fork-bomb, or run unbounded.
+    private static readonly Judge0ExecutionLimits RunLimits = new(
+        CpuTimeLimitSeconds: 5,
+        WallTimeLimitSeconds: 10,
+        MemoryLimitKb: 256 * 1024,
+        MaxProcessesAndOrThreads: 60,
+        EnableNetwork: false);
+
     public async Task<CandidateAccessValidationDto> ValidateAsync(string token, CancellationToken cancellationToken)
     {
         var normalizedToken = NormalizeToken(token);
@@ -305,12 +321,6 @@ public class CandidateAccessService(AppDbContext dbContext) : ICandidateAccessSe
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        dbContext.GradingJobs.Add(new GradingJob
-        {
-            AttemptId = attempt.Id,
-        });
-        await dbContext.SaveChangesAsync(cancellationToken);
-
         return new CandidateAccessSubmissionDto
         {
             InvitationId = invitation.Id.ToString(),
@@ -323,6 +333,85 @@ public class CandidateAccessService(AppDbContext dbContext) : ICandidateAccessSe
             SubmittedAtUtc = nowUtc.ToString("O"),
             AnswersJson = attempt.AnswersJson,
             ResultJson = attempt.ResultJson,
+        };
+    }
+
+    public async Task<RunCodeResultDto> RunCodeAsync(
+        RunCodeRequestDto request,
+        CancellationToken cancellationToken)
+    {
+        var normalizedToken = NormalizeToken(request.Token);
+        var invitation = await FindInvitationByTokenAsync(normalizedToken, includeQuestions: true, cancellationToken)
+            ?? throw new ApiException("Invitation link is invalid.", StatusCodes.Status404NotFound);
+
+        var settings = await GetEffectiveSettingsAsync(invitation.TestId, cancellationToken);
+        var nowUtc = DateTime.UtcNow;
+        var state = ResolveState(invitation, settings, nowUtc);
+
+        // Only an authorized, in-progress attempt may execute code.
+        if (state == InvitationAccessState.Expired)
+        {
+            throw new ApiException(
+                BuildExpiredMessage(invitation, settings, nowUtc),
+                StatusCodes.Status410Gone);
+        }
+
+        if (state == InvitationAccessState.Submitted)
+        {
+            throw new ApiException(
+                "This attempt has already been submitted.",
+                StatusCodes.Status409Conflict);
+        }
+
+        if (state == InvitationAccessState.Invited)
+        {
+            throw new ApiException(
+                "Start the assessment before running code.",
+                StatusCodes.Status409Conflict);
+        }
+
+        var attempt = GetActiveAttempt(invitation)
+            ?? throw new ApiException("Start the assessment before running code.", StatusCodes.Status409Conflict);
+
+        // The question must belong to this attempt's test.
+        var question = invitation.Test?.TestQuestions
+            .Select(testQuestion => testQuestion.Question)
+            .FirstOrDefault(item => item is not null && item.Id == request.QuestionId)
+            ?? throw new ApiException("Question not found for this assessment.", StatusCodes.Status404NotFound);
+
+        // Execution backend is registered only when Judge0 is configured; degrade cleanly.
+        var judge0 = serviceProvider.GetService<Judge0Client>()
+            ?? throw new ApiException("Code execution is not available.", StatusCodes.Status503ServiceUnavailable);
+
+        var effectiveLanguage = string.IsNullOrWhiteSpace(request.Language) ? question.Language : request.Language;
+        var languageId = Judge0LanguageMap.ResolveForQuestion(question.Type, effectiveLanguage);
+
+        // Rate limit + global concurrency budget (released when the slot is disposed).
+        await using var slot = await runThrottle.AcquireAsync(attempt.Id, cancellationToken);
+
+        Judge0Result result;
+        try
+        {
+            result = await judge0.SubmitAsync(
+                request.SourceCode, languageId, request.Stdin, expectedOutput: null,
+                cancellationToken, RunLimits);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Candidate code run failed for attempt {AttemptId}.", attempt.Id);
+            throw new ApiException("Code execution failed. Please try again.", StatusCodes.Status502BadGateway);
+        }
+
+        return new RunCodeResultDto
+        {
+            RunId = Guid.NewGuid().ToString(),
+            Status = "Completed",
+            ExecutionStatus = result.StatusDescription,
+            Stdout = result.Stdout,
+            Stderr = result.Stderr,
+            CompileOutput = result.CompileOutput,
+            Time = result.Time,
+            Memory = result.Memory,
         };
     }
 
