@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useApiQuery, useApiMutation } from "@repo/api/react";
 import { ApiError } from "@repo/api";
 import {
@@ -11,11 +12,16 @@ import {
   deleteChapter,
   reorderChapters as reorderChaptersApi,
 } from "@/services/admin-service";
-import type { AdminCategory, WizardChapter, UpdateTrainingInput } from "@/types/admin";
+import type {
+  AdminCategory,
+  WizardChapter,
+  UpdateTrainingInput,
+} from "@/types/admin";
 import type { TrainingType } from "@/types";
 
 export function useEditTrainingWizard(trainingId: string) {
   const router = useRouter();
+  const t = useTranslations("adminTrainings");
   const [step, setStep] = useState(1);
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -37,24 +43,20 @@ export function useEditTrainingWizard(trainingId: string) {
   const [chapters, setChapters] = useState<WizardChapter[]>([]);
   const [deletedServerIds, setDeletedServerIds] = useState<string[]>([]);
 
-  const fetchCategories = useCallback(
-    () => getAdminCategories(),
-    [],
-  );
+  const fetchCategories = useCallback(() => getAdminCategories(), []);
 
   const fetchExistingTraining = useCallback(
     () => getAdminTrainingDetail(trainingId),
-    [trainingId],
+    [trainingId]
   );
 
-  const { data: categories } = useApiQuery<AdminCategory[]>(
-    fetchCategories,
-    { enabled: true },
-  );
+  const { data: categories } = useApiQuery<AdminCategory[]>(fetchCategories, {
+    enabled: true,
+  });
 
   const { data: existing, isLoading: loadingDetail } = useApiQuery(
     fetchExistingTraining,
-    { enabled: true },
+    { enabled: true }
   );
 
   useEffect(() => {
@@ -75,49 +77,81 @@ export function useEditTrainingWizard(trainingId: string) {
           clientId: ch.id,
           title: ch.title,
           layout: ch.layout,
-        })),
+        }))
     );
     setDeletedServerIds([]);
   }, [existing]);
 
   const maxStep = trainingType === "OnSite" ? 3 : 4;
 
-  const nextStep = useCallback(() => setStep((s) => Math.min(s + 1, maxStep)), [maxStep]);
+  const nextStep = useCallback(
+    () => setStep((s) => Math.min(s + 1, maxStep)),
+    [maxStep]
+  );
   const prevStep = useCallback(() => setStep((s) => Math.max(s - 1, 1)), []);
 
-  const addWizardChapter = useCallback((chapter: Omit<WizardChapter, "clientId">) => {
-    setChapters((prev) => [...prev, { ...chapter, clientId: crypto.randomUUID() }]);
-  }, []);
+  const addWizardChapter = useCallback(
+    (chapter: Omit<WizardChapter, "clientId">) => {
+      setChapters((prev) => [
+        ...prev,
+        { ...chapter, clientId: crypto.randomUUID() },
+      ]);
+    },
+    []
+  );
 
-  const updateWizardChapter = useCallback((clientId: string, updates: Partial<WizardChapter>) => {
-    setChapters((prev) => prev.map((ch) => (ch.clientId === clientId ? { ...ch, ...updates } : ch)));
-  }, []);
+  const updateWizardChapter = useCallback(
+    (clientId: string, updates: Partial<WizardChapter>) => {
+      setChapters((prev) =>
+        prev.map((ch) =>
+          ch.clientId === clientId ? { ...ch, ...updates } : ch
+        )
+      );
+    },
+    []
+  );
 
-  const removeWizardChapter = useCallback((clientId: string) => {
-    setChapters((prev) => {
-      // If the clientId matches a server chapter, mark for deletion
-      if (existing?.chapters.some((ec) => ec.id === clientId)) {
-        setDeletedServerIds((ids) => [...ids, clientId]);
-      }
-      return prev.filter((c) => c.clientId !== clientId);
-    });
-  }, [existing]);
+  const removeWizardChapter = useCallback(
+    (clientId: string) => {
+      setChapters((prev) => {
+        // If the clientId matches a server chapter, mark for deletion
+        if (existing?.chapters.some((ec) => ec.id === clientId)) {
+          setDeletedServerIds((ids) => [...ids, clientId]);
+        }
+        return prev.filter((c) => c.clientId !== clientId);
+      });
+    },
+    [existing]
+  );
 
   const reorderWizardChapters = useCallback((reordered: WizardChapter[]) => {
     setChapters(reordered);
   }, []);
 
   function validateStep1(): boolean {
-    if (!title.trim()) { setFormError("Title is required."); return false; }
-    if (!categoryId) { setFormError("Please select a category."); return false; }
+    if (!title.trim()) {
+      setFormError(t("form.errors.titleRequired"));
+      return false;
+    }
+    if (!categoryId) {
+      setFormError(t("form.errors.categoryRequired"));
+      return false;
+    }
     setFormError(null);
     return true;
   }
 
   function validateStep2(): boolean {
-    if (credits < 0) { setFormError("Credits cannot be negative."); return false; }
-    if (trainingType === "OnSite" && scheduledDate && new Date(scheduledDate) <= new Date()) {
-      setFormError("Scheduled date must be in the future.");
+    if (credits < 0) {
+      setFormError(t("form.errors.creditsNegative"));
+      return false;
+    }
+    if (
+      trainingType === "OnSite" &&
+      scheduledDate &&
+      new Date(scheduledDate) <= new Date()
+    ) {
+      setFormError(t("form.errors.scheduledDateFuture"));
       return false;
     }
     setFormError(null);
@@ -132,7 +166,7 @@ export function useEditTrainingWizard(trainingId: string) {
   }
 
   const { mutateAsync: doUpdateTraining } = useApiMutation(
-    (input: UpdateTrainingInput) => updateTraining(trainingId, input),
+    (input: UpdateTrainingInput) => updateTraining(trainingId, input)
   );
 
   async function handleSubmit() {
@@ -157,11 +191,20 @@ export function useEditTrainingWizard(trainingId: string) {
 
       for (let i = 0; i < chapters.length; i++) {
         const ch = chapters[i]!;
-        const isExisting = existing?.chapters.some((ec) => ec.id === ch.clientId);
+        const isExisting = existing?.chapters.some(
+          (ec) => ec.id === ch.clientId
+        );
         if (isExisting) {
-          await updateChapter(trainingId, ch.clientId, { title: ch.title, layout: ch.layout });
+          await updateChapter(trainingId, ch.clientId, {
+            title: ch.title,
+            layout: ch.layout,
+          });
         } else {
-          await addChapter(trainingId, { title: ch.title, layout: ch.layout, orderIndex: i });
+          await addChapter(trainingId, {
+            title: ch.title,
+            layout: ch.layout,
+            orderIndex: i,
+          });
         }
       }
 
@@ -179,7 +222,7 @@ export function useEditTrainingWizard(trainingId: string) {
           ? (err.errors[0] ?? err.message)
           : err instanceof Error
             ? err.message
-            : "An unexpected error occurred.";
+            : t("form.errors.unexpected");
       setFormError(message);
     } finally {
       setIsSubmitting(false);
@@ -192,18 +235,41 @@ export function useEditTrainingWizard(trainingId: string) {
 
   return {
     mode: "edit" as const,
-    step, setStep, formError, setFormError, isSubmitting, loadingDetail,
-    title, setTitle, description, setDescription,
-    categoryId, setCategoryId, badgeLevel, setBadgeLevel,
+    step,
+    setStep,
+    formError,
+    setFormError,
+    isSubmitting,
+    loadingDetail,
+    title,
+    setTitle,
+    description,
+    setDescription,
+    categoryId,
+    setCategoryId,
+    badgeLevel,
+    setBadgeLevel,
     categories: categories ?? [],
-    credits, setCredits, duration, setDuration, isMandatory, setIsMandatory,
-    trainingType, setTrainingType, scheduledDate, setScheduledDate,
+    credits,
+    setCredits,
+    duration,
+    setDuration,
+    isMandatory,
+    setIsMandatory,
+    trainingType,
+    setTrainingType,
+    scheduledDate,
+    setScheduledDate,
     chapters,
     addChapter: addWizardChapter,
     updateChapter: updateWizardChapter,
     removeChapter: removeWizardChapter,
     reorderChapters: reorderWizardChapters,
-    handleNext, prevStep, handleSubmit,
-    canAdvanceStep1, isReady, categoryName,
+    handleNext,
+    prevStep,
+    handleSubmit,
+    canAdvanceStep1,
+    isReady,
+    categoryName,
   };
 }

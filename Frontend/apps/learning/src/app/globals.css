@@ -13,6 +13,19 @@
     --ey-orange-500: 24 100% 47%; /* #F76900 */
     --ey-red-500: 4 74% 42%; /* #B9251C */
   }
+
+  /* Status palette, brightened for the dark canvas. The tinted-status grammar
+     (10% hue wash + saturated hue text + icon) needs lighter hues here so the
+     text clears 4.5:1 on dark surfaces. */
+  .dark {
+    --ey-blue-400: 203 85% 64%;
+    --ey-blue-500: 205 82% 62%;
+    --ey-blue-600: 207 85% 67%; /* links / in-progress text on dark */
+    --ey-teal-500: 172 62% 52%;
+    --ey-green-500: 147 58% 56%;
+    --ey-orange-500: 28 96% 62%;
+    --ey-red-500: 4 82% 67%;
+  }
 }
 
 @layer base {
@@ -126,6 +139,17 @@
   }
   .ey-dot-advanced {
     background-color: hsl(var(--ey-grey-500));
+  }
+  /* On dark, the grey ramp is tuned for surfaces, so the dot ladder must be
+     restated to keep "more advanced = brighter". */
+  .dark .ey-dot-beginner {
+    background-color: hsl(240 5% 38%);
+  }
+  .dark .ey-dot-intermediate {
+    background-color: hsl(240 6% 52%);
+  }
+  .dark .ey-dot-advanced {
+    background-color: hsl(240 8% 70%);
   }
 
   /* Shared brand utilities */
