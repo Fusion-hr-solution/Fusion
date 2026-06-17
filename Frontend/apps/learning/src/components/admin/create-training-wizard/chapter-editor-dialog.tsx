@@ -14,13 +14,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@repo/ui";
+import { useTranslations } from "next-intl";
 import type { WizardChapter } from "@/types/admin";
 import type { ChapterLayout } from "@/types";
 
-const LAYOUT_OPTIONS: { value: ChapterLayout; label: string }[] = [
-  { value: "SingleContent", label: "Single Content" },
-  { value: "SplitLayout", label: "Split Layout" },
-  { value: "MultiSection", label: "Multi Section" },
+const LAYOUT_VALUES: ChapterLayout[] = [
+  "SingleContent",
+  "SplitLayout",
+  "MultiSection",
 ];
 
 interface ChapterEditorDialogProps {
@@ -31,7 +32,15 @@ interface ChapterEditorDialogProps {
   onSaveEdit: (chapter: Omit<WizardChapter, "clientId">) => void;
 }
 
-export function ChapterEditorDialog({ open, onOpenChange, editingChapter, onAdd, onSaveEdit }: ChapterEditorDialogProps) {
+export function ChapterEditorDialog({
+  open,
+  onOpenChange,
+  editingChapter,
+  onAdd,
+  onSaveEdit,
+}: ChapterEditorDialogProps) {
+  const t = useTranslations("adminWizard.editor");
+  const tCommon = useTranslations("common");
   const [title, setTitle] = useState("");
   const [layout, setLayout] = useState<ChapterLayout>("SingleContent");
 
@@ -50,7 +59,10 @@ export function ChapterEditorDialog({ open, onOpenChange, editingChapter, onAdd,
 
   function handleSubmit() {
     if (!canSubmit) return;
-    const data: Omit<WizardChapter, "clientId"> = { title: title.trim(), layout };
+    const data: Omit<WizardChapter, "clientId"> = {
+      title: title.trim(),
+      layout,
+    };
     if (isEditing) onSaveEdit(data);
     else onAdd(data);
   }
@@ -59,26 +71,43 @@ export function ChapterEditorDialog({ open, onOpenChange, editingChapter, onAdd,
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>{isEditing ? "Edit Chapter" : "Add Chapter"}</DialogTitle>
+          <DialogTitle>
+            {isEditing ? t("dialog.editTitle") : t("dialog.addTitle")}
+          </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-5">
           {/* Title */}
           <div className="space-y-2">
-            <Label className="text-[13px] font-semibold">Chapter Title <span className="text-destructive">*</span></Label>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Introduction to the Topic" maxLength={200} />
+            <Label className="text-[13px] font-semibold">
+              {t("dialog.titleLabel")}{" "}
+              <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder={t("dialog.titlePlaceholder")}
+              maxLength={200}
+            />
           </div>
 
           {/* Layout */}
           <div className="space-y-2">
-            <Label className="text-[13px] font-semibold">Layout</Label>
-            <Select value={layout} onValueChange={(v) => setLayout(v as ChapterLayout)}>
+            <Label className="text-[13px] font-semibold">
+              {t("dialog.layoutLabel")}
+            </Label>
+            <Select
+              value={layout}
+              onValueChange={(v) => setLayout(v as ChapterLayout)}
+            >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {LAYOUT_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                {LAYOUT_VALUES.map((value) => (
+                  <SelectItem key={value} value={value}>
+                    {t(`layout.${value}`)}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -90,7 +119,7 @@ export function ChapterEditorDialog({ open, onOpenChange, editingChapter, onAdd,
               onClick={() => onOpenChange(false)}
               className="rounded-xl border border-border bg-background px-5 py-2.5 text-sm font-semibold text-muted-foreground transition-colors hover:bg-muted"
             >
-              Cancel
+              {tCommon("actions.cancel")}
             </button>
             <button
               onClick={handleSubmit}
@@ -101,7 +130,7 @@ export function ChapterEditorDialog({ open, onOpenChange, editingChapter, onAdd,
                   : "cursor-not-allowed bg-muted text-muted-foreground"
               }`}
             >
-              {isEditing ? "Save Changes" : "Add Chapter"}
+              {isEditing ? t("dialog.saveChanges") : t("dialog.addTitle")}
             </button>
           </div>
         </div>
