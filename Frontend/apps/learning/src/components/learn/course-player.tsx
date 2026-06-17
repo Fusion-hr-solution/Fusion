@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import type { CoursePlayerProps } from "@/types/component-props";
 import { useCoursePlayer } from "@/hooks/use-course-player";
 import { useExamPlayer } from "@/hooks/use-exam-player";
@@ -10,6 +11,7 @@ import { ExamPlayerContent } from "./exam-player-content";
 import { ChapterContent } from "./chapter-content-section";
 
 export function CoursePlayer({ learnData }: CoursePlayerProps) {
+  const t = useTranslations("learn.player");
   const [showExam, setShowExam] = useState(false);
 
   const {
@@ -29,7 +31,7 @@ export function CoursePlayer({ learnData }: CoursePlayerProps) {
   if (chapters.length === 0) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-background">
-        <p className="text-sm text-muted-foreground">This training has no chapters yet.</p>
+        <p className="text-sm text-muted-foreground">{t("noChapters")}</p>
       </div>
     );
   }

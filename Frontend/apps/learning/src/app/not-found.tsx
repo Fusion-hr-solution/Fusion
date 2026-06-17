@@ -1,7 +1,9 @@
 import { Button } from "@repo/ui";
 import { GraduationCap, ArrowLeft } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 
-export default function NotFound() {
+export default async function NotFound() {
+  const t = await getTranslations("appShell.notFound");
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-6">
       <div className="ey-animate-scale-in flex flex-col items-center">
@@ -17,13 +19,12 @@ export default function NotFound() {
           404
         </h2>
         <p className="text-sm text-muted-foreground mb-8 max-w-sm leading-relaxed">
-          This page doesn&apos;t exist in the Learning module.
-          It may have been moved or removed.
+          {t("message")}
         </p>
         <a href="/learning">
           <Button className="ey-bg-dark hover:ey-bg-dark-deep text-white gap-2 shadow-md hover:shadow-lg transition-all">
             <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-            Back to Learning
+            {t("backToLearning")}
           </Button>
         </a>
       </div>

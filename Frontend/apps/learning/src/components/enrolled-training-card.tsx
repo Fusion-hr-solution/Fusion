@@ -2,26 +2,25 @@
 
 import { Card, CardContent } from "@repo/ui";
 import { Clock, Star, CalendarDays, ChevronRight } from "lucide-react";
+import { useFormatter, useTranslations } from "next-intl";
 import type { EnrolledTrainingCardProps } from "@/types/component-props";
 import { CATEGORY_CONFIG, LEVEL_CONFIG } from "@/data/categories";
 import { STATUS_CONFIG } from "@/data/status-config";
 import { TrainingProgressBar } from "./training-progress-bar";
 
-function formatLocalDate(
-  dateStr: string,
-  options: Intl.DateTimeFormatOptions
-): string {
+/** Parses a date-only string ("YYYY-MM-DD") as a local date, not UTC. */
+function parseLocalDate(dateStr: string): Date {
   const parts = dateStr.split("-").map(Number);
-  return new Date(parts[0]!, parts[1]! - 1, parts[2]).toLocaleDateString(
-    "en-US",
-    options
-  );
+  return new Date(parts[0]!, parts[1]! - 1, parts[2]);
 }
 
 export function EnrolledTrainingCard({
   training,
   onContinue,
 }: EnrolledTrainingCardProps) {
+  const t = useTranslations("myTrainings");
+  const tCommon = useTranslations("common");
+  const format = useFormatter();
   const category = CATEGORY_CONFIG[training.category];
   const level = LEVEL_CONFIG[training.level];
   const status = STATUS_CONFIG[training.status];
@@ -41,19 +40,19 @@ export function EnrolledTrainingCard({
               <span
                 className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold tracking-wide uppercase ${category.badgeClass}`}
               >
-                {category.label}
+                {tCommon(`category.${training.category}`)}
               </span>
               <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <span
                   className={`h-1.5 w-1.5 rounded-full ${level.dotClass}`}
                 />
-                {level.label}
+                {tCommon(`level.${training.level}`)}
               </span>
               <span
                 className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${status.className}`}
               >
                 <StatusIcon className="h-3 w-3" aria-hidden="true" />
-                {status.label}
+                {tCommon(`status.${training.status}`)}
               </span>
             </div>
 
@@ -83,10 +82,11 @@ export function EnrolledTrainingCard({
               {training.deadline && (
                 <span className="flex items-center gap-1.5 rounded-md bg-muted px-2 py-1">
                   <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
-                  Due{" "}
-                  {formatLocalDate(training.deadline, {
-                    month: "short",
-                    day: "numeric",
+                  {t("due", {
+                    date: format.dateTime(parseLocalDate(training.deadline), {
+                      month: "short",
+                      day: "numeric",
+                    }),
                   })}
                 </span>
               )}
@@ -110,7 +110,7 @@ export function EnrolledTrainingCard({
           <div className="flex flex-col items-end justify-between gap-3">
             {training.completedAt && (
               <span className="text-xs text-muted-foreground">
-                {formatLocalDate(training.completedAt, {
+                {format.dateTime(parseLocalDate(training.completedAt), {
                   month: "short",
                   day: "numeric",
                   year: "numeric",
@@ -121,8 +121,11 @@ export function EnrolledTrainingCard({
               onClick={() => onContinue(training)}
               className={`group/btn flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-semibold transition-all shadow-sm hover:shadow-md ${status.buttonClass}`}
             >
-              {status.buttonLabel}
-              <ChevronRight className="h-3.5 w-3.5 transition-transform group-hover/btn:translate-x-0.5" aria-hidden="true" />
+              {tCommon(`statusAction.${training.status}`)}
+              <ChevronRight
+                className="h-3.5 w-3.5 transition-transform group-hover/btn:translate-x-0.5"
+                aria-hidden="true"
+              />
             </button>
           </div>
         </div>

@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { Building2, Clock, Calendar, MapPin, Sparkles } from "lucide-react";
+import { useFormatter, useTranslations } from "next-intl";
 import { Card, CardContent, Skeleton } from "@repo/ui";
 import { useApiQuery } from "@repo/api/react";
 import {
@@ -16,13 +17,6 @@ import { getMyInPersonHours } from "@/services/learning-service";
 import { TRAINING_TYPE_CONFIG } from "@/data";
 import type { AttendedSession } from "@/types";
 
-const formatSessionDate = (iso: string) =>
-  new Date(iso).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-
 interface KpiTileProps {
   label: string;
   value: string;
@@ -35,25 +29,38 @@ function KpiTile({ label, value, hint }: KpiTileProps) {
       <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
         {label}
       </span>
-      <span className="mt-1 text-2xl font-bold leading-none text-foreground">{value}</span>
-      {hint && <span className="mt-1 text-[10px] text-muted-foreground">{hint}</span>}
+      <span className="mt-1 text-2xl font-bold leading-none text-foreground">
+        {value}
+      </span>
+      {hint && (
+        <span className="mt-1 text-[10px] text-muted-foreground">{hint}</span>
+      )}
     </div>
   );
 }
 
 function SessionRow({ session }: { session: AttendedSession }) {
+  const format = useFormatter();
   return (
     <li className="flex items-start gap-3 rounded-lg border border-border/40 bg-card/40 px-3 py-2.5 transition-colors hover:border-border hover:bg-card">
       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
         <Building2 className="h-4 w-4" aria-hidden="true" />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-foreground">{session.trainingTitle}</p>
-        <p className="truncate text-xs text-muted-foreground">{session.partTitle}</p>
+        <p className="truncate text-sm font-medium text-foreground">
+          {session.trainingTitle}
+        </p>
+        <p className="truncate text-xs text-muted-foreground">
+          {session.partTitle}
+        </p>
         <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
           <span className="inline-flex items-center gap-1">
             <Calendar className="h-3 w-3" aria-hidden="true" />
-            {formatSessionDate(session.startUtc)}
+            {format.dateTime(new Date(session.startUtc), {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            })}
           </span>
           {session.room && (
             <span className="inline-flex items-center gap-1">
@@ -90,23 +97,24 @@ function WidgetSkeleton() {
 }
 
 export function InPersonHoursWidget() {
+  const t = useTranslations("dashboard.hours");
   const { data, isLoading, error } = useApiQuery(getMyInPersonHours);
 
   const chartData = useMemo(() => {
     if (!data) return [];
     return [
       {
-        name: TRAINING_TYPE_CONFIG.OnSite.label,
+        name: t("onSite"),
         value: Number(data.inPersonHours.toFixed(1)),
         fill: TRAINING_TYPE_CONFIG.OnSite.chartColor,
       },
       {
-        name: TRAINING_TYPE_CONFIG.ELearning.label,
+        name: t("eLearning"),
         value: Number(data.eLearningHours.toFixed(1)),
         fill: TRAINING_TYPE_CONFIG.ELearning.chartColor,
       },
     ];
-  }, [data]);
+  }, [data, t]);
 
   if (isLoading) return <WidgetSkeleton />;
 
@@ -114,16 +122,15 @@ export function InPersonHoursWidget() {
     return (
       <Card className="border-border/60">
         <CardContent className="py-6">
-          <p className="text-sm text-muted-foreground">
-            Unable to load your in-person training hours right now.
-          </p>
+          <p className="text-sm text-muted-foreground">{t("loadError")}</p>
         </CardContent>
       </Card>
     );
   }
 
   const totalRatio = data.inPersonHours + data.eLearningHours;
-  const inPersonShare = totalRatio > 0 ? Math.round((data.inPersonHours / totalRatio) * 100) : 0;
+  const inPersonShare =
+    totalRatio > 0 ? Math.round((data.inPersonHours / totalRatio) * 100) : 0;
 
   return (
     <Card className="overflow-hidden border-border/60 bg-gradient-to-br from-card via-card to-emerald-50/20">
@@ -135,24 +142,36 @@ export function InPersonHoursWidget() {
               <Building2 className="h-5 w-5" aria-hidden="true" />
             </div>
             <div>
-              <h2 className="text-base font-semibold text-foreground">In-Person Training Hours</h2>
-              <p className="text-xs text-muted-foreground">
-                Your attendance and learning balance across formats.
-              </p>
+              <h2 className="text-base font-semibold text-foreground">
+                {t("title")}
+              </h2>
+              <p className="text-xs text-muted-foreground">{t("subtitle")}</p>
             </div>
           </div>
           <span className="hidden items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 sm:inline-flex">
             <Sparkles className="h-3 w-3" aria-hidden="true" />
-            {inPersonShare}% in-person
+            {t("inPersonShare", { share: inPersonShare })}
           </span>
         </div>
 
         {/* KPI tiles */}
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <KpiTile label="This Month" value={`${data.totalHoursMonth.toFixed(1)}h`} />
-          <KpiTile label="This Quarter" value={`${data.totalHoursQuarter.toFixed(1)}h`} />
-          <KpiTile label="This Year" value={`${data.totalHoursYear.toFixed(1)}h`} />
-          <KpiTile label="All Time" value={`${data.totalHoursAllTime.toFixed(1)}h`} />
+          <KpiTile
+            label={t("thisMonth")}
+            value={`${data.totalHoursMonth.toFixed(1)}h`}
+          />
+          <KpiTile
+            label={t("thisQuarter")}
+            value={`${data.totalHoursQuarter.toFixed(1)}h`}
+          />
+          <KpiTile
+            label={t("thisYear")}
+            value={`${data.totalHoursYear.toFixed(1)}h`}
+          />
+          <KpiTile
+            label={t("allTime")}
+            value={`${data.totalHoursAllTime.toFixed(1)}h`}
+          />
         </div>
 
         {/* Pie + Sessions */}
@@ -160,12 +179,12 @@ export function InPersonHoursWidget() {
           {/* Pie chart */}
           <div className="rounded-xl border border-border/40 bg-card/40 p-4 lg:col-span-2">
             <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Format Mix
+              {t("formatMix")}
             </h3>
             {totalRatio === 0 ? (
               <div className="flex h-48 flex-col items-center justify-center gap-1 text-center text-muted-foreground">
                 <Clock className="h-6 w-6 opacity-50" />
-                <p className="text-xs">No completed hours yet.</p>
+                <p className="text-xs">{t("noHours")}</p>
               </div>
             ) : (
               <div className="h-56">
@@ -208,16 +227,16 @@ export function InPersonHoursWidget() {
           <div className="rounded-xl border border-border/40 bg-card/40 p-4 lg:col-span-3">
             <div className="mb-2 flex items-center justify-between">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Attended Sessions
+                {t("attendedSessions")}
               </h3>
               <span className="text-[11px] text-muted-foreground">
-                {data.attendedSessions.length} total
+                {t("totalCount", { count: data.attendedSessions.length })}
               </span>
             </div>
             {data.attendedSessions.length === 0 ? (
               <div className="flex h-48 flex-col items-center justify-center gap-1 text-center text-muted-foreground">
                 <Building2 className="h-6 w-6 opacity-50" />
-                <p className="text-xs">You haven&apos;t attended any in-person sessions yet.</p>
+                <p className="text-xs">{t("noSessions")}</p>
               </div>
             ) : (
               <ul className="ey-stagger-list max-h-64 space-y-2 overflow-y-auto pr-1">

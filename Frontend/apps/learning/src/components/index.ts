@@ -109,3 +109,9 @@ export {
   ExamLockedBanner,
   OnSiteLearnView,
 } from "./learn";
+export {
+  CertificateCard,
+  MyCertificatesView,
+  CertificateVerificationView,
+} from "./certificates";
+export { CertificateRegistryView } from "./admin/certificates";

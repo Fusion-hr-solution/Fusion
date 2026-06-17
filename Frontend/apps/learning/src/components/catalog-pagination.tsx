@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 
 interface CatalogPaginationProps {
@@ -32,6 +33,7 @@ export function CatalogPagination({
   totalCount,
   pageSize,
 }: CatalogPaginationProps) {
+  const t = useTranslations("catalog.pagination");
   const searchParams = useSearchParams();
 
   function pageHref(p: number) {
@@ -51,20 +53,19 @@ export function CatalogPagination({
   return (
     <div className="mt-10 flex flex-col items-center gap-3">
       <p className="text-xs text-muted-foreground">
-        Showing{" "}
-        <span className="font-semibold text-foreground">
-          {from}–{to}
-        </span>{" "}
-        of{" "}
-        <span className="font-semibold text-foreground">{totalCount}</span>{" "}
-        trainings
+        {t.rich("showing", {
+          from,
+          to,
+          total: totalCount,
+          b: (chunks) => <span className="font-semibold text-foreground">{chunks}</span>,
+        })}
       </p>
 
-      <nav className="flex items-center gap-1" aria-label="Pagination">
+      <nav className="flex items-center gap-1" aria-label={t("aria")}>
         {/* Previous */}
         <Link
           href={pageHref(page - 1)}
-          aria-label="Previous page"
+          aria-label={t("previousPage")}
           aria-disabled={page <= 1}
           tabIndex={page <= 1 ? -1 : undefined}
           className={cn(
@@ -90,7 +91,7 @@ export function CatalogPagination({
             <Link
               key={item}
               href={pageHref(item)}
-              aria-label={`Page ${item}`}
+              aria-label={t("pageAria", { page: item })}
               aria-current={item === page ? "page" : undefined}
               className={cn(
                 "flex h-9 w-9 items-center justify-center rounded-lg border text-sm font-medium transition-colors",
@@ -107,7 +108,7 @@ export function CatalogPagination({
         {/* Next */}
         <Link
           href={pageHref(page + 1)}
-          aria-label="Next page"
+          aria-label={t("nextPage")}
           aria-disabled={page >= totalPages}
           tabIndex={page >= totalPages ? -1 : undefined}
           className={cn(

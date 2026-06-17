@@ -4,6 +4,7 @@
 
 @layer base {
   :root {
+    color-scheme: light;
     --background: 0 0% 100%;
     --foreground: 0 0% 3.9%;
     --card: 0 0% 100%;
@@ -39,39 +40,41 @@
     --sidebar-ring: 0 0% 63%;
   }
 
+  /* EY "Ink at Night" — semantic tokens kept in sync with ey-brand.css */
   .dark {
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 9.1%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 9.1%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 44.2 100% 47.1%;
-    --primary-foreground: 29.5 83.4% 24.6%;
-    --secondary: 240 4% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63%;
-    --accent: 0 0% 14.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 358.7 100% 69.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 0 0% 17.9%;
-    --input: 0 0% 17.9%;
-    --ring: 0 0% 45.2%;
-    --chart-1: 51.5 100% 56.3%;
-    --chart-2: 44.2 100% 47.1%;
-    --chart-3: 38.9 100% 40.9%;
-    --chart-4: 34.4 100% 32.6%;
-    --chart-5: 32.8 100% 26.8%;
-    --sidebar-background: 0 0% 9.1%;
-    --sidebar-foreground: 0 0% 98%;
-    --sidebar-primary: 44.2 100% 47.1%;
-    --sidebar-primary-foreground: 54.5 90.6% 95.3%;
-    --sidebar-accent: 0 0% 14.9%;
-    --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 0 0% 17.9%;
-    --sidebar-ring: 0 0% 45.2%;
+    color-scheme: dark;
+    --background: 240 14% 8%;
+    --foreground: 240 14% 96%;
+    --card: 240 13% 11%;
+    --card-foreground: 240 14% 96%;
+    --popover: 240 13% 12%;
+    --popover-foreground: 240 14% 96%;
+    --primary: 47 100% 52%;
+    --primary-foreground: 29.5 83.4% 22%;
+    --secondary: 240 10% 17%;
+    --secondary-foreground: 240 14% 96%;
+    --muted: 240 9% 16%;
+    --muted-foreground: 240 8% 67%;
+    --accent: 240 10% 18%;
+    --accent-foreground: 240 14% 96%;
+    --destructive: 358 70% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 240 8% 22%;
+    --input: 240 8% 24%;
+    --ring: 240 10% 56%;
+    --chart-1: 51 100% 62%;
+    --chart-2: 44 96% 56%;
+    --chart-3: 38 92% 53%;
+    --chart-4: 33 88% 54%;
+    --chart-5: 28 82% 57%;
+    --sidebar-background: 240 16% 6%;
+    --sidebar-foreground: 240 14% 92%;
+    --sidebar-primary: 47 100% 53%;
+    --sidebar-primary-foreground: 29.5 83.4% 20%;
+    --sidebar-accent: 240 10% 16%;
+    --sidebar-accent-foreground: 240 14% 96%;
+    --sidebar-border: 240 10% 16%;
+    --sidebar-ring: 240 10% 56%;
   }
 }
 

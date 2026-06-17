@@ -2,6 +2,7 @@
 
 import { Button } from "@repo/ui";
 import { ChevronLeft, ChevronRight, CheckCircle2, GraduationCap } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { ChapterNavigationProps } from "@/types/component-props";
 
 export function ChapterNavigation({
@@ -13,6 +14,8 @@ export function ChapterNavigation({
   examAvailable,
   onStartExam,
 }: ChapterNavigationProps) {
+  const t = useTranslations("learn");
+  const tCommon = useTranslations("common");
   const showExamButton = isLast && allBlocksCompleted && examAvailable && onStartExam;
 
   return (
@@ -28,7 +31,7 @@ export function ChapterNavigation({
         className="gap-2"
       >
         <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-        Previous
+        {tCommon("actions.previous")}
       </Button>
 
       {/* Center status */}
@@ -36,11 +39,11 @@ export function ChapterNavigation({
         {allBlocksCompleted ? (
           <span className="flex items-center gap-1.5 text-sm font-semibold text-[hsl(var(--ey-green-500))]">
             <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-            All blocks completed
+            {t("navigation.allBlocksCompleted")}
           </span>
         ) : (
           <span className="text-xs text-muted-foreground">
-            Complete all blocks to finish this chapter
+            {t("navigation.completeAllHint")}
           </span>
         )}
       </div>
@@ -52,7 +55,7 @@ export function ChapterNavigation({
           className="gap-2 ey-bg-accent text-foreground hover:opacity-90"
         >
           <GraduationCap className="h-4 w-4" aria-hidden="true" />
-          Take Exam
+          {t("navigation.takeExam")}
         </Button>
       ) : (
         <Button
@@ -60,7 +63,7 @@ export function ChapterNavigation({
           disabled={isLast}
           className="gap-2 ey-bg-dark hover:ey-bg-dark-deep text-white"
         >
-          {isLast ? "Last Chapter" : "Next"}
+          {isLast ? t("navigation.lastChapter") : tCommon("actions.next")}
           <ChevronRight className="h-4 w-4" aria-hidden="true" />
         </Button>
       )}
