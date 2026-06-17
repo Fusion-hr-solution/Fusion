@@ -2,6 +2,7 @@
 
 import { Card, CardContent } from "@repo/ui";
 import { Circle, CheckCircle2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { ExamQuestionItemProps } from "@/types/component-props";
 
 export function ExamQuestionItem({
@@ -10,6 +11,7 @@ export function ExamQuestionItem({
   selectedOptionIds,
   onSetAnswer,
 }: ExamQuestionItemProps) {
+  const t = useTranslations("exam.question");
   const isMulti = question.type === "MultipleChoice";
 
   function handleSelect(optionId: string) {
@@ -31,15 +33,15 @@ export function ExamQuestionItem({
       <CardContent className="p-6">
         <div className="mb-4 flex items-start justify-between gap-3">
           <h3 className="text-sm font-semibold text-foreground leading-relaxed">
-            <span className="text-muted-foreground mr-2">Q{index + 1}.</span>
+            <span className="text-muted-foreground mr-2">{t("label", { number: index + 1 })}</span>
             {question.questionText}
           </h3>
           <span className="shrink-0 text-xs text-muted-foreground">
-            {question.points} {question.points === 1 ? "pt" : "pts"}
+            {t("points", { count: question.points })}
           </span>
         </div>
         {isMulti && (
-          <p className="mb-3 text-xs text-muted-foreground">Select all that apply</p>
+          <p className="mb-3 text-xs text-muted-foreground">{t("selectAll")}</p>
         )}
         <div className="space-y-2">
           {question.options.map((option) => {
@@ -52,7 +54,7 @@ export function ExamQuestionItem({
                 className={`flex w-full items-center gap-3 rounded-lg border px-4 py-3 text-left text-sm transition-all ${
                   selected
                     ? "border-[hsl(var(--ey-blue-500))] bg-[hsl(var(--ey-blue-500))]/5 text-foreground"
-                    : "border-border/60 bg-white text-foreground hover:border-border hover:bg-muted/30"
+                    : "border-border/60 bg-card text-foreground hover:border-border hover:bg-muted/30"
                 }`}
               >
                 {selected ? (

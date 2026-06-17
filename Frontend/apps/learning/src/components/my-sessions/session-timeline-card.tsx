@@ -15,6 +15,7 @@ import { Badge, Button } from "@repo/ui";
 import { useApiMutation } from "@repo/api/react";
 import { ApiError } from "@repo/api";
 import { toast } from "sonner";
+import { useFormatter, useTranslations } from "next-intl";
 import { cancelSessionEnrollment } from "@/services/enrollment-service";
 import type { MyEnrollmentSession } from "@/types";
 
@@ -24,6 +25,9 @@ interface SessionTimelineCardProps {
 }
 
 export function SessionTimelineCard({ session, isLast }: SessionTimelineCardProps) {
+  const t = useTranslations("mySessions");
+  const tCommon = useTranslations("common");
+  const format = useFormatter();
   const [cancelled, setCancelled] = useState(false);
   const startDate = new Date(session.startUtc);
   const endDate = new Date(session.endUtc);
@@ -35,16 +39,18 @@ export function SessionTimelineCard({ session, isLast }: SessionTimelineCardProp
     {
       onSuccess: () => {
         setCancelled(true);
-        toast.success("Session cancelled", {
-          description: `"${session.partTitle}" has been removed from your bookings.`,
+        toast.success(t("cancelToast.successTitle"), {
+          description: t("timelineCancelToast.successDescription", {
+            title: session.partTitle,
+          }),
         });
       },
       onError: (err) => {
         const message =
           err instanceof ApiError
             ? err.errors.join(". ")
-            : "Could not cancel this session. Please try again.";
-        toast.error("Cancellation failed", { description: message });
+            : t("cancelToast.errorFallback");
+        toast.error(t("cancelToast.errorTitle"), { description: message });
       },
     },
   );
@@ -69,10 +75,13 @@ export function SessionTimelineCard({ session, isLast }: SessionTimelineCardProp
             {/* Part title + status badge */}
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-sm font-semibold text-foreground">
-                Part {session.partOrderIndex + 1}: {session.partTitle}
+                {t("partTitle", {
+                  number: session.partOrderIndex + 1,
+                  title: session.partTitle,
+                })}
               </span>
               <Badge variant={statusConfig.badgeVariant} className="text-[10px] px-1.5 py-0">
-                {statusConfig.label}
+                {t(`enrollmentStatus.${statusConfig.labelKey}`)}
               </Badge>
             </div>
 
@@ -81,7 +90,7 @@ export function SessionTimelineCard({ session, isLast }: SessionTimelineCardProp
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Calendar className="h-3 w-3 shrink-0" />
                 <span>
-                  {startDate.toLocaleDateString(undefined, {
+                  {format.dateTime(startDate, {
                     weekday: "short",
                     day: "numeric",
                     month: "short",
@@ -92,9 +101,10 @@ export function SessionTimelineCard({ session, isLast }: SessionTimelineCardProp
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Clock className="h-3 w-3 shrink-0" />
                 <span>
-                  {startDate.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
-                  {" – "}
-                  {endDate.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
+                  {t("timeline.timeRange", {
+                    start: format.dateTime(startDate, { hour: "2-digit", minute: "2-digit" }),
+                    end: format.dateTime(endDate, { hour: "2-digit", minute: "2-digit" }),
+                  })}
                 </span>
               </div>
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -111,7 +121,7 @@ export function SessionTimelineCard({ session, isLast }: SessionTimelineCardProp
 
             {session.status === "Waitlisted" && session.waitlistPosition > 0 && (
               <p className="mt-2 text-xs text-amber-600">
-                Waitlist position: #{session.waitlistPosition}
+                {t("timeline.waitlistPosition", { position: session.waitlistPosition })}
               </p>
             )}
 
@@ -119,7 +129,7 @@ export function SessionTimelineCard({ session, isLast }: SessionTimelineCardProp
               href={`/my-sessions/${session.sessionId}`}
               className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
             >
-              View details <ExternalLink className="h-3 w-3" />
+              {t("timeline.viewDetails")} <ExternalLink className="h-3 w-3" />
             </Link>
           </div>
 
@@ -137,7 +147,7 @@ export function SessionTimelineCard({ session, isLast }: SessionTimelineCardProp
               ) : (
                 <>
                   <XCircle className="mr-1 h-3.5 w-3.5" />
-                  Cancel
+                  {tCommon("actions.cancel")}
                 </>
               )}
             </Button>
@@ -156,14 +166,14 @@ function getStatusConfig(
   dotClass: string;
   cardClass: string;
   badgeVariant: "default" | "secondary" | "destructive" | "outline";
-  label: string;
+  labelKey: "attended" | "waitlisted" | "inProgress" | "missed" | "confirmed";
 } {
   if (status === "Attended") {
     return {
       dotClass: "border-emerald-500 bg-emerald-500",
       cardClass: "border-emerald-200 bg-emerald-50/50",
       badgeVariant: "default",
-      label: "Attended",
+      labelKey: "attended",
     };
   }
   if (status === "Waitlisted") {
@@ -171,7 +181,7 @@ function getStatusConfig(
       dotClass: "border-amber-400 bg-amber-400",
       cardClass: "border-amber-200 bg-amber-50/50",
       badgeVariant: "secondary",
-      label: "Waitlisted",
+      labelKey: "waitlisted",
     };
   }
   if (isOngoing) {
@@ -179,7 +189,7 @@ function getStatusConfig(
       dotClass: "border-blue-500 bg-blue-500 animate-pulse",
       cardClass: "border-blue-200 bg-blue-50/50",
       badgeVariant: "default",
-      label: "In Progress",
+      labelKey: "inProgress",
     };
   }
   if (isPast) {
@@ -187,7 +197,7 @@ function getStatusConfig(
       dotClass: "border-muted-foreground/40 bg-muted-foreground/40",
       cardClass: "border-border/40 bg-muted/20 opacity-70",
       badgeVariant: "outline",
-      label: "Missed",
+      labelKey: "missed",
     };
   }
   // Upcoming + Enrolled
@@ -195,6 +205,6 @@ function getStatusConfig(
     dotClass: "border-primary bg-primary",
     cardClass: "border-primary/20 bg-primary/5",
     badgeVariant: "default",
-    label: "Confirmed",
+    labelKey: "confirmed",
   };
 }
