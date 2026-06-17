@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { useApiQuery, useApiMutation } from "@repo/api/react";
 import {
   getAdminExamDetail,
@@ -21,26 +22,35 @@ import type {
 } from "@/types/admin";
 
 export function useExamBuilder(trainingId: string) {
-  const [editingQuestion, setEditingQuestion] = useState<AdminExamQuestion | null>(null);
+  const t = useTranslations("adminExam");
+  const [editingQuestion, setEditingQuestion] =
+    useState<AdminExamQuestion | null>(null);
   const [questionDialogOpen, setQuestionDialogOpen] = useState(false);
 
   const fetchExam = useCallback(
     () => getAdminExamDetail(trainingId),
-    [trainingId],
+    [trainingId]
   );
 
-  const { data: exam, isLoading, refetch } = useApiQuery(fetchExam, { enabled: true });
+  const {
+    data: exam,
+    isLoading,
+    refetch,
+  } = useApiQuery(fetchExam, { enabled: true });
 
   const questions = useMemo(
-    () => (exam?.questions ?? []).slice().sort((a, b) => a.orderIndex - b.orderIndex),
-    [exam],
+    () =>
+      (exam?.questions ?? [])
+        .slice()
+        .sort((a, b) => a.orderIndex - b.orderIndex),
+    [exam]
   );
 
   // --- Exam CRUD ---
 
   const { mutateAsync: doCreateExam, isLoading: isCreating } = useApiMutation(
     (input: CreateExamInput) => createExam(trainingId, input),
-    { onSuccess: () => refetch() },
+    { onSuccess: () => refetch() }
   );
 
   const { mutateAsync: doUpdateExam, isLoading: isUpdating } = useApiMutation(
@@ -48,7 +58,7 @@ export function useExamBuilder(trainingId: string) {
       if (!exam) throw new Error("No exam to update");
       return updateExam(trainingId, exam.id, input);
     },
-    { onSuccess: () => refetch() },
+    { onSuccess: () => refetch() }
   );
 
   const { mutateAsync: doDeleteExam } = useApiMutation(
@@ -56,7 +66,7 @@ export function useExamBuilder(trainingId: string) {
       if (!exam) throw new Error("No exam to delete");
       return deleteExam(trainingId, exam.id);
     },
-    { onSuccess: () => refetch() },
+    { onSuccess: () => refetch() }
   );
 
   // --- Question CRUD ---
@@ -66,15 +76,21 @@ export function useExamBuilder(trainingId: string) {
       if (!exam) throw new Error("No exam");
       return addExamQuestion(trainingId, exam.id, input);
     },
-    { onSuccess: () => refetch() },
+    { onSuccess: () => refetch() }
   );
 
   const { mutateAsync: doUpdateQuestion } = useApiMutation(
-    ({ questionId, input }: { questionId: string; input: UpdateExamQuestionInput }) => {
+    ({
+      questionId,
+      input,
+    }: {
+      questionId: string;
+      input: UpdateExamQuestionInput;
+    }) => {
       if (!exam) throw new Error("No exam");
       return updateExamQuestion(trainingId, exam.id, questionId, input);
     },
-    { onSuccess: () => refetch() },
+    { onSuccess: () => refetch() }
   );
 
   const { mutateAsync: doDeleteQuestion } = useApiMutation(
@@ -82,7 +98,7 @@ export function useExamBuilder(trainingId: string) {
       if (!exam) throw new Error("No exam");
       return deleteExamQuestion(trainingId, exam.id, questionId);
     },
-    { onSuccess: () => refetch() },
+    { onSuccess: () => refetch() }
   );
 
   const { mutateAsync: doReorderQuestions } = useApiMutation(
@@ -90,7 +106,7 @@ export function useExamBuilder(trainingId: string) {
       if (!exam) throw new Error("No exam");
       return reorderExamQuestions(trainingId, exam.id, questionIds);
     },
-    { onSuccess: () => refetch() },
+    { onSuccess: () => refetch() }
   );
 
   // --- Handlers ---
@@ -99,54 +115,58 @@ export function useExamBuilder(trainingId: string) {
     async (input: CreateExamInput) => {
       await doCreateExam(input);
     },
-    [doCreateExam],
+    [doCreateExam]
   );
 
   const handleUpdateExam = useCallback(
     async (input: UpdateExamInput) => {
       await doUpdateExam(input);
     },
-    [doUpdateExam],
+    [doUpdateExam]
   );
 
   const handleDeleteExam = useCallback(async () => {
-    if (!confirm("Delete this exam and all its questions? This cannot be undone.")) return;
+    if (!confirm(t("toast.confirmDeleteExam"))) return;
     await doDeleteExam(undefined);
-  }, [doDeleteExam]);
+  }, [doDeleteExam, t]);
 
   const handleAddQuestion = useCallback(
     async (input: CreateExamQuestionInput) => {
       await doAddQuestion(input);
     },
-    [doAddQuestion],
+    [doAddQuestion]
   );
 
   const handleUpdateQuestion = useCallback(
     async (questionId: string, input: UpdateExamQuestionInput) => {
       await doUpdateQuestion({ questionId, input });
     },
-    [doUpdateQuestion],
+    [doUpdateQuestion]
   );
 
   const handleDeleteQuestion = useCallback(
     async (question: AdminExamQuestion) => {
-      if (!confirm(`Delete question "${question.questionText.slice(0, 50)}..."?`)) return;
+      const text = `${question.questionText.slice(0, 50)}...`;
+      if (!confirm(t("toast.confirmDeleteQuestion", { text }))) return;
       await doDeleteQuestion(question.id);
     },
-    [doDeleteQuestion],
+    [doDeleteQuestion, t]
   );
 
   const handleReorderQuestions = useCallback(
     async (questionIds: string[]) => {
       await doReorderQuestions(questionIds);
     },
-    [doReorderQuestions],
+    [doReorderQuestions]
   );
 
-  const openQuestionDialog = useCallback((question: AdminExamQuestion | null) => {
-    setEditingQuestion(question);
-    setQuestionDialogOpen(true);
-  }, []);
+  const openQuestionDialog = useCallback(
+    (question: AdminExamQuestion | null) => {
+      setEditingQuestion(question);
+      setQuestionDialogOpen(true);
+    },
+    []
+  );
 
   const closeQuestionDialog = useCallback(() => {
     setQuestionDialogOpen(false);

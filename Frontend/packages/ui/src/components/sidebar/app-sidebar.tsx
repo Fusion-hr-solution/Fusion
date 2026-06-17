@@ -52,7 +52,7 @@ export function AppSidebar({
           collapsed && "justify-center px-0"
         )}
       >
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-foreground shadow-sm">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-foreground shadow-sm dark:bg-secondary">
           <BrandIcon className="h-4 w-4 text-primary" aria-hidden="true" />
         </div>
         {!collapsed && (

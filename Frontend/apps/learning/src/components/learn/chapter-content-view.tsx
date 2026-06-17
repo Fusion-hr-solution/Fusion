@@ -1,6 +1,7 @@
 "use client";
 
 import { BookOpen } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { ChapterContentViewProps } from "@/types/component-props";
 import type { ContentBlock, ChapterLayout } from "@/types";
 import { ChapterNavigation } from "./chapter-navigation";
@@ -18,6 +19,7 @@ export function ChapterContentView({
   examAvailable,
   onStartExam,
 }: ChapterContentViewProps) {
+  const t = useTranslations("learn");
   const sortedBlocks = [...chapter.contentBlocks].sort((a, b) => a.orderIndex - b.orderIndex);
   const allBlocksCompleted = sortedBlocks.length > 0 && sortedBlocks.every((b) => completedBlockIds.has(b.id));
 
@@ -26,11 +28,11 @@ export function ChapterContentView({
       <div className="ey-animate-fade-up mb-8">
         <h1 className="text-2xl font-bold tracking-tight text-foreground lg:text-3xl">{chapter.title}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          {sortedBlocks.length} {sortedBlocks.length === 1 ? "block" : "blocks"} · {completedBlockIds.size}/{sortedBlocks.length} completed
+          {t("chapter.blocksProgress", { count: sortedBlocks.length, completed: completedBlockIds.size })}
         </p>
       </div>
 
-      {renderBlocksWithLayout(sortedBlocks, chapter.layout, completedBlockIds, onMarkBlockComplete, isLoading)}
+      {renderBlocksWithLayout(sortedBlocks, chapter.layout, completedBlockIds, onMarkBlockComplete, isLoading, t("chapter.empty"))}
 
       <ChapterNavigation
         allBlocksCompleted={allBlocksCompleted}
@@ -52,12 +54,13 @@ function renderBlocksWithLayout(
   completedBlockIds: Set<string>,
   onMarkBlockComplete: (blockId: string) => void,
   isLoading: boolean,
+  emptyMessage: string,
 ) {
   if (blocks.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-border/60 bg-muted/30 px-8 py-16 text-center">
         <BookOpen className="mx-auto h-10 w-10 text-muted-foreground/40 mb-3" aria-hidden="true" />
-        <p className="text-sm text-muted-foreground">Content for this chapter is not yet available.</p>
+        <p className="text-sm text-muted-foreground">{emptyMessage}</p>
       </div>
     );
   }

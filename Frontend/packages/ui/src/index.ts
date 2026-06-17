@@ -106,6 +106,15 @@ export {
 } from "./components/sidebar";
 export { TopLoader } from "./components/top-loader";
 export { ModuleLayout } from "./components/module-layout";
+
+// ── Theme (dark mode) ────────────────────────────────────────────────
+export { ThemeProvider, useTheme } from "./components/theme/theme-provider";
+export { ThemeScript } from "./components/theme/theme-script";
+export {
+  ThemeToggle,
+  type ThemeToggleLabels,
+} from "./components/theme/theme-toggle";
+export type { Theme, ResolvedTheme } from "./components/theme/constants";
 export { EmptyState } from "./components/feedback/empty-state";
 export { ErrorState } from "./components/feedback/error-state";
 

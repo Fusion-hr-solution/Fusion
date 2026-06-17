@@ -1,12 +1,16 @@
 import Link from "next/link";
 import { Card, CardContent } from "@repo/ui";
 import { Clock, BookOpen, Users, Star, ArrowUpRight, AlertTriangle, Award } from "lucide-react";
+import { useFormatter, useTranslations } from "next-intl";
 import type { Training } from "@/types";
 import { CATEGORY_CONFIG, LEVEL_CONFIG } from "@/data/categories";
 import { BADGE_LEVEL_CONFIG } from "@/data/badge-config";
 import { FormatBadge } from "./format-badge";
 
 export function TrainingCard({ training }: { training: Training }) {
+  const t = useTranslations("catalog.card");
+  const tCommon = useTranslations("common");
+  const format = useFormatter();
   const category = CATEGORY_CONFIG[training.category];
   const level = LEVEL_CONFIG[training.level];
   const badge = BADGE_LEVEL_CONFIG[training.badgeLevel];
@@ -15,7 +19,7 @@ export function TrainingCard({ training }: { training: Training }) {
     <Link href={`/training/${training.id}`} className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-lg">
     <Card
       className="group relative flex flex-col overflow-hidden border border-border/60 bg-card transition-all duration-300 hover:shadow-xl hover:shadow-black/8 hover:-translate-y-1 cursor-pointer h-full"
-      aria-label={`View details for ${training.title}`}
+      aria-label={t("viewDetailsAria", { title: training.title })}
     >
       <CardContent className="flex flex-1 flex-col gap-4 p-5">
         {/* Top — category + level + mandatory */}
@@ -24,12 +28,12 @@ export function TrainingCard({ training }: { training: Training }) {
             <span
               className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold tracking-wide uppercase shrink-0 ${category.badgeClass}`}
             >
-              {category.label}
+              {tCommon(`category.${training.category}`)}
             </span>
             {training.isMandatory && (
               <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-xs font-semibold text-amber-700 shrink-0">
                 <AlertTriangle className="h-3 w-3" aria-hidden="true" />
-                Mandatory
+                {t("mandatory")}
               </span>
             )}
             <FormatBadge type={training.trainingType} />
@@ -37,7 +41,7 @@ export function TrainingCard({ training }: { training: Training }) {
           <div className="flex items-center gap-2 shrink-0">
             <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <span className={`h-1.5 w-1.5 rounded-full ${level.dotClass}`} />
-              {level.label}
+              {tCommon(`level.${training.level}`)}
             </span>
             <ArrowUpRight
               className="h-3.5 w-3.5 text-muted-foreground/0 transition-all duration-300 group-hover:text-[hsl(var(--ey-blue-600))] group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
@@ -64,14 +68,16 @@ export function TrainingCard({ training }: { training: Training }) {
           </span>
           <span className="flex items-center gap-1.5 rounded-md bg-muted px-2 py-1">
             <BookOpen className="h-3.5 w-3.5" aria-hidden="true" />
-            {training.trainingType === "OnSite" ? `${training.onSiteCourses?.length ?? 0} courses` : `${training.chaptersCount} chapters`}
+            {training.trainingType === "OnSite"
+              ? t("coursesCount", { count: training.onSiteCourses?.length ?? 0 })
+              : t("chaptersCount", { count: training.chaptersCount })}
           </span>
           <span className={`flex items-center gap-1.5 rounded-md border px-2 py-1 ${badge.className}`}>
             <Award className="h-3.5 w-3.5" aria-hidden="true" />
-            {badge.label}
+            {tCommon(`badgeLevel.${training.badgeLevel.toLowerCase()}`)}
           </span>
           <span className="flex items-center gap-1.5 rounded-md bg-muted px-2 py-1 font-semibold">
-            {training.credits} credits
+            {t("credits", { count: training.credits })}
           </span>
         </div>
 
@@ -95,7 +101,7 @@ export function TrainingCard({ training }: { training: Training }) {
             </span>
             <span className="flex items-center gap-1">
               <Users className="h-3 w-3" aria-hidden="true" />
-              {training.enrolledCount.toLocaleString()}
+              {format.number(training.enrolledCount)}
             </span>
           </div>
         </div>

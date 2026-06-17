@@ -2,6 +2,7 @@
 
 import { Button, Badge, Progress } from "@repo/ui";
 import { GraduationCap, HelpCircle, Target, Clock, Play, Loader2, ArrowLeft } from "lucide-react";
+import { useFormatter, useTranslations } from "next-intl";
 import type { ExamTakingViewProps } from "@/types/component-props";
 import { ExamQuestionItem } from "./exam-question-item";
 import { ExamResultView } from "./exam-result-view";
@@ -19,6 +20,8 @@ export function ExamTakingView({
   onBack,
   isSubmitting,
 }: ExamTakingViewProps) {
+  const t = useTranslations("exam");
+  const tCommon = useTranslations("common");
   if (phase === "result" && result) {
     return <ExamResultView result={result} attempts={attempts} onRetry={onRetry} onBack={onBack} />;
   }
@@ -39,12 +42,12 @@ export function ExamTakingView({
         <div>
           <h1 className="text-xl font-bold text-foreground">{exam.title}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {answeredCount}/{total} questions answered
+            {t("taking.answeredCount", { answered: answeredCount, total })}
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={onBack} className="gap-1.5">
           <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
-          Back
+          {tCommon("actions.back")}
         </Button>
       </div>
 
@@ -67,8 +70,8 @@ export function ExamTakingView({
       <div className="ey-animate-fade-up mt-8 flex items-center justify-between border-t border-border/50 pt-6">
         <p className="text-sm text-muted-foreground">
           {allAnswered
-            ? "All questions answered. Ready to submit!"
-            : `${total - answeredCount} question${total - answeredCount === 1 ? "" : "s"} remaining`}
+            ? t("taking.allAnswered")
+            : t("taking.remaining", { count: total - answeredCount })}
         </p>
         <Button
           onClick={onSubmit}
@@ -78,10 +81,10 @@ export function ExamTakingView({
           {isSubmitting ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-              Submitting...
+              {t("taking.submitting")}
             </>
           ) : (
-            "Submit Exam"
+            t("taking.submit")
           )}
         </Button>
       </div>
@@ -102,11 +105,14 @@ function ExamIntro({
   onStart: () => void;
   onBack: () => void;
 }) {
+  const t = useTranslations("exam");
+  const tCommon = useTranslations("common");
+  const format = useFormatter();
   const stats = [
-    { icon: HelpCircle, value: `${exam.questionCount}`, label: "Questions" },
-    { icon: Target, value: `${exam.passingScore}%`, label: "Passing Score" },
+    { icon: HelpCircle, value: `${exam.questionCount}`, label: t("intro.questions") },
+    { icon: Target, value: `${exam.passingScore}%`, label: t("passingScore") },
     ...(exam.durationMinutes
-      ? [{ icon: Clock, value: `${exam.durationMinutes} min`, label: "Suggested time" }]
+      ? [{ icon: Clock, value: t("intro.minutes", { minutes: exam.durationMinutes }), label: t("intro.suggestedTime") }]
       : []),
   ];
 
@@ -129,7 +135,7 @@ function ExamIntro({
         {stats.map((stat) => {
           const Icon = stat.icon;
           return (
-            <div key={stat.label} className="rounded-xl border border-border/60 bg-white p-5 text-center">
+            <div key={stat.label} className="rounded-xl border border-border/60 bg-card p-5 text-center">
               <Icon className="mx-auto h-5 w-5 text-muted-foreground mb-2" aria-hidden="true" />
               <p className="text-lg font-bold text-foreground">{stat.value}</p>
               <p className="text-xs text-muted-foreground">{stat.label}</p>
@@ -142,7 +148,7 @@ function ExamIntro({
       {hasPassed && (
         <div className="ey-animate-fade-up mt-6 rounded-xl border border-[hsl(var(--ey-green-500))]/30 bg-[hsl(var(--ey-green-500))]/5 px-5 py-3 text-center" style={{ animationDelay: "120ms" }}>
           <p className="text-sm text-[hsl(var(--ey-green-500))] font-medium">
-            You have already passed this exam. You can retake it if you wish.
+            {t("intro.alreadyPassed")}
           </p>
         </div>
       )}
@@ -151,36 +157,36 @@ function ExamIntro({
       <div className="ey-animate-fade-up mt-8 flex items-center justify-center gap-3" style={{ animationDelay: "160ms" }}>
         <Button onClick={onStart} className="gap-2 ey-bg-dark hover:ey-bg-dark-deep text-white h-11 px-8">
           <Play className="h-4 w-4" aria-hidden="true" />
-          {hasPassed ? "Retake Exam" : attempts.length > 0 ? "Try Again" : "Begin Exam"}
+          {hasPassed ? t("intro.retake") : attempts.length > 0 ? tCommon("actions.retry") : t("intro.begin")}
         </Button>
         <Button variant="outline" onClick={onBack} className="gap-2">
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-          Back
+          {tCommon("actions.back")}
         </Button>
       </div>
 
       {/* Past attempts */}
       {attempts.length > 0 && (
         <div className="ey-animate-fade-up mt-10" style={{ animationDelay: "200ms" }}>
-          <h3 className="mb-3 text-sm font-semibold text-foreground">Previous Attempts</h3>
+          <h3 className="mb-3 text-sm font-semibold text-foreground">{t("intro.previousAttempts")}</h3>
           <div className="space-y-2">
             {attempts.map((a, i) => (
               <div
                 key={a.id}
-                className="flex items-center justify-between rounded-lg border border-border/60 bg-white px-4 py-3"
+                className="flex items-center justify-between rounded-lg border border-border/60 bg-card px-4 py-3"
               >
                 <div className="flex items-center gap-3">
                   <span className="text-xs font-medium text-muted-foreground">
                     #{attempts.length - i}
                   </span>
                   <Badge variant={a.passed ? "default" : "destructive"} className="text-xs">
-                    {a.passed ? "Passed" : "Failed"}
+                    {a.passed ? t("attempts.passed") : t("attempts.failed")}
                   </Badge>
                   <span className="text-sm font-semibold text-foreground">{a.score}%</span>
                 </div>
                 <span className="flex items-center gap-1 text-xs text-muted-foreground">
                   <Clock className="h-3 w-3" aria-hidden="true" />
-                  {new Date(a.attemptedAt).toLocaleDateString("en-US", {
+                  {format.dateTime(new Date(a.attemptedAt), {
                     month: "short",
                     day: "numeric",
                     hour: "2-digit",

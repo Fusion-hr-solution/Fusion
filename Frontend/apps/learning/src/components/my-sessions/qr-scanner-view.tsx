@@ -8,6 +8,7 @@ import { Button, Card, CardContent } from "@repo/ui";
 import { useApiMutation } from "@repo/api/react";
 import { ApiError } from "@repo/api";
 import { toast } from "sonner";
+import { useFormatter, useTranslations } from "next-intl";
 import { scanQrAttendance } from "@/services/enrollment-service";
 import type { ScanQrResult } from "@/types";
 
@@ -18,6 +19,7 @@ type ScanState =
   | { kind: "error"; message: string; recoverable: boolean };
 
 export function QrScannerView() {
+  const t = useTranslations("mySessions");
   const [state, setState] = useState<ScanState>({ kind: "idle" });
   const [cameraError, setCameraError] = useState<string | null>(null);
 
@@ -32,16 +34,17 @@ export function QrScannerView() {
       try {
         const result = await mutateAsync(payload);
         setState({ kind: "success", result });
-        toast.success("Attendance confirmed", {
+        toast.success(t("scanner.successToast"), {
           description: result.trainingTitle,
         });
       } catch (err) {
-        const { message, recoverable } = mapScanError(err);
+        const { key, recoverable, raw } = mapScanError(err);
+        const message = raw ?? t(`scanner.errors.${key}`);
         setState({ kind: "error", message, recoverable });
-        toast.error("Scan failed", { description: message });
+        toast.error(t("scanner.errorToast"), { description: message });
       }
     },
-    [mutateAsync, state.kind],
+    [mutateAsync, state.kind, t],
   );
 
   const handleScan = useCallback(
@@ -52,10 +55,14 @@ export function QrScannerView() {
     [submit],
   );
 
-  const handleScannerError = useCallback((err: unknown) => {
-    const message = err instanceof Error ? err.message : "Camera unavailable.";
-    setCameraError(message);
-  }, []);
+  const handleScannerError = useCallback(
+    (err: unknown) => {
+      const message =
+        err instanceof Error ? err.message : t("scanner.cameraUnavailable");
+      setCameraError(message);
+    },
+    [t],
+  );
 
   const reset = useCallback(() => {
     setState({ kind: "idle" });
@@ -69,14 +76,12 @@ export function QrScannerView() {
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
       >
         <ArrowLeft className="h-4 w-4" />
-        Back to My Sessions
+        {t("backToMySessions")}
       </Link>
 
       <div className="space-y-1">
-        <h1 className="text-2xl font-bold text-foreground">Scan attendance QR</h1>
-        <p className="text-sm text-muted-foreground">
-          Point your camera at the QR code projected by your trainer.
-        </p>
+        <h1 className="text-2xl font-bold text-foreground">{t("scanner.title")}</h1>
+        <p className="text-sm text-muted-foreground">{t("scanner.subtitle")}</p>
       </div>
 
       {state.kind === "success" ? (
@@ -91,9 +96,7 @@ export function QrScannerView() {
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center text-white">
                   <CameraOff className="h-10 w-10 text-white/60" />
                   <p className="text-sm">{cameraError}</p>
-                  <p className="text-xs text-white/60">
-                    Allow camera access in your browser, then reload the page.
-                  </p>
+                  <p className="text-xs text-white/60">{t("scanner.cameraHelp")}</p>
                 </div>
               ) : (
                 <Scanner
@@ -110,14 +113,14 @@ export function QrScannerView() {
                 <div className="absolute inset-0 flex items-center justify-center bg-black/60">
                   <div className="flex flex-col items-center gap-2 text-white">
                     <Loader2 className="h-8 w-8 animate-spin" />
-                    <p className="text-sm">Confirming attendance…</p>
+                    <p className="text-sm">{t("scanner.confirming")}</p>
                   </div>
                 </div>
               )}
             </div>
             <div className="flex items-center justify-center gap-2 py-4 text-xs text-muted-foreground">
               <ScanLine className="h-3.5 w-3.5" />
-              Hold steady — detection happens automatically.
+              {t("scanner.holdSteady")}
             </div>
           </CardContent>
         </Card>
@@ -135,6 +138,8 @@ function ScanSuccessCard({
   result: ScanQrResult;
   onScanAgain: () => void;
 }) {
+  const t = useTranslations("mySessions");
+  const format = useFormatter();
   return (
     <Card className="border-emerald-200/60 bg-emerald-50/40">
       <CardContent className="py-6 space-y-4">
@@ -143,23 +148,33 @@ function ScanSuccessCard({
             <CheckCircle2 className="h-6 w-6" />
           </div>
           <div>
-            <p className="text-sm font-medium text-emerald-900">Attendance recorded</p>
+            <p className="text-sm font-medium text-emerald-900">{t("scanner.success.recorded")}</p>
             <p className="text-xs text-emerald-800/80">
-              {new Date(result.attendedAt).toLocaleString()}
+              {format.dateTime(new Date(result.attendedAt), {
+                dateStyle: "medium",
+                timeStyle: "short",
+              })}
             </p>
           </div>
         </div>
-        <div className="rounded-lg border border-emerald-200/60 bg-white p-3 space-y-1">
-          <p className="text-xs uppercase tracking-wider text-muted-foreground">Training</p>
+        <div className="rounded-lg border border-emerald-200/60 bg-card p-3 space-y-1">
+          <p className="text-xs uppercase tracking-wider text-muted-foreground">
+            {t("scanner.success.trainingLabel")}
+          </p>
           <p className="text-sm font-semibold text-foreground">{result.trainingTitle}</p>
           <p className="text-xs text-muted-foreground">{result.partTitle}</p>
           <p className="text-xs text-muted-foreground">
-            Session on {new Date(result.sessionStartUtc).toLocaleString()}
+            {t("scanner.success.sessionOn", {
+              date: format.dateTime(new Date(result.sessionStartUtc), {
+                dateStyle: "medium",
+                timeStyle: "short",
+              }),
+            })}
           </p>
         </div>
         <Button size="sm" variant="outline" onClick={onScanAgain} className="w-full">
           <QrCode className="mr-1.5 h-3.5 w-3.5" />
-          Scan another
+          {t("scanner.success.scanAgain")}
         </Button>
       </CardContent>
     </Card>
@@ -173,6 +188,8 @@ function ScanErrorCard({
   message: string;
   onTryAgain: (() => void) | null;
 }) {
+  const t = useTranslations("mySessions");
+  const tCommon = useTranslations("common");
   return (
     <Card className="border-destructive/30 bg-destructive/5">
       <CardContent className="py-6 space-y-4">
@@ -181,13 +198,13 @@ function ScanErrorCard({
             <XCircle className="h-6 w-6" />
           </div>
           <div>
-            <p className="text-sm font-medium text-destructive">Could not record attendance</p>
+            <p className="text-sm font-medium text-destructive">{t("scanner.errorTitle")}</p>
             <p className="text-xs text-foreground/80">{message}</p>
           </div>
         </div>
         {onTryAgain && (
           <Button size="sm" variant="outline" onClick={onTryAgain} className="w-full">
-            Try again
+            {tCommon("actions.retry")}
           </Button>
         )}
       </CardContent>
@@ -202,11 +219,12 @@ function ManualEntry({
   disabled: boolean;
   onSubmit: (payload: string) => void;
 }) {
+  const t = useTranslations("mySessions");
   const [value, setValue] = useState("");
   return (
     <details className="rounded-lg border border-border/50 bg-card">
       <summary className="cursor-pointer px-4 py-3 text-sm text-muted-foreground hover:text-foreground">
-        Camera not working? Enter the code manually
+        {t("scanner.manual.summary")}
       </summary>
       <div className="border-t border-border/50 p-4 space-y-3">
         <textarea
@@ -223,34 +241,50 @@ function ManualEntry({
           onClick={() => onSubmit(value.trim())}
           className="w-full"
         >
-          Submit
+          {t("scanner.manual.submit")}
         </Button>
       </div>
     </details>
   );
 }
 
-function mapScanError(err: unknown): { message: string; recoverable: boolean } {
+type ScanErrorKey =
+  | "network"
+  | "qrExpired"
+  | "qrRevoked"
+  | "qrInvalid"
+  | "notEnrolled"
+  | "waitlisted"
+  | "alreadyAttended"
+  | "fallback";
+
+function mapScanError(err: unknown): {
+  key: ScanErrorKey;
+  recoverable: boolean;
+  raw?: string;
+} {
   if (!(err instanceof ApiError)) {
-    return { message: "Network error — please try again.", recoverable: true };
+    return { key: "network", recoverable: true };
   }
   const code = err.errors[0] ?? "";
   switch (code) {
     case "Qr.Expired":
-      return { message: "QR expired — ask the trainer for a fresh one.", recoverable: true };
+      return { key: "qrExpired", recoverable: true };
     case "Qr.Revoked":
-      return { message: "This QR code was revoked by the trainer.", recoverable: false };
+      return { key: "qrRevoked", recoverable: false };
     case "Qr.NotFound":
     case "Qr.Malformed":
     case "Qr.PayloadRequired":
-      return { message: "Invalid QR code — make sure you scanned the right one.", recoverable: true };
+      return { key: "qrInvalid", recoverable: true };
     case "Enrollment.NotEnrolled":
-      return { message: "You are not enrolled in this session.", recoverable: false };
+      return { key: "notEnrolled", recoverable: false };
     case "Enrollment.Waitlisted":
-      return { message: "You are still on the waitlist for this session.", recoverable: false };
+      return { key: "waitlisted", recoverable: false };
     case "Enrollment.AlreadyAttended":
-      return { message: "Attendance has already been recorded.", recoverable: false };
-    default:
-      return { message: err.errors.join(". ") || "Could not record attendance.", recoverable: true };
+      return { key: "alreadyAttended", recoverable: false };
+    default: {
+      const raw = err.errors.join(". ");
+      return { key: "fallback", recoverable: true, raw: raw || undefined };
+    }
   }
 }

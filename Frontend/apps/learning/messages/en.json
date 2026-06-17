@@ -1,0 +1,1838 @@
+{
+  "nav": {
+    "sections": {
+      "learning": "Learning",
+      "administration": "Administration"
+    },
+    "items": {
+      "dashboard": "Dashboard",
+      "catalog": "Catalog",
+      "myTrainings": "My Trainings",
+      "mySessions": "My Sessions",
+      "scanQr": "Scan QR",
+      "cursus": "Mon Cursus",
+      "certificates": "Certificates",
+      "badges": "Badges",
+      "manageTrainings": "Manage Trainings",
+      "employeeProgress": "Employee Progress",
+      "assignments": "Assignments",
+      "grades": "Grades",
+      "serviceLines": "Service Lines",
+      "employeeProfiles": "Employee Profiles",
+      "curriculum": "Curriculum",
+      "sessions": "Sessions",
+      "attendance": "Attendance",
+      "certificateRegistry": "Certificate Registry",
+      "settings": "Settings"
+    },
+    "comingSoon": "Coming soon",
+    "brandSubtitle": "Learning Platform",
+    "quickStats": {
+      "title": "Quick Stats",
+      "completed": "Completed",
+      "inProgress": "In Progress",
+      "certificates": "Certificates",
+      "completedShort": "Done",
+      "inProgressShort": "Active",
+      "certificatesShort": "Certs"
+    }
+  },
+  "languageSwitcher": {
+    "label": "Language",
+    "switchToEn": "Switch to English",
+    "switchToFr": "Switch to French"
+  },
+  "theme": {
+    "label": "Theme",
+    "light": "Light",
+    "system": "System",
+    "dark": "Dark"
+  },
+  "common": {
+    "status": {
+      "in-progress": "In Progress",
+      "completed": "Completed",
+      "not-started": "Not Started"
+    },
+    "statusAction": {
+      "in-progress": "Continue",
+      "completed": "Review",
+      "not-started": "Start"
+    },
+    "category": {
+      "leadership": "Leadership",
+      "technical": "Technical",
+      "compliance": "Compliance",
+      "soft-skills": "Soft Skills",
+      "finance": "Finance",
+      "data-analytics": "Data & Analytics"
+    },
+    "level": {
+      "beginner": "Beginner",
+      "intermediate": "Intermediate",
+      "advanced": "Advanced"
+    },
+    "tabs": {
+      "all": "All",
+      "in-progress": "In Progress",
+      "completed": "Completed",
+      "not-started": "Not Started"
+    },
+    "actions": {
+      "save": "Save",
+      "saving": "Saving...",
+      "cancel": "Cancel",
+      "delete": "Delete",
+      "edit": "Edit",
+      "close": "Close",
+      "back": "Back",
+      "retry": "Try again",
+      "search": "Search",
+      "export": "Export",
+      "view": "View",
+      "add": "Add",
+      "remove": "Remove",
+      "confirm": "Confirm",
+      "create": "Create",
+      "duplicate": "Duplicate",
+      "download": "Download",
+      "loading": "Loading...",
+      "next": "Next",
+      "previous": "Previous",
+      "none": "None"
+    },
+    "trainingType": {
+      "ELearning": "E-Learning",
+      "ELearningShort": "Online",
+      "OnSite": "In-Person",
+      "OnSiteShort": "On-Site",
+      "all": "All formats"
+    },
+    "sessionStatus": {
+      "Planned": "Planned",
+      "InProgress": "In Progress",
+      "Completed": "Completed",
+      "Cancelled": "Cancelled"
+    },
+    "badgeLevel": {
+      "bronze": "Bronze",
+      "silver": "Silver",
+      "gold": "Gold"
+    },
+    "sort": {
+      "rating": "Highest Rated",
+      "newest": "Newest First",
+      "enrolled": "Most Enrolled",
+      "duration": "Shortest First"
+    }
+  },
+  "dashboard": {
+    "moduleTitle": "Learning Dashboard",
+    "title": "Welcome back",
+    "description": "Here's your learning journey at a glance. Keep pushing, you're making great progress.",
+    "kpi": {
+      "inProgress": "In Progress",
+      "completed": "Completed",
+      "hoursLearned": "Hours Learned",
+      "completionRate": "Completion Rate"
+    },
+    "continueLearning": "Continue Learning",
+    "viewAll": "View all",
+    "recommended": "Recommended for You",
+    "browseCatalog": "Browse catalog",
+    "continueAria": "Continue {title}",
+    "chapterOf": "Chapter {current} of {total}",
+    "chaptersCount": "{count} chapters",
+    "progressOverview": {
+      "title": "Progress Overview",
+      "complete": "Complete",
+      "completed": "Completed",
+      "inProgress": "In Progress",
+      "notStarted": "Not Started",
+      "avgProgress": "Avg. Progress"
+    },
+    "categoryBreakdown": {
+      "title": "Learning by Category"
+    },
+    "achievements": {
+      "title": "Achievements",
+      "firstSteps": "First Steps",
+      "firstStepsDesc": "Complete your first training",
+      "quickLearner": "Quick Learner",
+      "quickLearnerDesc": "Complete 3 trainings",
+      "knowledgeSeeker": "Knowledge Seeker",
+      "knowledgeSeekerDesc": "Complete 5 trainings",
+      "masterScholar": "Master Scholar",
+      "masterScholarDesc": "Complete 10 trainings"
+    },
+    "hours": {
+      "title": "In-Person Training Hours",
+      "subtitle": "Your attendance and learning balance across formats.",
+      "inPersonShare": "{share}% in-person",
+      "thisMonth": "This Month",
+      "thisQuarter": "This Quarter",
+      "thisYear": "This Year",
+      "allTime": "All Time",
+      "formatMix": "Format Mix",
+      "noHours": "No completed hours yet.",
+      "attendedSessions": "Attended Sessions",
+      "totalCount": "{count} total",
+      "noSessions": "You haven't attended any in-person sessions yet.",
+      "loadError": "Unable to load your in-person training hours right now.",
+      "onSite": "On-site",
+      "eLearning": "E-learning"
+    }
+  },
+  "myTrainings": {
+    "moduleTitle": "My Learning",
+    "title": "My Trainings",
+    "description": "Track your enrolled trainings, pick up where you left off, and celebrate your completed courses.",
+    "stats": {
+      "inProgress": "In Progress",
+      "completed": "Completed",
+      "totalHours": "Total Hours",
+      "enrolled": "Enrolled"
+    },
+    "searchPlaceholder": "Search trainings...",
+    "searchAria": "Search enrolled trainings",
+    "emptyTitle": "No trainings in this category yet",
+    "emptySubtitle": "Browse the catalog to discover new trainings.",
+    "loading": "Loading your trainings...",
+    "errorTitle": "Unable to load trainings",
+    "errorSubtitle": "Please sign in or try again later.",
+    "due": "Due {date}"
+  },
+  "cursus": {
+    "title": "Mon Cursus",
+    "subtitle": "Your personalized learning curriculum",
+    "loading": "Loading your cursus...",
+    "emptyTitle": "No Cursus Available",
+    "emptyDescription": "Your profile has not been assigned a grade and service line yet. Contact your administrator to set up your learning curriculum.",
+    "requiredFormations": "Required Formations",
+    "optionalFormations": "Optional Formations",
+    "estimatedRemaining": "Estimated remaining time: {hours}h {minutes}min",
+    "summary": {
+      "overallProgress": "Overall Progress",
+      "completed": "Completed",
+      "inProgress": "In Progress",
+      "creditsEarned": "Credits Earned"
+    },
+    "requiredBadge": "Required",
+    "sharedBadge": "Shared",
+    "progress": "Progress",
+    "credits": "{count, plural, one {# credit} other {# credits}}",
+    "minutes": "{count} min",
+    "status": {
+      "completed": "Completed",
+      "in-progress": "In Progress",
+      "not-started": "Not Started"
+    }
+  },
+  "certificates": {
+    "moduleTitle": "EY Academy",
+    "title": "My Certificates",
+    "description": "Your earned certificates. Download the PDF or share the public verification link.",
+    "errorTitle": "Could not load certificates",
+    "errorSubtitle": "Please try again later.",
+    "emptyTitle": "No certificates yet",
+    "emptySubtitle": "Complete a formation to earn your first certificate.",
+    "valid": "Valid",
+    "revoked": "Revoked",
+    "issuedLine": "Issued {date} · {credits, plural, one {# credit} other {# credits}}",
+    "revokedReason": "Revoked: {reason}",
+    "downloadAria": "Download certificate {number}",
+    "downloadError": "Could not download the certificate.",
+    "share": {
+      "button": "Share",
+      "buttonAria": "Share certificate",
+      "linkedin": "Add to LinkedIn",
+      "copyLink": "Copy link",
+      "copied": "Verification link copied.",
+      "copyError": "Could not copy the link."
+    }
+  },
+  "catalog": {
+    "header": {
+      "moduleTitle": "Catalog",
+      "title": "Training Catalog",
+      "description": "Explore our curated library of professional development programs. Filter by category, search by topic, and start building the skills that matter."
+    },
+    "search": {
+      "placeholder": "Search trainings by title, topic, or tag...",
+      "aria": "Search trainings",
+      "defaultPlaceholder": "Search..."
+    },
+    "filters": {
+      "active": "Active:",
+      "removeFilterAria": "Remove {filter} filter",
+      "removeSearchAria": "Remove search filter",
+      "clearAll": "Clear all",
+      "categoryGroupAria": "Filter by category",
+      "levelGroupAria": "Filter by level",
+      "allLevels": "All Levels",
+      "format": "Format",
+      "formatAria": "Filter trainings by format",
+      "allCategories": "All"
+    },
+    "sort": {
+      "aria": "Sort trainings"
+    },
+    "results": {
+      "onPage": "{count, plural, one {training} other {trainings}} on this page",
+      "ofTotal": "(of {total} total)"
+    },
+    "empty": {
+      "title": "No trainings found",
+      "subtitle": "Try adjusting your filters or search terms.",
+      "clearFilters": "Clear all filters"
+    },
+    "pagination": {
+      "showing": "Showing <b>{from}–{to}</b> of <b>{total}</b> trainings",
+      "aria": "Pagination",
+      "previousPage": "Previous page",
+      "nextPage": "Next page",
+      "pageAria": "Page {page}"
+    },
+    "card": {
+      "mandatory": "Mandatory",
+      "viewDetailsAria": "View details for {title}",
+      "coursesCount": "{count, plural, one {# course} other {# courses}}",
+      "chaptersCount": "{count, plural, one {# chapter} other {# chapters}}",
+      "credits": "{count, plural, one {# credit} other {# credits}}"
+    },
+    "formatBadge": {
+      "aria": "Format: {format}"
+    },
+    "courseCard": {
+      "progress": "Progress",
+      "start": "Start Course"
+    },
+    "progressBar": {
+      "chaptersCompleted": "{count, plural, one {# chapter completed} other {# chapters completed}}"
+    }
+  },
+  "trainingDetail": {
+    "header": {
+      "moduleTitle": "Training Details"
+    },
+    "breadcrumb": {
+      "catalog": "Catalog"
+    },
+    "mandatory": "Mandatory",
+    "onSiteTraining": "On-Site Training",
+    "lastUpdated": "Last updated {date}",
+    "updated": "Updated {date}",
+    "topics": "Topics",
+    "blocksCount": "{count, plural, one {# block} other {# blocks}}",
+    "banner": {
+      "breadcrumbAria": "Breadcrumb",
+      "backToCatalog": "Back to Catalog"
+    },
+    "stats": {
+      "duration": "Duration",
+      "totalDuration": "Total Duration",
+      "chapters": "Chapters",
+      "credits": "Credits",
+      "enrolled": "Enrolled",
+      "rating": "Rating"
+    },
+    "instructor": {
+      "title": "Instructor"
+    },
+    "outline": {
+      "title": "Course Outline",
+      "chaptersCount": "({count, plural, one {# chapter} other {# chapters}})"
+    },
+    "chapters": {
+      "title": "Course Content",
+      "count": "{count, plural, one {# chapter} other {# chapters}}"
+    },
+    "exam": {
+      "sectionTitle": "Final Assessment",
+      "noExam": "No exam required for this training. Complete all chapters to earn your certificate.",
+      "title": "Certification Exam",
+      "subtitle": "Validate your knowledge to earn your certificate",
+      "questionsValue": "{count, plural, one {# question} other {# questions}}",
+      "totalQuestions": "Total Questions",
+      "passingScore": "Passing Score",
+      "timeLimit": "Time Limit",
+      "attemptsValue": "{count, plural, one {# attempt} other {# attempts}}",
+      "maxAttempts": "Max Attempts",
+      "unlockHint": "Complete all <b>{count, plural, one {# chapter} other {# chapters}}</b> to unlock the exam"
+    },
+    "enroll": {
+      "enrollNow": "Enroll Now",
+      "enrolling": "Enrolling...",
+      "continueLearning": "Continue Learning",
+      "accessCourses": "Access Courses"
+    },
+    "onsite": {
+      "scheduledSession": "Scheduled Session",
+      "scheduledAt": "{date} at {time}",
+      "materialsTitle": "Course Materials",
+      "materialsCount": "{count, plural, one {# PDF document available for this training} other {# PDF documents available for this training}}",
+      "materialIndex": "Course material {index}",
+      "noMaterials": "No course materials have been added yet."
+    },
+    "sessions": {
+      "status": {
+        "Enrolled": "Enrolled",
+        "Waitlisted": "Waitlisted",
+        "Attended": "Attended",
+        "Cancelled": "Cancelled",
+        "NotEnrolled": "Not Enrolled"
+      },
+      "cancelTooltip": "Cancel this session",
+      "missedHint": "You missed this session. Select a new one below to re-enroll.",
+      "availableSessions": "Available sessions:",
+      "selectSession": "Select a session:",
+      "progress": {
+        "title": "Session Progress",
+        "partsAttended": "{completed} of {total} parts attended"
+      },
+      "picker": {
+        "full": "Full",
+        "waitlistTooltip": "Selecting this session will place you on the waitlist",
+        "spots": "{count, plural, one {# spot} other {# spots}}",
+        "hours": "{count}h",
+        "sessionsCount": "{count, plural, one {# session} other {# sessions}}",
+        "selected": "Selected",
+        "availableCount": "{count, plural, one {# available} other {# available}}",
+        "noSessions": "No sessions scheduled for this part yet."
+      },
+      "panel": {
+        "myEnrollmentsTitle": "My Session Enrollments",
+        "myEnrollmentsSubtitle": "Your enrollment status for each part of this training.",
+        "enrollSelected": "Enroll in Selected Sessions",
+        "noSessionsAvailable": "No sessions are currently available for enrollment.",
+        "chooseTitle": "Choose Your Sessions",
+        "chooseSubtitle": "Select a time slot for each part you want to enroll in.",
+        "partsSelected": "parts selected",
+        "readyToEnroll": "Ready to enroll",
+        "confirmEnrollment": "Confirm Enrollment"
+      },
+      "cancelDialog": {
+        "title": "Cancel Enrollment",
+        "description": "Are you sure you want to cancel this session enrollment? You may lose your spot and need to re-enroll if space is available.",
+        "keep": "Keep Enrollment",
+        "cancelling": "Cancelling...",
+        "confirm": "Yes, Cancel"
+      },
+      "result": {
+        "confirmedTitle": "Enrollment Confirmed",
+        "submittedTitle": "Enrollment Submitted",
+        "confirmedCount": "{count, plural, one {# session confirmed} other {# sessions confirmed}}",
+        "confirmedDesc": "You're enrolled and your spot is reserved.",
+        "waitlistedCount": "{count, plural, one {# session waitlisted} other {# sessions waitlisted}}",
+        "position": "Position #{position}",
+        "waitlistedDesc": "{positions}. You'll be auto-enrolled when a spot opens up.",
+        "gotIt": "Got it"
+      },
+      "toast": {
+        "enrollConfirmedTitle": "Enrollment confirmed",
+        "enrollConfirmedDesc": "You're enrolled in all sessions.",
+        "enrollSubmittedTitle": "Enrollment submitted",
+        "enrollWaitlistedDesc": "{count, plural, one {# session is on the waitlist.} other {# sessions are on the waitlist.}}",
+        "enrollFailedTitle": "Enrollment failed",
+        "enrollFailedFallback": "Could not complete your enrollment. Please try again.",
+        "cancelSuccessTitle": "Session cancelled",
+        "cancelSuccessDesc": "Your booking has been cancelled successfully.",
+        "cancelFailedTitle": "Cancellation failed",
+        "cancelFailedFallback": "Could not cancel this session. Please try again."
+      }
+    }
+  },
+  "appShell": {
+    "error": {
+      "title": "Something went wrong",
+      "fallbackMessage": "An unexpected error occurred in the Learning module. Please try again."
+    },
+    "notFound": {
+      "message": "This page doesn't exist in the Learning module. It may have been moved or removed.",
+      "backToLearning": "Back to Learning"
+    }
+  },
+  "learn": {
+    "page": {
+      "loadingCourse": "Loading course...",
+      "loadErrorTitle": "Failed to load course",
+      "loadErrorMessage": "The course could not be loaded. Please try again."
+    },
+    "player": {
+      "noChapters": "This training has no chapters yet."
+    },
+    "sidebar": {
+      "backToMyTrainings": "My Trainings",
+      "chaptersNavLabel": "Course chapters",
+      "blocksCount": "{completed}/{total} blocks",
+      "finalExam": "Final Exam",
+      "examInProgress": "In progress",
+      "examReady": "Ready to take",
+      "examLocked": "Complete all chapters first"
+    },
+    "chapter": {
+      "blocksProgress": "{count, plural, one {# block} other {# blocks}} · {completed}/{count} completed",
+      "empty": "Content for this chapter is not yet available.",
+      "loadErrorTitle": "Failed to load chapter",
+      "loadErrorGeneric": "Something went wrong. Please try again."
+    },
+    "navigation": {
+      "allBlocksCompleted": "All blocks completed",
+      "completeAllHint": "Complete all blocks to finish this chapter",
+      "takeExam": "Take Exam",
+      "lastChapter": "Last Chapter"
+    },
+    "block": {
+      "type": {
+        "video": "Video Lesson",
+        "pdf": "PDF Document",
+        "article": "Article",
+        "exercise": "Exercise"
+      },
+      "videoFallbackTitle": "Video",
+      "durationMinutes": "{minutes} min",
+      "done": "Done",
+      "markDone": "Mark done",
+      "pdfInlineUnsupported": "Your browser cannot display this PDF inline.",
+      "openPdf": "Open PDF",
+      "openPdfNewTab": "Open PDF in new tab",
+      "empty": "Content not yet available."
+    },
+    "onsite": {
+      "courseMaterials": "Course Materials ({count})",
+      "open": "Open",
+      "noMaterials": "No course materials available yet."
+    }
+  },
+  "exam": {
+    "passingScore": "Passing Score",
+    "banner": {
+      "ready": "All chapters completed! You can now take the final exam.",
+      "startExam": "Start Exam",
+      "locked": "Complete all chapters to unlock the exam: <strong>{completed}/{total}</strong> chapters done"
+    },
+    "player": {
+      "loadError": "Failed to load exam. You may need to complete all chapters first.",
+      "backToChapters": "Back to chapters"
+    },
+    "taking": {
+      "answeredCount": "{answered}/{total} questions answered",
+      "allAnswered": "All questions answered. Ready to submit!",
+      "remaining": "{count, plural, one {# question remaining} other {# questions remaining}}",
+      "submitting": "Submitting...",
+      "submit": "Submit Exam"
+    },
+    "intro": {
+      "questions": "Questions",
+      "timeLimit": "Time Limit",
+      "suggestedTime": "Suggested time",
+      "minutes": "{minutes} min",
+      "alreadyPassed": "You have already passed this exam. You can retake it if you wish.",
+      "retake": "Retake Exam",
+      "begin": "Begin Exam",
+      "previousAttempts": "Previous Attempts"
+    },
+    "attempts": {
+      "passed": "Passed",
+      "failed": "Failed",
+      "correctRatio": "({correct}/{total} correct)"
+    },
+    "question": {
+      "label": "Q{number}.",
+      "points": "{count, plural, one {# pt} other {# pts}}",
+      "selectAll": "Select all that apply"
+    },
+    "result": {
+      "passedTitle": "Congratulations! You passed!",
+      "failedTitle": "Not quite there yet",
+      "passedDescription": "You have successfully completed the exam.",
+      "failedDescription": "Review the material and try again when you are ready.",
+      "trainingCompleted": "Training Completed",
+      "yourScore": "Your Score",
+      "correctAnswers": "Correct Answers",
+      "attemptHistory": "Attempt History",
+      "backToOverview": "Back to Overview",
+      "reviewChapters": "Review Chapters"
+    }
+  },
+  "mySessions": {
+    "title": "My Sessions",
+    "subtitle": "Manage your in-person training sessions and attendance",
+    "backToMySessions": "Back to My Sessions",
+    "trainingCount": "{count, plural, one {# training} other {# trainings}}",
+    "partTitle": "Part {number}: {title}",
+    "stats": {
+      "upcoming": "Upcoming",
+      "past": "Completed / Past",
+      "total": "Total Bookings"
+    },
+    "filter": {
+      "upcoming": "Upcoming",
+      "past": "Past",
+      "all": "All"
+    },
+    "empty": {
+      "upcoming": {
+        "title": "No upcoming sessions",
+        "description": "You haven't enrolled in any upcoming in-person sessions yet. Browse the catalog to find trainings."
+      },
+      "past": {
+        "title": "No past sessions",
+        "description": "You haven't attended any in-person sessions yet."
+      },
+      "all": {
+        "title": "No sessions booked",
+        "description": "You haven't enrolled in any in-person training sessions. Visit the catalog to find on-site trainings and enroll."
+      }
+    },
+    "enrollmentStatus": {
+      "attended": "Attended",
+      "waitlisted": "Waitlisted",
+      "inProgress": "In Progress",
+      "missed": "Missed",
+      "confirmed": "Confirmed"
+    },
+    "group": {
+      "sessionsBooked": "{count, plural, one {# session} other {# sessions}} booked",
+      "nextSession": "· Next: {date}",
+      "viewTraining": "View Training"
+    },
+    "timeline": {
+      "timeRange": "{start} – {end}",
+      "waitlistPosition": "Waitlist position: #{position}",
+      "viewDetails": "View details"
+    },
+    "cancelToast": {
+      "successTitle": "Session cancelled",
+      "successDescription": "Your booking has been cancelled successfully.",
+      "errorTitle": "Cancellation failed",
+      "errorFallback": "Could not cancel this session. Please try again."
+    },
+    "timelineCancelToast": {
+      "successDescription": "\"{title}\" has been removed from your bookings."
+    },
+    "detail": {
+      "notFoundTitle": "Session not found",
+      "notFoundDescription": "This session may have been cancelled or doesn't belong to you.",
+      "labels": {
+        "date": "Date",
+        "time": "Time",
+        "room": "Room",
+        "capacity": "Capacity",
+        "trainer": "Trainer",
+        "contact": "Contact"
+      },
+      "timeRange": "{start} – {end} ({hours}h)",
+      "capacityValue": "{count} participants max",
+      "waitlistBanner": "You are <b>#{position}</b> on the waitlist. You'll be automatically enrolled when a spot opens up.",
+      "attendedBanner": "Attendance confirmed. This session is complete.",
+      "cancelledBanner": "This session has been cancelled from your bookings.",
+      "cancelButton": "Cancel This Session",
+      "cancelPolicy": "Cancellation must be made at least 24 hours before the session starts.",
+      "enrolledOn": "Enrolled on {date}"
+    },
+    "scanner": {
+      "title": "Scan attendance QR",
+      "subtitle": "Point your camera at the QR code projected by your trainer.",
+      "successToast": "Attendance confirmed",
+      "errorToast": "Scan failed",
+      "errorTitle": "Could not record attendance",
+      "cameraUnavailable": "Camera unavailable.",
+      "cameraHelp": "Allow camera access in your browser, then reload the page.",
+      "confirming": "Confirming attendance…",
+      "holdSteady": "Hold steady — detection happens automatically.",
+      "errors": {
+        "network": "Network error — please try again.",
+        "qrExpired": "QR expired — ask the trainer for a fresh one.",
+        "qrRevoked": "This QR code was revoked by the trainer.",
+        "qrInvalid": "Invalid QR code — make sure you scanned the right one.",
+        "notEnrolled": "You are not enrolled in this session.",
+        "waitlisted": "You are still on the waitlist for this session.",
+        "alreadyAttended": "Attendance has already been recorded.",
+        "fallback": "Could not record attendance."
+      },
+      "success": {
+        "recorded": "Attendance recorded",
+        "trainingLabel": "Training",
+        "sessionOn": "Session on {date}",
+        "scanAgain": "Scan another"
+      },
+      "manual": {
+        "summary": "Camera not working? Enter the code manually",
+        "submit": "Submit"
+      }
+    }
+  },
+  "adminTrainings": {
+    "badge": {
+      "mandatory": "Mandatory",
+      "deleted": "Deleted",
+      "active": "Active"
+    },
+    "row": {
+      "coursesCount": "{count, plural, one {# course} other {# courses}}",
+      "chaptersShort": "{count} ch."
+    },
+    "list": {
+      "title": "Manage Trainings",
+      "subtitle": "Create, edit, and manage training programs",
+      "newTraining": "New Training",
+      "loading": "Loading trainings...",
+      "empty": "No trainings found",
+      "confirmDelete": "Delete \"{title}\"? This will soft-delete the training.",
+      "columns": {
+        "title": "Title",
+        "category": "Category",
+        "type": "Type",
+        "content": "Content",
+        "enrolled": "Enrolled",
+        "level": "Level",
+        "status": "Status",
+        "actions": "Actions"
+      }
+    },
+    "filter": {
+      "searchPlaceholder": "Search trainings...",
+      "searchAriaLabel": "Search trainings",
+      "allCategories": "All Categories",
+      "showDeleted": "Show deleted",
+      "refresh": "Refresh"
+    },
+    "pagination": {
+      "showing": "Showing {from}–{to} of {total}",
+      "pageOf": "Page {page} of {totalPages}"
+    },
+    "detail": {
+      "loading": "Loading training details...",
+      "manageTrainings": "Manage Trainings",
+      "deleted": "Deleted",
+      "mandatory": "Mandatory",
+      "onSite": "On-Site",
+      "eLearning": "E-Learning",
+      "confirmDeleteChapter": "Delete chapter \"{title}\"?",
+      "confirmDeleteTraining": "Delete this training? This action will soft-delete it.",
+      "copySuffix": "{title} (copy)",
+      "meta": {
+        "category": "Category",
+        "badgeLevel": "Badge Level",
+        "credits": "Credits",
+        "duration": "Duration",
+        "notAvailable": "N/A",
+        "scheduledDate": "Scheduled Date"
+      },
+      "stats": {
+        "courses": "Courses",
+        "enrolled": "Enrolled",
+        "chapters": "Chapters",
+        "exams": "Exams"
+      },
+      "courseMaterials": "Course Materials",
+      "chaptersHeading": "Chapters",
+      "addChapter": "Add Chapter"
+    },
+    "form": {
+      "loading": "Loading training...",
+      "manageTrainings": "Manage Trainings",
+      "editTraining": "Edit Training",
+      "newTraining": "New Training",
+      "createTraining": "Create Training",
+      "stepOf": "Step {current} of {total}",
+      "updateTraining": "Update Training",
+      "steps": {
+        "basicInfo": "Basic Info",
+        "details": "Details",
+        "review": "Review"
+      },
+      "basic": {
+        "heading": "Basic Information",
+        "trainingTypeLabel": "Training Type *",
+        "titleLabel": "Title *",
+        "titlePlaceholder": "e.g. Advanced Leadership Skills",
+        "descriptionLabel": "Description",
+        "descriptionPlaceholder": "Describe the training program...",
+        "categoryLabel": "Category *",
+        "selectCategory": "Select a category",
+        "badgeLevelLabel": "Badge Level *",
+        "types": {
+          "eLearningLabel": "E-Learning",
+          "eLearningDescription": "Online self-paced training with chapters and content",
+          "onSiteLabel": "On-Site",
+          "onSiteDescription": "In-person training with PDF course materials"
+        }
+      },
+      "details": {
+        "heading": "Configuration",
+        "creditsLabel": "Credits",
+        "durationLabel": "Duration",
+        "durationPlaceholder": "e.g. 4 hours",
+        "scheduledDateLabel": "Scheduled Date & Time *",
+        "scheduledDateFuture": "Scheduled date must be in the future",
+        "mandatoryLabel": "Mark as mandatory training"
+      },
+      "review": {
+        "heading": "Review & Submit",
+        "trainingType": "Training Type",
+        "title": "Title",
+        "description": "Description",
+        "category": "Category",
+        "badgeLevel": "Badge Level",
+        "credits": "Credits",
+        "duration": "Duration",
+        "scheduledDate": "Scheduled Date",
+        "mandatory": "Mandatory",
+        "emptyValue": "-",
+        "yes": "Yes",
+        "no": "No"
+      },
+      "errors": {
+        "unexpected": "An unexpected error occurred.",
+        "titleRequired": "Title is required.",
+        "titleMinLength": "Title must be at least 2 characters.",
+        "categoryRequired": "Please select a category.",
+        "creditsNegative": "Credits cannot be negative.",
+        "scheduledDateFuture": "Scheduled date must be in the future."
+      }
+    },
+    "wizard": {
+      "loading": "Loading training...",
+      "editTraining": "Edit Training",
+      "subtitleOnSite": "Update training details and courses",
+      "subtitleELearning": "Update training details and manage chapters"
+    }
+  },
+  "verify": {
+    "subtitle": "Certificate verification",
+    "notFoundTitle": "Certificate not found",
+    "notFoundBody": "We couldn't find a certificate with the number <mono>{number}</mono>.",
+    "valid": "Valid",
+    "revoked": "Revoked",
+    "awardedTo": "Awarded to",
+    "training": "Training",
+    "issued": "Issued",
+    "certificateNumber": "Certificate No."
+  },
+  "adminChapters": {
+    "builder": {
+      "loading": "Loading chapter...",
+      "breadcrumbChapters": "Chapters",
+      "breadcrumbTrainings": "Trainings",
+      "titlePlaceholder": "Chapter title...",
+      "saved": "Saved",
+      "preview": "Preview",
+      "backToEditor": "Back to Editor"
+    },
+    "preview": {
+      "badge": "Preview",
+      "employeeView": "Employee view",
+      "close": "Close preview",
+      "blockCount": "{count, plural, one {# block} other {# blocks}}",
+      "empty": "No content blocks yet. Add blocks in the builder to preview them here.",
+      "pdfFallbackTitle": "PDF",
+      "videoFallbackTitle": "Video",
+      "pdfCannotDisplay": "Your browser cannot display this PDF inline.",
+      "openPdf": "Open PDF",
+      "openPdfNewTab": "Open PDF in new tab",
+      "contentNotAvailable": "Content not yet available.",
+      "minutes": "{count} min",
+      "blockTypeLabel": {
+        "Video": "Video Lesson",
+        "Pdf": "PDF Document",
+        "Article": "Article",
+        "Exercise": "Exercise"
+      }
+    },
+    "chapterDialog": {
+      "editTitle": "Edit Chapter",
+      "addTitle": "Add Chapter",
+      "titleLabel": "Chapter Title",
+      "titlePlaceholder": "e.g. Introduction to the Topic",
+      "layoutLabel": "Layout",
+      "saveChanges": "Save Changes",
+      "addChapter": "Add Chapter",
+      "unexpectedError": "An unexpected error occurred.",
+      "layout": {
+        "SingleContent": "Single Content",
+        "SplitLayout": "Split Layout",
+        "MultiSection": "Multi Section"
+      }
+    },
+    "infoStep": {
+      "titleLabel": "Title *",
+      "titlePlaceholder": "Chapter title",
+      "contentTypeLabel": "Content Type *",
+      "selectType": "Select type",
+      "orderIndexLabel": "Order Index",
+      "contentType": {
+        "Article": "Article",
+        "Pdf": "PDF Document",
+        "Video": "Video",
+        "Exercise": "Exercise"
+      }
+    },
+    "contentStep": {
+      "pdfFileLabel": "PDF File *",
+      "pdfUploadHint": "Upload a PDF file (max 50 MB)",
+      "textContentLabel": "Text Content",
+      "textContentPlaceholder": "Chapter content...",
+      "estimatedDurationLabel": "Estimated Duration (minutes)"
+    },
+    "managerList": {
+      "blockCount": "{count, plural, one {# block} other {# blocks}}",
+      "dragToReorder": "Drag to reorder",
+      "openBuilder": "Open Builder",
+      "editAriaLabel": "Edit",
+      "duplicateAriaLabel": "Duplicate",
+      "deleteAriaLabel": "Delete",
+      "layout": {
+        "SingleContent": "Single Content",
+        "SplitLayout": "Split Layout",
+        "MultiSection": "Multi-Section"
+      }
+    },
+    "blockEditor": {
+      "editTitle": "Edit Content Block",
+      "addTitle": "Add Content Block",
+      "unexpectedError": "An unexpected error occurred.",
+      "changeType": "Change type",
+      "blockTitleLabel": "Block Title",
+      "blockTitlePlaceholder": "Optional title",
+      "articleContentLabel": "Article Content",
+      "articleContentPlaceholder": "Write your article content here (supports basic markdown)...",
+      "exerciseContentLabel": "Exercise Content",
+      "exerciseContentPlaceholder": "Instructions, tasks, hints, solution...",
+      "videoFileLabel": "Video File",
+      "videoUploadHint": "Upload video file",
+      "externalUrlLabel": "Or External URL",
+      "externalUrlPlaceholder": "https://youtube.com/embed/...",
+      "pdfFileLabel": "PDF File",
+      "pdfUploadHint": "Upload PDF file",
+      "estimatedDurationLabel": "Estimated Duration (minutes)",
+      "estimatedDurationPlaceholder": "e.g. 15",
+      "uploading": "Uploading...",
+      "saveChanges": "Save Changes",
+      "addBlock": "Add Block"
+    },
+    "blockList": {
+      "minutes": "{count} min",
+      "dragToReorderBlock": "Drag to reorder block",
+      "confirmDelete": "Delete \"{name}\"?",
+      "dropToAdd": "Drop here to add",
+      "dragFromPalette": "Drag content from the palette"
+    },
+    "palette": {
+      "dragToAdd": "Drag to add"
+    },
+    "canvas": {
+      "dropToAdd": "Drop here to add",
+      "startBuilding": "Start building",
+      "dragHint": "Drag content blocks from the sidebar into this area",
+      "dropHere": "Drop here",
+      "left": "Left",
+      "right": "Right",
+      "section": "Section {number}",
+      "layout": {
+        "SingleContent": "Single Column",
+        "SplitLayout": "Split Layout",
+        "MultiSection": "Multi-Section"
+      },
+      "layoutDescription": {
+        "SingleContent": "Blocks in a single vertical stack",
+        "SplitLayout": "Blocks arranged in two columns",
+        "MultiSection": "Blocks as separate sections with dividers"
+      }
+    },
+    "sidebar": {
+      "layoutLabel": "Layout",
+      "contentBlocks": "Content Blocks",
+      "contentBlocksHint": "Drag a block into the canvas to add it.",
+      "layout": {
+        "SingleContent": "Single Content",
+        "SplitLayout": "Split Layout",
+        "MultiSection": "Multi-Section"
+      }
+    },
+    "canvasBlock": {
+      "minutes": "{count} min",
+      "noContent": "No content yet: click edit to add",
+      "editBlock": "Edit block",
+      "deleteBlock": "Delete block",
+      "dragToReorderBlock": "Drag to reorder block"
+    },
+    "articleSection": {
+      "placeholder": "Enter {label}..."
+    },
+    "articleTemplate": {
+      "label": "Article Template",
+      "loadingTemplates": "Loading templates...",
+      "selectTemplate": "Select a template"
+    },
+    "fileUpload": {
+      "fileSizeMb": "{size} MB",
+      "replaceFile": "Replace file",
+      "dragDropHint": "Drag & drop or click to browse"
+    },
+    "onSiteCourses": {
+      "empty": "No courses added yet. Add PDF course materials for this on-site training.",
+      "addCourse": "Add Course",
+      "courseTitleLabel": "Course Title *",
+      "courseTitlePlaceholder": "e.g. Module 1 - Introduction",
+      "pdfFileLabel": "PDF File",
+      "pdfFileKeepHint": "(leave empty to keep current)",
+      "pdfFileRequired": "*",
+      "uploading": "Uploading...",
+      "update": "Update",
+      "add": "Add",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "edit": "Edit",
+      "delete": "Delete",
+      "confirmDelete": "Delete course \"{title}\"?"
+    },
+    "contentTypes": {
+      "Article": {
+        "label": "Article",
+        "description": "Structured text with sections like introduction, body, and conclusion"
+      },
+      "Video": {
+        "label": "Video",
+        "description": "Upload a video file or provide an external URL"
+      },
+      "Pdf": {
+        "label": "PDF Document",
+        "description": "Upload a PDF document for reading material"
+      },
+      "Exercise": {
+        "label": "Exercise",
+        "description": "Hands-on practice with instructions, tasks, and solutions"
+      }
+    },
+    "errors": {
+      "uploadPdf": "Please upload a PDF file.",
+      "uploadVideo": "Please upload a video file.",
+      "videoUrlInvalid": "Video URL must be a valid URL (https://...).",
+      "durationPositive": "Duration must be greater than 0.",
+      "titleRequired": "Title is required.",
+      "titleMinLength": "Title must be at least 2 characters.",
+      "orderIndexNonNegative": "Order index must be 0 or greater.",
+      "unexpected": "An unexpected error occurred."
+    },
+    "confirmDeleteBlock": "Delete \"{name}\" block?"
+  },
+  "adminDashboard": {
+    "moduleTitle": "Administration",
+    "title": "Programme Matrix & Progress",
+    "description": "Click any cell to see detailed employee stats. Grade x Service Line completion matrix and advancement rates.",
+    "kpi": {
+      "profiledEmployees": "Profiled Employees",
+      "activeCells": "Active Cells",
+      "avgCompletion": "Avg. Completion",
+      "greenCells": "Cells over 80%"
+    },
+    "matrix": {
+      "heading": "Programme Matrix",
+      "hint": "Click a cell to open a detailed page with per-employee progress.",
+      "noData": "No data available."
+    },
+    "charts": {
+      "byGrade": "Completion Rate by Grade",
+      "byServiceLine": "Completion Rate by Service Line",
+      "completion": "Completion",
+      "completionRate": "Completion Rate",
+      "trendTitle": "Completion Rate Trend (12 months)"
+    },
+    "funnel": {
+      "heading": "Completion Funnel"
+    },
+    "topTrainings": {
+      "heading": "Most Enrolled Trainings",
+      "enrolled": "{count, plural, one {# enrolled} other {# enrolled}}",
+      "done": "{rate}% done"
+    },
+    "categoryPerformance": {
+      "heading": "Category Completion Rates"
+    }
+  },
+  "adminAssignments": {
+    "title": "Training Assignments",
+    "subtitle": "View and manage training assignments across employees",
+    "selectTraining": "Select a training...",
+    "filterPlaceholder": "Filter assignments...",
+    "filterAriaLabel": "Filter assignments",
+    "emptyNoTraining": "Select a training to view its assignments",
+    "loading": "Loading assignments...",
+    "emptyNoAssignments": "No assignments found for this training",
+    "noDueDate": "-",
+    "summary": {
+      "total": "Total"
+    },
+    "table": {
+      "employeeId": "Employee ID",
+      "type": "Type",
+      "status": "Status",
+      "progress": "Progress",
+      "assigned": "Assigned",
+      "dueDate": "Due Date"
+    }
+  },
+  "adminCells": {
+    "breadcrumb": "Admin . Programme Matrix",
+    "gradeFallback": "Grade",
+    "serviceLineFallback": "Service Line",
+    "sortBy": "Sort by:",
+    "sort": {
+      "completionDesc": "Completion (high to low)",
+      "completionAsc": "Completion (low to high)",
+      "nameAsc": "Name A-Z",
+      "lastActive": "Last Active"
+    },
+    "employeeCount": "{count, plural, one {# employee} other {# employees}}",
+    "empty": {
+      "title": "No employees in this cell",
+      "hint": "Assign employees to {grade} x {serviceLine} from Employee Profiles."
+    },
+    "kpi": {
+      "totalEmployees": "Total Employees",
+      "avgCompletion": "Avg. Completion",
+      "fullyCompleted": "Fully Completed"
+    },
+    "card": {
+      "required": "Required",
+      "credits": "{count} cr",
+      "completion": "completion",
+      "formationsCompleted": "{completed} / {total} formations completed",
+      "inProgressDot": "In progress",
+      "lastActivity": "Last activity:",
+      "noActivity": "-",
+      "showBreakdown": "Show training breakdown ({count})",
+      "hideBreakdown": "Hide training breakdown ({count})"
+    },
+    "dialog": {
+      "description": "Employee progress for this grade and service line combination.",
+      "empty": "No employees found in this cell.",
+      "noActivity": "-",
+      "table": {
+        "employeeId": "Employee ID",
+        "grade": "Grade",
+        "serviceLine": "Service Line",
+        "progress": "Progress",
+        "completion": "% Completion",
+        "lastActivity": "Last Activity"
+      }
+    }
+  },
+  "adminExam": {
+    "builder": {
+      "loading": "Loading exam...",
+      "back": "Back",
+      "manageTrainings": "Manage Trainings",
+      "training": "Training",
+      "createExam": "Create Exam",
+      "examBuilder": "Exam Builder",
+      "pass": "Pass: {score}%",
+      "minutes": "{minutes} min",
+      "questionsCount": "{count, plural, one {# question} other {# questions}}",
+      "preview": "Preview",
+      "settings": "Settings",
+      "delete": "Delete",
+      "questionsHeading": "Questions",
+      "addQuestion": "Add Question",
+      "emptyTitle": "No questions yet",
+      "emptyDescription": "Add your first question to start building the exam"
+    },
+    "questionType": {
+      "SingleChoice": "Single Choice",
+      "MultipleChoice": "Multiple Choice",
+      "TrueFalse": "True / False"
+    },
+    "card": {
+      "points": "{count, plural, one {# pt} other {# pts}}",
+      "optionsCount": "{count, plural, one {# option} other {# options}}"
+    },
+    "preview": {
+      "title": "Preview: {title}",
+      "learnerView": "Learner View",
+      "questionsCount": "{count, plural, one {# question} other {# questions}}",
+      "pass": "Pass: {score}%",
+      "minutes": "{minutes} min",
+      "answered": "{answered}/{total} answered",
+      "passed": "Passed!",
+      "notPassed": "Not Passed",
+      "scoreSummary": "Score: {percentage}% ({earned}/{total} points). Required: {required}%",
+      "questionProgress": "Question {current} of {total}",
+      "points": "{count, plural, one {# pt} other {# pts}}",
+      "selectOne": "Select one answer",
+      "selectAll": "Select all that apply",
+      "previous": "Previous",
+      "next": "Next",
+      "submitExam": "Submit Exam",
+      "closePreview": "Close Preview"
+    },
+    "settingsDialog": {
+      "title": "Exam Settings"
+    },
+    "settingsForm": {
+      "createTitle": "Create Exam",
+      "editTitle": "Exam Settings",
+      "examTitleLabel": "Exam Title",
+      "examTitlePlaceholder": "e.g. Final Assessment",
+      "descriptionLabel": "Description",
+      "descriptionPlaceholder": "Brief description of the exam (optional)",
+      "passingScoreLabel": "Passing Score (%)",
+      "passingScoreHint": "Learners must score at least this to pass",
+      "durationLabel": "Duration (minutes)",
+      "durationPlaceholder": "Optional",
+      "durationHint": "Leave empty for no time limit",
+      "cancel": "Cancel",
+      "createSubmit": "Create Exam",
+      "saveChanges": "Save Changes",
+      "unexpectedError": "An unexpected error occurred."
+    },
+    "questionDialog": {
+      "editTitle": "Edit Question",
+      "addTitle": "Add Question",
+      "questionLabel": "Question",
+      "questionPlaceholder": "Enter your question...",
+      "questionTypeLabel": "Question Type",
+      "pointsLabel": "Points",
+      "cancel": "Cancel",
+      "updateQuestion": "Update Question",
+      "addQuestion": "Add Question",
+      "unexpectedError": "An unexpected error occurred."
+    },
+    "options": {
+      "label": "Options",
+      "addOption": "Add Option",
+      "hintSingle": "Select the one correct answer",
+      "hintMultiple": "Select all correct answers",
+      "hintTrueFalse": "Select the correct answer",
+      "markedCorrect": "Marked correct",
+      "markAsCorrect": "Mark as correct",
+      "optionPlaceholder": "Option {index}",
+      "atLeastOneCorrect": "At least one option must be marked as correct"
+    },
+    "list": {
+      "heading": "Exam",
+      "manageExam": "Manage Exam",
+      "addExam": "Add Exam",
+      "questionsCount": "{count, plural, one {# question} other {# questions}}",
+      "pass": "Pass: {score}%",
+      "edit": "Edit",
+      "emptyTitle": "No exam configured",
+      "emptyDescription": "Add an exam to require learners to pass a quiz before completing this training"
+    },
+    "toast": {
+      "confirmDeleteExam": "Delete this exam and all its questions? This cannot be undone.",
+      "confirmDeleteQuestion": "Delete question \"{text}\"?"
+    }
+  },
+  "adminGrades": {
+    "title": "Manage Grades",
+    "subtitle": "Define the grade hierarchy for curriculum mapping",
+    "newGrade": "New Grade",
+    "loading": "Loading grades...",
+    "empty": "No grades yet",
+    "confirmDelete": "Delete grade \"{name}\"?",
+    "editAria": "Edit {name}",
+    "deleteAria": "Delete {name}",
+    "levelValue": "Level {level}",
+    "form": {
+      "nameLabel": "Name *",
+      "namePlaceholder": "e.g. Staff",
+      "levelLabel": "Level *",
+      "levelPlaceholder": "1",
+      "descriptionLabel": "Description",
+      "descriptionPlaceholder": "Optional description",
+      "iconLabel": "Icon",
+      "iconPlaceholder": "Optional icon name",
+      "update": "Update",
+      "create": "Create"
+    }
+  },
+  "adminServiceLines": {
+    "title": "Manage Service Lines",
+    "subtitle": "Define service lines for curriculum mapping",
+    "newServiceLine": "New Service Line",
+    "loading": "Loading service lines...",
+    "empty": "No service lines yet",
+    "confirmDelete": "Delete service line \"{name}\"?",
+    "editAria": "Edit {name}",
+    "deleteAria": "Delete {name}",
+    "shared": "Shared",
+    "form": {
+      "nameLabel": "Name *",
+      "namePlaceholder": "e.g. Assurance",
+      "codeLabel": "Code *",
+      "codePlaceholder": "e.g. ASR",
+      "colorLabel": "Color *",
+      "descriptionLabel": "Description",
+      "descriptionPlaceholder": "Optional description",
+      "sharedLabel": "Shared across all service lines (formations visible to everyone)",
+      "update": "Update",
+      "create": "Create"
+    }
+  },
+  "adminEmployees": {
+    "title": "Employee Profiles",
+    "subtitle": "Assign grades and service lines to employees for curriculum mapping",
+    "loading": "Loading employee profiles...",
+    "empty": "No employee profiles found",
+    "noGrade": "No grade",
+    "noServiceLine": "No service line",
+    "viewAttendanceAria": "View attendance for {name}",
+    "editAria": "Edit {name}",
+    "profilesCount": "{count, plural, one {# profile} other {# profiles}}",
+    "pageOf": "Page {page} of {totalPages}",
+    "rowExpandAria": "Expand details for {name}",
+    "rowCollapseAria": "Collapse details for {name}",
+    "overdueCount": "{count, plural, one {# overdue training} other {# overdue trainings}}",
+    "noTrainingsMatchFilter": "No trainings match the selected status filter.",
+    "overdue": "Overdue",
+    "form": {
+      "employeeLabel": "Employee:",
+      "gradeLabel": "Grade",
+      "noGradeOption": "No grade",
+      "gradeOption": "{name} (Level {level})",
+      "serviceLineLabel": "Service Line",
+      "noServiceLineOption": "No service line",
+      "serviceLineOption": "{name} ({code})"
+    }
+  },
+  "adminCurriculum": {
+    "title": "Curriculum Matrix",
+    "subtitle": "Assign formations to each grade × service line combination",
+    "loading": "Loading curriculum matrix...",
+    "emptyPrereq": "Create grades and service lines first to build the curriculum matrix",
+    "headerCorner": "Grade ↓ / Service Line →",
+    "cellAria": "{grade}, {serviceLine}: {count, plural, one {# formation} other {# formations}}",
+    "cellAriaWithRequired": "{grade}, {serviceLine}: {count, plural, one {# formation} other {# formations}}, {required} required",
+    "cellAriaEmpty": "{grade}, {serviceLine}: no formations",
+    "requiredShort": "{count} req",
+    "info": "Click any cell to view, add, or remove formations for that grade × service line combination.",
+    "confirmRemove": "Remove \"{title}\" from this cell?",
+    "formationsCount": "{count, plural, one {# formation} other {# formations}}",
+    "noFormationsAssigned": "No formations assigned",
+    "creditsShort": "{count} cr",
+    "required": "Required",
+    "optional": "Optional",
+    "toggleRequiredAria": "Toggle required for {title}",
+    "selectTrainingLabel": "Select Training",
+    "chooseTrainingOption": "Choose a training",
+    "trainingOption": "{title} ({type})",
+    "addFormation": "Add Formation",
+    "matrix": {
+      "gradeHeader": "Grade",
+      "employeesShort": "{count} emp.",
+      "tooltipCounts": "{employees} employees · {formations} formations",
+      "tooltipCompletion": "{completed} completed · {avg}% avg"
+    }
+  },
+  "adminCertificates": {
+    "moduleTitle": "EY Academy · Admin",
+    "title": "Certificate Registry",
+    "description": "All issued certificates: filter, revoke, and export.",
+    "errorTitle": "Could not load registry",
+    "errorSubtitle": "Please try again later.",
+    "emptyTitle": "No certificates found",
+    "emptySubtitle": "Adjust the filters or wait for completions.",
+    "certificateCount": "{count, plural, one {# certificate} other {# certificates}}",
+    "pageOf": "Page {page} / {totalPages}",
+    "status": {
+      "valid": "Valid",
+      "revoked": "Revoked"
+    },
+    "toast": {
+      "downloadError": "Could not download the certificate PDF.",
+      "reinstated": "Certificate reinstated.",
+      "reinstateError": "Could not reinstate: a newer active certificate may already exist for this formation.",
+      "exportError": "Export failed.",
+      "revoked": "Certificate revoked.",
+      "revokeError": "Could not revoke the certificate."
+    },
+    "filters": {
+      "search": "Search",
+      "searchPlaceholder": "Number or employee",
+      "formation": "Formation",
+      "allFormations": "All formations",
+      "grade": "Grade",
+      "allGrades": "All grades",
+      "status": "Status",
+      "allStatuses": "All",
+      "from": "From",
+      "to": "To",
+      "clear": "Clear"
+    },
+    "table": {
+      "certificateNumber": "Certificate №",
+      "employee": "Employee",
+      "grade": "Grade",
+      "formation": "Formation",
+      "issued": "Issued",
+      "status": "Status",
+      "actions": "Actions",
+      "noGrade": "–",
+      "downloadAria": "Download PDF for {number}",
+      "reinstateAria": "Reinstate {number}",
+      "reinstateTitle": "Reinstate (undo revocation)",
+      "revokeAria": "Revoke {number}"
+    },
+    "stats": {
+      "totalIssued": "Total issued",
+      "issuedByMonth": "Issued by month",
+      "topFormations": "Top formations",
+      "noData": "No data yet."
+    },
+    "revokeDialog": {
+      "title": "Revoke certificate",
+      "description": "Revoking <mono>{number}</mono> for <strong>{name}</strong> is permanent. The public verification page will show it as Revoked.",
+      "reasonLabel": "Reason",
+      "reasonPlaceholder": "e.g. Issued in error",
+      "confirm": "Revoke"
+    }
+  },
+  "adminSessions": {
+    "page": {
+      "title": "In-Person Sessions",
+      "subtitle": "All scheduled sessions across trainings",
+      "totalSuffix": "{count, plural, one {# total} other {# total}}"
+    },
+    "filters": {
+      "heading": "Filters",
+      "clearAll": "Clear all",
+      "search": "Search",
+      "searchPlaceholder": "Training, room, trainer...",
+      "from": "From",
+      "to": "To",
+      "status": "Status",
+      "anyStatus": "Any status"
+    },
+    "table": {
+      "training": "Training",
+      "part": "Part",
+      "dateTime": "Date & Time",
+      "room": "Room",
+      "trainer": "Trainer",
+      "capacity": "Capacity",
+      "status": "Status",
+      "emptyTitle": "No sessions",
+      "emptyDefault": "No sessions found."
+    },
+    "detail": {
+      "notFound": "Session not found.",
+      "backToSessions": "Back to Sessions",
+      "breadcrumb": "Sessions",
+      "sessionDetails": "Session Details",
+      "cancelSession": "Cancel Session",
+      "part": "Part",
+      "date": "Date",
+      "time": "Time",
+      "room": "Room",
+      "trainer": "Trainer",
+      "trainerNotAssigned": "Not assigned",
+      "capacity": "Capacity",
+      "capacityPercent": "({percent}%)",
+      "capacityWarning": "Capacity is at or above 90%. Consider adding another session.",
+      "notes": "Notes",
+      "cancellationReasonLabel": "Cancellation reason:",
+      "duplicateTitle": "Duplicate Session",
+      "duplicateDescription": "Create a copy of this session at a new date/time.",
+      "newStartTime": "New start time",
+      "duplicating": "Duplicating...",
+      "enrolled": "Enrolled",
+      "peopleCount": "{count, plural, one {# person} other {# people}}",
+      "exportExcelAria": "Export participant list as Excel",
+      "exportPdfAria": "Export participant list as PDF",
+      "noEnrolled": "No enrolled employees yet.",
+      "attended": "Attended",
+      "mark": "Mark",
+      "history": "History",
+      "sessionCreated": "Session created",
+      "sessionStarted": "Session started",
+      "sessionCompleted": "Session completed",
+      "sessionCancelled": "Session cancelled",
+      "reasonPrefix": "Reason: {reason}",
+      "attendanceRecorded": "Attendance recorded ({present}/{total})",
+      "markAttendanceErrorTitle": "Could not mark attendance",
+      "markAttendanceErrorDescription": "The change was not saved. Please try again."
+    },
+    "cancelDialog": {
+      "title": "Cancel Session",
+      "warning": "This will permanently mark the session as cancelled. Enrolled employees will need to be notified separately.",
+      "reasonLabel": "Cancellation Reason *",
+      "reasonPlaceholder": "e.g. Trainer unavailable, room conflict...",
+      "reasonHint": "This reason will be visible to admins.",
+      "reasonRequired": "A reason is required.",
+      "failed": "Failed to cancel.",
+      "keepSession": "Keep Session",
+      "cancelling": "Cancelling...",
+      "confirmCancellation": "Confirm Cancellation"
+    },
+    "partDialog": {
+      "editTitle": "Edit Part",
+      "addTitle": "Add New Part",
+      "stepDetails": "Details",
+      "stepReview": "Review",
+      "lockedCompleted": "This part is completed. All its sessions have ended and it cannot be modified.",
+      "lockedGeneric": "This part is locked and cannot be modified.",
+      "titleLabel": "Title *",
+      "titlePlaceholder": "e.g. Foundations, Communication, Workshop",
+      "titleHint": "A short name for this segment of the training.",
+      "descriptionLabel": "Description",
+      "descriptionPlaceholder": "Optional: what will be covered in this part",
+      "durationLabel": "Duration (hours)",
+      "durationHint": "Estimated duration for this part.",
+      "reviewTitle": "Review",
+      "reviewTitleField": "Title",
+      "reviewDuration": "Duration",
+      "reviewDurationValue": "{hours}h",
+      "reviewDescription": "Description",
+      "reviewNote": "After creating, you can add sessions (time slots) to this part.",
+      "titleRequired": "Title is required.",
+      "durationInvalid": "Duration must be a non-negative number.",
+      "saveFailed": "Failed to save part.",
+      "createPart": "Create Part",
+      "update": "Update"
+    },
+    "sessionDialog": {
+      "editTitle": "Edit Session",
+      "addTitle": "Schedule New Session",
+      "stepDetails": "Details",
+      "stepReview": "Review",
+      "endedBanner": "This session has ended. Only trainer info and notes can be edited.",
+      "schedule": "Schedule",
+      "dateLabel": "Date *",
+      "startTimeLabel": "Start Time *",
+      "endTimeLabel": "End Time *",
+      "locationCapacity": "Location & Capacity",
+      "roomLabel": "Room *",
+      "roomPlaceholder": "e.g. Room A, Building 3",
+      "maxCapacityLabel": "Max Capacity *",
+      "trainer": "Trainer",
+      "optional": "(optional)",
+      "trainerNameLabel": "Name",
+      "trainerNamePlaceholder": "Trainer full name",
+      "trainerEmailLabel": "Email",
+      "trainerEmailPlaceholder": "trainer@company.com",
+      "notes": "Notes",
+      "notesPlaceholder": "Any additional information for this session...",
+      "summaryTitle": "Session Summary",
+      "start": "Start",
+      "end": "End",
+      "room": "Room",
+      "capacity": "Capacity",
+      "empty": "--",
+      "trainerSummary": "{name}{email, select, none {} other { ({email})}}",
+      "roomConflictDetected": "Room conflict detected",
+      "conflictLine": "{trainingTitle} -> {partTitle} : {room} : {when}",
+      "conflictNote": "Session was saved. Review room/timing if this is unintended.",
+      "dateRequired": "Session date is required.",
+      "timesRequired": "Start and end times are required.",
+      "endAfterStart": "End time must be after start time.",
+      "roomRequired": "Room is required.",
+      "capacityPositive": "Capacity must be > 0.",
+      "saveFailed": "Failed to save session.",
+      "updateSession": "Update Session",
+      "createSession": "Create Session"
+    },
+    "partsManager": {
+      "completed": "Completed",
+      "locked": "Locked",
+      "dragToReorder": "Drag to reorder",
+      "collapse": "Collapse",
+      "expand": "Expand",
+      "sessionCount": "{count, plural, one {# session} other {# sessions}}",
+      "unlockPart": "Unlock part",
+      "lockPart": "Lock part",
+      "editPart": "Edit part",
+      "deletePart": "Delete part",
+      "editSession": "Edit session",
+      "cancelSession": "Cancel session",
+      "noSessions": "No sessions scheduled yet",
+      "addSession": "Add Session",
+      "previewSummary": "{hours}h : {count, plural, one {# session} other {# sessions}}",
+      "heading": "Parts & Sessions",
+      "headingSubtitle": "Drag to reorder parts. Each part can have multiple time-slot sessions.",
+      "addPart": "Add Part",
+      "emptyTitle": "No parts yet",
+      "emptyDescription": "Add a Part to start scheduling in-person sessions for this training.",
+      "addFirstPart": "Add First Part",
+      "deleteConfirm": "Delete part \"{title}\" and all its sessions?"
+    },
+    "qrCard": {
+      "title": "Attendance QR",
+      "ready": "QR code ready",
+      "generationFailed": "Generation failed",
+      "generateFallback": "Could not generate QR code.",
+      "revoked": "QR code revoked",
+      "revokeFailed": "Revoke failed",
+      "revokeFallback": "Could not revoke QR code.",
+      "loadError": "Could not load QR code.",
+      "description": "Generate a QR code that participants scan to confirm their attendance. The code rotates every 5 minutes for security.",
+      "generate": "Generate QR Code",
+      "blockedCancelled": "QR generation is unavailable for cancelled sessions.",
+      "blockedEnded": "QR generation is unavailable after the session ends.",
+      "revokedBadge": "Revoked",
+      "rotatesIn": "Rotates in {time}",
+      "project": "Project",
+      "regenerate": "Regenerate",
+      "revoke": "Revoke",
+      "issuedExpires": "Issued {issued} : expires {expires}",
+      "previewAria": "Attendance QR code",
+      "downloadError": "Could not download QR code."
+    },
+    "qrFullscreen": {
+      "srTitle": "Attendance QR code",
+      "srDescription": "Scan this QR code with the Learning app to confirm your attendance.",
+      "heading": "Scan to confirm attendance",
+      "instruction": "Open Learning -> My Sessions -> Scan QR.",
+      "canvasAria": "Attendance QR code (large)",
+      "autoRotate": "Auto-rotates every {minutes} min : session expires {expires}"
+    }
+  },
+  "adminAttendance": {
+    "donut": {
+      "present": "Present",
+      "absent": "Absent",
+      "pending": "Pending",
+      "empty": "No enrolled participants yet."
+    },
+    "heatmap": {
+      "empty": "No closed sessions in the selected period.",
+      "title": "Attendance Rate Heatmap (Grade x Month)",
+      "cellTitle": "{grade} : {month}: {rate}% ({present}/{counted})"
+    },
+    "trend": {
+      "title": "Attendance Rate Trend",
+      "tooltipLabel": "Attendance Rate"
+    },
+    "rates": {
+      "sectionTitle": "Attendance Rates",
+      "sectionSubtitle": "In-person attendance across closed sessions. Absences are derived once a session has ended.",
+      "grade": "Grade",
+      "allGrades": "All grades",
+      "serviceLine": "Service Line",
+      "allServiceLines": "All service lines",
+      "from": "From",
+      "to": "To",
+      "reset": "Reset",
+      "overallRate": "Overall Rate",
+      "hoursDelivered": "Hours Delivered",
+      "totalPresent": "Total Present",
+      "totalAbsent": "Total Absent",
+      "rateByGrade": "Attendance Rate by Grade",
+      "noTrendData": "No attendance trend data for the selected period."
+    },
+    "panel": {
+      "heading": "Attendance",
+      "sessionClosed": "Session closed",
+      "sessionOpen": "Session open",
+      "present": "Present",
+      "absent": "Absent",
+      "pending": "Pending",
+      "attendanceRate": "Attendance Rate",
+      "openNote": "Absences are confirmed once the session ends; pending participants have not been marked yet."
+    },
+    "employee": {
+      "present": "Present",
+      "absent": "Absent",
+      "pending": "Pending",
+      "employeeFallback": "Employee {id}",
+      "backToEmployees": "Employees",
+      "titleSuffix": "{name} - Attendance",
+      "noData": "No attendance data available.",
+      "attendanceRate": "Attendance Rate",
+      "inPersonHours": "In-person Hours",
+      "sessionsAttended": "Sessions Attended",
+      "sessionsMissed": "Sessions Missed",
+      "sessionHistory": "Session History",
+      "noSessions": "No enrolled sessions yet.",
+      "hoursValue": "{hours}h"
+    }
+  },
+  "adminCategories": {
+    "title": "Manage Categories",
+    "subtitle": "Organize trainings into categories",
+    "newCategory": "New Category",
+    "loading": "Loading categories...",
+    "empty": "No categories yet",
+    "trainingsCount": "{count, plural, one {# training} other {# trainings}}",
+    "editAriaLabel": "Edit {name}",
+    "deleteAriaLabel": "Delete {name}",
+    "cannotDelete": "Cannot delete \"{name}\": it has {count, plural, one {# training} other {# trainings}} assigned.",
+    "confirmDelete": "Delete category \"{name}\"?",
+    "form": {
+      "nameLabel": "Name *",
+      "namePlaceholder": "Category name",
+      "descriptionLabel": "Description",
+      "descriptionPlaceholder": "Optional description",
+      "update": "Update",
+      "create": "Create"
+    }
+  },
+  "adminWizard": {
+    "header": {
+      "title": "Create Training",
+      "subtitleOnSite": "Set up a new on-site training program",
+      "subtitleELearning": "Set up a new training program with chapters"
+    },
+    "steps": {
+      "basicInfo": {
+        "label": "Basic Info",
+        "sub": "Title & category"
+      },
+      "details": {
+        "label": "Details",
+        "subELearning": "Credits & duration",
+        "subOnSite": "Credits & schedule"
+      },
+      "chapters": {
+        "label": "Chapters",
+        "sub": "Build content"
+      },
+      "review": {
+        "label": "Review",
+        "sub": "Final check"
+      },
+      "complete": "Complete",
+      "inProgress": "In progress"
+    },
+    "basic": {
+      "heading": "Training Details",
+      "subtitle": "Set the core information for this training program",
+      "trainingTypeSection": "Training Type",
+      "types": {
+        "eLearningLabel": "E-Learning",
+        "eLearningDescription": "Online self-paced training with chapters and content",
+        "onSiteLabel": "On-Site",
+        "onSiteDescription": "In-person training with PDF course materials"
+      },
+      "titleLabel": "Title",
+      "titlePlaceholder": "e.g. Advanced React Patterns",
+      "descriptionLabel": "Description",
+      "descriptionPlaceholder": "Describe what this training covers, its goals, and who it's for...",
+      "classificationSection": "Classification",
+      "categoryLabel": "Category",
+      "selectCategoryPlaceholder": "Select category...",
+      "badgeLevelLabel": "Badge Level",
+      "continueToDetails": "Continue to Details"
+    },
+    "details": {
+      "heading": "Additional Details",
+      "subtitle": "Configure credits, duration, and compliance requirements",
+      "effortSection": "Effort & Reward",
+      "creditsLabel": "Credits Earned",
+      "creditsUnit": "points",
+      "creditsHint": "Credits awarded on successful completion",
+      "durationLabel": "Estimated Duration",
+      "durationPlaceholder": "e.g. 2 hours, 45 minutes",
+      "durationHint": "Approximate time to complete all chapters",
+      "complianceSection": "Compliance",
+      "mandatoryLabel": "Mark as mandatory",
+      "mandatoryHint": "Mandatory trainings are automatically assigned to all employees and tracked for compliance reporting.",
+      "scheduledDateLabel": "Scheduled Date & Time",
+      "scheduledDateFuture": "Scheduled date must be in the future",
+      "scheduledDateHint": "When the on-site training session will take place",
+      "continueToReview": "Continue to Review",
+      "continueToChapters": "Continue to Chapters"
+    },
+    "chapters": {
+      "heading": "Chapters",
+      "subtitle": "Add chapters to build your training content",
+      "addChapter": "Add Chapter",
+      "emptyTitle": "No chapters yet",
+      "emptySubtitle": "Click “Add Chapter” to start building your training content",
+      "continueToReview": "Continue to Review"
+    },
+    "review": {
+      "headingCreate": "Review & Create",
+      "headingEdit": "Review & Save",
+      "subtitleCreate": "Verify everything before creating your training",
+      "subtitleEdit": "Verify everything before saving your changes",
+      "card": {
+        "basicInfo": "Basic Info",
+        "details": "Details",
+        "chapters": "Chapters: {count} total"
+      },
+      "labels": {
+        "trainingType": "Training Type",
+        "title": "Title",
+        "category": "Category",
+        "badgeLevel": "Badge Level",
+        "description": "Description",
+        "credits": "Credits",
+        "duration": "Duration",
+        "mandatory": "Mandatory",
+        "scheduledDate": "Scheduled Date"
+      },
+      "yes": "Yes",
+      "no": "No",
+      "noChapters": "No chapters added yet.",
+      "readinessHeading": "Readiness Check",
+      "readyToCreate": "✓ Ready to Create",
+      "readyToSave": "✓ Ready to Save",
+      "needsAttention": "Needs Attention",
+      "checks": {
+        "titleAdded": "Training title added",
+        "categorySelected": "Category selected",
+        "chapterAdded": "At least 1 chapter added"
+      },
+      "createTraining": "Create Training",
+      "saveChanges": "Save Changes",
+      "creating": "Creating...",
+      "saving": "Saving...",
+      "failedToCreate": "Failed to create training.",
+      "failedToUpdate": "Failed to update training."
+    },
+    "errors": {
+      "titleRequired": "Title is required.",
+      "categoryRequired": "Please select a category.",
+      "creditsNegative": "Credits cannot be negative.",
+      "scheduledDateFuture": "Scheduled date must be in the future.",
+      "unexpected": "An unexpected error occurred."
+    },
+    "editor": {
+      "layout": {
+        "SingleContent": "Single Content",
+        "SplitLayout": "Split Layout",
+        "MultiSection": "Multi Section"
+      },
+      "dragToReorder": "Drag to reorder",
+      "openBuilder": "Open Builder",
+      "chooseContentType": "Choose a content type",
+      "dialog": {
+        "editTitle": "Edit Chapter",
+        "addTitle": "Add Chapter",
+        "titleLabel": "Chapter Title",
+        "titlePlaceholder": "e.g. Introduction to the Topic",
+        "layoutLabel": "Layout",
+        "saveChanges": "Save Changes"
+      },
+      "video": {
+        "source": "Video Source",
+        "uploadFile": "Upload File",
+        "externalUrl": "External URL",
+        "uploadLabel": "Upload a video file (MP4, WebM, MOV, max 50 MB)",
+        "urlHint": "Paste a YouTube, Vimeo, or direct video URL"
+      },
+      "pdf": {
+        "label": "PDF File",
+        "uploadLabel": "Upload a PDF document (max 50 MB)"
+      },
+      "exercise": {
+        "instructions": "Instructions",
+        "instructionsPlaceholder": "Describe what the learner should do...",
+        "tasks": "Tasks",
+        "tasksPlaceholder": "List the specific tasks or problems to solve...",
+        "hints": "Hints",
+        "optional": "(optional)",
+        "hintsPlaceholder": "Optional hints to guide the learner...",
+        "solution": "Solution",
+        "solutionPlaceholder": "Model answer or solution..."
+      }
+    }
+  },
+  "adminMeta": {
+    "attendance": "Attendance · Admin",
+    "cellEmployees": "Cell Employees · Admin",
+    "employeeAttendance": "Employee Attendance · Admin"
+  }
+}
