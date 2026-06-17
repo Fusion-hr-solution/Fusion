@@ -114,3 +114,4 @@ export {
   MyCertificatesView,
   CertificateVerificationView,
 } from "./certificates";
+export { CertificateRegistryView } from "./admin/certificates";
