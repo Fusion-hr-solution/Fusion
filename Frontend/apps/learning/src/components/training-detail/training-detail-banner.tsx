@@ -1,16 +1,21 @@
+"use client";
+
 import Link from "next/link";
 import { ArrowLeft, AlertTriangle, Award } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { Training } from "@/types";
 import { CATEGORY_CONFIG, LEVEL_CONFIG } from "@/data/categories";
 import { BADGE_LEVEL_CONFIG } from "@/data/badge-config";
 
 export function TrainingDetailBanner({ training }: { training: Training }) {
+  const t = useTranslations("trainingDetail");
+  const tCommon = useTranslations("common");
   const category = CATEGORY_CONFIG[training.category];
   const level = LEVEL_CONFIG[training.level];
   const badge = BADGE_LEVEL_CONFIG[training.badgeLevel];
 
   return (
-    <div className="relative overflow-hidden bg-white border-b border-border/50">
+    <div className="relative overflow-hidden bg-card border-b border-border/50">
       <div
         className={`absolute inset-x-0 top-0 h-1 ey-animate-stripe ${category.stripClass}`}
       />
@@ -21,7 +26,7 @@ export function TrainingDetailBanner({ training }: { training: Training }) {
 
       <div className="relative px-8 pt-6 pb-10">
         {/* Breadcrumb */}
-        <nav className="ey-animate-fade-in mb-6" aria-label="Breadcrumb">
+        <nav className="ey-animate-fade-in mb-6" aria-label={t("banner.breadcrumbAria")}>
           <Link
             href="/"
             className="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground group"
@@ -30,7 +35,7 @@ export function TrainingDetailBanner({ training }: { training: Training }) {
               className="h-4 w-4 transition-transform group-hover:-translate-x-0.5"
               aria-hidden="true"
             />
-            Back to Catalog
+            {t("banner.backToCatalog")}
           </Link>
         </nav>
 
@@ -42,22 +47,22 @@ export function TrainingDetailBanner({ training }: { training: Training }) {
           <span
             className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold tracking-wide uppercase ${category.badgeClass}`}
           >
-            {category.label}
+            {tCommon(`category.${training.category}`)}
           </span>
           <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
             <span
               className={`h-2 w-2 rounded-full ${level.dotClass}`}
             />
-            {level.label}
+            {tCommon(`level.${training.level}`)}
           </span>
           <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${badge.className}`}>
             <Award className="h-3 w-3" aria-hidden="true" />
-            {badge.label}
+            {tCommon(`badgeLevel.${training.badgeLevel.toLowerCase()}`)}
           </span>
           {training.isMandatory && (
             <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
               <AlertTriangle className="h-3 w-3" aria-hidden="true" />
-              Mandatory
+              {t("mandatory")}
             </span>
           )}
         </div>
