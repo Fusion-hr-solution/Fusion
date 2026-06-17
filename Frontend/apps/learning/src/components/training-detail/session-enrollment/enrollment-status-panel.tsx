@@ -2,6 +2,7 @@
 
 import { CheckCircle2, BarChart3 } from "lucide-react";
 import { Progress } from "@repo/ui";
+import { useTranslations } from "next-intl";
 import type { EnrollmentStatusPanelProps } from "@/types/component-props";
 import { EnrollmentPartRow } from "./enrollment-part-row";
 
@@ -13,6 +14,8 @@ export function EnrollmentStatusPanel({
   selections,
   onSelectSession,
 }: EnrollmentStatusPanelProps) {
+  const t = useTranslations("trainingDetail.sessions");
+  const tCommon = useTranslations("common");
   const progressPct =
     enrollments.totalParts > 0
       ? Math.round((enrollments.completedParts / enrollments.totalParts) * 100)
@@ -21,16 +24,16 @@ export function EnrollmentStatusPanel({
   return (
     <div className="space-y-5">
       {/* Progress header */}
-      <div className="rounded-xl border border-border/50 bg-white p-5">
+      <div className="rounded-xl border border-border/50 bg-card p-5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4 text-primary" />
-            <h3 className="text-sm font-semibold text-foreground">Session Progress</h3>
+            <h3 className="text-sm font-semibold text-foreground">{t("progress.title")}</h3>
           </div>
           {enrollments.isTrainingCompleted && (
             <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600">
               <CheckCircle2 className="h-4 w-4" />
-              Completed
+              {tCommon("status.completed")}
             </span>
           )}
         </div>
@@ -38,7 +41,10 @@ export function EnrollmentStatusPanel({
         <div className="mt-3 space-y-2">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>
-              {enrollments.completedParts} of {enrollments.totalParts} parts attended
+              {t("progress.partsAttended", {
+                completed: enrollments.completedParts,
+                total: enrollments.totalParts,
+              })}
             </span>
             <span className="font-medium">{progressPct}%</span>
           </div>
