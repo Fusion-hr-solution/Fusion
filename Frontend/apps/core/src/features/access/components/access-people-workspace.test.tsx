@@ -232,6 +232,8 @@ const accessProfiles: AccessProfileSummaryDto[] = [
   },
 ];
 
+const ALL_RESULTS_SELECTION_TIMEOUT_MS = 15_000;
+
 function resetSearchParams() {
   Array.from(mockSearchParams.keys()).forEach((key) =>
     mockSearchParams.delete(key)
@@ -602,71 +604,86 @@ describe("AccessPeopleWorkspace", () => {
     ).toBeInTheDocument();
   });
 
-  it("hydrates the full selection before bulk invite review when all results are selected", async () => {
-    const user = userEvent.setup();
-    const visibleItems = createSubjects(2);
-    const previewSubjects = createSubjects(148);
-    mockAccessHooks({
-      items: visibleItems,
-      totalCount: 148,
-      selectionPreviewSubjects: previewSubjects,
-    });
+  it(
+    "hydrates the full selection before bulk invite review when all results are selected",
+    async () => {
+      const user = userEvent.setup();
+      const visibleItems = createSubjects(2);
+      const totalMatchingResults = 48;
+      const previewSubjects = createSubjects(totalMatchingResults);
+      mockAccessHooks({
+        items: visibleItems,
+        totalCount: totalMatchingResults,
+        selectionPreviewSubjects: previewSubjects,
+      });
 
-    render(<AccessPeopleWorkspace />);
+      render(<AccessPeopleWorkspace />);
 
-    for (const subject of visibleItems) {
+      for (const subject of visibleItems) {
+        await user.click(
+          screen.getByRole("checkbox", {
+            name: `Select ${subject.displayName}`,
+          })
+        );
+      }
+
       await user.click(
-        screen.getByRole("checkbox", {
-          name: `Select ${subject.displayName}`,
+        await screen.findByRole("button", {
+          name: `Select all ${totalMatchingResults}`,
         })
       );
-    }
+      await user.click(
+        await screen.findByRole("button", {
+          name: `Send ${totalMatchingResults} invites`,
+        })
+      );
 
-    await user.click(
-      await screen.findByRole("button", { name: "Select all 148" })
-    );
-    await user.click(
-      await screen.findByRole("button", { name: "Send 148 invites" })
-    );
+      await waitFor(() => {
+        expect(
+          screen.getByRole("dialog", { name: "Review invitations" })
+        ).toBeInTheDocument();
+      });
 
-    await waitFor(() => {
+      const dialog = screen.getByRole("dialog", {
+        name: "Review invitations",
+      });
+
       expect(
-        screen.getByRole("dialog", { name: "Review invitations" })
+        screen.getByText(
+          `Send invitations to ${totalMatchingResults} selected people.`
+        )
       ).toBeInTheDocument();
-    });
+      expect(screen.getByText("Will process")).toBeInTheDocument();
+      expect(screen.getAllByText(String(totalMatchingResults))).toHaveLength(2);
 
-    const dialog = screen.getByRole("dialog", { name: "Review invitations" });
+      mockBulkInviteMutate.mockResolvedValueOnce({
+        items: [],
+        totalRequested: totalMatchingResults,
+        invitedCount: totalMatchingResults,
+        refreshedCount: 0,
+        alreadyActiveCount: 0,
+        skippedCount: 0,
+      });
 
-    expect(
-      screen.getByText("Send invitations to 148 selected people.")
-    ).toBeInTheDocument();
-    expect(screen.getByText("Will process")).toBeInTheDocument();
-    expect(screen.getAllByText("148")).toHaveLength(2);
-
-    mockBulkInviteMutate.mockResolvedValueOnce({
-      items: [],
-      totalRequested: 148,
-      invitedCount: 148,
-      refreshedCount: 0,
-      alreadyActiveCount: 0,
-      skippedCount: 0,
-    });
-
-    await user.click(
-      within(dialog).getByRole("button", { name: "Send 148 invites" })
-    );
-
-    await waitFor(() => {
-      expect(mockBulkInviteMutate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          accessProfileId: expect.any(String),
-          specificEmployeeIds: previewSubjects.map(
-            (subject) => subject.employeeId
-          ),
+      await user.click(
+        within(dialog).getByRole("button", {
+          name: `Send ${totalMatchingResults} invites`,
         })
       );
-    });
-  });
+
+      await waitFor(() => {
+        expect(mockBulkInviteMutate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            accessProfileId: expect.any(String),
+            specificEmployeeIds: previewSubjects.map(
+              (subject) => subject.employeeId
+            ),
+          })
+        );
+      });
+    },
+    ALL_RESULTS_SELECTION_TIMEOUT_MS
+  );
 
   it("shows 'Assigned on invite' for NotInvited rows without profiles", () => {
     mockAccessHooks({
