@@ -1,9 +1,19 @@
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useApiQuery, useApiMutation } from "@repo/api/react";
 import { ApiError } from "@repo/api";
-import { getAdminCategories, getServiceLines, createTraining } from "@/services/admin-service";
-import type { AdminCategory, AdminServiceLine, CreateTrainingInput, WizardChapter } from "@/types/admin";
+import {
+  getAdminCategories,
+  getServiceLines,
+  createTraining,
+} from "@/services/admin-service";
+import type {
+  AdminCategory,
+  AdminServiceLine,
+  CreateTrainingInput,
+  WizardChapter,
+} from "@/types/admin";
 import type { CostType, TrainingType } from "@/types";
 
 interface UseTrainingWizardOptions {
@@ -12,6 +22,7 @@ interface UseTrainingWizardOptions {
 
 export function useTrainingWizard(_options?: UseTrainingWizardOptions) {
   const router = useRouter();
+  const t = useTranslations("adminWizard");
   const [step, setStep] = useState(1);
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -34,15 +45,11 @@ export function useTrainingWizard(_options?: UseTrainingWizardOptions) {
   // Step 3
   const [chapters, setChapters] = useState<WizardChapter[]>([]);
 
-  const fetchCategories = useCallback(
-    () => getAdminCategories(),
-    [],
-  );
+  const fetchCategories = useCallback(() => getAdminCategories(), []);
 
-  const { data: categories } = useApiQuery<AdminCategory[]>(
-    fetchCategories,
-    { enabled: true },
-  );
+  const { data: categories } = useApiQuery<AdminCategory[]>(fetchCategories, {
+    enabled: true,
+  });
 
   const fetchServiceLines = useCallback(() => getServiceLines(), []);
   const { data: serviceLines } = useApiQuery<AdminServiceLine[]>(
@@ -52,16 +59,29 @@ export function useTrainingWizard(_options?: UseTrainingWizardOptions) {
 
   const maxStep = trainingType === "OnSite" ? 3 : 4;
 
-  const nextStep = useCallback(() => setStep((s) => Math.min(s + 1, maxStep)), [maxStep]);
+  const nextStep = useCallback(
+    () => setStep((s) => Math.min(s + 1, maxStep)),
+    [maxStep]
+  );
   const prevStep = useCallback(() => setStep((s) => Math.max(s - 1, 1)), []);
 
   const addChapter = useCallback((chapter: Omit<WizardChapter, "clientId">) => {
-    setChapters((prev) => [...prev, { ...chapter, clientId: crypto.randomUUID() }]);
+    setChapters((prev) => [
+      ...prev,
+      { ...chapter, clientId: crypto.randomUUID() },
+    ]);
   }, []);
 
-  const updateChapter = useCallback((clientId: string, updates: Partial<WizardChapter>) => {
-    setChapters((prev) => prev.map((ch) => (ch.clientId === clientId ? { ...ch, ...updates } : ch)));
-  }, []);
+  const updateChapter = useCallback(
+    (clientId: string, updates: Partial<WizardChapter>) => {
+      setChapters((prev) =>
+        prev.map((ch) =>
+          ch.clientId === clientId ? { ...ch, ...updates } : ch
+        )
+      );
+    },
+    []
+  );
 
   const removeChapter = useCallback((clientId: string) => {
     setChapters((prev) => prev.filter((ch) => ch.clientId !== clientId));
@@ -72,16 +92,29 @@ export function useTrainingWizard(_options?: UseTrainingWizardOptions) {
   }, []);
 
   function validateStep1(): boolean {
-    if (!title.trim()) { setFormError("Title is required."); return false; }
-    if (!categoryId) { setFormError("Please select a category."); return false; }
+    if (!title.trim()) {
+      setFormError(t("errors.titleRequired"));
+      return false;
+    }
+    if (!categoryId) {
+      setFormError(t("errors.categoryRequired"));
+      return false;
+    }
     setFormError(null);
     return true;
   }
 
   function validateStep2(): boolean {
-    if (credits < 0) { setFormError("Credits cannot be negative."); return false; }
-    if (trainingType === "OnSite" && scheduledDate && new Date(scheduledDate) <= new Date()) {
-      setFormError("Scheduled date must be in the future.");
+    if (credits < 0) {
+      setFormError(t("errors.creditsNegative"));
+      return false;
+    }
+    if (
+      trainingType === "OnSite" &&
+      scheduledDate &&
+      new Date(scheduledDate) <= new Date()
+    ) {
+      setFormError(t("errors.scheduledDateFuture"));
       return false;
     }
     if (trainingType === "OnSite" && costType === "External" && !sponsoringServiceLineId) {
@@ -100,7 +133,7 @@ export function useTrainingWizard(_options?: UseTrainingWizardOptions) {
   }
 
   const { mutateAsync: doCreate } = useApiMutation(
-    (input: CreateTrainingInput) => createTraining(input),
+    (input: CreateTrainingInput) => createTraining(input)
   );
 
   async function handleSubmit() {
@@ -138,7 +171,7 @@ export function useTrainingWizard(_options?: UseTrainingWizardOptions) {
           ? (err.errors[0] ?? err.message)
           : err instanceof Error
             ? err.message
-            : "An unexpected error occurred.";
+            : t("errors.unexpected");
       setFormError(message);
     } finally {
       setIsSubmitting(false);
@@ -147,22 +180,51 @@ export function useTrainingWizard(_options?: UseTrainingWizardOptions) {
 
   const categoryName = categories?.find((c) => c.id === categoryId)?.name ?? "";
   const canAdvanceStep1 = title.trim().length > 0 && categoryId.length > 0;
-  const isReady = canAdvanceStep1 && (trainingType === "OnSite" || chapters.length > 0);
+  const isReady =
+    canAdvanceStep1 && (trainingType === "OnSite" || chapters.length > 0);
 
   return {
     mode: "create" as const,
-    step, setStep, formError, setFormError, isSubmitting,
+    step,
+    setStep,
+    formError,
+    setFormError,
+    isSubmitting,
     loadingDetail: false,
-    title, setTitle, description, setDescription,
-    categoryId, setCategoryId, badgeLevel, setBadgeLevel,
+    title,
+    setTitle,
+    description,
+    setDescription,
+    categoryId,
+    setCategoryId,
+    badgeLevel,
+    setBadgeLevel,
     categories: categories ?? [],
-    credits, setCredits, duration, setDuration, isMandatory, setIsMandatory,
-    trainingType, setTrainingType, scheduledDate, setScheduledDate,
-    costType, setCostType,
-    sponsoringServiceLineId, setSponsoringServiceLineId,
+    credits,
+    setCredits,
+    duration,
+    setDuration,
+    isMandatory,
+    setIsMandatory,
+    trainingType,
+    setTrainingType,
+    scheduledDate,
+    setScheduledDate,
+    costType,
+    setCostType,
+    sponsoringServiceLineId,
+    setSponsoringServiceLineId,
     serviceLines: serviceLines ?? [],
-    chapters, addChapter, updateChapter, removeChapter, reorderChapters,
-    handleNext, prevStep, handleSubmit,
-    canAdvanceStep1, isReady, categoryName,
+    chapters,
+    addChapter,
+    updateChapter,
+    removeChapter,
+    reorderChapters,
+    handleNext,
+    prevStep,
+    handleSubmit,
+    canAdvanceStep1,
+    isReady,
+    categoryName,
   };
 }

@@ -4,6 +4,7 @@ import { use, useCallback, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useApiQuery } from "@repo/api/react";
 import { ApiError } from "@repo/api";
+import { useTranslations } from "next-intl";
 import { CoursePlayer } from "@/components/learn";
 import { OnSiteLearnView } from "@/components/learn/onsite-learn-view";
 import { getTrainingProgress, getTrainingById } from "@/services/learning-service";
@@ -14,6 +15,8 @@ interface LearnPageProps {
 
 export default function LearnPage({ params }: LearnPageProps) {
   const { id } = use(params);
+  const t = useTranslations("learn.page");
+  const tCommon = useTranslations("common");
   const router = useRouter();
 
   const fetchTraining = useCallback(
@@ -65,7 +68,7 @@ export default function LearnPage({ params }: LearnPageProps) {
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-          <p className="text-sm text-muted-foreground">Loading course...</p>
+          <p className="text-sm text-muted-foreground">{t("loadingCourse")}</p>
         </div>
       </div>
     );
@@ -85,11 +88,9 @@ export default function LearnPage({ params }: LearnPageProps) {
             <span className="text-2xl" aria-hidden="true">!</span>
           </div>
           <div className="space-y-1">
-            <p className="font-semibold text-foreground">Failed to load course</p>
+            <p className="font-semibold text-foreground">{t("loadErrorTitle")}</p>
             <p className="text-sm text-muted-foreground">
-              {error instanceof ApiError
-                ? error.message
-                : "Unable to connect. Make sure the Training service is running."}
+              {error instanceof ApiError ? error.message : t("loadErrorMessage")}
             </p>
           </div>
           <div className="flex gap-3">
@@ -97,13 +98,13 @@ export default function LearnPage({ params }: LearnPageProps) {
               onClick={refetch}
               className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
             >
-              Try again
+              {tCommon("actions.retry")}
             </button>
             <button
               onClick={() => router.replace(`/training/${encodeURIComponent(id)}`)}
               className="rounded-lg border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-muted transition-colors"
             >
-              Go back
+              {tCommon("actions.back")}
             </button>
           </div>
         </div>
@@ -117,7 +118,7 @@ export default function LearnPage({ params }: LearnPageProps) {
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-          <p className="text-sm text-muted-foreground">Loading course...</p>
+          <p className="text-sm text-muted-foreground">{t("loadingCourse")}</p>
         </div>
       </div>
     );
