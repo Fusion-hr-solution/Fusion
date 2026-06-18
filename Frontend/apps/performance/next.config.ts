@@ -6,7 +6,7 @@ const frontendWorkspaceRoot = path.resolve(process.cwd(), "../..");
 const nextConfig: NextConfig = {
   basePath: "/performance",
   outputFileTracingRoot: frontendWorkspaceRoot,
-  transpilePackages: ["@repo/ui", "@repo/auth"],
+  transpilePackages: ["@repo/ui", "@repo/auth", "@repo/api"],
   allowedDevOrigins: ["http://localhost:3000"],
   async redirects() {
     return [

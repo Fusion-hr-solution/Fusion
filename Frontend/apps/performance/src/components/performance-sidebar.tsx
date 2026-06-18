@@ -3,9 +3,10 @@
 import { usePathname } from "next/navigation";
 import {
   BarChart2,
-  ClipboardList,
-  Target,
-  TrendingUp,
+  Bell,
+  CalendarRange,
+  LayoutDashboard,
+  Library,
 } from "lucide-react";
 import { AppSidebar, type NavSection } from "@repo/ui";
 import { SidebarUserPanel } from "@repo/auth";
@@ -13,9 +14,10 @@ import { SidebarUserPanel } from "@repo/auth";
 const PERFORMANCE_NAV: NavSection = {
   title: "Performance",
   items: [
-    { label: "Reviews", href: "/", icon: ClipboardList },
-    { label: "Goals", href: "/goals", icon: Target },
-    { label: "Analytics", href: "/analytics", icon: TrendingUp },
+    { label: "Dashboard", href: "/", icon: LayoutDashboard },
+    { label: "Cycles", href: "/cycles", icon: CalendarRange },
+    { label: "Objective library", href: "/objectives", icon: Library },
+    { label: "Notifications", href: "/notifications", icon: Bell },
   ],
 };
 
