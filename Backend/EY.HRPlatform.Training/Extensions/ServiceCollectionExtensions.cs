@@ -4,6 +4,7 @@ using EY.HRPlatform.Training.Features.Admin.Sessions.Services;
 using EY.HRPlatform.Training.Features.Calendar.Feed;
 using EY.HRPlatform.Training.Features.Calendar.Ics;
 using EY.HRPlatform.Training.Features.Calendar.Invites;
+using EY.HRPlatform.Training.Features.Calendar.Reminders;
 using EY.HRPlatform.Training.Features.Calendar.Sync;
 using EY.HRPlatform.Training.Features.Certifications.Export;
 using EY.HRPlatform.Training.Features.Certifications.Services;
@@ -94,7 +95,15 @@ public static class ServiceCollectionExtensions
         else
             services.AddSingleton<ISessionInviteSync, NoOpInviteSync>();
 
+        // Reminders reuse the same SMTP config (Email:Calendar), independent of the invite provider.
+        var emailConfigured = imipEnabled && !string.IsNullOrWhiteSpace(imipHost);
+        if (emailConfigured)
+            services.AddSingleton<IReminderEmailSender, SmtpReminderEmailSender>();
+        else
+            services.AddSingleton<IReminderEmailSender, NoOpReminderEmailSender>();
+
         services.AddScoped<CalendarSyncProcessor>();
+        services.AddScoped<ReminderScanner>();
         services.AddHostedService<CalendarBackgroundService>();
 
         return services;
