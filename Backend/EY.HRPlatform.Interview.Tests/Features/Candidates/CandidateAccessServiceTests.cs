@@ -648,7 +648,7 @@ public class CandidateAccessServiceTests
             },
             CancellationToken.None);
 
-        var questionId = test.TestQuestions.First().Question!.Id;
+        var questionId = await AddCodingQuestionAsync(db, test.Id);
 
         // The default service provider has no Judge0Client registered, so a valid run
         // request must degrade to 503 rather than throwing something opaque.
@@ -662,6 +662,69 @@ public class CandidateAccessServiceTests
             CancellationToken.None));
 
         Assert.Equal(503, ex.StatusCode);
+    }
+
+    [Fact]
+    public async Task RunCodeAsync_ForNonCodeQuestion_ThrowsBadRequest()
+    {
+        await using var db = TestDbContextFactory.Create();
+        var test = await SeedTestAsync(db);
+        var invitationService = CreateInvitationService(db);
+        var accessService = CreateAccessService(db);
+
+        var created = await invitationService.CreateAsync(
+            new CreateCandidateInvitationDto
+            {
+                TestId = test.Id.ToString(),
+                Email = "run.candidate@example.com",
+                CandidateName = "Run Candidate",
+                SendNotification = false,
+            },
+            CancellationToken.None);
+
+        var token = ExtractToken(created.InviteLink);
+
+        await accessService.StartOrResumeAsync(
+            new StartCandidateAttemptDto
+            {
+                Token = token,
+                CandidateEmail = "run.candidate@example.com",
+                BrowserFingerprint = DefaultFingerprint,
+            },
+            CancellationToken.None);
+
+        // The seeded question is a Multiple Choice question — not runnable.
+        var questionId = test.TestQuestions.First().Question!.Id;
+
+        var ex = await Assert.ThrowsAsync<ApiException>(() => accessService.RunCodeAsync(
+            new RunCodeRequestDto
+            {
+                Token = token,
+                QuestionId = questionId,
+                SourceCode = "print('hi')",
+            },
+            CancellationToken.None));
+
+        Assert.Equal(400, ex.StatusCode);
+    }
+
+    private static async Task<Guid> AddCodingQuestionAsync(AppDbContext db, Guid testId)
+    {
+        var question = new Question
+        {
+            Title = "Reverse a string",
+            Description = "Return the reversed string.",
+            Type = QuestionType.Coding,
+            Difficulty = Difficulty.Easy,
+            GradingMethod = GradingMethod.AutoGraded,
+            Points = 10,
+            DurationMinutes = 10,
+            Language = "python",
+        };
+        db.Questions.Add(question);
+        db.TestQuestions.Add(new TestQuestion { TestId = testId, Question = question });
+        await db.SaveChangesAsync();
+        return question.Id;
     }
 
     private static CandidateAccessService CreateAccessService(AppDbContext db, IServiceProvider? services = null)

@@ -200,7 +200,10 @@ export function CodeRunner({
   };
 
   const canRun = !running && code.trim().length > 0;
-  const canReset = (starterCode ?? "") !== code;
+  // Only offer Reset when there's actual starter code to return to — otherwise the
+  // button would silently wipe the candidate's work to an empty editor.
+  const hasStarter = (starterCode ?? "").trim().length > 0;
+  const canReset = hasStarter && starterCode !== code;
   const langLabel = isSql ? "SQL" : language?.trim() ? language : "Code";
 
   return (
@@ -226,16 +229,18 @@ export function CodeRunner({
         </div>
 
         <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={handleReset}
-            disabled={!canReset}
-            title="Reset to starter code"
-            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-100 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            <RotateCcw className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Reset</span>
-          </button>
+          {hasStarter ? (
+            <button
+              type="button"
+              onClick={handleReset}
+              disabled={!canReset}
+              title="Reset to starter code"
+              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-100 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Reset</span>
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={() => setExpanded((prev) => !prev)}
