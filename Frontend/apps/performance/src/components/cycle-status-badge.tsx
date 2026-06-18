@@ -1,4 +1,4 @@
-import { Badge } from "@repo/ui";
+import { Badge } from "@repo/ds";
 import type { CycleDeadlineState, PerformanceCycleStatus } from "@repo/api";
 
 const STATUS_VARIANT: Record<PerformanceCycleStatus, "default" | "secondary" | "outline"> = {

@@ -11,7 +11,7 @@ import {
   DialogTitle,
   Input,
   Label,
-} from "@repo/ui";
+} from "@repo/ds";
 import type { CreateObjectiveTemplateRequest, ObjectiveTemplateDto } from "@repo/api";
 
 export interface ObjectiveTemplateDialogProps {

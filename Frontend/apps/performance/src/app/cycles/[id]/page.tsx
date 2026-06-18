@@ -10,7 +10,6 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  EmptyState,
   Separator,
   Skeleton,
   Table,
@@ -19,7 +18,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@repo/ui";
+} from "@repo/ds";
+import { EmptyState } from "@repo/ui";
 import {
   canManagePerformanceCycles,
   canOperatePerformanceCycles,

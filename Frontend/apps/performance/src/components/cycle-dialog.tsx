@@ -16,7 +16,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@repo/ui";
+} from "@repo/ds";
 import type {
   CreatePerformanceCycleRequest,
   PerformanceCycleDetailDto,

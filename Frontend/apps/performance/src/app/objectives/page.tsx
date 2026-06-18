@@ -5,7 +5,6 @@ import { Library, Pencil, Plus } from "lucide-react";
 import {
   Badge,
   Button,
-  EmptyState,
   Input,
   Select,
   SelectContent,
@@ -19,7 +18,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@repo/ui";
+} from "@repo/ds";
+import { EmptyState } from "@repo/ui";
 import {
   canManageObjectiveLibrary,
   canViewObjectiveLibrary,

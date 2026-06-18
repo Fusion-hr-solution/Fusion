@@ -3,7 +3,8 @@
 import { useMemo } from "react";
 import Link from "next/link";
 import { ArrowRight, CalendarRange } from "lucide-react";
-import { Button, EmptyState, Skeleton } from "@repo/ui";
+import { Button, Skeleton } from "@repo/ds";
+import { EmptyState } from "@repo/ui";
 import { canAccessPerformance, useAuth } from "@repo/auth";
 import { StatCard, CycleStatusBadge, DeadlineBadge } from "@/components";
 import { usePerformanceCycles } from "@/hooks/use-cycles";

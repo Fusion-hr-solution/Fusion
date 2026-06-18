@@ -5,7 +5,6 @@ import Link from "next/link";
 import { CalendarRange, Plus } from "lucide-react";
 import {
   Button,
-  EmptyState,
   Input,
   Select,
   SelectContent,
@@ -19,7 +18,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@repo/ui";
+} from "@repo/ds";
+import { EmptyState } from "@repo/ui";
 import {
   canManagePerformanceCycles,
   canViewPerformanceCycles,

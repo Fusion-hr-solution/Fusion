@@ -7,9 +7,9 @@ import {
   Button,
   Card,
   CardContent,
-  EmptyState,
   Skeleton,
-} from "@repo/ui";
+} from "@repo/ds";
+import { EmptyState } from "@repo/ui";
 import { useAuth } from "@repo/auth";
 import {
   useMarkAllNotificationsRead,
