@@ -1,3 +1,4 @@
+using EY.HRPlatform.Training.Features.Calendar.Reminders;
 using EY.HRPlatform.Training.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,6 +13,7 @@ namespace EY.HRPlatform.Training.Features.Calendar.Sync;
 public sealed class CalendarBackgroundService : BackgroundService
 {
     private static readonly TimeSpan Interval = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan ReminderScanInterval = TimeSpan.FromMinutes(1);
     private static readonly TimeSpan LockTimeout = TimeSpan.FromMinutes(10);
     private const int BatchSize = 20;
     private const int MaxAttempts = 5;
@@ -19,6 +21,7 @@ public sealed class CalendarBackgroundService : BackgroundService
     private readonly IServiceProvider _services;
     private readonly ILogger<CalendarBackgroundService> _logger;
     private readonly string _instanceId = Guid.NewGuid().ToString("N")[..8];
+    private DateTime _lastReminderScanUtc = DateTime.MinValue;
 
     public CalendarBackgroundService(IServiceProvider services, ILogger<CalendarBackgroundService> logger)
     {
@@ -44,6 +47,25 @@ public sealed class CalendarBackgroundService : BackgroundService
             catch (Exception ex)
             {
                 _logger.LogError(ex, "CalendarBackgroundService: drain error.");
+            }
+
+            // Second phase: the reminder scan, on a slower sub-cadence.
+            try
+            {
+                var now = DateTime.UtcNow;
+                if (now - _lastReminderScanUtc >= ReminderScanInterval)
+                {
+                    await ScanRemindersAsync(now, stoppingToken);
+                    _lastReminderScanUtc = now;
+                }
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "CalendarBackgroundService: reminder scan error.");
             }
 
             await Task.Delay(Interval, stoppingToken);
@@ -116,4 +138,11 @@ public sealed class CalendarBackgroundService : BackgroundService
     }
 
     private static string Truncate(string value, int max) => value.Length <= max ? value : value[..max];
+
+    private async Task ScanRemindersAsync(DateTime nowUtc, CancellationToken cancellationToken)
+    {
+        await using var scope = _services.CreateAsyncScope();
+        var scanner = scope.ServiceProvider.GetRequiredService<ReminderScanner>();
+        await scanner.ScanAsync(nowUtc, cancellationToken);
+    }
 }

@@ -21,6 +21,8 @@ public class TrainingDbContext : DbContext
     public DbSet<ExternalCalendarSync> ExternalCalendarSyncs => Set<ExternalCalendarSync>();
     public DbSet<SessionInviteDelivery> SessionInviteDeliveries => Set<SessionInviteDelivery>();
     public DbSet<CalendarSyncOutbox> CalendarSyncOutboxes => Set<CalendarSyncOutbox>();
+    public DbSet<ReminderPolicy> ReminderPolicies => Set<ReminderPolicy>();
+    public DbSet<ReminderDelivery> ReminderDeliveries => Set<ReminderDelivery>();
     public DbSet<ChapterProgress> ChapterProgress => Set<ChapterProgress>();
     public DbSet<ContentBlockProgress> ContentBlockProgress => Set<ContentBlockProgress>();
     public DbSet<Exam> Exams => Set<Exam>();
@@ -224,6 +226,19 @@ public class TrainingDbContext : DbContext
             e.HasKey(x => x.Id);
             e.Property(x => x.Type).HasConversion<string>().HasMaxLength(30);
             e.HasIndex(x => new { x.ProcessedAt, x.NextAttemptUtc });
+        });
+
+        modelBuilder.Entity<ReminderPolicy>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.OffsetsMinutes).HasMaxLength(200).IsRequired();
+        });
+
+        modelBuilder.Entity<ReminderDelivery>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Channel).HasMaxLength(20);
+            e.HasIndex(x => new { x.SessionId, x.EmployeeId, x.OffsetMinutes, x.Channel }).IsUnique();
         });
 
         // --- ChapterProgress ---
