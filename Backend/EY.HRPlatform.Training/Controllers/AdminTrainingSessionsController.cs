@@ -197,6 +197,34 @@ public class AdminTrainingSessionsController : ControllerBase
         }
     }
 
+    /// <summary>Reschedule a session (Start/End only) — the drag/drop entry point on the planning calendar.</summary>
+    [HttpPatch("sessions/{sessionId:guid}/schedule")]
+    [ProducesResponseType(typeof(ApiResponse<UpdateSessionResult>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RescheduleSession(
+        Guid sessionId, [FromBody] RescheduleSessionRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await _sender.Send(
+                new RescheduleSessionCommand(sessionId, request.StartUtc, request.EndUtc), cancellationToken);
+
+            if (result.IsFailure)
+                return result.Error.Code.EndsWith("NotFound")
+                    ? NotFound(ApiResponse.Failure(result.Error.Message))
+                    : BadRequest(ApiResponse.Failure(result.Error.Message));
+
+            return Ok(ApiResponse<UpdateSessionResult>.Success(result.Value!));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to reschedule session {SessionId}", sessionId);
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                ApiResponse.Failure("An error occurred while rescheduling the session."));
+        }
+    }
+
     /// <summary>Cancel a session with a required reason.</summary>
     [HttpPost("sessions/{sessionId:guid}/cancel")]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
