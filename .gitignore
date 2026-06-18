@@ -5,6 +5,8 @@ EY_ACADEMY_MODULE.md
 docs/corehr/
 artifacts/
 external-skills/
+FEATURE_*.md
+docs/adr/
 
 # ========================
 # OS & Editor
