@@ -341,7 +341,10 @@ public class CandidateAccessService(
         CancellationToken cancellationToken)
     {
         var normalizedToken = NormalizeToken(request.Token);
-        var invitation = await FindInvitationByTokenAsync(normalizedToken, includeQuestions: true, cancellationToken)
+        // Run is a high-frequency endpoint, so avoid loading the whole test/question/option
+        // graph — the lightweight invitation is enough for the access gate; the single
+        // question's type/language is fetched with a targeted projection below.
+        var invitation = await FindInvitationByTokenAsync(normalizedToken, includeQuestions: false, cancellationToken)
             ?? throw new ApiException("Invitation link is invalid.", StatusCodes.Status404NotFound);
 
         var settings = await GetEffectiveSettingsAsync(invitation.TestId, cancellationToken);
@@ -373,11 +376,22 @@ public class CandidateAccessService(
         var attempt = GetActiveAttempt(invitation)
             ?? throw new ApiException("Start the assessment before running code.", StatusCodes.Status409Conflict);
 
-        // The question must belong to this attempt's test.
-        var question = invitation.Test?.TestQuestions
-            .Select(testQuestion => testQuestion.Question)
-            .FirstOrDefault(item => item is not null && item.Id == request.QuestionId)
+        // Targeted lookup: only the requested question's type/language, and only if it
+        // actually belongs to this attempt's test (prevents running against an unrelated id).
+        var question = await dbContext.TestQuestions
+            .AsNoTracking()
+            .Where(testQuestion =>
+                testQuestion.TestId == invitation.TestId &&
+                testQuestion.QuestionId == request.QuestionId)
+            .Select(testQuestion => new { testQuestion.Question.Type, testQuestion.Question.Language })
+            .FirstOrDefaultAsync(cancellationToken)
             ?? throw new ApiException("Question not found for this assessment.", StatusCodes.Status404NotFound);
+
+        // Only code questions are runnable.
+        if (question.Type is not (QuestionType.Coding or QuestionType.Sql))
+        {
+            throw new ApiException("This question type cannot be run.", StatusCodes.Status400BadRequest);
+        }
 
         // Execution backend is registered only when Judge0 is configured; degrade cleanly.
         var judge0 = serviceProvider.GetService<Judge0Client>()

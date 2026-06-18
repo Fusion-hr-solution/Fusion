@@ -69,7 +69,16 @@ public sealed class CodeRunThrottle : ICodeRunThrottle
         cancellationToken.ThrowIfCancellationRequested();
         var db = _redis!.GetDatabase();
 
-        // 1) Minimum interval between runs for this attempt.
+        // 1) Global concurrency budget — checked first so a capacity rejection doesn't burn
+        // the candidate's per-attempt rate allowance (interval/quota below). A sorted set
+        // scored by start time is self-healing: stale entries (from crashed requests that
+        // never released) age out by score, so the budget can't be permanently leaked.
+        var nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        await db.SortedSetRemoveRangeByScoreAsync(InflightKey, double.NegativeInfinity, nowMs - _maxRunMs);
+        if (await db.SortedSetLengthAsync(InflightKey) >= _maxConcurrent)
+            throw TooManyRequests("Code execution is busy right now — try again in a few seconds.");
+
+        // 2) Minimum interval between runs for this attempt.
         if (_minIntervalSeconds > 0)
         {
             var fresh = await db.StringSetAsync(
@@ -78,7 +87,7 @@ public sealed class CodeRunThrottle : ICodeRunThrottle
                 throw TooManyRequests("You're running too quickly — wait a moment and try again.");
         }
 
-        // 2) Per-attempt runs-per-minute cap.
+        // 3) Per-attempt runs-per-minute cap.
         if (_maxRunsPerMinute > 0)
         {
             var countKey = $"coderun:cnt:{attemptId}";
@@ -89,15 +98,7 @@ public sealed class CodeRunThrottle : ICodeRunThrottle
                 throw TooManyRequests("Too many runs in a short time — try again shortly.");
         }
 
-        // 3) Global concurrency budget. A sorted set scored by start time is self-healing:
-        // stale entries (from crashed requests that never released) age out by score, so the
-        // budget can't be permanently leaked.
-        var nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        await db.SortedSetRemoveRangeByScoreAsync(InflightKey, double.NegativeInfinity, nowMs - _maxRunMs);
-        var inflight = await db.SortedSetLengthAsync(InflightKey);
-        if (inflight >= _maxConcurrent)
-            throw TooManyRequests("Code execution is busy right now — try again in a few seconds.");
-
+        // 4) Reserve the concurrency slot.
         var member = Guid.NewGuid().ToString("N");
         await db.SortedSetAddAsync(InflightKey, member, nowMs);
         return new RedisSlot(db, member);
@@ -105,19 +106,45 @@ public sealed class CodeRunThrottle : ICodeRunThrottle
 
     private IAsyncDisposable AcquireInProcess(Guid attemptId)
     {
-        if (_minIntervalSeconds > 0)
-        {
-            var now = DateTime.UtcNow;
-            var last = _localLastRun.GetOrAdd(attemptId, DateTime.MinValue);
-            if (now - last < TimeSpan.FromSeconds(_minIntervalSeconds))
-                throw TooManyRequests("You're running too quickly — wait a moment and try again.");
-            _localLastRun[attemptId] = now;
-        }
-
+        // Capacity first, so a busy-system rejection doesn't consume the per-attempt interval.
         if (!_localGate.Wait(0))
             throw TooManyRequests("Code execution is busy right now — try again in a few seconds.");
 
+        try
+        {
+            if (_minIntervalSeconds > 0)
+            {
+                var now = DateTime.UtcNow;
+                if (_localLastRun.TryGetValue(attemptId, out var last) &&
+                    now - last < TimeSpan.FromSeconds(_minIntervalSeconds))
+                {
+                    throw TooManyRequests("You're running too quickly — wait a moment and try again.");
+                }
+                _localLastRun[attemptId] = now;
+                PruneLocalLastRun(now);
+            }
+        }
+        catch
+        {
+            _localGate.Release();
+            throw;
+        }
+
         return new ActionSlot(() => _localGate.Release());
+    }
+
+    // Bound the fallback dictionary so it can't grow without limit on a long-lived server
+    // (only used when Redis is absent). Drops entries older than the interval window.
+    private void PruneLocalLastRun(DateTime now)
+    {
+        if (_localLastRun.Count <= 1024)
+            return;
+        var cutoff = now - TimeSpan.FromSeconds(Math.Max(_minIntervalSeconds, 60));
+        foreach (var entry in _localLastRun)
+        {
+            if (entry.Value < cutoff)
+                _localLastRun.TryRemove(entry.Key, out _);
+        }
     }
 
     private static ApiException TooManyRequests(string message) =>
