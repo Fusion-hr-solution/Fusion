@@ -53,6 +53,11 @@ public static class AccessProfileTemplates
             new(CorePermissions.SettingsStructureView, PermissionScopes.Tenant),
             new(CorePermissions.SettingsProvisioningView, PermissionScopes.Tenant),
             new(CorePermissions.SettingsGovernanceView, PermissionScopes.Tenant),
+            new(PerformancePermissions.CycleView, PermissionScopes.Tenant),
+            new(PerformancePermissions.CycleManage, PermissionScopes.Tenant),
+            new(PerformancePermissions.CyclePublish, PermissionScopes.Tenant),
+            new(PerformancePermissions.ObjectiveLibraryView, PermissionScopes.Tenant),
+            new(PerformancePermissions.ObjectiveLibraryManage, PermissionScopes.Tenant),
         ]);
 
     public static readonly SeededAccessProfileTemplate OrgAdmin = new(
@@ -86,6 +91,11 @@ public static class AccessProfileTemplates
             new(CorePermissions.SettingsGovernanceView, PermissionScopes.Tenant),
             new(CorePermissions.AccessProfilesView, PermissionScopes.Tenant),
             new(CorePermissions.AccessProfilesManageV2, PermissionScopes.Tenant),
+            new(PerformancePermissions.CycleView, PermissionScopes.Tenant),
+            new(PerformancePermissions.CycleManage, PermissionScopes.Tenant),
+            new(PerformancePermissions.CyclePublish, PermissionScopes.Tenant),
+            new(PerformancePermissions.ObjectiveLibraryView, PermissionScopes.Tenant),
+            new(PerformancePermissions.ObjectiveLibraryManage, PermissionScopes.Tenant),
         ]);
 
     public static IReadOnlyList<SeededAccessProfileTemplate> All => [Employee, Manager, HrAdmin, OrgAdmin];

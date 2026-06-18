@@ -113,6 +113,24 @@ public static class CorePermissions
         ]);
 }
 
+public static class PerformancePermissions
+{
+    public const string CycleView = "performance.cycle.view";
+    public const string CycleManage = "performance.cycle.manage";
+    public const string CyclePublish = "performance.cycle.publish";
+    public const string ObjectiveLibraryView = "performance.objective.library.view";
+    public const string ObjectiveLibraryManage = "performance.objective.library.manage";
+
+    public static readonly ReadOnlyCollection<string> All =
+        Array.AsReadOnly([
+            CycleView,
+            CycleManage,
+            CyclePublish,
+            ObjectiveLibraryView,
+            ObjectiveLibraryManage,
+        ]);
+}
+
 public sealed record CorePermissionDefinition(
     string Key,
     string Label,
@@ -162,6 +180,11 @@ public static class CorePermissionCatalog
             new("settings.modules.manage:learning", "Manage Learning module settings", "Module settings", [PermissionScopes.Module]),
             new("settings.modules.view:interview", "View Interview module settings", "Module settings", [PermissionScopes.Module]),
             new("settings.modules.manage:interview", "Manage Interview module settings", "Module settings", [PermissionScopes.Module]),
+            new(PerformancePermissions.CycleView, "View performance cycles", "Performance", [PermissionScopes.DirectReports, PermissionScopes.Tenant], "Controls access to performance cycles and their participation."),
+            new(PerformancePermissions.CycleManage, "Manage performance cycles", "Performance", [PermissionScopes.Tenant], "Create and edit draft cycles and their population."),
+            new(PerformancePermissions.CyclePublish, "Operate performance cycles", "Performance", [PermissionScopes.Tenant], "Publish, activate, and close cycles (governance-gated transitions)."),
+            new(PerformancePermissions.ObjectiveLibraryView, "View objective library", "Performance", [PermissionScopes.Tenant]),
+            new(PerformancePermissions.ObjectiveLibraryManage, "Manage objective library", "Performance", [PermissionScopes.Tenant]),
         ]);
 
     private static readonly IReadOnlyDictionary<string, CorePermissionDefinition> ByKey =
