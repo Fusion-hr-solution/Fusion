@@ -3,6 +3,8 @@ using EY.HRPlatform.Training.Features.Admin.Sessions.Export;
 using EY.HRPlatform.Training.Features.Admin.Sessions.Services;
 using EY.HRPlatform.Training.Features.Calendar.Feed;
 using EY.HRPlatform.Training.Features.Calendar.Ics;
+using EY.HRPlatform.Training.Features.Calendar.Invites;
+using EY.HRPlatform.Training.Features.Calendar.Sync;
 using EY.HRPlatform.Training.Features.Certifications.Export;
 using EY.HRPlatform.Training.Features.Certifications.Services;
 using EY.HRPlatform.Training.Infrastructure.Persistence;
@@ -72,6 +74,28 @@ public static class ServiceCollectionExtensions
         // 7. Register calendar feed services (ICS builder + feed-token hashing — stateless singletons)
         services.AddSingleton<ICalendarFeedService, IcsCalendarFeed>();
         services.AddSingleton<ICalendarFeedTokenService, CalendarFeedTokenService>();
+
+        // 8. Calendar session-sync (invites). Provider from config (Imip | Graph | None); falls back to
+        //    NoOp when iMIP isn't configured. Graph is a future adapter (seam ready, not yet implemented).
+        services.AddSingleton<IcsInviteBuilder>();
+        var calendarEmailSection = configuration.GetSection(CalendarEmailOptions.SectionName);
+        services.Configure<CalendarEmailOptions>(calendarEmailSection);
+
+        var inviteProvider = configuration["Calendar:InviteProvider"];
+        var imipEnabled = string.Equals(calendarEmailSection["Enabled"], "true", StringComparison.OrdinalIgnoreCase);
+        var imipHost = calendarEmailSection["SmtpHost"]?.Trim();
+        var useImip =
+            (string.IsNullOrWhiteSpace(inviteProvider) || inviteProvider.Equals("Imip", StringComparison.OrdinalIgnoreCase))
+            && imipEnabled
+            && !string.IsNullOrWhiteSpace(imipHost);
+
+        if (useImip)
+            services.AddSingleton<ISessionInviteSync, ImipEmailInviteSync>();
+        else
+            services.AddSingleton<ISessionInviteSync, NoOpInviteSync>();
+
+        services.AddScoped<CalendarSyncProcessor>();
+        services.AddHostedService<CalendarBackgroundService>();
 
         return services;
     }

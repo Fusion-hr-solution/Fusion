@@ -18,6 +18,9 @@ public class TrainingSession : BaseEntity
     public string? TrainerName { get; private set; }
     public string? TrainerEmail { get; private set; }
 
+    /// <summary>Optional online-meeting join link (admin-pasted); orthogonal to OnSite/ELearning.</summary>
+    public string? MeetingUrl { get; private set; }
+
     public SessionStatus Status { get; private set; } = SessionStatus.Planned;
     public string? CancelReason { get; private set; }
     public DateTime? CancelledAt { get; private set; }
@@ -99,6 +102,12 @@ public class TrainingSession : BaseEntity
         Status = SessionStatus.Cancelled;
         CancelReason = reason;
         CancelledAt = DateTime.UtcNow;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void SetMeetingUrl(string? meetingUrl)
+    {
+        MeetingUrl = string.IsNullOrWhiteSpace(meetingUrl) ? null : meetingUrl.Trim();
         UpdatedAt = DateTime.UtcNow;
     }
 

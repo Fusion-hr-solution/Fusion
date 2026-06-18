@@ -1,5 +1,6 @@
 using EY.HRPlatform.SharedKernel.CQRS;
 using EY.HRPlatform.SharedKernel.Results;
+using EY.HRPlatform.Training.Domain.Entities;
 using EY.HRPlatform.Training.Domain.Enums;
 using EY.HRPlatform.Training.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -61,15 +62,28 @@ public class UpdateSessionCommandHandler : ICommandHandler<UpdateSessionCommand,
             return Result.Failure<UpdateSessionResult>(
                 Error.Validation("Session.RoomRequired", "Room is required."));
 
+        var newStart = DateTime.SpecifyKind(request.StartUtc, DateTimeKind.Utc);
+        var newEnd = DateTime.SpecifyKind(request.EndUtc, DateTimeKind.Utc);
+        var newRoom = request.Room.Trim();
+
+        // A change to a calendar-visible field re-invites every confirmed attendee (same UID, SEQUENCE++).
+        var calendarVisibleChanged =
+            session.StartUtc != newStart
+            || session.EndUtc != newEnd
+            || !string.Equals(session.Room, newRoom, StringComparison.Ordinal);
+
         session.Update(
-            DateTime.SpecifyKind(request.StartUtc, DateTimeKind.Utc),
-            DateTime.SpecifyKind(request.EndUtc, DateTimeKind.Utc),
-            request.Room.Trim(),
+            newStart,
+            newEnd,
+            newRoom,
             request.MaxCapacity,
             request.Notes,
             request.TrainerEmployeeId,
             request.TrainerName?.Trim(),
             request.TrainerEmail?.Trim());
+
+        if (calendarVisibleChanged)
+            _db.CalendarSyncOutboxes.Add(new CalendarSyncOutbox(CalendarSyncType.SessionRescheduled, session.Id));
 
         await _db.SaveChangesAsync(cancellationToken);
 
