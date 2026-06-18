@@ -1,6 +1,8 @@
 using System.Text;
 using EY.HRPlatform.Training.Features.Admin.Sessions.Export;
 using EY.HRPlatform.Training.Features.Admin.Sessions.Services;
+using EY.HRPlatform.Training.Features.Calendar.Feed;
+using EY.HRPlatform.Training.Features.Calendar.Ics;
 using EY.HRPlatform.Training.Features.Certifications.Export;
 using EY.HRPlatform.Training.Features.Certifications.Services;
 using EY.HRPlatform.Training.Infrastructure.Persistence;
@@ -66,6 +68,10 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ICertificateUrlBuilder, CertificateUrlBuilder>();
         services.AddSingleton<ICertificateRegistryExporter, CertificateRegistryExporter>();
         services.AddScoped<ICertificateIssuanceService, CertificateIssuanceService>();
+
+        // 7. Register calendar feed services (ICS builder + feed-token hashing — stateless singletons)
+        services.AddSingleton<ICalendarFeedService, IcsCalendarFeed>();
+        services.AddSingleton<ICalendarFeedTokenService, CalendarFeedTokenService>();
 
         return services;
     }
