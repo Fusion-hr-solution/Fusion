@@ -20,6 +20,7 @@ import { Button, Badge, Card, CardContent, Skeleton } from "@repo/ui";
 import { useApiQuery, useApiMutation } from "@repo/api/react";
 import { ApiError } from "@repo/api";
 import { toast } from "sonner";
+import { useFormatter, useTranslations } from "next-intl";
 import { getAllMyEnrollments, cancelSessionEnrollment } from "@/services/enrollment-service";
 
 interface SessionDetailViewProps {
@@ -27,6 +28,8 @@ interface SessionDetailViewProps {
 }
 
 export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
+  const t = useTranslations("mySessions");
+  const format = useFormatter();
   const [cancelled, setCancelled] = useState(false);
   const fetcher = useCallback(() => getAllMyEnrollments(), []);
   const { data: enrollments, isLoading } = useApiQuery(fetcher);
@@ -45,16 +48,16 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
     {
       onSuccess: () => {
         setCancelled(true);
-        toast.success("Session cancelled", {
-          description: "Your booking has been cancelled successfully.",
+        toast.success(t("cancelToast.successTitle"), {
+          description: t("cancelToast.successDescription"),
         });
       },
       onError: (err) => {
         const message =
           err instanceof ApiError
             ? err.errors.join(". ")
-            : "Could not cancel this session.";
-        toast.error("Cancellation failed", { description: message });
+            : t("cancelToast.errorFallback");
+        toast.error(t("cancelToast.errorTitle"), { description: message });
       },
     },
   );
@@ -72,14 +75,14 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
     return (
       <div className="flex flex-col items-center justify-center p-12 text-center">
         <CalendarCheck2 className="h-12 w-12 text-muted-foreground/30" />
-        <p className="mt-4 text-sm font-medium text-foreground">Session not found</p>
+        <p className="mt-4 text-sm font-medium text-foreground">{t("detail.notFoundTitle")}</p>
         <p className="mt-1 text-xs text-muted-foreground">
-          This session may have been cancelled or doesn&apos;t belong to you.
+          {t("detail.notFoundDescription")}
         </p>
         <Link href="/my-sessions">
           <Button variant="outline" size="sm" className="mt-4">
             <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
-            Back to My Sessions
+            {t("backToMySessions")}
           </Button>
         </Link>
       </div>
@@ -100,7 +103,7 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
       >
         <ArrowLeft className="h-4 w-4" />
-        Back to My Sessions
+        {t("backToMySessions")}
       </Link>
 
       {/* Main hero card */}
@@ -113,14 +116,17 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
                 {session.trainingTitle}
               </p>
               <h1 className="mt-1 text-xl font-bold text-white">
-                Part {session.partOrderIndex + 1}: {session.partTitle}
+                {t("partTitle", {
+                  number: session.partOrderIndex + 1,
+                  title: session.partTitle,
+                })}
               </h1>
             </div>
             <Badge
               className="bg-white/20 text-white border-white/30 text-xs backdrop-blur-sm"
               variant="outline"
             >
-              {getStatusLabel(session.status, isPast)}
+              {t(`enrollmentStatus.${getStatusKey(session.status, isPast)}`)}
             </Badge>
           </div>
         </div>
@@ -131,8 +137,8 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
             {/* Date */}
             <DetailItem
               icon={<Calendar className="h-4 w-4" />}
-              label="Date"
-              value={startDate.toLocaleDateString(undefined, {
+              label={t("detail.labels.date")}
+              value={format.dateTime(startDate, {
                 weekday: "long",
                 day: "numeric",
                 month: "long",
@@ -142,26 +148,30 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
             {/* Time */}
             <DetailItem
               icon={<Clock className="h-4 w-4" />}
-              label="Time"
-              value={`${startDate.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })} – ${endDate.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })} (${durationHours}h)`}
+              label={t("detail.labels.time")}
+              value={t("detail.timeRange", {
+                start: format.dateTime(startDate, { hour: "2-digit", minute: "2-digit" }),
+                end: format.dateTime(endDate, { hour: "2-digit", minute: "2-digit" }),
+                hours: format.number(durationHours),
+              })}
             />
             {/* Location */}
             <DetailItem
               icon={<MapPin className="h-4 w-4" />}
-              label="Room"
+              label={t("detail.labels.room")}
               value={session.room}
             />
             {/* Capacity */}
             <DetailItem
               icon={<Users className="h-4 w-4" />}
-              label="Capacity"
-              value={`${session.maxCapacity} participants max`}
+              label={t("detail.labels.capacity")}
+              value={t("detail.capacityValue", { count: session.maxCapacity })}
             />
             {/* Trainer */}
             {session.trainerName && (
               <DetailItem
                 icon={<User className="h-4 w-4" />}
-                label="Trainer"
+                label={t("detail.labels.trainer")}
                 value={session.trainerName}
               />
             )}
@@ -169,7 +179,7 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
             {session.trainerEmail && (
               <DetailItem
                 icon={<Mail className="h-4 w-4" />}
-                label="Contact"
+                label={t("detail.labels.contact")}
                 value={session.trainerEmail}
                 isLink
               />
@@ -178,32 +188,30 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
 
           {/* Waitlist info */}
           {session.status === "Waitlisted" && session.waitlistPosition > 0 && (
-            <div className="mt-6 flex items-center gap-2 rounded-lg border border-[hsl(var(--ey-orange-500))]/30 bg-[hsl(var(--ey-orange-500))]/10 p-3">
-              <AlertCircle className="h-4 w-4 text-[hsl(var(--ey-orange-500))]" />
-              <p className="text-sm text-foreground">
-                You are <span className="font-semibold">#{session.waitlistPosition}</span> on the waitlist.
-                You&apos;ll be automatically enrolled when a spot opens up.
+            <div className="mt-6 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
+              <AlertCircle className="h-4 w-4 text-amber-600" />
+              <p className="text-sm text-amber-800">
+                {t.rich("detail.waitlistBanner", {
+                  position: session.waitlistPosition,
+                  b: (chunks) => <span className="font-semibold">{chunks}</span>,
+                })}
               </p>
             </div>
           )}
 
           {/* Attended confirmation */}
           {session.status === "Attended" && (
-            <div className="mt-6 flex items-center gap-2 rounded-lg border border-[hsl(var(--ey-green-500))]/30 bg-[hsl(var(--ey-green-500))]/10 p-3">
-              <CheckCircle2 className="h-4 w-4 text-[hsl(var(--ey-green-500))]" />
-              <p className="text-sm text-[hsl(var(--ey-green-500))]">
-                Attendance confirmed. This session is complete.
-              </p>
+            <div className="mt-6 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+              <p className="text-sm text-emerald-800">{t("detail.attendedBanner")}</p>
             </div>
           )}
 
           {/* Cancelled confirmation */}
           {cancelled && (
-            <div className="mt-6 flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3">
-              <XCircle className="h-4 w-4 text-destructive" />
-              <p className="text-sm text-destructive">
-                This session has been cancelled from your bookings.
-              </p>
+            <div className="mt-6 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3">
+              <XCircle className="h-4 w-4 text-red-600" />
+              <p className="text-sm text-red-800">{t("detail.cancelledBanner")}</p>
             </div>
           )}
 
@@ -222,11 +230,9 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
                 ) : (
                   <XCircle className="h-3.5 w-3.5" />
                 )}
-                Cancel This Session
+                {t("detail.cancelButton")}
               </Button>
-              <p className="text-xs text-muted-foreground">
-                Cancellation must be made at least 24 hours before the session starts.
-              </p>
+              <p className="text-xs text-muted-foreground">{t("detail.cancelPolicy")}</p>
             </div>
           )}
         </CardContent>
@@ -234,10 +240,12 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
 
       {/* Enrollment meta */}
       <div className="text-xs text-muted-foreground">
-        Enrolled on {new Date(session.enrolledAt).toLocaleDateString(undefined, {
-          day: "numeric",
-          month: "long",
-          year: "numeric",
+        {t("detail.enrolledOn", {
+          date: format.dateTime(new Date(session.enrolledAt), {
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+          }),
         })}
       </div>
     </div>
@@ -278,15 +286,18 @@ function DetailItem({
 }
 
 function getHeaderGradient(status: string, isPast: boolean): string {
-  if (status === "Attended") return "bg-gradient-to-r from-[hsl(var(--ey-green-500))] to-[hsl(var(--ey-green-500))]/80";
-  if (status === "Waitlisted") return "bg-gradient-to-r from-[hsl(var(--ey-orange-500))] to-[hsl(var(--ey-orange-500))]/80";
-  if (isPast) return "bg-gradient-to-r from-muted-foreground to-muted-foreground/80";
+  if (status === "Attended") return "bg-gradient-to-r from-emerald-600 to-emerald-500";
+  if (status === "Waitlisted") return "bg-gradient-to-r from-amber-600 to-amber-500";
+  if (isPast) return "bg-gradient-to-r from-gray-500 to-gray-400";
   return "bg-gradient-to-r from-primary to-primary/80";
 }
 
-function getStatusLabel(status: string, isPast: boolean): string {
-  if (status === "Attended") return "Attended";
-  if (status === "Waitlisted") return "Waitlisted";
-  if (isPast) return "Missed";
-  return "Confirmed";
+function getStatusKey(
+  status: string,
+  isPast: boolean,
+): "attended" | "waitlisted" | "missed" | "confirmed" {
+  if (status === "Attended") return "attended";
+  if (status === "Waitlisted") return "waitlisted";
+  if (isPast) return "missed";
+  return "confirmed";
 }

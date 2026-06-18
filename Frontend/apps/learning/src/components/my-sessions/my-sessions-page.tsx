@@ -4,12 +4,14 @@ import { useCallback, useMemo, useState } from "react";
 import { CalendarCheck2, CalendarClock, Clock, Filter } from "lucide-react";
 import { Button, Skeleton } from "@repo/ui";
 import { useApiQuery } from "@repo/api/react";
+import { useTranslations } from "next-intl";
 import { getAllMyEnrollments } from "@/services/enrollment-service";
 import { SessionTrainingGroup } from "./session-training-group";
 
 type ViewFilter = "upcoming" | "past" | "all";
 
 export function MySessionsPage() {
+  const t = useTranslations("mySessions");
   const [filter, setFilter] = useState<ViewFilter>("upcoming");
 
   const fetcher = useCallback(() => getAllMyEnrollments(), []);
@@ -74,10 +76,8 @@ export function MySessionsPage() {
             <CalendarCheck2 className="h-5 w-5" />
           </div>
           <div>
-            <h1 className="text-xl font-semibold text-foreground">My Sessions</h1>
-            <p className="text-sm text-muted-foreground">
-              Manage your in-person training sessions and attendance
-            </p>
+            <h1 className="text-xl font-semibold text-foreground">{t("title")}</h1>
+            <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
           </div>
         </div>
       </div>
@@ -86,21 +86,21 @@ export function MySessionsPage() {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <StatCard
           icon={<CalendarClock className="h-4 w-4" />}
-          label="Upcoming"
+          label={t("stats.upcoming")}
           value={totalUpcoming}
           accent="text-primary"
           bgAccent="bg-primary/10"
         />
         <StatCard
           icon={<Clock className="h-4 w-4" />}
-          label="Completed / Past"
+          label={t("stats.past")}
           value={totalPast}
           accent="text-[hsl(var(--ey-green-500))]"
           bgAccent="bg-[hsl(var(--ey-green-500))]/10"
         />
         <StatCard
           icon={<CalendarCheck2 className="h-4 w-4" />}
-          label="Total Bookings"
+          label={t("stats.total")}
           value={totalSessions}
           accent="text-muted-foreground"
           bgAccent="bg-muted/40"
@@ -116,15 +116,15 @@ export function MySessionsPage() {
               key={f}
               variant={filter === f ? "default" : "ghost"}
               size="sm"
-              className={`h-7 px-3 text-xs font-medium capitalize ${filter === f ? "" : "text-muted-foreground hover:text-foreground"}`}
+              className={`h-7 px-3 text-xs font-medium ${filter === f ? "" : "text-muted-foreground hover:text-foreground"}`}
               onClick={() => setFilter(f)}
             >
-              {f}
+              {t(`filter.${f}`)}
             </Button>
           ))}
         </div>
         <span className="ml-2 text-xs text-muted-foreground">
-          {filtered.length} {filtered.length === 1 ? "training" : "trainings"}
+          {t("trainingCount", { count: filtered.length })}
         </span>
       </div>
 
@@ -169,28 +169,15 @@ function StatCard({
 }
 
 function EmptyState({ filter }: { filter: ViewFilter }) {
-  const messages: Record<ViewFilter, { title: string; description: string }> = {
-    upcoming: {
-      title: "No upcoming sessions",
-      description: "You haven't enrolled in any upcoming in-person sessions yet. Browse the catalog to find trainings.",
-    },
-    past: {
-      title: "No past sessions",
-      description: "You haven't attended any in-person sessions yet.",
-    },
-    all: {
-      title: "No sessions booked",
-      description: "You haven't enrolled in any in-person training sessions. Visit the catalog to find on-site trainings and enroll.",
-    },
-  };
+  const t = useTranslations("mySessions");
 
   return (
     <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/60 py-16 text-center">
       <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted/50">
         <CalendarCheck2 className="h-7 w-7 text-muted-foreground/50" />
       </div>
-      <p className="mt-4 text-sm font-medium text-foreground">{messages[filter].title}</p>
-      <p className="mt-1 max-w-sm text-xs text-muted-foreground">{messages[filter].description}</p>
+      <p className="mt-4 text-sm font-medium text-foreground">{t(`empty.${filter}.title`)}</p>
+      <p className="mt-1 max-w-sm text-xs text-muted-foreground">{t(`empty.${filter}.description`)}</p>
     </div>
   );
 }

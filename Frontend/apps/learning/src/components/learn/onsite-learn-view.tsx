@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, FileText, Calendar, Download, ExternalLink } from "lucide-react";
 import { Button, Card, CardContent } from "@repo/ui";
+import { useFormatter, useTranslations } from "next-intl";
 import type { Training } from "@/types";
 
 interface OnSiteLearnViewProps {
@@ -11,6 +12,9 @@ interface OnSiteLearnViewProps {
 }
 
 export function OnSiteLearnView({ training }: OnSiteLearnViewProps) {
+  const t = useTranslations("learn.onsite");
+  const tCommon = useTranslations("common");
+  const format = useFormatter();
   const router = useRouter();
   const [selectedCourseIndex, setSelectedCourseIndex] = useState(0);
   const courses = (training.onSiteCourses ?? []).sort(
@@ -32,14 +36,14 @@ export function OnSiteLearnView({ training }: OnSiteLearnViewProps) {
           }
         >
           <ArrowLeft className="mr-1 h-4 w-4" />
-          Back
+          {tCommon("actions.back")}
         </Button>
         <div className="flex-1 min-w-0">
           <h1 className="text-sm font-semibold truncate">{training.title}</h1>
           {training.scheduledDate && (
             <p className="flex items-center gap-1 text-xs text-muted-foreground">
               <Calendar className="h-3 w-3" />
-              {new Date(training.scheduledDate).toLocaleDateString("en-US", {
+              {format.dateTime(new Date(training.scheduledDate), {
                 weekday: "short",
                 month: "short",
                 day: "numeric",
@@ -56,7 +60,7 @@ export function OnSiteLearnView({ training }: OnSiteLearnViewProps) {
         <aside className="w-72 shrink-0 border-r border-border bg-card overflow-y-auto">
           <div className="p-4">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-              Course Materials ({courses.length})
+              {t("courseMaterials", { count: courses.length })}
             </h2>
             <div className="space-y-1">
               {courses.map((course, index) => (
@@ -94,7 +98,7 @@ export function OnSiteLearnView({ training }: OnSiteLearnViewProps) {
                     className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-muted transition-colors"
                   >
                     <ExternalLink className="h-3 w-3" />
-                    Open
+                    {t("open")}
                   </a>
                   <a
                     href={selectedCourse.contentUri}
@@ -102,7 +106,7 @@ export function OnSiteLearnView({ training }: OnSiteLearnViewProps) {
                     className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-muted transition-colors"
                   >
                     <Download className="h-3 w-3" />
-                    Download
+                    {tCommon("actions.download")}
                   </a>
                 </div>
               </div>
@@ -118,7 +122,7 @@ export function OnSiteLearnView({ training }: OnSiteLearnViewProps) {
                 <CardContent className="flex flex-col items-center py-12 text-center">
                   <FileText className="h-10 w-10 text-muted-foreground/40" />
                   <p className="mt-3 text-sm text-muted-foreground">
-                    No course materials available yet.
+                    {t("noMaterials")}
                   </p>
                 </CardContent>
               </Card>

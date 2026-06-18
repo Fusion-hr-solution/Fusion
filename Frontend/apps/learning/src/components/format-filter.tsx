@@ -44,13 +44,13 @@ export function FormatFilter({ value, onChange }: FormatFilterProps) {
           </SelectItem>
           <SelectItem value="ELearning">
             <span className="flex items-center gap-2">
-              <Laptop className="h-3.5 w-3.5 text-[hsl(var(--ey-blue-500))]" aria-hidden="true" />
+              <Laptop className="h-3.5 w-3.5 text-blue-600" aria-hidden="true" />
               {tCommon("trainingType.ELearning")}
             </span>
           </SelectItem>
           <SelectItem value="OnSite">
             <span className="flex items-center gap-2">
-              <Building2 className="h-3.5 w-3.5 text-[hsl(var(--ey-green-500))]" aria-hidden="true" />
+              <Building2 className="h-3.5 w-3.5 text-emerald-600" aria-hidden="true" />
               {tCommon("trainingType.OnSite")}
             </span>
           </SelectItem>

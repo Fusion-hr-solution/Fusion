@@ -2,7 +2,7 @@ export default function TrainingDetailLoading() {
   return (
     <div className="min-h-full animate-pulse">
       {/* Hero skeleton (matches PageHeader) */}
-      <section className="border-b border-border/50 bg-white">
+      <section className="border-b border-border/50 bg-card">
         <div className="px-8 py-10 lg:py-12">
           {/* Back link */}
           <div className="mb-4 h-4 w-28 rounded ey-shimmer" />
@@ -39,7 +39,7 @@ export default function TrainingDetailLoading() {
               {Array.from({ length: 5 }).map((_, i) => (
                 <div
                   key={i}
-                  className="flex flex-col items-center gap-2 rounded-xl border border-border/50 bg-white p-4"
+                  className="flex flex-col items-center gap-2 rounded-xl border border-border/50 bg-card p-4"
                 >
                   <div className="h-9 w-9 rounded-lg ey-shimmer" />
                   <div className="h-5 w-10 rounded ey-shimmer" />
@@ -54,7 +54,7 @@ export default function TrainingDetailLoading() {
                 <div className="h-5 w-5 rounded ey-shimmer" />
                 <div className="h-5 w-32 rounded ey-shimmer" />
               </div>
-              <div className="overflow-hidden rounded-2xl border border-border/50 bg-white">
+              <div className="overflow-hidden rounded-2xl border border-border/50 bg-card">
                 {Array.from({ length: 6 }).map((_, i) => (
                   <div
                     key={i}
@@ -74,7 +74,7 @@ export default function TrainingDetailLoading() {
                 <div className="h-5 w-5 rounded ey-shimmer" />
                 <div className="h-5 w-32 rounded ey-shimmer" />
               </div>
-              <div className="rounded-2xl border border-border/60 bg-white p-6">
+              <div className="rounded-2xl border border-border/60 bg-card p-6">
                 <div className="h-20 w-full rounded ey-shimmer" />
               </div>
             </div>
@@ -83,7 +83,7 @@ export default function TrainingDetailLoading() {
           {/* Right column */}
           <div className="space-y-6">
             {/* Instructor */}
-            <div className="rounded-2xl border border-border/50 bg-white p-6">
+            <div className="rounded-2xl border border-border/50 bg-card p-6">
               <div className="mb-5 h-4 w-20 rounded ey-shimmer" />
               <div className="flex items-center gap-4">
                 <div className="h-14 w-14 shrink-0 rounded-2xl ey-shimmer" />
@@ -95,7 +95,7 @@ export default function TrainingDetailLoading() {
             </div>
 
             {/* Tags */}
-            <div className="rounded-2xl border border-border/50 bg-white p-6">
+            <div className="rounded-2xl border border-border/50 bg-card p-6">
               <div className="mb-3 h-4 w-14 rounded ey-shimmer" />
               <div className="flex flex-wrap gap-2">
                 {Array.from({ length: 3 }).map((_, i) => (

@@ -3,14 +3,12 @@
 import type { ReactNode } from "react";
 import { CheckCircle2, ShieldX, XCircle } from "lucide-react";
 import { Badge, Card, CardContent, Skeleton } from "@repo/ui";
+import { useFormatter, useTranslations } from "next-intl";
 import { useVerifyCertificate } from "@/hooks";
 import type { CertificateVerification } from "@/types";
 
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
-}
-
 export function CertificateVerificationView({ certificateNumber }: { certificateNumber: string }) {
+  const t = useTranslations("verify");
   const { data, isLoading, error } = useVerifyCertificate(certificateNumber);
 
   return (
@@ -23,7 +21,7 @@ export function CertificateVerificationView({ certificateNumber }: { certificate
             </div>
             <div>
               <p className="text-sm font-semibold text-foreground">EY Academy</p>
-              <p className="text-xs text-muted-foreground">Certificate verification</p>
+              <p className="text-xs text-muted-foreground">{t("subtitle")}</p>
             </div>
           </header>
 
@@ -36,10 +34,12 @@ export function CertificateVerificationView({ certificateNumber }: { certificate
           ) : error || !data ? (
             <div className="flex flex-col items-center py-6 text-center">
               <XCircle className="h-12 w-12 text-destructive" aria-hidden="true" />
-              <p className="mt-3 text-base font-semibold text-foreground">Certificate not found</p>
+              <p className="mt-3 text-base font-semibold text-foreground">{t("notFoundTitle")}</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                We couldn&apos;t find a certificate with the number{" "}
-                <span className="font-mono">{certificateNumber}</span>.
+                {t.rich("notFoundBody", {
+                  number: certificateNumber,
+                  mono: (chunks) => <span className="font-mono">{chunks}</span>,
+                })}
               </p>
             </div>
           ) : (
@@ -52,6 +52,8 @@ export function CertificateVerificationView({ certificateNumber }: { certificate
 }
 
 function CertificateResult({ data }: { data: CertificateVerification }) {
+  const t = useTranslations("verify");
+  const format = useFormatter();
   const isRevoked = data.status === "Revoked";
 
   return (
@@ -60,15 +62,15 @@ function CertificateResult({ data }: { data: CertificateVerification }) {
         {isRevoked ? (
           <ShieldX className="h-6 w-6 text-destructive" aria-hidden="true" />
         ) : (
-          <CheckCircle2 className="h-6 w-6 text-[hsl(var(--ey-green-500))]" aria-hidden="true" />
+          <CheckCircle2 className="h-6 w-6 text-emerald-600" aria-hidden="true" />
         )}
-        <Badge variant={isRevoked ? "destructive" : "secondary"}>{isRevoked ? "Revoked" : "Valid"}</Badge>
+        <Badge variant={isRevoked ? "destructive" : "secondary"}>{isRevoked ? t("revoked") : t("valid")}</Badge>
       </div>
       <dl className="mt-5 space-y-3 text-sm">
-        <Row label="Awarded to" value={data.maskedEmployeeName} />
-        <Row label="Formation" value={data.trainingTitle} />
-        <Row label="Issued" value={formatDate(data.issuedAt)} />
-        <Row label="Certificate №" value={<span className="font-mono">{data.certificateNumber}</span>} />
+        <Row label={t("awardedTo")} value={data.maskedEmployeeName} />
+        <Row label={t("training")} value={data.trainingTitle} />
+        <Row label={t("issued")} value={format.dateTime(new Date(data.issuedAt), { day: "2-digit", month: "short", year: "numeric" })} />
+        <Row label={t("certificateNumber")} value={<span className="font-mono">{data.certificateNumber}</span>} />
       </dl>
     </div>
   );

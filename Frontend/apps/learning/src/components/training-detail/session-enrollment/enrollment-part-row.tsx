@@ -9,10 +9,10 @@ import type { EnrollmentPartRowProps } from "@/types/component-props";
 import { SessionPickerCard } from "./session-picker-card";
 
 const STATUS_CONFIG = {
-  Enrolled: { icon: CheckCircle2, className: "bg-[hsl(var(--ey-blue-500))]/10 text-[hsl(var(--ey-blue-500))] border-[hsl(var(--ey-blue-500))]/30" },
-  Waitlisted: { icon: Clock, className: "bg-[hsl(var(--ey-orange-500))]/10 text-foreground border-[hsl(var(--ey-orange-500))]/30" },
-  Attended: { icon: CheckCircle2, className: "bg-[hsl(var(--ey-green-500))]/10 text-[hsl(var(--ey-green-500))] border-[hsl(var(--ey-green-500))]/30" },
-  Cancelled: { icon: XCircle, className: "bg-destructive/10 text-destructive border-destructive/30" },
+  Enrolled: { icon: CheckCircle2, className: "bg-blue-100 text-blue-700 border-blue-200" },
+  Waitlisted: { icon: Clock, className: "bg-amber-100 text-amber-700 border-amber-200" },
+  Attended: { icon: CheckCircle2, className: "bg-emerald-100 text-emerald-700 border-emerald-200" },
+  Cancelled: { icon: XCircle, className: "bg-red-100 text-red-700 border-red-200" },
   NotEnrolled: { icon: Clock, className: "bg-muted text-muted-foreground border-border" },
 } as const;
 
@@ -110,9 +110,9 @@ export function EnrollmentPartRow({
       {/* Absent hint + session picker for re-enrollment */}
       {showAbsentSessions && onSelectSession && (
         <div className="border-t border-border/40 px-4 pb-4 pt-3">
-          <div className="flex items-center gap-2 rounded-lg border border-[hsl(var(--ey-orange-500))]/30 bg-[hsl(var(--ey-orange-500))]/10 px-3 py-2 mb-3">
-            <Info className="h-3.5 w-3.5 text-[hsl(var(--ey-orange-500))] shrink-0" />
-            <p className="text-xs text-foreground">
+          <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 mb-3">
+            <Info className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+            <p className="text-xs text-amber-700">
               {t("missedHint")}
             </p>
           </div>

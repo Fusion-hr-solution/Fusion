@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { BookOpen, ChevronRight } from "lucide-react";
 import { Card, CardContent } from "@repo/ui";
+import { useFormatter, useTranslations } from "next-intl";
 import type { MyEnrollmentSummary } from "@/types";
 import { SessionTimelineCard } from "./session-timeline-card";
 
@@ -11,6 +12,8 @@ interface SessionTrainingGroupProps {
 }
 
 export function SessionTrainingGroup({ training }: SessionTrainingGroupProps) {
+  const t = useTranslations("mySessions");
+  const format = useFormatter();
   const nextSession = training.nextSessionUtc
     ? new Date(training.nextSessionUtc)
     : null;
@@ -28,10 +31,12 @@ export function SessionTrainingGroup({ training }: SessionTrainingGroupProps) {
               {training.trainingTitle}
             </h3>
             <p className="text-xs text-muted-foreground">
-              {training.totalEnrolledParts} {training.totalEnrolledParts === 1 ? "session" : "sessions"} booked
+              {t("group.sessionsBooked", { count: training.totalEnrolledParts })}
               {nextSession && (
                 <span className="ml-2 text-primary">
-                  · Next: {nextSession.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                  {t("group.nextSession", {
+                    date: format.dateTime(nextSession, { month: "short", day: "numeric" }),
+                  })}
                 </span>
               )}
             </p>
@@ -41,7 +46,7 @@ export function SessionTrainingGroup({ training }: SessionTrainingGroupProps) {
           href={`/training/${training.trainingId}`}
           className="flex items-center gap-1 text-xs font-medium text-primary hover:underline"
         >
-          View Training <ChevronRight className="h-3 w-3" />
+          {t("group.viewTraining")} <ChevronRight className="h-3 w-3" />
         </Link>
       </div>
 

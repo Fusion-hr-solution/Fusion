@@ -2,7 +2,7 @@ export default function MyTrainingsLoading() {
   return (
     <div className="animate-pulse">
       {/* Hero skeleton */}
-      <section className="border-b border-border/50 bg-white">
+      <section className="border-b border-border/50 bg-card">
         <div className="px-8 py-10 lg:py-12">
           <div className="flex items-end gap-3 mb-1">
             <div className="h-9 w-1 rounded-full ey-shimmer" />
@@ -16,7 +16,7 @@ export default function MyTrainingsLoading() {
             {Array.from({ length: 4 }).map((_, i) => (
               <div
                 key={i}
-                className="flex items-center gap-3.5 rounded-xl border border-border/60 bg-white px-4 py-4"
+                className="flex items-center gap-3.5 rounded-xl border border-border/60 bg-card px-4 py-4"
               >
                 <div className="h-10 w-10 rounded-xl ey-shimmer" />
                 <div className="space-y-2">
@@ -47,7 +47,7 @@ export default function MyTrainingsLoading() {
           {Array.from({ length: 6 }).map((_, i) => (
             <div
               key={i}
-              className="rounded-xl border border-border/60 bg-white overflow-hidden"
+              className="rounded-xl border border-border/60 bg-card overflow-hidden"
             >
               <div className="h-1 w-full ey-shimmer" />
               <div className="p-5 space-y-4">
