@@ -81,6 +81,26 @@ public class WorkforceController(
         return Ok(ApiResponse<PagedResponse<WorkforceEmployeeSummaryDto>>.Success(result));
     }
 
+    [HttpPost("employees/by-scope")]
+    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<WorkforceEmployeeSummaryDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetEmployeesByScope(
+        [FromBody] WorkforceEmployeesByScopeRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (accessPolicy.GetEmployeeViewScope(User) is null && !accessPolicy.CanViewOwnProfile(User))
+        {
+            return Forbid();
+        }
+
+        var result = await workforceContractService.GetEmployeesByScopeAsync(
+            request.OrgUnitIds,
+            request.IncludeDescendants,
+            request.IncludeInactive,
+            User,
+            cancellationToken);
+        return Ok(ApiResponse<IReadOnlyList<WorkforceEmployeeSummaryDto>>.Success(result));
+    }
+
     [HttpGet("access-subjects")]
     [ProducesResponseType(typeof(ApiResponse<PagedResponse<WorkforceAccessSubjectSummaryDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> SearchAccessSubjects(

@@ -19,6 +19,7 @@ public interface IWorkforceContractService
     Task<WorkforceEmployeeSummaryDto?> GetEmployeeAsync(Guid employeeId, ClaimsPrincipal user, CancellationToken cancellationToken);
     Task<IReadOnlyList<WorkforceEmployeeSummaryDto>> ResolveEmployeesAsync(IReadOnlyCollection<Guid> employeeIds, ClaimsPrincipal user, CancellationToken cancellationToken);
     Task<PagedResponse<WorkforceEmployeeSummaryDto>> SearchEmployeesAsync(string? search, int page, int pageSize, ClaimsPrincipal user, CancellationToken cancellationToken);
+    Task<IReadOnlyList<WorkforceEmployeeSummaryDto>> GetEmployeesByScopeAsync(IReadOnlyCollection<Guid> orgUnitIds, bool includeDescendants, bool includeInactive, ClaimsPrincipal user, CancellationToken cancellationToken);
     Task<PagedResponse<WorkforceAccessSubjectSummaryDto>> SearchAccessSubjectsAsync(
         string? search,
         string? access,
@@ -192,6 +193,79 @@ public sealed class WorkforceContractService(
             Page = currentPage,
             PageSize = currentPageSize
         };
+    }
+
+    public async Task<IReadOnlyList<WorkforceEmployeeSummaryDto>> GetEmployeesByScopeAsync(
+        IReadOnlyCollection<Guid> orgUnitIds,
+        bool includeDescendants,
+        bool includeInactive,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken)
+    {
+        if (orgUnitIds.Count == 0)
+        {
+            return [];
+        }
+
+        var access = BuildAccessContext(user);
+        var targetOrgUnitIds = await ResolveOrgUnitScopeAsync(orgUnitIds, includeDescendants, cancellationToken);
+        if (targetOrgUnitIds.Count == 0)
+        {
+            return [];
+        }
+
+        var query = ApplyVisibilityScope(
+                dbContext.Employees
+                    .AsNoTracking()
+                    .Include(current => current.Manager)
+                    .Include(current => current.OrgUnit),
+                access)
+            .Where(current => current.OrgUnitId.HasValue && targetOrgUnitIds.Contains(current.OrgUnitId.Value));
+
+        if (!includeInactive)
+        {
+            query = query.Where(current => current.Status == EmployeeStatus.Active);
+        }
+
+        var employees = await query
+            .OrderBy(current => current.LastName)
+            .ThenBy(current => current.FirstName)
+            .ToListAsync(cancellationToken);
+
+        return await BuildSummariesAsync(employees, access.Audience, cancellationToken);
+    }
+
+    private async Task<HashSet<Guid>> ResolveOrgUnitScopeAsync(
+        IReadOnlyCollection<Guid> orgUnitIds,
+        bool includeDescendants,
+        CancellationToken cancellationToken)
+    {
+        var result = new HashSet<Guid>(orgUnitIds);
+        if (!includeDescendants)
+        {
+            return result;
+        }
+
+        var units = await dbContext.OrgUnits
+            .AsNoTracking()
+            .Select(unit => new { unit.Id, unit.ParentId })
+            .ToListAsync(cancellationToken);
+        var childrenByParentId = units.ToLookup(unit => unit.ParentId, unit => unit.Id);
+
+        var queue = new Queue<Guid>(orgUnitIds);
+        while (queue.Count > 0)
+        {
+            var current = queue.Dequeue();
+            foreach (var childId in childrenByParentId[current])
+            {
+                if (result.Add(childId))
+                {
+                    queue.Enqueue(childId);
+                }
+            }
+        }
+
+        return result;
     }
 
     public async Task<PagedResponse<WorkforceAccessSubjectSummaryDto>> SearchAccessSubjectsAsync(

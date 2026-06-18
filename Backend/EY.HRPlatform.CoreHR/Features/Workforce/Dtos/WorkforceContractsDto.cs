@@ -100,6 +100,11 @@ public sealed record WorkforceCurrentUserContextDto(
 public sealed record WorkforceEmployeeResolveRequest(
     IReadOnlyList<Guid> EmployeeIds);
 
+public sealed record WorkforceEmployeesByScopeRequest(
+    IReadOnlyList<Guid> OrgUnitIds,
+    bool IncludeDescendants = true,
+    bool IncludeInactive = false);
+
 public sealed record WorkforceOrgUnitSummaryDto(
     Guid Id,
     string StableKey,
