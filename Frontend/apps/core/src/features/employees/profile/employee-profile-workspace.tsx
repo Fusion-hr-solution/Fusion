@@ -18,6 +18,7 @@ import {
   canManageCoreAccessProfiles,
   type AuthUser,
 } from "@repo/auth";
+import { PageContainer } from "@repo/ds/shell";
 import { useTenantContext } from "@/shell/tenant-context/core-tenant-context-provider";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -1273,7 +1274,7 @@ export function EmployeeProfileWorkspace({
   };
 
   return (
-    <div className="flex flex-col gap-8 p-6">
+    <PageContainer width="wide" className="space-y-8">
       <Card className="overflow-hidden border-border/70 bg-linear-to-br from-background via-background to-muted/30 py-0">
         <CardContent className="p-4 sm:p-5">
           <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
@@ -1842,6 +1843,6 @@ export function EmployeeProfileWorkspace({
         loadingLabel="Deactivating..."
         onConfirm={() => void handleDeactivateEmployee()}
       />
-    </div>
+    </PageContainer>
   );
 }

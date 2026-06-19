@@ -21,9 +21,8 @@ import {
   type TenantSetupStateDto,
 } from "@repo/api";
 import { useAuth } from "@repo/auth";
-import { EmptyState } from "@repo/ui";
 import { toast } from "sonner";
-import { PageHeader } from "@/components/page-header";
+import { PageContainer, PageHeader } from "@repo/ds/shell";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -816,7 +815,7 @@ function SetupProgressCard({
 
 export function SetupPageSkeleton() {
   return (
-    <div className="flex flex-col gap-6 p-6">
+    <PageContainer width="wide" className="space-y-6">
       <PageHeader
         title="Organization Setup"
         description="Loading the review surface..."
@@ -878,7 +877,7 @@ export function SetupPageSkeleton() {
           </div>
         </div>
       </div>
-    </div>
+    </PageContainer>
   );
 }
 
@@ -1160,7 +1159,6 @@ export function SetupWorkspace({
           onClick: () => {
             void handleReopen();
           },
-          variant: "outline",
           disabled: reopenDisabled,
           isLoading: isReopening,
         },
@@ -1168,6 +1166,7 @@ export function SetupWorkspace({
           label: "Publish structure",
           pendingLabel: "Publishing...",
           onClick: () => setPublishDialogOpen(true),
+          variant: "outline",
           disabled: publishDisabled,
           isLoading: isPublishing,
         }
@@ -1214,13 +1213,13 @@ export function SetupWorkspace({
           onClick: () => {
             void handleReopen();
           },
-          variant: "outline",
           disabled: reopenDisabled,
           isLoading: isReopening,
         },
         {
           label: "Import employees",
           onClick: () => router.push(importEmployeesHref),
+          variant: "outline",
         }
       );
     }
@@ -1246,7 +1245,7 @@ export function SetupWorkspace({
       : null;
 
   return (
-    <div className="flex flex-col gap-5 p-6">
+    <PageContainer width="wide" className="space-y-5">
       <PageHeader title="Setup" description={pageDescription} />
 
       {localError ? (
@@ -1436,6 +1435,6 @@ export function SetupWorkspace({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </PageContainer>
   );
 }

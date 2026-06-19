@@ -8,10 +8,14 @@ import {
   useState,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertCircle, FolderTree } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import { ApiError } from "@repo/api";
 import { canAccessCoreSetup, useAuth } from "@repo/auth";
-import { EmptyState } from "@repo/ui";
+import {
+  PageContainer,
+  PageHeader,
+  PagePermissionNotice,
+} from "@repo/ds/shell";
 import { toast } from "sonner";
 import { useCoreSetupAccess } from "@/shell/setup-access";
 import { useTenantContext } from "@/shell/tenant-context/core-tenant-context-provider";
@@ -28,7 +32,6 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { PageHeader } from "@/components/page-header";
 import { buildTenantContextHref } from "@/lib/tenant-navigation";
 import { useSetupReadiness } from "@/features/setup/api/use-setup";
 import { shouldAutoActivateSetup } from "@/features/setup/setup-entry-routing";
@@ -588,17 +591,16 @@ export default function DraftStructureWorkspace() {
 
   if (!canAccess) {
     return (
-      <div className="flex flex-col gap-6 p-6">
+      <PageContainer width="wide" className="space-y-6">
         <PageHeader
           title={pageTitle}
           description="Organization structure is limited to tenant HR administrators."
         />
-        <EmptyState
-          icon={FolderTree}
+        <PagePermissionNotice
           title="Organization structure is not available for this role"
           description="Contact a tenant HR administrator."
         />
-      </div>
+      </PageContainer>
     );
   }
 
@@ -608,7 +610,7 @@ export default function DraftStructureWorkspace() {
 
   if (setupError) {
     return (
-      <div className="flex flex-col gap-6 p-6">
+      <PageContainer width="wide" className="space-y-6">
         <PageHeader
           title={pageTitle}
           description="Setup state is required to load the workspace."
@@ -618,7 +620,7 @@ export default function DraftStructureWorkspace() {
           <AlertTitle>Setup state could not be loaded</AlertTitle>
           <AlertDescription>{setupError.message}</AlertDescription>
         </Alert>
-      </div>
+      </PageContainer>
     );
   }
 
@@ -628,7 +630,7 @@ export default function DraftStructureWorkspace() {
 
   if (shouldStartSetupFromDraft && setupEntryError) {
     return (
-      <div className="flex flex-col gap-6 p-6">
+      <PageContainer width="wide" className="space-y-6">
         <PageHeader
           title="Draft structure"
           description="Setup could not be started automatically."
@@ -650,7 +652,7 @@ export default function DraftStructureWorkspace() {
             </Button>
           </AlertDescription>
         </Alert>
-      </div>
+      </PageContainer>
     );
   }
 
@@ -682,7 +684,7 @@ export default function DraftStructureWorkspace() {
       : "Import a template or add the first top-level unit.";
 
   return (
-    <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-6 p-6">
+    <PageContainer width="wide" className="space-y-6">
       <PageHeader
         title={pageTitle}
         description={pageDescription}
@@ -704,7 +706,6 @@ export default function DraftStructureWorkspace() {
 
             {canReopenFromDraft ? (
               <Button
-                variant="outline"
                 onClick={() => void handleReopen()}
                 disabled={isReopening}
               >
@@ -932,6 +933,6 @@ export default function DraftStructureWorkspace() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </PageContainer>
   );
 }

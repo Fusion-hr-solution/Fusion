@@ -4,9 +4,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Network, RefreshCcw } from "lucide-react";
 import { canAccessCoreOrgChart, useAuth } from "@repo/auth";
-import { EmptyState } from "@repo/ui";
+import {
+  PageContainer,
+  PageHeader,
+  PageEmpty,
+  PageError,
+  PagePermissionNotice,
+} from "@repo/ds/shell";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PageHeader } from "@/components/page-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { useTenantContext } from "@/shell/tenant-context/core-tenant-context-provider";
@@ -355,7 +360,7 @@ export default function OrgChartWorkspace() {
 
   if (isInitialPageLoading) {
     return (
-      <div className="flex min-h-full flex-col gap-6 p-6">
+      <PageContainer width="wide" className="space-y-6">
         {/* PageHeader skeleton */}
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-2">
@@ -372,28 +377,27 @@ export default function OrgChartWorkspace() {
         </div>
         {/* Canvas skeleton */}
         <Skeleton className="h-[70vh] rounded-2xl" />
-      </div>
+      </PageContainer>
     );
   }
 
   if (!canAccess) {
     return (
-      <div className="flex flex-col gap-6 p-6">
+      <PageContainer width="wide" className="space-y-6">
         <PageHeader
           title="Org Chart"
           description="Org chart access is restricted."
         />
-        <EmptyState
-          icon={Network}
+        <PagePermissionNotice
           title="Org chart is not available for this role"
           description="Contact a tenant HR administrator."
         />
-      </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="flex min-h-full flex-col gap-6 p-6">
+    <PageContainer width="wide" className="space-y-6">
       <PageHeader
         title="Org Chart"
         description="Workforce structure and reporting lines."
@@ -435,15 +439,11 @@ export default function OrgChartWorkspace() {
       />
 
       {error ? (
-        <Alert variant="destructive">
-          <AlertTitle>Failed to load org chart</AlertTitle>
-          <AlertDescription className="flex items-center justify-between gap-4">
-            <span>Could not load org chart. Try again in a moment.</span>
-            <Button variant="outline" size="sm" onClick={() => refetch()}>
-              Retry
-            </Button>
-          </AlertDescription>
-        </Alert>
+        <PageError
+          title="Failed to load org chart"
+          description="Could not load org chart. Try again in a moment."
+          onRetry={() => refetch()}
+        />
       ) : null}
 
       {data?.isTruncated ? (
@@ -456,7 +456,7 @@ export default function OrgChartWorkspace() {
       ) : null}
 
       {data && data.totalVisibleNodeCount === 0 ? (
-        <EmptyState
+        <PageEmpty
           icon={Network}
           title="No visible reporting structure yet"
           description="Add employees and reporting lines to render the chart."
@@ -522,6 +522,6 @@ export default function OrgChartWorkspace() {
         showJobTitle={fieldVisibility.showJobTitle}
         onClose={() => setReassignProposal(null)}
       />
-    </div>
+    </PageContainer>
   );
 }
