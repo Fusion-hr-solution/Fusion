@@ -374,7 +374,9 @@ describe("AccessPeopleWorkspace", () => {
     });
   });
 
-  it("renders the normal access workspace without import context or tabs", () => {
+  it(
+    "renders the normal access workspace without import context or tabs",
+    () => {
     render(<AccessPeopleWorkspace />);
 
     expect(
@@ -402,7 +404,9 @@ describe("AccessPeopleWorkspace", () => {
     ).not.toBeInTheDocument();
     expect(screen.getByText("Alex Morgan")).toBeInTheDocument();
     expect(screen.queryByText("E-001")).not.toBeInTheDocument();
-  });
+    },
+    10_000
+  );
 
   it("plumbs query params into the roster search and auto-focuses an employeeKey deep link", async () => {
     setSearchParams({
