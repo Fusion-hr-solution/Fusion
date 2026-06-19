@@ -3,11 +3,14 @@
 import type { ReactNode } from "react";
 import { AuthProvider } from "@repo/auth";
 import { ApiQueryProvider } from "@repo/api/query";
+import { ThemeProvider } from "@repo/ds/shell";
 
 export function Providers({ children }: { children: ReactNode }) {
   return (
-    <AuthProvider>
-      <ApiQueryProvider>{children}</ApiQueryProvider>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <ApiQueryProvider>{children}</ApiQueryProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

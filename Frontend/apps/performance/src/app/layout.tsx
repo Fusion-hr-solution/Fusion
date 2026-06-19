@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
+import { AppShell, TopBar } from "@repo/ds/shell";
 import { Providers } from "./providers";
 import { PerformanceSidebar } from "@/components/performance-sidebar";
-import "@repo/ui/src/ey-brand.css";
+import { PerformanceBreadcrumb } from "@/components/performance-breadcrumb";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -15,7 +16,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         {/* Design-system fonts (IBM Plex Sans + Space Grotesk) loaded at runtime so the
             build has no font-CDN dependency. Font families/fallbacks live in @repo/ds tokens. */}
@@ -27,12 +28,14 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="min-h-screen antialiased">
+      <body className="min-h-screen antialiased font-sans">
         <Providers>
-          <div className="flex h-screen overflow-hidden">
-            <PerformanceSidebar />
-            <main className="flex-1 overflow-y-auto">{children}</main>
-          </div>
+          <AppShell
+            sidebar={<PerformanceSidebar />}
+            header={<TopBar left={<PerformanceBreadcrumb />} />}
+          >
+            {children}
+          </AppShell>
         </Providers>
       </body>
     </html>
