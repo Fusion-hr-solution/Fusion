@@ -54,6 +54,25 @@ export interface SubmitCandidateAttemptInput {
   browserFingerprint?: string;
 }
 
+export interface RunCandidateCodeInput {
+  questionId: string;
+  sourceCode: string;
+  language?: string;
+  stdin?: string;
+}
+
+export interface CandidateRunResult {
+  runId: string;
+  status: string;
+  /** Judge0 status, e.g. "Accepted", "Runtime Error (NZEC)", "Time Limit Exceeded". */
+  executionStatus: string;
+  stdout?: string;
+  stderr?: string;
+  compileOutput?: string;
+  time?: string;
+  memory?: number;
+}
+
 export interface CandidateAccessSession {
   invitationId: string;
   attemptId: string;
@@ -124,6 +143,23 @@ export async function submitCandidateAttempt(
       browserFingerprint: input?.browserFingerprint,
       answers,
       result,
+    },
+    { skipAuth: true }
+  );
+}
+
+export async function runCandidateCode(
+  token: string,
+  input: RunCandidateCodeInput
+): Promise<CandidateRunResult> {
+  return client.post<CandidateRunResult>(
+    "/interview/candidate-access/run",
+    {
+      token,
+      questionId: input.questionId,
+      sourceCode: input.sourceCode,
+      language: input.language,
+      stdin: input.stdin,
     },
     { skipAuth: true }
   );
