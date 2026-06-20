@@ -47,6 +47,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { buildTenantContextHref } from "@/lib/tenant-navigation";
 import type { EmployeeFieldPolicyState } from "@/features/employees/shared/employee-field-visibility";
 import {
@@ -922,9 +923,7 @@ export function EmployeeProfileWorkspace({
   const router = useRouter();
   const searchParams = useSearchParams();
   const { tenantId, tenantSlug } = useTenantContext();
-  const accessSectionRef = useRef<HTMLDivElement | null>(null);
-  const reportingSectionRef = useRef<HTMLDivElement | null>(null);
-  const directReportsSectionRef = useRef<HTMLDivElement | null>(null);
+  const [activeTab, setActiveTab] = useState("profile");
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editDialogTab, setEditDialogTab] = useState<string>("personal");
   const [selfProfileSheetOpen, setSelfProfileSheetOpen] = useState(false);
@@ -1242,26 +1241,9 @@ export function EmployeeProfileWorkspace({
     }
   }
 
-  const scrollToAccessSection = () => {
-    accessSectionRef.current?.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
-  };
-
-  const scrollToReportingSection = () => {
-    reportingSectionRef.current?.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
-  };
-
-  const scrollToDirectReportsSection = () => {
-    directReportsSectionRef.current?.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
-  };
+  const scrollToAccessSection = () => setActiveTab("access");
+  const scrollToReportingSection = () => setActiveTab("reporting");
+  const scrollToDirectReportsSection = () => setActiveTab("reporting");
 
   const focusInOrgChart = () => {
     router.push(
@@ -1523,8 +1505,14 @@ export function EmployeeProfileWorkspace({
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
-        <div className="flex flex-col gap-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="profile">Profile</TabsTrigger>
+          <TabsTrigger value="reporting">Organization &amp; reporting</TabsTrigger>
+          {canViewAccess ? <TabsTrigger value="access">Access</TabsTrigger> : null}
+        </TabsList>
+
+        <TabsContent value="profile" className="flex flex-col gap-6">
           <Card className={WORKSPACE_CARD_CLASS_NAME}>
             <CardHeader className="px-6 pb-4 pt-5">
               <CardTitle className="text-base">Profile details</CardTitle>
@@ -1579,24 +1567,23 @@ export function EmployeeProfileWorkspace({
             </CardContent>
           </Card>
 
-          {canViewAccess ? (
-            <div ref={accessSectionRef}>
-              <WorkforceAccountCard
-                employeeId={profile.id}
-                firstName={profile.firstName}
-                lastName={profile.lastName}
-                email={profile.email}
-                canManageAccess={canManageAccess}
-                onManageAccess={
-                  canManageAccess ? openAccessManagement : undefined
-                }
-              />
-            </div>
-          ) : null}
-        </div>
+        </TabsContent>
 
-        <div className="flex flex-col gap-6">
-          <div ref={reportingSectionRef}>
+        {canViewAccess ? (
+          <TabsContent value="access" className="flex flex-col gap-6">
+            <WorkforceAccountCard
+              employeeId={profile.id}
+              firstName={profile.firstName}
+              lastName={profile.lastName}
+              email={profile.email}
+              canManageAccess={canManageAccess}
+              onManageAccess={canManageAccess ? openAccessManagement : undefined}
+            />
+          </TabsContent>
+        ) : null}
+
+        <TabsContent value="reporting" className="flex flex-col gap-6">
+          <div>
             <Card className={WORKSPACE_CARD_CLASS_NAME}>
               <CardHeader className="px-6 pb-4 pt-5">
                 <div className="flex items-center justify-between gap-3">
@@ -1680,7 +1667,7 @@ export function EmployeeProfileWorkspace({
                   />
                 </div>
 
-                <div ref={directReportsSectionRef} className="space-y-3">
+                <div className="space-y-3">
                   <h2 className="text-sm font-semibold text-foreground">
                     Direct reports
                   </h2>
@@ -1784,8 +1771,8 @@ export function EmployeeProfileWorkspace({
               </CardContent>
             </Card>
           ) : null}
-        </div>
-      </div>
+        </TabsContent>
+      </Tabs>
 
       {canManageAccess ? (
         <EmployeeAccessManagementSheet
