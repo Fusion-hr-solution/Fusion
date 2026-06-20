@@ -197,24 +197,18 @@ function SummaryStripItem({
   return <div className={baseClassName}>{content}</div>;
 }
 
-function DefinitionGrid({
-  items,
-  columns = 2,
-}: {
-  items: DefinitionItem[];
-  columns?: 1 | 2;
-}) {
+function DefinitionGrid({ items }: { items: DefinitionItem[] }) {
   const visibleItems = items.filter((item) => !item.hidden);
-  const columnsClassName = columns === 2 ? "sm:grid-cols-2" : "";
 
   return (
-    <dl className={`grid gap-x-6 gap-y-4 ${columnsClassName}`}>
+    <dl className="divide-y divide-border/50">
       {visibleItems.map((item) => (
-        <div key={item.label} className="space-y-1">
-          <dt className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-            {item.label}
-          </dt>
-          <dd className="text-sm font-medium text-foreground/95">
+        <div
+          key={item.label}
+          className="flex items-center justify-between gap-6 py-2.5 first:pt-0 last:pb-0"
+        >
+          <dt className="shrink-0 text-sm text-muted-foreground">{item.label}</dt>
+          <dd className="min-w-0 text-right text-sm font-medium text-foreground">
             {item.value}
           </dd>
         </div>
@@ -1512,60 +1506,51 @@ export function EmployeeProfileWorkspace({
           {canViewAccess ? <TabsTrigger value="access">Access</TabsTrigger> : null}
         </TabsList>
 
-        <TabsContent value="profile" className="flex flex-col gap-6">
-          <Card className={WORKSPACE_CARD_CLASS_NAME}>
-            <CardHeader className="px-6 pb-4 pt-5">
-              <CardTitle className="text-base">Profile details</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4 px-6 pb-6">
-              <div className="grid gap-4 xl:grid-cols-2">
-                <section className="space-y-4 rounded-2xl border border-border/60 bg-muted/10 p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <h2 className="text-sm font-semibold text-foreground">
-                      Personal details
-                    </h2>
-                    {canManageEmployee ? (
-                      <Button
-                        size="icon-sm"
-                        variant="ghost"
-                        className="size-7"
-                        onClick={() => {
-                          setEditDialogTab("personal");
-                          setEditDialogOpen(true);
-                        }}
-                      >
-                        <Pencil className="size-3.5" />
-                        <span className="sr-only">Edit personal details</span>
-                      </Button>
-                    ) : null}
-                  </div>
-                  <DefinitionGrid items={personalDetails} columns={1} />
-                </section>
-                <section className="space-y-4 rounded-2xl border border-border/60 bg-muted/10 p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <h2 className="text-sm font-semibold text-foreground">
-                      Work details
-                    </h2>
-                    {canEditEmploymentDetails ? (
-                      <Button
-                        size="icon-sm"
-                        variant="ghost"
-                        className="size-7"
-                        onClick={() => {
-                          setEditDialogTab("work");
-                          setEditDialogOpen(true);
-                        }}
-                      >
-                        <Pencil className="size-3.5" />
-                        <span className="sr-only">Edit work details</span>
-                      </Button>
-                    ) : null}
-                  </div>
-                  <DefinitionGrid items={workDetails} columns={1} />
-                </section>
-              </div>
-            </CardContent>
-          </Card>
+        <TabsContent value="profile" className="grid gap-4 xl:grid-cols-2">
+          <section className="rounded-xl border border-border bg-card p-5 shadow-xs">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 className="text-sm font-semibold text-foreground">
+                Personal details
+              </h2>
+              {canManageEmployee ? (
+                <Button
+                  size="icon-sm"
+                  variant="ghost"
+                  className="size-7"
+                  onClick={() => {
+                    setEditDialogTab("personal");
+                    setEditDialogOpen(true);
+                  }}
+                >
+                  <Pencil className="size-3.5" />
+                  <span className="sr-only">Edit personal details</span>
+                </Button>
+              ) : null}
+            </div>
+            <DefinitionGrid items={personalDetails} />
+          </section>
+          <section className="rounded-xl border border-border bg-card p-5 shadow-xs">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 className="text-sm font-semibold text-foreground">
+                Work details
+              </h2>
+              {canEditEmploymentDetails ? (
+                <Button
+                  size="icon-sm"
+                  variant="ghost"
+                  className="size-7"
+                  onClick={() => {
+                    setEditDialogTab("work");
+                    setEditDialogOpen(true);
+                  }}
+                >
+                  <Pencil className="size-3.5" />
+                  <span className="sr-only">Edit work details</span>
+                </Button>
+              ) : null}
+            </div>
+            <DefinitionGrid items={workDetails} />
+          </section>
 
         </TabsContent>
 
