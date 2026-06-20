@@ -1,4 +1,5 @@
 using EY.HRPlatform.Performance.Domain.Entities;
+using EY.HRPlatform.Performance.Domain.Enums;
 using EY.HRPlatform.Performance.Exceptions;
 using EY.HRPlatform.Performance.Features.ObjectiveTemplates.Dtos;
 using EY.HRPlatform.Performance.Infrastructure.Persistence;
@@ -14,7 +15,11 @@ public sealed record UpdateObjectiveTemplateCommand(
     string Name,
     string? Description,
     string? Category,
-    decimal? DefaultWeight) : ICommand<Result<ObjectiveTemplateDto>>;
+    decimal? DefaultWeight,
+    string? SuccessMeasure = null,
+    string? Target = null,
+    ObjectiveTemplateLevel Level = ObjectiveTemplateLevel.Individual,
+    Guid? ParentTemplateId = null) : ICommand<Result<ObjectiveTemplateDto>>;
 
 public sealed class UpdateObjectiveTemplateCommandHandler(
     PerformanceDbContext dbContext) : ICommandHandler<UpdateObjectiveTemplateCommand, Result<ObjectiveTemplateDto>>
@@ -40,7 +45,15 @@ public sealed class UpdateObjectiveTemplateCommandHandler(
         }
 
         ConcurrencyGuard.Ensure(template.Version, request.ExpectedVersion, nameof(ObjectiveTemplate), template.Id);
-        template.UpdateDetails(request.Name!, request.Description, request.Category, request.DefaultWeight);
+        template.UpdateDetails(
+            request.Name!,
+            request.Description,
+            request.Category,
+            request.DefaultWeight,
+            request.SuccessMeasure,
+            request.Target,
+            request.Level,
+            request.ParentTemplateId);
 
         try
         {

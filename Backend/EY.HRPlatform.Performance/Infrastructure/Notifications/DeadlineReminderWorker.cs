@@ -22,7 +22,7 @@ public sealed class DeadlineReminderWorker(
     ILogger<DeadlineReminderWorker> logger) : BackgroundService
 {
     private static readonly Expression<Func<PerformanceCycle, bool>> InFlightWithDeadline =
-        cycle => (cycle.Status == PerformanceCycleStatus.Published || cycle.Status == PerformanceCycleStatus.Active)
+        cycle => cycle.Status == PerformanceCycleStatus.Active
             && cycle.ObjectiveSettingDeadline != null;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)

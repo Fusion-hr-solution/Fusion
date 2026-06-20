@@ -8,7 +8,10 @@ public enum PerformanceCycleAuditAction
     Created,
     Updated,
     PopulationUpdated,
+    ResponsibilityCurated,
+    ReadyToLaunch,
     Published,
     Activated,
-    Closed
+    Closed,
+    PlanningApproverAssigned
 }

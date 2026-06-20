@@ -19,6 +19,13 @@ public class ObjectiveTemplateConfiguration : IEntityTypeConfiguration<Objective
         builder.Property(t => t.Description).HasMaxLength(2000);
         builder.Property(t => t.Category).HasMaxLength(100);
         builder.Property(t => t.DefaultWeight).HasPrecision(5, 2);
+        builder.Property(t => t.SuccessMeasure).HasMaxLength(500);
+        builder.Property(t => t.Target).HasMaxLength(500);
+        builder.Property(t => t.Level)
+            .HasConversion<string>()
+            .HasMaxLength(20)
+            .IsRequired()
+            .HasDefaultValue(ObjectiveTemplateLevel.Individual);
 
         builder.Property(t => t.Status)
             .HasConversion<string>()
@@ -39,6 +46,10 @@ public class ObjectiveTemplateConfiguration : IEntityTypeConfiguration<Objective
             .IsUnique()
             .HasDatabaseName("IX_ObjectiveTemplates_TenantId_Name");
 
+        builder.HasIndex(t => new { t.TenantId, t.ParentTemplateId })
+            .HasDatabaseName("IX_ObjectiveTemplates_Tenant_Parent");
+
+        builder.Ignore(t => t.IsReadyForPlanning);
         builder.Ignore(t => t.DomainEvents);
     }
 }

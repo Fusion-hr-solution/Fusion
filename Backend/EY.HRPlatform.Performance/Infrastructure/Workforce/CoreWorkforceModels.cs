@@ -21,4 +21,5 @@ public sealed record CoreOrgAssignment(
 
 public sealed record CoreManagerSummary(
     Guid EmployeeId,
-    string DisplayName);
+    string DisplayName,
+    bool IsActive = true);

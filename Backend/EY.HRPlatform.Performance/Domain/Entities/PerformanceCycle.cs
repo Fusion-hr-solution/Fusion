@@ -8,7 +8,7 @@ namespace EY.HRPlatform.Performance.Domain.Entities;
 /// <summary>
 /// A time-bounded performance cycle (campaign) scoped to a population of employees.
 /// Root of the cycle aggregate: owns its population rules and (once published) the
-/// immutable participant snapshot. Lifecycle: Draft -> Published -> Active -> Closed.
+/// immutable participant snapshot. Lifecycle: Draft -> AssignmentPreparation -> ReadyToLaunch -> Active -> Closed.
 /// </summary>
 public class PerformanceCycle : AggregateRoot, ITenantEntity
 {
@@ -38,6 +38,8 @@ public class PerformanceCycle : AggregateRoot, ITenantEntity
     public bool PopulationIncludeInactive { get; private set; }
 
     public DateTime? PublishedAt { get; private set; }
+    public DateTime? AssignmentPreparationStartedAt { get; private set; }
+    public DateTime? ReadyToLaunchAt { get; private set; }
     public DateTime? ActivatedAt { get; private set; }
     public DateTime? ClosedAt { get; private set; }
 
@@ -100,43 +102,104 @@ public class PerformanceCycle : AggregateRoot, ITenantEntity
         Touch();
     }
 
-    /// <summary>
-    /// Moves the cycle to Published once its population has been resolved. The handler resolves the
-    /// population from Core and persists the immutable participant snapshot in the same transaction;
-    /// this method enforces the "no publish without population" invariant via the resolved count.
-    /// </summary>
-    public void Publish(int resolvedPopulationCount)
+    /// <summary>Begins materialising assignment candidates from the current Core workforce context.</summary>
+    public void BeginAssignmentPreparation(int candidateCount, DateTime occurredAt)
     {
         if (Status != PerformanceCycleStatus.Draft)
-            throw new DomainRuleViolationException("Only a draft cycle can be published.");
+            throw new DomainRuleViolationException("Only a draft campaign can begin assignment preparation.");
 
-        if (resolvedPopulationCount <= 0)
-            throw new DomainRuleViolationException("A cycle cannot be published with an empty population.");
+        if (candidateCount <= 0)
+            throw new DomainRuleViolationException("A campaign cannot prepare assignments for an empty population.");
 
-        Status = PerformanceCycleStatus.Published;
-        PublishedAt = DateTime.UtcNow;
+        var now = NormalizeUtc(occurredAt, nameof(occurredAt));
+        if (now > PeriodEnd)
+            throw new DomainRuleViolationException("A campaign cannot begin preparation after its period has ended.");
+
+        if (ObjectiveSettingDeadline.HasValue && now > ObjectiveSettingDeadline.Value)
+            throw new DomainRuleViolationException("A campaign cannot begin preparation after its objective-setting deadline.");
+
+        Status = PerformanceCycleStatus.AssignmentPreparation;
+        PublishedAt = now;
+        AssignmentPreparationStartedAt = now;
         Touch();
     }
 
-    public void Activate()
+    /// <summary>Compatibility entry point for callers not yet migrated to Packet A terminology.</summary>
+    public void Publish(int resolvedPopulationCount, DateTime occurredAt)
+        => BeginAssignmentPreparation(resolvedPopulationCount, occurredAt);
+
+    public void MarkReadyToLaunch(
+        int finalResponsibilityCount,
+        int readinessFailureCount,
+        bool hasAcceptedWorkforceDelta,
+        DateTime occurredAt)
     {
-        if (Status != PerformanceCycleStatus.Published)
-            throw new DomainRuleViolationException("Only a published cycle can be activated.");
+        if (Status != PerformanceCycleStatus.AssignmentPreparation)
+            throw new DomainRuleViolationException("Only a campaign in assignment preparation can become ready to launch.");
+
+        if (finalResponsibilityCount <= 0)
+            throw new DomainRuleViolationException("A campaign needs at least one final responsibility before launch.");
+
+        if (readinessFailureCount > 0)
+            throw new DomainRuleViolationException("All assignment readiness failures must be resolved before launch.");
+
+        if (!hasAcceptedWorkforceDelta)
+            throw new DomainRuleViolationException("A current Core workforce delta must be explicitly accepted before launch.");
+
+        var now = NormalizeUtc(occurredAt, nameof(occurredAt));
+        Status = PerformanceCycleStatus.ReadyToLaunch;
+        ReadyToLaunchAt = now;
+        Touch();
+    }
+
+    public void Activate(DateTime occurredAt)
+    {
+        if (Status != PerformanceCycleStatus.ReadyToLaunch)
+            throw new DomainRuleViolationException("Only a ready-to-launch campaign can be activated.");
+
+        var now = NormalizeUtc(occurredAt, nameof(occurredAt));
+        if (now < PeriodStart)
+            throw new DomainRuleViolationException("A cycle cannot be activated before its period starts.");
+
+        if (now > PeriodEnd)
+            throw new DomainRuleViolationException("A cycle cannot be activated after its period has ended.");
 
         Status = PerformanceCycleStatus.Active;
-        ActivatedAt = DateTime.UtcNow;
+        ActivatedAt = now;
         Touch();
     }
 
-    public void Close()
+    public void Activate(DateTime occurredAt, int unresolvedApproverCount)
     {
-        if (Status is not (PerformanceCycleStatus.Published or PerformanceCycleStatus.Active))
-            throw new DomainRuleViolationException("Only a published or active cycle can be closed.");
+        if (unresolvedApproverCount < 0)
+            throw new ArgumentOutOfRangeException(nameof(unresolvedApproverCount));
+        Activate(occurredAt);
+    }
+
+    public void Close(DateTime occurredAt)
+    {
+        if (Status != PerformanceCycleStatus.Active)
+            throw new DomainRuleViolationException("Only an active campaign can be closed.");
+
+        var now = NormalizeUtc(occurredAt, nameof(occurredAt));
+        if (now < PeriodEnd)
+            throw new DomainRuleViolationException("A cycle cannot be closed before its period ends.");
 
         Status = PerformanceCycleStatus.Closed;
-        ClosedAt = DateTime.UtcNow;
+        ClosedAt = now;
         Touch();
     }
+
+    public void RecordResponsibilityChange()
+    {
+        if (Status != PerformanceCycleStatus.AssignmentPreparation)
+            throw new DomainRuleViolationException("Responsibilities can only be changed during preparation.");
+
+        Touch();
+    }
+
+    /// <summary>Legacy bridge until the planning-approver route is removed with its UI.</summary>
+    public void RecordPlanningApproverChange() => RecordResponsibilityChange();
 
     private void ApplyDetails(
         string name,

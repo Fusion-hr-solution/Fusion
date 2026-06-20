@@ -35,15 +35,15 @@ public sealed class CloseCycleCommandHandler(
             return Result.Failure<PerformanceCycleDetailDto>(Error.NotFound("PerformanceCycle", request.CycleId));
         }
 
-        if (cycle.Status is not (PerformanceCycleStatus.Published or PerformanceCycleStatus.Active))
+        if (cycle.Status != PerformanceCycleStatus.Active)
         {
             return Result.Failure<PerformanceCycleDetailDto>(
-                Error.Conflict("Cycle.NotClosable", "Only a published or active cycle can be closed."));
+                Error.Conflict("Cycle.NotActive", "Only an active campaign can be closed."));
         }
 
         ConcurrencyGuard.Ensure(cycle.Version, request.ExpectedVersion, nameof(PerformanceCycle), cycle.Id);
 
-        cycle.Close();
+        cycle.Close(DateTime.UtcNow);
 
         dbContext.PerformanceCycleAuditEvents.Add(PerformanceCycleAuditEvent.Create(
             tenantContext.TenantId, cycle.Id, PerformanceCycleAuditAction.Closed, currentUser.UserId, currentUser.FullName));

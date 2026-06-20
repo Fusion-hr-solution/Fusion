@@ -52,6 +52,10 @@ public sealed record CycleParticipantDto(
     string? JobTitle,
     Guid? ManagerId,
     string? ManagerName,
+    Guid? PlanningApproverEmployeeId,
+    string? PlanningApproverName,
+    string PlanningApproverSource,
+    string? PlanningApproverOverrideReason,
     DateTime SnapshotAt);
 
 public sealed record CyclePopulationMemberDto(
@@ -63,6 +67,23 @@ public sealed record CyclePopulationMemberDto(
     string? OrgUnitName,
     string? ManagerName,
     bool IsActive);
+
+public sealed record CycleReadinessDto(
+    int ParticipantCount,
+    int ResolvedPlanningApproverCount,
+    int UnresolvedPlanningApproverCount,
+    IReadOnlyList<CycleParticipantDto> UnresolvedParticipants);
+
+public sealed record AssignPlanningApproverRequest(Guid ApproverEmployeeId, string Reason);
+
+public sealed record CurateCampaignResponsibilityRequest(
+    Guid SubjectEmployeeId,
+    Guid AssigneeEmployeeId,
+    string Duty,
+    string RelationshipSource,
+    string? OverrideReason);
+
+public sealed record MarkCycleReadyToLaunchRequest(bool AcceptCurrentWorkforceDelta);
 
 public sealed record CyclePopulationPreviewDto(
     int TotalCount,

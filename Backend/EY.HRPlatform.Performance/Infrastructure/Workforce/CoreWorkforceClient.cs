@@ -16,6 +16,10 @@ public interface ICoreWorkforceClient
         bool includeDescendants,
         bool includeInactive,
         CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<CoreEmployeeSummary>> GetManagerChainAsync(
+        Guid employeeId,
+        CancellationToken cancellationToken);
 }
 
 /// <summary>
@@ -56,6 +60,17 @@ public sealed class CoreWorkforceClient(HttpClient httpClient) : ICoreWorkforceC
         var response = await httpClient.PostAsJsonAsync(
             "api/corehr/workforce/employees/by-scope",
             new { orgUnitIds, includeDescendants, includeInactive },
+            cancellationToken);
+
+        return await ReadEmployeesAsync(response, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<CoreEmployeeSummary>> GetManagerChainAsync(
+        Guid employeeId,
+        CancellationToken cancellationToken)
+    {
+        var response = await httpClient.GetAsync(
+            $"api/corehr/workforce/employees/{employeeId}/manager-chain",
             cancellationToken);
 
         return await ReadEmployeesAsync(response, cancellationToken);

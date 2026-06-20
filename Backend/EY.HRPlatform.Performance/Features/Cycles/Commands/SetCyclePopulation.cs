@@ -40,6 +40,10 @@ public sealed class SetCyclePopulationCommandHandler(
 
         var tenantId = tenantContext.TenantId;
         var rules = new List<PerformanceCyclePopulationRule>();
+        var ruleKeys = new HashSet<(PopulationRuleType RuleType, Guid RefId)>();
+        var includedEmployeeIds = new HashSet<Guid>();
+        var excludedEmployeeIds = new HashSet<Guid>();
+        var hasPopulationInclusion = false;
         foreach (var input in request.Rules)
         {
             if (!Enum.TryParse<PopulationRuleType>(input.RuleType, ignoreCase: true, out var ruleType))
@@ -54,7 +58,35 @@ public sealed class SetCyclePopulationCommandHandler(
                     Error.Validation("Cycle.InvalidRuleRef", "Population rule reference id cannot be empty."));
             }
 
+            if (!ruleKeys.Add((ruleType, input.RefId)))
+            {
+                return Result.Failure<PerformanceCycleDetailDto>(
+                    Error.Validation("Cycle.DuplicatePopulationRule", "Each population rule can only be configured once."));
+            }
+
+            hasPopulationInclusion |= ruleType is PopulationRuleType.OrgUnit or PopulationRuleType.IncludeEmployee;
+            if (ruleType == PopulationRuleType.IncludeEmployee)
+            {
+                includedEmployeeIds.Add(input.RefId);
+            }
+            else if (ruleType == PopulationRuleType.ExcludeEmployee)
+            {
+                excludedEmployeeIds.Add(input.RefId);
+            }
+
             rules.Add(PerformanceCyclePopulationRule.Create(tenantId, ruleType, input.RefId, input.IncludeDescendants));
+        }
+
+        if (!hasPopulationInclusion)
+        {
+            return Result.Failure<PerformanceCycleDetailDto>(
+                Error.Validation("Cycle.EmptyPopulationRuleSet", "Configure at least one org unit or explicitly included employee."));
+        }
+
+        if (includedEmployeeIds.Overlaps(excludedEmployeeIds))
+        {
+            return Result.Failure<PerformanceCycleDetailDto>(
+                Error.Validation("Cycle.ConflictingPopulationRule", "An employee cannot be both explicitly included and excluded."));
         }
 
         ConcurrencyGuard.Ensure(cycle.Version, request.ExpectedVersion, nameof(PerformanceCycle), cycle.Id);

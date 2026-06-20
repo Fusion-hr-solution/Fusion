@@ -43,4 +43,26 @@ public class ObjectiveTemplateTests
 
         Assert.Equal(ObjectiveTemplateStatus.Active, template.Status);
     }
+
+    [Fact]
+    public void Create_WithSmartDefinition_IsReadyForPlanning()
+    {
+        var template = ObjectiveTemplate.Create(
+            TenantId,
+            "Increase renewal rate",
+            successMeasure: "Renewal rate",
+            target: "At least 92% by the end of the cycle",
+            level: ObjectiveTemplateLevel.Team);
+
+        Assert.True(template.IsReadyForPlanning);
+        Assert.Equal(ObjectiveTemplateLevel.Team, template.Level);
+    }
+
+    [Fact]
+    public void Create_LegacyDefinition_RequiresEnrichmentBeforePlanning()
+    {
+        var template = ObjectiveTemplate.Create(TenantId, "Legacy objective");
+
+        Assert.False(template.IsReadyForPlanning);
+    }
 }

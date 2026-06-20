@@ -7,6 +7,11 @@ public sealed record ObjectiveTemplateDto(
     string Name,
     string? Description,
     string? Category,
+    string Level,
+    Guid? ParentTemplateId,
+    string? SuccessMeasure,
+    string? Target,
+    bool IsReadyForPlanning,
     decimal? DefaultWeight,
     string Status,
     DateTime CreatedAt,
@@ -17,13 +22,21 @@ public sealed record CreateObjectiveTemplateRequest(
     string Name,
     string? Description,
     string? Category,
-    decimal? DefaultWeight);
+    decimal? DefaultWeight,
+    string? SuccessMeasure = null,
+    string? Target = null,
+    string Level = "Individual",
+    Guid? ParentTemplateId = null);
 
 public sealed record UpdateObjectiveTemplateRequest(
     string Name,
     string? Description,
     string? Category,
-    decimal? DefaultWeight);
+    decimal? DefaultWeight,
+    string? SuccessMeasure = null,
+    string? Target = null,
+    string Level = "Individual",
+    Guid? ParentTemplateId = null);
 
 public static class ObjectiveTemplateMapper
 {
@@ -33,6 +46,11 @@ public static class ObjectiveTemplateMapper
             template.Name,
             template.Description,
             template.Category,
+            template.Level.ToString(),
+            template.ParentTemplateId,
+            template.SuccessMeasure,
+            template.Target,
+            template.IsReadyForPlanning,
             template.DefaultWeight,
             template.Status.ToString(),
             template.CreatedAt,

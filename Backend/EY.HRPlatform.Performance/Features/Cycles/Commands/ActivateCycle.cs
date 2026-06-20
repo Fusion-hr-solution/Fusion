@@ -35,15 +35,15 @@ public sealed class ActivateCycleCommandHandler(
             return Result.Failure<PerformanceCycleDetailDto>(Error.NotFound("PerformanceCycle", request.CycleId));
         }
 
-        if (cycle.Status != PerformanceCycleStatus.Published)
+        if (cycle.Status != PerformanceCycleStatus.ReadyToLaunch)
         {
             return Result.Failure<PerformanceCycleDetailDto>(
-                Error.Conflict("Cycle.NotPublished", "Only a published cycle can be activated."));
+                Error.Conflict("Cycle.NotReadyToLaunch", "Only a ready-to-launch campaign can be activated."));
         }
 
         ConcurrencyGuard.Ensure(cycle.Version, request.ExpectedVersion, nameof(PerformanceCycle), cycle.Id);
 
-        cycle.Activate();
+        cycle.Activate(DateTime.UtcNow);
 
         dbContext.PerformanceCycleAuditEvents.Add(PerformanceCycleAuditEvent.Create(
             tenantContext.TenantId, cycle.Id, PerformanceCycleAuditAction.Activated, currentUser.UserId, currentUser.FullName));

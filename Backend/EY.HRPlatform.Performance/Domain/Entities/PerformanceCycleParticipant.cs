@@ -1,5 +1,7 @@
 using EY.HRPlatform.SharedKernel.Domain;
 using EY.HRPlatform.SharedKernel.Multitenancy;
+using EY.HRPlatform.Performance.Domain.Enums;
+using EY.HRPlatform.Performance.Exceptions;
 
 namespace EY.HRPlatform.Performance.Domain.Entities;
 
@@ -27,7 +29,15 @@ public class PerformanceCycleParticipant : BaseEntity, ITenantEntity
     public string? JobTitle { get; private set; }
     public Guid? ManagerId { get; private set; }
     public string? ManagerName { get; private set; }
+    // Packet A legacy-read projections. They remain only until the data cutover removes the
+    // old planning-approver model; no campaign transition may use them as authority.
+    public Guid? PlanningApproverEmployeeId { get; private set; }
+    public string? PlanningApproverName { get; private set; }
+    public PlanningApproverSource PlanningApproverSource { get; private set; }
+    public string? PlanningApproverOverrideReason { get; private set; }
     public DateTime SnapshotAt { get; private set; }
+
+    public bool HasResolvedPlanningApprover => PlanningApproverEmployeeId.HasValue;
 
     public static PerformanceCycleParticipant Create(
         Guid tenantId,
@@ -63,7 +73,48 @@ public class PerformanceCycleParticipant : BaseEntity, ITenantEntity
             JobTitle = jobTitle,
             ManagerId = managerId,
             ManagerName = managerName,
+            PlanningApproverEmployeeId = null,
+            PlanningApproverName = null,
+            PlanningApproverSource = PlanningApproverSource.Unresolved,
             SnapshotAt = DateTime.UtcNow
         };
+    }
+
+    public void AssignPlanningApprover(Guid approverEmployeeId, string approverName, string reason)
+    {
+        if (approverEmployeeId == Guid.Empty)
+            throw new ArgumentException("Planning approver id cannot be empty.", nameof(approverEmployeeId));
+        if (approverEmployeeId == EmployeeId)
+            throw new DomainRuleViolationException("A participant cannot approve their own planning.");
+        if (string.IsNullOrWhiteSpace(approverName))
+            throw new ArgumentException("Planning approver name is required.", nameof(approverName));
+        if (string.IsNullOrWhiteSpace(reason))
+            throw new ArgumentException("A reason is required when assigning a planning approver.", nameof(reason));
+
+        var normalizedReason = reason.Trim();
+        if (normalizedReason.Length > 1000)
+            throw new ArgumentException("Planning approver override reason cannot exceed 1000 characters.", nameof(reason));
+
+        PlanningApproverEmployeeId = approverEmployeeId;
+        PlanningApproverName = approverName.Trim();
+        PlanningApproverSource = PlanningApproverSource.ManualAssignment;
+        PlanningApproverOverrideReason = normalizedReason;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void AssignEscalatedPlanningApprover(Guid approverEmployeeId, string approverName)
+    {
+        if (approverEmployeeId == Guid.Empty)
+            throw new ArgumentException("Planning approver id cannot be empty.", nameof(approverEmployeeId));
+        if (approverEmployeeId == EmployeeId)
+            throw new DomainRuleViolationException("A participant cannot approve their own planning.");
+        if (string.IsNullOrWhiteSpace(approverName))
+            throw new ArgumentException("Planning approver name is required.", nameof(approverName));
+
+        PlanningApproverEmployeeId = approverEmployeeId;
+        PlanningApproverName = approverName.Trim();
+        PlanningApproverSource = PlanningApproverSource.EscalatedManager;
+        PlanningApproverOverrideReason = null;
+        UpdatedAt = DateTime.UtcNow;
     }
 }

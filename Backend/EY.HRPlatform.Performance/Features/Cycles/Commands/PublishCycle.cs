@@ -7,6 +7,7 @@ using EY.HRPlatform.Performance.Features.Notifications;
 using EY.HRPlatform.Performance.Features.Security;
 using EY.HRPlatform.Performance.Infrastructure.Notifications;
 using EY.HRPlatform.Performance.Infrastructure.Persistence;
+using EY.HRPlatform.Performance.Infrastructure.Workforce;
 using EY.HRPlatform.SharedKernel.CQRS;
 using EY.HRPlatform.SharedKernel.Multitenancy;
 using EY.HRPlatform.SharedKernel.Results;
@@ -22,12 +23,15 @@ public sealed class PublishCycleCommandHandler(
     ITenantContext tenantContext,
     ICurrentUserContext currentUser,
     IPerformancePopulationResolver populationResolver,
+    ICoreWorkforceClient workforceClient,
     IOptions<ReminderOptions> reminderOptions) : ICommandHandler<PublishCycleCommand, Result<PerformanceCycleDetailDto>>
 {
     public async Task<Result<PerformanceCycleDetailDto>> Handle(
         PublishCycleCommand request,
         CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(workforceClient);
+
         var cycle = await dbContext.PerformanceCycles
             .Include(c => c.PopulationRules)
             .FirstOrDefaultAsync(c => c.Id == request.CycleId, cancellationToken);
@@ -40,19 +44,21 @@ public sealed class PublishCycleCommandHandler(
         if (cycle.Status != PerformanceCycleStatus.Draft)
         {
             return Result.Failure<PerformanceCycleDetailDto>(
-                Error.Conflict("Cycle.NotDraft", "Only a draft cycle can be published."));
+                Error.Conflict("Cycle.NotDraft", "Only a draft campaign can begin assignment preparation."));
         }
 
         var members = await populationResolver.ResolveAsync(cycle, cancellationToken);
         if (members.Count == 0)
         {
             return Result.Failure<PerformanceCycleDetailDto>(
-                Error.Conflict("Cycle.EmptyPopulation", "The cycle population resolves to no employees. Adjust the population before publishing."));
+                Error.Conflict("Cycle.EmptyPopulation", "The campaign population resolves to no employees. Adjust the population before preparation."));
         }
 
         var tenantId = tenantContext.TenantId;
-        var participants = members
-            .Select(member => PerformanceCycleParticipant.Create(
+        var participants = new List<PerformanceCycleParticipant>();
+        foreach (var member in members)
+        {
+            var participant = PerformanceCycleParticipant.Create(
                 tenantId,
                 cycle.Id,
                 member.EmployeeId,
@@ -63,12 +69,14 @@ public sealed class PublishCycleCommandHandler(
                 member.OrgUnit?.Name,
                 member.JobTitle,
                 member.Manager?.EmployeeId,
-                member.Manager?.DisplayName))
-            .ToList();
+                member.Manager?.DisplayName);
+
+            participants.Add(participant);
+        }
 
         ConcurrencyGuard.Ensure(cycle.Version, request.ExpectedVersion, nameof(PerformanceCycle), cycle.Id);
 
-        cycle.Publish(participants.Count);
+        cycle.BeginAssignmentPreparation(participants.Count, DateTime.UtcNow);
 
         // The participant snapshot is written as explicit child rows in the same transaction.
         dbContext.PerformanceCycleParticipants.AddRange(participants);
@@ -79,7 +87,7 @@ public sealed class PublishCycleCommandHandler(
             PerformanceCycleAuditAction.Published,
             currentUser.UserId,
             currentUser.FullName,
-            $"Snapshotted {participants.Count} participant(s)."));
+            $"Prepared {participants.Count} workforce candidate(s). Final responsibilities remain unassigned."));
 
         dbContext.PerformanceNotifications.AddRange(
             CycleNotificationFactory.ForLifecycle(

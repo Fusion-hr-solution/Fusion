@@ -1,5 +1,6 @@
 using EY.HRPlatform.Performance.Features.ObjectiveTemplates.Commands;
 using EY.HRPlatform.Performance.Features.ObjectiveTemplates.Dtos;
+using EY.HRPlatform.Performance.Domain.Enums;
 using EY.HRPlatform.Performance.Features.ObjectiveTemplates.Queries;
 using EY.HRPlatform.Performance.Features.Security;
 using EY.HRPlatform.Performance.Models.Responses;
@@ -46,8 +47,20 @@ public class ObjectiveTemplatesController(
             return Forbid();
         }
 
+        if (!Enum.TryParse<ObjectiveTemplateLevel>(request.Level, ignoreCase: true, out var level))
+        {
+            return BadRequest(ApiResponse.Failure($"Unknown objective template level '{request.Level}'."));
+        }
+
         var result = await sender.Send(new CreateObjectiveTemplateCommand(
-            request.Name, request.Description, request.Category, request.DefaultWeight), cancellationToken);
+            request.Name,
+            request.Description,
+            request.Category,
+            request.DefaultWeight,
+            request.SuccessMeasure,
+            request.Target,
+            level,
+            request.ParentTemplateId), cancellationToken);
 
         if (result.IsFailure)
         {
@@ -75,8 +88,22 @@ public class ObjectiveTemplatesController(
             return PreconditionRequired();
         }
 
+        if (!Enum.TryParse<ObjectiveTemplateLevel>(request.Level, ignoreCase: true, out var level))
+        {
+            return BadRequest(ApiResponse.Failure($"Unknown objective template level '{request.Level}'."));
+        }
+
         var result = await sender.Send(new UpdateObjectiveTemplateCommand(
-            id, expectedVersion, request.Name, request.Description, request.Category, request.DefaultWeight), cancellationToken);
+            id,
+            expectedVersion,
+            request.Name,
+            request.Description,
+            request.Category,
+            request.DefaultWeight,
+            request.SuccessMeasure,
+            request.Target,
+            level,
+            request.ParentTemplateId), cancellationToken);
         return ToResponse(result);
     }
 

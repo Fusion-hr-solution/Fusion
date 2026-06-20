@@ -183,6 +183,43 @@ public class PerformanceCyclesController(
     public Task<IActionResult> Activate(Guid id, [FromHeader(Name = "If-Match")] string? ifMatch, CancellationToken cancellationToken)
         => Transition(id, ifMatch, version => new ActivateCycleCommand(id, version), cancellationToken);
 
+    [HttpPost("{id:guid}/ready-to-launch")]
+    public async Task<IActionResult> MarkReadyToLaunch(
+        Guid id,
+        [FromBody] MarkCycleReadyToLaunchRequest request,
+        [FromHeader(Name = "If-Match")] string? ifMatch,
+        CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanOperateCycles(User))
+            return Forbid();
+        if (!TryParseVersion(ifMatch, out var expectedVersion))
+            return PreconditionRequired();
+
+        var result = await sender.Send(new MarkCycleReadyToLaunchCommand(
+            id, expectedVersion, request.AcceptCurrentWorkforceDelta), cancellationToken);
+        return ToDetailResponse(result);
+    }
+
+    [HttpPost("{id:guid}/responsibilities")]
+    public async Task<IActionResult> CurateResponsibility(
+        Guid id,
+        [FromBody] CurateCampaignResponsibilityRequest request,
+        [FromHeader(Name = "If-Match")] string? ifMatch,
+        CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanManageCycles(User))
+            return Forbid();
+        if (!TryParseVersion(ifMatch, out var expectedVersion))
+            return PreconditionRequired();
+        if (!Enum.TryParse<CampaignResponsibilityDuty>(request.Duty, true, out var duty))
+            return BadRequest(ApiResponse.Failure($"Unknown responsibility duty '{request.Duty}'."));
+
+        var result = await sender.Send(new CurateCampaignResponsibilityCommand(
+            id, expectedVersion, request.SubjectEmployeeId, request.AssigneeEmployeeId,
+            duty, request.RelationshipSource, request.OverrideReason), cancellationToken);
+        return result.IsFailure ? MapFailure(result.Error) : NoContent();
+    }
+
     [HttpPost("{id:guid}/close")]
     public Task<IActionResult> Close(Guid id, [FromHeader(Name = "If-Match")] string? ifMatch, CancellationToken cancellationToken)
         => Transition(id, ifMatch, version => new CloseCycleCommand(id, version), cancellationToken);
@@ -218,6 +255,49 @@ public class PerformanceCyclesController(
         return result.IsFailure
             ? MapFailure(result.Error)
             : Ok(ApiResponse<IReadOnlyList<CycleAuditEventDto>>.Success(result.Value));
+    }
+
+    [HttpGet("{id:guid}/readiness")]
+    public async Task<IActionResult> GetReadiness(Guid id, CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanManageCycles(User))
+        {
+            return Forbid();
+        }
+
+        var result = await sender.Send(new GetCycleReadinessQuery(id), cancellationToken);
+        return result.IsFailure
+            ? MapFailure(result.Error)
+            : Ok(ApiResponse<CycleReadinessDto>.Success(result.Value));
+    }
+
+    [HttpPost("{cycleId:guid}/participants/{participantId:guid}/planning-approver")]
+    public async Task<IActionResult> AssignPlanningApprover(
+        Guid cycleId,
+        Guid participantId,
+        [FromBody] AssignPlanningApproverRequest request,
+        [FromHeader(Name = "If-Match")] string? ifMatch,
+        CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanManageCycles(User))
+        {
+            return Forbid();
+        }
+
+        if (!TryParseVersion(ifMatch, out var expectedVersion))
+        {
+            return PreconditionRequired();
+        }
+
+        var result = await sender.Send(new AssignPlanningApproverCommand(
+            cycleId,
+            participantId,
+            expectedVersion,
+            request.ApproverEmployeeId,
+            request.Reason), cancellationToken);
+        return result.IsFailure
+            ? MapFailure(result.Error)
+            : Ok(ApiResponse<CycleParticipantDto>.Success(result.Value));
     }
 
     private async Task<IActionResult> Transition(

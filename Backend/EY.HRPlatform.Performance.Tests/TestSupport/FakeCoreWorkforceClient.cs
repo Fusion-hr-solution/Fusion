@@ -7,6 +7,7 @@ public sealed class FakeCoreWorkforceClient : ICoreWorkforceClient
 {
     public List<CoreEmployeeSummary> ByScopeResult { get; set; } = [];
     public List<CoreEmployeeSummary> ResolvePool { get; set; } = [];
+    public Dictionary<Guid, List<CoreEmployeeSummary>> ManagerChains { get; } = [];
 
     public Task<IReadOnlyList<CoreEmployeeSummary>> ResolveEmployeesAsync(
         IReadOnlyCollection<Guid> employeeIds,
@@ -20,6 +21,10 @@ public sealed class FakeCoreWorkforceClient : ICoreWorkforceClient
         bool includeInactive,
         CancellationToken cancellationToken)
         => Task.FromResult<IReadOnlyList<CoreEmployeeSummary>>(ByScopeResult);
+
+    public Task<IReadOnlyList<CoreEmployeeSummary>> GetManagerChainAsync(Guid employeeId, CancellationToken cancellationToken)
+        => Task.FromResult<IReadOnlyList<CoreEmployeeSummary>>(
+            ManagerChains.GetValueOrDefault(employeeId, []));
 
     public static CoreEmployeeSummary Employee(Guid id, string name)
         => new(id, $"E-{id.ToString("N")[..6]}", name, name, $"{name}@test.local", "Engineer", true, null, null);

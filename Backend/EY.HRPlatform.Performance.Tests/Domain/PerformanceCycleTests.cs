@@ -13,6 +13,12 @@ public class PerformanceCycleTests
     private static PerformanceCycle NewDraft(DateTime? deadline = null)
         => PerformanceCycle.Create(TenantId, "FY26 Review", PerformanceCycleType.Annual, Start, End, deadline);
 
+    private static void PrepareForLaunch(PerformanceCycle cycle, DateTime occurredAt)
+    {
+        cycle.BeginAssignmentPreparation(1, occurredAt);
+        cycle.MarkReadyToLaunch(1, 0, true, occurredAt);
+    }
+
     [Fact]
     public void Create_WithValidData_StartsAsDraft()
     {
@@ -40,7 +46,7 @@ public class PerformanceCycleTests
     public void UpdateDetails_WhenNotDraft_Throws()
     {
         var cycle = NewDraft();
-        cycle.Publish(1);
+        cycle.BeginAssignmentPreparation(1, Start);
 
         Assert.Throws<DomainRuleViolationException>(() =>
             cycle.UpdateDetails("New name", PerformanceCycleType.Annual, Start, End, null, false, null));
@@ -50,42 +56,76 @@ public class PerformanceCycleTests
     public void SetPopulation_WhenNotDraft_Throws()
     {
         var cycle = NewDraft();
-        cycle.Publish(1);
+        cycle.BeginAssignmentPreparation(1, Start);
 
         Assert.Throws<DomainRuleViolationException>(() => cycle.SetPopulation(false, []));
     }
 
     [Fact]
-    public void Publish_WithNoResolvedPopulation_Throws()
+    public void BeginAssignmentPreparation_WithNoCandidates_Throws()
     {
         var cycle = NewDraft();
-        Assert.Throws<DomainRuleViolationException>(() => cycle.Publish(0));
+        Assert.Throws<DomainRuleViolationException>(() => cycle.BeginAssignmentPreparation(0, Start));
     }
 
     [Fact]
-    public void Publish_WithPopulation_MovesToPublished()
+    public void BeginAssignmentPreparation_WithPopulation_MovesToAssignmentPreparation()
     {
         var cycle = NewDraft();
-        cycle.Publish(3);
+        cycle.BeginAssignmentPreparation(3, Start);
 
-        Assert.Equal(PerformanceCycleStatus.Published, cycle.Status);
-        Assert.NotNull(cycle.PublishedAt);
+        Assert.Equal(PerformanceCycleStatus.AssignmentPreparation, cycle.Status);
+        Assert.NotNull(cycle.AssignmentPreparationStartedAt);
         Assert.False(cycle.IsEditable);
+    }
+
+    [Fact]
+    public void BeginAssignmentPreparation_WithCandidates_MovesToAssignmentPreparation()
+    {
+        var cycle = NewDraft();
+
+        cycle.BeginAssignmentPreparation(3, Start);
+
+        Assert.Equal(PerformanceCycleStatus.AssignmentPreparation, cycle.Status);
+        Assert.NotNull(cycle.AssignmentPreparationStartedAt);
+        Assert.False(cycle.IsEditable);
+    }
+
+    [Fact]
+    public void MarkReadyToLaunch_RequiresAcceptedWorkforceDelta()
+    {
+        var cycle = NewDraft();
+        cycle.BeginAssignmentPreparation(1, Start);
+
+        Assert.Throws<DomainRuleViolationException>(() =>
+            cycle.MarkReadyToLaunch(finalResponsibilityCount: 1, readinessFailureCount: 0, hasAcceptedWorkforceDelta: false, Start));
+    }
+
+    [Fact]
+    public void Activate_FromReadyToLaunch_MarksActivationTime()
+    {
+        var cycle = NewDraft();
+        cycle.BeginAssignmentPreparation(1, Start);
+        cycle.MarkReadyToLaunch(finalResponsibilityCount: 1, readinessFailureCount: 0, hasAcceptedWorkforceDelta: true, Start);
+
+        cycle.Activate(Start);
+
+        Assert.Equal(PerformanceCycleStatus.Active, cycle.Status);
     }
 
     [Fact]
     public void Activate_FromDraft_Throws()
     {
         var cycle = NewDraft();
-        Assert.Throws<DomainRuleViolationException>(cycle.Activate);
+        Assert.Throws<DomainRuleViolationException>(() => cycle.Activate(Start, unresolvedApproverCount: 0));
     }
 
     [Fact]
-    public void Activate_FromPublished_Works()
+    public void Activate_FromReadyToLaunch_Works()
     {
         var cycle = NewDraft();
-        cycle.Publish(1);
-        cycle.Activate();
+        PrepareForLaunch(cycle, Start);
+        cycle.Activate(Start);
 
         Assert.Equal(PerformanceCycleStatus.Active, cycle.Status);
         Assert.NotNull(cycle.ActivatedAt);
@@ -95,9 +135,9 @@ public class PerformanceCycleTests
     public void Close_FromActive_Works()
     {
         var cycle = NewDraft();
-        cycle.Publish(1);
-        cycle.Activate();
-        cycle.Close();
+        PrepareForLaunch(cycle, Start);
+        cycle.Activate(Start);
+        cycle.Close(End);
 
         Assert.Equal(PerformanceCycleStatus.Closed, cycle.Status);
         Assert.NotNull(cycle.ClosedAt);
@@ -107,6 +147,72 @@ public class PerformanceCycleTests
     public void Close_FromDraft_Throws()
     {
         var cycle = NewDraft();
-        Assert.Throws<DomainRuleViolationException>(cycle.Close);
+        Assert.Throws<DomainRuleViolationException>(() => cycle.Close(Start));
+    }
+
+    [Fact]
+    public void Publish_AfterObjectiveDeadline_Throws()
+    {
+        var now = new DateTime(2026, 6, 20, 12, 0, 0, DateTimeKind.Utc);
+        var cycle = PerformanceCycle.Create(
+            TenantId,
+            "Expired planning window",
+            PerformanceCycleType.Annual,
+            now.AddDays(-10),
+            now.AddDays(10),
+            now.AddDays(-1));
+
+        Assert.Throws<DomainRuleViolationException>(() => cycle.BeginAssignmentPreparation(1, now));
+    }
+
+    [Fact]
+    public void Activate_BeforePeriodStart_Throws()
+    {
+        var now = new DateTime(2026, 6, 20, 12, 0, 0, DateTimeKind.Utc);
+        var cycle = PerformanceCycle.Create(
+            TenantId,
+            "Future cycle",
+            PerformanceCycleType.Annual,
+            now.AddDays(1),
+            now.AddDays(10));
+
+        cycle.BeginAssignmentPreparation(1, now);
+
+        cycle.MarkReadyToLaunch(1, 0, true, now);
+
+        Assert.Throws<DomainRuleViolationException>(() => cycle.Activate(now));
+    }
+
+    [Fact]
+    public void MarkReadyToLaunch_WithReadinessFailures_Throws()
+    {
+        var now = new DateTime(2026, 6, 20, 12, 0, 0, DateTimeKind.Utc);
+        var cycle = PerformanceCycle.Create(
+            TenantId,
+            "Ready-to-open cycle",
+            PerformanceCycleType.Annual,
+            now.AddDays(-1),
+            now.AddDays(10));
+
+        cycle.BeginAssignmentPreparation(1, now);
+
+        Assert.Throws<DomainRuleViolationException>(() => cycle.MarkReadyToLaunch(1, 1, true, now));
+    }
+
+    [Fact]
+    public void Close_BeforePeriodEnd_Throws()
+    {
+        var now = new DateTime(2026, 6, 20, 12, 0, 0, DateTimeKind.Utc);
+        var cycle = PerformanceCycle.Create(
+            TenantId,
+            "Open cycle",
+            PerformanceCycleType.Annual,
+            now.AddDays(-1),
+            now.AddDays(10));
+
+        PrepareForLaunch(cycle, now);
+        cycle.Activate(now);
+
+        Assert.Throws<DomainRuleViolationException>(() => cycle.Close(now));
     }
 }

@@ -51,7 +51,7 @@ public class PublishCycleCommandHandlerTests
         await using var db = PerformanceTestContext.Create(tenantContext, dbName);
         var handler = new PublishCycleCommandHandler(
             db, tenantContext, new StubCurrentUserContext(),
-            new FakeResolver(members), Options.Create(new ReminderOptions()));
+            new FakeResolver(members), new FakeCoreWorkforceClient(), Options.Create(new ReminderOptions()));
 
         var result = await handler.Handle(new PublishCycleCommand(cycleId, version), CancellationToken.None);
 
@@ -77,7 +77,7 @@ public class PublishCycleCommandHandlerTests
         await using var db = PerformanceTestContext.Create(tenantContext, dbName);
         var handler = new PublishCycleCommandHandler(
             db, tenantContext, new StubCurrentUserContext(),
-            new FakeResolver([]), Options.Create(new ReminderOptions()));
+            new FakeResolver([]), new FakeCoreWorkforceClient(), Options.Create(new ReminderOptions()));
 
         var result = await handler.Handle(new PublishCycleCommand(cycleId, version), CancellationToken.None);
 

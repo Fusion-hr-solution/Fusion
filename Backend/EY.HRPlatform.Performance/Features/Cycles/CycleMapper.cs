@@ -66,6 +66,10 @@ public static class CycleMapper
             participant.JobTitle,
             participant.ManagerId,
             participant.ManagerName,
+            participant.PlanningApproverEmployeeId,
+            participant.PlanningApproverName,
+            participant.PlanningApproverSource.ToString(),
+            participant.PlanningApproverOverrideReason,
             participant.SnapshotAt);
 
     public static CycleAuditEventDto ToAuditDto(PerformanceCycleAuditEvent auditEvent)
