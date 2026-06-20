@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { AlertTriangle, ArrowRight } from "lucide-react";
+import { AlertTriangle, ArrowRight, Users } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,6 +13,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Spinner } from "@/components/ui/spinner";
+import { getAvatarStyle, getInitials } from "./org-chart-avatar";
 import type { EmployeeOrgChartNodeDto } from "./org-chart.types";
 import { useReassignManagerFromChart } from "./use-reassign-manager";
 
@@ -44,7 +46,6 @@ export function ManagerReassignDialog({
 
   async function handleConfirm() {
     if (!proposal) return;
-
     setError(null);
     try {
       await mutateAsync({
@@ -54,121 +55,172 @@ export function ManagerReassignDialog({
       });
       onClose();
     } catch (err) {
-      const message =
+      setError(
         err instanceof Error
           ? err.message
-          : "The reassignment could not be completed. Check the details and try again.";
-      setError(message);
+          : "The reassignment could not be completed."
+      );
     }
   }
 
   if (!proposal) return null;
 
   const { employee, proposedManager } = proposal;
-  const isDowngrade = proposedManager.employmentStatus !== "Active";
-  const hasDirectReports = employee.directReportCount > 0;
+  const targetInactive = proposedManager.employmentStatus !== "Active";
+  const reportsMoving = employee.directReportCount;
 
   return (
-    <Dialog open={proposal !== null} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-lg">
+    <Dialog open onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Reassign manager</DialogTitle>
+          <DialogTitle>Move {employee.firstName}</DialogTitle>
           <DialogDescription>
-            Review the proposed reporting change before confirming. Backend
-            rules still apply — cycles, inactive managers, and self-assignment
-            will be rejected.
+            Confirm the new reporting line for this person.
           </DialogDescription>
         </DialogHeader>
 
-        {/* Employee being moved */}
-        <div className="rounded-xl border bg-muted/30 p-4">
-          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Employee being moved
-          </p>
-          <p className="font-semibold">{employee.fullName}</p>
-          {showJobTitle && employee.jobTitle ? (
-            <p className="text-sm text-muted-foreground">{employee.jobTitle}</p>
-          ) : null}
-          {hasDirectReports ? (
-            <p className="mt-1.5 text-xs text-muted-foreground">
-              {employee.directReportCount} direct report
-              {employee.directReportCount === 1 ? "" : "s"} will follow this
-              person in the hierarchy.
+        <div className="space-y-3">
+          <PersonRow
+            employee={{
+              fullName: employee.fullName,
+              jobTitle: employee.jobTitle,
+              stableEmployeeKey: employee.stableEmployeeKey,
+            }}
+            showJobTitle={showJobTitle}
+          />
+
+          {/* from → to */}
+          <div className="flex items-center gap-2">
+            <ManagerCell
+              label="From"
+              name={employee.managerName}
+              seed={employee.managerId}
+            />
+            <ArrowRight className="size-4 shrink-0 text-muted-foreground" />
+            <ManagerCell
+              label="To"
+              name={proposedManager.fullName}
+              seed={proposedManager.stableEmployeeKey}
+              highlight
+            />
+          </div>
+
+          {reportsMoving > 0 ? (
+            <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Users className="size-3.5" />
+              {reportsMoving} direct report{reportsMoving === 1 ? "" : "s"} move
+              with {employee.firstName}.
             </p>
+          ) : null}
+
+          {targetInactive ? (
+            <Alert variant="destructive">
+              <AlertTriangle className="size-4" />
+              <AlertDescription>
+                {proposedManager.firstName} is inactive — pick an active manager.
+              </AlertDescription>
+            </Alert>
+          ) : null}
+
+          {error ? (
+            <Alert variant="destructive">
+              <AlertTriangle className="size-4" />
+              <AlertDescription>
+                The reassignment was rejected. It may create a reporting loop or
+                the target is no longer valid.
+              </AlertDescription>
+            </Alert>
           ) : null}
         </div>
-
-        {/* Manager change arrow */}
-        <div className="flex items-start gap-3">
-          <div className="flex-1 rounded-xl border bg-muted/30 p-4">
-            <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Current manager
-            </p>
-            <p className="font-medium">
-              {employee.managerName ?? (
-                <span className="text-muted-foreground italic">
-                  No manager assigned
-                </span>
-              )}
-            </p>
-          </div>
-          <div className="mt-4 flex shrink-0 items-center">
-            <ArrowRight className="size-5 text-muted-foreground" />
-          </div>
-          <div className="flex-1 rounded-xl border bg-primary/8 p-4">
-            <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Proposed manager
-            </p>
-            <p className="font-medium">{proposedManager.fullName}</p>
-            {showJobTitle && proposedManager.jobTitle ? (
-              <p className="text-xs text-muted-foreground">
-                {proposedManager.jobTitle}
-              </p>
-            ) : null}
-            {isDowngrade ? (
-              <Badge variant="destructive" className="mt-1.5 text-xs">
-                Inactive — will be rejected
-              </Badge>
-            ) : null}
-          </div>
-        </div>
-
-        {/* Warnings */}
-        {isDowngrade ? (
-          <Alert variant="destructive">
-            <AlertTriangle className="size-4" />
-            <AlertDescription>
-              The proposed manager is inactive. The backend will reject this
-              reassignment. Choose an active employee as the new manager.
-            </AlertDescription>
-          </Alert>
-        ) : (
-          <Alert>
-            <AlertTriangle className="size-4" />
-            <AlertDescription>
-              Cycles and self-assignment are prevented by the backend. If this
-              reassignment would create a reporting loop, it will be rejected.
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {/* Backend error */}
-        {error ? (
-          <Alert variant="destructive">
-            <AlertTriangle className="size-4" />
-            <AlertDescription>Reassignment failed. Check the employee status and try again.</AlertDescription>
-          </Alert>
-        ) : null}
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={isLoading}>
             Cancel
           </Button>
-          <Button onClick={handleConfirm} disabled={isLoading || isDowngrade}>
-            {isLoading ? "Reassigning…" : "Confirm reassignment"}
+          <Button onClick={handleConfirm} disabled={isLoading || targetInactive}>
+            {isLoading ? (
+              <>
+                <Spinner className="mr-1.5 size-4" />
+                Moving…
+              </>
+            ) : (
+              "Confirm move"
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function PersonRow({
+  employee,
+  showJobTitle,
+}: {
+  employee: { fullName: string; jobTitle: string | null; stableEmployeeKey: string };
+  showJobTitle: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-xl border bg-muted/30 p-3">
+      <Avatar size="lg">
+        <AvatarFallback
+          style={getAvatarStyle(employee.stableEmployeeKey)}
+          className="font-medium"
+        >
+          {getInitials(employee.fullName)}
+        </AvatarFallback>
+      </Avatar>
+      <div className="min-w-0">
+        <p className="truncate font-semibold leading-tight">
+          {employee.fullName}
+        </p>
+        {showJobTitle && employee.jobTitle ? (
+          <p className="truncate text-xs text-muted-foreground">
+            {employee.jobTitle}
+          </p>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function ManagerCell({
+  label,
+  name,
+  seed,
+  highlight,
+}: {
+  label: string;
+  name: string | null;
+  seed: string | null;
+  highlight?: boolean;
+}) {
+  return (
+    <div
+      className={
+        highlight
+          ? "min-w-0 flex-1 rounded-xl border border-primary/40 bg-primary/[0.06] p-3"
+          : "min-w-0 flex-1 rounded-xl border bg-muted/30 p-3"
+      }
+    >
+      <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        {label}
+      </p>
+      {name ? (
+        <div className="flex items-center gap-2">
+          <Avatar size="sm">
+            <AvatarFallback
+              style={getAvatarStyle(seed ?? name)}
+              className="text-[10px] font-medium"
+            >
+              {getInitials(name)}
+            </AvatarFallback>
+          </Avatar>
+          <span className="min-w-0 truncate text-sm font-medium">{name}</span>
+        </div>
+      ) : (
+        <span className="text-sm italic text-muted-foreground">No manager</span>
+      )}
+    </div>
   );
 }
