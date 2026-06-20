@@ -1,19 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useMemo, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
   Building2,
+  CircleAlert,
   ClipboardList,
   ExternalLink,
+  Gauge,
   Mail,
   Network,
+  PartyPopper,
   Pause,
   Plus,
   Settings2,
   ShieldCheck,
+  TrendingUp,
   TriangleAlert,
   User,
   UserCheck,
@@ -40,7 +44,11 @@ import {
   DashboardPanel,
   DashboardSection,
   DonutChart,
+  BarChartMini,
+  ColumnChart,
+  ProgressMeter,
   CHART_TONES,
+  CHART_PALETTE,
   type DonutDatum,
 } from "@repo/ds/shell";
 import { Button } from "@/components/ui/button";
@@ -52,15 +60,18 @@ import {
 } from "@/lib/employee-roster-access";
 import { buildTenantContextHref } from "@/lib/tenant-navigation";
 import { useTenantContext } from "@/shell/tenant-context/core-tenant-context-provider";
-import { buildImportHistoryHref } from "@/app/(pages)/employees/employee-readiness";
 import {
-  useEmployeeProfile,
-  useEmployeeReportingLines,
   useEmployeeRoster,
   useWorkforceReadinessSummary,
 } from "@/app/(pages)/employees/use-employees";
+import {
+  useWorkforceMe,
+  useWorkforceTeam,
+  type WorkforceMeContext,
+} from "@/features/overview/api/use-workforce-me";
 import { StatusBadge } from "@/app/(pages)/organizations/status-badge";
 import { useOrganizationList } from "@/features/organizations/api/use-organizations";
+import type { EmployeeRosterItem } from "@/app/(pages)/employees/employee-roster.types";
 
 // ── Shared helpers ──────────────────────────────────────────────────────────
 
@@ -127,6 +138,84 @@ function QuickLink({ href, icon: Icon, children }: { href: string; icon: typeof 
 
 // ── Workforce dashboard (HR admin + platform-admin tenant context) ──────────
 
+const TENURE_BUCKETS = [
+  { name: "< 1 yr", min: 0, max: 1 },
+  { name: "1–3 yrs", min: 1, max: 3 },
+  { name: "3–5 yrs", min: 3, max: 5 },
+  { name: "5+ yrs", min: 5, max: Infinity },
+];
+
+function startOfToday() {
+  const d = new Date();
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+function buildWorkforceAnalytics(items: EmployeeRosterItem[]) {
+  const now = new Date();
+  const today = startOfToday();
+  const dept = new Map<string, number>();
+  const months = Array.from({ length: 12 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - (11 - i), 1);
+    return { key: `${d.getFullYear()}-${d.getMonth()}`, name: d.toLocaleDateString("en-GB", { month: "short" }), value: 0 };
+  });
+  const monthIndex = new Map(months.map((m, i) => [m.key, i]));
+  const tenure = TENURE_BUCKETS.map((b) => ({ name: b.name, value: 0 }));
+  let managers = 0;
+  let newHires90 = 0;
+
+  for (const e of items) {
+    dept.set(e.orgUnitName?.trim() || "Unassigned", (dept.get(e.orgUnitName?.trim() || "Unassigned") ?? 0) + 1);
+    if (e.directReportCount > 0) managers++;
+    const hire = new Date(e.hireDate);
+    if (Number.isNaN(hire.getTime())) continue;
+    const mi = monthIndex.get(`${hire.getFullYear()}-${hire.getMonth()}`);
+    const month = mi !== undefined ? months[mi] : undefined;
+    if (month) month.value++;
+    const days = (Date.now() - hire.getTime()) / 86_400_000;
+    if (days >= 0 && days <= 90) newHires90++;
+    const years = days / 365.25;
+    if (years >= 0) {
+      const bi = TENURE_BUCKETS.findIndex((b) => years >= b.min && years < b.max);
+      const bucket = bi >= 0 ? tenure[bi] : undefined;
+      if (bucket) bucket.value++;
+    }
+  }
+
+  const byDept = [...dept.entries()]
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 7);
+
+  const attention = items
+    .filter((e) => e.readiness.hasEmployeeStateIssues)
+    .map((e) => {
+      const issues = e.readiness.employeeStateIssues.map((i) => ({
+        label: i.label,
+        blocker: i.severity === "Blocker",
+      }));
+      return { employee: e, blocking: issues.some((i) => i.blocker), issues };
+    })
+    .sort((a, b) => Number(b.blocking) - Number(a.blocking))
+    .slice(0, 6);
+
+  const anniversaries = items
+    .map((e) => {
+      const hire = new Date(e.hireDate);
+      if (Number.isNaN(hire.getTime())) return null;
+      let next = new Date(now.getFullYear(), hire.getMonth(), hire.getDate());
+      if (next < today) next = new Date(now.getFullYear() + 1, hire.getMonth(), hire.getDate());
+      const days = Math.round((next.getTime() - today.getTime()) / 86_400_000);
+      const years = next.getFullYear() - hire.getFullYear();
+      if (days < 0 || days > 45 || years < 1) return null;
+      return { employee: e, years, days, dateLabel: next.toLocaleDateString("en-GB", { day: "numeric", month: "short" }) };
+    })
+    .filter((x): x is NonNullable<typeof x> => x !== null)
+    .sort((a, b) => a.days - b.days)
+    .slice(0, 5);
+
+  return { byDept, hiringTrend: months, tenure, managers, newHires90, attention, anniversaries };
+}
+
 function WorkforceDashboard({
   title,
   description,
@@ -139,157 +228,218 @@ function WorkforceDashboard({
   toHref: HrefFn;
 }) {
   const { data: rs, isLoading: isRsLoading } = useWorkforceReadinessSummary();
-  const {
-    data: recentEmployees,
-    isLoading: isRecentLoading,
-  } = useEmployeeRoster({ sortBy: "HireDate", sortDir: "Desc", page: 1, pageSize: 6 });
+  const { data: roster, isLoading: isRosterLoading } = useEmployeeRoster({
+    sortBy: "HireDate",
+    sortDir: "Desc",
+    page: 1,
+    pageSize: 200,
+  });
 
-  const recentHires = recentEmployees?.items ?? [];
-  const totalWorkforce = recentEmployees?.totalCount ?? recentHires.length;
+  const items: EmployeeRosterItem[] = useMemo(() => roster?.items ?? [], [roster]);
+  const analytics = useMemo(() => buildWorkforceAnalytics(items), [items]);
+  const totalWorkforce = roster?.totalCount ?? items.length;
   const active = rs?.activeEmployeeCount ?? 0;
   const inactive = Math.max(totalWorkforce - active, 0);
-  const brokenManagers = rs
-    ? rs.issueCounts.managerInactive + rs.issueCounts.managerMissing
-    : 0;
-  const issueRows = rs
-    ? [
-        {
-          name: "Missing required fields",
-          value: rs.issueCounts.missingRequiredFields,
-          href: toHref("/employees?readiness=MissingRequiredField"),
-          color: CHART_TONES.warning,
-        },
-        {
-          name: "Missing org units",
-          value: rs.issueCounts.missingOrgUnit,
-          href: toHref("/employees?readiness=MissingOrgUnit"),
-          color: CHART_TONES.info,
-        },
-        {
-          name: "Broken reporting lines",
-          value: brokenManagers,
-          href: toHref("/employees?readiness=DeactivationBlocked"),
-          color: CHART_TONES.danger,
-        },
-        {
-          name: "Unresolved import follow-up",
-          value: rs.issueCounts.unresolvedImportIssues,
-          href: toHref(buildImportHistoryHref()),
-          color: CHART_TONES.muted,
-        },
-      ]
-    : [];
-  const totalIssues = issueRows.reduce((sum, r) => sum + r.value, 0);
+  const readyCount = rs?.readyEmployeeCount ?? 0;
+  const readinessPct = active > 0 ? Math.round((readyCount / active) * 100) : 0;
+  const needsAttention = rs?.employeesNeedingAttention ?? 0;
+  const recentHires = items.slice(0, 5);
   const compositionData: DonutDatum[] = [
     { name: "Active", value: active, color: CHART_TONES.success },
     { name: "Inactive", value: inactive, color: CHART_TONES.muted },
   ];
 
-  if (isRsLoading && !rs) {
+  if ((isRsLoading && !rs) || (isRosterLoading && !roster)) {
     return <LoadingSkeleton />;
   }
 
   return (
-    <PageContainer width="wide" className="space-y-6">
+    <PageContainer width="wide" className="space-y-5">
       <PageHeader title={title} description={description} actions={actions} />
 
       <KpiGrid>
         <KpiStat
-          label="Active employees"
+          label="Active headcount"
           value={active}
-          icon={UserCheck}
-          hint="Currently employed"
+          icon={Users}
+          hint={`${totalWorkforce} total · ${inactive} inactive`}
           href={toHref("/employees?status=Active")}
         />
         <KpiStat
-          label="Total workforce"
-          value={totalWorkforce}
-          icon={Users}
-          hint={`${inactive} inactive`}
-          href={toHref("/employees")}
+          label="Workforce readiness"
+          value={`${readinessPct}%`}
+          tone={readinessPct >= 90 ? "success" : readinessPct >= 70 ? "warning" : "danger"}
+          icon={Gauge}
+          hint={`${readyCount} of ${active} records ready`}
+          href={toHref("/employees?readiness=Ready")}
         />
         <KpiStat
-          label="Open data issues"
-          value={totalIssues}
-          tone={totalIssues > 0 ? "warning" : "success"}
+          label="Needs attention"
+          value={needsAttention}
+          tone={needsAttention > 0 ? "warning" : "success"}
           icon={TriangleAlert}
-          hint={totalIssues > 0 ? "Across the workforce" : "Records are healthy"}
-          href={toHref("/employees?readiness=MissingRequiredField")}
+          hint={needsAttention > 0 ? "People with data issues" : "All records healthy"}
+          href={toHref("/employees?readiness=NeedsAttention")}
         />
         <KpiStat
-          label="Broken reporting"
-          value={brokenManagers}
-          tone={brokenManagers > 0 ? "danger" : "success"}
-          icon={Network}
-          hint={brokenManagers > 0 ? "Need a valid manager" : "All lines valid"}
-          href={toHref("/employees?readiness=DeactivationBlocked")}
+          label="New hires (90d)"
+          value={analytics.newHires90}
+          icon={TrendingUp}
+          hint={`${analytics.managers} managers`}
+          href={toHref("/employees")}
         />
       </KpiGrid>
 
       <div className="grid gap-4 lg:grid-cols-3">
         <DashboardPanel className="lg:col-span-2">
           <DashboardSection
-            title="Workforce data quality"
-            description="Issues blocking a trustworthy system of record."
+            title="Headcount by department"
+            description="Where your people sit across the organization."
             action={
               <Link
-                href={toHref("/employees")}
+                href={toHref("/org-chart")}
                 className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:text-primary/80"
               >
-                Review people <ArrowRight className="size-3.5" />
+                Org chart <ArrowRight className="size-3.5" />
               </Link>
             }
           >
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-              {totalIssues > 0 ? (
-                <DonutChart
-                  className="sm:w-1/2"
-                  centerLabel="issues"
-                  data={issueRows.map((r) => ({
-                    name: r.name,
-                    value: r.value,
-                    color: r.color,
-                  }))}
-                />
-              ) : (
-                <div className="flex flex-1 items-center gap-3 rounded-lg border border-dashed border-border bg-muted/10 px-4 py-6 text-sm text-muted-foreground sm:w-1/2">
-                  <UserCheck className="size-5 text-emerald-600" />
-                  All workforce records are healthy.
-                </div>
-              )}
-              <ul className="flex flex-1 flex-col gap-1.5">
-                {issueRows.map((row) => (
-                  <li key={row.name}>
+            {analytics.byDept.length > 0 ? (
+              <BarChartMini
+                data={analytics.byDept}
+                height={Math.max(170, analytics.byDept.length * 30)}
+              />
+            ) : (
+              <p className="py-8 text-center text-sm text-muted-foreground">No org units assigned yet.</p>
+            )}
+          </DashboardSection>
+        </DashboardPanel>
+
+        <DashboardPanel>
+          <DashboardSection title="Composition" description="Active vs inactive headcount.">
+            <DonutChart centerLabel="people" total={totalWorkforce} data={compositionData} />
+            <div className="mt-4">
+              <ProgressMeter
+                label="Records ready"
+                value={readinessPct}
+                valueLabel={`${readinessPct}%`}
+                tone={readinessPct >= 90 ? CHART_TONES.success : CHART_TONES.warning}
+              />
+            </div>
+          </DashboardSection>
+        </DashboardPanel>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        <DashboardPanel className="lg:col-span-2">
+          <DashboardSection title="Hiring trend" description="New hires over the last 12 months.">
+            <ColumnChart data={analytics.hiringTrend} />
+          </DashboardSection>
+        </DashboardPanel>
+
+        <DashboardPanel>
+          <DashboardSection title="Tenure" description="How long people have been here.">
+            <BarChartMini data={analytics.tenure} height={170} color={CHART_PALETTE[2]} />
+          </DashboardSection>
+        </DashboardPanel>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        <DashboardPanel className="lg:col-span-2">
+          <DashboardSection
+            title="People needing attention"
+            description="Records with blocking or data-quality issues — resolve to keep the workforce trustworthy."
+            action={
+              <Link
+                href={toHref("/employees?readiness=NeedsAttention")}
+                className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:text-primary/80"
+              >
+                Review all <ArrowRight className="size-3.5" />
+              </Link>
+            }
+          >
+            {analytics.attention.length > 0 ? (
+              <ul className="divide-y divide-border">
+                {analytics.attention.map(({ employee, blocking, issues }) => (
+                  <li key={employee.id}>
                     <Link
-                      href={row.href}
-                      className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
+                      href={toHref(`/employees/${employee.stableEmployeeKey}`)}
+                      className="flex items-center justify-between gap-3 py-2.5 text-sm transition-colors hover:text-primary"
                     >
-                      <span className="flex items-center gap-2">
-                        <span
-                          className="size-2 rounded-[3px]"
-                          style={{ background: row.color }}
-                        />
-                        {row.name}
+                      <span className="flex min-w-0 items-center gap-2.5">
+                        {blocking ? (
+                          <TriangleAlert className="size-4 shrink-0 text-destructive" />
+                        ) : (
+                          <CircleAlert className="size-4 shrink-0 text-primary" />
+                        )}
+                        <span className="min-w-0">
+                          <span className="block truncate font-medium text-foreground">
+                            {employee.firstName} {employee.lastName}
+                          </span>
+                          <span className="block truncate text-xs text-muted-foreground">
+                            {employee.jobTitle || employee.orgUnitName || employee.email}
+                          </span>
+                        </span>
                       </span>
-                      <span className="font-semibold tabular-nums">{row.value}</span>
+                      <span className="hidden shrink-0 flex-wrap items-center justify-end gap-1 sm:flex">
+                        {issues.slice(0, 2).map((iss, idx) => (
+                          <span
+                            key={idx}
+                            className={
+                              iss.blocker
+                                ? "rounded bg-destructive/10 px-1.5 py-0.5 text-[11px] font-medium text-destructive"
+                                : "rounded bg-primary/15 px-1.5 py-0.5 text-[11px] font-medium text-primary"
+                            }
+                          >
+                            {iss.label}
+                          </span>
+                        ))}
+                        {issues.length > 2 ? (
+                          <span className="text-[11px] text-muted-foreground">+{issues.length - 2}</span>
+                        ) : null}
+                      </span>
                     </Link>
                   </li>
                 ))}
               </ul>
-            </div>
+            ) : (
+              <div className="flex items-center gap-3 rounded-lg border border-dashed border-border bg-muted/10 px-4 py-8 text-sm text-muted-foreground">
+                <UserCheck className="size-5 text-emerald-600" />
+                Every workforce record is complete and healthy.
+              </div>
+            )}
           </DashboardSection>
         </DashboardPanel>
 
         <DashboardPanel>
           <DashboardSection
-            title="Workforce composition"
-            description="Active vs inactive headcount."
+            title="Upcoming anniversaries"
+            description="Work anniversaries in the next 45 days."
           >
-            <DonutChart
-              centerLabel="people"
-              total={totalWorkforce}
-              data={compositionData}
-            />
+            {analytics.anniversaries.length > 0 ? (
+              <ul className="divide-y divide-border">
+                {analytics.anniversaries.map(({ employee, years, dateLabel }) => (
+                  <li
+                    key={employee.id}
+                    className="flex items-center justify-between gap-3 py-2.5 text-sm"
+                  >
+                    <span className="flex min-w-0 items-center gap-2.5">
+                      <PartyPopper className="size-4 shrink-0 text-primary" />
+                      <span className="truncate font-medium text-foreground">
+                        {employee.firstName} {employee.lastName}
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      {years} yr{years === 1 ? "" : "s"} · {dateLabel}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                No anniversaries in the next 45 days.
+              </p>
+            )}
           </DashboardSection>
         </DashboardPanel>
       </div>
@@ -308,13 +458,7 @@ function WorkforceDashboard({
               </Link>
             }
           >
-            {isRecentLoading ? (
-              <div className="space-y-2">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <Skeleton key={i} className="h-12 w-full rounded-lg" />
-                ))}
-              </div>
-            ) : recentHires.length > 0 ? (
+            {recentHires.length > 0 ? (
               <ul className="divide-y divide-border">
                 {recentHires.map((employee) => (
                   <li key={employee.id}>
@@ -327,7 +471,7 @@ function WorkforceDashboard({
                           {employee.firstName} {employee.lastName}
                         </span>
                         <span className="block truncate text-xs text-muted-foreground">
-                          {employee.jobTitle || employee.email}
+                          {employee.jobTitle || employee.orgUnitName || employee.email}
                         </span>
                       </span>
                       <span className="shrink-0 text-right text-xs text-muted-foreground">
@@ -405,10 +549,31 @@ function PlatformAdminTenantDashboard() {
 
 // ── Platform admin (platform operations) ────────────────────────────────────
 
+function buildMonthlyCounts(dates: string[]) {
+  const now = new Date();
+  const months = Array.from({ length: 12 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - (11 - i), 1);
+    return {
+      key: `${d.getFullYear()}-${d.getMonth()}`,
+      name: d.toLocaleDateString("en-GB", { month: "short" }),
+      value: 0,
+    };
+  });
+  const idx = new Map(months.map((m, i) => [m.key, i]));
+  for (const ds of dates) {
+    const d = new Date(ds);
+    if (Number.isNaN(d.getTime())) continue;
+    const i = idx.get(`${d.getFullYear()}-${d.getMonth()}`);
+    const m = i !== undefined ? months[i] : undefined;
+    if (m) m.value++;
+  }
+  return months;
+}
+
 function PlatformAdminDashboard() {
   const { data: recentData, isLoading: isDashboardLoading } = useOrganizationList({
     skip: 0,
-    take: 6,
+    take: 40,
   });
   const { data: attentionData, isLoading: isAttentionLoading } = useOrganizationList({
     skip: 0,
@@ -417,7 +582,9 @@ function PlatformAdminDashboard() {
   });
 
   const stats = recentData?.stats;
-  const recentOrgs = recentData?.items ?? [];
+  const allOrgs = recentData?.items ?? [];
+  const recentOrgs = allOrgs.slice(0, 6);
+  const orgGrowth = buildMonthlyCounts(allOrgs.map((o) => o.createdAt));
   const attentionOrgs = attentionData?.items ?? [];
   const totalAttention =
     (stats?.invitedPending ?? 0) + (stats?.suspendedOrganizations ?? 0);
@@ -484,6 +651,15 @@ function PlatformAdminDashboard() {
           href="/organizations?status=suspended"
         />
       </KpiGrid>
+
+      <DashboardPanel>
+        <DashboardSection
+          title="Organization growth"
+          description="New organizations created over the last 12 months."
+        >
+          <ColumnChart data={orgGrowth} />
+        </DashboardSection>
+      </DashboardPanel>
 
       <div className="grid gap-4 lg:grid-cols-3">
         <DashboardPanel className="lg:col-span-2">
@@ -611,50 +787,43 @@ function PlatformAdminDashboard() {
 
 // ── Manager + Employee ───────────────────────────────────────────────────────
 
-function ManagerDashboard() {
-  const { user } = useAuth();
-  const employeeId = user?.employeeId ?? null;
-  const { data: profile, isLoading: isProfileLoading } = useEmployeeProfile(employeeId);
-  const { data: reportingLines, isLoading: isReportingLoading } =
-    useEmployeeReportingLines(employeeId);
-  const directReports = reportingLines?.directReports ?? [];
-  const directReportCount = reportingLines?.directReportCount ?? directReports.length;
-
-  if (isProfileLoading && !profile) {
-    return <LoadingSkeleton />;
-  }
+function ManagerDashboard({ me }: { me: WorkforceMeContext }) {
+  const emp = me.employee!;
+  const { data: team, isLoading: isTeamLoading } = useWorkforceTeam(emp.employeeId);
+  const teamList = team ?? [];
+  const directReportCount = emp.directReportCount;
+  const teamActive = teamList.filter((t) => t.isActive).length;
+  const teamAttention = teamList.filter((t) => t.dataQuality.hasEmployeeStateIssues).length;
 
   return (
-    <PageContainer width="wide" className="space-y-6">
+    <PageContainer width="wide" className="space-y-5">
       <PageHeader
         title="Dashboard"
-        description="Your team and reporting context at a glance."
+        description={`Your team at a glance, ${emp.firstName}.`}
       />
 
       <KpiGrid>
+        <KpiStat label="Direct reports" value={directReportCount} icon={Users} href="/team" />
         <KpiStat
-          label="Direct reports"
-          value={directReportCount}
-          icon={Users}
-          href="/team"
+          label="Team active"
+          value={teamActive}
+          tone="success"
+          icon={UserCheck}
+          hint={`of ${directReportCount} direct`}
+        />
+        <KpiStat
+          label="Needs attention"
+          value={teamAttention}
+          tone={teamAttention > 0 ? "warning" : "success"}
+          icon={TriangleAlert}
+          hint={teamAttention > 0 ? "Reports with data issues" : "Team records healthy"}
         />
         <KpiStat
           label="My status"
-          value={profile?.status ?? "—"}
-          tone={profile?.status === "Active" ? "success" : "default"}
+          value={emp.employmentStatus}
+          tone={emp.isActive ? "success" : "default"}
           icon={UserCheck}
-        />
-        <KpiStat
-          label="Org unit"
-          value={profile?.orgUnitName ? "Assigned" : "—"}
-          hint={profile?.orgUnitName ?? "No org unit"}
-          icon={Building2}
-        />
-        <KpiStat
-          label="Manager"
-          value={profile?.managerFullName ? "Assigned" : "—"}
-          hint={profile?.managerFullName ?? "No manager"}
-          icon={Network}
+          hint={emp.jobTitle ?? undefined}
         />
       </KpiGrid>
 
@@ -662,7 +831,7 @@ function ManagerDashboard() {
         <DashboardPanel className="lg:col-span-2">
           <DashboardSection
             title="My team"
-            description={`${directReportCount} direct report${directReportCount === 1 ? "" : "s"}`}
+            description={`${directReportCount} direct report${directReportCount === 1 ? "" : "s"} · ${teamActive} active`}
             action={
               <Link
                 href="/team"
@@ -672,32 +841,46 @@ function ManagerDashboard() {
               </Link>
             }
           >
-            {isReportingLoading ? (
+            {isTeamLoading ? (
               <div className="space-y-2">
-                {Array.from({ length: 3 }).map((_, i) => (
+                {Array.from({ length: 4 }).map((_, i) => (
                   <Skeleton key={i} className="h-12 w-full rounded-lg" />
                 ))}
               </div>
-            ) : directReports.length > 0 ? (
+            ) : teamList.length > 0 ? (
               <ul className="divide-y divide-border">
-                {directReports.slice(0, 6).map(({ employee }) => (
-                  <li key={employee.id}>
-                    <Link
-                      href={`/employees/${employee.stableEmployeeKey}`}
-                      className="flex items-center justify-between gap-3 py-2.5 text-sm transition-colors hover:text-primary"
-                    >
-                      <span className="min-w-0">
-                        <span className="block truncate font-medium text-foreground">
-                          {employee.firstName} {employee.lastName}
+                {teamList.map((member) => {
+                  const attn = member.dataQuality.hasEmployeeStateIssues;
+                  return (
+                    <li key={member.employeeId}>
+                      <Link
+                        href={`/employees/${member.stableEmployeeKey}`}
+                        className="flex items-center justify-between gap-3 py-2.5 text-sm transition-colors hover:text-primary"
+                      >
+                        <span className="flex min-w-0 items-center gap-2.5">
+                          <span
+                            className={`size-1.5 shrink-0 rounded-full ${member.isActive ? "bg-emerald-500" : "bg-muted-foreground/40"}`}
+                          />
+                          <span className="min-w-0">
+                            <span className="block truncate font-medium text-foreground">
+                              {member.displayName}
+                            </span>
+                            <span className="block truncate text-xs text-muted-foreground">
+                              {member.jobTitle || member.workEmail}
+                            </span>
+                          </span>
                         </span>
-                        <span className="block truncate text-xs text-muted-foreground">
-                          {employee.jobTitle || employee.email}
-                        </span>
-                      </span>
-                      <ArrowRight className="size-4 shrink-0 text-muted-foreground/50" />
-                    </Link>
-                  </li>
-                ))}
+                        {attn ? (
+                          <span className="shrink-0 rounded bg-primary/15 px-1.5 py-0.5 text-[11px] font-medium text-primary">
+                            Needs attention
+                          </span>
+                        ) : (
+                          <ArrowRight className="size-4 shrink-0 text-muted-foreground/40" />
+                        )}
+                      </Link>
+                    </li>
+                  );
+                })}
               </ul>
             ) : (
               <div className="rounded-lg border border-dashed border-border px-3 py-6 text-center text-sm text-muted-foreground">
@@ -708,16 +891,31 @@ function ManagerDashboard() {
         </DashboardPanel>
 
         <DashboardPanel>
-          <DashboardSection title="Quick actions">
-            <div className="flex flex-col gap-2">
-              <QuickLink href="/profile" icon={User}>
-                My profile
-              </QuickLink>
+          <DashboardSection title="My reporting context">
+            <dl className="space-y-2">
+              {[
+                ["My status", emp.employmentStatus],
+                ["Reports to", emp.manager?.displayName ?? "—"],
+                ["Org unit", emp.orgUnit?.name ?? "—"],
+              ].map(([label, value]) => (
+                <div
+                  key={label}
+                  className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm"
+                >
+                  <dt className="text-muted-foreground">{label}</dt>
+                  <dd className="truncate pl-2 font-medium">{value}</dd>
+                </div>
+              ))}
+            </dl>
+            <div className="mt-3 flex flex-col gap-2">
               <QuickLink href="/team" icon={Users}>
-                My team
+                Open my team
               </QuickLink>
               <QuickLink href="/org-chart" icon={Network}>
                 Org chart
+              </QuickLink>
+              <QuickLink href="/profile" icon={User}>
+                My profile
               </QuickLink>
             </div>
           </DashboardSection>
@@ -727,45 +925,39 @@ function ManagerDashboard() {
   );
 }
 
-function EmployeeDashboard() {
-  const { user } = useAuth();
-  const employeeId = user?.employeeId ?? null;
-  const { data: profile, isLoading: isProfileLoading } = useEmployeeProfile(employeeId);
-
-  if (isProfileLoading && !profile) {
-    return <LoadingSkeleton />;
-  }
+function EmployeeDashboard({ me }: { me: WorkforceMeContext }) {
+  const emp = me.employee!;
 
   return (
-    <PageContainer width="wide" className="space-y-6">
+    <PageContainer width="wide" className="space-y-5">
       <PageHeader
         title="Dashboard"
-        description="Your profile and work details."
+        description={`Welcome${emp.firstName ? `, ${emp.firstName}` : ""}. Your profile and work details.`}
       />
 
       <KpiGrid>
         <KpiStat
           label="Status"
-          value={profile?.status ?? "—"}
-          tone={profile?.status === "Active" ? "success" : "default"}
+          value={emp.employmentStatus}
+          tone={emp.isActive ? "success" : "default"}
           icon={UserCheck}
         />
         <KpiStat
           label="Job title"
-          value={profile?.jobTitle ? "Set" : "—"}
-          hint={profile?.jobTitle ?? "Not set"}
+          value={emp.jobTitle ? "Set" : "—"}
+          hint={emp.jobTitle ?? "Not set"}
           icon={ClipboardList}
         />
         <KpiStat
           label="Org unit"
-          value={profile?.orgUnitName ? "Assigned" : "—"}
-          hint={profile?.orgUnitName ?? "No org unit"}
+          value={emp.orgUnit ? "Assigned" : "—"}
+          hint={emp.orgUnit?.name ?? "No org unit"}
           icon={Building2}
         />
         <KpiStat
           label="Manager"
-          value={profile?.managerFullName ? "Assigned" : "—"}
-          hint={profile?.managerFullName ?? "No manager"}
+          value={emp.manager ? "Assigned" : "—"}
+          hint={emp.manager?.displayName ?? "No manager"}
           icon={Network}
         />
       </KpiGrid>
@@ -774,11 +966,7 @@ function EmployeeDashboard() {
         <DashboardPanel className="lg:col-span-2">
           <DashboardSection
             title="My profile"
-            description={
-              profile
-                ? `${profile.fullName}${profile.jobTitle ? ` · ${profile.jobTitle}` : ""}`
-                : "Your linked employee record."
-            }
+            description={`${emp.fullName}${emp.jobTitle ? ` · ${emp.jobTitle}` : ""}`}
             action={
               <Link
                 href="/profile"
@@ -790,17 +978,17 @@ function EmployeeDashboard() {
           >
             <dl className="grid gap-2 sm:grid-cols-2">
               {[
-                ["Status", profile?.status ?? "—"],
-                ["Manager", profile?.managerFullName ?? "—"],
-                ["Org unit", profile?.orgUnitName ?? "—"],
-                ["Preferred name", profile?.preferredName ?? "—"],
+                ["Status", emp.employmentStatus],
+                ["Manager", emp.manager?.displayName ?? "—"],
+                ["Org unit", emp.orgUnit?.name ?? "—"],
+                ["Preferred name", emp.preferredName ?? "—"],
               ].map(([label, value]) => (
                 <div
                   key={label}
                   className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm"
                 >
                   <dt className="text-muted-foreground">{label}</dt>
-                  <dd className="font-medium">{value}</dd>
+                  <dd className="truncate pl-2 font-medium">{value}</dd>
                 </div>
               ))}
             </dl>
@@ -901,8 +1089,14 @@ export default function OverviewWorkspace() {
   const canSeeOverview = canAccessCoreOverview(user);
   const isHrAdmin = canAccessEmployeeRoster(user);
   const isPlatformAdmin = canAccessOrganizations(user);
-  const isManager = canAccessTeamWorkspace(user);
-  const isEmployee = canAccessSelfEmployeeProfile(user);
+
+  // Personal (self / team) dashboard is driven by the workforce hierarchy, not a static
+  // profile: any workforce-linked user gets a dashboard, and having direct reports promotes
+  // them from the self view to the team view (cascading up the org). `workforce/me` is
+  // permissioned for own-profile/team scope, so it resolves without roster access.
+  const wantsPersonalDashboard =
+    !!user && !isPlatformAdmin && !isHrAdmin && !isInTenantContext;
+  const { data: me, isLoading: isMeLoading } = useWorkforceMe(wantsPersonalDashboard);
 
   if (isLoading) {
     return <LoadingSkeleton />;
@@ -917,12 +1111,20 @@ export default function OverviewWorkspace() {
   if (canSeeOverview && isHrAdmin) {
     return <HRAdminDashboard />;
   }
-  if (canSeeOverview && isManager) {
-    return <ManagerDashboard />;
+
+  if (wantsPersonalDashboard) {
+    if (isMeLoading && !me) {
+      return <LoadingSkeleton />;
+    }
+    if (me?.isWorkforceLinked && me.employee) {
+      return me.employee.directReportCount > 0 ? (
+        <ManagerDashboard me={me} />
+      ) : (
+        <EmployeeDashboard me={me} />
+      );
+    }
   }
-  if (canSeeOverview && isEmployee) {
-    return <EmployeeDashboard />;
-  }
+
   if (canSeeOverview) {
     return <CoreOperationsDashboard />;
   }
