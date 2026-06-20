@@ -31,6 +31,7 @@ export type {
 export {
   DonutChart,
   BarChartMini,
+  ColumnChart,
   ProgressMeter,
   CHART_PALETTE,
   CHART_TONES,

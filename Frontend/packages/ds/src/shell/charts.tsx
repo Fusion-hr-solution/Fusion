@@ -156,6 +156,44 @@ export function BarChartMini({
   );
 }
 
+/** Vertical column chart for time-series / ordered categories (e.g. hiring by month). */
+export function ColumnChart({
+  data,
+  height = 200,
+  color = "var(--chart-1)",
+  className,
+}: {
+  data: Array<{ name: string; value: number }>;
+  height?: number;
+  color?: string;
+  className?: string;
+}) {
+  return (
+    <div className={className} style={{ height }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={data} margin={{ left: -18, right: 4, top: 8, bottom: 0 }} barCategoryGap={4}>
+          <XAxis
+            dataKey="name"
+            tickLine={false}
+            axisLine={false}
+            interval={0}
+            tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+          />
+          <YAxis
+            allowDecimals={false}
+            tickLine={false}
+            axisLine={false}
+            width={32}
+            tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+          />
+          <Tooltip cursor={{ fill: "var(--muted)" }} contentStyle={TOOLTIP_STYLE} />
+          <Bar dataKey="value" radius={[4, 4, 0, 0]} fill={color} maxBarSize={28} />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
 /** Single labeled progress meter for completion-style metrics. */
 export function ProgressMeter({
   label,
