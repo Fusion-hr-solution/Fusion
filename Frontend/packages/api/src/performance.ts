@@ -65,6 +65,10 @@ export interface CycleParticipantDto {
   jobTitle: string | null;
   managerId: string | null;
   managerName: string | null;
+  planningApproverEmployeeId: string | null;
+  planningApproverName: string | null;
+  planningApproverSource: "Unresolved" | "DirectManager" | "EscalatedManager" | "ManualAssignment";
+  planningApproverOverrideReason: string | null;
   snapshotAt: string;
 }
 
@@ -84,6 +88,13 @@ export interface CyclePopulationPreviewDto {
   members: CyclePopulationMemberDto[];
 }
 
+export interface CycleReadinessDto {
+  participantCount: number;
+  resolvedPlanningApproverCount: number;
+  unresolvedPlanningApproverCount: number;
+  unresolvedParticipants: CycleParticipantDto[];
+}
+
 export interface CycleAuditEventDto {
   id: string;
   action: string;
@@ -98,6 +109,11 @@ export interface ObjectiveTemplateDto {
   name: string;
   description: string | null;
   category: string | null;
+  level: "Organization" | "Team" | "Individual";
+  parentTemplateId: string | null;
+  successMeasure: string | null;
+  target: string | null;
+  isReadyForPlanning: boolean;
   defaultWeight: number | null;
   status: "Active" | "Archived";
   createdAt: string;
@@ -151,11 +167,20 @@ export interface SetCyclePopulationRequest {
   rules: PopulationRuleInput[];
 }
 
+export interface AssignPlanningApproverRequest {
+  approverEmployeeId: string;
+  reason: string;
+}
+
 export interface CreateObjectiveTemplateRequest {
   name: string;
   description?: string | null;
   category?: string | null;
   defaultWeight?: number | null;
+  successMeasure?: string | null;
+  target?: string | null;
+  level?: "Organization" | "Team" | "Individual";
+  parentTemplateId?: string | null;
 }
 
 export type UpdateObjectiveTemplateRequest = CreateObjectiveTemplateRequest;
@@ -173,6 +198,9 @@ export const performancePaths = {
   cycleClose: (id: string) => `/performance/cycles/${id}/close`,
   cycleParticipants: (id: string) => `/performance/cycles/${id}/participants`,
   cycleAudit: (id: string) => `/performance/cycles/${id}/audit`,
+  cycleReadiness: (id: string) => `/performance/cycles/${id}/readiness`,
+  cyclePlanningApprover: (cycleId: string, participantId: string) =>
+    `/performance/cycles/${cycleId}/participants/${participantId}/planning-approver`,
   objectiveTemplates: () => "/performance/objective-templates",
   objectiveTemplate: (id: string) => `/performance/objective-templates/${id}`,
   objectiveTemplateArchive: (id: string) =>
@@ -222,6 +250,7 @@ export const performanceQueryKeys = {
       },
     ] as const,
   cycleAudit: (id: string) => [...performanceQueryKeys.cycle(id), "audit"] as const,
+  cycleReadiness: (id: string) => [...performanceQueryKeys.cycle(id), "readiness"] as const,
   objectiveTemplates: () =>
     [...performanceQueryKeys.all(), "objective-templates"] as const,
   objectiveTemplateList: (params: {

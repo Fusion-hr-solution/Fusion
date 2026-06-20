@@ -11,6 +11,11 @@ import {
   DialogTitle,
   Input,
   Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@repo/ds";
 import type { CreateObjectiveTemplateRequest, ObjectiveTemplateDto } from "@repo/api";
 
@@ -36,6 +41,9 @@ export function ObjectiveTemplateDialog({
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
   const [weight, setWeight] = useState("");
+  const [level, setLevel] = useState<"Organization" | "Team" | "Individual">("Individual");
+  const [successMeasure, setSuccessMeasure] = useState("");
+  const [target, setTarget] = useState("");
   const [validation, setValidation] = useState<string | null>(null);
 
   useEffect(() => {
@@ -44,6 +52,9 @@ export function ObjectiveTemplateDialog({
     setDescription(template?.description ?? "");
     setCategory(template?.category ?? "");
     setWeight(template?.defaultWeight != null ? String(template.defaultWeight) : "");
+    setLevel(template?.level ?? "Individual");
+    setSuccessMeasure(template?.successMeasure ?? "");
+    setTarget(template?.target ?? "");
     setValidation(null);
   }, [open, template]);
 
@@ -67,6 +78,9 @@ export function ObjectiveTemplateDialog({
       description: description.trim() || null,
       category: category.trim() || null,
       defaultWeight: weightValue,
+      level,
+      successMeasure: successMeasure.trim() || null,
+      target: target.trim() || null,
     });
   };
 
@@ -116,6 +130,25 @@ export function ObjectiveTemplateDialog({
                 placeholder="Optional"
               />
             </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Alignment level</Label>
+            <Select value={level} onValueChange={(value) => setLevel(value as typeof level)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Organization">Organization</SelectItem>
+                <SelectItem value="Team">Team</SelectItem>
+                <SelectItem value="Individual">Individual</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="tmpl-measure">Success measure</Label>
+            <Input id="tmpl-measure" value={successMeasure} onChange={(e) => setSuccessMeasure(e.target.value)} placeholder="How success is measured" />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="tmpl-target">Target</Label>
+            <Input id="tmpl-target" value={target} onChange={(e) => setTarget(e.target.value)} placeholder="Expected outcome by cycle end" />
           </div>
           {(validation || errorMessage) && (
             <p className="text-sm text-destructive">{validation ?? errorMessage}</p>

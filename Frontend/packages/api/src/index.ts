@@ -140,6 +140,7 @@ export type {
   CycleParticipantDto,
   CyclePopulationMemberDto,
   CyclePopulationPreviewDto,
+  CycleReadinessDto,
   CycleAuditEventDto,
   ObjectiveTemplateDto,
   PerformanceNotificationDto,
@@ -148,6 +149,7 @@ export type {
   UpdatePerformanceCycleRequest,
   PopulationRuleInput,
   SetCyclePopulationRequest,
+  AssignPlanningApproverRequest,
   CreateObjectiveTemplateRequest,
   UpdateObjectiveTemplateRequest,
 } from "./performance";

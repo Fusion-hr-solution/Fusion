@@ -33,12 +33,14 @@ import { PopulationEditor } from "@/components/population-editor";
 import {
   useCycleAudit,
   useCycleParticipants,
+  useCycleReadiness,
   useCycleTransition,
   useDeleteCycle,
   usePerformanceCycle,
   useSetCyclePopulation,
   useUpdateCycle,
 } from "@/hooks/use-cycles";
+import { PlanningApproverReadiness } from "@/components/planning-approver-readiness";
 import { formatDate, formatDateTime, formatPeriod } from "@/lib/format";
 
 export default function CycleDetailPage({
@@ -68,6 +70,7 @@ export default function CycleDetailPage({
     canView && !!cycle && !isDraft
   );
   const { data: audit } = useCycleAudit(id, canView && !!cycle);
+  const { data: readiness } = useCycleReadiness(id, canManage && !!cycle && cycle?.status !== "Draft");
 
   if (!canView) {
     return (
@@ -116,10 +119,24 @@ export default function CycleDetailPage({
   };
 
   const runTransition = (kind: "publish" | "activate" | "close") => {
+    const confirmation = kind === "publish"
+      ? "Publish this cycle? Its participant population will be frozen."
+      : kind === "activate"
+        ? "Activate this cycle? Participants will be able to begin performance planning."
+        : "Close this cycle? Closed cycles cannot be reopened.";
+
+    if (!window.confirm(confirmation)) {
+      return;
+    }
+
     transition.mutate({ kind, version: cycle.version });
   };
 
   const handleDelete = () => {
+    if (!window.confirm("Delete this draft cycle? This cannot be undone.")) {
+      return;
+    }
+
     deleteCycle
       .mutateAsync({ cycleId: cycle.id, version: cycle.version })
       .then(() => router.push("/cycles"))
@@ -272,6 +289,13 @@ export default function CycleDetailPage({
       )}
 
       <Separator className="my-8" />
+
+      {!isDraft && canManage && readiness ? (
+        <>
+          <PlanningApproverReadiness cycleId={cycle.id} version={cycle.version} readiness={readiness} />
+          <Separator className="my-8" />
+        </>
+      ) : null}
 
       <section>
         <h2 className="mb-4 text-lg font-semibold">Activity</h2>

@@ -5,6 +5,7 @@ import { createPlatformApiClient, performancePaths, performanceQueryKeys } from 
 import type {
   CreatePerformanceCycleRequest,
   CycleAuditEventDto,
+  CycleReadinessDto,
   CyclePopulationPreviewDto,
   CycleParticipantDto,
   PerformanceCycleDetailDto,
@@ -12,6 +13,7 @@ import type {
   PerformancePageDto,
   SetCyclePopulationRequest,
   UpdatePerformanceCycleRequest,
+  AssignPlanningApproverRequest,
 } from "@repo/api";
 import {
   keepPreviousData,
@@ -135,6 +137,26 @@ export function useCycleAudit(
   });
 }
 
+export function useCycleReadiness(
+  cycleId: string | null,
+  enabled = true
+): UseApiQueryResult<CycleReadinessDto> {
+  const { isAuthenticated } = useAuth();
+  const client = useMemo(() => createPlatformApiClient(), []);
+
+  const queryFn = useCallback(
+    (signal: AbortSignal) => {
+      if (!cycleId) throw new Error("Cycle id is required.");
+      return client.get<CycleReadinessDto>(performancePaths.cycleReadiness(cycleId), { signal });
+    },
+    [client, cycleId]
+  );
+
+  return useApiQuery(performanceQueryKeys.cycleReadiness(cycleId ?? "pending"), queryFn, {
+    enabled: isAuthenticated && enabled && !!cycleId,
+  });
+}
+
 export function useCyclePopulationPreview(
   cycleId: string | null,
   enabled = true
@@ -221,5 +243,21 @@ export function useCycleTransition(cycleId: string) {
     ({ kind, version }) =>
       client.post<PerformanceCycleDetailDto>(pathFor(kind), undefined, ifMatch(version)),
     { invalidateQueries: [{ queryKey: performanceQueryKeys.cycles() }] }
+  );
+}
+
+export function useAssignPlanningApprover(cycleId: string) {
+  const client = useMemo(() => createPlatformApiClient(), []);
+  return useApiMutation<
+    CycleParticipantDto,
+    { participantId: string; version: number; body: AssignPlanningApproverRequest }
+  >(
+    ({ participantId, version, body }) =>
+      client.post<CycleParticipantDto>(
+        performancePaths.cyclePlanningApprover(cycleId, participantId),
+        body,
+        ifMatch(version)
+      ),
+    { invalidateQueries: [{ queryKey: performanceQueryKeys.cycle(cycleId) }] }
   );
 }
