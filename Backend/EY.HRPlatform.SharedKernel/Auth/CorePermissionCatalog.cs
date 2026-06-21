@@ -180,9 +180,9 @@ public static class CorePermissionCatalog
             new("settings.modules.manage:learning", "Manage Learning module settings", "Module settings", [PermissionScopes.Module]),
             new("settings.modules.view:interview", "View Interview module settings", "Module settings", [PermissionScopes.Module]),
             new("settings.modules.manage:interview", "Manage Interview module settings", "Module settings", [PermissionScopes.Module]),
-            new(PerformancePermissions.CycleView, "View performance cycles", "Performance", [PermissionScopes.DirectReports, PermissionScopes.Tenant], "Controls access to performance cycles and their participation."),
-            new(PerformancePermissions.CycleManage, "Manage performance cycles", "Performance", [PermissionScopes.Tenant], "Create and edit draft cycles and their population."),
-            new(PerformancePermissions.CyclePublish, "Operate performance cycles", "Performance", [PermissionScopes.Tenant], "Publish, activate, and close cycles (governance-gated transitions)."),
+            new(PerformancePermissions.CycleView, "View performance cycles", "Performance", [PermissionScopes.DirectReports, PermissionScopes.OrgUnit, PermissionScopes.Tenant], "Controls access to performance cycles and their participation."),
+            new(PerformancePermissions.CycleManage, "Manage performance cycles", "Performance", [PermissionScopes.OrgUnit, PermissionScopes.Tenant], "Create and edit draft cycles and their population."),
+            new(PerformancePermissions.CyclePublish, "Operate performance cycles", "Performance", [PermissionScopes.OrgUnit, PermissionScopes.Tenant], "Publish, activate, and close cycles (governance-gated transitions)."),
             new(PerformancePermissions.ObjectiveLibraryView, "View objective library", "Performance", [PermissionScopes.Tenant]),
             new(PerformancePermissions.ObjectiveLibraryManage, "Manage objective library", "Performance", [PermissionScopes.Tenant]),
         ]);
