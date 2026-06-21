@@ -126,6 +126,8 @@ public sealed record WorkforceOrgUnitTreeNodeDto(
     int Level,
     bool IsActive,
     int PublishedStructureVersion,
+    int MemberCount,
+    int TotalMemberCount,
     IReadOnlyList<WorkforceOrgUnitTreeNodeDto> Children);
 
 public sealed record WorkforceOrgUnitTreeDto(

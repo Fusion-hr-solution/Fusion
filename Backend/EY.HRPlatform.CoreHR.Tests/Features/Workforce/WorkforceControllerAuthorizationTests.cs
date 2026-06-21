@@ -210,6 +210,7 @@ public class WorkforceControllerAuthorizationTests
         public Task<PagedResponse<WorkforceAccessSubjectSummaryDto>> SearchAccessSubjectsAsync(string? search, string? access, Guid? profileId, string? employeeStatus, string? deliveryState, string? employeeKey, int page, int pageSize, CancellationToken cancellationToken) => throw new NotImplementedException();
         public Task<WorkforceAccessRosterSummaryDto> GetAccessRosterSummaryAsync(CancellationToken cancellationToken) => throw new NotImplementedException();
         public Task<IReadOnlyList<WorkforceEmployeeSummaryDto>> GetTeamAsync(Guid employeeId, ClaimsPrincipal user, CancellationToken cancellationToken) => throw new NotImplementedException();
+        public Task<IReadOnlyList<WorkforceEmployeeSummaryDto>> GetDownlineAsync(Guid employeeId, int maxDepth, ClaimsPrincipal user, CancellationToken cancellationToken) => throw new NotImplementedException();
         public Task<IReadOnlyList<WorkforceEmployeeSummaryDto>> GetManagerChainAsync(Guid employeeId, ClaimsPrincipal user, CancellationToken cancellationToken) => throw new NotImplementedException();
         public Task<IReadOnlyList<WorkforceOrgUnitSummaryDto>> GetPublishedOrgUnitsAsync(bool includeInactive, CancellationToken cancellationToken) => throw new NotImplementedException();
         public Task<WorkforceOrgUnitTreeDto> GetPublishedOrgUnitTreeAsync(Guid? rootId, int maxDepth, bool includeInactive, CancellationToken cancellationToken) => throw new NotImplementedException();

@@ -19,6 +19,8 @@ function unit(
     type: "Department",
     level,
     isOrphaned: false,
+    memberCount: 0,
+    totalMemberCount: 0,
     children,
   };
 }

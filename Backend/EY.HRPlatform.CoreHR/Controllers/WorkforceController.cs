@@ -208,6 +208,22 @@ public class WorkforceController(
         return Ok(ApiResponse<IReadOnlyList<WorkforceEmployeeSummaryDto>>.Success(result));
     }
 
+    [HttpGet("employees/{employeeId:guid}/downline")]
+    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<WorkforceEmployeeSummaryDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetDownline(
+        Guid employeeId,
+        [FromQuery] int maxDepth = 10,
+        CancellationToken cancellationToken = default)
+    {
+        if (!accessPolicy.CanViewTeam(User) && !accessPolicy.CanViewTenantEmployees(User))
+        {
+            return Forbid();
+        }
+
+        var result = await workforceContractService.GetDownlineAsync(employeeId, maxDepth, User, cancellationToken);
+        return Ok(ApiResponse<IReadOnlyList<WorkforceEmployeeSummaryDto>>.Success(result));
+    }
+
     [HttpGet("employees/{employeeId:guid}/manager-chain")]
     [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<WorkforceEmployeeSummaryDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetManagerChain(Guid employeeId, CancellationToken cancellationToken)

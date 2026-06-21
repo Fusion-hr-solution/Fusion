@@ -40,6 +40,7 @@ public interface IWorkforceContractService
         CancellationToken cancellationToken);
     Task<WorkforceAccessRosterSummaryDto> GetAccessRosterSummaryAsync(CancellationToken cancellationToken);
     Task<IReadOnlyList<WorkforceEmployeeSummaryDto>> GetTeamAsync(Guid employeeId, ClaimsPrincipal user, CancellationToken cancellationToken);
+    Task<IReadOnlyList<WorkforceEmployeeSummaryDto>> GetDownlineAsync(Guid employeeId, int maxDepth, ClaimsPrincipal user, CancellationToken cancellationToken);
     Task<IReadOnlyList<WorkforceEmployeeSummaryDto>> GetManagerChainAsync(Guid employeeId, ClaimsPrincipal user, CancellationToken cancellationToken);
     Task<IReadOnlyList<WorkforceOrgUnitSummaryDto>> GetPublishedOrgUnitsAsync(bool includeInactive, CancellationToken cancellationToken);
     Task<WorkforceOrgUnitTreeDto> GetPublishedOrgUnitTreeAsync(Guid? rootId, int maxDepth, bool includeInactive, CancellationToken cancellationToken);
@@ -584,6 +585,71 @@ public sealed class WorkforceContractService(
         return await BuildSummariesAsync(employees, access.Audience, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<WorkforceEmployeeSummaryDto>> GetDownlineAsync(
+        Guid employeeId,
+        int maxDepth,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken)
+    {
+        var access = BuildAccessContext(user);
+        // A non-admin may only resolve their own subtree; HR/tenant readers may resolve any.
+        if (!access.IsHrAdmin && access.LinkedEmployeeId != employeeId)
+        {
+            return [];
+        }
+
+        var normalizedMaxDepth = Math.Clamp(maxDepth, 1, 25);
+
+        // Load the active manager edges once, then walk the subtree in memory (bounded + cycle-guarded).
+        var managerEdges = await dbContext.Employees
+            .AsNoTracking()
+            .Where(current => current.Status == EmployeeStatus.Active && current.ManagerId.HasValue)
+            .Select(current => new { current.Id, ManagerId = current.ManagerId!.Value })
+            .ToListAsync(cancellationToken);
+        var reportsByManager = managerEdges.ToLookup(edge => edge.ManagerId, edge => edge.Id);
+
+        var subtreeIds = new List<Guid>();
+        var visited = new HashSet<Guid> { employeeId };
+        var frontier = new Queue<(Guid Id, int Depth)>();
+        frontier.Enqueue((employeeId, 0));
+
+        while (frontier.Count > 0)
+        {
+            var (currentId, depth) = frontier.Dequeue();
+            if (depth >= normalizedMaxDepth)
+            {
+                continue;
+            }
+
+            foreach (var reportId in reportsByManager[currentId])
+            {
+                if (!visited.Add(reportId))
+                {
+                    continue;
+                }
+
+                subtreeIds.Add(reportId);
+                frontier.Enqueue((reportId, depth + 1));
+            }
+        }
+
+        if (subtreeIds.Count == 0)
+        {
+            return [];
+        }
+
+        var employees = await dbContext.Employees
+            .AsNoTracking()
+            .Include(current => current.Manager)
+            .Include(current => current.OrgUnit)
+            .Where(current => subtreeIds.Contains(current.Id))
+            .OrderBy(current => current.LastName)
+            .ThenBy(current => current.FirstName)
+            .ToListAsync(cancellationToken);
+
+        return await BuildSummariesAsync(employees, access.Audience, cancellationToken);
+    }
+
     public async Task<IReadOnlyList<WorkforceEmployeeSummaryDto>> GetManagerChainAsync(
         Guid employeeId,
         ClaimsPrincipal user,
@@ -662,6 +728,28 @@ public sealed class WorkforceContractService(
         var childrenByParentId = units
             .ToLookup(unit => unit.ParentId, unit => unit);
 
+        // Direct active-member count per unit, plus a full-subtree rollup computed over the entire
+        // hierarchy (independent of the render maxDepth so truncated branches still count).
+        var directMemberCounts = await dbContext.Employees
+            .AsNoTracking()
+            .Where(employee => employee.Status == EmployeeStatus.Active && employee.OrgUnitId.HasValue)
+            .GroupBy(employee => employee.OrgUnitId!.Value)
+            .Select(group => new { OrgUnitId = group.Key, Count = group.Count() })
+            .ToDictionaryAsync(group => group.OrgUnitId, group => group.Count, cancellationToken);
+
+        var totalMemberCounts = new Dictionary<Guid, int>();
+        int ComputeTotal(OrgUnit unit)
+        {
+            var total = directMemberCounts.GetValueOrDefault(unit.Id, 0)
+                + childrenByParentId[unit.Id].Sum(ComputeTotal);
+            totalMemberCounts[unit.Id] = total;
+            return total;
+        }
+        foreach (var topLevel in childrenByParentId[null])
+        {
+            ComputeTotal(topLevel);
+        }
+
         IReadOnlyList<OrgUnit> roots;
         if (rootId.HasValue)
         {
@@ -681,7 +769,7 @@ public sealed class WorkforceContractService(
 
         var normalizedMaxDepth = Math.Clamp(maxDepth, 1, 25);
         var nodes = roots
-            .Select(root => BuildOrgUnitTreeNode(root, childrenByParentId, orgLookup, structureInfo.PublishedStructureVersion, 0, normalizedMaxDepth))
+            .Select(root => BuildOrgUnitTreeNode(root, childrenByParentId, orgLookup, directMemberCounts, totalMemberCounts, structureInfo.PublishedStructureVersion, 0, normalizedMaxDepth))
             .ToList();
 
         return new WorkforceOrgUnitTreeDto(nodes, structureInfo.PublishedStructureVersion);
@@ -837,6 +925,8 @@ public sealed class WorkforceContractService(
         OrgUnit orgUnit,
         ILookup<Guid?, OrgUnit> childrenByParentId,
         IReadOnlyDictionary<Guid, OrgUnit> orgLookup,
+        IReadOnlyDictionary<Guid, int> directMemberCounts,
+        IReadOnlyDictionary<Guid, int> totalMemberCounts,
         int publishedStructureVersion,
         int depth,
         int maxDepth)
@@ -847,7 +937,7 @@ public sealed class WorkforceContractService(
         var children = depth + 1 >= maxDepth || childUnits.Count == 0
             ? []
             : childUnits
-                .Select(child => BuildOrgUnitTreeNode(child, childrenByParentId, orgLookup, publishedStructureVersion, depth + 1, maxDepth))
+                .Select(child => BuildOrgUnitTreeNode(child, childrenByParentId, orgLookup, directMemberCounts, totalMemberCounts, publishedStructureVersion, depth + 1, maxDepth))
                 .ToList();
 
         return new WorkforceOrgUnitTreeNodeDto(
@@ -862,6 +952,8 @@ public sealed class WorkforceContractService(
             GetOrgLevel(orgUnit, orgLookup),
             orgUnit.IsActive,
             publishedStructureVersion,
+            directMemberCounts.GetValueOrDefault(orgUnit.Id, 0),
+            totalMemberCounts.GetValueOrDefault(orgUnit.Id, 0),
             children);
     }
 

@@ -4,8 +4,6 @@ import { Building2, Layers, TreePine, Users, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useEmployeeRoster } from "../employees/use-employees";
 import type { OrgUnitTreeNodeDto } from "./org-chart.types";
 
 interface OrgUnitPreviewPanelProps {
@@ -21,16 +19,6 @@ export function OrgUnitPreviewPanel({
   onFocusBranch,
   onViewPeopleInUnit,
 }: OrgUnitPreviewPanelProps) {
-  // Member count is loaded lazily from the roster total for the selected unit. Server-side
-  // counts on the org-unit tree are deferred (see .local-docs/core/audits/deferred.md).
-  const { data: memberPage, isLoading } = useEmployeeRoster({
-    orgUnitCode: unit?.code ?? undefined,
-    page: 1,
-    pageSize: 1,
-    sortBy: "Name",
-    sortDir: "Asc",
-  });
-
   if (!unit) return null;
 
   const subUnitCount = unit.children.length;
@@ -65,14 +53,16 @@ export function OrgUnitPreviewPanel({
 
       <div className="grid shrink-0 grid-cols-2 gap-2 px-4 py-3">
         <div className="rounded-lg border bg-muted/30 px-3 py-2">
-          {isLoading ? (
-            <Skeleton className="h-6 w-10" />
-          ) : (
-            <p className="text-lg font-semibold leading-none">
-              {memberPage?.totalCount ?? "—"}
-            </p>
-          )}
-          <p className="mt-1 text-xs text-muted-foreground">Members</p>
+          <p className="text-lg font-semibold leading-none">{unit.memberCount}</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Members
+            {unit.totalMemberCount > unit.memberCount ? (
+              <span className="text-muted-foreground/70">
+                {" "}
+                · {unit.totalMemberCount} with sub-units
+              </span>
+            ) : null}
+          </p>
         </div>
         <div className="rounded-lg border bg-muted/30 px-3 py-2">
           <p className="text-lg font-semibold leading-none">{subUnitCount}</p>

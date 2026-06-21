@@ -73,6 +73,10 @@ export interface OrgUnitTreeNodeDto {
   type: string;
   level: number;
   isOrphaned: boolean;
+  /** Active employees assigned directly to this unit (server-computed). */
+  memberCount: number;
+  /** Active employees in this unit and all descendant units (server-computed). */
+  totalMemberCount: number;
   children: OrgUnitTreeNodeDto[];
 }
 
