@@ -103,6 +103,8 @@ test-results/
 # Temp / cache artifacts
 tmp/
 temp/
+.tmp/
+.worktrees/
 *.tsbuildinfo
 .eslintcache
 .sass-cache/
