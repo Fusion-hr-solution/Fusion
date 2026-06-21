@@ -8,6 +8,7 @@ using EY.HRPlatform.CoreHR.Features.TenantSetup.Services;
 using EY.HRPlatform.CoreHR.Features.Security;
 using EY.HRPlatform.CoreHR.Features.Workforce.Services;
 using EY.HRPlatform.SharedKernel.Multitenancy;
+using EY.HRPlatform.SharedKernel.Security;
 using Microsoft.EntityFrameworkCore;
 
 namespace EY.HRPlatform.CoreHR.Extensions;
@@ -19,6 +20,13 @@ public static class ServiceCollectionExtensions
         // Register MediatR - scans this assembly for all command/query handlers
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<Program>());
         services.AddHttpContextAccessor();
+        services.AddMemoryCache();
+        var internalServiceAuthentication = configuration
+            .GetSection(InternalServiceAuthenticationOptions.SectionName)
+            .Get<InternalServiceAuthenticationOptions>() ?? new InternalServiceAuthenticationOptions();
+        services.AddSingleton<IInternalServiceRequestAuthorizer>(sp => new InternalServiceRequestAuthorizer(
+            sp.GetRequiredService<Microsoft.Extensions.Caching.Memory.IMemoryCache>(),
+            internalServiceAuthentication));
 
         services.AddHttpClient<IIdentityTenantStatusReader, IdentityTenantStatusReader>(client =>
         {
@@ -53,6 +61,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ISettingsAuditService, SettingsAuditService>();
         services.AddScoped<IEmployeeImportWorkflowService, EmployeeImportWorkflowService>();
         services.AddScoped<IWorkforceContractService, WorkforceContractService>();
+        services.AddScoped<ICampaignWorkforceContextService, CampaignWorkforceContextService>();
+        services.AddScoped<IReportingRelationshipService, ReportingRelationshipService>();
 
         services.AddHttpClient<IWorkforceBulkProvisioner, WorkforceBulkProvisioner>(client =>
         {
