@@ -52,10 +52,6 @@ public sealed record CycleParticipantDto(
     string? JobTitle,
     Guid? ManagerId,
     string? ManagerName,
-    Guid? PlanningApproverEmployeeId,
-    string? PlanningApproverName,
-    string PlanningApproverSource,
-    string? PlanningApproverOverrideReason,
     DateTime SnapshotAt);
 
 public sealed record CyclePopulationMemberDto(
@@ -70,11 +66,58 @@ public sealed record CyclePopulationMemberDto(
 
 public sealed record CycleReadinessDto(
     int ParticipantCount,
-    int ResolvedPlanningApproverCount,
-    int UnresolvedPlanningApproverCount,
-    IReadOnlyList<CycleParticipantDto> UnresolvedParticipants);
+    int ConfirmedObjectiveResponsibilityCount,
+    int MissingObjectiveResponsibilityCount,
+    IReadOnlyList<CampaignResponsibilityWorkItemDto> MissingParticipants,
+    CampaignWorkforceDeltaDto WorkforceDelta);
 
-public sealed record AssignPlanningApproverRequest(Guid ApproverEmployeeId, string Reason);
+/// <summary>
+/// The difference between the responsibilities curated during preparation and the current Core
+/// workforce, re-resolved at the launch gate. <see cref="BlocksLaunch"/> is true when an issue
+/// (e.g. an inactive/missing final approver) must be re-curated before the campaign can launch.
+/// </summary>
+public sealed record CampaignWorkforceDeltaDto(
+    int InactiveSubjectCount,
+    int InactiveOrMissingAssigneeCount,
+    bool BlocksLaunch,
+    IReadOnlyList<CampaignWorkforceDeltaItemDto> Items);
+
+public sealed record CampaignWorkforceDeltaItemDto(
+    Guid SubjectEmployeeId,
+    string SubjectFullName,
+    Guid AssigneeEmployeeId,
+    string AssigneeName,
+    string Issue);
+
+public sealed record CampaignResponsibilitySummaryDto(
+    Guid Id,
+    Guid AssigneeEmployeeId,
+    string AssigneeName,
+    string Duty,
+    string Source,
+    string RelationshipSource,
+    string? OverrideReason,
+    int Revision,
+    DateTime RecordedAt);
+
+public sealed record CuratedCampaignResponsibilityDto(
+    CampaignResponsibilitySummaryDto Responsibility,
+    uint CycleVersion);
+
+public sealed record CampaignResponsibilityWorkItemDto(
+    Guid ParticipantId,
+    Guid SubjectEmployeeId,
+    string SubjectFullName,
+    string? OrgUnitName,
+    string? JobTitle,
+    string? CoreManagerName,
+    CampaignResponsibilitySummaryDto? CurrentResponsibility);
+
+public sealed record CampaignResponsibilitiesDto(
+    int ParticipantCount,
+    int ConfirmedObjectiveResponsibilityCount,
+    int MissingObjectiveResponsibilityCount,
+    IReadOnlyList<CampaignResponsibilityWorkItemDto> Items);
 
 public sealed record CurateCampaignResponsibilityRequest(
     Guid SubjectEmployeeId,

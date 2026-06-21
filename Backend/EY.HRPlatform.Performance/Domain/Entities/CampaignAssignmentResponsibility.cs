@@ -17,6 +17,9 @@ public class CampaignAssignmentResponsibility : BaseEntity, ITenantEntity
     public Guid CycleId { get; private set; }
     public Guid SubjectEmployeeId { get; private set; }
     public Guid AssigneeEmployeeId { get; private set; }
+
+    /// <summary>Denormalised display name of the assignee captured when the responsibility was curated.</summary>
+    public string AssigneeName { get; private set; } = string.Empty;
     public CampaignResponsibilityDuty Duty { get; private set; }
     public CampaignAssignmentSource Source { get; private set; }
     public string RelationshipSource { get; private set; } = string.Empty;
@@ -30,6 +33,7 @@ public class CampaignAssignmentResponsibility : BaseEntity, ITenantEntity
         Guid cycleId,
         Guid subjectEmployeeId,
         Guid assigneeEmployeeId,
+        string assigneeName,
         CampaignResponsibilityDuty duty,
         CampaignAssignmentSource source,
         string relationshipSource,
@@ -40,6 +44,8 @@ public class CampaignAssignmentResponsibility : BaseEntity, ITenantEntity
             throw new ArgumentException("Tenant, campaign, subject, and assignee are required.");
         if (subjectEmployeeId == assigneeEmployeeId)
             throw new DomainRuleViolationException("A person cannot be assigned their own manager responsibility.");
+        if (string.IsNullOrWhiteSpace(assigneeName))
+            throw new ArgumentException("Assignee name is required.", nameof(assigneeName));
         if (string.IsNullOrWhiteSpace(relationshipSource))
             throw new ArgumentException("Relationship source is required.", nameof(relationshipSource));
         if (revision < 1)
@@ -56,6 +62,7 @@ public class CampaignAssignmentResponsibility : BaseEntity, ITenantEntity
             CycleId = cycleId,
             SubjectEmployeeId = subjectEmployeeId,
             AssigneeEmployeeId = assigneeEmployeeId,
+            AssigneeName = assigneeName.Trim(),
             Duty = duty,
             Source = source,
             RelationshipSource = relationshipSource.Trim(),

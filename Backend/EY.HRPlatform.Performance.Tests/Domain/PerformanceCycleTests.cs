@@ -16,7 +16,7 @@ public class PerformanceCycleTests
     private static void PrepareForLaunch(PerformanceCycle cycle, DateTime occurredAt)
     {
         cycle.BeginAssignmentPreparation(1, occurredAt);
-        cycle.MarkReadyToLaunch(1, 0, true, occurredAt);
+        cycle.MarkReadyToLaunch(1, 0, hasAcceptedWorkforceDelta: true, occurredAt);
     }
 
     [Fact]
@@ -92,7 +92,17 @@ public class PerformanceCycleTests
     }
 
     [Fact]
-    public void MarkReadyToLaunch_RequiresAcceptedWorkforceDelta()
+    public void MarkReadyToLaunch_RequiresFinalResponsibilities()
+    {
+        var cycle = NewDraft();
+        cycle.BeginAssignmentPreparation(1, Start);
+
+        Assert.Throws<DomainRuleViolationException>(() =>
+            cycle.MarkReadyToLaunch(finalResponsibilityCount: 0, readinessFailureCount: 0, hasAcceptedWorkforceDelta: true, Start));
+    }
+
+    [Fact]
+    public void MarkReadyToLaunch_WithoutAcceptedWorkforceDelta_Throws()
     {
         var cycle = NewDraft();
         cycle.BeginAssignmentPreparation(1, Start);
@@ -117,7 +127,7 @@ public class PerformanceCycleTests
     public void Activate_FromDraft_Throws()
     {
         var cycle = NewDraft();
-        Assert.Throws<DomainRuleViolationException>(() => cycle.Activate(Start, unresolvedApproverCount: 0));
+        Assert.Throws<DomainRuleViolationException>(() => cycle.Activate(Start));
     }
 
     [Fact]
@@ -178,7 +188,7 @@ public class PerformanceCycleTests
 
         cycle.BeginAssignmentPreparation(1, now);
 
-        cycle.MarkReadyToLaunch(1, 0, true, now);
+        cycle.MarkReadyToLaunch(1, 0, hasAcceptedWorkforceDelta: true, now);
 
         Assert.Throws<DomainRuleViolationException>(() => cycle.Activate(now));
     }
@@ -196,7 +206,7 @@ public class PerformanceCycleTests
 
         cycle.BeginAssignmentPreparation(1, now);
 
-        Assert.Throws<DomainRuleViolationException>(() => cycle.MarkReadyToLaunch(1, 1, true, now));
+        Assert.Throws<DomainRuleViolationException>(() => cycle.MarkReadyToLaunch(1, 1, hasAcceptedWorkforceDelta: true, now));
     }
 
     [Fact]

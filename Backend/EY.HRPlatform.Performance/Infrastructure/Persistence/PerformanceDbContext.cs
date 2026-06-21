@@ -32,6 +32,7 @@ public class PerformanceDbContext : DbContext
     public DbSet<PerformanceCycle> PerformanceCycles => Set<PerformanceCycle>();
     public DbSet<PerformanceCyclePopulationRule> PerformanceCyclePopulationRules => Set<PerformanceCyclePopulationRule>();
     public DbSet<PerformanceCycleParticipant> PerformanceCycleParticipants => Set<PerformanceCycleParticipant>();
+    public DbSet<PerformanceObjective> PerformanceObjectives => Set<PerformanceObjective>();
     public DbSet<CampaignAssignmentResponsibility> CampaignAssignmentResponsibilities => Set<CampaignAssignmentResponsibility>();
     public DbSet<ObjectiveTemplate> ObjectiveTemplates => Set<ObjectiveTemplate>();
     public DbSet<PerformanceNotification> PerformanceNotifications => Set<PerformanceNotification>();
@@ -63,6 +64,9 @@ public class PerformanceDbContext : DbContext
 
         modelBuilder.Entity<PerformanceCycleParticipant>()
             .HasQueryFilter(p => CurrentTenantId != Guid.Empty && p.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<PerformanceObjective>()
+            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
 
         modelBuilder.Entity<CampaignAssignmentResponsibility>()
             .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);

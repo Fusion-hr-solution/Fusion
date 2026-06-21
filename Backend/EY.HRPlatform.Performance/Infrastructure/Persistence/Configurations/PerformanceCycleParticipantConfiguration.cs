@@ -1,5 +1,4 @@
 using EY.HRPlatform.Performance.Domain.Entities;
-using EY.HRPlatform.Performance.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -22,13 +21,6 @@ public class PerformanceCycleParticipantConfiguration : IEntityTypeConfiguration
         builder.Property(p => p.OrgUnitName).HasMaxLength(200);
         builder.Property(p => p.JobTitle).HasMaxLength(150);
         builder.Property(p => p.ManagerName).HasMaxLength(256);
-        builder.Property(p => p.PlanningApproverName).HasMaxLength(256);
-        builder.Property(p => p.PlanningApproverOverrideReason).HasMaxLength(1000);
-        builder.Property(p => p.PlanningApproverSource)
-            .HasConversion<string>()
-            .HasMaxLength(30)
-            .IsRequired()
-            .HasDefaultValue(PlanningApproverSource.Unresolved);
         builder.Property(p => p.SnapshotAt).IsRequired();
         builder.Property(p => p.CreatedBy).HasMaxLength(256);
         builder.Property(p => p.UpdatedBy).HasMaxLength(256);
@@ -40,9 +32,5 @@ public class PerformanceCycleParticipantConfiguration : IEntityTypeConfiguration
             .IsUnique()
             .HasDatabaseName("IX_PerformanceCycleParticipants_Cycle_Employee");
 
-        builder.HasIndex(p => new { p.CycleId, p.PlanningApproverEmployeeId })
-            .HasDatabaseName("IX_PerformanceCycleParticipants_Cycle_Approver");
-
-        builder.Ignore(p => p.HasResolvedPlanningApprover);
     }
 }

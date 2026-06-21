@@ -1,37 +1,37 @@
 using EY.HRPlatform.Performance.Features.Cycles.Dtos;
 using EY.HRPlatform.Performance.Infrastructure.Persistence;
+using EY.HRPlatform.Performance.Infrastructure.Workforce;
 using EY.HRPlatform.SharedKernel.CQRS;
 using EY.HRPlatform.SharedKernel.Results;
-using Microsoft.EntityFrameworkCore;
 
 namespace EY.HRPlatform.Performance.Features.Cycles.Queries;
 
 public sealed record GetCycleReadinessQuery(Guid CycleId) : IQuery<Result<CycleReadinessDto>>;
 
-public sealed class GetCycleReadinessQueryHandler(PerformanceDbContext dbContext)
+public sealed class GetCycleReadinessQueryHandler(
+    PerformanceDbContext dbContext,
+    ICoreWorkforceClient workforceClient)
     : IQueryHandler<GetCycleReadinessQuery, Result<CycleReadinessDto>>
 {
     public async Task<Result<CycleReadinessDto>> Handle(GetCycleReadinessQuery request, CancellationToken cancellationToken)
     {
-        var cycleExists = await dbContext.PerformanceCycles
-            .AsNoTracking()
-            .AnyAsync(cycle => cycle.Id == request.CycleId, cancellationToken);
-        if (!cycleExists)
-        {
-            return Result.Failure<CycleReadinessDto>(Error.NotFound("PerformanceCycle", request.CycleId));
-        }
+        var responsibilities = await CampaignResponsibilityReadModel.LoadAsync(
+            dbContext, request.CycleId, "all", cancellationToken);
+        if (responsibilities.IsFailure)
+            return Result.Failure<CycleReadinessDto>(responsibilities.Error);
 
-        var participants = await dbContext.PerformanceCycleParticipants
-            .AsNoTracking()
-            .Where(participant => participant.CycleId == request.CycleId)
-            .OrderBy(participant => participant.FullName)
-            .ToListAsync(cancellationToken);
-        var unresolved = participants.Where(participant => !participant.HasResolvedPlanningApprover).ToList();
+        // Re-resolve the curated people against current Core truth so the operator can review the
+        // workforce delta before launch. Only confirmed responsibilities carry an assignee to check.
+        var delta = await CampaignWorkforceDeltaResolver.ComputeAsync(
+            responsibilities.Value.Items.Where(x => x.CurrentResponsibility is not null).ToList(),
+            workforceClient,
+            cancellationToken);
 
         return new CycleReadinessDto(
-            participants.Count,
-            participants.Count - unresolved.Count,
-            unresolved.Count,
-            unresolved.Select(CycleMapper.ToParticipantDto).ToList());
+            responsibilities.Value.ParticipantCount,
+            responsibilities.Value.ConfirmedObjectiveResponsibilityCount,
+            responsibilities.Value.MissingObjectiveResponsibilityCount,
+            responsibilities.Value.Items.Where(x => x.CurrentResponsibility is null).ToList(),
+            delta);
     }
 }

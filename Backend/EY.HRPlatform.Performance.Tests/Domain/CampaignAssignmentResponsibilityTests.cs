@@ -11,13 +11,26 @@ public class CampaignAssignmentResponsibilityTests
     {
         var responsibility = CampaignAssignmentResponsibility.Confirm(
             Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
+            "Ahmed Khaled",
             CampaignResponsibilityDuty.ObjectiveApproval,
             CampaignAssignmentSource.Curated,
             "PrimaryManager", "Manager is on approved leave.");
 
         Assert.True(responsibility.IsFinal);
+        Assert.Equal("Ahmed Khaled", responsibility.AssigneeName);
         Assert.Equal("Manager is on approved leave.", responsibility.OverrideReason);
         Assert.Equal(CampaignAssignmentSource.Curated, responsibility.Source);
+    }
+
+    [Fact]
+    public void Confirmed_FinalResponsibility_RequiresAssigneeName()
+    {
+        Assert.Throws<ArgumentException>(() => CampaignAssignmentResponsibility.Confirm(
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
+            "  ",
+            CampaignResponsibilityDuty.ObjectiveApproval,
+            CampaignAssignmentSource.Curated,
+            "PrimaryManager"));
     }
 
     [Fact]
@@ -27,6 +40,7 @@ public class CampaignAssignmentResponsibilityTests
 
         Assert.Throws<DomainRuleViolationException>(() => CampaignAssignmentResponsibility.Confirm(
             Guid.NewGuid(), Guid.NewGuid(), employeeId, employeeId,
+            "Self",
             CampaignResponsibilityDuty.ObjectiveApproval,
             CampaignAssignmentSource.Curated,
             "PrimaryManager", "Not allowed"));

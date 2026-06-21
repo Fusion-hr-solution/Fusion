@@ -14,6 +14,7 @@ public class CampaignAssignmentResponsibilityConfiguration : IEntityTypeConfigur
         builder.Property(x => x.CycleId).IsRequired();
         builder.Property(x => x.SubjectEmployeeId).IsRequired();
         builder.Property(x => x.AssigneeEmployeeId).IsRequired();
+        builder.Property(x => x.AssigneeName).HasMaxLength(256).IsRequired();
         builder.Property(x => x.Duty).HasConversion<string>().HasMaxLength(40).IsRequired();
         builder.Property(x => x.Source).HasConversion<string>().HasMaxLength(40).IsRequired();
         builder.Property(x => x.RelationshipSource).HasMaxLength(80).IsRequired();

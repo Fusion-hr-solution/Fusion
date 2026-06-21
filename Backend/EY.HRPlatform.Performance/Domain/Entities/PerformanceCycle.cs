@@ -144,7 +144,7 @@ public class PerformanceCycle : AggregateRoot, ITenantEntity
             throw new DomainRuleViolationException("All assignment readiness failures must be resolved before launch.");
 
         if (!hasAcceptedWorkforceDelta)
-            throw new DomainRuleViolationException("A current Core workforce delta must be explicitly accepted before launch.");
+            throw new DomainRuleViolationException("The current Core workforce delta must be explicitly accepted before launch.");
 
         var now = NormalizeUtc(occurredAt, nameof(occurredAt));
         Status = PerformanceCycleStatus.ReadyToLaunch;
@@ -169,13 +169,6 @@ public class PerformanceCycle : AggregateRoot, ITenantEntity
         Touch();
     }
 
-    public void Activate(DateTime occurredAt, int unresolvedApproverCount)
-    {
-        if (unresolvedApproverCount < 0)
-            throw new ArgumentOutOfRangeException(nameof(unresolvedApproverCount));
-        Activate(occurredAt);
-    }
-
     public void Close(DateTime occurredAt)
     {
         if (Status != PerformanceCycleStatus.Active)
@@ -197,9 +190,6 @@ public class PerformanceCycle : AggregateRoot, ITenantEntity
 
         Touch();
     }
-
-    /// <summary>Legacy bridge until the planning-approver route is removed with its UI.</summary>
-    public void RecordPlanningApproverChange() => RecordResponsibilityChange();
 
     private void ApplyDetails(
         string name,

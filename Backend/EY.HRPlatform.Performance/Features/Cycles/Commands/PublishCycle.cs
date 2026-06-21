@@ -3,7 +3,6 @@ using EY.HRPlatform.Performance.Domain.Enums;
 using EY.HRPlatform.Performance.Exceptions;
 using EY.HRPlatform.Performance.Features.Cycles.Dtos;
 using EY.HRPlatform.Performance.Features.Cycles.Services;
-using EY.HRPlatform.Performance.Features.Notifications;
 using EY.HRPlatform.Performance.Features.Security;
 using EY.HRPlatform.Performance.Infrastructure.Notifications;
 using EY.HRPlatform.Performance.Infrastructure.Persistence;
@@ -84,16 +83,10 @@ public sealed class PublishCycleCommandHandler(
         dbContext.PerformanceCycleAuditEvents.Add(PerformanceCycleAuditEvent.Create(
             tenantId,
             cycle.Id,
-            PerformanceCycleAuditAction.Published,
+            PerformanceCycleAuditAction.AssignmentPreparationStarted,
             currentUser.UserId,
             currentUser.FullName,
             $"Prepared {participants.Count} workforce candidate(s). Final responsibilities remain unassigned."));
-
-        dbContext.PerformanceNotifications.AddRange(
-            CycleNotificationFactory.ForLifecycle(
-                cycle,
-                PerformanceNotificationType.CyclePublished,
-                participants.Select(p => p.EmployeeId)));
 
         try
         {
