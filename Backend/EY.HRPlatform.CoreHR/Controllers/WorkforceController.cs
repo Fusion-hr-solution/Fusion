@@ -252,6 +252,41 @@ public class WorkforceController(
         return Ok(ApiResponse<IReadOnlyList<WorkforceOrgUnitSummaryDto>>.Success(result));
     }
 
+    [HttpGet("org-units/{orgUnitId:guid}")]
+    [ProducesResponseType(typeof(ApiResponse<WorkforceOrgUnitDetailDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetOrgUnitDetail(Guid orgUnitId, CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanViewStructure(User))
+        {
+            return Forbid();
+        }
+
+        var result = await workforceContractService.GetOrgUnitDetailAsync(orgUnitId, cancellationToken);
+        if (result is null)
+        {
+            return NotFound(ApiResponse.Failure("Org unit was not found or is not visible in the current scope."));
+        }
+
+        return Ok(ApiResponse<WorkforceOrgUnitDetailDto>.Success(result));
+    }
+
+    [HttpGet("org-units/{orgUnitId:guid}/members")]
+    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<WorkforceEmployeeSummaryDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetOrgUnitMembers(
+        Guid orgUnitId,
+        [FromQuery] bool includeDescendants = false,
+        CancellationToken cancellationToken = default)
+    {
+        if (accessPolicy.GetEmployeeViewScope(User) is null && !accessPolicy.CanViewOwnProfile(User))
+        {
+            return Forbid();
+        }
+
+        var result = await workforceContractService.GetOrgUnitMembersAsync(orgUnitId, includeDescendants, User, cancellationToken);
+        return Ok(ApiResponse<IReadOnlyList<WorkforceEmployeeSummaryDto>>.Success(result));
+    }
+
     [HttpGet("org-units/tree")]
     [ProducesResponseType(typeof(ApiResponse<WorkforceOrgUnitTreeDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetPublishedOrgUnitTree(

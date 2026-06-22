@@ -134,6 +134,21 @@ public sealed record WorkforceOrgUnitTreeDto(
     IReadOnlyList<WorkforceOrgUnitTreeNodeDto> Roots,
     int PublishedStructureVersion);
 
+/// <summary>
+/// Detailed org-unit projection returned by the workforce contract's org-unit-by-id read (D-16 seam #2).
+/// Includes the responsible manager/owner so Performance can route collective-objective approval
+/// without modelling org structure itself.
+/// </summary>
+public sealed record WorkforceOrgUnitDetailDto(
+    Guid OrgUnitId,
+    string StableOrgUnitKey,
+    string Code,
+    string Name,
+    string Type,
+    Guid? ParentId,
+    Guid? ResponsibleManagerEmployeeId,
+    bool IsActive);
+
 public sealed record WorkforceEmployeeSearchResponseDto(
     PagedResponse<WorkforceEmployeeSummaryDto> Results);
 

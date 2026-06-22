@@ -214,5 +214,7 @@ public class WorkforceControllerAuthorizationTests
         public Task<IReadOnlyList<WorkforceEmployeeSummaryDto>> GetManagerChainAsync(Guid employeeId, ClaimsPrincipal user, CancellationToken cancellationToken) => throw new NotImplementedException();
         public Task<IReadOnlyList<WorkforceOrgUnitSummaryDto>> GetPublishedOrgUnitsAsync(bool includeInactive, CancellationToken cancellationToken) => throw new NotImplementedException();
         public Task<WorkforceOrgUnitTreeDto> GetPublishedOrgUnitTreeAsync(Guid? rootId, int maxDepth, bool includeInactive, CancellationToken cancellationToken) => throw new NotImplementedException();
+        public Task<WorkforceOrgUnitDetailDto?> GetOrgUnitDetailAsync(Guid orgUnitId, CancellationToken cancellationToken) => throw new NotImplementedException();
+        public Task<IReadOnlyList<WorkforceEmployeeSummaryDto>> GetOrgUnitMembersAsync(Guid orgUnitId, bool includeDescendants, System.Security.Claims.ClaimsPrincipal user, CancellationToken cancellationToken) => throw new NotImplementedException();
     }
 }

@@ -33,6 +33,7 @@ public sealed class GetOrgUnitByIdQueryHandler(
             orgUnit.IsActive,
             orgUnit.CreatedAt,
             orgUnit.UpdatedAt,
-            orgUnit.Version));
+            orgUnit.Version,
+            orgUnit.ResponsibleManagerEmployeeId));
     }
 }

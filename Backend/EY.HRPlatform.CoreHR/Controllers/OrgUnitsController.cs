@@ -114,7 +114,8 @@ public class OrgUnitsController(
             request.Code,
             request.Name,
             request.Type,
-            request.ParentId);
+            request.ParentId,
+            request.ResponsibleManagerEmployeeId);
 
         var result = await sender.Send(command, cancellationToken);
 
@@ -160,7 +161,8 @@ public class OrgUnitsController(
             request.Name,
             request.Type,
             request.ParentId,
-            expectedVersion);
+            expectedVersion,
+            request.ResponsibleManagerEmployeeId);
 
         var result = await sender.Send(command, cancellationToken);
 
