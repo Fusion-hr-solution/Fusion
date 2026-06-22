@@ -72,4 +72,9 @@ public class CampaignAssignmentResponsibility : BaseEntity, ITenantEntity
             RecordedAt = DateTime.UtcNow
         };
     }
+
+    /// <summary>
+    /// Marks this revision as superseded (no longer the active final revision for its subject+duty).
+    /// </summary>
+    public void Supersede() => IsFinal = false;
 }

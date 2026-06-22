@@ -79,7 +79,13 @@ public sealed record CycleReadinessDto(
     int ConfirmedObjectiveResponsibilityCount,
     int MissingObjectiveResponsibilityCount,
     IReadOnlyList<CampaignResponsibilityWorkItemDto> MissingParticipants,
-    CampaignWorkforceDeltaDto WorkforceDelta);
+    CampaignWorkforceDeltaDto WorkforceDelta,
+    IReadOnlyList<OverloadedAssigneeWarningDto> OverloadedAssigneeWarnings);
+
+public sealed record OverloadedAssigneeWarningDto(
+    Guid AssigneeEmployeeId,
+    string AssigneeName,
+    int SubjectCount);
 
 /// <summary>
 /// The difference between the responsibilities curated during preparation and the current Core

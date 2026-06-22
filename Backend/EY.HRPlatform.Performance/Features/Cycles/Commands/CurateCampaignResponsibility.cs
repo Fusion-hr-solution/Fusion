@@ -50,6 +50,66 @@ public sealed class CurateCampaignResponsibilityCommandHandler(
             .Where(x => x.CycleId == request.CycleId && x.SubjectEmployeeId == request.SubjectEmployeeId && x.Duty == request.Duty)
             .MaxAsync(x => (int?)x.Revision, cancellationToken) ?? 0;
 
+        // Cycle detection — only applies to ObjectiveApproval duties.
+        if (request.Duty == CampaignResponsibilityDuty.ObjectiveApproval)
+        {
+            var existingEdges = await dbContext.CampaignAssignmentResponsibilities
+                .Where(x => x.CycleId == request.CycleId
+                    && x.Duty == CampaignResponsibilityDuty.ObjectiveApproval
+                    && x.IsFinal)
+                .Select(x => new { x.SubjectEmployeeId, x.AssigneeEmployeeId })
+                .ToListAsync(cancellationToken);
+
+            // Build adjacency list (Subject -> Assignee).
+            var graph = new Dictionary<Guid, List<Guid>>();
+            foreach (var edge in existingEdges)
+            {
+                if (!graph.TryGetValue(edge.SubjectEmployeeId, out var neighbors))
+                {
+                    neighbors = [];
+                    graph[edge.SubjectEmployeeId] = neighbors;
+                }
+                neighbors.Add(edge.AssigneeEmployeeId);
+            }
+
+            // Add the proposed new edge and check for cycle.
+            if (!graph.TryGetValue(request.SubjectEmployeeId, out var newNeighbors))
+            {
+                newNeighbors = [];
+                graph[request.SubjectEmployeeId] = newNeighbors;
+            }
+            newNeighbors.Add(request.AssigneeEmployeeId);
+
+            // DFS from the proposed assignee to see if we can reach the proposed subject.
+            var visited = new HashSet<Guid>();
+            var stack = new Stack<Guid>();
+            stack.Push(request.AssigneeEmployeeId);
+            while (stack.Count > 0)
+            {
+                var current = stack.Pop();
+                if (current == request.SubjectEmployeeId)
+                    return Result.Failure<CuratedCampaignResponsibilityDto>(
+                        new Error("Cycle.ApprovalChainCycle", "Adding this responsibility would create an approval chain cycle."));
+                if (!visited.Add(current))
+                    continue;
+                if (graph.TryGetValue(current, out var nextNeighbors))
+                {
+                    foreach (var next in nextNeighbors)
+                        stack.Push(next);
+                }
+            }
+        }
+
+        // Supersede — mark any previous final revision for the same subject+duty as no longer final.
+        var previousFinals = await dbContext.CampaignAssignmentResponsibilities
+            .Where(x => x.CycleId == request.CycleId
+                && x.SubjectEmployeeId == request.SubjectEmployeeId
+                && x.Duty == request.Duty
+                && x.IsFinal)
+            .ToListAsync(cancellationToken);
+        foreach (var prev in previousFinals)
+            prev.Supersede();
+
         CampaignAssignmentResponsibility responsibility;
         try
         {

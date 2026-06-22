@@ -1,3 +1,4 @@
+using EY.HRPlatform.Performance.Domain.Enums;
 using EY.HRPlatform.Performance.Features.Cycles.Dtos;
 using EY.HRPlatform.Performance.Infrastructure.Persistence;
 using EY.HRPlatform.Performance.Infrastructure.Workforce;
@@ -27,11 +28,25 @@ public sealed class GetCycleReadinessQueryHandler(
             workforceClient,
             cancellationToken);
 
+        // Overload warnings — count how many unique subjects each assignee has for ObjectiveApproval.
+        const int overloadThreshold = 10;
+        var overloadWarnings = responsibilities.Value.Items
+            .Where(x => x.CurrentResponsibility is not null
+                && x.CurrentResponsibility!.Duty == CampaignResponsibilityDuty.ObjectiveApproval.ToString())
+            .GroupBy(x => x.CurrentResponsibility!.AssigneeEmployeeId)
+            .Where(g => g.Count() > overloadThreshold)
+            .Select(g => new OverloadedAssigneeWarningDto(
+                g.Key,
+                g.First().CurrentResponsibility!.AssigneeName,
+                g.Count()))
+            .ToList();
+
         return new CycleReadinessDto(
             responsibilities.Value.ParticipantCount,
             responsibilities.Value.ConfirmedObjectiveResponsibilityCount,
             responsibilities.Value.MissingObjectiveResponsibilityCount,
             responsibilities.Value.Items.Where(x => x.CurrentResponsibility is null).ToList(),
-            delta);
+            delta,
+            overloadWarnings);
     }
 }
