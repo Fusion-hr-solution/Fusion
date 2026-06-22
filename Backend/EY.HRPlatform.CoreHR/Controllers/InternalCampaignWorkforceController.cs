@@ -5,8 +5,8 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace EY.HRPlatform.CoreHR.Controllers;
 
-public sealed record CampaignWorkforceContextRequest(DateTime AsOf);
-public sealed record CampaignWorkforceDeltaRequest(DateTime AsOf, string BaselineSourceVersion);
+public sealed record CampaignWorkforceContextRequest(DateTime AsOf, IReadOnlyList<Guid>? EmployeeIds = null);
+public sealed record CampaignWorkforceDeltaRequest(DateTime AsOf, CampaignWorkforceContext Baseline);
 
 [ApiController]
 [AllowAnonymous]
@@ -24,20 +24,20 @@ public sealed class InternalCampaignWorkforceController(
         if (!await authorizer.AuthorizeAsync(Request, cancellationToken))
             return Unauthorized();
 
-        return Ok(await workforceContextService.GetAsync(request.AsOf, cancellationToken));
+        var context = request.EmployeeIds is { Count: > 0 }
+            ? await workforceContextService.GetAsync(request.AsOf, request.EmployeeIds, cancellationToken)
+            : await workforceContextService.GetAsync(request.AsOf, cancellationToken);
+        return Ok(context);
     }
 
     [HttpPost("delta")]
-    public async Task<ActionResult<CampaignWorkforceContext>> GetDelta(
+    public async Task<ActionResult<CampaignWorkforceDelta>> GetDelta(
         [FromBody] CampaignWorkforceDeltaRequest request,
         CancellationToken cancellationToken)
     {
         if (!await authorizer.AuthorizeAsync(Request, cancellationToken))
             return Unauthorized();
 
-        return Ok(await workforceContextService.GetDeltaAsync(
-            request.AsOf,
-            request.BaselineSourceVersion,
-            cancellationToken));
+        return Ok(await workforceContextService.GetDeltaAsync(request.AsOf, request.Baseline, cancellationToken));
     }
 }

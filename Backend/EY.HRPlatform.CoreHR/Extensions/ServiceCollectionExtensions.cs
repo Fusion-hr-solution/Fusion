@@ -27,6 +27,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IInternalServiceRequestAuthorizer>(sp => new InternalServiceRequestAuthorizer(
             sp.GetRequiredService<Microsoft.Extensions.Caching.Memory.IMemoryCache>(),
             internalServiceAuthentication));
+        services.AddSingleton<IInternalServiceRequestSigner>(_ => new InternalServiceRequestSigner(
+            internalServiceAuthentication));
 
         services.AddHttpClient<IIdentityTenantStatusReader, IdentityTenantStatusReader>(client =>
         {
