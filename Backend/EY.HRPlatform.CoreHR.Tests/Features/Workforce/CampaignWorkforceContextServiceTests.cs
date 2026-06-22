@@ -258,4 +258,39 @@ public sealed class CampaignWorkforceContextServiceTests
         // Future org membership excluded: no org unit membership
         Assert.Empty(participant.OrgUnitIds);
     }
+
+    /// <summary>
+    /// GAP IN-01: Locks the legacy-title suppression invariant.
+    /// A CreateLegacy assignment (PositionId == null) must never count as a canonical
+    /// position — the member must report MissingCanonicalPrimaryPosition and
+    /// IsPacketAReady == false even when a legacy primary assignment exists.
+    /// </summary>
+    [Fact]
+    public async Task GetAsync_LegacyTitleAssignment_DoesNotSatisfyCanonicalPositionRequirement()
+    {
+        var tenantId = Guid.NewGuid();
+        await using var db = TestDbContextFactory.Create(TestTenantContext.WithTenant(tenantId));
+        var at = new DateTime(2026, 6, 21, 0, 0, 0, DateTimeKind.Utc);
+
+        var employee = Employee.Create(tenantId, "Legacy", "Worker", "legacy.worker@example.com", at);
+
+        // A legacy primary assignment: has IsPrimary=true but PositionId is null
+        var legacyAssignment = EmployeePositionAssignment.CreateLegacy(
+            tenantId, employee.Id,
+            legacyPositionTitle: "Senior Analyst",
+            isPrimary: true,
+            effectiveFrom: at);
+
+        db.AddRange(employee, legacyAssignment);
+        await db.SaveChangesAsync();
+
+        var context = await new CampaignWorkforceContextService(db).GetAsync(at, [employee.Id]);
+
+        var participant = Assert.Single(context.Members);
+        Assert.True(participant.IsActive);
+        Assert.False(participant.IsPacketAReady);
+        Assert.Contains("MissingCanonicalPrimaryPosition", participant.RemediationCodes);
+        // Legacy assignment must not be mistaken for a canonical position
+        Assert.DoesNotContain("ConflictingPrimaryPositionAssignments", participant.RemediationCodes);
+    }
 }
