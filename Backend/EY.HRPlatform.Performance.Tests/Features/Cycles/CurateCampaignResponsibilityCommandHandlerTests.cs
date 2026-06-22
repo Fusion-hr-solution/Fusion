@@ -15,6 +15,7 @@ public class CurateCampaignResponsibilityCommandHandlerTests
         var now = DateTime.UtcNow;
         await using var db = PerformanceTestContext.Create(tenantId, out var tenantContext);
         var cycle = PerformanceCycle.Create(tenantId, "FY26", PerformanceCycleType.Annual, now.AddDays(-1), now.AddDays(10));
+        cycle.ConfigureForAssignmentPreparation();
         cycle.BeginAssignmentPreparation(1, now);
         var subjectId = Guid.NewGuid();
         var assigneeId = Guid.NewGuid();
@@ -41,6 +42,7 @@ public class CurateCampaignResponsibilityCommandHandlerTests
         var now = DateTime.UtcNow;
         await using var db = PerformanceTestContext.Create(tenantId, out var tenantContext);
         var cycle = PerformanceCycle.Create(tenantId, "FY26", PerformanceCycleType.Annual, now.AddDays(-1), now.AddDays(10));
+        cycle.ConfigureForAssignmentPreparation();
         cycle.BeginAssignmentPreparation(1, now);
         var subjectId = Guid.NewGuid();
         var assigneeId = Guid.NewGuid();

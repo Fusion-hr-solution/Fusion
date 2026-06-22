@@ -32,7 +32,16 @@ public class PerformanceDbContext : DbContext
     public DbSet<PerformanceCycle> PerformanceCycles => Set<PerformanceCycle>();
     public DbSet<PerformanceCyclePopulationRule> PerformanceCyclePopulationRules => Set<PerformanceCyclePopulationRule>();
     public DbSet<PerformanceCycleParticipant> PerformanceCycleParticipants => Set<PerformanceCycleParticipant>();
+    public DbSet<CampaignLaunchParticipantSnapshot> CampaignLaunchParticipantSnapshots => Set<CampaignLaunchParticipantSnapshot>();
+    public DbSet<CampaignExceptionOwner> CampaignExceptionOwners => Set<CampaignExceptionOwner>();
+    public DbSet<FormalReviewDefinitionSnapshot> FormalReviewDefinitionSnapshots => Set<FormalReviewDefinitionSnapshot>();
+    public DbSet<FormalReviewCriterionSnapshot> FormalReviewCriterionSnapshots => Set<FormalReviewCriterionSnapshot>();
+    public DbSet<FormalRatingScaleLevelSnapshot> FormalRatingScaleLevelSnapshots => Set<FormalRatingScaleLevelSnapshot>();
+    public DbSet<PerformanceReview> PerformanceReviews => Set<PerformanceReview>();
+    public DbSet<PerformanceReviewCriterionResponse> PerformanceReviewCriterionResponses => Set<PerformanceReviewCriterionResponse>();
     public DbSet<PerformanceObjective> PerformanceObjectives => Set<PerformanceObjective>();
+    public DbSet<PerformanceObjectiveMilestone> PerformanceObjectiveMilestones => Set<PerformanceObjectiveMilestone>();
+    public DbSet<CampaignWorkItem> CampaignWorkItems => Set<CampaignWorkItem>();
     public DbSet<CampaignAssignmentResponsibility> CampaignAssignmentResponsibilities => Set<CampaignAssignmentResponsibility>();
     public DbSet<ObjectiveTemplate> ObjectiveTemplates => Set<ObjectiveTemplate>();
     public DbSet<PerformanceNotification> PerformanceNotifications => Set<PerformanceNotification>();
@@ -65,7 +74,34 @@ public class PerformanceDbContext : DbContext
         modelBuilder.Entity<PerformanceCycleParticipant>()
             .HasQueryFilter(p => CurrentTenantId != Guid.Empty && p.TenantId == CurrentTenantId);
 
+        modelBuilder.Entity<CampaignLaunchParticipantSnapshot>()
+            .HasQueryFilter(p => CurrentTenantId != Guid.Empty && p.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<CampaignExceptionOwner>()
+            .HasQueryFilter(p => CurrentTenantId != Guid.Empty && p.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<FormalReviewDefinitionSnapshot>()
+            .HasQueryFilter(p => CurrentTenantId != Guid.Empty && p.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<FormalReviewCriterionSnapshot>()
+            .HasQueryFilter(p => CurrentTenantId != Guid.Empty && p.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<FormalRatingScaleLevelSnapshot>()
+            .HasQueryFilter(p => CurrentTenantId != Guid.Empty && p.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<PerformanceReview>()
+            .HasQueryFilter(p => CurrentTenantId != Guid.Empty && p.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<PerformanceReviewCriterionResponse>()
+            .HasQueryFilter(p => CurrentTenantId != Guid.Empty && p.TenantId == CurrentTenantId);
+
         modelBuilder.Entity<PerformanceObjective>()
+            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<PerformanceObjectiveMilestone>()
+            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<CampaignWorkItem>()
             .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
 
         modelBuilder.Entity<CampaignAssignmentResponsibility>()

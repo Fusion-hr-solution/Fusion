@@ -39,7 +39,17 @@ public sealed record PerformanceCycleDetailDto(
     DateTime CreatedAt,
     DateTime? UpdatedAt,
     uint Version,
-    IReadOnlyList<PopulationRuleDto> PopulationRules);
+    IReadOnlyList<PopulationRuleDto> PopulationRules,
+    CampaignGovernanceDto? Governance);
+
+public sealed record CampaignGovernanceDto(
+    Guid? RetentionPolicyVersionId,
+    bool RequireTeamObjectiveSuperiorApproval,
+    int MinimumAnonymousFeedbackResponses,
+    string FeedbackVisibility,
+    IReadOnlyList<Guid> ExceptionOwnerEmployeeIds,
+    bool IsFrozen,
+    DateTime? FrozenAt);
 
 public sealed record CycleParticipantDto(
     Guid Id,
@@ -127,6 +137,13 @@ public sealed record CurateCampaignResponsibilityRequest(
     string? OverrideReason);
 
 public sealed record MarkCycleReadyToLaunchRequest(bool AcceptCurrentWorkforceDelta);
+
+public sealed record ConfigureCycleGovernanceRequest(
+    Guid RetentionPolicyVersionId,
+    bool RequireTeamObjectiveSuperiorApproval,
+    int MinimumAnonymousFeedbackResponses,
+    string FeedbackVisibility,
+    IReadOnlyList<Guid> ExceptionOwnerEmployeeIds);
 
 public sealed record CyclePopulationPreviewDto(
     int TotalCount,

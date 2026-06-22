@@ -29,6 +29,7 @@ public class PublishCycleCommandHandlerTests
             TenantId, "FY26", PerformanceCycleType.Annual,
             new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
             new DateTime(2026, 12, 31, 0, 0, 0, DateTimeKind.Utc));
+        cycle.ConfigureForAssignmentPreparation();
         seed.PerformanceCycles.Add(cycle);
         seed.SaveChanges();
         return (cycle.Id, cycle.Version);

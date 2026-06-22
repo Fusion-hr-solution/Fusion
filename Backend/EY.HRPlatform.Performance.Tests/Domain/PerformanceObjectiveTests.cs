@@ -30,4 +30,17 @@ public class PerformanceObjectiveTests
 
         Assert.Equal(ObjectiveStatus.PendingApproval, objective.Status);
     }
+
+    [Fact]
+    public void Return_SubmittedObjective_MakesItEditableForRevision()
+    {
+        var objective = PerformanceObjective.Create(
+            Guid.NewGuid(), Guid.NewGuid(), ObjectiveLevel.Individual, Guid.NewGuid(),
+            "Deliver onboarding", null, "Completion rate", "100%", DateTime.UtcNow.AddDays(30), null);
+        objective.Submit(DateTime.UtcNow);
+
+        objective.Return(DateTime.UtcNow);
+
+        Assert.Equal(ObjectiveStatus.Returned, objective.Status);
+    }
 }

@@ -14,6 +14,7 @@ public class GetCampaignResponsibilitiesQueryTests
         var now = DateTime.UtcNow;
         await using var db = PerformanceTestContext.Create(tenantId, out _);
         var cycle = PerformanceCycle.Create(tenantId, "FY26", PerformanceCycleType.Annual, now.AddDays(-1), now.AddDays(10));
+        cycle.ConfigureForAssignmentPreparation();
         cycle.BeginAssignmentPreparation(2, now);
         var confirmedSubjectId = Guid.NewGuid();
         var missingSubjectId = Guid.NewGuid();

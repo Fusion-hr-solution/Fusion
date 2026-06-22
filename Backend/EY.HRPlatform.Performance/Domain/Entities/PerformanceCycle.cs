@@ -14,6 +14,7 @@ public class PerformanceCycle : AggregateRoot, ITenantEntity
 {
     private readonly List<PerformanceCyclePopulationRule> _populationRules = new();
     private readonly List<PerformanceCycleParticipant> _participants = new();
+    private readonly List<CampaignExceptionOwner> _exceptionOwners = new();
 
     private PerformanceCycle() { }
 
@@ -43,8 +44,22 @@ public class PerformanceCycle : AggregateRoot, ITenantEntity
     public DateTime? ActivatedAt { get; private set; }
     public DateTime? ClosedAt { get; private set; }
 
+    /// <summary>Draft governance selection. It becomes immutable at preparation start.</summary>
+    public Guid? RetentionPolicyVersionId { get; private set; }
+    public bool RequireTeamObjectiveSuperiorApproval { get; private set; }
+    public int MinimumAnonymousFeedbackResponses { get; private set; } = 3;
+    public CampaignFeedbackVisibility FeedbackVisibility { get; private set; } = CampaignFeedbackVisibility.AnonymousToSubject;
+
+    /// <summary>Governance values frozen when the campaign leaves draft.</summary>
+    public Guid? FrozenRetentionPolicyVersionId { get; private set; }
+    public bool? FrozenRequireTeamObjectiveSuperiorApproval { get; private set; }
+    public int? FrozenMinimumAnonymousFeedbackResponses { get; private set; }
+    public CampaignFeedbackVisibility? FrozenFeedbackVisibility { get; private set; }
+    public DateTime? GovernanceFrozenAt { get; private set; }
+
     public IReadOnlyCollection<PerformanceCyclePopulationRule> PopulationRules => _populationRules.AsReadOnly();
     public IReadOnlyCollection<PerformanceCycleParticipant> Participants => _participants.AsReadOnly();
+    public IReadOnlyCollection<CampaignExceptionOwner> ExceptionOwners => _exceptionOwners.AsReadOnly();
 
     public bool IsEditable => Status == PerformanceCycleStatus.Draft;
 
@@ -102,6 +117,34 @@ public class PerformanceCycle : AggregateRoot, ITenantEntity
         Touch();
     }
 
+    public void ConfigureGovernance(
+        Guid retentionPolicyVersionId,
+        bool requireTeamObjectiveSuperiorApproval,
+        int minimumAnonymousFeedbackResponses,
+        CampaignFeedbackVisibility feedbackVisibility,
+        IEnumerable<Guid> exceptionOwnerEmployeeIds)
+    {
+        EnsureEditable();
+        if (retentionPolicyVersionId == Guid.Empty)
+            throw new ArgumentException("A retention policy version is required.", nameof(retentionPolicyVersionId));
+        if (minimumAnonymousFeedbackResponses < 3)
+            throw new ArgumentOutOfRangeException(nameof(minimumAnonymousFeedbackResponses),
+                "The anonymous feedback threshold cannot be below three responses.");
+
+        var owners = exceptionOwnerEmployeeIds.Distinct().ToList();
+        if (owners.Count == 0 || owners.Any(id => id == Guid.Empty))
+            throw new ArgumentException("At least one exception owner is required.", nameof(exceptionOwnerEmployeeIds));
+
+        RetentionPolicyVersionId = retentionPolicyVersionId;
+        RequireTeamObjectiveSuperiorApproval = requireTeamObjectiveSuperiorApproval;
+        MinimumAnonymousFeedbackResponses = minimumAnonymousFeedbackResponses;
+        FeedbackVisibility = feedbackVisibility;
+        _exceptionOwners.Clear();
+        for (var index = 0; index < owners.Count; index++)
+            _exceptionOwners.Add(CampaignExceptionOwner.Create(TenantId, Id, owners[index], index + 1));
+        Touch();
+    }
+
     /// <summary>Begins materialising assignment candidates from the current Core workforce context.</summary>
     public void BeginAssignmentPreparation(int candidateCount, DateTime occurredAt)
     {
@@ -110,6 +153,8 @@ public class PerformanceCycle : AggregateRoot, ITenantEntity
 
         if (candidateCount <= 0)
             throw new DomainRuleViolationException("A campaign cannot prepare assignments for an empty population.");
+
+        EnsureGovernanceConfigured();
 
         var now = NormalizeUtc(occurredAt, nameof(occurredAt));
         if (now > PeriodEnd)
@@ -121,6 +166,11 @@ public class PerformanceCycle : AggregateRoot, ITenantEntity
         Status = PerformanceCycleStatus.AssignmentPreparation;
         PublishedAt = now;
         AssignmentPreparationStartedAt = now;
+        FrozenRetentionPolicyVersionId = RetentionPolicyVersionId;
+        FrozenRequireTeamObjectiveSuperiorApproval = RequireTeamObjectiveSuperiorApproval;
+        FrozenMinimumAnonymousFeedbackResponses = MinimumAnonymousFeedbackResponses;
+        FrozenFeedbackVisibility = FeedbackVisibility;
+        GovernanceFrozenAt = now;
         Touch();
     }
 
@@ -231,6 +281,13 @@ public class PerformanceCycle : AggregateRoot, ITenantEntity
     {
         if (!IsEditable)
             throw new DomainRuleViolationException("Only a draft cycle can be modified.");
+    }
+
+    private void EnsureGovernanceConfigured()
+    {
+        if (RetentionPolicyVersionId is null || _exceptionOwners.Count == 0)
+            throw new DomainRuleViolationException(
+                "A retention policy version and at least one exception owner must be configured before assignment preparation.");
     }
 
     private void Touch() => UpdatedAt = DateTime.UtcNow;

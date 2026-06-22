@@ -2,7 +2,6 @@ using EY.HRPlatform.Performance.Domain.Entities;
 using EY.HRPlatform.Performance.Domain.Enums;
 using EY.HRPlatform.Performance.Exceptions;
 using EY.HRPlatform.Performance.Features.Cycles.Dtos;
-using EY.HRPlatform.Performance.Features.Notifications;
 using EY.HRPlatform.Performance.Features.Security;
 using EY.HRPlatform.Performance.Infrastructure.Notifications;
 using EY.HRPlatform.Performance.Infrastructure.Persistence;
@@ -28,6 +27,7 @@ public sealed class ActivateCycleCommandHandler(
     {
         var cycle = await dbContext.PerformanceCycles
             .Include(c => c.Participants)
+            .Include(c => c.ExceptionOwners)
             .FirstOrDefaultAsync(c => c.Id == request.CycleId, cancellationToken);
 
         if (cycle is null)
@@ -45,14 +45,43 @@ public sealed class ActivateCycleCommandHandler(
 
         cycle.Activate(DateTime.UtcNow);
 
+        // Activation is the only point at which preparation candidates become immutable campaign
+        // context. Active work never reads mutable Core workforce facts.
+        var activationTime = DateTime.UtcNow;
+        var launchSnapshots = cycle.Participants
+            .Select(candidate => CampaignLaunchParticipantSnapshot.FromPreparationCandidate(candidate, activationTime))
+            .ToList();
+        dbContext.CampaignLaunchParticipantSnapshots.AddRange(launchSnapshots);
+
+        // Work is derived only from accepted final responsibility revisions and the launch
+        // participant snapshot, never from a current population query.
+        var responsibilityRevisions = await dbContext.CampaignAssignmentResponsibilities
+            .Where(item => item.CycleId == cycle.Id && item.IsFinal)
+            .ToListAsync(cancellationToken);
+        var finalResponsibilities = responsibilityRevisions
+            .GroupBy(item => new { item.SubjectEmployeeId, item.Duty })
+            .Select(group => group.OrderByDescending(item => item.Revision).First())
+            .ToList();
+        var planningDueAt = cycle.ObjectiveSettingDeadline ?? cycle.PeriodEnd;
+        var workItems = launchSnapshots
+            .Select(participant => CampaignWorkItem.Create(
+                tenantContext.TenantId, cycle.Id, participant.EmployeeId, participant.EmployeeId,
+                CampaignWorkItemType.ObjectivePlanning, planningDueAt))
+            .ToList();
+        workItems.AddRange(finalResponsibilities.Select(responsibility => CampaignWorkItem.Create(
+            tenantContext.TenantId,
+            cycle.Id,
+            responsibility.SubjectEmployeeId,
+            responsibility.AssigneeEmployeeId,
+            responsibility.Duty == CampaignResponsibilityDuty.ObjectiveApproval
+                ? CampaignWorkItemType.ObjectiveApproval
+                : CampaignWorkItemType.ManagerReview,
+            responsibility.Duty == CampaignResponsibilityDuty.ObjectiveApproval ? planningDueAt : cycle.PeriodEnd,
+            responsibility.Id)));
+        dbContext.CampaignWorkItems.AddRange(workItems);
+
         dbContext.PerformanceCycleAuditEvents.Add(PerformanceCycleAuditEvent.Create(
             tenantContext.TenantId, cycle.Id, PerformanceCycleAuditAction.Activated, currentUser.UserId, currentUser.FullName));
-
-        dbContext.PerformanceNotifications.AddRange(
-            CycleNotificationFactory.ForLifecycle(
-                cycle,
-                PerformanceNotificationType.CycleActivated,
-                cycle.Participants.Select(p => p.EmployeeId)));
 
         try
         {

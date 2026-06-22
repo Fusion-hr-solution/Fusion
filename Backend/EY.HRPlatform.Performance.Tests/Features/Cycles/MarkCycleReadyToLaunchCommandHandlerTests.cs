@@ -14,6 +14,7 @@ public class MarkCycleReadyToLaunchCommandHandlerTests
         PerformanceDbContext db, Guid tenantId, DateTime now)
     {
         var cycle = PerformanceCycle.Create(tenantId, "FY26", PerformanceCycleType.Annual, now.AddDays(-1), now.AddDays(10));
+        cycle.ConfigureForAssignmentPreparation();
         cycle.BeginAssignmentPreparation(1, now);
         var subjectId = Guid.NewGuid();
         var assigneeId = Guid.NewGuid();

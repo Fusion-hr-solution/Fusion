@@ -161,6 +161,29 @@ public class PerformanceCyclesController(
         return ToDetailResponse(result);
     }
 
+    [HttpPut("{id:guid}/governance")]
+    public async Task<IActionResult> ConfigureGovernance(
+        Guid id,
+        [FromBody] ConfigureCycleGovernanceRequest request,
+        [FromHeader(Name = "If-Match")] string? ifMatch,
+        CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanManageCycles(User))
+            return Forbid();
+        if (!TryParseVersion(ifMatch, out var expectedVersion))
+            return PreconditionRequired();
+        if (!Enum.TryParse<CampaignFeedbackVisibility>(request.FeedbackVisibility, true, out var visibility))
+            return BadRequest(ApiResponse.Failure($"Unknown feedback visibility '{request.FeedbackVisibility}'."));
+
+        var result = await sender.Send(new ConfigureCycleGovernanceCommand(
+            id, expectedVersion, request.RetentionPolicyVersionId,
+            request.RequireTeamObjectiveSuperiorApproval,
+            request.MinimumAnonymousFeedbackResponses,
+            visibility,
+            request.ExceptionOwnerEmployeeIds), cancellationToken);
+        return ToDetailResponse(result);
+    }
+
     [HttpGet("{id:guid}/population/preview")]
     public async Task<IActionResult> PreviewPopulation(Guid id, CancellationToken cancellationToken)
     {

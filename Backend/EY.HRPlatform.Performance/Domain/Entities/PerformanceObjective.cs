@@ -88,6 +88,24 @@ public sealed class PerformanceObjective : AggregateRoot, ITenantEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
+    public void Return(DateTime occurredAt)
+    {
+        if (Status != ObjectiveStatus.PendingApproval)
+            throw new DomainRuleViolationException("Only a submitted objective can be returned.");
+
+        Status = ObjectiveStatus.Returned;
+        UpdatedAt = NormalizeUtc(occurredAt, nameof(occurredAt));
+    }
+
+    public void Reject(DateTime occurredAt)
+    {
+        if (Status != ObjectiveStatus.PendingApproval)
+            throw new DomainRuleViolationException("Only a submitted objective can be rejected.");
+
+        Status = ObjectiveStatus.Rejected;
+        UpdatedAt = NormalizeUtc(occurredAt, nameof(occurredAt));
+    }
+
     private static string RequireLength(string value, int maximum, string parameterName)
     {
         var normalized = value.Trim();

@@ -11,13 +11,22 @@ public class PerformanceCycleTests
     private static readonly DateTime End = new(2026, 12, 31, 0, 0, 0, DateTimeKind.Utc);
 
     private static PerformanceCycle NewDraft(DateTime? deadline = null)
-        => PerformanceCycle.Create(TenantId, "FY26 Review", PerformanceCycleType.Annual, Start, End, deadline);
+    {
+        var cycle = PerformanceCycle.Create(TenantId, "FY26 Review", PerformanceCycleType.Annual, Start, End, deadline);
+        cycle.ConfigureGovernance(Guid.NewGuid(), requireTeamObjectiveSuperiorApproval: false, 3,
+            CampaignFeedbackVisibility.AnonymousToSubject, [Guid.NewGuid()]);
+        return cycle;
+    }
 
     private static void PrepareForLaunch(PerformanceCycle cycle, DateTime occurredAt)
     {
         cycle.BeginAssignmentPreparation(1, occurredAt);
         cycle.MarkReadyToLaunch(1, 0, hasAcceptedWorkforceDelta: true, occurredAt);
     }
+
+    private static void ConfigureForAssignmentPreparation(PerformanceCycle cycle)
+        => cycle.ConfigureGovernance(Guid.NewGuid(), requireTeamObjectiveSuperiorApproval: false, 3,
+            CampaignFeedbackVisibility.AnonymousToSubject, [Guid.NewGuid()]);
 
     [Fact]
     public void Create_WithValidData_StartsAsDraft()
@@ -66,6 +75,14 @@ public class PerformanceCycleTests
     {
         var cycle = NewDraft();
         Assert.Throws<DomainRuleViolationException>(() => cycle.BeginAssignmentPreparation(0, Start));
+    }
+
+    [Fact]
+    public void BeginAssignmentPreparation_WithoutGovernanceConfiguration_Throws()
+    {
+        var cycle = PerformanceCycle.Create(TenantId, "Unconfigured", PerformanceCycleType.Annual, Start, End);
+
+        Assert.Throws<DomainRuleViolationException>(() => cycle.BeginAssignmentPreparation(1, Start));
     }
 
     [Fact]
@@ -171,6 +188,7 @@ public class PerformanceCycleTests
             now.AddDays(-10),
             now.AddDays(10),
             now.AddDays(-1));
+        ConfigureForAssignmentPreparation(cycle);
 
         Assert.Throws<DomainRuleViolationException>(() => cycle.BeginAssignmentPreparation(1, now));
     }
@@ -185,6 +203,7 @@ public class PerformanceCycleTests
             PerformanceCycleType.Annual,
             now.AddDays(1),
             now.AddDays(10));
+        ConfigureForAssignmentPreparation(cycle);
 
         cycle.BeginAssignmentPreparation(1, now);
 
@@ -203,6 +222,7 @@ public class PerformanceCycleTests
             PerformanceCycleType.Annual,
             now.AddDays(-1),
             now.AddDays(10));
+        ConfigureForAssignmentPreparation(cycle);
 
         cycle.BeginAssignmentPreparation(1, now);
 
@@ -219,6 +239,7 @@ public class PerformanceCycleTests
             PerformanceCycleType.Annual,
             now.AddDays(-1),
             now.AddDays(10));
+        ConfigureForAssignmentPreparation(cycle);
 
         PrepareForLaunch(cycle, now);
         cycle.Activate(now);

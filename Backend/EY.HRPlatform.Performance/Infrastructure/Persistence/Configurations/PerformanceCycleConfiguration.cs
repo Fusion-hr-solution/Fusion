@@ -34,6 +34,14 @@ public class PerformanceCycleConfiguration : IEntityTypeConfiguration<Performanc
             .IsRequired()
             .HasDefaultValue(PerformanceCycleStatus.Draft);
 
+        builder.Property(c => c.FeedbackVisibility)
+            .HasConversion<string>()
+            .HasMaxLength(40)
+            .IsRequired();
+        builder.Property(c => c.FrozenFeedbackVisibility)
+            .HasConversion<string>()
+            .HasMaxLength(40);
+
         builder.Property(c => c.CreatedBy).HasMaxLength(256);
         builder.Property(c => c.UpdatedBy).HasMaxLength(256);
 
@@ -47,9 +55,16 @@ public class PerformanceCycleConfiguration : IEntityTypeConfiguration<Performanc
             .HasForeignKey(p => p.CycleId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        builder.HasMany(c => c.ExceptionOwners)
+            .WithOne()
+            .HasForeignKey(x => x.CycleId)
+            .OnDelete(DeleteBehavior.Cascade);
+
         builder.Metadata.FindNavigation(nameof(PerformanceCycle.PopulationRules))!
             .SetPropertyAccessMode(PropertyAccessMode.Field);
         builder.Metadata.FindNavigation(nameof(PerformanceCycle.Participants))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
+        builder.Metadata.FindNavigation(nameof(PerformanceCycle.ExceptionOwners))!
             .SetPropertyAccessMode(PropertyAccessMode.Field);
 
         builder.HasIndex(c => c.TenantId)

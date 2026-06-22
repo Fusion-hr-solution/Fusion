@@ -33,6 +33,7 @@ public sealed class PublishCycleCommandHandler(
 
         var cycle = await dbContext.PerformanceCycles
             .Include(c => c.PopulationRules)
+            .Include(c => c.ExceptionOwners)
             .FirstOrDefaultAsync(c => c.Id == request.CycleId, cancellationToken);
 
         if (cycle is null)

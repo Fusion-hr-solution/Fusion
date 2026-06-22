@@ -49,7 +49,15 @@ public static class CycleMapper
             cycle.CreatedAt,
             cycle.UpdatedAt,
             cycle.Version,
-            cycle.PopulationRules.Select(ToRuleDto).ToList());
+            cycle.PopulationRules.Select(ToRuleDto).ToList(),
+            new CampaignGovernanceDto(
+                cycle.FrozenRetentionPolicyVersionId ?? cycle.RetentionPolicyVersionId,
+                cycle.FrozenRequireTeamObjectiveSuperiorApproval ?? cycle.RequireTeamObjectiveSuperiorApproval,
+                cycle.FrozenMinimumAnonymousFeedbackResponses ?? cycle.MinimumAnonymousFeedbackResponses,
+                (cycle.FrozenFeedbackVisibility ?? cycle.FeedbackVisibility).ToString(),
+                cycle.ExceptionOwners.OrderBy(x => x.Priority).Select(x => x.EmployeeId).ToList(),
+                cycle.GovernanceFrozenAt is not null,
+                cycle.GovernanceFrozenAt));
 
     public static PopulationRuleDto ToRuleDto(PerformanceCyclePopulationRule rule)
         => new(rule.RuleType.ToString(), rule.RefId, rule.IncludeDescendants);
