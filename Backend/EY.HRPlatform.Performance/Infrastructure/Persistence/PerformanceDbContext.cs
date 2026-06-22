@@ -47,6 +47,12 @@ public class PerformanceDbContext : DbContext
     public DbSet<PerformanceNotification> PerformanceNotifications => Set<PerformanceNotification>();
     public DbSet<PerformanceCycleAuditEvent> PerformanceCycleAuditEvents => Set<PerformanceCycleAuditEvent>();
 
+    // Strategic objective + phase shared entities (Plan 03-02)
+    public DbSet<StrategicPeriod> StrategicPeriods => Set<StrategicPeriod>();
+    public DbSet<StrategicObjective> StrategicObjectives => Set<StrategicObjective>();
+    public DbSet<ObjectiveProgressEntry> ObjectiveProgressEntries => Set<ObjectiveProgressEntry>();
+    public DbSet<ApprovalDelegate> ApprovalDelegates => Set<ApprovalDelegate>();
+
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
         configurationBuilder.Properties<DateTime>()
@@ -115,5 +121,18 @@ public class PerformanceDbContext : DbContext
 
         modelBuilder.Entity<PerformanceCycleAuditEvent>()
             .HasQueryFilter(a => CurrentTenantId != Guid.Empty && a.TenantId == CurrentTenantId);
+
+        // Strategic + phase shared entity tenant filters (Plan 03-02)
+        modelBuilder.Entity<StrategicPeriod>()
+            .HasQueryFilter(p => CurrentTenantId != Guid.Empty && p.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<StrategicObjective>()
+            .HasQueryFilter(o => CurrentTenantId != Guid.Empty && o.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<ObjectiveProgressEntry>()
+            .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<ApprovalDelegate>()
+            .HasQueryFilter(d => CurrentTenantId != Guid.Empty && d.TenantId == CurrentTenantId);
     }
 }

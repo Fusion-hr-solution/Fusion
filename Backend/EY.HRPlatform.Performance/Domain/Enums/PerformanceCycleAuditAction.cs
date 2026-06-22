@@ -20,5 +20,16 @@ public enum PerformanceCycleAuditAction
     Activated,
     Closed,
     WorkforceDeltaApplied,
-    WorkforceDeltaRejected
+    WorkforceDeltaRejected,
+
+    // Strategic objective actions (Plan 03-02)
+    StrategicObjectivePublished,
+    StrategicObjectiveSuperseded,
+
+    // Collective objective actions (Plan 03-03)
+    CollectiveObjectiveApprovalRouted,
+    CollectiveObjectiveAutoApproved,
+
+    // Progress tracking actions (Plan 03-04)
+    ObjectiveProgressCorrected
 }
