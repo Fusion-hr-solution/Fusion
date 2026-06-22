@@ -19,7 +19,7 @@ public sealed class ActivateCycleNotificationTests
     /// After activation, a CycleActivated notification is sent to the responsibility
     /// assignee (managerId) and NOT to the population subject (subjectId).
     /// </summary>
-    [Fact(Skip = "RED test: activate handler does not emit notifications yet (Wave 2)")]
+    [Fact]
     public async Task ActivateCycle_SendsNotificationToAssignee_NotToSubject()
     {
         // Arrange — mirror ActivateCycleWorkItemTests setup

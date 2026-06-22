@@ -39,6 +39,13 @@ public sealed class ActivateCycleWorkItemTests
         Assert.Equal(2, db.CampaignWorkItems.Count());
         Assert.Contains(db.CampaignWorkItems, item => item.Type == CampaignWorkItemType.ObjectivePlanning && item.AssigneeEmployeeId == subjectId);
         Assert.Contains(db.CampaignWorkItems, item => item.Type == CampaignWorkItemType.ObjectiveApproval && item.AssigneeEmployeeId == managerId);
-        Assert.Empty(db.PerformanceNotifications);
+
+        // CycleActivated notification sent to the responsibility assignee (managerId), not the subject
+        Assert.Contains(db.PerformanceNotifications,
+            n => n.Type == PerformanceNotificationType.CycleActivated
+              && n.RecipientEmployeeId == managerId);
+        Assert.DoesNotContain(db.PerformanceNotifications,
+            n => n.Type == PerformanceNotificationType.CycleActivated
+              && n.RecipientEmployeeId == subjectId);
     }
 }

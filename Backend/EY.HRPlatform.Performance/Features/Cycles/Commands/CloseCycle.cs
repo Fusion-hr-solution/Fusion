@@ -48,11 +48,13 @@ public sealed class CloseCycleCommandHandler(
         dbContext.PerformanceCycleAuditEvents.Add(PerformanceCycleAuditEvent.Create(
             tenantContext.TenantId, cycle.Id, PerformanceCycleAuditAction.Closed, currentUser.UserId, currentUser.FullName));
 
+        var workItemAssignees = await dbContext.CampaignWorkItems
+            .Where(wi => wi.CycleId == request.CycleId && wi.Type != CampaignWorkItemType.ObjectivePlanning)
+            .Select(wi => wi.AssigneeEmployeeId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
         dbContext.PerformanceNotifications.AddRange(
-            CycleNotificationFactory.ForLifecycle(
-                cycle,
-                PerformanceNotificationType.CycleClosed,
-                cycle.Participants.Select(p => p.EmployeeId)));
+            CycleNotificationFactory.ForLifecycle(cycle, PerformanceNotificationType.CycleClosed, workItemAssignees));
 
         try
         {

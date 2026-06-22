@@ -1,4 +1,5 @@
 using EY.HRPlatform.SharedKernel.Auth;
+using System.Diagnostics;
 using System.Security.Claims;
 
 namespace EY.HRPlatform.Performance.Features.Security;
@@ -11,6 +12,7 @@ public interface ICurrentUserContext
     Guid? UserId { get; }
     Guid? EmployeeId { get; }
     string? FullName { get; }
+    string? CorrelationId { get; }
 }
 
 public sealed class CurrentUserContext(IHttpContextAccessor httpContextAccessor) : ICurrentUserContext
@@ -36,4 +38,8 @@ public sealed class CurrentUserContext(IHttpContextAccessor httpContextAccessor)
     public Guid? EmployeeId => Principal?.GetEmployeeId();
 
     public string? FullName => Principal?.GetFullName();
+
+    public string? CorrelationId =>
+        httpContextAccessor.HttpContext?.Request.Headers["X-Correlation-Id"].FirstOrDefault()
+        ?? Activity.Current?.TraceId.ToString();
 }

@@ -18,7 +18,7 @@ public sealed class CloseCycleNotificationTests
     /// After closing, a CycleClosed notification is sent to the responsibility
     /// assignee (managerId) and NOT to the population participant (subjectId).
     /// </summary>
-    [Fact(Skip = "RED test: close handler sends notifications to participants, not assignees (Wave 2)")]
+    [Fact]
     public async Task CloseCycle_SendsNotificationToResponsibilityAssignee_NotToParticipant()
     {
         // Arrange — seed an Active cycle with participant and responsibility
@@ -29,7 +29,7 @@ public sealed class CloseCycleNotificationTests
 
         await using var db = PerformanceTestContext.Create(tenantId, out var tenantContext);
         var cycle = PerformanceCycle.Create(tenantId, "FY26", PerformanceCycleType.Annual,
-            now.AddDays(-1), now.AddDays(10), now.AddDays(3));
+            now.AddDays(-10), now.AddMinutes(1), now);
         cycle.ConfigureGovernance(Guid.NewGuid(), false, 3,
             CampaignFeedbackVisibility.AnonymousToSubject, [Guid.NewGuid()]);
         cycle.BeginAssignmentPreparation(1, now);
@@ -54,7 +54,15 @@ public sealed class CloseCycleNotificationTests
         // Reload cycle to get the updated version after activation
         var reloadedCycle = await db.PerformanceCycles.SingleAsync(c => c.Id == cycle.Id);
 
-        // Act — close the cycle (set clock past PeriodEnd so the close guard passes)
+        // Shift PeriodEnd into the past so the Close guard (now >= PeriodEnd) passes
+        var pastEnd = now.AddDays(-1);
+        db.Entry(reloadedCycle).Property(c => c.PeriodEnd).CurrentValue = pastEnd;
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+
+        // Act — close the cycle
+        // Reload to pick up the updated PeriodEnd and version
+        reloadedCycle = await db.PerformanceCycles.SingleAsync(c => c.Id == cycle.Id);
         var closeHandler = new CloseCycleCommandHandler(
             db, tenantContext, new StubCurrentUserContext(), Options.Create(new ReminderOptions()));
         var closeResult = await closeHandler.Handle(

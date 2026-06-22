@@ -22,13 +22,21 @@ public class PerformanceCycleAuditEvent : BaseEntity, ITenantEntity
     /// <summary>Optional human-readable detail (e.g. participant count snapshotted).</summary>
     public string? Details { get; private set; }
 
+    /// <summary>Outcome of the audited action: Success, Failure, or Rejected.</summary>
+    public string? Outcome { get; private set; }
+
+    /// <summary>Correlation id for distributed tracing across requests.</summary>
+    public string? CorrelationId { get; private set; }
+
     public static PerformanceCycleAuditEvent Create(
         Guid tenantId,
         Guid cycleId,
         PerformanceCycleAuditAction action,
         Guid? actorUserId,
         string? actorName,
-        string? details = null)
+        string? details = null,
+        string? outcome = "Success",
+        string? correlationId = null)
     {
         if (tenantId == Guid.Empty)
             throw new ArgumentException("TenantId cannot be empty.", nameof(tenantId));
@@ -44,7 +52,9 @@ public class PerformanceCycleAuditEvent : BaseEntity, ITenantEntity
             ActorUserId = actorUserId,
             ActorName = actorName,
             Details = details,
-            OccurredAt = DateTime.UtcNow
+            OccurredAt = DateTime.UtcNow,
+            Outcome = outcome,
+            CorrelationId = correlationId
         };
     }
 }

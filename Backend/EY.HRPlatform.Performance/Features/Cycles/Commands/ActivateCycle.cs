@@ -2,6 +2,7 @@ using EY.HRPlatform.Performance.Domain.Entities;
 using EY.HRPlatform.Performance.Domain.Enums;
 using EY.HRPlatform.Performance.Exceptions;
 using EY.HRPlatform.Performance.Features.Cycles.Dtos;
+using EY.HRPlatform.Performance.Features.Notifications;
 using EY.HRPlatform.Performance.Features.Security;
 using EY.HRPlatform.Performance.Infrastructure.Notifications;
 using EY.HRPlatform.Performance.Infrastructure.Persistence;
@@ -79,6 +80,14 @@ public sealed class ActivateCycleCommandHandler(
             responsibility.Duty == CampaignResponsibilityDuty.ObjectiveApproval ? planningDueAt : cycle.PeriodEnd,
             responsibility.Id)));
         dbContext.CampaignWorkItems.AddRange(workItems);
+
+        var activatedRecipientIds = workItems
+            .Where(wi => wi.Type != CampaignWorkItemType.ObjectivePlanning)
+            .Select(wi => wi.AssigneeEmployeeId)
+            .Distinct()
+            .ToList();
+        dbContext.PerformanceNotifications.AddRange(
+            CycleNotificationFactory.ForLifecycle(cycle, PerformanceNotificationType.CycleActivated, activatedRecipientIds));
 
         dbContext.PerformanceCycleAuditEvents.Add(PerformanceCycleAuditEvent.Create(
             tenantContext.TenantId, cycle.Id, PerformanceCycleAuditAction.Activated, currentUser.UserId, currentUser.FullName));

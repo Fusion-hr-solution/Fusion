@@ -36,4 +36,5 @@ public sealed class StubCurrentUserContext : ICurrentUserContext
     public Guid? UserId { get; init; } = Guid.NewGuid();
     public Guid? EmployeeId { get; init; }
     public string? FullName { get; init; } = "Test Actor";
+    public string? CorrelationId { get; init; } = "test-correlation-id";
 }

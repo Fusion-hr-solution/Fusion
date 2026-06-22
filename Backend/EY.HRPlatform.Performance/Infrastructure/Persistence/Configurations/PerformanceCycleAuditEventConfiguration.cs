@@ -21,6 +21,8 @@ public class PerformanceCycleAuditEventConfiguration : IEntityTypeConfiguration<
 
         builder.Property(a => a.ActorName).HasMaxLength(256);
         builder.Property(a => a.Details).HasMaxLength(2000);
+        builder.Property(a => a.Outcome).HasMaxLength(20);
+        builder.Property(a => a.CorrelationId).HasMaxLength(128);
         builder.Property(a => a.OccurredAt).IsRequired();
         builder.Property(a => a.CreatedBy).HasMaxLength(256);
         builder.Property(a => a.UpdatedBy).HasMaxLength(256);
