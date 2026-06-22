@@ -120,6 +120,15 @@ public static class PerformancePermissions
     public const string CyclePublish = "performance.cycle.publish";
     public const string ObjectiveLibraryView = "performance.objective.library.view";
     public const string ObjectiveLibraryManage = "performance.objective.library.manage";
+    public const string ObjectiveSelfManage = "performance.objective.self.manage";
+    public const string ObjectiveTeamManage = "performance.objective.team.manage";
+    public const string ReviewSelfManage = "performance.review.self.manage";
+    public const string ReviewTeamManage = "performance.review.team.manage";
+    public const string FeedbackSubmit = "performance.feedback.submit";
+    public const string ExceptionManage = "performance.exception.manage";
+    public const string RetentionManage = "performance.retention.manage";
+    public const string AuditView = "performance.audit.view";
+    public const string ConfidentialIdentityView = "performance.feedback.identity.view";
 
     public static readonly ReadOnlyCollection<string> All =
         Array.AsReadOnly([
@@ -128,6 +137,15 @@ public static class PerformancePermissions
             CyclePublish,
             ObjectiveLibraryView,
             ObjectiveLibraryManage,
+            ObjectiveSelfManage,
+            ObjectiveTeamManage,
+            ReviewSelfManage,
+            ReviewTeamManage,
+            FeedbackSubmit,
+            ExceptionManage,
+            RetentionManage,
+            AuditView,
+            ConfidentialIdentityView,
         ]);
 }
 
@@ -185,6 +203,15 @@ public static class CorePermissionCatalog
             new(PerformancePermissions.CyclePublish, "Operate performance cycles", "Performance", [PermissionScopes.OrgUnit, PermissionScopes.Tenant], "Publish, activate, and close cycles (governance-gated transitions)."),
             new(PerformancePermissions.ObjectiveLibraryView, "View objective library", "Performance", [PermissionScopes.Tenant]),
             new(PerformancePermissions.ObjectiveLibraryManage, "Manage objective library", "Performance", [PermissionScopes.Tenant]),
+            new(PerformancePermissions.ObjectiveSelfManage, "Manage own objectives", "Performance", [PermissionScopes.Self]),
+            new(PerformancePermissions.ObjectiveTeamManage, "Manage team objectives", "Performance", [PermissionScopes.DirectReports, PermissionScopes.OrgUnit, PermissionScopes.Tenant]),
+            new(PerformancePermissions.ReviewSelfManage, "Complete own reviews", "Performance", [PermissionScopes.Self]),
+            new(PerformancePermissions.ReviewTeamManage, "Manage team reviews", "Performance", [PermissionScopes.DirectReports, PermissionScopes.OrgUnit, PermissionScopes.Tenant]),
+            new(PerformancePermissions.FeedbackSubmit, "Submit requested feedback", "Performance", [PermissionScopes.Self]),
+            new(PerformancePermissions.ExceptionManage, "Manage performance exceptions", "Performance", [PermissionScopes.OrgUnit, PermissionScopes.Tenant]),
+            new(PerformancePermissions.RetentionManage, "Manage performance retention", "Performance", [PermissionScopes.Tenant]),
+            new(PerformancePermissions.AuditView, "View performance audit", "Performance", [PermissionScopes.OrgUnit, PermissionScopes.Tenant]),
+            new(PerformancePermissions.ConfidentialIdentityView, "View confidential feedback identities", "Performance", [PermissionScopes.Tenant]),
         ]);
 
     private static readonly IReadOnlyDictionary<string, CorePermissionDefinition> ByKey =
