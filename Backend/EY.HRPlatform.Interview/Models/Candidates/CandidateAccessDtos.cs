@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 
 namespace EY.HRPlatform.Interview.Models.Candidates;
@@ -88,6 +89,51 @@ public class CandidateAccessQuestionOptionDto
 {
     public string Id { get; set; } = string.Empty;
     public string Text { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Candidate request to compile/run their code for a single coding/SQL question, against
+/// their own optional stdin. Nothing is graded or persisted — this is a pre-submit check.
+/// </summary>
+public class RunCodeRequestDto
+{
+    [Required]
+    public string Token { get; set; } = string.Empty;
+
+    [Required]
+    public Guid QuestionId { get; set; }
+
+    [Required]
+    [MaxLength(20000)]
+    public string SourceCode { get; set; } = string.Empty;
+
+    /// <summary>Overrides the question's language when set; otherwise the question's is used.</summary>
+    [MaxLength(40)]
+    public string? Language { get; set; }
+
+    [MaxLength(10000)]
+    public string? Stdin { get; set; }
+}
+
+/// <summary>
+/// Result of a candidate code run. <see cref="RunId"/>/<see cref="Status"/> are carried now so
+/// a later async execution model (return Queued + poll a status endpoint) is an additive change.
+/// </summary>
+public class RunCodeResultDto
+{
+    public string RunId { get; set; } = string.Empty;
+
+    /// <summary>"Completed" today; "Queued"/"Running" reserved for the future async model.</summary>
+    public string Status { get; set; } = "Completed";
+
+    /// <summary>Judge0 status description, e.g. "Accepted", "Runtime Error (NZEC)", "Time Limit Exceeded".</summary>
+    public string ExecutionStatus { get; set; } = string.Empty;
+
+    public string? Stdout { get; set; }
+    public string? Stderr { get; set; }
+    public string? CompileOutput { get; set; }
+    public string? Time { get; set; }
+    public int? Memory { get; set; }
 }
 
 public class CandidateAccessSubmissionDto

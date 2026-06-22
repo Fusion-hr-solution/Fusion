@@ -30,7 +30,7 @@ public class Judge0Grader(Judge0Client judge0, ILogger<Judge0Grader> logger) : I
             );
         }
 
-        var languageId = ResolveLanguageId(question.Language);
+        var languageId = Judge0LanguageMap.ResolveForQuestion(question.Type, question.Language);
 
         // Submit all test cases concurrently — each is an independent Judge0
         // submission, so there's no reason to wait for one before sending the next.
@@ -89,15 +89,4 @@ public class Judge0Grader(Judge0Client judge0, ILogger<Judge0Grader> logger) : I
         }
     }
 
-    private static int ResolveLanguageId(string? language) => language?.ToLowerInvariant() switch
-    {
-        "javascript" or "js" => 63,
-        "typescript" or "ts" => 74,
-        "python" => 71,
-        "java" => 62,
-        "csharp" or "c#" => 51,
-        "cpp" or "c++" => 54,
-        "sql" => 82,
-        _ => 71 // default: Python 3
-    };
 }
