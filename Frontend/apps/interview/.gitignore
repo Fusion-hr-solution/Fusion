@@ -1,0 +1,3 @@
+# Monaco editor assets are vendored from node_modules at predev/prebuild
+# (scripts/copy-monaco.mjs); generated, not source.
+/public/monaco/

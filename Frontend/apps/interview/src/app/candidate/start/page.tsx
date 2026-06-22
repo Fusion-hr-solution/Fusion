@@ -13,6 +13,7 @@ import {
   Send,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { CodeRunner } from "@/components/candidate/code-runner";
 import {
   startCandidateAttempt,
   submitCandidateAttempt,
@@ -579,26 +580,17 @@ export default function CandidateStartPage() {
     }
 
     if (isSql || isCoding) {
-      const value = draft?.answerText ?? "";
-      const codePlaceholder = question.starterCode?.trim()
-        ? question.starterCode
-        : isSql
-          ? "-- Write your SQL query here\nSELECT *\nFROM table_name;"
-          : "// Write your code solution here\nfunction solve() {\n  return null;\n}";
-
       return (
-        <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
-          <div className="flex items-center justify-between border-b border-zinc-200 bg-zinc-50 px-3 py-2 text-[12px] text-zinc-500">
-            <span>{isSql ? "SQL" : "Coding"} Editor</span>
-            <span>Answers are saved on submit</span>
-          </div>
-          <textarea
-            value={value}
-            onChange={(event) => updateTextAnswer(question.id, event.target.value)}
-            placeholder={codePlaceholder}
-            className="min-h-[240px] w-full resize-y border-0 bg-white px-4 py-3 font-mono text-[13px] text-zinc-900 focus:outline-none"
-          />
-        </div>
+        <CodeRunner
+          key={question.id}
+          token={token}
+          questionId={question.id}
+          language={question.language}
+          isSql={isSql}
+          value={draft?.answerText ?? ""}
+          starterCode={question.starterCode}
+          onChange={(next) => updateTextAnswer(question.id, next)}
+        />
       );
     }
 
@@ -844,7 +836,7 @@ export default function CandidateStartPage() {
               </div>
             </aside>
 
-            <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+            <div className="min-w-0 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
               {activeQuestion ? (
                 <>
                   <div className="flex items-start justify-between gap-3">
@@ -858,7 +850,7 @@ export default function CandidateStartPage() {
                     </span>
                   </div>
 
-                  <p className="mt-3 text-[14px] leading-relaxed text-zinc-600">
+                  <p className="mt-3 whitespace-pre-wrap break-words text-[14px] leading-relaxed text-zinc-600">
                     {activeQuestion.description}
                   </p>
 
