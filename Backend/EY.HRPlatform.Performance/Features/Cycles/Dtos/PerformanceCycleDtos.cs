@@ -185,3 +185,13 @@ public sealed record UpdatePerformanceCycleRequest(
 public sealed record SetCyclePopulationRequest(
     bool PopulationIncludeInactive,
     IReadOnlyList<PopulationRuleInput> Rules);
+
+public sealed record WorkforceDeltaDecision(
+    Guid SubjectEmployeeId,
+    Guid AssigneeEmployeeId,
+    bool Accept,
+    string? Reason);
+
+public sealed record ApplyWorkforceDeltaResultDto(int Applied, int Rejected);
+
+public sealed record ApplyWorkforceDeltaRequest(IReadOnlyList<WorkforceDeltaDecision> Decisions);

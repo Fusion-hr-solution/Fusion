@@ -313,6 +313,25 @@ public class PerformanceCyclesController(
             : Ok(ApiResponse<IReadOnlyList<CycleAuditEventDto>>.Success(result.Value));
     }
 
+    [HttpPost("{id:guid}/workforce-delta/apply")]
+    public async Task<IActionResult> ApplyWorkforceDelta(
+        Guid id,
+        [FromBody] ApplyWorkforceDeltaRequest request,
+        [FromHeader(Name = "If-Match")] string? ifMatch,
+        CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanOperateCycles(User))
+            return Forbid();
+        if (!TryParseVersion(ifMatch, out var expectedVersion))
+            return PreconditionRequired();
+
+        var result = await sender.Send(
+            new ApplyWorkforceDeltaCommand(id, expectedVersion, request.Decisions), cancellationToken);
+        return result.IsFailure
+            ? MapFailure(result.Error)
+            : Ok(ApiResponse<ApplyWorkforceDeltaResultDto>.Success(result.Value));
+    }
+
     [HttpGet("{id:guid}/readiness")]
     public async Task<IActionResult> GetReadiness(Guid id, CancellationToken cancellationToken)
     {

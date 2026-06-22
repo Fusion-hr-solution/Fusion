@@ -1,6 +1,7 @@
 using EY.HRPlatform.Performance.Domain.Entities;
 using EY.HRPlatform.Performance.Domain.Enums;
 using EY.HRPlatform.Performance.Features.Cycles.Commands;
+using EY.HRPlatform.Performance.Features.Cycles.Dtos;
 using EY.HRPlatform.Performance.Features.Cycles.Queries;
 using EY.HRPlatform.Performance.Features.Cycles.Services;
 using EY.HRPlatform.Performance.Infrastructure.Workforce;
@@ -74,39 +75,36 @@ public sealed class WorkforceDeltaReconciliationTests
         };
 
         // Build the delta-resolver input from the seeded responsibility items
-        // TODO: Wave 2 — CampaignResponsibilityWorkItemDto and CampaignResponsibilitySummaryDto don't exist yet
-        // This test is RED until plan 03 builds the audit outcome/correlation fields and plan 04 builds the apply/reject loop
-        // await using var db = PerformanceTestContext.Create(tenantContext, dbName);
-        // var cycleId = await db.PerformanceCycles.Select(c => c.Id).SingleAsync();
-        // var items = await db.CampaignAssignmentResponsibilities
-        //     .Where(r => r.CycleId == cycleId)
-        //     .Join(db.PerformanceCycleParticipants,
-        //         r => new { r.CycleId, r.SubjectEmployeeId },
-        //         p => new { p.CycleId, SubjectEmployeeId = p.EmployeeId },
-        //         (r, p) => new CampaignResponsibilityWorkItemDto(
-        //             p.Id, r.SubjectEmployeeId, p.FullName, p.OrgUnitName,
-        //             p.JobTitle, null,
-        //             new CampaignResponsibilitySummaryDto(
-        //                 r.Id, r.AssigneeEmployeeId, r.AssigneeName, r.Duty.ToString(),
-        //                 r.Source.ToString(), r.RelationshipSource, r.OverrideReason,
-        //                 r.Revision, r.RecordedAt)))
-        //     .ToListAsync();
-        //
-        // var delta = await CampaignWorkforceDeltaResolver.ComputeAsync(items, workforce, CancellationToken.None);
-        //
-        // // Assert — delta is surfaced (blocking because assignee is inactive)
-        // Assert.True(delta.BlocksLaunch);
-        // Assert.Contains(delta.Items, d => d.AssigneeEmployeeId == managerId);
-        //
-        // // Assert — curated responsibility row is UNCHANGED (no silent regen)
-        // await using var verify = PerformanceTestContext.Create(tenantContext, dbName);
-        // var responsibility = await verify.CampaignAssignmentResponsibilities
-        //     .SingleAsync(r => r.CycleId == cycleId && r.SubjectEmployeeId == subjectId);
-        // Assert.Equal(managerId, responsibility.AssigneeEmployeeId);
-        // Assert.Equal(1, responsibility.Revision);
-        // Assert.True(responsibility.IsFinal);
-        // Assert.Equal("Manager", responsibility.AssigneeName);
-        Assert.Fail("RED test: CampaignResponsibilityWorkItemDto/CampaignResponsibilitySummaryDto/CampaignWorkforceDeltaResolver not yet implemented (Wave 2)");
+        await using var db = PerformanceTestContext.Create(tenantContext, dbName);
+        var cycleId = await db.PerformanceCycles.Select(c => c.Id).SingleAsync();
+        var items = await db.CampaignAssignmentResponsibilities
+            .Where(r => r.CycleId == cycleId)
+            .Join(db.PerformanceCycleParticipants,
+                r => new { r.CycleId, r.SubjectEmployeeId },
+                p => new { p.CycleId, SubjectEmployeeId = p.EmployeeId },
+                (r, p) => new CampaignResponsibilityWorkItemDto(
+                    p.Id, r.SubjectEmployeeId, p.FullName, p.OrgUnitName,
+                    p.JobTitle, null,
+                    new CampaignResponsibilitySummaryDto(
+                        r.Id, r.AssigneeEmployeeId, r.AssigneeName, r.Duty.ToString(),
+                        r.Source.ToString(), r.RelationshipSource, r.OverrideReason,
+                        r.Revision, r.RecordedAt)))
+            .ToListAsync();
+
+        var delta = await CampaignWorkforceDeltaResolver.ComputeAsync(items, workforce, CancellationToken.None);
+
+        // Assert — delta is surfaced (blocking because assignee is inactive)
+        Assert.True(delta.BlocksLaunch);
+        Assert.Contains(delta.Items, d => d.AssigneeEmployeeId == managerId);
+
+        // Assert — curated responsibility row is UNCHANGED (no silent regen)
+        await using var verify = PerformanceTestContext.Create(tenantContext, dbName);
+        var responsibility = await verify.CampaignAssignmentResponsibilities
+            .SingleAsync(r => r.CycleId == cycleId && r.SubjectEmployeeId == subjectId);
+        Assert.Equal(managerId, responsibility.AssigneeEmployeeId);
+        Assert.Equal(1, responsibility.Revision);
+        Assert.True(responsibility.IsFinal);
+        Assert.Equal("Manager", responsibility.AssigneeName);
     }
 
     /// <summary>
@@ -163,43 +161,38 @@ public sealed class WorkforceDeltaReconciliationTests
         }
 
         // Act — dispatch ApplyWorkforceDeltaCommand accepting only the first item
-        // TODO: Wave 2 — ApplyWorkforceDeltaCommand / WorkforceDeltaDecision / ApplyWorkforceDeltaResultDto
-        //       do NOT exist yet — this test is RED until plan 04 builds them.
-        // await using var db = PerformanceTestContext.Create(tenantContext, dbName);
-        // var cycleId = await db.PerformanceCycles.Select(c => c.Id).SingleAsync();
-        // var responsibilities = await db.CampaignAssignmentResponsibilities
-        //     .Where(r => r.CycleId == cycleId)
-        //     .OrderBy(r => r.SubjectEmployeeId)
-        //     .ToListAsync();
-        //
-        // var firstResponsibilityId = responsibilities[0].Id;
-        //
-        // var handler = new ApplyWorkforceDeltaCommandHandler(
-        //     db, tenantContext, new StubCurrentUserContext());
-        //
-        // var command = new ApplyWorkforceDeltaCommand(cycleId, db.PerformanceCycles.Single().Version,
-        //     [new WorkforceDeltaDecision(firstResponsibilityId, Accept: true, Reason: null)]);
-        //
-        // var result = await handler.Handle(command, CancellationToken.None);
-        //
-        // // Assert — success
-        // Assert.True(result.IsSuccess);
-        //
-        // // Assert — one audit event with WorkforceDeltaApplied
-        // Assert.Contains(db.PerformanceCycleAuditEvents,
-        //     a => a.CycleId == cycleId
-        //       && a.Action == PerformanceCycleAuditAction.WorkforceDeltaApplied);
-        //
-        // // Assert — the targeted row was patched, the other row is untouched
-        // await using var verify = PerformanceTestContext.Create(tenantContext, dbName);
-        // var updated = await verify.CampaignAssignmentResponsibilities
-        //     .SingleAsync(r => r.Id == firstResponsibilityId);
-        // Assert.True(updated.IsFinal);
-        //
-        // var untouched = await verify.CampaignAssignmentResponsibilities
-        //     .SingleAsync(r => r.Id == responsibilities[1].Id);
-        // Assert.Equal(assigneeB, untouched.AssigneeEmployeeId);
-        // Assert.Equal(1, untouched.Revision);
-        Assert.Fail("RED test: ApplyWorkforceDeltaCommand/WorkforceDeltaDecision/PerformanceCycleAuditAction.WorkforceDeltaApplied not yet implemented (Wave 2)");
+        await using var db = PerformanceTestContext.Create(tenantContext, dbName);
+        var cycleId = await db.PerformanceCycles.Select(c => c.Id).SingleAsync();
+        var responsibilities = await db.CampaignAssignmentResponsibilities
+            .Where(r => r.CycleId == cycleId)
+            .OrderBy(r => r.SubjectEmployeeId)
+            .ToListAsync();
+
+        var handler = new ApplyWorkforceDeltaCommandHandler(
+            db, tenantContext, new StubCurrentUserContext());
+
+        var command = new ApplyWorkforceDeltaCommand(cycleId, db.PerformanceCycles.Single().Version,
+            [new WorkforceDeltaDecision(subjectA, assigneeA, Accept: true, Reason: null)]);
+
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        // Assert — success
+        Assert.True(result.IsSuccess);
+
+        // Assert — one audit event with WorkforceDeltaApplied
+        Assert.Contains(db.PerformanceCycleAuditEvents.Local,
+            a => a.CycleId == cycleId
+              && a.Action == PerformanceCycleAuditAction.WorkforceDeltaApplied);
+
+        // Assert — the targeted row was patched, the other row is untouched
+        await using var verify = PerformanceTestContext.Create(tenantContext, dbName);
+        var updated = await verify.CampaignAssignmentResponsibilities
+            .SingleAsync(r => r.SubjectEmployeeId == subjectA && r.AssigneeEmployeeId == assigneeA);
+        Assert.True(updated.IsFinal);
+
+        var untouched = await verify.CampaignAssignmentResponsibilities
+            .SingleAsync(r => r.SubjectEmployeeId == subjectB && r.AssigneeEmployeeId == assigneeB);
+        Assert.Equal(assigneeB, untouched.AssigneeEmployeeId);
+        Assert.Equal(1, untouched.Revision);
     }
 }

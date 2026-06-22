@@ -18,5 +18,7 @@ public enum PerformanceCycleAuditAction
     ReadyToLaunch,
     AssignmentPreparationStarted,
     Activated,
-    Closed
+    Closed,
+    WorkforceDeltaApplied,
+    WorkforceDeltaRejected
 }
