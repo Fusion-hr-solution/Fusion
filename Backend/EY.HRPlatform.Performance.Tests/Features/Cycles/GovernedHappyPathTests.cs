@@ -41,6 +41,7 @@ public class GovernedHappyPathTests
 
         var subjectId = Guid.NewGuid();
         var managerId = Guid.NewGuid();
+        var directorId = Guid.NewGuid();
         var exceptionOwnerId = Guid.NewGuid();
         var retentionPolicyId = Guid.NewGuid();
 
@@ -55,6 +56,7 @@ public class GovernedHappyPathTests
             [
                 FakeCoreWorkforceClient.Employee(subjectId, "Alice"),
                 FakeCoreWorkforceClient.Employee(managerId, "Bob Manager"),
+                FakeCoreWorkforceClient.Employee(directorId, "Director"),
             ]
         };
 
@@ -130,6 +132,15 @@ public class GovernedHappyPathTests
         Assert.Equal(managerId, curateResult.Value.Responsibility.AssigneeEmployeeId);
         Assert.Equal(1, curateResult.Value.Responsibility.Revision);
         version = curateResult.Value.CycleVersion;
+
+        // Curate responsibility for Bob Manager (participant) → assignee is Director
+        var curateResult2 = await curateHandler.Handle(new CurateCampaignResponsibilityCommand(
+            cycleId, version, managerId, directorId,
+            CampaignResponsibilityDuty.ObjectiveApproval, "PrimaryManager", null), CancellationToken.None);
+
+        Assert.True(curateResult2.IsSuccess);
+        Assert.Equal(directorId, curateResult2.Value.Responsibility.AssigneeEmployeeId);
+        version = curateResult2.Value.CycleVersion;
 
         Assert.True(await db.PerformanceCycleAuditEvents
             .AnyAsync(a => a.CycleId == cycleId && a.Action == PerformanceCycleAuditAction.ResponsibilityCurated));
