@@ -8,6 +8,7 @@ using EY.HRPlatform.Interview.Models.Common;
 using EY.HRPlatform.Interview.Tests.TestHelpers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace EY.HRPlatform.Interview.Tests.Features.Candidates;
@@ -22,7 +23,7 @@ public class CandidateAccessServiceTests
         await using var db = TestDbContextFactory.Create();
         var test = await SeedTestAsync(db);
         var invitationService = CreateInvitationService(db);
-        var accessService = new CandidateAccessService(db);
+        var accessService = CreateAccessService(db);
 
         var created = await invitationService.CreateAsync(
             new CreateCandidateInvitationDto
@@ -68,7 +69,7 @@ public class CandidateAccessServiceTests
         await using var db = TestDbContextFactory.Create();
         var test = await SeedTestAsync(db);
         var invitationService = CreateInvitationService(db);
-        var accessService = new CandidateAccessService(db);
+        var accessService = CreateAccessService(db);
 
         var created = await invitationService.CreateAsync(
             new CreateCandidateInvitationDto
@@ -104,7 +105,7 @@ public class CandidateAccessServiceTests
         await using var db = TestDbContextFactory.Create();
         var test = await SeedTestAsync(db);
         var invitationService = CreateInvitationService(db);
-        var accessService = new CandidateAccessService(db);
+        var accessService = CreateAccessService(db);
 
         var created = await invitationService.CreateAsync(
             new CreateCandidateInvitationDto
@@ -158,7 +159,7 @@ public class CandidateAccessServiceTests
         await using var db = TestDbContextFactory.Create();
         var test = await SeedTestAsync(db);
         var invitationService = CreateInvitationService(db);
-        var accessService = new CandidateAccessService(db);
+        var accessService = CreateAccessService(db);
 
         db.CandidateLinkSecuritySettings.Add(new CandidateLinkSecuritySettings
         {
@@ -236,7 +237,7 @@ public class CandidateAccessServiceTests
         await using var db = TestDbContextFactory.Create();
         var test = await SeedTestAsync(db);
         var invitationService = CreateInvitationService(db);
-        var accessService = new CandidateAccessService(db);
+        var accessService = CreateAccessService(db);
 
         db.CandidateAttemptSettings.Add(new CandidateAttemptSettings
         {
@@ -311,7 +312,7 @@ public class CandidateAccessServiceTests
         await using var db = TestDbContextFactory.Create();
         var test = await SeedTestAsync(db);
         var invitationService = CreateInvitationService(db);
-        var accessService = new CandidateAccessService(db);
+        var accessService = CreateAccessService(db);
 
         var created = await invitationService.CreateAsync(
             new CreateCandidateInvitationDto
@@ -343,7 +344,7 @@ public class CandidateAccessServiceTests
         await using var db = TestDbContextFactory.Create();
         var test = await SeedTestAsync(db);
         var invitationService = CreateInvitationService(db);
-        var accessService = new CandidateAccessService(db);
+        var accessService = CreateAccessService(db);
 
         var created = await invitationService.CreateAsync(
             new CreateCandidateInvitationDto
@@ -372,7 +373,7 @@ public class CandidateAccessServiceTests
         await using var db = TestDbContextFactory.Create();
         var test = await SeedTestAsync(db);
         var invitationService = CreateInvitationService(db);
-        var accessService = new CandidateAccessService(db);
+        var accessService = CreateAccessService(db);
 
         var created = await invitationService.CreateAsync(
             new CreateCandidateInvitationDto
@@ -404,7 +405,7 @@ public class CandidateAccessServiceTests
         await using var db = TestDbContextFactory.Create();
         var test = await SeedTestAsync(db);
         var invitationService = CreateInvitationService(db);
-        var accessService = new CandidateAccessService(db);
+        var accessService = CreateAccessService(db);
 
         var created = await invitationService.CreateAsync(
             new CreateCandidateInvitationDto
@@ -445,7 +446,7 @@ public class CandidateAccessServiceTests
         await using var db = TestDbContextFactory.Create();
         var test = await SeedTestAsync(db);
         var invitationService = CreateInvitationService(db);
-        var accessService = new CandidateAccessService(db);
+        var accessService = CreateAccessService(db);
 
         db.CandidateLinkSecuritySettings.Add(new CandidateLinkSecuritySettings
         {
@@ -502,7 +503,7 @@ public class CandidateAccessServiceTests
         await using var db = TestDbContextFactory.Create();
         var test = await SeedTestAsync(db);
         var invitationService = CreateInvitationService(db);
-        var accessService = new CandidateAccessService(db);
+        var accessService = CreateAccessService(db);
 
         var created = await invitationService.CreateAsync(
             new CreateCandidateInvitationDto
@@ -565,6 +566,178 @@ public class CandidateAccessServiceTests
             .ToListAsync();
 
         Assert.Single(startedEvents);
+    }
+
+    [Fact]
+    public async Task RunCodeAsync_WithUnknownToken_Throws404()
+    {
+        await using var db = TestDbContextFactory.Create();
+        var accessService = CreateAccessService(db);
+
+        var ex = await Assert.ThrowsAsync<ApiException>(() => accessService.RunCodeAsync(
+            new RunCodeRequestDto
+            {
+                Token = "0123456789abcdef0123456789abcdef", // valid format, no match
+                QuestionId = Guid.NewGuid(),
+                SourceCode = "print('hi')",
+            },
+            CancellationToken.None));
+
+        Assert.Equal(404, ex.StatusCode);
+    }
+
+    [Fact]
+    public async Task RunCodeAsync_WhenAttemptNotStarted_ThrowsConflict()
+    {
+        await using var db = TestDbContextFactory.Create();
+        var test = await SeedTestAsync(db);
+        var invitationService = CreateInvitationService(db);
+        var accessService = CreateAccessService(db);
+
+        var created = await invitationService.CreateAsync(
+            new CreateCandidateInvitationDto
+            {
+                TestId = test.Id.ToString(),
+                Email = "run.candidate@example.com",
+                CandidateName = "Run Candidate",
+                SendNotification = false,
+            },
+            CancellationToken.None);
+
+        var token = ExtractToken(created.InviteLink);
+
+        var ex = await Assert.ThrowsAsync<ApiException>(() => accessService.RunCodeAsync(
+            new RunCodeRequestDto
+            {
+                Token = token,
+                QuestionId = Guid.NewGuid(),
+                SourceCode = "print('hi')",
+            },
+            CancellationToken.None));
+
+        Assert.Equal(409, ex.StatusCode);
+    }
+
+    [Fact]
+    public async Task RunCodeAsync_WhenJudge0NotConfigured_ThrowsServiceUnavailable()
+    {
+        await using var db = TestDbContextFactory.Create();
+        var test = await SeedTestAsync(db);
+        var invitationService = CreateInvitationService(db);
+        var accessService = CreateAccessService(db);
+
+        var created = await invitationService.CreateAsync(
+            new CreateCandidateInvitationDto
+            {
+                TestId = test.Id.ToString(),
+                Email = "run.candidate@example.com",
+                CandidateName = "Run Candidate",
+                SendNotification = false,
+            },
+            CancellationToken.None);
+
+        var token = ExtractToken(created.InviteLink);
+
+        // Move the attempt to in-progress so the run gate passes.
+        await accessService.StartOrResumeAsync(
+            new StartCandidateAttemptDto
+            {
+                Token = token,
+                CandidateEmail = "run.candidate@example.com",
+                BrowserFingerprint = DefaultFingerprint,
+            },
+            CancellationToken.None);
+
+        var questionId = await AddCodingQuestionAsync(db, test.Id);
+
+        // The default service provider has no Judge0Client registered, so a valid run
+        // request must degrade to 503 rather than throwing something opaque.
+        var ex = await Assert.ThrowsAsync<ApiException>(() => accessService.RunCodeAsync(
+            new RunCodeRequestDto
+            {
+                Token = token,
+                QuestionId = questionId,
+                SourceCode = "print('hi')",
+            },
+            CancellationToken.None));
+
+        Assert.Equal(503, ex.StatusCode);
+    }
+
+    [Fact]
+    public async Task RunCodeAsync_ForNonCodeQuestion_ThrowsBadRequest()
+    {
+        await using var db = TestDbContextFactory.Create();
+        var test = await SeedTestAsync(db);
+        var invitationService = CreateInvitationService(db);
+        var accessService = CreateAccessService(db);
+
+        var created = await invitationService.CreateAsync(
+            new CreateCandidateInvitationDto
+            {
+                TestId = test.Id.ToString(),
+                Email = "run.candidate@example.com",
+                CandidateName = "Run Candidate",
+                SendNotification = false,
+            },
+            CancellationToken.None);
+
+        var token = ExtractToken(created.InviteLink);
+
+        await accessService.StartOrResumeAsync(
+            new StartCandidateAttemptDto
+            {
+                Token = token,
+                CandidateEmail = "run.candidate@example.com",
+                BrowserFingerprint = DefaultFingerprint,
+            },
+            CancellationToken.None);
+
+        // The seeded question is a Multiple Choice question — not runnable.
+        var questionId = test.TestQuestions.First().Question!.Id;
+
+        var ex = await Assert.ThrowsAsync<ApiException>(() => accessService.RunCodeAsync(
+            new RunCodeRequestDto
+            {
+                Token = token,
+                QuestionId = questionId,
+                SourceCode = "print('hi')",
+            },
+            CancellationToken.None));
+
+        Assert.Equal(400, ex.StatusCode);
+    }
+
+    private static async Task<Guid> AddCodingQuestionAsync(AppDbContext db, Guid testId)
+    {
+        var question = new Question
+        {
+            Title = "Reverse a string",
+            Description = "Return the reversed string.",
+            Type = QuestionType.Coding,
+            Difficulty = Difficulty.Easy,
+            GradingMethod = GradingMethod.AutoGraded,
+            Points = 10,
+            DurationMinutes = 10,
+            Language = "python",
+        };
+        db.Questions.Add(question);
+        db.TestQuestions.Add(new TestQuestion { TestId = testId, Question = question });
+        await db.SaveChangesAsync();
+        return question.Id;
+    }
+
+    private static CandidateAccessService CreateAccessService(AppDbContext db, IServiceProvider? services = null)
+    {
+        var provider = services ?? new ServiceCollection().BuildServiceProvider();
+        var throttle = new CodeRunThrottle(
+            new ConfigurationBuilder().Build(),
+            NullLogger<CodeRunThrottle>.Instance);
+        return new CandidateAccessService(
+            db,
+            provider,
+            throttle,
+            NullLogger<CandidateAccessService>.Instance);
     }
 
     private static CandidateInvitationService CreateInvitationService(AppDbContext db)
