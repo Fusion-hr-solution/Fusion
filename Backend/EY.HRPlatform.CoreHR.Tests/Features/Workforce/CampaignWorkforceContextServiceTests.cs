@@ -293,4 +293,118 @@ public sealed class CampaignWorkforceContextServiceTests
         // Legacy assignment must not be mistaken for a canonical position
         Assert.DoesNotContain("ConflictingPrimaryPositionAssignments", participant.RemediationCodes);
     }
+
+    /// <summary>
+    /// GAP IN-02a: Locks ConflictingPrimaryPositionAssignments.
+    /// Two effective primary position assignments that each have a canonical PositionId
+    /// must trigger the conflict remediation code and block Packet A readiness.
+    /// </summary>
+    [Fact]
+    public async Task GetAsync_TwoCanonicalPrimaryPositionAssignments_ReportsConflict()
+    {
+        var tenantId = Guid.NewGuid();
+        await using var db = TestDbContextFactory.Create(TestTenantContext.WithTenant(tenantId));
+        var at = new DateTime(2026, 6, 21, 0, 0, 0, DateTimeKind.Utc);
+        var orgUnitId = Guid.NewGuid();
+
+        var employee = Employee.Create(tenantId, "Dual", "Assignment", "dual.assign@example.com", at);
+        var positionA = Position.Create(tenantId, "POS-A-001", "Position A", orgUnitId);
+        var positionB = Position.Create(tenantId, "POS-B-001", "Position B", orgUnitId);
+
+        // Two overlapping primary assignments, both with canonical PositionIds
+        var assignmentA = EmployeePositionAssignment.Create(tenantId, employee.Id, positionA.Id, isPrimary: true, at);
+        var assignmentB = EmployeePositionAssignment.Create(tenantId, employee.Id, positionB.Id, isPrimary: true, at);
+
+        db.AddRange(employee, positionA, positionB, assignmentA, assignmentB);
+        await db.SaveChangesAsync();
+
+        var context = await new CampaignWorkforceContextService(db).GetAsync(at, [employee.Id]);
+
+        var participant = Assert.Single(context.Members);
+        Assert.False(participant.IsPacketAReady);
+        Assert.Contains("ConflictingPrimaryPositionAssignments", participant.RemediationCodes);
+    }
+
+    /// <summary>
+    /// GAP IN-02b: Locks PrimaryManagementCycle.
+    /// A primary manager cycle (A's primary manager is B and B's primary manager is A)
+    /// must trigger PrimaryManagementCycle and block Packet A readiness for both members.
+    /// </summary>
+    [Fact]
+    public async Task GetAsync_PrimaryManagementCycleBetweenTwoEmployees_ReportsCycleForBoth()
+    {
+        var tenantId = Guid.NewGuid();
+        await using var db = TestDbContextFactory.Create(TestTenantContext.WithTenant(tenantId));
+        var at = new DateTime(2026, 6, 21, 0, 0, 0, DateTimeKind.Utc);
+
+        var employeeA = Employee.Create(tenantId, "Cycle", "Alpha", "cycle.alpha@example.com", at);
+        var employeeB = Employee.Create(tenantId, "Cycle", "Beta", "cycle.beta@example.com", at);
+        var positionA = Position.Create(tenantId, "CYC-A-001", "Cycle Position A");
+        var positionB = Position.Create(tenantId, "CYC-B-001", "Cycle Position B");
+        var assignmentA = EmployeePositionAssignment.Create(tenantId, employeeA.Id, positionA.Id, isPrimary: true, at);
+        var assignmentB = EmployeePositionAssignment.Create(tenantId, employeeB.Id, positionB.Id, isPrimary: true, at);
+
+        // A's primary manager is B, B's primary manager is A — mutual cycle
+        var relAtoB = EmployeeReportingRelationship.Create(
+            tenantId, employeeA.Id, employeeB.Id,
+            assignmentA.Id, assignmentB.Id,
+            ReportingRelationshipType.PrimaryManager, at);
+        var relBtoA = EmployeeReportingRelationship.Create(
+            tenantId, employeeB.Id, employeeA.Id,
+            assignmentB.Id, assignmentA.Id,
+            ReportingRelationshipType.PrimaryManager, at);
+
+        db.AddRange(employeeA, employeeB, positionA, positionB, assignmentA, assignmentB, relAtoB, relBtoA);
+        await db.SaveChangesAsync();
+
+        var context = await new CampaignWorkforceContextService(db).GetAsync(at, [employeeA.Id, employeeB.Id]);
+
+        Assert.Equal(2, context.Members.Count);
+        foreach (var member in context.Members)
+        {
+            Assert.False(member.IsPacketAReady);
+            Assert.Contains("PrimaryManagementCycle", member.RemediationCodes);
+        }
+    }
+
+    /// <summary>
+    /// GAP IN-02c: Locks OrgUnitHierarchyCycle.
+    /// When two org units reference each other as parents, any employee member of either
+    /// unit must trigger OrgUnitHierarchyCycle and IsPacketAReady == false.
+    /// The cycle is seeded via EF property API since OrgUnit.ParentId is private-set.
+    /// </summary>
+    [Fact]
+    public async Task GetAsync_OrgUnitHierarchyCycle_ReportsCycleForMember()
+    {
+        var tenantId = Guid.NewGuid();
+        await using var db = TestDbContextFactory.Create(TestTenantContext.WithTenant(tenantId));
+        var at = new DateTime(2026, 6, 21, 0, 0, 0, DateTimeKind.Utc);
+
+        // Seed X with no parent, Y with X as parent (valid initial state)
+        var orgUnitX = OrgUnit.Create(tenantId, "CYC-X", "Cycle Unit X", "Department", null);
+        db.Add(orgUnitX);
+        await db.SaveChangesAsync();
+
+        var orgUnitY = OrgUnit.Create(tenantId, "CYC-Y", "Cycle Unit Y", "Department", orgUnitX.Id);
+        db.Add(orgUnitY);
+        await db.SaveChangesAsync();
+
+        // Patch X.ParentId = Y.Id via EF property API to form the cycle (X ↔ Y)
+        db.Entry(orgUnitX).Property("ParentId").CurrentValue = orgUnitY.Id;
+        await db.SaveChangesAsync();
+
+        var employee = Employee.Create(tenantId, "Cycle", "OrgMember", "cycle.orgmember@example.com", at);
+        var position = Position.Create(tenantId, "CYC-ORG-001", "Cycle Org Position");
+        var assignment = EmployeePositionAssignment.Create(tenantId, employee.Id, position.Id, isPrimary: true, at);
+        var membership = EmployeeOrgMembership.Create(tenantId, employee.Id, orgUnitX.Id, OrgMembershipType.Home, true, at);
+
+        db.AddRange(employee, position, assignment, membership);
+        await db.SaveChangesAsync();
+
+        var context = await new CampaignWorkforceContextService(db).GetAsync(at, [employee.Id]);
+
+        var participant = Assert.Single(context.Members);
+        Assert.False(participant.IsPacketAReady);
+        Assert.Contains("OrgUnitHierarchyCycle", participant.RemediationCodes);
+    }
 }
