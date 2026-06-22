@@ -116,4 +116,94 @@ public sealed class CampaignWorkforceContextServiceTests
         Assert.Contains("MissingCanonicalPrimaryPosition", participant.RemediationCodes);
         Assert.Contains("MissingPrimaryOrgMembership", participant.RemediationCodes);
     }
+
+    /// <summary>
+    /// Locks the "no title inference" invariant: an active employee with NO
+    /// EmployeePositionAssignment yields IsPacketAReady=false and
+    /// RemediationCodes containing MissingCanonicalPrimaryPosition.
+    /// Core does NOT fall back to any job-title string — absence of a canonical
+    /// assignment blocks readiness entirely.
+    /// </summary>
+    [Fact]
+    public async Task GetAsync_FlagsMissingCanonicalPositionInsteadOfInferringFromTitle()
+    {
+        var tenantId = Guid.NewGuid();
+        await using var db = TestDbContextFactory.Create(TestTenantContext.WithTenant(tenantId));
+        var at = new DateTime(2026, 6, 21, 0, 0, 0, DateTimeKind.Utc);
+        var employee = Employee.Create(tenantId, "Alice", "Smith", "alice.smith@example.com", at);
+        db.Add(employee);
+        await db.SaveChangesAsync();
+
+        var context = await new CampaignWorkforceContextService(db).GetAsync(at, [employee.Id]);
+
+        var participant = Assert.Single(context.Members);
+        Assert.True(participant.IsActive);
+        Assert.False(participant.IsPacketAReady);
+        Assert.Contains("MissingCanonicalPrimaryPosition", participant.RemediationCodes);
+        // Core does not infer a position from a job-title string: no canonical assignment
+        // means no primary chain, proving readiness is blocked rather than falling back.
+        Assert.Empty(participant.PrimaryManagementChain);
+    }
+
+    /// <summary>
+    /// Locks the inactive-employee remediation invariant: a deactivated employee is
+    /// flagged with InactiveEmployee and IsPacketAReady=false — inactive references
+    /// are never silently emitted as usable workforce truth.
+    /// </summary>
+    [Fact]
+    public async Task GetAsync_FlagsInactiveEmployeeAsRemediationAndNotPacketAReady()
+    {
+        var tenantId = Guid.NewGuid();
+        await using var db = TestDbContextFactory.Create(TestTenantContext.WithTenant(tenantId));
+        var at = new DateTime(2026, 6, 21, 0, 0, 0, DateTimeKind.Utc);
+        var employee = Employee.Create(tenantId, "Bob", "Jones", "bob.jones@example.com", at);
+        db.Add(employee);
+        await db.SaveChangesAsync();
+
+        // Deactivate the employee before querying
+        employee.Deactivate();
+        await db.SaveChangesAsync();
+
+        var context = await new CampaignWorkforceContextService(db).GetAsync(at, [employee.Id]);
+
+        var participant = Assert.Single(context.Members);
+        Assert.False(participant.IsActive);
+        Assert.False(participant.IsPacketAReady);
+        Assert.Contains("InactiveEmployee", participant.RemediationCodes);
+    }
+
+    /// <summary>
+    /// Locks the relationship-candidate provenance invariant: a non-primary (MatrixManager)
+    /// relationship candidate carries Source == "CoreReportingRelationship" and the typed
+    /// ReportingRelationshipType so Performance can treat it as a candidate only, never
+    /// silently elevating it to a primary-chain fact.
+    /// </summary>
+    [Fact]
+    public async Task GetAsync_EmitsTypedRelationshipCandidatesWithCoreProvenance()
+    {
+        var tenantId = Guid.NewGuid();
+        await using var db = TestDbContextFactory.Create(TestTenantContext.WithTenant(tenantId));
+        var at = new DateTime(2026, 6, 21, 0, 0, 0, DateTimeKind.Utc);
+        var manager = Employee.Create(tenantId, "Matrix", "Manager", "matrix.mgr@example.com", at);
+        var employee = Employee.Create(tenantId, "Matrix", "Subject", "matrix.subject@example.com", at);
+        var managerPosition = Position.Create(tenantId, "MXMGR-001", "Matrix Manager Position");
+        var subjectPosition = Position.Create(tenantId, "MXSUB-001", "Subject Position");
+        var managerAssignment = EmployeePositionAssignment.Create(tenantId, manager.Id, managerPosition.Id, true, at);
+        var subjectAssignment = EmployeePositionAssignment.Create(tenantId, employee.Id, subjectPosition.Id, true, at);
+        var matrixRelationship = EmployeeReportingRelationship.Create(
+            tenantId, employee.Id, manager.Id,
+            subjectAssignment.Id, managerAssignment.Id,
+            ReportingRelationshipType.MatrixManager, at);
+
+        db.AddRange(manager, employee, managerPosition, subjectPosition, managerAssignment, subjectAssignment, matrixRelationship);
+        await db.SaveChangesAsync();
+
+        var context = await new CampaignWorkforceContextService(db).GetAsync(at, [employee.Id]);
+
+        var participant = Assert.Single(context.Members);
+        var candidate = Assert.Single(participant.RelationshipCandidates);
+        Assert.Equal(ReportingRelationshipType.MatrixManager, candidate.Type);
+        Assert.Equal(manager.Id, candidate.ManagerEmployeeId);
+        Assert.Equal("CoreReportingRelationship", candidate.Source);
+    }
 }
