@@ -206,4 +206,56 @@ public sealed class CampaignWorkforceContextServiceTests
         Assert.Equal(manager.Id, candidate.ManagerEmployeeId);
         Assert.Equal("CoreReportingRelationship", candidate.Source);
     }
+
+    /// <summary>
+    /// GAP WR-01: Locks the effective-date filter invariant.
+    /// An expired reporting relationship (EffectiveTo &lt; at) and a future org membership
+    /// (EffectiveFrom &gt; at) must both be excluded from GetAsync results.
+    /// This test would fail if the date-filter WHERE clauses were removed.
+    /// </summary>
+    [Fact]
+    public async Task GetAsync_ExcludesExpiredReportingRelationshipAndFutureOrgMembership()
+    {
+        var tenantId = Guid.NewGuid();
+        await using var db = TestDbContextFactory.Create(TestTenantContext.WithTenant(tenantId));
+        var at = new DateTime(2026, 6, 21, 0, 0, 0, DateTimeKind.Utc);
+
+        var manager = Employee.Create(tenantId, "Manager", "One", "manager.eff@example.com", at);
+        var employee = Employee.Create(tenantId, "Employee", "One", "employee.eff@example.com", at);
+        var orgUnitId = Guid.NewGuid();
+        var managerPosition = Position.Create(tenantId, "MGR-EFF-001", "Manager Position");
+        var employeePosition = Position.Create(tenantId, "ENG-EFF-001", "Engineer Position");
+        var managerAssignment = EmployeePositionAssignment.Create(tenantId, manager.Id, managerPosition.Id, true, at);
+        var employeeAssignment = EmployeePositionAssignment.Create(tenantId, employee.Id, employeePosition.Id, true, at);
+
+        // Expired relationship: EffectiveTo is before `at` — must be excluded
+        var expiredRelationship = EmployeeReportingRelationship.Create(
+            tenantId, employee.Id, manager.Id,
+            employeeAssignment.Id, managerAssignment.Id,
+            ReportingRelationshipType.PrimaryManager,
+            effectiveFrom: at.AddDays(-10),
+            effectiveTo: at.AddDays(-1));
+
+        // Future org membership: EffectiveFrom is after `at` — must be excluded
+        var futureMembership = EmployeeOrgMembership.Create(
+            tenantId, employee.Id, orgUnitId,
+            OrgMembershipType.Home, true,
+            effectiveFrom: at.AddDays(1));
+
+        db.AddRange(manager, employee, managerPosition, employeePosition,
+            managerAssignment, employeeAssignment, expiredRelationship, futureMembership);
+        await db.SaveChangesAsync();
+
+        var context = await new CampaignWorkforceContextService(db).GetAsync(at, [employee.Id]);
+
+        var participant = Assert.Single(context.Members);
+        // Expired relationship excluded: PrimaryManagerEmployeeId resolves to Guid.Empty (no entry in dictionary),
+        // not to the manager's actual Id — if the filter were removed, it would be manager.Id.
+        Assert.Equal(Guid.Empty, participant.PrimaryManagerEmployeeId);
+        Assert.Empty(participant.PrimaryManagementChain);
+        // Expired relationship excluded: no relationship candidates surfaced
+        Assert.Empty(participant.RelationshipCandidates);
+        // Future org membership excluded: no org unit membership
+        Assert.Empty(participant.OrgUnitIds);
+    }
 }
