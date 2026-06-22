@@ -1,5 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 
+export * from "./certificate";
+
 export type TrainingLevel = "beginner" | "intermediate" | "advanced";
 
 export type TrainingCategory =

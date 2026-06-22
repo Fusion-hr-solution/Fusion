@@ -4,6 +4,7 @@ import { useState, useCallback, useMemo } from "react";
 import { useApiQuery, useApiMutation } from "@repo/api/react";
 import { ApiError } from "@repo/api";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import type { SessionSelection, EnrollInSessionsResult } from "@/types";
 import {
   getAvailableSessionsForEnrollment,
@@ -20,6 +21,7 @@ function extractErrorMessage(err: Error, fallback: string): string {
 }
 
 export function useSessionEnrollment(trainingId: string) {
+  const t = useTranslations("trainingDetail.sessions.toast");
   const [selections, setSelections] = useState<Record<string, string>>({});
   const [enrollResult, setEnrollResult] = useState<EnrollInSessionsResult | null>(null);
 
@@ -116,18 +118,18 @@ export function useSessionEnrollment(trainingId: string) {
 
         const waitlisted = result.enrollments.filter((e) => e.status === "Waitlisted");
         if (waitlisted.length === 0) {
-          toast.success("Enrollment confirmed", {
-            description: "You're enrolled in all sessions.",
+          toast.success(t("enrollConfirmedTitle"), {
+            description: t("enrollConfirmedDesc"),
           });
         } else {
-          toast.warning("Enrollment submitted", {
-            description: `${waitlisted.length} ${waitlisted.length === 1 ? "session is" : "sessions are"} on the waitlist.`,
+          toast.warning(t("enrollSubmittedTitle"), {
+            description: t("enrollWaitlistedDesc", { count: waitlisted.length }),
           });
         }
       },
       onError: (err) => {
-        toast.error("Enrollment failed", {
-          description: extractErrorMessage(err, "Could not complete your enrollment. Please try again."),
+        toast.error(t("enrollFailedTitle"), {
+          description: extractErrorMessage(err, t("enrollFailedFallback")),
         });
       },
     },
@@ -137,15 +139,15 @@ export function useSessionEnrollment(trainingId: string) {
     (sessionId: string) => cancelSessionEnrollment(sessionId),
     {
       onSuccess: () => {
-        toast.success("Session cancelled", {
-          description: "Your booking has been cancelled successfully.",
+        toast.success(t("cancelSuccessTitle"), {
+          description: t("cancelSuccessDesc"),
         });
         refetchMyEnrollments();
         refetchAvailable();
       },
       onError: (err) => {
-        toast.error("Cancellation failed", {
-          description: extractErrorMessage(err, "Could not cancel this session. Please try again."),
+        toast.error(t("cancelFailedTitle"), {
+          description: extractErrorMessage(err, t("cancelFailedFallback")),
         });
       },
     },

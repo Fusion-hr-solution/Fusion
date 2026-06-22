@@ -50,6 +50,7 @@ public static class ServiceCollectionExtensions
             services.AddScoped<GradingOrchestrator>();
             services.AddScoped<HumanReviewService>();
             services.AddDistributedMemoryCache();
+            services.AddSingleton<ICodeRunThrottle, CodeRunThrottle>();
             return services;
         }
 
@@ -123,11 +124,26 @@ public static class ServiceCollectionExtensions
                 opts.AbortOnConnectFail = true; // fail fast after timeout; subsequent ops throw immediately
                 o.ConfigurationOptions = opts;
             });
+
+            // Shared multiplexer for cross-replica coordination (the code-run throttle).
+            // Connect lazily and don't abort on connect failure so a Redis blip can't
+            // block startup; the throttle fails open to its in-process fallback instead.
+            services.AddSingleton<IConnectionMultiplexer>(_ =>
+            {
+                var muxOpts = ConfigurationOptions.Parse(redisConnectionString);
+                muxOpts.AbortOnConnectFail = false;
+                return ConnectionMultiplexer.Connect(muxOpts);
+            });
         }
         else
         {
             services.AddDistributedMemoryCache();
         }
+
+        // Backpressure + rate limiting for the candidate code-run endpoint. Resolves the
+        // optional IConnectionMultiplexer when Redis is configured; otherwise uses its
+        // in-process fallback.
+        services.AddSingleton<ICodeRunThrottle, CodeRunThrottle>();
 
         return services;
     }

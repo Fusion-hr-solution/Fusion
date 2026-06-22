@@ -3,6 +3,7 @@ using EY.HRPlatform.Training.Features.Admin.Budget;
 using EY.HRPlatform.Training.Features.Admin.Budget.Export;
 using EY.HRPlatform.Training.Features.Admin.Sessions.Export;
 using EY.HRPlatform.Training.Features.Admin.Sessions.Services;
+using EY.HRPlatform.Training.Features.Certifications.Export;
 using EY.HRPlatform.Training.Features.Certifications.Services;
 using EY.HRPlatform.Training.Infrastructure.Persistence;
 using EY.HRPlatform.Training.Infrastructure.Services;
@@ -66,6 +67,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ICertificateQrService, CertificateQrService>();
         services.AddSingleton<ICertificatePdfService, CertificatePdfService>();
         services.AddSingleton<ICertificateUrlBuilder, CertificateUrlBuilder>();
+        services.AddSingleton<ICertificateRegistryExporter, CertificateRegistryExporter>();
         services.AddScoped<ICertificateIssuanceService, CertificateIssuanceService>();
 
         // 7. Budget alert email sender (own SMTP infra; Smtp when enabled + configured, else NoOp)

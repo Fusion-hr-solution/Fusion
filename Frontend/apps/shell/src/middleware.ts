@@ -11,6 +11,7 @@ const PUBLIC_PATHS = [
   "/invite", // Primary invite acceptance flow
   "/core/invite", // Invite acceptance flow must be anonymous
   "/interview/candidate/start", // Candidate test access from invitation email
+  "/learning/verify", // Public certificate verification (QR/URL), no account required
 ];
 
 export function middleware(request: NextRequest) {

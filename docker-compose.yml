@@ -141,7 +141,8 @@ services:
 
   judge0-worker:
     image: judge0/judge0:1.13.1
-    container_name: fusion-judge0-worker
+    # No fixed container_name so the worker can scale horizontally:
+    # `docker compose up -d --scale judge0-worker=N`.
     command: ["./scripts/workers"]
     volumes:
       - ./judge0.conf:/judge0.conf:ro

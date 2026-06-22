@@ -10,6 +10,7 @@ import {
   DialogDescription,
 } from "@repo/ui";
 import { CalendarDays, ChevronRight, User } from "lucide-react";
+import { useFormatter, useTranslations } from "next-intl";
 import type { TrainingDetailDialogProps } from "@/types/component-props";
 import { CATEGORY_CONFIG, LEVEL_CONFIG } from "@/data/categories";
 import { TrainingStatsStrip } from "./training-stats-strip";
@@ -20,6 +21,9 @@ export function TrainingDetailDialog({
   open,
   onOpenChange,
 }: TrainingDetailDialogProps) {
+  const t = useTranslations("trainingDetail");
+  const tCommon = useTranslations("common");
+  const format = useFormatter();
   if (!training) return null;
 
   const category = CATEGORY_CONFIG[training.category];
@@ -41,13 +45,13 @@ export function TrainingDetailDialog({
               <span
                 className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold tracking-wide uppercase ${category.badgeClass}`}
               >
-                {category.label}
+                {tCommon(`category.${training.category}`)}
               </span>
               <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <span
                   className={`h-1.5 w-1.5 rounded-full ${level.dotClass}`}
                 />
-                {level.label}
+                {tCommon(`level.${training.level}`)}
               </span>
             </div>
 
@@ -111,15 +115,16 @@ export function TrainingDetailDialog({
         <div className="mx-6 mt-6 mb-6 flex items-center justify-between border-t border-border/40 pt-5">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
-            Updated{" "}
-            {new Date(training.updatedAt).toLocaleDateString("en-US", {
-              month: "short",
-              day: "numeric",
-              year: "numeric",
+            {t("updated", {
+              date: format.dateTime(new Date(training.updatedAt), {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              }),
             })}
           </div>
           <Button className="ey-bg-dark hover:ey-bg-dark-deep text-white gap-2 shadow-md transition-all hover:shadow-lg hover:gap-3">
-            Enroll Now
+            {t("enroll.enrollNow")}
             <ChevronRight className="h-4 w-4 transition-transform" aria-hidden="true" />
           </Button>
         </div>

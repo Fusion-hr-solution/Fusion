@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { useApiQuery, useApiMutation } from "@repo/api/react";
 import {
   getAdminTrainingDetail,
@@ -11,58 +12,71 @@ import {
   updateChapter,
   uploadChapterFile,
 } from "@/services/admin-service";
-import type { AdminContentBlock, CreateContentBlockInput, UpdateContentBlockInput, UpdateChapterInput } from "@/types/admin";
+import type {
+  AdminContentBlock,
+  CreateContentBlockInput,
+  UpdateContentBlockInput,
+  UpdateChapterInput,
+} from "@/types/admin";
 
 export function useChapterBuilder(trainingId: string, chapterId: string) {
-  const [editingBlock, setEditingBlock] = useState<AdminContentBlock | null>(null);
+  const t = useTranslations("adminChapters");
+  const [editingBlock, setEditingBlock] = useState<AdminContentBlock | null>(
+    null
+  );
   const [editorOpen, setEditorOpen] = useState(false);
 
   const fetchTraining = useCallback(
     () => getAdminTrainingDetail(trainingId),
-    [trainingId],
+    [trainingId]
   );
 
-  const { data: training, isLoading, refetch } = useApiQuery(
-    fetchTraining,
-    { enabled: true },
-  );
+  const {
+    data: training,
+    isLoading,
+    refetch,
+  } = useApiQuery(fetchTraining, { enabled: true });
 
   const chapter = useMemo(
     () => training?.chapters.find((c) => c.id === chapterId) ?? null,
-    [training, chapterId],
+    [training, chapterId]
   );
 
   const blocks = useMemo(
-    () => (chapter?.contentBlocks ?? []).slice().sort((a, b) => a.orderIndex - b.orderIndex),
-    [chapter],
+    () =>
+      (chapter?.contentBlocks ?? [])
+        .slice()
+        .sort((a, b) => a.orderIndex - b.orderIndex),
+    [chapter]
   );
 
   // --- Mutations ---
 
   const { mutateAsync: doAddBlock } = useApiMutation(
-    (input: CreateContentBlockInput) => addContentBlock(trainingId, chapterId, input),
-    { onSuccess: () => refetch() },
+    (input: CreateContentBlockInput) =>
+      addContentBlock(trainingId, chapterId, input),
+    { onSuccess: () => refetch() }
   );
 
   const { mutateAsync: doUpdateBlock } = useApiMutation(
     ({ blockId, input }: { blockId: string; input: UpdateContentBlockInput }) =>
       updateContentBlock(trainingId, chapterId, blockId, input),
-    { onSuccess: () => refetch() },
+    { onSuccess: () => refetch() }
   );
 
   const { mutateAsync: doDeleteBlock } = useApiMutation(
     (blockId: string) => deleteContentBlock(trainingId, chapterId, blockId),
-    { onSuccess: () => refetch() },
+    { onSuccess: () => refetch() }
   );
 
   const { mutateAsync: doReorderBlocks } = useApiMutation(
     (ids: string[]) => reorderContentBlocks(trainingId, chapterId, ids),
-    { onSuccess: () => refetch() },
+    { onSuccess: () => refetch() }
   );
 
   const { mutateAsync: doUpdateChapter } = useApiMutation(
     (input: UpdateChapterInput) => updateChapter(trainingId, chapterId, input),
-    { onSuccess: () => refetch() },
+    { onSuccess: () => refetch() }
   );
 
   // --- Handlers ---
@@ -74,22 +88,25 @@ export function useChapterBuilder(trainingId: string, chapterId: string) {
         orderIndex: index ?? blocks.length,
       });
     },
-    [doAddBlock, blocks.length],
+    [doAddBlock, blocks.length]
   );
 
   const handleDeleteBlock = useCallback(
     async (block: AdminContentBlock) => {
-      if (!confirm(`Delete "${block.title || block.type}" block?`)) return;
+      if (
+        !confirm(t("confirmDeleteBlock", { name: block.title || block.type }))
+      )
+        return;
       await doDeleteBlock(block.id);
     },
-    [doDeleteBlock],
+    [doDeleteBlock, t]
   );
 
   const handleReorderBlocks = useCallback(
     async (ids: string[]) => {
       await doReorderBlocks(ids);
     },
-    [doReorderBlocks],
+    [doReorderBlocks]
   );
 
   const handleUpdateTitle = useCallback(
@@ -97,15 +114,18 @@ export function useChapterBuilder(trainingId: string, chapterId: string) {
       if (!chapter) return;
       await doUpdateChapter({ title, layout: chapter.layout });
     },
-    [chapter, doUpdateChapter],
+    [chapter, doUpdateChapter]
   );
 
   const handleUpdateLayout = useCallback(
     async (layout: string) => {
       if (!chapter) return;
-      await doUpdateChapter({ title: chapter.title, layout: layout as UpdateChapterInput["layout"] });
+      await doUpdateChapter({
+        title: chapter.title,
+        layout: layout as UpdateChapterInput["layout"],
+      });
     },
-    [chapter, doUpdateChapter],
+    [chapter, doUpdateChapter]
   );
 
   const openEditor = useCallback((block: AdminContentBlock | null) => {
