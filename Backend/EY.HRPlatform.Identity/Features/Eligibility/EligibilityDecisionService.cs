@@ -12,7 +12,15 @@ public sealed record EligibilityEvaluationRequest(
     Guid? ActorEmployeeId,
     Guid? SubjectEmployeeId,
     Guid? SubjectOrgUnitId,
-    bool IsDirectPrimaryReport);
+    bool IsDirectPrimaryReport)
+{
+    /// <summary>
+    /// Active Core membership and ancestor scopes for the subject. This is supplied only
+    /// through the signed internal contract so Identity can evaluate its assigned org-unit
+    /// scopes without owning or duplicating Core's organization graph.
+    /// </summary>
+    public IReadOnlyList<Guid> SubjectOrgUnitIds { get; init; } = [];
+}
 
 public enum EligibilityDenialReason
 {
@@ -104,7 +112,10 @@ public sealed class EligibilityDecisionService(AppIdentityDbContext dbContext) :
                 .Select(scope => scope.OrgUnitId)
                 .ToHashSet();
 
-            if (request.SubjectOrgUnitId.HasValue && assignedOrgUnits.Contains(request.SubjectOrgUnitId.Value))
+            var subjectOrgUnitIds = request.SubjectOrgUnitIds.Count > 0
+                ? request.SubjectOrgUnitIds
+                : request.SubjectOrgUnitId.HasValue ? [request.SubjectOrgUnitId.Value] : [];
+            if (subjectOrgUnitIds.Any(assignedOrgUnits.Contains))
             {
                 return EligibilityDecision.Allow();
             }

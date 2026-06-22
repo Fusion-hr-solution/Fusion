@@ -50,6 +50,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IInternalServiceRequestAuthorizer>(sp => new InternalServiceRequestAuthorizer(
             sp.GetRequiredService<Microsoft.Extensions.Caching.Memory.IMemoryCache>(),
             internalServiceAuthentication));
+        services.AddSingleton<IInternalServiceRequestSigner>(_ => new InternalServiceRequestSigner(
+            internalServiceAuthentication));
 
         var databaseProvider = configuration["Database:Provider"] ?? "postgres";
         var inMemoryName = configuration["Database:InMemoryName"] ?? "identity_inmemory";

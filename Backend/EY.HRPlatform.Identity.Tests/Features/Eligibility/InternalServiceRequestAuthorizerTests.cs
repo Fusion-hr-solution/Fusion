@@ -30,6 +30,36 @@ public sealed class InternalServiceRequestAuthorizerTests
         Assert.False(await authorizer.AuthorizeAsync(request));
     }
 
+    [Fact]
+    public async Task Signer_ProducesHeadersAcceptedByTheInboundAuthorizer()
+    {
+        var options = new InternalServiceAuthenticationOptions
+        {
+            CallerName = "performance",
+            ActiveKeyId = "2026-rotation-a",
+            Keys = new Dictionary<string, string> { ["2026-rotation-a"] = "test-secret" },
+            AllowedCallers = ["performance"],
+        };
+        var signer = new InternalServiceRequestSigner(options);
+        using var outbound = new HttpRequestMessage(HttpMethod.Post, "https://identity.local/internal/identity/eligibility/evaluate")
+        {
+            Content = new StringContent("{}", Encoding.UTF8, "application/json"),
+        };
+
+        await signer.SignAsync(outbound);
+
+        var inbound = new DefaultHttpContext().Request;
+        inbound.Method = HttpMethods.Post;
+        inbound.Path = "/internal/identity/eligibility/evaluate";
+        inbound.Body = new MemoryStream(Encoding.UTF8.GetBytes("{}"));
+        foreach (var header in outbound.Headers)
+            inbound.Headers[header.Key] = header.Value.ToArray();
+
+        using var cache = new MemoryCache(new MemoryCacheOptions());
+        var authorizer = new InternalServiceRequestAuthorizer(cache, options);
+        Assert.True(await authorizer.AuthorizeAsync(inbound));
+    }
+
     private static void AddSignedHeaders(HttpRequest request, string caller, string keyId, string secret, string nonce)
     {
         var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
