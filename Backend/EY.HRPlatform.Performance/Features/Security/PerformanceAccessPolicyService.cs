@@ -10,6 +10,18 @@ public interface IPerformanceAccessPolicyService
     bool CanOperateCycles(ClaimsPrincipal user);
     bool CanViewObjectiveLibrary(ClaimsPrincipal user);
     bool CanManageObjectiveLibrary(ClaimsPrincipal user);
+
+    // Strategic objective access (D-05: deny-by-default; no position auto-grant)
+    bool CanViewStrategicObjectives(ClaimsPrincipal user);
+    bool CanManageStrategicObjectives(ClaimsPrincipal user);
+    bool CanPublishStrategicObjectives(ClaimsPrincipal user);
+
+    // Collective objective access (D-15 collective level)
+    bool CanViewCollectiveObjectives(ClaimsPrincipal user);
+    bool CanApproveCollectiveObjectives(ClaimsPrincipal user);
+
+    // Progress correction (D-13: manager must have explicit permission)
+    bool CanCorrectObjectiveProgress(ClaimsPrincipal user);
 }
 
 /// <summary>
@@ -39,5 +51,39 @@ public sealed class PerformanceAccessPolicyService : IPerformanceAccessPolicySer
 
     public bool CanManageObjectiveLibrary(ClaimsPrincipal user)
         => user.HasCorePermission(PerformancePermissions.ObjectiveLibraryManage, PermissionScopes.Tenant)
+            || user.IsInRole(PlatformRole.PlatformAdmin);
+
+    // ─── Strategic objective permissions (D-05) ───────────────────────────────
+
+    public bool CanViewStrategicObjectives(ClaimsPrincipal user)
+        => user.HasCorePermission(PerformancePermissions.StrategicView, PermissionScopes.Tenant)
+            || user.HasCorePermission(PerformancePermissions.StrategicManage, PermissionScopes.Tenant)
+            || user.HasCorePermission(PerformancePermissions.StrategicPublish, PermissionScopes.Tenant)
+            || user.IsInRole(PlatformRole.PlatformAdmin);
+
+    public bool CanManageStrategicObjectives(ClaimsPrincipal user)
+        => user.HasCorePermission(PerformancePermissions.StrategicManage, PermissionScopes.Tenant)
+            || user.IsInRole(PlatformRole.PlatformAdmin);
+
+    public bool CanPublishStrategicObjectives(ClaimsPrincipal user)
+        => user.HasCorePermission(PerformancePermissions.StrategicPublish, PermissionScopes.Tenant)
+            || user.IsInRole(PlatformRole.PlatformAdmin);
+
+    // ─── Collective objective permissions (D-15) ──────────────────────────────
+
+    public bool CanViewCollectiveObjectives(ClaimsPrincipal user)
+        => user.HasCorePermission(PerformancePermissions.ObjectiveTeamManage, PermissionScopes.Tenant)
+            || user.HasCorePermission(PerformancePermissions.ObjectiveTeamApprove, PermissionScopes.Tenant)
+            || user.IsInRole(PlatformRole.PlatformAdmin);
+
+    public bool CanApproveCollectiveObjectives(ClaimsPrincipal user)
+        => user.HasCorePermission(PerformancePermissions.ObjectiveTeamApprove, PermissionScopes.Tenant)
+            || user.HasCorePermission(PerformancePermissions.ObjectiveTeamManage, PermissionScopes.Tenant)
+            || user.IsInRole(PlatformRole.PlatformAdmin);
+
+    // ─── Progress correction (D-13) ───────────────────────────────────────────
+
+    public bool CanCorrectObjectiveProgress(ClaimsPrincipal user)
+        => user.HasCorePermission(PerformancePermissions.ObjectiveProgressCorrect, PermissionScopes.Tenant)
             || user.IsInRole(PlatformRole.PlatformAdmin);
 }

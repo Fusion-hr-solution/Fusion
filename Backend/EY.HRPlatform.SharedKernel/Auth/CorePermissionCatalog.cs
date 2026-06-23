@@ -130,6 +130,15 @@ public static class PerformancePermissions
     public const string AuditView = "performance.audit.view";
     public const string ConfidentialIdentityView = "performance.feedback.identity.view";
 
+    // Strategic objective permissions (Plan 03-02, D-05: deny-by-default, never auto-granted by position)
+    public const string StrategicView = "performance.strategic.view";
+    public const string StrategicManage = "performance.strategic.manage";
+    public const string StrategicPublish = "performance.strategic.publish";
+
+    // Progress and team-approval permissions (consumed by Plans 03-03 / 03-04)
+    public const string ObjectiveProgressCorrect = "performance.objective.progress.correct";
+    public const string ObjectiveTeamApprove = "performance.objective.team.approve";
+
     public static readonly ReadOnlyCollection<string> All =
         Array.AsReadOnly([
             CycleView,
@@ -146,6 +155,11 @@ public static class PerformancePermissions
             RetentionManage,
             AuditView,
             ConfidentialIdentityView,
+            StrategicView,
+            StrategicManage,
+            StrategicPublish,
+            ObjectiveProgressCorrect,
+            ObjectiveTeamApprove,
         ]);
 }
 
@@ -212,6 +226,15 @@ public static class CorePermissionCatalog
             new(PerformancePermissions.RetentionManage, "Manage performance retention", "Performance", [PermissionScopes.Tenant]),
             new(PerformancePermissions.AuditView, "View performance audit", "Performance", [PermissionScopes.OrgUnit, PermissionScopes.Tenant]),
             new(PerformancePermissions.ConfidentialIdentityView, "View confidential feedback identities", "Performance", [PermissionScopes.Tenant]),
+
+            // Strategic objective permissions (D-05: deny-by-default, never auto-granted by position)
+            new(PerformancePermissions.StrategicView, "View strategic objectives", "Performance", [PermissionScopes.Tenant]),
+            new(PerformancePermissions.StrategicManage, "Manage strategic objectives", "Performance", [PermissionScopes.Tenant]),
+            new(PerformancePermissions.StrategicPublish, "Publish strategic objectives", "Performance", [PermissionScopes.Tenant], "Explicit deny-by-default publish grant; never auto-granted by top-management position."),
+
+            // Progress correction and collective approval permissions
+            new(PerformancePermissions.ObjectiveProgressCorrect, "Correct objective progress (manager override)", "Performance", [PermissionScopes.Tenant]),
+            new(PerformancePermissions.ObjectiveTeamApprove, "Approve collective objectives", "Performance", [PermissionScopes.DirectReports, PermissionScopes.OrgUnit, PermissionScopes.Tenant]),
         ]);
 
     private static readonly IReadOnlyDictionary<string, CorePermissionDefinition> ByKey =
