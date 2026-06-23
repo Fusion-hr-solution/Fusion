@@ -28,6 +28,8 @@ public sealed class PerformanceObjective : AggregateRoot, ITenantEntity
     public ObjectiveStatus Status { get; private set; }
     public DateTime? SubmittedAt { get; private set; }
     public DateTime? ApprovedAt { get; private set; }
+    public ObjectiveProgressMode ProgressMode { get; private set; } = ObjectiveProgressMode.ManualPercent;
+    public decimal? ManualProgressPercent { get; private set; }
 
     public static PerformanceObjective Create(
         Guid tenantId,
@@ -103,6 +105,31 @@ public sealed class PerformanceObjective : AggregateRoot, ITenantEntity
             throw new DomainRuleViolationException("Only a submitted objective can be rejected.");
 
         Status = ObjectiveStatus.Rejected;
+        UpdatedAt = NormalizeUtc(occurredAt, nameof(occurredAt));
+    }
+
+    /// <summary>
+    /// Sets the authoritative progress tracking mode (D-12).
+    /// Only allowed when no conflicting authoritative value exists.
+    /// </summary>
+    public void SetProgressMode(ObjectiveProgressMode mode)
+    {
+        ProgressMode = mode;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Sets the manual progress percentage. Only valid when ProgressMode is ManualPercent (D-12).
+    /// </summary>
+    public void SetManualProgress(decimal percent, DateTime occurredAt)
+    {
+        if (ProgressMode != ObjectiveProgressMode.ManualPercent)
+            throw new DomainRuleViolationException("Progress.ModeMismatch: Objective uses MilestoneRollup tracking; manual percent updates are not allowed.");
+
+        if (percent is < 0 or > 100)
+            throw new ArgumentOutOfRangeException(nameof(percent), "Progress percent must be between 0 and 100.");
+
+        ManualProgressPercent = percent;
         UpdatedAt = NormalizeUtc(occurredAt, nameof(occurredAt));
     }
 
