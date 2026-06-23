@@ -31,5 +31,15 @@ public enum PerformanceCycleAuditAction
     CollectiveObjectiveAutoApproved,
 
     // Progress tracking actions (Plan 03-04)
-    ObjectiveProgressCorrected
+    ObjectiveProgressCorrected,
+
+    // Feedback-specific actions (Plan 04-01, D-19)
+    FeedbackResponseSubmitted,
+    FeedbackResponseWithdrawn,
+    FeedbackResponseLocked,
+    FeedbackThresholdReached,
+    FeedbackSuppressed,
+    FeedbackContentAccessed,
+    FeedbackIdentityAccessed,
+    FeedbackResponseInvalidated
 }

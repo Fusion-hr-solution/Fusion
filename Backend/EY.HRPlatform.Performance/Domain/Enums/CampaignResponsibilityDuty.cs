@@ -4,5 +4,7 @@ namespace EY.HRPlatform.Performance.Domain.Enums;
 public enum CampaignResponsibilityDuty
 {
     ObjectiveApproval,
-    ManagerReview
+    ManagerReview,
+    PeerFeedback,
+    UpwardFeedback
 }

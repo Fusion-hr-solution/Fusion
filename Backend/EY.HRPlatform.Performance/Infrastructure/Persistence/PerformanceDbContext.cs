@@ -53,6 +53,13 @@ public class PerformanceDbContext : DbContext
     public DbSet<ObjectiveProgressEntry> ObjectiveProgressEntries => Set<ObjectiveProgressEntry>();
     public DbSet<ApprovalDelegate> ApprovalDelegates => Set<ApprovalDelegate>();
 
+    // Feedback response model entities (Plan 04-01)
+    public DbSet<FeedbackTemplateSnapshot> FeedbackTemplateSnapshots => Set<FeedbackTemplateSnapshot>();
+    public DbSet<FeedbackPromptSnapshot> FeedbackPromptSnapshots => Set<FeedbackPromptSnapshot>();
+    public DbSet<FeedbackResponseContent> FeedbackResponseContents => Set<FeedbackResponseContent>();
+    public DbSet<FeedbackResponseVersion> FeedbackResponseVersions => Set<FeedbackResponseVersion>();
+    public DbSet<FeedbackIdentityMapping> FeedbackIdentityMappings => Set<FeedbackIdentityMapping>();
+
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
         configurationBuilder.Properties<DateTime>()
@@ -134,5 +141,21 @@ public class PerformanceDbContext : DbContext
 
         modelBuilder.Entity<ApprovalDelegate>()
             .HasQueryFilter(d => CurrentTenantId != Guid.Empty && d.TenantId == CurrentTenantId);
+
+        // Feedback response model tenant filters (Plan 04-01)
+        modelBuilder.Entity<FeedbackTemplateSnapshot>()
+            .HasQueryFilter(t => CurrentTenantId != Guid.Empty && t.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<FeedbackPromptSnapshot>()
+            .HasQueryFilter(p => CurrentTenantId != Guid.Empty && p.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<FeedbackResponseContent>()
+            .HasQueryFilter(r => CurrentTenantId != Guid.Empty && r.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<FeedbackResponseVersion>()
+            .HasQueryFilter(v => CurrentTenantId != Guid.Empty && v.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<FeedbackIdentityMapping>()
+            .HasQueryFilter(m => CurrentTenantId != Guid.Empty && m.TenantId == CurrentTenantId);
     }
 }
