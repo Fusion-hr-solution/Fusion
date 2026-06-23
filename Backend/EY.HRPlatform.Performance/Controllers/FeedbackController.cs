@@ -7,6 +7,7 @@ using EY.HRPlatform.Performance.Features.Feedback.Commands.ResolveFeedbackIdenti
 using EY.HRPlatform.Performance.Features.Feedback.Commands.SubmitFeedbackResponse;
 using EY.HRPlatform.Performance.Features.Feedback.Commands.WithdrawFeedbackResponse;
 using EY.HRPlatform.Performance.Features.Feedback.Dtos;
+using EY.HRPlatform.Performance.Features.Feedback.Queries.GetFeedbackResponses;
 using EY.HRPlatform.Performance.Features.Feedback.Queries.GetFeedbackThresholdStatus;
 using EY.HRPlatform.Performance.Models.Responses;
 using EY.HRPlatform.SharedKernel.Api;
@@ -41,6 +42,30 @@ public sealed class FeedbackController(ISender sender) : ControllerBase
                     p.PromptText, p.Description, p.IsRequired, p.DisplayOrder)).ToList()),
             cancellationToken);
         return result.IsFailure ? MapFailure(result.Error) : Ok(ApiResponse<Guid>.Success(result.Value));
+    }
+
+    /// <summary>
+    /// Get anonymized feedback responses for a subject cohort.
+    /// </summary>
+    [HttpGet("cycles/{cycleId:guid}/subjects/{subjectId:guid}/responses")]
+    public async Task<IActionResult> GetFeedbackResponses(
+        Guid cycleId,
+        Guid subjectId,
+        [FromQuery] string feedbackType,
+        CancellationToken cancellationToken)
+    {
+        if (!Enum.TryParse<CampaignWorkItemType>(feedbackType, ignoreCase: true, out var parsedType) ||
+            parsedType is not (CampaignWorkItemType.PeerFeedback or CampaignWorkItemType.UpwardFeedback))
+        {
+            return BadRequest(ApiResponse.Failure("Feedback type must be PeerFeedback or UpwardFeedback."));
+        }
+
+        var result = await sender.Send(
+            new GetFeedbackResponsesQuery(cycleId, subjectId, parsedType),
+            cancellationToken);
+        return result.IsFailure
+            ? MapFailure(result.Error)
+            : Ok(ApiResponse<FeedbackResponseListDto>.Success(result.Value));
     }
 
     /// <summary>

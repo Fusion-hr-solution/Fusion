@@ -23,6 +23,10 @@ public sealed class ResolveFeedbackIdentityCommandHandler(
             return Result.Failure<FeedbackIdentityDto>(Error.Forbidden("Feedback.EmployeeContextRequired",
                 "An employee context is required to resolve feedback identity."));
 
+        if (string.IsNullOrWhiteSpace(request.Reason))
+            return Result.Failure<FeedbackIdentityDto>(Error.Validation("Feedback.MissingReason",
+                "A reason is required to resolve feedback identity."));
+
         // D-07/D-10: Requires ConfidentialIdentityView permission
         var user = httpContextAccessor.HttpContext?.User;
         if (user is null || !accessPolicy.CanAccessConfidentialFeedbackIdentity(user))
@@ -35,9 +39,15 @@ public sealed class ResolveFeedbackIdentityCommandHandler(
             return Result.Failure<FeedbackIdentityDto>(Error.NotFound("FeedbackIdentityMapping",
                 request.ResponseContentId));
 
+        var content = await dbContext.FeedbackResponseContents.SingleOrDefaultAsync(
+            item => item.Id == request.ResponseContentId, cancellationToken);
+        if (content is null)
+            return Result.Failure<FeedbackIdentityDto>(Error.NotFound("FeedbackResponseContent",
+                request.ResponseContentId));
+
         // Emit audit event (D-19)
         dbContext.PerformanceCycleAuditEvents.Add(PerformanceCycleAuditEvent.Create(
-            mapping.TenantId, Guid.Empty, PerformanceCycleAuditAction.FeedbackIdentityAccessed,
+            mapping.TenantId, content.CycleId, PerformanceCycleAuditAction.FeedbackIdentityAccessed,
             currentUser.UserId, currentUser.FullName,
             $"Feedback identity accessed. Reason: {request.Reason}."));
 

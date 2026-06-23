@@ -41,7 +41,7 @@ public sealed class GetFeedbackResponsesQueryHandler(
                 r.CycleId == request.CycleId &&
                 r.SubjectEmployeeId == request.SubjectEmployeeId &&
                 r.FeedbackType == request.FeedbackType &&
-                r.Status == FeedbackResponseStatus.Submitted &&
+                (r.Status == FeedbackResponseStatus.Submitted || r.Status == FeedbackResponseStatus.Locked) &&
                 !r.IsInvalidated,
             cancellationToken);
 
@@ -52,7 +52,7 @@ public sealed class GetFeedbackResponsesQueryHandler(
             return new FeedbackResponseListDto(
                 Responses: [],
                 IsSuppressed: true,
-                CurrentCount: validCount,
+                CurrentCount: 0,
                 MinimumRequired: frozenMinimum);
         }
 
@@ -64,7 +64,7 @@ public sealed class GetFeedbackResponsesQueryHandler(
                 r.CycleId == request.CycleId &&
                 r.SubjectEmployeeId == request.SubjectEmployeeId &&
                 r.FeedbackType == request.FeedbackType &&
-                r.Status == FeedbackResponseStatus.Submitted &&
+                (r.Status == FeedbackResponseStatus.Submitted || r.Status == FeedbackResponseStatus.Locked) &&
                 !r.IsInvalidated)
             .Select(r => new FeedbackResponseItemDto(
                 r.Id,

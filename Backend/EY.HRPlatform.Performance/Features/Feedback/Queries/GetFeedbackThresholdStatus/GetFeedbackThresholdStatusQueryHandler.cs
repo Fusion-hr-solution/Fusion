@@ -39,7 +39,7 @@ public sealed class GetFeedbackThresholdStatusQueryHandler(
                 r.CycleId == request.CycleId &&
                 r.SubjectEmployeeId == request.SubjectEmployeeId &&
                 r.FeedbackType == request.FeedbackType &&
-                r.Status == FeedbackResponseStatus.Submitted &&
+                (r.Status == FeedbackResponseStatus.Submitted || r.Status == FeedbackResponseStatus.Locked) &&
                 !r.IsInvalidated,
             cancellationToken);
 

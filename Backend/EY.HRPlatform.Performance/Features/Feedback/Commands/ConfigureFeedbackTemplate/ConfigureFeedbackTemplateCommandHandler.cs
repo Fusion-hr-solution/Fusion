@@ -29,8 +29,11 @@ public sealed class ConfigureFeedbackTemplateCommandHandler(
             return Result.Failure<Guid>(Error.Validation("Feedback.InvalidFeedbackType",
                 "Feedback type must be PeerFeedback or UpwardFeedback."));
 
+        var responseType = feedbackType == CampaignWorkItemType.PeerFeedback
+            ? FeedbackResponseType.Peer
+            : FeedbackResponseType.Upward;
         var existing = await dbContext.FeedbackTemplateSnapshots.SingleOrDefaultAsync(
-            item => item.CycleId == cycle.Id && item.FeedbackType == Enum.Parse<FeedbackResponseType>(request.FeedbackType, ignoreCase: true),
+            item => item.CycleId == cycle.Id && item.FeedbackType == responseType,
             cancellationToken);
         if (existing is not null)
             return Result.Failure<Guid>(Error.Conflict("Feedback.TemplateAlreadyExists",
@@ -38,7 +41,6 @@ public sealed class ConfigureFeedbackTemplateCommandHandler(
 
         try
         {
-            var responseType = Enum.Parse<FeedbackResponseType>(request.FeedbackType, ignoreCase: true);
             var snapshot = FeedbackTemplateSnapshot.Create(
                 cycle.TenantId,
                 cycle.Id,
