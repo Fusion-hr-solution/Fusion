@@ -115,6 +115,17 @@ public sealed class FeedbackResponseContent : AggregateRoot, ITenantEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
+    /// <summary>
+    /// Replace answers with new set (for revision — latest version is active).
+    /// </summary>
+    internal void UpdateAnswers(IEnumerable<FeedbackPromptAnswer> newAnswers)
+    {
+        _answers.Clear();
+        _answers.AddRange(newAnswers);
+        Version++;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
     private static DateTime NormalizeUtc(DateTime value)
     {
         if (value == default)

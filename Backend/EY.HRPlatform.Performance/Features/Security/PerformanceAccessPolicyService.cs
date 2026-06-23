@@ -22,6 +22,12 @@ public interface IPerformanceAccessPolicyService
 
     // Progress correction (D-13: manager must have explicit permission)
     bool CanCorrectObjectiveProgress(ClaimsPrincipal user);
+
+    // Feedback identity access (D-07/D-10: exceptional identity resolution)
+    bool CanAccessConfidentialFeedbackIdentity(ClaimsPrincipal user);
+
+    // Feedback threshold details (admin/HR only)
+    bool CanViewFeedbackThresholdDetails(ClaimsPrincipal user);
 }
 
 /// <summary>
@@ -85,5 +91,17 @@ public sealed class PerformanceAccessPolicyService : IPerformanceAccessPolicySer
 
     public bool CanCorrectObjectiveProgress(ClaimsPrincipal user)
         => user.HasCorePermission(PerformancePermissions.ObjectiveProgressCorrect, PermissionScopes.Tenant)
+            || user.IsInRole(PlatformRole.PlatformAdmin);
+
+    // ─── Feedback identity access (D-07/D-10) ─────────────────────────────────
+
+    public bool CanAccessConfidentialFeedbackIdentity(ClaimsPrincipal user)
+        => user.HasCorePermission(PerformancePermissions.ConfidentialIdentityView, PermissionScopes.Tenant)
+            || user.IsInRole(PlatformRole.PlatformAdmin);
+
+    // ─── Feedback threshold details ───────────────────────────────────────────
+
+    public bool CanViewFeedbackThresholdDetails(ClaimsPrincipal user)
+        => user.HasCorePermission(PerformancePermissions.CycleManage, PermissionScopes.Tenant)
             || user.IsInRole(PlatformRole.PlatformAdmin);
 }
