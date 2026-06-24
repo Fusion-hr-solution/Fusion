@@ -12,7 +12,8 @@ namespace EY.HRPlatform.Performance.Features.Feedback.Commands.InvalidateFeedbac
 public sealed class InvalidateFeedbackResponseCommandHandler(
     PerformanceDbContext dbContext,
     ICurrentUserContext currentUser,
-    IPerformanceAccessPolicyService accessPolicy)
+    IPerformanceAccessPolicyService accessPolicy,
+    IHttpContextAccessor httpContextAccessor)
     : ICommandHandler<InvalidateFeedbackResponseCommand, Result>
 {
     public async Task<Result> Handle(InvalidateFeedbackResponseCommand request, CancellationToken cancellationToken)
@@ -21,7 +22,8 @@ public sealed class InvalidateFeedbackResponseCommandHandler(
             return Result.Failure(Error.Forbidden("Feedback.EmployeeContextRequired",
                 "An employee context is required to invalidate feedback."));
 
-        if (!accessPolicy.CanManageCycles(new System.Security.Claims.ClaimsPrincipal()))
+        var user = httpContextAccessor.HttpContext?.User;
+        if (user is null || !accessPolicy.CanManageCycles(user))
             return Result.Failure(Error.Forbidden("Feedback.InsufficientPermissions",
                 "Cycle management permission is required to invalidate feedback."));
 

@@ -9,6 +9,8 @@ using EY.HRPlatform.Performance.Features.Feedback.Commands.WithdrawFeedbackRespo
 using EY.HRPlatform.Performance.Features.Feedback.Dtos;
 using EY.HRPlatform.Performance.Features.Feedback.Queries.GetFeedbackResponses;
 using EY.HRPlatform.Performance.Features.Feedback.Queries.GetFeedbackThresholdStatus;
+using EY.HRPlatform.Performance.Features.Feedback.Queries.GetMyFeedback;
+using EY.HRPlatform.Performance.Features.Security;
 using EY.HRPlatform.Performance.Models.Responses;
 using EY.HRPlatform.SharedKernel.Api;
 using EY.HRPlatform.SharedKernel.Results;
@@ -21,7 +23,9 @@ namespace EY.HRPlatform.Performance.Controllers;
 [ApiController]
 [Route("api/performance/feedback")]
 [Authorize]
-public sealed class FeedbackController(ISender sender) : ControllerBase
+public sealed class FeedbackController(
+    ISender sender,
+    IPerformanceAccessPolicyService accessPolicy) : ControllerBase
 {
     /// <summary>
     /// Configure a frozen feedback template for a cycle and type.
@@ -33,6 +37,9 @@ public sealed class FeedbackController(ISender sender) : ControllerBase
         [FromBody] ConfigureFeedbackTemplateRequest request,
         CancellationToken cancellationToken)
     {
+        if (!accessPolicy.CanManageCycles(User))
+            return Forbid();
+
         var result = await sender.Send(
             new ConfigureFeedbackTemplateCommand(
                 cycleId,
@@ -54,6 +61,9 @@ public sealed class FeedbackController(ISender sender) : ControllerBase
         [FromQuery] string feedbackType,
         CancellationToken cancellationToken)
     {
+        if (!accessPolicy.CanManageCycles(User))
+            return Forbid();
+
         if (!Enum.TryParse<CampaignWorkItemType>(feedbackType, ignoreCase: true, out var parsedType) ||
             parsedType is not (CampaignWorkItemType.PeerFeedback or CampaignWorkItemType.UpwardFeedback))
         {
@@ -76,11 +86,10 @@ public sealed class FeedbackController(ISender sender) : ControllerBase
         Guid workItemId,
         CancellationToken cancellationToken)
     {
-        // This endpoint is for the reviewer to see their own response.
-        // For subject/manager reading anonymized responses, use GetFeedbackResponses.
-        // NOTE: The actual implementation requires a dedicated GetMyFeedbackQuery handler.
-        // For now, return a 404 indicating the query handler is not yet wired.
-        return NotFound(ApiResponse.Failure("GetMyFeedback query handler not yet implemented."));
+        var result = await sender.Send(new GetMyFeedbackQuery(workItemId), cancellationToken);
+        return result.IsFailure
+            ? MapFailure(result.Error)
+            : Ok(ApiResponse<FeedbackResponseItemDto>.Success(result.Value));
     }
 
     /// <summary>
@@ -142,6 +151,9 @@ public sealed class FeedbackController(ISender sender) : ControllerBase
         [FromBody] InvalidateFeedbackResponseRequest request,
         CancellationToken cancellationToken)
     {
+        if (!accessPolicy.CanManageCycles(User))
+            return Forbid();
+
         var result = await sender.Send(
             new InvalidateFeedbackResponseCommand(responseId, request.Reason),
             cancellationToken);
@@ -159,6 +171,9 @@ public sealed class FeedbackController(ISender sender) : ControllerBase
         [FromQuery] string feedbackType,
         CancellationToken cancellationToken)
     {
+        if (!accessPolicy.CanManageCycles(User))
+            return Forbid();
+
         if (!Enum.TryParse<CampaignWorkItemType>(feedbackType, ignoreCase: true, out var parsedType) ||
             parsedType is not (CampaignWorkItemType.PeerFeedback or CampaignWorkItemType.UpwardFeedback))
             {
@@ -209,6 +224,9 @@ public sealed class FeedbackController(ISender sender) : ControllerBase
         [FromQuery] Guid subjectId,
         CancellationToken cancellationToken)
     {
+        if (!accessPolicy.CanManageCycles(User))
+            return Forbid();
+
         if (!Enum.TryParse<CampaignWorkItemType>(feedbackType, ignoreCase: true, out var parsedType) ||
             parsedType is not (CampaignWorkItemType.PeerFeedback or CampaignWorkItemType.UpwardFeedback))
             {

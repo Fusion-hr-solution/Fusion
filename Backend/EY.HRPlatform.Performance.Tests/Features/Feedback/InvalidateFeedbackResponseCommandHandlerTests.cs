@@ -3,6 +3,7 @@ using EY.HRPlatform.Performance.Domain.Enums;
 using EY.HRPlatform.Performance.Features.Feedback.Commands.InvalidateFeedbackResponse;
 using EY.HRPlatform.Performance.Features.Security;
 using EY.HRPlatform.Performance.Tests.TestSupport;
+using Microsoft.AspNetCore.Http;
 
 namespace EY.HRPlatform.Performance.Tests.Features.Feedback;
 
@@ -17,7 +18,11 @@ public sealed class InvalidateFeedbackResponseCommandHandlerTests
         db.FeedbackResponseContents.Add(content);
         await db.SaveChangesAsync();
         var accessPolicy = new FakeAccessPolicy(canManage: true);
-        var handler = new InvalidateFeedbackResponseCommandHandler(db, new StubCurrentUserContext { EmployeeId = Guid.NewGuid() }, accessPolicy);
+        var handler = new InvalidateFeedbackResponseCommandHandler(
+            db,
+            new StubCurrentUserContext { EmployeeId = Guid.NewGuid() },
+            accessPolicy,
+            CreateHttpContextAccessor());
 
         var result = await handler.Handle(new InvalidateFeedbackResponseCommand(content.Id, "Spam content"), default);
 
@@ -35,7 +40,11 @@ public sealed class InvalidateFeedbackResponseCommandHandlerTests
         db.FeedbackResponseContents.Add(content);
         await db.SaveChangesAsync();
         var accessPolicy = new FakeAccessPolicy(canManage: false);
-        var handler = new InvalidateFeedbackResponseCommandHandler(db, new StubCurrentUserContext { EmployeeId = Guid.NewGuid() }, accessPolicy);
+        var handler = new InvalidateFeedbackResponseCommandHandler(
+            db,
+            new StubCurrentUserContext { EmployeeId = Guid.NewGuid() },
+            accessPolicy,
+            CreateHttpContextAccessor());
 
         var result = await handler.Handle(new InvalidateFeedbackResponseCommand(content.Id, "Reason"), default);
 
@@ -52,7 +61,11 @@ public sealed class InvalidateFeedbackResponseCommandHandlerTests
         db.FeedbackResponseContents.Add(content);
         await db.SaveChangesAsync();
         var accessPolicy = new FakeAccessPolicy(canManage: true);
-        var handler = new InvalidateFeedbackResponseCommandHandler(db, new StubCurrentUserContext { EmployeeId = Guid.NewGuid() }, accessPolicy);
+        var handler = new InvalidateFeedbackResponseCommandHandler(
+            db,
+            new StubCurrentUserContext { EmployeeId = Guid.NewGuid() },
+            accessPolicy,
+            CreateHttpContextAccessor());
 
         var result = await handler.Handle(new InvalidateFeedbackResponseCommand(content.Id, ""), default);
 
@@ -69,7 +82,11 @@ public sealed class InvalidateFeedbackResponseCommandHandlerTests
         db.FeedbackResponseContents.Add(content);
         await db.SaveChangesAsync();
         var accessPolicy = new FakeAccessPolicy(canManage: true);
-        var handler = new InvalidateFeedbackResponseCommandHandler(db, new StubCurrentUserContext { EmployeeId = Guid.NewGuid() }, accessPolicy);
+        var handler = new InvalidateFeedbackResponseCommandHandler(
+            db,
+            new StubCurrentUserContext { EmployeeId = Guid.NewGuid() },
+            accessPolicy,
+            CreateHttpContextAccessor());
 
         await handler.Handle(new InvalidateFeedbackResponseCommand(content.Id, "Spam"), default);
 
@@ -84,6 +101,16 @@ public sealed class InvalidateFeedbackResponseCommandHandlerTests
             [new FeedbackPromptAnswerInput(Guid.NewGuid(), "Q1", 1, "Answer", true)]);
         content.Submit(DateTime.UtcNow);
         return content;
+    }
+
+    private static IHttpContextAccessor CreateHttpContextAccessor()
+    {
+        var httpContext = new DefaultHttpContext();
+        httpContext.User = new System.Security.Claims.ClaimsPrincipal(
+            new System.Security.Claims.ClaimsIdentity(
+                [new System.Security.Claims.Claim("sub", "test-user")],
+                "TestAuth"));
+        return new HttpContextAccessor { HttpContext = httpContext };
     }
 
     private sealed class FakeAccessPolicy(bool canManage) : IPerformanceAccessPolicyService

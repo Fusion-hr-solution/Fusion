@@ -128,6 +128,7 @@ temp/
 .claude/
 Frontend/.github/
 PROJECT_SUMMARY.md
+PRODUCT.md
 *.postman_collection.json
 
 CLAUDE.md
