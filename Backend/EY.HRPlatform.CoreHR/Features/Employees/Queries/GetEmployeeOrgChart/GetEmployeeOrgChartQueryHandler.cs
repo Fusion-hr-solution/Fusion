@@ -22,14 +22,22 @@ public sealed class GetEmployeeOrgChartQueryHandler(
         var maxDepth = Math.Clamp(request.MaxDepth, 1, 10);
         var baseQuery = CreateVisibleEmployeesQuery(request.IncludeInactive);
 
+        // Resolve key-based params to GUIDs
+        var rootEmployeeId = request.RootEmployeeId ?? (request.RootEmployeeKey is not null
+            ? await ResolveEmployeeIdByKeyAsync(baseQuery, request.RootEmployeeKey, cancellationToken)
+            : null);
+        var focusEmployeeId = request.FocusEmployeeId ?? (request.FocusEmployeeKey is not null
+            ? await ResolveEmployeeIdByKeyAsync(baseQuery, request.FocusEmployeeKey, cancellationToken)
+            : null);
+
         // Resolve effective root: explicit RootEmployeeId → focus-derived root → full org
-        Guid? effectiveRootId = request.RootEmployeeId;
-        if (!effectiveRootId.HasValue && request.FocusEmployeeId.HasValue)
+        Guid? effectiveRootId = rootEmployeeId;
+        if (!effectiveRootId.HasValue && focusEmployeeId.HasValue)
         {
-            effectiveRootId = await ResolveChainRootAsync(baseQuery, request.FocusEmployeeId.Value, cancellationToken);
+            effectiveRootId = await ResolveChainRootAsync(baseQuery, focusEmployeeId.Value, cancellationToken);
             if (!effectiveRootId.HasValue)
             {
-                return Result.Failure<EmployeeOrgChartDto>(Error.NotFound("Employee", request.FocusEmployeeId.Value));
+                return Result.Failure<EmployeeOrgChartDto>(Error.NotFound("Employee", focusEmployeeId.Value));
             }
         }
 
@@ -49,6 +57,18 @@ public sealed class GetEmployeeOrgChartQueryHandler(
         if (request.OrgUnitId.HasValue)
         {
             employees = FilterByOrgUnitWithAncestors(employees, request.OrgUnitId.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.OrgUnitCode))
+        {
+            var orgUnit = await dbContext.OrgUnits
+                .AsNoTracking()
+                .FirstOrDefaultAsync(o => o.Code == request.OrgUnitCode.Trim().ToUpperInvariant(), cancellationToken);
+
+            if (orgUnit is not null)
+            {
+                employees = FilterByOrgUnitWithAncestors(employees, orgUnit.Id);
+            }
         }
 
         var employeesById = employees.ToDictionary(employee => employee.Id);
@@ -89,8 +109,8 @@ public sealed class GetEmployeeOrgChartQueryHandler(
         return Result.Success(
             new EmployeeOrgChartDto(
                 tree,
-                request.RootEmployeeId,
-                request.FocusEmployeeId,
+                rootEmployeeId,
+                focusEmployeeId,
                 request.OrgUnitId,
                 maxDepth,
                 request.IncludeInactive,
@@ -161,6 +181,20 @@ public sealed class GetEmployeeOrgChartQueryHandler(
         }
 
         return rootId;
+    }
+
+    private async Task<Guid?> ResolveEmployeeIdByKeyAsync(
+        IQueryable<Employee> baseQuery,
+        string employeeKey,
+        CancellationToken cancellationToken)
+    {
+        var employee = await baseQuery
+            .AsNoTracking()
+            .Where(e => e.StableEmployeeKey == employeeKey)
+            .Select(e => new { e.Id })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return employee?.Id;
     }
 
     /// <summary>
@@ -338,6 +372,7 @@ public sealed class GetEmployeeOrgChartQueryHandler(
 
         return new EmployeeOrgChartNodeDto(
             listItem.Id,
+            listItem.StableEmployeeKey,
             $"{listItem.FirstName} {listItem.LastName}",
             listItem.FirstName,
             listItem.LastName,

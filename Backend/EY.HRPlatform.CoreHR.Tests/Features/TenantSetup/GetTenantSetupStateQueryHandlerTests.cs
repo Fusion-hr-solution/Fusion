@@ -22,6 +22,8 @@ public class GetTenantSetupStateQueryHandlerTests
         Assert.Equal(0, result.CurrentStep);
         Assert.True(result.CanStartSetup);
         Assert.False(result.CanResumeSetup);
+        Assert.False(result.HasDraftStructure);
+        Assert.False(result.HasPublishedStructure);
         Assert.Null(result.ActivatedAt);
     }
 
@@ -46,8 +48,10 @@ public class GetTenantSetupStateQueryHandlerTests
         Assert.Equal(1, result.CurrentStep);
         Assert.False(result.CanStartSetup);
         Assert.True(result.CanResumeSetup);
+        Assert.False(result.HasDraftStructure);
+        Assert.False(result.HasPublishedStructure);
         Assert.NotNull(result.ActivatedAt);
-        Assert.Contains("activated", result.CompletedSteps);
+        Assert.Contains("setupStarted", result.CompletedSteps);
     }
 
     [Fact]
@@ -62,6 +66,16 @@ public class GetTenantSetupStateQueryHandlerTests
             state.Approve(ActorUserId, "Jordan Approver", "HRAdmin", true);
 
             seedContext.TenantSetupStates.Add(state);
+            seedContext.DraftOrgUnits.Add(
+                DraftOrgUnit.Create(
+                    TenantId,
+                    "ENG",
+                    "Engineering",
+                    "department",
+                    null,
+                    null,
+                    null,
+                    null));
             seedContext.TenantSetupActivities.Add(
                 TenantSetupActivity.Create(
                     TenantId,
@@ -80,6 +94,9 @@ public class GetTenantSetupStateQueryHandlerTests
         var result = await handler.Handle(new GetTenantSetupStateQuery(), CancellationToken.None);
 
         Assert.Equal("structurallyGoverned", result.CurrentPhase);
+    Assert.Equal(2, result.CurrentStep);
+    Assert.True(result.HasDraftStructure);
+    Assert.False(result.HasPublishedStructure);
         Assert.Equal("Jordan Approver", result.ApprovedByFullName);
         Assert.Equal("HRAdmin", result.ApprovedByRole);
         Assert.True(result.IsApprovedInPlatformAssistMode);
@@ -127,12 +144,14 @@ public class GetTenantSetupStateQueryHandlerTests
         var result = await handler.Handle(new GetTenantSetupStateQuery(), CancellationToken.None);
 
         Assert.Equal("structurallyPublished", result.CurrentPhase);
-        Assert.Equal(4, result.CurrentStep);
-        Assert.Equal("Setup is complete", result.NextAction);
+        Assert.Equal(3, result.CurrentStep);
+        Assert.Equal("The structure is live", result.NextAction);
         Assert.False(result.CanResumeSetup);
+        Assert.False(result.RequiresRepublish);
+        Assert.True(result.HasPublishedStructure);
         Assert.NotNull(result.StructurallyPublishedAt);
         Assert.Null(result.OperationalAt);
-        Assert.Contains("operational", result.CompletedSteps);
+        Assert.Contains("publishedLive", result.CompletedSteps);
         Assert.Empty(result.PendingSteps);
     }
 
@@ -184,8 +203,9 @@ public class GetTenantSetupStateQueryHandlerTests
         var result = await handler.Handle(new GetTenantSetupStateQuery(), CancellationToken.None);
 
         Assert.Equal("operational", result.CurrentPhase);
-        Assert.Equal(4, result.CurrentStep);
+        Assert.Equal(3, result.CurrentStep);
         Assert.False(result.CanResumeSetup);
+        Assert.True(result.HasPublishedStructure);
         Assert.NotNull(result.StructurallyPublishedAt);
         Assert.NotNull(result.OperationalAt);
         Assert.Equal(3, result.RecentActivities.Count);

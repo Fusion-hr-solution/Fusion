@@ -42,13 +42,19 @@ public sealed class UpdateEmployeeCommandHandler(
         ValidateConfiguredRequiredField(request.FirstName, "firstName", "First name", settings, true);
         ValidateConfiguredRequiredField(request.LastName, "lastName", "Last name", settings, true);
         ValidateConfiguredRequiredField(request.Email, "email", "Email", settings, true);
+        ValidateConfiguredRequiredField(request.Phone, "phone", "Phone", settings, false);
         ValidateConfiguredRequiredField(request.JobTitle, "jobTitle", "Job title", settings, false);
+        ValidateConfiguredRequiredField(request.WorkLocation, "workLocation", "Work location", settings, false);
+        ValidateConfiguredRequiredField(request.EmploymentType, "employmentType", "Employment type", settings, false);
 
         // Merge request values with existing (partial update support)
         var firstName = request.FirstName ?? employee.FirstName;
         var lastName = request.LastName ?? employee.LastName;
         var email = request.Email ?? employee.Email;
+        var phone = request.Phone ?? employee.Phone;
         var jobTitle = request.JobTitle ?? employee.JobTitle;
+        var workLocation = request.WorkLocation ?? employee.WorkLocation;
+        var employmentType = request.EmploymentType ?? employee.EmploymentType;
         var employeeNumber = request.EmployeeNumber ?? employee.EmployeeNumber;
 
         var normalizedEmail = email.Trim().ToLowerInvariant();
@@ -98,7 +104,21 @@ public sealed class UpdateEmployeeCommandHandler(
         }
 
         // Update employee details
-        employee.UpdateDetails(firstName, lastName, email, employee.Department, jobTitle, employeeNumber);
+        employee.UpdateDetails(
+            firstName,
+            lastName,
+            email,
+            employee.Department,
+            jobTitle,
+            employeeNumber,
+            phone,
+            workLocation,
+            employmentType);
+
+        if (request.PreferredName is not null)
+        {
+            employee.UpdatePreferredName(request.PreferredName);
+        }
 
         if (request.HireDate.HasValue)
         {
@@ -153,14 +173,18 @@ public sealed class UpdateEmployeeCommandHandler(
     private static EmployeeDto MapToDto(Employee employee, Employee? manager, OrgUnit? orgUnit) => new(
         employee.Id,
         employee.TenantId,
+        employee.StableEmployeeKey,
         employee.EmployeeNumber,
         employee.FirstName,
         employee.LastName,
         employee.PreferredName,
         employee.Email,
+        employee.Phone,
         employee.OrgUnitId,
         orgUnit?.Name,
         employee.JobTitle,
+        employee.WorkLocation,
+        employee.EmploymentType,
         employee.HireDate,
         employee.Status,
         employee.ManagerId,

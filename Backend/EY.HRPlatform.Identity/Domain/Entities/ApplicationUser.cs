@@ -26,5 +26,7 @@ public class ApplicationUser : IdentityUser<Guid>, ITenantEntity
     /// </summary>
     public Tenant? Tenant { get; set; }
 
+    public List<UserAccessProfile> AccessProfileAssignments { get; set; } = [];
+
     public string FullName => $"{FirstName} {LastName}";
 }
