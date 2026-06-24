@@ -25,6 +25,7 @@ public sealed class CampaignWorkItem : AggregateRoot, ITenantEntity
     public DateTime? SubmittedAt { get; private set; }
     public DateTime? CompletedAt { get; private set; }
     public Guid? SourceAssignmentRevisionId { get; private set; }
+    public Guid? ExceptionCaseId { get; private set; }
 
     public static CampaignWorkItem Create(
         Guid tenantId,
@@ -55,6 +56,15 @@ public sealed class CampaignWorkItem : AggregateRoot, ITenantEntity
             Status = CampaignWorkItemStatus.Assigned,
             SourceAssignmentRevisionId = sourceAssignmentRevisionId
         };
+    }
+
+    public void LinkToExceptionCase(Guid exceptionCaseId)
+    {
+        if (exceptionCaseId == Guid.Empty)
+            throw new ArgumentException("A valid exception case id is required.", nameof(exceptionCaseId));
+
+        ExceptionCaseId = exceptionCaseId;
+        UpdatedAt = DateTime.UtcNow;
     }
 
     public void Begin()

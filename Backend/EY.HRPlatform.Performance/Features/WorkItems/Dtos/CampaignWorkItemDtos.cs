@@ -10,4 +10,5 @@ public sealed record CampaignWorkItemDto(
     DateTime DueAt,
     DateTime? SubmittedAt,
     DateTime? CompletedAt,
-    uint Version);
+    uint Version,
+    Guid? ExceptionCaseId = null);

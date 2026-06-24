@@ -2,6 +2,7 @@ using System.Security.Claims;
 using EY.HRPlatform.Performance.Domain.Entities;
 using EY.HRPlatform.Performance.Domain.Enums;
 using EY.HRPlatform.Performance.Features.CollectiveObjectives.Commands;
+using EY.HRPlatform.Performance.Features.Exceptions.Services;
 using EY.HRPlatform.Performance.Features.Security;
 using EY.HRPlatform.Performance.Infrastructure.Persistence;
 using EY.HRPlatform.Performance.Infrastructure.Workforce;
@@ -57,14 +58,20 @@ public sealed class RouteCollectiveApprovalTests
 
     private static RouteCollectiveApprovalCommandHandler CreateHandler(
         PerformanceDbContext dbContext, ICoreWorkforceClient workforceClient)
-        => new(dbContext, workforceClient,
-            new StubCurrentUserContext
-            {
-                UserId = Guid.NewGuid(),
-                EmployeeId = Guid.NewGuid(),
-                FullName = "Test Approver",
-                CorrelationId = "test-corr-123"
-            });
+    {
+        var currentUser = new StubCurrentUserContext
+        {
+            UserId = Guid.NewGuid(),
+            EmployeeId = Guid.NewGuid(),
+            FullName = "Test Approver",
+            CorrelationId = "test-corr-123"
+        };
+        return new RouteCollectiveApprovalCommandHandler(
+            dbContext,
+            workforceClient,
+            new ExceptionCaseWorkflowService(dbContext, currentUser),
+            currentUser);
+    }
 
     [Fact]
     public async Task Handle_FrozenRuleFalse_AutoApprovesAndEmitsAudit()
@@ -173,7 +180,7 @@ public sealed class RouteCollectiveApprovalTests
     }
 
     [Fact]
-    public async Task Handle_NoEligibleSuperior_HandsOffToExceptionOwner()
+    public async Task Handle_NoEligibleSuperior_OpensExceptionCaseAndResolutionTask()
     {
         var db = CreateContext($"test-{Guid.NewGuid()}", _tenantId);
         var cycle = CreateCycle(_tenantId, requireApproval: true);
@@ -197,12 +204,21 @@ public sealed class RouteCollectiveApprovalTests
         Assert.True(result.IsSuccess);
 
         var workItem = db.CampaignWorkItems.FirstOrDefault(w => w.Type == CampaignWorkItemType.TeamObjectiveApproval);
-        Assert.NotNull(workItem);
-        Assert.Equal(existingOwner!.EmployeeId, workItem!.AssigneeEmployeeId);
+        var exceptionTask = db.CampaignWorkItems.FirstOrDefault(w => w.Type == CampaignWorkItemType.ExceptionResolution);
+        var exceptionCase = db.ExceptionCases.FirstOrDefault();
 
-        var audit = db.PerformanceCycleAuditEvents.FirstOrDefault(a => a.Action == PerformanceCycleAuditAction.CollectiveObjectiveApprovalRouted);
+        Assert.Null(workItem);
+        Assert.NotNull(exceptionCase);
+        Assert.NotNull(exceptionTask);
+        Assert.Equal(existingOwner!.EmployeeId, exceptionTask!.AssigneeEmployeeId);
+        Assert.Equal(exceptionCase!.Id, exceptionTask.ExceptionCaseId);
+        Assert.Equal(ExceptionCaseStatus.Open, exceptionCase.Status);
+
+        var audit = db.PerformanceCycleAuditEvents
+            .OrderByDescending(a => a.CreatedAt)
+            .FirstOrDefault(a => a.Action == PerformanceCycleAuditAction.CollectiveObjectiveApprovalRouted);
         Assert.NotNull(audit);
-        Assert.Contains("exception", audit!.Details!, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("exception management", audit!.Details!, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

@@ -126,6 +126,9 @@ public static class PerformancePermissions
     public const string ReviewTeamManage = "performance.review.team.manage";
     public const string FeedbackSubmit = "performance.feedback.submit";
     public const string ExceptionManage = "performance.exception.manage";
+    public const string ExceptionAction = "performance.exception.action";
+    public const string ExceptionOverride = "performance.exception.override";
+    public const string ExceptionAuditView = "performance.exception.audit.view";
     public const string RetentionManage = "performance.retention.manage";
     public const string AuditView = "performance.audit.view";
     public const string ConfidentialIdentityView = "performance.feedback.identity.view";
@@ -152,6 +155,9 @@ public static class PerformancePermissions
             ReviewTeamManage,
             FeedbackSubmit,
             ExceptionManage,
+            ExceptionAction,
+            ExceptionOverride,
+            ExceptionAuditView,
             RetentionManage,
             AuditView,
             ConfidentialIdentityView,
@@ -223,6 +229,9 @@ public static class CorePermissionCatalog
             new(PerformancePermissions.ReviewTeamManage, "Manage team reviews", "Performance", [PermissionScopes.DirectReports, PermissionScopes.OrgUnit, PermissionScopes.Tenant]),
             new(PerformancePermissions.FeedbackSubmit, "Submit requested feedback", "Performance", [PermissionScopes.Self]),
             new(PerformancePermissions.ExceptionManage, "Manage performance exceptions", "Performance", [PermissionScopes.OrgUnit, PermissionScopes.Tenant]),
+            new(PerformancePermissions.ExceptionAction, "Resolve assigned performance exceptions", "Performance", [PermissionScopes.Tenant], "Lets the current accountable exception owner act on an open case."),
+            new(PerformancePermissions.ExceptionOverride, "Override or force-close performance exceptions", "Performance", [PermissionScopes.Tenant], "Elevated non-owner authority for governed exception outcomes."),
+            new(PerformancePermissions.ExceptionAuditView, "View performance exception audit", "Performance", [PermissionScopes.Tenant]),
             new(PerformancePermissions.RetentionManage, "Manage performance retention", "Performance", [PermissionScopes.Tenant]),
             new(PerformancePermissions.AuditView, "View performance audit", "Performance", [PermissionScopes.OrgUnit, PermissionScopes.Tenant]),
             new(PerformancePermissions.ConfidentialIdentityView, "View confidential feedback identities", "Performance", [PermissionScopes.Tenant]),

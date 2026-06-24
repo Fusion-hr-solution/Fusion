@@ -41,6 +41,14 @@ public sealed class CloseCycleCommandHandler(
                 Error.Conflict("Cycle.NotActive", "Only an active campaign can be closed."));
         }
 
+        var hasOpenExceptions = await dbContext.ExceptionCases
+            .AnyAsync(item => item.CycleId == request.CycleId && item.Status == ExceptionCaseStatus.Open, cancellationToken);
+        if (hasOpenExceptions)
+        {
+            return Result.Failure<PerformanceCycleDetailDto>(
+                Error.Conflict("Cycle.OpenExceptionsBlockClose", "The campaign cannot close while exception cases remain open."));
+        }
+
         ConcurrencyGuard.Ensure(cycle.Version, request.ExpectedVersion, nameof(PerformanceCycle), cycle.Id);
 
         cycle.Close(DateTime.UtcNow);

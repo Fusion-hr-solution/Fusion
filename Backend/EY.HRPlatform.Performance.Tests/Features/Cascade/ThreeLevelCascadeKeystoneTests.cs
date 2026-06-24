@@ -4,6 +4,7 @@ using EY.HRPlatform.Performance.Features.CollectiveObjectives.Commands;
 using EY.HRPlatform.Performance.Features.Cycles.Commands;
 using EY.HRPlatform.Performance.Features.Cycles.Dtos;
 using EY.HRPlatform.Performance.Features.Cycles.Services;
+using EY.HRPlatform.Performance.Features.Exceptions.Services;
 using EY.HRPlatform.Performance.Features.Milestones.Commands;
 using EY.HRPlatform.Performance.Features.Objectives.Commands;
 using EY.HRPlatform.Performance.Features.Reviews.Commands;
@@ -48,6 +49,8 @@ public class ThreeLevelCascadeKeystoneTests
         public bool CanViewCollectiveObjectives(ClaimsPrincipal user) => true;
         public bool CanApproveCollectiveObjectives(ClaimsPrincipal user) => true;
         public bool CanCorrectObjectiveProgress(ClaimsPrincipal user) => true;
+        public bool CanAccessConfidentialFeedbackIdentity(ClaimsPrincipal user) => true;
+        public bool CanViewFeedbackThresholdDetails(ClaimsPrincipal user) => true;
     }
 
     /// <summary>Simple ISender that dispatches RouteCollectiveApprovalCommand to the real handler.</summary>
@@ -302,7 +305,11 @@ public class ThreeLevelCascadeKeystoneTests
             orgUnitId, "ENG", "Engineering Dept", "Department", null, managerId, true);
 
         // Create the routing handler (will be dispatched by CreateCollectiveObjective via TestMediator)
-        var routingHandler = new RouteCollectiveApprovalCommandHandler(db, workforce, currentUser);
+        var routingHandler = new RouteCollectiveApprovalCommandHandler(
+            db,
+            workforce,
+            new ExceptionCaseWorkflowService(db, currentUser),
+            currentUser);
         var mediator = new TestMediator(routingHandler);
 
         var collectiveHandler = new CreateCollectiveObjectiveCommandHandler(

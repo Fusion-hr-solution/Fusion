@@ -27,6 +27,8 @@ public class CorrectObjectiveProgressCommandHandlerTests
         public bool CanPublishStrategicObjectives(ClaimsPrincipal user) => false;
         public bool CanViewCollectiveObjectives(ClaimsPrincipal user) => false;
         public bool CanApproveCollectiveObjectives(ClaimsPrincipal user) => false;
+        public bool CanAccessConfidentialFeedbackIdentity(ClaimsPrincipal user) => false;
+        public bool CanViewFeedbackThresholdDetails(ClaimsPrincipal user) => false;
     }
 
     private sealed class StubHttpContextAccessor : IHttpContextAccessor

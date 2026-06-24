@@ -1,6 +1,7 @@
 using EY.HRPlatform.Performance.Domain.Entities;
 using EY.HRPlatform.Performance.Domain.Enums;
 using EY.HRPlatform.Performance.Exceptions;
+using EY.HRPlatform.Performance.Features.Exceptions.Services;
 using EY.HRPlatform.Performance.Features.Security;
 using EY.HRPlatform.Performance.Infrastructure.Persistence;
 using EY.HRPlatform.Performance.Infrastructure.Workforce;
@@ -21,6 +22,7 @@ public sealed record RouteCollectiveApprovalCommand(Guid ObjectiveId) : ICommand
 public sealed class RouteCollectiveApprovalCommandHandler(
     PerformanceDbContext dbContext,
     ICoreWorkforceClient workforceClient,
+    IExceptionCaseWorkflowService exceptionCaseWorkflowService,
     ICurrentUserContext currentUser) : ICommandHandler<RouteCollectiveApprovalCommand, Result>
 {
     public async Task<Result> Handle(RouteCollectiveApprovalCommand request, CancellationToken cancellationToken)
@@ -113,18 +115,43 @@ public sealed class RouteCollectiveApprovalCommandHandler(
 
         if (!approverId.HasValue)
         {
-            // No eligible primary superior → hand off to first campaign exception owner (D-09, D-11)
-            var exceptionOwner = await dbContext.CampaignExceptionOwners
-                .Where(eo => eo.TenantId == tenantId && eo.CycleId == cycle.Id)
-                .OrderBy(eo => eo.Priority)
-                .FirstOrDefaultAsync(cancellationToken);
-
-            if (exceptionOwner is null)
+            if (!await dbContext.CampaignExceptionOwners.AnyAsync(
+                    eo => eo.TenantId == tenantId && eo.CycleId == cycle.Id,
+                    cancellationToken))
+            {
                 return Result.Failure(Error.Conflict("CollectiveObjective.NoExceptionOwner",
                     "No eligible superior and no exception owner configured for this campaign."));
+            }
 
-            approverId = exceptionOwner.EmployeeId;
-            resolutionPath = "exception-handoff";
+            await exceptionCaseWorkflowService.OpenOrReuseAsync(
+                new OpenExceptionCaseRequest(
+                    cycle.Id,
+                    objective.Id,
+                    CampaignWorkItemType.TeamObjectiveApproval,
+                    objective.Id,
+                    "No eligible primary-chain superior or active delegate was available for collective objective approval routing.",
+                    "collective-approval-routing-failed",
+                    new
+                    {
+                        ObjectiveId = objective.Id,
+                        ObjectiveOwnerEmployeeId = objective.OwnerEmployeeId,
+                        ResolutionPath = "exception-owner"
+                    },
+                    cycle.ObjectiveSettingDeadline ?? cycle.PeriodEnd),
+                cancellationToken);
+
+            dbContext.PerformanceCycleAuditEvents.Add(PerformanceCycleAuditEvent.Create(
+                tenantId,
+                cycle.Id,
+                PerformanceCycleAuditAction.CollectiveObjectiveApprovalRouted,
+                currentUser.UserId,
+                currentUser.FullName,
+                $"Failed to route collective objective {objective.Id} through the primary chain and opened exception management.",
+                outcome: "Escalated",
+                correlationId: currentUser.CorrelationId));
+
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return Result.Success();
         }
 
         // 5. Materialize CampaignWorkItem (reuse existing pattern)

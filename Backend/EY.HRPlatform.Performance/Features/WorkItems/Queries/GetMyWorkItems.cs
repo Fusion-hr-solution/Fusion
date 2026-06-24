@@ -33,7 +33,8 @@ public sealed class GetMyWorkItemsQueryHandler(
                 item.DueAt,
                 item.SubmittedAt,
                 item.CompletedAt,
-                item.Version))
+                item.Version,
+                item.ExceptionCaseId))
             .ToListAsync(cancellationToken);
     }
 }

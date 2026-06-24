@@ -41,5 +41,14 @@ public enum PerformanceCycleAuditAction
     FeedbackSuppressed,
     FeedbackContentAccessed,
     FeedbackIdentityAccessed,
-    FeedbackResponseInvalidated
+    FeedbackResponseInvalidated,
+
+    // Exception case actions (Phase 05)
+    ExceptionOpened,
+    ExceptionOwnershipTransferred,
+    ExceptionReassigned,
+    ExceptionOverridden,
+    ExceptionReturned,
+    ExceptionCancelled,
+    ExceptionForceClosed
 }

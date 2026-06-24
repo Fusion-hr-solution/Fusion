@@ -28,6 +28,10 @@ public interface IPerformanceAccessPolicyService
 
     // Feedback threshold details (admin/HR only)
     bool CanViewFeedbackThresholdDetails(ClaimsPrincipal user);
+
+    bool CanActOnOwnedException(ClaimsPrincipal user) => false;
+    bool CanOverrideException(ClaimsPrincipal user) => false;
+    bool CanViewExceptionAudit(ClaimsPrincipal user) => false;
 }
 
 /// <summary>
@@ -103,5 +107,21 @@ public sealed class PerformanceAccessPolicyService : IPerformanceAccessPolicySer
 
     public bool CanViewFeedbackThresholdDetails(ClaimsPrincipal user)
         => user.HasCorePermission(PerformancePermissions.CycleManage, PermissionScopes.Tenant)
+            || user.IsInRole(PlatformRole.PlatformAdmin);
+
+    public bool CanActOnOwnedException(ClaimsPrincipal user)
+        => user.HasCorePermission(PerformancePermissions.ExceptionAction, PermissionScopes.Tenant)
+            || user.HasCorePermission(PerformancePermissions.ExceptionManage, PermissionScopes.Tenant)
+            || user.IsInRole(PlatformRole.PlatformAdmin);
+
+    public bool CanOverrideException(ClaimsPrincipal user)
+        => user.HasCorePermission(PerformancePermissions.ExceptionOverride, PermissionScopes.Tenant)
+            || user.HasCorePermission(PerformancePermissions.ExceptionManage, PermissionScopes.Tenant)
+            || user.IsInRole(PlatformRole.PlatformAdmin);
+
+    public bool CanViewExceptionAudit(ClaimsPrincipal user)
+        => user.HasCorePermission(PerformancePermissions.ExceptionAuditView, PermissionScopes.Tenant)
+            || user.HasCorePermission(PerformancePermissions.ExceptionOverride, PermissionScopes.Tenant)
+            || user.HasCorePermission(PerformancePermissions.ExceptionManage, PermissionScopes.Tenant)
             || user.IsInRole(PlatformRole.PlatformAdmin);
 }
