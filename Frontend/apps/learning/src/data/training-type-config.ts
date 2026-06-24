@@ -17,16 +17,16 @@ export const TRAINING_TYPE_CONFIG: Record<TrainingType, TrainingTypeConfigEntry>
     shortLabel: "Online",
     icon: Laptop,
     badgeClass:
-      "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-900",
-    chartColor: "hsl(217, 91%, 60%)",
+      "bg-[hsl(var(--ey-blue-500))]/10 text-[hsl(var(--ey-blue-500))] border-[hsl(var(--ey-blue-500))]/20",
+    chartColor: "hsl(var(--ey-blue-500))",
   },
   OnSite: {
     label: "In-Person",
     shortLabel: "On-Site",
     icon: Building2,
     badgeClass:
-      "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900",
-    chartColor: "hsl(160, 84%, 39%)",
+      "bg-[hsl(var(--ey-teal-500))]/10 text-[hsl(var(--ey-teal-500))] border-[hsl(var(--ey-teal-500))]/20",
+    chartColor: "hsl(var(--ey-teal-500))",
   },
 };
 

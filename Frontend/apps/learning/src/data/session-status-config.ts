@@ -15,13 +15,13 @@ export const SESSION_STATUS_CONFIG: Record<SessionStatus, SessionStatusEntry> = 
   Planned: {
     label: "Planned",
     icon: Calendar,
-    className: "bg-[hsl(var(--learning-blue-500))]/10 text-[hsl(var(--learning-blue-500))]",
+    className: "bg-[hsl(var(--ey-blue-500))]/10 text-[hsl(var(--ey-blue-500))]",
     variant: "secondary",
   },
   InProgress: {
     label: "In Progress",
     icon: PlayCircle,
-    className: "bg-[hsl(var(--ey-yellow))]/10 text-[hsl(var(--ey-orange-500))]",
+    className: "bg-[hsl(var(--ey-orange-500))]/10 text-[hsl(var(--ey-orange-500))]",
     variant: "default",
   },
   Completed: {

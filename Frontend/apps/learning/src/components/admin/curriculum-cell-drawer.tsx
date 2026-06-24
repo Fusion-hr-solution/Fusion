@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { X, Trash2, Plus, Loader2, Check } from "lucide-react";
 import {
   Button,
@@ -43,6 +43,17 @@ export function CurriculumCellDrawer({
   const [showAdd, setShowAdd] = useState(false);
   const [selectedTrainingId, setSelectedTrainingId] = useState("");
   const [selectedRequired, setSelectedRequired] = useState(false);
+  const closeRef = useRef<HTMLButtonElement>(null);
+
+  // Dialog a11y: focus the panel on open and close on Escape.
+  useEffect(() => {
+    closeRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
 
   const fetchCell = useCallback(() => getCurriculumCell(gradeId, serviceLineId), [gradeId, serviceLineId]);
   const { data: mappings, isLoading, refetch } = useApiQuery<AdminCurriculumMapping[]>(
@@ -98,17 +109,22 @@ export function CurriculumCellDrawer({
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
-      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
-      <div className="relative z-10 flex w-full max-w-md flex-col bg-background shadow-xl">
+      <div className="absolute inset-0 bg-black/30" onClick={onClose} aria-hidden="true" />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="curriculum-drawer-title"
+        className="relative z-10 flex w-full max-w-md flex-col bg-background shadow-xl"
+      >
         {/* Header */}
         <div className="flex items-center justify-between border-b px-4 py-3">
           <div>
-            <h2 className="text-sm font-semibold">{gradeName} × {serviceLineName}</h2>
+            <h2 id="curriculum-drawer-title" className="text-sm font-semibold">{gradeName} × {serviceLineName}</h2>
             <p className="text-xs text-muted-foreground">
               {sorted.length} formation{sorted.length !== 1 ? "s" : ""}
             </p>
           </div>
-          <Button variant="ghost" size="sm" onClick={onClose}>
+          <Button ref={closeRef} variant="ghost" size="sm" onClick={onClose} aria-label="Close">
             <X className="h-4 w-4" />
           </Button>
         </div>
@@ -140,7 +156,7 @@ export function CurriculumCellDrawer({
                       aria-label={`Toggle required for ${m.trainingTitle}`}
                       className="h-7 w-7 p-0"
                     >
-                      <Check className={`h-3.5 w-3.5 ${m.isRequired ? "text-[var(--ey-green-500)]" : "text-muted-foreground"}`} />
+                      <Check className={`h-3.5 w-3.5 ${m.isRequired ? "text-[hsl(var(--ey-green-500))]" : "text-muted-foreground"}`} />
                     </Button>
                     <Button
                       variant="ghost"

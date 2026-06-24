@@ -53,7 +53,8 @@ export function StepBasicInfo({ wizard }: StepBasicInfoProps) {
                     key={t.value}
                     type="button"
                     onClick={() => wizard.setTrainingType(t.value)}
-                    className={`flex items-start gap-3 rounded-xl border p-4 text-left transition-all ${
+                    aria-pressed={isActive}
+                    className={`flex items-start gap-3 rounded-xl border p-4 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
                       isActive
                         ? "border-foreground bg-foreground/5 ring-1 ring-foreground"
                         : "border-border hover:border-muted-foreground/40"
@@ -76,12 +77,13 @@ export function StepBasicInfo({ wizard }: StepBasicInfoProps) {
         <div className="col-span-2 rounded-2xl border border-border bg-background p-6 shadow-sm">
           <div className="flex flex-col gap-5">
             <div className="space-y-2">
-              <Label className="text-[13px] font-semibold">Title <span className="text-destructive">*</span></Label>
-              <Input value={wizard.title} onChange={(e) => wizard.setTitle(e.target.value)} placeholder="e.g. Advanced React Patterns" maxLength={300} />
+              <Label htmlFor="wizard-title" className="text-[13px] font-semibold">Title <span className="text-destructive">*</span></Label>
+              <Input id="wizard-title" value={wizard.title} onChange={(e) => wizard.setTitle(e.target.value)} placeholder="e.g. Advanced React Patterns" maxLength={300} />
             </div>
             <div className="space-y-2">
-              <Label className="text-[13px] font-semibold">Description</Label>
+              <Label htmlFor="wizard-description" className="text-[13px] font-semibold">Description</Label>
               <textarea
+                id="wizard-description"
                 rows={4}
                 value={wizard.description}
                 onChange={(e) => wizard.setDescription(e.target.value)}
@@ -97,9 +99,9 @@ export function StepBasicInfo({ wizard }: StepBasicInfoProps) {
             <p className="mb-4 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Classification</p>
             <div className="flex flex-col gap-4">
               <div className="space-y-2">
-                <Label className="text-[13px] font-semibold">Category <span className="text-destructive">*</span></Label>
+                <Label htmlFor="wizard-category" className="text-[13px] font-semibold">Category <span className="text-destructive">*</span></Label>
                 <Select value={wizard.categoryId} onValueChange={wizard.setCategoryId}>
-                  <SelectTrigger><SelectValue placeholder="Select category..." /></SelectTrigger>
+                  <SelectTrigger id="wizard-category"><SelectValue placeholder="Select category..." /></SelectTrigger>
                   <SelectContent>
                     {wizard.categories.map((c) => (
                       <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
@@ -108,9 +110,9 @@ export function StepBasicInfo({ wizard }: StepBasicInfoProps) {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label className="text-[13px] font-semibold">Badge Level</Label>
+                <Label htmlFor="wizard-badge-level" className="text-[13px] font-semibold">Badge Level</Label>
                 <Select value={wizard.badgeLevel} onValueChange={wizard.setBadgeLevel}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger id="wizard-badge-level"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {BADGE_LEVELS.map((l) => (
                       <SelectItem key={l} value={l}>{l}</SelectItem>
@@ -128,13 +130,13 @@ export function StepBasicInfo({ wizard }: StepBasicInfoProps) {
         <button
           onClick={wizard.handleNext}
           disabled={!wizard.canAdvanceStep1}
-          className={`flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-semibold shadow-sm transition-all ${
+          className={`flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-semibold shadow-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
             wizard.canAdvanceStep1
               ? "ey-bg-dark text-white hover:opacity-90 active:scale-[0.98]"
               : "cursor-not-allowed bg-muted text-muted-foreground"
           }`}
         >
-          Continue to Details <ArrowRight className="h-4 w-4" />
+          Continue to Details <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </button>
       </div>
     </div>

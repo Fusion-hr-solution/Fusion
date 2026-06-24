@@ -62,7 +62,7 @@ export function ChapterBuilder({ trainingId, chapterId }: { trainingId: string; 
         <div className="flex items-center gap-3 px-8 pb-4">
           <Input value={titleValue} onChange={(e) => handleTitleChange(e.target.value)} className="h-10 max-w-md border-none bg-transparent text-lg font-bold text-foreground shadow-none placeholder:text-muted-foreground/50 focus-visible:ring-1" placeholder="Chapter title..." />
           {isSavingTitle && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
-          {titleSaved && <span className="flex items-center gap-1 text-xs text-green-600"><Check className="h-3 w-3" /> Saved</span>}
+          {titleSaved && <span className="flex items-center gap-1 text-xs text-[hsl(var(--ey-green-500))]"><Check className="h-3 w-3" /> Saved</span>}
           <div className="ml-auto">
             <Button variant={showPreview ? "default" : "outline"} size="sm" onClick={() => setShowPreview((v) => !v)} className="gap-1.5"><Eye className="h-4 w-4" /> {showPreview ? "Back to Editor" : "Preview"}</Button>
           </div>

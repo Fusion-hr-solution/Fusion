@@ -43,7 +43,7 @@ function SessionRow({ session }: { session: AttendedSession }) {
   const format = useFormatter();
   return (
     <li className="flex items-start gap-3 rounded-lg border border-border/40 bg-card/40 px-3 py-2.5 transition-colors hover:border-border hover:bg-card">
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[hsl(var(--ey-green-500))]/10 text-[hsl(var(--ey-green-500))]">
         <Building2 className="h-4 w-4" aria-hidden="true" />
       </div>
       <div className="min-w-0 flex-1">
@@ -70,7 +70,7 @@ function SessionRow({ session }: { session: AttendedSession }) {
           )}
         </div>
       </div>
-      <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+      <span className="shrink-0 rounded-full bg-[hsl(var(--ey-green-500))]/10 px-2 py-0.5 text-xs font-semibold text-[hsl(var(--ey-green-500))]">
         {session.hours.toFixed(1)}h
       </span>
     </li>
@@ -133,12 +133,12 @@ export function InPersonHoursWidget() {
     totalRatio > 0 ? Math.round((data.inPersonHours / totalRatio) * 100) : 0;
 
   return (
-    <Card className="overflow-hidden border-border/60 bg-gradient-to-br from-card via-card to-emerald-50/20">
+    <Card className="overflow-hidden border-border/60 bg-gradient-to-br from-card via-card to-[hsl(var(--ey-green-500))]/5">
       <CardContent className="space-y-5 py-6">
         {/* Header */}
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[hsl(var(--ey-green-500))]/10 text-[hsl(var(--ey-green-500))]">
               <Building2 className="h-5 w-5" aria-hidden="true" />
             </div>
             <div>
@@ -148,7 +148,7 @@ export function InPersonHoursWidget() {
               <p className="text-xs text-muted-foreground">{t("subtitle")}</p>
             </div>
           </div>
-          <span className="hidden items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 sm:inline-flex">
+          <span className="hidden items-center gap-1 rounded-full border border-[hsl(var(--ey-green-500))]/20 bg-[hsl(var(--ey-green-500))]/10 px-2.5 py-1 text-[11px] font-semibold text-[hsl(var(--ey-green-500))] sm:inline-flex">
             <Sparkles className="h-3 w-3" aria-hidden="true" />
             {t("inPersonShare", { share: inPersonShare })}
           </span>
@@ -208,7 +208,8 @@ export function InPersonHoursWidget() {
                       contentStyle={{
                         borderRadius: 8,
                         border: "1px solid hsl(var(--border))",
-                        background: "hsl(var(--card))",
+                        background: "hsl(var(--popover))",
+                        color: "hsl(var(--popover-foreground))",
                         fontSize: 12,
                       }}
                       formatter={(v: number) => [`${v.toFixed(1)}h`, ""]}

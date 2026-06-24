@@ -191,7 +191,8 @@
       "inProgress": "In Progress",
       "completed": "Completed",
       "totalHours": "Total Hours",
-      "enrolled": "Enrolled"
+      "enrolled": "Enrolled",
+      "avgProgress": "Avg Progress"
     },
     "searchPlaceholder": "Search trainings...",
     "searchAria": "Search enrolled trainings",

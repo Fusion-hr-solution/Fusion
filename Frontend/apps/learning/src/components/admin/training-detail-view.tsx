@@ -125,7 +125,7 @@ export function TrainingDetailView({ trainingId }: TrainingDetailViewProps) {
                 Mandatory
               </Badge>
             )}
-            <Badge variant="outline" className={training.trainingType === "OnSite" ? "border-blue-500/30 text-blue-600" : "border-green-500/30 text-green-600"}>
+            <Badge variant="outline" className={training.trainingType === "OnSite" ? "border-[hsl(var(--ey-teal-500))]/30 text-[hsl(var(--ey-teal-500))]" : "border-[hsl(var(--ey-blue-500))]/30 text-[hsl(var(--ey-blue-500))]"}>
               {training.trainingType === "OnSite" ? "On-Site" : "E-Learning"}
             </Badge>
           </div>

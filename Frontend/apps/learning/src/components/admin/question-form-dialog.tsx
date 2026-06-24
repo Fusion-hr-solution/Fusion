@@ -102,20 +102,20 @@ export function QuestionFormDialog({ open, onOpenChange, question, onSubmit }: Q
             </div>
           )}
           <div className="space-y-2">
-            <Label className="text-[13px] font-semibold">Question <span className="text-destructive">*</span></Label>
-            <textarea value={questionText} onChange={(e) => setQuestionText(e.target.value)} placeholder="Enter your question..." maxLength={1000} rows={3} className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" />
+            <Label htmlFor="question-text" className="text-[13px] font-semibold">Question <span className="text-destructive">*</span></Label>
+            <textarea id="question-text" value={questionText} onChange={(e) => setQuestionText(e.target.value)} placeholder="Enter your question..." maxLength={1000} rows={3} className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-[13px] font-semibold">Question Type</Label>
+              <Label htmlFor="question-type" className="text-[13px] font-semibold">Question Type</Label>
               <Select value={type} onValueChange={(v) => handleTypeChange(v as QuestionType)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger id="question-type"><SelectValue /></SelectTrigger>
                 <SelectContent>{QUESTION_TYPES.map((qt) => <SelectItem key={qt.value} value={qt.value}>{qt.label}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label className="text-[13px] font-semibold">Points</Label>
-              <Input type="number" min={1} max={100} value={points} onChange={(e) => setPoints(Number(e.target.value))} />
+              <Label htmlFor="question-points" className="text-[13px] font-semibold">Points</Label>
+              <Input id="question-points" type="number" min={1} max={100} value={points} onChange={(e) => setPoints(Number(e.target.value))} />
             </div>
           </div>
           <QuestionOptionsEditor options={options} type={type} onToggleCorrect={handleToggleCorrect} onOptionTextChange={handleOptionTextChange} onAddOption={() => setOptions((prev) => [...prev, { clientId: genId(), optionText: "", isCorrect: false }])} onRemoveOption={(id) => setOptions((prev) => prev.filter((o) => o.clientId !== id))} />

@@ -59,13 +59,13 @@ function SortableBlockItem({
     >
       <button
         type="button"
-        className="cursor-grab touch-none text-muted-foreground/40 hover:text-muted-foreground"
+        className="cursor-grab touch-none text-muted-foreground/40 hover:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
         {...attributes}
         {...listeners}
         disabled={isDeleted}
         aria-label="Drag to reorder block"
       >
-        <GripVertical className="h-3.5 w-3.5" />
+        <GripVertical className="h-3.5 w-3.5" aria-hidden="true" />
       </button>
       <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-[10px] font-bold text-muted-foreground bg-muted">
         {index + 1}
@@ -84,8 +84,8 @@ function SortableBlockItem({
         )}
       </div>
       <div className="flex shrink-0 items-center gap-0.5">
-        <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={onEdit} disabled={isDeleted}>
-          <Pencil className="h-3 w-3" />
+        <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={onEdit} disabled={isDeleted} aria-label={`Edit ${block.title || block.type}`}>
+          <Pencil className="h-3 w-3" aria-hidden="true" />
         </Button>
         <Button
           variant="ghost"
@@ -93,8 +93,9 @@ function SortableBlockItem({
           className="h-6 w-6 p-0 text-destructive hover:text-destructive"
           onClick={onDelete}
           disabled={isDeleted}
+          aria-label={`Delete ${block.title || block.type}`}
         >
-          <Trash2 className="h-3 w-3" />
+          <Trash2 className="h-3 w-3" aria-hidden="true" />
         </Button>
       </div>
     </div>

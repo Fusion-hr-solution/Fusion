@@ -20,7 +20,7 @@ export function SessionPickerCard({ session, isSelected, onSelect }: SessionPick
       type="button"
       onClick={onSelect}
       disabled={session.isFull}
-      className={`group relative w-full rounded-xl border-2 p-4 text-left transition-all ${
+      className={`group relative w-full rounded-xl border-2 p-4 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
         isSelected
           ? "border-primary bg-primary/5 shadow-md ring-1 ring-primary/20"
           : session.isFull
@@ -41,18 +41,18 @@ export function SessionPickerCard({ session, isSelected, onSelect }: SessionPick
           <p className="text-sm font-semibold text-foreground">{dateStr}</p>
 
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Clock className="h-3.5 w-3.5 shrink-0" />
+            <Clock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
             <span>{timeRange}</span>
           </div>
 
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <MapPin className="h-3.5 w-3.5 shrink-0" />
+            <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
             <span>{session.room}</span>
           </div>
 
           {session.trainerName && (
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <User className="h-3.5 w-3.5 shrink-0" />
+              <User className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
               <span>{session.trainerName}</span>
             </div>
           )}
@@ -64,7 +64,7 @@ export function SessionPickerCard({ session, isSelected, onSelect }: SessionPick
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Badge variant="destructive" className="text-xs">
-                    <AlertCircle className="mr-1 h-3 w-3" />
+                    <AlertCircle className="mr-1 h-3 w-3" aria-hidden="true" />
                     {t("full")}
                   </Badge>
                 </TooltipTrigger>
@@ -74,17 +74,17 @@ export function SessionPickerCard({ session, isSelected, onSelect }: SessionPick
           ) : (
             <div className="space-y-1">
               <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                <Users className="h-3.5 w-3.5" />
+                <Users className="h-3.5 w-3.5" aria-hidden="true" />
                 <span>{t("spots", { count: session.availableSpots })}</span>
               </div>
               <div className="h-1.5 w-16 overflow-hidden rounded-full bg-muted">
                 <div
                   className={`h-full rounded-full transition-all ${
                     spotsRatio > 0.5
-                      ? "bg-emerald-500"
+                      ? "bg-[hsl(var(--ey-green-500))]"
                       : spotsRatio > 0.2
-                        ? "bg-amber-500"
-                        : "bg-red-500"
+                        ? "bg-[hsl(var(--ey-orange-500))]"
+                        : "bg-[hsl(var(--ey-red-500))]"
                   }`}
                   style={{ width: `${Math.max(5, (1 - spotsRatio) * 100)}%` }}
                 />

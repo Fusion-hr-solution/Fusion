@@ -49,11 +49,11 @@ interface ChapterPreviewProps {
 
 export function ChapterPreview({ title, layout, blocks, onClose }: ChapterPreviewProps) {
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-white">
+    <div className="flex h-full flex-col overflow-hidden bg-background">
       {/* Preview header bar */}
       <div className="flex items-center justify-between border-b border-border bg-muted/30 px-6 py-3">
         <div className="flex items-center gap-2">
-          <span className="rounded-md bg-yellow-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-yellow-700">
+          <span className="rounded-md bg-primary/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-foreground">
             Preview
           </span>
           <span className="text-sm text-muted-foreground">Employee view</span>
@@ -137,7 +137,7 @@ function PreviewBlockView({ block, index }: { block: AdminContentBlock; index: n
 
   return (
     <div
-      className="rounded-2xl border border-border/50 bg-white p-6 shadow-sm"
+      className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm"
       style={{ animationDelay: `${index * 80}ms` }}
     >
       {/* Block header */}
