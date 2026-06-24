@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Input, Label } from "@repo/ui";
+import { useTranslations } from "next-intl";
 import { FileUploadZone } from "../file-upload-zone";
 
 interface VideoEditorProps {
@@ -29,13 +30,14 @@ export function VideoEditor({
   urlError,
   disabled,
 }: VideoEditorProps) {
+  const t = useTranslations("adminWizard.editor.video");
   const [mode, setMode] = useState<"upload" | "url">(
-    existingFileUrl ? "upload" : videoUrl ? "url" : "upload",
+    existingFileUrl ? "upload" : videoUrl ? "url" : "upload"
   );
 
   return (
     <div className="space-y-4">
-      <Label className="text-[13px] font-semibold">Video Source</Label>
+      <Label className="text-[13px] font-semibold">{t("source")}</Label>
 
       {/* Mode toggle */}
       <div className="flex gap-2">
@@ -51,7 +53,7 @@ export function VideoEditor({
                 : "bg-muted text-muted-foreground hover:bg-muted/80"
             }`}
           >
-            {m === "upload" ? "Upload File" : "External URL"}
+            {m === "upload" ? t("uploadFile") : t("externalUrl")}
           </button>
         ))}
       </div>
@@ -62,7 +64,7 @@ export function VideoEditor({
           file={file}
           onFileChange={onFileChange}
           existingUrl={existingFileUrl}
-          label="Upload a video file (MP4, WebM, MOV — max 50 MB)"
+          label={t("uploadLabel")}
           disabled={disabled}
           error={fileError}
         />
@@ -76,9 +78,7 @@ export function VideoEditor({
             className={urlError ? "border-destructive" : ""}
           />
           {urlError && <p className="text-xs text-destructive">{urlError}</p>}
-          <p className="text-[11px] text-muted-foreground">
-            Paste a YouTube, Vimeo, or direct video URL
-          </p>
+          <p className="text-[11px] text-muted-foreground">{t("urlHint")}</p>
         </div>
       )}
     </div>

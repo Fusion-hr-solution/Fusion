@@ -1,10 +1,29 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
 import type { DragEndEvent } from "@dnd-kit/core";
-import { SortableContext, arrayMove, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { Layers, Plus, ArrowLeft, ArrowRight, AlertTriangle } from "lucide-react";
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import {
+  Layers,
+  Plus,
+  ArrowLeft,
+  ArrowRight,
+  AlertTriangle,
+} from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { WizardState } from "@/types/admin-props";
 import type { WizardChapter } from "@/types/admin";
 import { ChapterCard } from "./chapter-card";
@@ -16,24 +35,30 @@ interface StepChaptersProps {
 }
 
 export function StepChapters({ wizard, trainingId }: StepChaptersProps) {
+  const t = useTranslations("adminWizard");
+  const tCommon = useTranslations("common");
   const [editorOpen, setEditorOpen] = useState(false);
-  const [editingChapter, setEditingChapter] = useState<WizardChapter | null>(null);
+  const [editingChapter, setEditingChapter] = useState<WizardChapter | null>(
+    null
+  );
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
       const { active, over } = event;
       if (!over || active.id === over.id) return;
-      const oldIndex = wizard.chapters.findIndex((c) => c.clientId === active.id);
+      const oldIndex = wizard.chapters.findIndex(
+        (c) => c.clientId === active.id
+      );
       const newIndex = wizard.chapters.findIndex((c) => c.clientId === over.id);
       if (oldIndex === -1 || newIndex === -1) return;
       wizard.reorderChapters(arrayMove(wizard.chapters, oldIndex, newIndex));
     },
-    [wizard],
+    [wizard]
   );
 
   function handleAdd(chapter: Omit<WizardChapter, "clientId">) {
@@ -61,17 +86,22 @@ export function StepChapters({ wizard, trainingId }: StepChaptersProps) {
             <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-foreground">
               <Layers className="h-3.5 w-3.5 text-background" />
             </div>
-            <h2 className="text-xl font-bold tracking-tight text-foreground">Chapters</h2>
+            <h2 className="text-xl font-bold tracking-tight text-foreground">
+              {t("chapters.heading")}
+            </h2>
           </div>
           <p className="ml-9 text-[13px] text-muted-foreground">
-            Add chapters to build your training content
+            {t("chapters.subtitle")}
           </p>
         </div>
         <button
-          onClick={() => { setEditingChapter(null); setEditorOpen(true); }}
+          onClick={() => {
+            setEditingChapter(null);
+            setEditorOpen(true);
+          }}
           className="flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold shadow-sm transition-all ey-bg-dark text-white hover:opacity-90 active:scale-[0.98]"
         >
-          <Plus className="h-4 w-4" /> Add Chapter
+          <Plus className="h-4 w-4" /> {t("chapters.addChapter")}
         </button>
       </div>
 
@@ -88,14 +118,23 @@ export function StepChapters({ wizard, trainingId }: StepChaptersProps) {
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-muted">
             <Layers className="h-6 w-6 text-muted-foreground" />
           </div>
-          <p className="mt-4 text-sm font-semibold text-foreground">No chapters yet</p>
+          <p className="mt-4 text-sm font-semibold text-foreground">
+            {t("chapters.emptyTitle")}
+          </p>
           <p className="mt-1 text-[12px] text-muted-foreground">
-            Click &ldquo;Add Chapter&rdquo; to start building your training content
+            {t("chapters.emptySubtitle")}
           </p>
         </div>
       ) : (
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={wizard.chapters.map((c) => c.clientId)} strategy={verticalListSortingStrategy}>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={wizard.chapters.map((c) => c.clientId)}
+            strategy={verticalListSortingStrategy}
+          >
             <div className="space-y-3">
               {wizard.chapters.map((ch, index) => (
                 <ChapterCard
@@ -118,7 +157,7 @@ export function StepChapters({ wizard, trainingId }: StepChaptersProps) {
           onClick={wizard.prevStep}
           className="flex items-center gap-2 rounded-xl border border-border bg-background px-5 py-2.5 text-sm font-semibold text-muted-foreground shadow-sm transition-colors hover:bg-muted hover:text-foreground"
         >
-          <ArrowLeft className="h-4 w-4" /> Back
+          <ArrowLeft className="h-4 w-4" /> {tCommon("actions.back")}
         </button>
         <button
           onClick={wizard.handleNext}
@@ -129,13 +168,16 @@ export function StepChapters({ wizard, trainingId }: StepChaptersProps) {
               : "cursor-not-allowed bg-muted text-muted-foreground"
           }`}
         >
-          Continue to Review <ArrowRight className="h-4 w-4" />
+          {t("chapters.continueToReview")} <ArrowRight className="h-4 w-4" />
         </button>
       </div>
 
       <ChapterEditorDialog
         open={editorOpen}
-        onOpenChange={(o) => { setEditorOpen(o); if (!o) setEditingChapter(null); }}
+        onOpenChange={(o) => {
+          setEditorOpen(o);
+          if (!o) setEditingChapter(null);
+        }}
         editingChapter={editingChapter}
         onAdd={handleAdd}
         onSaveEdit={handleSaveEdit}

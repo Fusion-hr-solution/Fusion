@@ -1,8 +1,16 @@
 "use client";
 
 import { useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { useApiQuery } from "@repo/api/react";
-import { Label, Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@repo/ui";
+import {
+  Label,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@repo/ui";
 import { getArticleTemplates } from "@/services/admin-service";
 import type { ArticleTemplate } from "@/types/admin";
 
@@ -13,15 +21,23 @@ interface ArticleTemplateSelectorProps {
   initialTemplateName?: string;
 }
 
-export function ArticleTemplateSelector({ selectedTemplateId, onTemplateChange, initialTemplateName }: ArticleTemplateSelectorProps) {
-  const { data: templates, isLoading } = useApiQuery(() => getArticleTemplates());
+export function ArticleTemplateSelector({
+  selectedTemplateId,
+  onTemplateChange,
+  initialTemplateName,
+}: ArticleTemplateSelectorProps) {
+  const tr = useTranslations("adminChapters");
+  const { data: templates, isLoading } = useApiQuery(() =>
+    getArticleTemplates()
+  );
 
   // Auto-select template when templates load and nothing is selected yet.
   // When editing, prefer the stored templateName; otherwise default to "Standard Article".
   useEffect(() => {
     if (!templates || templates.length === 0 || selectedTemplateId) return;
     const target =
-      (initialTemplateName && templates.find((t) => t.name === initialTemplateName)) ||
+      (initialTemplateName &&
+        templates.find((t) => t.name === initialTemplateName)) ||
       templates.find((t) => t.name === "Standard Article") ||
       templates[0];
     if (target) onTemplateChange(target);
@@ -34,10 +50,20 @@ export function ArticleTemplateSelector({ selectedTemplateId, onTemplateChange, 
 
   return (
     <div className="space-y-2">
-      <Label>Article Template</Label>
-      <Select value={selectedTemplateId} onValueChange={handleChange} disabled={isLoading}>
+      <Label>{tr("articleTemplate.label")}</Label>
+      <Select
+        value={selectedTemplateId}
+        onValueChange={handleChange}
+        disabled={isLoading}
+      >
         <SelectTrigger>
-          <SelectValue placeholder={isLoading ? "Loading templates..." : "Select a template"} />
+          <SelectValue
+            placeholder={
+              isLoading
+                ? tr("articleTemplate.loadingTemplates")
+                : tr("articleTemplate.selectTemplate")
+            }
+          />
         </SelectTrigger>
         <SelectContent>
           {(templates ?? []).map((t) => (

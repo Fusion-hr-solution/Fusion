@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import {
   DndContext,
   closestCenter,
@@ -31,11 +32,7 @@ import type { AdminChapter } from "@/types/admin";
 import type { ChapterManagerListProps } from "@/types/admin-props";
 import { CONTENT_TYPES } from "@/data/chapter-templates";
 
-const LAYOUT_LABELS: Record<string, string> = {
-  SingleContent: "Single Content",
-  SplitLayout: "Split Layout",
-  MultiSection: "Multi-Section",
-};
+const KNOWN_LAYOUTS = new Set(["SingleContent", "SplitLayout", "MultiSection"]);
 
 /* ── Chapter row ── */
 
@@ -58,6 +55,7 @@ function ChapterRow({
   onDuplicate,
   onOpen,
 }: ChapterRowProps) {
+  const t = useTranslations("adminChapters");
   const {
     attributes,
     listeners,
@@ -93,7 +91,7 @@ function ChapterRow({
         {...attributes}
         {...listeners}
         disabled={isDeleted}
-        aria-label="Drag to reorder"
+        aria-label={t("managerList.dragToReorder")}
       >
         <GripVertical className="h-5 w-5" />
       </button>
@@ -111,11 +109,11 @@ function ChapterRow({
         <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
           <span className="flex items-center gap-1">
             <Layers className="h-3 w-3" />
-            {LAYOUT_LABELS[chapter.layout] ?? chapter.layout}
+            {KNOWN_LAYOUTS.has(chapter.layout)
+              ? t(`managerList.layout.${chapter.layout}`)
+              : chapter.layout}
           </span>
-          <span>
-            {blockCount} block{blockCount !== 1 ? "s" : ""}
-          </span>
+          <span>{t("managerList.blockCount", { count: blockCount })}</span>
           {blockTypes.length > 0 && (
             <span className="flex items-center gap-1.5">
               {blockTypes.map((type) => {
@@ -125,7 +123,7 @@ function ChapterRow({
                   <span
                     key={type}
                     className={`flex h-5 w-5 items-center justify-center rounded ${cfg.colorClass}`}
-                    title={cfg.label}
+                    title={t(`contentTypes.${cfg.type}.label`)}
                   >
                     <cfg.icon className={`h-3 w-3 ${cfg.iconColorClass}`} />
                   </span>
@@ -146,14 +144,14 @@ function ChapterRow({
           className="h-8 gap-1.5 text-xs"
         >
           <ExternalLink className="h-3.5 w-3.5" />
-          Open Builder
+          {t("managerList.openBuilder")}
         </Button>
         <Button
           variant="ghost"
           size="sm"
           onClick={onEdit}
           disabled={isDeleted}
-          aria-label="Edit"
+          aria-label={t("managerList.editAriaLabel")}
         >
           <Pencil className="h-3.5 w-3.5" />
         </Button>
@@ -162,7 +160,7 @@ function ChapterRow({
           size="sm"
           onClick={onDuplicate}
           disabled={isDeleted}
-          aria-label="Duplicate"
+          aria-label={t("managerList.duplicateAriaLabel")}
         >
           <Copy className="h-3.5 w-3.5" />
         </Button>
@@ -171,7 +169,7 @@ function ChapterRow({
           size="sm"
           onClick={onDelete}
           disabled={isDeleted}
-          aria-label="Delete"
+          aria-label={t("managerList.deleteAriaLabel")}
           className="text-destructive hover:text-destructive hover:bg-destructive/10"
         >
           <Trash2 className="h-3.5 w-3.5" />
@@ -183,14 +181,22 @@ function ChapterRow({
 
 /* ── Overlay while dragging ── */
 
-function DragPreview({ chapter, index }: { chapter: AdminChapter; index: number }) {
+function DragPreview({
+  chapter,
+  index,
+}: {
+  chapter: AdminChapter;
+  index: number;
+}) {
   return (
     <div className="flex items-center gap-4 rounded-xl border border-foreground/20 bg-background px-5 py-4 shadow-2xl ring-2 ring-foreground/5">
       <GripVertical className="h-5 w-5 text-muted-foreground/30" />
       <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted text-sm font-bold text-muted-foreground">
         {index + 1}
       </span>
-      <p className="truncate text-sm font-semibold text-foreground">{chapter.title}</p>
+      <p className="truncate text-sm font-semibold text-foreground">
+        {chapter.title}
+      </p>
     </div>
   );
 }
@@ -215,7 +221,7 @@ export function ChapterManagerList({
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor),
+    useSensor(KeyboardSensor)
   );
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
@@ -241,11 +247,15 @@ export function ChapterManagerList({
         setOrdered(ordered);
       }
     },
-    [ordered, onReorder],
+    [ordered, onReorder]
   );
 
-  const activeChapter = activeId ? ordered.find((c) => c.id === activeId) : null;
-  const activeIndex = activeId ? ordered.findIndex((c) => c.id === activeId) : -1;
+  const activeChapter = activeId
+    ? ordered.find((c) => c.id === activeId)
+    : null;
+  const activeIndex = activeId
+    ? ordered.findIndex((c) => c.id === activeId)
+    : -1;
 
   return (
     <DndContext
@@ -275,7 +285,9 @@ export function ChapterManagerList({
       </SortableContext>
 
       <DragOverlay dropAnimation={{ duration: 200, easing: "ease" }}>
-        {activeChapter && <DragPreview chapter={activeChapter} index={activeIndex} />}
+        {activeChapter && (
+          <DragPreview chapter={activeChapter} index={activeIndex} />
+        )}
       </DragOverlay>
     </DndContext>
   );
