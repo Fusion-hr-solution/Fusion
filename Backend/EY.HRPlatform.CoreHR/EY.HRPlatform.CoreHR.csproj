@@ -33,4 +33,10 @@
     <ProjectReference Include="../EY.HRPlatform.SharedKernel/EY.HRPlatform.SharedKernel.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>EY.HRPlatform.CoreHR.Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
 </Project>

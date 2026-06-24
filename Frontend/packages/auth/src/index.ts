@@ -58,6 +58,12 @@ export {
   canSeeOrganizationsNavigation,
   canAccessTenantContext,
   canAccessTenantSurfaces,
+  canViewPerformanceCycles,
+  canManagePerformanceCycles,
+  canOperatePerformanceCycles,
+  canViewObjectiveLibrary,
+  canManageObjectiveLibrary,
+  canAccessPerformance,
 } from "./roles";
 
 // Components

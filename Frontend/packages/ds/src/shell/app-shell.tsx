@@ -1,0 +1,35 @@
+import type { ReactNode } from "react";
+import { cn } from "../lib/utils";
+
+export interface AppShellProps {
+  /** The module sidebar (typically <ModuleSidebar .../>). */
+  sidebar: ReactNode;
+  /** Optional sticky top bar (breadcrumb + page-level controls). */
+  header?: ReactNode;
+  /** Optional banner shown above content (e.g. tenant-context notice). */
+  banner?: ReactNode;
+  children: ReactNode;
+  /** Override the main scroll-area background. Defaults to the off-white app surface. */
+  contentClassName?: string;
+}
+
+/**
+ * Shared Core + Performance application frame: dark sidebar + off-white content surface,
+ * with optional sticky header and banner slots. White cards/surfaces sit on the off-white base.
+ */
+export function AppShell({ sidebar, header, banner, children, contentClassName }: AppShellProps) {
+  return (
+    <div className="flex h-screen overflow-hidden bg-background">
+      {sidebar}
+      <div className="flex min-w-0 flex-1 flex-col">
+        {header ? (
+          <header className="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+            {header}
+          </header>
+        ) : null}
+        {banner}
+        <main className={cn("flex-1 overflow-y-auto", contentClassName)}>{children}</main>
+      </div>
+    </div>
+  );
+}
