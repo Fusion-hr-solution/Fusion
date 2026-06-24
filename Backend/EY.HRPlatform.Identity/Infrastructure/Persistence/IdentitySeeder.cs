@@ -1,4 +1,5 @@
 using EY.HRPlatform.Identity.Domain.Entities;
+using EY.HRPlatform.Identity.Features.AccessProfiles;
 using EY.HRPlatform.SharedKernel.Auth;
 using EY.HRPlatform.SharedKernel.Constants;
 using System.Reflection;
@@ -33,9 +34,16 @@ public static class IdentitySeeder
 
         // 2. Demo data seeding (only when explicitly enabled via configuration)
         if (!seedDemoData)
+        {
+            var accessProfileService = new AccessProfileService(dbContext, userManager);
+            await accessProfileService.EnsureSeedDataAsync();
             return;
+        }
 
         await SeedDemoDataAsync(dbContext, userManager);
+
+        var seededAccessProfileService = new AccessProfileService(dbContext, userManager);
+        await seededAccessProfileService.EnsureSeedDataAsync();
     }
 
     private static async Task SeedDemoDataAsync(

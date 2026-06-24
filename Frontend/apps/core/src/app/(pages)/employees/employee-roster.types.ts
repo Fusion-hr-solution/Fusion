@@ -30,6 +30,7 @@ export type EmployeeReadinessFixTargetKind =
 export interface EmployeeReadinessFixTargetDto {
   kind: EmployeeReadinessFixTargetKind;
   employeeId?: string | null;
+  employeeKey?: string | null;
   importHistoryId?: string | null;
   fieldKey?: string | null;
 }
@@ -88,8 +89,11 @@ export type EmployeeRosterSortDirection = "Asc" | "Desc";
 
 export interface EmployeeRosterItem {
   id: string;
-  stableEmployeeKey?: string;
+  stableEmployeeKey: string;
   employeeNumber?: string | null;
+  preferredName?: string | null;
+  displayName?: string;
+  fullName?: string;
   firstName: string;
   lastName: string;
   email: string;
@@ -119,6 +123,9 @@ export interface EmployeeRosterPageDto {
 export interface EmployeeRosterQueryParams {
   search?: string;
   status?: EmployeeRosterStatus;
+  orgUnitId?: string;
+  orgUnitCode?: string;
+  managerId?: string;
   access?: EmployeeAccessFilter;
   readiness?: EmployeeReadinessFilter;
   sortBy: EmployeeRosterSortField;
@@ -163,18 +170,23 @@ export interface EmployeeOrgUnitPageDto {
 
 export interface EmployeeProfileDto {
   id: string;
-  stableEmployeeKey?: string;
+  stableEmployeeKey: string;
   employeeNumber?: string | null;
   firstName: string;
   lastName: string;
   preferredName: string | null;
+  displayName: string;
   fullName: string;
   email: string;
+  phone: string | null;
   jobTitle: string | null;
+  workLocation: string | null;
+  employmentType: string | null;
   hireDate: string;
   status: EmployeeRosterStatus;
   orgUnitId: string | null;
   orgUnitName: string | null;
+  orgUnitType: string | null;
   managerId: string | null;
   managerFirstName: string | null;
   managerLastName: string | null;
@@ -183,6 +195,8 @@ export interface EmployeeProfileDto {
   hierarchyStatus: EmployeeHierarchyStatus;
   directReportCount: number;
   readiness: EmployeeReadinessSummaryDto;
+  createdAt: string;
+  updatedAt: string | null;
   version: number;
 }
 
@@ -220,6 +234,12 @@ export interface WorkforceAccountStatusDto {
   email: string;
   fullName: string | null;
   role: string;
+  accessProfiles: Array<{
+    id: string;
+    name: string;
+    type: "SystemSeeded" | "Custom";
+    isSystemProtected: boolean;
+  }>;
   provisioningState: WorkforceAccountProvisioningState;
   userId: string | null;
   isActive: boolean | null;
@@ -239,7 +259,7 @@ export interface WorkforceAccountSubject {
   email: string;
   firstName?: string | null;
   lastName?: string | null;
-  role?: string | null;
+  accessProfileId?: string | null;
 }
 
 export type WorkforceAccountBulkProvisionOutcome =
@@ -254,4 +274,32 @@ export interface WorkforceAccountBulkProvisionResultDto {
   outcome: WorkforceAccountBulkProvisionOutcome;
   message: string;
   account: WorkforceAccountStatusDto;
+}
+
+export interface WorkforceBulkInviteResultItemDto {
+  employeeId: string;
+  displayName: string;
+  email: string;
+  outcome: string;
+  message: string;
+}
+
+export interface WorkforceBulkInviteResponseDto {
+  items: WorkforceBulkInviteResultItemDto[];
+  totalRequested: number;
+  invitedCount: number;
+  refreshedCount: number;
+  alreadyActiveCount: number;
+  skippedCount: number;
+}
+
+export interface WorkforceAccountSummaryDto {
+  activeAccountCount: number;
+  inactiveAccountCount: number;
+  pendingInviteCount: number;
+  acceptedInviteCount: number;
+  expiredInviteCount: number;
+  revokedInviteCount: number;
+  trackedEmployeeCount: number;
+  attentionQueueCount: number;
 }

@@ -21,7 +21,8 @@ public sealed class ActivateTenantSetupCommandHandler(
     {
         var state = await dbContext.TenantSetupStates.FirstOrDefaultAsync(cancellationToken);
         if (state is not null)
-            return Result.Success(TenantSetupStateMapper.Map(state));
+            return Result.Success(
+                await TenantSetupStateProjection.MapAsync(dbContext, state, null, cancellationToken));
 
         var tenantStatus = await tenantStatusReader.GetCurrentTenantStatusAsync(cancellationToken);
         if (!tenantStatus.IsActive || tenantStatus.IsArchived)
@@ -40,10 +41,12 @@ public sealed class ActivateTenantSetupCommandHandler(
         catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex))
         {
             var existingState = await dbContext.TenantSetupStates.FirstAsync(cancellationToken);
-            return Result.Success(TenantSetupStateMapper.Map(existingState));
+            return Result.Success(
+                await TenantSetupStateProjection.MapAsync(dbContext, existingState, null, cancellationToken));
         }
 
-        return Result.Success(TenantSetupStateMapper.Map(state));
+        return Result.Success(
+            await TenantSetupStateProjection.MapAsync(dbContext, state, null, cancellationToken));
     }
 
     private static bool IsUniqueConstraintViolation(DbUpdateException ex)

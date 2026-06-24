@@ -18,7 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "sonner";
-import { useCreateOrganization } from "./use-organizations";
+import { useCreateOrganization } from "@/features/organizations/api/use-organizations";
 
 interface CreateOrgDialogProps {
   open: boolean;

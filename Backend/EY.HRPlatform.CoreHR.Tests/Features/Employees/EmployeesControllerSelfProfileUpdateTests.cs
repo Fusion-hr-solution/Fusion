@@ -1,6 +1,8 @@
 using System.Security.Claims;
 using EY.HRPlatform.CoreHR.Controllers;
 using EY.HRPlatform.CoreHR.Features.Employees.Commands.UpdateOwnEmployeeProfile;
+using EY.HRPlatform.CoreHR.Features.Employees.Services;
+using EY.HRPlatform.CoreHR.Features.Security;
 using EY.HRPlatform.CoreHR.Models.Requests;
 using EY.HRPlatform.SharedKernel.Auth;
 using EY.HRPlatform.SharedKernel.Results;
@@ -58,7 +60,7 @@ public class EmployeesControllerSelfProfileUpdateTests
         Guid linkedEmployeeId,
         string[] roles)
     {
-        var controller = new EmployeesController(sender)
+        var controller = new EmployeesController(sender, new StubCoreAccessPolicyService())
         {
             ControllerContext = new ControllerContext
             {
@@ -76,6 +78,41 @@ public class EmployeesControllerSelfProfileUpdateTests
         };
 
         return controller;
+    }
+
+    private sealed class StubCoreAccessPolicyService : ICoreAccessPolicyService
+    {
+        public bool CanViewOverview(ClaimsPrincipal user) => true;
+        public bool CanViewSetup(ClaimsPrincipal user) => true;
+        public bool CanManageSetup(ClaimsPrincipal user) => true;
+        public bool CanPublishStructure(ClaimsPrincipal user) => true;
+        public bool CanViewStructure(ClaimsPrincipal user) => true;
+        public bool CanManageStructure(ClaimsPrincipal user) => true;
+        public bool CanViewSettings(ClaimsPrincipal user) => true;
+        public bool CanManageSettings(ClaimsPrincipal user) => true;
+        public bool CanViewOrganizationSettings(ClaimsPrincipal user) => true;
+        public bool CanManageOrganizationSettings(ClaimsPrincipal user) => true;
+        public bool CanViewPeopleDataSettings(ClaimsPrincipal user) => true;
+        public bool CanManagePeopleDataSettings(ClaimsPrincipal user) => true;
+        public bool CanViewStructureSettings(ClaimsPrincipal user) => true;
+        public bool CanManageStructureSettings(ClaimsPrincipal user) => true;
+        public bool CanViewProvisioningSettings(ClaimsPrincipal user) => true;
+        public bool CanManageProvisioningSettings(ClaimsPrincipal user) => true;
+        public bool CanViewGovernanceSettings(ClaimsPrincipal user) => true;
+        public bool CanViewAccessProfiles(ClaimsPrincipal user) => true;
+        public bool CanManageAccessProfiles(ClaimsPrincipal user) => true;
+        public bool CanViewOrgChart(ClaimsPrincipal user) => true;
+        public bool CanViewAccess(ClaimsPrincipal user) => true;
+        public bool CanManageAccess(ClaimsPrincipal user) => true;
+        public bool CanViewTenantEmployees(ClaimsPrincipal user) => true;
+        public bool CanManageEmployees(ClaimsPrincipal user) => true;
+        public bool CanImportEmployees(ClaimsPrincipal user) => true;
+        public bool CanManageReporting(ClaimsPrincipal user) => true;
+        public bool CanViewOwnProfile(ClaimsPrincipal user) => true;
+        public bool CanUpdateOwnProfile(ClaimsPrincipal user) => true;
+        public bool CanViewTeam(ClaimsPrincipal user) => true;
+        public EmployeeReadAudience GetEmployeeReadAudience(ClaimsPrincipal user) => EmployeeReadAudience.Employee;
+        public string? GetEmployeeViewScope(ClaimsPrincipal user) => PermissionScopes.Self;
     }
 
     private sealed class RecordingSender : ISender

@@ -1,0 +1,36 @@
+using EY.HRPlatform.Identity.Features.AccessProfiles;
+using EY.HRPlatform.SharedKernel.Auth;
+
+namespace EY.HRPlatform.Identity.Tests.Features.AccessProfiles;
+
+public class AccessProfileServiceCompatibilityRoleTests
+{
+    private readonly AccessProfileService _service = new(null!, null!);
+
+    [Fact]
+    public void ResolveCompatibilityRole_FullHrAdminPermissions_ReturnsHrAdmin()
+    {
+        var role = _service.ResolveCompatibilityRole(AccessProfileTemplates.HrAdmin.Grants);
+
+        Assert.Equal(PlatformRole.HRAdmin, role);
+    }
+
+    [Fact]
+    public void ResolveCompatibilityRole_ManagerPermissions_ReturnsManager()
+    {
+        var role = _service.ResolveCompatibilityRole(AccessProfileTemplates.Manager.Grants);
+
+        Assert.Equal(PlatformRole.Manager, role);
+    }
+
+    [Fact]
+    public void ResolveCompatibilityRole_NarrowAccessAdminPermissions_DoNotEscalateToHrAdmin()
+    {
+        var role = _service.ResolveCompatibilityRole([
+            new EffectivePermissionGrant(CorePermissions.AccessProfilesManage, PermissionScopes.Tenant),
+            new EffectivePermissionGrant(CorePermissions.AccessManage, PermissionScopes.Tenant),
+        ]);
+
+        Assert.Equal(PlatformRole.Employee, role);
+    }
+}

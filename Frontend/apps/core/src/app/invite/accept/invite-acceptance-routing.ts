@@ -1,25 +1,52 @@
 import {
-  EMPLOYEE_ROLE,
-  HR_ADMIN_ROLE,
-  MANAGER_ROLE,
-  PLATFORM_ADMIN_ROLE,
+  canAccessCoreAccess,
+  canAccessCoreOverview,
+  canAccessCorePeople,
+  canAccessCoreSetup,
+  canAccessCoreSettings,
+  canAccessCoreTeam,
+  canAccessOrganizations,
+  canAccessOwnCoreProfile,
+  canManageCoreAccessProfiles,
   type AuthUser,
 } from "@repo/auth";
 
 export function resolveInviteAcceptanceDestination(
-  user: Pick<AuthUser, "roles" | "employeeId">
+  user: AuthUser
 ): string {
-  if (
-    user.roles.includes(HR_ADMIN_ROLE) ||
-    user.roles.includes(PLATFORM_ADMIN_ROLE)
-  ) {
+  if (canAccessOrganizations(user)) {
+    return "/organizations";
+  }
+
+  if (canAccessCoreOverview(user)) {
     return "/";
   }
 
-  if (
-    user.employeeId &&
-    (user.roles.includes(EMPLOYEE_ROLE) || user.roles.includes(MANAGER_ROLE))
-  ) {
+  if (canAccessCoreAccess(user)) {
+    return "/access";
+  }
+
+  if (canManageCoreAccessProfiles(user)) {
+    return "/settings?tab=access-permissions";
+  }
+
+  if (canAccessCoreSetup(user)) {
+    return "/setup";
+  }
+
+  if (canAccessCoreSettings(user)) {
+    return "/settings";
+  }
+
+  if (canAccessCorePeople(user)) {
+    return "/employees";
+  }
+
+  if (canAccessCoreTeam(user)) {
+    return "/team";
+  }
+
+  if (canAccessOwnCoreProfile(user)) {
     return "/profile";
   }
 

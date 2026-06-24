@@ -1,4 +1,11 @@
-export type PermissionScope = "None" | "Self" | "DirectReports" | "Tenant";
+export type PermissionScope =
+  | "None"
+  | "Self"
+  | "DirectReports"
+  | "OrgUnit"
+  | "Tenant"
+  | "Module"
+  | "Platform";
 
 export interface CorePermissionCatalogItemDto {
   permissionKey: string;
@@ -52,6 +59,20 @@ export interface CurrentUserAccessDto {
   effectivePermissions: EffectivePermissionGrantDto[];
 }
 
+export interface AccessAuditEventDto {
+  id: string;
+  occurredAt: string;
+  actorName: string | null;
+  actorRole: string | null;
+  action: string;
+  resourceType: string;
+  resourceId: string | null;
+  summary: string;
+  beforeJson: string | null;
+  afterJson: string | null;
+  correlationId: string | null;
+}
+
 export interface AccessProfileGrantInputDto {
   permissionKey: string;
   scope: PermissionScope;
@@ -85,6 +106,7 @@ export const coreAccessPaths = {
   profile: (profileId: string) => `/identity/core-access/profiles/${profileId}`,
   assignments: () => "/identity/core-access/assignments",
   assignment: (userId: string) => `/identity/core-access/assignments/${userId}`,
+  audit: () => "/identity/core-access/audit",
 } as const;
 
 export const coreAccessQueryKeys = {
@@ -95,4 +117,5 @@ export const coreAccessQueryKeys = {
   profile: (profileId: string) =>
     [...coreAccessQueryKeys.profiles(), profileId] as const,
   assignments: () => [...coreAccessQueryKeys.all(), "assignments"] as const,
+  audit: () => [...coreAccessQueryKeys.all(), "audit"] as const,
 } as const;
