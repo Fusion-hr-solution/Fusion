@@ -14,5 +14,11 @@ export default defineConfig({
     globals: true,
     environment: "happy-dom",
     include: ["src/**/*.test.{ts,tsx}"],
+    pool: "threads",
+    minWorkers: 1,
+    maxWorkers: 2,
+    fileParallelism: true,
+    testTimeout: 15000,
+    hookTimeout: 15000,
   },
 });

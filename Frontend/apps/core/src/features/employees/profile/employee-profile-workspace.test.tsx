@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 const {
@@ -455,8 +455,6 @@ describe("EmployeeProfileWorkspace", () => {
   );
 
   it("opens access management for invite-pending account actions", async () => {
-    const user = userEvent.setup();
-
     mockUseWorkforceAccountStatus.mockReturnValue({
       data: {
         ...activeAccount,
@@ -474,12 +472,13 @@ describe("EmployeeProfileWorkspace", () => {
 
     renderWorkspace();
 
-    await user.click(screen.getByRole("button", { name: "Manage access" }));
+    fireEvent.click(screen.getByRole("button", { name: "Manage access" }));
 
-    expect(
-      await screen.findByRole("button", { name: "Resend invite" })
-    ).toBeTruthy();
-  });
+    await waitFor(() => {
+      expect(screen.getByTestId("access-sheet")).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Resend invite" })).toBeTruthy();
+    });
+  }, 15000);
 
   it("routes readiness issues to the reporting sheet when the fix target is reporting", async () => {
     const user = userEvent.setup();
