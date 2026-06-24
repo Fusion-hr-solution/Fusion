@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Pencil, Trash2, Clock } from "lucide-react";
@@ -14,7 +15,13 @@ interface CanvasBlockProps {
   onDelete: () => void;
 }
 
-export function CanvasBlock({ block, index, onEdit, onDelete }: CanvasBlockProps) {
+export function CanvasBlock({
+  block,
+  index,
+  onEdit,
+  onDelete,
+}: CanvasBlockProps) {
+  const t = useTranslations("adminChapters");
   const {
     attributes,
     listeners,
@@ -51,7 +58,7 @@ export function CanvasBlock({ block, index, onEdit, onDelete }: CanvasBlockProps
         className="mt-0.5 cursor-grab touch-none text-muted-foreground/30 transition-colors hover:text-muted-foreground active:cursor-grabbing"
         {...attributes}
         {...listeners}
-        aria-label="Drag to reorder block"
+        aria-label={t("canvasBlock.dragToReorderBlock")}
       >
         <GripVertical className="h-4 w-4" />
       </button>
@@ -74,12 +81,15 @@ export function CanvasBlock({ block, index, onEdit, onDelete }: CanvasBlockProps
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <p className="text-sm font-semibold text-foreground">
-            {block.title || cfg?.label || block.type}
+            {block.title ||
+              (cfg ? t(`contentTypes.${cfg.type}.label`) : block.type)}
           </p>
           {block.estimatedDurationMinutes && (
             <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
               <Clock className="h-3 w-3" />
-              {block.estimatedDurationMinutes} min
+              {t("canvasBlock.minutes", {
+                count: block.estimatedDurationMinutes,
+              })}
             </span>
           )}
         </div>
@@ -108,7 +118,7 @@ export function CanvasBlock({ block, index, onEdit, onDelete }: CanvasBlockProps
         {/* Empty state */}
         {!block.textContent && !block.videoUrl && !block.contentUri && (
           <p className="mt-1.5 text-xs italic text-muted-foreground/60">
-            No content yet — click edit to add
+            {t("canvasBlock.noContent")}
           </p>
         )}
       </div>
@@ -119,7 +129,7 @@ export function CanvasBlock({ block, index, onEdit, onDelete }: CanvasBlockProps
           variant="ghost"
           size="sm"
           onClick={onEdit}
-          aria-label="Edit block"
+          aria-label={t("canvasBlock.editBlock")}
           className="h-7 w-7 p-0"
         >
           <Pencil className="h-3.5 w-3.5" />
@@ -128,7 +138,7 @@ export function CanvasBlock({ block, index, onEdit, onDelete }: CanvasBlockProps
           variant="ghost"
           size="sm"
           onClick={onDelete}
-          aria-label="Delete block"
+          aria-label={t("canvasBlock.deleteBlock")}
           className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
         >
           <Trash2 className="h-3.5 w-3.5" />
