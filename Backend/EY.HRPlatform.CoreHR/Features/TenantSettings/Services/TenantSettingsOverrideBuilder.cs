@@ -25,7 +25,9 @@ public static class TenantSettingsOverrideBuilder
         List<string>? orgUnitTypes,
         Dictionary<string, FieldConfigInput>? employeeFieldConfig,
         BrandingSettingsInput? branding,
-        DraftStructureSchemaDto? draftStructureSchema = null)
+        DraftStructureSchemaDto? draftStructureSchema = null,
+        SelfServiceSettingsInput? selfService = null,
+        ProvisioningSettingsInput? provisioning = null)
     {
         // Start from existing overrides or empty object
         var root = string.IsNullOrWhiteSpace(existingOverridesJson)
@@ -102,6 +104,36 @@ public static class TenantSettingsOverrideBuilder
             // Only set branding if it has content
             if (existing.Count > 0)
                 root["branding"] = existing;
+        }
+
+        if (selfService is not null)
+        {
+            var existing = root["selfService"]?.AsObject() ?? new JsonObject();
+
+            if (selfService.CanEditPreferredName.HasValue)
+                existing["canEditPreferredName"] = selfService.CanEditPreferredName.Value;
+            if (selfService.CanEditPhone.HasValue)
+                existing["canEditPhone"] = selfService.CanEditPhone.Value;
+
+            if (existing.Count > 0)
+                root["selfService"] = existing;
+        }
+
+        if (provisioning is not null)
+        {
+            var existing = root["provisioning"]?.AsObject() ?? new JsonObject();
+
+            if (provisioning.DefaultAccessProfileId.HasValue)
+                existing["defaultAccessProfileId"] = provisioning.DefaultAccessProfileId.Value;
+            if (provisioning.InviteExpiryDays.HasValue)
+                existing["inviteExpiryDays"] = provisioning.InviteExpiryDays.Value;
+            if (provisioning.ResendCooldownHours.HasValue)
+                existing["resendCooldownHours"] = provisioning.ResendCooldownHours.Value;
+            if (provisioning.PendingInviteBehavior is not null)
+                existing["pendingInviteBehavior"] = provisioning.PendingInviteBehavior;
+
+            if (existing.Count > 0)
+                root["provisioning"] = existing;
         }
 
         // Prune empty objects and return null if nothing remains

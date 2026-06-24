@@ -1,6 +1,12 @@
 import { FileText, Video, FileUp, Code2 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
+/**
+ * `type` is the stable union key used for i18n lookup in client components
+ * (adminChapters.contentTypes.<type>.label / .description).
+ * The `label` / `description` here are English fallbacks for any consumer
+ * that has not yet been wired to next-intl; prefer translating by `type`.
+ */
 export interface ContentTypeConfig {
   type: string;
   label: string;
@@ -14,7 +20,8 @@ export const CONTENT_TYPES: ContentTypeConfig[] = [
   {
     type: "Article",
     label: "Article",
-    description: "Structured text with sections like introduction, body, and conclusion",
+    description:
+      "Structured text with sections like introduction, body, and conclusion",
     icon: FileText,
     colorClass: "bg-[hsl(var(--ey-blue-500))]/10",
     iconColorClass: "text-[hsl(var(--ey-blue-500))]",
@@ -56,7 +63,10 @@ export const ARTICLE_TEMPLATES: ArticleTemplateConfig[] = [
     name: "Standard Article",
     description: "Classic structure with intro, body, and conclusion",
     sections: [
-      { label: "Introduction", placeholder: "Provide an overview of the topic..." },
+      {
+        label: "Introduction",
+        placeholder: "Provide an overview of the topic...",
+      },
       { label: "Body", placeholder: "Main content of the article..." },
       { label: "Conclusion", placeholder: "Summarize the key takeaways..." },
     ],
@@ -73,9 +83,13 @@ export const ARTICLE_TEMPLATES: ArticleTemplateConfig[] = [
   },
   {
     name: "Case Study",
-    description: "Real-world scenario with background, challenge, solution, and results",
+    description:
+      "Real-world scenario with background, challenge, solution, and results",
     sections: [
-      { label: "Background", placeholder: "Context and background information..." },
+      {
+        label: "Background",
+        placeholder: "Context and background information...",
+      },
       { label: "Challenge", placeholder: "The problem or challenge faced..." },
       { label: "Solution", placeholder: "How the challenge was addressed..." },
       { label: "Results", placeholder: "Outcomes and measurable results..." },

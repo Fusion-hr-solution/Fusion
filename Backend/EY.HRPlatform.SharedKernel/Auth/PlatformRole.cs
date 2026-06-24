@@ -18,6 +18,12 @@ public static class PlatformRole
     public const string HRAdmin = "HRAdmin";
     
     /// <summary>
+    /// Tenant-scoped organization administrator (highest tenant-level role).
+    /// Can manage setup, structure, settings, access profiles, and all Core operations.
+    /// </summary>
+    public const string OrgAdmin = "OrgAdmin";
+    
+    /// <summary>
     /// Regular employee with self-service access.
     /// </summary>
     public const string Employee = "Employee";
@@ -27,5 +33,5 @@ public static class PlatformRole
     /// </summary>
     public const string Manager = "Manager";
 
-    public static readonly string[] All = [PlatformAdmin, HRAdmin, Employee, Manager];
+    public static readonly string[] All = [PlatformAdmin, HRAdmin, OrgAdmin, Employee, Manager];
 }

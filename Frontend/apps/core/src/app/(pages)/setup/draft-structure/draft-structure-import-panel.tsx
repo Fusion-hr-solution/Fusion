@@ -1,24 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
-  CheckCircle2,
   FileSpreadsheet,
+  LoaderCircle,
   Upload,
 } from "lucide-react";
-import { ApiError, type DraftStructureImportStage } from "@repo/api";
+import {
+  ApiError,
+  type DraftStructureImportApplyResultDto,
+  type DraftStructureImportStage,
+} from "@repo/api";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -26,8 +22,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -39,6 +33,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { DraftStructureTree } from "./draft-structure-tree";
 import {
   buildImportPreviewDraftTree,
@@ -84,55 +79,126 @@ function getImportProgressSummary({
 }) {
   if (stage === "Expired") {
     return {
-      title: "Review expired",
-      description: "Upload the file again.",
+      label: "Review expired",
+      hint: "Upload again.",
+      tone: "destructive" as const,
     };
   }
 
   if (stage === "Applied") {
     return {
-      title: "Draft updated",
-      description: "This file has already replaced the draft.",
+      label: "Draft updated",
+      hint: "This file already replaced the draft.",
+      tone: "secondary" as const,
     };
   }
 
   if (canApply) {
     return {
-      title: "Ready to replace draft",
-      description: "The review is clean and ready.",
+      label: "Ready to replace draft",
+      hint: "The review is clean.",
+      tone: "secondary" as const,
     };
   }
 
   if (stage === "Validated" && errorCount > 0) {
     return {
-      title: "Fix the file",
-      description: "Upload a corrected file to continue.",
+      label: "Fix the file",
+      hint: "Fix it, then upload again.",
+      tone: "destructive" as const,
     };
   }
 
   if (canValidate) {
     return {
-      title: "Ready to review",
-      description: "Validate the file to build the preview.",
-    };
-  }
-
-  if (stage === "KindReconciled" || stage === "Mapped") {
-    return {
-      title: "File uploaded",
-      description: "Validate the file to continue.",
+      label: "Ready to validate",
+      hint: "Validate to build the preview.",
+      tone: "default" as const,
     };
   }
 
   return {
-    title: "File uploaded",
-    description: "Validate the file to continue.",
+    label: "File uploaded",
+    hint: "Validate to continue.",
+    tone: "default" as const,
   };
+}
+
+const stageTones: Record<string, string> = {
+  destructive: "border-destructive/30 bg-destructive/5",
+  secondary:
+    "border-emerald-300 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/30",
+  default: "",
+};
+
+function DropZone({
+  onFileSelected,
+  disabled,
+}: {
+  onFileSelected: (file: File) => void;
+  disabled: boolean;
+}) {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const [dragOver, setDragOver] = useState(false);
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file && file.name.endsWith(".csv")) {
+      onFileSelected(file);
+    }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) onFileSelected(file);
+  };
+
+  return (
+    <div
+      onDragOver={(e) => {
+        e.preventDefault();
+        if (!disabled) setDragOver(true);
+      }}
+      onDragLeave={() => setDragOver(false)}
+      onDrop={handleDrop}
+      onClick={() => !disabled && inputRef.current?.click()}
+      className={cn(
+        "flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-8 text-center transition-colors",
+        disabled
+          ? "cursor-not-allowed opacity-50"
+          : dragOver
+            ? "border-primary bg-primary/5"
+            : "border-muted-foreground/25 hover:border-muted-foreground/50"
+      )}
+    >
+      <div className="flex size-10 items-center justify-center rounded-full border bg-background text-muted-foreground">
+        <Upload className="size-4" />
+      </div>
+      <div className="space-y-1">
+        <p className="text-sm font-medium">Choose template file</p>
+        <p className="text-sm text-muted-foreground">
+          Drag and drop or click to browse CSV files.
+        </p>
+      </div>
+      <input
+        ref={inputRef}
+        type="file"
+        accept=".csv,text/csv"
+        className="hidden"
+        disabled={disabled}
+        onChange={handleChange}
+      />
+    </div>
+  );
 }
 
 export function DraftStructureImportPanel({
   open,
   onOpenChange,
+  sessionId,
+  onSessionIdChange,
   onApplied,
   readOnly = false,
   readOnlyTitle = "Import is unavailable",
@@ -140,15 +206,16 @@ export function DraftStructureImportPanel({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onApplied?: () => void;
+  sessionId: string | null;
+  onSessionIdChange: (sessionId: string | null) => void;
+  onApplied?: (
+    result: DraftStructureImportApplyResultDto
+  ) => void | Promise<void>;
   readOnly?: boolean;
   readOnlyTitle?: string;
   readOnlyMessage?: string;
 }) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const sessionId = searchParams.get("session");
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [pendingFileName, setPendingFileName] = useState<string | null>(null);
   const [pageError, setPageError] = useState<string | null>(null);
   const [selectedPreviewNodeId, setSelectedPreviewNodeId] = useState<
     string | null
@@ -158,20 +225,20 @@ export function DraftStructureImportPanel({
     data: session,
     error: sessionError,
     isLoading: isSessionLoading,
-    refetch: refetchSession,
-  } = useDraftStructureImportSession(sessionId, !!sessionId);
+  } = useDraftStructureImportSession(sessionId, open && !!sessionId);
   const { data: importSchema } = useDraftStructureImportSchema(open);
   const uploadImport = useUploadDraftStructureImport();
   const downloadTemplate = useDownloadDraftStructureTemplate();
   const validateImport = useValidateDraftStructureImport();
   const applyImport = useApplyDraftStructureImport();
-  const hasPendingUpload = !!selectedFile;
   const activeSession = sessionId ? (session ?? null) : null;
+  const isAutoReviewInProgress =
+    uploadImport.isLoading || validateImport.isLoading;
+  const isProcessingSelectedFile = !!pendingFileName && isAutoReviewInProgress;
+  const hasRenderablePanelState =
+    !!pageError || !!sessionError || !!importSchema || !!activeSession;
   const isInitialPanelLoading =
-    open &&
-    !pageError &&
-    !sessionError &&
-    (!importSchema || (!!sessionId && isSessionLoading && !activeSession));
+    open && !hasRenderablePanelState && (!sessionId || isSessionLoading);
 
   const previewTree = useMemo(
     () =>
@@ -180,10 +247,6 @@ export function DraftStructureImportPanel({
         activeSession?.validationIssues ?? []
       ),
     [activeSession?.previewRows, activeSession?.validationIssues]
-  );
-  const selectedPreviewNode = findDraftTreeNodeById(
-    previewTree,
-    selectedPreviewNodeId
   );
   const importProgress = activeSession
     ? getImportProgressSummary({
@@ -246,41 +309,25 @@ export function DraftStructureImportPanel({
   );
   const isTerminalSession =
     activeSession?.stage === "Applied" || activeSession?.stage === "Expired";
-  const canStartNewImport = !!sessionId;
   const canValidateCurrentReview =
     !!activeSession &&
     !isTerminalSession &&
-    !hasPendingUpload &&
+    !isAutoReviewInProgress &&
     activeSession.stage !== "Validated" &&
     activeSession.canValidate;
   const canCheckCurrentReview =
     !!activeSession &&
     !isTerminalSession &&
-    !hasPendingUpload &&
+    !isAutoReviewInProgress &&
     activeSession.stage === "Validated" &&
     activeSession.validationSummary.errorCount > 0;
-  const validateActionLabel = canCheckCurrentReview
-    ? "Check Again"
-    : "Validate File";
-  const pendingUploadMessage = sessionId
-    ? "Upload the selected file to start a new review."
-    : "Upload the selected file to start the review.";
-
-  const updateQuery = useCallback(
-    (nextSessionId?: string | null) => {
-      const params = new URLSearchParams(searchParams.toString());
-      params.set("import", "1");
-
-      if (nextSessionId) {
-        params.set("session", nextSessionId);
-      } else {
-        params.delete("session");
-      }
-
-      router.replace(`/setup/draft-structure?${params.toString()}`);
-    },
-    [router, searchParams]
-  );
+  const canChooseAnotherFile =
+    !readOnly && !isAutoReviewInProgress && !applyImport.isLoading;
+  const canReplaceDraft =
+    !readOnly &&
+    !isAutoReviewInProgress &&
+    !applyImport.isLoading &&
+    !!activeSession?.canApply;
 
   useEffect(() => {
     if (!(sessionError instanceof ApiError) || !sessionId) {
@@ -292,15 +339,15 @@ export function DraftStructureImportPanel({
     }
 
     setPageError(sessionError.errors.join(", "));
-    updateQuery(null);
-  }, [sessionError, sessionId, updateQuery]);
+    onSessionIdChange(null);
+  }, [onSessionIdChange, sessionError, sessionId]);
 
   useEffect(() => {
     if (open) {
       return;
     }
 
-    setSelectedFile(null);
+    setPendingFileName(null);
     setPageError(null);
   }, [open]);
 
@@ -344,33 +391,34 @@ export function DraftStructureImportPanel({
     }
   };
 
-  const handleUpload = async () => {
+  const handleFileSelection = async (file: File | null) => {
     if (readOnly) {
       setPageError(readOnlyMessage);
       return;
     }
 
-    if (!selectedFile) {
-      setPageError(
-        "Choose the official draft-structure template before uploading."
-      );
+    if (!file) {
       return;
     }
 
     setPageError(null);
+    setPendingFileName(file.name);
+    setSelectedPreviewNodeId(null);
+
+    let nextSessionId: string | null = null;
 
     try {
-      const nextSession = await uploadImport.mutateAsync(selectedFile);
-      toast.success(
-        sessionId
-          ? `Started a new review with ${nextSession.sourceRowCount} rows`
-          : `Uploaded ${nextSession.sourceRowCount} rows`
-      );
-      setSelectedFile(null);
-      setSelectedPreviewNodeId(null);
-      updateQuery(nextSession.id);
+      const nextSession = await uploadImport.mutateAsync(file);
+      nextSessionId = nextSession.id;
+      onSessionIdChange(nextSession.id);
+      await validateImport.mutateAsync({ sessionId: nextSession.id });
     } catch (error) {
-      handleApiError(error, "The CSV upload failed.");
+      handleApiError(
+        error,
+        nextSessionId ? "Validation failed." : "The CSV upload failed."
+      );
+    } finally {
+      setPendingFileName(null);
     }
   };
 
@@ -380,10 +428,10 @@ export function DraftStructureImportPanel({
       return;
     }
 
-    setSelectedFile(null);
+    setPendingFileName(null);
     setPageError(null);
     setSelectedPreviewNodeId(null);
-    updateQuery(null);
+    onSessionIdChange(null);
   };
 
   const handleValidate = async () => {
@@ -400,11 +448,7 @@ export function DraftStructureImportPanel({
 
     try {
       await validateImport.mutateAsync({ sessionId });
-      toast.success(
-        canCheckCurrentReview ? "Review updated" : "File validated"
-      );
       setSelectedPreviewNodeId(null);
-      await refetchSession();
     } catch (error) {
       handleApiError(error, "Validation failed.");
     }
@@ -425,27 +469,29 @@ export function DraftStructureImportPanel({
     try {
       const result = await applyImport.mutateAsync({ sessionId });
       toast.success(
-        `Replaced draft workspace with ${result.replacedUnitCount} units`
+        `Replaced the draft with ${result.replacedUnitCount} units`
       );
-      onApplied?.();
-      updateQuery(null);
+      await onApplied?.(result);
+      onSessionIdChange(null);
       onOpenChange(false);
     } catch (error) {
       handleApiError(error, "Replacing the draft workspace failed.");
     }
   };
 
+  const hasSession = !!activeSession;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex h-[min(92vh,56rem)] max-w-[calc(100%-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-6xl">
-        <DialogHeader className="border-b p-6 pr-14">
+      <DialogContent className="flex max-h-[min(92vh,56rem)] max-w-[calc(100%-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-6xl">
+        <DialogHeader className="border-b p-5 pr-14">
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="space-y-2">
+            <div className="space-y-1">
               <DialogTitle>Import structure from template</DialogTitle>
               <DialogDescription>
                 {readOnly
                   ? readOnlyMessage
-                  : "Download the template, fill it offline, upload it, then review the draft before you replace it."}
+                  : "Download the template, upload it, then review it before replacing the draft."}
               </DialogDescription>
             </div>
 
@@ -458,24 +504,20 @@ export function DraftStructureImportPanel({
                 )}
                 Download Template
               </Button>
-              {canStartNewImport ? (
-                <Button
-                  variant="outline"
-                  onClick={handleStartNewImport}
-                  disabled={readOnly}
-                >
-                  New Import
+              {canChooseAnotherFile ? (
+                <Button variant="outline" onClick={handleStartNewImport}>
+                  Choose another file
                 </Button>
               ) : null}
             </div>
           </div>
         </DialogHeader>
 
-        <div className="flex-1 space-y-6 overflow-y-auto p-6">
+        <div className="flex flex-1 flex-col overflow-y-auto p-5">
           {isInitialPanelLoading ? (
             <ImportPanelSkeleton />
           ) : (
-            <>
+            <div className="flex flex-1 flex-col gap-4">
               {readOnly ? (
                 <Alert>
                   <AlertCircle className="h-4 w-4" />
@@ -488,186 +530,102 @@ export function DraftStructureImportPanel({
                   <AlertCircle className="h-4 w-4" />
                   <AlertTitle>Import is blocked</AlertTitle>
                   <AlertDescription>
-                    {pageError ?? (sessionId ? sessionError?.message : null)}
+                    {pageError ?? "The import could not proceed. Check the file and try again."}
                   </AlertDescription>
                 </Alert>
               ) : null}
 
-              {activeSession ? (
-                <div className="rounded-2xl border p-5">
-                  <div className="space-y-3">
-                    <div>
-                      <p className="text-sm font-medium">Unit types</p>
-                      <p className="mt-2 text-sm text-muted-foreground">
-                        Outlined types are new in this file.
-                      </p>
+              {isProcessingSelectedFile ? (
+                <div className="flex items-center gap-3 rounded-xl border bg-muted/20 p-4">
+                  <div className="flex size-8 items-center justify-center rounded-full bg-background text-muted-foreground">
+                    <LoaderCircle className="size-4 animate-spin" />
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className="text-sm font-medium">Validating import</p>
+                    <p className="text-sm text-muted-foreground">
+                      Reviewing {pendingFileName ?? "the selected file"}...
+                    </p>
+                  </div>
+                </div>
+              ) : null}
+
+              {hasSession ? (
+                <div className="space-y-4">
+                  <div
+                    className={cn(
+                      "space-y-4 rounded-xl border p-4",
+                      importProgress?.tone ? stageTones[importProgress.tone] : ""
+                    )}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="space-y-0.5">
+                        <p className="text-sm font-medium">
+                          {importProgress?.label ?? "Waiting for file"}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {importProgress?.hint ??
+                            `Expires ${formatTimestamp(activeSession.expiresAt)}`}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className="text-xs">
+                        {activeSession.sourceFileName}
+                      </Badge>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                      {sessionUnitTypes.length > 0 ? (
-                        sessionUnitTypes.map((kind) => (
+
+                    <div className="grid grid-cols-4 gap-px overflow-hidden rounded-lg border bg-muted/30">
+                      <StatCell
+                        label="Rows"
+                        value={String(activeSession.sourceRowCount)}
+                      />
+                      <StatCell
+                        label="Issues"
+                        value={String(activeSession.validationSummary.errorCount)}
+                        muted={activeSession.stage !== "Validated"}
+                      />
+                      <StatCell
+                        label="Ready"
+                        value={String(activeSession.validationSummary.validRows)}
+                        muted={activeSession.stage !== "Validated"}
+                      />
+                      <StatCell
+                        label="New types"
+                        value={String(newKindResolutions.length)}
+                      />
+                    </div>
+
+                    {sessionUnitTypes.length > 0 ? (
+                      <div className="flex flex-wrap gap-1.5">
+                        {sessionUnitTypes.map((kind) => (
                           <Badge
                             key={kind.key}
                             variant={
-                              newKindKeys.has(kind.key)
-                                ? "outline"
-                                : "secondary"
+                              newKindKeys.has(kind.key) ? "outline" : "secondary"
                             }
+                            className="text-xs"
                           >
                             {kind.displayLabel}
                           </Badge>
-                        ))
-                      ) : (
-                        <span className="text-sm text-muted-foreground">
-                          Unit types will appear here after the schema loads.
-                        </span>
-                      )}
-                    </div>
-                    {newKindResolutions.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">
-                        This file does not add any new types.
-                      </p>
+                        ))}
+                      </div>
                     ) : null}
                   </div>
-                </div>
-              ) : (
-                <div className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
-                  <div className="rounded-2xl border p-5">
-                    <div className="grid gap-2">
-                      <Label htmlFor="draft-structure-import-file">
-                        Template file
-                      </Label>
-                      <Input
-                        id="draft-structure-import-file"
-                        type="file"
-                        accept=".csv,text/csv"
-                        disabled={readOnly}
-                        onChange={(event) => {
-                          setSelectedFile(event.target.files?.[0] ?? null);
-                        }}
-                      />
-                      <div className="flex flex-wrap gap-2">
-                        <Button
-                          onClick={handleUpload}
-                          disabled={
-                            readOnly || !selectedFile || uploadImport.isLoading
-                          }
-                        >
-                          {uploadImport.isLoading ? (
-                            <Spinner className="mr-1" />
-                          ) : (
-                            <Upload className="size-4" />
-                          )}
-                          Upload File
-                        </Button>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        Use the downloaded template as-is.
-                      </p>
-                    </div>
-                  </div>
 
-                  <div className="rounded-2xl border p-5">
-                    <div className="space-y-3">
-                      <div>
-                        <p className="text-sm font-medium">Unit types</p>
-                        <p className="mt-2 text-sm text-muted-foreground">
-                          Current types in the draft.
-                        </p>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {sessionUnitTypes.length > 0 ? (
-                          sessionUnitTypes.map((kind) => (
-                            <Badge key={kind.key} variant="secondary">
-                              {kind.displayLabel}
-                            </Badge>
-                          ))
-                        ) : (
-                          <span className="text-sm text-muted-foreground">
-                            Unit types will appear here after the schema loads.
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {activeSession ? (
-                <>
-                  <div className="grid gap-4 md:grid-cols-4">
-                    <Card>
-                      <CardHeader>
-                        <CardDescription>Review status</CardDescription>
-                        <CardTitle>
-                          {importProgress?.title ?? "Waiting for file"}
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="text-sm text-muted-foreground">
-                        {importProgress?.description ??
-                          `Expires ${formatTimestamp(activeSession.expiresAt)}`}
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardHeader>
-                        <CardDescription>Rows in file</CardDescription>
-                        <CardTitle>{activeSession.sourceRowCount}</CardTitle>
-                      </CardHeader>
-                      <CardContent className="text-sm text-muted-foreground">
-                        File: {activeSession.sourceFileName}
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardHeader>
-                        <CardDescription>Issues to fix</CardDescription>
-                        <CardTitle>
-                          {activeSession.validationSummary.errorCount}
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="text-sm text-muted-foreground">
-                        {activeSession.stage === "Validated"
-                          ? `${activeSession.validationSummary.validRows} rows are ready`
-                          : "Validate the file to review it."}
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardHeader>
-                        <CardDescription>New unit types</CardDescription>
-                        <CardTitle>
-                          {
-                            activeSession.kindResolutions.filter(
-                              (resolution) => resolution.createNewKind
-                            ).length
-                          }
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="text-sm text-muted-foreground">
-                        Created automatically when you replace the draft.
-                      </CardContent>
-                    </Card>
-                  </div>
-
-                  <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-                    <div className="space-y-3">
-                      <div>
-                        <p className="text-sm font-medium">Validation issues</p>
-                        <p className="text-sm text-muted-foreground">
-                          Fix these in the file, then upload it again.
-                        </p>
-                      </div>
-
+                  <div className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
+                    <div className="min-h-0 space-y-2">
+                      <p className="text-sm font-medium">Validation issues</p>
                       {activeSession.validationIssues.length === 0 ? (
-                        <div className="rounded-xl border border-dashed p-6 text-sm text-muted-foreground">
+                        <div className="flex items-center justify-center rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
                           {activeSession.stage === "Validated"
                             ? "No issues found."
                             : "Validate the file to see issues here."}
                         </div>
                       ) : (
-                        <div className="max-h-96 overflow-auto rounded-xl border">
+                        <div className="max-h-80 overflow-auto rounded-lg border">
                           <Table>
                             <TableHeader>
                               <TableRow>
-                                <TableHead>Row</TableHead>
-                                <TableHead>Field</TableHead>
+                                <TableHead className="w-12">Row</TableHead>
+                                <TableHead className="w-28">Field</TableHead>
                                 <TableHead>Issue</TableHead>
                               </TableRow>
                             </TableHeader>
@@ -676,21 +634,24 @@ export function DraftStructureImportPanel({
                                 <TableRow
                                   key={`${issue.rowNumber}-${issue.code}-${issue.field ?? "general"}`}
                                 >
-                                  <TableCell>{issue.rowNumber}</TableCell>
-                                  <TableCell>
+                                  <TableCell className="text-xs tabular-nums">
+                                    {issue.rowNumber}
+                                  </TableCell>
+                                  <TableCell className="text-xs">
                                     {getImportFieldLabel(
                                       issue.field,
                                       activeSession.importSchema
                                     )}
                                   </TableCell>
                                   <TableCell>
-                                    <div className="flex flex-col gap-1">
+                                    <div className="flex items-start gap-2">
                                       <Badge
                                         variant={
                                           issue.severity === "error"
                                             ? "destructive"
                                             : "secondary"
                                         }
+                                        className="shrink-0 text-[10px]"
                                       >
                                         {issue.severity}
                                       </Badge>
@@ -707,110 +668,26 @@ export function DraftStructureImportPanel({
                       )}
                     </div>
 
-                    <div className="space-y-3">
-                      <div>
-                        <p className="text-sm font-medium">
-                          Staged tree preview
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          Review the draft before you replace it.
-                        </p>
-                      </div>
-
+                    <div className="min-h-0 space-y-2">
+                      <p className="text-sm font-medium">Staged tree preview</p>
                       <DraftStructureTree
                         nodes={previewTree}
                         selectedId={selectedPreviewNodeId}
                         onSelect={(node) => setSelectedPreviewNodeId(node.id)}
                         emptyTitle="No staged tree yet"
-                        emptyDescription="Validate the uploaded template to generate the staged hierarchy preview."
+                        emptyDescription="Validate the uploaded file to build the staged tree preview."
                         readOnly
                       />
-
-                      {selectedPreviewNode ? (
-                        <Card>
-                          <CardHeader>
-                            <div className="flex flex-wrap items-center gap-2">
-                              <Badge variant="secondary">
-                                {selectedPreviewNode.orgUnitKindLabel}
-                              </Badge>
-                              {newKindKeys.has(
-                                selectedPreviewNode.orgUnitKindKey
-                              ) ? (
-                                <Badge variant="outline">
-                                  New type from file
-                                </Badge>
-                              ) : null}
-                              {selectedPreviewNode.issueSummary.errorCount >
-                              0 ? (
-                                <Badge variant="destructive">
-                                  {selectedPreviewNode.issueSummary.errorCount}{" "}
-                                  error
-                                  {selectedPreviewNode.issueSummary
-                                    .errorCount === 1
-                                    ? ""
-                                    : "s"}
-                                </Badge>
-                              ) : null}
-                            </div>
-                            <CardTitle className="mt-2">
-                              {selectedPreviewNode.displayName}
-                            </CardTitle>
-                          </CardHeader>
-                          <CardContent className="space-y-4">
-                            <div className="grid gap-3 sm:grid-cols-2">
-                              <ImportField
-                                label="Unit Name"
-                                value={selectedPreviewNode.displayName}
-                              />
-                              <ImportField
-                                label="Unit Type"
-                                value={selectedPreviewNode.orgUnitKindLabel}
-                              />
-                              <ImportField
-                                label="Unit Code"
-                                value={selectedPreviewNode.referenceKey}
-                                mono
-                              />
-                              <ImportField
-                                label="Parent Unit Code"
-                                value={
-                                  selectedPreviewNode.parentReferenceKey ??
-                                  "Organization root"
-                                }
-                              />
-                            </div>
-
-                            <div className="rounded-xl border bg-muted/20 p-4">
-                              <div className="space-y-1">
-                                <p className="text-sm font-medium">
-                                  Optional details
-                                </p>
-                              </div>
-                              <div className="mt-4 grid gap-3">
-                                <ImportField
-                                  label="Location"
-                                  value={
-                                    selectedPreviewNode.location ?? "Not set"
-                                  }
-                                />
-                                <ImportField
-                                  label="Description"
-                                  value={
-                                    selectedPreviewNode.description ?? "Not set"
-                                  }
-                                />
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ) : null}
                     </div>
                   </div>
-                </>
-              ) : (
-                <div className="rounded-xl border border-dashed p-6 text-sm text-muted-foreground">
-                  Upload a template to start the review.
                 </div>
+              ) : (
+                <DropZone
+                  onFileSelected={(file) => void handleFileSelection(file)}
+                  disabled={
+                    readOnly || isAutoReviewInProgress || applyImport.isLoading
+                  }
+                />
               )}
 
               {isSessionLoading ? (
@@ -819,51 +696,30 @@ export function DraftStructureImportPanel({
                   Loading import session...
                 </div>
               ) : null}
-            </>
+            </div>
           )}
         </div>
 
-        <div className="border-t bg-muted/30 p-4">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex flex-wrap items-center gap-2">
-              {hasPendingUpload ? (
-                <p className="text-sm text-muted-foreground">
-                  {pendingUploadMessage}
-                </p>
-              ) : activeSession ? (
-                <>
-                  <Badge
-                    variant={
-                      activeSession.canValidate ? "default" : "secondary"
-                    }
-                  >
-                    {activeSession.stage === "Validated"
-                      ? activeSession.validationSummary.errorCount > 0
-                        ? "Needs a new file"
-                        : "Ready to replace draft"
-                      : activeSession.canValidate
-                        ? "Ready to validate"
-                        : "Upload accepted"}
-                  </Badge>
-                  {activeSession.canApply ? (
-                    <Badge variant="outline">
-                      <CheckCircle2 className="mr-1 size-3" />
-                      Ready
-                    </Badge>
-                  ) : null}
-                </>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  Upload a file to start.
-                </p>
-              )}
-            </div>
+        <div className="border-t bg-muted/30 px-5 py-3">
+          <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+            <p className="text-sm text-muted-foreground">
+              {isProcessingSelectedFile
+                ? `Validating ${pendingFileName ?? "the selected file"}...`
+                : pageError
+                  ? "Resolve the import issue before replacing the draft."
+                  : activeSession && !canReplaceDraft
+                    ? "Replace draft becomes available after a clean validation."
+                    : activeSession && canReplaceDraft
+                      ? "Review looks clean. Replace the draft when ready."
+                      : "Choose a file to start."}
+            </p>
 
             <div className="flex flex-wrap gap-2">
               <Button variant="outline" onClick={() => onOpenChange(false)}>
                 Close
               </Button>
-              {canValidateCurrentReview || canCheckCurrentReview ? (
+              {(canValidateCurrentReview || canCheckCurrentReview) &&
+              pageError ? (
                 <Button
                   onClick={handleValidate}
                   disabled={readOnly || validateImport.isLoading}
@@ -871,20 +727,19 @@ export function DraftStructureImportPanel({
                   {validateImport.isLoading ? (
                     <Spinner className="mr-1" />
                   ) : null}
-                  {validateActionLabel}
+                  Retry validation
                 </Button>
               ) : null}
               <Button
                 onClick={handleApply}
                 disabled={
-                  readOnly ||
+                  isAutoReviewInProgress ||
                   applyImport.isLoading ||
-                  !session?.canApply ||
-                  hasPendingUpload
+                  !canReplaceDraft
                 }
               >
                 {applyImport.isLoading ? <Spinner className="mr-1" /> : null}
-                Replace Draft
+                {applyImport.isLoading ? "Replacing draft..." : "Replace draft"}
               </Button>
             </div>
           </div>
@@ -894,79 +749,54 @@ export function DraftStructureImportPanel({
   );
 }
 
-function ImportField({
+function StatCell({
   label,
   value,
-  mono = false,
+  muted = false,
 }: {
   label: string;
   value: string;
-  mono?: boolean;
+  muted?: boolean;
 }) {
   return (
-    <div className="rounded-xl border bg-background p-3">
-      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+    <div className={cn("bg-background px-3 py-2.5", muted ? "opacity-50" : "")}>
+      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
         {label}
       </p>
-      <p className={mono ? "mt-1 font-mono text-sm" : "mt-1 text-sm"}>
-        {value}
-      </p>
+      <p className="text-sm font-semibold leading-tight">{value}</p>
     </div>
   );
 }
 
 function ImportPanelSkeleton() {
   return (
-    <div className="space-y-6">
-      <div className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
-        <div className="rounded-2xl border p-5">
-          <div className="grid gap-3">
-            <Skeleton className="h-4 w-24" />
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-32" />
-            <Skeleton className="h-3 w-40" />
-          </div>
-        </div>
-        <div className="rounded-2xl border p-5">
-          <div className="space-y-3">
-            <Skeleton className="h-4 w-20" />
-            <Skeleton className="h-4 w-48" />
-            <div className="flex flex-wrap gap-2">
-              <Skeleton className="h-6 w-20 rounded-full" />
-              <Skeleton className="h-6 w-24 rounded-full" />
-              <Skeleton className="h-6 w-16 rounded-full" />
+    <div className="space-y-4">
+      <div className="rounded-xl border p-4">
+        <div className="grid grid-cols-4 gap-px overflow-hidden rounded-lg border bg-muted/30">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div key={index} className="bg-background px-3 py-2.5">
+              <Skeleton className="h-3 w-16" />
+              <Skeleton className="mt-1 h-5 w-12" />
             </div>
-          </div>
+          ))}
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, index) => (
-          <div key={index} className="rounded-xl border p-6">
-            <Skeleton className="h-4 w-24" />
-            <Skeleton className="mt-3 h-7 w-32" />
-            <Skeleton className="mt-3 h-4 w-full" />
-          </div>
-        ))}
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-        <div className="space-y-3">
-          <Skeleton className="h-5 w-32" />
-          <Skeleton className="h-4 w-40" />
-          <div className="rounded-xl border p-4 space-y-3">
-            {Array.from({ length: 5 }).map((_, index) => (
-              <Skeleton key={index} className="h-10 w-full" />
+      <div className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
+        <div className="space-y-2">
+          <Skeleton className="h-5 w-28" />
+          <div className="rounded-lg border p-4">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <Skeleton key={index} className="mb-2 h-8 w-full last:mb-0" />
             ))}
           </div>
         </div>
-        <div className="space-y-3">
-          <Skeleton className="h-5 w-36" />
-          <Skeleton className="h-4 w-44" />
-          <div className="rounded-xl border p-4 space-y-3">
-            <Skeleton className="h-8 w-48" />
-            {Array.from({ length: 6 }).map((_, index) => (
-              <Skeleton key={index} className="h-9 w-full" />
+        <div className="space-y-2">
+          <Skeleton className="h-5 w-32" />
+          <div className="rounded-lg border p-4">
+            <Skeleton className="mb-2 h-8 w-36" />
+            {Array.from({ length: 5 }).map((_, index) => (
+              <Skeleton key={index} className="mb-2 h-7 w-full last:mb-0" />
             ))}
           </div>
         </div>

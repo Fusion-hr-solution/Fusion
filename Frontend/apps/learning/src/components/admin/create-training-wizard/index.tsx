@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useTrainingWizard } from "@/hooks/use-training-wizard";
 import { WizardStepper } from "./wizard-stepper";
 import { StepBasicInfo } from "./step-basic-info";
@@ -9,6 +10,8 @@ import { StepChapters } from "./step-chapters";
 import { StepReview } from "./step-review";
 
 export function CreateTrainingWizard() {
+  const t = useTranslations("adminWizard");
+  const tCommon = useTranslations("common");
   const wizard = useTrainingWizard({ mode: "create" });
 
   const isOnSite = wizard.trainingType === "OnSite";
@@ -20,24 +23,30 @@ export function CreateTrainingWizard() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-lg font-bold tracking-tight text-foreground">
-              Create Training
+              {t("header.title")}
             </h1>
             <p className="text-xs text-muted-foreground">
-              {isOnSite ? "Set up a new on-site training program" : "Set up a new training program with chapters"}
+              {isOnSite
+                ? t("header.subtitleOnSite")
+                : t("header.subtitleELearning")}
             </p>
           </div>
           <Link
             href="/admin/trainings"
             className="rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
-            Cancel
+            {tCommon("actions.cancel")}
           </Link>
         </div>
       </div>
 
       {/* Stepper */}
       <div className="shrink-0 bg-background">
-        <WizardStepper currentStep={wizard.step} onStepClick={wizard.setStep} isOnSite={isOnSite} />
+        <WizardStepper
+          currentStep={wizard.step}
+          onStepClick={wizard.setStep}
+          isOnSite={isOnSite}
+        />
       </div>
 
       {/* Content */}
@@ -47,7 +56,9 @@ export function CreateTrainingWizard() {
             {wizard.step === 1 && <StepBasicInfo wizard={wizard} />}
             {wizard.step === 2 && <StepDetails wizard={wizard} />}
             {wizard.step === 3 && !isOnSite && <StepChapters wizard={wizard} />}
-            {((wizard.step === 4) || (wizard.step === 3 && isOnSite)) && <StepReview wizard={wizard} />}
+            {(wizard.step === 4 || (wizard.step === 3 && isOnSite)) && (
+              <StepReview wizard={wizard} />
+            )}
           </div>
         </div>
       </div>

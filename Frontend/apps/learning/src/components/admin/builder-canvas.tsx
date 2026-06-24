@@ -1,7 +1,11 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useDroppable } from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
 import { Inbox, Columns2, LayoutList } from "lucide-react";
 import type { AdminContentBlock } from "@/types/admin";
 import type { ChapterLayout } from "@/types";
@@ -15,12 +19,6 @@ interface BuilderCanvasProps {
   onDeleteBlock: (block: AdminContentBlock) => void;
 }
 
-const LAYOUT_LABELS: Record<ChapterLayout, { label: string; description: string }> = {
-  SingleContent: { label: "Single Column", description: "Blocks in a single vertical stack" },
-  SplitLayout: { label: "Split Layout", description: "Blocks arranged in two columns" },
-  MultiSection: { label: "Multi-Section", description: "Blocks as separate sections with dividers" },
-};
-
 export function BuilderCanvas({
   blocks,
   layout,
@@ -28,12 +26,13 @@ export function BuilderCanvas({
   onEditBlock,
   onDeleteBlock,
 }: BuilderCanvasProps) {
+  const t = useTranslations("adminChapters");
   const { setNodeRef } = useDroppable({
     id: "builder-canvas",
     data: { target: "canvas" },
   });
 
-  const layoutInfo = LAYOUT_LABELS[layout];
+  const layoutLabel = t(`canvas.layout.${layout}`);
 
   return (
     <div
@@ -65,10 +64,10 @@ export function BuilderCanvas({
                 isOver ? "text-foreground" : "text-muted-foreground"
               }`}
             >
-              {isOver ? "Drop here to add" : "Start building"}
+              {isOver ? t("canvas.dropToAdd") : t("canvas.startBuilding")}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Drag content blocks from the sidebar into this area
+              {t("canvas.dragHint")}
             </p>
           </div>
         </div>
@@ -85,22 +84,33 @@ export function BuilderCanvas({
               <LayoutList className="h-3.5 w-3.5 text-muted-foreground" />
             ) : null}
             <span className="text-[11px] font-medium text-muted-foreground">
-              {layoutInfo.label}
+              {layoutLabel}
             </span>
           </div>
 
           {/* Layout-aware block rendering */}
           {layout === "SplitLayout" && blocks.length >= 2
-            ? renderSplitLayout(blocks, onEditBlock, onDeleteBlock)
+            ? renderSplitLayout(
+                blocks,
+                onEditBlock,
+                onDeleteBlock,
+                t("canvas.left"),
+                t("canvas.right")
+              )
             : layout === "MultiSection"
-              ? renderMultiSectionLayout(blocks, onEditBlock, onDeleteBlock)
+              ? renderMultiSectionLayout(
+                  blocks,
+                  onEditBlock,
+                  onDeleteBlock,
+                  (n) => t("canvas.section", { number: n })
+                )
               : renderSingleLayout(blocks, onEditBlock, onDeleteBlock)}
 
           {/* Drop indicator at the bottom */}
           {isOver && (
             <div className="mt-2 flex items-center justify-center rounded-xl border-2 border-dashed border-foreground/20 py-4">
               <p className="text-xs font-medium text-muted-foreground">
-                Drop here
+                {t("canvas.dropHere")}
               </p>
             </div>
           )}
@@ -113,7 +123,7 @@ export function BuilderCanvas({
 function renderSingleLayout(
   blocks: AdminContentBlock[],
   onEdit: (b: AdminContentBlock) => void,
-  onDelete: (b: AdminContentBlock) => void,
+  onDelete: (b: AdminContentBlock) => void
 ) {
   return (
     <div className="space-y-2">
@@ -134,6 +144,8 @@ function renderSplitLayout(
   blocks: AdminContentBlock[],
   onEdit: (b: AdminContentBlock) => void,
   onDelete: (b: AdminContentBlock) => void,
+  leftLabel: string,
+  rightLabel: string
 ) {
   const mid = Math.ceil(blocks.length / 2);
   const left = blocks.slice(0, mid);
@@ -142,7 +154,7 @@ function renderSplitLayout(
     <div className="grid grid-cols-2 gap-4">
       <div className="space-y-2 rounded-xl border border-dashed border-border/30 bg-muted/5 p-2">
         <p className="px-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
-          Left
+          {leftLabel}
         </p>
         {left.map((block, i) => (
           <CanvasBlock
@@ -156,7 +168,7 @@ function renderSplitLayout(
       </div>
       <div className="space-y-2 rounded-xl border border-dashed border-border/30 bg-muted/5 p-2">
         <p className="px-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
-          Right
+          {rightLabel}
         </p>
         {right.map((block, i) => (
           <CanvasBlock
@@ -176,6 +188,7 @@ function renderMultiSectionLayout(
   blocks: AdminContentBlock[],
   onEdit: (b: AdminContentBlock) => void,
   onDelete: (b: AdminContentBlock) => void,
+  sectionLabel: (n: number) => string
 ) {
   return (
     <div className="space-y-4">
@@ -185,7 +198,7 @@ function renderMultiSectionLayout(
           className="rounded-xl border border-border/30 bg-muted/5 p-3"
         >
           <p className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
-            Section {i + 1}
+            {sectionLabel(i + 1)}
           </p>
           <CanvasBlock
             block={block}

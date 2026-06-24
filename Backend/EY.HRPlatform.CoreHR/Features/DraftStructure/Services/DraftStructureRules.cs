@@ -47,10 +47,11 @@ public static class DraftStructureRules
             throw new ArgumentException("Setup must be activated before managing draft structure.");
         }
 
-        if (setupState.CurrentPhase >= TenantSetupPhase.StructurallyGoverned)
+        if (setupState.CurrentPhase == TenantSetupPhase.StructurallyPublished
+            || setupState.CurrentPhase == TenantSetupPhase.Operational)
         {
             throw new InvalidTenantSetupStateException(
-                "Reopen the approved structure in Setup before changing the draft.");
+                "Reopen the live structure in Setup before changing the draft.");
         }
     }
 
@@ -95,7 +96,7 @@ public static class DraftStructureRules
             blockingIssues.Add(CreateError(
                 StructureCategory,
                 "NO_TOP_LEVEL_UNIT",
-                "At least one top-level unit is required before approval."));
+                    "At least one top-level unit is required before publishing."));
         }
 
         if (rootUnitCount > 1)
@@ -159,7 +160,7 @@ public static class DraftStructureRules
                 blockingIssues.Add(CreateError(
                     RequiredDetailsCategory,
                     "LIVE_REFERENCE_KEY_TOO_LONG",
-                    $"{unitLabel} has a unit code longer than {LiveOrgUnitCodeMaxLength} characters. Shorten it before approval.",
+                    $"{unitLabel} has a unit code longer than {LiveOrgUnitCodeMaxLength} characters. Shorten it before publishing.",
                     unit.Id,
                     "referenceKey"));
             }
@@ -198,7 +199,7 @@ public static class DraftStructureRules
                 blockingIssues.Add(CreateError(
                     UnitTypesCategory,
                     "LIVE_ORG_UNIT_KIND_LABEL_TOO_LONG",
-                    $"{unitLabel} uses a unit type label longer than {LiveOrgUnitTypeMaxLength} characters. Shorten the unit type before approval.",
+                    $"{unitLabel} uses a unit type label longer than {LiveOrgUnitTypeMaxLength} characters. Shorten the unit type before publishing.",
                     unit.Id,
                     "orgUnitKindKey"));
             }

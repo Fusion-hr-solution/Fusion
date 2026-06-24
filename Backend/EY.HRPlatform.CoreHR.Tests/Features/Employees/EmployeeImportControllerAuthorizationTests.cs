@@ -8,13 +8,30 @@ namespace EY.HRPlatform.CoreHR.Tests.Features.Employees;
 public class EmployeeImportControllerAuthorizationTests
 {
     [Fact]
-    public void Controller_RequiresAuthenticationAtClassLevel()
+    public void Controller_HasAuthorizeAttributeAtClassLevel()
     {
         var attribute = typeof(EmployeeImportController)
             .GetCustomAttribute<AuthorizeAttribute>(inherit: false);
 
         Assert.NotNull(attribute);
-        Assert.Null(attribute!.Roles);
+        Assert.Null(attribute!.Roles); // class-level is [Authorize] without roles
+    }
+
+    [Theory]
+    [InlineData(nameof(EmployeeImportController.GetSchema))]
+    [InlineData(nameof(EmployeeImportController.DownloadTemplate))]
+    [InlineData(nameof(EmployeeImportController.Upload))]
+    [InlineData(nameof(EmployeeImportController.Validate))]
+    [InlineData(nameof(EmployeeImportController.Apply))]
+    [InlineData(nameof(EmployeeImportController.GetHistory))]
+    [InlineData(nameof(EmployeeImportController.GetHistoryDetail))]
+    [InlineData(nameof(EmployeeImportController.GetSession))]
+    public void PermissionControlledEndpoints_DoNotDeclareMethodRoleAttributes(string methodName)
+    {
+        var method = typeof(EmployeeImportController).GetMethod(methodName);
+        var authorize = method?.GetCustomAttribute<AuthorizeAttribute>(inherit: false);
+
+        Assert.True(authorize is null || string.IsNullOrWhiteSpace(authorize.Roles));
     }
 
     [Fact]

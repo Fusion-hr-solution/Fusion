@@ -15,6 +15,11 @@ public class AppIdentityDbContext : IdentityDbContext<ApplicationUser, IdentityR
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<Tenant> Tenants => Set<Tenant>();
     public DbSet<InviteToken> InviteTokens => Set<InviteToken>();
+    public DbSet<AccessProfile> AccessProfiles => Set<AccessProfile>();
+    public DbSet<AccessProfileGrant> AccessProfileGrants => Set<AccessProfileGrant>();
+    public DbSet<UserAccessProfile> UserAccessProfiles => Set<UserAccessProfile>();
+    public DbSet<InviteAccessProfile> InviteAccessProfiles => Set<InviteAccessProfile>();
+    public DbSet<AccessAuditEvent> AccessAuditEvents => Set<AccessAuditEvent>();
 
     /// <summary>
     /// Runtime constructor with tenant context for production use.
@@ -85,8 +90,7 @@ public class AppIdentityDbContext : IdentityDbContext<ApplicationUser, IdentityR
 
             entity.HasIndex(u => new { u.TenantId, u.EmployeeId })
                 .IsUnique()
-                .HasFilter("\"EmployeeId\" IS NOT NULL")
-                .HasDatabaseName("IX_AspNetUsers_TenantId_EmployeeId");
+                .HasFilter("\"EmployeeId\" IS NOT NULL");
         });
 
         // RefreshToken table configuration
@@ -109,6 +113,10 @@ public class AppIdentityDbContext : IdentityDbContext<ApplicationUser, IdentityR
 
         // InviteToken table configuration
         builder.ApplyConfiguration(new InviteTokenConfiguration());
+        builder.ApplyConfiguration(new AccessProfileConfiguration());
+        builder.ApplyConfiguration(new AccessProfileGrantConfiguration());
+        builder.ApplyConfiguration(new UserAccessProfileConfiguration());
+        builder.ApplyConfiguration(new InviteAccessProfileConfiguration());
 
         // Global tenant query filters: automatically scope queries to the current tenant.
         // When CurrentTenantId is Empty (design-time/startup/no context), filters are disabled (fail-open).
@@ -118,5 +126,20 @@ public class AppIdentityDbContext : IdentityDbContext<ApplicationUser, IdentityR
 
         builder.Entity<InviteToken>()
             .HasQueryFilter(i => CurrentTenantId == Guid.Empty || i.TenantId == CurrentTenantId);
+
+        builder.Entity<AccessProfile>()
+            .HasQueryFilter(profile => CurrentTenantId == Guid.Empty || profile.TenantId == CurrentTenantId);
+
+        builder.Entity<AccessProfileGrant>()
+            .HasQueryFilter(grant => CurrentTenantId == Guid.Empty || grant.TenantId == CurrentTenantId);
+
+        builder.Entity<UserAccessProfile>()
+            .HasQueryFilter(assignment => CurrentTenantId == Guid.Empty || assignment.TenantId == CurrentTenantId);
+
+        builder.Entity<InviteAccessProfile>()
+            .HasQueryFilter(assignment => CurrentTenantId == Guid.Empty || assignment.TenantId == CurrentTenantId);
+
+        builder.Entity<AccessAuditEvent>()
+            .HasQueryFilter(auditEvent => CurrentTenantId == Guid.Empty || auditEvent.TenantId == CurrentTenantId);
     }
 }

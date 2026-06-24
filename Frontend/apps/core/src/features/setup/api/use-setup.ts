@@ -24,7 +24,6 @@ export interface VersionedSetupMutationArgs {
   expectedVersion: number;
 }
 
-
 const SETUP_PROGRESS_STEP_KEYS = [
   "setupStarted",
   "draftReady",

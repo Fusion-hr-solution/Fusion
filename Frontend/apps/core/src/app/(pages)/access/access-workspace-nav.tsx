@@ -18,7 +18,7 @@ export function AccessWorkspaceNav({
   const { tenantId, tenantSlug } = useTenantContext();
   const peopleHref = buildTenantContextHref("/access", tenantId, tenantSlug);
   const profilesHref = buildTenantContextHref(
-    "/settings?tab=access-profiles",
+    "/settings?tab=access-permissions",
     tenantId,
     tenantSlug
   );

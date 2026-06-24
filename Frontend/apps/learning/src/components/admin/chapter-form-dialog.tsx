@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { Loader2, AlertTriangle } from "lucide-react";
 import {
   Dialog,
@@ -21,10 +22,10 @@ import { addChapter, updateChapter } from "@/services/admin-service";
 import type { ChapterFormDialogProps } from "@/types/admin-props";
 import type { ChapterLayout } from "@/types";
 
-const LAYOUT_OPTIONS: { value: ChapterLayout; label: string }[] = [
-  { value: "SingleContent", label: "Single Content" },
-  { value: "SplitLayout", label: "Split Layout" },
-  { value: "MultiSection", label: "Multi Section" },
+const LAYOUT_OPTIONS: ChapterLayout[] = [
+  "SingleContent",
+  "SplitLayout",
+  "MultiSection",
 ];
 
 export function ChapterFormDialog({
@@ -34,6 +35,8 @@ export function ChapterFormDialog({
   onOpenChange,
   onSaved,
 }: ChapterFormDialogProps) {
+  const t = useTranslations("adminChapters");
+  const tCommon = useTranslations("common.actions");
   const isEditing = Boolean(chapter);
   const [title, setTitle] = useState("");
   const [layout, setLayout] = useState<ChapterLayout>("SingleContent");
@@ -50,17 +53,31 @@ export function ChapterFormDialog({
   function extractError(err: unknown): string {
     if (err instanceof ApiError) return err.errors[0] ?? err.message;
     if (err instanceof Error) return err.message;
-    return "An unexpected error occurred.";
+    return t("chapterDialog.unexpectedError");
   }
 
   const { mutateAsync: doAdd, isLoading: adding } = useApiMutation(
-    () => addChapter(trainingId, { title: title.trim(), layout, orderIndex: 0 }),
-    { onSuccess: () => { onOpenChange(false); onSaved(); }, onError: (err) => setFormError(extractError(err)) },
+    () =>
+      addChapter(trainingId, { title: title.trim(), layout, orderIndex: 0 }),
+    {
+      onSuccess: () => {
+        onOpenChange(false);
+        onSaved();
+      },
+      onError: (err) => setFormError(extractError(err)),
+    }
   );
 
   const { mutateAsync: doUpdate, isLoading: updating } = useApiMutation(
-    () => updateChapter(trainingId, chapter!.id, { title: title.trim(), layout }),
-    { onSuccess: () => { onOpenChange(false); onSaved(); }, onError: (err) => setFormError(extractError(err)) },
+    () =>
+      updateChapter(trainingId, chapter!.id, { title: title.trim(), layout }),
+    {
+      onSuccess: () => {
+        onOpenChange(false);
+        onSaved();
+      },
+      onError: (err) => setFormError(extractError(err)),
+    }
   );
 
   const isSaving = adding || updating;
@@ -77,7 +94,11 @@ export function ChapterFormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>{isEditing ? "Edit Chapter" : "Add Chapter"}</DialogTitle>
+          <DialogTitle>
+            {isEditing
+              ? t("chapterDialog.editTitle")
+              : t("chapterDialog.addTitle")}
+          </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-5">
@@ -90,25 +111,33 @@ export function ChapterFormDialog({
 
           <div className="space-y-2">
             <Label className="text-[13px] font-semibold">
-              Chapter Title <span className="text-destructive">*</span>
+              {t("chapterDialog.titleLabel")}{" "}
+              <span className="text-destructive">*</span>
             </Label>
             <Input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Introduction to the Topic"
+              placeholder={t("chapterDialog.titlePlaceholder")}
               maxLength={200}
             />
           </div>
 
           <div className="space-y-2">
-            <Label className="text-[13px] font-semibold">Layout</Label>
-            <Select value={layout} onValueChange={(v) => setLayout(v as ChapterLayout)}>
+            <Label className="text-[13px] font-semibold">
+              {t("chapterDialog.layoutLabel")}
+            </Label>
+            <Select
+              value={layout}
+              onValueChange={(v) => setLayout(v as ChapterLayout)}
+            >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {LAYOUT_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  <SelectItem key={opt} value={opt}>
+                    {t(`chapterDialog.layout.${opt}`)}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -119,7 +148,7 @@ export function ChapterFormDialog({
               onClick={() => onOpenChange(false)}
               className="rounded-xl border border-border bg-background px-5 py-2.5 text-sm font-semibold text-muted-foreground transition-colors hover:bg-muted"
             >
-              Cancel
+              {tCommon("cancel")}
             </button>
             <button
               onClick={handleSubmit}
@@ -133,10 +162,12 @@ export function ChapterFormDialog({
               {isSaving ? (
                 <span className="flex items-center gap-2">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Saving...
+                  {tCommon("saving")}
                 </span>
+              ) : isEditing ? (
+                t("chapterDialog.saveChanges")
               ) : (
-                isEditing ? "Save Changes" : "Add Chapter"
+                t("chapterDialog.addChapter")
               )}
             </button>
           </div>

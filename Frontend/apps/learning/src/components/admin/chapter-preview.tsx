@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Video, FileText, BookOpen, Dumbbell, X } from "lucide-react";
 import { Button } from "@repo/ui";
 import type { AdminContentBlock } from "@/types/admin";
@@ -15,7 +16,9 @@ function resolveAssetUrl(path: string): string {
 }
 
 function isEmbedUrl(url: string): boolean {
-  return /youtube\.com|youtu\.be|vimeo\.com|dailymotion\.com|wistia\.com/i.test(url);
+  return /youtube\.com|youtu\.be|vimeo\.com|dailymotion\.com|wistia\.com/i.test(
+    url
+  );
 }
 
 function toEmbedUrl(url: string): string {
@@ -33,12 +36,7 @@ const BLOCK_TYPE_ICON = {
   Exercise: Dumbbell,
 } as const;
 
-const BLOCK_TYPE_LABEL = {
-  Video: "Video Lesson",
-  Pdf: "PDF Document",
-  Article: "Article",
-  Exercise: "Exercise",
-} as const;
+const KNOWN_BLOCK_TYPES = new Set(["Video", "Pdf", "Article", "Exercise"]);
 
 interface ChapterPreviewProps {
   title: string;
@@ -47,20 +45,28 @@ interface ChapterPreviewProps {
   onClose: () => void;
 }
 
-export function ChapterPreview({ title, layout, blocks, onClose }: ChapterPreviewProps) {
+export function ChapterPreview({
+  title,
+  layout,
+  blocks,
+  onClose,
+}: ChapterPreviewProps) {
+  const t = useTranslations("adminChapters");
   return (
     <div className="flex h-full flex-col overflow-hidden bg-card">
       {/* Preview header bar */}
       <div className="flex items-center justify-between border-b border-border bg-muted/30 px-6 py-3">
         <div className="flex items-center gap-2">
           <span className="rounded-md bg-[hsl(var(--ey-orange-500))]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-foreground">
-            Preview
+            {t("preview.badge")}
           </span>
-          <span className="text-sm text-muted-foreground">Employee view</span>
+          <span className="text-sm text-muted-foreground">
+            {t("preview.employeeView")}
+          </span>
         </div>
         <Button variant="ghost" size="sm" onClick={onClose} className="gap-1.5">
           <X className="h-4 w-4" />
-          Close preview
+          {t("preview.close")}
         </Button>
       </div>
 
@@ -72,7 +78,7 @@ export function ChapterPreview({ title, layout, blocks, onClose }: ChapterPrevie
               {title}
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              {blocks.length} {blocks.length === 1 ? "block" : "blocks"}
+              {t("preview.blockCount", { count: blocks.length })}
             </p>
           </div>
 
@@ -88,17 +94,25 @@ export function ChapterPreview({ title, layout, blocks, onClose }: ChapterPrevie
 }
 
 function EmptyPreview() {
+  const t = useTranslations("adminChapters");
   return (
     <div className="rounded-2xl border border-dashed border-border/60 bg-muted/30 px-8 py-16 text-center">
-      <BookOpen className="mx-auto h-10 w-10 text-muted-foreground/40 mb-3" aria-hidden="true" />
-      <p className="text-sm text-muted-foreground">
-        No content blocks yet. Add blocks in the builder to preview them here.
-      </p>
+      <BookOpen
+        className="mx-auto h-10 w-10 text-muted-foreground/40 mb-3"
+        aria-hidden="true"
+      />
+      <p className="text-sm text-muted-foreground">{t("preview.empty")}</p>
     </div>
   );
 }
 
-function PreviewBlocks({ layout, blocks }: { layout: ChapterLayout; blocks: AdminContentBlock[] }) {
+function PreviewBlocks({
+  layout,
+  blocks,
+}: {
+  layout: ChapterLayout;
+  blocks: AdminContentBlock[];
+}) {
   const blockElements = (list: AdminContentBlock[], startIndex: number) =>
     list.map((block, i) => (
       <PreviewBlockView key={block.id} block={block} index={startIndex + i} />
@@ -108,7 +122,9 @@ function PreviewBlocks({ layout, blocks }: { layout: ChapterLayout; blocks: Admi
     const mid = Math.ceil(blocks.length / 2);
     return (
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="space-y-6">{blockElements(blocks.slice(0, mid), 0)}</div>
+        <div className="space-y-6">
+          {blockElements(blocks.slice(0, mid), 0)}
+        </div>
         <div className="space-y-6">{blockElements(blocks.slice(mid), mid)}</div>
       </div>
     );
@@ -130,10 +146,19 @@ function PreviewBlocks({ layout, blocks }: { layout: ChapterLayout; blocks: Admi
   return <div className="space-y-8">{blockElements(blocks, 0)}</div>;
 }
 
-function PreviewBlockView({ block, index }: { block: AdminContentBlock; index: number }) {
+function PreviewBlockView({
+  block,
+  index,
+}: {
+  block: AdminContentBlock;
+  index: number;
+}) {
+  const t = useTranslations("adminChapters");
   const blockType = block.type as keyof typeof BLOCK_TYPE_ICON;
   const TypeIcon = BLOCK_TYPE_ICON[blockType] ?? BookOpen;
-  const typeLabel = BLOCK_TYPE_LABEL[blockType] ?? block.type;
+  const typeLabel = KNOWN_BLOCK_TYPES.has(block.type)
+    ? t(`preview.blockTypeLabel.${block.type}`)
+    : block.type;
 
   return (
     <div
@@ -143,7 +168,10 @@ function PreviewBlockView({ block, index }: { block: AdminContentBlock; index: n
       {/* Block header */}
       <div className="flex items-center gap-3 mb-4">
         <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[hsl(var(--ey-blue-500))]/10 ring-1 ring-[hsl(var(--ey-blue-500))]/20">
-          <TypeIcon className="h-4 w-4 text-[hsl(var(--ey-blue-500))]" aria-hidden="true" />
+          <TypeIcon
+            className="h-4 w-4 text-[hsl(var(--ey-blue-500))]"
+            aria-hidden="true"
+          />
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-foreground truncate">
@@ -151,13 +179,16 @@ function PreviewBlockView({ block, index }: { block: AdminContentBlock; index: n
           </p>
           <span className="text-xs text-muted-foreground">
             {typeLabel}
-            {block.estimatedDurationMinutes && ` · ${block.estimatedDurationMinutes} min`}
+            {block.estimatedDurationMinutes
+              ? ` · ${t("preview.minutes", { count: block.estimatedDurationMinutes })}`
+              : ""}
           </span>
         </div>
       </div>
 
       {/* Block content */}
-      {blockType === "Video" && renderVideoPreview(block)}
+      {blockType === "Video" &&
+        renderVideoPreview(block, t("preview.videoFallbackTitle"))}
 
       {blockType === "Pdf" && block.contentUri && (
         <div className="space-y-2">
@@ -165,19 +196,24 @@ function PreviewBlockView({ block, index }: { block: AdminContentBlock; index: n
             <object
               data={`${resolveAssetUrl(block.contentUri)}#toolbar=1&view=FitH`}
               type="application/pdf"
-              title={block.title ?? "PDF"}
+              title={block.title ?? t("preview.pdfFallbackTitle")}
               className="h-full w-full"
             >
               <div className="flex h-full flex-col items-center justify-center gap-3 bg-muted/30 p-6 text-center">
-                <FileText className="h-10 w-10 text-muted-foreground/40" aria-hidden="true" />
-                <p className="text-sm text-muted-foreground">Your browser cannot display this PDF inline.</p>
+                <FileText
+                  className="h-10 w-10 text-muted-foreground/40"
+                  aria-hidden="true"
+                />
+                <p className="text-sm text-muted-foreground">
+                  {t("preview.pdfCannotDisplay")}
+                </p>
                 <a
                   href={resolveAssetUrl(block.contentUri)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
                 >
-                  Open PDF
+                  {t("preview.openPdf")}
                 </a>
               </div>
             </object>
@@ -189,31 +225,33 @@ function PreviewBlockView({ block, index }: { block: AdminContentBlock; index: n
             className="inline-flex items-center gap-1.5 text-xs font-medium text-[hsl(var(--ey-blue-500))] hover:underline"
           >
             <FileText className="h-3.5 w-3.5" />
-            Open PDF in new tab
+            {t("preview.openPdfNewTab")}
           </a>
         </div>
       )}
 
-      {(blockType === "Article" || blockType === "Exercise") && block.textContent && (
-        renderArticleContent(block.textContent)
-      )}
+      {(blockType === "Article" || blockType === "Exercise") &&
+        block.textContent &&
+        renderArticleContent(block.textContent)}
 
       {!block.textContent && !block.videoUrl && !block.contentUri && (
         <div className="rounded-xl border border-dashed border-border/60 bg-muted/30 px-6 py-10 text-center">
-          <p className="text-sm text-muted-foreground">Content not yet available.</p>
+          <p className="text-sm text-muted-foreground">
+            {t("preview.contentNotAvailable")}
+          </p>
         </div>
       )}
     </div>
   );
 }
 
-function renderVideoPreview(block: AdminContentBlock) {
+function renderVideoPreview(block: AdminContentBlock, fallbackTitle: string) {
   if (block.contentUri) {
     return (
       <div className="overflow-hidden rounded-xl border border-border bg-black aspect-video">
         <video
           src={resolveAssetUrl(block.contentUri)}
-          title={block.title ?? "Video"}
+          title={block.title ?? fallbackTitle}
           className="h-full w-full"
           controls
           preload="metadata"
@@ -226,7 +264,7 @@ function renderVideoPreview(block: AdminContentBlock) {
       <div className="overflow-hidden rounded-xl border border-border bg-black aspect-video">
         <iframe
           src={toEmbedUrl(block.videoUrl)}
-          title={block.title ?? "Video"}
+          title={block.title ?? fallbackTitle}
           className="h-full w-full"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen
@@ -239,7 +277,7 @@ function renderVideoPreview(block: AdminContentBlock) {
       <div className="overflow-hidden rounded-xl border border-border bg-black aspect-video">
         <video
           src={block.videoUrl}
-          title={block.title ?? "Video"}
+          title={block.title ?? fallbackTitle}
           className="h-full w-full"
           controls
           preload="metadata"
@@ -256,15 +294,21 @@ function renderArticleContent(textContent: string) {
     if (Array.isArray(parsed.sections)) {
       return (
         <article className="article-content max-w-none space-y-4">
-          {(parsed.sections as { label: string; content: string }[]).map((s) => (
-            <section key={s.label}>
-              <h2 className="text-lg font-semibold text-foreground mb-2">{s.label}</h2>
-              <div
-                className="article-body text-sm leading-relaxed text-foreground/90"
-                dangerouslySetInnerHTML={{ __html: renderMarkdown(s.content) }}
-              />
-            </section>
-          ))}
+          {(parsed.sections as { label: string; content: string }[]).map(
+            (s) => (
+              <section key={s.label}>
+                <h2 className="text-lg font-semibold text-foreground mb-2">
+                  {s.label}
+                </h2>
+                <div
+                  className="article-body text-sm leading-relaxed text-foreground/90"
+                  dangerouslySetInnerHTML={{
+                    __html: renderMarkdown(s.content),
+                  }}
+                />
+              </section>
+            )
+          )}
         </article>
       );
     }
@@ -274,10 +318,14 @@ function renderArticleContent(textContent: string) {
         <article className="article-content max-w-none space-y-4">
           {entries.map(([label, content]) => (
             <section key={label}>
-              <h2 className="text-lg font-semibold text-foreground mb-2">{label}</h2>
+              <h2 className="text-lg font-semibold text-foreground mb-2">
+                {label}
+              </h2>
               <div
                 className="article-body text-sm leading-relaxed text-foreground/90"
-                dangerouslySetInnerHTML={{ __html: renderMarkdown(String(content)) }}
+                dangerouslySetInnerHTML={{
+                  __html: renderMarkdown(String(content)),
+                }}
               />
             </section>
           ))}

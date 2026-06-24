@@ -1,6 +1,10 @@
 import * as React from "react";
 import { cn } from "../../lib/utils";
 
+interface CardSectionProps extends React.HTMLAttributes<HTMLDivElement> {
+  density?: "default" | "compact";
+}
+
 const Card = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
@@ -18,11 +22,15 @@ Card.displayName = "Card";
 
 const CardHeader = React.forwardRef<
   HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
->(({ className, ...props }, ref) => (
+  CardSectionProps
+>(({ className, density = "default", ...props }, ref) => (
   <div
     ref={ref}
-    className={cn("flex flex-col space-y-1.5 p-6", className)}
+    className={cn(
+      "flex flex-col",
+      density === "compact" ? "space-y-1 p-4" : "space-y-1.5 p-6",
+      className
+    )}
     {...props}
   />
 ));
@@ -57,19 +65,27 @@ CardDescription.displayName = "CardDescription";
 
 const CardContent = React.forwardRef<
   HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
->(({ className, ...props }, ref) => (
-  <div ref={ref} className={cn("p-6 pt-0", className)} {...props} />
+  CardSectionProps
+>(({ className, density = "default", ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn(density === "compact" ? "p-4 pt-0" : "p-6 pt-0", className)}
+    {...props}
+  />
 ));
 CardContent.displayName = "CardContent";
 
 const CardFooter = React.forwardRef<
   HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
->(({ className, ...props }, ref) => (
+  CardSectionProps
+>(({ className, density = "default", ...props }, ref) => (
   <div
     ref={ref}
-    className={cn("flex items-center p-6 pt-0", className)}
+    className={cn(
+      "flex items-center",
+      density === "compact" ? "p-4 pt-0" : "p-6 pt-0",
+      className
+    )}
     {...props}
   />
 ));

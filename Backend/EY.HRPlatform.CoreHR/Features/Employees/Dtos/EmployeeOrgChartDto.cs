@@ -19,6 +19,7 @@ public sealed record OrgChartIssueCountsDto(
 
 public sealed record EmployeeOrgChartNodeDto(
     Guid EmployeeId,
+    string StableEmployeeKey,
     string FullName,
     string FirstName,
     string LastName,

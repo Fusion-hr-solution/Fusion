@@ -190,13 +190,13 @@ public class UsersController : ControllerBase
         var dto = new UserDto
         {
             Id = user.Id,
-            EmployeeId = user.EmployeeId,
             Email = user.Email!,
             FullName = user.FullName,
             Department = user.Department,
             JobTitle = user.JobTitle,
             HireDate = user.HireDate,
             TenantId = user.TenantId,
+            EmployeeId = user.EmployeeId,
             Roles = [role],
             TemporaryPassword = temporaryPassword // Only returned on creation
         };
