@@ -85,11 +85,11 @@ export function AttendanceRatesSection() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap items-end gap-3 rounded-xl border border-border/60 bg-white p-4 shadow-sm">
+      <div className="flex flex-wrap items-end gap-3 rounded-xl border border-border/60 bg-card p-4 shadow-sm">
         <div className="space-y-1.5">
-          <Label className="text-xs">Grade</Label>
+          <Label htmlFor="attendance-filter-grade" className="text-xs">Grade</Label>
           <Select value={gradeId} onValueChange={setGradeId}>
-            <SelectTrigger className="h-9 w-[180px]">
+            <SelectTrigger id="attendance-filter-grade" className="h-9 w-[180px]">
               <SelectValue placeholder="All grades" />
             </SelectTrigger>
             <SelectContent>
@@ -104,9 +104,9 @@ export function AttendanceRatesSection() {
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-xs">Service Line</Label>
+          <Label htmlFor="attendance-filter-service-line" className="text-xs">Service Line</Label>
           <Select value={serviceLineId} onValueChange={setServiceLineId}>
-            <SelectTrigger className="h-9 w-[180px]">
+            <SelectTrigger id="attendance-filter-service-line" className="h-9 w-[180px]">
               <SelectValue placeholder="All service lines" />
             </SelectTrigger>
             <SelectContent>
@@ -121,8 +121,9 @@ export function AttendanceRatesSection() {
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-xs">From</Label>
+          <Label htmlFor="attendance-filter-from" className="text-xs">From</Label>
           <Input
+            id="attendance-filter-from"
             type="date"
             value={from}
             onChange={(e) => setFrom(e.target.value)}
@@ -131,8 +132,9 @@ export function AttendanceRatesSection() {
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-xs">To</Label>
+          <Label htmlFor="attendance-filter-to" className="text-xs">To</Label>
           <Input
+            id="attendance-filter-to"
             type="date"
             value={to}
             onChange={(e) => setTo(e.target.value)}
@@ -173,7 +175,7 @@ export function AttendanceRatesSection() {
         ) : trend && trend.points.length > 0 ? (
           <AttendanceTrendChart points={trend.points} />
         ) : (
-          <div className="flex h-[320px] items-center justify-center rounded-xl border border-border/60 bg-white text-xs text-muted-foreground">
+          <div className="flex h-[320px] items-center justify-center rounded-xl border border-border/60 bg-card text-xs text-muted-foreground">
             No attendance trend data for the selected period.
           </div>
         )}

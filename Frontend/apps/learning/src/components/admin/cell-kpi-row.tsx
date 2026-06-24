@@ -33,10 +33,10 @@ export function CellKpiRow({ enrichedCount, kpis }: KpiRowProps) {
   if (!kpis) return null;
   return (
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-      <KpiTile icon={Users} label="Total Employees" value={enrichedCount} accent="bg-blue-50" />
+      <KpiTile icon={Users} label="Total Employees" value={enrichedCount} accent="bg-[hsl(var(--ey-blue-500))]/10" />
       <KpiTile icon={TrendingUp} label="Avg. Completion" value={`${kpis.avg}%`} accent="bg-primary/10" />
-      <KpiTile icon={CheckCircle2} label="Fully Completed" value={kpis.fully} accent="bg-emerald-50" />
-      <KpiTile icon={BookOpen} label="In Progress" value={kpis.inProg} accent="bg-amber-50" />
+      <KpiTile icon={CheckCircle2} label="Fully Completed" value={kpis.fully} accent="bg-[hsl(var(--ey-green-500))]/10" />
+      <KpiTile icon={BookOpen} label="In Progress" value={kpis.inProg} accent="bg-[hsl(var(--ey-orange-500))]/10" />
     </div>
   );
 }

@@ -31,9 +31,9 @@ interface CellDrillDownDialogProps {
 type SortField = "completionPercentage" | "completedFormations" | "lastActivityAt";
 
 function completionBadge(pct: number) {
-  if (pct >= 80) return <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200">{pct}%</Badge>;
-  if (pct >= 50) return <Badge className="bg-amber-100 text-amber-800 border-amber-200">{pct}%</Badge>;
-  return <Badge className="bg-red-100 text-red-800 border-red-200">{pct}%</Badge>;
+  if (pct >= 80) return <Badge className="bg-[hsl(var(--ey-green-500))]/15 text-[hsl(var(--ey-green-500))] border-[hsl(var(--ey-green-500))]/25">{pct}%</Badge>;
+  if (pct >= 50) return <Badge className="bg-[hsl(var(--ey-orange-500))]/15 text-[hsl(var(--ey-orange-500))] border-[hsl(var(--ey-orange-500))]/25">{pct}%</Badge>;
+  return <Badge className="bg-[hsl(var(--ey-red-500))]/15 text-[hsl(var(--ey-red-500))] border-[hsl(var(--ey-red-500))]/25">{pct}%</Badge>;
 }
 
 export function CellDrillDownDialog({

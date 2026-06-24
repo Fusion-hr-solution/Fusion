@@ -5,6 +5,7 @@ import { X } from "lucide-react";
 import {
   Button,
   Input,
+  Label,
   Select,
   SelectContent,
   SelectItem,
@@ -36,21 +37,22 @@ export function CertificateRegistryFiltersBar({
   grades,
 }: CertificateRegistryFiltersBarProps) {
   return (
-    <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-white p-4">
-      <Field label="Search">
+    <div className="flex flex-wrap items-end gap-3 rounded-lg border border-border/60 bg-card p-4">
+      <Field label="Search" htmlFor="cert-filter-search">
         <Input
+          id="cert-filter-search"
           className="w-52"
           placeholder="Number or employee"
           value={filters.search ?? ""}
           onChange={(e) => onChange({ search: e.target.value || undefined })}
         />
       </Field>
-      <Field label="Formation">
+      <Field label="Formation" htmlFor="cert-filter-training">
         <Select
           value={filters.trainingId ?? ALL}
           onValueChange={(v) => onChange({ trainingId: v === ALL ? undefined : v })}
         >
-          <SelectTrigger className="w-48">
+          <SelectTrigger id="cert-filter-training" className="w-48">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -63,9 +65,9 @@ export function CertificateRegistryFiltersBar({
           </SelectContent>
         </Select>
       </Field>
-      <Field label="Grade">
+      <Field label="Grade" htmlFor="cert-filter-grade">
         <Select value={filters.gradeId ?? ALL} onValueChange={(v) => onChange({ gradeId: v === ALL ? undefined : v })}>
-          <SelectTrigger className="w-40">
+          <SelectTrigger id="cert-filter-grade" className="w-40">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -78,12 +80,12 @@ export function CertificateRegistryFiltersBar({
           </SelectContent>
         </Select>
       </Field>
-      <Field label="Status">
+      <Field label="Status" htmlFor="cert-filter-status">
         <Select
           value={filters.status || ALL}
           onValueChange={(v) => onChange({ status: v === ALL ? "" : (v as CertificateRegistryFilters["status"]) })}
         >
-          <SelectTrigger className="w-32">
+          <SelectTrigger id="cert-filter-status" className="w-32">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -93,11 +95,11 @@ export function CertificateRegistryFiltersBar({
           </SelectContent>
         </Select>
       </Field>
-      <Field label="From">
-        <Input type="date" className="w-40" value={filters.from ?? ""} onChange={(e) => onChange({ from: e.target.value || undefined })} />
+      <Field label="From" htmlFor="cert-filter-from">
+        <Input id="cert-filter-from" type="date" className="w-40" value={filters.from ?? ""} onChange={(e) => onChange({ from: e.target.value || undefined })} />
       </Field>
-      <Field label="To">
-        <Input type="date" className="w-40" value={filters.to ?? ""} onChange={(e) => onChange({ to: e.target.value || undefined })} />
+      <Field label="To" htmlFor="cert-filter-to">
+        <Input id="cert-filter-to" type="date" className="w-40" value={filters.to ?? ""} onChange={(e) => onChange({ to: e.target.value || undefined })} />
       </Field>
       <Button variant="ghost" size="sm" onClick={onClear}>
         <X className="mr-1 h-4 w-4" aria-hidden="true" />
@@ -107,10 +109,20 @@ export function CertificateRegistryFiltersBar({
   );
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+function Field({
+  label,
+  htmlFor,
+  children,
+}: {
+  label: string;
+  htmlFor: string;
+  children: ReactNode;
+}) {
   return (
     <div className="space-y-1">
-      <span className="block text-xs font-medium text-muted-foreground">{label}</span>
+      <Label htmlFor={htmlFor} className="block text-xs font-medium text-muted-foreground">
+        {label}
+      </Label>
       {children}
     </div>
   );

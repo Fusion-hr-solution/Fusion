@@ -140,14 +140,14 @@ function SortablePartCard({
           <div className="flex items-center gap-2">
             <p className="truncate text-sm font-semibold text-foreground">{part.title}</p>
             {isPartCompleted && (
-              <Badge variant="outline" className="shrink-0 border-emerald-200 bg-emerald-50 text-emerald-700 text-[10px] px-1.5 py-0.5">
-                <CheckCircle2 className="h-3 w-3 mr-0.5" />
+              <Badge variant="outline" className="shrink-0 border-[hsl(var(--ey-green-500))]/20 bg-[hsl(var(--ey-green-500))]/10 text-[hsl(var(--ey-green-500))] text-[10px] px-1.5 py-0.5">
+                <CheckCircle2 className="h-3 w-3 mr-0.5" aria-hidden="true" />
                 Completed
               </Badge>
             )}
             {part.isLocked && (
-              <Badge variant="outline" className="shrink-0 border-amber-200 bg-amber-50 text-amber-700 text-[10px] px-1.5 py-0.5">
-                <Lock className="h-3 w-3 mr-0.5" />
+              <Badge variant="outline" className="shrink-0 border-[hsl(var(--ey-orange-500))]/20 bg-[hsl(var(--ey-orange-500))]/10 text-[hsl(var(--ey-orange-500))] text-[10px] px-1.5 py-0.5">
+                <Lock className="h-3 w-3 mr-0.5" aria-hidden="true" />
                 Locked
               </Badge>
             )}
@@ -169,18 +169,18 @@ function SortablePartCard({
 
         {/* Actions — visible on hover */}
         {!isDeleted && (
-          <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+          <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
             <Button
               variant="ghost"
               size="sm"
               onClick={onToggleLock}
               aria-label={part.isLocked ? "Unlock part" : "Lock part"}
-              className={`h-8 w-8 p-0 ${part.isLocked ? "text-amber-600 hover:text-amber-700 hover:bg-amber-50" : ""}`}
+              className={`h-8 w-8 p-0 ${part.isLocked ? "text-[hsl(var(--ey-orange-500))] hover:text-[hsl(var(--ey-orange-500))] hover:bg-[hsl(var(--ey-orange-500))]/10" : ""}`}
             >
-              <Lock className="h-3.5 w-3.5" />
+              <Lock className="h-3.5 w-3.5" aria-hidden="true" />
             </Button>
             <Button variant="ghost" size="sm" onClick={onEdit} aria-label="Edit part" className="h-8 w-8 p-0">
-              <Pencil className="h-3.5 w-3.5" />
+              <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
             </Button>
             <Button
               variant="ghost"
@@ -189,7 +189,7 @@ function SortablePartCard({
               aria-label="Delete part"
               className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
             >
-              <Trash2 className="h-3.5 w-3.5" />
+              <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
             </Button>
           </div>
         )}
@@ -241,12 +241,12 @@ function SortablePartCard({
                     </div>
 
                     {!isDeleted && !isCancelled && (
-                      <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover/session:opacity-100">
+                      <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover/session:opacity-100 focus-within:opacity-100">
                         <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => onEditSession(s)} aria-label="Edit session">
-                          <Pencil className="h-3 w-3" />
+                          <Pencil className="h-3 w-3" aria-hidden="true" />
                         </Button>
                         <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => onCancelSession(s.id)} aria-label="Cancel session">
-                          <X className="h-3 w-3" />
+                          <X className="h-3 w-3" aria-hidden="true" />
                         </Button>
                       </div>
                     )}

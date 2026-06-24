@@ -39,7 +39,7 @@ export function CompletionFunnel({
   ];
 
   return (
-    <Card className="overflow-hidden border border-border/60 bg-white">
+    <Card className="overflow-hidden border border-border/60 bg-card">
       <div className="h-1 w-full ey-bg-dark-deep ey-animate-stripe" />
       <CardContent className="p-5">
         <div className="flex items-center gap-2.5 mb-5">

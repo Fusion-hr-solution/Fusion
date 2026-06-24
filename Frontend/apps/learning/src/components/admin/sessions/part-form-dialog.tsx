@@ -121,7 +121,7 @@ export function PartFormDialog({
                           ? "border-[hsl(var(--ey-green-500))] bg-[hsl(var(--ey-green-500))] text-white"
                           : isCurrent
                             ? "border-[hsl(var(--ey-black))] bg-[hsl(var(--ey-black))] text-white shadow-md"
-                            : "border-border bg-white text-muted-foreground"
+                            : "border-border bg-card text-muted-foreground"
                       }`}
                     >
                       {isCompleted ? (
@@ -148,9 +148,9 @@ export function PartFormDialog({
           <div className="space-y-4 pt-2">
             {/* Lock banner for completed/locked parts */}
             {isLocked && (
-              <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
-                <Lock className="h-4 w-4 text-amber-600 shrink-0" />
-                <p className="text-xs text-amber-700">
+              <div className="flex items-center gap-2 rounded-lg border border-[hsl(var(--ey-orange-500))]/20 bg-[hsl(var(--ey-orange-500))]/10 px-4 py-3">
+                <Lock className="h-4 w-4 text-[hsl(var(--ey-orange-500))] shrink-0" aria-hidden="true" />
+                <p className="text-xs text-[hsl(var(--ey-orange-500))]">
                   {isPartCompleted
                     ? "This part is completed. All its sessions have ended and it cannot be modified."
                     : "This part is locked and cannot be modified."}

@@ -23,7 +23,7 @@ export function SidebarUserPanel({ collapsed }: SidebarUserPanelProps) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-1">
-        <div className="h-8 w-8 animate-pulse rounded-full bg-[hsl(var(--ey-grey-200))]" />
+        <div className="h-8 w-8 animate-pulse rounded-full bg-muted" />
       </div>
     );
   }
@@ -36,14 +36,14 @@ export function SidebarUserPanel({ collapsed }: SidebarUserPanelProps) {
       return (
         <div className="flex flex-col items-center gap-2">
           <div
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-[hsl(var(--ey-black))] text-xs font-bold text-white"
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-foreground text-xs font-bold text-background dark:bg-secondary dark:text-secondary-foreground"
             title={user.fullName}
           >
             {initial}
           </div>
           <a
             href="/"
-            className="flex h-7 w-7 items-center justify-center rounded-md text-[hsl(var(--ey-grey-400))] hover:bg-[hsl(var(--ey-grey-100))] hover:text-[hsl(var(--ey-grey-500))] transition-colors"
+            className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
             title="Home"
             aria-label="Home"
           >
@@ -54,7 +54,7 @@ export function SidebarUserPanel({ collapsed }: SidebarUserPanelProps) {
               await logout();
               window.location.href = "/auth/signin";
             }}
-            className="flex h-7 w-7 items-center justify-center rounded-md text-[hsl(var(--ey-grey-400))] hover:bg-[hsl(var(--ey-grey-100))] hover:text-[hsl(var(--ey-grey-500))] transition-colors"
+            className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
             title="Sign out"
             aria-label="Sign out"
           >
@@ -74,26 +74,26 @@ export function SidebarUserPanel({ collapsed }: SidebarUserPanelProps) {
               className="fixed inset-0 z-40"
               onClick={() => setMenuOpen(false)}
             />
-            <div className="absolute bottom-full left-0 right-0 z-50 mb-2 rounded-lg border border-[hsl(var(--ey-grey-200))] bg-white py-1 shadow-lg">
+            <div className="absolute bottom-full left-0 right-0 z-50 mb-2 rounded-lg border border-border bg-popover py-1 text-popover-foreground shadow-lg">
               <a
                 href="/profile"
-                className="flex items-center gap-3 px-3 py-2 text-sm text-[hsl(var(--ey-grey-500))] hover:bg-[hsl(var(--ey-grey-100))] transition-colors"
+                className="flex items-center gap-3 px-3 py-2 text-sm text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
               >
-                <User className="h-4 w-4 text-[hsl(var(--ey-grey-400))]" />
+                <User className="h-4 w-4 text-muted-foreground" />
                 Profile
               </a>
               <a
                 href="/settings"
-                className="flex items-center gap-3 px-3 py-2 text-sm text-[hsl(var(--ey-grey-500))] hover:bg-[hsl(var(--ey-grey-100))] transition-colors"
+                className="flex items-center gap-3 px-3 py-2 text-sm text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
               >
-                <Settings className="h-4 w-4 text-[hsl(var(--ey-grey-400))]" />
+                <Settings className="h-4 w-4 text-muted-foreground" />
                 Settings
               </a>
               <a
                 href="/"
-                className="flex items-center gap-3 px-3 py-2 text-sm text-[hsl(var(--ey-grey-500))] hover:bg-[hsl(var(--ey-grey-100))] transition-colors"
+                className="flex items-center gap-3 px-3 py-2 text-sm text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
               >
-                <Home className="h-4 w-4 text-[hsl(var(--ey-grey-400))]" />
+                <Home className="h-4 w-4 text-muted-foreground" />
                 Home
               </a>
               <button
@@ -102,9 +102,9 @@ export function SidebarUserPanel({ collapsed }: SidebarUserPanelProps) {
                   await logout();
                   window.location.href = "/auth/signin";
                 }}
-                className="flex w-full items-center gap-3 px-3 py-2 text-sm text-[hsl(var(--ey-grey-500))] hover:bg-[hsl(var(--ey-grey-100))] transition-colors"
+                className="flex w-full items-center gap-3 px-3 py-2 text-sm text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
               >
-                <LogOut className="h-4 w-4 text-[hsl(var(--ey-grey-400))]" />
+                <LogOut className="h-4 w-4 text-muted-foreground" />
                 Logout
               </button>
             </div>
@@ -114,23 +114,23 @@ export function SidebarUserPanel({ collapsed }: SidebarUserPanelProps) {
         {/* Trigger — user info row */}
         <button
           onClick={() => setMenuOpen((v) => !v)}
-          className="flex w-full items-center gap-3 rounded-lg px-2 py-2 hover:bg-[hsl(var(--ey-grey-100))] transition-colors"
+          className="flex w-full items-center gap-3 rounded-lg px-2 py-2 hover:bg-accent transition-colors"
         >
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[hsl(var(--ey-black))] text-xs font-bold text-white">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-foreground text-xs font-bold text-background dark:bg-secondary dark:text-secondary-foreground">
             {initial}
           </div>
           <div className="flex-1 min-w-0 text-left">
-            <p className="truncate text-sm font-medium text-[hsl(var(--ey-grey-500))]">
+            <p className="truncate text-sm font-medium text-foreground">
               {user.fullName}
             </p>
-            <p className="truncate text-xs text-[hsl(var(--ey-grey-400))]">
+            <p className="truncate text-xs text-muted-foreground">
               {role}
             </p>
           </div>
           {menuOpen ? (
-            <ChevronDown className="h-4 w-4 shrink-0 text-[hsl(var(--ey-grey-400))]" />
+            <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
           ) : (
-            <ChevronUp className="h-4 w-4 shrink-0 text-[hsl(var(--ey-grey-400))]" />
+            <ChevronUp className="h-4 w-4 shrink-0 text-muted-foreground" />
           )}
         </button>
       </div>
@@ -142,7 +142,7 @@ export function SidebarUserPanel({ collapsed }: SidebarUserPanelProps) {
     return (
       <a
         href="/auth/signin"
-        className="flex h-8 w-8 items-center justify-center rounded-md text-[hsl(var(--ey-grey-400))] hover:bg-[hsl(var(--ey-grey-100))] transition-colors mx-auto"
+        className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors mx-auto"
         title="Sign in"
       >
         <LogIn className="h-3.5 w-3.5" />
@@ -153,7 +153,7 @@ export function SidebarUserPanel({ collapsed }: SidebarUserPanelProps) {
   return (
     <a
       href="/auth/signin"
-      className="flex items-center gap-3 rounded-lg px-2.5 py-2 text-sm font-medium text-[hsl(var(--ey-grey-400))] hover:bg-[hsl(var(--ey-grey-100))] hover:text-[hsl(var(--ey-grey-500))] transition-colors"
+      className="flex items-center gap-3 rounded-lg px-2.5 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
     >
       <LogIn className="h-4 w-4 shrink-0" />
       <span>Sign In</span>

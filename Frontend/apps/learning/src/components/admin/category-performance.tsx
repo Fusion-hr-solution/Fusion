@@ -5,7 +5,7 @@ import type { CategoryPerformanceProps } from "@/types/admin-props";
 
 export function CategoryPerformance({ items }: CategoryPerformanceProps) {
   return (
-    <Card className="overflow-hidden border border-border/60 bg-white">
+    <Card className="overflow-hidden border border-border/60 bg-card">
       <CardContent className="p-5">
         <div className="flex items-center gap-2.5 mb-5">
           <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-muted">

@@ -201,7 +201,7 @@ export function SessionFormDialog({
                           ? "border-[hsl(var(--ey-green-500))] bg-[hsl(var(--ey-green-500))] text-white"
                           : isCurrent
                             ? "border-[hsl(var(--ey-black))] bg-[hsl(var(--ey-black))] text-white shadow-md"
-                            : "border-border bg-white text-muted-foreground"
+                            : "border-border bg-card text-muted-foreground"
                       }`}
                     >
                       {isCompleted ? <CheckCircle2 className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
@@ -224,9 +224,9 @@ export function SessionFormDialog({
           <div className="space-y-5 pt-2">
             {/* Lock banner for completed sessions */}
             {isCompleted && (
-              <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
-                <Lock className="h-4 w-4 text-amber-600 shrink-0" />
-                <p className="text-xs text-amber-700">
+              <div className="flex items-center gap-2 rounded-lg border border-[hsl(var(--ey-orange-500))]/20 bg-[hsl(var(--ey-orange-500))]/10 px-4 py-3">
+                <Lock className="h-4 w-4 text-[hsl(var(--ey-orange-500))] shrink-0" aria-hidden="true" />
+                <p className="text-xs text-[hsl(var(--ey-orange-500))]">
                   This session has ended. Only trainer info and notes can be edited.
                 </p>
               </div>
@@ -240,19 +240,21 @@ export function SessionFormDialog({
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Date *</Label>
+                  <Label id="sessionDateLabel" className="text-xs">Date *</Label>
                   <CalendarWidget
                     mode="single"
                     selected={sessionDate}
                     onSelect={(d) => { if (!isCompleted) { setSessionDate(d ?? undefined); setError(null); } }}
                     disabled={isCompleted ? () => true : (date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                    aria-labelledby="sessionDateLabel"
                     className={`rounded-md border ${isCompleted ? "opacity-50 pointer-events-none" : ""}`}
                   />
                 </div>
                 <div className="space-y-3">
                   <div className="space-y-1.5">
-                    <Label className="text-xs">Start Time *</Label>
+                    <Label htmlFor="sessionStartTime" className="text-xs">Start Time *</Label>
                     <Input
+                      id="sessionStartTime"
                       type="time"
                       value={startTime}
                       onChange={(e) => { setStartTime(e.target.value); setError(null); }}
@@ -261,8 +263,9 @@ export function SessionFormDialog({
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-xs">End Time *</Label>
+                    <Label htmlFor="sessionEndTime" className="text-xs">End Time *</Label>
                     <Input
+                      id="sessionEndTime"
                       type="time"
                       value={endTime}
                       onChange={(e) => { setEndTime(e.target.value); setError(null); }}
@@ -361,6 +364,7 @@ export function SessionFormDialog({
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Any additional information for this session..."
                 className="h-10"
+                aria-label="Notes"
               />
             </div>
           </div>
@@ -407,9 +411,9 @@ export function SessionFormDialog({
 
         {/* Conflict warnings */}
         {conflicts.length > 0 && (
-          <div className="rounded-lg border border-[hsl(var(--ey-yellow))]/40 bg-[hsl(var(--ey-yellow))]/10 p-4 mt-2">
+          <div className="rounded-lg border border-[hsl(var(--ey-orange-500))]/30 bg-[hsl(var(--ey-orange-500))]/10 p-4 mt-2">
             <div className="flex items-center gap-2 text-sm font-medium text-[hsl(var(--ey-orange-500))]">
-              <AlertTriangle className="h-4 w-4" />
+              <AlertTriangle className="h-4 w-4" aria-hidden="true" />
               Room conflict detected
             </div>
             <ul className="mt-2 space-y-1.5 text-xs text-muted-foreground">

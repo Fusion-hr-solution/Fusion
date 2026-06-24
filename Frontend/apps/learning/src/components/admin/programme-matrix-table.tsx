@@ -19,15 +19,15 @@ interface ProgrammeMatrixTableProps {
 }
 
 function cellColor(rate: number): string {
-  if (rate >= 80) return "bg-emerald-100 text-emerald-800 border-emerald-200";
-  if (rate >= 50) return "bg-amber-100 text-amber-800 border-amber-200";
-  return "bg-red-100 text-red-800 border-red-200";
+  if (rate >= 80) return "bg-[hsl(var(--ey-green-500))]/10 text-[hsl(var(--ey-green-500))] border-[hsl(var(--ey-green-500))]/20";
+  if (rate >= 50) return "bg-[hsl(var(--ey-orange-500))]/10 text-[hsl(var(--ey-orange-500))] border-[hsl(var(--ey-orange-500))]/20";
+  return "bg-[hsl(var(--ey-red-500))]/10 text-[hsl(var(--ey-red-500))] border-[hsl(var(--ey-red-500))]/20";
 }
 
 function cellDot(rate: number): string {
-  if (rate >= 80) return "bg-emerald-500";
-  if (rate >= 50) return "bg-amber-500";
-  return "bg-red-500";
+  if (rate >= 80) return "bg-[hsl(var(--ey-green-500))]";
+  if (rate >= 50) return "bg-[hsl(var(--ey-orange-500))]";
+  return "bg-[hsl(var(--ey-red-500))]";
 }
 
 export function ProgrammeMatrixTable({ matrix, onCellClick }: ProgrammeMatrixTableProps) {
@@ -38,7 +38,7 @@ export function ProgrammeMatrixTable({ matrix, onCellClick }: ProgrammeMatrixTab
   );
 
   return (
-    <div className="ey-animate-fade-up overflow-x-auto rounded-xl border border-border/60 bg-white shadow-sm">
+    <div className="ey-animate-fade-up overflow-x-auto rounded-xl border border-border/60 bg-card shadow-sm">
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/40">
@@ -64,7 +64,7 @@ export function ProgrammeMatrixTable({ matrix, onCellClick }: ProgrammeMatrixTab
         <TableBody>
           {grades.map((grade) => (
             <TableRow key={grade.id} className="hover:bg-muted/20 transition-colors">
-              <TableCell className="sticky left-0 z-10 bg-white font-medium text-sm">
+              <TableCell className="sticky left-0 z-10 bg-card font-medium text-sm">
                 {grade.name}
               </TableCell>
               {serviceLines.map((sl) => {
@@ -84,7 +84,8 @@ export function ProgrammeMatrixTable({ matrix, onCellClick }: ProgrammeMatrixTab
                         <button
                           type="button"
                           onClick={() => onCellClick(grade.id, sl.id)}
-                          className={`inline-flex flex-col items-center gap-0.5 rounded-lg border px-3 py-2 transition-all duration-200 hover:scale-105 hover:shadow-md cursor-pointer ${cellColor(cell.avgCompletionRate)}`}
+                          aria-label={`${grade.name} × ${sl.name}: ${cell.avgCompletionRate}% average completion, ${cell.employeeCount} employees`}
+                          className={`inline-flex flex-col items-center gap-0.5 rounded-lg border px-3 py-2 transition-all duration-200 hover:scale-105 hover:shadow-md cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${cellColor(cell.avgCompletionRate)}`}
                         >
                           <div className="flex items-center gap-1">
                             <span className={`h-1.5 w-1.5 rounded-full ${cellDot(cell.avgCompletionRate)}`} />

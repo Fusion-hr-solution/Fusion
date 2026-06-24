@@ -12,7 +12,7 @@ import {
   TooltipContent,
 } from "@repo/ui";
 import type { EmployeeRowProps } from "@/types/admin-props";
-import { initials, AVATAR_COLOR } from "./admin-constants";
+import { initials } from "./admin-constants";
 import { EmployeeTrainingRow } from "./employee-training-row";
 
 export function EmployeeRow({
@@ -41,7 +41,7 @@ export function EmployeeRow({
         expanded
           ? "border-border shadow-lg shadow-black/5"
           : "border-border/60 hover:shadow-md hover:shadow-black/4 hover:border-border"
-      } bg-white`}
+      } bg-card`}
     >
       <button
         className="flex w-full items-center gap-4 p-4 text-left transition-colors hover:bg-muted/50"
@@ -49,8 +49,8 @@ export function EmployeeRow({
         aria-expanded={expanded}
         aria-label={`${expanded ? "Collapse" : "Expand"} details for ${employee.name}`}
       >
-        <Avatar className="h-10 w-10 ring-2 ring-white shadow-sm">
-          <AvatarFallback className={`${AVATAR_COLOR} text-white text-xs font-bold`}>
+        <Avatar className="h-10 w-10 ring-2 ring-border shadow-sm">
+          <AvatarFallback className="bg-secondary text-secondary-foreground text-xs font-bold">
             {initials(employee.name)}
           </AvatarFallback>
         </Avatar>

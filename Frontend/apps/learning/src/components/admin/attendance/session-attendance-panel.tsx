@@ -10,9 +10,9 @@ interface SessionAttendancePanelProps {
 }
 
 const STAT_STYLES: Record<string, string> = {
-  present: "text-emerald-600",
-  absent: "text-red-600",
-  pending: "text-amber-600",
+  present: "text-[hsl(var(--ey-green-500))]",
+  absent: "text-[hsl(var(--ey-red-500))]",
+  pending: "text-[hsl(var(--ey-orange-500))]",
   rate: "text-[hsl(var(--ey-blue-500))]",
 };
 

@@ -16,20 +16,20 @@ function statusBadge(status: AttendanceStatus) {
   switch (status) {
     case "present":
       return (
-        <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">
-          <CheckCircle2 className="mr-1 h-3 w-3" /> Present
+        <Badge variant="outline" className="border-[hsl(var(--ey-green-500))]/20 bg-[hsl(var(--ey-green-500))]/10 text-[hsl(var(--ey-green-500))]">
+          <CheckCircle2 className="mr-1 h-3 w-3" aria-hidden="true" /> Present
         </Badge>
       );
     case "absent":
       return (
-        <Badge variant="outline" className="border-red-200 bg-red-50 text-red-700">
-          <XCircle className="mr-1 h-3 w-3" /> Absent
+        <Badge variant="outline" className="border-[hsl(var(--ey-red-500))]/20 bg-[hsl(var(--ey-red-500))]/10 text-[hsl(var(--ey-red-500))]">
+          <XCircle className="mr-1 h-3 w-3" aria-hidden="true" /> Absent
         </Badge>
       );
     default:
       return (
-        <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700">
-          <Clock3 className="mr-1 h-3 w-3" /> Pending
+        <Badge variant="outline" className="border-[hsl(var(--ey-orange-500))]/20 bg-[hsl(var(--ey-orange-500))]/10 text-[hsl(var(--ey-orange-500))]">
+          <Clock3 className="mr-1 h-3 w-3" aria-hidden="true" /> Pending
         </Badge>
       );
   }

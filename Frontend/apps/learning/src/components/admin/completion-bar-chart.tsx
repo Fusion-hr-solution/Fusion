@@ -19,14 +19,14 @@ interface CompletionBarChartProps {
 
 function getBarFill(rate: number, defaultColor?: string): string {
   if (defaultColor) return defaultColor;
-  if (rate >= 80) return "#10b981";
-  if (rate >= 50) return "#f59e0b";
-  return "#ef4444";
+  if (rate >= 80) return "hsl(var(--ey-green-500))";
+  if (rate >= 50) return "hsl(var(--primary))";
+  return "hsl(var(--ey-red-500))";
 }
 
 export function CompletionBarChart({ data, title, barColor }: CompletionBarChartProps) {
   return (
-    <div className="ey-animate-fade-up rounded-xl border border-border/60 bg-white p-5 shadow-sm">
+    <div className="ey-animate-fade-up rounded-xl border border-border/60 bg-card p-5 shadow-sm">
       <h3 className="mb-4 text-sm font-semibold text-foreground">{title}</h3>
       <div className="h-[260px]">
         <ResponsiveContainer width="100%" height="100%">
@@ -34,25 +34,27 @@ export function CompletionBarChart({ data, title, barColor }: CompletionBarChart
             data={data}
             margin={{ top: 4, right: 16, bottom: 4, left: 0 }}
           >
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
             <XAxis
               dataKey="name"
-              tick={{ fontSize: 11, fill: "#6b7280" }}
+              tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
               tickLine={false}
-              axisLine={{ stroke: "#e5e7eb" }}
+              axisLine={{ stroke: "hsl(var(--border))" }}
             />
             <YAxis
               domain={[0, 100]}
-              tick={{ fontSize: 11, fill: "#6b7280" }}
+              tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
               tickLine={false}
-              axisLine={{ stroke: "#e5e7eb" }}
+              axisLine={{ stroke: "hsl(var(--border))" }}
               tickFormatter={(v: number) => `${v}%`}
             />
             <Tooltip
               formatter={(value: number) => [`${value}%`, "Completion"]}
               contentStyle={{
                 borderRadius: "8px",
-                border: "1px solid #e5e7eb",
+                background: "hsl(var(--popover))",
+                color: "hsl(var(--popover-foreground))",
+                border: "1px solid hsl(var(--border))",
                 fontSize: "12px",
               }}
             />

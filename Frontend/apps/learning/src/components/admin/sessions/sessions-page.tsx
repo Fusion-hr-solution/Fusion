@@ -120,9 +120,9 @@ export function SessionsPage() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Status</Label>
+              <Label htmlFor="filterStatus" className="text-xs">Status</Label>
               <Select value={status} onValueChange={setStatus}>
-                <SelectTrigger className="h-9">
+                <SelectTrigger id="filterStatus" className="h-9">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
