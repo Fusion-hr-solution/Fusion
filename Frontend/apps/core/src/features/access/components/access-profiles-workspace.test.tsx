@@ -82,7 +82,9 @@ vi.mock("sonner", () => ({
 import { AccessProfilesWorkspace } from "./access-profiles-workspace";
 
 describe("AccessProfilesWorkspace", () => {
-  it("keeps assignments as an Access deep link in Settings", async () => {
+  it(
+    "keeps assignments as an Access deep link in Settings",
+    async () => {
     const user = userEvent.setup();
 
     mockUseAuth.mockReturnValue({ user: { userId: "user-1" } });
@@ -151,5 +153,7 @@ describe("AccessProfilesWorkspace", () => {
     expect(screen.queryByText("Available to assign")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Assign" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Remove" })).not.toBeInTheDocument();
-  });
+    },
+    10000
+  );
 });

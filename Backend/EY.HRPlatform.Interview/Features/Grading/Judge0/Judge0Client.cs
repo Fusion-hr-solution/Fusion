@@ -12,35 +12,62 @@ public class Judge0Client(HttpClient httpClient)
         PropertyNameCaseInsensitive = true,
     };
 
+    // Bound how many Judge0 submissions are in flight per replica. This is a safety
+    // cap only — the candidate "run" path has its own Redis-backed backpressure on top;
+    // this keeps grading bursts from overwhelming a single Judge0 worker.
+    private static readonly SemaphoreSlim Gate = new(16, 16);
+
     public async Task<Judge0Result> SubmitAsync(
         string sourceCode,
         int languageId,
         string? stdin,
         string? expectedOutput,
-        CancellationToken ct)
+        CancellationToken ct,
+        Judge0ExecutionLimits? limits = null)
     {
-        var body = new
+        var body = new Dictionary<string, object?>
         {
-            source_code = Convert.ToBase64String(Encoding.UTF8.GetBytes(sourceCode)),
-            language_id = languageId,
-            stdin = stdin is null ? null : Convert.ToBase64String(Encoding.UTF8.GetBytes(stdin)),
-            expected_output = expectedOutput is null ? null : Convert.ToBase64String(Encoding.UTF8.GetBytes(expectedOutput)),
+            ["source_code"] = Convert.ToBase64String(Encoding.UTF8.GetBytes(sourceCode)),
+            ["language_id"] = languageId,
+            ["stdin"] = stdin is null ? null : Convert.ToBase64String(Encoding.UTF8.GetBytes(stdin)),
+            ["expected_output"] = expectedOutput is null ? null : Convert.ToBase64String(Encoding.UTF8.GetBytes(expectedOutput)),
         };
+
+        // Sandbox limits for the public candidate "run" path: disable network and cap
+        // CPU/wall time, memory, and process/thread count so candidate code can't open
+        // sockets (SSRF into the cluster), fork-bomb, or run unbounded.
+        if (limits is not null)
+        {
+            body["cpu_time_limit"] = limits.CpuTimeLimitSeconds;
+            body["wall_time_limit"] = limits.WallTimeLimitSeconds;
+            body["memory_limit"] = limits.MemoryLimitKb;
+            body["max_processes_and_or_threads"] = limits.MaxProcessesAndOrThreads;
+            body["enable_network"] = limits.EnableNetwork;
+        }
 
         // Serialize to a buffered StringContent so the request carries a
         // Content-Length header. PostAsJsonAsync streams without one (chunked
         // transfer encoding), which Judge0's Rack stack fails to parse — it sees
         // an empty body and rejects the submission with 422.
         var json = JsonSerializer.Serialize(body);
-        using var content = new StringContent(json, Encoding.UTF8, "application/json");
-        var response = await httpClient.PostAsync(
-            "/submissions?base64_encoded=true&wait=false", content, ct);
-        response.EnsureSuccessStatusCode();
 
-        var submission = await response.Content.ReadFromJsonAsync<Judge0SubmissionResponse>(JsonOptions, ct)
-            ?? throw new InvalidOperationException("Empty Judge0 submission response.");
+        await Gate.WaitAsync(ct);
+        try
+        {
+            using var content = new StringContent(json, Encoding.UTF8, "application/json");
+            var response = await httpClient.PostAsync(
+                "/submissions?base64_encoded=true&wait=false", content, ct);
+            response.EnsureSuccessStatusCode();
 
-        return await PollAsync(submission.Token, ct);
+            var submission = await response.Content.ReadFromJsonAsync<Judge0SubmissionResponse>(JsonOptions, ct)
+                ?? throw new InvalidOperationException("Empty Judge0 submission response.");
+
+            return await PollAsync(submission.Token, ct);
+        }
+        finally
+        {
+            Gate.Release();
+        }
     }
 
     private async Task<Judge0Result> PollAsync(string token, CancellationToken ct)
@@ -125,6 +152,17 @@ public class Judge0Client(HttpClient httpClient)
         public string? Description { get; set; }
     }
 }
+
+/// <summary>
+/// Hard execution limits applied to a Judge0 submission. Used by the public candidate
+/// "run" endpoint; auto-grading passes none and inherits the server defaults.
+/// </summary>
+public sealed record Judge0ExecutionLimits(
+    double CpuTimeLimitSeconds,
+    double WallTimeLimitSeconds,
+    int MemoryLimitKb,
+    int MaxProcessesAndOrThreads,
+    bool EnableNetwork = false);
 
 public record Judge0Result(
     int StatusId,

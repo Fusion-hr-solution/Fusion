@@ -386,7 +386,8 @@ beforeEach(() => {
 describe("EmployeeProfileWorkspace", () => {
   it(
     "renders the rewritten HR profile layout with linked reporting and working edit actions",
-    () => {
+    async () => {
+    const user = userEvent.setup();
     renderWorkspace({
       profile: {
         ...baseProfile,
@@ -413,24 +414,31 @@ describe("EmployeeProfileWorkspace", () => {
       },
     });
 
-    expect(screen.getByText("Profile details")).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "Profile" })).toBeTruthy();
     expect(screen.getByText("Organization & reporting")).toBeTruthy();
     expect(screen.getByText("Access")).toBeTruthy();
-    expect(screen.getByText("Record completeness")).toBeTruthy();
     expect(screen.queryByText("Recent activity")).toBeNull();
 
-    const profileDetailsHeading = screen.getByText("Profile details");
-    const accessHeading = screen.getByText("Access");
-    const reportingHeading = screen.getByText("Organization & reporting");
+    const profileTab = screen.getByRole("tab", { name: "Profile" });
+    const reportingTab = screen.getByRole("tab", {
+      name: "Organization & reporting",
+    });
+    const accessTab = screen.getByRole("tab", { name: "Access" });
 
     expect(
-      profileDetailsHeading.compareDocumentPosition(accessHeading) &
+      profileTab.compareDocumentPosition(reportingTab) &
         Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
     expect(
-      accessHeading.compareDocumentPosition(reportingHeading) &
+      reportingTab.compareDocumentPosition(accessTab) &
         Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
+
+    expect(screen.getByText("Personal details")).toBeTruthy();
+    expect(screen.getByText("Work details")).toBeTruthy();
+
+    await user.click(reportingTab);
+    expect(screen.getByText("Record completeness")).toBeTruthy();
 
     const managerLinks = screen.getAllByRole("link", { name: /Morgan Hart/i });
     const managerHrefs = managerLinks.map((link) => link.getAttribute("href"));
@@ -506,6 +514,9 @@ describe("EmployeeProfileWorkspace", () => {
       },
     });
 
+    await user.click(
+      screen.getByRole("tab", { name: "Organization & reporting" })
+    );
     expect(screen.getAllByText("No manager").length).toBeGreaterThan(0);
 
     await user.click(screen.getByRole("button", { name: "Open fix" }));
@@ -513,7 +524,9 @@ describe("EmployeeProfileWorkspace", () => {
     expect(screen.getByTestId("employee-edit-dialog")).toBeTruthy();
   });
 
-  it("shows the full direct reports list on the profile page", () => {
+  it("shows the full direct reports list on the profile page", async () => {
+    const user = userEvent.setup();
+
     renderWorkspace({
       profile: {
         ...baseProfile,
@@ -608,9 +621,12 @@ describe("EmployeeProfileWorkspace", () => {
       },
     });
 
+    await user.click(
+      screen.getByRole("tab", { name: "Organization & reporting" })
+    );
     expect(screen.queryByText("Showing 4 of 5")).toBeNull();
     expect(screen.queryByText("Preview below")).toBeNull();
-    expect(screen.getByText("Listed below")).toBeTruthy();
+    expect(await screen.findByText("Listed below")).toBeTruthy();
     expect(screen.getByText("Houda Ammar")).toBeTruthy();
     expect(screen.getByText("Imen Benyahia")).toBeTruthy();
     expect(screen.getByText("Mehdi Frikha")).toBeTruthy();

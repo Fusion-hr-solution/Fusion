@@ -144,12 +144,14 @@ function SummaryStripItem({
   supportingText,
   href,
   onClick,
+  ariaLabel,
 }: {
   label: string;
   value: ReactNode;
   supportingText?: ReactNode;
   href?: string | null;
   onClick?: (() => void) | null;
+  ariaLabel?: string;
 }) {
   const baseClassName =
     "flex min-h-24 min-w-0 flex-col justify-between gap-3 bg-background/95 px-4 py-4 text-left";
@@ -186,6 +188,7 @@ function SummaryStripItem({
     return (
       <button
         type="button"
+        aria-label={ariaLabel}
         className={`${baseClassName} transition-colors hover:bg-muted/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2`}
         onClick={onClick}
       >
@@ -1482,6 +1485,7 @@ export function EmployeeProfileWorkspace({
                     />
                   }
                   supportingText={canManageAccess ? "Manage access" : undefined}
+                  ariaLabel={canManageAccess ? "Manage access" : undefined}
                   onClick={
                     canManageAccess
                       ? openAccessManagement

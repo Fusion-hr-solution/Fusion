@@ -41,6 +41,16 @@ public class CandidateAccessController(ICandidateAccessService candidateAccessSe
         return Ok(ApiResponse<CandidateAccessSubmissionDto>.Success(data));
     }
 
+    [HttpPost("run")]
+    [ProducesResponseType(typeof(ApiResponse<RunCodeResultDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
+    public async Task<IActionResult> Run([FromBody] RunCodeRequestDto request, CancellationToken cancellationToken)
+    {
+        var data = await candidateAccessService.RunCodeAsync(request, cancellationToken);
+        return Ok(ApiResponse<RunCodeResultDto>.Success(data));
+    }
+
     private string? ResolveClientIpAddress()
     {
         return HttpContext.Connection.RemoteIpAddress?.ToString();

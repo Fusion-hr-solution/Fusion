@@ -78,6 +78,18 @@ public static class ServiceCollectionExtensions
             client.BaseAddress = new Uri(EnsureTrailingSlash(baseUrl));
         });
 
+        services.AddHttpClient<IWorkforceBulkProvisioner, WorkforceBulkProvisioner>(client =>
+        {
+            var baseUrl = configuration["ServiceUrls:IdentityApiBaseUrl"];
+            if (string.IsNullOrWhiteSpace(baseUrl))
+            {
+                throw new InvalidOperationException(
+                    "ServiceUrls:IdentityApiBaseUrl is not configured. Set it via environment variable or appsettings.");
+            }
+
+            client.BaseAddress = new Uri(EnsureTrailingSlash(baseUrl));
+        });
+
         return services;
     }
 

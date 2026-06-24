@@ -7,4 +7,5 @@ public interface ICandidateAccessService
     Task<CandidateAccessValidationDto> ValidateAsync(string token, CancellationToken cancellationToken);
     Task<CandidateAccessSessionDto> StartOrResumeAsync(StartCandidateAttemptDto request, CancellationToken cancellationToken);
     Task<CandidateAccessSubmissionDto> SubmitAsync(SubmitCandidateAttemptDto request, CancellationToken cancellationToken);
+    Task<RunCodeResultDto> RunCodeAsync(RunCodeRequestDto request, CancellationToken cancellationToken);
 }
