@@ -490,6 +490,186 @@ public class WorkforceContractServiceTests
         Assert.Equal(1, result.InvitedCount);
     }
 
+    [Fact]
+    public async Task GetDownlineAsync_HrAdmin_ReturnsFullMultiLevelSubtree()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        Guid topId, midId, leafId, outsiderId;
+
+        await using (var seed = TestDbContextFactory.CreateWithoutTenant(dbName))
+        {
+            seed.TenantSettings.Add(DomainTenantSettings.Create(TenantId, SettingsJson));
+            var top = Employee.Create(TenantId, "Top", "Boss", "top@example.com", DateTime.UtcNow, employeeNumber: "D-1");
+            var mid = Employee.Create(TenantId, "Mid", "Lead", "mid@example.com", DateTime.UtcNow, employeeNumber: "D-2");
+            var leaf = Employee.Create(TenantId, "Leaf", "Analyst", "leaf@example.com", DateTime.UtcNow, employeeNumber: "D-3");
+            var outsider = Employee.Create(TenantId, "Out", "Sider", "out@example.com", DateTime.UtcNow, employeeNumber: "D-4");
+            mid.AssignManager(top.Id);
+            leaf.AssignManager(mid.Id);
+            seed.Employees.AddRange(top, mid, leaf, outsider);
+            await seed.SaveChangesAsync();
+            topId = top.Id; midId = mid.Id; leafId = leaf.Id; outsiderId = outsider.Id;
+        }
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var service = CreateService(context, tenantContext);
+        var hrAdmin = CreatePrincipal(Guid.NewGuid(), PlatformRole.HRAdmin);
+
+        var downline = await service.GetDownlineAsync(topId, 10, hrAdmin, CancellationToken.None);
+
+        var ids = downline.Select(e => e.EmployeeId).ToHashSet();
+        Assert.Equal(2, downline.Count);
+        Assert.Contains(midId, ids);
+        Assert.Contains(leafId, ids);
+        Assert.DoesNotContain(topId, ids);
+        Assert.DoesNotContain(outsiderId, ids);
+    }
+
+    [Fact]
+    public async Task GetDownlineAsync_RespectsMaxDepth()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        Guid topId, midId, leafId;
+
+        await using (var seed = TestDbContextFactory.CreateWithoutTenant(dbName))
+        {
+            seed.TenantSettings.Add(DomainTenantSettings.Create(TenantId, SettingsJson));
+            var top = Employee.Create(TenantId, "Top", "Boss", "top@example.com", DateTime.UtcNow, employeeNumber: "D-1");
+            var mid = Employee.Create(TenantId, "Mid", "Lead", "mid@example.com", DateTime.UtcNow, employeeNumber: "D-2");
+            var leaf = Employee.Create(TenantId, "Leaf", "Analyst", "leaf@example.com", DateTime.UtcNow, employeeNumber: "D-3");
+            mid.AssignManager(top.Id);
+            leaf.AssignManager(mid.Id);
+            seed.Employees.AddRange(top, mid, leaf);
+            await seed.SaveChangesAsync();
+            topId = top.Id; midId = mid.Id; leafId = leaf.Id;
+        }
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var service = CreateService(context, tenantContext);
+        var hrAdmin = CreatePrincipal(Guid.NewGuid(), PlatformRole.HRAdmin);
+
+        var downline = await service.GetDownlineAsync(topId, 1, hrAdmin, CancellationToken.None);
+
+        Assert.Single(downline);
+        Assert.Equal(midId, downline[0].EmployeeId);
+        Assert.DoesNotContain(leafId, downline.Select(e => e.EmployeeId));
+    }
+
+    [Fact]
+    public async Task GetDownlineAsync_ExcludesInactiveReports()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        Guid topId, activeId, inactiveId;
+
+        await using (var seed = TestDbContextFactory.CreateWithoutTenant(dbName))
+        {
+            seed.TenantSettings.Add(DomainTenantSettings.Create(TenantId, SettingsJson));
+            var top = Employee.Create(TenantId, "Top", "Boss", "top@example.com", DateTime.UtcNow, employeeNumber: "D-1");
+            var active = Employee.Create(TenantId, "Act", "Report", "act@example.com", DateTime.UtcNow, employeeNumber: "D-2");
+            var inactive = Employee.Create(TenantId, "Gone", "Report", "gone@example.com", DateTime.UtcNow, employeeNumber: "D-3");
+            active.AssignManager(top.Id);
+            inactive.AssignManager(top.Id);
+            inactive.Deactivate();
+            seed.Employees.AddRange(top, active, inactive);
+            await seed.SaveChangesAsync();
+            topId = top.Id; activeId = active.Id; inactiveId = inactive.Id;
+        }
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var service = CreateService(context, tenantContext);
+        var hrAdmin = CreatePrincipal(Guid.NewGuid(), PlatformRole.HRAdmin);
+
+        var downline = await service.GetDownlineAsync(topId, 10, hrAdmin, CancellationToken.None);
+
+        Assert.Single(downline);
+        Assert.Equal(activeId, downline[0].EmployeeId);
+        Assert.DoesNotContain(inactiveId, downline.Select(e => e.EmployeeId));
+    }
+
+    [Fact]
+    public async Task GetDownlineAsync_ManagerCannotResolveOutsideOwnSubtree()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        Guid managerId, reportId, otherManagerId;
+
+        await using (var seed = TestDbContextFactory.CreateWithoutTenant(dbName))
+        {
+            seed.TenantSettings.Add(DomainTenantSettings.Create(TenantId, SettingsJson));
+            var manager = Employee.Create(TenantId, "Alex", "Manager", "alex@example.com", DateTime.UtcNow, employeeNumber: "D-1");
+            var report = Employee.Create(TenantId, "Casey", "Report", "casey@example.com", DateTime.UtcNow, employeeNumber: "D-2");
+            var otherManager = Employee.Create(TenantId, "Jamie", "Other", "jamie@example.com", DateTime.UtcNow, employeeNumber: "D-3");
+            report.AssignManager(manager.Id);
+            seed.Employees.AddRange(manager, report, otherManager);
+            await seed.SaveChangesAsync();
+            managerId = manager.Id; reportId = report.Id; otherManagerId = otherManager.Id;
+        }
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var service = CreateService(context, tenantContext);
+        var managerPrincipal = CreatePrincipal(Guid.NewGuid(), PlatformRole.Manager, managerId);
+
+        var own = await service.GetDownlineAsync(managerId, 10, managerPrincipal, CancellationToken.None);
+        var foreign = await service.GetDownlineAsync(otherManagerId, 10, managerPrincipal, CancellationToken.None);
+
+        Assert.Single(own);
+        Assert.Equal(reportId, own[0].EmployeeId);
+        Assert.Empty(foreign);
+    }
+
+    [Fact]
+    public async Task GetPublishedOrgUnitTreeAsync_IncludesDirectAndRolledUpMemberCounts()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+
+        await using (var seed = TestDbContextFactory.CreateWithoutTenant(dbName))
+        {
+            seed.TenantSettings.Add(DomainTenantSettings.Create(TenantId, SettingsJson));
+
+            var state = TenantSetupState.CreateActivated(TenantId);
+            state.Approve(Guid.NewGuid(), "Approver", PlatformRole.HRAdmin, false);
+            state.Publish();
+            state.Complete();
+            seed.TenantSetupStates.Add(state);
+
+            var root = OrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null);
+            seed.OrgUnits.Add(root);
+            await seed.SaveChangesAsync();
+            var child = OrgUnit.Create(TenantId, "ENG-PLT", "Platform Team", "Team", root.Id);
+            seed.OrgUnits.Add(child);
+            await seed.SaveChangesAsync();
+
+            var rootMember = Employee.Create(TenantId, "Root", "Member", "rootm@example.com", DateTime.UtcNow, employeeNumber: "M-1");
+            var childA = Employee.Create(TenantId, "Child", "Alpha", "ca@example.com", DateTime.UtcNow, employeeNumber: "M-2");
+            var childB = Employee.Create(TenantId, "Child", "Beta", "cb@example.com", DateTime.UtcNow, employeeNumber: "M-3");
+            var childInactive = Employee.Create(TenantId, "Child", "Gone", "cg@example.com", DateTime.UtcNow, employeeNumber: "M-4");
+            rootMember.AssignOrgUnit(root.Id);
+            childA.AssignOrgUnit(child.Id);
+            childB.AssignOrgUnit(child.Id);
+            childInactive.AssignOrgUnit(child.Id);
+            childInactive.Deactivate();
+            seed.Employees.AddRange(rootMember, childA, childB, childInactive);
+            await seed.SaveChangesAsync();
+        }
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var service = CreateService(context, tenantContext);
+
+        var tree = await service.GetPublishedOrgUnitTreeAsync(null, 10, false, CancellationToken.None);
+
+        var rootNode = Assert.Single(tree.Roots);
+        Assert.Equal("ENG", rootNode.StableKey);
+        Assert.Equal(1, rootNode.MemberCount);
+        Assert.Equal(3, rootNode.TotalMemberCount);
+        var childNode = Assert.Single(rootNode.Children);
+        Assert.Equal("ENG-PLT", childNode.StableKey);
+        Assert.Equal(2, childNode.MemberCount);
+        Assert.Equal(2, childNode.TotalMemberCount);
+    }
+
     private static WorkforceContractService CreateService(
         CoreHRDbContext context,
         TestTenantContext tenantContext,
