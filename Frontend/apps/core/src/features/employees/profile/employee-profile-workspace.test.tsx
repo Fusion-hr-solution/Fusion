@@ -455,6 +455,8 @@ describe("EmployeeProfileWorkspace", () => {
   );
 
   it("opens access management for invite-pending account actions", async () => {
+    const user = userEvent.setup();
+
     mockUseWorkforceAccountStatus.mockReturnValue({
       data: {
         ...activeAccount,
@@ -472,9 +474,11 @@ describe("EmployeeProfileWorkspace", () => {
 
     renderWorkspace();
 
-    fireEvent.click(screen.getByRole("button", { name: "Manage access" }));
+    await user.click(screen.getByRole("button", { name: "Manage access" }));
 
-    expect(screen.getByRole("button", { name: "Resend invite" })).toBeTruthy();
+    expect(
+      await screen.findByRole("button", { name: "Resend invite" })
+    ).toBeTruthy();
   });
 
   it("routes readiness issues to the reporting sheet when the fix target is reporting", async () => {
