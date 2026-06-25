@@ -47,6 +47,7 @@
       "topTrainings": "Top-rated trainings",
       "bottomTrainings": "Lowest-rated trainings",
       "byTrainerLink": "Feedback by trainer",
+      "configureLink": "Configure form",
       "noData": "No feedback yet.",
       "responses": "responses"
     },
@@ -90,6 +91,35 @@
       "comments": "Comments",
       "noTrainers": "No trainer feedback yet.",
       "noComments": "No comments were left."
+    },
+    "config": {
+      "title": "Feedback Configuration",
+      "subtitle": "Add custom questions to the feedback form, per training category.",
+      "category": "Category",
+      "defaultForm": "Default form (all categories)"
+    },
+    "builder": {
+      "subtitle": "These questions appear after the standard ratings.",
+      "addQuestion": "Add question",
+      "label": "Question",
+      "options": "Options (one per line)",
+      "optionsPlaceholder": "Option 1\nOption 2",
+      "editQuestion": "Edit question",
+      "newQuestion": "New question",
+      "edit": "Edit",
+      "remove": "Remove",
+      "drag": "Drag to reorder",
+      "cancel": "Cancel",
+      "save": "Save",
+      "empty": "No custom questions yet. Add one to extend the feedback form.",
+      "confirmRemove": "Remove the question {label}?"
+    },
+    "questionType": {
+      "StarRating": "Star rating (1–5)",
+      "Scale10": "Scale (1–10)",
+      "YesNo": "Yes / No",
+      "MultipleChoice": "Multiple choice",
+      "FreeText": "Free text"
     }
   },
   "nav": {

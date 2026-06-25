@@ -123,13 +123,22 @@ export function FeedbackOverviewView() {
             className="rounded-lg border border-border/60 bg-background px-3 py-2 text-sm text-foreground"
           />
         </label>
-        <Link
-          href="/admin/feedback/trainers"
-          className="ml-auto inline-flex items-center gap-1.5 text-sm font-medium text-[hsl(var(--ey-blue-600))] hover:underline"
-        >
-          {t("overview.byTrainerLink")}
-          <ArrowRight className="h-4 w-4" aria-hidden="true" />
-        </Link>
+        <div className="ml-auto flex items-center gap-4">
+          <Link
+            href="/admin/feedback/config"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-[hsl(var(--ey-blue-600))] hover:underline"
+          >
+            {t("overview.configureLink")}
+            <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </Link>
+          <Link
+            href="/admin/feedback/trainers"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-[hsl(var(--ey-blue-600))] hover:underline"
+          >
+            {t("overview.byTrainerLink")}
+            <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </Link>
+        </div>
       </div>
 
       {isLoading || !data ? (

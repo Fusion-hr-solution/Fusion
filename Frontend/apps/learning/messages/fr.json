@@ -47,6 +47,7 @@
       "topTrainings": "Formations les mieux notées",
       "bottomTrainings": "Formations les moins bien notées",
       "byTrainerLink": "Avis par formateur",
+      "configureLink": "Configurer le formulaire",
       "noData": "Aucun avis pour le moment.",
       "responses": "réponses"
     },
@@ -90,6 +91,35 @@
       "comments": "Commentaires",
       "noTrainers": "Aucun avis de formateur pour le moment.",
       "noComments": "Aucun commentaire laissé."
+    },
+    "config": {
+      "title": "Configuration des avis",
+      "subtitle": "Ajoutez des questions personnalisées au formulaire d'avis, par catégorie de formation.",
+      "category": "Catégorie",
+      "defaultForm": "Formulaire par défaut (toutes catégories)"
+    },
+    "builder": {
+      "subtitle": "Ces questions apparaissent après les notes standard.",
+      "addQuestion": "Ajouter une question",
+      "label": "Question",
+      "options": "Options (une par ligne)",
+      "optionsPlaceholder": "Option 1\nOption 2",
+      "editQuestion": "Modifier la question",
+      "newQuestion": "Nouvelle question",
+      "edit": "Modifier",
+      "remove": "Supprimer",
+      "drag": "Glisser pour réordonner",
+      "cancel": "Annuler",
+      "save": "Enregistrer",
+      "empty": "Aucune question personnalisée. Ajoutez-en une pour enrichir le formulaire.",
+      "confirmRemove": "Supprimer la question {label} ?"
+    },
+    "questionType": {
+      "StarRating": "Notation par étoiles (1–5)",
+      "Scale10": "Échelle (1–10)",
+      "YesNo": "Oui / Non",
+      "MultipleChoice": "Choix multiple",
+      "FreeText": "Texte libre"
     }
   },
   "nav": {

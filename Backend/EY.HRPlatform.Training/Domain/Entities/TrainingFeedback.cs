@@ -31,6 +31,10 @@ public class TrainingFeedback : BaseEntity
     public bool IsAnonymous { get; private set; }
     public DateTime SubmittedAt { get; private set; }
 
+    private readonly List<FeedbackAnswer> _answers = [];
+    /// <summary>Answers to custom (non-core) questions — Slice 3 (US-8.1.3).</summary>
+    public IReadOnlyCollection<FeedbackAnswer> Answers => _answers.AsReadOnly();
+
     private TrainingFeedback() { }
 
     public TrainingFeedback(
@@ -57,4 +61,6 @@ public class TrainingFeedback : BaseEntity
         IsAnonymous = isAnonymous;
         SubmittedAt = DateTime.UtcNow;
     }
+
+    public void AddAnswer(FeedbackAnswer answer) => _answers.Add(answer);
 }

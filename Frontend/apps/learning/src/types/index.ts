@@ -25,6 +25,28 @@ export interface PendingFeedback {
   completedAt: string;
 }
 
+export type FeedbackQuestionType =
+  | "StarRating"
+  | "Scale10"
+  | "YesNo"
+  | "MultipleChoice"
+  | "FreeText";
+
+export interface FeedbackQuestion {
+  id: string;
+  categoryId?: string;
+  type: FeedbackQuestionType;
+  label: string;
+  order: number;
+  /** JSON-encoded choice list for MultipleChoice. */
+  options?: string;
+}
+
+export interface FeedbackAnswerInput {
+  questionId: string;
+  value: string;
+}
+
 export interface SubmitFeedbackInput {
   trainingId: string;
   overallRating: number;
@@ -35,6 +57,7 @@ export interface SubmitFeedbackInput {
   comment?: string;
   suggestions?: string;
   isAnonymous: boolean;
+  answers?: FeedbackAnswerInput[];
 }
 
 export interface OnSiteCourse {

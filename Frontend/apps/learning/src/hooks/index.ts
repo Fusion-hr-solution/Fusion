@@ -28,3 +28,5 @@ export {
   useTrainerFeedbackDetail,
   useFeedbackOverview,
 } from "./use-admin-feedback";
+export { useTrainingFeedbackQuestions } from "./use-training-feedback-questions";
+export { useFeedbackConfig } from "./use-feedback-config";

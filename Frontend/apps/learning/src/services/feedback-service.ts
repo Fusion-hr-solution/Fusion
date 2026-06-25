@@ -1,6 +1,13 @@
 import { createPlatformApiClient } from "@repo/api";
-import type { PendingFeedback, SubmitFeedbackInput, TrainingType } from "@/types";
 import type {
+  FeedbackQuestion,
+  FeedbackQuestionType,
+  PendingFeedback,
+  SubmitFeedbackInput,
+  TrainingType,
+} from "@/types";
+import type {
+  BackendFeedbackQuestionDto,
   BackendPendingFeedbackDto,
   BackendSubmitFeedbackRequest,
 } from "@/types/backend-dtos";
@@ -22,6 +29,21 @@ export async function getMyPendingFeedback(): Promise<PendingFeedback[]> {
   return dtos.map(mapPendingFeedback);
 }
 
+/** The active custom questions to render on a training's feedback form (US-8.1.3). */
+export async function getTrainingFeedbackQuestions(trainingId: string): Promise<FeedbackQuestion[]> {
+  const dtos = await client.get<BackendFeedbackQuestionDto[]>(
+    `/training/feedback/${encodeURIComponent(trainingId)}/questions`,
+  );
+  return dtos.map((d) => ({
+    id: d.id,
+    categoryId: d.categoryId ?? undefined,
+    type: d.type as FeedbackQuestionType,
+    label: d.label,
+    order: d.order,
+    options: d.options ?? undefined,
+  }));
+}
+
 /** Submit feedback for a completed training. Returns the new feedback id. */
 export async function submitFeedback(input: SubmitFeedbackInput): Promise<string> {
   const body: BackendSubmitFeedbackRequest = {
@@ -34,6 +56,7 @@ export async function submitFeedback(input: SubmitFeedbackInput): Promise<string
     comment: input.comment,
     suggestions: input.suggestions,
     isAnonymous: input.isAnonymous,
+    answers: input.answers ?? [],
   };
   return client.post<string>("/training/feedback", body);
 }

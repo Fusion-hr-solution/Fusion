@@ -66,9 +66,49 @@ public class SubmitFeedbackCommandHandler : ICommandHandler<SubmitFeedbackComman
             request.IsAnonymous);
 
         _db.TrainingFeedbacks.Add(feedback);
+
+        if (request.Answers.Count > 0)
+            await AttachCustomAnswersAsync(feedback, request.TrainingId, request.Answers, cancellationToken);
+
         await _db.SaveChangesAsync(cancellationToken);
 
         return Result.Success(feedback.Id);
+    }
+
+    /// <summary>
+    /// Snapshots and attaches answers to custom questions, keeping only those that are active and
+    /// belong to the training's category (or the default form) — ADR 0006.
+    /// </summary>
+    private async Task AttachCustomAnswersAsync(
+        TrainingFeedback feedback,
+        Guid trainingId,
+        IReadOnlyList<FeedbackCustomAnswer> answers,
+        CancellationToken cancellationToken)
+    {
+        var categoryId = await _db.Trainings
+            .AsNoTracking()
+            .Where(t => t.Id == trainingId)
+            .Select(t => (Guid?)t.CategoryId)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        var questionIds = answers.Select(a => a.QuestionId).Distinct().ToList();
+        var questions = await _db.FeedbackQuestions
+            .AsNoTracking()
+            .Where(q => questionIds.Contains(q.Id)
+                && !q.IsRetired
+                && (q.CategoryId == null || q.CategoryId == categoryId))
+            .ToDictionaryAsync(q => q.Id, cancellationToken);
+
+        foreach (var answer in answers)
+        {
+            if (string.IsNullOrWhiteSpace(answer.Value))
+                continue;
+            if (!questions.TryGetValue(answer.QuestionId, out var question))
+                continue; // ignore unknown, retired, or foreign-category questions
+
+            feedback.AddAnswer(new FeedbackAnswer(
+                question.Id, question.Label, question.Type.ToString(), answer.Value.Trim()));
+        }
     }
 
     private static bool IsValidRating(int rating) => rating is >= 1 and <= 5;

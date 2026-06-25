@@ -1,4 +1,4 @@
-import type { ChapterLayout, TrainingType } from "./index";
+import type { ChapterLayout, TrainingType, FeedbackQuestionType } from "./index";
 
 /** Chapter being built in the training creation wizard (client-side only) */
 export interface WizardChapter {
@@ -785,4 +785,18 @@ export interface FeedbackOverviewFilters {
   format?: string;
   from?: string;
   to?: string;
+}
+
+/* ── Custom feedback form builder (US-8.1.3) ── */
+
+export interface CreateFeedbackQuestionInput {
+  categoryId?: string;
+  type: FeedbackQuestionType;
+  label: string;
+  options?: string;
+}
+
+export interface UpdateFeedbackQuestionInput {
+  label: string;
+  options?: string;
 }

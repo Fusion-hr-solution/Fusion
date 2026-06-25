@@ -15,7 +15,9 @@ import {
 } from "@repo/ui";
 import type { FeedbackFormProps } from "@/types/component-props";
 import { useSubmitFeedback } from "@/hooks/use-submit-feedback";
+import { useTrainingFeedbackQuestions } from "@/hooks/use-training-feedback-questions";
 import { RatingField } from "./rating-field";
+import { CustomQuestionField } from "./custom-question-field";
 
 const TEXTAREA_CLASS =
   "w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
@@ -30,6 +32,8 @@ export function FeedbackForm({ pending, open, onOpenChange, onSubmitted }: Feedb
   const [comment, setComment] = useState("");
   const [suggestions, setSuggestions] = useState("");
   const [isAnonymous, setIsAnonymous] = useState(false);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const { questions } = useTrainingFeedbackQuestions(pending.trainingId, open);
 
   const isOnSite = pending.trainingType === "OnSite";
 
@@ -62,6 +66,9 @@ export function FeedbackForm({ pending, open, onOpenChange, onSubmitted }: Feedb
       comment: comment.trim() || undefined,
       suggestions: suggestions.trim() || undefined,
       isAnonymous,
+      answers: Object.entries(answers)
+        .filter(([, v]) => v.trim().length > 0)
+        .map(([questionId, value]) => ({ questionId, value: value.trim() })),
     });
   }
 
@@ -130,6 +137,19 @@ export function FeedbackForm({ pending, open, onOpenChange, onSubmitted }: Feedb
               className={TEXTAREA_CLASS}
             />
           </div>
+
+          {questions.length > 0 ? (
+            <div className="space-y-4 border-t border-border/40 pt-4">
+              {questions.map((q) => (
+                <CustomQuestionField
+                  key={q.id}
+                  question={q}
+                  value={answers[q.id] ?? ""}
+                  onChange={(v) => setAnswers((prev) => ({ ...prev, [q.id]: v }))}
+                />
+              ))}
+            </div>
+          ) : null}
 
           <div className="flex items-start gap-2">
             <Checkbox

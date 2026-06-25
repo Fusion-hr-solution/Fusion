@@ -48,7 +48,8 @@ public class FeedbackController : ControllerBase
                     request.TrainerRating,
                     request.Comment,
                     request.Suggestions,
-                    request.IsAnonymous),
+                    request.IsAnonymous,
+                    request.Answers.Select(a => new FeedbackCustomAnswer(a.QuestionId, a.Value)).ToList()),
                 cancellationToken);
 
             if (result.IsFailure)
@@ -68,6 +69,25 @@ public class FeedbackController : ControllerBase
             _logger.LogError(ex, "Failed to submit feedback for training {TrainingId}", request.TrainingId);
             return StatusCode(StatusCodes.Status500InternalServerError,
                 ApiResponse.Failure("An error occurred while submitting your feedback."));
+        }
+    }
+
+    /// <summary>The active custom questions to render on a training's feedback form (US-8.1.3).</summary>
+    [HttpGet("{trainingId:guid}/questions")]
+    [ProducesResponseType(typeof(ApiResponse<List<FeedbackQuestionDto>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> GetTrainingFeedbackQuestions(Guid trainingId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await _sender.Send(new GetTrainingFeedbackQuestionsQuery(trainingId), cancellationToken);
+            return Ok(ApiResponse<List<FeedbackQuestionDto>>.Success(result.Value!));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to retrieve feedback questions for training {TrainingId}", trainingId);
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                ApiResponse.Failure("An error occurred while retrieving the feedback form."));
         }
     }
 

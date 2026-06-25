@@ -4,3 +4,4 @@ export * from "./admin-exam-service";
 export * from "./admin-config-service";
 export * from "./admin-dashboard-service";
 export * from "./admin-feedback-service";
+export * from "./admin-feedback-config-service";

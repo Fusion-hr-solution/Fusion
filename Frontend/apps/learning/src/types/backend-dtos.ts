@@ -453,6 +453,16 @@ export interface BackendSubmitFeedbackRequest {
   comment?: string;
   suggestions?: string;
   isAnonymous: boolean;
+  answers: { questionId: string; value: string }[];
+}
+
+export interface BackendFeedbackQuestionDto {
+  id: string;
+  categoryId?: string | null;
+  type: string;
+  label: string;
+  order: number;
+  options?: string | null;
 }
 
 // --- US-8.1.2 Admin feedback dashboards ---
