@@ -1,6 +1,7 @@
 using EY.HRPlatform.SharedKernel.CQRS;
 using EY.HRPlatform.SharedKernel.Results;
 using EY.HRPlatform.Training.Domain.Enums;
+using EY.HRPlatform.Training.Features.Admin.Queries;
 using EY.HRPlatform.Training.Infrastructure.Persistence;
 using EY.HRPlatform.Training.Models.Responses;
 using Microsoft.EntityFrameworkCore;
@@ -58,14 +59,18 @@ public class GetMyInPersonHoursQueryHandler
         var totalHoursQuarter = attended.Where(a => a.StartUtc >= startOfQuarter).Sum(a => a.Hours);
         var totalHoursMonth = attended.Where(a => a.StartUtc >= startOfMonth).Sum(a => a.Hours);
 
-        // E-learning hours estimate: 0.5h per chapter for completed e-learning trainings.
-        // Avoids parsing the free-text Duration field on TrainingCourse.
-        var eLearningHours = await _db.TrainingProgress
+        // E-learning hours: authored content duration per completed e-learning training, with a
+        // per-training 0.5h/chapter fallback. Shared with the admin hours report (US-8.2.1) via
+        // ELearningHoursCalculator so the learner widget and the report always agree.
+        var eHoursByTraining = await ELearningHoursCalculator.LoadAsync(_db, cancellationToken);
+        var completedELearningTrainingIds = await _db.TrainingProgress
             .AsNoTracking()
             .Where(p => p.EmployeeId == request.EmployeeId
                         && p.Status == TrainingStatus.Completed
                         && p.Training.TrainingType == TrainingType.ELearning)
-            .SumAsync(p => (double?)p.Training.Chapters.Count * 0.5, cancellationToken) ?? 0;
+            .Select(p => p.TrainingId)
+            .ToListAsync(cancellationToken);
+        var eLearningHours = completedELearningTrainingIds.Sum(id => eHoursByTraining.GetValueOrDefault(id, 0));
 
         return Result.Success(new MyInPersonHoursDto
         {
