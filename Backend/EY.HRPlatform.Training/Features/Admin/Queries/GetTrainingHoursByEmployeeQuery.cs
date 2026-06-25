@@ -30,7 +30,9 @@ public class GetTrainingHoursByEmployeeQueryHandler
         // In-person: attended sessions (wall-clock), optionally scoped by training + date range.
         var attendedQuery = _db.SessionEnrollments
             .AsNoTracking()
-            .Where(e => e.Status == EnrollmentStatus.Attended && e.Session.Status != SessionStatus.Cancelled);
+            .Where(e => e.Status == EnrollmentStatus.Attended
+                        && e.Session.Status != SessionStatus.Cancelled
+                        && !e.Session.Part.Training.IsDeleted);
         if (filter.TrainingId.HasValue)
             attendedQuery = attendedQuery.Where(e => e.Session.Part.TrainingId == filter.TrainingId.Value);
         if (filter.From.HasValue)
@@ -51,7 +53,7 @@ public class GetTrainingHoursByEmployeeQueryHandler
 
         var completedQuery = _db.TrainingProgress
             .AsNoTracking()
-            .Where(p => p.Status == TrainingStatus.Completed);
+            .Where(p => p.Status == TrainingStatus.Completed && !p.Training.IsDeleted);
         if (filter.TrainingId.HasValue)
             completedQuery = completedQuery.Where(p => p.TrainingId == filter.TrainingId.Value);
         if (filter.From.HasValue)

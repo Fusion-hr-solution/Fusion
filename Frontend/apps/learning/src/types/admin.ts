@@ -698,6 +698,52 @@ export interface AttendanceFilters {
   to?: string;
 }
 
+/* ── Reports (US-8.2.1 / US-8.2.2) ── */
+
+export interface AttendanceByEmployeeRow {
+  employeeId: string;
+  employeeName?: string | null;
+  email?: string | null;
+  gradeName: string;
+  serviceLineName: string;
+  sessionsEnrolled: number;
+  attended: number;
+  missed: number;
+  attendanceRate: number;
+}
+
+export interface TrainingHoursRow {
+  employeeId: string;
+  employeeName?: string | null;
+  gradeName: string;
+  serviceLineName: string;
+  eLearningHours: number;
+  inPersonHours: number;
+  totalHours: number;
+  trainingsCompleted: number;
+}
+
+export interface FormatMetrics {
+  format: string;
+  trainingCount: number;
+  hoursDelivered: number;
+  participants: number;
+  completionRate: number;
+  avgFeedback?: number | null;
+}
+
+export interface FormatComparison {
+  eLearning: FormatMetrics;
+  onSite: FormatMetrics;
+}
+
+/** Display labels for the active filters, passed to export endpoints for the file header. */
+export interface ReportFilterLabels {
+  gradeLabel?: string;
+  serviceLineLabel?: string;
+  trainingLabel?: string;
+}
+
 /* ── Feedback dashboards (US-8.1.2) ── */
 
 export interface FeedbackTrendPoint {

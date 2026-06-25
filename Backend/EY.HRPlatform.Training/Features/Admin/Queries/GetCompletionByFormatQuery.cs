@@ -61,7 +61,7 @@ public class GetCompletionByFormatQueryHandler
 
         // Completions (date-scoped), used for participants + e-learning hours + curriculum rate.
         var completedQuery = _db.TrainingProgress.AsNoTracking()
-            .Where(p => p.Status == TrainingStatus.Completed);
+            .Where(p => p.Status == TrainingStatus.Completed && !p.Training.IsDeleted);
         if (f.From.HasValue) completedQuery = completedQuery.Where(p => p.CompletedAt >= f.From.Value);
         if (f.To.HasValue) completedQuery = completedQuery.Where(p => p.CompletedAt <= f.To.Value);
         var completed = await completedQuery
@@ -80,7 +80,9 @@ public class GetCompletionByFormatQueryHandler
 
         // On-site: attended sessions (date-scoped) → participants + hours delivered (wall-clock).
         var attendedQuery = _db.SessionEnrollments.AsNoTracking()
-            .Where(e => e.Status == EnrollmentStatus.Attended && e.Session.Status != SessionStatus.Cancelled);
+            .Where(e => e.Status == EnrollmentStatus.Attended
+                        && e.Session.Status != SessionStatus.Cancelled
+                        && !e.Session.Part.Training.IsDeleted);
         if (f.From.HasValue) attendedQuery = attendedQuery.Where(e => e.Session.StartUtc >= f.From.Value);
         if (f.To.HasValue) attendedQuery = attendedQuery.Where(e => e.Session.StartUtc <= f.To.Value);
         var attended = await attendedQuery
@@ -123,7 +125,7 @@ public class GetCompletionByFormatQueryHandler
         }
 
         // Average feedback per format (date-scoped on submission; not grade-scoped, as in the overview).
-        var feedbackQuery = _db.TrainingFeedbacks.AsNoTracking();
+        var feedbackQuery = _db.TrainingFeedbacks.AsNoTracking().Where(x => !x.Training.IsDeleted);
         if (f.From.HasValue) feedbackQuery = feedbackQuery.Where(x => x.SubmittedAt >= f.From.Value);
         if (f.To.HasValue) feedbackQuery = feedbackQuery.Where(x => x.SubmittedAt <= f.To.Value);
         var feedback = await feedbackQuery
