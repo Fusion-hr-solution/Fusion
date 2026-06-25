@@ -77,7 +77,7 @@ public sealed class UpdateOrgUnitCommandHandler(
         }
 
         // Apply updates via domain method
-        orgUnit.Update(request.Name, request.Type, request.ParentId);
+        orgUnit.Update(request.Name, request.Type, request.ParentId, request.ResponsibleManagerEmployeeId);
 
         try
         {
@@ -102,7 +102,8 @@ public sealed class UpdateOrgUnitCommandHandler(
             orgUnit.IsActive,
             orgUnit.CreatedAt,
             orgUnit.UpdatedAt,
-            orgUnit.Version));
+            orgUnit.Version,
+            orgUnit.ResponsibleManagerEmployeeId));
     }
 
     private async Task<bool> WouldCreateCycle(Guid orgUnitId, Guid newParentId, CancellationToken cancellationToken)

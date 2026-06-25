@@ -15,4 +15,6 @@ public sealed record UpdateOrgUnitRequest(
     [StringLength(100, MinimumLength = 1)]
     string Type,
 
-    Guid? ParentId);
+    Guid? ParentId,
+
+    Guid? ResponsibleManagerEmployeeId = null);
