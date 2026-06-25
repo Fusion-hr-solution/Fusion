@@ -697,14 +697,15 @@
       "reset": "Reset"
     },
     "export": {
-      "button": "Export Excel",
-      "exporting": "Exporting…",
+      "excel": "Excel",
+      "pdf": "PDF",
       "error": "Export failed. Please try again."
     },
     "empty": "No data for the selected filters.",
     "total": "Total",
     "hoursEstimatedNote": "Hours are estimated: in-person from attended-session times, e-learning from authored content duration.",
     "completionByFormat": "Completion rate by format",
+    "attendanceByGrade": "Attendance rate by grade",
     "format": {
       "eLearning": "E-learning",
       "onSite": "On-site"

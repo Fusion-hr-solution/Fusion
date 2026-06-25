@@ -1,6 +1,7 @@
 using EY.HRPlatform.SharedKernel.Auth;
 using EY.HRPlatform.Training.Features.Admin.Queries;
 using EY.HRPlatform.Training.Features.Admin.Reports.Export;
+using EY.HRPlatform.Training.Models.Requests;
 using EY.HRPlatform.Training.Models.Responses;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -19,6 +20,7 @@ namespace EY.HRPlatform.Training.Controllers;
 public class AdminReportsController : ControllerBase
 {
     private const string ExcelContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    private const string PdfContentType = "application/pdf";
 
     private readonly ISender _sender;
     private readonly IReportExporter _exporter;
@@ -157,6 +159,98 @@ public class AdminReportsController : ControllerBase
             BuildFilterLines(gradeLabel, serviceLineLabel, null, from, to));
 
         return File(bytes, ExcelContentType, $"format-comparison-{DateTime.UtcNow:yyyy-MM-dd}.xlsx");
+    }
+
+    // ── PDF exports (US-8.2.1/8.2.2, ADR 0007) ───────────────────────────────
+    // POST because the client sends browser-rendered chart PNGs that the server cannot reproduce.
+
+    /// <summary>US-8.2.1 — attendance report as PDF (with embedded charts).</summary>
+    [HttpPost("attendance/by-employee/pdf")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ExportAttendanceByEmployeePdf(
+        [FromBody] ReportPdfRequest request, CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(
+            new GetAttendanceByEmployeeQuery(ToFilter(request)), cancellationToken);
+
+        var bytes = _exporter.AttendanceByEmployeeToPdf(
+            result.Value!, ToFilterLines(request), DecodeCharts(request.Charts));
+
+        return File(bytes, PdfContentType, $"attendance-report-{DateTime.UtcNow:yyyy-MM-dd}.pdf");
+    }
+
+    /// <summary>US-8.2.1 — training-hours report as PDF (with embedded charts).</summary>
+    [HttpPost("hours/by-employee/pdf")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ExportHoursByEmployeePdf(
+        [FromBody] ReportPdfRequest request, CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(
+            new GetTrainingHoursByEmployeeQuery(ToFilter(request)), cancellationToken);
+
+        var bytes = _exporter.TrainingHoursByEmployeeToPdf(
+            result.Value!, ToFilterLines(request), DecodeCharts(request.Charts));
+
+        return File(bytes, PdfContentType, $"training-hours-report-{DateTime.UtcNow:yyyy-MM-dd}.pdf");
+    }
+
+    /// <summary>US-8.2.2 — in-person vs e-learning comparison as PDF (with embedded charts).</summary>
+    [HttpPost("completion/by-format/pdf")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ExportCompletionByFormatPdf(
+        [FromBody] ReportPdfRequest request, CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(
+            new GetCompletionByFormatQuery(new CompletionByFormatFilter(
+                request.GradeId, request.ServiceLineId, request.From, request.To)),
+            cancellationToken);
+
+        var bytes = _exporter.FormatComparisonToPdf(
+            result.Value!, ToFilterLines(request), DecodeCharts(request.Charts));
+
+        return File(bytes, PdfContentType, $"format-comparison-{DateTime.UtcNow:yyyy-MM-dd}.pdf");
+    }
+
+    private static AttendanceFilter ToFilter(ReportPdfRequest r) =>
+        new(r.GradeId, r.ServiceLineId, r.TrainingId, r.From, r.To);
+
+    private static List<ReportFilterLine> ToFilterLines(ReportPdfRequest r) =>
+        BuildFilterLines(r.GradeLabel, r.ServiceLineLabel, r.TrainingLabel, r.From, r.To);
+
+    // PNG file signature — the client only ever sends canvas-rendered PNGs. Validating it here keeps
+    // non-image bytes out of QuestPDF.Image() (which throws DocumentComposeException on garbage),
+    // so a malformed chart is skipped and the PDF falls back to tables instead of 500-ing (ADR 0007).
+    private static readonly byte[] PngSignature = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+
+    private static List<byte[]> DecodeCharts(List<ReportChartImage>? charts)
+    {
+        var result = new List<byte[]>();
+        if (charts is null) return result;
+        foreach (var chart in charts)
+        {
+            if (string.IsNullOrWhiteSpace(chart.PngBase64)) continue;
+            byte[] bytes;
+            try
+            {
+                bytes = Convert.FromBase64String(chart.PngBase64);
+            }
+            catch (FormatException)
+            {
+                continue; // not valid base64 — skip
+            }
+            if (IsPng(bytes)) result.Add(bytes);
+        }
+        return result;
+    }
+
+    private static bool IsPng(byte[] bytes)
+    {
+        if (bytes.Length < PngSignature.Length) return false;
+        for (int i = 0; i < PngSignature.Length; i++)
+        {
+            if (bytes[i] != PngSignature[i]) return false;
+        }
+        return true;
     }
 
     private static List<ReportFilterLine> BuildFilterLines(

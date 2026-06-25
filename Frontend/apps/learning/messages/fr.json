@@ -697,14 +697,15 @@
       "reset": "Réinitialiser"
     },
     "export": {
-      "button": "Exporter Excel",
-      "exporting": "Exportation…",
+      "excel": "Excel",
+      "pdf": "PDF",
       "error": "Échec de l'export. Veuillez réessayer."
     },
     "empty": "Aucune donnée pour les filtres sélectionnés.",
     "total": "Total",
     "hoursEstimatedNote": "Les heures sont estimées : présentiel d'après les horaires des séances suivies, e-learning d'après la durée du contenu.",
     "completionByFormat": "Taux d'achèvement par format",
+    "attendanceByGrade": "Taux de présence par grade",
     "format": {
       "eLearning": "E-learning",
       "onSite": "Présentiel"
