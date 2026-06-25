@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { BarChart3, Download, Loader2 } from "lucide-react";
+import { BarChart3, FileSpreadsheet, FileText, Loader2 } from "lucide-react";
 import { Button, Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@repo/ui";
 import { useApiQuery } from "@repo/api/react";
 import { getGrades, getServiceLines } from "@/services/admin-config-service";
@@ -11,15 +11,20 @@ import {
   exportAttendanceByEmployeeExcel,
   exportTrainingHoursByEmployeeExcel,
   exportCompletionByFormatExcel,
+  exportAttendanceByEmployeePdf,
+  exportTrainingHoursByEmployeePdf,
+  exportCompletionByFormatPdf,
 } from "@/services/admin-reports-service";
 import { useAttendanceByEmployee, useTrainingHoursByEmployee, useCompletionByFormat } from "@/hooks/use-reports";
 import { downloadBlob } from "@/lib/download";
+import { captureSvgChartsAsPng } from "@/lib/chart-capture";
 import type {
   AdminGrade,
   AdminServiceLine,
   AttendanceFilters,
   ReportFilterLabels,
 } from "@/types/admin";
+import { CompletionBarChart } from "../completion-bar-chart";
 import { AttendanceReportTable } from "./attendance-report-table";
 import { HoursReportTable } from "./hours-report-table";
 import { FormatComparisonSection } from "./format-comparison-section";
@@ -34,7 +39,7 @@ export function ReportsView() {
   const [serviceLineId, setServiceLineId] = useState<string>(ALL);
   const [from, setFrom] = useState<string>("");
   const [to, setTo] = useState<string>("");
-  const [exporting, setExporting] = useState(false);
+  const [exporting, setExporting] = useState<"excel" | "pdf" | null>(null);
 
   const { data: grades } = useApiQuery<AdminGrade[]>(getGrades);
   const { data: serviceLines } = useApiQuery<AdminServiceLine[]>(getServiceLines);
@@ -62,6 +67,28 @@ export function ReportsView() {
   const hours = useTrainingHoursByEmployee(filters);
   const format = useCompletionByFormat(filters);
 
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  // Attendance-rate-by-grade chart, derived from the per-employee rows (US-8.2.1 bar chart).
+  const attendanceByGrade = useMemo(() => {
+    const map = new Map<string, { attended: number; missed: number }>();
+    for (const r of attendance.data ?? []) {
+      const g = map.get(r.gradeName) ?? { attended: 0, missed: 0 };
+      g.attended += r.attended;
+      g.missed += r.missed;
+      map.set(r.gradeName, g);
+    }
+    return Array.from(map.entries()).map(([name, v]) => ({
+      name,
+      rate: v.attended + v.missed > 0 ? Math.round((v.attended / (v.attended + v.missed)) * 1000) / 10 : 0,
+      count: v.attended + v.missed,
+    }));
+  }, [attendance.data]);
+
+  const activeLoading =
+    tab === "attendance" ? attendance.isLoading : tab === "hours" ? hours.isLoading : format.isLoading;
+  const exportDisabled = exporting !== null || activeLoading;
+
   const hasFilter = gradeId !== ALL || serviceLineId !== ALL || !!from || !!to;
   const resetFilters = () => {
     setGradeId(ALL);
@@ -70,26 +97,43 @@ export function ReportsView() {
     setTo("");
   };
 
-  async function handleExport() {
-    setExporting(true);
+  async function handleExport(fmt: "excel" | "pdf") {
+    setExporting(fmt);
     try {
       let blob: Blob;
       let filename: string;
-      if (tab === "attendance") {
-        blob = await exportAttendanceByEmployeeExcel(filters, labels);
-        filename = "attendance-report.xlsx";
-      } else if (tab === "hours") {
-        blob = await exportTrainingHoursByEmployeeExcel(filters, labels);
-        filename = "training-hours-report.xlsx";
+      if (fmt === "excel") {
+        if (tab === "attendance") {
+          blob = await exportAttendanceByEmployeeExcel(filters, labels);
+          filename = "attendance-report.xlsx";
+        } else if (tab === "hours") {
+          blob = await exportTrainingHoursByEmployeeExcel(filters, labels);
+          filename = "training-hours-report.xlsx";
+        } else {
+          blob = await exportCompletionByFormatExcel(filters, labels);
+          filename = "format-comparison.xlsx";
+        }
       } else {
-        blob = await exportCompletionByFormatExcel(filters, labels);
-        filename = "format-comparison.xlsx";
+        const charts = (await captureSvgChartsAsPng(contentRef.current)).map((pngBase64, i) => ({
+          key: `chart-${i}`,
+          pngBase64,
+        }));
+        if (tab === "attendance") {
+          blob = await exportAttendanceByEmployeePdf(filters, labels, charts);
+          filename = "attendance-report.pdf";
+        } else if (tab === "hours") {
+          blob = await exportTrainingHoursByEmployeePdf(filters, labels, charts);
+          filename = "training-hours-report.pdf";
+        } else {
+          blob = await exportCompletionByFormatPdf(filters, labels, charts);
+          filename = "format-comparison.pdf";
+        }
       }
       downloadBlob(blob, filename);
     } catch {
       toast.error(t("export.error"));
     } finally {
-      setExporting(false);
+      setExporting(null);
     }
   }
 
@@ -176,20 +220,53 @@ export function ReportsView() {
             </Button>
           ))}
         </div>
-        <Button variant="outline" size="sm" onClick={handleExport} disabled={exporting} className="h-8 gap-1.5">
-          {exporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-          {exporting ? t("export.exporting") : t("export.button")}
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleExport("excel")}
+            disabled={exportDisabled}
+            className="h-8 gap-1.5"
+          >
+            {exporting === "excel" ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <FileSpreadsheet className="h-3.5 w-3.5" />
+            )}
+            {t("export.excel")}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleExport("pdf")}
+            disabled={exportDisabled}
+            className="h-8 gap-1.5"
+          >
+            {exporting === "pdf" ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <FileText className="h-3.5 w-3.5" />
+            )}
+            {t("export.pdf")}
+          </Button>
+        </div>
       </div>
 
-      {/* Content */}
-      {tab === "attendance" ? (
-        <AttendanceReportTable rows={attendance.data ?? []} isLoading={attendance.isLoading} />
-      ) : tab === "hours" ? (
-        <HoursReportTable rows={hours.data ?? []} isLoading={hours.isLoading} />
-      ) : (
-        <FormatComparisonSection data={format.data} isLoading={format.isLoading} />
-      )}
+      {/* Content (ref'd so charts can be captured for PDF export) */}
+      <div ref={contentRef} className="space-y-6">
+        {tab === "attendance" ? (
+          <>
+            {attendanceByGrade.length > 0 ? (
+              <CompletionBarChart data={attendanceByGrade} title={t("attendanceByGrade")} />
+            ) : null}
+            <AttendanceReportTable rows={attendance.data ?? []} isLoading={attendance.isLoading} />
+          </>
+        ) : tab === "hours" ? (
+          <HoursReportTable rows={hours.data ?? []} isLoading={hours.isLoading} />
+        ) : (
+          <FormatComparisonSection data={format.data} isLoading={format.isLoading} />
+        )}
+      </div>
     </div>
   );
 }

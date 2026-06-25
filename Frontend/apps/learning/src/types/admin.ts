@@ -744,6 +744,12 @@ export interface ReportFilterLabels {
   trainingLabel?: string;
 }
 
+/** A chart rasterised to PNG (base64, no data: prefix) sent to the PDF export to be embedded. */
+export interface ReportChartImage {
+  key: string;
+  pngBase64: string;
+}
+
 /* ── Feedback dashboards (US-8.1.2) ── */
 
 export interface FeedbackTrendPoint {

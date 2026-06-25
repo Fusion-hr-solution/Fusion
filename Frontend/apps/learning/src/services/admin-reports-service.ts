@@ -4,10 +4,30 @@ import type {
   FormatComparison,
   AttendanceFilters,
   ReportFilterLabels,
+  ReportChartImage,
 } from "@/types/admin";
 import { client } from "./admin-service-mappers";
 
 const BASE = "/training/admin/reports";
+
+/** Build the POST body shared by every PDF export endpoint. */
+function buildPdfBody(
+  filters: AttendanceFilters,
+  labels: ReportFilterLabels | undefined,
+  charts: ReportChartImage[],
+) {
+  return {
+    gradeId: filters.gradeId,
+    serviceLineId: filters.serviceLineId,
+    trainingId: filters.trainingId,
+    from: filters.from,
+    to: filters.to,
+    gradeLabel: labels?.gradeLabel,
+    serviceLineLabel: labels?.serviceLineLabel,
+    trainingLabel: labels?.trainingLabel,
+    charts,
+  };
+}
 
 /** Serialize the optional report filters (and, for exports, their display labels) into a query string. */
 function buildQuery(filters: AttendanceFilters = {}, labels?: ReportFilterLabels): string {
@@ -41,6 +61,16 @@ export async function exportAttendanceByEmployeeExcel(
   });
 }
 
+export async function exportAttendanceByEmployeePdf(
+  filters: AttendanceFilters,
+  labels: ReportFilterLabels | undefined,
+  charts: ReportChartImage[],
+): Promise<Blob> {
+  return client.post<Blob>(`${BASE}/attendance/by-employee/pdf`, buildPdfBody(filters, labels, charts), {
+    responseType: "blob",
+  });
+}
+
 // ── US-8.2.1 Training-hours report ───────────────────────────────────────────
 
 export async function getTrainingHoursByEmployee(
@@ -58,6 +88,16 @@ export async function exportTrainingHoursByEmployeeExcel(
   });
 }
 
+export async function exportTrainingHoursByEmployeePdf(
+  filters: AttendanceFilters,
+  labels: ReportFilterLabels | undefined,
+  charts: ReportChartImage[],
+): Promise<Blob> {
+  return client.post<Blob>(`${BASE}/hours/by-employee/pdf`, buildPdfBody(filters, labels, charts), {
+    responseType: "blob",
+  });
+}
+
 // ── US-8.2.2 In-person vs e-learning comparison ──────────────────────────────
 
 export async function getCompletionByFormat(
@@ -71,6 +111,16 @@ export async function exportCompletionByFormatExcel(
   labels?: ReportFilterLabels,
 ): Promise<Blob> {
   return client.get<Blob>(`${BASE}/completion/by-format/excel${buildQuery(filters, labels)}`, {
+    responseType: "blob",
+  });
+}
+
+export async function exportCompletionByFormatPdf(
+  filters: AttendanceFilters,
+  labels: ReportFilterLabels | undefined,
+  charts: ReportChartImage[],
+): Promise<Blob> {
+  return client.post<Blob>(`${BASE}/completion/by-format/pdf`, buildPdfBody(filters, labels, charts), {
     responseType: "blob",
   });
 }

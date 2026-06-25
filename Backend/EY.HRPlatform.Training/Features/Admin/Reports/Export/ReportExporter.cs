@@ -1,5 +1,8 @@
 using ClosedXML.Excel;
 using EY.HRPlatform.Training.Models.Responses;
+using QuestPDF.Fluent;
+using QuestPDF.Helpers;
+using QuestPDF.Infrastructure;
 
 namespace EY.HRPlatform.Training.Features.Admin.Reports.Export;
 
@@ -117,6 +120,191 @@ public class ReportExporter : IReportExporter
 
         ws.Columns().AdjustToContents();
         return Save(workbook);
+    }
+
+    // ── PDF (US-8.2.1/8.2.2, ADR 0007) ──────────────────────────────────────
+
+    public byte[] AttendanceByEmployeeToPdf(
+        IReadOnlyList<AttendanceByEmployeeRowDto> rows,
+        IReadOnlyList<ReportFilterLine> filters,
+        IReadOnlyList<byte[]> charts)
+    {
+        ArgumentNullException.ThrowIfNull(rows);
+
+        var totalAttended = rows.Sum(r => r.Attended);
+        var totalMissed = rows.Sum(r => r.Missed);
+        var overallRate = totalAttended + totalMissed > 0
+            ? Math.Round((double)totalAttended / (totalAttended + totalMissed) * 100, 1)
+            : 0;
+
+        return BuildReportPdf("Attendance Report", filters, charts, content =>
+            content.Table(table =>
+            {
+                table.ColumnsDefinition(c =>
+                {
+                    c.RelativeColumn(4);
+                    c.RelativeColumn(2);
+                    c.RelativeColumn(2);
+                    c.RelativeColumn(1);
+                    c.RelativeColumn(1);
+                    c.RelativeColumn(1);
+                    c.RelativeColumn(1);
+                });
+                TableHead(table, "Employee", "Grade", "Service Line", "Enrolled", "Attended", "Missed", "Rate %");
+                foreach (var r in rows)
+                {
+                    Body(table, r.EmployeeName ?? "—");
+                    Body(table, r.GradeName);
+                    Body(table, r.ServiceLineName);
+                    Body(table, r.SessionsEnrolled.ToString());
+                    Body(table, r.Attended.ToString());
+                    Body(table, r.Missed.ToString());
+                    Body(table, $"{r.AttendanceRate}%");
+                }
+                Foot(table, "Total", "", "", rows.Sum(r => r.SessionsEnrolled).ToString(),
+                    totalAttended.ToString(), totalMissed.ToString(), $"{overallRate}%");
+            }));
+    }
+
+    public byte[] TrainingHoursByEmployeeToPdf(
+        IReadOnlyList<TrainingHoursRowDto> rows,
+        IReadOnlyList<ReportFilterLine> filters,
+        IReadOnlyList<byte[]> charts)
+    {
+        ArgumentNullException.ThrowIfNull(rows);
+
+        return BuildReportPdf("Training Hours Report (estimated)", filters, charts, content =>
+            content.Table(table =>
+            {
+                table.ColumnsDefinition(c =>
+                {
+                    c.RelativeColumn(4);
+                    c.RelativeColumn(2);
+                    c.RelativeColumn(2);
+                    c.RelativeColumn(1);
+                    c.RelativeColumn(1);
+                    c.RelativeColumn(1);
+                    c.RelativeColumn(1);
+                });
+                TableHead(table, "Employee", "Grade", "Service Line", "E-learning h", "In-person h", "Total h", "Completed");
+                foreach (var r in rows)
+                {
+                    Body(table, r.EmployeeName ?? "—");
+                    Body(table, r.GradeName);
+                    Body(table, r.ServiceLineName);
+                    Body(table, r.ELearningHours.ToString());
+                    Body(table, r.InPersonHours.ToString());
+                    Body(table, r.TotalHours.ToString());
+                    Body(table, r.TrainingsCompleted.ToString());
+                }
+                Foot(table, "Total", "", "",
+                    Math.Round(rows.Sum(r => r.ELearningHours), 2).ToString(),
+                    Math.Round(rows.Sum(r => r.InPersonHours), 2).ToString(),
+                    Math.Round(rows.Sum(r => r.TotalHours), 2).ToString(),
+                    rows.Sum(r => r.TrainingsCompleted).ToString());
+            }));
+    }
+
+    public byte[] FormatComparisonToPdf(
+        FormatComparisonDto data,
+        IReadOnlyList<ReportFilterLine> filters,
+        IReadOnlyList<byte[]> charts)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+
+        string Feedback(FormatMetricsDto m) => m.AvgFeedback.HasValue ? $"{m.AvgFeedback.Value} / 5" : "—";
+
+        return BuildReportPdf("In-person vs E-learning Comparison", filters, charts, content =>
+            content.Table(table =>
+            {
+                table.ColumnsDefinition(c =>
+                {
+                    c.RelativeColumn(2);
+                    c.RelativeColumn(1);
+                    c.RelativeColumn(1);
+                    c.RelativeColumn(1);
+                    c.RelativeColumn(1);
+                    c.RelativeColumn(1);
+                });
+                TableHead(table, "Format", "Trainings", "Hours", "Participants", "Rate %", "Avg Feedback");
+                foreach (var m in new[] { data.ELearning, data.OnSite })
+                {
+                    Body(table, m.Format == "ELearning" ? "E-learning" : "On-site");
+                    Body(table, m.TrainingCount.ToString());
+                    Body(table, m.HoursDelivered.ToString());
+                    Body(table, m.Participants.ToString());
+                    Body(table, $"{m.CompletionRate}%");
+                    Body(table, Feedback(m));
+                }
+            }));
+    }
+
+    private static byte[] BuildReportPdf(
+        string title,
+        IReadOnlyList<ReportFilterLine> filters,
+        IReadOnlyList<byte[]> charts,
+        Action<IContainer> tableContent)
+    {
+        QuestPDF.Settings.License = LicenseType.Community;
+
+        var document = Document.Create(container =>
+        {
+            container.Page(page =>
+            {
+                page.Margin(28);
+                page.Size(PageSizes.A4.Landscape());
+                page.DefaultTextStyle(t => t.FontSize(9));
+
+                page.Header().Column(col =>
+                {
+                    col.Item().Text(title).FontSize(15).SemiBold();
+                    if (filters.Count > 0)
+                    {
+                        col.Item().PaddingTop(2)
+                            .Text(string.Join("   ·   ", filters.Select(f => $"{f.Label}: {f.Value}")))
+                            .FontSize(8).FontColor(Colors.Grey.Darken1);
+                    }
+                });
+
+                page.Content().PaddingTop(10).Column(col =>
+                {
+                    foreach (var chart in charts)
+                    {
+                        if (chart.Length == 0) continue;
+                        col.Item().PaddingBottom(10).AlignCenter().MaxHeight(220).Image(chart);
+                    }
+                    col.Item().Element(tableContent);
+                });
+
+                page.Footer().AlignRight().Text(t =>
+                {
+                    t.Span("Page ");
+                    t.CurrentPageNumber();
+                    t.Span(" / ");
+                    t.TotalPages();
+                });
+            });
+        });
+
+        return document.GeneratePdf();
+    }
+
+    private static void TableHead(TableDescriptor table, params string[] headers)
+    {
+        table.Header(header =>
+        {
+            foreach (var h in headers)
+                header.Cell().Background(Colors.Grey.Lighten3).Padding(4).Text(h).SemiBold();
+        });
+    }
+
+    private static void Body(TableDescriptor table, string value) =>
+        table.Cell().BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2).Padding(4).Text(value);
+
+    private static void Foot(TableDescriptor table, params string[] values)
+    {
+        foreach (var v in values)
+            table.Cell().Background(Colors.Grey.Lighten4).Padding(4).Text(v).SemiBold();
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────
