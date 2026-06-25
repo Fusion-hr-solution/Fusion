@@ -46,6 +46,28 @@ public static class CycleNotificationFactory
             dedupKey: $"{cycle.Id}:{type}:{recipientEmployeeId}:{deadlineUtc.Ticks}");
     }
 
+    public static IReadOnlyList<PerformanceNotification> ForExceptionCase(
+        PerformanceCycle cycle,
+        Guid exceptionCaseId,
+        PerformanceNotificationType type,
+        IEnumerable<Guid> recipientEmployeeIds,
+        string subject)
+    {
+        var (title, message) = DescribeException(type, cycle.Name, subject);
+
+        return recipientEmployeeIds
+            .Distinct()
+            .Select(employeeId => PerformanceNotification.Create(
+                cycle.TenantId,
+                employeeId,
+                type,
+                title,
+                message,
+                cycle.Id,
+                dedupKey: $"{cycle.Id}:{exceptionCaseId}:{type}:{employeeId}"))
+            .ToList();
+    }
+
     private static (string Title, string Message) DescribeLifecycle(
         PerformanceCycle cycle,
         PerformanceNotificationType type)
@@ -69,4 +91,19 @@ public static class CycleNotificationFactory
                 $"The objective-setting deadline for \"{cycle.Name}\" passed on {deadlineUtc:MMM d, yyyy}.")
             : ("Objective-setting deadline approaching",
                 $"The objective-setting deadline for \"{cycle.Name}\" is on {deadlineUtc:MMM d, yyyy}.");
+
+    private static (string Title, string Message) DescribeException(
+        PerformanceNotificationType type,
+        string cycleName,
+        string subject)
+        => type switch
+        {
+            PerformanceNotificationType.ExceptionOpened =>
+                ("Performance exception opened", $"A governed exception was opened in \"{cycleName}\" for {subject}."),
+            PerformanceNotificationType.ExceptionTransferred =>
+                ("Performance exception transferred", $"A governed exception in \"{cycleName}\" was transferred for {subject}."),
+            PerformanceNotificationType.ExceptionResolved =>
+                ("Performance exception resolved", $"A governed exception in \"{cycleName}\" was resolved for {subject}."),
+            _ => (cycleName, cycleName)
+        };
 }

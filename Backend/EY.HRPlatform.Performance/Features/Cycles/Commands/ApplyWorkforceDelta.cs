@@ -45,23 +45,14 @@ public sealed class ApplyWorkforceDeltaCommandHandler(
 
         foreach (var decision in request.Decisions)
         {
-            var responsibility = await dbContext.CampaignAssignmentResponsibilities
-                .SingleOrDefaultAsync(
-                    x => x.CycleId == request.CycleId
-                      && x.SubjectEmployeeId == decision.SubjectEmployeeId
-                      && x.AssigneeEmployeeId == decision.AssigneeEmployeeId,
-                    cancellationToken);
-
-            if (responsibility is null)
-                continue;
-
             if (decision.Accept)
             {
+                await ApplyAcceptedDecisionAsync(request.CycleId, decision, cancellationToken);
                 appliedCount++;
                 dbContext.PerformanceCycleAuditEvents.Add(PerformanceCycleAuditEvent.Create(
                     tenantContext.TenantId, cycle.Id, PerformanceCycleAuditAction.WorkforceDeltaApplied,
                     currentUser.UserId, currentUser.FullName,
-                    $"Delta accepted for subject {decision.SubjectEmployeeId}, assignee {decision.AssigneeEmployeeId}."));
+                    $"Delta accepted for subject {decision.SubjectEmployeeId}, assignee {decision.AssigneeEmployeeId}. {decision.Reason}".Trim()));
             }
             else
             {
@@ -69,7 +60,7 @@ public sealed class ApplyWorkforceDeltaCommandHandler(
                 dbContext.PerformanceCycleAuditEvents.Add(PerformanceCycleAuditEvent.Create(
                     tenantContext.TenantId, cycle.Id, PerformanceCycleAuditAction.WorkforceDeltaRejected,
                     currentUser.UserId, currentUser.FullName,
-                    $"Delta rejected for subject {decision.SubjectEmployeeId}, assignee {decision.AssigneeEmployeeId}."));
+                    $"Delta rejected for subject {decision.SubjectEmployeeId}, assignee {decision.AssigneeEmployeeId}. {decision.Reason}".Trim()));
             }
         }
 
@@ -83,5 +74,64 @@ public sealed class ApplyWorkforceDeltaCommandHandler(
         }
 
         return Result.Success(new ApplyWorkforceDeltaResultDto(appliedCount, rejectedCount));
+    }
+
+    private async Task ApplyAcceptedDecisionAsync(
+        Guid cycleId,
+        WorkforceDeltaDecision decision,
+        CancellationToken cancellationToken)
+    {
+        if (decision.AssigneeEmployeeId == Guid.Empty)
+        {
+            var snapshot = await dbContext.CampaignLaunchParticipantSnapshots
+                .SingleOrDefaultAsync(
+                    x => x.CycleId == cycleId && x.EmployeeId == decision.SubjectEmployeeId,
+                    cancellationToken);
+            if (snapshot is not null)
+            {
+                dbContext.CampaignLaunchParticipantSnapshots.Remove(snapshot);
+            }
+
+            var subjectWorkItems = await dbContext.CampaignWorkItems
+                .Where(x => x.CycleId == cycleId && x.SubjectEmployeeId == decision.SubjectEmployeeId)
+                .ToListAsync(cancellationToken);
+            foreach (var workItem in subjectWorkItems)
+            {
+                CancelIfOpen(workItem);
+            }
+
+            return;
+        }
+
+        var responsibility = await dbContext.CampaignAssignmentResponsibilities
+            .SingleOrDefaultAsync(
+                x => x.CycleId == cycleId
+                  && x.SubjectEmployeeId == decision.SubjectEmployeeId
+                  && x.AssigneeEmployeeId == decision.AssigneeEmployeeId
+                  && x.IsFinal,
+                cancellationToken);
+
+        if (responsibility is null)
+            return;
+
+        responsibility.Supersede();
+
+        var linkedWorkItem = await dbContext.CampaignWorkItems
+            .SingleOrDefaultAsync(
+                x => x.CycleId == cycleId
+                  && x.SourceAssignmentRevisionId == responsibility.Id,
+                cancellationToken);
+        if (linkedWorkItem is not null)
+        {
+            CancelIfOpen(linkedWorkItem);
+        }
+    }
+
+    private static void CancelIfOpen(CampaignWorkItem workItem)
+    {
+        if (workItem.Status is CampaignWorkItemStatus.Completed or CampaignWorkItemStatus.Cancelled)
+            return;
+
+        workItem.Cancel();
     }
 }

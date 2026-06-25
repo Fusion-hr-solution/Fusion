@@ -2,6 +2,9 @@ using EY.HRPlatform.Performance.Domain.Enums;
 using EY.HRPlatform.Performance.Features.Cycles.Commands;
 using EY.HRPlatform.Performance.Features.Cycles.Dtos;
 using EY.HRPlatform.Performance.Features.Cycles.Queries;
+using EY.HRPlatform.Performance.Features.Exceptions.Commands;
+using EY.HRPlatform.Performance.Features.Exceptions.Dtos;
+using EY.HRPlatform.Performance.Features.Exceptions.Queries;
 using EY.HRPlatform.Performance.Features.Security;
 using EY.HRPlatform.Performance.Models.Responses;
 using EY.HRPlatform.SharedKernel.Api;
@@ -279,6 +282,64 @@ public class PerformanceCyclesController(
     [HttpPost("{id:guid}/close")]
     public Task<IActionResult> Close(Guid id, [FromHeader(Name = "If-Match")] string? ifMatch, CancellationToken cancellationToken)
         => Transition(id, ifMatch, version => new CloseCycleCommand(id, version), cancellationToken);
+
+    [HttpPost("{id:guid}/force-close")]
+    public async Task<IActionResult> ForceClose(
+        Guid id,
+        [FromBody] ForceCloseCycleRequest request,
+        [FromHeader(Name = "If-Match")] string? ifMatch,
+        CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanOverrideException(User))
+            return Forbid();
+        if (!TryParseVersion(ifMatch, out var expectedVersion))
+            return PreconditionRequired();
+
+        var result = await sender.Send(new ForceCloseCycleCommand(id, expectedVersion, request.Decisions), cancellationToken);
+        return ToDetailResponse(result);
+    }
+
+    [HttpGet("{id:guid}/exceptions")]
+    public async Task<IActionResult> GetExceptions(Guid id, CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanViewExceptionAudit(User))
+            return Forbid();
+
+        var result = await sender.Send(new GetCycleExceptionsQuery(id), cancellationToken);
+        return result.IsFailure
+            ? MapFailure(result.Error)
+            : Ok(ApiResponse<IReadOnlyList<ExceptionCaseDto>>.Success(result.Value));
+    }
+
+    [HttpPost("{id:guid}/exceptions/{exceptionCaseId:guid}/resolve")]
+    public async Task<IActionResult> ResolveException(
+        Guid id,
+        Guid exceptionCaseId,
+        [FromBody] ResolveExceptionCaseRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(
+            new ResolveExceptionCaseCommand(id, exceptionCaseId, request.Action, request.Reason, request.ReassignToEmployeeId),
+            cancellationToken);
+        return result.IsFailure
+            ? MapFailure(result.Error)
+            : Ok(ApiResponse<ExceptionCaseDto>.Success(result.Value));
+    }
+
+    [HttpPost("{id:guid}/exceptions/{exceptionCaseId:guid}/transfer")]
+    public async Task<IActionResult> TransferException(
+        Guid id,
+        Guid exceptionCaseId,
+        [FromBody] TransferExceptionOwnershipRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(
+            new TransferExceptionOwnershipCommand(id, exceptionCaseId, request.NewOwnerEmployeeId, request.Reason),
+            cancellationToken);
+        return result.IsFailure
+            ? MapFailure(result.Error)
+            : Ok(ApiResponse<ExceptionCaseDto>.Success(result.Value));
+    }
 
     [HttpGet("{id:guid}/participants")]
     public async Task<IActionResult> GetParticipants(

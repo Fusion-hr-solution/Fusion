@@ -23,6 +23,58 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Entities.ApprovalDelegate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<Guid>("CycleId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("DelegateEmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("DelegatorEmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateTime>("ValidFrom")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("ValidUntil")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "CycleId", "DelegatorEmployeeId")
+                        .HasDatabaseName("IX_ApprovalDelegates_Tenant_Cycle_Delegator");
+
+                    b.HasIndex("TenantId", "CycleId", "IsActive")
+                        .HasDatabaseName("IX_ApprovalDelegates_Tenant_Cycle_Active");
+
+                    b.ToTable("ApprovalDelegates", "performance");
+                });
+
             modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Entities.CampaignAssignmentResponsibility", b =>
                 {
                     b.Property<Guid>("Id")
@@ -236,6 +288,9 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("DueAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid?>("ExceptionCaseId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid?>("SourceAssignmentRevisionId")
                         .HasColumnType("uuid");
 
@@ -272,6 +327,8 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ExceptionCaseId");
+
                     b.HasIndex("SourceAssignmentRevisionId")
                         .IsUnique();
 
@@ -280,6 +337,446 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
                     b.HasIndex("TenantId", "AssigneeEmployeeId", "Status", "DueAt");
 
                     b.ToTable("CampaignWorkItems", "performance");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Entities.ExceptionCase", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("CurrentOwnerEmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("CurrentResolutionWorkItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CycleId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("FailureCode")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("FrozenReason")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<string>("FrozenWorkflowContextJson")
+                        .IsRequired()
+                        .HasMaxLength(8000)
+                        .HasColumnType("character varying(8000)");
+
+                    b.Property<DateTime>("OpenedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("PreviousCaseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ResolutionAction")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime?>("ResolvedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("SourceObjectId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("SourceWorkItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("SourceWorkItemType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<long>("Version")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("CycleId", "Status");
+
+                    b.HasIndex("TenantId", "SourceWorkItemId", "SourceObjectId", "FailureCode", "Status")
+                        .IsUnique()
+                        .HasFilter("\"Status\" = 'Open'");
+
+                    b.ToTable("ExceptionCases", "performance");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Entities.ExceptionCaseHistoryEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Action")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<Guid>("ActorEmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AttemptType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ExceptionCaseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("FromOwnerEmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("OccurredAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Outcome")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ToOwnerEmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("ExceptionCaseId", "OccurredAt");
+
+                    b.ToTable("ExceptionCaseHistoryEntries", "performance");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Entities.FeedbackIdentityMapping", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ResponseContentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ReviewerEmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("WorkItemId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ResponseContentId")
+                        .IsUnique();
+
+                    b.ToTable("FeedbackIdentityMappings", "performance");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Entities.FeedbackPromptAnswer", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AnswerText")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsRequired")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("PromptSnapshotId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PromptText")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("PromptVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("ResponseContentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ResponseContentId");
+
+                    b.ToTable("FeedbackPromptAnswer", "performance");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Entities.FeedbackPromptSnapshot", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsRequired")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("PromptText")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<Guid>("TemplateSnapshotId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TemplateSnapshotId");
+
+                    b.ToTable("FeedbackPromptSnapshots", "performance");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Entities.FeedbackResponseContent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("CycleId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("FeedbackType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("InvalidationReason")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<bool>("IsInvalidated")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("LockedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<Guid>("SubjectEmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("SubmittedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("TemplateSnapshotId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<long>("Version")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("FeedbackResponseContents", "performance");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Entities.FeedbackResponseVersion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AnswersJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("AuthorEmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("GeneralComment")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<Guid>("ResponseContentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<int>("VersionNumber")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ResponseContentId");
+
+                    b.ToTable("FeedbackResponseVersions", "performance");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Entities.FeedbackTemplateSnapshot", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("CycleId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("FeedbackType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime>("FrozenAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "CycleId", "FeedbackType")
+                        .IsUnique();
+
+                    b.ToTable("FeedbackTemplateSnapshots", "performance");
                 });
 
             modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Entities.FormalRatingScaleLevelSnapshot", b =>
@@ -424,6 +921,75 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
                     b.ToTable("FormalReviewDefinitionSnapshots", "performance");
                 });
 
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Entities.ObjectiveProgressEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ActorEmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActorName")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("Comment")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("Mode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<decimal?>("NewPercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
+
+                    b.Property<Guid>("ObjectiveId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("OccurredAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal?>("PreviousPercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "ObjectiveId")
+                        .HasDatabaseName("IX_ObjectiveProgressEntries_Tenant_Objective");
+
+                    b.HasIndex("TenantId", "OccurredAt")
+                        .HasDatabaseName("IX_ObjectiveProgressEntries_Tenant_OccurredAt");
+
+                    b.ToTable("ObjectiveProgressEntries", "performance");
+                });
+
             modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Entities.ObjectiveTemplate", b =>
                 {
                     b.Property<Guid>("Id")
@@ -538,6 +1104,9 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
                     b.Property<string>("Description")
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
+
+                    b.Property<DateTime?>("FeedbackDeadline")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("FeedbackVisibility")
                         .IsRequired()
@@ -917,11 +1486,20 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
+                    b.Property<decimal?>("ManualProgressPercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
+
                     b.Property<Guid>("OwnerEmployeeId")
                         .HasColumnType("uuid");
 
                     b.Property<Guid?>("ParentObjectiveId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("ProgressMode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -1149,11 +1727,183 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
                     b.ToTable("PerformanceReviewCriterionResponses", "performance");
                 });
 
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Entities.StrategicObjective", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<string>("OrgScope")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("PeriodId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("PublishedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<Guid?>("SupersededById")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.Property<int>("VersionNumber")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "PeriodId", "OrgScope", "Status")
+                        .HasDatabaseName("IX_StrategicObjectives_Tenant_Period_Scope_Status");
+
+                    b.ToTable("StrategicObjectives", "performance");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Entities.StrategicPeriod", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateTime>("EndDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("FiscalYear")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Granularity")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Label")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "FiscalYear", "Granularity")
+                        .HasDatabaseName("IX_StrategicPeriods_Tenant_FiscalYear_Granularity");
+
+                    b.ToTable("StrategicPeriods", "performance");
+                });
+
             modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Entities.CampaignExceptionOwner", b =>
                 {
                     b.HasOne("EY.HRPlatform.Performance.Domain.Entities.PerformanceCycle", null)
                         .WithMany("ExceptionOwners")
                         .HasForeignKey("CycleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Entities.ExceptionCaseHistoryEntry", b =>
+                {
+                    b.HasOne("EY.HRPlatform.Performance.Domain.Entities.ExceptionCase", null)
+                        .WithMany("HistoryEntries")
+                        .HasForeignKey("ExceptionCaseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Entities.FeedbackIdentityMapping", b =>
+                {
+                    b.HasOne("EY.HRPlatform.Performance.Domain.Entities.FeedbackResponseContent", null)
+                        .WithMany()
+                        .HasForeignKey("ResponseContentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Entities.FeedbackPromptAnswer", b =>
+                {
+                    b.HasOne("EY.HRPlatform.Performance.Domain.Entities.FeedbackResponseContent", null)
+                        .WithMany("Answers")
+                        .HasForeignKey("ResponseContentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Entities.FeedbackPromptSnapshot", b =>
+                {
+                    b.HasOne("EY.HRPlatform.Performance.Domain.Entities.FeedbackTemplateSnapshot", null)
+                        .WithMany("Prompts")
+                        .HasForeignKey("TemplateSnapshotId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Entities.FeedbackResponseVersion", b =>
+                {
+                    b.HasOne("EY.HRPlatform.Performance.Domain.Entities.FeedbackResponseContent", null)
+                        .WithMany()
+                        .HasForeignKey("ResponseContentId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
@@ -1201,6 +1951,21 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
                         .HasForeignKey("ReviewId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Entities.ExceptionCase", b =>
+                {
+                    b.Navigation("HistoryEntries");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Entities.FeedbackResponseContent", b =>
+                {
+                    b.Navigation("Answers");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Entities.FeedbackTemplateSnapshot", b =>
+                {
+                    b.Navigation("Prompts");
                 });
 
             modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Entities.FormalReviewDefinitionSnapshot", b =>

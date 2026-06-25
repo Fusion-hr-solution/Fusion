@@ -74,10 +74,16 @@ public sealed class ActivateCycleCommandHandler(
             cycle.Id,
             responsibility.SubjectEmployeeId,
             responsibility.AssigneeEmployeeId,
+            responsibility.Duty switch
+            {
+                CampaignResponsibilityDuty.ObjectiveApproval => CampaignWorkItemType.ObjectiveApproval,
+                CampaignResponsibilityDuty.PeerFeedback => CampaignWorkItemType.PeerFeedback,
+                CampaignResponsibilityDuty.UpwardFeedback => CampaignWorkItemType.UpwardFeedback,
+                _ => CampaignWorkItemType.ManagerReview,
+            },
             responsibility.Duty == CampaignResponsibilityDuty.ObjectiveApproval
-                ? CampaignWorkItemType.ObjectiveApproval
-                : CampaignWorkItemType.ManagerReview,
-            responsibility.Duty == CampaignResponsibilityDuty.ObjectiveApproval ? planningDueAt : cycle.PeriodEnd,
+                ? planningDueAt
+                : cycle.PeriodEnd,
             responsibility.Id)));
         dbContext.CampaignWorkItems.AddRange(workItems);
 

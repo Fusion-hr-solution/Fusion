@@ -18,6 +18,8 @@ public sealed class PerformanceObjectiveConfiguration : IEntityTypeConfiguration
         builder.Property(objective => objective.Weight).HasPrecision(5, 2);
         builder.Property(objective => objective.Level).HasConversion<string>().HasMaxLength(20).IsRequired();
         builder.Property(objective => objective.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
+        builder.Property(objective => objective.ProgressMode).HasConversion<string>().HasMaxLength(20).IsRequired();
+        builder.Property(objective => objective.ManualProgressPercent).HasPrecision(5, 2);
         builder.HasIndex(objective => new { objective.TenantId, objective.CycleId, objective.OwnerEmployeeId });
         builder.HasIndex(objective => new { objective.CycleId, objective.ParentObjectiveId });
         builder.Ignore(objective => objective.DomainEvents);
