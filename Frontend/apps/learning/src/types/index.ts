@@ -18,6 +18,25 @@ export type ChapterLayout = "SingleContent" | "SplitLayout" | "MultiSection";
 
 export type TrainingType = "ELearning" | "OnSite";
 
+export interface PendingFeedback {
+  trainingId: string;
+  trainingTitle: string;
+  trainingType: TrainingType;
+  completedAt: string;
+}
+
+export interface SubmitFeedbackInput {
+  trainingId: string;
+  overallRating: number;
+  contentRating: number;
+  relevanceRating: number;
+  trainerRating?: number;
+  wouldRecommend: boolean;
+  comment?: string;
+  suggestions?: string;
+  isAnonymous: boolean;
+}
+
 export interface OnSiteCourse {
   id: string;
   title: string;

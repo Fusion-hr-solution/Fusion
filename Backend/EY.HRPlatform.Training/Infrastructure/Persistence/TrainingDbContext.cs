@@ -28,6 +28,7 @@ public class TrainingDbContext : DbContext
     public DbSet<Badge> Badges => Set<Badge>();
     public DbSet<EmployeeBadge> EmployeeBadges => Set<EmployeeBadge>();
     public DbSet<Certification> Certifications => Set<Certification>();
+    public DbSet<TrainingFeedback> TrainingFeedbacks => Set<TrainingFeedback>();
     public DbSet<Grade> Grades => Set<Grade>();
     public DbSet<ServiceLine> ServiceLines => Set<ServiceLine>();
     public DbSet<CurriculumMapping> CurriculumMappings => Set<CurriculumMapping>();
@@ -395,6 +396,21 @@ public class TrainingDbContext : DbContext
                 .HasForeignKey(p => p.ServiceLineId)
                 .OnDelete(DeleteBehavior.Restrict);
             e.HasIndex(p => p.EmployeeId).IsUnique();
+        });
+
+        // --- TrainingFeedback (one per employee × training; immutable — ADR 0006) ---
+        modelBuilder.Entity<TrainingFeedback>(e =>
+        {
+            e.HasKey(f => f.Id);
+            e.Property(f => f.Comment).HasMaxLength(2000);
+            e.Property(f => f.Suggestions).HasMaxLength(2000);
+            e.HasOne(f => f.Training)
+                .WithMany()
+                .HasForeignKey(f => f.TrainingId)
+                .OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(f => new { f.EmployeeId, f.TrainingId }).IsUnique();
+            e.HasIndex(f => f.TrainingId);
+            e.HasIndex(f => f.SubmittedAt);
         });
     }
 }

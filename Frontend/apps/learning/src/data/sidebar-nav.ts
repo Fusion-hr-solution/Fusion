@@ -18,6 +18,7 @@ import {
   CalendarCheck2,
   ScanLine,
   BadgeCheck,
+  MessageSquare,
 } from "lucide-react";
 import type { NavSection } from "@repo/ui";
 
@@ -67,6 +68,7 @@ export const ADMIN_NAV: NavSection = {
     { label: "curriculum", href: "/admin/curriculum", icon: Grid3X3 },
     { label: "sessions", href: "/admin/sessions", icon: CalendarClock },
     { label: "attendance", href: "/admin/attendance", icon: BarChart2 },
+    { label: "feedback", href: "/admin/feedback", icon: MessageSquare },
     {
       label: "certificateRegistry",
       href: "/admin/certificates",

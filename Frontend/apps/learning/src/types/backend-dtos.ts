@@ -433,3 +433,103 @@ export interface BackendScanQrResultDto {
   sessionStartUtc: string;
   attendedAt: string;
 }
+
+// --- US-8.1.1 Feedback ---
+
+export interface BackendPendingFeedbackDto {
+  trainingId: string;
+  trainingTitle: string;
+  trainingType: string;
+  completedAt: string;
+}
+
+export interface BackendSubmitFeedbackRequest {
+  trainingId: string;
+  overallRating: number;
+  contentRating: number;
+  relevanceRating: number;
+  trainerRating?: number;
+  wouldRecommend: boolean;
+  comment?: string;
+  suggestions?: string;
+  isAnonymous: boolean;
+}
+
+// --- US-8.1.2 Admin feedback dashboards ---
+
+export interface BackendFeedbackTrendPointDto {
+  year: number;
+  month: number;
+  label: string;
+  avgOverallRating: number;
+  responseCount: number;
+}
+
+export interface BackendFeedbackCommentDto {
+  author: string;
+  comment: string;
+  overallRating: number;
+  submittedAt: string;
+  trainingTitle?: string | null;
+}
+
+export interface BackendTrainingFeedbackSummaryDto {
+  trainingId: string;
+  trainingTitle: string;
+  totalResponses: number;
+  avgOverallRating: number;
+  avgContentRating: number;
+  avgRelevanceRating: number;
+  avgTrainerRating?: number | null;
+  recommendationRate: number;
+  ratingDistribution: number[];
+  monthlyTrend: BackendFeedbackTrendPointDto[];
+  commentsSuppressed: boolean;
+  comments: BackendFeedbackCommentDto[];
+}
+
+export interface BackendTrainerFeedbackListItemDto {
+  trainerKey: string;
+  trainerName: string;
+  sessionsCount: number;
+  feedbackCount: number;
+  avgTrainerRating: number;
+  recommendationRate: number;
+}
+
+export interface BackendTrainerTrainingBreakdownDto {
+  trainingId: string;
+  trainingTitle: string;
+  feedbackCount: number;
+  avgTrainerRating: number;
+}
+
+export interface BackendTrainerFeedbackDetailDto {
+  trainerKey: string;
+  trainerName: string;
+  sessionsCount: number;
+  feedbackCount: number;
+  avgTrainerRating: number;
+  recommendationRate: number;
+  trainings: BackendTrainerTrainingBreakdownDto[];
+  commentsSuppressed: boolean;
+  comments: BackendFeedbackCommentDto[];
+}
+
+export interface BackendFeedbackTrainingRatingDto {
+  trainingId: string;
+  trainingTitle: string;
+  avgOverallRating: number;
+  responseCount: number;
+}
+
+export interface BackendFeedbackOverviewDto {
+  totalFeedbacks: number;
+  avgOverallRating: number;
+  recommendationRate: number;
+  responseRate: number;
+  ratingDistribution: number[];
+  monthlyTrend: BackendFeedbackTrendPointDto[];
+  topTrainings: BackendFeedbackTrainingRatingDto[];
+  bottomTrainings: BackendFeedbackTrainingRatingDto[];
+}

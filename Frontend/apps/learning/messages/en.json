@@ -1,4 +1,97 @@
 {
+  "feedback": {
+    "prompt": {
+      "title": "Share your feedback",
+      "one": "You have 1 completed training awaiting your feedback.",
+      "many": "You have {count} completed trainings awaiting your feedback.",
+      "cta": "Give feedback",
+      "latest": "Most recent: {title}"
+    },
+    "form": {
+      "title": "Feedback — {title}",
+      "subtitle": "Your feedback helps us improve this training.",
+      "overall": "Overall rating",
+      "content": "Content quality",
+      "relevance": "Relevance to your role",
+      "trainer": "Trainer quality",
+      "recommend": "Would you recommend this training?",
+      "recommendYes": "Yes",
+      "recommendNo": "No",
+      "comment": "Comment",
+      "commentPlaceholder": "What did you think of this training?",
+      "suggestions": "Suggestions",
+      "suggestionsPlaceholder": "How could we improve it?",
+      "anonymous": "Submit anonymously",
+      "anonymousHint": "Your name will not be shown to administrators.",
+      "submit": "Submit feedback",
+      "submitting": "Submitting…",
+      "cancel": "Cancel"
+    },
+    "toast": {
+      "successTitle": "Thank you for your feedback!",
+      "successBody": "Your feedback has been recorded.",
+      "errorTitle": "Unable to submit feedback",
+      "errorBody": "Something went wrong. Please try again."
+    }
+  },
+  "adminFeedback": {
+    "overview": {
+      "title": "Feedback Overview",
+      "subtitle": "Learner feedback across all trainings.",
+      "kpiAvg": "Avg rating",
+      "kpiTotal": "Total feedback",
+      "kpiResponseRate": "Response rate",
+      "kpiRecommend": "Recommend rate",
+      "distribution": "Rating distribution",
+      "trend": "Rating trend",
+      "topTrainings": "Top-rated trainings",
+      "bottomTrainings": "Lowest-rated trainings",
+      "byTrainerLink": "Feedback by trainer",
+      "noData": "No feedback yet.",
+      "responses": "responses"
+    },
+    "filters": {
+      "format": "Format",
+      "allFormats": "All formats",
+      "eLearning": "E-learning",
+      "onSite": "On-site",
+      "from": "From",
+      "to": "To"
+    },
+    "training": {
+      "noFeedback": "No feedback has been submitted for this training yet.",
+      "kpiAvg": "Avg rating",
+      "kpiResponses": "Responses",
+      "kpiRecommend": "Recommend rate",
+      "kpiTrainer": "Trainer rating",
+      "distribution": "Rating distribution",
+      "dimensions": "Rating dimensions",
+      "trend": "Rating trend",
+      "comments": "Comments",
+      "commentsSuppressed": "Comments are hidden until at least 3 learners respond, to protect anonymity.",
+      "noComments": "No comments were left."
+    },
+    "dimensions": {
+      "overall": "Overall",
+      "content": "Content",
+      "relevance": "Relevance",
+      "trainer": "Trainer"
+    },
+    "trainer": {
+      "listTitle": "Feedback by Trainer",
+      "listSubtitle": "Average ratings per trainer, from single-trainer trainings.",
+      "colName": "Trainer",
+      "colSessions": "Sessions",
+      "colFeedback": "Feedback",
+      "colAvg": "Avg rating",
+      "colRecommend": "Recommend",
+      "trainings": "Trainings",
+      "colTraining": "Training",
+      "comments": "Comments",
+      "noTrainers": "No trainer feedback yet.",
+      "noComments": "No comments were left."
+    }
+  },
   "nav": {
     "sections": {
       "learning": "Learning",
@@ -23,6 +116,7 @@
       "sessions": "Sessions",
       "attendance": "Attendance",
       "certificateRegistry": "Certificate Registry",
+      "feedback": "Feedback",
       "settings": "Settings"
     },
     "comingSoon": "Coming soon",
@@ -703,6 +797,8 @@
     },
     "detail": {
       "loading": "Loading training details...",
+      "tabDetails": "Details",
+      "tabFeedback": "Feedback",
       "manageTrainings": "Manage Trainings",
       "deleted": "Deleted",
       "mandatory": "Mandatory",

@@ -24,6 +24,7 @@ import { AdminExamList } from "./admin-exam-list";
 import { AdminOnSiteCourseList } from "./admin-onsite-course-list";
 import { PartsManagerSection } from "./sessions/parts-manager-section";
 import { TrainingStatCard } from "./training-stat-card";
+import { TrainingFeedbackPanel } from "./feedback";
 import { PageBreadcrumb } from "../page-breadcrumb";
 
 export function TrainingDetailView({ trainingId }: TrainingDetailViewProps) {
@@ -35,6 +36,7 @@ export function TrainingDetailView({ trainingId }: TrainingDetailViewProps) {
   const [editingChapter, setEditingChapter] = useState<AdminChapter | null>(
     null
   );
+  const [activeTab, setActiveTab] = useState<"details" | "feedback">("details");
 
   const fetchTrainingDetail = useCallback(
     () => getAdminTrainingDetail(trainingId),
@@ -118,6 +120,34 @@ export function TrainingDetailView({ trainingId }: TrainingDetailViewProps) {
         ]}
       />
 
+      {/* Tabs */}
+      <div className="inline-flex gap-1 rounded-xl border border-border/60 bg-card p-1 shadow-sm">
+        <button
+          type="button"
+          onClick={() => setActiveTab("details")}
+          className={`rounded-lg px-3.5 py-2 text-xs font-medium transition-all ${
+            activeTab === "details"
+              ? "ey-bg-dark text-white shadow-sm"
+              : "text-muted-foreground hover:bg-muted"
+          }`}
+        >
+          {t("detail.tabDetails")}
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("feedback")}
+          className={`rounded-lg px-3.5 py-2 text-xs font-medium transition-all ${
+            activeTab === "feedback"
+              ? "ey-bg-dark text-white shadow-sm"
+              : "text-muted-foreground hover:bg-muted"
+          }`}
+        >
+          {t("detail.tabFeedback")}
+        </button>
+      </div>
+
+      {activeTab === "details" && (
+        <>
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1">
@@ -319,6 +349,12 @@ export function TrainingDetailView({ trainingId }: TrainingDetailViewProps) {
             onSaved={refetch}
           />
         </>
+      )}
+        </>
+      )}
+
+      {activeTab === "feedback" && (
+        <TrainingFeedbackPanel trainingId={trainingId} />
       )}
     </div>
   );

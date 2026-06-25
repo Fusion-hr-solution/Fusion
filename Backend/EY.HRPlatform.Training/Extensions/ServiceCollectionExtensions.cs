@@ -3,6 +3,7 @@ using EY.HRPlatform.Training.Features.Admin.Sessions.Export;
 using EY.HRPlatform.Training.Features.Admin.Sessions.Services;
 using EY.HRPlatform.Training.Features.Certifications.Export;
 using EY.HRPlatform.Training.Features.Certifications.Services;
+using EY.HRPlatform.Training.Features.Enrollment.Services;
 using EY.HRPlatform.Training.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -66,6 +67,9 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ICertificateUrlBuilder, CertificateUrlBuilder>();
         services.AddSingleton<ICertificateRegistryExporter, CertificateRegistryExporter>();
         services.AddScoped<ICertificateIssuanceService, CertificateIssuanceService>();
+
+        // 7. Register on-site completion materialisation (ADR 0005) — scoped, uses the DbContext
+        services.AddScoped<IAttendanceCompletionService, AttendanceCompletionService>();
 
         return services;
     }

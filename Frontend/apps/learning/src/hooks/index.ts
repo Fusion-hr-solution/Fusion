@@ -20,3 +20,11 @@ export { useChapterTitle } from "./use-chapter-title";
 export { useSessionEnrollment } from "./use-session-enrollment";
 export { useMyCertificates } from "./use-my-certificates";
 export { useVerifyCertificate } from "./use-verify-certificate";
+export { usePendingFeedback } from "./use-pending-feedback";
+export { useSubmitFeedback } from "./use-submit-feedback";
+export {
+  useTrainingFeedback,
+  useTrainerFeedbackList,
+  useTrainerFeedbackDetail,
+  useFeedbackOverview,
+} from "./use-admin-feedback";
