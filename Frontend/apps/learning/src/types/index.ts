@@ -60,6 +60,37 @@ export interface SubmitFeedbackInput {
   answers?: FeedbackAnswerInput[];
 }
 
+export interface TrainerSession {
+  sessionId: string;
+  trainingTitle: string;
+  partTitle: string;
+  startUtc: string;
+  endUtc: string;
+  room: string;
+  /** Planned | InProgress | Completed */
+  status: string;
+  hasGroupFeedback: boolean;
+}
+
+export interface SubmitTrainerGroupFeedbackInput {
+  sessionId: string;
+  groupEngagement: number;
+  knowledgeLevel: number;
+  comments?: string;
+  prerequisiteSuggestions?: string;
+}
+
+export interface TrainerGroupFeedback {
+  sessionId: string;
+  trainerEmployeeId: string;
+  trainerName: string;
+  groupEngagement: number;
+  knowledgeLevel: number;
+  comments?: string;
+  prerequisiteSuggestions?: string;
+  submittedAt: string;
+}
+
 export interface OnSiteCourse {
   id: string;
   title: string;

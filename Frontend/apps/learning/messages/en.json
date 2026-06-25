@@ -678,10 +678,43 @@
       "reviewChapters": "Review Chapters"
     }
   },
+  "trainerFeedback": {
+    "noSessions": "You have no sessions to review yet. Group feedback becomes available once a session you lead has been held.",
+    "giveFeedback": "Give feedback",
+    "submitted": "Feedback submitted",
+    "notYetHeld": "Not yet held",
+    "form": {
+      "title": "Feedback on your group",
+      "engagement": "Group engagement",
+      "knowledge": "Knowledge level",
+      "comments": "Comments",
+      "prerequisites": "Prerequisite suggestions",
+      "prerequisitesPlaceholder": "What should attendees know before this session?",
+      "cancel": "Cancel",
+      "submit": "Submit feedback",
+      "submitting": "Submitting…"
+    },
+    "toast": {
+      "successTitle": "Feedback submitted",
+      "successBody": "Thank you — your feedback on the group has been recorded.",
+      "errorTitle": "Could not submit feedback",
+      "errorBody": "Something went wrong. Please try again."
+    },
+    "adminCard": {
+      "title": "Trainer feedback on group",
+      "none": "The trainer has not submitted feedback for this session.",
+      "by": "by {name}"
+    }
+  },
   "mySessions": {
     "title": "My Sessions",
     "subtitle": "Manage your in-person training sessions and attendance",
     "backToMySessions": "Back to My Sessions",
+    "tabs": {
+      "attending": "Attending",
+      "leading": "Leading",
+      "leadingDisabled": "You aren't assigned as a trainer on any sessions yet"
+    },
     "trainingCount": "{count, plural, one {# training} other {# trainings}}",
     "partTitle": "Part {number}: {title}",
     "stats": {

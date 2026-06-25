@@ -110,4 +110,69 @@ public class FeedbackController : ControllerBase
                 ApiResponse.Failure("An error occurred while retrieving pending feedback."));
         }
     }
+
+    /// <summary>Sessions the current user leads as trainer (for trainer-to-group feedback).</summary>
+    [HttpGet("trainer-sessions/me")]
+    [ProducesResponseType(typeof(ApiResponse<List<TrainerSessionDto>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> GetMyTrainerSessions(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var employeeId = User.GetUserId();
+            var result = await _sender.Send(new GetMyTrainerSessionsQuery(employeeId), cancellationToken);
+            return Ok(ApiResponse<List<TrainerSessionDto>>.Success(result.Value!));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to retrieve trainer sessions");
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                ApiResponse.Failure("An error occurred while retrieving your sessions."));
+        }
+    }
+
+    /// <summary>Submit group feedback for a session the current user trained (admin-visible only).</summary>
+    [HttpPost("trainer-group")]
+    [ProducesResponseType(typeof(ApiResponse<Guid>), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> SubmitTrainerGroupFeedback(
+        [FromBody] SubmitTrainerGroupFeedbackRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var employeeId = User.GetUserId();
+            var result = await _sender.Send(
+                new SubmitTrainerGroupFeedbackCommand(
+                    employeeId,
+                    request.SessionId,
+                    request.GroupEngagement,
+                    request.KnowledgeLevel,
+                    request.Comments,
+                    request.PrerequisiteSuggestions),
+                cancellationToken);
+
+            if (result.IsFailure)
+            {
+                if (result.Error.Code == "TrainerFeedback.AlreadySubmitted")
+                    return Conflict(ApiResponse.Failure(result.Error.Message));
+                if (result.Error.Code == "TrainerFeedback.NotTrainer")
+                    return StatusCode(StatusCodes.Status403Forbidden, ApiResponse.Failure(result.Error.Message));
+                if (result.Error.Code.EndsWith(".NotFound", StringComparison.Ordinal))
+                    return NotFound(ApiResponse.Failure(result.Error.Message));
+                return BadRequest(ApiResponse.Failure(result.Error.Message));
+            }
+
+            return StatusCode(StatusCodes.Status201Created, ApiResponse<Guid>.Success(result.Value));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to submit trainer group feedback for session {SessionId}", request.SessionId);
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                ApiResponse.Failure("An error occurred while submitting your feedback."));
+        }
+    }
 }

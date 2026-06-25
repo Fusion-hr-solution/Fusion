@@ -4,12 +4,15 @@ import type {
   FeedbackQuestionType,
   PendingFeedback,
   SubmitFeedbackInput,
+  SubmitTrainerGroupFeedbackInput,
+  TrainerSession,
   TrainingType,
 } from "@/types";
 import type {
   BackendFeedbackQuestionDto,
   BackendPendingFeedbackDto,
   BackendSubmitFeedbackRequest,
+  BackendTrainerSessionDto,
 } from "@/types/backend-dtos";
 
 const client = createPlatformApiClient();
@@ -59,4 +62,32 @@ export async function submitFeedback(input: SubmitFeedbackInput): Promise<string
     answers: input.answers ?? [],
   };
   return client.post<string>("/training/feedback", body);
+}
+
+/** Sessions the current user leads as trainer (US-8.1.3). */
+export async function getMyTrainerSessions(): Promise<TrainerSession[]> {
+  const dtos = await client.get<BackendTrainerSessionDto[]>("/training/feedback/trainer-sessions/me");
+  return dtos.map((d) => ({
+    sessionId: d.sessionId,
+    trainingTitle: d.trainingTitle,
+    partTitle: d.partTitle,
+    startUtc: d.startUtc,
+    endUtc: d.endUtc,
+    room: d.room,
+    status: d.status,
+    hasGroupFeedback: d.hasGroupFeedback,
+  }));
+}
+
+/** Submit a trainer's group feedback for a session they led. Returns the new feedback id. */
+export async function submitTrainerGroupFeedback(
+  input: SubmitTrainerGroupFeedbackInput,
+): Promise<string> {
+  return client.post<string>("/training/feedback/trainer-group", {
+    sessionId: input.sessionId,
+    groupEngagement: input.groupEngagement,
+    knowledgeLevel: input.knowledgeLevel,
+    comments: input.comments,
+    prerequisiteSuggestions: input.prerequisiteSuggestions,
+  });
 }

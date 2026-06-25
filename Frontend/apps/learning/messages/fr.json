@@ -678,10 +678,43 @@
       "reviewChapters": "Revoir les chapitres"
     }
   },
+  "trainerFeedback": {
+    "noSessions": "Vous n'avez pas encore de séances à évaluer. Le retour sur le groupe devient disponible une fois qu'une séance que vous animez a eu lieu.",
+    "giveFeedback": "Donner un retour",
+    "submitted": "Retour envoyé",
+    "notYetHeld": "Pas encore tenue",
+    "form": {
+      "title": "Retour sur votre groupe",
+      "engagement": "Engagement du groupe",
+      "knowledge": "Niveau de connaissances",
+      "comments": "Commentaires",
+      "prerequisites": "Suggestions de prérequis",
+      "prerequisitesPlaceholder": "Que devraient savoir les participants avant cette séance ?",
+      "cancel": "Annuler",
+      "submit": "Envoyer le retour",
+      "submitting": "Envoi en cours…"
+    },
+    "toast": {
+      "successTitle": "Retour envoyé",
+      "successBody": "Merci — votre retour sur le groupe a été enregistré.",
+      "errorTitle": "Impossible d'envoyer le retour",
+      "errorBody": "Une erreur s'est produite. Veuillez réessayer."
+    },
+    "adminCard": {
+      "title": "Retour du formateur sur le groupe",
+      "none": "Le formateur n'a pas soumis de retour pour cette séance.",
+      "by": "par {name}"
+    }
+  },
   "mySessions": {
     "title": "Mes Séances",
     "subtitle": "Gérez vos séances de formation en présentiel et votre présence",
     "backToMySessions": "Retour à Mes Séances",
+    "tabs": {
+      "attending": "Participation",
+      "leading": "Animation",
+      "leadingDisabled": "Vous n'êtes encore assigné comme formateur sur aucune séance"
+    },
     "trainingCount": "{count, plural, one {# formation} other {# formations}}",
     "partTitle": "Partie {number} : {title}",
     "stats": {

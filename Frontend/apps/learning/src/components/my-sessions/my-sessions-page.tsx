@@ -6,16 +6,26 @@ import { Button, Skeleton } from "@repo/ui";
 import { useApiQuery } from "@repo/api/react";
 import { useTranslations } from "next-intl";
 import { getAllMyEnrollments } from "@/services/enrollment-service";
+import { useMyTrainerSessions } from "@/hooks/use-my-trainer-sessions";
 import { SessionTrainingGroup } from "./session-training-group";
+import { TrainerSessionsView } from "./trainer-sessions-view";
 
 type ViewFilter = "upcoming" | "past" | "all";
+type SessionTab = "attending" | "leading";
 
 export function MySessionsPage() {
   const t = useTranslations("mySessions");
+  const [tab, setTab] = useState<SessionTab>("attending");
   const [filter, setFilter] = useState<ViewFilter>("upcoming");
 
   const fetcher = useCallback(() => getAllMyEnrollments(), []);
   const { data: enrollments, isLoading } = useApiQuery(fetcher);
+  const {
+    sessions: trainerSessions,
+    isLoading: trainerSessionsLoading,
+    refetch: refetchTrainerSessions,
+  } = useMyTrainerSessions();
+  const hasTrainerSessions = trainerSessions.length > 0;
 
   const now = useMemo(() => new Date().toISOString(), []);
 
@@ -50,21 +60,6 @@ export function MySessionsPage() {
     );
   }, [enrollments, now]);
 
-  if (isLoading) {
-    return (
-      <div className="space-y-6 p-6">
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-4 w-96" />
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <Skeleton className="h-24 rounded-xl" />
-          <Skeleton className="h-24 rounded-xl" />
-          <Skeleton className="h-24 rounded-xl" />
-        </div>
-        <Skeleton className="h-64 rounded-xl" />
-      </div>
-    );
-  }
-
   const totalSessions = (enrollments ?? []).reduce((acc, t) => acc + t.sessions.length, 0);
 
   return (
@@ -82,6 +77,45 @@ export function MySessionsPage() {
         </div>
       </div>
 
+      {/* Attending / Leading tabs */}
+      <div className="flex gap-1 rounded-lg border border-border/50 bg-muted/30 p-0.5 w-fit">
+        <Button
+          variant={tab === "attending" ? "default" : "ghost"}
+          size="sm"
+          className={`h-8 px-4 text-xs font-medium ${tab === "attending" ? "" : "text-muted-foreground hover:text-foreground"}`}
+          onClick={() => setTab("attending")}
+        >
+          {t("tabs.attending")}
+        </Button>
+        <Button
+          variant={tab === "leading" ? "default" : "ghost"}
+          size="sm"
+          disabled={!hasTrainerSessions}
+          title={!hasTrainerSessions ? t("tabs.leadingDisabled") : undefined}
+          className={`h-8 px-4 text-xs font-medium ${tab === "leading" ? "" : "text-muted-foreground hover:text-foreground"}`}
+          onClick={() => setTab("leading")}
+        >
+          {t("tabs.leading")}
+        </Button>
+      </div>
+
+      {tab === "leading" ? (
+        <TrainerSessionsView
+          sessions={trainerSessions}
+          isLoading={trainerSessionsLoading}
+          refetch={refetchTrainerSessions}
+        />
+      ) : isLoading ? (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <Skeleton className="h-24 rounded-xl" />
+            <Skeleton className="h-24 rounded-xl" />
+            <Skeleton className="h-24 rounded-xl" />
+          </div>
+          <Skeleton className="h-64 rounded-xl" />
+        </div>
+      ) : (
+        <div className="space-y-6">
       {/* Stats strip */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <StatCard
@@ -136,6 +170,8 @@ export function MySessionsPage() {
           {filtered.map((training) => (
             <SessionTrainingGroup key={training.trainingId} training={training} />
           ))}
+        </div>
+      )}
         </div>
       )}
     </div>

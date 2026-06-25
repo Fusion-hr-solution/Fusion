@@ -7,12 +7,14 @@ import type {
   TrainerFeedbackListItem,
   TrainingFeedbackSummary,
 } from "@/types/admin";
+import type { TrainerGroupFeedback } from "@/types";
 import type {
   BackendFeedbackCommentDto,
   BackendFeedbackOverviewDto,
   BackendFeedbackTrendPointDto,
   BackendTrainerFeedbackDetailDto,
   BackendTrainerFeedbackListItemDto,
+  BackendTrainerGroupFeedbackDto,
   BackendTrainingFeedbackSummaryDto,
 } from "@/types/backend-dtos";
 import { client } from "./admin-service-mappers";
@@ -135,5 +137,23 @@ export async function getFeedbackOverview(
     monthlyTrend: dto.monthlyTrend.map(mapTrend),
     topTrainings: dto.topTrainings,
     bottomTrainings: dto.bottomTrainings,
+  };
+}
+
+/** The trainer's group feedback for a session (US-8.1.3); null if none submitted. */
+export async function getSessionTrainerFeedback(sessionId: string): Promise<TrainerGroupFeedback | null> {
+  const dto = await client.get<BackendTrainerGroupFeedbackDto | null>(
+    `${BASE}/trainer-group/${encodeURIComponent(sessionId)}`,
+  );
+  if (!dto) return null;
+  return {
+    sessionId: dto.sessionId,
+    trainerEmployeeId: dto.trainerEmployeeId,
+    trainerName: dto.trainerName,
+    groupEngagement: dto.groupEngagement,
+    knowledgeLevel: dto.knowledgeLevel,
+    comments: dto.comments ?? undefined,
+    prerequisiteSuggestions: dto.prerequisiteSuggestions ?? undefined,
+    submittedAt: dto.submittedAt,
   };
 }

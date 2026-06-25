@@ -465,6 +465,30 @@ export interface BackendFeedbackQuestionDto {
   options?: string | null;
 }
 
+// --- US-8.1.3 Trainer-to-group feedback ---
+
+export interface BackendTrainerSessionDto {
+  sessionId: string;
+  trainingTitle: string;
+  partTitle: string;
+  startUtc: string;
+  endUtc: string;
+  room: string;
+  status: string;
+  hasGroupFeedback: boolean;
+}
+
+export interface BackendTrainerGroupFeedbackDto {
+  sessionId: string;
+  trainerEmployeeId: string;
+  trainerName: string;
+  groupEngagement: number;
+  knowledgeLevel: number;
+  comments?: string | null;
+  prerequisiteSuggestions?: string | null;
+  submittedAt: string;
+}
+
 // --- US-8.1.2 Admin feedback dashboards ---
 
 export interface BackendFeedbackTrendPointDto {

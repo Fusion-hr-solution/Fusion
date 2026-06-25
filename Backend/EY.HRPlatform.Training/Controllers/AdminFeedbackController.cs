@@ -125,4 +125,23 @@ public class AdminFeedbackController : ControllerBase
                 ApiResponse.Failure("An error occurred while retrieving the feedback overview."));
         }
     }
+
+    /// <summary>The trainer's group feedback for a session (null if none submitted).</summary>
+    [HttpGet("trainer-group/{sessionId:guid}")]
+    [ProducesResponseType(typeof(ApiResponse<TrainerGroupFeedbackDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> GetSessionTrainerFeedback(Guid sessionId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await _sender.Send(new GetSessionTrainerFeedbackQuery(sessionId), cancellationToken);
+            return Ok(ApiResponse<TrainerGroupFeedbackDto?>.Success(result.Value));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to retrieve trainer group feedback for session {SessionId}", sessionId);
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                ApiResponse.Failure("An error occurred while retrieving trainer feedback."));
+        }
+    }
 }

@@ -30,3 +30,5 @@ export {
 } from "./use-admin-feedback";
 export { useTrainingFeedbackQuestions } from "./use-training-feedback-questions";
 export { useFeedbackConfig } from "./use-feedback-config";
+export { useMyTrainerSessions } from "./use-my-trainer-sessions";
+export { useSessionTrainerFeedback } from "./use-session-trainer-feedback";
