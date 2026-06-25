@@ -147,6 +147,7 @@
       "attendance": "Attendance",
       "certificateRegistry": "Certificate Registry",
       "feedback": "Feedback",
+      "reports": "Reports",
       "settings": "Settings"
     },
     "comingSoon": "Coming soon",
@@ -676,6 +677,54 @@
       "attemptHistory": "Attempt History",
       "backToOverview": "Back to Overview",
       "reviewChapters": "Review Chapters"
+    }
+  },
+  "reports": {
+    "title": "Reports",
+    "subtitle": "Attendance, training hours and in-person vs e-learning comparison",
+    "tabs": {
+      "attendance": "Attendance",
+      "hours": "Training Hours",
+      "format": "Format Comparison"
+    },
+    "filters": {
+      "grade": "Grade",
+      "serviceLine": "Service Line",
+      "from": "From",
+      "to": "To",
+      "allGrades": "All grades",
+      "allServiceLines": "All service lines",
+      "reset": "Reset"
+    },
+    "export": {
+      "button": "Export Excel",
+      "exporting": "Exporting…",
+      "error": "Export failed. Please try again."
+    },
+    "empty": "No data for the selected filters.",
+    "total": "Total",
+    "hoursEstimatedNote": "Hours are estimated: in-person from attended-session times, e-learning from authored content duration.",
+    "completionByFormat": "Completion rate by format",
+    "format": {
+      "eLearning": "E-learning",
+      "onSite": "On-site"
+    },
+    "cols": {
+      "employee": "Employee",
+      "grade": "Grade",
+      "serviceLine": "Service Line",
+      "enrolled": "Enrolled",
+      "attended": "Attended",
+      "missed": "Missed",
+      "rate": "Attendance Rate",
+      "eLearningHours": "E-learning Hours",
+      "inPersonHours": "In-person Hours",
+      "totalHours": "Total Hours",
+      "completed": "Completed",
+      "trainings": "Trainings",
+      "hoursDelivered": "Hours Delivered",
+      "participants": "Participants",
+      "avgFeedback": "Avg Feedback"
     }
   },
   "trainerFeedback": {
