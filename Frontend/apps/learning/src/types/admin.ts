@@ -750,6 +750,43 @@ export interface ReportChartImage {
   pngBase64: string;
 }
 
+/* ── Training import (US-8.2.3 / US-8.2.4) ── */
+
+export interface TrainingImportIssue {
+  field?: string | null;
+  message: string;
+  /** "error" | "warning". */
+  severity: string;
+}
+
+export interface TrainingImportRow {
+  ref: string;
+  title?: string | null;
+  category?: string | null;
+  format?: string | null;
+  sessionCount: number;
+  chapterCount: number;
+  contentCount: number;
+  /** "ready" | "duplicate" | "error". */
+  status: string;
+  issues: TrainingImportIssue[];
+}
+
+export interface TrainingImportSummary {
+  total: number;
+  ready: number;
+  duplicate: number;
+  error: number;
+}
+
+export interface TrainingImportPreview {
+  sessionId?: string | null;
+  fileName: string;
+  rows: TrainingImportRow[];
+  globalIssues: TrainingImportIssue[];
+  summary: TrainingImportSummary;
+}
+
 /* ── Feedback dashboards (US-8.1.2) ── */
 
 export interface FeedbackTrendPoint {
