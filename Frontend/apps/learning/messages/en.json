@@ -148,6 +148,7 @@
       "certificateRegistry": "Certificate Registry",
       "feedback": "Feedback",
       "reports": "Reports",
+      "importTrainings": "Import Trainings",
       "settings": "Settings"
     },
     "comingSoon": "Coming soon",
@@ -677,6 +678,45 @@
       "attemptHistory": "Attempt History",
       "backToOverview": "Back to Overview",
       "reviewChapters": "Review Chapters"
+    }
+  },
+  "imports": {
+    "title": "Import Trainings",
+    "subtitle": "Bulk-import trainings from an Excel workbook with preview and validation",
+    "downloadTemplate": "Download template",
+    "upload": {
+      "choose": "Choose file",
+      "noFile": "No file selected",
+      "button": "Upload & preview",
+      "uploading": "Uploading…"
+    },
+    "toast": {
+      "uploaded": "File validated — review the preview below.",
+      "uploadError": "Could not process the file.",
+      "templateError": "Could not download the template."
+    },
+    "summary": {
+      "total": "{count} total",
+      "ready": "{count} ready",
+      "duplicate": "{count} duplicate",
+      "error": "{count} error"
+    },
+    "globalIssues": "Workbook issues",
+    "noRows": "No trainings found in the workbook.",
+    "previewNote": "This is a preview — nothing has been imported yet. Confirming the import is the next step.",
+    "cols": {
+      "ref": "Ref",
+      "title": "Title",
+      "category": "Category",
+      "format": "Format",
+      "structure": "Sessions / Chapters / Content",
+      "structureShort": "S / C / Ct",
+      "status": "Status"
+    },
+    "status": {
+      "ready": "Ready",
+      "duplicate": "Duplicate",
+      "error": "Error"
     }
   },
   "reports": {

@@ -148,6 +148,7 @@
       "certificateRegistry": "Registre des certificats",
       "feedback": "Avis",
       "reports": "Rapports",
+      "importTrainings": "Importer des formations",
       "settings": "Paramètres"
     },
     "comingSoon": "Bientôt disponible",
@@ -677,6 +678,45 @@
       "attemptHistory": "Historique des tentatives",
       "backToOverview": "Retour à la vue d'ensemble",
       "reviewChapters": "Revoir les chapitres"
+    }
+  },
+  "imports": {
+    "title": "Importer des formations",
+    "subtitle": "Importez des formations en masse depuis un classeur Excel, avec aperçu et validation",
+    "downloadTemplate": "Télécharger le modèle",
+    "upload": {
+      "choose": "Choisir un fichier",
+      "noFile": "Aucun fichier sélectionné",
+      "button": "Importer & prévisualiser",
+      "uploading": "Import en cours…"
+    },
+    "toast": {
+      "uploaded": "Fichier validé — vérifiez l'aperçu ci-dessous.",
+      "uploadError": "Impossible de traiter le fichier.",
+      "templateError": "Impossible de télécharger le modèle."
+    },
+    "summary": {
+      "total": "{count} au total",
+      "ready": "{count} prêtes",
+      "duplicate": "{count} en double",
+      "error": "{count} en erreur"
+    },
+    "globalIssues": "Problèmes du classeur",
+    "noRows": "Aucune formation trouvée dans le classeur.",
+    "previewNote": "Ceci est un aperçu — rien n'a encore été importé. La confirmation de l'import est l'étape suivante.",
+    "cols": {
+      "ref": "Réf",
+      "title": "Titre",
+      "category": "Catégorie",
+      "format": "Format",
+      "structure": "Séances / Chapitres / Contenu",
+      "structureShort": "S / C / Ct",
+      "status": "Statut"
+    },
+    "status": {
+      "ready": "Prête",
+      "duplicate": "Doublon",
+      "error": "Erreur"
     }
   },
   "reports": {
