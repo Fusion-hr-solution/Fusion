@@ -3,13 +3,16 @@
 import Link from "next/link";
 import { ArrowRight, Users } from "lucide-react";
 import { useAuth } from "@repo/auth";
-import { EmptyState } from "@repo/ui";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import {
+  PageContainer,
+  PageHeader,
+  PageEmpty,
+  PageError,
+  PageLoading,
+  PagePermissionNotice,
+  StatusBadge,
+} from "@repo/ds/shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CorePageLoadingState } from "@/components/core-page-loading-state";
-import { PageHeader } from "@/components/page-header";
 import { canAccessTeamWorkspace } from "@/lib/employee-roster-access";
 import { useEmployeeReportingLines } from "@/app/(pages)/employees/use-employees";
 
@@ -23,59 +26,55 @@ export default function TeamWorkspace() {
 
   if (isAuthLoading || (canAccess && isLoading && !data && !error)) {
     return (
-      <CorePageLoadingState
-        title="My Team"
-        description="Loading team."
-        message="Loading your team..."
-        variant="summary-list"
-      />
+      <PageContainer className="space-y-6">
+        <PageHeader title="My Team" description="Loading team." />
+        <PageLoading rows={6} label="Loading your team..." />
+      </PageContainer>
     );
   }
 
   if (!canAccess || !employeeId) {
     return (
-      <div className="flex flex-col gap-6 p-6">
+      <PageContainer className="space-y-6">
         <PageHeader title="My Team" description="Manager workspace only." />
-        <EmptyState
-          icon={Users}
+        <PagePermissionNotice
           title="No team workspace available"
           description="Contact a tenant HR administrator to link your manager record."
         />
-      </div>
+      </PageContainer>
+    );
+  }
+
+  if (error && !data) {
+    return (
+      <PageContainer className="space-y-6">
+        <PageHeader title="My Team" description="Direct reports." />
+        <PageError
+          title="Failed to load team"
+          description="Could not load team data. Try again in a moment."
+          onRetry={() => refetch()}
+        />
+      </PageContainer>
     );
   }
 
   return (
-    <div className="flex flex-col gap-6 p-6">
+    <PageContainer className="space-y-6">
       <PageHeader title="My Team" description="Direct reports." />
-
-      {error ? (
-        <Alert variant="destructive">
-          <AlertTitle>Failed to load team</AlertTitle>
-          <AlertDescription className="flex items-center justify-between gap-3">
-            <span>Could not load team data. Try again in a moment.</span>
-            <Button variant="outline" size="sm" onClick={() => refetch()}>
-              Retry
-            </Button>
-          </AlertDescription>
-        </Alert>
-      ) : null}
 
       <Card>
         <CardHeader density="compact">
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <CardTitle>Direct reports</CardTitle>
-            </div>
-            <Badge variant="secondary">
+            <CardTitle>Direct reports</CardTitle>
+            <StatusBadge tone="neutral">
               {directReports.length} direct report
               {directReports.length === 1 ? "" : "s"}
-            </Badge>
+            </StatusBadge>
           </div>
         </CardHeader>
         <CardContent>
           {directReports.length === 0 && !isFetching ? (
-            <EmptyState
+            <PageEmpty
               icon={Users}
               title="No direct reports"
               description="No employees report to you right now."
@@ -110,6 +109,6 @@ export default function TeamWorkspace() {
           )}
         </CardContent>
       </Card>
-    </div>
+    </PageContainer>
   );
 }
