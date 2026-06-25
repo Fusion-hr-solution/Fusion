@@ -7,6 +7,7 @@
     ".": "./src/index.ts",
     "./shell": "./src/shell/index.ts",
     "./components/ui/*": "./src/components/ui/*.tsx",
+    "./components/ui/use-toast": "./src/components/ui/use-toast.ts",
     "./tokens.css": "./src/styles/tokens.css",
     "./components.json": "./components.json"
   },

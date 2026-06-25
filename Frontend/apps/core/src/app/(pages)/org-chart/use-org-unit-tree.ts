@@ -7,7 +7,11 @@ import {
   useApiQuery,
   type UseApiQueryResult,
 } from "@repo/api/query";
-import { canAccessCoreOrgChart, useAuth } from "@repo/auth";
+import {
+  canAccessCoreOrgChart,
+  PLATFORM_ADMIN_ROLE,
+  useAuth,
+} from "@repo/auth";
 import { useTenantContext } from "@/shell/tenant-context/core-tenant-context-provider";
 import {
   normalizeOrgUnitTreeQuery,
@@ -33,7 +37,7 @@ export function useOrgUnitTree(
   const client = useMemo(() => createPlatformApiClient(), []);
   const canAccess =
     canAccessCoreOrgChart(user) ||
-    (!!user?.roles.includes("PlatformAdmin") && !!tenantId);
+    (!!user?.roles.includes(PLATFORM_ADMIN_ROLE) && !!tenantId);
   const normalizedQuery = normalizeOrgUnitTreeQuery(query);
 
   const queryFn = useCallback(
