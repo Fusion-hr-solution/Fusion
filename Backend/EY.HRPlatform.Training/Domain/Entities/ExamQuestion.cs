@@ -10,6 +10,9 @@ public class ExamQuestion : BaseEntity
     public int OrderIndex { get; private set; }
     public int Points { get; private set; } = 1;
 
+    /// <summary>Optional rationale for the correct answer (US-8.2.5).</summary>
+    public string? Explanation { get; private set; }
+
     public Guid ExamId { get; private set; }
     public Exam Exam { get; private set; } = null!;
 
@@ -18,13 +21,14 @@ public class ExamQuestion : BaseEntity
 
     private ExamQuestion() { }
 
-    public ExamQuestion(string questionText, QuestionType type, Guid examId, int orderIndex, int points = 1)
+    public ExamQuestion(string questionText, QuestionType type, Guid examId, int orderIndex, int points = 1, string? explanation = null)
     {
         QuestionText = questionText;
         Type = type;
         ExamId = examId;
         OrderIndex = orderIndex;
         Points = points;
+        Explanation = explanation;
     }
 
     public void Update(string questionText, QuestionType type, int points)
@@ -32,6 +36,12 @@ public class ExamQuestion : BaseEntity
         QuestionText = questionText;
         Type = type;
         Points = points;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void SetExplanation(string? explanation)
+    {
+        Explanation = explanation;
         UpdatedAt = DateTime.UtcNow;
     }
 

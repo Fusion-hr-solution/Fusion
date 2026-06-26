@@ -38,6 +38,7 @@ public class TrainingDbContext : DbContext
     public DbSet<EmployeeProfile> EmployeeProfiles => Set<EmployeeProfile>();
     public DbSet<TrainingImportSession> TrainingImportSessions => Set<TrainingImportSession>();
     public DbSet<TrainingImportHistory> TrainingImportHistories => Set<TrainingImportHistory>();
+    public DbSet<QuizDraft> QuizDrafts => Set<QuizDraft>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -477,6 +478,14 @@ public class TrainingDbContext : DbContext
             e.HasKey(h => h.Id);
             e.Property(h => h.FileName).HasMaxLength(260);
             e.HasIndex(h => h.CreatedByEmployeeId);
+        });
+
+        // --- QuizDraft (US-8.2.5 per-training AI quiz draft, ADR 0009) ---
+        modelBuilder.Entity<QuizDraft>(e =>
+        {
+            e.HasKey(d => d.Id);
+            e.Property(d => d.QuestionsJson).HasColumnType("jsonb");
+            e.HasIndex(d => d.TrainingId).IsUnique();
         });
     }
 }

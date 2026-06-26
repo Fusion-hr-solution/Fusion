@@ -1,5 +1,7 @@
+using System.Net.Http.Headers;
 using System.Text;
 using EY.HRPlatform.Training.Features.Admin.Import;
+using EY.HRPlatform.Training.Features.Admin.Quiz;
 using EY.HRPlatform.Training.Features.Admin.Reports.Export;
 using EY.HRPlatform.Training.Features.Admin.Sessions.Export;
 using EY.HRPlatform.Training.Features.Admin.Sessions.Services;
@@ -64,6 +66,27 @@ public static class ServiceCollectionExtensions
 
         // 4c. Register training import template generator (US-8.2.4)
         services.AddSingleton<ITrainingImportTemplateGenerator, TrainingImportTemplateGenerator>();
+
+        // 4d. Register the AI quiz LLM client only when an OpenAI-compatible endpoint is configured
+        // (US-8.2.5, ADR 0009). Without it, AI quiz generation is disabled (the endpoint returns 503).
+        var llmBaseUrl = configuration["Training:Llm:BaseUrl"];
+        var llmApiKey = configuration["Training:Llm:ApiKey"];
+        if (!string.IsNullOrWhiteSpace(llmBaseUrl) && !string.IsNullOrWhiteSpace(llmApiKey))
+        {
+            services.AddSingleton(new LlmOptions
+            {
+                BaseUrl = llmBaseUrl,
+                ApiKey = llmApiKey,
+                Model = configuration["Training:Llm:Model"] ?? "deepseek-chat",
+                Path = configuration["Training:Llm:Path"] ?? "/v1/chat/completions",
+            });
+            services.AddHttpClient<ILlmClient, OpenAiCompatibleLlmClient>(client =>
+            {
+                client.BaseAddress = new Uri(llmBaseUrl);
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", llmApiKey);
+                client.Timeout = TimeSpan.FromSeconds(120);
+            });
+        }
 
         // 5. Register QR token service (rotating HMAC payloads for session attendance)
         services.AddSingleton<IQrTokenService, QrTokenService>();
