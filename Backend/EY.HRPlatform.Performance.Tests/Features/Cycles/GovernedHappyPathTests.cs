@@ -115,9 +115,9 @@ public class GovernedHappyPathTests
         Assert.Equal(PerformanceCycleStatus.AssignmentPreparation.ToString(), pubResult.Value.Status);
         version = pubResult.Value.Version;
 
-        // Participants written + no CyclePublished notification + audit
+        // Participants written + publish notifications + audit
         Assert.Equal(2, await db.PerformanceCycleParticipants.CountAsync(p => p.CycleId == cycleId));
-        Assert.Equal(0, await db.PerformanceNotifications
+        Assert.Equal(2, await db.PerformanceNotifications
             .CountAsync(n => n.CycleId == cycleId && n.Type == PerformanceNotificationType.CyclePublished));
         Assert.True(await db.PerformanceCycleAuditEvents
             .AnyAsync(a => a.CycleId == cycleId && a.Action == PerformanceCycleAuditAction.AssignmentPreparationStarted));

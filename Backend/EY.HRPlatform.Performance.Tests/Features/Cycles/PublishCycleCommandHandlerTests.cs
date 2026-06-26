@@ -36,7 +36,7 @@ public class PublishCycleCommandHandlerTests
     }
 
     [Fact]
-    public async Task Publish_PreparesParticipantsWithoutNotifyingThemBeforeActivation()
+    public async Task Publish_PreparesParticipantsAndNotifiesPublishedEmployees()
     {
         var dbName = $"perf-publish-{Guid.NewGuid()}";
         var tenantContext = new TenantContext();
@@ -61,8 +61,12 @@ public class PublishCycleCommandHandlerTests
 
         await using var verify = PerformanceTestContext.Create(tenantContext, dbName);
         Assert.Equal(2, await verify.PerformanceCycleParticipants.CountAsync(p => p.CycleId == cycleId));
-        Assert.Equal(0, await verify.PerformanceNotifications
-            .CountAsync(n => n.CycleId == cycleId && n.Type == PerformanceNotificationType.CyclePublished));
+        var publishedNotifications = await verify.PerformanceNotifications
+            .Where(n => n.CycleId == cycleId && n.Type == PerformanceNotificationType.CyclePublished)
+            .ToListAsync();
+        Assert.Equal(2, publishedNotifications.Count);
+        Assert.Contains(publishedNotifications, n => n.RecipientEmployeeId == members[0].EmployeeId);
+        Assert.Contains(publishedNotifications, n => n.RecipientEmployeeId == members[1].EmployeeId);
         Assert.True(await verify.PerformanceCycleAuditEvents
             .AnyAsync(a => a.CycleId == cycleId && a.Action == PerformanceCycleAuditAction.AssignmentPreparationStarted));
     }

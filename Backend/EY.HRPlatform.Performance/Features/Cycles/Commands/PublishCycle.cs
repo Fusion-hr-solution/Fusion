@@ -3,6 +3,7 @@ using EY.HRPlatform.Performance.Domain.Enums;
 using EY.HRPlatform.Performance.Exceptions;
 using EY.HRPlatform.Performance.Features.Cycles.Dtos;
 using EY.HRPlatform.Performance.Features.Cycles.Services;
+using EY.HRPlatform.Performance.Features.Notifications;
 using EY.HRPlatform.Performance.Features.Security;
 using EY.HRPlatform.Performance.Infrastructure.Notifications;
 using EY.HRPlatform.Performance.Infrastructure.Persistence;
@@ -80,6 +81,11 @@ public sealed class PublishCycleCommandHandler(
 
         // The participant snapshot is written as explicit child rows in the same transaction.
         dbContext.PerformanceCycleParticipants.AddRange(participants);
+        dbContext.PerformanceNotifications.AddRange(
+            CycleNotificationFactory.ForLifecycle(
+                cycle,
+                PerformanceNotificationType.CyclePublished,
+                participants.Select(participant => participant.EmployeeId)));
 
         dbContext.PerformanceCycleAuditEvents.Add(PerformanceCycleAuditEvent.Create(
             tenantId,
