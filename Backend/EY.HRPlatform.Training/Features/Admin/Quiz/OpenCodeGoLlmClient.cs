@@ -6,20 +6,21 @@ using System.Text.Json.Serialization;
 namespace EY.HRPlatform.Training.Features.Admin.Quiz;
 
 /// <summary>
-/// OpenAI-compatible chat-completions client (US-8.2.5, ADR 0009). The HttpClient's BaseAddress +
-/// bearer auth are configured at registration; this posts to the configured path and returns the
-/// assistant message. Retries 429/5xx with backoff. Modelled on the Interview Groq client.
+/// opencode GO quiz client (US-8.2.5, ADR 0009). Talks to opencode GO's chat-completions API (the
+/// standard chat-completions JSON shape). The HttpClient's BaseAddress + bearer auth are configured at
+/// registration; this posts to the configured path and returns the assistant message. Retries 429/5xx
+/// with backoff. Modelled on the Interview Groq client.
 /// </summary>
-public class OpenAiCompatibleLlmClient : ILlmClient
+public class OpenCodeGoLlmClient : ILlmClient
 {
     private const int MaxAttempts = 4;
 
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
 
     private readonly HttpClient _httpClient;
-    private readonly LlmOptions _options;
+    private readonly OpenCodeGoOptions _options;
 
-    public OpenAiCompatibleLlmClient(HttpClient httpClient, LlmOptions options)
+    public OpenCodeGoLlmClient(HttpClient httpClient, OpenCodeGoOptions options)
     {
         _httpClient = httpClient;
         _options = options;

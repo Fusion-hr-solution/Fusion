@@ -67,23 +67,24 @@ public static class ServiceCollectionExtensions
         // 4c. Register training import template generator (US-8.2.4)
         services.AddSingleton<ITrainingImportTemplateGenerator, TrainingImportTemplateGenerator>();
 
-        // 4d. Register the AI quiz LLM client only when an OpenAI-compatible endpoint is configured
-        // (US-8.2.5, ADR 0009). Without it, AI quiz generation is disabled (the endpoint returns 503).
-        var llmBaseUrl = configuration["Training:Llm:BaseUrl"];
-        var llmApiKey = configuration["Training:Llm:ApiKey"];
-        if (!string.IsNullOrWhiteSpace(llmBaseUrl) && !string.IsNullOrWhiteSpace(llmApiKey))
+        // 4d. Register the AI quiz client (opencode GO) only when it's configured (US-8.2.5, ADR 0009).
+        // Without it, AI quiz generation is disabled (the endpoint returns 503). BaseUrl is origin-only
+        // (e.g. https://opencode.ai); Path/Model default to opencode GO's "zen go" endpoint and a DeepSeek model.
+        var openCodeBaseUrl = configuration["Training:OpenCode:BaseUrl"];
+        var openCodeApiKey = configuration["Training:OpenCode:ApiKey"];
+        if (!string.IsNullOrWhiteSpace(openCodeBaseUrl) && !string.IsNullOrWhiteSpace(openCodeApiKey))
         {
-            services.AddSingleton(new LlmOptions
+            services.AddSingleton(new OpenCodeGoOptions
             {
-                BaseUrl = llmBaseUrl,
-                ApiKey = llmApiKey,
-                Model = configuration["Training:Llm:Model"] ?? "deepseek-chat",
-                Path = configuration["Training:Llm:Path"] ?? "/v1/chat/completions",
+                BaseUrl = openCodeBaseUrl,
+                ApiKey = openCodeApiKey,
+                Model = configuration["Training:OpenCode:Model"] ?? "opencode-go/deepseek-v4-pro",
+                Path = configuration["Training:OpenCode:Path"] ?? "/zen/go/v1/chat/completions",
             });
-            services.AddHttpClient<ILlmClient, OpenAiCompatibleLlmClient>(client =>
+            services.AddHttpClient<ILlmClient, OpenCodeGoLlmClient>(client =>
             {
-                client.BaseAddress = new Uri(llmBaseUrl);
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", llmApiKey);
+                client.BaseAddress = new Uri(openCodeBaseUrl);
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", openCodeApiKey);
                 client.Timeout = TimeSpan.FromSeconds(120);
             });
         }
