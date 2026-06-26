@@ -47,6 +47,7 @@ public class UpdateExamQuestionCommandHandler : ICommandHandler<UpdateExamQuesti
             return Result.Failure(Error.NotFound("ExamQuestion", request.QuestionId));
 
         question.Update(request.QuestionText, questionType, request.Points);
+        question.SetExplanation(string.IsNullOrWhiteSpace(request.Explanation) ? null : request.Explanation.Trim());
 
         // Replace options wholesale.
         // Materialize to a snapshot so RemoveRange doesn't iterate a live collection.
