@@ -157,6 +157,41 @@ public sealed class GetFeedbackResponsesQueryHandlerTests
         Assert.True(dto.SubmittedAt > DateTime.MinValue);
     }
 
+    [Fact]
+    public async Task GetByCycleSubjectType_ReturnsLatestGeneralCommentForEachResponse()
+    {
+        var tenantId = Guid.NewGuid();
+        var subjectId = Guid.NewGuid();
+        var authorId = Guid.NewGuid();
+        var db = PerformanceTestContext.Create(tenantId, out _);
+        var cycle = CreateCycleWithThreshold(tenantId, minimumResponses: 3);
+        var content1 = CreateSubmittedContent(tenantId, cycle.Id, subjectId);
+        var content2 = CreateSubmittedContent(tenantId, cycle.Id, subjectId);
+        var content3 = CreateSubmittedContent(tenantId, cycle.Id, subjectId);
+
+        var versions =
+            new[]
+            {
+                FeedbackResponseVersion.Create(tenantId, content1.Id, 1, "[]", "First draft", authorId),
+                FeedbackResponseVersion.Create(tenantId, content1.Id, 2, "[]", "Latest comment", authorId),
+                FeedbackResponseVersion.Create(tenantId, content2.Id, 1, "[]", null, authorId),
+                FeedbackResponseVersion.Create(tenantId, content3.Id, 1, "[]", "Third comment", authorId)
+            };
+
+        db.AddRange(cycle, content1, content2, content3);
+        db.FeedbackResponseVersions.AddRange(versions);
+        await db.SaveChangesAsync();
+
+        var handler = new GetFeedbackResponsesQueryHandler(db);
+
+        var result = await handler.Handle(new GetFeedbackResponsesQuery(cycle.Id, subjectId, CampaignWorkItemType.PeerFeedback), default);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("Latest comment", result.Value.Responses.Single(r => r.Id == content1.Id).GeneralComment);
+        Assert.Null(result.Value.Responses.Single(r => r.Id == content2.Id).GeneralComment);
+        Assert.Equal("Third comment", result.Value.Responses.Single(r => r.Id == content3.Id).GeneralComment);
+    }
+
     private static PerformanceCycle CreateCycleWithThreshold(Guid tenantId, int minimumResponses)
     {
         var cycle = PerformanceCycle.Create(tenantId, "FY", PerformanceCycleType.Annual,

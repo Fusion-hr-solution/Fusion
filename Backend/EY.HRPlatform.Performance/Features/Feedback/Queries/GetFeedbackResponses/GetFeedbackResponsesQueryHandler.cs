@@ -74,7 +74,11 @@ public sealed class GetFeedbackResponsesQueryHandler(
                     a.PromptVersion,
                     a.AnswerText,
                     a.IsRequired)).ToList(),
-                null, // GeneralComment stored in FeedbackResponseVersion, not on entity
+                dbContext.FeedbackResponseVersions
+                    .Where(version => version.ResponseContentId == r.Id)
+                    .OrderByDescending(version => version.VersionNumber)
+                    .Select(version => version.GeneralComment)
+                    .FirstOrDefault(),
                 r.SubmittedAt!.Value))
             .ToListAsync(cancellationToken);
 
