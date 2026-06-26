@@ -41,3 +41,21 @@ public class TrainingImportPreviewDto
     public List<TrainingImportIssueDto> GlobalIssues { get; set; } = [];
     public TrainingImportSummaryDto Summary { get; set; } = new();
 }
+
+// ── Apply (US-8.2.3 step 4) ──────────────────────────────────────────────────
+
+public class TrainingImportErrorDto
+{
+    public string Ref { get; set; } = string.Empty;
+    public string? Title { get; set; }
+    public string Message { get; set; } = string.Empty;
+}
+
+public class TrainingImportResultDto
+{
+    public int Imported { get; set; }
+    public int Updated { get; set; }
+    public int Skipped { get; set; }
+    public int Failed { get; set; }
+    public List<TrainingImportErrorDto> Errors { get; set; } = [];
+}

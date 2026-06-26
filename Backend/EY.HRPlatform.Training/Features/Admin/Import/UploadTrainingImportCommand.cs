@@ -64,8 +64,9 @@ public class UploadTrainingImportCommandHandler
         var preview = TrainingImportValidator.Validate(request.FileName, parsed, ctx);
 
         var json = JsonSerializer.Serialize(preview);
+        var fileName = request.FileName.Length > 260 ? request.FileName[..260] : request.FileName;
         var session = new TrainingImportSession(
-            request.EmployeeId, request.FileName, json, DateTime.UtcNow.Add(SessionLifetime));
+            request.EmployeeId, fileName, json, DateTime.UtcNow.Add(SessionLifetime));
         _db.TrainingImportSessions.Add(session);
         await _db.SaveChangesAsync(cancellationToken);
 

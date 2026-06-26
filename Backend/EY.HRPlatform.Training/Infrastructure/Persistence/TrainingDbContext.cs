@@ -37,6 +37,7 @@ public class TrainingDbContext : DbContext
     public DbSet<CurriculumMapping> CurriculumMappings => Set<CurriculumMapping>();
     public DbSet<EmployeeProfile> EmployeeProfiles => Set<EmployeeProfile>();
     public DbSet<TrainingImportSession> TrainingImportSessions => Set<TrainingImportSession>();
+    public DbSet<TrainingImportHistory> TrainingImportHistories => Set<TrainingImportHistory>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -468,6 +469,14 @@ public class TrainingDbContext : DbContext
             e.Property(s => s.FileName).HasMaxLength(260);
             e.Property(s => s.PayloadJson).HasColumnType("jsonb");
             e.HasIndex(s => s.CreatedByEmployeeId);
+        });
+
+        // --- TrainingImportHistory (US-8.2.3 applied-import audit log, ADR 0008) ---
+        modelBuilder.Entity<TrainingImportHistory>(e =>
+        {
+            e.HasKey(h => h.Id);
+            e.Property(h => h.FileName).HasMaxLength(260);
+            e.HasIndex(h => h.CreatedByEmployeeId);
         });
     }
 }

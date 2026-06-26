@@ -787,6 +787,23 @@ export interface TrainingImportPreview {
   summary: TrainingImportSummary;
 }
 
+export interface TrainingImportError {
+  ref: string;
+  title?: string | null;
+  message: string;
+}
+
+export interface TrainingImportResult {
+  imported: number;
+  updated: number;
+  skipped: number;
+  failed: number;
+  errors: TrainingImportError[];
+}
+
+/** Per-duplicate action: "skip" | "createNew" | "safeUpdate". */
+export type DuplicateAction = "skip" | "createNew" | "safeUpdate";
+
 /* ── Feedback dashboards (US-8.1.2) ── */
 
 export interface FeedbackTrendPoint {

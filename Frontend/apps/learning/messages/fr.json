@@ -693,7 +693,10 @@
     "toast": {
       "uploaded": "Fichier validé — vérifiez l'aperçu ci-dessous.",
       "uploadError": "Impossible de traiter le fichier.",
-      "templateError": "Impossible de télécharger le modèle."
+      "templateError": "Impossible de télécharger le modèle.",
+      "applied": "Import terminé.",
+      "applyError": "Impossible de terminer l'import.",
+      "errorLogError": "Impossible de télécharger le journal d'erreurs."
     },
     "summary": {
       "total": "{count} au total",
@@ -711,12 +714,30 @@
       "format": "Format",
       "structure": "Séances / Chapitres / Contenu",
       "structureShort": "S / C / Ct",
-      "status": "Statut"
+      "status": "Statut",
+      "action": "Si doublon"
     },
     "status": {
       "ready": "Prête",
       "duplicate": "Doublon",
       "error": "Erreur"
+    },
+    "actions": {
+      "skip": "Ignorer",
+      "createNew": "Créer en double",
+      "safeUpdate": "Mettre à jour"
+    },
+    "confirm": {
+      "button": "Confirmer l'import ({count})",
+      "applying": "Import en cours…"
+    },
+    "result": {
+      "title": "Import terminé",
+      "imported": "{count} importées",
+      "updated": "{count} mises à jour",
+      "skipped": "{count} ignorées",
+      "failed": "{count} en échec",
+      "downloadErrors": "Télécharger le journal d'erreurs"
     }
   },
   "reports": {

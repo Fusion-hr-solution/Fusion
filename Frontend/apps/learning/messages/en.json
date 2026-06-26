@@ -693,7 +693,10 @@
     "toast": {
       "uploaded": "File validated — review the preview below.",
       "uploadError": "Could not process the file.",
-      "templateError": "Could not download the template."
+      "templateError": "Could not download the template.",
+      "applied": "Import complete.",
+      "applyError": "Could not complete the import.",
+      "errorLogError": "Could not download the error log."
     },
     "summary": {
       "total": "{count} total",
@@ -711,12 +714,30 @@
       "format": "Format",
       "structure": "Sessions / Chapters / Content",
       "structureShort": "S / C / Ct",
-      "status": "Status"
+      "status": "Status",
+      "action": "On duplicate"
     },
     "status": {
       "ready": "Ready",
       "duplicate": "Duplicate",
       "error": "Error"
+    },
+    "actions": {
+      "skip": "Skip",
+      "createNew": "Create as new",
+      "safeUpdate": "Update existing"
+    },
+    "confirm": {
+      "button": "Confirm import ({count})",
+      "applying": "Importing…"
+    },
+    "result": {
+      "title": "Import complete",
+      "imported": "{count} imported",
+      "updated": "{count} updated",
+      "skipped": "{count} skipped",
+      "failed": "{count} failed",
+      "downloadErrors": "Download error log"
     }
   },
   "reports": {
