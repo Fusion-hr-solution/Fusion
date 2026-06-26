@@ -1,6 +1,9 @@
 namespace EY.HRPlatform.Training.Features.Admin.Quiz;
 
-/// <summary>A minimal chat-completions seam (US-8.2.5). Registered only when an LLM endpoint is configured.</summary>
+/// <summary>
+/// A minimal chat-completions seam (US-8.2.5), implemented by the opencode GO client
+/// (<see cref="OpenCodeGoLlmClient"/>). Registered only when opencode GO is configured.
+/// </summary>
 public interface ILlmClient
 {
     Task<string> CompleteAsync(
