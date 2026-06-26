@@ -4,12 +4,14 @@ using EY.HRPlatform.Performance.Features.Milestones.Queries;
 using EY.HRPlatform.SharedKernel.Api;
 using EY.HRPlatform.SharedKernel.Results;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace EY.HRPlatform.Performance.Controllers;
 
 [ApiController]
 [Route("api/performance/objectives/{objectiveId:guid}/progress")]
+[Authorize]
 public sealed class ObjectiveProgressController(ISender sender) : ControllerBase
 {
     /// <summary>
