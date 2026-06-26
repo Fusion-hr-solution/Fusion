@@ -106,7 +106,7 @@ public class PublishQuizCommandHandler : ICommandHandler<PublishQuizCommand, Res
             return Error.Validation("Quiz.InvalidQuestion",
                 $"Question {n}: text must be {MaxQuestionTextLength} characters or fewer.");
 
-        if (!Enum.TryParse(q.Type, true, out type))
+        if (!Enum.TryParse(q.Type, true, out type) || !Enum.IsDefined(type))
             return Error.Validation("Quiz.InvalidQuestion", $"Question {n}: invalid type '{q.Type}'.");
 
         var options = q.Options ?? [];

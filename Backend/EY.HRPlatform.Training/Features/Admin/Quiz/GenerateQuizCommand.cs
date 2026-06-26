@@ -137,19 +137,20 @@ public class GenerateQuizCommandHandler : ICommandHandler<GenerateQuizCommand, R
             if (string.IsNullOrWhiteSpace(q.Text) || q.Options is null || q.Options.Count < 2) continue;
             if (q.CorrectIndex is null) continue; // no declared answer — drop rather than default to option 0
 
-            // Compute IsCorrect from the original index, then drop empty options.
+            // Compute IsCorrect from the original index, then drop empty options. Truncate to the exam
+            // column limits so a verbose model can't produce a draft that fails save/publish validation.
             var options = q.Options
-                .Select((o, i) => new QuizDraftOptionDto { Text = (o ?? string.Empty).Trim(), IsCorrect = i == q.CorrectIndex.Value })
+                .Select((o, i) => new QuizDraftOptionDto { Text = Trunc((o ?? string.Empty).Trim(), 500), IsCorrect = i == q.CorrectIndex.Value })
                 .Where(o => o.Text.Length > 0)
                 .ToList();
             if (options.Count < 2 || !options.Any(o => o.IsCorrect)) continue;
 
             result.Add(new QuizDraftQuestionDto
             {
-                Text = q.Text.Trim(),
+                Text = Trunc(q.Text.Trim(), 1000),
                 Type = nameof(QuestionType.SingleChoice),
                 Points = 1,
-                Explanation = string.IsNullOrWhiteSpace(q.Explanation) ? null : q.Explanation.Trim(),
+                Explanation = string.IsNullOrWhiteSpace(q.Explanation) ? null : Trunc(q.Explanation.Trim(), 2000),
                 Order = order++,
                 Source = "ai",
                 Options = options,
@@ -157,6 +158,8 @@ public class GenerateQuizCommandHandler : ICommandHandler<GenerateQuizCommand, R
         }
         return result;
     }
+
+    private static string Trunc(string s, int max) => s.Length > max ? s[..max] : s;
 
     private static string ExtractJsonArray(string raw)
     {

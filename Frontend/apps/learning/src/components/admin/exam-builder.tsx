@@ -101,7 +101,7 @@ export function ExamBuilder({ trainingId }: { trainingId: string }) {
           onSubmit={handleCreateExam}
           onCancel={() => router.push(`/admin/trainings/${trainingId}`)}
         />
-        {aiPanel}
+        {showAi && aiPanel}
       </div>
     );
   }
@@ -263,7 +263,7 @@ export function ExamBuilder({ trainingId }: { trainingId: string }) {
           }}
         />
       )}
-      {aiPanel}
+      {showAi && aiPanel}
     </div>
   );
 }
