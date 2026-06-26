@@ -695,6 +695,7 @@
       "uploadError": "Impossible de traiter le fichier.",
       "templateError": "Impossible de télécharger le modèle.",
       "applied": "Import terminé.",
+      "appliedWithErrors": "{failed, plural, one {Import terminé — # ligne en échec.} other {Import terminé — # lignes en échec.}}",
       "applyError": "Impossible de terminer l'import.",
       "errorLogError": "Impossible de télécharger le journal d'erreurs."
     },

@@ -68,7 +68,12 @@ export function ImportTrainingsView() {
   const { mutate: apply, isLoading: applying } = useApiMutation(() => applyTrainingImport(file!, actions), {
     onSuccess: (res: TrainingImportResult) => {
       setResult(res);
-      toast.success(t("toast.applied"));
+      // Clear the staged preview so the Confirm button disappears — re-submitting the same file would
+      // re-create "createNew" duplicates and re-append "safeUpdate" children.
+      setPreview(null);
+      setActions({});
+      if (res.failed > 0) toast.warning(t("toast.appliedWithErrors", { failed: res.failed }));
+      else toast.success(t("toast.applied"));
     },
     onError: (err: unknown) => {
       const description =

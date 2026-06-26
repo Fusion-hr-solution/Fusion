@@ -695,6 +695,7 @@
       "uploadError": "Could not process the file.",
       "templateError": "Could not download the template.",
       "applied": "Import complete.",
+      "appliedWithErrors": "{failed, plural, one {Import finished — # row failed.} other {Import finished — # rows failed.}}",
       "applyError": "Could not complete the import.",
       "errorLogError": "Could not download the error log."
     },

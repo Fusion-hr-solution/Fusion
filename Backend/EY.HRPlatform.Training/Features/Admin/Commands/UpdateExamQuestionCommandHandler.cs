@@ -18,7 +18,7 @@ public class UpdateExamQuestionCommandHandler : ICommandHandler<UpdateExamQuesti
         if (string.IsNullOrWhiteSpace(request.QuestionText))
             return Result.Failure(Error.Validation("Question.TextRequired", "Question text is required."));
 
-        if (!Enum.TryParse<QuestionType>(request.Type, true, out var questionType))
+        if (!Enum.TryParse<QuestionType>(request.Type, true, out var questionType) || !Enum.IsDefined(questionType))
             return Result.Failure(Error.Validation("Question.InvalidType",
                 $"Invalid question type '{request.Type}'. Valid values: SingleChoice, MultipleChoice, TrueFalse."));
 

@@ -49,8 +49,9 @@ function extractError(err: unknown): string | undefined {
 /** A draft question is publishable when it would pass the backend's per-question rules. */
 function isQuestionValid(q: QuizDraftQuestion): boolean {
   if (!q.text.trim()) return false;
-  // Mirror the exam column limits so the Publish button gates before the backend can 500.
+  // Mirror the exam column limits so the Publish button gates before the backend can 500/400.
   if (q.text.trim().length > 1000) return false;
+  if ((q.explanation ?? "").trim().length > 2000) return false;
   if (q.options.length < 2) return false;
   if (q.options.some((o) => !o.text.trim())) return false;
   if (q.options.some((o) => o.text.trim().length > 500)) return false;
@@ -126,7 +127,6 @@ export function AiQuizPanel({
   const {
     draft,
     isLoading,
-    refetch,
     doGenerate,
     isGenerating,
     doSave,
@@ -187,7 +187,8 @@ export function AiQuizPanel({
       const res = await doPublish(toInputs(working));
       toast.success(t("published", { count: res.publishedCount }));
       setWorking([]);
-      await refetch(); // draft was cleared server-side — sync the cache so a reopen doesn't show stale questions
+      // onPublished closes the panel; it is remounted fresh on next open, so the now-cleared draft
+      // is re-fetched authoritatively (no stale reseed, no re-publish of already-published questions).
       onPublished();
     } catch (err) {
       toast.error(t("publishError"), { description: extractError(err) });
@@ -199,7 +200,6 @@ export function AiQuizPanel({
     try {
       await doDiscard();
       setWorking([]);
-      await refetch();
       toast.success(t("discarded"));
     } catch (err) {
       toast.error(t("discardError"), { description: extractError(err) });
