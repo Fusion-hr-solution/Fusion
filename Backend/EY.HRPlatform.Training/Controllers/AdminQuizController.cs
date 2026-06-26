@@ -1,5 +1,6 @@
 using EY.HRPlatform.SharedKernel.Auth;
 using EY.HRPlatform.Training.Features.Admin.Quiz;
+using EY.HRPlatform.Training.Models.Requests;
 using EY.HRPlatform.Training.Models.Responses;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -8,8 +9,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace EY.HRPlatform.Training.Controllers;
 
 /// <summary>
-/// US-8.2.5 — AI quiz generation for a training. Generate into a draft and read it back; the
-/// review/edit + publish endpoints follow in the next slice. Admin-only.
+/// US-8.2.5 — AI quiz generation for a training: generate a draft, review/edit it, then publish into
+/// the training's exam. Admin-only.
 /// </summary>
 [ApiController]
 [Route("api/training/admin/trainings/{trainingId:guid}/quiz")]
@@ -54,4 +55,66 @@ public class AdminQuizController : ControllerBase
         var result = await _sender.Send(new GetQuizDraftQuery(trainingId), cancellationToken);
         return Ok(ApiResponse<QuizDraftDto>.Success(result.Value!));
     }
+
+    /// <summary>Persist the admin's reviewed/edited quiz draft (replaces it).</summary>
+    [HttpPut("draft")]
+    [ProducesResponseType(typeof(ApiResponse<QuizDraftDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> SaveDraft(
+        Guid trainingId, [FromBody] QuizDraftRequest request, CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(
+            new SaveQuizDraftCommand(trainingId, MapQuestions(request), User.GetUserId()), cancellationToken);
+
+        if (result.IsFailure)
+        {
+            if (result.Error.Code.EndsWith(".NotFound", StringComparison.Ordinal))
+                return NotFound(ApiResponse.Failure(result.Error.Message));
+            return BadRequest(ApiResponse.Failure(result.Error.Message));
+        }
+
+        return Ok(ApiResponse<QuizDraftDto>.Success(result.Value!));
+    }
+
+    /// <summary>Discard the training's quiz draft (idempotent).</summary>
+    [HttpDelete("draft")]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> DiscardDraft(Guid trainingId, CancellationToken cancellationToken)
+    {
+        await _sender.Send(new DeleteQuizDraftCommand(trainingId), cancellationToken);
+        return Ok(ApiResponse.Success());
+    }
+
+    /// <summary>Publish the reviewed questions into the training's exam (creates it if needed) and clear the draft.</summary>
+    [HttpPost("publish")]
+    [ProducesResponseType(typeof(ApiResponse<QuizPublishResultDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Publish(
+        Guid trainingId, [FromBody] QuizDraftRequest request, CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(
+            new PublishQuizCommand(trainingId, MapQuestions(request), User.GetUserId()), cancellationToken);
+
+        if (result.IsFailure)
+        {
+            if (result.Error.Code.EndsWith(".NotFound", StringComparison.Ordinal))
+                return NotFound(ApiResponse.Failure(result.Error.Message));
+            return BadRequest(ApiResponse.Failure(result.Error.Message));
+        }
+
+        return Ok(ApiResponse<QuizPublishResultDto>.Success(result.Value!));
+    }
+
+    private static List<QuizQuestionInput> MapQuestions(QuizDraftRequest request) =>
+        (request.Questions ?? [])
+            .Select(q => new QuizQuestionInput(
+                q.Text,
+                q.Type,
+                q.Points,
+                q.Explanation,
+                q.Source,
+                (q.Options ?? []).Select(o => new QuizOptionInput(o.Text, o.IsCorrect)).ToList()))
+            .ToList();
 }

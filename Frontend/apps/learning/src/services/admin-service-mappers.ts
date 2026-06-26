@@ -8,6 +8,8 @@ import type {
   AdminCategory,
   AdminOnSiteCourse,
   AdminExamDetail,
+  QuizDraft,
+  QuestionType,
 } from "@/types/admin";
 import type { ChapterLayout, TrainingType } from "@/types";
 import type {
@@ -19,6 +21,7 @@ import type {
   BackendOnSiteCourseDto,
   BackendAssignmentDto,
   BackendTrainingCategoryDto,
+  BackendQuizDraftDto,
 } from "@/types/backend-dtos";
 import type { CreateChapterInput, UpdateChapterInput } from "@/types/admin";
 
@@ -146,6 +149,7 @@ export function mapExamDetail(dto: BackendAdminExamDetailDto): AdminExamDetail {
         type: q.type as AdminExamDetail["questions"][number]["type"],
         orderIndex: q.orderIndex,
         points: q.points,
+        explanation: q.explanation ?? undefined,
         options: q.options
           .slice()
           .sort((a, b) => a.orderIndex - b.orderIndex)
@@ -155,6 +159,28 @@ export function mapExamDetail(dto: BackendAdminExamDetailDto): AdminExamDetail {
             isCorrect: o.isCorrect,
             orderIndex: o.orderIndex,
           })),
+      })),
+  };
+}
+
+export function mapQuizDraft(dto: BackendQuizDraftDto): QuizDraft {
+  return {
+    trainingId: dto.trainingId,
+    aiAvailable: dto.aiAvailable,
+    questions: (dto.questions ?? [])
+      .slice()
+      .sort((a, b) => a.order - b.order)
+      .map((q) => ({
+        text: q.text,
+        type: q.type as QuestionType,
+        points: q.points,
+        explanation: q.explanation ?? undefined,
+        order: q.order,
+        source: q.source ?? "ai",
+        options: (q.options ?? []).map((o) => ({
+          text: o.text,
+          isCorrect: o.isCorrect,
+        })),
       })),
   };
 }

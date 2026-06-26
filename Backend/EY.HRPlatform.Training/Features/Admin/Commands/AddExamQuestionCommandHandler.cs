@@ -46,7 +46,8 @@ public class AddExamQuestionCommandHandler : ICommandHandler<AddExamQuestionComm
             .Where(q => q.ExamId == request.ExamId)
             .MaxAsync(q => (int?)q.OrderIndex, cancellationToken) ?? -1;
 
-        var question = new ExamQuestion(request.QuestionText, questionType, request.ExamId, maxIndex + 1, request.Points);
+        var explanation = string.IsNullOrWhiteSpace(request.Explanation) ? null : request.Explanation.Trim();
+        var question = new ExamQuestion(request.QuestionText, questionType, request.ExamId, maxIndex + 1, request.Points, explanation);
 
         for (var i = 0; i < request.Options.Count; i++)
         {

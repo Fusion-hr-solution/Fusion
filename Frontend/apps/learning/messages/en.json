@@ -1415,7 +1415,8 @@
     },
     "card": {
       "points": "{count, plural, one {# pt} other {# pts}}",
-      "optionsCount": "{count, plural, one {# option} other {# options}}"
+      "optionsCount": "{count, plural, one {# option} other {# options}}",
+      "explanation": "Explanation"
     },
     "preview": {
       "title": "Preview: {title}",
@@ -1466,6 +1467,8 @@
       "cancel": "Cancel",
       "updateQuestion": "Update Question",
       "addQuestion": "Add Question",
+      "explanationLabel": "Explanation (optional)",
+      "explanationPlaceholder": "Explain why the correct answer is right...",
       "unexpectedError": "An unexpected error occurred."
     },
     "options": {
@@ -1493,6 +1496,48 @@
       "confirmDeleteExam": "Delete this exam and all its questions? This cannot be undone.",
       "confirmDeleteQuestion": "Delete question \"{text}\"?"
     }
+  },
+  "adminQuiz": {
+    "title": "AI Quiz Generator",
+    "generateWithAi": "Generate with AI",
+    "description": "Generate multiple-choice questions from this training's content, review and edit them, then publish to the exam.",
+    "loading": "Loading draft...",
+    "unavailable": "AI quiz generation isn't configured for this environment.",
+    "countLabel": "Number of questions",
+    "generate": "Generate",
+    "regenerate": "Regenerate",
+    "generating": "Generating questions...",
+    "generatingHint": "This can take up to a minute.",
+    "generated": "{count, plural, one {# question generated} other {# questions generated}}",
+    "addManually": "Add manually",
+    "emptyTitle": "No questions yet",
+    "emptyDescription": "Generate with AI or add questions manually to build your quiz.",
+    "questionsCount": "{count, plural, one {# question} other {# questions}}",
+    "invalidHint": "{count, plural, one {# question needs attention} other {# questions need attention}}",
+    "untitled": "Untitled question",
+    "emptyOption": "Empty option",
+    "points": "{count, plural, one {# pt} other {# pts}}",
+    "type": {
+      "SingleChoice": "Single Choice",
+      "MultipleChoice": "Multiple Choice",
+      "TrueFalse": "True / False"
+    },
+    "sourceAi": "AI",
+    "sourceManual": "Manual",
+    "explanationLabel": "Explanation",
+    "discard": "Discard",
+    "saveDraft": "Save draft",
+    "publish": "Publish to exam",
+    "publishExisting": "Add to exam",
+    "confirmPublish": "Publish {count, plural, one {# question} other {# questions}} to the exam?",
+    "confirmDiscard": "Discard this draft? This cannot be undone.",
+    "published": "{count, plural, one {# question published to the exam} other {# questions published to the exam}}",
+    "saved": "Draft saved.",
+    "discarded": "Draft discarded.",
+    "genError": "Could not generate a quiz. Please try again.",
+    "saveError": "Could not save the draft.",
+    "publishError": "Could not publish the quiz.",
+    "discardError": "Could not discard the draft."
   },
   "adminGrades": {
     "title": "Manage Grades",

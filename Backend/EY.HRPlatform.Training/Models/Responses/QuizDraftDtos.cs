@@ -26,3 +26,10 @@ public class QuizDraftDto
     public bool AiAvailable { get; set; }
     public List<QuizDraftQuestionDto> Questions { get; set; } = [];
 }
+
+/// <summary>Result of publishing a quiz draft into the training's exam (US-8.2.5).</summary>
+public class QuizPublishResultDto
+{
+    public Guid ExamId { get; set; }
+    public int PublishedCount { get; set; }
+}

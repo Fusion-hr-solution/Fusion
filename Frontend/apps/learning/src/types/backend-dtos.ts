@@ -281,6 +281,7 @@ export interface BackendAdminExamQuestionDto {
   type: string;
   orderIndex: number;
   points: number;
+  explanation: string | null;
   options: BackendAdminExamOptionDto[];
 }
 
@@ -289,6 +290,34 @@ export interface BackendAdminExamOptionDto {
   optionText: string;
   isCorrect: boolean;
   orderIndex: number;
+}
+
+/* ── AI quiz generation (US-8.2.5) ── */
+
+export interface BackendQuizDraftOptionDto {
+  text: string;
+  isCorrect: boolean;
+}
+
+export interface BackendQuizDraftQuestionDto {
+  text: string;
+  type: string;
+  points: number;
+  explanation: string | null;
+  order: number;
+  source: string;
+  options: BackendQuizDraftOptionDto[];
+}
+
+export interface BackendQuizDraftDto {
+  trainingId: string;
+  aiAvailable: boolean;
+  questions: BackendQuizDraftQuestionDto[];
+}
+
+export interface BackendQuizPublishResultDto {
+  examId: string;
+  publishedCount: number;
 }
 
 export interface BackendAdminTrainingDetailDto extends BackendAdminTrainingDto {
