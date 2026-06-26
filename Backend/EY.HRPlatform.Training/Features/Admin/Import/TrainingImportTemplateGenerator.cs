@@ -1,4 +1,5 @@
 using ClosedXML.Excel;
+using EY.HRPlatform.Training.Models.Responses;
 
 namespace EY.HRPlatform.Training.Features.Admin.Import;
 
@@ -6,6 +7,9 @@ public interface ITrainingImportTemplateGenerator
 {
     /// <summary>Builds the pre-formatted .xlsx import template (US-8.2.4). Category dropdown is seeded from the DB.</summary>
     byte[] Generate(IReadOnlyList<string> categories);
+
+    /// <summary>Builds a downloadable .xlsx error log of trainings that failed to import (US-8.2.3).</summary>
+    byte[] GenerateErrorLog(IReadOnlyList<TrainingImportErrorDto> errors);
 }
 
 /// <summary>
@@ -57,6 +61,35 @@ public class TrainingImportTemplateGenerator : ITrainingImportTemplateGenerator
 
         AddInstructionsSheet(workbook);
 
+        using var stream = new MemoryStream();
+        workbook.SaveAs(stream);
+        return stream.ToArray();
+    }
+
+    public byte[] GenerateErrorLog(IReadOnlyList<TrainingImportErrorDto> errors)
+    {
+        using var workbook = new XLWorkbook();
+        var ws = workbook.Worksheets.Add("Errors");
+
+        var headers = new[] { "Ref", "Title", "Error" };
+        for (int i = 0; i < headers.Length; i++)
+        {
+            var cell = ws.Cell(1, i + 1);
+            cell.Value = headers[i];
+            cell.Style.Font.Bold = true;
+            cell.Style.Fill.BackgroundColor = XLColor.LightSalmon;
+            cell.Style.Border.BottomBorder = XLBorderStyleValues.Thin;
+        }
+
+        for (int i = 0; i < errors.Count; i++)
+        {
+            var e = errors[i];
+            ws.Cell(i + 2, 1).Value = e.Ref;
+            ws.Cell(i + 2, 2).Value = e.Title ?? "—";
+            ws.Cell(i + 2, 3).Value = e.Message;
+        }
+
+        ws.Columns().AdjustToContents();
         using var stream = new MemoryStream();
         workbook.SaveAs(stream);
         return stream.ToArray();

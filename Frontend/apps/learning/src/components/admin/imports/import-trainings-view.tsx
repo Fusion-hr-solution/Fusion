@@ -1,15 +1,25 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { AlertTriangle, Download, FileSpreadsheet, Loader2, Upload } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Download, FileSpreadsheet, Loader2, Upload } from "lucide-react";
 import { Badge, Button } from "@repo/ui";
 import { ApiError } from "@repo/api";
 import { useApiMutation } from "@repo/api/react";
-import { downloadImportTemplate, uploadTrainingImport } from "@/services/admin-training-import-service";
+import {
+  applyTrainingImport,
+  downloadImportErrorLog,
+  downloadImportTemplate,
+  uploadTrainingImport,
+} from "@/services/admin-training-import-service";
 import { downloadBlob } from "@/lib/download";
-import type { TrainingImportIssue, TrainingImportPreview } from "@/types/admin";
+import type {
+  DuplicateAction,
+  TrainingImportIssue,
+  TrainingImportPreview,
+  TrainingImportResult,
+} from "@/types/admin";
 
 const STATUS_STYLES: Record<string, string> = {
   ready: "border-emerald-200 bg-emerald-50 text-emerald-700",
@@ -17,15 +27,14 @@ const STATUS_STYLES: Record<string, string> = {
   error: "border-red-200 bg-red-50 text-red-700",
 };
 
+const DUPLICATE_ACTIONS: DuplicateAction[] = ["skip", "createNew", "safeUpdate"];
+
 function IssueList({ issues }: { issues: TrainingImportIssue[] }) {
   if (issues.length === 0) return null;
   return (
     <ul className="space-y-0.5">
       {issues.map((issue, i) => (
-        <li
-          key={i}
-          className={`text-xs ${issue.severity === "error" ? "text-red-600" : "text-amber-600"}`}
-        >
+        <li key={i} className={`text-xs ${issue.severity === "error" ? "text-red-600" : "text-amber-600"}`}>
           • {issue.message}
         </li>
       ))}
@@ -37,12 +46,16 @@ export function ImportTrainingsView() {
   const t = useTranslations("imports");
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<TrainingImportPreview | null>(null);
+  const [actions, setActions] = useState<Record<string, string>>({});
+  const [result, setResult] = useState<TrainingImportResult | null>(null);
   const [downloading, setDownloading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { mutate: upload, isLoading: uploading } = useApiMutation(() => uploadTrainingImport(file!), {
-    onSuccess: (result: TrainingImportPreview) => {
-      setPreview(result);
+    onSuccess: (res: TrainingImportPreview) => {
+      setPreview(res);
+      setActions({});
+      setResult(null);
       toast.success(t("toast.uploaded"));
     },
     onError: (err: unknown) => {
@@ -52,11 +65,22 @@ export function ImportTrainingsView() {
     },
   });
 
+  const { mutate: apply, isLoading: applying } = useApiMutation(() => applyTrainingImport(file!, actions), {
+    onSuccess: (res: TrainingImportResult) => {
+      setResult(res);
+      toast.success(t("toast.applied"));
+    },
+    onError: (err: unknown) => {
+      const description =
+        err instanceof ApiError && err.errors.length > 0 ? err.errors.join(". ") : t("toast.applyError");
+      toast.error(t("toast.applyError"), { description });
+    },
+  });
+
   async function handleDownloadTemplate() {
     setDownloading(true);
     try {
-      const blob = await downloadImportTemplate();
-      downloadBlob(blob, "training-import-template.xlsx");
+      downloadBlob(await downloadImportTemplate(), "training-import-template.xlsx");
     } catch {
       toast.error(t("toast.templateError"));
     } finally {
@@ -64,12 +88,33 @@ export function ImportTrainingsView() {
     }
   }
 
+  async function handleDownloadErrors() {
+    if (!result) return;
+    try {
+      downloadBlob(await downloadImportErrorLog(result.errors), "training-import-errors.xlsx");
+    } catch {
+      toast.error(t("toast.errorLogError"));
+    }
+  }
+
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     setFile(e.target.files?.[0] ?? null);
     setPreview(null);
+    setActions({});
+    setResult(null);
   }
 
   const summary = preview?.summary;
+
+  // Count what an apply would actually create/update (ready rows + duplicates not set to "skip").
+  const toApply = useMemo(() => {
+    if (!preview) return 0;
+    return preview.rows.filter((r) => {
+      if (r.status === "ready") return true;
+      if (r.status === "duplicate") return (actions[r.ref] ?? "skip") !== "skip";
+      return false;
+    }).length;
+  }, [preview, actions]);
 
   return (
     <div className="space-y-6 p-6">
@@ -93,13 +138,7 @@ export function ImportTrainingsView() {
 
         <div className="h-6 w-px bg-border/60" />
 
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".xlsx,.xls"
-          onChange={handleFileChange}
-          className="hidden"
-        />
+        <input ref={fileInputRef} type="file" accept=".xlsx,.xls" onChange={handleFileChange} className="hidden" />
         <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="gap-1.5">
           <FileSpreadsheet className="h-4 w-4" />
           {t("upload.choose")}
@@ -111,6 +150,28 @@ export function ImportTrainingsView() {
           {uploading ? t("upload.uploading") : t("upload.button")}
         </Button>
       </div>
+
+      {/* Result panel (after apply) */}
+      {result ? (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4">
+          <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-emerald-700">
+            <CheckCircle2 className="h-4 w-4" />
+            {t("result.title")}
+          </div>
+          <div className="flex flex-wrap gap-2 text-sm">
+            <Badge variant="outline" className={STATUS_STYLES.ready}>{t("result.imported", { count: result.imported })}</Badge>
+            <Badge variant="outline" className={STATUS_STYLES.duplicate}>{t("result.updated", { count: result.updated })}</Badge>
+            <Badge variant="outline">{t("result.skipped", { count: result.skipped })}</Badge>
+            <Badge variant="outline" className={STATUS_STYLES.error}>{t("result.failed", { count: result.failed })}</Badge>
+          </div>
+          {result.errors.length > 0 ? (
+            <Button variant="outline" size="sm" onClick={handleDownloadErrors} className="mt-3 gap-1.5">
+              <Download className="h-4 w-4" />
+              {t("result.downloadErrors")}
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
 
       {preview && summary ? (
         <div className="space-y-4">
@@ -149,6 +210,7 @@ export function ImportTrainingsView() {
                     <th className="px-4 py-2.5 font-medium">{t("cols.format")}</th>
                     <th className="px-4 py-2.5 font-medium" title={t("cols.structure")}>{t("cols.structureShort")}</th>
                     <th className="px-4 py-2.5 font-medium">{t("cols.status")}</th>
+                    <th className="px-4 py-2.5 font-medium">{t("cols.action")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -173,6 +235,23 @@ export function ImportTrainingsView() {
                           {t(`status.${row.status}`)}
                         </Badge>
                       </td>
+                      <td className="px-4 py-2.5">
+                        {row.status === "duplicate" ? (
+                          <select
+                            value={actions[row.ref] ?? "skip"}
+                            onChange={(e) => setActions((prev) => ({ ...prev, [row.ref]: e.target.value }))}
+                            className="rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground"
+                          >
+                            {DUPLICATE_ACTIONS.map((a) => (
+                              <option key={a} value={a}>
+                                {t(`actions.${a}`)}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -180,7 +259,13 @@ export function ImportTrainingsView() {
             </div>
           )}
 
-          <p className="text-xs text-muted-foreground">{t("previewNote")}</p>
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs text-muted-foreground">{t("previewNote")}</p>
+            <Button onClick={() => apply()} disabled={applying || toApply === 0} className="gap-1.5">
+              {applying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+              {applying ? t("confirm.applying") : t("confirm.button", { count: toApply })}
+            </Button>
+          </div>
         </div>
       ) : null}
     </div>
