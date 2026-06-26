@@ -130,6 +130,8 @@ temp/
 Frontend/.github/
 PROJECT_SUMMARY.md
 PRODUCT.md
+DESIGN.md
+.impeccable/
 *.postman_collection.json
 
 CLAUDE.md

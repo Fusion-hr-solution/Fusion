@@ -1,0 +1,35 @@
+schema: spec-driven
+
+# Durable, project-wide context injected into every OpenSpec artifact.
+# Detailed instructions live in CLAUDE.md / AGENTS.md and the pro-target-first skill — not duplicated here.
+context: |
+  Fusion is a multi-tenant HRIS.
+  Backend: .NET 10. Frontend: Next.js 15 microfrontends (shell :3000, core :3002, performance :3004).
+  Shared frontend packages: @repo/ds (design system), @repo/ui, @repo/auth, @repo/api.
+
+  Module ownership (do not drift):
+  - Core HR owns employee, organization, position, and tenant truth (source of truth for people + org).
+  - Performance consumes Core HR truth and must not duplicate or own Core concepts.
+  - Identity owns auth, sessions, accounts, roles, and permissions.
+  Respect existing repository and module conventions. Detailed project rules are in CLAUDE.md and AGENTS.md.
+  For architecture, ownership, permission, workflow, UI, or data-model decisions, apply the `pro-target-first` skill.
+
+rules:
+  proposal:
+    - Ask about materially unclear requirements before finalizing.
+    - State scope and explicit non-scope (Non-goals).
+    - Identify affected modules and shared contracts.
+    - Identify permissions, tenancy, and data-ownership impact.
+  specs:
+    - Use testable acceptance scenarios.
+    - Cover success, validation, authorization, and relevant failure paths.
+    - Cover tenant isolation where applicable.
+  design:
+    - Explain backend, frontend, API, persistence, migration, and compatibility impact.
+    - Follow existing architectural patterns unless a deviation is justified.
+    - Prevent Core/Performance ownership drift.
+    - Invoke `pro-target-first` for architecture, ownership, permission, workflow, UI, or data-model decisions.
+  tasks:
+    - Use cohesive, feature-sized tasks, not mechanical microtasks.
+    - Include integration and verification work.
+    - Include relevant build, test, lint, and type-check commands.
