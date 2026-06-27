@@ -20,6 +20,14 @@ public class EmployeeImportSessionConfiguration : IEntityTypeConfiguration<Emplo
             .HasMaxLength(32)
             .IsRequired();
 
+        builder.Property(session => session.BatchEffectiveDate)
+            .IsRequired();
+
+        builder.Property(session => session.ImportMode)
+            .HasConversion<string>()
+            .HasMaxLength(32)
+            .IsRequired();
+
         builder.Property(session => session.SourceFileName)
             .HasMaxLength(260)
             .IsRequired();

@@ -1,3 +1,4 @@
+using EY.HRPlatform.CoreHR.Domain.Entities;
 using EY.HRPlatform.CoreHR.Features.Employees.Import.Dtos;
 using EY.HRPlatform.CoreHR.Features.Employees.Import.Services;
 using EY.HRPlatform.CoreHR.Features.Security;
@@ -47,14 +48,16 @@ public class EmployeeImportController(
     [ProducesResponseType(typeof(ApiResponse<EmployeeImportSessionDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> Upload(
         [FromForm] IFormFile file,
-        CancellationToken cancellationToken)
+        [FromForm] DateTime batchEffectiveDate,
+        [FromForm] EmployeeImportMode importMode = EmployeeImportMode.BusinessChange,
+        CancellationToken cancellationToken = default)
     {
         if (!accessPolicy.CanImportEmployees(User))
         {
             return Forbid();
         }
 
-        var session = await workflowService.UploadAsync(file, cancellationToken);
+        var session = await workflowService.UploadAsync(file, batchEffectiveDate, importMode, cancellationToken);
         return Ok(ApiResponse<EmployeeImportSessionDto>.Success(session));
     }
 

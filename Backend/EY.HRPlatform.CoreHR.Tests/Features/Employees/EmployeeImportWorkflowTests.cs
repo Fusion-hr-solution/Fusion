@@ -31,7 +31,7 @@ public class EmployeeImportWorkflowTests
 
         Assert.Equal("employee-import-template.csv", template.FileName);
         Assert.Equal(
-            "employeeNumber,firstName,lastName,email,phone,hireDate,jobTitle,workLocation,employmentType,orgUnitCode,managerEmail\r\n",
+            "employeeNumber,firstName,lastName,email,phone,hireDate,jobTitle,workLocation,employmentType,orgUnitCode,managerEmail,effectiveDate\r\n",
             csv);
     }
 
@@ -92,6 +92,34 @@ public class EmployeeImportWorkflowTests
 
         var persistedSession = await context.EmployeeImportSessions.FindAsync(session.Id);
         Assert.NotNull(persistedSession);
+    }
+
+    [Fact]
+    public async Task UploadAsync_CarriesBatchEffectiveDateAndMode_AndAcceptsEffectiveDateColumn()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        await SeedPublishedSetupAsync(dbName);
+
+        await using var context = TestDbContextFactory.Create(TestTenantContext.WithTenant(TenantId), dbName);
+        var service = new EmployeeImportWorkflowService(context, TestTenantContext.WithTenant(TenantId), new EmployeeHierarchyService(context));
+        var file = CreateCsvFile(
+            "employees.csv",
+            """
+            firstName,lastName,email,hireDate,jobTitle,orgUnitCode,managerEmail,effectiveDate
+            Sarah,Chen,sarah.chen@contoso.com,2024-01-15,Senior Engineer,eng-platform,,2024-04-01
+            """);
+        var batchEffectiveDate = new DateTime(2024, 3, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        var session = await service.UploadAsync(file, batchEffectiveDate, EmployeeImportMode.Correction, CancellationToken.None);
+
+        Assert.Equal(batchEffectiveDate.Date, session.BatchEffectiveDate);
+        Assert.Equal(EmployeeImportMode.Correction, session.ImportMode);
+        Assert.Equal("2024-04-01", session.PreviewRows[0].EffectiveDate);
+
+        var persisted = await context.EmployeeImportSessions.FindAsync(session.Id);
+        Assert.NotNull(persisted);
+        Assert.Equal(batchEffectiveDate.Date, persisted!.BatchEffectiveDate);
+        Assert.Equal(EmployeeImportMode.Correction, persisted.ImportMode);
     }
 
     [Fact]

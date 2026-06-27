@@ -13,6 +13,14 @@ public class EmployeeImportSession : BaseEntity, ITenantEntity
 
     public EmployeeImportStage Stage { get; private set; }
 
+    /// <summary>
+    /// Required effective date applied to every business change in the batch unless a row overrides it.
+    /// </summary>
+    public DateTime BatchEffectiveDate { get; private set; }
+
+    /// <summary>Batch-level mode; a single batch never mixes corrections and business changes.</summary>
+    public EmployeeImportMode ImportMode { get; private set; }
+
     public string SourceFileName { get; private set; } = string.Empty;
 
     public long SourceFileSizeBytes { get; private set; }
@@ -38,7 +46,9 @@ public class EmployeeImportSession : BaseEntity, ITenantEntity
         string sourceHeadersJson,
         string sourceRowsJson,
         string previewRowsJson,
-        DateTime expiresAt)
+        DateTime expiresAt,
+        DateTime? batchEffectiveDate = null,
+        EmployeeImportMode importMode = EmployeeImportMode.BusinessChange)
     {
         if (tenantId == Guid.Empty)
             throw new ArgumentException("TenantId cannot be empty.", nameof(tenantId));
@@ -64,9 +74,18 @@ public class EmployeeImportSession : BaseEntity, ITenantEntity
             SourceHeadersJson = sourceHeadersJson,
             SourceRowsJson = sourceRowsJson,
             PreviewRowsJson = previewRowsJson,
-            ExpiresAt = expiresAt
+            ExpiresAt = expiresAt,
+            BatchEffectiveDate = NormalizeEffectiveDate(batchEffectiveDate ?? DateTime.UtcNow),
+            ImportMode = importMode
         };
     }
+
+    private static DateTime NormalizeEffectiveDate(DateTime value) => value.Kind switch
+    {
+        DateTimeKind.Utc => value.Date,
+        DateTimeKind.Local => value.ToUniversalTime().Date,
+        _ => DateTime.SpecifyKind(value.Date, DateTimeKind.Utc)
+    };
 
     public void SetValidationResult(string normalizedRowsJson, string validationIssuesJson)
     {
@@ -118,4 +137,13 @@ public enum EmployeeImportStage
     Validated,
     Applied,
     Expired
+}
+
+public enum EmployeeImportMode
+{
+    /// <summary>Default: create or close effective-dated records without overwriting history.</summary>
+    BusinessChange,
+
+    /// <summary>Apply minimal, explicit, audited corrections to existing facts.</summary>
+    Correction
 }

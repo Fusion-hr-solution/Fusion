@@ -46,7 +46,8 @@ public sealed record EmployeeImportPreviewRowDto(
     string? WorkLocation,
     string? EmploymentType,
     string? OrgUnitCode,
-    string? ManagerEmail);
+    string? ManagerEmail,
+    string? EffectiveDate = null);
 
 public sealed record EmployeeImportActorDto(
     Guid UserId,
@@ -127,6 +128,8 @@ public sealed record EmployeeImportSessionDto(
     Guid Id,
     EmployeeImportStage Stage,
     uint Version,
+    DateTime BatchEffectiveDate,
+    EmployeeImportMode ImportMode,
     string SourceFileName,
     long SourceFileSizeBytes,
     int SourceRowCount,

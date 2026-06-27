@@ -25,6 +25,11 @@ public interface IEmployeeImportWorkflowService
         IReadOnlyCollection<string>? fields,
         CancellationToken cancellationToken);
     Task<EmployeeImportSessionDto> UploadAsync(IFormFile file, CancellationToken cancellationToken);
+    Task<EmployeeImportSessionDto> UploadAsync(
+        IFormFile file,
+        DateTime batchEffectiveDate,
+        EmployeeImportMode importMode,
+        CancellationToken cancellationToken);
     Task<EmployeeImportSessionDto> ValidateAsync(Guid sessionId, CancellationToken cancellationToken);
     Task<EmployeeImportSessionDto> ValidateAsync(
         Guid sessionId,
@@ -141,7 +146,13 @@ public sealed class EmployeeImportWorkflowService(
             "Manager email",
             false,
             "Employee email of the reporting manager inside the same tenant.",
-            "alex.manager@contoso.com")
+            "alex.manager@contoso.com"),
+        new(
+            "effectiveDate",
+            "Effective date",
+            false,
+            "Optional row-level effective date (YYYY-MM-DD) that overrides the batch effective date for this row's business changes.",
+            "2024-04-01")
     ];
 
     private static readonly HashSet<string> CanonicalFieldKeys =
@@ -167,7 +178,14 @@ public sealed class EmployeeImportWorkflowService(
         return (Encoding.UTF8.GetBytes($"{headerLine}\r\n"), "employee-import-template.csv");
     }
 
-    public async Task<EmployeeImportSessionDto> UploadAsync(IFormFile file, CancellationToken cancellationToken)
+    public Task<EmployeeImportSessionDto> UploadAsync(IFormFile file, CancellationToken cancellationToken)
+        => UploadAsync(file, DateTime.UtcNow, EmployeeImportMode.BusinessChange, cancellationToken);
+
+    public async Task<EmployeeImportSessionDto> UploadAsync(
+        IFormFile file,
+        DateTime batchEffectiveDate,
+        EmployeeImportMode importMode,
+        CancellationToken cancellationToken)
     {
         await EnsureImportAvailableAsync(cancellationToken);
         var sourceFileName = ValidateUpload(file);
@@ -191,7 +209,9 @@ public sealed class EmployeeImportWorkflowService(
             JsonSerializer.Serialize(parsedFile.Headers, JsonOptions),
             JsonSerializer.Serialize(parsedFile.Rows, JsonOptions),
             JsonSerializer.Serialize(previewRows, JsonOptions),
-            DateTime.UtcNow.Add(SessionLifetime));
+            DateTime.UtcNow.Add(SessionLifetime),
+            batchEffectiveDate,
+            importMode);
 
         dbContext.EmployeeImportSessions.Add(session);
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -649,46 +669,36 @@ public sealed class EmployeeImportWorkflowService(
 
     private static void EnsureTemplateHeaders(IReadOnlyList<string> actualHeaders)
     {
-        var expectedHeaders = CanonicalFields.Select(field => field.Key).ToArray();
-        var legacyHeaders = expectedHeaders
-            .Where(header => !string.Equals(header, "employeeNumber", StringComparison.Ordinal)
-                && !string.Equals(header, "phone", StringComparison.Ordinal)
-                && !string.Equals(header, "workLocation", StringComparison.Ordinal)
-                && !string.Equals(header, "employmentType", StringComparison.Ordinal))
-            .ToArray();
-        var legacyHeadersWithEmployeeNumber = expectedHeaders
-            .Where(header => !string.Equals(header, "phone", StringComparison.Ordinal)
-                && !string.Equals(header, "workLocation", StringComparison.Ordinal)
-                && !string.Equals(header, "employmentType", StringComparison.Ordinal))
-            .ToArray();
+        // Headers must be a subset of the canonical columns, presented in canonical order, with no
+        // duplicates, and must include the operationally required fields. This naturally supports
+        // optional columns (employee number, phone, work location, employment type, effective date)
+        // without enumerating every legacy combination.
+        var canonicalOrder = CanonicalFields
+            .Select((field, index) => (field.Key, index))
+            .ToDictionary(entry => entry.Key, entry => entry.index, StringComparer.Ordinal);
 
-        if (HeadersMatch(actualHeaders, expectedHeaders)
-            || HeadersMatch(actualHeaders, legacyHeaders)
-            || HeadersMatch(actualHeaders, legacyHeadersWithEmployeeNumber))
+        var cleaned = actualHeaders.Select(CleanHeader).ToList();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var lastOrder = -1;
+
+        foreach (var header in cleaned)
         {
-            return;
-        }
-
-        throw new ArgumentException(
-            "Use the official employee import template. Column headers must match exactly in the expected order.");
-    }
-
-    private static bool HeadersMatch(IReadOnlyList<string> actualHeaders, IReadOnlyList<string> expectedHeaders)
-    {
-        if (actualHeaders.Count != expectedHeaders.Count)
-        {
-            return false;
-        }
-
-        for (var index = 0; index < expectedHeaders.Count; index++)
-        {
-            if (!string.Equals(CleanHeader(actualHeaders[index]), expectedHeaders[index], StringComparison.Ordinal))
+            if (!canonicalOrder.TryGetValue(header, out var order)
+                || !seen.Add(header)
+                || order <= lastOrder)
             {
-                return false;
+                throw new ArgumentException(
+                    "Use the official employee import template. Column headers must match exactly in the expected order.");
             }
+
+            lastOrder = order;
         }
 
-        return true;
+        if (!OperationallyRequiredFields.All(required => seen.Contains(required)))
+        {
+            throw new ArgumentException(
+                "Use the official employee import template. Column headers must match exactly in the expected order.");
+        }
     }
 
     private static async Task<ParsedCsvFile> ParseCsvAsync(IFormFile file, CancellationToken cancellationToken)
@@ -756,6 +766,7 @@ public sealed class EmployeeImportWorkflowService(
         row.Values.TryGetValue("employmentType", out var employmentType);
         row.Values.TryGetValue("orgUnitCode", out var orgUnitCode);
         row.Values.TryGetValue("managerEmail", out var managerEmail);
+        row.Values.TryGetValue("effectiveDate", out var effectiveDate);
 
         return new EmployeeImportPreviewRowDto(
             row.RowNumber,
@@ -769,7 +780,8 @@ public sealed class EmployeeImportWorkflowService(
             NormalizeOptional(workLocation),
             NormalizeOptional(employmentType),
             NormalizeOrgUnitCode(orgUnitCode),
-            NormalizeEmail(managerEmail));
+            NormalizeEmail(managerEmail),
+            NormalizeOptional(effectiveDate));
     }
 
     private async Task<ValidationResult> ValidateRowsAsync(
@@ -1424,6 +1436,8 @@ public sealed class EmployeeImportWorkflowService(
             session.Id,
             session.Stage,
             session.Version,
+            session.BatchEffectiveDate,
+            session.ImportMode,
             session.SourceFileName,
             session.SourceFileSizeBytes,
             sourceRows.Count,
