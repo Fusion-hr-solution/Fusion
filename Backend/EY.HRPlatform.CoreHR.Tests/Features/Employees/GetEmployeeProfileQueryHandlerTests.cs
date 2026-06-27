@@ -4,6 +4,7 @@ using EY.HRPlatform.CoreHR.Features.Employees.Dtos;
 using EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployeeProfile;
 using EY.HRPlatform.CoreHR.Features.Employees.Services;
 using EY.HRPlatform.CoreHR.Features.TenantSettings.Services;
+using EY.HRPlatform.CoreHR.Features.Workforce.Services;
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
 using EY.HRPlatform.CoreHR.Tests.TestHelpers;
 
@@ -152,6 +153,72 @@ public class GetEmployeeProfileQueryHandlerTests
     }
 
     [Fact]
+    public async Task GetEmployeeProfile_UsesCanonicalManagerRelationshipAndDirectReportCounts()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+
+        var orgUnit = OrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null);
+        var manager = Employee.Create(TenantId, "Alice", "Manager", "alice.manager@example.com", DateTime.UtcNow.AddYears(-3));
+        var employee = Employee.Create(
+            TenantId,
+            "Bob",
+            "Worker",
+            "bob.worker@example.com",
+            DateTime.UtcNow.AddYears(-2),
+            jobTitle: "Legacy Title");
+        var report = Employee.Create(TenantId, "Carol", "Report", "carol.report@example.com", DateTime.UtcNow.AddYears(-1));
+
+        var managerEmployment = Employment.Start(TenantId, manager.Id, DateTime.UtcNow.AddYears(-3), "FullTime", WorkforceSourceType.Manual);
+        var employeeEmployment = Employment.Start(TenantId, employee.Id, DateTime.UtcNow.AddYears(-2), "FullTime", WorkforceSourceType.Manual);
+        var reportEmployment = Employment.Start(TenantId, report.Id, DateTime.UtcNow.AddYears(-1), "FullTime", WorkforceSourceType.Manual);
+
+        var managerAssignment = WorkAssignment.Create(TenantId, managerEmployment.Id, manager.Id, orgUnit.Id, "Manager", "HQ", true, managerEmployment.EffectiveFrom, null, WorkforceSourceType.Manual);
+        var employeeAssignment = WorkAssignment.Create(TenantId, employeeEmployment.Id, employee.Id, orgUnit.Id, "Engineer", "Tunis", true, employeeEmployment.EffectiveFrom, null, WorkforceSourceType.Manual);
+        var reportAssignment = WorkAssignment.Create(TenantId, reportEmployment.Id, report.Id, orgUnit.Id, "Analyst", "Tunis", true, reportEmployment.EffectiveFrom, null, WorkforceSourceType.Manual);
+
+        var managerRelationship = ManagerRelationship.Create(
+            TenantId,
+            employee.Id,
+            manager.Id,
+            employeeAssignment.Id,
+            managerAssignment.Id,
+            ReportingRelationshipType.PrimaryManager,
+            employeeEmployment.EffectiveFrom,
+            WorkforceSourceType.Manual);
+        var reportRelationship = ManagerRelationship.Create(
+            TenantId,
+            report.Id,
+            employee.Id,
+            reportAssignment.Id,
+            employeeAssignment.Id,
+            ReportingRelationshipType.PrimaryManager,
+            reportEmployment.EffectiveFrom,
+            WorkforceSourceType.Manual);
+
+        seedContext.OrgUnits.Add(orgUnit);
+        seedContext.Employees.AddRange(manager, employee, report);
+        seedContext.Employments.AddRange(managerEmployment, employeeEmployment, reportEmployment);
+        seedContext.WorkAssignments.AddRange(managerAssignment, employeeAssignment, reportAssignment);
+        seedContext.ManagerRelationships.AddRange(managerRelationship, reportRelationship);
+        await seedContext.SaveChangesAsync();
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = CreateHandler(context);
+
+        var result = await handler.Handle(new GetEmployeeProfileQuery(employee.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(manager.Id, result.Value.ManagerId);
+        Assert.Equal("Alice", result.Value.ManagerFirstName);
+        Assert.Equal("Engineering", result.Value.OrgUnitName);
+        Assert.Equal("Engineer", result.Value.JobTitle);
+        Assert.Equal(1, result.Value.DirectReportCount);
+        Assert.Equal(EmployeeHierarchyStatuses.Healthy, result.Value.HierarchyStatus);
+    }
+
+    [Fact]
     public async Task GetEmployeeProfile_ValidRoot_SurfacesDeactivationBlockerOutsideReadinessIssues()
     {
         var dbName = Guid.NewGuid().ToString();
@@ -226,5 +293,8 @@ public class GetEmployeeProfileQueryHandlerTests
     }
 
     private static GetEmployeeProfileQueryHandler CreateHandler(CoreHRDbContext context)
-        => new(context, new EmployeeReadModelPolicy(), new TenantSettingsReadService(context));
+        => new(context, new EmployeeDetailsReadModelService(
+            context,
+            new WorkforceCanonicalResolver(context),
+            new TenantSettingsReadService(context)));
 }

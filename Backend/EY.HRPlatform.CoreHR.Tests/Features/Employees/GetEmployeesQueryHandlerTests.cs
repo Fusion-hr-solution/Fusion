@@ -4,6 +4,7 @@ using EY.HRPlatform.CoreHR.Features.Employees.Dtos;
 using EY.HRPlatform.CoreHR.Features.Employees.Services;
 using EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployees;
 using EY.HRPlatform.CoreHR.Features.TenantSettings.Services;
+using EY.HRPlatform.CoreHR.Features.Workforce.Services;
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
 using EY.HRPlatform.CoreHR.Tests.TestHelpers;
 using Microsoft.EntityFrameworkCore;
@@ -866,6 +867,55 @@ public class GetEmployeesQueryHandlerTests
     }
 
     [Fact]
+    public async Task GetEmployees_WithManagerFilter_UsesCanonicalManagerRelationships()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+
+        var orgUnit = OrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null);
+        var manager = Employee.Create(TenantId, "Alex", "Manager", "alex.manager@example.com", DateTime.UtcNow.AddYears(-3));
+        var report = Employee.Create(TenantId, "Sam", "Report", "sam.report@example.com", DateTime.UtcNow.AddYears(-2));
+        var outsider = Employee.Create(TenantId, "Riley", "Peer", "riley.peer@example.com", DateTime.UtcNow.AddYears(-2));
+
+        var managerEmployment = Employment.Start(TenantId, manager.Id, DateTime.UtcNow.AddYears(-3), "FullTime", WorkforceSourceType.Manual);
+        var reportEmployment = Employment.Start(TenantId, report.Id, DateTime.UtcNow.AddYears(-2), "FullTime", WorkforceSourceType.Manual);
+        var outsiderEmployment = Employment.Start(TenantId, outsider.Id, DateTime.UtcNow.AddYears(-2), "FullTime", WorkforceSourceType.Manual);
+
+        var managerAssignment = WorkAssignment.Create(TenantId, managerEmployment.Id, manager.Id, orgUnit.Id, "Manager", "HQ", true, managerEmployment.EffectiveFrom, null, WorkforceSourceType.Manual);
+        var reportAssignment = WorkAssignment.Create(TenantId, reportEmployment.Id, report.Id, orgUnit.Id, "Engineer", "Tunis", true, reportEmployment.EffectiveFrom, null, WorkforceSourceType.Manual);
+        var outsiderAssignment = WorkAssignment.Create(TenantId, outsiderEmployment.Id, outsider.Id, orgUnit.Id, "Engineer", "Sfax", true, outsiderEmployment.EffectiveFrom, null, WorkforceSourceType.Manual);
+
+        var reportRelationship = ManagerRelationship.Create(
+            TenantId,
+            report.Id,
+            manager.Id,
+            reportAssignment.Id,
+            managerAssignment.Id,
+            ReportingRelationshipType.PrimaryManager,
+            reportEmployment.EffectiveFrom,
+            WorkforceSourceType.Manual);
+
+        seedContext.OrgUnits.Add(orgUnit);
+        seedContext.Employees.AddRange(manager, report, outsider);
+        seedContext.Employments.AddRange(managerEmployment, reportEmployment, outsiderEmployment);
+        seedContext.WorkAssignments.AddRange(managerAssignment, reportAssignment, outsiderAssignment);
+        seedContext.ManagerRelationships.Add(reportRelationship);
+        await seedContext.SaveChangesAsync();
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = CreateHandler(context);
+
+        var result = await handler.Handle(new GetEmployeesQuery(ManagerId: manager.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var item = Assert.Single(result.Value.Items);
+        Assert.Equal(report.Id, item.Id);
+        Assert.Equal(manager.Id, item.ManagerId);
+        Assert.Equal("Alex Manager", item.ManagerName);
+    }
+
+    [Fact]
     public async Task GetEmployees_HidesJobTitle_WhenTenantSettingsDisableItForHrAdmin()
     {
         // Arrange
@@ -1030,8 +1080,10 @@ public class GetEmployeesQueryHandlerTests
         IWorkforceAccountStatusReader? workforceAccountStatusReader = null)
         => new(
             context,
-            new EmployeeReadModelPolicy(),
-            new TenantSettingsReadService(context),
+            new EmployeeDetailsReadModelService(
+                context,
+                new WorkforceCanonicalResolver(context),
+                new TenantSettingsReadService(context)),
             workforceAccountStatusReader ?? new StaticWorkforceAccountStatusReader(new Dictionary<Guid, WorkforceAccountStatusDto>()));
 
     private sealed class StaticWorkforceAccountStatusReader(

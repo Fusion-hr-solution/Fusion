@@ -4,8 +4,10 @@ using EY.HRPlatform.CoreHR.Features.Employees.Dtos;
 using EY.HRPlatform.CoreHR.Features.Employees.Services;
 using EY.HRPlatform.CoreHR.Features.TenantSettings.Dtos;
 using EY.HRPlatform.CoreHR.Features.TenantSettings.Services;
+using EY.HRPlatform.CoreHR.Features.Workforce.Services;
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
 using EY.HRPlatform.SharedKernel.CQRS;
+using EY.HRPlatform.SharedKernel.Multitenancy;
 using EY.HRPlatform.SharedKernel.Results;
 using Microsoft.EntityFrameworkCore;
 
@@ -13,16 +15,30 @@ namespace EY.HRPlatform.CoreHR.Features.Employees.Commands.UpdateEmployee;
 
 public sealed class UpdateEmployeeCommandHandler(
     CoreHRDbContext dbContext,
-    IEmployeeHierarchyService hierarchyService,
-    ITenantSettingsReadService? tenantSettingsReadService = null) : ICommandHandler<UpdateEmployeeCommand, Result<EmployeeDto>>
+    ITenantContext tenantContext,
+    IWorkforceMutationService? workforceMutationService = null,
+    IEmployeeDetailsReadModelService? employeeDetailsReadModelService = null,
+    ITenantSettingsReadService? tenantSettingsReadService = null)
+    : ICommandHandler<UpdateEmployeeCommand, Result<EmployeeDetailsDto>>
 {
-    private readonly IEmployeeHierarchyService employeeHierarchyService = hierarchyService;
+    private readonly IWorkforceMutationService workforceMutationService =
+        workforceMutationService ?? new WorkforceMutationService(dbContext, tenantContext, new WorkforceCanonicalResolver(dbContext));
+
+    private readonly IEmployeeDetailsReadModelService employeeDetailsReadModelService =
+        employeeDetailsReadModelService ?? new EmployeeDetailsReadModelService(
+            dbContext,
+            new WorkforceCanonicalResolver(dbContext),
+            tenantSettingsReadService ?? new TenantSettingsReadService(dbContext));
+
     private readonly ITenantSettingsReadService tenantSettingsReader =
         tenantSettingsReadService ?? new TenantSettingsReadService(dbContext);
-    private static readonly HashSet<string> OperationallyRequiredFields =
-        ["firstName", "lastName", "email", "hireDate"];
 
-    public async Task<Result<EmployeeDto>> Handle(UpdateEmployeeCommand request, CancellationToken cancellationToken)
+    private readonly IWorkforceCanonicalResolver workforceCanonicalResolver = new WorkforceCanonicalResolver(dbContext);
+
+    private static readonly HashSet<string> OperationallyRequiredFields =
+        ["firstName", "lastName", "email", "jobTitle"];
+
+    public async Task<Result<EmployeeDetailsDto>> Handle(UpdateEmployeeCommand request, CancellationToken cancellationToken)
     {
         var employee = await dbContext.Employees
             .FirstOrDefaultAsync(e => e.Id == request.EmployeeId, cancellationToken);
@@ -32,7 +48,6 @@ public sealed class UpdateEmployeeCommandHandler(
             throw new EntityNotFoundException("Employee", request.EmployeeId);
         }
 
-        // Verify expected version for optimistic concurrency
         if (employee.Version != request.ExpectedVersion)
         {
             throw new ConcurrencyException("Employee", request.EmployeeId);
@@ -47,14 +62,27 @@ public sealed class UpdateEmployeeCommandHandler(
         ValidateConfiguredRequiredField(request.WorkLocation, "workLocation", "Work location", settings, false);
         ValidateConfiguredRequiredField(request.EmploymentType, "employmentType", "Employment type", settings, false);
 
-        // Merge request values with existing (partial update support)
+        if (request.ManagerId.HasValue)
+        {
+            return Result.Failure<EmployeeDetailsDto>(Error.Validation(
+                "Employee.UpdateManagerRequiresDedicatedAction",
+                "Manager changes must use POST /api/corehr/employees/{id}/change-manager."));
+        }
+
+        var currentEmployment = await workforceCanonicalResolver.GetCurrentEmploymentAsync(employee.Id, DateTime.UtcNow, cancellationToken);
+        if (request.HireDate.HasValue
+            && (currentEmployment is null || request.HireDate.Value != currentEmployment.EffectiveFrom))
+        {
+            return Result.Failure<EmployeeDetailsDto>(Error.Validation(
+                "Employee.UpdateHireDateRequiresDedicatedAction",
+                "Employment start-date changes require a dedicated lifecycle action."));
+        }
+
         var firstName = request.FirstName ?? employee.FirstName;
         var lastName = request.LastName ?? employee.LastName;
+        var preferredName = request.PreferredName ?? employee.PreferredName;
         var email = request.Email ?? employee.Email;
         var phone = request.Phone ?? employee.Phone;
-        var jobTitle = request.JobTitle ?? employee.JobTitle;
-        var workLocation = request.WorkLocation ?? employee.WorkLocation;
-        var employmentType = request.EmploymentType ?? employee.EmploymentType;
         var employeeNumber = request.EmployeeNumber ?? employee.EmployeeNumber;
 
         var normalizedEmail = email.Trim().ToLowerInvariant();
@@ -62,7 +90,6 @@ public sealed class UpdateEmployeeCommandHandler(
             ? null
             : employeeNumber.Trim().ToUpperInvariant();
 
-        // Check for duplicate email within tenant (only if email is changing)
         if (normalizedEmail != employee.Email)
         {
             var emailExists = await dbContext.Employees
@@ -86,58 +113,66 @@ public sealed class UpdateEmployeeCommandHandler(
             }
         }
 
-        OrgUnit? orgUnit = null;
-        if (request.OrgUnitId.HasValue && request.OrgUnitId.Value != Guid.Empty)
+        if (ProfileChanged(employee, firstName, lastName, preferredName, normalizedEmail, phone))
         {
-            orgUnit = await dbContext.OrgUnits
-                .FirstOrDefaultAsync(o => o.Id == request.OrgUnitId.Value, cancellationToken);
-
-            if (orgUnit is null)
-            {
-                throw new EntityNotFoundException("OrgUnit", request.OrgUnitId.Value);
-            }
-
-            if (!orgUnit.IsActive)
-            {
-                throw new ArgumentException("Cannot assign inactive org unit.");
-            }
-        }
-
-        // Update employee details
-        employee.UpdateDetails(
-            firstName,
-            lastName,
-            email,
-            employee.Department,
-            jobTitle,
-            employeeNumber,
-            phone,
-            workLocation,
-            employmentType);
-
-        if (request.PreferredName is not null)
-        {
-            employee.UpdatePreferredName(request.PreferredName);
-        }
-
-        if (request.HireDate.HasValue)
-        {
-            employee.UpdateHireDate(request.HireDate.Value);
-        }
-
-        // Update manager only if explicitly provided in request
-        if (request.ManagerId.HasValue)
-        {
-            await employeeHierarchyService.EnsureManagerAssignmentIsValidAsync(
+            var profileResult = await workforceMutationService.UpdateEmployeeProfileAsync(
                 employee.Id,
-                request.ManagerId,
+                new UpdateEmployeeProfileInput(firstName, lastName, normalizedEmail, preferredName, phone),
+                actor: null,
                 cancellationToken);
-            employee.AssignManager(request.ManagerId.Value);
+            if (profileResult.IsFailure)
+            {
+                return Result.Failure<EmployeeDetailsDto>(profileResult.Error);
+            }
         }
 
-        if (request.OrgUnitId.HasValue)
+        if (!string.Equals(employee.EmployeeNumber, normalizedEmployeeNumber, StringComparison.Ordinal))
         {
-            employee.AssignOrgUnit(request.OrgUnitId.Value);
+            employee.UpdateEmployeeNumber(normalizedEmployeeNumber);
+        }
+
+        if (request.EmploymentType is not null
+            && !string.Equals(request.EmploymentType, currentEmployment?.EmploymentType, StringComparison.Ordinal))
+        {
+            var employmentResult = await workforceMutationService.UpdateEmploymentDetailsAsync(
+                employee.Id,
+                new UpdateEmploymentDetailsInput(request.EmploymentType),
+                actor: null,
+                cancellationToken);
+            if (employmentResult.IsFailure)
+            {
+                return Result.Failure<EmployeeDetailsDto>(employmentResult.Error);
+            }
+        }
+
+        var currentAssignment = await workforceCanonicalResolver.GetPrimaryWorkAssignmentAsync(employee.Id, DateTime.UtcNow, cancellationToken);
+        var targetOrgUnitId = request.OrgUnitId ?? currentAssignment?.OrgUnitId;
+        var targetJobTitle = request.JobTitle ?? currentAssignment?.JobTitle;
+        var targetWorkLocation = request.WorkLocation ?? currentAssignment?.WorkLocation;
+
+        var assignmentChanged =
+            request.OrgUnitId.HasValue
+            || request.JobTitle is not null
+            || request.WorkLocation is not null;
+
+        if (assignmentChanged)
+        {
+            if (!targetOrgUnitId.HasValue || string.IsNullOrWhiteSpace(targetJobTitle))
+            {
+                return Result.Failure<EmployeeDetailsDto>(Error.Validation(
+                    "WorkAssignment.IncompleteUpdate",
+                    "Updating the primary work assignment requires an active assignment with organization and job title."));
+            }
+
+            var assignmentResult = await workforceMutationService.CorrectPrimaryWorkAssignmentAsync(
+                employee.Id,
+                new CorrectWorkAssignmentInput(targetOrgUnitId.Value, targetJobTitle, targetWorkLocation),
+                actor: null,
+                cancellationToken);
+            if (assignmentResult.IsFailure)
+            {
+                return Result.Failure<EmployeeDetailsDto>(assignmentResult.Error);
+            }
         }
 
         try
@@ -148,72 +183,28 @@ public sealed class UpdateEmployeeCommandHandler(
         {
             throw new ConcurrencyException("Employee", request.EmployeeId);
         }
-        catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex))
-        {
-            throw ResolveDuplicateException(ex, normalizedEmail, normalizedEmployeeNumber);
-        }
 
-        // Load manager for response if assigned
-        Employee? manager = null;
-        if (employee.ManagerId.HasValue)
-        {
-            manager = await dbContext.Employees
-                .FirstOrDefaultAsync(e => e.Id == employee.ManagerId.Value, cancellationToken);
-        }
+        var details = await employeeDetailsReadModelService.BuildAsync(
+            employee,
+            EmployeeReadAudience.HrAdmin,
+            null,
+            cancellationToken);
 
-        if (employee.OrgUnitId.HasValue)
-        {
-            orgUnit ??= await dbContext.OrgUnits
-                .FirstOrDefaultAsync(o => o.Id == employee.OrgUnitId.Value, cancellationToken);
-        }
-
-        return Result.Success(MapToDto(employee, manager, orgUnit));
+        return Result.Success(details);
     }
 
-    private static EmployeeDto MapToDto(Employee employee, Employee? manager, OrgUnit? orgUnit) => new(
-        employee.Id,
-        employee.TenantId,
-        employee.StableEmployeeKey,
-        employee.EmployeeNumber,
-        employee.FirstName,
-        employee.LastName,
-        employee.PreferredName,
-        employee.Email,
-        employee.Phone,
-        employee.OrgUnitId,
-        orgUnit?.Name,
-        employee.JobTitle,
-        employee.WorkLocation,
-        employee.EmploymentType,
-        employee.HireDate,
-        employee.Status,
-        employee.ManagerId,
-        manager is not null ? new ManagerDto(manager.Id, manager.FirstName, manager.LastName, manager.Email) : null,
-        employee.CreatedAt,
-        employee.UpdatedAt,
-        employee.Version);
-
-    private static bool IsUniqueConstraintViolation(DbUpdateException ex)
-    {
-        // PostgreSQL unique violation error code: 23505
-        return ex.InnerException?.Message.Contains("23505") == true
-            || ex.InnerException?.Message.Contains("unique constraint") == true
-            || ex.InnerException?.Message.Contains("duplicate key") == true;
-    }
-
-    private static DuplicateEntityException ResolveDuplicateException(
-        DbUpdateException ex,
-        string normalizedEmail,
-        string? normalizedEmployeeNumber)
-    {
-        if (ex.InnerException?.Message.Contains("IX_Employees_TenantId_EmployeeNumber") == true
-            && !string.IsNullOrWhiteSpace(normalizedEmployeeNumber))
-        {
-            return new DuplicateEntityException("Employee", "employeeNumber", normalizedEmployeeNumber);
-        }
-
-        return new DuplicateEntityException("Employee", "email", normalizedEmail);
-    }
+    private static bool ProfileChanged(
+        Employee employee,
+        string firstName,
+        string lastName,
+        string? preferredName,
+        string email,
+        string? phone)
+        => !string.Equals(employee.FirstName, firstName, StringComparison.Ordinal)
+            || !string.Equals(employee.LastName, lastName, StringComparison.Ordinal)
+            || !string.Equals(employee.PreferredName, preferredName, StringComparison.Ordinal)
+            || !string.Equals(employee.Email, email, StringComparison.Ordinal)
+            || !string.Equals(employee.Phone, phone, StringComparison.Ordinal);
 
     private static void ValidateConfiguredRequiredField(
         string? requestedValue,
@@ -236,6 +227,6 @@ public sealed class UpdateEmployeeCommandHandler(
     private static bool IsFieldRequired(TenantSettingsDto settings, string fieldKey, bool fallbackRequired)
         => OperationallyRequiredFields.Contains(fieldKey)
             || (settings.EmployeeFieldConfig.TryGetValue(fieldKey, out var fieldConfig)
-            ? fieldConfig.Required
-            : fallbackRequired);
+                ? fieldConfig.Required
+                : fallbackRequired);
 }

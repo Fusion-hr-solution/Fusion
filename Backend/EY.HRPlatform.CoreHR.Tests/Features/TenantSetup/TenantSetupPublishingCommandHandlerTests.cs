@@ -1,4 +1,5 @@
 using EY.HRPlatform.CoreHR.Domain.Entities;
+using EY.HRPlatform.CoreHR.Domain.Enums;
 using EY.HRPlatform.CoreHR.Exceptions;
 using EY.HRPlatform.CoreHR.Features.TenantSetup.Commands.CompleteTenantSetup;
 using EY.HRPlatform.CoreHR.Features.TenantSetup.Commands.PublishTenantStructure;
@@ -144,6 +145,84 @@ public class TenantSetupPublishingCommandHandlerTests
                 employeeNumber: "E-200");
             assignedEmployee.AssignOrgUnit(legacyUnit.Id);
             seedContext.Employees.Add(assignedEmployee);
+            await seedContext.SaveChangesAsync();
+
+            expectedVersion = state.Version;
+        }
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = new PublishTenantStructureCommandHandler(context);
+
+        var ex = await Assert.ThrowsAsync<InvalidTenantSetupStateException>(
+            () => handler.Handle(
+                new PublishTenantStructureCommand(
+                    expectedVersion,
+                    ActorUserId,
+                    "Jordan Approver",
+                    "HRAdmin",
+                    false),
+                CancellationToken.None));
+
+        Assert.Contains("LEGACY", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Handle_WithRemovedLiveUnitAssignedThroughCanonicalPrimaryWorkAssignment_ThrowsInvalidTenantSetupStateException()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        uint expectedVersion;
+
+        await using (var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName))
+        {
+            var state = TenantSetupState.CreateActivated(TenantId);
+
+            seedContext.TenantSetupStates.Add(state);
+            seedContext.TenantSettings.Add(DomainTenantSettings.Create(TenantId, SettingsJson));
+
+            seedContext.DraftOrgUnits.Add(
+                DraftOrgUnit.Create(
+                    TenantId,
+                    "ENG",
+                    "Engineering",
+                    "department",
+                    null,
+                    null,
+                    null,
+                    null));
+
+            var legacyUnit = OrgUnit.Create(TenantId, "LEGACY", "Legacy Unit", "Department", null);
+            seedContext.OrgUnits.Add(legacyUnit);
+            await seedContext.SaveChangesAsync();
+
+            var employee = Employee.Create(
+                TenantId,
+                "Jordan",
+                "Canonical",
+                "jordan.canonical@example.com",
+                DateTime.UtcNow.AddYears(-1),
+                employeeNumber: "E-201");
+            var employment = Employment.Start(
+                TenantId,
+                employee.Id,
+                DateTime.UtcNow.AddYears(-1),
+                "FullTime",
+                WorkforceSourceType.Manual);
+            var assignment = WorkAssignment.Create(
+                TenantId,
+                employment.Id,
+                employee.Id,
+                legacyUnit.Id,
+                "Engineer",
+                "Tunis",
+                true,
+                employment.EffectiveFrom,
+                null,
+                WorkforceSourceType.Manual);
+
+            seedContext.Employees.Add(employee);
+            seedContext.Employments.Add(employment);
+            seedContext.WorkAssignments.Add(assignment);
             await seedContext.SaveChangesAsync();
 
             expectedVersion = state.Version;

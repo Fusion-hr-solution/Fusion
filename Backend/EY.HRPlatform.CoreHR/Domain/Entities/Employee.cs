@@ -134,6 +134,36 @@ public class Employee : AggregateRoot, ITenantEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
+    /// <summary>
+    /// Updates Core-owned identity/profile facts only (name, email, phone, preferred name).
+    /// Workforce facts (job title, organization, manager, employment type/state) are owned by
+    /// the canonical <c>Employment</c>/<c>WorkAssignment</c>/<c>ManagerRelationship</c> chain and
+    /// are never written through this method.
+    /// </summary>
+    public void UpdateProfile(
+        string firstName,
+        string lastName,
+        string email,
+        string? preferredName,
+        string? phone)
+    {
+        if (string.IsNullOrWhiteSpace(firstName))
+            throw new ArgumentException("First name cannot be empty.", nameof(firstName));
+
+        if (string.IsNullOrWhiteSpace(lastName))
+            throw new ArgumentException("Last name cannot be empty.", nameof(lastName));
+
+        if (string.IsNullOrWhiteSpace(email))
+            throw new ArgumentException("Email cannot be empty.", nameof(email));
+
+        FirstName = firstName.Trim();
+        LastName = lastName.Trim();
+        Email = email.Trim().ToLowerInvariant();
+        PreferredName = NormalizePreferredName(preferredName);
+        Phone = NormalizePhone(phone);
+        UpdatedAt = DateTime.UtcNow;
+    }
+
     public void UpdateHireDate(DateTime hireDate)
     {
         HireDate = NormalizeHireDate(hireDate, nameof(hireDate));
@@ -149,6 +179,12 @@ public class Employee : AggregateRoot, ITenantEntity
     public void UpdatePhone(string? phone)
     {
         Phone = NormalizePhone(phone);
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void UpdateEmployeeNumber(string? employeeNumber)
+    {
+        EmployeeNumber = NormalizeEmployeeNumber(employeeNumber);
         UpdatedAt = DateTime.UtcNow;
     }
 

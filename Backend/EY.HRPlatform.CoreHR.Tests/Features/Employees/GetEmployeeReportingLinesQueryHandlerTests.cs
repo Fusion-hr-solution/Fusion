@@ -3,6 +3,7 @@ using EY.HRPlatform.CoreHR.Features.Employees.Dtos;
 using EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployeeReportingLines;
 using EY.HRPlatform.CoreHR.Features.Employees.Services;
 using EY.HRPlatform.CoreHR.Features.TenantSettings.Services;
+using EY.HRPlatform.CoreHR.Features.Workforce.Services;
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
 using EY.HRPlatform.CoreHR.Tests.TestHelpers;
 
@@ -133,5 +134,11 @@ public class GetEmployeeReportingLinesQueryHandlerTests
     }
 
     private static GetEmployeeReportingLinesQueryHandler CreateHandler(CoreHRDbContext context)
-        => new(context, new EmployeeReadModelPolicy(), new TenantSettingsReadService(context));
+        => new(
+            context,
+            new EmployeeDetailsReadModelService(
+                context,
+                new WorkforceCanonicalResolver(context),
+                new TenantSettingsReadService(context)),
+            new WorkforceCanonicalResolver(context));
 }

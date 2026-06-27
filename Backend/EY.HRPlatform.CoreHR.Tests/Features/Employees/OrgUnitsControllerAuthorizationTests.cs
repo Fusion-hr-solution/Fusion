@@ -16,4 +16,19 @@ public class OrgUnitsControllerAuthorizationTests
         Assert.NotNull(authorizeAttribute);
         Assert.Null(authorizeAttribute!.Roles);
     }
+
+    [Theory]
+    [InlineData("Create")]
+    [InlineData("Update")]
+    public void OrgUnitMutations_RequireHRAdminRole(string methodName)
+    {
+        // Responsible-manager changes flow through Create/Update; both must be deny-by-default,
+        // restricted to the HR admin role server-side.
+        var method = typeof(OrgUnitsController).GetMethod(methodName);
+        Assert.NotNull(method);
+
+        var authorize = method!.GetCustomAttribute<AuthorizeAttribute>(inherit: false);
+        Assert.NotNull(authorize);
+        Assert.Equal(PlatformRole.HRAdmin, authorize!.Roles);
+    }
 }

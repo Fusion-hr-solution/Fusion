@@ -34,6 +34,14 @@ public class CoreHRDbContext : DbContext
     private Guid CurrentTenantId => _tenantContext?.TenantIdOrDefault ?? Guid.Empty;
 
     public DbSet<Employee> Employees => Set<Employee>();
+
+    // Canonical workforce model (Employee -> Employment -> WorkAssignment -> ManagerRelationship).
+    public DbSet<Employment> Employments => Set<Employment>();
+    public DbSet<WorkAssignment> WorkAssignments => Set<WorkAssignment>();
+    public DbSet<ManagerRelationship> ManagerRelationships => Set<ManagerRelationship>();
+    public DbSet<WorkforceAuditEntry> WorkforceAuditEntries => Set<WorkforceAuditEntry>();
+
+    // Provisional/legacy workforce entities — retired in the Phase 3 cleanup of this change.
     public DbSet<Position> Positions => Set<Position>();
     public DbSet<EmployeePositionAssignment> EmployeePositionAssignments => Set<EmployeePositionAssignment>();
     public DbSet<EmployeeOrgMembership> EmployeeOrgMemberships => Set<EmployeeOrgMembership>();
@@ -69,6 +77,18 @@ public class CoreHRDbContext : DbContext
         // When CurrentTenantId is Empty (design-time/no context), queries return no results.
         modelBuilder.Entity<Employee>()
             .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<Employment>()
+            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<WorkAssignment>()
+            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<ManagerRelationship>()
+            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<WorkforceAuditEntry>()
+            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
 
         modelBuilder.Entity<Position>()
             .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);

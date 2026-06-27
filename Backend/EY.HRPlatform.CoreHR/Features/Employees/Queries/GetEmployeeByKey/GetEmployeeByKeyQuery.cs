@@ -5,4 +5,4 @@ using EY.HRPlatform.SharedKernel.Results;
 namespace EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployeeByKey;
 
 public sealed record GetEmployeeByKeyQuery(
-    string EmployeeKey) : IQuery<Result<EmployeeDto>>;
+    string EmployeeKey) : IQuery<Result<EmployeeDetailsDto>>;
