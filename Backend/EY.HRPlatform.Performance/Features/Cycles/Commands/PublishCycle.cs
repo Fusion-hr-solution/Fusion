@@ -48,7 +48,8 @@ public sealed class PublishCycleCommandHandler(
                 Error.Conflict("Cycle.NotDraft", "Only a draft campaign can begin assignment preparation."));
         }
 
-        var members = await populationResolver.ResolveAsync(cycle, cancellationToken);
+        var snapshotAsOf = DateTime.UtcNow;
+        var members = await populationResolver.ResolveAsync(cycle, snapshotAsOf, cancellationToken);
         if (members.Count == 0)
         {
             return Result.Failure<PerformanceCycleDetailDto>(
@@ -70,7 +71,8 @@ public sealed class PublishCycleCommandHandler(
                 member.OrgUnit?.Name,
                 member.JobTitle,
                 member.Manager?.EmployeeId,
-                member.Manager?.DisplayName);
+                member.Manager?.DisplayName,
+                snapshotAsOf);
 
             participants.Add(participant);
         }

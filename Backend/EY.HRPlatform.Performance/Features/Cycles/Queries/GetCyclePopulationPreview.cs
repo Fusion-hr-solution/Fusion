@@ -31,7 +31,7 @@ public sealed class GetCyclePopulationPreviewQueryHandler(
             return Result.Failure<CyclePopulationPreviewDto>(Error.NotFound("PerformanceCycle", request.CycleId));
         }
 
-        var members = await populationResolver.ResolveAsync(cycle, cancellationToken);
+        var members = await populationResolver.ResolveAsync(cycle, asOf: null, cancellationToken);
 
         var memberDtos = members
             .Select(member => new CyclePopulationMemberDto(

@@ -6,6 +6,7 @@ using EY.HRPlatform.Performance.Infrastructure.Persistence;
 using EY.HRPlatform.Performance.Infrastructure.Persistence.Interceptors;
 using EY.HRPlatform.Performance.Infrastructure.Workforce;
 using EY.HRPlatform.SharedKernel.Multitenancy;
+using EY.HRPlatform.SharedKernel.Security;
 using Microsoft.EntityFrameworkCore;
 
 namespace EY.HRPlatform.Performance.Extensions;
@@ -21,6 +22,11 @@ public static class ServiceCollectionExtensions
         services.AddHttpContextAccessor();
 
         services.Configure<ReminderOptions>(configuration.GetSection(ReminderOptions.SectionName));
+        var internalServiceAuthentication = configuration
+            .GetSection(InternalServiceAuthenticationOptions.SectionName)
+            .Get<InternalServiceAuthenticationOptions>() ?? new InternalServiceAuthenticationOptions();
+        services.AddSingleton<IInternalServiceRequestSigner>(_ => new InternalServiceRequestSigner(
+            internalServiceAuthentication));
 
         services.AddScoped<IPerformanceAccessPolicyService, PerformanceAccessPolicyService>();
         services.AddScoped<ICurrentUserContext, CurrentUserContext>();

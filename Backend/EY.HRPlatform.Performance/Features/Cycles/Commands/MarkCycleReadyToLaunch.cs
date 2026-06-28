@@ -50,7 +50,7 @@ public sealed class MarkCycleReadyToLaunchCommandHandler(
         if (delta.BlocksLaunch)
             return Result.Failure<PerformanceCycleDetailDto>(Error.Conflict(
                 "Cycle.WorkforceDeltaBlocksLaunch",
-                $"{delta.InactiveOrMissingAssigneeCount} final approver(s) are no longer active in the current workforce. Re-curate those responsibilities before launch."));
+                $"{delta.InactiveOrMissingAssigneeCount} final approver assignment(s) are no longer valid in the current workforce. Re-curate those responsibilities before launch."));
 
         ConcurrencyGuard.Ensure(cycle.Version, request.ExpectedVersion, nameof(PerformanceCycle), cycle.Id);
         try
@@ -66,8 +66,8 @@ public sealed class MarkCycleReadyToLaunchCommandHandler(
             return Result.Failure<PerformanceCycleDetailDto>(Error.Conflict("Cycle.NotReady", exception.Message));
         }
 
-        var deltaNote = delta.InactiveSubjectCount > 0
-            ? $" Accepted workforce delta: {delta.InactiveSubjectCount} inactive subject(s)."
+        var deltaNote = delta.Items.Count > 0
+            ? $" Accepted workforce delta: {delta.Items.Count} current workforce change(s)."
             : " No workforce changes since preparation.";
         dbContext.PerformanceCycleAuditEvents.Add(PerformanceCycleAuditEvent.Create(
             tenantContext.TenantId, cycle.Id, PerformanceCycleAuditAction.ReadyToLaunch,

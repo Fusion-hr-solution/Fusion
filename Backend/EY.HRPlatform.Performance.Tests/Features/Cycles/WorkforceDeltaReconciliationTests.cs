@@ -67,11 +67,13 @@ public sealed class WorkforceDeltaReconciliationTests
         // Act — mutate FakeCoreWorkforceClient to mark the assignee inactive, then compute delta
         var workforce = new FakeCoreWorkforceClient
         {
-            ResolvePool =
-            [
-                FakeCoreWorkforceClient.Employee(subjectId, "Employee"),
-                FakeCoreWorkforceClient.Employee(managerId, "Manager") with { IsActive = false },
-            ]
+            CampaignWorkforceContext = new(
+                now,
+                "baseline",
+                [
+                    CampaignMember(subjectId, isActive: true, primaryManagerEmployeeId: managerId),
+                    CampaignMember(managerId, isActive: false)
+                ])
         };
 
         // Build the delta-resolver input from the seeded responsibility items
@@ -105,6 +107,58 @@ public sealed class WorkforceDeltaReconciliationTests
         Assert.Equal(1, responsibility.Revision);
         Assert.True(responsibility.IsFinal);
         Assert.Equal("Manager", responsibility.AssigneeName);
+    }
+
+    [Fact]
+    public async Task PreparationOrgChange_SurfacesDelta_WithoutBlockingLaunch()
+    {
+        var tenantId = Guid.NewGuid();
+        var now = DateTime.UtcNow;
+        var subjectId = Guid.NewGuid();
+        var managerId = Guid.NewGuid();
+        var originalOrgUnitId = Guid.NewGuid();
+        var changedOrgUnitId = Guid.NewGuid();
+
+        var items = new List<CampaignResponsibilityWorkItemDto>
+        {
+            new(
+                Guid.NewGuid(),
+                subjectId,
+                "Employee",
+                "Engineering",
+                "Engineer",
+                "Manager",
+                new CampaignResponsibilitySummaryDto(
+                    Guid.NewGuid(),
+                    managerId,
+                    "Manager",
+                    CampaignResponsibilityDuty.ObjectiveApproval.ToString(),
+                    CampaignAssignmentSource.Curated.ToString(),
+                    "PrimaryManager",
+                    null,
+                    1,
+                    now),
+                originalOrgUnitId,
+                managerId)
+        };
+
+        var workforce = new FakeCoreWorkforceClient
+        {
+            CampaignWorkforceContext = new(
+                now,
+                "baseline",
+                [
+                    CampaignMember(subjectId, isActive: true, primaryManagerEmployeeId: managerId, orgUnitIds: [changedOrgUnitId]),
+                    CampaignMember(managerId, isActive: true)
+                ])
+        };
+
+        var delta = await CampaignWorkforceDeltaResolver.ComputeAsync(items, workforce, CancellationToken.None);
+
+        Assert.False(delta.BlocksLaunch);
+        Assert.Contains(delta.Items, item =>
+            item.SubjectEmployeeId == subjectId
+            && item.Issue == "SubjectPrimaryOrgAssignmentChanged");
     }
 
     /// <summary>
@@ -299,4 +353,22 @@ public sealed class WorkforceDeltaReconciliationTests
             .SingleAsync(w => w.CycleId == cycleId && w.SubjectEmployeeId == subjectB);
         Assert.Equal(CampaignWorkItemStatus.Assigned, untouchedSubjectWork.Status);
     }
+
+    private static CoreCampaignWorkforceMember CampaignMember(
+        Guid employeeId,
+        bool isActive,
+        Guid? primaryManagerEmployeeId = null,
+        IReadOnlyList<Guid>? orgUnitIds = null,
+        bool isPacketAReady = true,
+        IReadOnlyList<string>? remediationCodes = null)
+        => new(
+            employeeId,
+            isActive,
+            orgUnitIds ?? [],
+            primaryManagerEmployeeId,
+            primaryManagerEmployeeId.HasValue ? [primaryManagerEmployeeId.Value] : [],
+            false,
+            1,
+            IsPacketAReady: isPacketAReady,
+            RemediationCodes: remediationCodes ?? []);
 }

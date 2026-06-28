@@ -18,8 +18,16 @@ public class PublishCycleCommandHandlerTests
 
     private sealed class FakeResolver(IReadOnlyList<CoreEmployeeSummary> members) : IPerformancePopulationResolver
     {
-        public Task<IReadOnlyList<CoreEmployeeSummary>> ResolveAsync(PerformanceCycle cycle, CancellationToken cancellationToken)
-            => Task.FromResult(members);
+        public DateTime? LastAsOf { get; private set; }
+
+        public Task<IReadOnlyList<CoreEmployeeSummary>> ResolveAsync(
+            PerformanceCycle cycle,
+            DateTime? asOf,
+            CancellationToken cancellationToken)
+        {
+            LastAsOf = asOf;
+            return Task.FromResult(members);
+        }
     }
 
     private static (Guid CycleId, uint Version) SeedDraft(string dbName, TenantContext tenantContext)
@@ -50,9 +58,10 @@ public class PublishCycleCommandHandlerTests
         };
 
         await using var db = PerformanceTestContext.Create(tenantContext, dbName);
+        var resolver = new FakeResolver(members);
         var handler = new PublishCycleCommandHandler(
             db, tenantContext, new StubCurrentUserContext(),
-            new FakeResolver(members), new FakeCoreWorkforceClient(), Options.Create(new ReminderOptions()));
+            resolver, new FakeCoreWorkforceClient(), Options.Create(new ReminderOptions()));
 
         var result = await handler.Handle(new PublishCycleCommand(cycleId, version), CancellationToken.None);
 
@@ -69,6 +78,7 @@ public class PublishCycleCommandHandlerTests
         Assert.Contains(publishedNotifications, n => n.RecipientEmployeeId == members[1].EmployeeId);
         Assert.True(await verify.PerformanceCycleAuditEvents
             .AnyAsync(a => a.CycleId == cycleId && a.Action == PerformanceCycleAuditAction.AssignmentPreparationStarted));
+        Assert.NotNull(resolver.LastAsOf);
     }
 
     [Fact]
@@ -92,5 +102,51 @@ public class PublishCycleCommandHandlerTests
         await using var verify = PerformanceTestContext.Create(tenantContext, dbName);
         var stored = await verify.PerformanceCycles.AsNoTracking().SingleAsync(c => c.Id == cycleId);
         Assert.Equal(PerformanceCycleStatus.Draft, stored.Status);
+    }
+
+    [Fact]
+    public async Task Publish_FreezesParticipantSnapshotAtTheSameAsOfUsedForCanonicalResolution()
+    {
+        var dbName = $"perf-publish-snapshot-{Guid.NewGuid()}";
+        var tenantContext = new TenantContext();
+        tenantContext.SetTenant(TenantId);
+        var (cycleId, version) = SeedDraft(dbName, tenantContext);
+        var orgUnitId = Guid.NewGuid();
+        var managerId = Guid.NewGuid();
+        var employeeId = Guid.NewGuid();
+
+        var members = new List<CoreEmployeeSummary>
+        {
+            new(
+                employeeId,
+                "E-snap01",
+                "Alice Adams",
+                "Alice",
+                "alice@test.local",
+                "Senior Engineer",
+                true,
+                new CoreOrgAssignment(orgUnitId, "Engineering"),
+                new CoreManagerSummary(managerId, "Maya Lead"))
+        };
+
+        await using var db = PerformanceTestContext.Create(tenantContext, dbName);
+        var resolver = new FakeResolver(members);
+        var handler = new PublishCycleCommandHandler(
+            db, tenantContext, new StubCurrentUserContext(),
+            resolver, new FakeCoreWorkforceClient(), Options.Create(new ReminderOptions()));
+
+        var result = await handler.Handle(new PublishCycleCommand(cycleId, version), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(resolver.LastAsOf);
+
+        await using var verify = PerformanceTestContext.Create(tenantContext, dbName);
+        var participant = await verify.PerformanceCycleParticipants.SingleAsync(p => p.CycleId == cycleId && p.EmployeeId == employeeId);
+        Assert.Equal(orgUnitId, participant.OrgUnitId);
+        Assert.Equal("Engineering", participant.OrgUnitName);
+        Assert.Equal("Senior Engineer", participant.JobTitle);
+        Assert.Equal(managerId, participant.ManagerId);
+        Assert.Equal("Maya Lead", participant.ManagerName);
+        Assert.Equal(resolver.LastAsOf!.Value, participant.SnapshotAt);
     }
 }

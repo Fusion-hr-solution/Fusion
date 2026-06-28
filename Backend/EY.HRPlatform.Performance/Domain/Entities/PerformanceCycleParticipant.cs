@@ -40,7 +40,8 @@ public class PerformanceCycleParticipant : BaseEntity, ITenantEntity
         string? orgUnitName = null,
         string? jobTitle = null,
         Guid? managerId = null,
-        string? managerName = null)
+        string? managerName = null,
+        DateTime? snapshotAt = null)
     {
         if (tenantId == Guid.Empty)
             throw new ArgumentException("TenantId cannot be empty.", nameof(tenantId));
@@ -63,7 +64,13 @@ public class PerformanceCycleParticipant : BaseEntity, ITenantEntity
             JobTitle = jobTitle,
             ManagerId = managerId,
             ManagerName = managerName,
-            SnapshotAt = DateTime.UtcNow
+            SnapshotAt = snapshotAt?.Kind switch
+            {
+                DateTimeKind.Utc => snapshotAt.Value,
+                DateTimeKind.Local => snapshotAt.Value.ToUniversalTime(),
+                DateTimeKind.Unspecified => DateTime.SpecifyKind(snapshotAt.Value, DateTimeKind.Utc),
+                _ => DateTime.UtcNow
+            }
         };
     }
 }

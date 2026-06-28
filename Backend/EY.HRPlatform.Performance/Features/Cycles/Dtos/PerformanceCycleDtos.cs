@@ -129,7 +129,9 @@ public sealed record CampaignResponsibilityWorkItemDto(
     string? OrgUnitName,
     string? JobTitle,
     string? CoreManagerName,
-    CampaignResponsibilitySummaryDto? CurrentResponsibility);
+    CampaignResponsibilitySummaryDto? CurrentResponsibility,
+    Guid? SubjectOrgUnitId = null,
+    Guid? SubjectPrimaryManagerEmployeeId = null);
 
 public sealed record CampaignResponsibilitiesDto(
     int ParticipantCount,

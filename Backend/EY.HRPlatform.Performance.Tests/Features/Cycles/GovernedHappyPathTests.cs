@@ -27,7 +27,10 @@ public class GovernedHappyPathTests
 
     private sealed class FakeResolver(IReadOnlyList<CoreEmployeeSummary> members) : IPerformancePopulationResolver
     {
-        public Task<IReadOnlyList<CoreEmployeeSummary>> ResolveAsync(PerformanceCycle cycle, CancellationToken cancellationToken)
+        public Task<IReadOnlyList<CoreEmployeeSummary>> ResolveAsync(
+            PerformanceCycle cycle,
+            DateTime? asOf,
+            CancellationToken cancellationToken)
             => Task.FromResult(members);
     }
 
@@ -52,6 +55,14 @@ public class GovernedHappyPathTests
         };
         var workforce = new FakeCoreWorkforceClient
         {
+            CampaignWorkforceContext = new(
+                now,
+                "baseline",
+                [
+                    CampaignMember(subjectId, true, managerId),
+                    CampaignMember(managerId, true, directorId),
+                    CampaignMember(directorId, true)
+                ]),
             ResolvePool =
             [
                 FakeCoreWorkforceClient.Employee(subjectId, "Alice"),
@@ -205,4 +216,21 @@ public class GovernedHappyPathTests
             Assert.True(evt.OccurredAt > DateTime.MinValue);
         }
     }
+
+    private static CoreCampaignWorkforceMember CampaignMember(
+        Guid employeeId,
+        bool isActive,
+        Guid? primaryManagerEmployeeId = null)
+        => new(
+            employeeId,
+            isActive,
+            [],
+            primaryManagerEmployeeId,
+            primaryManagerEmployeeId.HasValue ? [primaryManagerEmployeeId.Value] : [],
+            false,
+            1,
+            [],
+            [],
+            true,
+            []);
 }

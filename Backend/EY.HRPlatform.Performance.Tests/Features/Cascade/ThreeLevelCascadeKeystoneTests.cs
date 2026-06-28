@@ -115,6 +115,14 @@ public class ThreeLevelCascadeKeystoneTests
         // Fake workforce client with manager chains and org-unit details
         var workforce = new FakeCoreWorkforceClient
         {
+            CampaignWorkforceContext = new(
+                now,
+                "baseline",
+                [
+                    CampaignMember(employeeId, true, managerId),
+                    CampaignMember(managerId, true, directorId),
+                    CampaignMember(directorId, true)
+                ]),
             ManagerChains =
             {
                 // employeeId's chain: director → manager (root-first; chain[^1] is direct manager)
@@ -532,7 +540,26 @@ public class ThreeLevelCascadeKeystoneTests
     private sealed class FakeResolver(IReadOnlyList<CoreEmployeeSummary> members) : IPerformancePopulationResolver
     {
         public Task<IReadOnlyList<CoreEmployeeSummary>> ResolveAsync(
-            PerformanceCycle cycle, CancellationToken cancellationToken)
+            PerformanceCycle cycle,
+            DateTime? asOf,
+            CancellationToken cancellationToken)
             => Task.FromResult(members);
     }
+
+    private static CoreCampaignWorkforceMember CampaignMember(
+        Guid employeeId,
+        bool isActive,
+        Guid? primaryManagerEmployeeId = null)
+        => new(
+            employeeId,
+            isActive,
+            [],
+            primaryManagerEmployeeId,
+            primaryManagerEmployeeId.HasValue ? [primaryManagerEmployeeId.Value] : [],
+            false,
+            1,
+            [],
+            [],
+            true,
+            []);
 }

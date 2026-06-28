@@ -35,7 +35,9 @@ internal static class CampaignResponsibilityReadModel
                 participant.OrgUnitName, participant.JobTitle, participant.ManagerName,
                 current is null ? null : new CampaignResponsibilitySummaryDto(current.Id, current.AssigneeEmployeeId,
                     current.AssigneeName, current.Duty.ToString(), current.Source.ToString(), current.RelationshipSource,
-                    current.OverrideReason, current.Revision, current.RecordedAt));
+                    current.OverrideReason, current.Revision, current.RecordedAt),
+                participant.OrgUnitId,
+                participant.ManagerId);
         }).ToList();
         var items = normalizedState switch
         {

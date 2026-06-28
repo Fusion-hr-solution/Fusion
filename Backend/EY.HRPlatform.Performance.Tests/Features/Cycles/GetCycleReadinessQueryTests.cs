@@ -1,6 +1,7 @@
 using EY.HRPlatform.Performance.Domain.Entities;
 using EY.HRPlatform.Performance.Domain.Enums;
 using EY.HRPlatform.Performance.Features.Cycles.Queries;
+using EY.HRPlatform.Performance.Infrastructure.Workforce;
 using EY.HRPlatform.Performance.Tests.TestSupport;
 
 namespace EY.HRPlatform.Performance.Tests.Features.Cycles;
@@ -27,11 +28,13 @@ public class GetCycleReadinessQueryTests
 
         var workforce = new FakeCoreWorkforceClient
         {
-            ResolvePool =
-            [
-                FakeCoreWorkforceClient.Employee(subjectId, "Employee"),
-                FakeCoreWorkforceClient.Employee(assigneeId, "Manager"),
-            ],
+            CampaignWorkforceContext = new(
+                now,
+                "baseline",
+                [
+                    CampaignMember(subjectId, true, assigneeId),
+                    CampaignMember(assigneeId, true)
+                ])
         };
         var handler = new GetCycleReadinessQueryHandler(db, workforce);
         var result = await handler.Handle(new GetCycleReadinessQuery(cycle.Id), CancellationToken.None);
@@ -41,4 +44,21 @@ public class GetCycleReadinessQueryTests
         Assert.Equal(0, result.Value.MissingObjectiveResponsibilityCount);
         Assert.False(result.Value.WorkforceDelta.BlocksLaunch);
     }
+
+    private static CoreCampaignWorkforceMember CampaignMember(
+        Guid employeeId,
+        bool isActive,
+        Guid? primaryManagerEmployeeId = null)
+        => new(
+            employeeId,
+            isActive,
+            [],
+            primaryManagerEmployeeId,
+            primaryManagerEmployeeId.HasValue ? [primaryManagerEmployeeId.Value] : [],
+            false,
+            1,
+            [],
+            [],
+            true,
+            []);
 }

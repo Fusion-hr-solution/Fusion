@@ -23,7 +23,10 @@ public class AuditEmissionTests
 
     private sealed class FakeResolver(IReadOnlyList<CoreEmployeeSummary> members) : IPerformancePopulationResolver
     {
-        public Task<IReadOnlyList<CoreEmployeeSummary>> ResolveAsync(PerformanceCycle cycle, CancellationToken cancellationToken)
+        public Task<IReadOnlyList<CoreEmployeeSummary>> ResolveAsync(
+            PerformanceCycle cycle,
+            DateTime? asOf,
+            CancellationToken cancellationToken)
             => Task.FromResult(members);
     }
 
