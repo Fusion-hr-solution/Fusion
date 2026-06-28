@@ -96,6 +96,12 @@ public class EmployeeImportSession : BaseEntity, ITenantEntity
         Touch();
     }
 
+    public void MarkApplying()
+    {
+        Stage = EmployeeImportStage.Applying;
+        Touch();
+    }
+
     public void MarkExpired()
     {
         Stage = EmployeeImportStage.Expired;
@@ -120,6 +126,13 @@ public class EmployeeImportSession : BaseEntity, ITenantEntity
         Touch();
     }
 
+    public void RestoreValidated()
+    {
+        AppliedAt = null;
+        Stage = EmployeeImportStage.Validated;
+        Touch();
+    }
+
     private void Touch() => UpdatedAt = DateTime.UtcNow;
 
     private static string RequireJson(string value, string paramName)
@@ -135,6 +148,7 @@ public enum EmployeeImportStage
 {
     PreviewReady,
     Validated,
+    Applying,
     Applied,
     Expired
 }

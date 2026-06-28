@@ -3,6 +3,7 @@ import type { EmployeeReadinessFixTargetDto } from "../employee-roster.types";
 export type EmployeeImportStage =
   | "PreviewReady"
   | "Validated"
+  | "Applying"
   | "Applied"
   | "Expired";
 
@@ -83,6 +84,32 @@ export interface EmployeeImportPreviewRowDto {
 }
 
 export type EmployeeImportMode = "BusinessChange" | "Correction";
+
+export type EmployeeImportApplyOperationStatus =
+  | "Queued"
+  | "Running"
+  | "Succeeded"
+  | "Failed";
+
+export interface EmployeeImportApplyOperationDto {
+  id: string;
+  sessionId: string;
+  status: EmployeeImportApplyOperationStatus;
+  actorUserId: string;
+  actorFullName: string;
+  actorRole: string;
+  queuedAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
+  failedAt: string | null;
+  failureReason: string | null;
+  historyId: string | null;
+  sourceRowCount: number | null;
+  validatedRowCount: number | null;
+  processedRowCount: number;
+  createdCount: number | null;
+  publishedRowCount: number | null;
+}
 
 export interface EmployeeImportApplyResultDto {
   sessionId: string;
@@ -186,6 +213,7 @@ export interface EmployeeImportSessionDto {
   hasMorePreviewRows: boolean;
   validationSummary: EmployeeImportValidationSummaryDto;
   validationIssues: EmployeeImportValidationIssueDto[];
+  lastApplyOperation: EmployeeImportApplyOperationDto | null;
   appliedAt: string | null;
   expiresAt: string;
   employeeImportSchema: EmployeeImportSchemaDto;

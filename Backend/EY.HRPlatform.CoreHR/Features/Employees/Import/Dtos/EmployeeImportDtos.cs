@@ -75,6 +75,25 @@ public sealed record EmployeeImportActorDto(
     string FullName,
     string Role);
 
+public sealed record EmployeeImportApplyOperationDto(
+    Guid Id,
+    Guid SessionId,
+    EmployeeImportApplyOperationStatus Status,
+    Guid ActorUserId,
+    string ActorFullName,
+    string ActorRole,
+    DateTime QueuedAt,
+    DateTime? StartedAt,
+    DateTime? CompletedAt,
+    DateTime? FailedAt,
+    string? FailureReason,
+    Guid? HistoryId,
+    int? SourceRowCount,
+    int? ValidatedRowCount,
+    int ProcessedRowCount,
+    int? CreatedCount,
+    int? PublishedRowCount);
+
 public sealed record EmployeeImportApplyResultDto(
     Guid SessionId,
     Guid HistoryId,
@@ -166,6 +185,7 @@ public sealed record EmployeeImportSessionDto(
     bool HasMorePreviewRows,
     EmployeeImportValidationSummaryDto ValidationSummary,
     IReadOnlyList<EmployeeImportValidationIssueDto> ValidationIssues,
+    EmployeeImportApplyOperationDto? LastApplyOperation,
     DateTime? AppliedAt,
     DateTime ExpiresAt,
     EmployeeImportSchemaDto EmployeeImportSchema,

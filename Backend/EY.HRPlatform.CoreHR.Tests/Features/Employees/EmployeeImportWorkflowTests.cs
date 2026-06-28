@@ -428,7 +428,7 @@ public class EmployeeImportWorkflowTests
     }
 
     [Fact]
-    public async Task ApplyAsync_CreatesEmployeesMarksSessionAppliedAndReturnsResult()
+    public async Task ApplyAsync_QueuesAndProcessesEmployeesToAppliedState()
     {
         var dbName = Guid.NewGuid().ToString();
         await SeedPublishedSetupAsync(dbName);
@@ -447,14 +447,14 @@ public class EmployeeImportWorkflowTests
         var uploadedSession = await service.UploadAsync(file, CancellationToken.None);
         await service.ValidateAsync(uploadedSession.Id, CancellationToken.None);
 
-        var result = await service.ApplyAsync(uploadedSession.Id, actor, CancellationToken.None);
+        var result = await QueueAndProcessApplyAsync(service, uploadedSession.Id, actor);
 
-        Assert.Equal(EmployeeImportStage.Applied, result.Stage);
+        Assert.Equal(EmployeeImportApplyOperationStatus.Succeeded, result.Status);
         Assert.Equal(uploadedSession.Id, result.SessionId);
         Assert.Equal(1, result.CreatedCount);
         Assert.Equal(1, result.ValidatedRowCount);
         Assert.Equal(1, result.PublishedRowCount);
-        Assert.NotEqual(Guid.Empty, result.HistoryId);
+        Assert.True(result.HistoryId.HasValue);
 
         var employee = await context.Employees.SingleAsync();
         Assert.Equal("sarah.chen@contoso.com", employee.Email);
@@ -609,10 +609,12 @@ public class EmployeeImportWorkflowTests
         await using var applyContext = TestDbContextFactory.Create(TestTenantContext.WithTenant(TenantId), dbName);
         var applyService = new EmployeeImportWorkflowService(applyContext, TestTenantContext.WithTenant(TenantId));
 
-        var exception = await Assert.ThrowsAsync<ArgumentException>(() =>
-            applyService.ApplyAsync(uploadedSessionId, CreateActor(), CancellationToken.None));
+        var operation = await applyService.ApplyAsync(uploadedSessionId, CreateActor(), CancellationToken.None);
+        await applyService.ProcessApplyOperationAsync(operation.Id, CancellationToken.None);
+        var finalOperation = await applyService.GetApplyOperationAsync(uploadedSessionId, CancellationToken.None);
 
-        Assert.Contains("Validate the file again before applying", exception.Message);
+        Assert.Equal(EmployeeImportApplyOperationStatus.Failed, finalOperation.Status);
+        Assert.Contains("Validate the file again before applying", finalOperation.FailureReason);
         Assert.Single(applyContext.Employees);
         Assert.Empty(applyContext.EmployeeImportHistories);
     }
@@ -636,7 +638,7 @@ public class EmployeeImportWorkflowTests
 
         var uploadedSession = await service.UploadAsync(file, CancellationToken.None);
         await service.ValidateAsync(uploadedSession.Id, CancellationToken.None);
-        await service.ApplyAsync(uploadedSession.Id, CreateActor(), CancellationToken.None);
+        await QueueAndProcessApplyAsync(service, uploadedSession.Id, CreateActor());
 
         var employees = await context.Employees
             .OrderBy(employee => employee.Email)
@@ -711,10 +713,12 @@ public class EmployeeImportWorkflowTests
         await using var context = TestDbContextFactory.Create(TestTenantContext.WithTenant(TenantId), dbName);
         var service = new EmployeeImportWorkflowService(context, TestTenantContext.WithTenant(TenantId));
 
-        var exception = await Assert.ThrowsAsync<ArgumentException>(() =>
-            service.ApplyAsync(sessionId, CreateActor(), CancellationToken.None));
+        var operation = await service.ApplyAsync(sessionId, CreateActor(), CancellationToken.None);
+        await service.ProcessApplyOperationAsync(operation.Id, CancellationToken.None);
+        var finalOperation = await service.GetApplyOperationAsync(sessionId, CancellationToken.None);
 
-        Assert.Contains("cycle", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(EmployeeImportApplyOperationStatus.Failed, finalOperation.Status);
+        Assert.Contains("cycle", finalOperation.FailureReason, StringComparison.OrdinalIgnoreCase);
         Assert.Empty(context.Employees);
         Assert.Empty(context.EmployeeImportHistories);
 
@@ -747,7 +751,7 @@ public class EmployeeImportWorkflowTests
 
         var uploadedSession = await service.UploadAsync(file, CancellationToken.None);
         await service.ValidateAsync(uploadedSession.Id, CancellationToken.None);
-        await service.ApplyAsync(uploadedSession.Id, actor, CancellationToken.None);
+        await QueueAndProcessApplyAsync(service, uploadedSession.Id, actor);
 
         var history = await context.EmployeeImportHistories.SingleAsync();
 
@@ -781,7 +785,7 @@ public class EmployeeImportWorkflowTests
 
         var uploadedSession = await service.UploadAsync(file, CancellationToken.None);
         await service.ValidateAsync(uploadedSession.Id, CancellationToken.None);
-        var applyResult = await service.ApplyAsync(uploadedSession.Id, CreateActor(), CancellationToken.None);
+        var applyResult = await QueueAndProcessApplyAsync(service, uploadedSession.Id, CreateActor());
 
         var storedIssues = await context.EmployeeImportFollowUpIssues
             .OrderBy(issue => issue.IssueCode)
@@ -792,7 +796,7 @@ public class EmployeeImportWorkflowTests
             [EmployeeReadinessIssueCodes.MissingOrgUnit, EmployeeReadinessIssueCodes.NoManagerAssigned],
             storedIssues.Select(issue => issue.IssueCode).ToArray());
 
-        var detail = await service.GetHistoryDetailAsync(applyResult.HistoryId, CancellationToken.None);
+        var detail = await service.GetHistoryDetailAsync(applyResult.HistoryId!.Value, CancellationToken.None);
 
         Assert.Equal(2, detail.UnresolvedFollowUpIssues.Count);
         Assert.Contains(detail.UnresolvedFollowUpIssues, issue => issue.Code == EmployeeReadinessIssueCodes.MissingOrgUnit && issue.FixTarget.Kind == EmployeeReadinessFixTargetKinds.ProfileOrganization);
@@ -823,8 +827,8 @@ public class EmployeeImportWorkflowTests
 
             var uploadedSession = await service.UploadAsync(file, CancellationToken.None);
             await service.ValidateAsync(uploadedSession.Id, CancellationToken.None);
-            var applyResult = await service.ApplyAsync(uploadedSession.Id, CreateActor(), CancellationToken.None);
-            historyId = applyResult.HistoryId;
+            var applyResult = await QueueAndProcessApplyAsync(service, uploadedSession.Id, CreateActor());
+            historyId = applyResult.HistoryId!.Value;
             employeeId = await context.Employees
                 .Where(employee => employee.Email == "sarah.chen@contoso.com")
                 .Select(employee => employee.Id)
@@ -1263,6 +1267,16 @@ public class EmployeeImportWorkflowTests
         // The fail-closed tenant query filter means the cross-tenant session is invisible
         await Assert.ThrowsAsync<EntityNotFoundException>(() =>
             service.ApplyAsync(crossTenantSessionId, CreateActor(), CancellationToken.None));
+    }
+
+    private static async Task<EmployeeImportApplyOperationDto> QueueAndProcessApplyAsync(
+        EmployeeImportWorkflowService service,
+        Guid sessionId,
+        EmployeeImportActorDto actor)
+    {
+        var operation = await service.ApplyAsync(sessionId, actor, CancellationToken.None);
+        await service.ProcessApplyOperationAsync(operation.Id, CancellationToken.None);
+        return await service.GetApplyOperationAsync(sessionId, CancellationToken.None);
     }
 
     private static async Task SeedPublishedSetupAsync(string dbName)

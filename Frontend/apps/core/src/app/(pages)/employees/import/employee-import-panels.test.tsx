@@ -4,10 +4,15 @@ import "@testing-library/jest-dom/vitest";
 import { render, screen } from "@testing-library/react";
 import type { ComponentPropsWithoutRef, ReactNode } from "react";
 import type {
+  EmployeeImportApplyOperationDto,
   EmployeeImportSessionDto,
   EmployeeImportHistoryPageDto,
 } from "./employee-import.types";
-import { AppliedResultPanel, ImportHistoryPanel } from "./employee-import-panels";
+import {
+  AppliedResultPanel,
+  BatchActionPanel,
+  ImportHistoryPanel,
+} from "./employee-import-panels";
 
 const {
   mockCanAccessCoreAccess,
@@ -71,6 +76,22 @@ const historyPage: EmployeeImportHistoryPageDto = {
   totalCount: 1,
   pageCount: 1,
 };
+
+const validatedSession = {
+  id: "session-1",
+  sourceFileName: "employees-june.csv",
+  sourceRowCount: 5,
+  sourceFileSizeBytes: 2048,
+  expiresAt: "2025-06-06T10:20:00.000Z",
+  stage: "Validated",
+  canApply: true,
+  canValidate: true,
+  validationSummary: {
+    validRows: 5,
+    errorCount: 0,
+    warningCount: 0,
+  },
+} as unknown as EmployeeImportSessionDto;
 
 describe("ImportHistoryPanel", () => {
   vi.mocked(mockCanAccessCoreAccess).mockReturnValue(true);
@@ -136,5 +157,39 @@ describe("ImportHistoryPanel", () => {
 
     expect(link).toHaveAttribute("href", "/access");
     expect(link.getAttribute("href")).not.toContain("access=NotInvited");
+  });
+});
+
+describe("BatchActionPanel", () => {
+  it("shows a persistent queued indicator while the import is pending", () => {
+    const queuedOperation = {
+      id: "apply-1",
+      status: "Queued",
+    } as EmployeeImportApplyOperationDto;
+
+    render(
+      <BatchActionPanel
+        session={validatedSession}
+        applyOperation={queuedOperation}
+        isValidating={false}
+        isUploading={false}
+        isDownloadingTemplate={false}
+        isApplying
+        applyError={null}
+        onValidate={vi.fn()}
+        onUpload={vi.fn()}
+        onDownloadTemplate={vi.fn()}
+        onApply={vi.fn(async () => true)}
+      />
+    );
+
+    expect(screen.getByText("Import queued")).toBeInTheDocument();
+    expect(screen.getByRole("progressbar")).toHaveAttribute(
+      "aria-valuenow",
+      "0"
+    );
+    expect(
+      screen.getByRole("button", { name: /importing employees/i })
+    ).toBeDisabled();
   });
 });

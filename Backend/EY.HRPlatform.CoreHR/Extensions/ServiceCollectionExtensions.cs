@@ -68,6 +68,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IWorkforceCanonicalResolver, WorkforceCanonicalResolver>();
         services.AddScoped<IWorkforceMutationService, WorkforceMutationService>();
         services.AddScoped<IResponsibleManagerService, ResponsibleManagerService>();
+        services.AddHostedService<EmployeeImportApplyBackgroundService>();
 
         services.AddHttpClient<IWorkforceBulkProvisioner, WorkforceBulkProvisioner>(client =>
         {

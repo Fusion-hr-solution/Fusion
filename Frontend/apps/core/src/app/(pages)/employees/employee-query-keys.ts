@@ -135,6 +135,9 @@ export const employeeImportQueryKeys = {
       ...employeeImportQueryKeys.session(sessionId),
       normalizeEmployeeImportPreviewQuery(query),
     ] as const,
+  applyOperations: () => [...employeeImportQueryKeys.all(), "apply"] as const,
+  applyOperation: (sessionId: string) =>
+    [...employeeImportQueryKeys.applyOperations(), sessionId] as const,
   history: () => [...employeeImportQueryKeys.all(), "history"] as const,
   historyPage: (query?: EmployeeImportHistoryQuery) =>
     [

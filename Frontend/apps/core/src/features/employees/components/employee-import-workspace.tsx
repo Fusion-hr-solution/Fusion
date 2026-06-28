@@ -31,6 +31,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import type {
+  EmployeeImportApplyOperationDto,
   EmployeeImportApplyResultDto,
   EmployeeImportMode,
   EmployeeImportPreviewFilter,
@@ -57,6 +58,7 @@ import {
 import { DEFAULT_EMPLOYEE_IMPORT_PREVIEW_PAGE_SIZE } from "@/app/(pages)/employees/employee-query-keys";
 import {
   useApplyEmployeeImport,
+  useEmployeeImportApplyOperation,
   useDownloadEmployeeImportTemplate,
   useEmployeeImportHistory,
   useEmployeeImportSchema,
@@ -66,6 +68,39 @@ import {
 } from "@/app/(pages)/employees/import/use-employee-import";
 
 const HISTORY_PAGE_SIZE = 5;
+const APPLY_STATUS_POLL_INTERVAL_MS = 2000;
+
+function toApplyResult(
+  session: {
+    id: string;
+    sourceFileName: string;
+  },
+  operation: EmployeeImportApplyOperationDto
+): EmployeeImportApplyResultDto | null {
+  if (
+    operation.status !== "Succeeded" ||
+    !operation.historyId ||
+    !operation.completedAt ||
+    operation.sourceRowCount === null ||
+    operation.validatedRowCount === null ||
+    operation.createdCount === null ||
+    operation.publishedRowCount === null
+  ) {
+    return null;
+  }
+
+  return {
+    sessionId: session.id,
+    historyId: operation.historyId,
+    sourceFileName: session.sourceFileName,
+    sourceRowCount: operation.sourceRowCount,
+    validatedRowCount: operation.validatedRowCount,
+    createdCount: operation.createdCount,
+    publishedRowCount: operation.publishedRowCount,
+    appliedAt: operation.completedAt,
+    stage: "Applied",
+  };
+}
 
 export default function EmployeeImportWorkspace() {
   const { user } = useAuth();
@@ -73,6 +108,7 @@ export default function EmployeeImportWorkspace() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const handledApplyOperationRef = useRef<string | null>(null);
   const sessionId = searchParams.get("session");
   const [previewFilter, setPreviewFilter] =
     useState<EmployeeImportPreviewFilter>("all");
@@ -91,6 +127,8 @@ export default function EmployeeImportWorkspace() {
   const [applyError, setApplyError] = useState<string | null>(null);
   const [lastApplyResult, setLastApplyResult] =
     useState<EmployeeImportApplyResultDto | null>(null);
+  const [pendingApplyOperation, setPendingApplyOperation] =
+    useState<EmployeeImportApplyOperationDto | null>(null);
   const [isAppliedPreviewOpen, setIsAppliedPreviewOpen] = useState(false);
   const [pendingScrollRowNumber, setPendingScrollRowNumber] = useState<
     number | null
@@ -115,6 +153,19 @@ export default function EmployeeImportWorkspace() {
   const uploadImport = useUploadEmployeeImport();
   const validateImport = useValidateEmployeeImport();
   const applyImport = useApplyEmployeeImport();
+  const activeApplySessionId =
+    sessionId &&
+    (session?.stage === "Applying" ||
+      pendingApplyOperation?.status === "Queued" ||
+      pendingApplyOperation?.status === "Running" ||
+      session?.lastApplyOperation?.status === "Queued" ||
+      session?.lastApplyOperation?.status === "Running")
+      ? sessionId
+      : null;
+  const {
+    data: applyOperation,
+    refetch: refetchApplyOperation,
+  } = useEmployeeImportApplyOperation(activeApplySessionId);
   const downloadTemplate = useDownloadEmployeeImportTemplate();
   const {
     data: historyPage,
@@ -147,6 +198,13 @@ export default function EmployeeImportWorkspace() {
   );
   const displayedPreviewRows = session?.previewRows ?? [];
   const isAppliedSession = session?.stage === "Applied";
+  const currentApplyOperation =
+    applyOperation ?? pendingApplyOperation ?? session?.lastApplyOperation ?? null;
+  const isApplying =
+    applyImport.isLoading ||
+    currentApplyOperation?.status === "Queued" ||
+    currentApplyOperation?.status === "Running" ||
+    session?.stage === "Applying";
   const isPreviewExpanded = !isAppliedSession || isAppliedPreviewOpen;
   const isInitialSessionLoading =
     !!sessionId && isSessionLoading && !session && !sessionError;
@@ -158,11 +216,96 @@ export default function EmployeeImportWorkspace() {
   useEffect(() => {
     setApplyError(null);
     setLastApplyResult(null);
+    setPendingApplyOperation(null);
   }, [session?.id]);
 
   useEffect(() => {
     setIsAppliedPreviewOpen(!isAppliedSession);
   }, [isAppliedSession, session?.id]);
+
+  useEffect(() => {
+    if (!session || !currentApplyOperation) {
+      return;
+    }
+
+    if (currentApplyOperation.status === "Succeeded") {
+      const result = toApplyResult(session, currentApplyOperation);
+      if (result) {
+        setLastApplyResult(result);
+      }
+      setPendingApplyOperation(null);
+      setApplyError(null);
+      return;
+    }
+
+    if (currentApplyOperation.status === "Failed") {
+      setPendingApplyOperation(null);
+      setApplyError(
+        currentApplyOperation.failureReason ?? "Employee import failed."
+      );
+    }
+  }, [currentApplyOperation, session]);
+
+  useEffect(() => {
+    if (!activeApplySessionId || !currentApplyOperation) {
+      return;
+    }
+
+    if (
+      currentApplyOperation.status !== "Queued" &&
+      currentApplyOperation.status !== "Running"
+    ) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      void refetchApplyOperation();
+      void refetchSession();
+    }, APPLY_STATUS_POLL_INTERVAL_MS);
+
+    return () => window.clearInterval(intervalId);
+  }, [
+    activeApplySessionId,
+    currentApplyOperation,
+    refetchApplyOperation,
+    refetchSession,
+  ]);
+
+  useEffect(() => {
+    if (!session || !currentApplyOperation) {
+      return;
+    }
+
+    const terminalOperationKey = `${currentApplyOperation.id}:${currentApplyOperation.status}:${currentApplyOperation.completedAt ?? currentApplyOperation.failedAt ?? ""}`;
+    if (handledApplyOperationRef.current === terminalOperationKey) {
+      return;
+    }
+
+    if (currentApplyOperation.status === "Succeeded") {
+      handledApplyOperationRef.current = terminalOperationKey;
+      const shouldRefetchCurrentHistoryPage = historyPageNumber === 1;
+      void refetchSession();
+      if (shouldRefetchCurrentHistoryPage) {
+        void refetchHistoryPage();
+      } else {
+        setHistoryPageNumber(1);
+      }
+      toast.success("Employee import applied.");
+    } else if (currentApplyOperation.status === "Failed") {
+      handledApplyOperationRef.current = terminalOperationKey;
+      void refetchSession();
+      toast.error(currentApplyOperation.failureReason ?? "Employee import failed.");
+    }
+  }, [
+    currentApplyOperation?.completedAt,
+    currentApplyOperation?.failedAt,
+    currentApplyOperation?.status,
+    currentApplyOperation?.failureReason,
+    historyPageNumber,
+    refetchHistoryPage,
+    refetchSession,
+    session,
+  ]);
 
   useEffect(() => {
     if (!sessionViewResetKey) {
@@ -287,18 +430,11 @@ export default function EmployeeImportWorkspace() {
     try {
       setApplyError(null);
       const result = await applyImport.mutateAsync({ sessionId: session.id });
-      setLastApplyResult(result);
+      setPendingApplyOperation(result);
+      setLastApplyResult(null);
       replaceImportRoute(session.id, null);
-      const shouldRefetchCurrentHistoryPage = historyPageNumber === 1;
-      setHistoryPageNumber(1);
-
       await refetchSession();
-
-      if (shouldRefetchCurrentHistoryPage) {
-        await refetchHistoryPage();
-      }
-
-      toast.success("Employee import applied.");
+      toast.success("Employee import queued.");
       return true;
     } catch (error) {
       const message = getErrorMessage(error);
@@ -308,9 +444,7 @@ export default function EmployeeImportWorkspace() {
     }
   }, [
     applyImport,
-    historyPageNumber,
     replaceImportRoute,
-    refetchHistoryPage,
     refetchSession,
     session,
   ]);
@@ -588,10 +722,11 @@ export default function EmployeeImportWorkspace() {
           ) : (
             <BatchActionPanel
               session={session}
+              applyOperation={currentApplyOperation}
               isValidating={validateImport.isLoading}
               isUploading={uploadImport.isLoading}
               isDownloadingTemplate={downloadTemplate.isLoading}
-              isApplying={applyImport.isLoading}
+              isApplying={isApplying}
               applyError={applyError}
               onValidate={handleValidateSession}
               onUpload={handleBrowse}

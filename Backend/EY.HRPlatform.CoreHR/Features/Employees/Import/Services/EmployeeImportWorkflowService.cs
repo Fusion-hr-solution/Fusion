@@ -49,9 +49,15 @@ public interface IEmployeeImportWorkflowService
         string previewFilter,
         string? groupKey,
         CancellationToken cancellationToken);
-    Task<EmployeeImportApplyResultDto> ApplyAsync(
+    Task<EmployeeImportApplyOperationDto> ApplyAsync(
         Guid sessionId,
         EmployeeImportActorDto actor,
+        CancellationToken cancellationToken);
+    Task<EmployeeImportApplyOperationDto> GetApplyOperationAsync(
+        Guid sessionId,
+        CancellationToken cancellationToken);
+    Task ProcessApplyOperationAsync(
+        Guid operationId,
         CancellationToken cancellationToken);
     Task<EmployeeImportHistoryPageDto> GetHistoryAsync(
         int pageNumber,
@@ -77,6 +83,7 @@ public sealed class EmployeeImportWorkflowService(
         mutationService ?? new WorkforceMutationService(dbContext, tenantContext, canonicalResolver ?? new WorkforceCanonicalResolver(dbContext));
 
     private const int MaxSourceFileNameLength = 260;
+    private const int MaxApplyFailureReasonLength = 2000;
     private const int MaxRowCount = 5000;
     private const int SampleRowCount = 12;
     private const int DefaultPreviewPageSize = 5;
@@ -215,7 +222,7 @@ public sealed class EmployeeImportWorkflowService(
             file.Length,
             JsonSerializer.Serialize(parsedFile.Headers, JsonOptions),
             JsonSerializer.Serialize(parsedFile.Rows, JsonOptions),
-            JsonSerializer.Serialize(previewRows, JsonOptions),
+            "[]",
             DateTime.UtcNow.Add(SessionLifetime),
             batchEffectiveDate,
             importMode);
@@ -258,7 +265,7 @@ public sealed class EmployeeImportWorkflowService(
 
         var headers = Deserialize<List<string>>(session.SourceHeadersJson) ?? [];
         var sourceRows = Deserialize<List<EmployeeImportSourceRowDto>>(session.SourceRowsJson) ?? [];
-        var previewRows = Deserialize<List<EmployeeImportPreviewRowDto>>(session.PreviewRowsJson) ?? [];
+        var previewRows = BuildPreviewRows(sourceRows);
 
         return await BuildSessionDtoAsync(
             session,
@@ -302,6 +309,11 @@ public sealed class EmployeeImportWorkflowService(
             throw new ArgumentException("This employee import session has already been applied.", nameof(sessionId));
         }
 
+        if (session.Stage == EmployeeImportStage.Applying)
+        {
+            throw new ArgumentException("This employee import session is currently applying.", nameof(sessionId));
+        }
+
         if (session.Stage == EmployeeImportStage.Expired)
         {
             throw new ArgumentException("Upload expired. Upload the file again to continue.", nameof(sessionId));
@@ -319,7 +331,7 @@ public sealed class EmployeeImportWorkflowService(
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        var previewRows = Deserialize<List<EmployeeImportPreviewRowDto>>(session.PreviewRowsJson) ?? [];
+        var previewRows = BuildPreviewRows(sourceRows);
 
         return await BuildSessionDtoAsync(
             session,
@@ -333,7 +345,7 @@ public sealed class EmployeeImportWorkflowService(
             groupKey);
     }
 
-    public async Task<EmployeeImportApplyResultDto> ApplyAsync(
+    public async Task<EmployeeImportApplyOperationDto> ApplyAsync(
         Guid sessionId,
         EmployeeImportActorDto actor,
         CancellationToken cancellationToken)
@@ -352,6 +364,9 @@ public sealed class EmployeeImportWorkflowService(
         if (session.Stage == EmployeeImportStage.Expired)
             throw new ArgumentException("Upload expired. Upload the file again to continue.", nameof(sessionId));
 
+        if (session.Stage == EmployeeImportStage.Applying)
+            throw new ArgumentException("This employee import session is already applying.", nameof(sessionId));
+
         if (session.Stage != EmployeeImportStage.Validated)
             throw new ArgumentException("Validate the import before applying it.", nameof(sessionId));
 
@@ -359,15 +374,126 @@ public sealed class EmployeeImportWorkflowService(
         if (validationIssues.Any(issue => issue.Severity.Equals("error", StringComparison.OrdinalIgnoreCase)))
             throw new ArgumentException("The import contains validation errors. Fix them before applying.", nameof(sessionId));
 
+        var activeOperationExists = await dbContext.EmployeeImportApplyOperations
+            .AnyAsync(
+                operation => operation.SessionId == sessionId
+                    && operation.Status != EmployeeImportApplyOperationStatus.Succeeded
+                    && operation.Status != EmployeeImportApplyOperationStatus.Failed,
+                cancellationToken);
+        if (activeOperationExists)
+            throw new ArgumentException("This employee import session is already applying.", nameof(sessionId));
+
         var normalizedRows = ReadNormalizedRows(session);
         if (normalizedRows.Count == 0)
             throw new ArgumentException("The import does not contain any valid employee rows to apply.", nameof(sessionId));
+        var sourceRows = ReadSourceRows(session);
+
+        var operation = EmployeeImportApplyOperation.Queue(
+            tenantContext.TenantId,
+            session.Id,
+            actor.UserId,
+            actor.FullName,
+            actor.Role,
+            sourceRows.Count,
+            normalizedRows.Count,
+            DateTime.UtcNow);
+        session.MarkApplying();
+
+        dbContext.EmployeeImportApplyOperations.Add(operation);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return BuildApplyOperationDto(operation);
+    }
+
+    public async Task<EmployeeImportApplyOperationDto> GetApplyOperationAsync(
+        Guid sessionId,
+        CancellationToken cancellationToken)
+    {
+        await EnsureImportAvailableAsync(cancellationToken);
+
+        _ = await dbContext.EmployeeImportSessions
+            .FirstOrDefaultAsync(current => current.Id == sessionId, cancellationToken)
+            ?? throw new EntityNotFoundException(nameof(EmployeeImportSession), sessionId);
+
+        var operation = await dbContext.EmployeeImportApplyOperations
+            .AsNoTracking()
+            .Where(current => current.SessionId == sessionId)
+            .OrderByDescending(current => current.CreatedAt)
+            .FirstOrDefaultAsync(cancellationToken)
+            ?? throw new EntityNotFoundException(nameof(EmployeeImportApplyOperation), sessionId);
+
+        return BuildApplyOperationDto(operation);
+    }
+
+    public async Task ProcessApplyOperationAsync(
+        Guid operationId,
+        CancellationToken cancellationToken)
+    {
+        await EnsureImportAvailableAsync(cancellationToken);
+
+        var operation = await dbContext.EmployeeImportApplyOperations
+            .FirstOrDefaultAsync(current => current.Id == operationId, cancellationToken)
+            ?? throw new EntityNotFoundException(nameof(EmployeeImportApplyOperation), operationId);
+
+        if (operation.Status is EmployeeImportApplyOperationStatus.Succeeded or EmployeeImportApplyOperationStatus.Failed)
+            return;
+
+        var session = await dbContext.EmployeeImportSessions
+            .FirstOrDefaultAsync(current => current.Id == operation.SessionId, cancellationToken)
+            ?? throw new EntityNotFoundException(nameof(EmployeeImportSession), operation.SessionId);
+
+        operation.MarkRunning(DateTime.UtcNow);
+        session.MarkApplying();
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        try
+        {
+            var result = await ApplyValidatedSessionAsync(session, operation, cancellationToken);
+            operation.MarkSucceeded(
+                result.HistoryId,
+                result.SourceRowCount,
+                result.ValidatedRowCount,
+                result.CreatedCount,
+                result.PublishedRowCount,
+                result.AppliedAt);
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            session.RestoreValidated();
+            operation.MarkFailed(TrimFailureReason(ex.Message), DateTime.UtcNow);
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+    }
+
+    private async Task<EmployeeImportApplyResultDto> ApplyValidatedSessionAsync(
+        EmployeeImportSession session,
+        EmployeeImportApplyOperation operation,
+        CancellationToken cancellationToken)
+    {
+        await MarkExpiredIfNeededAsync(session, cancellationToken);
+
+        if (session.Stage == EmployeeImportStage.Applied)
+            throw new ArgumentException("This employee import session has already been applied.", nameof(session));
+
+        if (session.Stage == EmployeeImportStage.Expired)
+            throw new ArgumentException("Upload expired. Upload the file again to continue.", nameof(session));
+
+        if (session.Stage is not EmployeeImportStage.Validated and not EmployeeImportStage.Applying)
+            throw new ArgumentException("Validate the import before applying it.", nameof(session));
+
+        var validationIssues = ReadRequiredValidationIssues(session);
+        if (validationIssues.Any(issue => issue.Severity.Equals("error", StringComparison.OrdinalIgnoreCase)))
+            throw new ArgumentException("The import contains validation errors. Fix them before applying.", nameof(session));
+
+        var normalizedRows = ReadNormalizedRows(session);
+        if (normalizedRows.Count == 0)
+            throw new ArgumentException("The import does not contain any valid employee rows to apply.", nameof(session));
 
         var headers = Deserialize<List<string>>(session.SourceHeadersJson) ?? [];
         var sourceRows = ReadSourceRows(session);
         var settings = await tenantSettingsReader.GetCurrentAsync(cancellationToken);
 
-        // Partition publishable rows by classification
         var createRows = normalizedRows.Where(r => r.Classification == EmployeeImportRowClassification.Create).ToList();
         var unchangedRows = normalizedRows.Where(r => r.Classification == EmployeeImportRowClassification.Unchanged).ToList();
         var changeRows = normalizedRows.Where(r => r.Classification is not (
@@ -375,8 +501,20 @@ public sealed class EmployeeImportWorkflowService(
             or EmployeeImportRowClassification.Unchanged
             or EmployeeImportRowClassification.Invalid
             or EmployeeImportRowClassification.Conflicting)).ToList();
+        var processedRowCount = 0;
 
-        // Re-verify: guard against email conflicts that arose since validation
+        async Task PersistProgressAsync(bool force = false)
+        {
+            if (processedRowCount <= operation.ProcessedRowCount)
+                return;
+
+            if (!force && processedRowCount % 25 != 0)
+                return;
+
+            operation.RecordProgress(processedRowCount);
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+
         if (createRows.Count > 0)
         {
             var createEmails = createRows
@@ -390,13 +528,15 @@ public sealed class EmployeeImportWorkflowService(
                 .ToListAsync(cancellationToken);
             if (conflictingEmails.Count > 0)
                 throw new ArgumentException(
-                    "One or more employee emails already exist in this tenant. Validate the file again before applying.",
-                    nameof(sessionId));
+                    "One or more employee emails already exist in this tenant. Validate the file again before applying.");
         }
 
-        // Tamper guard: re-detect same-file manager cycles before any write
-        CheckSameFileManagerCycles(createRows, nameof(sessionId));
+        CheckSameFileManagerCycles(createRows, nameof(session));
 
+        await PreloadApplyStateAsync(normalizedRows, cancellationToken);
+
+        var originalAutoDetect = dbContext.ChangeTracker.AutoDetectChangesEnabled;
+        dbContext.ChangeTracker.AutoDetectChangesEnabled = false;
         var useTransaction = !string.Equals(
             dbContext.Database.ProviderName,
             "Microsoft.EntityFrameworkCore.InMemory",
@@ -405,229 +545,366 @@ public sealed class EmployeeImportWorkflowService(
             ? await dbContext.Database.BeginTransactionAsync(cancellationToken)
             : null;
 
-        var createdEmployeesByEmail = new Dictionary<string, Employee>(StringComparer.OrdinalIgnoreCase);
-
-        // Phase 1: Stage creates — employee entity + canonical employment + work assignment
-        foreach (var row in createRows)
+        try
         {
-            var hireDate = row.HireDate != default ? row.HireDate : row.ResolvedEffectiveDate;
-            var employee = Employee.Create(
-                tenantContext.TenantId,
-                row.FirstName,
-                row.LastName,
-                row.Email,
-                hireDate,
-                null,
-                row.JobTitle,
-                row.EmployeeNumber,
-                row.Phone,
-                row.WorkLocation,
-                row.EmploymentType);
+            var createdEmployeesByEmail = new Dictionary<string, Employee>(StringComparer.OrdinalIgnoreCase);
 
-            dbContext.Employees.Add(employee);
-            createdEmployeesByEmail[row.Email] = employee;
-
-            var empResult = await mutationService.StartEmploymentAsync(
-                employee.Id,
-                new StartEmploymentInput(hireDate, row.EmploymentType, WorkforceSourceType.Import, session.SourceFileName, session.Id),
-                actor.FullName,
-                cancellationToken);
-            if (empResult.IsFailure)
-                throw new ArgumentException(
-                    $"Row {row.RowNumber}: Could not start employment: {empResult.Error.Message} Validate the file again before applying.",
-                    nameof(sessionId));
-
-            if (row.OrgUnitId.HasValue)
+            foreach (var row in createRows)
             {
-                var jobTitle = row.JobTitle ?? string.Empty;
-                var waResult = await mutationService.ChangeWorkAssignmentAsync(
+                var hireDate = row.HireDate != default ? row.HireDate : row.ResolvedEffectiveDate;
+                var employee = Employee.Create(
+                    tenantContext.TenantId,
+                    row.FirstName,
+                    row.LastName,
+                    row.Email,
+                    hireDate,
+                    null,
+                    row.JobTitle,
+                    row.EmployeeNumber,
+                    row.Phone,
+                    row.WorkLocation,
+                    row.EmploymentType);
+
+                dbContext.Employees.Add(employee);
+                createdEmployeesByEmail[row.Email] = employee;
+
+                var empResult = await mutationService.StartEmploymentAsync(
                     employee.Id,
-                    new ChangeWorkAssignmentInput(
-                        row.OrgUnitId.Value, jobTitle, row.WorkLocation, row.ResolvedEffectiveDate,
-                        WorkforceSourceType.Import, session.SourceFileName, session.Id),
-                    actor.FullName,
-                    cancellationToken);
-                if (waResult.IsFailure)
-                    throw new ArgumentException(
-                        $"Row {row.RowNumber}: Could not create work assignment: {waResult.Error.Message} Validate the file again before applying.",
-                        nameof(sessionId));
-            }
-        }
-
-        // Phase 2: Assign managers for create rows (all employees are staged by now)
-        foreach (var row in createRows.Where(r => !string.IsNullOrWhiteSpace(r.ManagerEmail)))
-        {
-            var employee = createdEmployeesByEmail[row.Email];
-            var managerId = row.ExistingManagerId;
-
-            if (!managerId.HasValue)
-            {
-                if (!createdEmployeesByEmail.TryGetValue(row.ManagerEmail!, out var sameFileManager))
-                    throw new ArgumentException(
-                        "The saved import session is no longer valid. Validate the file again before applying.",
-                        nameof(sessionId));
-                managerId = sameFileManager.Id;
-            }
-
-            // Canonical ManagerRelationship requires a primary work assignment on the subject.
-            // Skip when no org unit was imported; a manager cannot be resolved until the
-            // employee has a canonical primary assignment.
-            if (row.OrgUnitId.HasValue)
-            {
-                var managerResult = await mutationService.ChangeManagerAsync(
-                    employee.Id,
-                    new ChangeManagerInput(
-                        managerId.Value, row.ResolvedEffectiveDate,
-                        WorkforceSourceType.Import, session.SourceFileName, session.Id),
-                    actor.FullName,
-                    cancellationToken);
-                if (managerResult.IsFailure)
-                    throw new ArgumentException(
-                        $"Row {row.RowNumber}: Could not assign manager: {managerResult.Error.Message} Validate the file again before applying.",
-                        nameof(sessionId));
-            }
-        }
-
-        // Phase 3: Apply canonical mutations for matched change rows
-        foreach (var row in changeRows)
-        {
-            var matchedId = row.MatchedEmployeeId!.Value;
-            var effectiveDate = row.ResolvedEffectiveDate;
-
-            if (row.ProfileChanged)
-            {
-                var existingEmployee = await dbContext.Employees
-                    .FirstOrDefaultAsync(e => e.Id == matchedId, cancellationToken)
-                    ?? throw new ArgumentException(
-                        $"Row {row.RowNumber}: Matched employee {matchedId} no longer exists. Validate the file again before applying.",
-                        nameof(sessionId));
-                var phone = HeaderPresent(headers, "phone") ? row.Phone : existingEmployee.Phone;
-                var profileResult = await mutationService.UpdateEmployeeProfileAsync(
-                    matchedId,
-                    new UpdateEmployeeProfileInput(row.FirstName, row.LastName, row.Email, existingEmployee.PreferredName, phone),
-                    actor.FullName,
-                    cancellationToken);
-                if (profileResult.IsFailure)
-                    throw new ArgumentException(
-                        $"Row {row.RowNumber}: Profile update failed: {profileResult.Error.Message} Validate the file again before applying.",
-                        nameof(sessionId));
-            }
-
-            if (row.EmploymentChanged)
-            {
-                var empResult = await mutationService.UpdateEmploymentDetailsAsync(
-                    matchedId,
-                    new UpdateEmploymentDetailsInput(row.EmploymentType, WorkforceSourceType.Import, session.SourceFileName, session.Id),
-                    actor.FullName,
+                    new StartEmploymentInput(hireDate, row.EmploymentType, WorkforceSourceType.Import, session.SourceFileName, session.Id),
+                    operation.ActorFullName,
                     cancellationToken);
                 if (empResult.IsFailure)
                     throw new ArgumentException(
-                        $"Row {row.RowNumber}: Employment update failed: {empResult.Error.Message} Validate the file again before applying.",
-                        nameof(sessionId));
-            }
+                        $"Row {row.RowNumber}: Could not start employment: {empResult.Error.Message} Validate the file again before applying.");
 
-            if (row.WorkAssignmentChanged)
-            {
-                var existingAssignment = await canonicalResolver.GetPrimaryWorkAssignmentAsync(matchedId, effectiveDate, cancellationToken);
-                var orgUnitId = row.OrgUnitId ?? existingAssignment?.OrgUnitId;
-                var jobTitle = row.JobTitle ?? existingAssignment?.JobTitle;
-                var workLocation = row.WorkLocation ?? existingAssignment?.WorkLocation;
-
-                if (orgUnitId is null || jobTitle is null)
-                    throw new ArgumentException(
-                        $"Row {row.RowNumber}: Cannot apply work assignment change — org unit or job title is missing. Validate the file again before applying.",
-                        nameof(sessionId));
-
-                if (session.ImportMode == EmployeeImportMode.Correction)
+                if (row.OrgUnitId.HasValue)
                 {
-                    var waResult = await mutationService.CorrectPrimaryWorkAssignmentAsync(
-                        matchedId,
-                        new CorrectWorkAssignmentInput(orgUnitId.Value, jobTitle, workLocation, WorkforceSourceType.Import, session.SourceFileName, session.Id),
-                        actor.FullName,
-                        cancellationToken);
-                    if (waResult.IsFailure)
-                        throw new ArgumentException(
-                            $"Row {row.RowNumber}: Work assignment correction failed: {waResult.Error.Message} Validate the file again before applying.",
-                            nameof(sessionId));
-                }
-                else
-                {
+                    var jobTitle = row.JobTitle ?? string.Empty;
                     var waResult = await mutationService.ChangeWorkAssignmentAsync(
-                        matchedId,
-                        new ChangeWorkAssignmentInput(orgUnitId.Value, jobTitle, workLocation, effectiveDate, WorkforceSourceType.Import, session.SourceFileName, session.Id),
-                        actor.FullName,
+                        employee.Id,
+                        new ChangeWorkAssignmentInput(
+                            row.OrgUnitId.Value,
+                            jobTitle,
+                            row.WorkLocation,
+                            row.ResolvedEffectiveDate,
+                            WorkforceSourceType.Import,
+                            session.SourceFileName,
+                            session.Id),
+                        operation.ActorFullName,
                         cancellationToken);
                     if (waResult.IsFailure)
                         throw new ArgumentException(
-                            $"Row {row.RowNumber}: Work assignment change failed: {waResult.Error.Message} Validate the file again before applying.",
-                            nameof(sessionId));
+                            $"Row {row.RowNumber}: Could not create work assignment: {waResult.Error.Message} Validate the file again before applying.");
                 }
+
+                processedRowCount++;
+                await PersistProgressAsync();
             }
 
-            if (row.ManagerChanged)
+            foreach (var row in createRows.Where(r => !string.IsNullOrWhiteSpace(r.ManagerEmail)))
             {
+                var employee = createdEmployeesByEmail[row.Email];
                 var managerId = row.ExistingManagerId;
-                if (!managerId.HasValue
-                    && !string.IsNullOrWhiteSpace(row.ManagerEmail)
-                    && createdEmployeesByEmail.TryGetValue(row.ManagerEmail!, out var sameFileNewEmployee))
-                    managerId = sameFileNewEmployee.Id;
 
                 if (!managerId.HasValue)
-                    throw new ArgumentException(
-                        $"Row {row.RowNumber}: Cannot resolve manager '{row.ManagerEmail}'. Validate the file again before applying.",
-                        nameof(sessionId));
+                {
+                    if (!createdEmployeesByEmail.TryGetValue(row.ManagerEmail!, out var sameFileManager))
+                        throw new ArgumentException(
+                            "The saved import session is no longer valid. Validate the file again before applying.");
+                    managerId = sameFileManager.Id;
+                }
 
-                var managerResult = await mutationService.ChangeManagerAsync(
-                    matchedId,
-                    new ChangeManagerInput(managerId.Value, effectiveDate, WorkforceSourceType.Import, session.SourceFileName, session.Id),
-                    actor.FullName,
-                    cancellationToken);
-                if (managerResult.IsFailure)
-                    throw new ArgumentException(
-                        $"Row {row.RowNumber}: Manager change failed: {managerResult.Error.Message} Validate the file again before applying.",
-                        nameof(sessionId));
+                if (row.OrgUnitId.HasValue)
+                {
+                    var managerResult = await mutationService.ChangeManagerAsync(
+                        employee.Id,
+                        new ChangeManagerInput(
+                            managerId.Value,
+                            row.ResolvedEffectiveDate,
+                            WorkforceSourceType.Import,
+                            session.SourceFileName,
+                            session.Id),
+                        operation.ActorFullName,
+                        cancellationToken);
+                    if (managerResult.IsFailure)
+                        throw new ArgumentException(
+                            $"Row {row.RowNumber}: Could not assign manager: {managerResult.Error.Message} Validate the file again before applying.");
+                }
             }
+
+            foreach (var row in changeRows)
+            {
+                var matchedId = row.MatchedEmployeeId!.Value;
+                var effectiveDate = row.ResolvedEffectiveDate;
+
+                if (row.ProfileChanged)
+                {
+                    var existingEmployee = await FindTrackedEmployeeAsync(matchedId, cancellationToken)
+                        ?? throw new ArgumentException(
+                            $"Row {row.RowNumber}: Matched employee {matchedId} no longer exists. Validate the file again before applying.");
+                    var phone = HeaderPresent(headers, "phone") ? row.Phone : existingEmployee.Phone;
+                    var profileResult = await mutationService.UpdateEmployeeProfileAsync(
+                        matchedId,
+                        new UpdateEmployeeProfileInput(
+                            row.FirstName,
+                            row.LastName,
+                            row.Email,
+                            existingEmployee.PreferredName,
+                            phone),
+                        operation.ActorFullName,
+                        cancellationToken);
+                    if (profileResult.IsFailure)
+                        throw new ArgumentException(
+                            $"Row {row.RowNumber}: Profile update failed: {profileResult.Error.Message} Validate the file again before applying.");
+                }
+
+                if (row.EmploymentChanged)
+                {
+                    var empResult = await mutationService.UpdateEmploymentDetailsAsync(
+                        matchedId,
+                        new UpdateEmploymentDetailsInput(
+                            row.EmploymentType,
+                            WorkforceSourceType.Import,
+                            session.SourceFileName,
+                            session.Id),
+                        operation.ActorFullName,
+                        cancellationToken);
+                    if (empResult.IsFailure)
+                        throw new ArgumentException(
+                            $"Row {row.RowNumber}: Employment update failed: {empResult.Error.Message} Validate the file again before applying.");
+                }
+
+                if (row.WorkAssignmentChanged)
+                {
+                    var existingAssignment = await ResolveTrackedPrimaryWorkAssignmentAsync(
+                        matchedId,
+                        effectiveDate,
+                        cancellationToken);
+                    var orgUnitId = row.OrgUnitId ?? existingAssignment?.OrgUnitId;
+                    var jobTitle = row.JobTitle ?? existingAssignment?.JobTitle;
+                    var workLocation = row.WorkLocation ?? existingAssignment?.WorkLocation;
+
+                    if (orgUnitId is null || jobTitle is null)
+                        throw new ArgumentException(
+                            $"Row {row.RowNumber}: Cannot apply work assignment change — org unit or job title is missing. Validate the file again before applying.");
+
+                    if (session.ImportMode == EmployeeImportMode.Correction)
+                    {
+                        var waResult = await mutationService.CorrectPrimaryWorkAssignmentAsync(
+                            matchedId,
+                            new CorrectWorkAssignmentInput(
+                                orgUnitId.Value,
+                                jobTitle,
+                                workLocation,
+                                WorkforceSourceType.Import,
+                                session.SourceFileName,
+                                session.Id),
+                            operation.ActorFullName,
+                            cancellationToken);
+                        if (waResult.IsFailure)
+                            throw new ArgumentException(
+                                $"Row {row.RowNumber}: Work assignment correction failed: {waResult.Error.Message} Validate the file again before applying.");
+                    }
+                    else
+                    {
+                        var waResult = await mutationService.ChangeWorkAssignmentAsync(
+                            matchedId,
+                            new ChangeWorkAssignmentInput(
+                                orgUnitId.Value,
+                                jobTitle,
+                                workLocation,
+                                effectiveDate,
+                                WorkforceSourceType.Import,
+                                session.SourceFileName,
+                                session.Id),
+                            operation.ActorFullName,
+                            cancellationToken);
+                        if (waResult.IsFailure)
+                            throw new ArgumentException(
+                                $"Row {row.RowNumber}: Work assignment change failed: {waResult.Error.Message} Validate the file again before applying.");
+                    }
+                }
+
+                if (row.ManagerChanged)
+                {
+                    var managerId = row.ExistingManagerId;
+                    if (!managerId.HasValue
+                        && !string.IsNullOrWhiteSpace(row.ManagerEmail)
+                        && createdEmployeesByEmail.TryGetValue(row.ManagerEmail!, out var sameFileNewEmployee))
+                    {
+                        managerId = sameFileNewEmployee.Id;
+                    }
+
+                    if (!managerId.HasValue)
+                        throw new ArgumentException(
+                            $"Row {row.RowNumber}: Cannot resolve manager '{row.ManagerEmail}'. Validate the file again before applying.");
+
+                    var managerResult = await mutationService.ChangeManagerAsync(
+                        matchedId,
+                        new ChangeManagerInput(
+                            managerId.Value,
+                            effectiveDate,
+                            WorkforceSourceType.Import,
+                            session.SourceFileName,
+                            session.Id),
+                        operation.ActorFullName,
+                        cancellationToken);
+                    if (managerResult.IsFailure)
+                        throw new ArgumentException(
+                            $"Row {row.RowNumber}: Manager change failed: {managerResult.Error.Message} Validate the file again before applying.");
+                }
+
+                processedRowCount++;
+                await PersistProgressAsync();
+            }
+
+            await PersistProgressAsync(force: true);
+
+            dbContext.ChangeTracker.DetectChanges();
+
+            var appliedAt = DateTime.UtcNow;
+            var history = EmployeeImportHistory.CreateApplied(
+                tenantContext.TenantId,
+                session.Id,
+                session.SourceFileName,
+                session.SourceFileSizeBytes,
+                sourceRows.Count,
+                normalizedRows.Count,
+                createRows.Count,
+                unchangedRows.Count,
+                createRows.Count + changeRows.Count,
+                appliedAt,
+                operation.ActorUserId,
+                operation.ActorFullName,
+                operation.ActorRole);
+
+            var importFollowUpIssues = BuildImportFollowUpIssues(history.Id, createdEmployeesByEmail, createRows, settings);
+
+            dbContext.EmployeeImportHistories.Add(history);
+            if (importFollowUpIssues.Count > 0)
+                dbContext.EmployeeImportFollowUpIssues.AddRange(importFollowUpIssues);
+
+            session.MarkApplied(appliedAt);
+            await dbContext.SaveChangesAsync(cancellationToken);
+
+            if (transaction is not null)
+                await transaction.CommitAsync(cancellationToken);
+
+            return new EmployeeImportApplyResultDto(
+                session.Id,
+                history.Id,
+                session.SourceFileName,
+                sourceRows.Count,
+                normalizedRows.Count,
+                createRows.Count,
+                createRows.Count + changeRows.Count,
+                appliedAt,
+                session.Stage);
+        }
+        catch
+        {
+            if (transaction is not null)
+                await transaction.RollbackAsync(cancellationToken);
+            throw;
+        }
+        finally
+        {
+            dbContext.ChangeTracker.AutoDetectChangesEnabled = originalAutoDetect;
+        }
+    }
+
+    private async Task PreloadApplyStateAsync(
+        IReadOnlyList<StoredNormalizedRow> normalizedRows,
+        CancellationToken cancellationToken)
+    {
+        var matchedEmployeeIds = normalizedRows
+            .Where(row => row.MatchedEmployeeId.HasValue)
+            .Select(row => row.MatchedEmployeeId!.Value);
+        var managerEmployeeIds = normalizedRows
+            .Where(row => row.ExistingManagerId.HasValue)
+            .Select(row => row.ExistingManagerId!.Value);
+        var employeeIds = matchedEmployeeIds
+            .Concat(managerEmployeeIds)
+            .Distinct()
+            .ToArray();
+
+        var orgUnitIds = normalizedRows
+            .Where(row => row.OrgUnitId.HasValue)
+            .Select(row => row.OrgUnitId!.Value)
+            .Distinct()
+            .ToArray();
+
+        if (employeeIds.Length > 0)
+        {
+            _ = await dbContext.Employees
+                .Where(employee => employeeIds.Contains(employee.Id))
+                .ToListAsync(cancellationToken);
+            _ = await dbContext.Employments
+                .Where(employment => employeeIds.Contains(employment.EmployeeId))
+                .ToListAsync(cancellationToken);
+            _ = await dbContext.WorkAssignments
+                .Where(assignment => employeeIds.Contains(assignment.EmployeeId))
+                .ToListAsync(cancellationToken);
+            _ = await dbContext.ManagerRelationships
+                .Where(relationship =>
+                    employeeIds.Contains(relationship.SubjectEmployeeId)
+                    || employeeIds.Contains(relationship.ManagerEmployeeId))
+                .ToListAsync(cancellationToken);
         }
 
-        var appliedAt = DateTime.UtcNow;
-        var history = EmployeeImportHistory.CreateApplied(
-            tenantContext.TenantId,
-            session.Id,
-            session.SourceFileName,
-            session.SourceFileSizeBytes,
-            sourceRows.Count,
-            normalizedRows.Count,
-            createRows.Count,
-            unchangedRows.Count,
-            createRows.Count + changeRows.Count,
-            appliedAt,
-            actor.UserId,
-            actor.FullName,
-            actor.Role);
-
-        var importFollowUpIssues = BuildImportFollowUpIssues(history.Id, createdEmployeesByEmail, createRows, settings);
-
-        dbContext.EmployeeImportHistories.Add(history);
-        if (importFollowUpIssues.Count > 0)
-            dbContext.EmployeeImportFollowUpIssues.AddRange(importFollowUpIssues);
-        session.MarkApplied(appliedAt);
-
-        await dbContext.SaveChangesAsync(cancellationToken);
-
-        if (transaction is not null)
-            await transaction.CommitAsync(cancellationToken);
-
-        return new EmployeeImportApplyResultDto(
-            session.Id,
-            history.Id,
-            session.SourceFileName,
-            sourceRows.Count,
-            normalizedRows.Count,
-            createRows.Count,
-            createRows.Count + changeRows.Count,
-            appliedAt,
-            session.Stage);
+        if (orgUnitIds.Length > 0)
+        {
+            _ = await dbContext.OrgUnits
+                .Where(orgUnit => orgUnitIds.Contains(orgUnit.Id))
+                .ToListAsync(cancellationToken);
+        }
     }
+
+    private async Task<Employee?> FindTrackedEmployeeAsync(Guid employeeId, CancellationToken cancellationToken)
+    {
+        var local = dbContext.Employees.Local.FirstOrDefault(employee => employee.Id == employeeId);
+        return local ?? await dbContext.Employees.FirstOrDefaultAsync(employee => employee.Id == employeeId, cancellationToken);
+    }
+
+    private async Task<PrimaryWorkAssignmentSnapshot?> ResolveTrackedPrimaryWorkAssignmentAsync(
+        Guid employeeId,
+        DateTime asOf,
+        CancellationToken cancellationToken)
+    {
+        var local = dbContext.WorkAssignments.Local
+            .Where(assignment =>
+                assignment.EmployeeId == employeeId
+                && assignment.IsPrimary
+                && assignment.EffectiveFrom <= asOf
+                && (assignment.EffectiveTo == null || asOf < assignment.EffectiveTo))
+            .OrderByDescending(assignment => assignment.EffectiveFrom)
+            .FirstOrDefault();
+
+        if (local is not null)
+        {
+            return new PrimaryWorkAssignmentSnapshot(
+                local.Id,
+                local.EmploymentId,
+                local.OrgUnitId,
+                local.JobTitle,
+                local.WorkLocation,
+                local.EffectiveFrom,
+                local.EffectiveTo);
+        }
+
+        return await canonicalResolver.GetPrimaryWorkAssignmentAsync(employeeId, asOf, cancellationToken);
+    }
+
+    private static string TrimFailureReason(string message)
+        => string.IsNullOrWhiteSpace(message)
+            ? "Employee import apply failed."
+            : message.Length <= MaxApplyFailureReasonLength
+                ? message
+                : message[..MaxApplyFailureReasonLength];
+
+    private static List<EmployeeImportPreviewRowDto> BuildPreviewRows(
+        IReadOnlyCollection<EmployeeImportSourceRowDto> sourceRows)
+        => sourceRows.Select(CreatePreviewRow).ToList();
 
     private static void CheckSameFileManagerCycles(IReadOnlyList<StoredNormalizedRow> createRows, string paramName)
     {
@@ -1665,6 +1942,11 @@ public sealed class EmployeeImportWorkflowService(
         string? groupKey = null)
     {
         var schema = await BuildSchemaAsync(cancellationToken);
+        var latestApplyOperation = await dbContext.EmployeeImportApplyOperations
+            .AsNoTracking()
+            .Where(operation => operation.SessionId == session.Id)
+            .OrderByDescending(operation => operation.CreatedAt)
+            .FirstOrDefaultAsync(cancellationToken);
 
         return BuildSessionDto(
             session,
@@ -1672,6 +1954,7 @@ public sealed class EmployeeImportWorkflowService(
             sourceRows,
             previewRows,
             schema,
+            latestApplyOperation is null ? null : BuildApplyOperationDto(latestApplyOperation),
             previewPageNumber,
             previewPageSize,
             previewFilter,
@@ -1684,6 +1967,7 @@ public sealed class EmployeeImportWorkflowService(
         IReadOnlyList<EmployeeImportSourceRowDto> sourceRows,
         IReadOnlyList<EmployeeImportPreviewRowDto> previewRows,
         EmployeeImportSchemaDto schema,
+        EmployeeImportApplyOperationDto? lastApplyOperation,
         int previewPageNumber = 1,
         int previewPageSize = DefaultPreviewPageSize,
         string previewFilter = "all",
@@ -1704,7 +1988,7 @@ public sealed class EmployeeImportWorkflowService(
         var validationSummary = BuildValidationSummary(
             sourceRows.Count,
             validationIssues,
-            session.Stage is EmployeeImportStage.Validated or EmployeeImportStage.Applied);
+            session.Stage is EmployeeImportStage.Validated or EmployeeImportStage.Applying or EmployeeImportStage.Applied);
         var filteredPreviewRows = FilterPreviewRows(
             previewRows,
             validationIssues,
@@ -1725,7 +2009,7 @@ public sealed class EmployeeImportWorkflowService(
 
         // Surface classification, resolved effective date, matched identity, and the full change set
         // on the previewed rows once the batch has been validated.
-        var isValidatedStage = session.Stage is EmployeeImportStage.Validated or EmployeeImportStage.Applied;
+        var isValidatedStage = session.Stage is EmployeeImportStage.Validated or EmployeeImportStage.Applying or EmployeeImportStage.Applied;
         if (isValidatedStage)
         {
             var normalizedByRow = ReadNormalizedRowsSafe(session)
@@ -1757,8 +2041,7 @@ public sealed class EmployeeImportWorkflowService(
         }
 
         var canValidate =
-            session.Stage != EmployeeImportStage.Expired &&
-            session.Stage != EmployeeImportStage.Applied;
+            session.Stage is EmployeeImportStage.PreviewReady or EmployeeImportStage.Validated;
         var canApply =
             session.Stage == EmployeeImportStage.Validated &&
             validationSummary.ErrorCount == 0;
@@ -1782,6 +2065,7 @@ public sealed class EmployeeImportWorkflowService(
             currentPreviewPage < previewPageCount,
             validationSummary,
             validationIssues,
+            lastApplyOperation,
             session.AppliedAt,
             session.ExpiresAt,
             schema,
@@ -1889,6 +2173,27 @@ public sealed class EmployeeImportWorkflowService(
             throw new ArgumentException(invalidMessage, ex);
         }
     }
+
+    private static EmployeeImportApplyOperationDto BuildApplyOperationDto(
+        EmployeeImportApplyOperation operation)
+        => new(
+            operation.Id,
+            operation.SessionId,
+            operation.Status,
+            operation.ActorUserId,
+            operation.ActorFullName,
+            operation.ActorRole,
+            operation.QueuedAt,
+            operation.StartedAt,
+            operation.CompletedAt,
+            operation.FailedAt,
+            operation.FailureReason,
+            operation.HistoryId,
+            operation.SourceRowCount,
+            operation.ValidatedRowCount,
+            operation.ProcessedRowCount,
+            operation.CreatedCount,
+            operation.PublishedRowCount);
 
     private static EmployeeImportHistoryListItemDto BuildHistoryListItemDto(EmployeeImportHistory history)
         => new(

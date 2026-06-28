@@ -20,7 +20,7 @@ import {
   type EmployeeImportPreviewQuery,
 } from "../employee-query-keys";
 import type {
-  EmployeeImportApplyResultDto,
+  EmployeeImportApplyOperationDto,
   EmployeeImportHistoryDetailDto,
   EmployeeImportHistoryPageDto,
   EmployeeImportMode,
@@ -193,23 +193,57 @@ export function useValidateEmployeeImport(): UseApiMutationResult<
 }
 
 export function useApplyEmployeeImport(): UseApiMutationResult<
-  EmployeeImportApplyResultDto,
+  EmployeeImportApplyOperationDto,
   ApplyEmployeeImportInput
 > {
   const client = useMemo(() => createPlatformApiClient(), []);
 
   return useApiMutation(
     ({ sessionId }: ApplyEmployeeImportInput) =>
-      client.post<EmployeeImportApplyResultDto>(
+      client.post<EmployeeImportApplyOperationDto>(
         `${EMPLOYEE_IMPORT_BASE_PATH}/${sessionId}/apply`,
         undefined
       ),
     {
       invalidateQueries: (_data, args) => [
         { queryKey: employeeImportQueryKeys.session(args.sessionId) },
+        { queryKey: employeeImportQueryKeys.applyOperation(args.sessionId) },
         { queryKey: employeeImportQueryKeys.history() },
         { queryKey: employeeRosterQueryKeys.all() },
       ],
+    }
+  );
+}
+
+export function useEmployeeImportApplyOperation(
+  sessionId: string | null
+): UseApiQueryResult<EmployeeImportApplyOperationDto> {
+  const { user, isAuthenticated } = useAuth();
+  const client = useMemo(() => createPlatformApiClient(), []);
+  const canAccess = canImportCoreEmployees(user);
+
+  const queryFn = useCallback(
+    (signal: AbortSignal) => {
+      if (!sessionId) {
+        throw new Error("Employee import session id is required.");
+      }
+
+      return client.get<EmployeeImportApplyOperationDto>(
+        `${EMPLOYEE_IMPORT_BASE_PATH}/${sessionId}/apply`,
+        {
+          signal,
+        }
+      );
+    },
+    [client, sessionId]
+  );
+
+  return useApiQuery(
+    employeeImportQueryKeys.applyOperation(sessionId ?? "pending"),
+    queryFn,
+    {
+      enabled: isAuthenticated && canAccess && !!sessionId,
+      placeholderData: keepPreviousData,
     }
   );
 }
