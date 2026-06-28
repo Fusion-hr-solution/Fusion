@@ -19,8 +19,8 @@ import {
   normalizeEmployeeRosterQuery,
 } from "./employee-query-keys";
 import type {
+  EmployeeDetailsDto,
   EmployeeOrgUnitPageDto,
-  EmployeeProfileDto,
   EmployeeReportingLinesDto,
   EmployeeRosterItem,
   EmployeeRosterPageDto,
@@ -52,10 +52,11 @@ const MANAGER_OPTIONS_PAGE_SIZE = 100;
 const ORG_UNIT_OPTIONS_PAGE_SIZE = 100;
 const EMPTY_GUID = "00000000-0000-0000-0000-000000000000";
 
-interface UpdateEmployeeManagerInput {
+interface ChangeEmployeeManagerInput {
   employeeId: string;
   expectedVersion: number;
-  managerId: string | null;
+  managerId: string;
+  effectiveDate: string;
 }
 
 interface UpdateEmployeeRecordInput {
@@ -71,7 +72,6 @@ interface UpdateEmployeeRecordInput {
   workLocation?: string | null;
   employmentType?: string | null;
   orgUnitId?: string | null;
-  hireDate?: string;
 }
 
 interface UpdateMyProfileInput {
@@ -91,19 +91,23 @@ interface CreateEmployeeInput {
   orgUnitId?: string | null;
 }
 
-interface CreatedEmployeeRecordDto {
-  id: string;
-  stableEmployeeKey: string;
-}
 
-interface DeactivateEmployeeInput {
+interface TerminateEmployeeInput {
   employeeId: string;
   expectedVersion: number;
+  effectiveDate: string;
+  note?: string | null;
 }
 
-interface ReactivateEmployeeInput {
+interface RehireEmployeeInput {
   employeeId: string;
   expectedVersion: number;
+  effectiveDate: string;
+  orgUnitId: string;
+  jobTitle: string;
+  workLocation?: string | null;
+  managerId?: string | null;
+  employmentType?: string | null;
 }
 
 export function useEmployeeRoster(
@@ -353,7 +357,6 @@ function buildEmployeeUpdatePayload({
   workLocation,
   employmentType,
   orgUnitId,
-  hireDate,
 }: Omit<UpdateEmployeeRecordInput, "employeeId" | "expectedVersion">) {
   const payload: Record<string, unknown> = {};
 
@@ -397,23 +400,17 @@ function buildEmployeeUpdatePayload({
     payload.orgUnitId = orgUnitId ?? EMPTY_GUID;
   }
 
-  if (hireDate !== undefined) {
-    payload.hireDate = hireDate;
-  }
-
   return payload;
 }
 
-export function useUpdateEmployeeManager() {
+export function useChangeEmployeeManager() {
   const client = useMemo(() => createPlatformApiClient(), []);
 
-  return useApiMutation<unknown, UpdateEmployeeManagerInput>(
-    ({ employeeId, expectedVersion, managerId }) =>
-      client.put(
-        `${EMPLOYEE_ROSTER_PATH}/${employeeId}`,
-        {
-          managerId: managerId ?? EMPTY_GUID,
-        },
+  return useApiMutation<EmployeeDetailsDto, ChangeEmployeeManagerInput>(
+    ({ employeeId, expectedVersion, managerId, effectiveDate }) =>
+      client.post<EmployeeDetailsDto>(
+        `${EMPLOYEE_ROSTER_PATH}/${employeeId}/change-manager`,
+        { managerId, effectiveDate },
         {
           headers: {
             "If-Match": `"${expectedVersion}"`,
@@ -429,7 +426,7 @@ export function useUpdateEmployeeManager() {
 export function useCreateEmployeeRecord() {
   const client = useMemo(() => createPlatformApiClient(), []);
 
-  return useApiMutation<CreatedEmployeeRecordDto, CreateEmployeeInput>(
+  return useApiMutation<EmployeeDetailsDto, CreateEmployeeInput>(
     ({
       firstName,
       lastName,
@@ -458,7 +455,7 @@ export function useCreateEmployeeRecord() {
         payload.orgUnitId = orgUnitId;
       }
 
-      return client.post<CreatedEmployeeRecordDto>(
+      return client.post<EmployeeDetailsDto>(
         EMPLOYEE_ROSTER_PATH,
         payload
       );
@@ -512,30 +509,14 @@ export function useUpdateMyProfile() {
   );
 }
 
-export function useDeactivateEmployee() {
+export function useTerminateEmployee() {
   const client = useMemo(() => createPlatformApiClient(), []);
 
-  return useApiMutation<void, DeactivateEmployeeInput>(
-    ({ employeeId, expectedVersion }) =>
-      client.delete<void>(`${EMPLOYEE_ROSTER_PATH}/${employeeId}`, {
-        headers: {
-          "If-Match": `"${expectedVersion}"`,
-        },
-      }),
-    {
-      invalidateQueries: [{ queryKey: employeeRosterQueryKeys.all() }],
-    }
-  );
-}
-
-export function useReactivateEmployee() {
-  const client = useMemo(() => createPlatformApiClient(), []);
-
-  return useApiMutation<void, ReactivateEmployeeInput>(
-    ({ employeeId, expectedVersion }) =>
-      client.post<void>(
-        `${EMPLOYEE_ROSTER_PATH}/${employeeId}/reactivate`,
-        undefined,
+  return useApiMutation<EmployeeDetailsDto, TerminateEmployeeInput>(
+    ({ employeeId, expectedVersion, effectiveDate, note }) =>
+      client.post<EmployeeDetailsDto>(
+        `${EMPLOYEE_ROSTER_PATH}/${employeeId}/terminate`,
+        { effectiveDate, note: note ?? null },
         {
           headers: {
             "If-Match": `"${expectedVersion}"`,
@@ -548,9 +529,36 @@ export function useReactivateEmployee() {
   );
 }
 
-export function useEmployeeProfile(
+export function useRehireEmployee() {
+  const client = useMemo(() => createPlatformApiClient(), []);
+
+  return useApiMutation<EmployeeDetailsDto, RehireEmployeeInput>(
+    ({ employeeId, expectedVersion, effectiveDate, orgUnitId, jobTitle, workLocation, managerId, employmentType }) =>
+      client.post<EmployeeDetailsDto>(
+        `${EMPLOYEE_ROSTER_PATH}/${employeeId}/rehire`,
+        {
+          effectiveDate,
+          orgUnitId,
+          jobTitle,
+          workLocation: workLocation ?? null,
+          managerId: managerId ?? null,
+          employmentType: employmentType ?? null,
+        },
+        {
+          headers: {
+            "If-Match": `"${expectedVersion}"`,
+          },
+        }
+      ),
+    {
+      invalidateQueries: [{ queryKey: employeeRosterQueryKeys.all() }],
+    }
+  );
+}
+
+export function useEmployeeDetails(
   employeeKey: string | null
-): UseApiQueryResult<EmployeeProfileDto> {
+): UseApiQueryResult<EmployeeDetailsDto> {
   const { isAuthenticated } = useAuth();
   const client = useMemo(() => createPlatformApiClient(), []);
   const canAccess = useCanAccessProfile();
@@ -558,11 +566,11 @@ export function useEmployeeProfile(
   const queryFn = useCallback(
     (signal: AbortSignal) => {
       if (!employeeKey) {
-        throw new Error("Employee key is required to load profile.");
+        throw new Error("Employee key is required to load details.");
       }
 
-      return client.get<EmployeeProfileDto>(
-        `${EMPLOYEE_ROSTER_PATH}/by-key/${encodeURIComponent(employeeKey)}/profile`,
+      return client.get<EmployeeDetailsDto>(
+        `${EMPLOYEE_ROSTER_PATH}/by-key/${encodeURIComponent(employeeKey)}`,
         { signal }
       );
     },
@@ -570,10 +578,40 @@ export function useEmployeeProfile(
   );
 
   return useApiQuery(
-    employeeRosterQueryKeys.profile(employeeKey ?? "pending"),
+    employeeRosterQueryKeys.details(employeeKey ?? "pending"),
     queryFn,
     {
       enabled: isAuthenticated && canAccess && !!employeeKey,
+    }
+  );
+}
+
+export function useEmployeeDetailsById(
+  employeeId: string | null
+): UseApiQueryResult<EmployeeDetailsDto> {
+  const { isAuthenticated } = useAuth();
+  const client = useMemo(() => createPlatformApiClient(), []);
+  const canAccess = useCanAccessProfile();
+
+  const queryFn = useCallback(
+    (signal: AbortSignal) => {
+      if (!employeeId) {
+        throw new Error("Employee id is required to load details.");
+      }
+
+      return client.get<EmployeeDetailsDto>(
+        `${EMPLOYEE_ROSTER_PATH}/${encodeURIComponent(employeeId)}`,
+        { signal }
+      );
+    },
+    [client, employeeId]
+  );
+
+  return useApiQuery(
+    employeeRosterQueryKeys.detailsById(employeeId ?? "pending"),
+    queryFn,
+    {
+      enabled: isAuthenticated && canAccess && !!employeeId,
     }
   );
 }

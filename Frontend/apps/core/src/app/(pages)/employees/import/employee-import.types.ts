@@ -52,6 +52,16 @@ export interface EmployeeImportValidationSummaryDto {
   warningCount: number;
 }
 
+export type EmployeeImportRowClassification =
+  | "Create"
+  | "Unchanged"
+  | "ProfileCorrection"
+  | "EmploymentChange"
+  | "WorkAssignmentChange"
+  | "ManagerChange"
+  | "Invalid"
+  | "Conflicting";
+
 export interface EmployeeImportPreviewRowDto {
   rowNumber: number;
   employeeNumber: string | null;
@@ -65,16 +75,23 @@ export interface EmployeeImportPreviewRowDto {
   employmentType: string | null;
   orgUnitCode: string | null;
   managerEmail: string | null;
+  effectiveDate: string | null;
+  classification: EmployeeImportRowClassification | null;
+  resolvedEffectiveDate: string | null;
+  matchedEmployeeId: string | null;
+  changedFacts: string[] | null;
 }
+
+export type EmployeeImportMode = "BusinessChange" | "Correction";
 
 export interface EmployeeImportApplyResultDto {
   sessionId: string;
   historyId: string;
   sourceFileName: string;
   sourceRowCount: number;
-  validRowCount: number;
+  validatedRowCount: number;
   createdCount: number;
-  skippedCount: number;
+  publishedRowCount: number;
   appliedAt: string;
   stage: EmployeeImportStage;
 }
@@ -87,9 +104,10 @@ export interface EmployeeImportHistoryListItemDto {
   sourceFileName: string;
   sourceFileSizeBytes: number;
   sourceRowCount: number;
-  validRowCount: number;
+  validatedRowCount: number;
   createdCount: number;
-  skippedCount: number;
+  unchangedRowCount: number;
+  publishedRowCount: number;
   status: string;
   appliedAt: string;
   actorUserId: string;
@@ -107,9 +125,10 @@ export interface EmployeeImportHistoryDetailDto {
   sourceFileName: string;
   sourceFileSizeBytes: number;
   sourceRowCount: number;
-  validRowCount: number;
+  validatedRowCount: number;
   createdCount: number;
-  skippedCount: number;
+  unchangedRowCount: number;
+  publishedRowCount: number;
   status: string;
   appliedAt: string;
   actorUserId: string;
@@ -152,6 +171,8 @@ export interface EmployeeImportSessionDto {
   id: string;
   stage: EmployeeImportStage;
   version: number;
+  batchEffectiveDate: string | null;
+  importMode: EmployeeImportMode | null;
   sourceFileName: string;
   sourceFileSizeBytes: number;
   sourceRowCount: number;

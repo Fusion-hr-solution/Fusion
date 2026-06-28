@@ -803,9 +803,10 @@ function getHistoryActorLabel(item: {
 function getHistoryRowSummary(item: {
   eventType: ImportHistoryEventType;
   sourceRowCount: number;
-  validRowCount: number;
+  validatedRowCount: number;
   createdCount: number;
-  skippedCount: number;
+  unchangedRowCount: number;
+  publishedRowCount: number;
   errorCount?: number;
   warningCount?: number;
 }) {
@@ -817,9 +818,9 @@ function getHistoryRowSummary(item: {
         return `${item.errorCount} error${item.errorCount === 1 ? "" : "s"}${(item.warningCount ?? 0) > 0 ? ` · ${item.warningCount} warning${item.warningCount === 1 ? "" : "s"}` : ""}`;
       }
 
-      return `${item.validRowCount} valid · ${item.sourceRowCount} rows`;
+      return `${item.validatedRowCount} validated · ${item.sourceRowCount} rows`;
     case "Import":
-      return `${item.createdCount} created${item.skippedCount > 0 ? ` · ${item.skippedCount} skipped` : ""} · ${item.sourceRowCount} rows`;
+      return `${item.publishedRowCount} published${item.unchangedRowCount > 0 ? ` · ${item.unchangedRowCount} unchanged` : ""} · ${item.sourceRowCount} rows`;
     default:
       return `${item.sourceRowCount} rows`;
   }

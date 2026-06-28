@@ -50,9 +50,10 @@ const historyItem = {
   sourceFileName: "employees-june.csv",
   sourceFileSizeBytes: 2048,
   sourceRowCount: 5,
-  validRowCount: 4,
+  validatedRowCount: 4,
   createdCount: 3,
-  skippedCount: 1,
+  unchangedRowCount: 1,
+  publishedRowCount: 3,
   status: "Applied",
   appliedAt: "2025-06-05T10:20:00.000Z",
   actorUserId: "user-1",
@@ -101,7 +102,7 @@ describe("ImportHistoryPanel", () => {
 
     expect(screen.getByText("employees-june.csv")).toBeInTheDocument();
     expect(screen.getByText("Applied")).toBeInTheDocument();
-    expect(screen.getByText("3 created · 1 skipped · 5 rows")).toBeInTheDocument();
+    expect(screen.getByText("3 published · 1 unchanged · 5 rows")).toBeInTheDocument();
     expect(screen.getByText("Alex Morgan")).toBeInTheDocument();
     expect(screen.queryByText("session-1")).not.toBeInTheDocument();
     expect(screen.queryByText("user-1")).not.toBeInTheDocument();

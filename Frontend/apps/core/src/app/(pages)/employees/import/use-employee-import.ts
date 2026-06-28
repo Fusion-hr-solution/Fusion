@@ -23,9 +23,16 @@ import type {
   EmployeeImportApplyResultDto,
   EmployeeImportHistoryDetailDto,
   EmployeeImportHistoryPageDto,
+  EmployeeImportMode,
   EmployeeImportSchemaDto,
   EmployeeImportSessionDto,
 } from "./employee-import.types";
+
+type UploadEmployeeImportInput = {
+  file: File;
+  batchEffectiveDate: string;
+  importMode: EmployeeImportMode;
+};
 
 const EMPLOYEE_IMPORT_BASE_PATH = "/corehr/employees/import";
 
@@ -140,14 +147,16 @@ export function useEmployeeImportSession(
 
 export function useUploadEmployeeImport(): UseApiMutationResult<
   EmployeeImportSessionDto,
-  File
+  UploadEmployeeImportInput
 > {
   const client = useMemo(() => createPlatformApiClient(), []);
 
   return useApiMutation(
-    async (file: File) => {
+    async ({ file, batchEffectiveDate, importMode }: UploadEmployeeImportInput) => {
       const formData = new FormData();
       formData.append("file", file);
+      formData.append("batchEffectiveDate", batchEffectiveDate);
+      formData.append("importMode", importMode);
 
       return client.post<EmployeeImportSessionDto>(
         EMPLOYEE_IMPORT_BASE_PATH,

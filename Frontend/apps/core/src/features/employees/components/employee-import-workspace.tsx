@@ -4,6 +4,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, RefreshCcw } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { canImportCoreEmployees, useAuth } from "@repo/auth";
 import { type PageSize } from "@repo/ui";
 import { toast } from "sonner";
@@ -23,6 +32,7 @@ import {
 } from "@/components/ui/card";
 import type {
   EmployeeImportApplyResultDto,
+  EmployeeImportMode,
   EmployeeImportPreviewFilter,
 } from "@/app/(pages)/employees/import/employee-import.types";
 import {
@@ -74,6 +84,10 @@ export default function EmployeeImportWorkspace() {
     DEFAULT_EMPLOYEE_IMPORT_PREVIEW_PAGE_SIZE
   );
   const [historyPageNumber, setHistoryPageNumber] = useState(1);
+  const [batchEffectiveDate, setBatchEffectiveDate] = useState<string>(
+    () => new Date().toISOString().slice(0, 10)
+  );
+  const [importMode, setImportMode] = useState<EmployeeImportMode>("BusinessChange");
   const [applyError, setApplyError] = useState<string | null>(null);
   const [lastApplyResult, setLastApplyResult] =
     useState<EmployeeImportApplyResultDto | null>(null);
@@ -217,14 +231,18 @@ export default function EmployeeImportWorkspace() {
       }
 
       try {
-        const nextSession = await uploadImport.mutateAsync(file);
+        const nextSession = await uploadImport.mutateAsync({
+          file,
+          batchEffectiveDate: `${batchEffectiveDate}T00:00:00.000Z`,
+          importMode,
+        });
         replaceImportRoute(nextSession.id, null);
         toast.success("Employee import preview created.");
       } catch (error) {
         toast.error(getErrorMessage(error));
       }
     },
-    [replaceImportRoute, uploadImport]
+    [batchEffectiveDate, importMode, replaceImportRoute, uploadImport]
   );
 
   const handleValidateSession = useCallback(async () => {
@@ -506,6 +524,58 @@ export default function EmployeeImportWorkspace() {
           </AlertDescription>
         </Alert>
       )}
+
+      {!isAppliedSession ? (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Batch settings</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="batch-effective-date">Effective date</Label>
+                <Input
+                  id="batch-effective-date"
+                  type="date"
+                  value={
+                    session?.batchEffectiveDate
+                      ? session.batchEffectiveDate.slice(0, 10)
+                      : batchEffectiveDate
+                  }
+                  onChange={(e) => setBatchEffectiveDate(e.target.value)}
+                  disabled={!!session || uploadImport.isLoading}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Applied to all rows without a row-level effective date.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="import-mode">Import mode</Label>
+                <Select
+                  value={session?.importMode ?? importMode}
+                  onValueChange={(v) => setImportMode(v as EmployeeImportMode)}
+                  disabled={!!session || uploadImport.isLoading}
+                >
+                  <SelectTrigger id="import-mode">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="BusinessChange">
+                      Business change — adds new records
+                    </SelectItem>
+                    <SelectItem value="Correction">
+                      Correction — updates existing records only
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Correction mode rejects new employee rows.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {session ? (
         <>
