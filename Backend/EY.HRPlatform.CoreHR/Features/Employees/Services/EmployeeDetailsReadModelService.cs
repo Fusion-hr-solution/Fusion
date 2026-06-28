@@ -17,12 +17,6 @@ public interface IEmployeeDetailsReadModelService
         DateTime? asOf,
         CancellationToken cancellationToken);
 
-    Task<EmployeeProfileDto> BuildProfileAsync(
-        Employee employee,
-        EmployeeReadAudience audience,
-        DateTime? asOf,
-        CancellationToken cancellationToken);
-
     Task<EmployeeListItemDto> BuildListItemAsync(
         Employee employee,
         EmployeeReadAudience audience,
@@ -91,46 +85,6 @@ public sealed class EmployeeDetailsReadModelService(
             employee.CreatedAt,
             employee.UpdatedAt,
             employee.Version);
-    }
-
-    public async Task<EmployeeProfileDto> BuildProfileAsync(
-        Employee employee,
-        EmployeeReadAudience audience,
-        DateTime? asOf,
-        CancellationToken cancellationToken)
-    {
-        var settings = await tenantSettingsReadService.GetCurrentAsync(cancellationToken);
-        var facts = await BuildFactsAsync(employee, asOf, cancellationToken);
-
-        return new EmployeeProfileDto(
-            employee.Id,
-            employee.StableEmployeeKey,
-            employee.EmployeeNumber,
-            employee.FirstName,
-            employee.LastName,
-            employee.PreferredName,
-            employee.Email,
-            CanViewField(settings, "phone", audience) ? employee.Phone : null,
-            CanViewField(settings, "jobTitle", audience) ? facts.Assignment?.JobTitle : null,
-            CanViewField(settings, "workLocation", audience) ? facts.Assignment?.WorkLocation : null,
-            CanViewField(settings, "employmentType", audience) ? facts.Employment?.EmploymentType : null,
-            facts.Employment?.EffectiveFrom ?? default,
-            ToEmployeeStatus(facts.Employment),
-            facts.Assignment?.OrgUnitId,
-            facts.OrgUnit?.Name,
-            facts.OrgUnit?.Type,
-            facts.Manager?.ManagerEmployeeId,
-            facts.ManagerEmployee?.FirstName,
-            facts.ManagerEmployee?.LastName,
-            facts.ManagerEmployee?.Email,
-            facts.HierarchyStatus,
-            facts.DirectReportCount,
-            employee.CreatedAt,
-            employee.UpdatedAt,
-            employee.Version)
-        {
-            Readiness = BuildReadiness(employee, settings, facts)
-        };
     }
 
     public async Task<EmployeeListItemDto> BuildListItemAsync(
@@ -353,29 +307,6 @@ public sealed class EmployeeDetailsReadModelService(
                 .FirstOrDefaultAsync(cancellationToken);
 
         var manager = await workforceCanonicalResolver.GetPrimaryManagerAsync(employee.Id, at, cancellationToken);
-        var usedLegacyEmploymentFallback = false;
-        var usedLegacyAssignmentFallback = false;
-        var usedLegacyManagerFallback = false;
-
-        if (employment is null && employee.HireDate != default)
-        {
-            employment = CreateLegacyEmploymentFallback(employee);
-            usedLegacyEmploymentFallback = true;
-        }
-
-        if (assignment is null && employee.OrgUnitId.HasValue)
-        {
-            assignment = new PrimaryWorkAssignmentSnapshot(
-                Guid.NewGuid(),
-                employment?.Id ?? Guid.NewGuid(),
-                employee.OrgUnitId.Value,
-                employee.JobTitle ?? string.Empty,
-                employee.WorkLocation,
-                employment?.EffectiveFrom ?? employee.HireDate,
-                employment?.EffectiveTo);
-            usedLegacyAssignmentFallback = true;
-        }
-
         OrgUnit? orgUnit = null;
         if (assignment is not null)
         {
@@ -402,46 +333,15 @@ public sealed class EmployeeDetailsReadModelService(
                         .FirstOrDefaultAsync(cancellationToken);
             }
         }
-        else if (employee.ManagerId.HasValue)
-        {
-            usedLegacyManagerFallback = true;
-            managerEmployee = await dbContext.Employees
-                .AsNoTracking()
-                .FirstOrDefaultAsync(x => x.Id == employee.ManagerId.Value, cancellationToken);
-
-            managerEmployment = managerEmployee is null
-                ? null
-                : await workforceCanonicalResolver.GetCurrentEmploymentAsync(managerEmployee.Id, at, cancellationToken)
-                    ?? await dbContext.Employments
-                        .AsNoTracking()
-                        .Where(x => x.EmployeeId == managerEmployee.Id)
-                        .OrderByDescending(x => x.EffectiveFrom)
-                        .FirstOrDefaultAsync(cancellationToken)
-                    ?? (managerEmployee.HireDate != default ? CreateLegacyEmploymentFallback(managerEmployee) : null);
-
-            manager = new PrimaryManagerSnapshot(
-                Guid.NewGuid(),
-                employee.ManagerId.Value,
-                assignment?.WorkAssignmentId ?? Guid.NewGuid(),
-                Guid.NewGuid(),
-                employment?.EffectiveFrom ?? employee.HireDate,
-                employment?.EffectiveTo);
-        }
 
         var canonicalDirectReportCount = await dbContext.ManagerRelationships
             .AsNoTracking()
             .CountAsync(
                 x => x.ManagerEmployeeId == employee.Id
-                    && x.Type == ReportingRelationshipType.PrimaryManager
                     && x.EffectiveFrom <= at
                     && (x.EffectiveTo == null || at < x.EffectiveTo),
                 cancellationToken);
-
-        var directReportCount = canonicalDirectReportCount > 0
-            ? canonicalDirectReportCount
-            : await dbContext.Employees
-                .AsNoTracking()
-                .CountAsync(x => x.ManagerId == employee.Id && x.Status == EmployeeStatus.Active, cancellationToken);
+        var directReportCount = canonicalDirectReportCount;
 
         var employmentCount = await dbContext.Employments
             .AsNoTracking()
@@ -452,21 +352,6 @@ public sealed class EmployeeDetailsReadModelService(
         var managerRelationshipCount = await dbContext.ManagerRelationships
             .AsNoTracking()
             .CountAsync(x => x.SubjectEmployeeId == employee.Id, cancellationToken);
-
-        if (employmentCount == 0 && usedLegacyEmploymentFallback)
-        {
-            employmentCount = 1;
-        }
-
-        if (workAssignmentCount == 0 && usedLegacyAssignmentFallback)
-        {
-            workAssignmentCount = 1;
-        }
-
-        if (managerRelationshipCount == 0 && usedLegacyManagerFallback)
-        {
-            managerRelationshipCount = 1;
-        }
 
         var hierarchyStatus = manager switch
         {
@@ -495,23 +380,6 @@ public sealed class EmployeeDetailsReadModelService(
         => employment?.Status == EmploymentStatus.Active
             ? EmployeeStatus.Active
             : EmployeeStatus.Inactive;
-
-    private static Employment CreateLegacyEmploymentFallback(Employee employee)
-    {
-        var employment = Employment.Start(
-            employee.TenantId,
-            employee.Id,
-            employee.HireDate,
-            employee.EmploymentType,
-            WorkforceSourceType.Migration);
-
-        if (employee.Status == EmployeeStatus.Inactive)
-        {
-            employment.End(employee.UpdatedAt ?? DateTime.UtcNow);
-        }
-
-        return employment;
-    }
 }
 
 internal sealed record CanonicalEmployeeReadFacts(

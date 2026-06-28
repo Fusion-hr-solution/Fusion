@@ -1,5 +1,4 @@
 using System;
-using EY.HRPlatform.CoreHR.Domain.Enums;
 using EY.HRPlatform.CoreHR.Features.Employees.Dtos;
 using EY.HRPlatform.CoreHR.Features.Employees.Services;
 using EY.HRPlatform.CoreHR.Features.Workforce.Services;
@@ -30,10 +29,6 @@ public sealed class GetEmployeeReportingLinesByKeyQueryHandler(
 
         var at = DateTime.UtcNow;
         var managerChainIds = (await workforceCanonicalResolver.GetManagerChainAsync(employee.Id, at, 50, cancellationToken)).ToList();
-        if (managerChainIds.Count == 0)
-        {
-            managerChainIds = await BuildLegacyManagerChainAsync(employee, cancellationToken);
-        }
 
         var downline = await BuildDownlineAsync(employee.Id, at, cancellationToken);
         var relevantEmployeeIds = managerChainIds
@@ -95,16 +90,10 @@ public sealed class GetEmployeeReportingLinesByKeyQueryHandler(
     {
         var activeRelationships = await dbContext.ManagerRelationships
             .AsNoTracking()
-            .Where(current => current.Type == ReportingRelationshipType.PrimaryManager
-                && current.EffectiveFrom <= asOf
+            .Where(current => current.EffectiveFrom <= asOf
                 && (current.EffectiveTo == null || asOf < current.EffectiveTo))
             .Select(current => new { current.SubjectEmployeeId, current.ManagerEmployeeId })
             .ToListAsync(cancellationToken);
-
-        if (activeRelationships.Count == 0)
-        {
-            return await BuildLegacyDownlineAsync(employeeId, cancellationToken);
-        }
 
         var reportsByManager = activeRelationships.ToLookup(current => current.ManagerEmployeeId, current => current.SubjectEmployeeId);
         var visited = new HashSet<Guid> { employeeId };
@@ -127,68 +116,6 @@ public sealed class GetEmployeeReportingLinesByKeyQueryHandler(
                     downline.Add((directReportId, depth));
                     nextManagerIds.Add(directReportId);
                 }
-            }
-
-            currentManagerIds = nextManagerIds;
-            depth++;
-        }
-
-        return downline;
-    }
-
-    private async Task<List<Guid>> BuildLegacyManagerChainAsync(
-        Domain.Entities.Employee employee,
-        CancellationToken cancellationToken)
-    {
-        var chain = new List<Guid>();
-        var visited = new HashSet<Guid> { employee.Id };
-        var currentManagerId = employee.ManagerId;
-
-        while (currentManagerId.HasValue && visited.Add(currentManagerId.Value))
-        {
-            chain.Add(currentManagerId.Value);
-            currentManagerId = await dbContext.Employees
-                .AsNoTracking()
-                .Where(current => current.Id == currentManagerId.Value)
-                .Select(current => current.ManagerId)
-                .FirstOrDefaultAsync(cancellationToken);
-        }
-
-        return chain;
-    }
-
-    private async Task<List<(Guid EmployeeId, int Depth)>> BuildLegacyDownlineAsync(
-        Guid employeeId,
-        CancellationToken cancellationToken)
-    {
-        var downline = new List<(Guid EmployeeId, int Depth)>();
-        var currentManagerIds = new List<Guid> { employeeId };
-        var visited = new HashSet<Guid> { employeeId };
-        var depth = 1;
-
-        while (currentManagerIds.Count > 0)
-        {
-            var directReportIds = await dbContext.Employees
-                .AsNoTracking()
-                .Where(current => current.ManagerId.HasValue && currentManagerIds.Contains(current.ManagerId.Value))
-                .Select(current => current.Id)
-                .ToListAsync(cancellationToken);
-
-            if (directReportIds.Count == 0)
-            {
-                break;
-            }
-
-            var nextManagerIds = new List<Guid>();
-            foreach (var directReportId in directReportIds)
-            {
-                if (!visited.Add(directReportId))
-                {
-                    continue;
-                }
-
-                downline.Add((directReportId, depth));
-                nextManagerIds.Add(directReportId);
             }
 
             currentManagerIds = nextManagerIds;

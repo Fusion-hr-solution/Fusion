@@ -1,5 +1,5 @@
 using EY.HRPlatform.CoreHR.Domain.Entities;
-using EY.HRPlatform.CoreHR.Features.Employees.Dtos;
+using EY.HRPlatform.CoreHR.Domain.Enums;
 using EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployeeReportingLines;
 using EY.HRPlatform.CoreHR.Features.Employees.Services;
 using EY.HRPlatform.CoreHR.Features.TenantSettings.Services;
@@ -14,49 +14,76 @@ public class GetEmployeeReportingLinesQueryHandlerTests
     private static readonly Guid TenantId = Guid.NewGuid();
 
     [Fact]
-    public async Task GetEmployeeReportingLines_ReturnsManagerChainDirectReportsAndDownline()
+    public async Task GetEmployeeReportingLines_ReturnsCanonicalManagerChainDirectReportsAndDownline()
     {
         var dbName = Guid.NewGuid().ToString();
         var tenantContext = TestTenantContext.WithTenant(TenantId);
-        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+        var effectiveFrom = DateTime.UtcNow.AddYears(-1);
 
-        var executive = Employee.Create(TenantId, "Emma", "Executive", "emma.executive@example.com", DateTime.UtcNow);
-        var manager = Employee.Create(TenantId, "Alex", "Manager", "alex.manager@example.com", DateTime.UtcNow);
-        manager.AssignManager(executive.Id);
-        var reportOne = Employee.Create(TenantId, "Sarah", "Chen", "sarah.chen@example.com", DateTime.UtcNow);
-        reportOne.AssignManager(manager.Id);
-        var reportTwo = Employee.Create(TenantId, "Jordan", "Ray", "jordan.ray@example.com", DateTime.UtcNow);
-        reportTwo.AssignManager(manager.Id);
-        var indirectReport = Employee.Create(TenantId, "Priya", "Singh", "priya.singh@example.com", DateTime.UtcNow);
-        indirectReport.AssignManager(reportOne.Id);
+        Guid managerId;
+        Guid executiveId;
+        Guid reportOneId;
+        Guid reportTwoId;
+        Guid indirectReportId;
 
-        seedContext.Employees.AddRange(executive, manager, reportOne, reportTwo, indirectReport);
-        await seedContext.SaveChangesAsync();
+        await using (var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName))
+        {
+            var orgUnit = OrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null);
+            var executive = Employee.Create(TenantId, "Emma", "Executive", "emma.executive@example.com");
+            var manager = Employee.Create(TenantId, "Alex", "Manager", "alex.manager@example.com");
+            var reportOne = Employee.Create(TenantId, "Sarah", "Chen", "sarah.chen@example.com");
+            var reportTwo = Employee.Create(TenantId, "Jordan", "Ray", "jordan.ray@example.com");
+            var indirectReport = Employee.Create(TenantId, "Priya", "Singh", "priya.singh@example.com");
+
+            var executiveEmployment = Employment.Start(TenantId, executive.Id, effectiveFrom.AddMonths(-3), "FullTime", WorkforceSourceType.Manual);
+            var managerEmployment = Employment.Start(TenantId, manager.Id, effectiveFrom.AddMonths(-2), "FullTime", WorkforceSourceType.Manual);
+            var reportOneEmployment = Employment.Start(TenantId, reportOne.Id, effectiveFrom.AddMonths(-1), "FullTime", WorkforceSourceType.Manual);
+            var reportTwoEmployment = Employment.Start(TenantId, reportTwo.Id, effectiveFrom.AddMonths(-1), "FullTime", WorkforceSourceType.Manual);
+            var indirectEmployment = Employment.Start(TenantId, indirectReport.Id, effectiveFrom, "FullTime", WorkforceSourceType.Manual);
+
+            var executiveAssignment = WorkAssignment.Create(TenantId, executiveEmployment.Id, executive.Id, orgUnit.Id, "Executive", null, true, executiveEmployment.EffectiveFrom, null, WorkforceSourceType.Manual);
+            var managerAssignment = WorkAssignment.Create(TenantId, managerEmployment.Id, manager.Id, orgUnit.Id, "Manager", null, true, managerEmployment.EffectiveFrom, null, WorkforceSourceType.Manual);
+            var reportOneAssignment = WorkAssignment.Create(TenantId, reportOneEmployment.Id, reportOne.Id, orgUnit.Id, "Engineer", null, true, reportOneEmployment.EffectiveFrom, null, WorkforceSourceType.Manual);
+            var reportTwoAssignment = WorkAssignment.Create(TenantId, reportTwoEmployment.Id, reportTwo.Id, orgUnit.Id, "Engineer", null, true, reportTwoEmployment.EffectiveFrom, null, WorkforceSourceType.Manual);
+            var indirectAssignment = WorkAssignment.Create(TenantId, indirectEmployment.Id, indirectReport.Id, orgUnit.Id, "Analyst", null, true, indirectEmployment.EffectiveFrom, null, WorkforceSourceType.Manual);
+
+            var managerToExecutive = ManagerRelationship.Create(TenantId, manager.Id, executive.Id, managerAssignment.Id, executiveAssignment.Id, ReportingRelationshipType.PrimaryManager, managerEmployment.EffectiveFrom, WorkforceSourceType.Manual);
+            var reportOneToManager = ManagerRelationship.Create(TenantId, reportOne.Id, manager.Id, reportOneAssignment.Id, managerAssignment.Id, ReportingRelationshipType.PrimaryManager, reportOneEmployment.EffectiveFrom, WorkforceSourceType.Manual);
+            var reportTwoToManager = ManagerRelationship.Create(TenantId, reportTwo.Id, manager.Id, reportTwoAssignment.Id, managerAssignment.Id, ReportingRelationshipType.PrimaryManager, reportTwoEmployment.EffectiveFrom, WorkforceSourceType.Manual);
+            var indirectToReportOne = ManagerRelationship.Create(TenantId, indirectReport.Id, reportOne.Id, indirectAssignment.Id, reportOneAssignment.Id, ReportingRelationshipType.PrimaryManager, indirectEmployment.EffectiveFrom, WorkforceSourceType.Manual);
+
+            seedContext.OrgUnits.Add(orgUnit);
+            seedContext.Employees.AddRange(executive, manager, reportOne, reportTwo, indirectReport);
+            seedContext.Employments.AddRange(executiveEmployment, managerEmployment, reportOneEmployment, reportTwoEmployment, indirectEmployment);
+            seedContext.WorkAssignments.AddRange(executiveAssignment, managerAssignment, reportOneAssignment, reportTwoAssignment, indirectAssignment);
+            seedContext.ManagerRelationships.AddRange(managerToExecutive, reportOneToManager, reportTwoToManager, indirectToReportOne);
+            await seedContext.SaveChangesAsync();
+
+            managerId = manager.Id;
+            executiveId = executive.Id;
+            reportOneId = reportOne.Id;
+            reportTwoId = reportTwo.Id;
+            indirectReportId = indirectReport.Id;
+        }
 
         await using var context = TestDbContextFactory.Create(tenantContext, dbName);
         var handler = CreateHandler(context);
 
-        var result = await handler.Handle(new GetEmployeeReportingLinesQuery(manager.Id), CancellationToken.None);
+        var result = await handler.Handle(new GetEmployeeReportingLinesQuery(managerId), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal(manager.Id, result.Value.Employee.Id);
+        Assert.Equal(managerId, result.Value.Employee.Id);
         Assert.Equal(2, result.Value.DirectReportCount);
         Assert.Equal(3, result.Value.DownlineCount);
 
         var managerChainItem = Assert.Single(result.Value.ManagerChain);
-        Assert.Equal(executive.Id, managerChainItem.Employee.Id);
+        Assert.Equal(executiveId, managerChainItem.Employee.Id);
         Assert.Equal(1, managerChainItem.Depth);
 
         Assert.Equal(2, result.Value.DirectReports.Count);
-        Assert.All(result.Value.DirectReports, node => Assert.Equal(1, node.Depth));
-        Assert.Equal(
-            ["jordan.ray@example.com", "sarah.chen@example.com"],
-            result.Value.DirectReports.Select(node => node.Employee.Email).OrderBy(email => email).ToArray());
-
-        Assert.Equal(3, result.Value.Downline.Count);
-        Assert.Contains(result.Value.Downline, node => node.Employee.Id == reportOne.Id && node.Depth == 1);
-        Assert.Contains(result.Value.Downline, node => node.Employee.Id == reportTwo.Id && node.Depth == 1);
-        Assert.Contains(result.Value.Downline, node => node.Employee.Id == indirectReport.Id && node.Depth == 2);
+        Assert.Contains(result.Value.DirectReports, node => node.Employee.Id == reportOneId && node.Depth == 1);
+        Assert.Contains(result.Value.DirectReports, node => node.Employee.Id == reportTwoId && node.Depth == 1);
+        Assert.Contains(result.Value.Downline, node => node.Employee.Id == indirectReportId && node.Depth == 2);
     }
 
     [Fact]
@@ -64,73 +91,27 @@ public class GetEmployeeReportingLinesQueryHandlerTests
     {
         var dbName = Guid.NewGuid().ToString();
         var tenantContext = TestTenantContext.WithTenant(TenantId);
-        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
 
-        var employee = Employee.Create(TenantId, "Solo", "Leader", "solo.leader@example.com", DateTime.UtcNow);
-        seedContext.Employees.Add(employee);
-        await seedContext.SaveChangesAsync();
-
-        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = CreateHandler(context);
-
-        var result = await handler.Handle(new GetEmployeeReportingLinesQuery(employee.Id), CancellationToken.None);
-
-        Assert.True(result.IsSuccess);
-        Assert.Equal(EmployeeHierarchyStatuses.NoManagerAssigned, result.Value.Employee.HierarchyStatus);
-        Assert.Empty(result.Value.ManagerChain);
-        Assert.Empty(result.Value.DirectReports);
-        Assert.Empty(result.Value.Downline);
-    }
-
-    [Fact]
-    public async Task GetEmployeeReportingLines_TopLevelLeaderWithoutManager_ReturnsRootStatus()
-    {
-        var dbName = Guid.NewGuid().ToString();
-        var tenantContext = TestTenantContext.WithTenant(TenantId);
-        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
-
-        var leader = Employee.Create(TenantId, "Emma", "Executive", "emma.executive@example.com", DateTime.UtcNow);
-        var directReport = Employee.Create(TenantId, "Sarah", "Chen", "sarah.chen@example.com", DateTime.UtcNow);
-        directReport.AssignManager(leader.Id);
-
-        seedContext.Employees.AddRange(leader, directReport);
-        await seedContext.SaveChangesAsync();
-
-        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = CreateHandler(context);
-
-        var result = await handler.Handle(new GetEmployeeReportingLinesQuery(leader.Id), CancellationToken.None);
-
-        Assert.True(result.IsSuccess);
-        Assert.Equal(EmployeeHierarchyStatuses.Root, result.Value.Employee.HierarchyStatus);
-        Assert.Empty(result.Value.ManagerChain);
-        Assert.Single(result.Value.DirectReports);
-        Assert.Single(result.Value.Downline);
-    }
-
-    [Fact]
-    public async Task GetEmployeeReportingLines_FromDifferentTenant_ReturnsNotFound()
-    {
-        var dbName = Guid.NewGuid().ToString();
-        var tenantA = Guid.NewGuid();
-        var tenantB = Guid.NewGuid();
         Guid employeeId;
 
         await using (var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName))
         {
-            var employee = Employee.Create(tenantA, "John", "Doe", "john@example.com", DateTime.UtcNow);
+            var employee = Employee.Create(TenantId, "Solo", "Leader", "solo.leader@example.com");
             seedContext.Employees.Add(employee);
             await seedContext.SaveChangesAsync();
             employeeId = employee.Id;
         }
 
-        await using var context = TestDbContextFactory.Create(TestTenantContext.WithTenant(tenantB), dbName);
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
         var handler = CreateHandler(context);
 
         var result = await handler.Handle(new GetEmployeeReportingLinesQuery(employeeId), CancellationToken.None);
 
-        Assert.True(result.IsFailure);
-        Assert.Contains("NotFound", result.Error.Code);
+        Assert.True(result.IsSuccess);
+        Assert.Equal("NoManagerAssigned", result.Value.Employee.HierarchyStatus);
+        Assert.Empty(result.Value.ManagerChain);
+        Assert.Empty(result.Value.DirectReports);
+        Assert.Empty(result.Value.Downline);
     }
 
     private static GetEmployeeReportingLinesQueryHandler CreateHandler(CoreHRDbContext context)

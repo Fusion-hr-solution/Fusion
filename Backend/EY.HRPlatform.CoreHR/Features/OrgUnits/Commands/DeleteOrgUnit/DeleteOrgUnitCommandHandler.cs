@@ -66,8 +66,20 @@ public sealed class DeleteOrgUnitCommandHandler(
         }
 
         // Check 2: Assigned active employees
-        var hasAssignedEmployees = await dbContext.Employees
-            .AnyAsync(e => e.OrgUnitId == orgUnitId && e.Status == EmployeeStatus.Active, cancellationToken);
+        var now = DateTime.UtcNow;
+        var hasAssignedEmployees = await dbContext.WorkAssignments
+            .AsNoTracking()
+            .Join(
+                dbContext.Employments.AsNoTracking(),
+                assignment => assignment.EmploymentId,
+                employment => employment.Id,
+                (assignment, employment) => new { assignment.OrgUnitId, Employment = employment })
+            .AnyAsync(
+                x => x.OrgUnitId == orgUnitId
+                    && x.Employment.Status == EmploymentStatus.Active
+                    && x.Employment.EffectiveFrom <= now
+                    && (x.Employment.EffectiveTo == null || now < x.Employment.EffectiveTo),
+                cancellationToken);
 
         if (hasAssignedEmployees)
         {

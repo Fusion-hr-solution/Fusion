@@ -17,6 +17,23 @@ public sealed record EmployeeImportSourceRowDto(
     int RowNumber,
     IReadOnlyDictionary<string, string?> Values);
 
+/// <summary>
+/// How a validated import row maps onto canonical workforce facts. The label is the row's primary
+/// (most operationally significant) classification; the full set of detected changes is carried by
+/// the row's change flags and published atomically regardless of the headline label.
+/// </summary>
+public enum EmployeeImportRowClassification
+{
+    Create,
+    Unchanged,
+    ProfileCorrection,
+    EmploymentChange,
+    WorkAssignmentChange,
+    ManagerChange,
+    Invalid,
+    Conflicting
+}
+
 public sealed record EmployeeImportValidationIssueDto(
     int RowNumber,
     string? Field,
@@ -47,7 +64,11 @@ public sealed record EmployeeImportPreviewRowDto(
     string? EmploymentType,
     string? OrgUnitCode,
     string? ManagerEmail,
-    string? EffectiveDate = null);
+    string? EffectiveDate = null,
+    EmployeeImportRowClassification? Classification = null,
+    string? ResolvedEffectiveDate = null,
+    Guid? MatchedEmployeeId = null,
+    IReadOnlyList<string>? ChangedFacts = null);
 
 public sealed record EmployeeImportActorDto(
     Guid UserId,
@@ -59,9 +80,9 @@ public sealed record EmployeeImportApplyResultDto(
     Guid HistoryId,
     string SourceFileName,
     int SourceRowCount,
-    int ValidRowCount,
+    int ValidatedRowCount,
     int CreatedCount,
-    int SkippedCount,
+    int PublishedRowCount,
     DateTime AppliedAt,
     EmployeeImportStage Stage);
 
@@ -71,9 +92,10 @@ public sealed record EmployeeImportHistoryListItemDto(
     string SourceFileName,
     long SourceFileSizeBytes,
     int SourceRowCount,
-    int ValidRowCount,
+    int ValidatedRowCount,
     int CreatedCount,
-    int SkippedCount,
+    int UnchangedRowCount,
+    int PublishedRowCount,
     string Status,
     DateTime AppliedAt,
     Guid ActorUserId,
@@ -90,9 +112,10 @@ public sealed record EmployeeImportHistoryDetailDto(
     string SourceFileName,
     long SourceFileSizeBytes,
     int SourceRowCount,
-    int ValidRowCount,
+    int ValidatedRowCount,
     int CreatedCount,
-    int SkippedCount,
+    int UnchangedRowCount,
+    int PublishedRowCount,
     string Status,
     DateTime AppliedAt,
     Guid ActorUserId,

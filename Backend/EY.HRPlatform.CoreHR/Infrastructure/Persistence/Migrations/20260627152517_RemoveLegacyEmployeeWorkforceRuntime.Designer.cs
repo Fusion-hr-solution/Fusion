@@ -3,6 +3,7 @@ using System;
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace EY.HRPlatform.CoreHR.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(CoreHRDbContext))]
-    partial class CoreHRDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260627152517_RemoveLegacyEmployeeWorkforceRuntime")]
+    partial class RemoveLegacyEmployeeWorkforceRuntime
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -385,11 +388,11 @@ namespace EY.HRPlatform.CoreHR.Infrastructure.Persistence.Migrations
                         .HasMaxLength(2048)
                         .HasColumnType("character varying(2048)");
 
-                    b.Property<int>("PublishedRowCount")
-                        .HasColumnType("integer");
-
                     b.Property<Guid>("SessionId")
                         .HasColumnType("uuid");
+
+                    b.Property<int>("SkippedCount")
+                        .HasColumnType("integer");
 
                     b.Property<string>("SourceFileName")
                         .IsRequired()
@@ -410,9 +413,6 @@ namespace EY.HRPlatform.CoreHR.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid");
 
-                    b.Property<int>("UnchangedRowCount")
-                        .HasColumnType("integer");
-
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -420,7 +420,7 @@ namespace EY.HRPlatform.CoreHR.Infrastructure.Persistence.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
 
-                    b.Property<int>("ValidatedRowCount")
+                    b.Property<int>("ValidRowCount")
                         .HasColumnType("integer");
 
                     b.Property<uint>("Version")

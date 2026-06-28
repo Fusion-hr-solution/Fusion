@@ -1,4 +1,5 @@
 using EY.HRPlatform.CoreHR.Domain.Entities;
+using EY.HRPlatform.CoreHR.Domain.Enums;
 using EY.HRPlatform.CoreHR.Exceptions;
 using EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployees;
 using EY.HRPlatform.CoreHR.Features.OrgUnits.Commands.CreateOrgUnit;
@@ -346,12 +347,18 @@ public class OrgUnitHandlerTests
             var childA = Employee.Create(TenantId, "Child", "Alpha", "ca@example.com", DateTime.UtcNow, employeeNumber: "T-2");
             var childB = Employee.Create(TenantId, "Child", "Beta", "cb@example.com", DateTime.UtcNow, employeeNumber: "T-3");
             var childGone = Employee.Create(TenantId, "Child", "Gone", "cg@example.com", DateTime.UtcNow, employeeNumber: "T-4");
-            rootMember.AssignOrgUnit(root.Id);
-            childA.AssignOrgUnit(child.Id);
-            childB.AssignOrgUnit(child.Id);
-            childGone.AssignOrgUnit(child.Id);
-            childGone.Deactivate();
+            var rootEmployment = Employment.Start(TenantId, rootMember.Id, DateTime.UtcNow.AddMonths(-6), "FullTime", WorkforceSourceType.Manual);
+            var childAEmployment = Employment.Start(TenantId, childA.Id, DateTime.UtcNow.AddMonths(-6), "FullTime", WorkforceSourceType.Manual);
+            var childBEmployment = Employment.Start(TenantId, childB.Id, DateTime.UtcNow.AddMonths(-6), "FullTime", WorkforceSourceType.Manual);
+            var childGoneEmployment = Employment.Start(TenantId, childGone.Id, DateTime.UtcNow.AddMonths(-6), "FullTime", WorkforceSourceType.Manual);
+            childGoneEmployment.End(DateTime.UtcNow.AddDays(-1));
+            var rootAssignment = WorkAssignment.Create(TenantId, rootEmployment.Id, rootMember.Id, root.Id, "Lead", null, true, rootEmployment.EffectiveFrom, null, WorkforceSourceType.Manual);
+            var childAAssignment = WorkAssignment.Create(TenantId, childAEmployment.Id, childA.Id, child.Id, "Engineer", null, true, childAEmployment.EffectiveFrom, null, WorkforceSourceType.Manual);
+            var childBAssignment = WorkAssignment.Create(TenantId, childBEmployment.Id, childB.Id, child.Id, "Engineer", null, true, childBEmployment.EffectiveFrom, null, WorkforceSourceType.Manual);
+            var childGoneAssignment = WorkAssignment.Create(TenantId, childGoneEmployment.Id, childGone.Id, child.Id, "Engineer", null, true, childGoneEmployment.EffectiveFrom, childGoneEmployment.EffectiveTo, WorkforceSourceType.Manual);
             seed.Employees.AddRange(rootMember, childA, childB, childGone);
+            seed.Employments.AddRange(rootEmployment, childAEmployment, childBEmployment, childGoneEmployment);
+            seed.WorkAssignments.AddRange(rootAssignment, childAAssignment, childBAssignment, childGoneAssignment);
             await seed.SaveChangesAsync();
         }
 
@@ -698,8 +705,11 @@ public class OrgUnitHandlerTests
         await seedContext.SaveChangesAsync();
 
         var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", DateTime.UtcNow);
-        employee.AssignOrgUnit(orgUnit.Id);
+        var employment = Employment.Start(TenantId, employee.Id, DateTime.UtcNow.AddMonths(-1), "FullTime", WorkforceSourceType.Manual);
+        var assignment = WorkAssignment.Create(TenantId, employment.Id, employee.Id, orgUnit.Id, "Engineer", null, true, employment.EffectiveFrom, null, WorkforceSourceType.Manual);
         seedContext.Employees.Add(employee);
+        seedContext.Employments.Add(employment);
+        seedContext.WorkAssignments.Add(assignment);
         await seedContext.SaveChangesAsync();
 
         var version = orgUnit.Version;

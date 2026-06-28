@@ -8,7 +8,6 @@ using EY.HRPlatform.CoreHR.Features.TenantSettings.Services;
 using EY.HRPlatform.CoreHR.Features.TenantSetup.Services;
 using EY.HRPlatform.CoreHR.Features.Security;
 using EY.HRPlatform.CoreHR.Features.Workforce.Services;
-using EY.HRPlatform.CoreHR.Infrastructure.Backfill;
 using EY.HRPlatform.SharedKernel.Multitenancy;
 using EY.HRPlatform.SharedKernel.Security;
 using Microsoft.EntityFrameworkCore;
@@ -57,9 +56,7 @@ public static class ServiceCollectionExtensions
         });
 
         services.AddScoped<IDraftStructureImportWorkflowService, DraftStructureImportWorkflowService>();
-        services.AddScoped<IEmployeeHierarchyService, EmployeeHierarchyService>();
         services.AddScoped<IEmployeeDetailsReadModelService, EmployeeDetailsReadModelService>();
-        services.AddScoped<IEmployeeReadModelPolicy, EmployeeReadModelPolicy>();
         services.AddScoped<ICoreAccessPolicyService, CoreAccessPolicyService>();
         services.AddScoped<ITenantSettingsReadService, TenantSettingsReadService>();
         services.AddScoped<ISettingsSectionRegistry, SettingsSectionRegistry>();
@@ -67,25 +64,10 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IEmployeeImportWorkflowService, EmployeeImportWorkflowService>();
         services.AddScoped<IWorkforceContractService, WorkforceContractService>();
         services.AddScoped<ICampaignWorkforceContextService, CampaignWorkforceContextService>();
-        services.AddScoped<IReportingRelationshipService, ReportingRelationshipService>();
+        services.AddScoped<IInternalWorkforceSnapshotService, InternalWorkforceSnapshotService>();
         services.AddScoped<IWorkforceCanonicalResolver, WorkforceCanonicalResolver>();
         services.AddScoped<IWorkforceMutationService, WorkforceMutationService>();
         services.AddScoped<IResponsibleManagerService, ResponsibleManagerService>();
-
-        // Migration-only canonical backfill — removed in the Phase 3 cleanup of this change.
-        services.AddScoped<IWorkforceBackfillService, WorkforceBackfillService>();
-
-        services.AddHttpClient<IWorkforceBulkProvisioner, WorkforceBulkProvisioner>(client =>
-        {
-            var baseUrl = configuration["ServiceUrls:IdentityApiBaseUrl"];
-            if (string.IsNullOrWhiteSpace(baseUrl))
-            {
-                throw new InvalidOperationException(
-                    "ServiceUrls:IdentityApiBaseUrl is not configured. Set it via environment variable or appsettings.");
-            }
-
-            client.BaseAddress = new Uri(EnsureTrailingSlash(baseUrl));
-        });
 
         services.AddHttpClient<IWorkforceBulkProvisioner, WorkforceBulkProvisioner>(client =>
         {

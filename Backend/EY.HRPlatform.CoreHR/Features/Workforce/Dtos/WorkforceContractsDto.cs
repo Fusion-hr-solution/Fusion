@@ -105,6 +105,36 @@ public sealed record WorkforceEmployeesByScopeRequest(
     bool IncludeDescendants = true,
     bool IncludeInactive = false);
 
+public sealed record InternalWorkforceEmployeeSnapshotDto(
+    Guid EmployeeId,
+    string StableEmployeeKey,
+    string FullName,
+    string DisplayName,
+    string WorkEmail,
+    string? JobTitle,
+    bool IsActive,
+    InternalWorkforceOrgSnapshotDto? OrgUnit,
+    InternalWorkforceManagerSnapshotDto? Manager);
+
+public sealed record InternalWorkforceOrgSnapshotDto(
+    Guid OrgUnitId,
+    string Name);
+
+public sealed record InternalWorkforceManagerSnapshotDto(
+    Guid EmployeeId,
+    string DisplayName,
+    bool IsActive);
+
+public sealed record InternalWorkforceEmployeeResolveRequest(
+    DateTime AsOf,
+    IReadOnlyList<Guid> EmployeeIds);
+
+public sealed record InternalWorkforceEmployeesByScopeRequest(
+    DateTime AsOf,
+    IReadOnlyList<Guid> OrgUnitIds,
+    bool IncludeDescendants = true,
+    bool IncludeInactive = false);
+
 public sealed record WorkforceOrgUnitSummaryDto(
     Guid Id,
     string StableKey,

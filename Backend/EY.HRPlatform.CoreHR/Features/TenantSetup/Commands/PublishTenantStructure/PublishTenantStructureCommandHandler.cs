@@ -258,22 +258,8 @@ public sealed class PublishTenantStructureCommandHandler(
             .Select(x => new { x.EmployeeId, x.OrgUnitId })
             .ToListAsync(cancellationToken);
 
-        var canonicalEmployeeIds = canonicalBlocks
-            .Select(x => x.EmployeeId)
-            .ToHashSet();
-
-        var legacyBlocks = await dbContext.Employees
-            .AsNoTracking()
-            .Where(employee => employee.Status == Domain.Enums.EmployeeStatus.Active
-                && employee.OrgUnitId.HasValue
-                && retiredUnitIds.Contains(employee.OrgUnitId.Value)
-                && !canonicalEmployeeIds.Contains(employee.Id))
-            .Select(employee => new { employee.Id, OrgUnitId = employee.OrgUnitId!.Value })
-            .ToListAsync(cancellationToken);
-
         return canonicalBlocks
             .Select(x => new OrgUnitAssignmentBlock(x.OrgUnitId))
-            .Concat(legacyBlocks.Select(x => new OrgUnitAssignmentBlock(x.OrgUnitId)))
             .GroupBy(x => x.OrgUnitId)
             .Select(group => new OrgUnitAssignmentBlock(group.Key, group.Count()))
             .ToList();

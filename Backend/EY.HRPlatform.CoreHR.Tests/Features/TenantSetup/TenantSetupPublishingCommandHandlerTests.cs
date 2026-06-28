@@ -108,65 +108,6 @@ public class TenantSetupPublishingCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_WithRemovedLiveUnitAssignedToActiveEmployees_ThrowsInvalidTenantSetupStateException()
-    {
-        var dbName = Guid.NewGuid().ToString();
-        var tenantContext = TestTenantContext.WithTenant(TenantId);
-        uint expectedVersion;
-
-        await using (var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName))
-        {
-            var state = TenantSetupState.CreateActivated(TenantId);
-
-            seedContext.TenantSetupStates.Add(state);
-            seedContext.TenantSettings.Add(DomainTenantSettings.Create(TenantId, SettingsJson));
-
-            seedContext.DraftOrgUnits.Add(
-                DraftOrgUnit.Create(
-                    TenantId,
-                    "ENG",
-                    "Engineering",
-                    "department",
-                    null,
-                    null,
-                    null,
-                    null));
-
-            var legacyUnit = OrgUnit.Create(TenantId, "LEGACY", "Legacy Unit", "Department", null);
-            seedContext.OrgUnits.Add(legacyUnit);
-            await seedContext.SaveChangesAsync();
-
-            var assignedEmployee = Employee.Create(
-                TenantId,
-                "Jordan",
-                "Employee",
-                "jordan.employee@example.com",
-                DateTime.UtcNow,
-                employeeNumber: "E-200");
-            assignedEmployee.AssignOrgUnit(legacyUnit.Id);
-            seedContext.Employees.Add(assignedEmployee);
-            await seedContext.SaveChangesAsync();
-
-            expectedVersion = state.Version;
-        }
-
-        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new PublishTenantStructureCommandHandler(context);
-
-        var ex = await Assert.ThrowsAsync<InvalidTenantSetupStateException>(
-            () => handler.Handle(
-                new PublishTenantStructureCommand(
-                    expectedVersion,
-                    ActorUserId,
-                    "Jordan Approver",
-                    "HRAdmin",
-                    false),
-                CancellationToken.None));
-
-        Assert.Contains("LEGACY", ex.Message, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
     public async Task Handle_WithRemovedLiveUnitAssignedThroughCanonicalPrimaryWorkAssignment_ThrowsInvalidTenantSetupStateException()
     {
         var dbName = Guid.NewGuid().ToString();

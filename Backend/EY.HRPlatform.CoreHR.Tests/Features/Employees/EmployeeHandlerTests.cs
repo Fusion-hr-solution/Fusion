@@ -2,7 +2,6 @@ using EY.HRPlatform.CoreHR.Domain.Entities;
 using EY.HRPlatform.CoreHR.Domain.Enums;
 using EY.HRPlatform.CoreHR.Exceptions;
 using EY.HRPlatform.CoreHR.Features.Employees.Commands.CreateEmployee;
-using EY.HRPlatform.CoreHR.Features.Employees.Commands.DeactivateEmployee;
 using EY.HRPlatform.CoreHR.Features.Employees.Commands.UpdateOwnEmployeeProfile;
 using EY.HRPlatform.CoreHR.Features.Employees.Commands.UpdateEmployee;
 using EY.HRPlatform.CoreHR.Features.Employees.Services;
@@ -377,8 +376,11 @@ public class EmployeeHandlerTests
         seedContext.OrgUnits.Add(orgUnit);
 
         var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", DateTime.UtcNow);
-        employee.AssignOrgUnit(orgUnit.Id);
+        var employment = Employment.Start(TenantId, employee.Id, DateTime.UtcNow.AddMonths(-1), "FullTime", WorkforceSourceType.Manual);
+        var assignment = WorkAssignment.Create(TenantId, employment.Id, employee.Id, orgUnit.Id, "Engineer", null, true, employment.EffectiveFrom, null, WorkforceSourceType.Manual);
         seedContext.Employees.Add(employee);
+        seedContext.Employments.Add(employment);
+        seedContext.WorkAssignments.Add(assignment);
         await seedContext.SaveChangesAsync();
 
         await using var context = TestDbContextFactory.Create(tenantContext, dbName);
@@ -417,8 +419,6 @@ public class EmployeeHandlerTests
             employeeNumber: "EMP-001",
             workLocation: "Legacy Site",
             employmentType: "LegacyType");
-
-        employee.AssignOrgUnit(legacyOrgUnit.Id);
 
         var managerEmployment = Employment.Start(TenantId, manager.Id, DateTime.UtcNow.AddYears(-3), "FullTime", WorkforceSourceType.Manual);
         var managerAssignment = WorkAssignment.Create(
@@ -713,101 +713,6 @@ public class EmployeeHandlerTests
             handler.Handle(
                 new UpdateOwnEmployeeProfileCommand(employee.Id, 999, "Sally"),
                 CancellationToken.None));
-    }
-
-    #endregion
-
-    #region DeactivateEmployeeCommandHandler Tests
-
-    [Fact]
-    public async Task DeactivateEmployee_WhenActive_DeactivatesSuccessfully()
-    {
-        // Arrange
-        var dbName = Guid.NewGuid().ToString();
-        var tenantContext = TestTenantContext.WithTenant(TenantId);
-
-        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
-        var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", DateTime.UtcNow);
-        seedContext.Employees.Add(employee);
-        await seedContext.SaveChangesAsync();
-        var version = employee.Version;
-
-        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new DeactivateEmployeeCommandHandler(context, new EmployeeHierarchyService(context));
-        var command = new DeactivateEmployeeCommand(employee.Id, version);
-
-        // Act
-        var result = await handler.Handle(command, CancellationToken.None);
-
-        // Assert
-        Assert.True(result.IsSuccess);
-
-        var updated = await context.Employees.IgnoreQueryFilters().FirstAsync(e => e.Id == employee.Id);
-        Assert.Equal(EmployeeStatus.Inactive, updated.Status);
-    }
-
-    [Fact]
-    public async Task DeactivateEmployee_WhenNotExists_ThrowsEntityNotFoundException()
-    {
-        // Arrange
-        var tenantContext = TestTenantContext.WithTenant(TenantId);
-        await using var context = TestDbContextFactory.Create(tenantContext);
-
-        var handler = new DeactivateEmployeeCommandHandler(context, new EmployeeHierarchyService(context));
-        var command = new DeactivateEmployeeCommand(Guid.NewGuid(), 0);
-
-        // Act & Assert
-        await Assert.ThrowsAsync<EntityNotFoundException>(
-            () => handler.Handle(command, CancellationToken.None));
-    }
-
-    [Fact]
-    public async Task DeactivateEmployee_WithStaleVersion_ThrowsConcurrencyException()
-    {
-        // Arrange
-        var dbName = Guid.NewGuid().ToString();
-        var tenantContext = TestTenantContext.WithTenant(TenantId);
-
-        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
-        var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", DateTime.UtcNow);
-        seedContext.Employees.Add(employee);
-        await seedContext.SaveChangesAsync();
-
-        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new DeactivateEmployeeCommandHandler(context, new EmployeeHierarchyService(context));
-
-        // Use a stale version
-        var command = new DeactivateEmployeeCommand(employee.Id, 999);
-
-        // Act & Assert
-        await Assert.ThrowsAsync<ConcurrencyException>(
-            () => handler.Handle(command, CancellationToken.None));
-    }
-
-    [Fact]
-    public async Task DeactivateEmployee_WithActiveDirectReports_ThrowsArgumentException()
-    {
-        // Arrange
-        var dbName = Guid.NewGuid().ToString();
-        var tenantContext = TestTenantContext.WithTenant(TenantId);
-
-        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
-        var manager = Employee.Create(TenantId, "Alex", "Manager", "alex.manager@example.com", DateTime.UtcNow);
-        var report = Employee.Create(TenantId, "Sarah", "Report", "sarah.report@example.com", DateTime.UtcNow);
-        report.AssignManager(manager.Id);
-        seedContext.Employees.AddRange(manager, report);
-        await seedContext.SaveChangesAsync();
-        var managerVersion = manager.Version;
-
-        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new DeactivateEmployeeCommandHandler(context, new EmployeeHierarchyService(context));
-        var command = new DeactivateEmployeeCommand(manager.Id, managerVersion);
-
-        // Act & Assert
-        var exception = await Assert.ThrowsAsync<ArgumentException>(
-            () => handler.Handle(command, CancellationToken.None));
-
-        Assert.Contains("direct reports", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     #endregion

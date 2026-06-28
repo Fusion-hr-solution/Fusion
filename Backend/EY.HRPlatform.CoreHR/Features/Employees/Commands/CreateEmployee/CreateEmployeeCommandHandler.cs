@@ -87,12 +87,8 @@ public sealed class CreateEmployeeCommandHandler(
             request.FirstName,
             request.LastName,
             request.Email,
-            request.HireDate,
-            jobTitle: request.JobTitle,
             employeeNumber: request.EmployeeNumber,
-            phone: request.Phone,
-            workLocation: request.WorkLocation,
-            employmentType: request.EmploymentType);
+            phone: request.Phone);
 
         dbContext.Employees.Add(employee);
 

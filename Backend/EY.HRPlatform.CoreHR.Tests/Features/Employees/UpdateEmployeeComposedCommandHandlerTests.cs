@@ -20,14 +20,15 @@ public class UpdateEmployeeComposedCommandHandlerTests
         Guid sourceOrgUnitId;
         Guid targetOrgUnitId;
         uint version;
+        var hireDate = DateTime.UtcNow.AddYears(-2);
 
         await using (var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName))
         {
             var sourceOrgUnit = OrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null);
             var targetOrgUnit = OrgUnit.Create(TenantId, "OPS", "Operations", "Department", null);
-            var seededEmployee = Employee.Create(TenantId, "John", "Doe", "john@example.com", DateTime.UtcNow.AddYears(-2), jobTitle: "Developer", employeeNumber: "EMP-001", phone: "111", workLocation: "Tunis", employmentType: "FullTime");
+            var seededEmployee = Employee.Create(TenantId, "John", "Doe", "john@example.com", hireDate, jobTitle: "Developer", employeeNumber: "EMP-001", phone: "111", workLocation: "Tunis", employmentType: "FullTime");
             seededEmployee.UpdatePreferredName("Johnny");
-            var seededEmployment = Employment.Start(TenantId, seededEmployee.Id, seededEmployee.HireDate, "FullTime", WorkforceSourceType.Manual);
+            var seededEmployment = Employment.Start(TenantId, seededEmployee.Id, hireDate, "FullTime", WorkforceSourceType.Manual);
             var seededAssignment = WorkAssignment.Create(
                 TenantId,
                 seededEmployment.Id,
@@ -107,14 +108,16 @@ public class UpdateEmployeeComposedCommandHandlerTests
         Guid employeeId;
         Guid managerId;
         uint version;
+        var employeeHireDate = DateTime.UtcNow.AddYears(-2);
+        var managerHireDate = DateTime.UtcNow.AddYears(-3);
 
         await using (var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName))
         {
             var orgUnit = OrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null);
-            var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", DateTime.UtcNow.AddYears(-2), jobTitle: "Developer");
-            var manager = Employee.Create(TenantId, "Maya", "Lead", "maya@example.com", DateTime.UtcNow.AddYears(-3), jobTitle: "Manager");
-            var employeeEmployment = Employment.Start(TenantId, employee.Id, employee.HireDate, "FullTime", WorkforceSourceType.Manual);
-            var managerEmployment = Employment.Start(TenantId, manager.Id, manager.HireDate, "FullTime", WorkforceSourceType.Manual);
+            var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", employeeHireDate, jobTitle: "Developer");
+            var manager = Employee.Create(TenantId, "Maya", "Lead", "maya@example.com", managerHireDate, jobTitle: "Manager");
+            var employeeEmployment = Employment.Start(TenantId, employee.Id, employeeHireDate, "FullTime", WorkforceSourceType.Manual);
+            var managerEmployment = Employment.Start(TenantId, manager.Id, managerHireDate, "FullTime", WorkforceSourceType.Manual);
             var employeeAssignment = WorkAssignment.Create(TenantId, employeeEmployment.Id, employee.Id, orgUnit.Id, "Developer", "Tunis", true, employeeEmployment.EffectiveFrom, null, WorkforceSourceType.Manual);
             var managerAssignment = WorkAssignment.Create(TenantId, managerEmployment.Id, manager.Id, orgUnit.Id, "Manager", "Tunis", true, managerEmployment.EffectiveFrom, null, WorkforceSourceType.Manual);
 
@@ -154,12 +157,13 @@ public class UpdateEmployeeComposedCommandHandlerTests
 
         Guid employeeId;
         uint version;
+        var hireDate = DateTime.UtcNow.AddYears(-2);
 
         await using (var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName))
         {
             var orgUnit = OrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null);
-            var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", DateTime.UtcNow.AddYears(-2), jobTitle: "Developer");
-            var employment = Employment.Start(TenantId, employee.Id, employee.HireDate, "FullTime", WorkforceSourceType.Manual);
+            var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", hireDate, jobTitle: "Developer");
+            var employment = Employment.Start(TenantId, employee.Id, hireDate, "FullTime", WorkforceSourceType.Manual);
             var assignment = WorkAssignment.Create(TenantId, employment.Id, employee.Id, orgUnit.Id, "Developer", "Tunis", true, employment.EffectiveFrom, null, WorkforceSourceType.Manual);
 
             seedContext.OrgUnits.Add(orgUnit);

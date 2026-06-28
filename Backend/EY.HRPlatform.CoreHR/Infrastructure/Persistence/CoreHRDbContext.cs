@@ -41,11 +41,6 @@ public class CoreHRDbContext : DbContext
     public DbSet<ManagerRelationship> ManagerRelationships => Set<ManagerRelationship>();
     public DbSet<WorkforceAuditEntry> WorkforceAuditEntries => Set<WorkforceAuditEntry>();
 
-    // Provisional/legacy workforce entities — retired in the Phase 3 cleanup of this change.
-    public DbSet<Position> Positions => Set<Position>();
-    public DbSet<EmployeePositionAssignment> EmployeePositionAssignments => Set<EmployeePositionAssignment>();
-    public DbSet<EmployeeOrgMembership> EmployeeOrgMemberships => Set<EmployeeOrgMembership>();
-    public DbSet<EmployeeReportingRelationship> EmployeeReportingRelationships => Set<EmployeeReportingRelationship>();
     public DbSet<TenantSettings> TenantSettings => Set<TenantSettings>();
     public DbSet<OrgUnit> OrgUnits => Set<OrgUnit>();
     public DbSet<DraftOrgUnit> DraftOrgUnits => Set<DraftOrgUnit>();
@@ -88,18 +83,6 @@ public class CoreHRDbContext : DbContext
             .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
 
         modelBuilder.Entity<WorkforceAuditEntry>()
-            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
-
-        modelBuilder.Entity<Position>()
-            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
-
-        modelBuilder.Entity<EmployeePositionAssignment>()
-            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
-
-        modelBuilder.Entity<EmployeeOrgMembership>()
-            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
-
-        modelBuilder.Entity<EmployeeReportingRelationship>()
             .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
 
         modelBuilder.Entity<TenantSettings>()
