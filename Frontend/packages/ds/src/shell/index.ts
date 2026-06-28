@@ -12,6 +12,8 @@ export { ThemeProvider, ThemeToggle } from "./theme";
 export { LanguageSwitcher } from "./language-switcher";
 export { TopBar } from "./top-bar";
 export type { TopBarProps } from "./top-bar";
+export { AppBreadcrumb } from "./app-breadcrumb";
+export type { AppBreadcrumbProps } from "./app-breadcrumb";
 export { PageContainer, PageHeader, PageToolbar } from "./page";
 export type { PageContainerProps, PageHeaderProps, PageToolbarProps } from "./page";
 export { PageEmpty, PageError, PageLoading, PagePermissionNotice } from "./page-states";

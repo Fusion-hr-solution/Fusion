@@ -3,10 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import {
+  ChevronLeft,
+  ChevronRight,
   ChevronsUpDown,
   Lock,
-  PanelLeftClose,
-  PanelLeftOpen,
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import {
@@ -240,12 +240,12 @@ export function ModuleSidebar({
             type="button"
             onClick={() => setCollapsed((v) => !v)}
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            className="absolute -right-3 top-6 flex h-6 w-6 items-center justify-center rounded-full border border-sidebar-border bg-sidebar text-sidebar-foreground/70 shadow-sm transition-colors hover:text-sidebar-foreground z-50"
+            className="absolute -right-3 top-9 flex h-6 w-6 items-center justify-center rounded-full border border-sidebar-border bg-sidebar text-sidebar-foreground/70 shadow-sm transition-colors hover:text-sidebar-foreground z-50"
           >
             {collapsed ? (
-              <PanelLeftOpen className="h-3.5 w-3.5" />
+              <ChevronRight className="h-3.5 w-3.5" />
             ) : (
-              <PanelLeftClose className="h-3.5 w-3.5" />
+              <ChevronLeft className="h-3.5 w-3.5" />
             )}
           </button>
         ) : null}
