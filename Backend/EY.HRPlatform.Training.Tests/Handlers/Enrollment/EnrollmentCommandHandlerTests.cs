@@ -358,7 +358,7 @@ public class EnrollmentCommandHandlerTests
                 new SessionSelectionItem(part2Id, session2Id)
             ]), CancellationToken.None);
 
-        var markHandler = new MarkAttendanceCommandHandler(ctx);
+        var markHandler = new MarkAttendanceCommandHandler(ctx, new FakeAttendanceCompletionService());
         var result = await markHandler.Handle(
             new MarkAttendanceCommand(session1Id, employeeId), CancellationToken.None);
 
@@ -373,7 +373,7 @@ public class EnrollmentCommandHandlerTests
     public async Task MarkAttendance_Fails_WhenNotEnrolled()
     {
         var (ctx, _, _, _, session1Id, _) = await SeedAsync();
-        var markHandler = new MarkAttendanceCommandHandler(ctx);
+        var markHandler = new MarkAttendanceCommandHandler(ctx, new FakeAttendanceCompletionService());
 
         var result = await markHandler.Handle(
             new MarkAttendanceCommand(session1Id, Guid.NewGuid()), CancellationToken.None);
