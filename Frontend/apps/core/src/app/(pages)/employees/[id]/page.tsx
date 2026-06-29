@@ -3,7 +3,7 @@
 export const dynamic = "force-dynamic";
 
 import { useParams } from "next/navigation";
-import { Users, User } from "lucide-react";
+import { User } from "lucide-react";
 import {
   canAccessCoreAccess,
   canAccessCoreOrgChart,
@@ -12,10 +12,15 @@ import {
   canManageCoreReporting,
   useAuth,
 } from "@repo/auth";
-import { EmptyState } from "@repo/ui";
-import { CorePageLoadingState } from "@/components/core-page-loading-state";
+import {
+  PageContainer,
+  PageHeader,
+  PageEmpty,
+  PageError,
+  PageLoading,
+  PagePermissionNotice,
+} from "@repo/ds/shell";
 import { useTenantContext } from "@/shell/tenant-context/core-tenant-context-provider";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useBreadcrumbLabel } from "@/shell/breadcrumb-overrides";
 import { canAccessEmployeeProfile } from "@/lib/employee-roster-access";
 import { useTenantSettings } from "@/features/settings/api/use-tenant-settings";
@@ -87,12 +92,13 @@ export default function EmployeeProfilePage() {
 
   if (isInitialLoading) {
     return (
-      <CorePageLoadingState
-        title="Employee Profile"
-        description="Loading employee profile."
-        message="Loading employee profile..."
-        variant="summary-list"
-      />
+      <PageContainer width="wide" className="space-y-6">
+        <PageHeader
+          title="Employee Profile"
+          description="Loading employee profile."
+        />
+        <PageLoading rows={6} label="Loading employee profile..." />
+      </PageContainer>
     );
   }
 
@@ -100,13 +106,12 @@ export default function EmployeeProfilePage() {
 
   if (!isViewable) {
     return (
-      <div className="flex flex-col gap-6 p-6">
-        <EmptyState
-          icon={Users}
+      <PageContainer width="wide" className="space-y-6">
+        <PagePermissionNotice
           title="Employee profile is not available for this role"
           description="Contact a tenant HR administrator."
         />
-      </div>
+      </PageContainer>
     );
   }
 
@@ -117,9 +122,9 @@ export default function EmployeeProfilePage() {
       "status" in error && (error as { status?: number }).status === 403;
 
     return (
-      <div className="flex flex-col gap-6 p-6">
+      <PageContainer width="wide" className="space-y-6">
         {isNotFound || isForbidden ? (
-          <EmptyState
+          <PageEmpty
             icon={User}
             title={
               isForbidden
@@ -133,26 +138,24 @@ export default function EmployeeProfilePage() {
             }
           />
         ) : (
-          <Alert variant="destructive">
-            <AlertTitle>Failed to load employee profile</AlertTitle>
-            <AlertDescription>
-              Could not load profile. Try again in a moment.
-            </AlertDescription>
-          </Alert>
+          <PageError
+            title="Failed to load employee profile"
+            description="Could not load profile. Try again in a moment."
+          />
         )}
-      </div>
+      </PageContainer>
     );
   }
 
   if (!profile) {
     return (
-      <div className="flex flex-col gap-6 p-6">
-        <EmptyState
+      <PageContainer width="wide" className="space-y-6">
+        <PageEmpty
           icon={User}
           title="Employee profile unavailable"
           description="This employee profile is not available right now."
         />
-      </div>
+      </PageContainer>
     );
   }
 

@@ -128,6 +128,10 @@ export interface WorkforceOrgUnitTreeNodeDto {
   level: number;
   isActive: boolean;
   publishedStructureVersion: number;
+  /** Active employees assigned directly to this unit. */
+  memberCount: number;
+  /** Active employees in this unit and all descendant units. */
+  totalMemberCount: number;
   children: WorkforceOrgUnitTreeNodeDto[];
 }
 
@@ -174,6 +178,7 @@ export const coreWorkforcePaths = {
   accessSubjectsPreview: () => "/corehr/workforce/access-subjects/preview",
   bulkInvite: () => "/corehr/workforce/access-subjects/bulk-invite",
   team: (employeeId: string) => `/corehr/workforce/employees/${employeeId}/team`,
+  downline: (employeeId: string) => `/corehr/workforce/employees/${employeeId}/downline`,
   managerChain: (employeeId: string) => `/corehr/workforce/employees/${employeeId}/manager-chain`,
   orgUnits: () => "/corehr/workforce/org-units",
   orgUnitTree: () => "/corehr/workforce/org-units/tree",

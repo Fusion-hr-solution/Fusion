@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 
 import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { CorePageLoadingState } from "@/components/core-page-loading-state";
+import { PageContainer, PageHeader, PageLoading } from "@repo/ds/shell";
 
 export default function DraftStructureImportRedirectPage() {
   const router = useRouter();
@@ -17,11 +17,12 @@ export default function DraftStructureImportRedirectPage() {
   }, [router, searchParams]);
 
   return (
-    <CorePageLoadingState
-      title="Draft Structure Import"
-      description="Redirecting to the draft workspace..."
-      message="Opening the draft structure import workspace..."
-      variant="redirect"
-    />
+    <PageContainer width="wide" className="space-y-6">
+      <PageHeader
+        title="Draft Structure Import"
+        description="Redirecting to the draft workspace..."
+      />
+      <PageLoading rows={4} label="Opening the draft structure import workspace..." />
+    </PageContainer>
   );
 }

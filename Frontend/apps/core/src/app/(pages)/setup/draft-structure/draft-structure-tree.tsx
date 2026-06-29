@@ -190,7 +190,7 @@ function TreeBranch({
         className={cn(
           "group/tree-row rounded-2xl border border-transparent bg-background/80 transition-colors",
           isSelected
-            ? "border-border bg-accent/60"
+            ? "border-l-2 border-l-primary/70 bg-primary/5"
             : "hover:border-border/60 hover:bg-muted/15"
         )}
       >
