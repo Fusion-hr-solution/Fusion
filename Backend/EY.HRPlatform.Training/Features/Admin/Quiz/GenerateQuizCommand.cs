@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using EY.HRPlatform.SharedKernel.CQRS;
 using EY.HRPlatform.SharedKernel.Results;
@@ -50,15 +51,35 @@ public class GenerateQuizCommandHandler : ICommandHandler<GenerateQuizCommand, R
             return Result.Failure<QuizDraftDto>(Error.Validation(
                 "Quiz.LlmUnavailable", "AI quiz generation is not configured."));
 
-        var articles = await _db.Set<ContentBlock>().AsNoTracking()
-            .Where(cb => cb.Chapter.TrainingId == request.TrainingId && cb.Type == ContentType.Article)
+        var blocks = await _db.Set<ContentBlock>().AsNoTracking()
+            .Where(cb => cb.Chapter.TrainingId == request.TrainingId)
             .OrderBy(cb => cb.Chapter.OrderIndex).ThenBy(cb => cb.OrderIndex)
-            .Select(cb => new { cb.Title, cb.TextContent })
+            .Select(cb => new { ChapterTitle = cb.Chapter.Title, cb.Title, cb.Type, cb.TextContent })
             .ToListAsync(cancellationToken);
 
-        var context = string.Join("\n\n", articles
-                .Select(a => string.Join("\n", new[] { a.Title, a.TextContent }.Where(x => !string.IsNullOrWhiteSpace(x)))))
-            .Trim();
+        // Aggregate the WHOLE training: title + description + every chapter and content block. Any block
+        // that has stored text contributes it — Articles and Exercises today, and PDFs once their text is
+        // extracted at upload. Videos (and not-yet-extracted PDFs) contribute only their title + type.
+        var sb = new StringBuilder();
+        sb.AppendLine(training.Title);
+        if (!string.IsNullOrWhiteSpace(training.Description)) sb.AppendLine(training.Description);
+
+        string? currentChapter = null;
+        foreach (var b in blocks)
+        {
+            if (!string.Equals(b.ChapterTitle, currentChapter, StringComparison.Ordinal))
+            {
+                currentChapter = b.ChapterTitle;
+                if (!string.IsNullOrWhiteSpace(currentChapter))
+                    sb.AppendLine().AppendLine($"## {currentChapter}");
+            }
+            if (!string.IsNullOrWhiteSpace(b.Title))
+                sb.AppendLine(b.Type == ContentType.Article ? $"### {b.Title}" : $"### {b.Title} [{b.Type}]");
+            if (!string.IsNullOrWhiteSpace(b.TextContent))
+                sb.AppendLine(b.TextContent);
+        }
+
+        var context = sb.ToString().Trim();
         if (context.Length < MinContentChars)
             return Result.Failure<QuizDraftDto>(Error.Validation(
                 "Quiz.NoContent", "This training has too little text content to generate a quiz from."));
@@ -67,14 +88,23 @@ public class GenerateQuizCommandHandler : ICommandHandler<GenerateQuizCommand, R
 
         var count = Math.Clamp(request.Count, 1, 20);
 
-        // Headroom for the JSON of up to `count` questions (text + 4 options + explanation).
-        var maxTokens = 512 + count * 180;
+        // Generous headroom for the JSON of up to `count` questions (text + 4 options + explanation).
+        // Real opencode GO models emit ~350-400 completion tokens per MCQ, so a tight budget truncates
+        // the array → invalid JSON → generation fails. Scale well above the observed per-question cost.
+        var maxTokens = 1024 + count * 450;
+
+        // The LLM call legitimately takes 30-70s. Run it (and the draft save) on a standalone, bounded
+        // token rather than the request-abort token: a proxy in the dev chain can drop the long request
+        // mid-flight, but we still want the draft generated and persisted so the admin can retrieve it
+        // (the panel re-fetches the draft on open / polls for it after a dropped request).
+        using var genCts = new CancellationTokenSource(TimeSpan.FromSeconds(115));
+        var genToken = genCts.Token;
 
         List<QuizDraftQuestionDto> questions;
         try
         {
             var raw = await llm.CompleteAsync(
-                SystemPrompt(count), UserPrompt(training.Title, context), cancellationToken, maxTokens: maxTokens);
+                SystemPrompt(count), UserPrompt(training.Title, context), genToken, maxTokens: maxTokens);
             questions = Parse(raw);
         }
         catch (Exception ex)
@@ -89,7 +119,7 @@ public class GenerateQuizCommandHandler : ICommandHandler<GenerateQuizCommand, R
                 "Quiz.GenerationFailed", "The AI returned no usable questions. Please try again."));
 
         var json = JsonSerializer.Serialize(questions);
-        await UpsertDraftAsync(request.TrainingId, request.EmployeeId, json, cancellationToken);
+        await UpsertDraftAsync(request.TrainingId, request.EmployeeId, json, genToken);
 
         return Result.Success(new QuizDraftDto { TrainingId = request.TrainingId, AiAvailable = true, Questions = questions });
     }

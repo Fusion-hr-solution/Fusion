@@ -67,6 +67,11 @@ public static class ServiceCollectionExtensions
         // 4c. Register training import template generator (US-8.2.4)
         services.AddSingleton<ITrainingImportTemplateGenerator, TrainingImportTemplateGenerator>();
 
+        // 4c-bis. PDF text extraction — stores uploaded-PDF text into ContentBlock.TextContent (US-8.2.5)
+        // so the AI quiz generator (and future search) can read it from the DB.
+        services.AddSingleton<EY.HRPlatform.Training.Features.Admin.Content.IPdfTextExtractor,
+            EY.HRPlatform.Training.Features.Admin.Content.PdfTextExtractor>();
+
         // 4d. Register the AI quiz client (opencode GO) only when it's configured (US-8.2.5, ADR 0009).
         // Without it, AI quiz generation is disabled (the endpoint returns 503). BaseUrl is origin-only
         // (e.g. https://opencode.ai); Path/Model default to opencode GO's "zen go" endpoint and a DeepSeek model.
@@ -78,7 +83,7 @@ public static class ServiceCollectionExtensions
             {
                 BaseUrl = openCodeBaseUrl,
                 ApiKey = openCodeApiKey,
-                Model = configuration["Training:OpenCode:Model"] ?? "opencode-go/deepseek-v4-pro",
+                Model = configuration["Training:OpenCode:Model"] ?? "glm-5.2",
                 Path = configuration["Training:OpenCode:Path"] ?? "/zen/go/v1/chat/completions",
             });
             services.AddHttpClient<ILlmClient, OpenCodeGoLlmClient>(client =>
