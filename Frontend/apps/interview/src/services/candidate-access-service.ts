@@ -70,6 +70,8 @@ export interface RunCandidateCodeInput {
   entryPath?: string;
   language?: string;
   stdin?: string;
+  /** Same fingerprint sent on start/submit — re-validated by the run endpoint. */
+  browserFingerprint?: string;
 }
 
 export interface CandidateRunResult {
@@ -173,6 +175,7 @@ export async function runCandidateCode(
       entryPath: input.entryPath,
       language: input.language,
       stdin: input.stdin,
+      browserFingerprint: input.browserFingerprint,
     },
     { skipAuth: true }
   );

@@ -658,6 +658,7 @@ public class CandidateAccessServiceTests
                 Token = token,
                 QuestionId = questionId,
                 SourceCode = "print('hi')",
+                BrowserFingerprint = DefaultFingerprint,
             },
             CancellationToken.None));
 
@@ -701,6 +702,7 @@ public class CandidateAccessServiceTests
             {
                 Token = token,
                 QuestionId = questionId,
+                BrowserFingerprint = DefaultFingerprint,
                 EntryPath = "main.py",
                 Files =
                 [
@@ -751,10 +753,58 @@ public class CandidateAccessServiceTests
                 Token = token,
                 QuestionId = questionId,
                 SourceCode = "print('hi')",
+                BrowserFingerprint = DefaultFingerprint,
             },
             CancellationToken.None));
 
         Assert.Equal(400, ex.StatusCode);
+    }
+
+    [Fact]
+    public async Task RunCodeAsync_WhenFingerprintDiffersFromBoundAttempt_ThrowsConflict()
+    {
+        await using var db = TestDbContextFactory.Create();
+        var test = await SeedTestAsync(db);
+        var invitationService = CreateInvitationService(db);
+        var accessService = CreateAccessService(db);
+
+        var created = await invitationService.CreateAsync(
+            new CreateCandidateInvitationDto
+            {
+                TestId = test.Id.ToString(),
+                Email = "run.candidate@example.com",
+                CandidateName = "Run Candidate",
+                SendNotification = false,
+            },
+            CancellationToken.None);
+
+        var token = ExtractToken(created.InviteLink);
+
+        // Bind the invitation to fingerprint-A on start.
+        await accessService.StartOrResumeAsync(
+            new StartCandidateAttemptDto
+            {
+                Token = token,
+                CandidateEmail = "run.candidate@example.com",
+                BrowserFingerprint = "fingerprint-A",
+            },
+            CancellationToken.None);
+
+        var questionId = await AddCodingQuestionAsync(db, test.Id);
+
+        // A run from a different browser (fingerprint-B) must be rejected before any execution —
+        // a leaked token can't run code outside the browser that started the attempt.
+        var ex = await Assert.ThrowsAsync<ApiException>(() => accessService.RunCodeAsync(
+            new RunCodeRequestDto
+            {
+                Token = token,
+                QuestionId = questionId,
+                SourceCode = "print('hi')",
+                BrowserFingerprint = "fingerprint-B",
+            },
+            CancellationToken.None));
+
+        Assert.Equal(409, ex.StatusCode);
     }
 
     private static async Task<Guid> AddCodingQuestionAsync(AppDbContext db, Guid testId)

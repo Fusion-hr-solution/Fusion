@@ -590,6 +590,7 @@ export default function CandidateStartPage() {
           value={draft?.answerText ?? ""}
           starterCode={question.starterCode}
           projectFiles={question.projectFiles}
+          browserFingerprint={browserFingerprint || undefined}
           onChange={(next) => updateTextAnswer(question.id, next)}
         />
       );

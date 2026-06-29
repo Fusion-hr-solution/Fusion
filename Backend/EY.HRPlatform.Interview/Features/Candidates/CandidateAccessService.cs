@@ -376,6 +376,24 @@ public class CandidateAccessService(
         var attempt = GetActiveAttempt(invitation)
             ?? throw new ApiException("Start the assessment before running code.", StatusCodes.Status409Conflict);
 
+        // Re-apply the same access gate as start/submit: email verification + IP/browser-fingerprint
+        // lock. Without this a leaked token could run code from another browser/IP even with
+        // single-use / fingerprint / IP lock enabled (compute abuse), since run otherwise only
+        // checks attempt state.
+        if (settings.EmailVerificationEnabled && !invitation.EmailVerifiedAtUtc.HasValue)
+        {
+            throw new ApiException(
+                "Email verification is required before running code.",
+                StatusCodes.Status403Forbidden);
+        }
+
+        var metadata = BuildAccessMetadata(
+            request.ClientIpAddress,
+            request.BrowserFingerprint,
+            request.UserAgent);
+
+        await ApplyAndValidateAccessLocksAsync(invitation, metadata, settings, cancellationToken);
+
         // Targeted lookup: only the requested question's type/language, and only if it
         // actually belongs to this attempt's test (prevents running against an unrelated id).
         var question = await dbContext.TestQuestions
@@ -397,8 +415,9 @@ public class CandidateAccessService(
         var judge0 = serviceProvider.GetService<Judge0Client>()
             ?? throw new ApiException("Code execution is not available.", StatusCodes.Status503ServiceUnavailable);
 
-        var effectiveLanguage = string.IsNullOrWhiteSpace(request.Language) ? question.Language : request.Language;
-        var languageId = Judge0LanguageMap.ResolveForQuestion(question.Type, effectiveLanguage);
+        // Resolve from the question's stored language (not the client-supplied one) so a run
+        // executes in the same language it will be graded in. SQL is forced to SQLite.
+        var languageId = Judge0LanguageMap.ResolveForQuestion(question.Type, question.Language);
 
         // Single-file vs multi-file project. Multi-file packages the files into a zip sent as
         // additional_files alongside the entry (run as source_code).

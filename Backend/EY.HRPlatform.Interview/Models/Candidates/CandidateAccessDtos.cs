@@ -105,8 +105,10 @@ public class RunCodeRequestDto
     [Required]
     public Guid QuestionId { get; set; }
 
-    /// <summary>Single-file source. Provide this OR <see cref="Files"/> (multi-file).</summary>
-    [MaxLength(20000)]
+    /// <summary>Single-file source. Provide this OR <see cref="Files"/> (multi-file).
+    /// Cap matches <see cref="ProjectFileDto.Content"/> so single- and multi-file inputs
+    /// share one per-file size limit.</summary>
+    [MaxLength(64000)]
     public string? SourceCode { get; set; }
 
     /// <summary>Multi-file project. When non-empty, the run packages these files and runs
@@ -118,12 +120,28 @@ public class RunCodeRequestDto
     [MaxLength(200)]
     public string? EntryPath { get; set; }
 
-    /// <summary>Overrides the question's language when set; otherwise the question's is used.</summary>
+    /// <summary>Ignored server-side — the run always uses the question's stored language so a
+    /// candidate's run executes in the same language it will be graded in. Kept for wire
+    /// compatibility with existing clients.</summary>
     [MaxLength(40)]
     public string? Language { get; set; }
 
     [MaxLength(10000)]
     public string? Stdin { get; set; }
+
+    /// <summary>Browser fingerprint, sent by the client like start/submit. Re-validated against
+    /// the invitation's bound fingerprint so a leaked token can't run code from another browser
+    /// when single-use / fingerprint lock is enabled.</summary>
+    [MaxLength(1024)]
+    public string? BrowserFingerprint { get; set; }
+
+    /// <summary>Set server-side from the connection (not trusted from the client).</summary>
+    [MaxLength(64)]
+    public string? ClientIpAddress { get; set; }
+
+    /// <summary>Set server-side from the request headers (not trusted from the client).</summary>
+    [MaxLength(1024)]
+    public string? UserAgent { get; set; }
 }
 
 public class ProjectFileDto

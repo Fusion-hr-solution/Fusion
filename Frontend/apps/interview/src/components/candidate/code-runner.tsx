@@ -84,9 +84,18 @@ type CodeRunnerProps = {
   starterCode?: string;
   /** Author-provided multi-file starter (JSON). Its presence makes the question multi-file. */
   projectFiles?: string;
+  /** Browser fingerprint (same one sent on start/submit); forwarded on every run so the
+   * server can re-validate the access lock. */
+  browserFingerprint?: string;
   onChange: (value: string) => void;
 };
 
+/**
+ * IMPORTANT: this component seeds its editor state once on mount (see `code`/`seedProject`
+ * below). Callers MUST render it with a `key` that is unique per question (e.g.
+ * `key={question.id}`) so switching questions remounts it with the new value. Without the
+ * key it would keep showing the first question's code.
+ */
 export function CodeRunner({
   token,
   questionId,
@@ -95,6 +104,7 @@ export function CodeRunner({
   value,
   starterCode,
   projectFiles,
+  browserFingerprint,
   onChange,
 }: CodeRunnerProps) {
   // A question is multi-file when the author provided a project starter.
@@ -164,8 +174,8 @@ export function CodeRunner({
       const res = await runCandidateCode(
         token,
         multiFile
-          ? { questionId, files: project.files, entryPath: project.entryPath, language, stdin: stdinValue }
-          : { questionId, sourceCode: code, language, stdin: stdinValue }
+          ? { questionId, files: project.files, entryPath: project.entryPath, language, stdin: stdinValue, browserFingerprint }
+          : { questionId, sourceCode: code, language, stdin: stdinValue, browserFingerprint }
       );
       setResult(res);
     } catch (err) {

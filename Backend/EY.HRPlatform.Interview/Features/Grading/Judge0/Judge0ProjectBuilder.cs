@@ -96,7 +96,12 @@ public static class Judge0ProjectBuilder
                 throw Bad($"Invalid file path: {path}");
             foreach (var ch in segment)
             {
-                if (!char.IsLetterOrDigit(ch) && ch is not ('.' or '_' or '-'))
+                // ASCII letters/digits only (not char.IsLetterOrDigit, which spans the whole
+                // Unicode letter range) plus '.', '_', '-' — keeps filenames predictable on the
+                // Linux sandbox and rules out homoglyph/RTL surprises.
+                var isAsciiAlphaNumeric =
+                    ch is (>= 'a' and <= 'z') or (>= 'A' and <= 'Z') or (>= '0' and <= '9');
+                if (!isAsciiAlphaNumeric && ch is not ('.' or '_' or '-'))
                     throw Bad($"File path has invalid characters: {path}");
             }
         }

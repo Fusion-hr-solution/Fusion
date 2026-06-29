@@ -12,9 +12,15 @@ public class Judge0Client(HttpClient httpClient)
         PropertyNameCaseInsensitive = true,
     };
 
-    // Bound how many Judge0 submissions are in flight per replica. This is a safety
+    // Bound how many HTTP calls to Judge0 are in flight per replica. This is a safety
     // cap only — the candidate "run" path has its own Redis-backed backpressure on top;
     // this keeps grading bursts from overwhelming a single Judge0 worker.
+    //
+    // The gate wraps each individual HTTP request (the POST and each poll GET), NOT the whole
+    // submit+poll lifecycle: a submission spends most of its time sleeping between polls, so
+    // holding a slot across the full ~30s poll loop would let a handful of slow runs starve
+    // every other run/grade. Releasing during the waits keeps the cap meaningful (concurrent
+    // HTTP pressure) without that starvation.
     private static readonly SemaphoreSlim Gate = new(16, 16);
 
     public async Task<Judge0Result> SubmitAsync(
@@ -59,39 +65,40 @@ public class Judge0Client(HttpClient httpClient)
         // an empty body and rejects the submission with 422.
         var json = JsonSerializer.Serialize(body);
 
-        await Gate.WaitAsync(ct);
-        try
+        var token = await GatedAsync(async () =>
         {
             using var content = new StringContent(json, Encoding.UTF8, "application/json");
-            var response = await httpClient.PostAsync(
+            using var response = await httpClient.PostAsync(
                 "/submissions?base64_encoded=true&wait=false", content, ct);
             response.EnsureSuccessStatusCode();
 
             var submission = await response.Content.ReadFromJsonAsync<Judge0SubmissionResponse>(JsonOptions, ct)
                 ?? throw new InvalidOperationException("Empty Judge0 submission response.");
+            return submission.Token;
+        }, ct);
 
-            return await PollAsync(submission.Token, ct);
-        }
-        finally
-        {
-            Gate.Release();
-        }
+        return await PollAsync(token, ct);
     }
 
     private async Task<Judge0Result> PollAsync(string token, CancellationToken ct)
     {
         // Poll every 350ms (Judge0 typically finishes a small program well under a
-        // second). ~85 attempts keeps roughly a 30s ceiling for slow/hung runs.
+        // second). ~85 attempts keeps roughly a 30s ceiling for slow/hung runs. The gate is
+        // acquired only for each GET — never across the Task.Delay — so a slow run doesn't
+        // hold a concurrency slot while it waits.
         for (var attempt = 0; attempt < 85; attempt++)
         {
             await Task.Delay(350, ct);
 
-            var response = await httpClient.GetAsync(
-                $"/submissions/{token}?base64_encoded=true&fields=status,stdout,stderr,compile_output,time,memory", ct);
-            response.EnsureSuccessStatusCode();
+            var result = await GatedAsync(async () =>
+            {
+                using var response = await httpClient.GetAsync(
+                    $"/submissions/{token}?base64_encoded=true&fields=status,stdout,stderr,compile_output,time,memory", ct);
+                response.EnsureSuccessStatusCode();
 
-            var result = await response.Content.ReadFromJsonAsync<Judge0SubmissionResult>(JsonOptions, ct)
-                ?? throw new InvalidOperationException("Empty Judge0 result response.");
+                return await response.Content.ReadFromJsonAsync<Judge0SubmissionResult>(JsonOptions, ct)
+                    ?? throw new InvalidOperationException("Empty Judge0 result response.");
+            }, ct);
 
             // status.id > 2 means processing is done (1=In Queue, 2=Processing, 3+=done)
             if (result.Status?.Id > 2)
@@ -109,6 +116,21 @@ public class Judge0Client(HttpClient httpClient)
         }
 
         throw new TimeoutException("Judge0 submission timed out after 30 seconds.");
+    }
+
+    /// <summary>Runs a single HTTP call to Judge0 under the per-replica concurrency gate,
+    /// releasing the slot as soon as the call returns (so poll waits don't hold it).</summary>
+    private static async Task<T> GatedAsync<T>(Func<Task<T>> httpCall, CancellationToken ct)
+    {
+        await Gate.WaitAsync(ct);
+        try
+        {
+            return await httpCall();
+        }
+        finally
+        {
+            Gate.Release();
+        }
     }
 
     private static string? DecodeBase64(string? value)
