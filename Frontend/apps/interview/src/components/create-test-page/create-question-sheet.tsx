@@ -6,7 +6,9 @@ import { cn } from "@/lib/utils";
 import { QUESTION_TYPES, CODING_LANGUAGES, GRADING_METHODS } from "@/config/constants";
 import { DropdownSelect } from "@/components/candidate-management/dropdown-select";
 import { TestCasesEditor } from "@/components/create-test-page/test-cases-editor";
+import { ProjectEditor } from "@/components/create-test-page/project-editor";
 import { generateQuestions } from "@/services/test-service";
+import { defaultFileName, serializeProject } from "@/lib/project";
 import type { NewQuestionForm, QuestionType, Difficulty, GradingMethod } from "@/types";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -98,6 +100,9 @@ export function CreateQuestionSheet({
   saveAndAddLabel,
 }: Props) {
   const [form,     setForm]     = useState<NewQuestionForm>(EMPTY_FORM);
+  // Bumped whenever a different question is loaded into the sheet, to remount the project
+  // editor so it re-seeds from that question's saved files (the editor seeds once on mount).
+  const [seedKey,  setSeedKey]  = useState(0);
   const [tagInput, setTagInput] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -123,6 +128,7 @@ export function CreateQuestionSheet({
     }
     setTagInput("");
     setSubmitError(null);
+    setSeedKey((k) => k + 1);
   }, [open, initialForm]);
 
   function update<K extends keyof NewQuestionForm>(key: K, val: NewQuestionForm[K]) {
@@ -150,6 +156,17 @@ export function CreateQuestionSheet({
   const showOptions = form.type === "Multiple Choice" || form.type === "True/False";
   const showCoding  = form.type === "Coding" || form.type === "SQL";
   const showEval    = form.type === "Essay" || form.type === "Case Study";
+  const multiFile = Boolean(form.projectFiles && form.projectFiles.trim().length > 0);
+
+  function toggleMultiFile(on: boolean) {
+    if (on) {
+      // Seed a one-file project from the current starter code so the editor isn't empty.
+      const entry = defaultFileName(form.language);
+      update("projectFiles", serializeProject({ entry, files: [{ path: entry, content: form.starterCode || "" }] }));
+    } else {
+      update("projectFiles", "");
+    }
+  }
   const validationError = getValidationError(form);
   const isValid = validationError === null;
 
@@ -176,6 +193,7 @@ export function CreateQuestionSheet({
         await onSaveToLibrary(form);
       }
       setForm(EMPTY_FORM);
+      setSeedKey((k) => k + 1);
       onClose();
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : "Failed to save question.");
@@ -210,6 +228,7 @@ export function CreateQuestionSheet({
         return;
       }
       setForm(draft);
+      setSeedKey((k) => k + 1);
       setSubmitError(null);
       setAiOpen(false);
       setAiTopic("");
@@ -614,14 +633,34 @@ export function CreateQuestionSheet({
                     />
                   </div>
                   <div>
-                    <FieldLabel>Starter Code</FieldLabel>
-                    <textarea
-                      rows={6}
-                      value={form.starterCode}
-                      onChange={(e) => update("starterCode", e.target.value)}
-                      placeholder="// Starter code provided to candidates"
-                      className="w-full resize-none rounded-xl border border-zinc-200 bg-zinc-950 px-4 py-3 font-mono text-[12px] text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-zinc-700 transition-all duration-150"
-                    />
+                    <div className="mb-2 flex items-center justify-between">
+                      <FieldLabel>{multiFile ? "Starter Project" : "Starter Code"}</FieldLabel>
+                      <label className="flex cursor-pointer items-center gap-1.5 text-[12px] text-zinc-500">
+                        <input
+                          type="checkbox"
+                          checked={multiFile}
+                          onChange={(e) => toggleMultiFile(e.target.checked)}
+                          className="h-3.5 w-3.5 accent-zinc-900"
+                        />
+                        Multiple files
+                      </label>
+                    </div>
+                    {multiFile ? (
+                      <ProjectEditor
+                        key={seedKey}
+                        value={form.projectFiles ?? ""}
+                        language={form.language}
+                        onChange={(json) => update("projectFiles", json)}
+                      />
+                    ) : (
+                      <textarea
+                        rows={6}
+                        value={form.starterCode}
+                        onChange={(e) => update("starterCode", e.target.value)}
+                        placeholder="// Starter code provided to candidates"
+                        className="w-full resize-none rounded-xl border border-zinc-200 bg-zinc-950 px-4 py-3 font-mono text-[12px] text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-zinc-700 transition-all duration-150"
+                      />
+                    )}
                   </div>
 
                   <div className="border-t border-zinc-800 pt-4">

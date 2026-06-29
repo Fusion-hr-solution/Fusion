@@ -29,6 +29,7 @@ public static class EmployeeReadinessFixTargetKinds
 public sealed record EmployeeReadinessFixTargetDto(
     string Kind,
     Guid? EmployeeId = null,
+    string? EmployeeKey = null,
     Guid? ImportHistoryId = null,
     string? FieldKey = null);
 

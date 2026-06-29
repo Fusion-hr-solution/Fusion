@@ -12,7 +12,9 @@ import {
 import { usePathname, useSearchParams } from "next/navigation";
 import { useAuth } from "@repo/auth";
 import {
+  coreAccessQueryKeys,
   coreSetupQueryKeys,
+  coreWorkforceQueryKeys,
   createPlatformApiClient,
   draftStructureQueryKeys,
   tenantSettingsQueryKeys,
@@ -83,6 +85,8 @@ export function TenantContextProvider({
   const clearTenantScopedQueries = useCallback(() => {
     const queryRoots = [
       ["corehr"] as const,
+      coreAccessQueryKeys.all(),
+      coreWorkforceQueryKeys.all(),
       coreSetupQueryKeys.all(),
       tenantSettingsQueryKeys.all(),
       draftStructureQueryKeys.all(),

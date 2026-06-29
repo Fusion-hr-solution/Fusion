@@ -727,6 +727,10 @@
         "exams": "Exams"
       },
       "courseMaterials": "Course Materials",
+      "tabs": {
+        "sessions": "Sessions",
+        "costs": "Costs"
+      },
       "chaptersHeading": "Chapters",
       "addChapter": "Add Chapter"
     },

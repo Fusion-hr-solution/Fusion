@@ -29,7 +29,7 @@ import {
   useArchiveOrganization,
   useResendFirstAdminInvite,
   useRevokeFirstAdminInvite,
-} from "./use-organizations";
+} from "@/features/organizations/api/use-organizations";
 
 interface RowActionsProps {
   org: PlatformOrganizationSummaryDto;

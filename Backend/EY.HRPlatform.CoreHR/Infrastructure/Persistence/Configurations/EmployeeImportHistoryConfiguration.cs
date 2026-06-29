@@ -54,6 +54,16 @@ public class EmployeeImportHistoryConfiguration : IEntityTypeConfiguration<Emplo
             .HasMaxLength(2048)
             .IsRequired(false);
 
+        builder.Property(history => history.EventType)
+            .HasMaxLength(32)
+            .IsRequired();
+
+        builder.Property(history => history.ErrorCount)
+            .IsRequired();
+
+        builder.Property(history => history.WarningCount)
+            .IsRequired();
+
         builder.Property(history => history.CreatedBy).HasMaxLength(256);
         builder.Property(history => history.UpdatedBy).HasMaxLength(256);
 

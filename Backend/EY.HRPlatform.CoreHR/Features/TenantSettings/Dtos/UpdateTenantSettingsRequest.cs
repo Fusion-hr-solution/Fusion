@@ -8,7 +8,9 @@ public sealed record UpdateTenantSettingsRequest(
     List<string>? OrgUnitTypes,
     DraftStructureSchemaDto? DraftStructureSchema,
     Dictionary<string, FieldConfigInput>? EmployeeFieldConfig,
-    BrandingSettingsInput? Branding
+    BrandingSettingsInput? Branding,
+    SelfServiceSettingsInput? SelfService,
+    ProvisioningSettingsInput? Provisioning
 );
 
 /// <summary>
@@ -25,3 +27,13 @@ public sealed record FieldConfigInput(
 /// Input type for branding settings with nullable properties for partial updates.
 /// </summary>
 public sealed record BrandingSettingsInput(string? LogoUrl, string? PrimaryColor);
+
+public sealed record SelfServiceSettingsInput(
+    bool? CanEditPreferredName,
+    bool? CanEditPhone);
+
+public sealed record ProvisioningSettingsInput(
+    Guid? DefaultAccessProfileId,
+    int? InviteExpiryDays,
+    int? ResendCooldownHours,
+    string? PendingInviteBehavior);

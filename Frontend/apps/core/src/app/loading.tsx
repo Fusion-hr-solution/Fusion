@@ -7,7 +7,7 @@ export default function Loading() {
       <Card className="w-full max-w-sm shadow-sm">
         <CardContent className="flex items-center gap-3 py-6 text-sm text-muted-foreground">
           <Spinner />
-          <span>Loading Core workspace...</span>
+          <span>Loading Core...</span>
         </CardContent>
       </Card>
     </div>

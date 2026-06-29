@@ -102,6 +102,7 @@ public class TenantService : ITenantService
     private static TenantDto ToDto(Tenant tenant) => new(
         tenant.Id,
         tenant.Name,
+        tenant.Slug,
         tenant.IsActive,
         tenant.CreatedAt,
         tenant.UpdatedAt

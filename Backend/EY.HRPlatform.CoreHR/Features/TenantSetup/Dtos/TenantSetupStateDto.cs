@@ -11,6 +11,11 @@ public sealed record TenantSetupStateDto
     public required List<string> PendingSteps { get; init; }
     public bool CanStartSetup { get; init; }
     public bool CanResumeSetup { get; init; }
+    public bool HasDraftStructure { get; init; }
+    public bool HasPublishedStructure { get; init; }
+    public bool IsDraftCycleActive { get; init; }
+    public bool RequiresRepublish { get; init; }
+    public int PublishedStructureVersion { get; init; }
     public DateTime? ActivatedAt { get; init; }
     public DateTime? StructurallyGovernedAt { get; init; }
     public DateTime? ApprovedAt { get; init; }

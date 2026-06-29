@@ -38,6 +38,18 @@ export function useReassignManagerFromChart() {
           queryKey: employeeRosterQueryKeys.profile(args.employeeId),
           exact: true,
         },
+        ...(args.newManagerId
+          ? [
+              {
+                queryKey: employeeRosterQueryKeys.reportingLines(args.newManagerId),
+                exact: true,
+              },
+              {
+                queryKey: employeeRosterQueryKeys.profile(args.newManagerId),
+                exact: true,
+              },
+            ]
+          : []),
       ],
       onSuccess: async () => {
         await queryClient.invalidateQueries({

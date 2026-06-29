@@ -2,6 +2,7 @@ using EY.HRPlatform.CoreHR.Domain.Entities;
 using EY.HRPlatform.CoreHR.Exceptions;
 using EY.HRPlatform.CoreHR.Features.TenantSetup.Commands.CompleteTenantSetup;
 using EY.HRPlatform.CoreHR.Features.TenantSetup.Commands.PublishTenantStructure;
+using EY.HRPlatform.CoreHR.Features.TenantSetup.Commands.ReopenTenantStructure;
 using EY.HRPlatform.CoreHR.Tests.TestHelpers;
 using Microsoft.EntityFrameworkCore;
 using DomainTenantSettings = EY.HRPlatform.CoreHR.Domain.Entities.TenantSettings;
@@ -15,7 +16,7 @@ public class TenantSetupPublishingCommandHandlerTests
     private const string SettingsJson = """{"orgUnitTypes":["Department","Team"]}""";
 
     [Fact]
-    public async Task Handle_WithApprovedDraft_PublishesSetupPreservesMatchingLiveOrgUnitsAndUnlocksCore()
+    public async Task Handle_WithReadyDraft_PublishesSetupPreservesMatchingLiveOrgUnitsAndUnlocksCore()
     {
         var dbName = Guid.NewGuid().ToString();
         var tenantContext = TestTenantContext.WithTenant(TenantId);
@@ -25,18 +26,8 @@ public class TenantSetupPublishingCommandHandlerTests
         await using (var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName))
         {
             var state = TenantSetupState.CreateActivated(TenantId);
-            state.Approve(ActorUserId, "Jordan Approver", "HRAdmin", false);
 
             seedContext.TenantSetupStates.Add(state);
-            seedContext.TenantSetupActivities.Add(
-                TenantSetupActivity.Create(
-                    TenantId,
-                    state.Id,
-                    TenantSetupActivityType.Approved,
-                    ActorUserId,
-                    "Jordan Approver",
-                    "HRAdmin",
-                    false));
             seedContext.TenantSettings.Add(DomainTenantSettings.Create(TenantId, SettingsJson));
 
             var rootDraftUnit = DraftOrgUnit.Create(
@@ -86,6 +77,10 @@ public class TenantSetupPublishingCommandHandlerTests
 
         Assert.True(result.IsSuccess);
         Assert.Equal("operational", result.Value.CurrentPhase);
+        Assert.Equal(3, result.Value.CurrentStep);
+        Assert.True(result.Value.HasDraftStructure);
+        Assert.True(result.Value.HasPublishedStructure);
+        Assert.False(result.Value.RequiresRepublish);
         Assert.NotNull(result.Value.StructurallyPublishedAt);
         Assert.NotNull(result.Value.OperationalAt);
         Assert.Contains(result.Value.RecentActivities, activity => activity.ActivityType == "published");
@@ -121,18 +116,8 @@ public class TenantSetupPublishingCommandHandlerTests
         await using (var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName))
         {
             var state = TenantSetupState.CreateActivated(TenantId);
-            state.Approve(ActorUserId, "Jordan Approver", "HRAdmin", false);
 
             seedContext.TenantSetupStates.Add(state);
-            seedContext.TenantSetupActivities.Add(
-                TenantSetupActivity.Create(
-                    TenantId,
-                    state.Id,
-                    TenantSetupActivityType.Approved,
-                    ActorUserId,
-                    "Jordan Approver",
-                    "HRAdmin",
-                    false));
             seedContext.TenantSettings.Add(DomainTenantSettings.Create(TenantId, SettingsJson));
 
             seedContext.DraftOrgUnits.Add(
@@ -190,18 +175,8 @@ public class TenantSetupPublishingCommandHandlerTests
         await using (var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName))
         {
             var state = TenantSetupState.CreateActivated(TenantId);
-            state.Approve(ActorUserId, "Jordan Approver", "HRAdmin", false);
 
             seedContext.TenantSetupStates.Add(state);
-            seedContext.TenantSetupActivities.Add(
-                TenantSetupActivity.Create(
-                    TenantId,
-                    state.Id,
-                    TenantSetupActivityType.Approved,
-                    ActorUserId,
-                    "Jordan Approver",
-                    "HRAdmin",
-                    false));
             seedContext.TenantSettings.Add(DomainTenantSettings.Create(TenantId, SettingsJson));
             seedContext.DraftOrgUnits.Add(
                 DraftOrgUnit.Create(
@@ -296,5 +271,95 @@ public class TenantSetupPublishingCommandHandlerTests
 
         Assert.Equal(3, activities.Count);
         Assert.Contains(activities, activity => activity.ActivityType == TenantSetupActivityType.Completed);
+    }
+
+    [Fact]
+    public async Task Handle_WithOperationalSetup_ReopensDraftFromCurrentLiveStructure()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        uint expectedVersion;
+
+        await using (var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName))
+        {
+            var rootLiveUnit = OrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null);
+            var childLiveUnit = OrgUnit.Create(TenantId, "PLT", "Platform", "Team", rootLiveUnit.Id);
+            var state = TenantSetupState.CreateActivated(TenantId);
+            state.Approve(ActorUserId, "Jordan Approver", "HRAdmin", true);
+            state.Publish();
+            state.Complete();
+
+            seedContext.TenantSetupStates.Add(state);
+            seedContext.TenantSetupActivities.AddRange(
+                TenantSetupActivity.Create(
+                    TenantId,
+                    state.Id,
+                    TenantSetupActivityType.Approved,
+                    ActorUserId,
+                    "Jordan Approver",
+                    "HRAdmin",
+                    true),
+                TenantSetupActivity.Create(
+                    TenantId,
+                    state.Id,
+                    TenantSetupActivityType.Published,
+                    ActorUserId,
+                    "Jordan Approver",
+                    "HRAdmin",
+                    true),
+                TenantSetupActivity.Create(
+                    TenantId,
+                    state.Id,
+                    TenantSetupActivityType.Completed,
+                    ActorUserId,
+                    "Jordan Approver",
+                    "HRAdmin",
+                    true));
+            seedContext.TenantSettings.Add(DomainTenantSettings.Create(TenantId, SettingsJson));
+            seedContext.OrgUnits.AddRange(rootLiveUnit, childLiveUnit);
+            seedContext.DraftOrgUnits.Add(
+                DraftOrgUnit.Create(
+                    TenantId,
+                    "OLD",
+                    "Stale Draft",
+                    "department",
+                    null,
+                    null,
+                    null,
+                    null));
+            await seedContext.SaveChangesAsync();
+
+            expectedVersion = state.Version;
+        }
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = new ReopenTenantStructureCommandHandler(context);
+
+        var result = await handler.Handle(
+            new ReopenTenantStructureCommand(
+                expectedVersion,
+                ActorUserId,
+                "Alex Reviewer",
+                "PlatformAdmin",
+                true),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("activated", result.Value.CurrentPhase);
+        Assert.Equal(2, result.Value.CurrentStep);
+        Assert.True(result.Value.HasDraftStructure);
+        Assert.True(result.Value.HasPublishedStructure);
+        Assert.True(result.Value.RequiresRepublish);
+
+        var draftUnits = await context.DraftOrgUnits
+            .AsNoTracking()
+            .OrderBy(unit => unit.ReferenceKey)
+            .ToListAsync();
+
+        Assert.Equal(["ENG", "PLT"], draftUnits.Select(unit => unit.ReferenceKey).ToArray());
+        Assert.DoesNotContain(draftUnits, unit => unit.ReferenceKey == "OLD");
+        Assert.Equal(
+            draftUnits.Single(unit => unit.ReferenceKey == "ENG").Id,
+            draftUnits.Single(unit => unit.ReferenceKey == "PLT").ParentId);
     }
 }

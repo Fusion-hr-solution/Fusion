@@ -16,7 +16,7 @@ export default function Error({
           Something went wrong
         </h2>
         <p className="text-muted-foreground mb-6 max-w-md">
-          {error.message || "An unexpected error occurred in the Core module."}
+          An unexpected error occurred. Try again in a moment.
         </p>
         <Button onClick={reset}>Try Again</Button>
       </div>
