@@ -81,6 +81,8 @@ public class CandidateAccessQuestionDto
     public int DurationMinutes { get; set; }
     public string? Language { get; set; }
     public string? StarterCode { get; set; }
+    /// <summary>Multi-file coding question starter: JSON { entry, files: [{ path, content }] }.</summary>
+    public string? ProjectFiles { get; set; }
     public string? EvaluationCriteria { get; set; }
     public List<CandidateAccessQuestionOptionDto> Options { get; set; } = [];
 }
@@ -103,9 +105,18 @@ public class RunCodeRequestDto
     [Required]
     public Guid QuestionId { get; set; }
 
-    [Required]
+    /// <summary>Single-file source. Provide this OR <see cref="Files"/> (multi-file).</summary>
     [MaxLength(20000)]
-    public string SourceCode { get; set; } = string.Empty;
+    public string? SourceCode { get; set; }
+
+    /// <summary>Multi-file project. When non-empty, the run packages these files and runs
+    /// <see cref="EntryPath"/> (defaults to the first file). Authoritative caps live in
+    /// Judge0ProjectBuilder; this is a cheap early guard (keep in sync with MaxFiles = 20).</summary>
+    [MaxLength(20)]
+    public List<ProjectFileDto>? Files { get; set; }
+
+    [MaxLength(200)]
+    public string? EntryPath { get; set; }
 
     /// <summary>Overrides the question's language when set; otherwise the question's is used.</summary>
     [MaxLength(40)]
@@ -113,6 +124,16 @@ public class RunCodeRequestDto
 
     [MaxLength(10000)]
     public string? Stdin { get; set; }
+}
+
+public class ProjectFileDto
+{
+    [Required]
+    [MaxLength(200)]
+    public string Path { get; set; } = string.Empty;
+
+    [MaxLength(64000)]
+    public string Content { get; set; } = string.Empty;
 }
 
 /// <summary>

@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import Editor, { loader, type BeforeMount, type OnMount } from "@monaco-editor/react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
+import Editor, { loader, type OnMount } from "@monaco-editor/react";
 import {
   AlertTriangle,
   Check,
@@ -21,6 +21,10 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { runCandidateCode, type CandidateRunResult } from "@/services/candidate-access-service";
+import { FileExplorer } from "./file-explorer";
+import { languageForFile, parseProject, serializeProject } from "@/lib/project";
+import { useProjectModel } from "@/lib/use-project-model";
+import { defineInterviewDarkTheme } from "@/lib/monaco-theme";
 
 // Self-host the Monaco assets (copied to public/monaco by scripts/copy-monaco.mjs)
 // instead of loading from a third-party CDN — supply-chain + CSP + offline safety in
@@ -74,10 +78,12 @@ type CodeRunnerProps = {
   questionId: string;
   language?: string;
   isSql: boolean;
-  /** Saved answer for this question (controls the editor's seed value). */
+  /** Saved answer for this question (single-file code, or project JSON for multi-file). */
   value: string;
-  /** Author-provided starter code, used only when there's no saved answer yet. */
+  /** Author-provided single-file starter, used only when there's no saved answer yet. */
   starterCode?: string;
+  /** Author-provided multi-file starter (JSON). Its presence makes the question multi-file. */
+  projectFiles?: string;
   onChange: (value: string) => void;
 };
 
@@ -88,13 +94,25 @@ export function CodeRunner({
   isSql,
   value,
   starterCode,
+  projectFiles,
   onChange,
 }: CodeRunnerProps) {
-  // Seed from the saved answer, falling back to the starter code. Kept internal so a
-  // run sends the editor's current content even before the candidate edits (which is
-  // when the parent answer state is still empty). The parent keys this component by
-  // questionId, so it re-seeds correctly per question / on resume.
+  // A question is multi-file when the author provided a project starter.
+  const starterProject = useMemo(() => parseProject(projectFiles), [projectFiles]);
+  const multiFile = starterProject !== null;
+
+  // ── Single-file state ─────────────────────────────────────────────────────
   const [code, setCode] = useState(() => (value && value.length > 0 ? value : starterCode ?? ""));
+
+  // ── Multi-file state (seed from the saved answer, else the starter project) ─
+  const seedProject = useMemo(
+    () => parseProject(value) ?? starterProject ?? { entry: "main", files: [{ path: "main", content: "" }] },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
+  const project = useProjectModel(seedProject, onChange);
+
+  // ── Shared state ──────────────────────────────────────────────────────────
   const [stdin, setStdin] = useState("");
   const [showStdin, setShowStdin] = useState(false);
   const [running, setRunning] = useState(false);
@@ -103,20 +121,13 @@ export function CodeRunner({
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  // Keep the latest run handler in a ref so the editor's Ctrl/Cmd+Enter command (bound
-  // once on mount) always invokes the current closure rather than a stale one.
   const runRef = useRef<() => void>(() => {});
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
+  // Namespace Monaco model URIs per instance — Monaco caches models globally by URI, so two
+  // questions that both have a "main.py" would otherwise share (and bleed) the same model.
+  const modelNs = useId().replace(/[^a-zA-Z0-9]/g, "");
 
-  // The editor uses a stable height="100%" and the wrapper controls the actual size
-  // (fixed vs. flex-1). Force a relayout when toggling fullscreen so Monaco resizes to
-  // the new container instead of keeping its previous (taller) dimensions.
-  useEffect(() => {
-    const frame = requestAnimationFrame(() => editorRef.current?.layout());
-    return () => cancelAnimationFrame(frame);
-  }, [expanded]);
-
-  // Fullscreen: lock body scroll and let Esc exit.
+  // Fullscreen: lock body scroll + Esc to exit.
   useEffect(() => {
     if (!expanded) return;
     const previousOverflow = document.body.style.overflow;
@@ -131,22 +142,31 @@ export function CodeRunner({
     };
   }, [expanded]);
 
-  async function handleRun(): Promise<void> {
-    if (running || code.trim().length === 0) {
-      return;
-    }
+  // Relayout Monaco when toggling fullscreen so it resizes to the new container.
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => editorRef.current?.layout());
+    return () => cancelAnimationFrame(frame);
+  }, [expanded]);
 
+  function onCodeChange(next: string | undefined): void {
+    const text = next ?? "";
+    setCode(text);
+    onChange(text);
+  }
+
+  async function handleRun(): Promise<void> {
+    if (!canRun) return;
     setRunning(true);
     setError(null);
     setResult(null);
-
     try {
-      const res = await runCandidateCode(token, {
-        questionId,
-        sourceCode: code,
-        language,
-        stdin: stdin.trim().length > 0 ? stdin : undefined,
-      });
+      const stdinValue = stdin.trim().length > 0 ? stdin : undefined;
+      const res = await runCandidateCode(
+        token,
+        multiFile
+          ? { questionId, files: project.files, entryPath: project.entryPath, language, stdin: stdinValue }
+          : { questionId, sourceCode: code, language, stdin: stdinValue }
+      );
       setResult(res);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Run failed. Please try again.");
@@ -157,16 +177,14 @@ export function CodeRunner({
 
   runRef.current = () => void handleRun();
 
-  function handleEditorChange(next: string | undefined): void {
-    const text = next ?? "";
-    setCode(text);
-    onChange(text);
-  }
-
   function handleReset(): void {
-    const seed = starterCode ?? "";
-    setCode(seed);
-    onChange(seed);
+    if (multiFile && starterProject) {
+      project.reset(starterProject);
+    } else {
+      const seed = starterCode ?? "";
+      setCode(seed);
+      onChange(seed);
+    }
   }
 
   async function handleCopyOutput(): Promise<void> {
@@ -179,40 +197,26 @@ export function CodeRunner({
     }
   }
 
-  const handleBeforeMount: BeforeMount = (monaco) => {
-    monaco.editor.defineTheme("interview-dark", {
-      base: "vs-dark",
-      inherit: true,
-      rules: [],
-      colors: {
-        "editor.background": "#18181b", // zinc-900, to blend with the panel chrome
-        "editorGutter.background": "#18181b",
-        "editor.lineHighlightBackground": "#27272a", // zinc-800
-        "editorLineNumber.foreground": "#52525b", // zinc-600
-        "editorLineNumber.activeForeground": "#a1a1aa", // zinc-400
-      },
-    });
-  };
-
   const handleEditorMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => runRef.current());
   };
 
-  const canRun = !running && code.trim().length > 0;
-  // Only offer Reset when there's actual starter code to return to — otherwise the
-  // button would silently wipe the candidate's work to an empty editor.
-  const hasStarter = (starterCode ?? "").trim().length > 0;
-  const canReset = hasStarter && starterCode !== code;
-  const langLabel = isSql ? "SQL" : language?.trim() ? language : "Code";
+  const entryFile = project.files.find((f) => f.path === project.entryPath);
+  const canRun = !running && (multiFile ? (entryFile?.content.trim().length ?? 0) > 0 : code.trim().length > 0);
+
+  const hasStarter = multiFile ? starterProject !== null : (starterCode ?? "").trim().length > 0;
+  const canReset = multiFile
+    ? hasStarter && serializeProject({ entry: project.entryPath, files: project.files }) !== serializeProject(starterProject!)
+    : (starterCode ?? "") !== code;
+
+  const langLabel = isSql ? "SQL" : language?.trim() ? language : multiFile ? "Project" : "Code";
 
   return (
     <div
       className={cn(
         "flex flex-col bg-zinc-900 text-zinc-100",
-        expanded
-          ? "fixed inset-0 z-50"
-          : "overflow-hidden rounded-xl border border-zinc-800 shadow-sm"
+        expanded ? "fixed inset-0 z-50" : "overflow-hidden rounded-xl border border-zinc-800 shadow-sm"
       )}
     >
       {/* Title bar */}
@@ -234,7 +238,7 @@ export function CodeRunner({
               type="button"
               onClick={handleReset}
               disabled={!canReset}
-              title="Reset to starter code"
+              title={multiFile ? "Reset to starter project" : "Reset to starter code"}
               className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-100 disabled:cursor-not-allowed disabled:opacity-40"
             >
               <RotateCcw className="h-3.5 w-3.5" />
@@ -252,35 +256,49 @@ export function CodeRunner({
         </div>
       </div>
 
-      {/* Editor — wrapper controls the height; the editor stays at 100% so toggling
-          fullscreen is a clean container resize (no stale Monaco dimensions). */}
-      <div className={cn(expanded ? "min-h-0 flex-1" : "h-[360px]")}>
-        <Editor
-          height="100%"
-          theme="interview-dark"
-          language={isSql ? "sql" : toMonacoLanguage(language)}
-          value={code}
-          beforeMount={handleBeforeMount}
-          onChange={handleEditorChange}
-          onMount={handleEditorMount}
-          loading={
-            <div className="flex h-full min-h-[200px] items-center justify-center text-[13px] text-zinc-500">
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading editor…
-            </div>
-          }
-          options={{
-            minimap: { enabled: false },
-            fontSize: 13,
-            scrollBeyondLastLine: false,
-            tabSize: 2,
-            automaticLayout: true,
-            smoothScrolling: true,
-            cursorBlinking: "smooth",
-            roundedSelection: true,
-            padding: { top: 12, bottom: 12 },
-            scrollbar: { verticalScrollbarSize: 8, horizontalScrollbarSize: 8 },
-          }}
-        />
+      {/* Editor (+ file explorer when multi-file) */}
+      <div className={cn("flex", expanded ? "min-h-0 flex-1" : "h-[360px]")}>
+        {multiFile ? (
+          <FileExplorer
+            files={project.files}
+            activePath={project.activePath}
+            entryPath={project.entryPath}
+            onSelect={project.setActivePath}
+            onAdd={project.addFile}
+            onRename={project.renameFile}
+            onDelete={project.deleteFile}
+            onSetEntry={project.setEntry}
+          />
+        ) : null}
+        <div className="min-w-0 flex-1">
+          <Editor
+            height="100%"
+            theme="interview-dark"
+            path={multiFile ? `${modelNs}/${project.activePath}` : undefined}
+            language={multiFile ? languageForFile(project.activePath) : isSql ? "sql" : toMonacoLanguage(language)}
+            value={multiFile ? project.activeFile?.content ?? "" : code}
+            beforeMount={defineInterviewDarkTheme}
+            onChange={multiFile ? (v) => project.updateActive(v ?? "") : onCodeChange}
+            onMount={handleEditorMount}
+            loading={
+              <div className="flex h-full min-h-[200px] items-center justify-center text-[13px] text-zinc-500">
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading editor…
+              </div>
+            }
+            options={{
+              minimap: { enabled: false },
+              fontSize: 13,
+              scrollBeyondLastLine: false,
+              tabSize: 4,
+              automaticLayout: true,
+              smoothScrolling: true,
+              cursorBlinking: "smooth",
+              roundedSelection: true,
+              padding: { top: 12, bottom: 12 },
+              scrollbar: { verticalScrollbarSize: 8, horizontalScrollbarSize: 8 },
+            }}
+          />
+        </div>
       </div>
 
       {/* Custom input (stdin) */}
@@ -324,7 +342,9 @@ export function CodeRunner({
             )}
           >
             {running ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
-            {running ? "Running…" : "Run"}
+            <span className="max-w-[160px] truncate">
+              {running ? "Running…" : multiFile ? `Run ${project.entryPath}` : "Run"}
+            </span>
           </button>
         </div>
       </div>

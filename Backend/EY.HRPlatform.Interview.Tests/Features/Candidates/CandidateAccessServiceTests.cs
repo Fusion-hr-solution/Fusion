@@ -665,6 +665,55 @@ public class CandidateAccessServiceTests
     }
 
     [Fact]
+    public async Task RunCodeAsync_MultiFile_WhenJudge0NotConfigured_ThrowsServiceUnavailable()
+    {
+        await using var db = TestDbContextFactory.Create();
+        var test = await SeedTestAsync(db);
+        var invitationService = CreateInvitationService(db);
+        var accessService = CreateAccessService(db);
+
+        var created = await invitationService.CreateAsync(
+            new CreateCandidateInvitationDto
+            {
+                TestId = test.Id.ToString(),
+                Email = "run.candidate@example.com",
+                CandidateName = "Run Candidate",
+                SendNotification = false,
+            },
+            CancellationToken.None);
+
+        var token = ExtractToken(created.InviteLink);
+        await accessService.StartOrResumeAsync(
+            new StartCandidateAttemptDto
+            {
+                Token = token,
+                CandidateEmail = "run.candidate@example.com",
+                BrowserFingerprint = DefaultFingerprint,
+            },
+            CancellationToken.None);
+
+        var questionId = await AddCodingQuestionAsync(db, test.Id);
+
+        // A multi-file request (no SourceCode) must be accepted past validation and reach the
+        // Judge0 gate — i.e. the optional-SourceCode change didn't break the run path.
+        var ex = await Assert.ThrowsAsync<ApiException>(() => accessService.RunCodeAsync(
+            new RunCodeRequestDto
+            {
+                Token = token,
+                QuestionId = questionId,
+                EntryPath = "main.py",
+                Files =
+                [
+                    new ProjectFileDto { Path = "main.py", Content = "import util\nprint(util.x)" },
+                    new ProjectFileDto { Path = "util.py", Content = "x = 1" },
+                ],
+            },
+            CancellationToken.None));
+
+        Assert.Equal(503, ex.StatusCode);
+    }
+
+    [Fact]
     public async Task RunCodeAsync_ForNonCodeQuestion_ThrowsBadRequest()
     {
         await using var db = TestDbContextFactory.Create();

@@ -65,6 +65,7 @@ export interface Question {
   options?: { text: string; correct: boolean }[];
   language?: string;
   starterCode?: string;
+  projectFiles?: string;
   evaluationCriteria?: string;
   testCases?: TestCase[];
 }
@@ -81,6 +82,8 @@ export interface NewQuestionForm {
   options: { text: string; correct: boolean }[];
   language: string;
   starterCode: string;
+  /** Multi-file coding question starter: JSON { entry, files: [{ path, content }] }. */
+  projectFiles?: string;
   evaluationCriteria: string;
   testCases: TestCase[];
 }

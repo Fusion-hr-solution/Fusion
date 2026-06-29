@@ -400,6 +400,27 @@ public class CandidateAccessService(
         var effectiveLanguage = string.IsNullOrWhiteSpace(request.Language) ? question.Language : request.Language;
         var languageId = Judge0LanguageMap.ResolveForQuestion(question.Type, effectiveLanguage);
 
+        // Single-file vs multi-file project. Multi-file packages the files into a zip sent as
+        // additional_files alongside the entry (run as source_code).
+        string sourceCode;
+        string? additionalFiles = null;
+        if (request.Files is { Count: > 0 } files)
+        {
+            var project = Judge0ProjectBuilder.Build(
+                files.Select(f => new ProjectFile(f.Path, f.Content)).ToList(),
+                string.IsNullOrWhiteSpace(request.EntryPath) ? files[0].Path : request.EntryPath);
+            sourceCode = project.EntryContent;
+            additionalFiles = project.AdditionalFilesBase64;
+        }
+        else if (!string.IsNullOrWhiteSpace(request.SourceCode))
+        {
+            sourceCode = request.SourceCode;
+        }
+        else
+        {
+            throw new ApiException("Provide code to run.", StatusCodes.Status400BadRequest);
+        }
+
         // Rate limit + global concurrency budget (released when the slot is disposed).
         await using var slot = await runThrottle.AcquireAsync(attempt.Id, cancellationToken);
 
@@ -407,8 +428,8 @@ public class CandidateAccessService(
         try
         {
             result = await judge0.SubmitAsync(
-                request.SourceCode, languageId, request.Stdin, expectedOutput: null,
-                cancellationToken, RunLimits);
+                sourceCode, languageId, request.Stdin, expectedOutput: null,
+                cancellationToken, RunLimits, additionalFiles);
         }
         catch (Exception ex)
         {
@@ -940,6 +961,7 @@ public class CandidateAccessService(
             DurationMinutes = question.DurationMinutes,
             Language = question.Language,
             StarterCode = question.StarterCode,
+            ProjectFiles = question.ProjectFiles,
             EvaluationCriteria = question.EvaluationCriteria,
             Options = question.Options
                 .Select(option => new CandidateAccessQuestionOptionDto

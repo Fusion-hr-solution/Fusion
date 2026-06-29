@@ -23,7 +23,8 @@ public class Judge0Client(HttpClient httpClient)
         string? stdin,
         string? expectedOutput,
         CancellationToken ct,
-        Judge0ExecutionLimits? limits = null)
+        Judge0ExecutionLimits? limits = null,
+        string? additionalFilesBase64 = null)
     {
         var body = new Dictionary<string, object?>
         {
@@ -32,6 +33,13 @@ public class Judge0Client(HttpClient httpClient)
             ["stdin"] = stdin is null ? null : Convert.ToBase64String(Encoding.UTF8.GetBytes(stdin)),
             ["expected_output"] = expectedOutput is null ? null : Convert.ToBase64String(Encoding.UTF8.GetBytes(expectedOutput)),
         };
+
+        // Multi-file projects: a base64 zip extracted into the working dir alongside the entry
+        // (source_code), so sibling imports resolve. Already base64, so it's sent as-is.
+        if (!string.IsNullOrEmpty(additionalFilesBase64))
+        {
+            body["additional_files"] = additionalFilesBase64;
+        }
 
         // Sandbox limits for the public candidate "run" path: disable network and cap
         // CPU/wall time, memory, and process/thread count so candidate code can't open

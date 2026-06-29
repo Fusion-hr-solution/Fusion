@@ -589,6 +589,7 @@ export default function CandidateStartPage() {
           isSql={isSql}
           value={draft?.answerText ?? ""}
           starterCode={question.starterCode}
+          projectFiles={question.projectFiles}
           onChange={(next) => updateTextAnswer(question.id, next)}
         />
       );
