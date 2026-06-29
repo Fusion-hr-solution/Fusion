@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { TooltipProvider } from "@repo/ui";
 import { PageHeader } from "../page-header";
 import { ProgrammeSection } from "./programme-section";
@@ -8,38 +9,43 @@ import { AttendanceRatesSection } from "./attendance";
 
 type AdminTab = "programme" | "attendance";
 
-const TABS: { key: AdminTab; label: string }[] = [
-  { key: "programme", label: "Programme Matrix" },
-  { key: "attendance", label: "Attendance" },
+const TABS: { key: AdminTab; labelKey: string }[] = [
+  { key: "programme", labelKey: "tabs.programme" },
+  { key: "attendance", labelKey: "tabs.attendance" },
 ];
 
 export function AdminDashboard() {
   const [tab, setTab] = useState<AdminTab>("programme");
+  const t = useTranslations("adminDashboard");
 
   return (
     <TooltipProvider delayDuration={200}>
       <PageHeader
-        moduleTitle="Administration"
-        title="Learning analytics"
-        description="Curriculum completion by grade and service line, and in-person attendance across sessions."
+        moduleTitle={t("moduleTitle")}
+        title={t("title")}
+        description={t("description")}
       />
 
       <section className="px-8 py-6">
-        <div role="tablist" aria-label="Admin dashboards" className="mb-6 flex items-center gap-1 border-b border-border">
-          {TABS.map((t) => (
+        <div
+          role="tablist"
+          aria-label={t("tabs.ariaLabel")}
+          className="mb-6 flex items-center gap-1 border-b border-border"
+        >
+          {TABS.map((item) => (
             <button
-              key={t.key}
+              key={item.key}
               type="button"
               role="tab"
-              aria-selected={tab === t.key}
-              onClick={() => setTab(t.key)}
+              aria-selected={tab === item.key}
+              onClick={() => setTab(item.key)}
               className={`px-4 py-2 text-sm font-medium transition-colors ${
-                tab === t.key
+                tab === item.key
                   ? "border-b-2 border-foreground text-foreground"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              {t.label}
+              {t(item.labelKey)}
             </button>
           ))}
         </div>

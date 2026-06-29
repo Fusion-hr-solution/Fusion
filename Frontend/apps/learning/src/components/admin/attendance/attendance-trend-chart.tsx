@@ -10,6 +10,7 @@ import {
   ComposedChart,
   Line,
 } from "recharts";
+import { useTranslations } from "next-intl";
 import type { AttendanceTrendPoint } from "@/types/admin";
 
 interface AttendanceTrendChartProps {
@@ -18,16 +19,36 @@ interface AttendanceTrendChartProps {
 
 /** Attendance rate over time (AC#3) — recharts line + area, last 12 months by default. */
 export function AttendanceTrendChart({ points }: AttendanceTrendChartProps) {
+  const t = useTranslations("adminAttendance");
   return (
-    <div className="rounded-xl border border-border/60 bg-card p-5 shadow-sm">
-      <h3 className="mb-4 text-sm font-semibold text-foreground">Attendance Rate Trend</h3>
+    <div className="ey-animate-fade-up rounded-xl border border-border/60 bg-card p-5 shadow-sm">
+      <h3 className="mb-4 text-sm font-semibold text-foreground">
+        {t("trend.title")}
+      </h3>
       <div className="h-[260px]">
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={points} margin={{ top: 4, right: 16, bottom: 4, left: 0 }}>
+          <ComposedChart
+            data={points}
+            margin={{ top: 4, right: 16, bottom: 4, left: 0 }}
+          >
             <defs>
-              <linearGradient id="attendanceTrendFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="hsl(var(--ey-green-500))" stopOpacity={0.15} />
-                <stop offset="100%" stopColor="hsl(var(--ey-green-500))" stopOpacity={0.02} />
+              <linearGradient
+                id="attendanceTrendFill"
+                x1="0"
+                y1="0"
+                x2="0"
+                y2="1"
+              >
+                <stop
+                  offset="0%"
+                  stopColor="hsl(var(--ey-green-500))"
+                  stopOpacity={0.15}
+                />
+                <stop
+                  offset="100%"
+                  stopColor="hsl(var(--ey-green-500))"
+                  stopOpacity={0.02}
+                />
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
@@ -45,7 +66,10 @@ export function AttendanceTrendChart({ points }: AttendanceTrendChartProps) {
               tickFormatter={(v: number) => `${v}%`}
             />
             <Tooltip
-              formatter={(value: number) => [`${value}%`, "Attendance Rate"]}
+              formatter={(value: number) => [
+                `${value}%`,
+                t("trend.tooltipLabel"),
+              ]}
               contentStyle={{
                 borderRadius: "8px",
                 border: "1px solid hsl(var(--border))",
@@ -56,7 +80,12 @@ export function AttendanceTrendChart({ points }: AttendanceTrendChartProps) {
               labelStyle={{ color: "hsl(var(--foreground))" }}
               itemStyle={{ color: "hsl(var(--foreground))" }}
             />
-            <Area type="monotone" dataKey="attendanceRate" fill="url(#attendanceTrendFill)" stroke="none" />
+            <Area
+              type="monotone"
+              dataKey="attendanceRate"
+              fill="url(#attendanceTrendFill)"
+              stroke="none"
+            />
             <Line
               type="monotone"
               dataKey="attendanceRate"

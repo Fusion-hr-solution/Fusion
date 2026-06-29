@@ -140,8 +140,8 @@ export function TrainingDetailView({ trainingId }: TrainingDetailViewProps) {
               variant="outline"
               className={
                 training.trainingType === "OnSite"
-                  ? "border-blue-500/30 text-blue-600"
-                  : "border-green-500/30 text-green-600"
+                  ? "border-[hsl(var(--ey-blue-500))]/30 text-[hsl(var(--ey-blue-500))]"
+                  : "border-[hsl(var(--ey-green-500))]/30 text-[hsl(var(--ey-green-500))]"
               }
             >
               {training.trainingType === "OnSite"

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import {
   XAxis,
   YAxis,
@@ -17,18 +18,30 @@ interface CompletionTrendChartProps {
 }
 
 export function CompletionTrendChart({ points }: CompletionTrendChartProps) {
+  const t = useTranslations("adminDashboard");
   return (
-    <div className="rounded-xl border border-border/60 bg-card p-5 shadow-sm">
+    <div className="ey-animate-fade-up rounded-xl border border-border/60 bg-card p-5 shadow-sm">
       <h3 className="mb-4 text-sm font-semibold text-foreground">
-        Completion Rate Trend (12 months)
+        {t("charts.trendTitle")}
       </h3>
       <div className="h-[260px]">
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={points} margin={{ top: 4, right: 16, bottom: 4, left: 0 }}>
+          <ComposedChart
+            data={points}
+            margin={{ top: 4, right: 16, bottom: 4, left: 0 }}
+          >
             <defs>
               <linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="hsl(var(--ey-blue-400))" stopOpacity={0.15} />
-                <stop offset="100%" stopColor="hsl(var(--ey-blue-400))" stopOpacity={0.02} />
+                <stop
+                  offset="0%"
+                  stopColor="hsl(var(--ey-blue-400))"
+                  stopOpacity={0.15}
+                />
+                <stop
+                  offset="100%"
+                  stopColor="hsl(var(--ey-blue-400))"
+                  stopOpacity={0.02}
+                />
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
@@ -48,7 +61,7 @@ export function CompletionTrendChart({ points }: CompletionTrendChartProps) {
             <Tooltip
               formatter={(value: number, name: string) => [
                 `${value}%`,
-                name === "completionRate" ? "Completion Rate" : name,
+                name === "completionRate" ? t("charts.completionRate") : name,
               ]}
               contentStyle={{
                 borderRadius: "8px",
@@ -60,7 +73,12 @@ export function CompletionTrendChart({ points }: CompletionTrendChartProps) {
               labelStyle={{ color: "hsl(var(--foreground))" }}
               itemStyle={{ color: "hsl(var(--foreground))" }}
             />
-            <Area type="monotone" dataKey="completionRate" fill="url(#trendFill)" stroke="none" />
+            <Area
+              type="monotone"
+              dataKey="completionRate"
+              fill="url(#trendFill)"
+              stroke="none"
+            />
             <Line
               type="monotone"
               dataKey="completionRate"

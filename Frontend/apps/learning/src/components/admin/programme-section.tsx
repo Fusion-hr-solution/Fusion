@@ -2,6 +2,7 @@
 
 import { useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { BarChart3, Grid3X3, TrendingUp, Users } from "lucide-react";
 import { Skeleton } from "@repo/ui";
 import {
@@ -21,6 +22,7 @@ import { CompletionTrendChart } from "./completion-trend-chart";
  */
 export function ProgrammeSection() {
   const router = useRouter();
+  const t = useTranslations("adminDashboard");
   const { data: matrix, isLoading: loadingMatrix } = useProgrammeMatrix();
   const { data: byGrade, isLoading: loadingGrade } = useCompletionByGrade();
   const { data: bySL, isLoading: loadingSL } = useCompletionByServiceLine();
@@ -79,27 +81,24 @@ export function ProgrammeSection() {
           Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-[72px] rounded-xl" />)
         ) : (
           <>
-            <KpiCard icon={Users} value={kpis?.totalEmployees ?? 0} label="Profiled Employees" />
-            <KpiCard icon={Grid3X3} value={kpis?.totalCells ?? 0} label="Active Groups" />
-            <KpiCard icon={TrendingUp} value={`${kpis?.avgRate ?? 0}%`} label="Avg. Completion" />
-            <KpiCard icon={BarChart3} value={kpis?.greenCells ?? 0} label="Groups ≥ 80%" />
+            <KpiCard icon={Users} value={kpis?.totalEmployees ?? 0} label={t("kpi.profiledEmployees")} />
+            <KpiCard icon={Grid3X3} value={kpis?.totalCells ?? 0} label={t("kpi.activeGroups")} />
+            <KpiCard icon={TrendingUp} value={`${kpis?.avgRate ?? 0}%`} label={t("kpi.avgCompletion")} />
+            <KpiCard icon={BarChart3} value={kpis?.greenCells ?? 0} label={t("kpi.groupsAbove80")} />
           </>
         )}
       </div>
 
       {/* Completion by group (grade x service line) */}
       <div>
-        <h2 className="mb-1 text-sm font-semibold text-foreground">Completion by group</h2>
-        <p className="mb-4 text-xs text-muted-foreground">
-          Each grade × service line group, sorted by lowest completion first. Click a group for
-          per-employee progress.
-        </p>
+        <h2 className="mb-1 text-sm font-semibold text-foreground">{t("section.completionByGroup")}</h2>
+        <p className="mb-4 text-xs text-muted-foreground">{t("section.completionByGroupHint")}</p>
         {loadingMatrix ? (
           <Skeleton className="h-[320px] rounded-xl" />
         ) : matrix ? (
           <ProgrammeAttentionList matrix={matrix} onCellClick={handleCellClick} />
         ) : (
-          <p className="text-sm text-muted-foreground">No data available.</p>
+          <p className="text-sm text-muted-foreground">{t("matrix.noData")}</p>
         )}
       </div>
 
@@ -108,12 +107,12 @@ export function ProgrammeSection() {
         {loadingGrade ? (
           <Skeleton className="h-[320px] rounded-xl" />
         ) : (
-          <CompletionBarChart data={gradeChartData} title="Completion Rate by Grade" />
+          <CompletionBarChart data={gradeChartData} title={t("charts.byGrade")} />
         )}
         {loadingSL ? (
           <Skeleton className="h-[320px] rounded-xl" />
         ) : (
-          <CompletionBarChart data={slChartData} title="Completion Rate by Service Line" />
+          <CompletionBarChart data={slChartData} title={t("charts.byServiceLine")} />
         )}
       </div>
 

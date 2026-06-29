@@ -1,7 +1,7 @@
 export function progressBarColor(pct: number) {
-  if (pct >= 80) return "bg-emerald-500";
-  if (pct >= 40) return "bg-amber-500";
-  return "bg-red-500";
+  if (pct >= 80) return "bg-[hsl(var(--ey-green-500))]";
+  if (pct >= 40) return "bg-[hsl(var(--ey-orange-500))]";
+  return "bg-destructive";
 }
 
 export function avatarColor(name: string): string {

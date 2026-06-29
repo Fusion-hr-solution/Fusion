@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import QRCode from "qrcode";
 import { Badge, Button, Card, CardContent, Separator } from "@repo/ui";
+import { useFormatter, useTranslations } from "next-intl";
 import { useApiMutation, useApiQuery } from "@repo/api/react";
 import { ApiError } from "@repo/api";
 import { toast } from "sonner";
@@ -34,36 +35,50 @@ export function SessionQrCard({
   sessionEnded,
   sessionCancelled,
 }: SessionQrCardProps) {
+  const t = useTranslations("adminSessions");
+  const tCommon = useTranslations("common");
+  const format = useFormatter();
   const fetcher = useCallback(() => getSessionQrCode(sessionId), [sessionId]);
-  const { data: qr, isLoading, error, refetch } = useApiQuery<SessionQrCode | null>(fetcher);
+  const {
+    data: qr,
+    isLoading,
+    error,
+    refetch,
+  } = useApiQuery<SessionQrCode | null>(fetcher);
 
-  const { mutateAsync: doGenerate, isLoading: generating } = useApiMutation<SessionQrCode, boolean>(
-    (regenerate) => generateSessionQrCode(sessionId, regenerate),
-    {
-      onSuccess: () => {
-        refetch();
-        toast.success("QR code ready");
-      },
-      onError: (err) => {
-        const message = err instanceof ApiError ? err.errors.join(". ") : "Could not generate QR code.";
-        toast.error("Generation failed", { description: message });
-      },
+  const { mutateAsync: doGenerate, isLoading: generating } = useApiMutation<
+    SessionQrCode,
+    boolean
+  >((regenerate) => generateSessionQrCode(sessionId, regenerate), {
+    onSuccess: () => {
+      refetch();
+      toast.success(t("qrCard.ready"));
     },
-  );
+    onError: (err) => {
+      const message =
+        err instanceof ApiError
+          ? err.errors.join(". ")
+          : t("qrCard.generateFallback");
+      toast.error(t("qrCard.generationFailed"), { description: message });
+    },
+  });
 
-  const { mutateAsync: doRevoke, isLoading: revoking } = useApiMutation<void, void>(
-    () => revokeSessionQrCode(sessionId),
-    {
-      onSuccess: () => {
-        refetch();
-        toast.success("QR code revoked");
-      },
-      onError: (err) => {
-        const message = err instanceof ApiError ? err.errors.join(". ") : "Could not revoke QR code.";
-        toast.error("Revoke failed", { description: message });
-      },
+  const { mutateAsync: doRevoke, isLoading: revoking } = useApiMutation<
+    void,
+    void
+  >(() => revokeSessionQrCode(sessionId), {
+    onSuccess: () => {
+      refetch();
+      toast.success(t("qrCard.revoked"));
     },
-  );
+    onError: (err) => {
+      const message =
+        err instanceof ApiError
+          ? err.errors.join(". ")
+          : t("qrCard.revokeFallback");
+      toast.error(t("qrCard.revokeFailed"), { description: message });
+    },
+  });
 
   const [fullscreenOpen, setFullscreenOpen] = useState(false);
 
@@ -90,9 +105,9 @@ export function SessionQrCard({
     return (
       <Card className="border-destructive/40">
         <CardContent className="py-5 space-y-2">
-          <p className="text-sm text-destructive">Could not load QR code.</p>
+          <p className="text-sm text-destructive">{t("qrCard.loadError")}</p>
           <Button size="sm" variant="outline" onClick={refetch}>
-            Try again
+            {tCommon("actions.retry")}
           </Button>
         </CardContent>
       </Card>
@@ -107,11 +122,12 @@ export function SessionQrCard({
         <CardContent className="py-5 space-y-3">
           <div className="flex items-center gap-2">
             <QrCode className="h-4 w-4 text-muted-foreground" />
-            <h3 className="text-sm font-semibold text-foreground">Attendance QR</h3>
+            <h3 className="text-sm font-semibold text-foreground">
+              {t("qrCard.title")}
+            </h3>
           </div>
           <p className="text-xs text-muted-foreground">
-            Generate a QR code that participants scan to confirm their attendance. The code rotates
-            every 5 minutes for security.
+            {t("qrCard.description")}
           </p>
           <Button
             size="sm"
@@ -124,13 +140,13 @@ export function SessionQrCard({
             ) : (
               <QrCode className="mr-1.5 h-3.5 w-3.5" />
             )}
-            Generate QR Code
+            {t("qrCard.generate")}
           </Button>
           {blocked && (
             <p className="text-xs text-muted-foreground">
               {sessionCancelled
-                ? "QR generation is unavailable for cancelled sessions."
-                : "QR generation is unavailable after the session ends."}
+                ? t("qrCard.blockedCancelled")
+                : t("qrCard.blockedEnded")}
             </p>
           )}
         </CardContent>
@@ -145,18 +161,28 @@ export function SessionQrCard({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <QrCode className="h-4 w-4 text-muted-foreground" />
-              <h3 className="text-sm font-semibold text-foreground">Attendance QR</h3>
+              <h3 className="text-sm font-semibold text-foreground">
+                {t("qrCard.title")}
+              </h3>
             </div>
             {qr.isRevoked ? (
-              <Badge variant="outline" className="border-destructive/40 bg-destructive/10 text-destructive text-[10px]">
-                <ShieldOff className="mr-1 h-3 w-3" /> Revoked
+              <Badge
+                variant="outline"
+                className="border-destructive/40 bg-destructive/10 text-destructive text-[10px]"
+              >
+                <ShieldOff className="mr-1 h-3 w-3" />{" "}
+                {t("qrCard.revokedBadge")}
               </Badge>
             ) : (
               <RotationBadge refreshAt={qr.refreshAt} />
             )}
           </div>
 
-          <QrPreview payload={qr.payload} disabled={qr.isRevoked} />
+          <QrPreview
+            payload={qr.payload}
+            disabled={qr.isRevoked}
+            ariaLabel={t("qrCard.previewAria")}
+          />
 
           <Separator />
 
@@ -168,16 +194,18 @@ export function SessionQrCard({
               onClick={() => setFullscreenOpen(true)}
             >
               <Maximize2 className="mr-1.5 h-3.5 w-3.5" />
-              Project
+              {t("qrCard.project")}
             </Button>
             <Button
               size="sm"
               variant="outline"
               disabled={qr.isRevoked}
-              onClick={() => downloadQr(qr.payload, sessionId)}
+              onClick={() =>
+                downloadQr(qr.payload, sessionId, t("qrCard.downloadError"))
+              }
             >
               <Download className="mr-1.5 h-3.5 w-3.5" />
-              Download
+              {tCommon("actions.download")}
             </Button>
             <Button
               size="sm"
@@ -190,7 +218,7 @@ export function SessionQrCard({
               ) : (
                 <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
               )}
-              Regenerate
+              {t("qrCard.regenerate")}
             </Button>
             <Button
               size="sm"
@@ -204,13 +232,21 @@ export function SessionQrCard({
               ) : (
                 <Trash2 className="mr-1.5 h-3.5 w-3.5" />
               )}
-              Revoke
+              {t("qrCard.revoke")}
             </Button>
           </div>
 
           <p className="text-[11px] text-muted-foreground">
-            Issued {new Date(qr.issuedAt).toLocaleTimeString()} · expires{" "}
-            {new Date(qr.expiresAt).toLocaleString()}
+            {t("qrCard.issuedExpires", {
+              issued: format.dateTime(new Date(qr.issuedAt), {
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
+              expires: format.dateTime(new Date(qr.expiresAt), {
+                dateStyle: "medium",
+                timeStyle: "short",
+              }),
+            })}
           </p>
         </CardContent>
       </Card>
@@ -225,8 +261,9 @@ export function SessionQrCard({
 }
 
 function RotationBadge({ refreshAt }: { refreshAt: string }) {
+  const t = useTranslations("adminSessions");
   const [secondsLeft, setSecondsLeft] = useState(() =>
-    Math.max(0, Math.round((new Date(refreshAt).getTime() - Date.now()) / 1000)),
+    Math.max(0, Math.round((new Date(refreshAt).getTime() - Date.now()) / 1000))
   );
 
   useEffect(() => {
@@ -239,13 +276,24 @@ function RotationBadge({ refreshAt }: { refreshAt: string }) {
   }, [refreshAt]);
 
   return (
-    <Badge variant="outline" className="text-[10px] border-border bg-muted/40 text-muted-foreground tabular-nums">
-      Rotates in {formatCountdown(secondsLeft)}
+    <Badge
+      variant="outline"
+      className="text-[10px] border-border bg-muted/40 text-muted-foreground tabular-nums"
+    >
+      {t("qrCard.rotatesIn", { time: formatCountdown(secondsLeft) })}
     </Badge>
   );
 }
 
-function QrPreview({ payload, disabled }: { payload: string; disabled: boolean }) {
+function QrPreview({
+  payload,
+  disabled,
+  ariaLabel,
+}: {
+  payload: string;
+  disabled: boolean;
+  ariaLabel: string;
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -263,7 +311,7 @@ function QrPreview({ payload, disabled }: { payload: string; disabled: boolean }
     <div
       className={`flex items-center justify-center rounded-xl border border-border/40 bg-white p-3 ${disabled ? "opacity-30" : ""}`}
     >
-      <canvas ref={canvasRef} aria-label="Attendance QR code" />
+      <canvas ref={canvasRef} aria-label={ariaLabel} />
     </div>
   );
 }
@@ -274,7 +322,11 @@ function formatCountdown(seconds: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-async function downloadQr(payload: string, sessionId: string): Promise<void> {
+async function downloadQr(
+  payload: string,
+  sessionId: string,
+  errorMessage: string
+): Promise<void> {
   try {
     const dataUrl = await QRCode.toDataURL(payload, { width: 1024, margin: 2 });
     const a = document.createElement("a");
@@ -284,6 +336,6 @@ async function downloadQr(payload: string, sessionId: string): Promise<void> {
     a.click();
     document.body.removeChild(a);
   } catch {
-    toast.error("Could not download QR code.");
+    toast.error(errorMessage);
   }
 }

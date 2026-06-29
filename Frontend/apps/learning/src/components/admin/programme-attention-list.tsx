@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import type { ProgrammeMatrix } from "@/types/admin";
 
 interface ProgrammeAttentionListProps {
@@ -30,6 +31,7 @@ interface Tile {
  * to scan. Clicking a tile drills into per-employee detail.
  */
 export function ProgrammeAttentionList({ matrix, onCellClick }: ProgrammeAttentionListProps) {
+  const t = useTranslations("adminDashboard");
   const gradeById = new Map(matrix.grades.map((g) => [g.id, g]));
   const slById = new Map(matrix.serviceLines.map((s) => [s.id, s]));
 
@@ -47,47 +49,52 @@ export function ProgrammeAttentionList({ matrix, onCellClick }: ProgrammeAttenti
     .sort((a, b) => a.rate - b.rate);
 
   if (tiles.length === 0) {
-    return <p className="text-sm text-muted-foreground">No groups with enrolled employees yet.</p>;
+    return <p className="text-sm text-muted-foreground">{t("attention.empty")}</p>;
   }
 
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-      {tiles.map((t) => (
+      {tiles.map((tile) => (
         <button
-          key={`${t.gradeId}:${t.serviceLineId}`}
+          key={`${tile.gradeId}:${tile.serviceLineId}`}
           type="button"
-          onClick={() => onCellClick(t.gradeId, t.serviceLineId)}
-          aria-label={`${t.gradeName}, ${t.slName}: ${t.rate}% complete, ${t.count} people`}
+          onClick={() => onCellClick(tile.gradeId, tile.serviceLineId)}
+          aria-label={t("attention.tileAria", {
+            grade: tile.gradeName,
+            sl: tile.slName,
+            rate: tile.rate,
+            count: tile.count,
+          })}
           className="flex flex-col gap-2 rounded-lg border border-border/60 bg-card p-3 text-left shadow-sm transition-colors hover:border-border hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <span
               className="h-2 w-2 shrink-0 rounded-full"
-              style={{ backgroundColor: t.color }}
+              style={{ backgroundColor: tile.color }}
               aria-hidden="true"
             />
-            <span className="truncate" title={t.slName}>
-              {t.slName}
+            <span className="truncate" title={tile.slName}>
+              {tile.slName}
             </span>
           </div>
 
-          <div className="truncate text-sm font-medium text-foreground" title={t.gradeName}>
-            {t.gradeName}
+          <div className="truncate text-sm font-medium text-foreground" title={tile.gradeName}>
+            {tile.gradeName}
           </div>
 
           <div className="flex items-end justify-between gap-2">
             <span className="text-lg font-bold leading-none tabular-nums text-foreground">
-              {t.rate}%
+              {tile.rate}%
             </span>
             <span className="text-xs text-muted-foreground">
-              {t.count} {t.count === 1 ? "person" : "people"}
+              {t("attention.people", { count: tile.count })}
             </span>
           </div>
 
           <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
             <div
-              className={`h-full rounded-full ${barColor(t.rate)}`}
-              style={{ width: `${Math.max(t.rate, 2)}%` }}
+              className={`h-full rounded-full ${barColor(tile.rate)}`}
+              style={{ width: `${Math.max(tile.rate, 2)}%` }}
             />
           </div>
         </button>
