@@ -1542,7 +1542,15 @@
     "genError": "Impossible de générer un quiz. Veuillez réessayer.",
     "saveError": "Impossible d'enregistrer le brouillon.",
     "publishError": "Impossible de publier le quiz.",
-    "discardError": "Impossible de supprimer le brouillon."
+    "discardError": "Impossible de supprimer le brouillon.",
+    "backfill": {
+      "title": "Extraire le texte des PDF existants",
+      "description": "Lit le texte des PDF déjà téléversés dans la base de données pour que le générateur de quiz IA puisse les utiliser. À exécuter une fois ; peut être relancé.",
+      "button": "Extraire le texte des PDF",
+      "running": "Extraction...",
+      "done": "Terminé — texte extrait de {updated} PDF sur {scanned} ; {skipped} ignoré(s).",
+      "error": "Impossible d'exécuter l'extraction du texte des PDF."
+    }
   },
   "adminGrades": {
     "title": "Gérer les grades",
