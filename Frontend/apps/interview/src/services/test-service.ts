@@ -63,6 +63,7 @@ interface BackendQuestionDto {
   options?: Array<{ text: string; correct: boolean }>;
   language?: string;
   starterCode?: string;
+  projectFiles?: string;
   evaluationCriteria?: string;
   testCases?: string;
 }
@@ -79,6 +80,7 @@ interface CreateQuestionRequest {
   options: Array<{ text: string; correct: boolean }>;
   language: string;
   starterCode: string;
+  projectFiles?: string;
   evaluationCriteria: string;
   testCases?: string;
 }
@@ -172,6 +174,7 @@ function mapQuestion(dto: BackendQuestionDto): Question {
     options: dto.options,
     language: dto.language,
     starterCode: dto.starterCode,
+    projectFiles: dto.projectFiles,
     evaluationCriteria: dto.evaluationCriteria,
     testCases: dto.testCases ? tryParseJson(dto.testCases) : undefined,
   };
@@ -220,6 +223,7 @@ function toCreateQuestionRequest(form: NewQuestionForm): CreateQuestionRequest {
     options,
     language: form.language,
     starterCode: form.starterCode,
+    projectFiles: form.projectFiles && form.projectFiles.trim().length > 0 ? form.projectFiles : undefined,
     evaluationCriteria: form.evaluationCriteria,
     testCases: form.testCases.length > 0 ? JSON.stringify(form.testCases) : undefined,
   };

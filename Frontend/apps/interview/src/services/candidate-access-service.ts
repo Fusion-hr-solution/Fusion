@@ -16,6 +16,8 @@ export interface CandidateAccessQuestion {
   durationMinutes: number;
   language?: string;
   starterCode?: string;
+  /** Multi-file coding question starter: JSON { entry, files: [{ path, content }] }. */
+  projectFiles?: string;
   evaluationCriteria?: string;
   options: CandidateAccessQuestionOption[];
 }
@@ -54,11 +56,22 @@ export interface SubmitCandidateAttemptInput {
   browserFingerprint?: string;
 }
 
+export interface ProjectFile {
+  path: string;
+  content: string;
+}
+
 export interface RunCandidateCodeInput {
   questionId: string;
-  sourceCode: string;
+  /** Single-file source. Provide this OR files (multi-file). */
+  sourceCode?: string;
+  /** Multi-file project. */
+  files?: ProjectFile[];
+  entryPath?: string;
   language?: string;
   stdin?: string;
+  /** Same fingerprint sent on start/submit — re-validated by the run endpoint. */
+  browserFingerprint?: string;
 }
 
 export interface CandidateRunResult {
@@ -158,8 +171,11 @@ export async function runCandidateCode(
       token,
       questionId: input.questionId,
       sourceCode: input.sourceCode,
+      files: input.files,
+      entryPath: input.entryPath,
       language: input.language,
       stdin: input.stdin,
+      browserFingerprint: input.browserFingerprint,
     },
     { skipAuth: true }
   );
