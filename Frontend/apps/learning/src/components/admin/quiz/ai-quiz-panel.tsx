@@ -25,6 +25,7 @@ import {
 } from "@repo/ui";
 import { ApiError } from "@repo/api";
 import { useQuizGenerator } from "@/hooks/use-quiz-generator";
+import { getQuizDraft } from "@/services/admin-service";
 import type {
   AdminExamQuestion,
   CreateExamQuestionInput,
@@ -141,6 +142,8 @@ export function AiQuizPanel({
   const [count, setCount] = useState(10);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [recovering, setRecovering] = useState(false);
+  const [stageIndex, setStageIndex] = useState(0);
 
   // Seed the working copy from the persisted draft exactly once per open, so a late-arriving draft
   // (or any later refetch) can't clobber edits the admin has already made this session.
@@ -158,15 +161,59 @@ export function AiQuizPanel({
 
   const aiAvailable = draft?.aiAvailable ?? false;
   const invalidCount = working.filter((q) => !isQuestionValid(q)).length;
-  const busy = isGenerating || isSaving || isPublishing || isDiscarding;
+  const generating = isGenerating || recovering;
+  const busy = generating || isSaving || isPublishing || isDiscarding;
+
+  // Cycle the "what the AI is doing" status text while generating (advisory — a single blocking call).
+  const stages = [t("stageReading"), t("stageAnalyzing"), t("stageWriting"), t("stageFinalizing")];
+  useEffect(() => {
+    if (!generating) {
+      setStageIndex(0);
+      return;
+    }
+    const id = setInterval(
+      () => setStageIndex((i) => Math.min(i + 1, stages.length - 1)),
+      9000,
+    );
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [generating]);
 
   async function handleGenerate() {
+    // Snapshot the current questions so a recovered draft can be told apart from a pre-existing one.
+    const baseline = JSON.stringify(
+      working.map((q) => `${q.text}|${q.options.map((o) => o.text).join("~")}`),
+    );
     try {
       const result = await doGenerate(count);
       setWorking(result.questions);
       toast.success(t("generated", { count: result.questions.length }));
+      return;
     } catch (err) {
-      toast.error(t("genError"), { description: extractError(err) });
+      // The dev proxy chain can drop the long request while the server keeps generating; the backend
+      // persists the draft regardless, so poll for a NEW draft before reporting failure.
+      setRecovering(true);
+      try {
+        for (let i = 0; i < 20; i++) {
+          await new Promise((r) => setTimeout(r, 5000));
+          try {
+            const d = await getQuizDraft(trainingId);
+            const fresh = JSON.stringify(
+              d.questions.map((q) => `${q.text}|${q.options.map((o) => o.text).join("~")}`),
+            );
+            if (d.questions.length > 0 && fresh !== baseline) {
+              setWorking(d.questions);
+              toast.success(t("generated", { count: d.questions.length }));
+              return;
+            }
+          } catch {
+            /* keep polling */
+          }
+        }
+        toast.error(t("genError"), { description: extractError(err) });
+      } finally {
+        setRecovering(false);
+      }
     }
   }
 
@@ -280,7 +327,7 @@ export function AiQuizPanel({
               disabled={!aiAvailable || busy}
               className="ey-bg-dark hover:opacity-90"
             >
-              {isGenerating ? (
+              {generating ? (
                 <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
               ) : (
                 <Sparkles className="mr-1.5 h-4 w-4" />
@@ -306,10 +353,12 @@ export function AiQuizPanel({
             </div>
           )}
 
-          {isGenerating && (
-            <div className="flex flex-col items-center justify-center gap-1 py-8 text-center text-sm text-muted-foreground">
-              <Loader2 className="h-6 w-6 animate-spin" />
-              <p>{t("generating")}</p>
+          {generating && (
+            <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
+              <Loader2 className="h-7 w-7 animate-spin text-[var(--ey-yellow,#ffe600)]" />
+              <p className="text-sm font-medium text-foreground">
+                {stages[stageIndex]}
+              </p>
               <p className="text-xs text-muted-foreground/70">
                 {t("generatingHint")}
               </p>
@@ -317,7 +366,7 @@ export function AiQuizPanel({
           )}
 
           {/* Question list */}
-          {!isLoading && !isGenerating && working.length === 0 ? (
+          {!isLoading && !generating && working.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-md border border-dashed py-10 text-center">
               <Sparkles className="mb-2 h-8 w-8 text-muted-foreground/40" />
               <p className="text-sm font-medium text-muted-foreground">
@@ -329,7 +378,7 @@ export function AiQuizPanel({
             </div>
           ) : (
             !isLoading &&
-            !isGenerating && (
+            !generating && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-semibold">
