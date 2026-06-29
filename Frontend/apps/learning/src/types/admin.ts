@@ -173,6 +173,13 @@ export interface QuizPublishResult {
   publishedCount: number;
 }
 
+/** Result of the one-time PDF text backfill (US-8.2.5). */
+export interface BackfillPdfTextResult {
+  scanned: number;
+  updated: number;
+  skipped: number;
+}
+
 /** Admin On-Site Course */
 export interface AdminOnSiteCourse {
   id: string;

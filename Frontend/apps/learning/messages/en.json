@@ -1542,7 +1542,15 @@
     "genError": "Could not generate a quiz. Please try again.",
     "saveError": "Could not save the draft.",
     "publishError": "Could not publish the quiz.",
-    "discardError": "Could not discard the draft."
+    "discardError": "Could not discard the draft.",
+    "backfill": {
+      "title": "Extract text from existing PDFs",
+      "description": "Reads the text of already-uploaded PDF lessons into the database so the AI quiz generator can use them. Runs once; safe to repeat.",
+      "button": "Extract PDF text",
+      "running": "Extracting...",
+      "done": "Done — extracted text from {updated} of {scanned} PDF(s); {skipped} skipped.",
+      "error": "Could not run the PDF text extraction."
+    }
   },
   "adminGrades": {
     "title": "Manage Grades",
