@@ -1,37 +1,50 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Users, CalendarClock, BarChart3 } from "lucide-react";
-import { Card, CardContent, Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@repo/ui";
+import {
+  Card,
+  CardContent,
+  Select,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
+  SelectValue,
+} from "@repo/ui";
 import { useApiQuery } from "@repo/api/react";
-import { getAdminTrainings, getTrainingAssignments } from "@/services/admin-service";
+import {
+  getAdminTrainings,
+  getTrainingAssignments,
+} from "@/services/admin-service";
 import type { AdminAssignment } from "@/types/admin";
 import { SearchInput } from "../search-input";
 import { SummaryCard } from "./summary-card";
 import { AssignmentsTable } from "./assignments-table";
 
 export function AssignmentsView() {
+  const t = useTranslations("adminAssignments");
+  const tCommon = useTranslations("common");
   const [selectedTrainingId, setSelectedTrainingId] = useState<string>("");
   const [search, setSearch] = useState("");
 
   const fetchTrainings = useCallback(
     () => getAdminTrainings({ pageSize: 100 }),
-    [],
+    []
   );
 
   const fetchAssignments = useCallback(
     () => getTrainingAssignments(selectedTrainingId),
-    [selectedTrainingId],
+    [selectedTrainingId]
   );
 
-  const { data: trainingsData } = useApiQuery(
-    fetchTrainings,
-    { enabled: true },
-  );
+  const { data: trainingsData } = useApiQuery(fetchTrainings, {
+    enabled: true,
+  });
 
   const { data: assignments, isLoading } = useApiQuery<AdminAssignment[]>(
     fetchAssignments,
-    { enabled: Boolean(selectedTrainingId) },
+    { enabled: Boolean(selectedTrainingId) }
   );
 
   const trainings = trainingsData?.trainings ?? [];
@@ -49,24 +62,27 @@ export function AssignmentsView() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          Training Assignments
+          {t("title")}
         </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          View and manage training assignments across employees
-        </p>
+        <p className="mt-1 text-sm text-muted-foreground">{t("subtitle")}</p>
       </div>
 
       {/* Filters */}
       <Card className="border-border/60">
         <CardContent className="flex flex-wrap items-center gap-3 p-4">
-          <Select value={selectedTrainingId || "none"} onValueChange={(v) => setSelectedTrainingId(v === "none" ? "" : v)}>
+          <Select
+            value={selectedTrainingId || "none"}
+            onValueChange={(v) => setSelectedTrainingId(v === "none" ? "" : v)}
+          >
             <SelectTrigger className="h-9 min-w-[220px] text-sm">
-              <SelectValue placeholder="Select a training..." />
+              <SelectValue placeholder={t("selectTraining")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="none">Select a training...</SelectItem>
+              <SelectItem value="none">{t("selectTraining")}</SelectItem>
               {trainings.map((t) => (
-                <SelectItem key={t.id} value={t.id}>{t.title}</SelectItem>
+                <SelectItem key={t.id} value={t.id}>
+                  {t.title}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -75,8 +91,8 @@ export function AssignmentsView() {
               <SearchInput
                 value={search}
                 onChange={setSearch}
-                placeholder="Filter assignments..."
-                ariaLabel="Filter assignments"
+                placeholder={t("filterPlaceholder")}
+                ariaLabel={t("filterAriaLabel")}
               />
             </div>
           )}
@@ -88,18 +104,18 @@ export function AssignmentsView() {
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <Users className="h-10 w-10 text-muted-foreground/40 mb-3" />
           <p className="text-sm text-muted-foreground">
-            Select a training to view its assignments
+            {t("emptyNoTraining")}
           </p>
         </div>
       ) : isLoading ? (
         <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
-          Loading assignments...
+          {t("loading")}
         </div>
       ) : !filteredAssignments?.length ? (
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <CalendarClock className="h-10 w-10 text-muted-foreground/40 mb-3" />
           <p className="text-sm text-muted-foreground">
-            No assignments found for this training
+            {t("emptyNoAssignments")}
           </p>
         </div>
       ) : (
@@ -107,24 +123,39 @@ export function AssignmentsView() {
           {/* Summary strip */}
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <SummaryCard
-              label="Total"
+              label={t("summary.total")}
               value={filteredAssignments.length}
-              icon={<Users className="h-4 w-4 text-[hsl(var(--ey-blue-600))]" />}
+              icon={
+                <Users className="h-4 w-4 text-[hsl(var(--ey-blue-600))]" />
+              }
             />
             <SummaryCard
-              label="Not Started"
-              value={filteredAssignments.filter((a) => a.status === "NotStarted").length}
+              label={tCommon("status.not-started")}
+              value={
+                filteredAssignments.filter((a) => a.status === "NotStarted")
+                  .length
+              }
               icon={<BarChart3 className="h-4 w-4 text-muted-foreground" />}
             />
             <SummaryCard
-              label="In Progress"
-              value={filteredAssignments.filter((a) => a.status === "InProgress").length}
-              icon={<BarChart3 className="h-4 w-4 text-[hsl(var(--ey-blue-600))]" />}
+              label={tCommon("status.in-progress")}
+              value={
+                filteredAssignments.filter((a) => a.status === "InProgress")
+                  .length
+              }
+              icon={
+                <BarChart3 className="h-4 w-4 text-[hsl(var(--ey-blue-600))]" />
+              }
             />
             <SummaryCard
-              label="Completed"
-              value={filteredAssignments.filter((a) => a.status === "Completed").length}
-              icon={<BarChart3 className="h-4 w-4 text-[hsl(var(--ey-green-500))]" />}
+              label={tCommon("status.completed")}
+              value={
+                filteredAssignments.filter((a) => a.status === "Completed")
+                  .length
+              }
+              icon={
+                <BarChart3 className="h-4 w-4 text-[hsl(var(--ey-green-500))]" />
+              }
             />
           </div>
 
