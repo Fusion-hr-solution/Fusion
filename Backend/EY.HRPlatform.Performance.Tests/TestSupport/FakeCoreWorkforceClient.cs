@@ -79,6 +79,12 @@ public sealed class FakeCoreWorkforceClient : ICoreWorkforceClient
         return Task.FromResult(CampaignWorkforceContext with { AsOf = asOf, Members = members });
     }
 
+    public CoreApplicabilityOptions ApplicabilityOptions { get; set; }
+        = new([], [], [], []);
+
+    public Task<CoreApplicabilityOptions> GetApplicabilityOptionsAsync(CancellationToken cancellationToken)
+        => Task.FromResult(ApplicabilityOptions);
+
     public static CoreEmployeeSummary Employee(Guid id, string name)
         => new(id, $"E-{id.ToString("N")[..6]}", name, name, $"{name}@test.local", "Engineer", true, null, null);
 }

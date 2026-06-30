@@ -53,6 +53,12 @@ public interface ICoreWorkforceClient
         DateTime asOf,
         IReadOnlyCollection<Guid> employeeIds,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Returns org-unit list + distinct job-title / work-location / employment-type values
+    /// scoped to the caller's tenant. Used by Performance to populate applicability pickers.
+    /// </summary>
+    Task<CoreApplicabilityOptions> GetApplicabilityOptionsAsync(CancellationToken cancellationToken);
 }
 
 /// <summary>
@@ -220,6 +226,22 @@ public sealed class CoreWorkforceClient(
 
         return await response.Content.ReadFromJsonAsync<CoreCampaignWorkforceContext>(cancellationToken)
             ?? new CoreCampaignWorkforceContext(asOf, string.Empty, []);
+    }
+
+    public async Task<CoreApplicabilityOptions> GetApplicabilityOptionsAsync(CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, "internal/corehr/applicability-options");
+        await internalServiceRequestSigner.SignAsync(request, cancellationToken);
+        using var response = await httpClient.SendAsync(request, cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException(
+                $"Core applicability-options request failed with status {(int)response.StatusCode}.");
+        }
+
+        return await response.Content.ReadFromJsonAsync<CoreApplicabilityOptions>(cancellationToken)
+            ?? new CoreApplicabilityOptions([], [], [], []);
     }
 
     private static async Task<IReadOnlyList<CoreEmployeeSummary>> ReadEmployeesAsync(

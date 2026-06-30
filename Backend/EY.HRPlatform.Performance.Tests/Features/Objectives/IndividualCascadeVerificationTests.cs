@@ -39,9 +39,15 @@ public sealed class IndividualCascadeVerificationTests
         cycle.Activate(now);
         db.PerformanceCycles.Add(cycle);
 
-        // Create an ObjectiveTemplate (catalog source)
-        var template = ObjectiveTemplate.Create(tenantId, CatalogTemplateTitle, description: "Catalog template for customer satisfaction", category: "Service", successMeasure: CatalogTemplateMeasure, target: CatalogTemplateTarget);
-        db.ObjectiveTemplates.Add(template);
+        // Create an ObjectiveTemplate (catalog source) using the stable-identity model
+        var template = ObjectiveTemplate.Create(tenantId);
+        var templateRevision = template.CreateDraftRevision(
+            CatalogTemplateTitle, "Catalog template for customer satisfaction", null,
+            "Qualitative", null, null, null, null, CatalogTemplateMeasure,
+            tenantId.ToString(), null);
+        templateRevision.SetApplicabilityValidationState("Valid");
+        template.ActivateRevision(tenantId.ToString(), null, null);
+        db.ObjectiveTemplateContainers.Add(template);
 
         db.CampaignWorkItems.Add(CampaignWorkItem.Create(tenantId, cycle.Id, employeeId, employeeId,
             CampaignWorkItemType.ObjectivePlanning, now.AddDays(10)));

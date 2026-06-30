@@ -78,8 +78,18 @@ public sealed class TenantSaveChangesInterceptor(ITenantContext tenantContext) :
 
         var tenantIdProperty = entry.Property(e => e.TenantId);
         if (tenantIdProperty.IsModified)
-            throw new TenantAccessDeniedException(
-                "TenantId cannot be modified on existing entities.");
+        {
+            var originalTenantId = tenantIdProperty.OriginalValue;
+            var currentTenantId = tenantIdProperty.CurrentValue;
+
+            if (currentTenantId != originalTenantId)
+                throw new TenantAccessDeniedException(
+                    "TenantId cannot be modified on existing entities.");
+
+            // EF can mark immutable keys as modified during relationship fix-up even when the
+            // value is unchanged. Treat that as a no-op so valid aggregate updates can persist.
+            tenantIdProperty.IsModified = false;
+        }
 
         if (entry.Entity.TenantId != tenantContext.TenantId)
             throw new TenantAccessDeniedException(

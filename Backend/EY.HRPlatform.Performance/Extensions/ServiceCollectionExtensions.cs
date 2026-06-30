@@ -1,3 +1,7 @@
+using EY.HRPlatform.Performance.Features.ConfigurationAudit;
+using EY.HRPlatform.Performance.Features.ObjectivePolicy;
+using EY.HRPlatform.Performance.Features.ObjectiveTemplates;
+using EY.HRPlatform.Performance.Features.PlatformDefaults;
 using EY.HRPlatform.Performance.Features.Cycles.Services;
 using EY.HRPlatform.Performance.Features.Exceptions.Services;
 using EY.HRPlatform.Performance.Features.Security;
@@ -20,6 +24,7 @@ public static class ServiceCollectionExtensions
         // Register MediatR - scans this assembly for all command/query handlers.
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<Program>());
         services.AddHttpContextAccessor();
+        services.AddMemoryCache();
 
         services.Configure<ReminderOptions>(configuration.GetSection(ReminderOptions.SectionName));
         var internalServiceAuthentication = configuration
@@ -27,8 +32,16 @@ public static class ServiceCollectionExtensions
             .Get<InternalServiceAuthenticationOptions>() ?? new InternalServiceAuthenticationOptions();
         services.AddSingleton<IInternalServiceRequestSigner>(_ => new InternalServiceRequestSigner(
             internalServiceAuthentication));
+        services.AddSingleton<IInternalServiceRequestAuthorizer>(sp => new InternalServiceRequestAuthorizer(
+            sp.GetRequiredService<Microsoft.Extensions.Caching.Memory.IMemoryCache>(),
+            internalServiceAuthentication));
 
         services.AddScoped<IPerformanceAccessPolicyService, PerformanceAccessPolicyService>();
+        services.AddScoped<IConfigurationAuditWriter, ConfigurationAuditWriter>();
+        services.AddScoped<IGuardrailImpactAnalyzer, GuardrailImpactAnalyzer>();
+        services.AddScoped<PolicyValidator>();
+        services.AddScoped<TemplateCompatibilityChecker>();
+        services.AddScoped<TemplateRevisionValidator>();
         services.AddScoped<ICurrentUserContext, CurrentUserContext>();
         services.AddScoped<IPerformancePopulationResolver, PerformancePopulationResolver>();
         services.AddScoped<IExceptionCaseWorkflowService, ExceptionCaseWorkflowService>();

@@ -5,6 +5,7 @@ namespace EY.HRPlatform.Performance.Domain.Enums;
 /// </summary>
 public enum ObjectiveTemplateStatus
 {
+    Draft,
     Active,
     Archived
 }

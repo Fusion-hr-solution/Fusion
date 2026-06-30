@@ -97,4 +97,87 @@ public class PerformanceAccessPolicyServiceTests
         Assert.False(_policy.CanOverrideException(user));
         Assert.False(_policy.CanViewExceptionAudit(user));
     }
+
+    // ─── P1 policy-and-templates checks ──────────────────────────────────────
+
+    [Fact]
+    public void Anonymous_IsDeniedPolicyAndTemplateChecks()
+    {
+        var user = ClaimsPrincipalBuilder.Anonymous();
+
+        Assert.False(_policy.CanViewObjectivePolicy(user));
+        Assert.False(_policy.CanManageObjectivePolicy(user));
+        Assert.False(_policy.CanManageTemplateCategories(user));
+        Assert.False(_policy.CanViewConfigurationAudit(user));
+        Assert.False(_policy.CanManagePlatformDefaults(user));
+    }
+
+    [Fact]
+    public void ObjectivePolicyViewGrant_AllowsViewOnly()
+    {
+        var user = new ClaimsPrincipalBuilder()
+            .WithPermission(PerformancePermissions.ObjectivePolicyView, PermissionScopes.Tenant)
+            .Build();
+
+        Assert.True(_policy.CanViewObjectivePolicy(user));
+        Assert.False(_policy.CanManageObjectivePolicy(user));
+    }
+
+    [Fact]
+    public void ObjectivePolicyManageGrant_AllowsViewAndManage()
+    {
+        var user = new ClaimsPrincipalBuilder()
+            .WithPermission(PerformancePermissions.ObjectivePolicyManage, PermissionScopes.Tenant)
+            .Build();
+
+        Assert.True(_policy.CanViewObjectivePolicy(user));
+        Assert.True(_policy.CanManageObjectivePolicy(user));
+    }
+
+    [Fact]
+    public void TemplateCategoryManageGrant_AllowsCategoryManage()
+    {
+        var user = new ClaimsPrincipalBuilder()
+            .WithPermission(PerformancePermissions.TemplateCategoryManage, PermissionScopes.Tenant)
+            .Build();
+
+        Assert.True(_policy.CanManageTemplateCategories(user));
+        Assert.False(_policy.CanManageObjectivePolicy(user));
+    }
+
+    [Fact]
+    public void ConfigurationAuditViewGrant_AllowsAuditView()
+    {
+        var user = new ClaimsPrincipalBuilder()
+            .WithPermission(PerformancePermissions.ConfigurationAuditView, PermissionScopes.Tenant)
+            .Build();
+
+        Assert.True(_policy.CanViewConfigurationAudit(user));
+        Assert.False(_policy.CanManagePlatformDefaults(user));
+    }
+
+    [Fact]
+    public void PlatformAdminRole_AllowsPlatformDefaultsOnly_NotTenantPolicyChecks()
+    {
+        var user = new ClaimsPrincipalBuilder()
+            .WithRole(PlatformRole.PlatformAdmin)
+            .Build();
+
+        Assert.True(_policy.CanManagePlatformDefaults(user));
+        // PlatformAdmin does not implicitly get tenant-scoped policy/category/audit — deny-by-default
+        Assert.False(_policy.CanViewObjectivePolicy(user));
+        Assert.False(_policy.CanManageObjectivePolicy(user));
+        Assert.False(_policy.CanManageTemplateCategories(user));
+        Assert.False(_policy.CanViewConfigurationAudit(user));
+    }
+
+    [Fact]
+    public void TenantPolicyManage_DoesNotGrantPlatformDefaults()
+    {
+        var user = new ClaimsPrincipalBuilder()
+            .WithPermission(PerformancePermissions.ObjectivePolicyManage, PermissionScopes.Tenant)
+            .Build();
+
+        Assert.False(_policy.CanManagePlatformDefaults(user));
+    }
 }

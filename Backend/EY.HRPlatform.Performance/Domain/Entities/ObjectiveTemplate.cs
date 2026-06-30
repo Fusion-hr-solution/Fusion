@@ -6,134 +6,100 @@ using EY.HRPlatform.SharedKernel.Multitenancy;
 namespace EY.HRPlatform.Performance.Domain.Entities;
 
 /// <summary>
-/// A reusable, tenant-scoped objective definition maintained by HR. The source pool the
-/// later objective-planning feature will draw from. Standalone in this feature: not yet
-/// linked to cycles or employees.
+/// Stable-identity objective template container. One per logical template; content lives in revisions.
 /// </summary>
 public class ObjectiveTemplate : AggregateRoot, ITenantEntity
 {
+    private readonly List<ObjectiveTemplateRevision> _revisions = new();
+
     private ObjectiveTemplate() { }
 
     public Guid TenantId { get; private set; }
-
-    /// <summary>Row version for optimistic concurrency control (mapped to PostgreSQL xmin).</summary>
-    public uint Version { get; private set; }
-
-    public string Name { get; private set; } = string.Empty;
-    public string? Description { get; private set; }
-    public string? Category { get; private set; }
-    public ObjectiveTemplateLevel Level { get; private set; }
-    public Guid? ParentTemplateId { get; private set; }
-    public string? SuccessMeasure { get; private set; }
-    public string? Target { get; private set; }
-
-    /// <summary>Optional suggested weight (percentage 0-100) when adopted into a plan.</summary>
-    public decimal? DefaultWeight { get; private set; }
-
     public ObjectiveTemplateStatus Status { get; private set; }
 
-    public bool IsReadyForPlanning => Status == ObjectiveTemplateStatus.Active
-        && !string.IsNullOrWhiteSpace(SuccessMeasure)
-        && !string.IsNullOrWhiteSpace(Target);
+    public IReadOnlyList<ObjectiveTemplateRevision> Revisions => _revisions.AsReadOnly();
+    public ObjectiveTemplateRevision? ActiveRevision
+        => _revisions.SingleOrDefault(r => r.Status == ObjectiveTemplateRevisionStatus.Active);
+    public ObjectiveTemplateRevision? DraftRevision
+        => _revisions.SingleOrDefault(r => r.Status == ObjectiveTemplateRevisionStatus.Draft);
 
-    public static ObjectiveTemplate Create(
-        Guid tenantId,
-        string name,
-        string? description = null,
-        string? category = null,
-        decimal? defaultWeight = null,
-        string? successMeasure = null,
-        string? target = null,
-        ObjectiveTemplateLevel level = ObjectiveTemplateLevel.Individual,
-        Guid? parentTemplateId = null)
+    public static ObjectiveTemplate Create(Guid tenantId)
     {
         if (tenantId == Guid.Empty)
             throw new ArgumentException("TenantId cannot be empty.", nameof(tenantId));
 
-        var template = new ObjectiveTemplate
+        return new ObjectiveTemplate
         {
             Id = Guid.NewGuid(),
             TenantId = tenantId,
-            Status = ObjectiveTemplateStatus.Active
+            Status = ObjectiveTemplateStatus.Draft,
         };
-
-        template.ApplyDetails(name, description, category, defaultWeight, successMeasure, target, level, parentTemplateId);
-        return template;
     }
 
-    public void UpdateDetails(
-        string name,
+    public ObjectiveTemplateRevision CreateDraftRevision(
+        string title,
         string? description,
-        string? category,
-        decimal? defaultWeight,
-        string? successMeasure = null,
-        string? target = null,
-        ObjectiveTemplateLevel level = ObjectiveTemplateLevel.Individual,
-        Guid? parentTemplateId = null)
+        Guid? categoryId,
+        string measurementType,
+        decimal? suggestedWeighting,
+        string? tags,
+        decimal? targetValue,
+        string? unit,
+        string? successCriteria,
+        string createdByUserId,
+        string? createdByName,
+        Guid? sourceRevisionId = null,
+        IReadOnlyList<Guid>? applicableOrgUnitIds = null,
+        IReadOnlyList<string>? applicableJobTitles = null,
+        IReadOnlyList<string>? applicableWorkLocations = null,
+        IReadOnlyList<string>? applicableEmploymentTypes = null)
     {
-        ApplyDetails(name, description, category, defaultWeight, successMeasure, target, level, parentTemplateId);
-        Touch();
+        if (DraftRevision is not null)
+            throw new DomainRuleViolationException("A draft revision already exists for this template.");
+
+        var nextVersion = _revisions.Count == 0 ? 1 : _revisions.Max(r => r.VersionNumber) + 1;
+
+        var revision = ObjectiveTemplateRevision.Create(
+            TenantId, Id, nextVersion,
+            title, description, categoryId,
+            measurementType, suggestedWeighting, tags,
+            targetValue, unit, successCriteria,
+            createdByUserId, createdByName, sourceRevisionId,
+            applicableOrgUnitIds, applicableJobTitles,
+            applicableWorkLocations, applicableEmploymentTypes);
+
+        _revisions.Add(revision);
+        UpdatedAt = DateTime.UtcNow;
+        return revision;
+    }
+
+    public void ActivateRevision(string actorId, string? actorName, string? changeSummary)
+    {
+        var draft = DraftRevision
+            ?? throw new DomainRuleViolationException("No draft revision exists to activate.");
+
+        ActiveRevision?.Supersede();
+        draft.Activate(actorId, actorName, changeSummary);
+
+        Status = ObjectiveTemplateStatus.Active;
+        UpdatedAt = DateTime.UtcNow;
     }
 
     public void Archive()
     {
         if (Status == ObjectiveTemplateStatus.Archived)
-            throw new DomainRuleViolationException("Objective template is already archived.");
+            throw new DomainRuleViolationException("Template is already archived.");
 
         Status = ObjectiveTemplateStatus.Archived;
-        Touch();
+        UpdatedAt = DateTime.UtcNow;
     }
 
     public void Restore()
     {
-        if (Status == ObjectiveTemplateStatus.Active)
-            throw new DomainRuleViolationException("Objective template is already active.");
+        if (Status != ObjectiveTemplateStatus.Archived)
+            throw new DomainRuleViolationException("Only archived templates can be restored.");
 
-        Status = ObjectiveTemplateStatus.Active;
-        Touch();
+        Status = ActiveRevision is not null ? ObjectiveTemplateStatus.Active : ObjectiveTemplateStatus.Draft;
+        UpdatedAt = DateTime.UtcNow;
     }
-
-    private void ApplyDetails(
-        string name,
-        string? description,
-        string? category,
-        decimal? defaultWeight,
-        string? successMeasure,
-        string? target,
-        ObjectiveTemplateLevel level,
-        Guid? parentTemplateId)
-    {
-        if (string.IsNullOrWhiteSpace(name))
-            throw new ArgumentException("Objective template name cannot be empty.", nameof(name));
-
-        var normalizedName = name.Trim();
-        if (normalizedName.Length > 200)
-            throw new ArgumentException("Objective template name cannot exceed 200 characters.", nameof(name));
-
-        if (defaultWeight is < 0 or > 100)
-            throw new ArgumentException("Default weight must be between 0 and 100.", nameof(defaultWeight));
-
-        if (!Enum.IsDefined(level))
-            throw new ArgumentOutOfRangeException(nameof(level));
-
-        var normalizedMeasure = string.IsNullOrWhiteSpace(successMeasure) ? null : successMeasure.Trim();
-        var normalizedTarget = string.IsNullOrWhiteSpace(target) ? null : target.Trim();
-        if (normalizedMeasure?.Length > 500)
-            throw new ArgumentException("Success measure cannot exceed 500 characters.", nameof(successMeasure));
-        if (normalizedTarget?.Length > 500)
-            throw new ArgumentException("Target cannot exceed 500 characters.", nameof(target));
-        if (parentTemplateId == Id)
-            throw new DomainRuleViolationException("An objective template cannot align to itself.");
-
-        Name = normalizedName;
-        Description = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
-        Category = string.IsNullOrWhiteSpace(category) ? null : category.Trim();
-        DefaultWeight = defaultWeight;
-        Level = level;
-        ParentTemplateId = parentTemplateId;
-        SuccessMeasure = normalizedMeasure;
-        Target = normalizedTarget;
-    }
-
-    private void Touch() => UpdatedAt = DateTime.UtcNow;
 }

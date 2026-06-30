@@ -1,4 +1,5 @@
 using EY.HRPlatform.Performance.Domain.Entities;
+using EY.HRPlatform.Performance.Domain.Entities.Platform;
 using EY.HRPlatform.SharedKernel.Multitenancy;
 using EY.HRPlatform.SharedKernel.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -45,9 +46,25 @@ public class PerformanceDbContext : DbContext
     public DbSet<PerformanceObjectiveMilestone> PerformanceObjectiveMilestones => Set<PerformanceObjectiveMilestone>();
     public DbSet<CampaignWorkItem> CampaignWorkItems => Set<CampaignWorkItem>();
     public DbSet<CampaignAssignmentResponsibility> CampaignAssignmentResponsibilities => Set<CampaignAssignmentResponsibility>();
-    public DbSet<ObjectiveTemplate> ObjectiveTemplates => Set<ObjectiveTemplate>();
+    public DbSet<ObjectiveTemplate> ObjectiveTemplateContainers => Set<ObjectiveTemplate>();
+    public DbSet<ObjectiveTemplateRevision> ObjectiveTemplateRevisions => Set<ObjectiveTemplateRevision>();
     public DbSet<PerformanceNotification> PerformanceNotifications => Set<PerformanceNotification>();
     public DbSet<PerformanceCycleAuditEvent> PerformanceCycleAuditEvents => Set<PerformanceCycleAuditEvent>();
+    public DbSet<PerformanceConfigurationAuditEntry> PerformanceConfigurationAuditEntries => Set<PerformanceConfigurationAuditEntry>();
+
+    // Platform-scoped entities (D1: no tenant filter, no ITenantEntity, PlatformAdmin gated)
+    public DbSet<PlatformPerformanceGuardrails> PlatformPerformanceGuardrails => Set<PlatformPerformanceGuardrails>();
+    public DbSet<PlatformObjectiveBaseline> PlatformObjectiveBaselines => Set<PlatformObjectiveBaseline>();
+    public DbSet<PlatformObjectiveBaselineVersion> PlatformObjectiveBaselineVersions => Set<PlatformObjectiveBaselineVersion>();
+    public DbSet<PlatformStarterTemplate> PlatformStarterTemplates => Set<PlatformStarterTemplate>();
+
+
+    // Tenant objective policy
+    public DbSet<TenantObjectivePolicy> TenantObjectivePolicies => Set<TenantObjectivePolicy>();
+    public DbSet<TenantObjectivePolicyVersion> TenantObjectivePolicyVersions => Set<TenantObjectivePolicyVersion>();
+
+    // Template categories
+    public DbSet<ObjectiveTemplateCategory> ObjectiveTemplateCategories => Set<ObjectiveTemplateCategory>();
 
     // Strategic objective + phase shared entities (Plan 03-02)
     public DbSet<StrategicPeriod> StrategicPeriods => Set<StrategicPeriod>();
@@ -131,11 +148,23 @@ public class PerformanceDbContext : DbContext
         modelBuilder.Entity<ObjectiveTemplate>()
             .HasQueryFilter(t => CurrentTenantId != Guid.Empty && t.TenantId == CurrentTenantId);
 
+        modelBuilder.Entity<ObjectiveTemplateRevision>()
+            .HasQueryFilter(r => CurrentTenantId != Guid.Empty && r.TenantId == CurrentTenantId);
+
         modelBuilder.Entity<PerformanceNotification>()
             .HasQueryFilter(n => CurrentTenantId != Guid.Empty && n.TenantId == CurrentTenantId);
 
         modelBuilder.Entity<PerformanceCycleAuditEvent>()
             .HasQueryFilter(a => CurrentTenantId != Guid.Empty && a.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<TenantObjectivePolicy>()
+            .HasQueryFilter(p => CurrentTenantId != Guid.Empty && p.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<TenantObjectivePolicyVersion>()
+            .HasQueryFilter(v => CurrentTenantId != Guid.Empty && v.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<ObjectiveTemplateCategory>()
+            .HasQueryFilter(c => CurrentTenantId != Guid.Empty && c.TenantId == CurrentTenantId);
 
         // Strategic + phase shared entity tenant filters (Plan 03-02)
         modelBuilder.Entity<StrategicPeriod>()

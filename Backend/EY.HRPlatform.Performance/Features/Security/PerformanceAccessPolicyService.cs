@@ -32,6 +32,19 @@ public interface IPerformanceAccessPolicyService
     bool CanActOnOwnedException(ClaimsPrincipal user) => false;
     bool CanOverrideException(ClaimsPrincipal user) => false;
     bool CanViewExceptionAudit(ClaimsPrincipal user) => false;
+
+    // Objective policy (P1: policy-and-templates)
+    bool CanViewObjectivePolicy(ClaimsPrincipal user) => false;
+    bool CanManageObjectivePolicy(ClaimsPrincipal user) => false;
+
+    // Template categories (P1: policy-and-templates)
+    bool CanManageTemplateCategories(ClaimsPrincipal user) => false;
+
+    // Configuration audit (P1: policy-and-templates)
+    bool CanViewConfigurationAudit(ClaimsPrincipal user) => false;
+
+    // Platform defaults — gated by PlatformRole.PlatformAdmin only (D1)
+    bool CanManagePlatformDefaults(ClaimsPrincipal user) => false;
 }
 
 /// <summary>
@@ -124,4 +137,28 @@ public sealed class PerformanceAccessPolicyService : IPerformanceAccessPolicySer
             || user.HasCorePermission(PerformancePermissions.ExceptionOverride, PermissionScopes.Tenant)
             || user.HasCorePermission(PerformancePermissions.ExceptionManage, PermissionScopes.Tenant)
             || user.IsInRole(PlatformRole.PlatformAdmin);
+
+    // ─── Objective policy (P1: policy-and-templates) ──────────────────────────
+
+    public bool CanViewObjectivePolicy(ClaimsPrincipal user)
+        => user.HasCorePermission(PerformancePermissions.ObjectivePolicyView, PermissionScopes.Tenant)
+            || user.HasCorePermission(PerformancePermissions.ObjectivePolicyManage, PermissionScopes.Tenant);
+
+    public bool CanManageObjectivePolicy(ClaimsPrincipal user)
+        => user.HasCorePermission(PerformancePermissions.ObjectivePolicyManage, PermissionScopes.Tenant);
+
+    // ─── Template categories (P1: policy-and-templates) ──────────────────────
+
+    public bool CanManageTemplateCategories(ClaimsPrincipal user)
+        => user.HasCorePermission(PerformancePermissions.TemplateCategoryManage, PermissionScopes.Tenant);
+
+    // ─── Configuration audit (P1: policy-and-templates) ──────────────────────
+
+    public bool CanViewConfigurationAudit(ClaimsPrincipal user)
+        => user.HasCorePermission(PerformancePermissions.ConfigurationAuditView, PermissionScopes.Tenant);
+
+    // ─── Platform defaults (D1: PlatformAdmin only) ───────────────────────────
+
+    public bool CanManagePlatformDefaults(ClaimsPrincipal user)
+        => user.IsInRole(PlatformRole.PlatformAdmin);
 }

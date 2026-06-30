@@ -142,6 +142,12 @@ public static class PerformancePermissions
     public const string ObjectiveProgressCorrect = "performance.objective.progress.correct";
     public const string ObjectiveTeamApprove = "performance.objective.team.approve";
 
+    // Policy, category, and configuration-audit permissions (P1 partition: policy-and-templates)
+    public const string ObjectivePolicyView = "performance.objective.policy.view";
+    public const string ObjectivePolicyManage = "performance.objective.policy.manage";
+    public const string TemplateCategoryManage = "performance.template.category.manage";
+    public const string ConfigurationAuditView = "performance.configuration.audit.view";
+
     public static readonly ReadOnlyCollection<string> All =
         Array.AsReadOnly([
             CycleView,
@@ -166,6 +172,10 @@ public static class PerformancePermissions
             StrategicPublish,
             ObjectiveProgressCorrect,
             ObjectiveTeamApprove,
+            ObjectivePolicyView,
+            ObjectivePolicyManage,
+            TemplateCategoryManage,
+            ConfigurationAuditView,
         ]);
 }
 
@@ -244,6 +254,12 @@ public static class CorePermissionCatalog
             // Progress correction and collective approval permissions
             new(PerformancePermissions.ObjectiveProgressCorrect, "Correct objective progress (manager override)", "Performance", [PermissionScopes.Tenant]),
             new(PerformancePermissions.ObjectiveTeamApprove, "Approve collective objectives", "Performance", [PermissionScopes.DirectReports, PermissionScopes.OrgUnit, PermissionScopes.Tenant]),
+
+            // Policy, category, and configuration-audit permissions (P1: policy-and-templates)
+            new(PerformancePermissions.ObjectivePolicyView, "View objective policy", "Performance", [PermissionScopes.Tenant]),
+            new(PerformancePermissions.ObjectivePolicyManage, "Manage objective policy", "Performance", [PermissionScopes.Tenant]),
+            new(PerformancePermissions.TemplateCategoryManage, "Manage template categories", "Performance", [PermissionScopes.Tenant]),
+            new(PerformancePermissions.ConfigurationAuditView, "View configuration audit", "Performance", [PermissionScopes.Tenant]),
         ]);
 
     private static readonly IReadOnlyDictionary<string, CorePermissionDefinition> ByKey =

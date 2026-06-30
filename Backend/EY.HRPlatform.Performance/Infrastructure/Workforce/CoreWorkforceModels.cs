@@ -71,3 +71,17 @@ public sealed record CoreOrgUnitDetail(
     Guid? ParentId,
     Guid? ResponsibleManagerEmployeeId,
     bool IsActive);
+
+public sealed record CoreApplicabilityOrgUnit(Guid Id, string Name, string Code, Guid? ParentId);
+
+public sealed record CoreApplicabilityOptions(
+    IReadOnlyList<CoreApplicabilityOrgUnit> OrgUnits,
+    IReadOnlyList<string> JobTitles,
+    IReadOnlyList<string> WorkLocations,
+    IReadOnlyList<string> EmploymentTypes)
+{
+    public IReadOnlyList<CoreApplicabilityOrgUnit> OrgUnits { get; init; } = OrgUnits ?? [];
+    public IReadOnlyList<string> JobTitles { get; init; } = JobTitles ?? [];
+    public IReadOnlyList<string> WorkLocations { get; init; } = WorkLocations ?? [];
+    public IReadOnlyList<string> EmploymentTypes { get; init; } = EmploymentTypes ?? [];
+}

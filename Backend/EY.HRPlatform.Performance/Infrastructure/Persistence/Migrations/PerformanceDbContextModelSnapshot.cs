@@ -996,9 +996,49 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<string>("Category")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("Draft");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId")
+                        .HasDatabaseName("IX_ObjectiveTemplateContainers_TenantId");
+
+                    b.HasIndex("TenantId", "Status")
+                        .HasDatabaseName("IX_ObjectiveTemplateContainers_TenantId_Status");
+
+                    b.ToTable("ObjectiveTemplateContainers", "performance");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Entities.ObjectiveTemplateCategory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -1007,43 +1047,20 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
 
-                    b.Property<decimal?>("DefaultWeight")
-                        .HasPrecision(5, 2)
-                        .HasColumnType("numeric(5,2)");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)");
-
-                    b.Property<string>("Level")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasDefaultValue("Individual");
-
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
-                    b.Property<Guid?>("ParentTemplateId")
-                        .HasColumnType("uuid");
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .ValueGeneratedOnAdd()
                         .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasDefaultValue("Active");
-
-                    b.Property<string>("SuccessMeasure")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<string>("Target")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
+                        .HasColumnType("character varying(20)");
 
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid");
@@ -1055,28 +1072,265 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
 
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId")
+                        .HasDatabaseName("IX_ObjectiveTemplateCategories_TenantId");
+
+                    b.HasIndex("TenantId", "Code")
+                        .IsUnique()
+                        .HasDatabaseName("IX_ObjectiveTemplateCategories_TenantId_Code");
+
+                    b.HasIndex("TenantId", "NormalizedName")
+                        .IsUnique()
+                        .HasDatabaseName("IX_ObjectiveTemplateCategories_TenantId_NormalizedName");
+
+                    b.ToTable("ObjectiveTemplateCategories", "performance");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Entities.ObjectiveTemplateRevision", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ActivatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ActivatedByName")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("ActivatedByUserId")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("ApplicabilityValidationState")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("NotValidated");
+
+                    b.Property<string>("ApplicableEmploymentTypes")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValueSql("'[]'");
+
+                    b.Property<string>("ApplicableJobTitles")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValueSql("'[]'");
+
+                    b.Property<string>("ApplicableOrgUnitIds")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValueSql("'[]'");
+
+                    b.Property<string>("ApplicableWorkLocations")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValueSql("'[]'");
+
+                    b.Property<Guid?>("CategoryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ChangeSummary")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("CreatedByName")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("CreatedByUserId")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<string>("MeasurementType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<Guid?>("SourceRevisionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("Draft");
+
+                    b.Property<string>("SuccessCriteria")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<decimal?>("SuggestedWeighting")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
+
+                    b.Property<DateTime?>("SupersededAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Tags")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<decimal?>("TargetValue")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<Guid>("TemplateId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Unit")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
                     b.Property<uint>("Version")
                         .IsConcurrencyToken()
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("xid")
                         .HasColumnName("xmin");
 
+                    b.Property<int>("VersionNumber")
+                        .HasColumnType("integer");
+
                     b.HasKey("Id");
 
+                    b.HasIndex("CategoryId");
+
+                    b.HasIndex("TemplateId")
+                        .HasDatabaseName("IX_ObjectiveTemplateRevisions_TemplateId");
+
                     b.HasIndex("TenantId")
-                        .HasDatabaseName("IX_ObjectiveTemplates_TenantId");
+                        .HasDatabaseName("IX_ObjectiveTemplateRevisions_TenantId");
 
-                    b.HasIndex("TenantId", "Name")
+                    b.HasIndex("TemplateId", "Status")
+                        .HasDatabaseName("IX_ObjectiveTemplateRevisions_TemplateId_Status");
+
+                    b.HasIndex("TemplateId", "VersionNumber")
                         .IsUnique()
-                        .HasDatabaseName("IX_ObjectiveTemplates_TenantId_Name");
+                        .HasDatabaseName("IX_ObjectiveTemplateRevisions_TemplateId_VersionNumber");
 
-                    b.HasIndex("TenantId", "ParentTemplateId")
-                        .HasDatabaseName("IX_ObjectiveTemplates_Tenant_Parent");
+                    b.ToTable("ObjectiveTemplateRevisions", "performance");
+                });
 
-                    b.HasIndex("TenantId", "Status")
-                        .HasDatabaseName("IX_ObjectiveTemplates_TenantId_Status");
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Entities.PerformanceConfigurationAuditEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
 
-                    b.ToTable("ObjectiveTemplates", "performance");
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)");
+
+                    b.Property<string>("ActorName")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<Guid?>("ActorUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CorrelationId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<Guid>("EntityId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("EntityType")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<string>("NewValue")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<DateTime>("OccurredAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PreviousValue")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("Scope")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<Guid?>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<int?>("VersionNumber")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OccurredAt")
+                        .HasDatabaseName("IX_PerformanceConfigurationAudit_OccurredAt");
+
+                    b.HasIndex("EntityType", "EntityId")
+                        .HasDatabaseName("IX_PerformanceConfigurationAudit_Entity");
+
+                    b.HasIndex("Scope", "OccurredAt")
+                        .HasDatabaseName("IX_PerformanceConfigurationAudit_Scope_OccurredAt");
+
+                    b.HasIndex("TenantId", "OccurredAt")
+                        .HasDatabaseName("IX_PerformanceConfigurationAudit_Tenant_OccurredAt");
+
+                    b.ToTable("PerformanceConfigurationAuditEntries", "performance");
                 });
 
             modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Entities.PerformanceCycle", b =>
@@ -1727,6 +1981,244 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
                     b.ToTable("PerformanceReviewCriterionResponses", "performance");
                 });
 
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Entities.Platform.PlatformObjectiveBaseline", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("PlatformObjectiveBaselines", "performance");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Entities.Platform.PlatformObjectiveBaselineVersion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AllowedWeightValues")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<bool>("AttachmentsEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("BaselineId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CascadeMode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<int>("ManagerValidationSlaDays")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("MaxObjectivesPerPlan")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("MeasurementTypes")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime?>("PublishedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime?>("SupersededAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<int>("VersionNumber")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BaselineId")
+                        .HasDatabaseName("IX_PlatformObjectiveBaselineVersions_BaselineId");
+
+                    b.HasIndex("BaselineId", "Status")
+                        .HasDatabaseName("IX_PlatformObjectiveBaselineVersions_Baseline_Status");
+
+                    b.ToTable("PlatformObjectiveBaselineVersions", "performance");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Entities.Platform.PlatformPerformanceGuardrails", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<bool>("IsDraft")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("MaxAllowedWeightingValues")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("MaxManagerValidationSlaDays")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("MaxObjectivesPerPlan")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("MaxTemplateDescriptionLength")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("MaxTemplateTags")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("MaxTemplateTitleLength")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("MinManagerValidationSlaDays")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("MinObjectivesPerPlan")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("ObjectiveLibraryEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("PermittedWeightDecimalPlaces")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("SupportedMeasurementTypes")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("PlatformPerformanceGuardrails", "performance");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Entities.Platform.PlatformStarterTemplate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
+                    b.Property<string>("MeasurementType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("Qualitative");
+
+                    b.Property<int>("SortOrder")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
+                    b.Property<string>("SuccessCriteria")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<decimal?>("SuggestedWeighting")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
+
+                    b.Property<string>("Tags")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<decimal?>("TargetValue")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Unit")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IsActive")
+                        .HasDatabaseName("IX_PlatformStarterTemplates_IsActive");
+
+                    b.ToTable("PlatformStarterTemplates", "performance");
+                });
+
             modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Entities.StrategicObjective", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1854,6 +2346,146 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
                     b.ToTable("StrategicPeriods", "performance");
                 });
 
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Entities.TenantObjectivePolicy", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_TenantObjectivePolicies_TenantId");
+
+                    b.ToTable("TenantObjectivePolicies", "performance");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Entities.TenantObjectivePolicyVersion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ActivatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ActivatedByName")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<Guid?>("ActivatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AllowedWeightValues")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<bool>("AttachmentsEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("CascadeMode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("ChangeSummary")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("CreatedByName")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ManagerValidationSlaDays")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("MaxObjectivesPerPlan")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("MeasurementTypes")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<Guid>("PolicyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("SourceBaselineVersionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("SourceVersionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime?>("SupersededAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.Property<int>("VersionNumber")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PolicyId")
+                        .HasDatabaseName("IX_TenantObjectivePolicyVersions_PolicyId");
+
+                    b.HasIndex("TenantId")
+                        .HasDatabaseName("IX_TenantObjectivePolicyVersions_TenantId");
+
+                    b.HasIndex("PolicyId", "Status")
+                        .HasDatabaseName("IX_TenantObjectivePolicyVersions_Policy_Status");
+
+                    b.ToTable("TenantObjectivePolicyVersions", "performance");
+                });
+
             modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Entities.CampaignExceptionOwner", b =>
                 {
                     b.HasOne("EY.HRPlatform.Performance.Domain.Entities.PerformanceCycle", null)
@@ -1926,6 +2558,24 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Entities.ObjectiveTemplateRevision", b =>
+                {
+                    b.HasOne("EY.HRPlatform.Performance.Domain.Entities.ObjectiveTemplateCategory", "Category")
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("EY.HRPlatform.Performance.Domain.Entities.ObjectiveTemplate", "Template")
+                        .WithMany("Revisions")
+                        .HasForeignKey("TemplateId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Category");
+
+                    b.Navigation("Template");
+                });
+
             modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Entities.PerformanceCycleParticipant", b =>
                 {
                     b.HasOne("EY.HRPlatform.Performance.Domain.Entities.PerformanceCycle", null)
@@ -1953,6 +2603,24 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Entities.Platform.PlatformObjectiveBaselineVersion", b =>
+                {
+                    b.HasOne("EY.HRPlatform.Performance.Domain.Entities.Platform.PlatformObjectiveBaseline", null)
+                        .WithMany("Versions")
+                        .HasForeignKey("BaselineId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Entities.TenantObjectivePolicyVersion", b =>
+                {
+                    b.HasOne("EY.HRPlatform.Performance.Domain.Entities.TenantObjectivePolicy", null)
+                        .WithMany("Versions")
+                        .HasForeignKey("PolicyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Entities.ExceptionCase", b =>
                 {
                     b.Navigation("HistoryEntries");
@@ -1975,6 +2643,11 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
                     b.Navigation("RatingScaleLevels");
                 });
 
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Entities.ObjectiveTemplate", b =>
+                {
+                    b.Navigation("Revisions");
+                });
+
             modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Entities.PerformanceCycle", b =>
                 {
                     b.Navigation("ExceptionOwners");
@@ -1987,6 +2660,16 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Entities.PerformanceReview", b =>
                 {
                     b.Navigation("Criteria");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Entities.Platform.PlatformObjectiveBaseline", b =>
+                {
+                    b.Navigation("Versions");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Entities.TenantObjectivePolicy", b =>
+                {
+                    b.Navigation("Versions");
                 });
 #pragma warning restore 612, 618
         }
