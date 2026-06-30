@@ -1,4 +1,4 @@
-import { ClipboardList, Target, TrendingUp } from "lucide-react";
+import { ClipboardList, Library, ScrollText, Settings2 } from "lucide-react";
 import type { ShellNavSection } from "@repo/ds/shell";
 
 export const REVIEWS_NAV: ShellNavSection = {
@@ -8,10 +8,17 @@ export const REVIEWS_NAV: ShellNavSection = {
   ],
 };
 
-export const GOALS_NAV: ShellNavSection = {
-  title: "Goals",
+export const HR_ADMIN_NAV: ShellNavSection = {
+  title: "Performance setup",
   items: [
-    { label: "Goals", href: "/goals", icon: Target },
-    { label: "Analytics", href: "/analytics", icon: TrendingUp },
+    { label: "Objective policy", href: "/policy", icon: ScrollText },
+    { label: "Objective templates", href: "/templates", icon: Library },
+  ],
+};
+
+export const PLATFORM_ADMIN_NAV: ShellNavSection = {
+  title: "Platform defaults",
+  items: [
+    { label: "Platform defaults", href: "/defaults", icon: Settings2 },
   ],
 };
