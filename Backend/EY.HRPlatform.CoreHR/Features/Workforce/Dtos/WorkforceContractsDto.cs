@@ -209,3 +209,11 @@ public sealed record WorkforceBulkInviteResponseDto(
     int RefreshedCount,
     int AlreadyActiveCount,
     int SkippedCount);
+
+public sealed record ApplicabilityOrgUnitDto(Guid Id, string Name, string Code, Guid? ParentId);
+
+public sealed record ApplicabilityOptionsDto(
+    IReadOnlyList<ApplicabilityOrgUnitDto> OrgUnits,
+    IReadOnlyList<string> JobTitles,
+    IReadOnlyList<string> WorkLocations,
+    IReadOnlyList<string> EmploymentTypes);

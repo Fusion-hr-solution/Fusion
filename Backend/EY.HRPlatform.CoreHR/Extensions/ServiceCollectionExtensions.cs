@@ -65,6 +65,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IWorkforceContractService, WorkforceContractService>();
         services.AddScoped<ICampaignWorkforceContextService, CampaignWorkforceContextService>();
         services.AddScoped<IInternalWorkforceSnapshotService, InternalWorkforceSnapshotService>();
+        services.AddScoped<IApplicabilityOptionsService, ApplicabilityOptionsService>();
         services.AddScoped<IWorkforceCanonicalResolver, WorkforceCanonicalResolver>();
         services.AddScoped<IWorkforceMutationService, WorkforceMutationService>();
         services.AddScoped<IResponsibleManagerService, ResponsibleManagerService>();
