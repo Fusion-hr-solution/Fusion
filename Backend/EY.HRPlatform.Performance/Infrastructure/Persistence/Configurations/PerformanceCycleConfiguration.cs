@@ -1,0 +1,83 @@
+using EY.HRPlatform.Performance.Domain.Entities;
+using EY.HRPlatform.Performance.Domain.Enums;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+
+namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Configurations;
+
+public class PerformanceCycleConfiguration : IEntityTypeConfiguration<PerformanceCycle>
+{
+    public void Configure(EntityTypeBuilder<PerformanceCycle> builder)
+    {
+        builder.ToTable("PerformanceCycles");
+        builder.HasKey(c => c.Id);
+
+        // Map Version to PostgreSQL xmin for optimistic concurrency.
+        builder.Property(c => c.Version).IsRowVersion();
+
+        builder.Property(c => c.TenantId).IsRequired();
+        builder.Property(c => c.Name).HasMaxLength(200).IsRequired();
+        builder.Property(c => c.Description).HasMaxLength(2000);
+
+        builder.Property(c => c.Type)
+            .HasConversion<string>()
+            .HasMaxLength(20)
+            .IsRequired();
+
+        builder.Property(c => c.PeriodStart).IsRequired();
+        builder.Property(c => c.PeriodEnd).IsRequired();
+
+        builder.Property(c => c.Status)
+            .HasConversion<string>()
+            .HasMaxLength(20)
+            .IsRequired()
+            .HasDefaultValue(PerformanceCycleStatus.Draft);
+
+        builder.Property(c => c.FeedbackVisibility)
+            .HasConversion<string>()
+            .HasMaxLength(40)
+            .IsRequired();
+        builder.Property(c => c.FrozenFeedbackVisibility)
+            .HasConversion<string>()
+            .HasMaxLength(40);
+
+        builder.Property(c => c.CreatedBy).HasMaxLength(256);
+        builder.Property(c => c.UpdatedBy).HasMaxLength(256);
+
+        builder.HasMany(c => c.PopulationRules)
+            .WithOne()
+            .HasForeignKey(r => r.CycleId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasMany(c => c.Participants)
+            .WithOne()
+            .HasForeignKey(p => p.CycleId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasMany(c => c.ExceptionOwners)
+            .WithOne()
+            .HasForeignKey(x => x.CycleId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Metadata.FindNavigation(nameof(PerformanceCycle.PopulationRules))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
+        builder.Metadata.FindNavigation(nameof(PerformanceCycle.Participants))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
+        builder.Metadata.FindNavigation(nameof(PerformanceCycle.ExceptionOwners))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
+
+        builder.HasIndex(c => c.TenantId)
+            .HasDatabaseName("IX_PerformanceCycles_TenantId");
+
+        builder.HasIndex(c => new { c.TenantId, c.Name })
+            .IsUnique()
+            .HasDatabaseName("IX_PerformanceCycles_TenantId_Name");
+
+        builder.HasIndex(c => new { c.TenantId, c.Status })
+            .HasDatabaseName("IX_PerformanceCycles_TenantId_Status");
+
+        builder.Ignore(c => c.IsEditable);
+        builder.Ignore(c => c.DomainEvents);
+    }
+}

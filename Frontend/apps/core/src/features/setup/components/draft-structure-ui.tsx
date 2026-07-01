@@ -13,6 +13,7 @@ import type {
   DraftOrgUnitDto,
   DraftStructureSchemaDto,
 } from "@repo/api";
+import { PageContainer } from "@repo/ds/shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -765,11 +766,11 @@ export function formatAttributeValue(value: unknown): string {
 
 export function DraftStructurePageSkeleton() {
   return (
-    <div className="flex flex-col gap-6 p-6">
+    <PageContainer width="wide" className="space-y-6">
       <Skeleton className="h-10 w-96" />
       <Skeleton className="h-6 w-full max-w-2xl" />
       <DraftStructureWorkbenchSkeleton />
-    </div>
+    </PageContainer>
   );
 }
 

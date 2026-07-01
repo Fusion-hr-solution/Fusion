@@ -3,12 +3,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, RefreshCcw, Users } from "lucide-react";
+import { ArrowLeft, RefreshCcw } from "lucide-react";
 import { canImportCoreEmployees, useAuth } from "@repo/auth";
-import { EmptyState, type PageSize } from "@repo/ui";
+import { type PageSize } from "@repo/ui";
 import { toast } from "sonner";
-import { CorePageLoadingState } from "@/components/core-page-loading-state";
-import { PageHeader } from "@/components/page-header";
+import {
+  PageContainer,
+  PageHeader,
+  PageLoading,
+  PagePermissionNotice,
+} from "@repo/ds/shell";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -433,33 +437,36 @@ export default function EmployeeImportWorkspace() {
 
   if (isInitialPageLoading) {
     return (
-      <CorePageLoadingState
-        title="Import employees"
-        description="Upload and validate from the CSV template."
-        message="Loading employee import..."
-        variant="workspace"
-      />
+      <PageContainer width="wide" className="space-y-6">
+        <PageHeader
+          title="Import employees"
+          description="Upload and validate from the CSV template."
+        />
+        <PageLoading rows={6} label="Loading employee import..." />
+      </PageContainer>
     );
   }
 
   if (!canAccess) {
     return (
-      <div className="flex flex-col gap-6 p-6">
+      <PageContainer width="wide" className="space-y-6">
         <PageHeader
           title="Import employees"
           description="Import access is restricted."
         />
-        <EmptyState
-          icon={Users}
+        <PagePermissionNotice
           title="Employee import is not available for this role"
           description="Contact a tenant HR administrator."
         />
-      </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="flex flex-col gap-6 p-6 [&_button:not(:disabled)]:cursor-pointer [&_button:disabled]:cursor-not-allowed [&_summary]:cursor-pointer">
+    <PageContainer
+      width="wide"
+      className="space-y-6 [&_button:not(:disabled)]:cursor-pointer [&_button:disabled]:cursor-not-allowed [&_summary]:cursor-pointer"
+    >
       <input
         ref={fileInputRef}
         type="file"
@@ -660,6 +667,6 @@ export default function EmployeeImportWorkspace() {
           />
         </>
       )}
-    </div>
+    </PageContainer>
   );
 }
