@@ -154,9 +154,27 @@ public sealed class WorkforceDeltaReconciliationTests
 
             cycle.Activate(now);
             var participants = await seed.PerformanceCycleParticipants.ToListAsync();
+            var seededResponsibilities = await seed.CampaignAssignmentResponsibilities.ToListAsync();
             foreach (var p in participants)
                 seed.CampaignLaunchParticipantSnapshots.Add(
                     CampaignLaunchParticipantSnapshot.FromPreparationCandidate(p, now));
+            seed.CampaignWorkItems.AddRange(
+                CampaignWorkItem.Create(
+                    tenantId,
+                    cycle.Id,
+                    subjectA,
+                    assigneeA,
+                    CampaignWorkItemType.ObjectiveApproval,
+                    now.AddDays(3),
+                    seededResponsibilities.Single(r => r.SubjectEmployeeId == subjectA).Id),
+                CampaignWorkItem.Create(
+                    tenantId,
+                    cycle.Id,
+                    subjectB,
+                    assigneeB,
+                    CampaignWorkItemType.ObjectiveApproval,
+                    now.AddDays(3),
+                    seededResponsibilities.Single(r => r.SubjectEmployeeId == subjectB).Id));
             await seed.SaveChangesAsync();
         }
 
@@ -188,11 +206,97 @@ public sealed class WorkforceDeltaReconciliationTests
         await using var verify = PerformanceTestContext.Create(tenantContext, dbName);
         var updated = await verify.CampaignAssignmentResponsibilities
             .SingleAsync(r => r.SubjectEmployeeId == subjectA && r.AssigneeEmployeeId == assigneeA);
-        Assert.True(updated.IsFinal);
+        Assert.False(updated.IsFinal);
+
+        var cancelledWorkItem = await verify.CampaignWorkItems
+            .SingleAsync(r => r.SubjectEmployeeId == subjectA && r.AssigneeEmployeeId == assigneeA);
+        Assert.Equal(CampaignWorkItemStatus.Cancelled, cancelledWorkItem.Status);
 
         var untouched = await verify.CampaignAssignmentResponsibilities
             .SingleAsync(r => r.SubjectEmployeeId == subjectB && r.AssigneeEmployeeId == assigneeB);
         Assert.Equal(assigneeB, untouched.AssigneeEmployeeId);
         Assert.Equal(1, untouched.Revision);
+        Assert.True(untouched.IsFinal);
+
+        var untouchedWorkItem = await verify.CampaignWorkItems
+            .SingleAsync(r => r.SubjectEmployeeId == subjectB && r.AssigneeEmployeeId == assigneeB);
+        Assert.Equal(CampaignWorkItemStatus.Assigned, untouchedWorkItem.Status);
+    }
+
+    [Fact]
+    public async Task ApplySubjectDelta_RemovesFrozenParticipantAndCancelsOnlySubjectWork()
+    {
+        var tenantId = Guid.NewGuid();
+        var now = DateTime.UtcNow;
+        var subjectA = Guid.NewGuid();
+        var subjectB = Guid.NewGuid();
+
+        var dbName = $"perf-subject-apply-{Guid.NewGuid()}";
+        var tenantContext = new TenantContext();
+        tenantContext.SetTenant(tenantId);
+
+        await using (var seed = PerformanceTestContext.Create(tenantContext, dbName))
+        {
+            var cycle = PerformanceCycle.Create(tenantId, "FY26", PerformanceCycleType.Annual,
+                now.AddDays(-1), now.AddDays(10), now.AddDays(3));
+            cycle.ConfigureGovernance(Guid.NewGuid(), false, 3,
+                CampaignFeedbackVisibility.AnonymousToSubject, [Guid.NewGuid()]);
+            cycle.BeginAssignmentPreparation(2, now);
+            cycle.MarkReadyToLaunch(1, 0, true, now);
+            cycle.Activate(now);
+
+            seed.PerformanceCycles.Add(cycle);
+            seed.CampaignLaunchParticipantSnapshots.AddRange(
+                CampaignLaunchParticipantSnapshot.FromPreparationCandidate(
+                    PerformanceCycleParticipant.Create(tenantId, cycle.Id, subjectA, "Employee A"), now),
+                CampaignLaunchParticipantSnapshot.FromPreparationCandidate(
+                    PerformanceCycleParticipant.Create(tenantId, cycle.Id, subjectB, "Employee B"), now));
+            seed.CampaignWorkItems.AddRange(
+                CampaignWorkItem.Create(
+                    tenantId,
+                    cycle.Id,
+                    subjectA,
+                    subjectA,
+                    CampaignWorkItemType.ObjectivePlanning,
+                    now.AddDays(3)),
+                CampaignWorkItem.Create(
+                    tenantId,
+                    cycle.Id,
+                    subjectB,
+                    subjectB,
+                    CampaignWorkItemType.ObjectivePlanning,
+                    now.AddDays(3)));
+            await seed.SaveChangesAsync();
+        }
+
+        await using var db = PerformanceTestContext.Create(tenantContext, dbName);
+        var cycleId = await db.PerformanceCycles.Select(c => c.Id).SingleAsync();
+        var version = await db.PerformanceCycles.Select(c => c.Version).SingleAsync();
+
+        var handler = new ApplyWorkforceDeltaCommandHandler(
+            db, tenantContext, new StubCurrentUserContext());
+
+        var result = await handler.Handle(
+            new ApplyWorkforceDeltaCommand(
+                cycleId,
+                version,
+                [new WorkforceDeltaDecision(subjectA, Guid.Empty, Accept: true, Reason: "Subject became inactive")]),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+
+        await using var verify = PerformanceTestContext.Create(tenantContext, dbName);
+        Assert.False(await verify.CampaignLaunchParticipantSnapshots
+            .AnyAsync(s => s.CycleId == cycleId && s.EmployeeId == subjectA));
+        Assert.True(await verify.CampaignLaunchParticipantSnapshots
+            .AnyAsync(s => s.CycleId == cycleId && s.EmployeeId == subjectB));
+
+        var removedSubjectWork = await verify.CampaignWorkItems
+            .SingleAsync(w => w.CycleId == cycleId && w.SubjectEmployeeId == subjectA);
+        Assert.Equal(CampaignWorkItemStatus.Cancelled, removedSubjectWork.Status);
+
+        var untouchedSubjectWork = await verify.CampaignWorkItems
+            .SingleAsync(w => w.CycleId == cycleId && w.SubjectEmployeeId == subjectB);
+        Assert.Equal(CampaignWorkItemStatus.Assigned, untouchedSubjectWork.Status);
     }
 }

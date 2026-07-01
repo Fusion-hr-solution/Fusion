@@ -16,6 +16,7 @@ public sealed class CampaignWorkItemConfiguration : IEntityTypeConfiguration<Cam
         builder.HasIndex(item => new { item.TenantId, item.AssigneeEmployeeId, item.Status, item.DueAt });
         builder.HasIndex(item => new { item.CycleId, item.SubjectEmployeeId, item.Type });
         builder.HasIndex(item => item.SourceAssignmentRevisionId).IsUnique();
+        builder.HasIndex(item => item.ExceptionCaseId);
         builder.Ignore(item => item.DomainEvents);
     }
 }

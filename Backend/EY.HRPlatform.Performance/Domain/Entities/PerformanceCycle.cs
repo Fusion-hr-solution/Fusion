@@ -50,6 +50,9 @@ public class PerformanceCycle : AggregateRoot, ITenantEntity
     public int MinimumAnonymousFeedbackResponses { get; private set; } = 3;
     public CampaignFeedbackVisibility FeedbackVisibility { get; private set; } = CampaignFeedbackVisibility.AnonymousToSubject;
 
+    /// <summary>Optional deadline by which the feedback window closes. Frozen at publish.</summary>
+    public DateTime? FeedbackDeadline { get; private set; }
+
     /// <summary>Governance values frozen when the campaign leaves draft.</summary>
     public Guid? FrozenRetentionPolicyVersionId { get; private set; }
     public bool? FrozenRequireTeamObjectiveSuperiorApproval { get; private set; }

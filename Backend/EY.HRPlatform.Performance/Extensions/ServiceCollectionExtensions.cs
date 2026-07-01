@@ -1,4 +1,5 @@
 using EY.HRPlatform.Performance.Features.Cycles.Services;
+using EY.HRPlatform.Performance.Features.Exceptions.Services;
 using EY.HRPlatform.Performance.Features.Security;
 using EY.HRPlatform.Performance.Infrastructure.Notifications;
 using EY.HRPlatform.Performance.Infrastructure.Persistence;
@@ -24,6 +25,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IPerformanceAccessPolicyService, PerformanceAccessPolicyService>();
         services.AddScoped<ICurrentUserContext, CurrentUserContext>();
         services.AddScoped<IPerformancePopulationResolver, PerformancePopulationResolver>();
+        services.AddScoped<IExceptionCaseWorkflowService, ExceptionCaseWorkflowService>();
 
         services.AddTransient<BearerTokenForwardingHandler>();
         services.AddHttpClient<ICoreWorkforceClient, CoreWorkforceClient>(client =>

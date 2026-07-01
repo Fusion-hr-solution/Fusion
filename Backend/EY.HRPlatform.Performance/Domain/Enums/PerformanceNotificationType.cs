@@ -9,5 +9,8 @@ public enum PerformanceNotificationType
     CycleActivated,
     CycleClosed,
     DeadlineDueSoon,
-    DeadlineOverdue
+    DeadlineOverdue,
+    ExceptionOpened,
+    ExceptionTransferred,
+    ExceptionResolved
 }

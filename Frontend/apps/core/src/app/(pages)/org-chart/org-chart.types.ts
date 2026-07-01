@@ -61,3 +61,46 @@ export interface OrgChartSearchItem {
   jobTitle: string | null;
   orgUnitName: string | null;
 }
+
+/** Which lens the canvas is rendering. People = reporting hierarchy; Structure = org-unit tree. */
+export type OrgChartLens = "people" | "structure";
+
+/** Mirrors CoreHR OrgUnitTreeNodeDto (GET /corehr/org-units/tree). */
+export interface OrgUnitTreeNodeDto {
+  id: string;
+  code: string;
+  name: string;
+  type: string;
+  level: number;
+  isOrphaned: boolean;
+  /** Active employees assigned directly to this unit (server-computed). */
+  memberCount: number;
+  /** Active employees in this unit and all descendant units (server-computed). */
+  totalMemberCount: number;
+  children: OrgUnitTreeNodeDto[];
+}
+
+export interface OrgUnitTreeQueryParams {
+  rootId?: string | null;
+  maxDepth?: number;
+  includeInactive?: boolean;
+}
+
+/** Lightweight search item for the unified command-bar search in structure lens. */
+export interface OrgUnitSearchItem {
+  orgUnitId: string;
+  code: string;
+  name: string;
+  type: string;
+  childUnitCount: number;
+}
+
+/**
+ * Span-of-control summary. `visibleDownline` counts only descendants present in the
+ * loaded/visible tree — permission- and scope-consistent by construction (it never
+ * counts nodes the caller cannot see), per the org-chart spec.
+ */
+export interface SpanOfControl {
+  directReports: number;
+  visibleDownline: number;
+}

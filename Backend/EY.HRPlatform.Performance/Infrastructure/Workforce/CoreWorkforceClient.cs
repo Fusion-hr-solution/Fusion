@@ -20,6 +20,18 @@ public interface ICoreWorkforceClient
     Task<IReadOnlyList<CoreEmployeeSummary>> GetManagerChainAsync(
         Guid employeeId,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Returns the org-unit detail including ResponsibleManagerEmployeeId.
+    /// Returns null when the org unit is not found or not visible (404).
+    /// Throws <see cref="InvalidOperationException"/> on other non-success responses.
+    /// </summary>
+    Task<CoreOrgUnitDetail?> GetOrgUnitAsync(Guid orgUnitId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Returns the effective-today members of the given org unit, optionally including descendants.
+    /// </summary>
+    Task<IReadOnlyList<CoreEmployeeSummary>> GetOrgUnitMembersAsync(Guid orgUnitId, bool includeDescendants, CancellationToken cancellationToken);
 }
 
 /// <summary>
@@ -71,6 +83,39 @@ public sealed class CoreWorkforceClient(HttpClient httpClient) : ICoreWorkforceC
     {
         var response = await httpClient.GetAsync(
             $"api/corehr/workforce/employees/{employeeId}/manager-chain",
+            cancellationToken);
+
+        return await ReadEmployeesAsync(response, cancellationToken);
+    }
+
+    public async Task<CoreOrgUnitDetail?> GetOrgUnitAsync(Guid orgUnitId, CancellationToken cancellationToken)
+    {
+        var response = await httpClient.GetAsync(
+            $"api/corehr/workforce/org-units/{orgUnitId}",
+            cancellationToken);
+
+        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException(
+                $"Core org-unit request failed with status {(int)response.StatusCode}.");
+        }
+
+        var payload = await response.Content.ReadFromJsonAsync<ApiResponse<CoreOrgUnitDetail>>(cancellationToken);
+        return payload?.Data;
+    }
+
+    public async Task<IReadOnlyList<CoreEmployeeSummary>> GetOrgUnitMembersAsync(
+        Guid orgUnitId,
+        bool includeDescendants,
+        CancellationToken cancellationToken)
+    {
+        var response = await httpClient.GetAsync(
+            $"api/corehr/workforce/org-units/{orgUnitId}/members?includeDescendants={includeDescendants}",
             cancellationToken);
 
         return await ReadEmployeesAsync(response, cancellationToken);

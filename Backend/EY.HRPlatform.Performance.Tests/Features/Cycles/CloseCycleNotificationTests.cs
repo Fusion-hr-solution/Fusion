@@ -81,4 +81,54 @@ public sealed class CloseCycleNotificationTests
             n => n.Type == PerformanceNotificationType.CycleClosed
               && n.RecipientEmployeeId == subjectId);
     }
+
+    [Fact]
+    public async Task CloseCycle_OpenExceptionCase_BlocksNormalClose()
+    {
+        var tenantId = Guid.NewGuid();
+        var now = DateTime.UtcNow;
+        var exceptionOwnerId = Guid.NewGuid();
+
+        await using var db = PerformanceTestContext.Create(tenantId, out var tenantContext);
+        var cycle = PerformanceCycle.Create(tenantId, "FY26", PerformanceCycleType.Annual,
+            now.AddDays(-10), now.AddMinutes(1), now);
+        cycle.ConfigureGovernance(Guid.NewGuid(), true, 3,
+            CampaignFeedbackVisibility.AnonymousToSubject, [exceptionOwnerId]);
+        cycle.BeginAssignmentPreparation(1, now);
+        cycle.MarkReadyToLaunch(1, 0, true, now);
+        db.PerformanceCycles.Add(cycle);
+        await db.SaveChangesAsync();
+
+        var activateHandler = new ActivateCycleCommandHandler(
+            db, tenantContext, new StubCurrentUserContext(), Options.Create(new ReminderOptions()));
+        await activateHandler.Handle(new ActivateCycleCommand(cycle.Id, cycle.Version), CancellationToken.None);
+
+        var openCase = ExceptionCase.Create(
+            tenantId,
+            cycle.Id,
+            Guid.NewGuid(),
+            CampaignWorkItemType.TeamObjectiveApproval,
+            Guid.NewGuid(),
+            exceptionOwnerId,
+            "Routing failed",
+            "route-failed",
+            "{}",
+            DateTime.UtcNow);
+        db.ExceptionCases.Add(openCase);
+        await db.SaveChangesAsync();
+
+        var reloadedCycle = await db.PerformanceCycles.SingleAsync(c => c.Id == cycle.Id);
+        db.Entry(reloadedCycle).Property(c => c.PeriodEnd).CurrentValue = now.AddDays(-1);
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+
+        reloadedCycle = await db.PerformanceCycles.SingleAsync(c => c.Id == cycle.Id);
+        var closeHandler = new CloseCycleCommandHandler(
+            db, tenantContext, new StubCurrentUserContext(), Options.Create(new ReminderOptions()));
+        var result = await closeHandler.Handle(
+            new CloseCycleCommand(reloadedCycle.Id, reloadedCycle.Version), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("Cycle.OpenExceptionsBlockClose", result.Error.Code);
+    }
 }

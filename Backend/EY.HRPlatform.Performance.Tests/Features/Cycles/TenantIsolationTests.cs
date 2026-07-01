@@ -88,4 +88,30 @@ public class TenantIsolationTests
         var auditEvents = await foreignDb.PerformanceCycleAuditEvents.ToListAsync();
         Assert.Empty(auditEvents);
     }
+
+    [Fact]
+    public async Task ForeignTenant_CannotReadExceptionCases()
+    {
+        var tenantA = Guid.NewGuid();
+        var tenantB = Guid.NewGuid();
+
+        await using var seedDb = PerformanceTestContext.Create(tenantA, out _);
+        var exceptionCase = ExceptionCase.Create(
+            tenantA,
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            CampaignWorkItemType.TeamObjectiveApproval,
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "Routing failed",
+            "route-failed",
+            "{}",
+            DateTime.UtcNow);
+        seedDb.ExceptionCases.Add(exceptionCase);
+        await seedDb.SaveChangesAsync();
+
+        await using var foreignDb = PerformanceTestContext.Create(tenantB, out _);
+        var exceptionCases = await foreignDb.ExceptionCases.ToListAsync();
+        Assert.Empty(exceptionCases);
+    }
 }

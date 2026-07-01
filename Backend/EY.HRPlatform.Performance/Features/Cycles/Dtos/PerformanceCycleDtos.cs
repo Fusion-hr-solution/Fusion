@@ -1,5 +1,7 @@
 namespace EY.HRPlatform.Performance.Features.Cycles.Dtos;
 
+using EY.HRPlatform.Performance.Domain.Enums;
+
 public sealed record PerformanceCycleSummaryDto(
     Guid Id,
     string Name,
@@ -201,3 +203,10 @@ public sealed record WorkforceDeltaDecision(
 public sealed record ApplyWorkforceDeltaResultDto(int Applied, int Rejected);
 
 public sealed record ApplyWorkforceDeltaRequest(IReadOnlyList<WorkforceDeltaDecision> Decisions);
+
+public sealed record ForceCloseExceptionDecisionDto(
+    Guid ExceptionCaseId,
+    ExceptionResolutionAction Action,
+    string Reason);
+
+public sealed record ForceCloseCycleRequest(IReadOnlyList<ForceCloseExceptionDecisionDto> Decisions);

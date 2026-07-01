@@ -4,14 +4,18 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ColumnDef, SortingState } from "@tanstack/react-table";
 import type { PlatformOrganizationSummaryDto } from "@repo/api";
 import { canAccessOrganizations, useAuth } from "@repo/auth";
-import { DEFAULT_PAGE_SIZE, EmptyState, type PageSize } from "@repo/ui";
-import { Building, Plus } from "lucide-react";
+import { DEFAULT_PAGE_SIZE, type PageSize } from "@repo/ui";
+import { Plus } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { DataTablePagination } from "@/components/data-table-pagination";
-import { CorePageLoadingState } from "@/components/core-page-loading-state";
-import { PageHeader } from "@/components/page-header";
+import {
+  PageContainer,
+  PageHeader,
+  PageError,
+  PageLoading,
+  PagePermissionNotice,
+} from "@repo/ds/shell";
 import { useOrganizationList } from "@/features/organizations/api/use-organizations";
 import { StatsCards } from "@/app/(pages)/organizations/stats-cards";
 import { Toolbar } from "@/app/(pages)/organizations/toolbar";
@@ -121,33 +125,30 @@ export default function OrganizationsWorkspace() {
 
   if (isInitialPageLoading) {
     return (
-      <CorePageLoadingState
-        title="Organizations"
-        description="Loading organizations."
-        message="Loading organizations..."
-        variant="summary-list"
-      />
+      <PageContainer width="wide" className="space-y-6">
+        <PageHeader title="Organizations" description="Loading organizations." />
+        <PageLoading rows={8} label="Loading organizations..." />
+      </PageContainer>
     );
   }
 
   if (!canManageOrganizations) {
     return (
-      <div className="flex flex-col gap-6 p-6">
+      <PageContainer width="wide" className="space-y-6">
         <PageHeader
           title="Organizations"
           description="Platform admin workspace only."
         />
-        <EmptyState
-          icon={Building}
+        <PagePermissionNotice
           title="Organization management is not available here"
           description="Use the platform administration area."
         />
-      </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="flex flex-col gap-6 p-6">
+    <PageContainer width="wide" className="space-y-6">
       <PageHeader
         title="Organizations"
         description="Tenant organizations and lifecycle."
@@ -169,15 +170,11 @@ export default function OrganizationsWorkspace() {
       />
 
       {error ? (
-        <Alert variant="destructive">
-          <AlertTitle>Failed to load organizations</AlertTitle>
-          <AlertDescription className="flex items-center justify-between">
-            <span>Could not load organizations. Try again in a moment.</span>
-            <Button variant="outline" size="sm" onClick={() => refetch()}>
-              Retry
-            </Button>
-          </AlertDescription>
-        </Alert>
+        <PageError
+          title="Failed to load organizations"
+          description="Could not load organizations. Try again in a moment."
+          onRetry={() => refetch()}
+        />
       ) : null}
 
       <OrganizationsTable
@@ -209,6 +206,6 @@ export default function OrganizationsWorkspace() {
           if (!open) setDetailId(null);
         }}
       />
-    </div>
+    </PageContainer>
   );
 }

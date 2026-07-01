@@ -50,6 +50,14 @@ const CORE_PERMISSION = {
   teamView: "core.team.view",
 } as const;
 
+const PERFORMANCE_PERMISSION = {
+  cycleView: "performance.cycle.view",
+  cycleManage: "performance.cycle.manage",
+  cyclePublish: "performance.cycle.publish",
+  objectiveLibraryView: "performance.objective.library.view",
+  objectiveLibraryManage: "performance.objective.library.manage",
+} as const;
+
 export function hasAnyRole(
   user: AuthUser | null,
   roles: readonly string[]
@@ -344,4 +352,41 @@ export function canAccessTenantContext(user: AuthUser | null): boolean {
 
 export function canAccessTenantSurfaces(user: AuthUser | null): boolean {
   return hasAnyRole(user, [PLATFORM_ADMIN_ROLE]);
+}
+
+// ── Performance module ───────────────────────────────────────────────
+
+export function canViewPerformanceCycles(user: AuthUser | null): boolean {
+  return (
+    hasCorePermission(user, PERFORMANCE_PERMISSION.cycleView, "Tenant") ||
+    hasCorePermission(user, PERFORMANCE_PERMISSION.cycleManage, "Tenant") ||
+    hasCorePermission(user, PERFORMANCE_PERMISSION.cyclePublish, "Tenant")
+  );
+}
+
+export function canManagePerformanceCycles(user: AuthUser | null): boolean {
+  return hasCorePermission(user, PERFORMANCE_PERMISSION.cycleManage, "Tenant");
+}
+
+export function canOperatePerformanceCycles(user: AuthUser | null): boolean {
+  return hasCorePermission(user, PERFORMANCE_PERMISSION.cyclePublish, "Tenant");
+}
+
+export function canViewObjectiveLibrary(user: AuthUser | null): boolean {
+  return (
+    hasCorePermission(user, PERFORMANCE_PERMISSION.objectiveLibraryView, "Tenant") ||
+    hasCorePermission(user, PERFORMANCE_PERMISSION.objectiveLibraryManage, "Tenant")
+  );
+}
+
+export function canManageObjectiveLibrary(user: AuthUser | null): boolean {
+  return hasCorePermission(
+    user,
+    PERFORMANCE_PERMISSION.objectiveLibraryManage,
+    "Tenant"
+  );
+}
+
+export function canAccessPerformance(user: AuthUser | null): boolean {
+  return canViewPerformanceCycles(user) || canViewObjectiveLibrary(user);
 }

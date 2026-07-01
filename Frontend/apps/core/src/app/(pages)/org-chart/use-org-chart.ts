@@ -15,7 +15,8 @@ import type { EmployeeOrgChartDto, OrgChartQueryParams } from "./org-chart.types
 const ORG_CHART_PATH = "/corehr/employees/org-chart";
 
 export function useOrgChart(
-  query?: OrgChartQueryParams
+  query?: OrgChartQueryParams,
+  enabled = true
 ): UseApiQueryResult<EmployeeOrgChartDto> {
   const { user, isAuthenticated } = useAuth();
   const { tenantId } = useTenantContext();
@@ -54,7 +55,7 @@ export function useOrgChart(
   );
 
   return useApiQuery(orgChartQueryKeys.chart(normalizedQuery), queryFn, {
-    enabled: isAuthenticated && canAccess,
+    enabled: isAuthenticated && canAccess && enabled,
     placeholderData: keepPreviousData,
   });
 }
