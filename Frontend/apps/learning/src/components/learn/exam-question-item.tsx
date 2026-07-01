@@ -57,7 +57,7 @@ export function ExamQuestionItem({
                 role={isMulti ? "checkbox" : "radio"}
                 aria-checked={selected}
                 onClick={() => handleSelect(option.id)}
-                className={`flex w-full items-center gap-3 rounded-lg border px-4 py-3 text-left text-sm transition-all ${
+                className={`flex w-full items-center gap-3 rounded-lg border px-4 py-3 text-left text-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
                   selected
                     ? "border-[hsl(var(--ey-blue-500))] bg-[hsl(var(--ey-blue-500))]/5 text-foreground"
                     : "border-border/60 bg-card text-foreground hover:border-border hover:bg-muted/30"

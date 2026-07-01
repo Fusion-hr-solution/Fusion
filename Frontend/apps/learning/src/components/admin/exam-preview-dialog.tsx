@@ -228,7 +228,7 @@ export function ExamPreviewDialog({
                           currentQuestion.type
                         )
                       }
-                      className={`flex w-full items-center gap-3 rounded-lg border px-4 py-3 text-left text-sm transition-colors ${
+                      className={`flex w-full items-center gap-3 rounded-lg border px-4 py-3 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
                         isSelected
                           ? "border-primary bg-primary/5 text-foreground"
                           : "border-border/60 bg-background text-foreground hover:border-border hover:bg-muted/30"
@@ -351,8 +351,9 @@ export function ExamPreviewDialog({
                 <button
                   key={i}
                   type="button"
+                  aria-label={`Go to question ${i + 1}`}
                   onClick={() => setCurrentIndex(i)}
-                  className={`h-2 w-2 rounded-full transition-colors ${
+                  className={`h-2 w-2 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
                     i === currentIndex
                       ? "bg-primary"
                       : (selectedOptions[questions[i]!.id]?.size ?? 0) > 0

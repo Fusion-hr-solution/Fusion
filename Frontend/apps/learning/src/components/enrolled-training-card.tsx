@@ -119,7 +119,7 @@ export function EnrolledTrainingCard({
             )}
             <button
               onClick={() => onContinue(training)}
-              className={`group/btn flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-semibold transition-all shadow-sm hover:shadow-md ${status.buttonClass}`}
+              className={`group/btn flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-semibold transition-all shadow-sm hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${status.buttonClass}`}
             >
               {tCommon(`statusAction.${training.status}`)}
               <ChevronRight
