@@ -2,7 +2,15 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, Eye, Pencil, ClipboardList, Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
+import {
+  Plus,
+  Trash2,
+  Eye,
+  Pencil,
+  ClipboardList,
+  Loader2,
+} from "lucide-react";
 import { Button, Card, CardContent, Badge } from "@repo/ui";
 import { useExamBuilder } from "@/hooks/use-exam-builder";
 import { PageBreadcrumb } from "../page-breadcrumb";
@@ -14,8 +22,24 @@ import { ExamSettingsDialog } from "./exam-settings-dialog";
 
 export function ExamBuilder({ trainingId }: { trainingId: string }) {
   const router = useRouter();
+  const t = useTranslations("adminExam");
   const builder = useExamBuilder(trainingId);
-  const { exam, questions, isLoading, isCreating, editingQuestion, questionDialogOpen, openQuestionDialog, closeQuestionDialog, handleCreateExam, handleUpdateExam, handleDeleteExam, handleAddQuestion, handleUpdateQuestion, handleDeleteQuestion } = builder;
+  const {
+    exam,
+    questions,
+    isLoading,
+    isCreating,
+    editingQuestion,
+    questionDialogOpen,
+    openQuestionDialog,
+    closeQuestionDialog,
+    handleCreateExam,
+    handleUpdateExam,
+    handleDeleteExam,
+    handleAddQuestion,
+    handleUpdateQuestion,
+    handleDeleteQuestion,
+  } = builder;
 
   const [showPreview, setShowPreview] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -23,7 +47,7 @@ export function ExamBuilder({ trainingId }: { trainingId: string }) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20 text-sm text-muted-foreground">
-        <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading exam...
+        <Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t("builder.loading")}
       </div>
     );
   }
@@ -31,63 +55,175 @@ export function ExamBuilder({ trainingId }: { trainingId: string }) {
   if (!exam) {
     return (
       <div className="space-y-6 p-6">
-        <PageBreadcrumb backHref={`/admin/trainings/${trainingId}`} backLabel="Back" items={[{ label: "Manage Trainings", href: "/admin/trainings" }, { label: "Training", href: `/admin/trainings/${trainingId}` }, { label: "Create Exam" }]} />
-        <ExamSettingsForm mode="create" isLoading={isCreating} onSubmit={handleCreateExam} onCancel={() => router.push(`/admin/trainings/${trainingId}`)} />
+        <PageBreadcrumb
+          backHref={`/admin/trainings/${trainingId}`}
+          backLabel={t("builder.back")}
+          items={[
+            { label: t("builder.manageTrainings"), href: "/admin/trainings" },
+            {
+              label: t("builder.training"),
+              href: `/admin/trainings/${trainingId}`,
+            },
+            { label: t("builder.createExam") },
+          ]}
+        />
+        <ExamSettingsForm
+          mode="create"
+          isLoading={isCreating}
+          onSubmit={handleCreateExam}
+          onCancel={() => router.push(`/admin/trainings/${trainingId}`)}
+        />
       </div>
     );
   }
 
   return (
     <div className="space-y-6 p-6">
-      <PageBreadcrumb backHref={`/admin/trainings/${trainingId}`} backLabel="Back" items={[{ label: "Manage Trainings", href: "/admin/trainings" }, { label: "Training", href: `/admin/trainings/${trainingId}` }, { label: "Exam Builder" }]} />
+      <PageBreadcrumb
+        backHref={`/admin/trainings/${trainingId}`}
+        backLabel={t("builder.back")}
+        items={[
+          { label: t("builder.manageTrainings"), href: "/admin/trainings" },
+          {
+            label: t("builder.training"),
+            href: `/admin/trainings/${trainingId}`,
+          },
+          { label: t("builder.examBuilder") },
+        ]}
+      />
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <ClipboardList className="h-5 w-5 text-muted-foreground" />
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">{exam.title}</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">
+              {exam.title}
+            </h1>
           </div>
-          {exam.description && <p className="text-sm text-muted-foreground">{exam.description}</p>}
+          {exam.description && (
+            <p className="text-sm text-muted-foreground">{exam.description}</p>
+          )}
           <div className="flex items-center gap-3 pt-1">
-            <Badge variant="outline">Pass: {exam.passingScore}%</Badge>
-            {exam.durationMinutes && <Badge variant="outline">{exam.durationMinutes} min</Badge>}
-            <Badge variant="outline">{questions.length} questions</Badge>
+            <Badge variant="outline">
+              {t("builder.pass", { score: exam.passingScore })}
+            </Badge>
+            {exam.durationMinutes && (
+              <Badge variant="outline">
+                {t("builder.minutes", { minutes: exam.durationMinutes })}
+              </Badge>
+            )}
+            <Badge variant="outline">
+              {t("builder.questionsCount", { count: questions.length })}
+            </Badge>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setShowPreview(true)} disabled={questions.length === 0}><Eye className="mr-1.5 h-4 w-4" /> Preview</Button>
-          <Button variant="outline" size="sm" onClick={() => setShowSettings(true)}><Pencil className="mr-1.5 h-4 w-4" /> Settings</Button>
-          <Button variant="outline" size="sm" onClick={handleDeleteExam} className="text-destructive border-destructive/30 hover:bg-destructive/10"><Trash2 className="mr-1.5 h-4 w-4" /> Delete</Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowPreview(true)}
+            disabled={questions.length === 0}
+          >
+            <Eye className="mr-1.5 h-4 w-4" /> {t("builder.preview")}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowSettings(true)}
+          >
+            <Pencil className="mr-1.5 h-4 w-4" /> {t("builder.settings")}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleDeleteExam}
+            className="text-destructive border-destructive/30 hover:bg-destructive/10"
+          >
+            <Trash2 className="mr-1.5 h-4 w-4" /> {t("builder.delete")}
+          </Button>
         </div>
       </div>
 
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold text-foreground">Questions</h2>
-          <Button size="sm" onClick={() => openQuestionDialog(null)} className="ey-bg-dark hover:opacity-90"><Plus className="mr-1.5 h-4 w-4" /> Add Question</Button>
+          <h2 className="text-base font-semibold text-foreground">
+            {t("builder.questionsHeading")}
+          </h2>
+          <Button
+            size="sm"
+            onClick={() => openQuestionDialog(null)}
+            className="ey-bg-dark hover:opacity-90"
+          >
+            <Plus className="mr-1.5 h-4 w-4" /> {t("builder.addQuestion")}
+          </Button>
         </div>
 
         {questions.length === 0 ? (
           <Card className="border-dashed">
             <CardContent className="flex flex-col items-center justify-center py-12 text-center">
               <ClipboardList className="mb-3 h-10 w-10 text-muted-foreground/40" />
-              <p className="text-sm font-medium text-muted-foreground">No questions yet</p>
-              <p className="mt-1 text-xs text-muted-foreground/70">Add your first question to start building the exam</p>
-              <Button size="sm" className="mt-4 ey-bg-dark hover:opacity-90" onClick={() => openQuestionDialog(null)}><Plus className="mr-1.5 h-4 w-4" /> Add Question</Button>
+              <p className="text-sm font-medium text-muted-foreground">
+                {t("builder.emptyTitle")}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground/70">
+                {t("builder.emptyDescription")}
+              </p>
+              <Button
+                size="sm"
+                className="mt-4 ey-bg-dark hover:opacity-90"
+                onClick={() => openQuestionDialog(null)}
+              >
+                <Plus className="mr-1.5 h-4 w-4" /> {t("builder.addQuestion")}
+              </Button>
             </CardContent>
           </Card>
         ) : (
           <div className="space-y-3">
             {questions.map((q, index) => (
-              <QuestionCard key={q.id} question={q} index={index} onEdit={() => openQuestionDialog(q)} onDelete={() => handleDeleteQuestion(q)} />
+              <QuestionCard
+                key={q.id}
+                question={q}
+                index={index}
+                onEdit={() => openQuestionDialog(q)}
+                onDelete={() => handleDeleteQuestion(q)}
+              />
             ))}
           </div>
         )}
       </div>
 
-      <QuestionFormDialog open={questionDialogOpen} onOpenChange={(open) => { if (!open) closeQuestionDialog(); }} question={editingQuestion} onSubmit={async (input) => { if (editingQuestion) { await handleUpdateQuestion(editingQuestion.id, input); } else { await handleAddQuestion(input); } closeQuestionDialog(); }} />
-      <ExamPreviewDialog open={showPreview} onOpenChange={setShowPreview} exam={exam} questions={questions} />
-      {showSettings && <ExamSettingsDialog open={showSettings} onOpenChange={setShowSettings} exam={exam} onSubmit={async (input) => { await handleUpdateExam(input); setShowSettings(false); }} />}
+      <QuestionFormDialog
+        open={questionDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) closeQuestionDialog();
+        }}
+        question={editingQuestion}
+        onSubmit={async (input) => {
+          if (editingQuestion) {
+            await handleUpdateQuestion(editingQuestion.id, input);
+          } else {
+            await handleAddQuestion(input);
+          }
+          closeQuestionDialog();
+        }}
+      />
+      <ExamPreviewDialog
+        open={showPreview}
+        onOpenChange={setShowPreview}
+        exam={exam}
+        questions={questions}
+      />
+      {showSettings && (
+        <ExamSettingsDialog
+          open={showSettings}
+          onOpenChange={setShowSettings}
+          exam={exam}
+          onSubmit={async (input) => {
+            await handleUpdateExam(input);
+            setShowSettings(false);
+          }}
+        />
+      )}
     </div>
   );
 }

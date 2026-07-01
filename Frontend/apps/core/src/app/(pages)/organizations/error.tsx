@@ -15,7 +15,7 @@ export default function OrganizationsError({
         Failed to load organizations
       </h2>
       <p className="text-muted-foreground mb-6 max-w-md">
-        {error.message || "An unexpected error occurred."}
+        Something went wrong loading this page. Try again.
       </p>
       <Button onClick={reset}>Try Again</Button>
     </div>

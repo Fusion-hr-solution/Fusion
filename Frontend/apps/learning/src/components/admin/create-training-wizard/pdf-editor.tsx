@@ -1,6 +1,7 @@
 "use client";
 
 import { Label } from "@repo/ui";
+import { useTranslations } from "next-intl";
 import { FileUploadZone } from "../file-upload-zone";
 
 interface PdfEditorProps {
@@ -9,15 +10,16 @@ interface PdfEditorProps {
 }
 
 export function PdfEditor({ file, onFileChange }: PdfEditorProps) {
+  const t = useTranslations("adminWizard.editor.pdf");
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Label className="text-[13px] font-semibold">PDF File</Label>
+        <Label className="text-[13px] font-semibold">{t("label")}</Label>
         <FileUploadZone
           accept=".pdf"
           file={file}
           onFileChange={onFileChange}
-          label="Upload a PDF document (max 50 MB)"
+          label={t("uploadLabel")}
         />
       </div>
     </div>

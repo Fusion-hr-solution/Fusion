@@ -29,6 +29,8 @@ public class CreateQuestionDto
     public List<QuestionOptionDto> Options { get; set; } = [];
     public string Language { get; set; } = string.Empty;
     public string StarterCode { get; set; } = string.Empty;
+    /// <summary>Multi-file coding question: JSON { entry, files: [{ path, content }] }.</summary>
+    public string? ProjectFiles { get; set; }
     public string EvaluationCriteria { get; set; } = string.Empty;
     public string? TestCases { get; set; }
 }

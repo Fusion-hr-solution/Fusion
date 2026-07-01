@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Plus, Trash2, GripVertical, FileText, Pencil } from "lucide-react";
 import { Button, Card, CardContent, Input, Label } from "@repo/ui";
 import { useApiMutation } from "@repo/api/react";
@@ -26,31 +27,45 @@ export function AdminOnSiteCourseList({
   isDeleted,
   onRefetch,
 }: AdminOnSiteCourseListProps) {
+  const t = useTranslations("adminChapters");
+  const tCommon = useTranslations("common.actions");
   const [showForm, setShowForm] = useState(false);
-  const [editingCourse, setEditingCourse] = useState<AdminOnSiteCourse | null>(null);
+  const [editingCourse, setEditingCourse] = useState<AdminOnSiteCourse | null>(
+    null
+  );
   const [title, setTitle] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
 
   const { mutateAsync: doAdd } = useApiMutation(
     (input: CreateOnSiteCourseInput) => addOnSiteCourse(trainingId, input),
-    { onSuccess: () => { onRefetch(); resetForm(); } },
+    {
+      onSuccess: () => {
+        onRefetch();
+        resetForm();
+      },
+    }
   );
 
   const { mutateAsync: doUpdate } = useApiMutation(
     ({ id, input }: { id: string; input: CreateOnSiteCourseInput }) =>
       updateOnSiteCourse(trainingId, id, input),
-    { onSuccess: () => { onRefetch(); resetForm(); } },
+    {
+      onSuccess: () => {
+        onRefetch();
+        resetForm();
+      },
+    }
   );
 
   const { mutateAsync: doDelete } = useApiMutation(
     (courseId: string) => deleteOnSiteCourse(trainingId, courseId),
-    { onSuccess: onRefetch },
+    { onSuccess: onRefetch }
   );
 
   const { mutateAsync: doReorder } = useApiMutation(
     (courseIds: string[]) => reorderOnSiteCourses(trainingId, courseIds),
-    { onSuccess: onRefetch },
+    { onSuccess: onRefetch }
   );
 
   function resetForm() {
@@ -94,7 +109,8 @@ export function AdminOnSiteCourseList({
   }
 
   async function handleDelete(course: AdminOnSiteCourse) {
-    if (!confirm(`Delete course "${course.title}"?`)) return;
+    if (!confirm(t("onSiteCourses.confirmDelete", { title: course.title })))
+      return;
     await doDelete(course.id);
   }
 
@@ -125,7 +141,7 @@ export function AdminOnSiteCourseList({
           <CardContent className="flex flex-col items-center justify-center py-8 text-center">
             <FileText className="h-8 w-8 text-muted-foreground/50" />
             <p className="mt-2 text-sm text-muted-foreground">
-              No courses added yet. Add PDF course materials for this on-site training.
+              {t("onSiteCourses.empty")}
             </p>
             {!isDeleted && (
               <Button
@@ -135,7 +151,7 @@ export function AdminOnSiteCourseList({
                 onClick={() => setShowForm(true)}
               >
                 <Plus className="mr-1.5 h-4 w-4" />
-                Add Course
+                {t("onSiteCourses.addCourse")}
               </Button>
             )}
           </CardContent>
@@ -146,10 +162,12 @@ export function AdminOnSiteCourseList({
         <Card key={course.id} className="border-border/60">
           <CardContent className="flex items-center gap-3 py-3">
             <GripVertical className="h-4 w-4 shrink-0 text-muted-foreground/50" />
-            <FileText className="h-5 w-5 shrink-0 text-red-500" />
+            <FileText className="h-5 w-5 shrink-0 text-destructive" />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">{course.title}</p>
-              <p className="text-xs text-muted-foreground truncate">{course.contentUri}</p>
+              <p className="text-xs text-muted-foreground truncate">
+                {course.contentUri}
+              </p>
             </div>
             {!isDeleted && (
               <div className="flex items-center gap-1">
@@ -159,6 +177,7 @@ export function AdminOnSiteCourseList({
                   className="h-7 w-7 p-0"
                   onClick={() => handleMoveUp(index)}
                   disabled={index === 0}
+                  aria-label={t("onSiteCourses.moveUp")}
                 >
                   ↑
                 </Button>
@@ -168,6 +187,7 @@ export function AdminOnSiteCourseList({
                   className="h-7 w-7 p-0"
                   onClick={() => handleMoveDown(index)}
                   disabled={index >= sorted.length - 1}
+                  aria-label={t("onSiteCourses.moveDown")}
                 >
                   ↓
                 </Button>
@@ -176,6 +196,7 @@ export function AdminOnSiteCourseList({
                   size="sm"
                   className="h-7 w-7 p-0"
                   onClick={() => handleEdit(course)}
+                  aria-label={t("onSiteCourses.edit")}
                 >
                   <Pencil className="h-3.5 w-3.5" />
                 </Button>
@@ -184,6 +205,7 @@ export function AdminOnSiteCourseList({
                   size="sm"
                   className="h-7 w-7 p-0 text-destructive hover:text-destructive"
                   onClick={() => handleDelete(course)}
+                  aria-label={t("onSiteCourses.delete")}
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
@@ -197,18 +219,23 @@ export function AdminOnSiteCourseList({
         <Card className="border-primary/30 bg-primary/5">
           <CardContent className="space-y-3 py-4">
             <div className="space-y-2">
-              <Label htmlFor="courseTitle">Course Title *</Label>
+              <Label htmlFor="courseTitle">
+                {t("onSiteCourses.courseTitleLabel")}
+              </Label>
               <Input
                 id="courseTitle"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g. Module 1 - Introduction"
+                placeholder={t("onSiteCourses.courseTitlePlaceholder")}
                 maxLength={200}
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="courseFile">
-                PDF File {editingCourse ? "(leave empty to keep current)" : "*"}
+                {t("onSiteCourses.pdfFileLabel")}{" "}
+                {editingCourse
+                  ? t("onSiteCourses.pdfFileKeepHint")
+                  : t("onSiteCourses.pdfFileRequired")}
               </Label>
               <Input
                 id="courseFile"
@@ -221,12 +248,18 @@ export function AdminOnSiteCourseList({
               <Button
                 size="sm"
                 onClick={handleSubmit}
-                disabled={uploading || !title.trim() || (!file && !editingCourse)}
+                disabled={
+                  uploading || !title.trim() || (!file && !editingCourse)
+                }
               >
-                {uploading ? "Uploading..." : editingCourse ? "Update" : "Add"}
+                {uploading
+                  ? t("onSiteCourses.uploading")
+                  : editingCourse
+                    ? t("onSiteCourses.update")
+                    : t("onSiteCourses.add")}
               </Button>
               <Button variant="outline" size="sm" onClick={resetForm}>
-                Cancel
+                {tCommon("cancel")}
               </Button>
             </div>
           </CardContent>
@@ -236,7 +269,7 @@ export function AdminOnSiteCourseList({
       {sorted.length > 0 && !showForm && !isDeleted && (
         <Button variant="outline" size="sm" onClick={() => setShowForm(true)}>
           <Plus className="mr-1.5 h-4 w-4" />
-          Add Course
+          {t("onSiteCourses.addCourse")}
         </Button>
       )}
     </div>

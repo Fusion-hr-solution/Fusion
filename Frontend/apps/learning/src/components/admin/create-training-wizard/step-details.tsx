@@ -1,6 +1,7 @@
 "use client";
 
 import { Settings2, ArrowLeft, ArrowRight, AlertTriangle } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Input, Label, Checkbox } from "@repo/ui";
 import type { WizardState } from "@/types/admin-props";
 import type { CostType } from "@/types";
@@ -10,6 +11,8 @@ interface StepDetailsProps {
 }
 
 export function StepDetails({ wizard }: StepDetailsProps) {
+  const t = useTranslations("adminWizard");
+  const tCommon = useTranslations("common");
   return (
     <div className="w-full">
       {/* Header */}
@@ -18,10 +21,12 @@ export function StepDetails({ wizard }: StepDetailsProps) {
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-foreground">
             <Settings2 className="h-3.5 w-3.5 text-background" />
           </div>
-          <h2 className="text-xl font-bold tracking-tight text-foreground">Additional Details</h2>
+          <h2 className="text-xl font-bold tracking-tight text-foreground">
+            {t("details.heading")}
+          </h2>
         </div>
         <p className="ml-9 text-[13px] text-muted-foreground">
-          Configure credits, duration, and compliance requirements
+          {t("details.subtitle")}
         </p>
       </div>
 
@@ -36,31 +41,43 @@ export function StepDetails({ wizard }: StepDetailsProps) {
         {/* Credits & Duration */}
         <div className="rounded-2xl border border-border bg-background p-6 shadow-sm">
           <p className="mb-5 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
-            Effort & Reward
+            {t("details.effortSection")}
           </p>
           <div className="flex flex-col gap-5">
             <div className="space-y-2">
-              <Label className="text-[13px] font-semibold">Credits Earned</Label>
+              <Label className="text-[13px] font-semibold">
+                {t("details.creditsLabel")}
+              </Label>
               <div className="flex items-center gap-2">
                 <Input
                   type="number"
                   min={0}
                   value={wizard.credits}
-                  onChange={(e) => wizard.setCredits(Number(e.target.value) || 0)}
+                  onChange={(e) =>
+                    wizard.setCredits(Number(e.target.value) || 0)
+                  }
                   className="w-28"
                 />
-                <span className="text-sm text-muted-foreground">points</span>
+                <span className="text-sm text-muted-foreground">
+                  {t("details.creditsUnit")}
+                </span>
               </div>
-              <p className="text-[11px] text-muted-foreground">Credits awarded on successful completion</p>
+              <p className="text-[11px] text-muted-foreground">
+                {t("details.creditsHint")}
+              </p>
             </div>
             <div className="space-y-2">
-              <Label className="text-[13px] font-semibold">Estimated Duration</Label>
+              <Label className="text-[13px] font-semibold">
+                {t("details.durationLabel")}
+              </Label>
               <Input
                 value={wizard.duration}
                 onChange={(e) => wizard.setDuration(e.target.value)}
-                placeholder="e.g. 2 hours, 45 minutes"
+                placeholder={t("details.durationPlaceholder")}
               />
-              <p className="text-[11px] text-muted-foreground">Approximate time to complete all chapters</p>
+              <p className="text-[11px] text-muted-foreground">
+                {t("details.durationHint")}
+              </p>
             </div>
           </div>
         </div>
@@ -68,7 +85,7 @@ export function StepDetails({ wizard }: StepDetailsProps) {
         {/* Compliance */}
         <div className="rounded-2xl border border-border bg-background p-6 shadow-sm">
           <p className="mb-5 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
-            Compliance
+            {t("details.complianceSection")}
           </p>
           <div className="flex items-start gap-3 rounded-xl border border-border bg-muted/30 p-4">
             <Checkbox
@@ -78,28 +95,71 @@ export function StepDetails({ wizard }: StepDetailsProps) {
               className="mt-0.5"
             />
             <div>
-              <label htmlFor="mandatory" className="text-[13px] font-semibold text-foreground cursor-pointer">
-                Mark as mandatory
+              <label
+                htmlFor="mandatory"
+                className="text-[13px] font-semibold text-foreground cursor-pointer"
+              >
+                {t("details.mandatoryLabel")}
               </label>
               <p className="mt-1 text-[12px] text-muted-foreground leading-relaxed">
-                Mandatory trainings are automatically assigned to all employees and tracked for compliance reporting.
+                {t("details.mandatoryHint")}
               </p>
             </div>
           </div>
 
           {wizard.trainingType === "OnSite" && (
             <div className="mt-5 space-y-2">
-              <Label className="text-[13px] font-semibold">Scheduled Date & Time</Label>
+              <Label className="text-[13px] font-semibold">
+                {t("details.scheduledDateLabel")}
+              </Label>
               <Input
                 type="datetime-local"
                 value={wizard.scheduledDate}
                 onChange={(e) => wizard.setScheduledDate(e.target.value)}
                 min={new Date().toISOString().slice(0, 16)}
               />
-              {wizard.scheduledDate && new Date(wizard.scheduledDate) <= new Date() && (
-                <p className="text-[11px] text-destructive font-medium">Scheduled date must be in the future</p>
-              )}
-              <p className="text-[11px] text-muted-foreground">When the on-site training session will take place</p>
+              {wizard.scheduledDate &&
+                new Date(wizard.scheduledDate) <= new Date() && (
+                  <p className="text-[11px] text-destructive font-medium">
+                    {t("details.scheduledDateFuture")}
+                  </p>
+                )}
+              <p className="text-[11px] text-muted-foreground">
+                {t("details.scheduledDateHint")}
+              </p>
+            </div>
+          )}
+
+          {wizard.trainingType === "OnSite" && (
+            <div className="mt-5 space-y-2">
+              <Label className="text-[13px] font-semibold">Cost Type</Label>
+              <select
+                className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                value={wizard.costType}
+                onChange={(e) => wizard.setCostType(e.target.value as CostType)}
+              >
+                <option value="Internal">Internal (free)</option>
+                <option value="External">External (paid)</option>
+              </select>
+              <p className="text-[11px] text-muted-foreground">External trainings draw from a service-line budget.</p>
+            </div>
+          )}
+
+          {wizard.trainingType === "OnSite" && wizard.costType === "External" && (
+            <div className="mt-5 space-y-2">
+              <Label className="text-[13px] font-semibold">Sponsoring Service Line</Label>
+              <select
+                className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                value={wizard.sponsoringServiceLineId}
+                onChange={(e) => wizard.setSponsoringServiceLineId(e.target.value)}
+              >
+                <option value="">Select a service line</option>
+                {wizard.serviceLines.map((sl) => (
+                  <option key={sl.id} value={sl.id}>
+                    {sl.name} ({sl.code})
+                  </option>
+                ))}
+              </select>
             </div>
           )}
 
@@ -144,13 +204,16 @@ export function StepDetails({ wizard }: StepDetailsProps) {
           onClick={wizard.prevStep}
           className="flex items-center gap-2 rounded-xl border border-border bg-background px-5 py-2.5 text-sm font-semibold text-muted-foreground shadow-sm transition-colors hover:bg-muted hover:text-foreground"
         >
-          <ArrowLeft className="h-4 w-4" /> Back
+          <ArrowLeft className="h-4 w-4" /> {tCommon("actions.back")}
         </button>
         <button
           onClick={wizard.handleNext}
           className="flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-semibold shadow-sm transition-all ey-bg-dark text-white hover:opacity-90 active:scale-[0.98]"
         >
-          Continue to {wizard.trainingType === "OnSite" ? "Review" : "Chapters"} <ArrowRight className="h-4 w-4" />
+          {wizard.trainingType === "OnSite"
+            ? t("details.continueToReview")
+            : t("details.continueToChapters")}{" "}
+          <ArrowRight className="h-4 w-4" />
         </button>
       </div>
     </div>

@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import Link from "next/link";
 import { Plus, BookOpen } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { buttonVariants, Card, Table, TableHeader, TableBody, TableRow, TableHead } from "@repo/ui";
 import { useApiQuery, useApiMutation } from "@repo/api/react";
 import { getAdminTrainings, deleteTraining, getAdminCategories } from "@/services/admin-service";
@@ -12,6 +13,7 @@ import { PaginationBar } from "./pagination-bar";
 import { TrainingsFilterBar } from "./trainings-filter-bar";
 
 export function TrainingsList() {
+  const t = useTranslations("adminTrainings");
   const [search, setSearch] = useState("");
   const [categoryId, setCategoryId] = useState<string>("");
   const [includeDeleted, setIncludeDeleted] = useState(false);
@@ -45,10 +47,10 @@ export function TrainingsList() {
 
   const handleDelete = useCallback(
     async (id: string, title: string) => {
-      if (!confirm(`Delete "${title}"? This will soft-delete the training.`)) return;
+      if (!confirm(t("list.confirmDelete", { title }))) return;
       await remove(id);
     },
-    [remove],
+    [remove, t],
   );
 
   const trainings = data?.trainings ?? [];
@@ -61,10 +63,10 @@ export function TrainingsList() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            Manage Trainings
+            {t("list.title")}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Create, edit, and manage training programs
+            {t("list.subtitle")}
           </p>
         </div>
         <Link
@@ -72,7 +74,7 @@ export function TrainingsList() {
           className={buttonVariants() + " ey-bg-dark hover:opacity-90"}
         >
           <Plus className="mr-2 h-4 w-4" />
-          New Training
+          {t("list.newTraining")}
         </Link>
       </div>
 
@@ -91,26 +93,26 @@ export function TrainingsList() {
       {/* Table */}
       {isLoading ? (
         <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
-          Loading trainings...
+          {t("list.loading")}
         </div>
       ) : trainings.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <BookOpen className="h-10 w-10 text-muted-foreground/40 mb-3" />
-          <p className="text-sm text-muted-foreground">No trainings found</p>
+          <p className="text-sm text-muted-foreground">{t("list.empty")}</p>
         </div>
       ) : (
         <Card className="border-border/60 overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/50">
-                <TableHead>Title</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead className="text-center">Type</TableHead>
-                <TableHead className="text-center">Content</TableHead>
-                <TableHead className="text-center">Enrolled</TableHead>
-                <TableHead className="text-center">Level</TableHead>
-                <TableHead className="text-center">Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>{t("list.columns.title")}</TableHead>
+                <TableHead>{t("list.columns.category")}</TableHead>
+                <TableHead className="text-center">{t("list.columns.type")}</TableHead>
+                <TableHead className="text-center">{t("list.columns.content")}</TableHead>
+                <TableHead className="text-center">{t("list.columns.enrolled")}</TableHead>
+                <TableHead className="text-center">{t("list.columns.level")}</TableHead>
+                <TableHead className="text-center">{t("list.columns.status")}</TableHead>
+                <TableHead className="text-right">{t("list.columns.actions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

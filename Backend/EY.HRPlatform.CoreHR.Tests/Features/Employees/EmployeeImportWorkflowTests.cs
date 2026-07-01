@@ -31,7 +31,7 @@ public class EmployeeImportWorkflowTests
 
         Assert.Equal("employee-import-template.csv", template.FileName);
         Assert.Equal(
-            "employeeNumber,firstName,lastName,email,hireDate,jobTitle,orgUnitCode,managerEmail\r\n",
+            "employeeNumber,firstName,lastName,email,phone,hireDate,jobTitle,workLocation,employmentType,orgUnitCode,managerEmail\r\n",
             csv);
     }
 
@@ -201,7 +201,7 @@ public class EmployeeImportWorkflowTests
     }
 
     [Fact]
-    public async Task UploadAsync_AcceptsUnrecognizedHeaders()
+    public async Task UploadAsync_RejectsUnexpectedHeaders()
     {
         var dbName = Guid.NewGuid().ToString();
         await SeedPublishedSetupAsync(dbName);
@@ -215,9 +215,10 @@ public class EmployeeImportWorkflowTests
             Sarah,Chen,sarah.chen@contoso.com,2024-01-15,Senior Engineer,ENG-PLATFORM,alex.manager@contoso.com
             """);
 
-        var session = await service.UploadAsync(file, CancellationToken.None);
+        var exception = await Assert.ThrowsAsync<ArgumentException>(() =>
+            service.UploadAsync(file, CancellationToken.None));
 
-        Assert.Equal(1, session.SourceRowCount);
+        Assert.Contains("official employee import template", exception.Message);
     }
 
     [Fact]
@@ -684,6 +685,7 @@ public class EmployeeImportWorkflowTests
         Assert.Equal(2, detail.UnresolvedFollowUpIssues.Count);
         Assert.Contains(detail.UnresolvedFollowUpIssues, issue => issue.Code == EmployeeReadinessIssueCodes.MissingOrgUnit && issue.FixTarget.Kind == EmployeeReadinessFixTargetKinds.ProfileOrganization);
         Assert.Contains(detail.UnresolvedFollowUpIssues, issue => issue.Code == EmployeeReadinessIssueCodes.NoManagerAssigned && issue.FixTarget.Kind == EmployeeReadinessFixTargetKinds.ReportingRelationships);
+        Assert.All(detail.UnresolvedFollowUpIssues, issue => Assert.False(string.IsNullOrWhiteSpace(issue.FixTarget.EmployeeKey)));
     }
 
     [Fact]

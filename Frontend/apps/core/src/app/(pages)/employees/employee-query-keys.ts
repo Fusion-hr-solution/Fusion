@@ -49,6 +49,9 @@ export function normalizeEmployeeRosterQuery(
   return {
     search: normalizeEmployeeRosterSearch(params.search),
     status: params.status ?? null,
+    orgUnitId: params.orgUnitId ?? null,
+    orgUnitCode: params.orgUnitCode ?? null,
+    managerId: params.managerId ?? null,
     access: params.access ?? null,
     readiness: params.readiness ?? null,
     sortBy: params.sortBy,
@@ -61,8 +64,6 @@ export function normalizeEmployeeRosterQuery(
 export const employeeRosterQueryKeys = {
   all: () => ["corehr", "employees", "roster"] as const,
   lists: () => [...employeeRosterQueryKeys.all(), "list"] as const,
-  workforceAccounts: () =>
-    [...employeeRosterQueryKeys.all(), "workforce-accounts"] as const,
   list: (params: EmployeeRosterQueryParams) =>
     [
       ...employeeRosterQueryKeys.lists(),
@@ -80,30 +81,18 @@ export const employeeRosterQueryKeys = {
       "org-unit-options",
       normalizeEmployeeRosterSearch(search),
     ] as const,
-  reportingLines: (employeeId: string, scope?: string) =>
-    [...employeeRosterQueryKeys.all(), "reporting-lines", employeeId, ...(scope ? [scope] : [])] as const,
-  profile: (employeeId: string, scope?: string) =>
-    [...employeeRosterQueryKeys.all(), "profile", employeeId, ...(scope ? [scope] : [])] as const,
-  team: (params: EmployeeRosterQueryParams) =>
-    [
-      ...employeeRosterQueryKeys.all(),
-      "team",
-      normalizeEmployeeRosterQuery(params),
-    ] as const,
+  reportingLines: (employeeId: string) =>
+    [...employeeRosterQueryKeys.all(), "reporting-lines", employeeId] as const,
+  profile: (employeeId: string) =>
+    [...employeeRosterQueryKeys.all(), "profile", employeeId] as const,
   readinessSummary: () =>
     [...employeeRosterQueryKeys.all(), "readiness-summary"] as const,
-  workforceAccount: (subject: WorkforceAccountSubject) =>
-    [
-      ...employeeRosterQueryKeys.workforceAccounts(),
-      "detail",
-      normalizeWorkforceAccountSubject(subject),
-    ] as const,
-  workforceAccountBatch: (subjects: WorkforceAccountSubject[]) =>
-    [
-      ...employeeRosterQueryKeys.workforceAccounts(),
-      "batch",
-      normalizeWorkforceAccountSubjects(subjects),
-    ] as const,
+  workforceAccounts: () =>
+    [...employeeRosterQueryKeys.all(), "workforce-accounts"] as const,
+  workforceAccountSummary: () =>
+    [...employeeRosterQueryKeys.workforceAccounts(), "summary"] as const,
+  workforceAccount: (employeeId: string) =>
+    [...employeeRosterQueryKeys.workforceAccounts(), employeeId] as const,
 };
 
 export function normalizeEmployeeImportPreviewQuery(

@@ -171,6 +171,8 @@ export const coreWorkforcePaths = {
   search: () => "/corehr/workforce/employees/search",
   accessSubjects: () => "/corehr/workforce/access-subjects",
   accessSubjectsSummary: () => "/corehr/workforce/access-subjects/summary",
+  accessSubjectsPreview: () => "/corehr/workforce/access-subjects/preview",
+  bulkInvite: () => "/corehr/workforce/access-subjects/bulk-invite",
   team: (employeeId: string) => `/corehr/workforce/employees/${employeeId}/team`,
   managerChain: (employeeId: string) => `/corehr/workforce/employees/${employeeId}/manager-chain`,
   orgUnits: () => "/corehr/workforce/org-units",
@@ -221,6 +223,24 @@ export const coreWorkforceQueryKeys = {
     ] as const,
   accessSubjectsSummary: () =>
     [...coreWorkforceQueryKeys.all(), "access-subjects-summary"] as const,
+  accessSubjectsPreview: (params: {
+    search?: string | null;
+    access?: WorkforceAccessState | null;
+    profileId?: string | null;
+    employeeStatus?: "Active" | "Inactive" | null;
+    employeeKey?: string | null;
+  }) =>
+    [
+      ...coreWorkforceQueryKeys.all(),
+      "access-subjects-preview",
+      {
+        search: params.search?.trim() || null,
+        access: params.access ?? null,
+        profileId: params.profileId ?? null,
+        employeeStatus: params.employeeStatus ?? null,
+        employeeKey: params.employeeKey ?? null,
+      },
+    ] as const,
   team: (employeeId: string) =>
     [...coreWorkforceQueryKeys.employees(), employeeId, "team"] as const,
   managerChain: (employeeId: string) =>

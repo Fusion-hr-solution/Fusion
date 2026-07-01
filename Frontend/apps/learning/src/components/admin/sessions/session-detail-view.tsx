@@ -20,7 +20,18 @@ import {
   CheckCircle2,
   History,
 } from "lucide-react";
-import { Badge, Button, Card, CardContent, Input, Label, Progress, Separator } from "@repo/ui";
+import {
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  Input,
+  Label,
+  Progress,
+  Separator,
+} from "@repo/ui";
+import { toast } from "sonner";
+import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { useApiQuery, useApiMutation } from "@repo/api/react";
 import {
   getSessionDetail,
@@ -45,6 +56,10 @@ interface SessionDetailViewProps {
 }
 
 export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
+  const t = useTranslations("adminSessions");
+  const tCommon = useTranslations("common");
+  const format = useFormatter();
+  const locale = useLocale();
   const fetcher = useCallback(() => getSessionDetail(sessionId), [sessionId]);
   const { data: session, isLoading, refetch } = useApiQuery(fetcher);
   const identityFetcher = useCallback(() => getIdentityUsers(), []);
@@ -60,17 +75,25 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
     return session.attendees.map((a) => {
       if (a.fullName) return a;
       const user = userMap.get(a.employeeId);
-      return user ? { ...a, fullName: user.fullName, email: a.email ?? user.email } : a;
+      return user
+        ? { ...a, fullName: user.fullName, email: a.email ?? user.email }
+        : a;
     });
   }, [session?.attendees, identityUsers]);
 
   const { mutateAsync: doDuplicate, isLoading: dupPending } = useApiMutation(
-    () => duplicateSession(sessionId, {
-      newStartUtc: new Date(duplicateNew).toISOString(),
-      occurrences: 1,
-      intervalDays: 7,
-    }),
-    { onSuccess: () => { refetch(); setDuplicateNew(""); } },
+    () =>
+      duplicateSession(sessionId, {
+        newStartUtc: new Date(duplicateNew).toISOString(),
+        occurrences: 1,
+        intervalDays: 7,
+      }),
+    {
+      onSuccess: () => {
+        refetch();
+        setDuplicateNew("");
+      },
+    }
   );
 
   const [exportingExcel, setExportingExcel] = useState(false);
@@ -83,11 +106,15 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
       try {
         await markAttendance(sessionId, employeeId);
         refetch();
+      } catch {
+        toast.error(t("detail.markAttendanceErrorTitle"), {
+          description: t("detail.markAttendanceErrorDescription"),
+        });
       } finally {
         setMarkingId(null);
       }
     },
-    [sessionId, refetch],
+    [sessionId, refetch, t]
   );
 
   const handleExport = useCallback(
@@ -112,7 +139,7 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
         setBusy(false);
       }
     },
-    [sessionId, session?.trainingTitle, session?.startUtc],
+    [sessionId, session?.trainingTitle, session?.startUtc]
   );
 
   if (isLoading) {
@@ -126,31 +153,39 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
   if (!session) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
-        <p className="text-sm text-destructive">Session not found.</p>
+        <p className="text-sm text-destructive">{t("detail.notFound")}</p>
         <Link href="/admin/sessions">
           <Button variant="outline" size="sm" className="mt-3">
-            <ArrowLeft className="mr-1.5 h-4 w-4" /> Back to Sessions
+            <ArrowLeft className="mr-1.5 h-4 w-4" />{" "}
+            {t("detail.backToSessions")}
           </Button>
         </Link>
       </div>
     );
   }
 
-  const ratio = session.maxCapacity > 0
-    ? Math.min(100, (session.enrolledCount / session.maxCapacity) * 100)
-    : 0;
+  const ratio =
+    session.maxCapacity > 0
+      ? Math.min(100, (session.enrolledCount / session.maxCapacity) * 100)
+      : 0;
 
   return (
     <div className="space-y-6 p-6">
       {/* Breadcrumb */}
       <div className="flex items-center gap-3">
         <Link href="/admin/sessions">
-          <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground hover:text-foreground">
-            <ArrowLeft className="h-4 w-4" /> Sessions
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1.5 text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" /> {t("detail.breadcrumb")}
           </Button>
         </Link>
         <span className="text-muted-foreground/40">/</span>
-        <h1 className="text-lg font-semibold text-foreground truncate">{session.trainingTitle}</h1>
+        <h1 className="text-lg font-semibold text-foreground truncate">
+          {session.trainingTitle}
+        </h1>
         <SessionStatusBadge status={session.status} />
       </div>
 
@@ -159,18 +194,22 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
         <Card className="lg:col-span-2 border-border/50">
           <CardContent className="py-6 space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-base font-semibold text-foreground">Session Details</h2>
-              {session.status !== "Cancelled" && session.status !== "Completed" && new Date(session.endUtc) >= new Date() && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCancelOpen(true)}
-                  className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
-                >
-                  <X className="h-3.5 w-3.5" />
-                  Cancel Session
-                </Button>
-              )}
+              <h2 className="text-base font-semibold text-foreground">
+                {t("detail.sessionDetails")}
+              </h2>
+              {session.status !== "Cancelled" &&
+                session.status !== "Completed" &&
+                new Date(session.endUtc) >= new Date() && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCancelOpen(true)}
+                    className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                    {t("detail.cancelSession")}
+                  </Button>
+                )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -179,7 +218,9 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
                   <FileText className="h-4 w-4 text-muted-foreground" />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Part</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t("detail.part")}
+                  </p>
                   <p className="text-sm font-medium">{session.partTitle}</p>
                 </div>
               </div>
@@ -189,8 +230,12 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
                   <Calendar className="h-4 w-4 text-muted-foreground" />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Date</p>
-                  <p className="text-sm font-medium">{formatSessionDate(session.startUtc)}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t("detail.date")}
+                  </p>
+                  <p className="text-sm font-medium">
+                    {formatSessionDate(session.startUtc, locale)}
+                  </p>
                 </div>
               </div>
 
@@ -199,8 +244,16 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
                   <Clock className="h-4 w-4 text-muted-foreground" />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Time</p>
-                  <p className="text-sm font-medium font-mono">{formatSessionTimeRange(session.startUtc, session.endUtc)}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t("detail.time")}
+                  </p>
+                  <p className="text-sm font-medium font-mono">
+                    {formatSessionTimeRange(
+                      session.startUtc,
+                      session.endUtc,
+                      locale
+                    )}
+                  </p>
                 </div>
               </div>
 
@@ -209,7 +262,9 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
                   <MapPin className="h-4 w-4 text-muted-foreground" />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Room</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t("detail.room")}
+                  </p>
                   <p className="text-sm font-medium">{session.room}</p>
                 </div>
               </div>
@@ -219,10 +274,16 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
                   <User className="h-4 w-4 text-muted-foreground" />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Trainer</p>
-                  <p className="text-sm font-medium">{session.trainerName ?? "Not assigned"}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t("detail.trainer")}
+                  </p>
+                  <p className="text-sm font-medium">
+                    {session.trainerName ?? t("detail.trainerNotAssigned")}
+                  </p>
                   {session.trainerEmail && (
-                    <p className="text-xs text-muted-foreground">{session.trainerEmail}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {session.trainerEmail}
+                    </p>
                   )}
                 </div>
               </div>
@@ -232,10 +293,18 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
                   <Users className="h-4 w-4 text-muted-foreground" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-xs text-muted-foreground">Capacity</p>
-                  <p className={`text-sm font-medium ${session.capacityWarning ? "text-[hsl(var(--ey-orange-500))]" : ""}`}>
+                  <p className="text-xs text-muted-foreground">
+                    {t("detail.capacity")}
+                  </p>
+                  <p
+                    className={`text-sm font-medium ${session.capacityWarning ? "text-[hsl(var(--ey-orange-500))]" : ""}`}
+                  >
                     {session.enrolledCount} / {session.maxCapacity}
-                    <span className="text-xs text-muted-foreground ml-1.5">({Math.round(ratio)}%)</span>
+                    <span className="text-xs text-muted-foreground ml-1.5">
+                      {t("detail.capacityPercent", {
+                        percent: Math.round(ratio),
+                      })}
+                    </span>
                   </p>
                   <Progress value={ratio} className="mt-2 h-2" />
                 </div>
@@ -245,7 +314,7 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
             {session.capacityWarning && (
               <div className="flex items-center gap-2.5 rounded-lg border border-[hsl(var(--ey-yellow))]/40 bg-[hsl(var(--ey-yellow))]/10 px-4 py-3 text-sm text-[hsl(var(--ey-orange-500))]">
                 <AlertTriangle className="h-4 w-4 shrink-0" />
-                <span>Capacity is at or above 90%. Consider adding another session.</span>
+                <span>{t("detail.capacityWarning")}</span>
               </div>
             )}
 
@@ -253,7 +322,9 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
               <>
                 <Separator />
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1">Notes</p>
+                  <p className="text-xs text-muted-foreground mb-1">
+                    {t("detail.notes")}
+                  </p>
                   <p className="text-sm text-foreground">{session.notes}</p>
                 </div>
               </>
@@ -262,8 +333,12 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
             {session.status === "Cancelled" && session.cancelReason && (
               <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3">
                 <p className="text-sm">
-                  <span className="font-medium text-destructive">Cancellation reason:</span>{" "}
-                  <span className="text-foreground">{session.cancelReason}</span>
+                  <span className="font-medium text-destructive">
+                    {t("detail.cancellationReasonLabel")}
+                  </span>{" "}
+                  <span className="text-foreground">
+                    {session.cancelReason}
+                  </span>
                 </p>
               </div>
             )}
@@ -284,13 +359,17 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
             <CardContent className="py-5 space-y-3">
               <div className="flex items-center gap-2">
                 <CalendarPlus className="h-4 w-4 text-muted-foreground" />
-                <h3 className="text-sm font-semibold text-foreground">Duplicate Session</h3>
+                <h3 className="text-sm font-semibold text-foreground">
+                  {t("detail.duplicateTitle")}
+                </h3>
               </div>
               <p className="text-xs text-muted-foreground">
-                Create a copy of this session at a new date/time.
+                {t("detail.duplicateDescription")}
               </p>
               <div className="space-y-2">
-                <Label htmlFor="dupStart" className="text-xs">New start time</Label>
+                <Label htmlFor="dupStart" className="text-xs">
+                  {t("detail.newStartTime")}
+                </Label>
                 <Input
                   id="dupStart"
                   type="datetime-local"
@@ -306,7 +385,9 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
                 className="w-full ey-bg-dark hover:opacity-90"
               >
                 <Copy className="mr-1.5 h-3.5 w-3.5" />
-                {dupPending ? "Duplicating..." : "Duplicate"}
+                {dupPending
+                  ? t("detail.duplicating")
+                  : tCommon("actions.duplicate")}
               </Button>
             </CardContent>
           </Card>
@@ -317,36 +398,49 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Users className="h-4 w-4 text-muted-foreground" />
-                  <h3 className="text-sm font-semibold text-foreground">Enrolled</h3>
+                  <h3 className="text-sm font-semibold text-foreground">
+                    {t("detail.enrolled")}
+                  </h3>
                 </div>
-                <span className="text-xs text-muted-foreground">{resolvedAttendees.length} people</span>
+                <span className="text-xs text-muted-foreground">
+                  {t("detail.peopleCount", { count: resolvedAttendees.length })}
+                </span>
               </div>
               <div className="flex items-center gap-2">
                 <Button
                   variant="outline"
                   size="sm"
-                  className="flex-1 gap-1.5 border-emerald-200 bg-emerald-50/50 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+                  className="flex-1 gap-1.5 border-[hsl(var(--ey-green-500))]/30 bg-[hsl(var(--ey-green-500))]/5 text-[hsl(var(--ey-green-500))] hover:bg-[hsl(var(--ey-green-500))]/10 hover:text-[hsl(var(--ey-green-500))]"
                   disabled={resolvedAttendees.length === 0 || exportingExcel}
                   onClick={() => handleExport("excel")}
-                  aria-label="Export participant list as Excel"
+                  aria-label={t("detail.exportExcelAria")}
                 >
                   {exportingExcel ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                    <Loader2
+                      className="h-3.5 w-3.5 animate-spin"
+                      aria-hidden="true"
+                    />
                   ) : (
-                    <FileSpreadsheet className="h-3.5 w-3.5" aria-hidden="true" />
+                    <FileSpreadsheet
+                      className="h-3.5 w-3.5"
+                      aria-hidden="true"
+                    />
                   )}
                   Excel
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
-                  className="flex-1 gap-1.5 border-rose-200 bg-rose-50/50 text-rose-700 hover:bg-rose-50 hover:text-rose-800"
+                  className="flex-1 gap-1.5 border-destructive/30 bg-destructive/5 text-destructive hover:bg-destructive/10 hover:text-destructive"
                   disabled={resolvedAttendees.length === 0 || exportingPdf}
                   onClick={() => handleExport("pdf")}
-                  aria-label="Export participant list as PDF"
+                  aria-label={t("detail.exportPdfAria")}
                 >
                   {exportingPdf ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                    <Loader2
+                      className="h-3.5 w-3.5 animate-spin"
+                      aria-hidden="true"
+                    />
                   ) : (
                     <FileDown className="h-3.5 w-3.5" aria-hidden="true" />
                   )}
@@ -356,29 +450,43 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
               {resolvedAttendees.length === 0 ? (
                 <div className="flex flex-col items-center py-4 text-center">
                   <Users className="h-6 w-6 text-muted-foreground/40" />
-                  <p className="mt-1.5 text-xs text-muted-foreground">No enrolled employees yet.</p>
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    {t("detail.noEnrolled")}
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-1.5 max-h-[280px] overflow-y-auto">
                   {resolvedAttendees.map((a) => (
-                    <div key={a.employeeId} className="flex items-center gap-2 rounded-lg bg-muted/30 px-3 py-2">
+                    <div
+                      key={a.employeeId}
+                      className="flex items-center gap-2 rounded-lg bg-muted/30 px-3 py-2"
+                    >
                       <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground">
                         {(a.fullName ?? a.employeeId).charAt(0).toUpperCase()}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-xs font-medium truncate">{a.fullName ?? a.employeeId}</p>
-                        {a.email && <p className="text-[10px] text-muted-foreground truncate">{a.email}</p>}
+                        <p className="text-xs font-medium truncate">
+                          {a.fullName ?? a.employeeId}
+                        </p>
+                        {a.email && (
+                          <p className="text-[10px] text-muted-foreground truncate">
+                            {a.email}
+                          </p>
+                        )}
                       </div>
                       {a.status === "Attended" ? (
-                        <Badge variant="outline" className="shrink-0 border-emerald-200 bg-emerald-50 text-emerald-700 text-[10px] px-1.5 py-0.5">
+                        <Badge
+                          variant="outline"
+                          className="shrink-0 border-[hsl(var(--ey-green-500))]/30 bg-[hsl(var(--ey-green-500))]/10 text-[hsl(var(--ey-green-500))] text-[10px] px-1.5 py-0.5"
+                        >
                           <CheckCircle2 className="h-3 w-3 mr-0.5" />
-                          Attended
+                          {t("detail.attended")}
                         </Badge>
                       ) : (
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="shrink-0 h-6 px-2 text-[10px] text-muted-foreground hover:text-emerald-700 hover:bg-emerald-50"
+                          className="shrink-0 h-6 px-2 text-[10px] text-muted-foreground hover:text-[hsl(var(--ey-green-500))] hover:bg-[hsl(var(--ey-green-500))]/10"
                           disabled={markingId === a.employeeId}
                           onClick={() => handleMarkAttendance(a.employeeId)}
                         >
@@ -387,7 +495,7 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
                           ) : (
                             <>
                               <CheckCircle2 className="h-3 w-3 mr-0.5" />
-                              Mark
+                              {t("detail.mark")}
                             </>
                           )}
                         </Button>
@@ -409,60 +517,92 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
         <CardContent className="py-5 space-y-4">
           <div className="flex items-center gap-2">
             <History className="h-4 w-4 text-muted-foreground" />
-            <h3 className="text-sm font-semibold text-foreground">History</h3>
+            <h3 className="text-sm font-semibold text-foreground">
+              {t("detail.history")}
+            </h3>
           </div>
           <ol className="relative border-l border-border/60 ml-2 space-y-4">
             {/* Created */}
             <li className="ml-4">
               <div className="absolute -left-1.5 mt-1 h-3 w-3 rounded-full border-2 border-background bg-muted-foreground/40" />
-              <p className="text-xs font-medium text-foreground">Session created</p>
+              <p className="text-xs font-medium text-foreground">
+                {t("detail.sessionCreated")}
+              </p>
               <time className="text-[10px] text-muted-foreground">
-                {new Date(session.createdAt).toLocaleString()}
+                {format.dateTime(new Date(session.createdAt), {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                })}
               </time>
             </li>
 
             {/* Started (if time has passed) */}
-            {new Date(session.startUtc) <= new Date() && session.status !== "Cancelled" && (
-              <li className="ml-4">
-                <div className="absolute -left-1.5 mt-1 h-3 w-3 rounded-full border-2 border-background bg-blue-400" />
-                <p className="text-xs font-medium text-foreground">Session started</p>
-                <time className="text-[10px] text-muted-foreground">
-                  {new Date(session.startUtc).toLocaleString()}
-                </time>
-              </li>
-            )}
+            {new Date(session.startUtc) <= new Date() &&
+              session.status !== "Cancelled" && (
+                <li className="ml-4">
+                  <div className="absolute -left-1.5 mt-1 h-3 w-3 rounded-full border-2 border-background bg-[hsl(var(--ey-blue-400))]" />
+                  <p className="text-xs font-medium text-foreground">
+                    {t("detail.sessionStarted")}
+                  </p>
+                  <time className="text-[10px] text-muted-foreground">
+                    {format.dateTime(new Date(session.startUtc), {
+                      dateStyle: "medium",
+                      timeStyle: "short",
+                    })}
+                  </time>
+                </li>
+              )}
 
             {/* Ended / Completed */}
-            {new Date(session.endUtc) <= new Date() && session.status !== "Cancelled" && (
-              <li className="ml-4">
-                <div className="absolute -left-1.5 mt-1 h-3 w-3 rounded-full border-2 border-background bg-emerald-500" />
-                <p className="text-xs font-medium text-foreground">Session completed</p>
-                <time className="text-[10px] text-muted-foreground">
-                  {new Date(session.endUtc).toLocaleString()}
-                </time>
-              </li>
-            )}
+            {new Date(session.endUtc) <= new Date() &&
+              session.status !== "Cancelled" && (
+                <li className="ml-4">
+                  <div className="absolute -left-1.5 mt-1 h-3 w-3 rounded-full border-2 border-background bg-[hsl(var(--ey-green-500))]" />
+                  <p className="text-xs font-medium text-foreground">
+                    {t("detail.sessionCompleted")}
+                  </p>
+                  <time className="text-[10px] text-muted-foreground">
+                    {format.dateTime(new Date(session.endUtc), {
+                      dateStyle: "medium",
+                      timeStyle: "short",
+                    })}
+                  </time>
+                </li>
+              )}
 
             {/* Cancelled */}
             {session.status === "Cancelled" && session.cancelledAt && (
               <li className="ml-4">
                 <div className="absolute -left-1.5 mt-1 h-3 w-3 rounded-full border-2 border-background bg-destructive" />
-                <p className="text-xs font-medium text-destructive">Session cancelled</p>
+                <p className="text-xs font-medium text-destructive">
+                  {t("detail.sessionCancelled")}
+                </p>
                 <time className="text-[10px] text-muted-foreground">
-                  {new Date(session.cancelledAt).toLocaleString()}
+                  {format.dateTime(new Date(session.cancelledAt), {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  })}
                 </time>
                 {session.cancelReason && (
-                  <p className="text-[10px] text-muted-foreground mt-0.5">Reason: {session.cancelReason}</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    {t("detail.reasonPrefix", { reason: session.cancelReason })}
+                  </p>
                 )}
               </li>
             )}
 
             {/* Attendance results */}
-            {resolvedAttendees.filter((a) => a.status === "Attended").length > 0 && (
+            {resolvedAttendees.filter((a) => a.status === "Attended").length >
+              0 && (
               <li className="ml-4">
-                <div className="absolute -left-1.5 mt-1 h-3 w-3 rounded-full border-2 border-background bg-emerald-400" />
+                <div className="absolute -left-1.5 mt-1 h-3 w-3 rounded-full border-2 border-background bg-[hsl(var(--ey-green-500))]" />
                 <p className="text-xs font-medium text-foreground">
-                  Attendance recorded ({resolvedAttendees.filter((a) => a.status === "Attended").length}/{resolvedAttendees.length})
+                  {t("detail.attendanceRecorded", {
+                    present: resolvedAttendees.filter(
+                      (a) => a.status === "Attended"
+                    ).length,
+                    total: resolvedAttendees.length,
+                  })}
                 </p>
               </li>
             )}

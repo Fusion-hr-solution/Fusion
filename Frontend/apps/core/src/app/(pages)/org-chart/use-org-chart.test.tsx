@@ -19,6 +19,7 @@ const authState = vi.hoisted(() => ({
 
 const tenantContextState = vi.hoisted(() => ({
   tenantId: null as string | null,
+  tenantSlug: null as string | null,
   tenantName: null as string | null,
   tenantStatus: null as string | null,
   isActive: false,
@@ -26,6 +27,7 @@ const tenantContextState = vi.hoisted(() => ({
   isReady: false,
   isLoading: false,
   setTenant: vi.fn(),
+  setTenantBySlug: vi.fn(),
   clearTenant: vi.fn(),
 }));
 
@@ -40,9 +42,12 @@ vi.mock("@repo/auth", () => ({
   canAccessCorePeople: (user: { roles?: string[] } | null) =>
     !!user?.roles?.includes("HRAdmin") &&
     !user?.roles?.includes("PlatformAdmin"),
+  canAccessCoreOrgChart: (user: { roles?: string[] } | null) =>
+    !!user?.roles?.includes("HRAdmin") &&
+    !user?.roles?.includes("PlatformAdmin"),
 }));
 
-vi.mock("@/components/core-tenant-context-provider", () => ({
+vi.mock("@/shell/tenant-context/core-tenant-context-provider", () => ({
   useTenantContext: () => tenantContextState,
 }));
 

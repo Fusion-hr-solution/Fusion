@@ -13,7 +13,6 @@ namespace EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployeeReportingLi
 public sealed class GetEmployeeReportingLinesQueryHandler(
     CoreHRDbContext dbContext,
     IEmployeeReadModelPolicy employeeReadModelPolicy,
-    IEmployeeReadScopeService employeeReadScopeService,
     ITenantSettingsReadService tenantSettingsReadService) : IQueryHandler<GetEmployeeReportingLinesQuery, Result<EmployeeReportingLinesDto>>
 {
     private readonly IEmployeeReadModelPolicy employeeReadModelPolicy = employeeReadModelPolicy;
@@ -25,11 +24,6 @@ public sealed class GetEmployeeReportingLinesQueryHandler(
         var settings = await tenantSettingsReadService.GetCurrentAsync(cancellationToken);
         var employee = await LoadEmployeeAsync(request.EmployeeId, cancellationToken);
         if (employee is null)
-        {
-            return Result.Failure<EmployeeReportingLinesDto>(Error.NotFound("Employee", request.EmployeeId));
-        }
-
-        if (!employeeReadScopeService.CanAccessEmployee(employee, request.Audience, request.RequesterEmployeeId))
         {
             return Result.Failure<EmployeeReportingLinesDto>(Error.NotFound("Employee", request.EmployeeId));
         }
@@ -50,18 +44,18 @@ public sealed class GetEmployeeReportingLinesQueryHandler(
 
         var directReportCounts = await LoadDirectReportCountsAsync(relevantEmployeeIds, cancellationToken);
         var managerChain = managerChainEmployees
-            .Select((manager, index) => MapNode(manager, settings, directReportCounts, index + 1, request.Audience))
+            .Select((manager, index) => MapNode(manager, settings, request.Audience, directReportCounts, index + 1))
             .ToList();
         var directReports = downlineEmployees
             .Where(node => node.Depth == 1)
-            .Select(node => MapNode(node.Employee, settings, directReportCounts, node.Depth, request.Audience))
+            .Select(node => MapNode(node.Employee, settings, request.Audience, directReportCounts, node.Depth))
             .ToList();
         var downline = downlineEmployees
-            .Select(node => MapNode(node.Employee, settings, directReportCounts, node.Depth, request.Audience))
+            .Select(node => MapNode(node.Employee, settings, request.Audience, directReportCounts, node.Depth))
             .ToList();
 
         return Result.Success(new EmployeeReportingLinesDto(
-            MapListItem(employee, settings, directReportCounts, request.Audience),
+            MapListItem(employee, settings, request.Audience, directReportCounts),
             managerChain,
             directReports,
             downline,
@@ -171,19 +165,19 @@ public sealed class GetEmployeeReportingLinesQueryHandler(
     private EmployeeHierarchyNodeDto MapNode(
         Employee employee,
         TenantSettingsDto settings,
+        EmployeeReadAudience audience,
         IReadOnlyDictionary<Guid, int> directReportCounts,
-        int depth,
-        EmployeeReadAudience audience)
-        => new(MapListItem(employee, settings, directReportCounts, audience), depth);
+        int depth)
+        => new(MapListItem(employee, settings, audience, directReportCounts), depth);
 
     private EmployeeListItemDto MapListItem(
         Employee employee,
         TenantSettingsDto settings,
-        IReadOnlyDictionary<Guid, int> directReportCounts,
-        EmployeeReadAudience audience)
+        EmployeeReadAudience audience,
+        IReadOnlyDictionary<Guid, int> directReportCounts)
         => employeeReadModelPolicy.MapListItem(
             employee,
             settings,
             audience,
             directReportCounts.GetValueOrDefault(employee.Id));
-}
+    }

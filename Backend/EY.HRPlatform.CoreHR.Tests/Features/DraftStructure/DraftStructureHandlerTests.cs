@@ -1,5 +1,6 @@
 using EY.HRPlatform.CoreHR.Domain.Entities;
 using EY.HRPlatform.CoreHR.Exceptions;
+using EY.HRPlatform.CoreHR.Features.DraftStructure.Commands.ClearDraftStructure;
 using EY.HRPlatform.CoreHR.Features.DraftStructure.Commands.CreateDraftOrgUnit;
 using EY.HRPlatform.CoreHR.Features.DraftStructure.Commands.DeleteDraftOrgUnit;
 using EY.HRPlatform.CoreHR.Features.DraftStructure.Commands.UpdateDraftOrgUnit;
@@ -107,7 +108,7 @@ public class DraftStructureHandlerTests
     }
 
     [Fact]
-    public async Task CreateDraftOrgUnit_WhenSetupIsApproved_ThrowsInvalidTenantSetupStateException()
+    public async Task CreateDraftOrgUnit_WhenSetupIsApproved_CreatesDraftOrgUnit()
     {
         var dbName = Guid.NewGuid().ToString();
         var tenantContext = TestTenantContext.WithTenant(TenantId);
@@ -125,19 +126,24 @@ public class DraftStructureHandlerTests
         await using var context = TestDbContextFactory.Create(tenantContext, dbName);
         var handler = new CreateDraftOrgUnitCommandHandler(context, tenantContext);
 
-        var ex = await Assert.ThrowsAsync<InvalidTenantSetupStateException>(
-            () => handler.Handle(
-                new CreateDraftOrgUnitCommand(
-                    "ENG",
-                    "Engineering",
-                    "department",
-                    null,
-                    null,
-                    null,
-                    null),
-                CancellationToken.None));
+        var result = await handler.Handle(
+            new CreateDraftOrgUnitCommand(
+                "ENG",
+                "Engineering",
+                "department",
+                null,
+                null,
+                null,
+                null),
+            CancellationToken.None);
 
-        Assert.Contains("reopen", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.True(result.IsSuccess);
+        Assert.Equal("ENG", result.Value.ReferenceKey);
+        Assert.Equal("Engineering", result.Value.DisplayName);
+
+        var saved = await context.DraftOrgUnits.IgnoreQueryFilters().FirstOrDefaultAsync();
+        Assert.NotNull(saved);
+        Assert.Equal(result.Value.Id, saved.Id);
     }
 
     [Fact]
@@ -338,6 +344,34 @@ public class DraftStructureHandlerTests
                 CancellationToken.None));
 
         Assert.Contains("replacement parent", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ClearDraftStructure_RemovesAllDraftUnits()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+
+        await using (var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName))
+        {
+            seedContext.TenantSetupStates.Add(TenantSetupState.CreateActivated(TenantId));
+            seedContext.TenantSettings.Add(DomainTenantSettings.Create(TenantId, SettingsJson));
+
+            var department = CreateDraftOrgUnit(TenantId, "ENG", "Engineering", "department");
+            seedContext.DraftOrgUnits.Add(department);
+            await seedContext.SaveChangesAsync();
+
+            seedContext.DraftOrgUnits.Add(CreateDraftOrgUnit(TenantId, "TEAM", "Platform Team", "team", department.Id));
+            await seedContext.SaveChangesAsync();
+        }
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = new ClearDraftStructureCommandHandler(context);
+
+        var result = await handler.Handle(new ClearDraftStructureCommand(), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Empty(await context.DraftOrgUnits.ToListAsync());
     }
 
     [Fact]

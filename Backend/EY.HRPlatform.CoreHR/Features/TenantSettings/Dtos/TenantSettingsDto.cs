@@ -35,6 +35,16 @@ public sealed record TenantSettingsDto
     public BrandingSettings Branding { get; init; } = new();
 
     /// <summary>
+    /// Employee self-service editing policies.
+    /// </summary>
+    public SelfServiceSettings SelfService { get; init; } = new();
+
+    /// <summary>
+    /// Workforce account provisioning and invitation defaults.
+    /// </summary>
+    public ProvisioningSettings Provisioning { get; init; } = new();
+
+    /// <summary>
     /// Default field configuration for employee records.
     /// All fields default to visible for all roles.
     /// </summary>
@@ -45,7 +55,9 @@ public sealed record TenantSettingsDto
         ["email"] = new(Visible: true, Required: true, VisibleToEmployee: true, VisibleToManager: true),
         ["hireDate"] = new(Visible: true, Required: true, VisibleToEmployee: true, VisibleToManager: true),
         ["phone"] = new(Visible: true, Required: false, VisibleToEmployee: true, VisibleToManager: true),
-        ["jobTitle"] = new(Visible: true, Required: false, VisibleToEmployee: true, VisibleToManager: true)
+        ["jobTitle"] = new(Visible: true, Required: false, VisibleToEmployee: true, VisibleToManager: true),
+        ["workLocation"] = new(Visible: true, Required: false, VisibleToEmployee: true, VisibleToManager: true),
+        ["employmentType"] = new(Visible: true, Required: false, VisibleToEmployee: true, VisibleToManager: true)
     };
 
     /// <summary>
@@ -53,3 +65,13 @@ public sealed record TenantSettingsDto
     /// </summary>
     public static TenantSettingsDto Defaults => new();
 }
+
+public sealed record SelfServiceSettings(
+    bool CanEditPreferredName = true,
+    bool CanEditPhone = true);
+
+public sealed record ProvisioningSettings(
+    Guid? DefaultAccessProfileId = null,
+    int InviteExpiryDays = 14,
+    int ResendCooldownHours = 24,
+    string PendingInviteBehavior = "RefreshExisting");

@@ -30,6 +30,7 @@ describe("OrgChartNode", () => {
         data={{
           employee: {
             employeeId: "emp-1",
+            stableEmployeeKey: "E-EMP1",
             fullName: "Jordan Solo",
             firstName: "Jordan",
             lastName: "Solo",

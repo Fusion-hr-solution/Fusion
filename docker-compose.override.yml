@@ -10,3 +10,7 @@ services:
   corehr:
     ports:
       - "${COREHR_PORT:-5301}:5301"
+
+  performance:
+    ports:
+      - "${PERFORMANCE_PORT:-5401}:5401"

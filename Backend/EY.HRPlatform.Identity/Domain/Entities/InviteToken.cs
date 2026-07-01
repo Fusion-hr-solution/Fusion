@@ -46,11 +46,6 @@ public class InviteToken : ITenantEntity
     public string? FirstName { get; private set; }
 
     /// <summary>
-    /// Optional: Core employee identifier to link when the invite is accepted.
-    /// </summary>
-    public Guid? EmployeeId { get; private set; }
-
-    /// <summary>
     /// Optional: pre-filled last name for the invited user.
     /// </summary>
     public string? LastName { get; private set; }
@@ -76,24 +71,22 @@ public class InviteToken : ITenantEntity
     public DateTime CreatedAt { get; private set; }
 
     /// <summary>
-    /// Last known delivery attempt state for the invitation email.
-    /// </summary>
-    public string? DeliveryStatus { get; private set; }
-
-    /// <summary>
-    /// Short product-facing message for the last delivery attempt.
-    /// </summary>
-    public string? DeliveryMessage { get; private set; }
-
-    /// <summary>
-    /// When delivery state was last recorded.
-    /// </summary>
-    public DateTime? DeliveryRecordedAt { get; private set; }
-
-    /// <summary>
     /// The admin who created this invite.
     /// </summary>
     public Guid CreatedByUserId { get; private set; }
+
+    /// <summary>
+    /// Optional CoreHR employee record this invite provisions access for.
+    /// </summary>
+    public Guid? EmployeeId { get; private set; }
+
+    public string? DeliveryStatus { get; private set; }
+
+    public string? DeliveryMessage { get; private set; }
+
+    public DateTime? DeliveryRecordedAt { get; private set; }
+
+    public List<InviteAccessProfile> AccessProfileAssignments { get; private set; } = [];
 
     /// <summary>
     /// Whether this invite has been revoked (soft-deleted).
@@ -144,8 +137,8 @@ public class InviteToken : ITenantEntity
         ValidateTenantId(tenantId);
         ValidateRole(role);
         ValidateCreatedBy(createdByUserId);
-        ValidateEmployeeId(employeeId);
         ValidateExpiryDays(expiryDays);
+        ValidateEmployeeId(employeeId);
 
         return new InviteToken
         {
@@ -218,6 +211,21 @@ public class InviteToken : ITenantEntity
         EmployeeId = employeeId;
     }
 
+    public void UpdateRole(string role)
+    {
+        ValidateRole(role);
+        Role = role.Trim();
+    }
+
+    public void RecordDelivery(string status, string? message = null, DateTime? recordedAt = null)
+    {
+        ValidateDeliveryStatus(status);
+
+        DeliveryStatus = status.Trim();
+        DeliveryMessage = NormalizeDeliveryMessage(message);
+        DeliveryRecordedAt = recordedAt ?? DateTime.UtcNow;
+    }
+
     /// <summary>
     /// Soft-revokes this invite so it can no longer be accepted.
     /// </summary>
@@ -279,12 +287,6 @@ public class InviteToken : ITenantEntity
             throw new ArgumentException("Tenant ID is required.", nameof(tenantId));
     }
 
-    private static void ValidateEmployeeId(Guid? employeeId)
-    {
-        if (employeeId.HasValue && employeeId.Value == Guid.Empty)
-            throw new ArgumentException("Employee ID cannot be empty when provided.", nameof(employeeId));
-    }
-
     private static void ValidateRole(string role)
     {
         if (string.IsNullOrWhiteSpace(role))
@@ -298,6 +300,26 @@ public class InviteToken : ITenantEntity
     {
         if (createdByUserId == Guid.Empty)
             throw new ArgumentException("Creator user ID is required.", nameof(createdByUserId));
+    }
+
+    private static void ValidateEmployeeId(Guid? employeeId)
+    {
+        if (employeeId == Guid.Empty)
+            throw new ArgumentException("Employee ID cannot be empty.", nameof(employeeId));
+    }
+
+    private static void ValidateDeliveryStatus(string status)
+    {
+        if (string.IsNullOrWhiteSpace(status))
+            throw new ArgumentException("Delivery status is required.", nameof(status));
+    }
+
+    private static string? NormalizeDeliveryMessage(string? message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+            return null;
+
+        return message.Trim();
     }
 
     private static void ValidateExpiryDays(int expiryDays)

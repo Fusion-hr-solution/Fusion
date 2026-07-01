@@ -1,10 +1,16 @@
 # ========================
+# Project artifacts (local only)
+# ========================
+.artifacts/
+
+# ========================
 # Project docs (local only)
 # ========================
 EY_ACADEMY_MODULE.md
 docs/corehr/
 artifacts/
 external-skills/
+.local-docs/
 
 # ========================
 # OS & Editor
@@ -15,6 +21,7 @@ Thumbs.db
 *.swo
 *~
 .vscode/
+.claude/
 .idea/
 *.suo
 *.user
@@ -88,6 +95,17 @@ yarn-error.log*
 # Testing
 coverage/
 .nyc_output/
+test-results/
+.test-output/
+.vitest/
+.jest/
+
+# Temp / cache artifacts
+tmp/
+temp/
+*.tsbuildinfo
+.eslintcache
+.sass-cache/
 
 # ========================
 # Misc
@@ -107,11 +125,12 @@ Frontend/.github/
 PROJECT_SUMMARY.md
 *.postman_collection.json
 
+CLAUDE.md
+AGENTS.md
+
 #opencode
 opencode.json
 .opencode/
-#claude code 
-.claude
-#appsettings.Development.json
-appsettings.Development.json
-appsettings.json
+
+# Windows accidental null redirection artifact
+nul

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Button,
   Dialog,
@@ -22,20 +23,27 @@ interface RevokeCertificateDialogProps {
   onRevoked: () => void;
 }
 
-export function RevokeCertificateDialog({ certificate, onClose, onRevoked }: RevokeCertificateDialogProps) {
+export function RevokeCertificateDialog({
+  certificate,
+  onClose,
+  onRevoked,
+}: RevokeCertificateDialogProps) {
+  const t = useTranslations("adminCertificates");
+  const tCommon = useTranslations("common");
   const [reason, setReason] = useState("");
 
   const { mutateAsync, isLoading } = useApiMutation(
-    (args: { id: string; reason: string }) => revokeCertificate(args.id, args.reason),
+    (args: { id: string; reason: string }) =>
+      revokeCertificate(args.id, args.reason),
     {
       onSuccess: () => {
-        toast.success("Certificate revoked.");
+        toast.success(t("toast.revoked"));
         setReason("");
         onRevoked();
         onClose();
       },
-      onError: () => toast.error("Could not revoke the certificate."),
-    },
+      onError: () => toast.error(t("toast.revokeError")),
+    }
   );
 
   function close() {
@@ -44,37 +52,50 @@ export function RevokeCertificateDialog({ certificate, onClose, onRevoked }: Rev
   }
 
   return (
-    <Dialog open={Boolean(certificate)} onOpenChange={(open) => !open && close()}>
+    <Dialog
+      open={Boolean(certificate)}
+      onOpenChange={(open) => !open && close()}
+    >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Revoke certificate</DialogTitle>
+          <DialogTitle>{t("revokeDialog.title")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            Revoking <span className="font-mono">{certificate?.certificateNumber}</span> for{" "}
-            <span className="font-medium text-foreground">{certificate?.employeeFullName}</span> is permanent.
-            The public verification page will show it as Revoked.
+            {t.rich("revokeDialog.description", {
+              number: certificate?.certificateNumber ?? "",
+              name: certificate?.employeeFullName ?? "",
+              mono: (chunks) => <span className="font-mono">{chunks}</span>,
+              strong: (chunks) => (
+                <span className="font-medium text-foreground">{chunks}</span>
+              ),
+            })}
           </p>
           <div className="space-y-1.5">
-            <Label htmlFor="revoke-reason">Reason</Label>
+            <Label htmlFor="revoke-reason">
+              {t("revokeDialog.reasonLabel")}
+            </Label>
             <Input
               id="revoke-reason"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder="e.g. Issued in error"
+              placeholder={t("revokeDialog.reasonPlaceholder")}
             />
           </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={close}>
-            Cancel
+            {tCommon("actions.cancel")}
           </Button>
           <Button
             variant="destructive"
             disabled={reason.trim().length < 3 || isLoading}
-            onClick={() => certificate && mutateAsync({ id: certificate.id, reason: reason.trim() })}
+            onClick={() =>
+              certificate &&
+              mutateAsync({ id: certificate.id, reason: reason.trim() })
+            }
           >
-            Revoke
+            {t("revokeDialog.confirm")}
           </Button>
         </DialogFooter>
       </DialogContent>

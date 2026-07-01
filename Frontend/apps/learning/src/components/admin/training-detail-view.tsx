@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Pencil, Trash2, BookOpen, Users, FileText, Plus } from "lucide-react";
+import { useTranslations, useFormatter } from "next-intl";
 import { Button, buttonVariants, Badge } from "@repo/ui";
 import { useApiQuery, useApiMutation } from "@repo/api/react";
 import {
@@ -28,75 +29,82 @@ import { PageBreadcrumb } from "../page-breadcrumb";
 
 export function TrainingDetailView({ trainingId }: TrainingDetailViewProps) {
   const router = useRouter();
+  const t = useTranslations("adminTrainings");
+  const tCommon = useTranslations("common");
+  const format = useFormatter();
   const [chapterDialogOpen, setChapterDialogOpen] = useState(false);
-  const [editingChapter, setEditingChapter] = useState<AdminChapter | null>(null);
+  const [editingChapter, setEditingChapter] = useState<AdminChapter | null>(
+    null
+  );
   const [onSiteTab, setOnSiteTab] = useState<"sessions" | "materials" | "costs">("sessions");
 
   const fetchTrainingDetail = useCallback(
     () => getAdminTrainingDetail(trainingId),
-    [trainingId],
+    [trainingId]
   );
 
-  const { data: training, isLoading, refetch } = useApiQuery(
-    fetchTrainingDetail,
-    { enabled: true },
-  );
+  const {
+    data: training,
+    isLoading,
+    refetch,
+  } = useApiQuery(fetchTrainingDetail, { enabled: true });
 
   const { mutateAsync: removeChapter } = useApiMutation(
     (chapterId: string) => deleteChapter(trainingId, chapterId),
-    { onSuccess: () => refetch() },
+    { onSuccess: () => refetch() }
   );
 
   const { mutateAsync: removeTraining } = useApiMutation(
     () => deleteTraining(trainingId),
-    { onSuccess: () => router.push("/admin/trainings") },
+    { onSuccess: () => router.push("/admin/trainings") }
   );
 
   const { mutateAsync: doReorder } = useApiMutation(
     (chapterIds: string[]) => reorderChapters(trainingId, chapterIds),
-    { onSuccess: () => refetch() },
+    { onSuccess: () => refetch() }
   );
 
   const { mutateAsync: doDuplicate } = useApiMutation(
     (input: CreateChapterInput) => addChapter(trainingId, input),
-    { onSuccess: () => refetch() },
+    { onSuccess: () => refetch() }
   );
 
   const handleDeleteChapter = useCallback(
     async (ch: AdminChapter) => {
-      if (!confirm(`Delete chapter "${ch.title}"?`)) return;
+      if (!confirm(t("detail.confirmDeleteChapter", { title: ch.title })))
+        return;
       await removeChapter(ch.id);
     },
-    [removeChapter],
+    [removeChapter, t]
   );
 
   const handleDuplicateChapter = useCallback(
     async (ch: AdminChapter) => {
       await doDuplicate({
-        title: `${ch.title} (copy)`,
+        title: t("detail.copySuffix", { title: ch.title }),
         layout: ch.layout as ChapterLayout,
-        orderIndex: (training?.chapters.length ?? 0),
+        orderIndex: training?.chapters.length ?? 0,
       });
     },
-    [doDuplicate, training],
+    [doDuplicate, training, t]
   );
 
   const handleOpenBuilder = useCallback(
     (ch: AdminChapter) => {
       router.push(`/admin/trainings/${trainingId}/chapters/${ch.id}`);
     },
-    [router, trainingId],
+    [router, trainingId]
   );
 
   const handleDeleteTraining = useCallback(async () => {
-    if (!confirm("Delete this training? This action will soft-delete it.")) return;
+    if (!confirm(t("detail.confirmDeleteTraining"))) return;
     await removeTraining();
-  }, [removeTraining]);
+  }, [removeTraining, t]);
 
   if (isLoading || !training) {
     return (
       <div className="flex items-center justify-center py-20 text-sm text-muted-foreground">
-        Loading training details...
+        {t("detail.loading")}
       </div>
     );
   }
@@ -105,9 +113,9 @@ export function TrainingDetailView({ trainingId }: TrainingDetailViewProps) {
     <div className="space-y-6 p-6">
       <PageBreadcrumb
         backHref="/admin/trainings"
-        backLabel="Back"
+        backLabel={tCommon("actions.back")}
         items={[
-          { label: "Manage Trainings", href: "/admin/trainings" },
+          { label: t("detail.manageTrainings"), href: "/admin/trainings" },
           { label: training.title },
         ]}
       />
@@ -120,24 +128,41 @@ export function TrainingDetailView({ trainingId }: TrainingDetailViewProps) {
               {training.title}
             </h1>
             {training.isDeleted && (
-              <Badge variant="destructive">Deleted</Badge>
+              <Badge variant="destructive">{t("detail.deleted")}</Badge>
             )}
             {training.isMandatory && (
-              <Badge variant="outline" className="border-destructive/30 text-destructive">
-                Mandatory
+              <Badge
+                variant="outline"
+                className="border-destructive/30 text-destructive"
+              >
+                {t("detail.mandatory")}
               </Badge>
             )}
-            <Badge variant="outline" className={training.trainingType === "OnSite" ? "border-blue-500/30 text-blue-600" : "border-green-500/30 text-green-600"}>
-              {training.trainingType === "OnSite" ? "On-Site" : "E-Learning"}
+            <Badge
+              variant="outline"
+              className={
+                training.trainingType === "OnSite"
+                  ? "border-[hsl(var(--ey-blue-500))]/30 text-[hsl(var(--ey-blue-500))]"
+                  : "border-[hsl(var(--ey-green-500))]/30 text-[hsl(var(--ey-green-500))]"
+              }
+            >
+              {training.trainingType === "OnSite"
+                ? t("detail.onSite")
+                : t("detail.eLearning")}
             </Badge>
           </div>
-          <p className="text-sm text-muted-foreground">{training.description}</p>
+          <p className="text-sm text-muted-foreground">
+            {training.description}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           {!training.isDeleted && (
-            <Link href={`/admin/trainings/${trainingId}/edit`} className={buttonVariants({ variant: "outline", size: "sm" })}>
+            <Link
+              href={`/admin/trainings/${trainingId}/edit`}
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+            >
               <Pencil className="mr-1 h-4 w-4" />
-              Edit
+              {tCommon("actions.edit")}
             </Link>
           )}
           <Button
@@ -148,19 +173,37 @@ export function TrainingDetailView({ trainingId }: TrainingDetailViewProps) {
             className="text-destructive border-destructive/30 hover:bg-destructive/10"
           >
             <Trash2 className="mr-1 h-4 w-4" />
-            Delete
+            {tCommon("actions.delete")}
           </Button>
         </div>
       </div>
 
       {/* Metadata */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <MetaCard label="Category" value={training.categoryName} />
-        <MetaCard label="Badge Level" value={training.badgeLevel} />
-        <MetaCard label="Credits" value={String(training.credits)} />
-        <MetaCard label="Duration" value={training.duration || "N/A"} />
+        <MetaCard
+          label={t("detail.meta.category")}
+          value={training.categoryName}
+        />
+        <MetaCard
+          label={t("detail.meta.badgeLevel")}
+          value={training.badgeLevel}
+        />
+        <MetaCard
+          label={t("detail.meta.credits")}
+          value={format.number(training.credits)}
+        />
+        <MetaCard
+          label={t("detail.meta.duration")}
+          value={training.duration || t("detail.meta.notAvailable")}
+        />
         {training.trainingType === "OnSite" && training.scheduledDate && (
-          <MetaCard label="Scheduled Date" value={new Date(training.scheduledDate).toLocaleString()} />
+          <MetaCard
+            label={t("detail.meta.scheduledDate")}
+            value={format.dateTime(new Date(training.scheduledDate), {
+              dateStyle: "medium",
+              timeStyle: "short",
+            })}
+          />
         )}
       </div>
 
@@ -168,14 +211,44 @@ export function TrainingDetailView({ trainingId }: TrainingDetailViewProps) {
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         {training.trainingType === "OnSite" ? (
           <>
-            <TrainingStatCard icon={FileText} iconBgClass="bg-[hsl(var(--ey-blue-400))]/10" iconColorClass="text-[hsl(var(--ey-blue-600))]" value={training.onSiteCourses.length} label="Courses" />
-            <TrainingStatCard icon={Users} iconBgClass="bg-[hsl(var(--ey-green-500))]/10" iconColorClass="text-[hsl(var(--ey-green-500))]" value={training.enrollmentCount} label="Enrolled" />
+            <TrainingStatCard
+              icon={FileText}
+              iconBgClass="bg-[hsl(var(--ey-blue-400))]/10"
+              iconColorClass="text-[hsl(var(--ey-blue-600))]"
+              value={training.onSiteCourses.length}
+              label={t("detail.stats.courses")}
+            />
+            <TrainingStatCard
+              icon={Users}
+              iconBgClass="bg-[hsl(var(--ey-green-500))]/10"
+              iconColorClass="text-[hsl(var(--ey-green-500))]"
+              value={training.enrollmentCount}
+              label={t("detail.stats.enrolled")}
+            />
           </>
         ) : (
           <>
-            <TrainingStatCard icon={BookOpen} iconBgClass="bg-[hsl(var(--ey-blue-400))]/10" iconColorClass="text-[hsl(var(--ey-blue-600))]" value={training.chapters.length} label="Chapters" />
-            <TrainingStatCard icon={Users} iconBgClass="bg-[hsl(var(--ey-green-500))]/10" iconColorClass="text-[hsl(var(--ey-green-500))]" value={training.enrollmentCount} label="Enrolled" />
-            <TrainingStatCard icon={FileText} iconBgClass="bg-[hsl(var(--ey-yellow))]/10" iconColorClass="text-[hsl(var(--ey-orange-500))]" value={training.exams.length} label="Exams" />
+            <TrainingStatCard
+              icon={BookOpen}
+              iconBgClass="bg-[hsl(var(--ey-blue-400))]/10"
+              iconColorClass="text-[hsl(var(--ey-blue-600))]"
+              value={training.chapters.length}
+              label={t("detail.stats.chapters")}
+            />
+            <TrainingStatCard
+              icon={Users}
+              iconBgClass="bg-[hsl(var(--ey-green-500))]/10"
+              iconColorClass="text-[hsl(var(--ey-green-500))]"
+              value={training.enrollmentCount}
+              label={t("detail.stats.enrolled")}
+            />
+            <TrainingStatCard
+              icon={FileText}
+              iconBgClass="bg-[hsl(var(--ey-yellow))]/10"
+              iconColorClass="text-[hsl(var(--ey-orange-500))]"
+              value={training.exams.length}
+              label={t("detail.stats.exams")}
+            />
           </>
         )}
       </div>
@@ -185,9 +258,11 @@ export function TrainingDetailView({ trainingId }: TrainingDetailViewProps) {
           {/* Tab bar — Costs tab only for External trainings */}
           <div className="flex items-center gap-1 border-b border-border">
             {[
-              { key: "sessions" as const, label: "Sessions" },
-              { key: "materials" as const, label: "Course Materials" },
-              ...(training.costType === "External" ? [{ key: "costs" as const, label: "Costs" }] : []),
+              { key: "sessions" as const, label: t("detail.tabs.sessions") },
+              { key: "materials" as const, label: t("detail.courseMaterials") },
+              ...(training.costType === "External"
+                ? [{ key: "costs" as const, label: t("detail.tabs.costs") }]
+                : []),
             ].map((tab) => (
               <button
                 key={tab.key}
@@ -210,7 +285,9 @@ export function TrainingDetailView({ trainingId }: TrainingDetailViewProps) {
 
           {onSiteTab === "materials" && (
             <>
-              <h2 className="text-base font-semibold text-foreground">Course Materials</h2>
+              <h2 className="text-base font-semibold text-foreground">
+                {t("detail.courseMaterials")}
+              </h2>
               <AdminOnSiteCourseList
                 trainingId={trainingId}
                 courses={training.onSiteCourses}
@@ -228,15 +305,20 @@ export function TrainingDetailView({ trainingId }: TrainingDetailViewProps) {
         <>
           {/* Chapters */}
           <div className="flex items-center justify-between">
-            <h2 className="text-base font-semibold text-foreground">Chapters</h2>
+            <h2 className="text-base font-semibold text-foreground">
+              {t("detail.chaptersHeading")}
+            </h2>
             {!training.isDeleted && (
               <Button
                 size="sm"
-                onClick={() => { setEditingChapter(null); setChapterDialogOpen(true); }}
+                onClick={() => {
+                  setEditingChapter(null);
+                  setChapterDialogOpen(true);
+                }}
                 className="ey-bg-dark hover:opacity-90"
               >
                 <Plus className="mr-1.5 h-4 w-4" />
-                Add Chapter
+                {t("detail.addChapter")}
               </Button>
             )}
           </div>
@@ -244,16 +326,29 @@ export function TrainingDetailView({ trainingId }: TrainingDetailViewProps) {
             chapters={training.chapters}
             isDeleted={training.isDeleted}
             onReorder={doReorder}
-            onEdit={(ch) => { setEditingChapter(ch); setChapterDialogOpen(true); }}
+            onEdit={(ch) => {
+              setEditingChapter(ch);
+              setChapterDialogOpen(true);
+            }}
             onDelete={handleDeleteChapter}
             onDuplicate={handleDuplicateChapter}
             onOpen={handleOpenBuilder}
           />
 
           {/* Exams */}
-          <AdminExamList trainingId={trainingId} exams={training.exams} isDeleted={training.isDeleted} />
+          <AdminExamList
+            trainingId={trainingId}
+            exams={training.exams}
+            isDeleted={training.isDeleted}
+          />
 
-          <ChapterFormDialog trainingId={trainingId} chapter={editingChapter} open={chapterDialogOpen} onOpenChange={setChapterDialogOpen} onSaved={refetch} />
+          <ChapterFormDialog
+            trainingId={trainingId}
+            chapter={editingChapter}
+            open={chapterDialogOpen}
+            onOpenChange={setChapterDialogOpen}
+            onSaved={refetch}
+          />
         </>
       )}
     </div>

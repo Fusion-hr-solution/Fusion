@@ -30,7 +30,7 @@ export function MyCursusView() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
+      <div role="status" className="flex items-center justify-center py-12 text-sm text-muted-foreground">
         {t("loading")}
       </div>
     );

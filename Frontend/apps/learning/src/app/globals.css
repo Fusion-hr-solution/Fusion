@@ -287,3 +287,33 @@
     @apply border-border my-6;
   }
 }
+
+/* ── Accessibility: honor prefers-reduced-motion (WCAG 2.3.3) ──
+   Users who request reduced motion get the final, visible state with no
+   entrance/decorative movement. Functional loading spinners (animate-spin)
+   are intentionally preserved as progress feedback. */
+@media (prefers-reduced-motion: reduce) {
+  .ey-animate-fade-up,
+  .ey-animate-fade-in,
+  .ey-animate-scale-in,
+  .ey-animate-slide-right,
+  .ey-animate-stripe,
+  .ey-animate-count-pop,
+  .ey-stagger-grid > *,
+  .ey-stagger-list > *,
+  .ey-shimmer,
+  .animate-ping,
+  .animate-pulse,
+  .animate-bounce {
+    animation: none !important;
+    transform: none !important;
+  }
+
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+}

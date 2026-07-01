@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Input, Label } from "@repo/ui";
 import type { ChapterFormContentStepProps } from "@/types/admin-props";
 import { FileUploadZone } from "./file-upload-zone";
@@ -7,29 +8,44 @@ import { ArticleTemplateSelector } from "./article-template-selector";
 import { ArticleSectionEditor } from "./article-section-editor";
 import { VideoEditor } from "./create-training-wizard/video-editor";
 
-export function ChapterFormContentStep({ content, handlers }: ChapterFormContentStepProps) {
+export function ChapterFormContentStep({
+  content,
+  handlers,
+}: ChapterFormContentStepProps) {
+  const t = useTranslations("adminChapters");
   const {
-    contentType, file, existingFileUrl, textContent,
-    videoUrl, estimatedDuration, isUploading,
-    selectedTemplate, initialTemplateName,
-    sectionValues, fieldErrors = {},
+    contentType,
+    file,
+    existingFileUrl,
+    textContent,
+    videoUrl,
+    estimatedDuration,
+    isUploading,
+    selectedTemplate,
+    initialTemplateName,
+    sectionValues,
+    fieldErrors = {},
   } = content;
   const {
-    onFileChange, onTextContentChange, onVideoUrlChange,
-    onEstimatedDurationChange, onTemplateChange, onSectionChange,
+    onFileChange,
+    onTextContentChange,
+    onVideoUrlChange,
+    onEstimatedDurationChange,
+    onTemplateChange,
+    onSectionChange,
   } = handlers;
 
   return (
     <div className="space-y-4">
       {contentType === "Pdf" && (
         <div className="space-y-2">
-          <Label>PDF File *</Label>
+          <Label>{t("contentStep.pdfFileLabel")}</Label>
           <FileUploadZone
             accept=".pdf"
             file={file}
             onFileChange={onFileChange}
             existingUrl={existingFileUrl}
-            label="Upload a PDF file (max 50 MB)"
+            label={t("contentStep.pdfUploadHint")}
             disabled={isUploading}
             error={fieldErrors.file}
           />
@@ -68,20 +84,22 @@ export function ChapterFormContentStep({ content, handlers }: ChapterFormContent
 
       {contentType === "Exercise" && (
         <div className="space-y-2">
-          <Label htmlFor="ch-text">Text Content</Label>
+          <Label htmlFor="ch-text">{t("contentStep.textContentLabel")}</Label>
           <textarea
             id="ch-text"
             rows={6}
             className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             value={textContent}
             onChange={(e) => onTextContentChange(e.target.value)}
-            placeholder="Chapter content..."
+            placeholder={t("contentStep.textContentPlaceholder")}
           />
         </div>
       )}
 
       <div className="space-y-2">
-        <Label htmlFor="ch-duration">Estimated Duration (minutes)</Label>
+        <Label htmlFor="ch-duration">
+          {t("contentStep.estimatedDurationLabel")}
+        </Label>
         <Input
           id="ch-duration"
           type="number"
@@ -89,11 +107,17 @@ export function ChapterFormContentStep({ content, handlers }: ChapterFormContent
           max={600}
           value={estimatedDuration}
           onChange={(e) =>
-            onEstimatedDurationChange(e.target.value ? Number(e.target.value) : "")
+            onEstimatedDurationChange(
+              e.target.value ? Number(e.target.value) : ""
+            )
           }
           className={fieldErrors.estimatedDuration ? "border-destructive" : ""}
         />
-        {fieldErrors.estimatedDuration && <p className="text-xs text-destructive">{fieldErrors.estimatedDuration}</p>}
+        {fieldErrors.estimatedDuration && (
+          <p className="text-xs text-destructive">
+            {fieldErrors.estimatedDuration}
+          </p>
+        )}
       </div>
     </div>
   );

@@ -2,6 +2,7 @@
 
 import { type LucideIcon, FileX2 } from "lucide-react";
 import { Button } from "../primitives/button";
+import { cn } from "../../lib/utils";
 
 interface EmptyStateProps {
   icon?: LucideIcon;
@@ -11,6 +12,9 @@ interface EmptyStateProps {
     label: string;
     onClick: () => void;
   };
+  layout?: "centered" | "inline";
+  size?: "default" | "compact";
+  className?: string;
 }
 
 /**
@@ -32,16 +36,40 @@ export function EmptyState({
   title,
   description,
   action,
+  layout = "centered",
+  size = "default",
+  className,
 }: EmptyStateProps) {
+  const isInline = layout === "inline";
+  const isCompact = size === "compact";
+
   return (
-    <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
-      <div className="rounded-full bg-muted p-3 mb-4">
+    <div
+      className={cn(
+        "flex flex-col",
+        isInline
+          ? "items-start justify-start gap-3 rounded-lg border border-dashed bg-muted/20 p-4 text-left"
+          : "items-center justify-center px-4 py-12 text-center",
+        className
+      )}
+    >
+      <div
+        className={cn(
+          "rounded-full",
+          isInline ? "bg-background" : "bg-muted",
+          isCompact ? "p-2" : "p-3"
+        )}
+      >
         <Icon className="h-6 w-6 text-muted-foreground" />
       </div>
-      <h3 className="text-lg font-semibold mb-1">{title}</h3>
+      <div className={cn("space-y-1", isInline ? "max-w-2xl" : "max-w-md")}>
+        <h3 className={cn("font-semibold", isCompact ? "text-base" : "text-lg")}>
+          {title}
+        </h3>
       {description && (
-        <p className="text-muted-foreground text-sm max-w-md mb-4">{description}</p>
+          <p className="text-sm text-muted-foreground">{description}</p>
       )}
+      </div>
       {action && (
         <Button variant="outline" onClick={action.onClick} size="sm">
           {action.label}

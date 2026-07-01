@@ -81,10 +81,10 @@ export function SessionPickerCard({ session, isSelected, onSelect }: SessionPick
                 <div
                   className={`h-full rounded-full transition-all ${
                     spotsRatio > 0.5
-                      ? "bg-emerald-500"
+                      ? "bg-[hsl(var(--ey-green-500))]"
                       : spotsRatio > 0.2
-                        ? "bg-amber-500"
-                        : "bg-red-500"
+                        ? "bg-[hsl(var(--ey-orange-500))]"
+                        : "bg-destructive"
                   }`}
                   style={{ width: `${Math.max(5, (1 - spotsRatio) * 100)}%` }}
                 />

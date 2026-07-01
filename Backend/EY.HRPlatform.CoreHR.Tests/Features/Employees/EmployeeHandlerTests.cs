@@ -656,7 +656,8 @@ public class EmployeeHandlerTests
             null,
             null,
             null,
-            orgUnit.Id);
+            ManagerId: null,
+            OrgUnitId: orgUnit.Id);
 
         var result = await handler.Handle(command, CancellationToken.None);
 
@@ -689,7 +690,8 @@ public class EmployeeHandlerTests
             null,
             null,
             null,
-            orgUnit.Id);
+            ManagerId: null,
+            OrgUnitId: orgUnit.Id);
 
         // Act
         var result = await handler.Handle(command, CancellationToken.None);
@@ -726,7 +728,8 @@ public class EmployeeHandlerTests
             null,
             null,
             null,
-            Guid.Empty);
+            ManagerId: null,
+            OrgUnitId: Guid.Empty);
 
         // Act
         var result = await handler.Handle(command, CancellationToken.None);
@@ -763,7 +766,8 @@ public class EmployeeHandlerTests
             null,
             null,
             null,
-            orgUnit.Id);
+            ManagerId: null,
+            OrgUnitId: orgUnit.Id);
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ArgumentException>(
