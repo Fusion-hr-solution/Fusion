@@ -34,6 +34,10 @@ public class CoreHRDbContext : DbContext
     private Guid CurrentTenantId => _tenantContext?.TenantIdOrDefault ?? Guid.Empty;
 
     public DbSet<Employee> Employees => Set<Employee>();
+    public DbSet<Position> Positions => Set<Position>();
+    public DbSet<EmployeePositionAssignment> EmployeePositionAssignments => Set<EmployeePositionAssignment>();
+    public DbSet<EmployeeOrgMembership> EmployeeOrgMemberships => Set<EmployeeOrgMembership>();
+    public DbSet<EmployeeReportingRelationship> EmployeeReportingRelationships => Set<EmployeeReportingRelationship>();
     public DbSet<TenantSettings> TenantSettings => Set<TenantSettings>();
     public DbSet<OrgUnit> OrgUnits => Set<OrgUnit>();
     public DbSet<DraftOrgUnit> DraftOrgUnits => Set<DraftOrgUnit>();
@@ -65,6 +69,18 @@ public class CoreHRDbContext : DbContext
         // When CurrentTenantId is Empty (design-time/no context), queries return no results.
         modelBuilder.Entity<Employee>()
             .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<Position>()
+            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<EmployeePositionAssignment>()
+            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<EmployeeOrgMembership>()
+            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<EmployeeReportingRelationship>()
+            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
 
         modelBuilder.Entity<TenantSettings>()
             .HasQueryFilter(ts => CurrentTenantId != Guid.Empty && ts.TenantId == CurrentTenantId);

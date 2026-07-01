@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { PageHeader } from "@/components/page-header";
+import { PageContainer, PageHeader } from "@repo/ds/shell";
 import { AccessWorkspaceNav } from "./access-workspace-nav";
 
 export function AccessWorkspaceShell({
@@ -18,7 +18,7 @@ export function AccessWorkspaceShell({
   description?: string;
 }) {
   return (
-    <div className="flex flex-col gap-6 p-6">
+    <PageContainer width="wide" className="space-y-6">
       <PageHeader title="Access" description={description} />
       <AccessWorkspaceNav
         active={active}
@@ -26,6 +26,6 @@ export function AccessWorkspaceShell({
         showProfiles={showProfiles}
       />
       {children}
-    </div>
+    </PageContainer>
   );
 }

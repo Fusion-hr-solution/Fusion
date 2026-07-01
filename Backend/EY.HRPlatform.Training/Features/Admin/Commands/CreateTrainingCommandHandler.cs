@@ -35,6 +35,24 @@ public class CreateTrainingCommandHandler : ICommandHandler<CreateTrainingComman
             return Result.Failure<Guid>(Error.Validation("Training.InvalidTrainingType",
                 $"Invalid training type '{request.TrainingType}'. Valid values: ELearning, OnSite."));
 
+        if (!Enum.TryParse<CostType>(request.CostType, true, out var costType))
+            return Result.Failure<Guid>(Error.Validation("Training.InvalidCostType",
+                $"Invalid cost type '{request.CostType}'. Valid values: Internal, External."));
+
+        if (costType == CostType.External)
+        {
+            if (trainingType != TrainingType.OnSite)
+                return Result.Failure<Guid>(Error.Validation("Training.CostTypeRequiresOnSite",
+                    "External cost type is only valid for OnSite trainings."));
+            if (request.SponsoringServiceLineId is null)
+                return Result.Failure<Guid>(Error.Validation("Training.SponsorRequired",
+                    "A sponsoring service line is required for External OnSite trainings."));
+            var sponsorExists = await _db.ServiceLines
+                .AnyAsync(s => s.Id == request.SponsoringServiceLineId.Value, cancellationToken);
+            if (!sponsorExists)
+                return Result.Failure<Guid>(Error.NotFound("ServiceLine", request.SponsoringServiceLineId.Value));
+        }
+
         var training = new TrainingCourse(
             request.Title,
             request.Description,
@@ -44,7 +62,9 @@ public class CreateTrainingCommandHandler : ICommandHandler<CreateTrainingComman
             request.CategoryId,
             request.Duration,
             trainingType,
-            request.ScheduledDate);
+            request.ScheduledDate,
+            costType,
+            costType == CostType.External ? request.SponsoringServiceLineId : null);
 
         foreach (var ch in request.Chapters)
         {

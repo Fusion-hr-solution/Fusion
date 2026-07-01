@@ -39,6 +39,7 @@ public class TrainingDbContext : DbContext
     public DbSet<TrainingImportSession> TrainingImportSessions => Set<TrainingImportSession>();
     public DbSet<TrainingImportHistory> TrainingImportHistories => Set<TrainingImportHistory>();
     public DbSet<QuizDraft> QuizDrafts => Set<QuizDraft>();
+    public DbSet<TrainingBudget> TrainingBudgets => Set<TrainingBudget>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -84,6 +85,9 @@ public class TrainingDbContext : DbContext
             e.Property(t => t.BadgeLevel).HasConversion<string>().HasMaxLength(20);
             e.Property(t => t.TrainingType).HasConversion<string>().HasMaxLength(20).HasDefaultValue(Domain.Enums.TrainingType.ELearning);
             e.Property(t => t.IssuesCertificate).HasDefaultValue(true);
+            e.Property(t => t.CostType).HasConversion<string>().HasMaxLength(20).HasDefaultValue(Domain.Enums.CostType.Internal);
+            // Sponsoring service line is a soft reference (no FK) — cost data must survive service-line edits.
+            e.HasIndex(t => t.SponsoringServiceLineId);
             e.HasQueryFilter(t => !t.IsDeleted);
             e.HasOne(t => t.Category)
                 .WithMany(c => c.Trainings)
@@ -158,6 +162,10 @@ public class TrainingDbContext : DbContext
             e.Property(s => s.TrainerEmail).HasMaxLength(320);
             e.Property(s => s.CancelReason).HasMaxLength(1000);
             e.Property(s => s.Status).HasConversion<string>().HasMaxLength(20);
+            e.Property(s => s.ExternalTrainerCost).HasPrecision(18, 2);
+            e.Property(s => s.VenueCost).HasPrecision(18, 2);
+            e.Property(s => s.MaterialsCost).HasPrecision(18, 2);
+            e.Property(s => s.OtherCost).HasPrecision(18, 2);
             e.HasOne(s => s.Part)
                 .WithMany(p => p.Sessions)
                 .HasForeignKey(s => s.PartId)
@@ -486,6 +494,20 @@ public class TrainingDbContext : DbContext
             e.HasKey(d => d.Id);
             e.Property(d => d.QuestionsJson).HasColumnType("jsonb");
             e.HasIndex(d => d.TrainingId).IsUnique();
+        });
+
+        // --- TrainingBudget ---
+        modelBuilder.Entity<TrainingBudget>(e =>
+        {
+            e.HasKey(b => b.Id);
+            // Soft reference to ServiceLine — no FK (budget config survives service-line deletion).
+            e.Property(b => b.ServiceLineId).IsRequired();
+            e.Property(b => b.PeriodType).HasConversion<string>().HasMaxLength(20);
+            e.Property(b => b.AllocatedAmount).HasPrecision(18, 2);
+            // Blocks identical-start duplicates and supports overlap lookups; true range non-overlap
+            // is enforced in the command handlers (an index cannot express range overlap).
+            e.HasIndex(b => new { b.ServiceLineId, b.PeriodStart }).IsUnique();
+            e.HasIndex(b => b.ServiceLineId);
         });
     }
 }

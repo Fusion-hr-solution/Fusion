@@ -98,6 +98,7 @@ export interface BackendTrainingDto {
   categoryName: string;
   chapterCount: number;
   trainingType: string;
+  costType: string;
   scheduledDate: string | null;
   createdAt: string;
 }
@@ -227,6 +228,8 @@ export interface BackendAdminTrainingDto {
   chapterCount: number;
   enrollmentCount: number;
   trainingType: string;
+  costType: string;
+  sponsoringServiceLineId: string | null;
   scheduledDate: string | null;
   isDeleted: boolean;
   createdAt: string;
@@ -324,6 +327,18 @@ export interface BackendAdminTrainingDetailDto extends BackendAdminTrainingDto {
   chapters: BackendAdminChapterDto[];
   exams: BackendAdminExamDto[];
   onSiteCourses: BackendOnSiteCourseDto[];
+}
+
+export interface BackendTrainingBudgetDto {
+  id: string;
+  serviceLineId: string;
+  periodType: string;
+  periodStart: string;
+  periodEnd: string;
+  allocatedAmount: number;
+  spend: number;
+  remaining: number;
+  percentage: number;
 }
 
 export interface BackendAssignmentDto {

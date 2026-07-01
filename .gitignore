@@ -12,6 +12,10 @@ artifacts/
 external-skills/
 .local-docs/
 
+# GSD / local planning (per-developer, never shared)
+.planning/
+.feature-flow/
+
 # ========================
 # OS & Editor
 # ========================
@@ -103,6 +107,8 @@ test-results/
 # Temp / cache artifacts
 tmp/
 temp/
+.tmp/
+.worktrees/
 *.tsbuildinfo
 .eslintcache
 .sass-cache/
@@ -119,18 +125,26 @@ temp/
 # Local Copilot Skills
 # ========================
 .github/skills/
+.codex/
 .agents/
-.claude/
 Frontend/.github/
 PROJECT_SUMMARY.md
+PRODUCT.md
 *.postman_collection.json
 
 CLAUDE.md
 AGENTS.md
+GEMINI.md
+CURSOR.md
+QWEN.md
+.cursor/
+.roo/
+.windsurf/
 
 #opencode
-opencode.json
+opencode*.json
 .opencode/
+.mcp.json
 
 # Windows accidental null redirection artifact
 nul

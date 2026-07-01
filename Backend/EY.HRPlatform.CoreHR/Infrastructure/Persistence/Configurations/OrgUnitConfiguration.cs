@@ -38,6 +38,10 @@ public class OrgUnitConfiguration : IEntityTypeConfiguration<OrgUnit>
         builder.Property(o => o.CreatedBy).HasMaxLength(256);
         builder.Property(o => o.UpdatedBy).HasMaxLength(256);
 
+        // Responsible manager is stored as an id-only reference (no FK constraint).
+        builder.Property(o => o.ResponsibleManagerEmployeeId)
+            .IsRequired(false);
+
         // Self-referencing parent relationship.
         // Restrict: cannot delete an org unit that has children.
         builder.HasOne(o => o.Parent)

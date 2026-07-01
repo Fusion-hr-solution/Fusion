@@ -56,13 +56,14 @@ export function QuestionOptionsEditor({
             : t("options.hintTrueFalse")}
       </p>
 
-      <div className="space-y-2">
+      <div className="space-y-2" role="group" aria-label="Answer options">
         {options.map((opt, i) => (
           <div key={opt.clientId} className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => onToggleCorrect(opt.clientId)}
-              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${opt.isCorrect ? "border-green-500 bg-green-500 text-white" : "border-border hover:border-muted-foreground"}`}
+              aria-pressed={opt.isCorrect}
+              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${opt.isCorrect ? "border-[hsl(var(--ey-green-500))] bg-[hsl(var(--ey-green-500))] text-white" : "border-border hover:border-muted-foreground"}`}
               aria-label={
                 opt.isCorrect
                   ? t("options.markedCorrect")
@@ -76,6 +77,7 @@ export function QuestionOptionsEditor({
                   viewBox="0 0 24 24"
                   stroke="currentColor"
                   strokeWidth={3}
+                  aria-hidden="true"
                 >
                   <path
                     strokeLinecap="round"
@@ -89,6 +91,7 @@ export function QuestionOptionsEditor({
               value={opt.optionText}
               onChange={(e) => onOptionTextChange(opt.clientId, e.target.value)}
               placeholder={t("options.optionPlaceholder", { index: i + 1 })}
+              aria-label={t("options.optionPlaceholder", { index: i + 1 })}
               maxLength={500}
               disabled={isTrueFalse}
               className="flex-1"
@@ -100,8 +103,9 @@ export function QuestionOptionsEditor({
                 size="sm"
                 className="h-7 w-7 shrink-0 p-0 text-muted-foreground hover:text-destructive"
                 onClick={() => onRemoveOption(opt.clientId)}
+                aria-label={`Remove option ${i + 1}`}
               >
-                <Trash2 className="h-3.5 w-3.5" />
+                <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
               </Button>
             )}
           </div>

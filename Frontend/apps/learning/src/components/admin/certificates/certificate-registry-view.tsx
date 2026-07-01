@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Award, FileSpreadsheet, FileText } from "lucide-react";
 import { Button, Skeleton } from "@repo/ui";
 import { useApiQuery } from "@repo/api/react";
@@ -18,6 +19,7 @@ import {
 } from "@/services/admin-certificate-service";
 import { getAdminTrainings } from "@/services/admin-training-service";
 import { getGrades } from "@/services/admin-config-service";
+import { MOCK_CERTIFICATE_REGISTRY, MOCK_CERTIFICATE_STATS } from "@/data/certificate-stats-mock";
 import type {
   AdminCertificate,
   CertificateRegistryFilters,
@@ -34,19 +36,35 @@ const PAGE_SIZE = 10;
 const EMPTY_FILTERS: CertificateRegistryFilters = {};
 
 export function CertificateRegistryView() {
-  const [filters, setFilters] = useState<CertificateRegistryFilters>(EMPTY_FILTERS);
+  const t = useTranslations("adminCertificates");
+  const tCommon = useTranslations("common");
+  const [filters, setFilters] =
+    useState<CertificateRegistryFilters>(EMPTY_FILTERS);
   const [page, setPage] = useState(1);
-  const [revokeTarget, setRevokeTarget] = useState<AdminCertificate | null>(null);
-  const [downloadingNumber, setDownloadingNumber] = useState<string | null>(null);
+  const [revokeTarget, setRevokeTarget] = useState<AdminCertificate | null>(
+    null
+  );
+  const [downloadingNumber, setDownloadingNumber] = useState<string | null>(
+    null
+  );
   const [exporting, setExporting] = useState(false);
 
+  // Mocks are a local-dev convenience only: in production we never substitute
+  // fake certificates for a real backend error.
+  const allowMock = process.env.NODE_ENV !== "production";
+
   const fetchRegistry = useCallback(() => getCertificateRegistry(filters, page, PAGE_SIZE), [filters, page]);
-  const { data: registry, isLoading, error, refetch } = useApiQuery<CertificateRegistryPage>(fetchRegistry);
+  const { data: registryData, isLoading, error, refetch } = useApiQuery<CertificateRegistryPage>(fetchRegistry);
+  const registry = registryData ?? (allowMock ? MOCK_CERTIFICATE_REGISTRY : undefined);
 
   const fetchStats = useCallback(() => getCertificateStats(), []);
-  const { data: stats, refetch: refetchStats } = useApiQuery<CertificateStats>(fetchStats);
+  const { data: statsData, refetch: refetchStats } = useApiQuery<CertificateStats>(fetchStats);
+  const stats = statsData ?? (allowMock ? MOCK_CERTIFICATE_STATS : undefined);
 
-  const fetchTrainings = useCallback(() => getAdminTrainings({ pageSize: 100 }).then((r) => r.trainings), []);
+  const fetchTrainings = useCallback(
+    () => getAdminTrainings({ pageSize: 100 }).then((r) => r.trainings),
+    []
+  );
   const { data: trainings } = useApiQuery<AdminTraining[]>(fetchTrainings);
 
   const fetchGrades = useCallback(() => getGrades(), []);
@@ -60,9 +78,12 @@ export function CertificateRegistryView() {
   async function viewPdf(cert: AdminCertificate) {
     setDownloadingNumber(cert.certificateNumber);
     try {
-      downloadBlob(await downloadCertificatePdf(cert.certificateNumber), `${cert.certificateNumber}.pdf`);
+      downloadBlob(
+        await downloadCertificatePdf(cert.certificateNumber),
+        `${cert.certificateNumber}.pdf`
+      );
     } catch {
-      toast.error("Could not download the certificate PDF.");
+      toast.error(t("toast.downloadError"));
     } finally {
       setDownloadingNumber(null);
     }
@@ -71,36 +92,42 @@ export function CertificateRegistryView() {
   async function reinstate(cert: AdminCertificate) {
     try {
       await reinstateCertificate(cert.id);
-      toast.success("Certificate reinstated.");
+      toast.success(t("toast.reinstated"));
       refetch();
       refetchStats();
     } catch {
-      toast.error("Could not reinstate — a newer active certificate may already exist for this formation.");
+      toast.error(t("toast.reinstateError"));
     }
   }
 
   async function runExport(kind: "excel" | "pdf") {
     setExporting(true);
     try {
-      const blob = kind === "excel"
-        ? await exportCertificateRegistryExcel(filters)
-        : await exportCertificateRegistryPdf(filters);
-      downloadBlob(blob, `certificate-registry.${kind === "excel" ? "xlsx" : "pdf"}`);
+      const blob =
+        kind === "excel"
+          ? await exportCertificateRegistryExcel(filters)
+          : await exportCertificateRegistryPdf(filters);
+      downloadBlob(
+        blob,
+        `certificate-registry.${kind === "excel" ? "xlsx" : "pdf"}`
+      );
     } catch {
-      toast.error("Export failed.");
+      toast.error(t("toast.exportError"));
     } finally {
       setExporting(false);
     }
   }
 
-  const totalPages = registry ? Math.max(1, Math.ceil(registry.totalCount / PAGE_SIZE)) : 1;
+  const totalPages = registry
+    ? Math.max(1, Math.ceil(registry.totalCount / PAGE_SIZE))
+    : 1;
 
   return (
     <div className="min-h-screen bg-muted/20">
       <PageHeader
-        moduleTitle="EY Academy · Admin"
-        title="Certificate Registry"
-        description="All issued certificates — filter, revoke, and export."
+        moduleTitle={t("moduleTitle")}
+        title={t("title")}
+        description={t("description")}
       />
       <div className="space-y-5 px-8 py-8">
         {stats ? <CertificateStatsCards stats={stats} /> : null}
@@ -113,30 +140,52 @@ export function CertificateRegistryView() {
               setFilters(EMPTY_FILTERS);
               setPage(1);
             }}
-            trainings={(trainings ?? []).map((t) => ({ id: t.id, label: t.title }))}
+            trainings={(trainings ?? []).map((t) => ({
+              id: t.id,
+              label: t.title,
+            }))}
             grades={(grades ?? []).map((g) => ({ id: g.id, label: g.name }))}
           />
           <div className="flex gap-2 pt-5">
-            <Button variant="outline" size="sm" disabled={exporting} onClick={() => runExport("excel")}>
-              <FileSpreadsheet className="mr-1.5 h-4 w-4" aria-hidden="true" /> Excel
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={exporting}
+              onClick={() => runExport("excel")}
+            >
+              <FileSpreadsheet className="mr-1.5 h-4 w-4" aria-hidden="true" />{" "}
+              Excel
             </Button>
-            <Button variant="outline" size="sm" disabled={exporting} onClick={() => runExport("pdf")}>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={exporting}
+              onClick={() => runExport("pdf")}
+            >
               <FileText className="mr-1.5 h-4 w-4" aria-hidden="true" /> PDF
             </Button>
           </div>
         </div>
 
-        <div className="rounded-lg border bg-white">
+        <div className="rounded-lg border border-border/60 bg-card">
           {isLoading ? (
             <div className="space-y-2 p-4">
               {[0, 1, 2, 3, 4].map((i) => (
                 <Skeleton key={i} className="h-10 w-full" />
               ))}
             </div>
-          ) : error ? (
-            <EmptyState icon={Award} title="Could not load registry" subtitle="Please try again later." />
+          ) : error && !registry ? (
+            <EmptyState
+              icon={Award}
+              title={t("errorTitle")}
+              subtitle={t("errorSubtitle")}
+            />
           ) : !registry || registry.items.length === 0 ? (
-            <EmptyState icon={Award} title="No certificates found" subtitle="Adjust the filters or wait for completions." />
+            <EmptyState
+              icon={Award}
+              title={t("emptyTitle")}
+              subtitle={t("emptySubtitle")}
+            />
           ) : (
             <>
               <CertificateRegistryTable
@@ -147,16 +196,26 @@ export function CertificateRegistryView() {
                 downloadingNumber={downloadingNumber}
               />
               <div className="flex items-center justify-between border-t px-4 py-3 text-sm text-muted-foreground">
-                <span>{registry.totalCount} certificate(s)</span>
+                <span>
+                  {t("certificateCount", { count: registry.totalCount })}
+                </span>
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-                    Previous
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={page <= 1}
+                    onClick={() => setPage((p) => p - 1)}
+                  >
+                    {tCommon("actions.previous")}
                   </Button>
-                  <span>
-                    Page {page} / {totalPages}
-                  </span>
-                  <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
-                    Next
+                  <span>{t("pageOf", { page, totalPages })}</span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={page >= totalPages}
+                    onClick={() => setPage((p) => p + 1)}
+                  >
+                    {tCommon("actions.next")}
                   </Button>
                 </div>
               </div>

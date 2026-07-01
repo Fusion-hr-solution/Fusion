@@ -18,6 +18,7 @@ import {
   canManageCoreAccessProfiles,
   type AuthUser,
 } from "@repo/auth";
+import { PageContainer } from "@repo/ds/shell";
 import { useTenantContext } from "@/shell/tenant-context/core-tenant-context-provider";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -46,6 +47,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { buildTenantContextHref } from "@/lib/tenant-navigation";
 import type { EmployeeFieldPolicyState } from "@/features/employees/shared/employee-field-visibility";
 import {
@@ -195,24 +197,18 @@ function SummaryStripItem({
   return <div className={baseClassName}>{content}</div>;
 }
 
-function DefinitionGrid({
-  items,
-  columns = 2,
-}: {
-  items: DefinitionItem[];
-  columns?: 1 | 2;
-}) {
+function DefinitionGrid({ items }: { items: DefinitionItem[] }) {
   const visibleItems = items.filter((item) => !item.hidden);
-  const columnsClassName = columns === 2 ? "sm:grid-cols-2" : "";
 
   return (
-    <dl className={`grid gap-x-6 gap-y-4 ${columnsClassName}`}>
+    <dl className="divide-y divide-border/50">
       {visibleItems.map((item) => (
-        <div key={item.label} className="space-y-1">
-          <dt className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-            {item.label}
-          </dt>
-          <dd className="text-sm font-medium text-foreground/95">
+        <div
+          key={item.label}
+          className="flex items-center justify-between gap-6 py-2.5 first:pt-0 last:pb-0"
+        >
+          <dt className="shrink-0 text-sm text-muted-foreground">{item.label}</dt>
+          <dd className="min-w-0 text-right text-sm font-medium text-foreground">
             {item.value}
           </dd>
         </div>
@@ -921,9 +917,7 @@ export function EmployeeProfileWorkspace({
   const router = useRouter();
   const searchParams = useSearchParams();
   const { tenantId, tenantSlug } = useTenantContext();
-  const accessSectionRef = useRef<HTMLDivElement | null>(null);
-  const reportingSectionRef = useRef<HTMLDivElement | null>(null);
-  const directReportsSectionRef = useRef<HTMLDivElement | null>(null);
+  const [activeTab, setActiveTab] = useState("profile");
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editDialogTab, setEditDialogTab] = useState<string>("personal");
   const [selfProfileSheetOpen, setSelfProfileSheetOpen] = useState(false);
@@ -1241,26 +1235,9 @@ export function EmployeeProfileWorkspace({
     }
   }
 
-  const scrollToAccessSection = () => {
-    accessSectionRef.current?.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
-  };
-
-  const scrollToReportingSection = () => {
-    reportingSectionRef.current?.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
-  };
-
-  const scrollToDirectReportsSection = () => {
-    directReportsSectionRef.current?.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
-  };
+  const scrollToAccessSection = () => setActiveTab("access");
+  const scrollToReportingSection = () => setActiveTab("reporting");
+  const scrollToDirectReportsSection = () => setActiveTab("reporting");
 
   const focusInOrgChart = () => {
     router.push(
@@ -1273,7 +1250,7 @@ export function EmployeeProfileWorkspace({
   };
 
   return (
-    <div className="flex flex-col gap-8 p-6">
+    <PageContainer width="wide" className="space-y-8">
       <Card className="overflow-hidden border-border/70 bg-linear-to-br from-background via-background to-muted/30 py-0">
         <CardContent className="p-4 sm:p-5">
           <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
@@ -1522,80 +1499,76 @@ export function EmployeeProfileWorkspace({
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
-        <div className="flex flex-col gap-6">
-          <Card className={WORKSPACE_CARD_CLASS_NAME}>
-            <CardHeader className="px-6 pb-4 pt-5">
-              <CardTitle className="text-base">Profile details</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4 px-6 pb-6">
-              <div className="grid gap-4 xl:grid-cols-2">
-                <section className="space-y-4 rounded-2xl border border-border/60 bg-muted/10 p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <h2 className="text-sm font-semibold text-foreground">
-                      Personal details
-                    </h2>
-                    {canManageEmployee ? (
-                      <Button
-                        size="icon-sm"
-                        variant="ghost"
-                        className="size-7"
-                        onClick={() => {
-                          setEditDialogTab("personal");
-                          setEditDialogOpen(true);
-                        }}
-                      >
-                        <Pencil className="size-3.5" />
-                        <span className="sr-only">Edit personal details</span>
-                      </Button>
-                    ) : null}
-                  </div>
-                  <DefinitionGrid items={personalDetails} columns={1} />
-                </section>
-                <section className="space-y-4 rounded-2xl border border-border/60 bg-muted/10 p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <h2 className="text-sm font-semibold text-foreground">
-                      Work details
-                    </h2>
-                    {canEditEmploymentDetails ? (
-                      <Button
-                        size="icon-sm"
-                        variant="ghost"
-                        className="size-7"
-                        onClick={() => {
-                          setEditDialogTab("work");
-                          setEditDialogOpen(true);
-                        }}
-                      >
-                        <Pencil className="size-3.5" />
-                        <span className="sr-only">Edit work details</span>
-                      </Button>
-                    ) : null}
-                  </div>
-                  <DefinitionGrid items={workDetails} columns={1} />
-                </section>
-              </div>
-            </CardContent>
-          </Card>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="profile">Profile</TabsTrigger>
+          <TabsTrigger value="reporting">Organization &amp; reporting</TabsTrigger>
+          {canViewAccess ? <TabsTrigger value="access">Access</TabsTrigger> : null}
+        </TabsList>
 
-          {canViewAccess ? (
-            <div ref={accessSectionRef}>
-              <WorkforceAccountCard
-                employeeId={profile.id}
-                firstName={profile.firstName}
-                lastName={profile.lastName}
-                email={profile.email}
-                canManageAccess={canManageAccess}
-                onManageAccess={
-                  canManageAccess ? openAccessManagement : undefined
-                }
-              />
+        <TabsContent value="profile" className="grid gap-4 xl:grid-cols-2">
+          <section className="rounded-xl border border-border bg-card p-5 shadow-xs">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 className="text-sm font-semibold text-foreground">
+                Personal details
+              </h2>
+              {canManageEmployee ? (
+                <Button
+                  size="icon-sm"
+                  variant="ghost"
+                  className="size-7"
+                  onClick={() => {
+                    setEditDialogTab("personal");
+                    setEditDialogOpen(true);
+                  }}
+                >
+                  <Pencil className="size-3.5" />
+                  <span className="sr-only">Edit personal details</span>
+                </Button>
+              ) : null}
             </div>
-          ) : null}
-        </div>
+            <DefinitionGrid items={personalDetails} />
+          </section>
+          <section className="rounded-xl border border-border bg-card p-5 shadow-xs">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 className="text-sm font-semibold text-foreground">
+                Work details
+              </h2>
+              {canEditEmploymentDetails ? (
+                <Button
+                  size="icon-sm"
+                  variant="ghost"
+                  className="size-7"
+                  onClick={() => {
+                    setEditDialogTab("work");
+                    setEditDialogOpen(true);
+                  }}
+                >
+                  <Pencil className="size-3.5" />
+                  <span className="sr-only">Edit work details</span>
+                </Button>
+              ) : null}
+            </div>
+            <DefinitionGrid items={workDetails} />
+          </section>
 
-        <div className="flex flex-col gap-6">
-          <div ref={reportingSectionRef}>
+        </TabsContent>
+
+        {canViewAccess ? (
+          <TabsContent value="access" className="flex flex-col gap-6">
+            <WorkforceAccountCard
+              employeeId={profile.id}
+              firstName={profile.firstName}
+              lastName={profile.lastName}
+              email={profile.email}
+              canManageAccess={canManageAccess}
+              onManageAccess={canManageAccess ? openAccessManagement : undefined}
+            />
+          </TabsContent>
+        ) : null}
+
+        <TabsContent value="reporting" className="flex flex-col gap-6">
+          <div>
             <Card className={WORKSPACE_CARD_CLASS_NAME}>
               <CardHeader className="px-6 pb-4 pt-5">
                 <div className="flex items-center justify-between gap-3">
@@ -1679,7 +1652,7 @@ export function EmployeeProfileWorkspace({
                   />
                 </div>
 
-                <div ref={directReportsSectionRef} className="space-y-3">
+                <div className="space-y-3">
                   <h2 className="text-sm font-semibold text-foreground">
                     Direct reports
                   </h2>
@@ -1783,8 +1756,8 @@ export function EmployeeProfileWorkspace({
               </CardContent>
             </Card>
           ) : null}
-        </div>
-      </div>
+        </TabsContent>
+      </Tabs>
 
       {canManageAccess ? (
         <EmployeeAccessManagementSheet
@@ -1842,6 +1815,6 @@ export function EmployeeProfileWorkspace({
         loadingLabel="Deactivating..."
         onConfirm={() => void handleDeactivateEmployee()}
       />
-    </div>
+    </PageContainer>
   );
 }

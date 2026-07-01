@@ -29,7 +29,7 @@ export function TrainingEnrollCta({ trainingId, trainingType }: { trainingId: st
 
   if (isEnrolled) {
     return (
-      <Button onClick={handleContinueLearning} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white gap-2 shadow-lg transition-all hover:shadow-xl hover:gap-3 h-12 text-sm font-semibold">
+      <Button onClick={handleContinueLearning} className="w-full bg-[hsl(var(--ey-green-500))] hover:bg-[hsl(var(--ey-green-500))]/90 text-white gap-2 shadow-lg transition-all hover:shadow-xl hover:gap-3 h-12 text-sm font-semibold">
         <Play className="h-4 w-4" aria-hidden="true" />
         {trainingType === "OnSite" ? t("accessCourses") : t("continueLearning")}
         <ChevronRight className="h-4 w-4 transition-transform" aria-hidden="true" />

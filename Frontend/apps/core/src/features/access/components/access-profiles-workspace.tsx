@@ -2,11 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import {
-  AlertCircle,
-  LockKeyhole,
-  Plus,
-} from "lucide-react";
+import { AlertCircle, Plus } from "lucide-react";
 import {
   ApiError,
   type AccessProfileSummaryDto,
@@ -18,7 +14,7 @@ import {
   canViewCoreAccessProfiles,
   useAuth,
 } from "@repo/auth";
-import { EmptyState } from "@repo/ui";
+import { PagePermissionNotice } from "@repo/ds/shell";
 import { toast } from "sonner";
 import { buildTenantContextHref } from "@/lib/tenant-navigation";
 import { useTenantContext } from "@/shell/tenant-context/core-tenant-context-provider";
@@ -435,17 +431,10 @@ export function AccessProfilesWorkspace({
 
   if (!canViewProfiles) {
     return (
-      <>
-        <Card>
-          <CardContent className="pt-6">
-            <EmptyState
-              icon={LockKeyhole}
-              title="Access profiles are restricted"
-              description="Ask a Core administrator for profile management access."
-            />
-          </CardContent>
-        </Card>
-      </>
+      <PagePermissionNotice
+        title="Access profiles are restricted"
+        description="Ask a Core administrator for profile management access."
+      />
     );
   }
 

@@ -212,11 +212,15 @@ export function QuestionFormDialog({
             </div>
           )}
           <div className="space-y-2">
-            <Label className="text-[13px] font-semibold">
+            <Label
+              htmlFor="question-text"
+              className="text-[13px] font-semibold"
+            >
               {t("questionDialog.questionLabel")}{" "}
               <span className="text-destructive">*</span>
             </Label>
             <textarea
+              id="question-text"
               value={questionText}
               onChange={(e) => setQuestionText(e.target.value)}
               placeholder={t("questionDialog.questionPlaceholder")}
@@ -227,14 +231,17 @@ export function QuestionFormDialog({
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-[13px] font-semibold">
+              <Label
+                htmlFor="question-type"
+                className="text-[13px] font-semibold"
+              >
                 {t("questionDialog.questionTypeLabel")}
               </Label>
               <Select
                 value={type}
                 onValueChange={(v) => handleTypeChange(v as QuestionType)}
               >
-                <SelectTrigger>
+                <SelectTrigger id="question-type">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -247,10 +254,14 @@ export function QuestionFormDialog({
               </Select>
             </div>
             <div className="space-y-2">
-              <Label className="text-[13px] font-semibold">
+              <Label
+                htmlFor="question-points"
+                className="text-[13px] font-semibold"
+              >
                 {t("questionDialog.pointsLabel")}
               </Label>
               <Input
+                id="question-points"
                 type="number"
                 min={1}
                 max={100}

@@ -32,8 +32,13 @@ import {
 } from "@repo/auth";
 import { type PageSize } from "@repo/ui";
 import { toast } from "sonner";
-import { CorePageLoadingState } from "@/components/core-page-loading-state";
-import { PageHeader } from "@/components/page-header";
+import {
+  PageContainer,
+  PageHeader,
+  PageError,
+  PageLoading,
+  PagePermissionNotice,
+} from "@repo/ds/shell";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -1331,47 +1336,46 @@ export default function AccessPeopleWorkspace() {
 
   if (isLoading) {
     return (
-      <CorePageLoadingState
-        title="Access"
-        description="Activate accounts and manage access for workforce users."
-        message="Loading access workspace"
-        variant="workspace"
-      />
+      <PageContainer width="wide" className="space-y-6">
+        <PageHeader
+          title="Access"
+          description="Activate accounts and manage access for workforce users."
+        />
+        <PageLoading rows={8} label="Loading access workspace" />
+      </PageContainer>
     );
   }
 
   if (!canViewAccess && canManageProfiles) {
     return (
-      <CorePageLoadingState
-        title="Access"
-        description="Redirecting to access profiles in Settings."
-        message="Opening settings"
-        variant="redirect"
-      />
+      <PageContainer width="wide" className="space-y-6">
+        <PageHeader
+          title="Access"
+          description="Redirecting to access profiles in Settings."
+        />
+        <PageLoading rows={4} label="Opening settings" />
+      </PageContainer>
     );
   }
 
   if (!canViewAccess) {
     return (
-      <div className="flex flex-col gap-6 p-6">
+      <PageContainer width="wide" className="space-y-6">
         <PageHeader
           title="Access"
           description="Activate accounts and manage access for workforce users."
         />
-        <Alert>
-          <AlertTriangle className="size-4" />
-          <AlertTitle>Access is restricted</AlertTitle>
-          <AlertDescription>
-            Your current access profile does not include the Access workspace.
-          </AlertDescription>
-        </Alert>
-      </div>
+        <PagePermissionNotice
+          title="Access is restricted"
+          description="Your current access profile does not include the Access workspace."
+        />
+      </PageContainer>
     );
   }
 
   return (
     <>
-      <div className="flex flex-col gap-6 p-6">
+      <PageContainer width="wide" className="space-y-6">
         <PageHeader
           title="Access"
           description="Activate accounts and manage access for workforce users."
@@ -1554,20 +1558,11 @@ export default function AccessPeopleWorkspace() {
         </section>
 
         {accessError ? (
-          <Alert variant="destructive">
-            <AlertTriangle className="size-4" />
-            <AlertTitle>Access information could not be loaded.</AlertTitle>
-            <AlertDescription className="flex items-center justify-between gap-2">
-              <span>Refresh the page or try again in a moment.</span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => void refetchAccess()}
-              >
-                Try again
-              </Button>
-            </AlertDescription>
-          </Alert>
+          <PageError
+            title="Access information could not be loaded."
+            description="Refresh the page or try again in a moment."
+            onRetry={() => void refetchAccess()}
+          />
         ) : null}
 
         <DataTable<WorkforceAccessSubjectSummaryDto>
@@ -1615,7 +1610,7 @@ export default function AccessPeopleWorkspace() {
             })
           }
         />
-      </div>
+      </PageContainer>
 
       <BulkInviteDialog
         open={isBulkInviteOpen}

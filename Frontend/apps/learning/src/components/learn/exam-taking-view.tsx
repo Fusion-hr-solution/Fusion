@@ -112,7 +112,7 @@ function ExamIntro({
     { icon: HelpCircle, value: `${exam.questionCount}`, label: t("intro.questions") },
     { icon: Target, value: `${exam.passingScore}%`, label: t("passingScore") },
     ...(exam.durationMinutes
-      ? [{ icon: Clock, value: t("intro.minutes", { minutes: exam.durationMinutes }), label: t("intro.timeLimit") }]
+      ? [{ icon: Clock, value: t("intro.minutes", { minutes: exam.durationMinutes }), label: t("intro.suggestedTime") }]
       : []),
   ];
 

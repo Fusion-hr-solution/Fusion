@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from "@repo/ui";
 import type { TrainingFormDetailsStepProps } from "@/types/admin-props";
+import type { CostType } from "@/types";
 
 export function TrainingFormDetailsStep({
   credits,
@@ -21,6 +22,11 @@ export function TrainingFormDetailsStep({
   trainingType,
   scheduledDate,
   onScheduledDateChange,
+  costType,
+  onCostTypeChange,
+  sponsoringServiceLineId,
+  onSponsoringServiceLineIdChange,
+  serviceLines,
   fieldErrors = {},
 }: TrainingFormDetailsStepProps) {
   const t = useTranslations("adminTrainings");
@@ -83,6 +89,86 @@ export function TrainingFormDetailsStep({
                   {t("form.details.scheduledDateFuture")}
                 </p>
               )}
+          </div>
+        )}
+
+        {trainingType === "OnSite" && (
+          <div className="space-y-2">
+            <Label htmlFor="costType">Cost Type *</Label>
+            <select
+              id="costType"
+              className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              value={costType}
+              onChange={(e) => onCostTypeChange(e.target.value as CostType)}
+            >
+              <option value="Internal">Internal (free)</option>
+              <option value="External">External (paid)</option>
+            </select>
+            <p className="text-xs text-muted-foreground">
+              External trainings are delivered by a paid external trainer and draw from a service-line budget.
+            </p>
+          </div>
+        )}
+
+        {trainingType === "OnSite" && costType === "External" && (
+          <div className="space-y-2">
+            <Label htmlFor="sponsoringServiceLine">Sponsoring Service Line *</Label>
+            <select
+              id="sponsoringServiceLine"
+              className={`flex h-9 w-full rounded-md border bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${fieldErrors.sponsoringServiceLineId ? "border-destructive" : "border-input"}`}
+              value={sponsoringServiceLineId}
+              onChange={(e) => onSponsoringServiceLineIdChange(e.target.value)}
+            >
+              <option value="">Select a service line</option>
+              {serviceLines.map((sl) => (
+                <option key={sl.id} value={sl.id}>
+                  {sl.name} ({sl.code})
+                </option>
+              ))}
+            </select>
+            {fieldErrors.sponsoringServiceLineId && (
+              <p className="text-xs text-destructive">{fieldErrors.sponsoringServiceLineId}</p>
+            )}
+          </div>
+        )}
+
+        {trainingType === "OnSite" && (
+          <div className="space-y-2">
+            <Label htmlFor="costType">Cost Type *</Label>
+            <select
+              id="costType"
+              className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              value={costType}
+              onChange={(e) => onCostTypeChange(e.target.value as CostType)}
+            >
+              <option value="Internal">Internal (free)</option>
+              <option value="External">External (paid)</option>
+            </select>
+            <p className="text-xs text-muted-foreground">
+              External trainings are delivered by a paid external trainer and draw from a service-line budget.
+            </p>
+          </div>
+        )}
+
+        {trainingType === "OnSite" && costType === "External" && (
+          <div className="space-y-2">
+            <Label htmlFor="sponsoringServiceLine">Sponsoring Service Line *</Label>
+            <select
+              id="sponsoringServiceLine"
+              className={`flex h-9 w-full rounded-md border bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${fieldErrors.sponsoringServiceLineId ? "border-destructive" : "border-input"}`}
+              value={sponsoringServiceLineId}
+              onChange={(e) => onSponsoringServiceLineIdChange(e.target.value)}
+            >
+              <option value="">Select a service line</option>
+              {serviceLines.map((sl) => (
+                <option key={sl.id} value={sl.id}>
+                  {sl.name} ({sl.code})
+                </option>
+              ))}
+            </select>
+            {fieldErrors.sponsoringServiceLineId && (
+              <p className="text-xs text-destructive">{fieldErrors.sponsoringServiceLineId}</p>
+            )}
           </div>
         )}
 

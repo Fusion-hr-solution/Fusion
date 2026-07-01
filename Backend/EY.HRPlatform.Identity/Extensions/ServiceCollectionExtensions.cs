@@ -2,12 +2,14 @@
 using System.Text;
 using EY.HRPlatform.Identity.Domain.Entities;
 using EY.HRPlatform.Identity.Features.AccessProfiles;
+using EY.HRPlatform.Identity.Features.Eligibility;
 using EY.HRPlatform.Identity.Features.PlatformOrganizations.Services;
 using EY.HRPlatform.Identity.Features.Tenants.Services;
 using EY.HRPlatform.Identity.Features.WorkforceAccounts;
 using EY.HRPlatform.Identity.Infrastructure.Persistence;
 using EY.HRPlatform.Identity.Infrastructure.Services;
 using EY.HRPlatform.SharedKernel.Multitenancy;
+using EY.HRPlatform.SharedKernel.Security;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -41,6 +43,15 @@ public static class ServiceCollectionExtensions
             throw new InvalidOperationException("Jwt:Secret is not configured. Set it via environment variable or appsettings.");
 
         services.AddHttpContextAccessor();
+        services.AddMemoryCache();
+        var internalServiceAuthentication = configuration
+            .GetSection(InternalServiceAuthenticationOptions.SectionName)
+            .Get<InternalServiceAuthenticationOptions>() ?? new InternalServiceAuthenticationOptions();
+        services.AddSingleton<IInternalServiceRequestAuthorizer>(sp => new InternalServiceRequestAuthorizer(
+            sp.GetRequiredService<Microsoft.Extensions.Caching.Memory.IMemoryCache>(),
+            internalServiceAuthentication));
+        services.AddSingleton<IInternalServiceRequestSigner>(_ => new InternalServiceRequestSigner(
+            internalServiceAuthentication));
 
         var databaseProvider = configuration["Database:Provider"] ?? "postgres";
         var inMemoryName = configuration["Database:InMemoryName"] ?? "identity_inmemory";
@@ -110,6 +121,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ITenantService, TenantService>();
         services.AddScoped<IPlatformOrganizationService, PlatformOrganizationService>();
         services.AddScoped<IAccessProfileService, AccessProfileService>();
+        services.AddScoped<IEligibilityDecisionService, EligibilityDecisionService>();
         services.AddScoped<IAccessAuditService, AccessAuditService>();
         services.Configure<WorkforceInvitationEmailOptions>(
             configuration.GetSection("WorkforceInvitationEmail"));
