@@ -2,6 +2,7 @@
   "extends": "@repo/tsconfig/nextjs.json",
   "compilerOptions": {
     "paths": {
+      "@/components/ui/*": ["../../packages/ds/src/components/ui/*"],
       "@/*": ["./src/*"]
     }
   },

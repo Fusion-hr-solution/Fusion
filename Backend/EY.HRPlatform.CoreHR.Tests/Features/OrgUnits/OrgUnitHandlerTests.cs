@@ -320,6 +320,49 @@ public class OrgUnitHandlerTests
     }
 
     [Fact]
+    public async Task GetOrgUnitTree_IncludesDirectAndRolledUpMemberCounts()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+
+        await using (var seed = TestDbContextFactory.CreateWithoutTenant(dbName))
+        {
+            var root = OrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null);
+            seed.OrgUnits.Add(root);
+            await seed.SaveChangesAsync();
+            var child = OrgUnit.Create(TenantId, "ENG-PLT", "Platform", "Team", root.Id);
+            seed.OrgUnits.Add(child);
+            await seed.SaveChangesAsync();
+
+            var rootMember = Employee.Create(TenantId, "Root", "Member", "rootm@example.com", DateTime.UtcNow, employeeNumber: "T-1");
+            var childA = Employee.Create(TenantId, "Child", "Alpha", "ca@example.com", DateTime.UtcNow, employeeNumber: "T-2");
+            var childB = Employee.Create(TenantId, "Child", "Beta", "cb@example.com", DateTime.UtcNow, employeeNumber: "T-3");
+            var childGone = Employee.Create(TenantId, "Child", "Gone", "cg@example.com", DateTime.UtcNow, employeeNumber: "T-4");
+            rootMember.AssignOrgUnit(root.Id);
+            childA.AssignOrgUnit(child.Id);
+            childB.AssignOrgUnit(child.Id);
+            childGone.AssignOrgUnit(child.Id);
+            childGone.Deactivate();
+            seed.Employees.AddRange(rootMember, childA, childB, childGone);
+            await seed.SaveChangesAsync();
+        }
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = new GetOrgUnitTreeQueryHandler(context);
+
+        var result = await handler.Handle(new GetOrgUnitTreeQuery(), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var rootNode = Assert.Single(result.Value);
+        Assert.Equal("ENG", rootNode.Code);
+        Assert.Equal(1, rootNode.MemberCount);
+        Assert.Equal(3, rootNode.TotalMemberCount);
+        var childNode = Assert.Single(rootNode.Children);
+        Assert.Equal(2, childNode.MemberCount);
+        Assert.Equal(2, childNode.TotalMemberCount);
+    }
+
+    [Fact]
     public async Task GetOrgUnits_FiltersInactiveByDefault()
     {
         // Arrange

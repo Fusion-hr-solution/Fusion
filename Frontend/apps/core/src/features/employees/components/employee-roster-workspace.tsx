@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ColumnDef, SortingState } from "@tanstack/react-table";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Plus, Send, Upload, Users } from "lucide-react";
+import { Plus, Send, Upload } from "lucide-react";
 import {
   canAccessCoreAccess,
   canAccessCoreOrgChart,
@@ -15,12 +15,16 @@ import {
 } from "@repo/auth";
 import {
   DEFAULT_PAGE_SIZE,
-  EmptyState,
   PAGE_SIZE_OPTIONS,
   type PageSize,
 } from "@repo/ui";
-import { CorePageLoadingState } from "@/components/core-page-loading-state";
-import { PageHeader } from "@/components/page-header";
+import {
+  PageContainer,
+  PageHeader,
+  PageError,
+  PageLoading,
+  PagePermissionNotice,
+} from "@repo/ds/shell";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -629,41 +633,24 @@ export default function EmployeeRosterWorkspace() {
     }
   }, [accessReviewHref, router, shouldRedirectAccessReview]);
 
-  if (isInitialPageLoading) {
+  if (isInitialPageLoading || shouldRedirectAccessReview) {
     return (
-      <CorePageLoadingState
-        title="Employees"
-        description="Browse and manage workforce records."
-        message="Loading employees..."
-        variant="list"
-      />
-    );
-  }
-
-  if (shouldRedirectAccessReview) {
-    return (
-      <CorePageLoadingState
-        title="Employees"
-        description="Opening Access."
-        message="Opening access review"
-        variant="redirect"
-      />
+      <PageContainer width="wide" className="space-y-5">
+        <PageHeader title="Employees" description="Browse and manage workforce records." />
+        <PageLoading rows={8} label={shouldRedirectAccessReview ? "Opening access review" : "Loading employees"} />
+      </PageContainer>
     );
   }
 
   if (!canAccess) {
     return (
-      <div className="flex flex-col gap-6 p-6">
-        <PageHeader
-          title="Employees"
-          description="Browse and manage workforce records."
-        />
-        <EmptyState
-          icon={Users}
-          title="You do not have access to the employee directory."
+      <PageContainer width="wide" className="space-y-5">
+        <PageHeader title="Employees" description="Browse and manage workforce records." />
+        <PagePermissionNotice
+          title="You do not have access to the employee directory"
           description="Contact a tenant HR administrator if you need access."
         />
-      </div>
+      </PageContainer>
     );
   }
 
@@ -694,7 +681,7 @@ export default function EmployeeRosterWorkspace() {
   ) : null;
 
   return (
-    <div className="flex flex-col gap-5 p-6">
+    <PageContainer width="wide" className="space-y-5">
       <PageHeader
         title="Employees"
         description="Browse and manage workforce records."
@@ -729,15 +716,11 @@ export default function EmployeeRosterWorkspace() {
       />
 
       {error ? (
-        <Alert variant="destructive">
-          <AlertTitle>Employees could not be loaded.</AlertTitle>
-          <AlertDescription className="flex items-center justify-between gap-4">
-            <span>Could not load employee data. Try again in a moment.</span>
-            <Button variant="outline" size="sm" onClick={() => refetch()}>
-              Retry
-            </Button>
-          </AlertDescription>
-        </Alert>
+        <PageError
+          title="Employees could not be loaded"
+          description="Could not load employee data. Try again in a moment."
+          onRetry={() => refetch()}
+        />
       ) : null}
 
       {workforceAccountsError ? (
@@ -809,6 +792,6 @@ export default function EmployeeRosterWorkspace() {
         onOpenChange={handleCreateEmployeeOpenChange}
         onCreated={handleCreateEmployeeCreated}
       />
-    </div>
+    </PageContainer>
   );
 }

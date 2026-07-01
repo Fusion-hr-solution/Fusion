@@ -1,4 +1,4 @@
-import { Card, CardHeader, CardTitle, CardDescription } from "@repo/ui";
+import { Card, CardHeader, CardTitle, CardDescription } from "@repo/ds";
 
 interface StatCardProps {
   label: string;

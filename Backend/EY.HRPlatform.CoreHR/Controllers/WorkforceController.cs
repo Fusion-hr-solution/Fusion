@@ -81,6 +81,26 @@ public class WorkforceController(
         return Ok(ApiResponse<PagedResponse<WorkforceEmployeeSummaryDto>>.Success(result));
     }
 
+    [HttpPost("employees/by-scope")]
+    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<WorkforceEmployeeSummaryDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetEmployeesByScope(
+        [FromBody] WorkforceEmployeesByScopeRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (accessPolicy.GetEmployeeViewScope(User) is null && !accessPolicy.CanViewOwnProfile(User))
+        {
+            return Forbid();
+        }
+
+        var result = await workforceContractService.GetEmployeesByScopeAsync(
+            request.OrgUnitIds,
+            request.IncludeDescendants,
+            request.IncludeInactive,
+            User,
+            cancellationToken);
+        return Ok(ApiResponse<IReadOnlyList<WorkforceEmployeeSummaryDto>>.Success(result));
+    }
+
     [HttpGet("access-subjects")]
     [ProducesResponseType(typeof(ApiResponse<PagedResponse<WorkforceAccessSubjectSummaryDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> SearchAccessSubjects(
@@ -188,6 +208,22 @@ public class WorkforceController(
         return Ok(ApiResponse<IReadOnlyList<WorkforceEmployeeSummaryDto>>.Success(result));
     }
 
+    [HttpGet("employees/{employeeId:guid}/downline")]
+    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<WorkforceEmployeeSummaryDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetDownline(
+        Guid employeeId,
+        [FromQuery] int maxDepth = 10,
+        CancellationToken cancellationToken = default)
+    {
+        if (!accessPolicy.CanViewTeam(User) && !accessPolicy.CanViewTenantEmployees(User))
+        {
+            return Forbid();
+        }
+
+        var result = await workforceContractService.GetDownlineAsync(employeeId, maxDepth, User, cancellationToken);
+        return Ok(ApiResponse<IReadOnlyList<WorkforceEmployeeSummaryDto>>.Success(result));
+    }
+
     [HttpGet("employees/{employeeId:guid}/manager-chain")]
     [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<WorkforceEmployeeSummaryDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetManagerChain(Guid employeeId, CancellationToken cancellationToken)
@@ -214,6 +250,41 @@ public class WorkforceController(
 
         var result = await workforceContractService.GetPublishedOrgUnitsAsync(includeInactive, cancellationToken);
         return Ok(ApiResponse<IReadOnlyList<WorkforceOrgUnitSummaryDto>>.Success(result));
+    }
+
+    [HttpGet("org-units/{orgUnitId:guid}")]
+    [ProducesResponseType(typeof(ApiResponse<WorkforceOrgUnitDetailDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetOrgUnitDetail(Guid orgUnitId, CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanViewStructure(User))
+        {
+            return Forbid();
+        }
+
+        var result = await workforceContractService.GetOrgUnitDetailAsync(orgUnitId, cancellationToken);
+        if (result is null)
+        {
+            return NotFound(ApiResponse.Failure("Org unit was not found or is not visible in the current scope."));
+        }
+
+        return Ok(ApiResponse<WorkforceOrgUnitDetailDto>.Success(result));
+    }
+
+    [HttpGet("org-units/{orgUnitId:guid}/members")]
+    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<WorkforceEmployeeSummaryDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetOrgUnitMembers(
+        Guid orgUnitId,
+        [FromQuery] bool includeDescendants = false,
+        CancellationToken cancellationToken = default)
+    {
+        if (accessPolicy.GetEmployeeViewScope(User) is null && !accessPolicy.CanViewOwnProfile(User))
+        {
+            return Forbid();
+        }
+
+        var result = await workforceContractService.GetOrgUnitMembersAsync(orgUnitId, includeDescendants, User, cancellationToken);
+        return Ok(ApiResponse<IReadOnlyList<WorkforceEmployeeSummaryDto>>.Success(result));
     }
 
     [HttpGet("org-units/tree")]

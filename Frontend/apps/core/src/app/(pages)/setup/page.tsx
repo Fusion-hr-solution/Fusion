@@ -2,14 +2,15 @@
 
 export const dynamic = "force-dynamic";
 
-import { AlertCircle, ClipboardList } from "lucide-react";
 import { canAccessCoreSetup, useAuth } from "@repo/auth";
-import { EmptyState } from "@repo/ui";
 import { useTenantContext } from "@/shell/tenant-context/core-tenant-context-provider";
 import { buildTenantContextHref } from "@/lib/tenant-navigation";
-import { PageHeader } from "@/components/page-header";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import {
+  PageContainer,
+  PageHeader,
+  PageError,
+  PagePermissionNotice,
+} from "@repo/ds/shell";
 import {
   SetupWorkspace,
   type SetupWorkspaceProps,
@@ -46,17 +47,16 @@ export default function SetupPage() {
 
   if (!canAccess) {
     return (
-      <div className="flex flex-col gap-6 p-6">
+      <PageContainer width="wide" className="space-y-6">
         <PageHeader
           title={setupStarted ? "Setup summary" : "Setup"}
           description="Tenant HR administrators manage setup."
         />
-        <EmptyState
-          icon={ClipboardList}
+        <PagePermissionNotice
           title="Setup is not available for this role"
           description="Contact a tenant HR administrator."
         />
-      </div>
+      </PageContainer>
     );
   }
 
@@ -66,26 +66,17 @@ export default function SetupPage() {
 
   if (setupError && !setupState) {
     return (
-      <div className="flex flex-col gap-6 p-6">
+      <PageContainer width="wide" className="space-y-6">
         <PageHeader
           title={setupStarted ? "Setup summary" : "Setup"}
           description="The review page is available after the setup state loads."
         />
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Setup could not be loaded</AlertTitle>
-          <AlertDescription className="flex items-center justify-between gap-4">
-            <span>{setupError.message}</span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => refreshSetupAccess()}
-            >
-              Retry
-            </Button>
-          </AlertDescription>
-        </Alert>
-      </div>
+        <PageError
+          title="Setup could not be loaded"
+          description={setupError.message}
+          onRetry={() => refreshSetupAccess()}
+        />
+      </PageContainer>
     );
   }
 
