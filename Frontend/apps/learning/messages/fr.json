@@ -526,6 +526,7 @@
     "intro": {
       "questions": "Questions",
       "timeLimit": "Temps imparti",
+      "suggestedTime": "Temps suggéré",
       "minutes": "{minutes} min",
       "alreadyPassed": "Vous avez déjà réussi cet examen. Vous pouvez le repasser si vous le souhaitez.",
       "retake": "Repasser l'examen",
@@ -1025,13 +1026,29 @@
   },
   "adminDashboard": {
     "moduleTitle": "Administration",
-    "title": "Matrice du programme et progression",
-    "description": "Cliquez sur une cellule pour afficher les statistiques détaillées des employés. Matrice de complétion grade x Service Line et taux de progression.",
+    "title": "Analyses d'apprentissage",
+    "description": "Complétion du cursus par grade et Service Line, et présence aux sessions présentielles.",
+    "tabs": {
+      "programme": "Matrice du programme",
+      "attendance": "Présence",
+      "ariaLabel": "Tableaux de bord d'administration"
+    },
     "kpi": {
       "profiledEmployees": "Employés profilés",
       "activeCells": "Cellules actives",
+      "activeGroups": "Groupes actifs",
       "avgCompletion": "Complétion moyenne",
-      "greenCells": "Cellules supérieures à 80%"
+      "greenCells": "Cellules supérieures à 80%",
+      "groupsAbove80": "Groupes ≥ 80%"
+    },
+    "section": {
+      "completionByGroup": "Complétion par groupe",
+      "completionByGroupHint": "Chaque groupe grade × Service Line, trié par complétion la plus faible en premier. Cliquez sur un groupe pour la progression par employé."
+    },
+    "attention": {
+      "empty": "Aucun groupe avec des employés inscrits pour l'instant.",
+      "tileAria": "{grade}, {sl} : {rate}% terminé, {count, plural, one {# personne} other {# personnes}}",
+      "people": "{count, plural, one {# personne} other {# personnes}}"
     },
     "matrix": {
       "heading": "Matrice du programme",
