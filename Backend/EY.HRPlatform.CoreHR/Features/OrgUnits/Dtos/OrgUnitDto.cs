@@ -13,7 +13,8 @@ public sealed record OrgUnitDto(
     bool IsActive,
     DateTime CreatedAt,
     DateTime? UpdatedAt,
-    uint Version);
+    uint Version,
+    Guid? ResponsibleManagerEmployeeId = null);
 
 /// <summary>
 /// Lightweight DTO for parent org unit info.

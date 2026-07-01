@@ -66,6 +66,6 @@ describe("OrgChartNode", () => {
       />
     );
 
-    expect(screen.getByText("Missing org unit")).toBeTruthy();
+    expect(screen.getByText("No org unit")).toBeTruthy();
   });
 });

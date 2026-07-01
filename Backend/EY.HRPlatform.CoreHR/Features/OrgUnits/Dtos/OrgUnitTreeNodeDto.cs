@@ -10,4 +10,6 @@ public sealed record OrgUnitTreeNodeDto(
     string Type,
     int Level,
     bool IsOrphaned,
+    int MemberCount,
+    int TotalMemberCount,
     List<OrgUnitTreeNodeDto> Children);

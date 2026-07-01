@@ -8,9 +8,9 @@ import {
   User,
   Users,
 } from "lucide-react";
-import { type NavSection } from "@repo/ui";
+import { type ShellNavSection } from "@repo/ds/shell";
 
-export const PEOPLE_NAV: NavSection = {
+export const PEOPLE_NAV: ShellNavSection = {
   title: "People",
   items: [
     { label: "Overview", href: "/", icon: LayoutDashboard },
@@ -21,7 +21,7 @@ export const PEOPLE_NAV: NavSection = {
   ],
 };
 
-export const ADMIN_NAV: NavSection = {
+export const ADMIN_NAV: ShellNavSection = {
   title: "Administration",
   items: [
     { label: "Setup", href: "/setup", icon: ClipboardList },

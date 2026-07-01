@@ -6,9 +6,19 @@ import path from "path";
 export default defineConfig({
   plugins: [react()],
   resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
-    },
+    // Mirror the tsconfig path mapping: Core consumes UI primitives from @repo/ds via the
+    // `@/components/ui/*` alias (its local components/ui was removed during the DS migration).
+    // The more specific alias must come first.
+    alias: [
+      {
+        find: /^@\/components\/ui\/(.*)$/,
+        replacement: path.resolve(
+          __dirname,
+          "../../packages/ds/src/components/ui/$1"
+        ),
+      },
+      { find: /^@\/(.*)$/, replacement: path.resolve(__dirname, "./src/$1") },
+    ],
   },
   test: {
     globals: true,
