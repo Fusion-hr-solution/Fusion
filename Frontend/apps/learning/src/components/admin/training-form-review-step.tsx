@@ -69,6 +69,10 @@ export function TrainingFormReviewStep({
           {trainingType === "OnSite" && costType === "External" && (
             <Row label="Sponsoring Service Line" value={sponsoringServiceLineName} />
           )}
+          {trainingType === "OnSite" && <Row label="Cost Type" value={costType} />}
+          {trainingType === "OnSite" && costType === "External" && (
+            <Row label="Sponsoring Service Line" value={sponsoringServiceLineName} />
+          )}
           <Row
             label={t("form.review.mandatory")}
             value={

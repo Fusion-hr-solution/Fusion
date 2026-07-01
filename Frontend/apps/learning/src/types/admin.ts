@@ -398,6 +398,66 @@ export interface UpdateTrainingBudgetInput {
   allocatedAmount: number;
 }
 
+/* ── Budget dashboard (US-7.2.2) ── */
+
+export interface BudgetFilters {
+  serviceLineId?: string;
+  from?: string;
+  to?: string;
+}
+
+export interface BudgetByServiceLine {
+  serviceLineId: string;
+  serviceLineName: string;
+  color: string;
+  allocated: number;
+  spent: number;
+  remaining: number;
+  percentConsumed: number;
+}
+
+export interface BudgetServiceLineAlert {
+  serviceLineId: string;
+  serviceLineName: string;
+  percentConsumed: number;
+  thresholdBand: number; // 80 | 90 | 100
+}
+
+export interface BudgetDashboardSummary {
+  totalAllocated: number;
+  totalSpent: number;
+  totalRemaining: number;
+  percentConsumed: number;
+  byServiceLine: BudgetByServiceLine[];
+  alerts: BudgetServiceLineAlert[];
+}
+
+export interface BudgetTrendPoint {
+  year: number;
+  month: number;
+  label: string;
+  spend: number;
+}
+
+export interface BudgetTrend {
+  points: BudgetTrendPoint[];
+}
+
+export interface BudgetSpendDetailRow {
+  sessionId: string;
+  trainingId: string;
+  trainingTitle: string;
+  startUtc: string;
+  amount: number;
+  trainerName?: string | null;
+}
+
+export interface BudgetSpendDetail {
+  serviceLineId: string;
+  serviceLineName: string;
+  rows: BudgetSpendDetailRow[];
+}
+
 export interface AddCurriculumMappingInput {
   gradeId: string;
   serviceLineId: string;
