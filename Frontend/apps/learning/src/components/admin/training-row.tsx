@@ -3,6 +3,7 @@ import { Pencil, Eye, Trash2, BookOpen, Users, AlertTriangle, Monitor, MapPin } 
 import { useTranslations } from "next-intl";
 import { buttonVariants, Badge, TableRow, TableCell } from "@repo/ui";
 import type { TrainingRowProps } from "@/types/admin-props";
+import { COST_TYPE_CONFIG } from "@/data/cost-type-config";
 
 export function TrainingRow({
   training,
@@ -34,6 +35,11 @@ export function TrainingRow({
         ) : (
           <Badge variant="outline" className="text-[10px] border-[hsl(var(--ey-blue-500))]/30 text-[hsl(var(--ey-blue-500))] bg-[hsl(var(--ey-blue-500))]/5">
             <Monitor className="mr-1 h-3 w-3" /> {tCommon("trainingType.ELearning")}
+          </Badge>
+        )}
+        {training.trainingType === "OnSite" && training.costType && (
+          <Badge variant="outline" className={`ml-1 text-[10px] ${COST_TYPE_CONFIG[training.costType].badgeClass}`}>
+            {COST_TYPE_CONFIG[training.costType].label}
           </Badge>
         )}
       </TableCell>

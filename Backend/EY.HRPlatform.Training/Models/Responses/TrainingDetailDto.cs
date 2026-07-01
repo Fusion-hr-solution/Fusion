@@ -12,6 +12,8 @@ public class TrainingDetailDto
     public Guid CategoryId { get; set; }
     public string CategoryName { get; set; } = string.Empty;
     public string TrainingType { get; set; } = "ELearning";
+    public string CostType { get; set; } = "Internal";
+    public Guid? SponsoringServiceLineId { get; set; }
     public DateTime? ScheduledDate { get; set; }
     public DateTime CreatedAt { get; set; }
     public List<ChapterDto> Chapters { get; set; } = [];

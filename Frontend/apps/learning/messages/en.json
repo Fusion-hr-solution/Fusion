@@ -20,6 +20,7 @@
       "serviceLines": "Service Lines",
       "employeeProfiles": "Employee Profiles",
       "curriculum": "Curriculum",
+      "trainingBudgets": "Training Budgets",
       "sessions": "Sessions",
       "attendance": "Attendance",
       "certificateRegistry": "Certificate Registry",
@@ -727,6 +728,10 @@
         "exams": "Exams"
       },
       "courseMaterials": "Course Materials",
+      "tabs": {
+        "sessions": "Sessions",
+        "costs": "Costs"
+      },
       "chaptersHeading": "Chapters",
       "addChapter": "Add Chapter"
     },
@@ -790,6 +795,7 @@
         "titleMinLength": "Title must be at least 2 characters.",
         "categoryRequired": "Please select a category.",
         "creditsNegative": "Credits cannot be negative.",
+        "sponsoringServiceLineRequired": "Sponsoring service line is required for external trainings.",
         "scheduledDateFuture": "Scheduled date must be in the future."
       }
     },

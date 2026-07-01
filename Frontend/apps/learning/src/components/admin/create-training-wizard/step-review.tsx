@@ -186,6 +186,13 @@ export function StepReview({ wizard }: StepReviewProps) {
                   })}
                 />
               )}
+              {wizard.trainingType === "OnSite" && <Pair label="Cost Type" value={wizard.costType} />}
+              {wizard.trainingType === "OnSite" && wizard.costType === "External" && (
+                <Pair
+                  label="Sponsoring Service Line"
+                  value={wizard.serviceLines.find((sl) => sl.id === wizard.sponsoringServiceLineId)?.name ?? "—"}
+                />
+              )}
             </div>
           </ReviewCard>
         </div>
