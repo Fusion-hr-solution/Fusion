@@ -330,6 +330,134 @@ public class GetEmployeesQueryHandlerTests
     }
 
     [Fact]
+    public async Task GetEmployees_FilterByAccessNotInvited_ReturnsOnlyUnprovisionedEmployees()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+
+        var invited = Employee.Create(TenantId, "Invited", "User", "invited@example.com", DateTime.UtcNow);
+        var notInvited = Employee.Create(TenantId, "Not", "Invited", "not-invited@example.com", DateTime.UtcNow);
+
+        seedContext.Employees.AddRange(invited, notInvited);
+        await seedContext.SaveChangesAsync();
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = CreateHandler(
+            context,
+            new StaticWorkforceAccountStatusReader(new Dictionary<Guid, WorkforceAccountStatusDto>
+            {
+                [invited.Id] = new(
+                    invited.Id,
+                    invited.Email,
+                    null,
+                    "Employee",
+                    [],
+                    "InvitePending",
+                    null,
+                    false,
+                    null,
+                    Guid.NewGuid(),
+                    DateTime.UtcNow,
+                    DateTime.UtcNow.AddDays(7),
+                    "http://localhost/invite/accept?token=1",
+                    null,
+                    null,
+                    null,
+                    null)
+            }));
+
+        var result = await handler.Handle(new GetEmployeesQuery(Access: EmployeeAccessFilter.NotInvited), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var item = Assert.Single(result.Value.Items);
+        Assert.Equal(notInvited.Id, item.Id);
+    }
+
+    [Fact]
+    public async Task GetEmployees_FilterByAccessNeedsReview_ReturnsOnlyNeedsReviewStates()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+
+        var active = Employee.Create(TenantId, "Active", "User", "active@example.com", DateTime.UtcNow);
+        var inactive = Employee.Create(TenantId, "Inactive", "User", "inactive@example.com", DateTime.UtcNow);
+        var conflict = Employee.Create(TenantId, "Conflict", "User", "conflict@example.com", DateTime.UtcNow);
+
+        seedContext.Employees.AddRange(active, inactive, conflict);
+        await seedContext.SaveChangesAsync();
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = CreateHandler(
+            context,
+            new StaticWorkforceAccountStatusReader(new Dictionary<Guid, WorkforceAccountStatusDto>
+            {
+                [active.Id] = new(
+                    active.Id,
+                    active.Email,
+                    null,
+                    "Employee",
+                    [],
+                    "Active",
+                    Guid.NewGuid(),
+                    true,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null),
+                [inactive.Id] = new(
+                    inactive.Id,
+                    inactive.Email,
+                    null,
+                    "Employee",
+                    [],
+                    "Inactive",
+                    Guid.NewGuid(),
+                    false,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null),
+                [conflict.Id] = new(
+                    conflict.Id,
+                    conflict.Email,
+                    null,
+                    "Employee",
+                    [],
+                    "Conflict",
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    new WorkforceAccountConflictDto("Conflict", "Conflict", true, null))
+            }));
+
+        var result = await handler.Handle(new GetEmployeesQuery(Access: EmployeeAccessFilter.NeedsReview), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(2, result.Value.Items.Count);
+        Assert.Contains(result.Value.Items, item => item.Id == inactive.Id);
+        Assert.Contains(result.Value.Items, item => item.Id == conflict.Id);
+    }
+
+    [Fact]
     public async Task GetEmployees_CombinedSearchAndStatus_AppliesBoth()
     {
         // Arrange
@@ -665,6 +793,79 @@ public class GetEmployeesQueryHandlerTests
     }
 
     [Fact]
+    public async Task GetEmployees_WithOrgUnitFilter_ReturnsOnlyEmployeesInSelectedOrgUnit()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+
+        var engineering = OrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null);
+        var finance = OrgUnit.Create(TenantId, "FIN", "Finance", "Department", null);
+
+        var engineer = Employee.Create(TenantId, "Jordan", "Engineer", "jordan.engineer@example.com", DateTime.UtcNow);
+        engineer.AssignOrgUnit(engineering.Id);
+
+        var analyst = Employee.Create(TenantId, "Taylor", "Analyst", "taylor.analyst@example.com", DateTime.UtcNow);
+        analyst.AssignOrgUnit(finance.Id);
+
+        var unassigned = Employee.Create(TenantId, "Casey", "Unassigned", "casey.unassigned@example.com", DateTime.UtcNow);
+
+        seedContext.OrgUnits.AddRange(engineering, finance);
+        seedContext.Employees.AddRange(engineer, analyst, unassigned);
+        await seedContext.SaveChangesAsync();
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = CreateHandler(context);
+
+        var result = await handler.Handle(
+            new GetEmployeesQuery(OrgUnitId: engineering.Id),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var item = Assert.Single(result.Value.Items);
+        Assert.Equal(engineer.Id, item.Id);
+        Assert.Equal(engineering.Id, item.OrgUnitId);
+    }
+
+    [Fact]
+    public async Task GetEmployees_WithManagerFilter_ReturnsOnlyDirectReportsForSelectedManager()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
+
+        var manager = Employee.Create(TenantId, "Alex", "Manager", "alex.manager@example.com", DateTime.UtcNow);
+        var otherManager = Employee.Create(TenantId, "Morgan", "Lead", "morgan.lead@example.com", DateTime.UtcNow);
+
+        var firstReport = Employee.Create(TenantId, "Sam", "Report", "sam.report@example.com", DateTime.UtcNow);
+        firstReport.AssignManager(manager.Id);
+
+        var secondReport = Employee.Create(TenantId, "Jamie", "Report", "jamie.report@example.com", DateTime.UtcNow);
+        secondReport.AssignManager(manager.Id);
+
+        var otherReport = Employee.Create(TenantId, "Riley", "Peer", "riley.peer@example.com", DateTime.UtcNow);
+        otherReport.AssignManager(otherManager.Id);
+
+        var rootLeader = Employee.Create(TenantId, "Dana", "Root", "dana.root@example.com", DateTime.UtcNow);
+
+        seedContext.Employees.AddRange(manager, otherManager, firstReport, secondReport, otherReport, rootLeader);
+        await seedContext.SaveChangesAsync();
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var handler = CreateHandler(context);
+
+        var result = await handler.Handle(
+            new GetEmployeesQuery(ManagerId: manager.Id),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(2, result.Value.TotalCount);
+        Assert.All(result.Value.Items, item => Assert.Equal(manager.Id, item.ManagerId));
+        Assert.Contains(result.Value.Items, item => item.Id == firstReport.Id);
+        Assert.Contains(result.Value.Items, item => item.Id == secondReport.Id);
+    }
+
+    [Fact]
     public async Task GetEmployees_HidesJobTitle_WhenTenantSettingsDisableItForHrAdmin()
     {
         // Arrange
@@ -822,41 +1023,29 @@ public class GetEmployeesQueryHandlerTests
         Assert.Contains(item.Readiness.BlockingIssues, issue => issue.Code == EmployeeReadinessIssueCodes.DeactivationBlocked);
     }
 
-    [Fact]
-    public async Task GetEmployees_ManagerAudience_ReturnsOnlyDirectReports()
-    {
-        var dbName = Guid.NewGuid().ToString();
-        var tenantContext = TestTenantContext.WithTenant(TenantId);
-        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
-
-        var manager = Employee.Create(TenantId, "Alex", "Manager", "alex.manager@example.com", DateTime.UtcNow, null, "Manager");
-        var directReport = Employee.Create(TenantId, "Jordan", "Report", "jordan.report@example.com", DateTime.UtcNow, null, "Developer");
-        directReport.AssignManager(manager.Id);
-        var otherEmployee = Employee.Create(TenantId, "Taylor", "Other", "taylor.other@example.com", DateTime.UtcNow, null, "Developer");
-
-        seedContext.Employees.AddRange(manager, directReport, otherEmployee);
-        await seedContext.SaveChangesAsync();
-
-        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = CreateHandler(context);
-
-        var result = await handler.Handle(
-            new GetEmployeesQuery(
-                Audience: EmployeeReadAudience.Manager,
-                RequesterEmployeeId: manager.Id),
-            CancellationToken.None);
-
-        Assert.True(result.IsSuccess);
-        var item = Assert.Single(result.Value.Items);
-        Assert.Equal(directReport.Id, item.Id);
-    }
-
     #endregion
 
-    private static GetEmployeesQueryHandler CreateHandler(CoreHRDbContext context)
+    private static GetEmployeesQueryHandler CreateHandler(
+        CoreHRDbContext context,
+        IWorkforceAccountStatusReader? workforceAccountStatusReader = null)
         => new(
             context,
             new EmployeeReadModelPolicy(),
-            new EmployeeReadScopeService(),
-            new TenantSettingsReadService(context));
+            new TenantSettingsReadService(context),
+            workforceAccountStatusReader ?? new StaticWorkforceAccountStatusReader(new Dictionary<Guid, WorkforceAccountStatusDto>()));
+
+    private sealed class StaticWorkforceAccountStatusReader(
+        IReadOnlyDictionary<Guid, WorkforceAccountStatusDto> statuses) : IWorkforceAccountStatusReader
+    {
+        public Task<IReadOnlyDictionary<Guid, WorkforceAccountStatusDto>> GetStatusesAsync(
+            IReadOnlyCollection<WorkforceAccountSubjectDto> subjects,
+            CancellationToken cancellationToken)
+        {
+            var result = statuses
+                .Where(entry => subjects.Any(subject => subject.EmployeeId == entry.Key))
+                .ToDictionary(entry => entry.Key, entry => entry.Value);
+
+            return Task.FromResult<IReadOnlyDictionary<Guid, WorkforceAccountStatusDto>>(result);
+        }
+    }
 }

@@ -296,5 +296,28 @@ public class TenantSettingsMergerTests
         Assert.True(result.EmployeeFieldConfig["firstName"].VisibleToManager);
     }
 
+    [Fact]
+    public void Merge_WithProvisioningOverrides_AppliesProvisioningPolicy()
+    {
+        var profileId = Guid.NewGuid();
+        var overrides = $$"""
+        {
+            "provisioning": {
+                "defaultAccessProfileId": "{{profileId}}",
+                "inviteExpiryDays": 30,
+                "resendCooldownHours": 6,
+                "pendingInviteBehavior": "KeepExisting"
+            }
+        }
+        """;
+
+        var result = TenantSettingsMerger.Merge(overrides);
+
+        Assert.Equal(profileId, result.Provisioning.DefaultAccessProfileId);
+        Assert.Equal(30, result.Provisioning.InviteExpiryDays);
+        Assert.Equal(6, result.Provisioning.ResendCooldownHours);
+        Assert.Equal("KeepExisting", result.Provisioning.PendingInviteBehavior);
+    }
+
     #endregion
 }

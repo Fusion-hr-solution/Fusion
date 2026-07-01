@@ -650,6 +650,9 @@ namespace EY.HRPlatform.Interview.Migrations
                     b.Property<int>("Points")
                         .HasColumnType("integer");
 
+                    b.Property<string>("ProjectFiles")
+                        .HasColumnType("text");
+
                     b.Property<string>("StarterCode")
                         .HasColumnType("text");
 

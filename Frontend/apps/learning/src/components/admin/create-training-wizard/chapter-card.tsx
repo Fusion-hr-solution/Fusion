@@ -2,15 +2,18 @@
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Pencil, Trash2, GripVertical, Layers, ExternalLink } from "lucide-react";
+import {
+  Pencil,
+  Trash2,
+  GripVertical,
+  Layers,
+  ExternalLink,
+} from "lucide-react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import type { WizardChapter } from "@/types/admin";
 
-const LAYOUT_LABELS: Record<string, string> = {
-  SingleContent: "Single Content",
-  SplitLayout: "Split Layout",
-  MultiSection: "Multi Section",
-};
+const LAYOUT_KEYS = ["SingleContent", "SplitLayout", "MultiSection"] as const;
 
 interface ChapterCardProps {
   chapter: WizardChapter;
@@ -21,8 +24,27 @@ interface ChapterCardProps {
   onRemove: () => void;
 }
 
-export function ChapterCard({ chapter, index, trainingId, onEdit, onRemove }: ChapterCardProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: chapter.clientId });
+export function ChapterCard({
+  chapter,
+  index,
+  trainingId,
+  onEdit,
+  onRemove,
+}: ChapterCardProps) {
+  const t = useTranslations("adminWizard.editor");
+  const layoutLabel = (LAYOUT_KEYS as readonly string[]).includes(
+    chapter.layout
+  )
+    ? t(`layout.${chapter.layout}`)
+    : chapter.layout;
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: chapter.clientId });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -31,13 +53,17 @@ export function ChapterCard({ chapter, index, trainingId, onEdit, onRemove }: Ch
   };
 
   return (
-    <div ref={setNodeRef} style={style} className="group flex items-center gap-3 rounded-2xl border border-border bg-background p-4 shadow-sm transition-all hover:shadow-md">
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="group flex items-center gap-3 rounded-2xl border border-border bg-background p-4 shadow-sm transition-all hover:shadow-md"
+    >
       <button
         type="button"
         className="flex h-8 w-8 shrink-0 cursor-grab touch-none items-center justify-center rounded-lg text-muted-foreground/40 hover:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
         {...attributes}
         {...listeners}
-        aria-label="Drag to reorder"
+        aria-label={t("dragToReorder")}
       >
         <GripVertical className="h-4 w-4" aria-hidden="true" />
       </button>
@@ -51,10 +77,10 @@ export function ChapterCard({ chapter, index, trainingId, onEdit, onRemove }: Ch
       </div>
 
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-foreground">{chapter.title}</p>
-        <p className="text-[12px] text-muted-foreground">
-          {LAYOUT_LABELS[chapter.layout] ?? chapter.layout}
+        <p className="truncate text-sm font-semibold text-foreground">
+          {chapter.title}
         </p>
+        <p className="text-[12px] text-muted-foreground">{layoutLabel}</p>
       </div>
 
       <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
@@ -64,7 +90,7 @@ export function ChapterCard({ chapter, index, trainingId, onEdit, onRemove }: Ch
             className="flex items-center gap-1.5 rounded-lg px-2 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
           >
             <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
-            Open Builder
+            {t("openBuilder")}
           </Link>
         )}
         <button

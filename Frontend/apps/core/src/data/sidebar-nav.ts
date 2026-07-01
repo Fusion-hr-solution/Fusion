@@ -4,6 +4,7 @@ import {
   LayoutDashboard,
   Network,
   Settings2,
+  ShieldCheck,
   User,
   Users,
 } from "lucide-react";
@@ -12,7 +13,7 @@ import { type NavSection } from "@repo/ui";
 export const PEOPLE_NAV: NavSection = {
   title: "People",
   items: [
-    { label: "Dashboard", href: "/", icon: LayoutDashboard },
+    { label: "Overview", href: "/", icon: LayoutDashboard },
     { label: "My Profile", href: "/profile", icon: User },
     { label: "My Team", href: "/team", icon: Users },
     { label: "Employees", href: "/employees", icon: Users },
@@ -24,6 +25,7 @@ export const ADMIN_NAV: NavSection = {
   title: "Administration",
   items: [
     { label: "Setup", href: "/setup", icon: ClipboardList },
+    { label: "Access", href: "/access", icon: ShieldCheck },
     { label: "Settings", href: "/settings", icon: Settings2 },
     { label: "Organizations", href: "/organizations", icon: Building },
   ],

@@ -32,6 +32,8 @@ public class InviteDto
 
     public string Role { get; set; } = string.Empty;
 
+    public List<AccessProfileAssignmentSummaryDto> AccessProfiles { get; set; } = [];
+
     public string? FirstName { get; set; }
 
     public string? LastName { get; set; }

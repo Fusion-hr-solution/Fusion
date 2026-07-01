@@ -1,4 +1,7 @@
+"use client";
+
 import { Button } from "@repo/ui";
+import { useTranslations, useFormatter } from "next-intl";
 
 interface PaginationBarProps {
   page: number;
@@ -8,13 +11,26 @@ interface PaginationBarProps {
   onPageChange: (page: number) => void;
 }
 
-export function PaginationBar({ page, totalPages, pageSize, totalCount, onPageChange }: PaginationBarProps) {
+export function PaginationBar({
+  page,
+  totalPages,
+  pageSize,
+  totalCount,
+  onPageChange,
+}: PaginationBarProps) {
+  const t = useTranslations("adminTrainings");
+  const tCommon = useTranslations("common");
+  const format = useFormatter();
   if (totalPages <= 1) return null;
 
   return (
     <div className="flex items-center justify-between">
       <p className="text-sm text-muted-foreground">
-        Showing {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, totalCount)} of {totalCount}
+        {t("pagination.showing", {
+          from: format.number((page - 1) * pageSize + 1),
+          to: format.number(Math.min(page * pageSize, totalCount)),
+          total: format.number(totalCount),
+        })}
       </p>
       <div className="flex items-center gap-2">
         <Button
@@ -23,10 +39,13 @@ export function PaginationBar({ page, totalPages, pageSize, totalCount, onPageCh
           disabled={page <= 1}
           onClick={() => onPageChange(page - 1)}
         >
-          Previous
+          {tCommon("actions.previous")}
         </Button>
         <span className="text-sm text-muted-foreground">
-          Page {page} of {totalPages}
+          {t("pagination.pageOf", {
+            page: format.number(page),
+            totalPages: format.number(totalPages),
+          })}
         </span>
         <Button
           variant="outline"
@@ -34,7 +53,7 @@ export function PaginationBar({ page, totalPages, pageSize, totalCount, onPageCh
           disabled={page >= totalPages}
           onClick={() => onPageChange(page + 1)}
         >
-          Next
+          {tCommon("actions.next")}
         </Button>
       </div>
     </div>

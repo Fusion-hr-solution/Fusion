@@ -133,7 +133,7 @@ export function InPersonHoursWidget() {
     totalRatio > 0 ? Math.round((data.inPersonHours / totalRatio) * 100) : 0;
 
   return (
-    <Card className="overflow-hidden border-border/60 bg-gradient-to-br from-card via-card to-[hsl(var(--ey-green-500))]/5">
+    <Card className="overflow-hidden border-border/60 bg-gradient-to-br from-card via-card to-[hsl(var(--ey-green-500))]/[0.04]">
       <CardContent className="space-y-5 py-6">
         {/* Header */}
         <div className="flex items-start justify-between gap-3">
@@ -148,7 +148,7 @@ export function InPersonHoursWidget() {
               <p className="text-xs text-muted-foreground">{t("subtitle")}</p>
             </div>
           </div>
-          <span className="hidden items-center gap-1 rounded-full border border-[hsl(var(--ey-green-500))]/20 bg-[hsl(var(--ey-green-500))]/10 px-2.5 py-1 text-[11px] font-semibold text-[hsl(var(--ey-green-500))] sm:inline-flex">
+          <span className="hidden items-center gap-1 rounded-full border border-[hsl(var(--ey-green-500))]/30 bg-[hsl(var(--ey-green-500))]/10 px-2.5 py-1 text-[11px] font-semibold text-[hsl(var(--ey-green-500))] sm:inline-flex">
             <Sparkles className="h-3 w-3" aria-hidden="true" />
             {t("inPersonShare", { share: inPersonShare })}
           </span>

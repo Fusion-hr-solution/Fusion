@@ -1,5 +1,5 @@
-import type { AdminCategory, AdminChapter, AdminTraining, ArticleTemplate, WizardChapter } from "./admin";
-import type { Employee, Training, TrainingCategory, TrainingStatus, TrainingType } from "./index";
+import type { AdminCategory, AdminChapter, AdminServiceLine, AdminTraining, ArticleTemplate, WizardChapter } from "./admin";
+import type { CostType, Employee, Training, TrainingCategory, TrainingStatus, TrainingType } from "./index";
 
 /* ── Wizard shared state (used by create + edit wizards) ── */
 
@@ -29,6 +29,11 @@ export interface WizardState {
   setTrainingType: (v: TrainingType) => void;
   scheduledDate: string;
   setScheduledDate: (v: string) => void;
+  costType: CostType;
+  setCostType: (v: CostType) => void;
+  sponsoringServiceLineId: string;
+  setSponsoringServiceLineId: (v: string) => void;
+  serviceLines: AdminServiceLine[];
   chapters: WizardChapter[];
   addChapter: (chapter: Omit<WizardChapter, "clientId">) => void;
   updateChapter: (clientId: string, updates: Partial<WizardChapter>) => void;
@@ -169,6 +174,11 @@ export interface TrainingFormDetailsStepProps {
   trainingType: TrainingType;
   scheduledDate: string;
   onScheduledDateChange: (v: string) => void;
+  costType: CostType;
+  onCostTypeChange: (v: CostType) => void;
+  sponsoringServiceLineId: string;
+  onSponsoringServiceLineIdChange: (v: string) => void;
+  serviceLines: AdminServiceLine[];
   fieldErrors?: Record<string, string>;
 }
 
@@ -182,6 +192,8 @@ export interface TrainingFormReviewStepProps {
   isMandatory: boolean;
   trainingType: TrainingType;
   scheduledDate: string;
+  costType: CostType;
+  sponsoringServiceLineName: string;
 }
 
 export interface ChapterFormInfoStepProps {

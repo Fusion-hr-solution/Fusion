@@ -84,7 +84,7 @@ export function SessionPickerCard({ session, isSelected, onSelect }: SessionPick
                       ? "bg-[hsl(var(--ey-green-500))]"
                       : spotsRatio > 0.2
                         ? "bg-[hsl(var(--ey-orange-500))]"
-                        : "bg-[hsl(var(--ey-red-500))]"
+                        : "bg-destructive"
                   }`}
                   style={{ width: `${Math.max(5, (1 - spotsRatio) * 100)}%` }}
                 />

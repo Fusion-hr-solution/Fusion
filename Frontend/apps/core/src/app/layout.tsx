@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { Suspense } from "react";
 import "@repo/ui/src/ey-brand.css";
 import "./globals.css";
 import { PageProgressBar } from "../components/page-progress-bar";
@@ -18,7 +19,9 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning className={fontSans.variable}>
       <body className="min-h-screen antialiased bg-background text-foreground">
-        <PageProgressBar />
+        <Suspense fallback={null}>
+          <PageProgressBar />
+        </Suspense>
         <Providers>{children}</Providers>
       </body>
     </html>

@@ -29,7 +29,7 @@ public class ScanQrAttendanceCommandHandlerTests
             new AddPartCommand(training.Id, "Part 1", null, 3m), CancellationToken.None);
 
         var start = sessionStart ?? DateTime.UtcNow.AddMinutes(-10);
-        var sessionResult = await new AddSessionCommandHandler(ctx).Handle(new AddSessionCommand(
+        var sessionResult = await new AddSessionCommandHandler(ctx, new NoOpBudgetAlertNotifier()).Handle(new AddSessionCommand(
             training.Id, partResult.Value, start, start.AddHours(3),
             "Room A", 25, null, null, "Alice", "alice@ey.com"), CancellationToken.None);
 

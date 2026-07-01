@@ -1,4 +1,5 @@
 import { CheckCircle2 } from "lucide-react";
+import { useTranslations, useFormatter } from "next-intl";
 import { Badge, Card, CardContent, CardHeader, CardTitle } from "@repo/ui";
 import type { TrainingFormReviewStepProps } from "@/types/admin-props";
 
@@ -12,36 +13,78 @@ export function TrainingFormReviewStep({
   isMandatory,
   trainingType,
   scheduledDate,
+  costType,
+  sponsoringServiceLineName,
 }: TrainingFormReviewStepProps) {
+  const t = useTranslations("adminTrainings");
+  const tCommon = useTranslations("common");
+  const format = useFormatter();
+  const emptyValue = t("form.review.emptyValue");
   return (
     <Card className="border-border/60">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
           <CheckCircle2 className="h-4 w-4 text-[hsl(var(--ey-green-500))]" />
-          Review &amp; Submit
+          {t("form.review.heading")}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="rounded-lg bg-muted/50 p-4 space-y-3 text-sm">
-          <Row label="Training Type" value={trainingType === "OnSite" ? "On-Site" : "E-Learning"} />
-          <Row label="Title" value={title} />
-          <Row label="Description" value={description || "—"} />
-          <Row label="Category" value={categoryName} />
-          <Row label="Badge Level" value={badgeLevel} />
-          <Row label="Credits" value={String(credits)} />
-          <Row label="Duration" value={duration || "—"} />
+          <Row
+            label={t("form.review.trainingType")}
+            value={
+              trainingType === "OnSite"
+                ? t("detail.onSite")
+                : t("detail.eLearning")
+            }
+          />
+          <Row label={t("form.review.title")} value={title} />
+          <Row
+            label={t("form.review.description")}
+            value={description || emptyValue}
+          />
+          <Row label={t("form.review.category")} value={categoryName} />
+          <Row
+            label={t("form.review.badgeLevel")}
+            value={tCommon(`badgeLevel.${badgeLevel.toLowerCase()}`)}
+          />
+          <Row
+            label={t("form.review.credits")}
+            value={format.number(credits)}
+          />
+          <Row
+            label={t("form.review.duration")}
+            value={duration || emptyValue}
+          />
           {trainingType === "OnSite" && scheduledDate && (
-            <Row label="Scheduled Date" value={new Date(scheduledDate).toLocaleString()} />
+            <Row
+              label={t("form.review.scheduledDate")}
+              value={format.dateTime(new Date(scheduledDate), {
+                dateStyle: "medium",
+                timeStyle: "short",
+              })}
+            />
+          )}
+          {trainingType === "OnSite" && <Row label="Cost Type" value={costType} />}
+          {trainingType === "OnSite" && costType === "External" && (
+            <Row label="Sponsoring Service Line" value={sponsoringServiceLineName} />
+          )}
+          {trainingType === "OnSite" && <Row label="Cost Type" value={costType} />}
+          {trainingType === "OnSite" && costType === "External" && (
+            <Row label="Sponsoring Service Line" value={sponsoringServiceLineName} />
           )}
           <Row
-            label="Mandatory"
+            label={t("form.review.mandatory")}
             value={
               isMandatory ? (
-                <Badge variant="outline" className="text-[10px] border-destructive/30 text-destructive">
-                  Yes
+                <Badge
+                  variant="outline"
+                  className="text-[10px] border-destructive/30 text-destructive"
+                >
+                  {t("form.review.yes")}
                 </Badge>
               ) : (
-                "No"
+                t("form.review.no")
               )
             }
           />

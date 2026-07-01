@@ -16,6 +16,14 @@ public class TenantConfiguration : IEntityTypeConfiguration<Tenant>
             .HasMaxLength(100)
             .IsRequired();
 
+        builder.Property(t => t.Slug)
+            .HasMaxLength(100)
+            .IsRequired();
+
+        builder.HasIndex(t => t.Slug)
+            .IsUnique()
+            .HasDatabaseName("IX_Tenants_Slug");
+
         builder.Property(t => t.IsActive)
             .IsRequired()
             .HasDefaultValue(true);

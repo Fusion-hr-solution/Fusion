@@ -64,44 +64,64 @@ public sealed class CodeRunThrottle : ICodeRunThrottle
         return AcquireInProcess(attemptId);
     }
 
+    // All four steps (prune stale, capacity check, min-interval, per-minute cap, reserve) run in
+    // ONE Lua script so they're atomic: the capacity check and the slot reservation can't race
+    // (two requests can no longer both pass the check and then both reserve, briefly exceeding the
+    // budget). The ordering is preserved — capacity is checked before the interval/quota are
+    // consumed, so a "busy" rejection doesn't burn the candidate's per-attempt rate allowance.
+    // Returns: 0 = acquired, 1 = busy, 2 = too quick (interval), 3 = too many (per-minute).
+    private const string AcquireLua = @"
+redis.call('ZREMRANGEBYSCORE', KEYS[1], '-inf', ARGV[1])
+if redis.call('ZCARD', KEYS[1]) >= tonumber(ARGV[3]) then return 1 end
+if tonumber(ARGV[5]) > 0 then
+  if redis.call('SET', KEYS[2], '1', 'NX', 'EX', ARGV[5]) == false then return 2 end
+end
+if tonumber(ARGV[6]) > 0 then
+  local c = redis.call('INCR', KEYS[3])
+  if c == 1 then redis.call('EXPIRE', KEYS[3], 60) end
+  if c > tonumber(ARGV[6]) then return 3 end
+end
+redis.call('ZADD', KEYS[1], ARGV[2], ARGV[4])
+return 0";
+
     private async Task<IAsyncDisposable> AcquireRedisAsync(Guid attemptId, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var db = _redis!.GetDatabase();
 
-        // 1) Global concurrency budget — checked first so a capacity rejection doesn't burn
-        // the candidate's per-attempt rate allowance (interval/quota below). A sorted set
-        // scored by start time is self-healing: stale entries (from crashed requests that
-        // never released) age out by score, so the budget can't be permanently leaked.
+        // A sorted set scored by start time is self-healing: stale entries (from crashed requests
+        // that never released) age out by score, so the budget can't be permanently leaked.
         var nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        await db.SortedSetRemoveRangeByScoreAsync(InflightKey, double.NegativeInfinity, nowMs - _maxRunMs);
-        if (await db.SortedSetLengthAsync(InflightKey) >= _maxConcurrent)
-            throw TooManyRequests("Code execution is busy right now — try again in a few seconds.");
-
-        // 2) Minimum interval between runs for this attempt.
-        if (_minIntervalSeconds > 0)
-        {
-            var fresh = await db.StringSetAsync(
-                $"coderun:iv:{attemptId}", "1", TimeSpan.FromSeconds(_minIntervalSeconds), When.NotExists);
-            if (!fresh)
-                throw TooManyRequests("You're running too quickly — wait a moment and try again.");
-        }
-
-        // 3) Per-attempt runs-per-minute cap.
-        if (_maxRunsPerMinute > 0)
-        {
-            var countKey = $"coderun:cnt:{attemptId}";
-            var count = await db.StringIncrementAsync(countKey);
-            if (count == 1)
-                await db.KeyExpireAsync(countKey, TimeSpan.FromMinutes(1));
-            if (count > _maxRunsPerMinute)
-                throw TooManyRequests("Too many runs in a short time — try again shortly.");
-        }
-
-        // 4) Reserve the concurrency slot.
         var member = Guid.NewGuid().ToString("N");
-        await db.SortedSetAddAsync(InflightKey, member, nowMs);
-        return new RedisSlot(db, member);
+
+        var keys = new RedisKey[]
+        {
+            InflightKey,
+            $"coderun:iv:{attemptId}",
+            $"coderun:cnt:{attemptId}",
+        };
+        var values = new RedisValue[]
+        {
+            nowMs - _maxRunMs,   // ARGV[1] stale cutoff
+            nowMs,               // ARGV[2] this run's score
+            _maxConcurrent,      // ARGV[3]
+            member,              // ARGV[4]
+            _minIntervalSeconds, // ARGV[5]
+            _maxRunsPerMinute,   // ARGV[6]
+        };
+
+        var outcome = (long)await db.ScriptEvaluateAsync(AcquireLua, keys, values);
+        switch (outcome)
+        {
+            case 1:
+                throw TooManyRequests("Code execution is busy right now — try again in a few seconds.");
+            case 2:
+                throw TooManyRequests("You're running too quickly — wait a moment and try again.");
+            case 3:
+                throw TooManyRequests("Too many runs in a short time — try again shortly.");
+            default:
+                return new RedisSlot(db, member);
+        }
     }
 
     private IAsyncDisposable AcquireInProcess(Guid attemptId)

@@ -43,6 +43,7 @@ public class CoreHRDbContext : DbContext
     public DbSet<EmployeeImportFollowUpIssue> EmployeeImportFollowUpIssues => Set<EmployeeImportFollowUpIssue>();
     public DbSet<TenantSetupState> TenantSetupStates => Set<TenantSetupState>();
     public DbSet<TenantSetupActivity> TenantSetupActivities => Set<TenantSetupActivity>();
+    public DbSet<SettingsAuditEvent> SettingsAuditEvents => Set<SettingsAuditEvent>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -91,5 +92,8 @@ public class CoreHRDbContext : DbContext
 
         modelBuilder.Entity<TenantSetupActivity>()
             .HasQueryFilter(activity => CurrentTenantId != Guid.Empty && activity.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<SettingsAuditEvent>()
+            .HasQueryFilter(auditEvent => CurrentTenantId != Guid.Empty && auditEvent.TenantId == CurrentTenantId);
     }
 }

@@ -96,8 +96,12 @@ public class CertificateRegistryTests
         Assert.Equal(1, result.Value.RevokedCount);
         Assert.Equal("Azure", result.Value.ByTraining[0].Key); // most issued first
         Assert.Equal(2, result.Value.ByTraining[0].Count);
+        // Certificates are issued "now" (IssuedAt = DateTime.UtcNow), so the single ByMonth bucket
+        // tracks the current UTC month. Derive the expected key from the same clock rather than
+        // hard-coding it — a literal month passes only during that month and rots at the next rollover.
         Assert.Single(result.Value.ByMonth);
-        Assert.Equal("2026-06", result.Value.ByMonth[0].Key);
+        Assert.Equal($"{DateTime.UtcNow:yyyy-MM}", result.Value.ByMonth[0].Key);
+        Assert.Equal(3, result.Value.ByMonth[0].Count);
     }
 
     [Fact]

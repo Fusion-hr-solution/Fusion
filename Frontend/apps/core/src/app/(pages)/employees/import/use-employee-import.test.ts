@@ -27,7 +27,7 @@ vi.mock("@repo/api", () => ({
 
 vi.mock("@repo/auth", () => ({
   useAuth: () => authState,
-  canAccessCorePeople: (user: { roles?: string[] } | null) =>
+  canImportCoreEmployees: (user: { roles?: string[] } | null) =>
     !!user?.roles?.includes("HRAdmin") &&
     !user?.roles?.includes("PlatformAdmin"),
 }));
@@ -267,11 +267,11 @@ describe("useDownloadEmployeeImportTemplate", () => {
     });
 
     await act(async () => {
-      await result.current.mutateAsync(["firstName", "lastName", "email", "hireDate"]);
+      await result.current.mutateAsync();
     });
 
     expect(mockGet).toHaveBeenCalledWith(
-      "/corehr/employees/import/template?fields=firstName&fields=lastName&fields=email&fields=hireDate",
+      "/corehr/employees/import/template",
       expect.objectContaining({ responseType: "blob" })
     );
   });

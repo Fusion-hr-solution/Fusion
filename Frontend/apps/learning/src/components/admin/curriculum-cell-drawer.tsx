@@ -1,15 +1,9 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
+import { useTranslations } from "next-intl";
 import { X, Trash2, Plus, Loader2, Check } from "lucide-react";
-import {
-  Button,
-  Badge,
-  Checkbox,
-  Card,
-  CardContent,
-  Label,
-} from "@repo/ui";
+import { Button, Badge, Checkbox, Card, CardContent, Label } from "@repo/ui";
 import { useApiQuery, useApiMutation } from "@repo/api/react";
 import {
   getCurriculumCell,
@@ -40,6 +34,8 @@ export function CurriculumCellDrawer({
   onClose,
   onChanged,
 }: CurriculumCellDrawerProps) {
+  const t = useTranslations("adminCurriculum");
+  const tCommon = useTranslations("common");
   const [showAdd, setShowAdd] = useState(false);
   const [selectedTrainingId, setSelectedTrainingId] = useState("");
   const [selectedRequired, setSelectedRequired] = useState(false);
@@ -55,39 +51,63 @@ export function CurriculumCellDrawer({
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const fetchCell = useCallback(() => getCurriculumCell(gradeId, serviceLineId), [gradeId, serviceLineId]);
-  const { data: mappings, isLoading, refetch } = useApiQuery<AdminCurriculumMapping[]>(
-    fetchCell,
-    { enabled: true },
+  const fetchCell = useCallback(
+    () => getCurriculumCell(gradeId, serviceLineId),
+    [gradeId, serviceLineId]
   );
+  const {
+    data: mappings,
+    isLoading,
+    refetch,
+  } = useApiQuery<AdminCurriculumMapping[]>(fetchCell, { enabled: true });
 
-  const fetchTrainings = useCallback(() => getAdminTrainings({ pageSize: 200 }), []);
-  const { data: trainingsData } = useApiQuery(
-    fetchTrainings,
-    { enabled: showAdd },
+  const fetchTrainings = useCallback(
+    () => getAdminTrainings({ pageSize: 200 }),
+    []
   );
+  const { data: trainingsData } = useApiQuery(fetchTrainings, {
+    enabled: showAdd,
+  });
 
   const { mutateAsync: doRemove } = useApiMutation(
     (id: string) => removeCurriculumMapping(id),
-    { onSuccess: () => { refetch(); onChanged(); } },
+    {
+      onSuccess: () => {
+        refetch();
+        onChanged();
+      },
+    }
   );
 
   const { mutateAsync: doToggleRequired } = useApiMutation(
-    ({ id, isRequired }: { id: string; isRequired: boolean }) => updateCurriculumMapping(id, isRequired),
-    { onSuccess: () => { refetch(); onChanged(); } },
+    ({ id, isRequired }: { id: string; isRequired: boolean }) =>
+      updateCurriculumMapping(id, isRequired),
+    {
+      onSuccess: () => {
+        refetch();
+        onChanged();
+      },
+    }
   );
 
   const { mutateAsync: doAdd, isLoading: adding } = useApiMutation(
     (input: AddCurriculumMappingInput) => addCurriculumMapping(input),
-    { onSuccess: () => { setShowAdd(false); setSelectedTrainingId(""); refetch(); onChanged(); } },
+    {
+      onSuccess: () => {
+        setShowAdd(false);
+        setSelectedTrainingId("");
+        refetch();
+        onChanged();
+      },
+    }
   );
 
   const handleRemove = useCallback(
     async (m: AdminCurriculumMapping) => {
-      if (!confirm(`Remove "${m.trainingTitle}" from this cell?`)) return;
+      if (!confirm(t("confirmRemove", { title: m.trainingTitle }))) return;
       await doRemove(m.id);
     },
-    [doRemove],
+    [doRemove, t]
   );
 
   const handleAdd = async () => {
@@ -102,10 +122,12 @@ export function CurriculumCellDrawer({
 
   // Trainings already in this cell
   const usedTrainingIds = new Set(mappings?.map((m) => m.trainingId) ?? []);
-  const availableTrainings = (trainingsData?.trainings ?? [])
-    .filter((t) => !usedTrainingIds.has(t.id));
+  const availableTrainings = (trainingsData?.trainings ?? []).filter(
+    (t) => !usedTrainingIds.has(t.id)
+  );
 
-  const sorted = mappings?.slice().sort((a, b) => a.orderIndex - b.orderIndex) ?? [];
+  const sorted =
+    mappings?.slice().sort((a, b) => a.orderIndex - b.orderIndex) ?? [];
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -119,9 +141,11 @@ export function CurriculumCellDrawer({
         {/* Header */}
         <div className="flex items-center justify-between border-b px-4 py-3">
           <div>
-            <h2 id="curriculum-drawer-title" className="text-sm font-semibold">{gradeName} × {serviceLineName}</h2>
+            <h2 id="curriculum-drawer-title" className="text-sm font-semibold">
+              {gradeName} × {serviceLineName}
+            </h2>
             <p className="text-xs text-muted-foreground">
-              {sorted.length} formation{sorted.length !== 1 ? "s" : ""}
+              {t("formationsCount", { count: sorted.length })}
             </p>
           </div>
           <Button ref={closeRef} variant="ghost" size="sm" onClick={onClose} aria-label="Close">
@@ -132,19 +156,30 @@ export function CurriculumCellDrawer({
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
           {isLoading ? (
-            <p className="text-sm text-muted-foreground text-center py-8">Loading...</p>
+            <p className="text-sm text-muted-foreground text-center py-8">
+              {tCommon("actions.loading")}
+            </p>
           ) : sorted.length === 0 && !showAdd ? (
-            <p className="text-sm text-muted-foreground text-center py-8">No formations assigned</p>
+            <p className="text-sm text-muted-foreground text-center py-8">
+              {t("noFormationsAssigned")}
+            </p>
           ) : (
             sorted.map((m) => (
               <Card key={m.id} className="border-border/60">
                 <CardContent className="p-3 flex items-start gap-2">
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{m.trainingTitle}</p>
+                    <p className="text-sm font-medium truncate">
+                      {m.trainingTitle}
+                    </p>
                     <div className="flex items-center gap-2 mt-1">
-                      <Badge variant="secondary" className="text-xs">{m.trainingCredits} cr</Badge>
-                      <Badge variant={m.isRequired ? "default" : "outline"} className="text-xs">
-                        {m.isRequired ? "Required" : "Optional"}
+                      <Badge variant="secondary" className="text-xs">
+                        {t("creditsShort", { count: m.trainingCredits })}
+                      </Badge>
+                      <Badge
+                        variant={m.isRequired ? "default" : "outline"}
+                        className="text-xs"
+                      >
+                        {m.isRequired ? t("required") : t("optional")}
                       </Badge>
                     </div>
                   </div>
@@ -152,11 +187,20 @@ export function CurriculumCellDrawer({
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => doToggleRequired({ id: m.id, isRequired: !m.isRequired })}
-                      aria-label={`Toggle required for ${m.trainingTitle}`}
+                      onClick={() =>
+                        doToggleRequired({
+                          id: m.id,
+                          isRequired: !m.isRequired,
+                        })
+                      }
+                      aria-label={t("toggleRequiredAria", {
+                        title: m.trainingTitle,
+                      })}
                       className="h-7 w-7 p-0"
                     >
-                      <Check className={`h-3.5 w-3.5 ${m.isRequired ? "text-[hsl(var(--ey-green-500))]" : "text-muted-foreground"}`} />
+                      <Check
+                        className={`h-3.5 w-3.5 ${m.isRequired ? "text-[hsl(var(--ey-green-500))]" : "text-muted-foreground"}`}
+                      />
                     </Button>
                     <Button
                       variant="ghost"
@@ -176,16 +220,22 @@ export function CurriculumCellDrawer({
           {showAdd && (
             <Card className="border-[hsl(var(--ey-blue-400))]/30 border-2">
               <CardContent className="p-3 space-y-2">
-                <Label className="text-xs">Select Training</Label>
+                <Label className="text-xs">{t("selectTrainingLabel")}</Label>
                 <select
                   value={selectedTrainingId}
                   onChange={(e) => setSelectedTrainingId(e.target.value)}
                   className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 >
-                  <option value="">— Choose a training —</option>
-                  {availableTrainings.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.title} ({t.trainingType === "OnSite" ? "On-Site" : "E-Learning"})
+                  <option value="">{t("chooseTrainingOption")}</option>
+                  {availableTrainings.map((training) => (
+                    <option key={training.id} value={training.id}>
+                      {t("trainingOption", {
+                        title: training.title,
+                        type:
+                          training.trainingType === "OnSite"
+                            ? tCommon("trainingType.OnSite")
+                            : tCommon("trainingType.ELearning"),
+                      })}
                     </option>
                   ))}
                 </select>
@@ -195,7 +245,12 @@ export function CurriculumCellDrawer({
                     checked={selectedRequired}
                     onCheckedChange={(c) => setSelectedRequired(c === true)}
                   />
-                  <Label htmlFor="add-required" className="text-xs cursor-pointer">Required</Label>
+                  <Label
+                    htmlFor="add-required"
+                    className="text-xs cursor-pointer"
+                  >
+                    {t("required")}
+                  </Label>
                 </div>
                 <div className="flex gap-2">
                   <Button
@@ -204,10 +259,18 @@ export function CurriculumCellDrawer({
                     onClick={handleAdd}
                     className="ey-bg-dark hover:opacity-90"
                   >
-                    {adding && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />}
-                    Add
+                    {adding && (
+                      <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                    )}
+                    {tCommon("actions.add")}
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={() => setShowAdd(false)}>Cancel</Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowAdd(false)}
+                  >
+                    {tCommon("actions.cancel")}
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -223,7 +286,7 @@ export function CurriculumCellDrawer({
             onClick={() => setShowAdd(true)}
             disabled={showAdd}
           >
-            <Plus className="mr-1 h-3.5 w-3.5" /> Add Formation
+            <Plus className="mr-1 h-3.5 w-3.5" /> {t("addFormation")}
           </Button>
         </div>
       </div>

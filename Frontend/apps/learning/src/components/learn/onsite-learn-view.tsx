@@ -73,7 +73,7 @@ export function OnSiteLearnView({ training }: OnSiteLearnViewProps) {
                       : "text-foreground hover:bg-muted"
                   }`}
                 >
-                  <FileText className="h-4 w-4 shrink-0 text-[hsl(var(--ey-red-500))]" />
+                  <FileText className="h-4 w-4 shrink-0 text-destructive" />
                   <span className="truncate">{course.title}</span>
                 </button>
               ))}
@@ -87,7 +87,7 @@ export function OnSiteLearnView({ training }: OnSiteLearnViewProps) {
             <div className="flex h-full flex-col">
               <div className="flex items-center justify-between border-b border-border px-4 py-2">
                 <div className="flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-[hsl(var(--ey-red-500))]" />
+                  <FileText className="h-4 w-4 text-destructive" />
                   <span className="text-sm font-medium">{selectedCourse.title}</span>
                 </div>
                 <div className="flex items-center gap-2">

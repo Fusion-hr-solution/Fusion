@@ -1,17 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Loader2, Save, X } from "lucide-react";
-import {
-  Button,
-  Card,
-  CardContent,
-  Input,
-  Label,
-} from "@repo/ui";
+import { Button, Card, CardContent, Input, Label } from "@repo/ui";
 import { useApiMutation } from "@repo/api/react";
 import { createGrade, updateGrade } from "@/services/admin-service";
-import type { AdminGrade, CreateGradeInput, UpdateGradeInput } from "@/types/admin";
+import type {
+  AdminGrade,
+  CreateGradeInput,
+  UpdateGradeInput,
+} from "@/types/admin";
 
 interface GradeFormProps {
   grade?: AdminGrade;
@@ -20,6 +19,8 @@ interface GradeFormProps {
 }
 
 export function GradeForm({ grade, onSaved, onCancel }: GradeFormProps) {
+  const t = useTranslations("adminGrades");
+  const tCommon = useTranslations("common");
   const isEditing = Boolean(grade);
   const [name, setName] = useState(grade?.name ?? "");
   const [level, setLevel] = useState(grade?.level?.toString() ?? "");
@@ -28,12 +29,12 @@ export function GradeForm({ grade, onSaved, onCancel }: GradeFormProps) {
 
   const { mutateAsync: doCreate, isLoading: creating } = useApiMutation(
     (input: CreateGradeInput) => createGrade(input),
-    { onSuccess: onSaved },
+    { onSuccess: onSaved }
   );
 
   const { mutateAsync: doUpdate, isLoading: updating } = useApiMutation(
     (input: UpdateGradeInput) => updateGrade(grade!.id, input),
-    { onSuccess: onSaved },
+    { onSuccess: onSaved }
   );
 
   const isSaving = creating || updating;
@@ -58,18 +59,22 @@ export function GradeForm({ grade, onSaved, onCancel }: GradeFormProps) {
         <form onSubmit={handleSubmit} className="space-y-3">
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="grade-name" className="text-xs">Name *</Label>
+              <Label htmlFor="grade-name" className="text-xs">
+                {t("form.nameLabel")}
+              </Label>
               <Input
                 id="grade-name"
                 required
                 maxLength={100}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Staff"
+                placeholder={t("form.namePlaceholder")}
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="grade-level" className="text-xs">Level *</Label>
+              <Label htmlFor="grade-level" className="text-xs">
+                {t("form.levelLabel")}
+              </Label>
               <Input
                 id="grade-level"
                 required
@@ -78,37 +83,50 @@ export function GradeForm({ grade, onSaved, onCancel }: GradeFormProps) {
                 step={1}
                 value={level}
                 onChange={(e) => setLevel(e.target.value)}
-                placeholder="1"
+                placeholder={t("form.levelPlaceholder")}
               />
             </div>
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="grade-desc" className="text-xs">Description</Label>
+            <Label htmlFor="grade-desc" className="text-xs">
+              {t("form.descriptionLabel")}
+            </Label>
             <Input
               id="grade-desc"
               maxLength={500}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Optional description"
+              placeholder={t("form.descriptionPlaceholder")}
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="grade-icon" className="text-xs">Icon</Label>
+            <Label htmlFor="grade-icon" className="text-xs">
+              {t("form.iconLabel")}
+            </Label>
             <Input
               id="grade-icon"
               maxLength={50}
               value={icon}
               onChange={(e) => setIcon(e.target.value)}
-              placeholder="Optional icon name"
+              placeholder={t("form.iconPlaceholder")}
             />
           </div>
           <div className="flex items-center gap-2">
-            <Button type="submit" size="sm" disabled={isSaving} className="ey-bg-dark hover:opacity-90">
-              {isSaving ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Save className="mr-1 h-3.5 w-3.5" />}
-              {isEditing ? "Update" : "Create"}
+            <Button
+              type="submit"
+              size="sm"
+              disabled={isSaving}
+              className="ey-bg-dark hover:opacity-90"
+            >
+              {isSaving ? (
+                <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Save className="mr-1 h-3.5 w-3.5" />
+              )}
+              {isEditing ? t("form.update") : t("form.create")}
             </Button>
             <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
-              <X className="mr-1 h-3.5 w-3.5" /> Cancel
+              <X className="mr-1 h-3.5 w-3.5" /> {tCommon("actions.cancel")}
             </Button>
           </div>
         </form>

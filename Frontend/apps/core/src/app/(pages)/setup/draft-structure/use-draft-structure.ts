@@ -35,6 +35,55 @@ interface DeleteDraftOrgUnitArgs {
   version: number;
   replacementParentId?: string;
   promoteChildrenToRoot?: boolean;
+  skipLifecycleRefresh?: boolean;
+}
+
+async function invalidateDraftStructureLifecycleQueries(
+  queryClient: ReturnType<typeof useApiQueryClient>,
+  options?: {
+    includeImportSchema?: boolean;
+    includeReadiness?: boolean;
+  }
+) {
+  const invalidations = [
+    queryClient.invalidateQueries({
+      queryKey: draftStructureQueryKeys.workspace(),
+      exact: true,
+      refetchType: "active",
+    }),
+    queryClient.invalidateQueries({
+      queryKey: draftStructureQueryKeys.tree(),
+      exact: true,
+      refetchType: "active",
+    }),
+    queryClient.invalidateQueries({
+      queryKey: coreSetupQueryKeys.state(),
+      exact: true,
+      refetchType: "active",
+    }),
+  ];
+
+  if (options?.includeImportSchema) {
+    invalidations.push(
+      queryClient.invalidateQueries({
+        queryKey: draftStructureQueryKeys.importSchema(),
+        exact: true,
+        refetchType: "active",
+      })
+    );
+  }
+
+  if (options?.includeReadiness) {
+    invalidations.push(
+      queryClient.invalidateQueries({
+        queryKey: coreSetupQueryKeys.readiness(),
+        exact: true,
+        refetchType: "active",
+      })
+    );
+  }
+
+  await Promise.all(invalidations);
 }
 
 export function useDraftStructureWorkspace(enabled = true) {
@@ -75,17 +124,16 @@ export function useCreateDraftOrgUnit(opts?: {
   onSuccess?: (data: DraftOrgUnitDto) => void;
 }) {
   const client = useMemo(() => createPlatformApiClient(), []);
+  const queryClient = useApiQueryClient();
 
   return useApiMutation<DraftOrgUnitDto, CreateDraftOrgUnitRequest>(
     (input) =>
       client.post<DraftOrgUnitDto>(draftStructurePaths.create(), input),
     {
-      invalidateQueries: [
-        { queryKey: draftStructureQueryKeys.workspace(), exact: true },
-        { queryKey: draftStructureQueryKeys.tree(), exact: true },
-        { queryKey: coreSetupQueryKeys.readiness(), exact: true },
-      ],
       onSuccess: async (data) => {
+        await invalidateDraftStructureLifecycleQueries(queryClient, {
+          includeReadiness: true,
+        });
         await opts?.onSuccess?.(data);
       },
     }
@@ -96,6 +144,7 @@ export function useUpdateDraftOrgUnit(opts?: {
   onSuccess?: (data: DraftOrgUnitDto) => void;
 }) {
   const client = useMemo(() => createPlatformApiClient(), []);
+  const queryClient = useApiQueryClient();
 
   return useApiMutation<DraftOrgUnitDto, UpdateDraftOrgUnitArgs>(
     ({ id, version, input }) =>
@@ -103,12 +152,10 @@ export function useUpdateDraftOrgUnit(opts?: {
         headers: { "If-Match": `"${version}"` },
       }),
     {
-      invalidateQueries: [
-        { queryKey: draftStructureQueryKeys.workspace(), exact: true },
-        { queryKey: draftStructureQueryKeys.tree(), exact: true },
-        { queryKey: coreSetupQueryKeys.readiness(), exact: true },
-      ],
       onSuccess: async (data) => {
+        await invalidateDraftStructureLifecycleQueries(queryClient, {
+          includeReadiness: true,
+        });
         await opts?.onSuccess?.(data);
       },
     }
@@ -117,6 +164,7 @@ export function useUpdateDraftOrgUnit(opts?: {
 
 export function useDeleteDraftOrgUnit(opts?: { onSuccess?: () => void }) {
   const client = useMemo(() => createPlatformApiClient(), []);
+  const queryClient = useApiQueryClient();
 
   return useApiMutation<void, DeleteDraftOrgUnitArgs>(
     ({ id, version, replacementParentId, promoteChildrenToRoot }) =>
@@ -128,12 +176,29 @@ export function useDeleteDraftOrgUnit(opts?: { onSuccess?: () => void }) {
         },
       }),
     {
-      invalidateQueries: [
-        { queryKey: draftStructureQueryKeys.workspace(), exact: true },
-        { queryKey: draftStructureQueryKeys.tree(), exact: true },
-        { queryKey: coreSetupQueryKeys.readiness(), exact: true },
-      ],
+      onSuccess: async (_data, args) => {
+        if (!args.skipLifecycleRefresh) {
+          await invalidateDraftStructureLifecycleQueries(queryClient, {
+            includeReadiness: true,
+          });
+        }
+        await opts?.onSuccess?.();
+      },
+    }
+  );
+}
+
+export function useClearDraftStructure(opts?: { onSuccess?: () => void }) {
+  const client = useMemo(() => createPlatformApiClient(), []);
+  const queryClient = useApiQueryClient();
+
+  return useApiMutation<void, void>(
+    () => client.delete<void>(draftStructurePaths.clear()),
+    {
       onSuccess: async () => {
+        await invalidateDraftStructureLifecycleQueries(queryClient, {
+          includeReadiness: true,
+        });
         await opts?.onSuccess?.();
       },
     }
@@ -319,6 +384,7 @@ export function useApplyDraftStructureImport(opts?: {
   onSuccess?: (data: DraftStructureImportApplyResultDto) => void;
 }) {
   const client = useMemo(() => createPlatformApiClient(), []);
+  const queryClient = useApiQueryClient();
 
   return useApiMutation<
     DraftStructureImportApplyResultDto,
@@ -329,12 +395,14 @@ export function useApplyDraftStructureImport(opts?: {
         draftStructurePaths.importApply(sessionId)
       ),
     {
-      invalidateQueries: [
-        { queryKey: draftStructureQueryKeys.workspace(), exact: true },
-        { queryKey: draftStructureQueryKeys.tree(), exact: true },
-        { queryKey: coreSetupQueryKeys.readiness(), exact: true },
-      ],
       onSuccess: async (data) => {
+        queryClient.removeQueries({
+          queryKey: draftStructureQueryKeys.importSessions(),
+        });
+        await invalidateDraftStructureLifecycleQueries(queryClient, {
+          includeImportSchema: true,
+          includeReadiness: true,
+        });
         await opts?.onSuccess?.(data);
       },
     }

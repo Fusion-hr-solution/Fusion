@@ -67,6 +67,11 @@ public sealed class CompleteTenantSetupCommandHandler(
             .Take(10)
             .ToListAsync(cancellationToken);
 
-        return Result.Success(TenantSetupStateMapper.Map(state, recentActivities));
+        return Result.Success(
+            await TenantSetupStateProjection.MapAsync(
+                dbContext,
+                state,
+                recentActivities,
+                cancellationToken));
     }
 }

@@ -32,10 +32,7 @@ export function ExamQuestionItem({
     >
       <CardContent className="p-6">
         <div className="mb-4 flex items-start justify-between gap-3">
-          <h3
-            id={`exam-q-${question.id}`}
-            className="text-sm font-semibold text-foreground leading-relaxed"
-          >
+          <h3 id={`exam-q-${question.id}`} className="text-sm font-semibold text-foreground leading-relaxed">
             <span className="text-muted-foreground mr-2">{t("label", { number: index + 1 })}</span>
             {question.questionText}
           </h3>

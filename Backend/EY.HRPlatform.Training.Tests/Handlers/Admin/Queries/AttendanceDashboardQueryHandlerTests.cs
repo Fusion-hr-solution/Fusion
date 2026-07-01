@@ -35,7 +35,7 @@ public class AttendanceDashboardQueryHandlerTests
         var partResult = await new AddPartCommandHandler(ctx).Handle(
             new AddPartCommand(training.Id, "Part 1", null, durationHours), CancellationToken.None);
 
-        var sessionResult = await new AddSessionCommandHandler(ctx).Handle(new AddSessionCommand(
+        var sessionResult = await new AddSessionCommandHandler(ctx, new NoOpBudgetAlertNotifier()).Handle(new AddSessionCommand(
             training.Id, partResult.Value, start, end,
             "Room A", 25, null, null, "Alice", "alice@ey.com"), CancellationToken.None);
 
@@ -122,7 +122,7 @@ public class AttendanceDashboardQueryHandlerTests
         var part2 = await new AddPartCommandHandler(ctx).Handle(
             new AddPartCommand(trainingId, "Part 2", null, 5m), CancellationToken.None);
         var start2 = DateTime.UtcNow.AddHours(-10);
-        var session2 = await new AddSessionCommandHandler(ctx).Handle(new AddSessionCommand(
+        var session2 = await new AddSessionCommandHandler(ctx, new NoOpBudgetAlertNotifier()).Handle(new AddSessionCommand(
             trainingId, part2.Value, start2, start2.AddHours(5),
             "Room B", 25, null, null, "Alice", "alice@ey.com"), CancellationToken.None);
         await EnrollAsync(ctx, session2.Value!.SessionId, employeeId, EnrollmentStatus.Enrolled, "Worker");
@@ -183,7 +183,7 @@ public class AttendanceDashboardQueryHandlerTests
         var openStart = DateTime.UtcNow.AddDays(1);
         var openPart = await new AddPartCommandHandler(ctx).Handle(
             new AddPartCommand(trainingId, "Future Part", null, 9m), CancellationToken.None);
-        var openSession = await new AddSessionCommandHandler(ctx).Handle(new AddSessionCommand(
+        var openSession = await new AddSessionCommandHandler(ctx, new NoOpBudgetAlertNotifier()).Handle(new AddSessionCommand(
             trainingId, openPart.Value, openStart, openStart.AddHours(9),
             "Room C", 25, null, null, "Alice", "alice@ey.com"), CancellationToken.None);
         await EnrollAsync(ctx, openSession.Value!.SessionId, Guid.NewGuid(), EnrollmentStatus.Enrolled, "C");
