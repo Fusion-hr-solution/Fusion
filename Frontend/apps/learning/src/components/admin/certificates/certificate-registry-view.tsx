@@ -19,6 +19,7 @@ import {
 } from "@/services/admin-certificate-service";
 import { getAdminTrainings } from "@/services/admin-training-service";
 import { getGrades } from "@/services/admin-config-service";
+import { MOCK_CERTIFICATE_REGISTRY, MOCK_CERTIFICATE_STATS } from "@/data/certificate-stats-mock";
 import type {
   AdminCertificate,
   CertificateRegistryFilters,
@@ -48,20 +49,17 @@ export function CertificateRegistryView() {
   );
   const [exporting, setExporting] = useState(false);
 
-  const fetchRegistry = useCallback(
-    () => getCertificateRegistry(filters, page, PAGE_SIZE),
-    [filters, page]
-  );
-  const {
-    data: registry,
-    isLoading,
-    error,
-    refetch,
-  } = useApiQuery<CertificateRegistryPage>(fetchRegistry);
+  // Mocks are a local-dev convenience only: in production we never substitute
+  // fake certificates for a real backend error.
+  const allowMock = process.env.NODE_ENV !== "production";
+
+  const fetchRegistry = useCallback(() => getCertificateRegistry(filters, page, PAGE_SIZE), [filters, page]);
+  const { data: registryData, isLoading, error, refetch } = useApiQuery<CertificateRegistryPage>(fetchRegistry);
+  const registry = registryData ?? (allowMock ? MOCK_CERTIFICATE_REGISTRY : undefined);
 
   const fetchStats = useCallback(() => getCertificateStats(), []);
-  const { data: stats, refetch: refetchStats } =
-    useApiQuery<CertificateStats>(fetchStats);
+  const { data: statsData, refetch: refetchStats } = useApiQuery<CertificateStats>(fetchStats);
+  const stats = statsData ?? (allowMock ? MOCK_CERTIFICATE_STATS : undefined);
 
   const fetchTrainings = useCallback(
     () => getAdminTrainings({ pageSize: 100 }).then((r) => r.trainings),
@@ -169,14 +167,14 @@ export function CertificateRegistryView() {
           </div>
         </div>
 
-        <div className="rounded-lg border bg-card">
+        <div className="rounded-lg border border-border/60 bg-card">
           {isLoading ? (
             <div className="space-y-2 p-4">
               {[0, 1, 2, 3, 4].map((i) => (
                 <Skeleton key={i} className="h-10 w-full" />
               ))}
             </div>
-          ) : error ? (
+          ) : error && !registry ? (
             <EmptyState
               icon={Award}
               title={t("errorTitle")}

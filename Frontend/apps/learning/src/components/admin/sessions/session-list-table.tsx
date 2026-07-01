@@ -93,7 +93,7 @@ export function SessionListTable({
                 <TableCell>
                   <Link
                     href={`/admin/sessions/${s.id}`}
-                    className="inline-flex items-center gap-1.5 font-medium text-foreground hover:text-[hsl(var(--learning-blue-500))] transition-colors"
+                    className="inline-flex items-center gap-1.5 font-medium text-foreground hover:text-[hsl(var(--ey-blue-500))] transition-colors"
                   >
                     {s.trainingTitle}
                     <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />

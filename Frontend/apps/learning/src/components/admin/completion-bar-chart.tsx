@@ -21,7 +21,7 @@ interface CompletionBarChartProps {
 function getBarFill(rate: number, defaultColor?: string): string {
   if (defaultColor) return defaultColor;
   if (rate >= 80) return "hsl(var(--ey-green-500))";
-  if (rate >= 50) return "hsl(var(--ey-orange-500))";
+  if (rate >= 50) return "hsl(var(--primary))";
   return "hsl(var(--ey-red-500))";
 }
 
@@ -61,9 +61,9 @@ export function CompletionBarChart({
               ]}
               contentStyle={{
                 borderRadius: "8px",
+                background: "hsl(var(--popover))",
+                color: "hsl(var(--popover-foreground))",
                 border: "1px solid hsl(var(--border))",
-                backgroundColor: "hsl(var(--card))",
-                color: "hsl(var(--foreground))",
                 fontSize: "12px",
               }}
               labelStyle={{ color: "hsl(var(--foreground))" }}

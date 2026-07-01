@@ -312,8 +312,8 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
             </div>
 
             {session.capacityWarning && (
-              <div className="flex items-center gap-2.5 rounded-lg border border-[hsl(var(--ey-yellow))]/40 bg-[hsl(var(--ey-yellow))]/10 px-4 py-3 text-sm text-[hsl(var(--ey-orange-500))]">
-                <AlertTriangle className="h-4 w-4 shrink-0" />
+              <div className="flex items-center gap-2.5 rounded-lg border border-[hsl(var(--ey-orange-500))]/30 bg-[hsl(var(--ey-orange-500))]/10 px-4 py-3 text-sm text-[hsl(var(--ey-orange-500))]">
+                <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
                 <span>{t("detail.capacityWarning")}</span>
               </div>
             )}
@@ -410,7 +410,7 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="flex-1 gap-1.5 border-[hsl(var(--ey-green-500))]/30 bg-[hsl(var(--ey-green-500))]/5 text-[hsl(var(--ey-green-500))] hover:bg-[hsl(var(--ey-green-500))]/10 hover:text-[hsl(var(--ey-green-500))]"
+                  className="flex-1 gap-1.5 border-[hsl(var(--ey-green-500))]/20 bg-[hsl(var(--ey-green-500))]/10 text-[hsl(var(--ey-green-500))] hover:bg-[hsl(var(--ey-green-500))]/20"
                   disabled={resolvedAttendees.length === 0 || exportingExcel}
                   onClick={() => handleExport("excel")}
                   aria-label={t("detail.exportExcelAria")}
@@ -431,7 +431,7 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="flex-1 gap-1.5 border-destructive/30 bg-destructive/5 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  className="flex-1 gap-1.5 border-[hsl(var(--ey-red-500))]/20 bg-[hsl(var(--ey-red-500))]/10 text-[hsl(var(--ey-red-500))] hover:bg-[hsl(var(--ey-red-500))]/20"
                   disabled={resolvedAttendees.length === 0 || exportingPdf}
                   onClick={() => handleExport("pdf")}
                   aria-label={t("detail.exportPdfAria")}
@@ -475,11 +475,8 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
                         )}
                       </div>
                       {a.status === "Attended" ? (
-                        <Badge
-                          variant="outline"
-                          className="shrink-0 border-[hsl(var(--ey-green-500))]/30 bg-[hsl(var(--ey-green-500))]/10 text-[hsl(var(--ey-green-500))] text-[10px] px-1.5 py-0.5"
-                        >
-                          <CheckCircle2 className="h-3 w-3 mr-0.5" />
+                        <Badge variant="outline" className="shrink-0 border-[hsl(var(--ey-green-500))]/20 bg-[hsl(var(--ey-green-500))]/10 text-[hsl(var(--ey-green-500))] text-[10px] px-1.5 py-0.5">
+                          <CheckCircle2 className="h-3 w-3 mr-0.5" aria-hidden="true" />
                           {t("detail.attended")}
                         </Badge>
                       ) : (
@@ -489,12 +486,13 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
                           className="shrink-0 h-6 px-2 text-[10px] text-muted-foreground hover:text-[hsl(var(--ey-green-500))] hover:bg-[hsl(var(--ey-green-500))]/10"
                           disabled={markingId === a.employeeId}
                           onClick={() => handleMarkAttendance(a.employeeId)}
+                          aria-label={`Mark ${a.fullName ?? a.employeeId} as attended`}
                         >
                           {markingId === a.employeeId ? (
-                            <Loader2 className="h-3 w-3 animate-spin" />
+                            <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />
                           ) : (
                             <>
-                              <CheckCircle2 className="h-3 w-3 mr-0.5" />
+                              <CheckCircle2 className="h-3 w-3 mr-0.5" aria-hidden="true" />
                               {t("detail.mark")}
                             </>
                           )}
@@ -537,38 +535,32 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
             </li>
 
             {/* Started (if time has passed) */}
-            {new Date(session.startUtc) <= new Date() &&
-              session.status !== "Cancelled" && (
-                <li className="ml-4">
-                  <div className="absolute -left-1.5 mt-1 h-3 w-3 rounded-full border-2 border-background bg-[hsl(var(--ey-blue-400))]" />
-                  <p className="text-xs font-medium text-foreground">
-                    {t("detail.sessionStarted")}
-                  </p>
-                  <time className="text-[10px] text-muted-foreground">
-                    {format.dateTime(new Date(session.startUtc), {
-                      dateStyle: "medium",
-                      timeStyle: "short",
-                    })}
-                  </time>
-                </li>
-              )}
+            {new Date(session.startUtc) <= new Date() && session.status !== "Cancelled" && (
+              <li className="ml-4">
+                <div className="absolute -left-1.5 mt-1 h-3 w-3 rounded-full border-2 border-background bg-[hsl(var(--ey-blue-500))]" />
+                <p className="text-xs font-medium text-foreground">{t("detail.sessionStarted")}</p>
+                <time className="text-[10px] text-muted-foreground">
+                  {format.dateTime(new Date(session.startUtc), {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  })}
+                </time>
+              </li>
+            )}
 
             {/* Ended / Completed */}
-            {new Date(session.endUtc) <= new Date() &&
-              session.status !== "Cancelled" && (
-                <li className="ml-4">
-                  <div className="absolute -left-1.5 mt-1 h-3 w-3 rounded-full border-2 border-background bg-[hsl(var(--ey-green-500))]" />
-                  <p className="text-xs font-medium text-foreground">
-                    {t("detail.sessionCompleted")}
-                  </p>
-                  <time className="text-[10px] text-muted-foreground">
-                    {format.dateTime(new Date(session.endUtc), {
-                      dateStyle: "medium",
-                      timeStyle: "short",
-                    })}
-                  </time>
-                </li>
-              )}
+            {new Date(session.endUtc) <= new Date() && session.status !== "Cancelled" && (
+              <li className="ml-4">
+                <div className="absolute -left-1.5 mt-1 h-3 w-3 rounded-full border-2 border-background bg-[hsl(var(--ey-green-500))]" />
+                <p className="text-xs font-medium text-foreground">{t("detail.sessionCompleted")}</p>
+                <time className="text-[10px] text-muted-foreground">
+                  {format.dateTime(new Date(session.endUtc), {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  })}
+                </time>
+              </li>
+            )}
 
             {/* Cancelled */}
             {session.status === "Cancelled" && session.cancelledAt && (

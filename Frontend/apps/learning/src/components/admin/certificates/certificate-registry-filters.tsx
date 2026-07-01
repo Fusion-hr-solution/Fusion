@@ -6,6 +6,7 @@ import { X } from "lucide-react";
 import {
   Button,
   Input,
+  Label,
   Select,
   SelectContent,
   SelectItem,
@@ -38,23 +39,24 @@ export function CertificateRegistryFiltersBar({
 }: CertificateRegistryFiltersBarProps) {
   const t = useTranslations("adminCertificates");
   return (
-    <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-card p-4">
-      <Field label={t("filters.search")}>
+    <div className="flex flex-wrap items-end gap-3 rounded-lg border border-border/60 bg-card p-4">
+      <Field label={t("filters.search")} htmlFor="cert-filter-search">
         <Input
+          id="cert-filter-search"
           className="w-52"
           placeholder={t("filters.searchPlaceholder")}
           value={filters.search ?? ""}
           onChange={(e) => onChange({ search: e.target.value || undefined })}
         />
       </Field>
-      <Field label={t("filters.formation")}>
+      <Field label={t("filters.formation")} htmlFor="cert-filter-training">
         <Select
           value={filters.trainingId ?? ALL}
           onValueChange={(v) =>
             onChange({ trainingId: v === ALL ? undefined : v })
           }
         >
-          <SelectTrigger className="w-48">
+          <SelectTrigger id="cert-filter-training" className="w-48">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -67,14 +69,9 @@ export function CertificateRegistryFiltersBar({
           </SelectContent>
         </Select>
       </Field>
-      <Field label={t("filters.grade")}>
-        <Select
-          value={filters.gradeId ?? ALL}
-          onValueChange={(v) =>
-            onChange({ gradeId: v === ALL ? undefined : v })
-          }
-        >
-          <SelectTrigger className="w-40">
+      <Field label={t("filters.grade")} htmlFor="cert-filter-grade">
+        <Select value={filters.gradeId ?? ALL} onValueChange={(v) => onChange({ gradeId: v === ALL ? undefined : v })}>
+          <SelectTrigger id="cert-filter-grade" className="w-40">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -87,7 +84,7 @@ export function CertificateRegistryFiltersBar({
           </SelectContent>
         </Select>
       </Field>
-      <Field label={t("filters.status")}>
+      <Field label={t("filters.status")} htmlFor="cert-filter-status">
         <Select
           value={filters.status || ALL}
           onValueChange={(v) =>
@@ -97,7 +94,7 @@ export function CertificateRegistryFiltersBar({
             })
           }
         >
-          <SelectTrigger className="w-32">
+          <SelectTrigger id="cert-filter-status" className="w-32">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -107,21 +104,11 @@ export function CertificateRegistryFiltersBar({
           </SelectContent>
         </Select>
       </Field>
-      <Field label={t("filters.from")}>
-        <Input
-          type="date"
-          className="w-40"
-          value={filters.from ?? ""}
-          onChange={(e) => onChange({ from: e.target.value || undefined })}
-        />
+      <Field label={t("filters.from")} htmlFor="cert-filter-from">
+        <Input id="cert-filter-from" type="date" className="w-40" value={filters.from ?? ""} onChange={(e) => onChange({ from: e.target.value || undefined })} />
       </Field>
-      <Field label={t("filters.to")}>
-        <Input
-          type="date"
-          className="w-40"
-          value={filters.to ?? ""}
-          onChange={(e) => onChange({ to: e.target.value || undefined })}
-        />
+      <Field label={t("filters.to")} htmlFor="cert-filter-to">
+        <Input id="cert-filter-to" type="date" className="w-40" value={filters.to ?? ""} onChange={(e) => onChange({ to: e.target.value || undefined })} />
       </Field>
       <Button variant="ghost" size="sm" onClick={onClear}>
         <X className="mr-1 h-4 w-4" aria-hidden="true" />
@@ -131,12 +118,20 @@ export function CertificateRegistryFiltersBar({
   );
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+function Field({
+  label,
+  htmlFor,
+  children,
+}: {
+  label: string;
+  htmlFor: string;
+  children: ReactNode;
+}) {
   return (
     <div className="space-y-1">
-      <span className="block text-xs font-medium text-muted-foreground">
+      <Label htmlFor={htmlFor} className="block text-xs font-medium text-muted-foreground">
         {label}
-      </span>
+      </Label>
       {children}
     </div>
   );

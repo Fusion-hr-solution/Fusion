@@ -25,29 +25,20 @@ function statusBadge(status: AttendanceStatus, t: (key: string) => string) {
   switch (status) {
     case "present":
       return (
-        <Badge
-          variant="outline"
-          className="border-[hsl(var(--ey-green-500))]/30 bg-[hsl(var(--ey-green-500))]/10 text-[hsl(var(--ey-green-500))]"
-        >
-          <CheckCircle2 className="mr-1 h-3 w-3" /> {t("employee.present")}
+        <Badge variant="outline" className="border-[hsl(var(--ey-green-500))]/20 bg-[hsl(var(--ey-green-500))]/10 text-[hsl(var(--ey-green-500))]">
+          <CheckCircle2 className="mr-1 h-3 w-3" aria-hidden="true" /> {t("employee.present")}
         </Badge>
       );
     case "absent":
       return (
-        <Badge
-          variant="outline"
-          className="border-destructive/30 bg-destructive/10 text-destructive"
-        >
-          <XCircle className="mr-1 h-3 w-3" /> {t("employee.absent")}
+        <Badge variant="outline" className="border-[hsl(var(--ey-red-500))]/20 bg-[hsl(var(--ey-red-500))]/10 text-[hsl(var(--ey-red-500))]">
+          <XCircle className="mr-1 h-3 w-3" aria-hidden="true" /> {t("employee.absent")}
         </Badge>
       );
     default:
       return (
-        <Badge
-          variant="outline"
-          className="border-[hsl(var(--ey-orange-500))]/30 bg-[hsl(var(--ey-orange-500))]/10 text-foreground"
-        >
-          <Clock3 className="mr-1 h-3 w-3" /> {t("employee.pending")}
+        <Badge variant="outline" className="border-[hsl(var(--ey-orange-500))]/20 bg-[hsl(var(--ey-orange-500))]/10 text-[hsl(var(--ey-orange-500))]">
+          <Clock3 className="mr-1 h-3 w-3" aria-hidden="true" /> {t("employee.pending")}
         </Badge>
       );
   }

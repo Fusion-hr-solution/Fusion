@@ -35,23 +35,9 @@ type SortField =
   | "lastActivityAt";
 
 function completionBadge(pct: number) {
-  if (pct >= 80)
-    return (
-      <Badge className="bg-[hsl(var(--ey-green-500))]/10 text-[hsl(var(--ey-green-500))] border-[hsl(var(--ey-green-500))]/30">
-        {pct}%
-      </Badge>
-    );
-  if (pct >= 50)
-    return (
-      <Badge className="bg-[hsl(var(--ey-orange-500))]/10 text-foreground border-[hsl(var(--ey-orange-500))]/30">
-        {pct}%
-      </Badge>
-    );
-  return (
-    <Badge className="bg-destructive/10 text-destructive border-destructive/30">
-      {pct}%
-    </Badge>
-  );
+  if (pct >= 80) return <Badge className="bg-[hsl(var(--ey-green-500))]/15 text-[hsl(var(--ey-green-500))] border-[hsl(var(--ey-green-500))]/25">{pct}%</Badge>;
+  if (pct >= 50) return <Badge className="bg-[hsl(var(--ey-orange-500))]/15 text-[hsl(var(--ey-orange-500))] border-[hsl(var(--ey-orange-500))]/25">{pct}%</Badge>;
+  return <Badge className="bg-[hsl(var(--ey-red-500))]/15 text-[hsl(var(--ey-red-500))] border-[hsl(var(--ey-red-500))]/25">{pct}%</Badge>;
 }
 
 export function CellDrillDownDialog({

@@ -262,9 +262,12 @@ export function SessionFormDialog({
             <div className="space-y-5 pt-2">
               {/* Lock banner for completed sessions */}
               {isCompleted && (
-                <div className="flex items-center gap-2 rounded-lg border border-[hsl(var(--ey-orange-500))]/30 bg-[hsl(var(--ey-orange-500))]/10 px-4 py-3">
-                  <Lock className="h-4 w-4 text-[hsl(var(--ey-orange-500))] shrink-0" />
-                  <p className="text-xs text-foreground">
+                <div className="flex items-center gap-2 rounded-lg border border-[hsl(var(--ey-orange-500))]/20 bg-[hsl(var(--ey-orange-500))]/10 px-4 py-3">
+                  <Lock
+                    className="h-4 w-4 text-[hsl(var(--ey-orange-500))] shrink-0"
+                    aria-hidden="true"
+                  />
+                  <p className="text-xs text-[hsl(var(--ey-orange-500))]">
                     {t("sessionDialog.endedBanner")}
                   </p>
                 </div>
@@ -278,7 +281,7 @@ export function SessionFormDialog({
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <Label className="text-xs">
+                    <Label id="sessionDateLabel" className="text-xs">
                       {t("sessionDialog.dateLabel")}
                     </Label>
                     <CalendarWidget
@@ -296,15 +299,17 @@ export function SessionFormDialog({
                           : (date) =>
                               date < new Date(new Date().setHours(0, 0, 0, 0))
                       }
+                      aria-labelledby="sessionDateLabel"
                       className={`rounded-md border ${isCompleted ? "opacity-50 pointer-events-none" : ""}`}
                     />
                   </div>
                   <div className="space-y-3">
                     <div className="space-y-1.5">
-                      <Label className="text-xs">
+                      <Label htmlFor="sessionStartTime" className="text-xs">
                         {t("sessionDialog.startTimeLabel")}
                       </Label>
                       <Input
+                        id="sessionStartTime"
                         type="time"
                         value={startTime}
                         onChange={(e) => {
@@ -316,10 +321,11 @@ export function SessionFormDialog({
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-xs">
+                      <Label htmlFor="sessionEndTime" className="text-xs">
                         {t("sessionDialog.endTimeLabel")}
                       </Label>
                       <Input
+                        id="sessionEndTime"
                         type="time"
                         value={endTime}
                         onChange={(e) => {
@@ -436,6 +442,7 @@ export function SessionFormDialog({
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder={t("sessionDialog.notesPlaceholder")}
                   className="h-10"
+                  aria-label={t("sessionDialog.notes")}
                 />
               </div>
             </div>
@@ -521,9 +528,9 @@ export function SessionFormDialog({
 
           {/* Conflict warnings */}
           {conflicts.length > 0 && (
-            <div className="rounded-lg border border-[hsl(var(--ey-yellow))]/40 bg-[hsl(var(--ey-yellow))]/10 p-4 mt-2">
+            <div className="rounded-lg border border-[hsl(var(--ey-orange-500))]/30 bg-[hsl(var(--ey-orange-500))]/10 p-4 mt-2">
               <div className="flex items-center gap-2 text-sm font-medium text-[hsl(var(--ey-orange-500))]">
-                <AlertTriangle className="h-4 w-4" />
+                <AlertTriangle className="h-4 w-4" aria-hidden="true" />
                 {t("sessionDialog.roomConflictDetected")}
               </div>
               <ul className="mt-2 space-y-1.5 text-xs text-muted-foreground">

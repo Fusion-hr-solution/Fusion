@@ -32,16 +32,8 @@ export function CompletionTrendChart({ points }: CompletionTrendChartProps) {
           >
             <defs>
               <linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1">
-                <stop
-                  offset="0%"
-                  stopColor="hsl(var(--ey-blue-400))"
-                  stopOpacity={0.15}
-                />
-                <stop
-                  offset="100%"
-                  stopColor="hsl(var(--ey-blue-400))"
-                  stopOpacity={0.02}
-                />
+                <stop offset="0%" stopColor="hsl(var(--ey-blue-400))" stopOpacity={0.15} />
+                <stop offset="100%" stopColor="hsl(var(--ey-blue-400))" stopOpacity={0.02} />
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
@@ -65,9 +57,9 @@ export function CompletionTrendChart({ points }: CompletionTrendChartProps) {
               ]}
               contentStyle={{
                 borderRadius: "8px",
+                background: "hsl(var(--popover))",
+                color: "hsl(var(--popover-foreground))",
                 border: "1px solid hsl(var(--border))",
-                backgroundColor: "hsl(var(--card))",
-                color: "hsl(var(--foreground))",
                 fontSize: "12px",
               }}
               labelStyle={{ color: "hsl(var(--foreground))" }}
@@ -85,7 +77,7 @@ export function CompletionTrendChart({ points }: CompletionTrendChartProps) {
               stroke="hsl(var(--ey-blue-400))"
               strokeWidth={2.5}
               dot={{ r: 3, fill: "hsl(var(--ey-blue-400))", strokeWidth: 0 }}
-              activeDot={{ r: 5, strokeWidth: 2, stroke: "hsl(var(--card))" }}
+              activeDot={{ r: 5, strokeWidth: 2, stroke: "#fff" }}
             />
           </ComposedChart>
         </ResponsiveContainer>

@@ -177,9 +177,9 @@ export function PartFormDialog({
           <div className="space-y-4 pt-2">
             {/* Lock banner for completed/locked parts */}
             {isLocked && (
-              <div className="flex items-center gap-2 rounded-lg border border-[hsl(var(--ey-orange-500))]/30 bg-[hsl(var(--ey-orange-500))]/10 px-4 py-3">
-                <Lock className="h-4 w-4 text-[hsl(var(--ey-orange-500))] shrink-0" />
-                <p className="text-xs text-foreground">
+              <div className="flex items-center gap-2 rounded-lg border border-[hsl(var(--ey-orange-500))]/20 bg-[hsl(var(--ey-orange-500))]/10 px-4 py-3">
+                <Lock className="h-4 w-4 text-[hsl(var(--ey-orange-500))] shrink-0" aria-hidden="true" />
+                <p className="text-xs text-[hsl(var(--ey-orange-500))]">
                   {isPartCompleted
                     ? t("partDialog.lockedCompleted")
                     : t("partDialog.lockedGeneric")}

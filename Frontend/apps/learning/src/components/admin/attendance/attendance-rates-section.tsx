@@ -96,9 +96,9 @@ export function AttendanceRatesSection() {
       {/* Filters */}
       <div className="flex flex-wrap items-end gap-3 rounded-xl border border-border/60 bg-card p-4 shadow-sm">
         <div className="space-y-1.5">
-          <Label className="text-xs">{t("rates.grade")}</Label>
+          <Label htmlFor="attendance-filter-grade" className="text-xs">{t("rates.grade")}</Label>
           <Select value={gradeId} onValueChange={setGradeId}>
-            <SelectTrigger className="h-9 w-[180px]">
+            <SelectTrigger id="attendance-filter-grade" className="h-9 w-[180px]">
               <SelectValue placeholder={t("rates.allGrades")} />
             </SelectTrigger>
             <SelectContent>
@@ -113,9 +113,9 @@ export function AttendanceRatesSection() {
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-xs">{t("rates.serviceLine")}</Label>
+          <Label htmlFor="attendance-filter-service-line" className="text-xs">{t("rates.serviceLine")}</Label>
           <Select value={serviceLineId} onValueChange={setServiceLineId}>
-            <SelectTrigger className="h-9 w-[180px]">
+            <SelectTrigger id="attendance-filter-service-line" className="h-9 w-[180px]">
               <SelectValue placeholder={t("rates.allServiceLines")} />
             </SelectTrigger>
             <SelectContent>
@@ -130,8 +130,9 @@ export function AttendanceRatesSection() {
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-xs">{t("rates.from")}</Label>
+          <Label htmlFor="attendance-filter-from" className="text-xs">{t("rates.from")}</Label>
           <Input
+            id="attendance-filter-from"
             type="date"
             value={from}
             onChange={(e) => setFrom(e.target.value)}
@@ -140,8 +141,9 @@ export function AttendanceRatesSection() {
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-xs">{t("rates.to")}</Label>
+          <Label htmlFor="attendance-filter-to" className="text-xs">{t("rates.to")}</Label>
           <Input
+            id="attendance-filter-to"
             type="date"
             value={to}
             onChange={(e) => setTo(e.target.value)}

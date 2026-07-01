@@ -33,7 +33,7 @@ function TrainingRow({ t }: { t: CellEmployeeTrainingProgress }) {
         ) : t.status === "in-progress" ? (
           <Clock className="h-4 w-4 text-[hsl(var(--ey-orange-500))]" />
         ) : t.status === "failed" ? (
-          <XCircle className="h-4 w-4 text-destructive" />
+          <XCircle className="h-4 w-4 text-[hsl(var(--ey-red-500))]" />
         ) : (
           <Circle className="h-4 w-4 text-muted-foreground/40" />
         )}
@@ -84,11 +84,7 @@ export function EmployeeCard({ emp }: { emp: EnrichedEmployee }) {
         className="h-1 rounded-t-xl"
         style={{
           background:
-            pct >= 80
-              ? "hsl(var(--ey-green-500))"
-              : pct >= 40
-                ? "hsl(var(--ey-orange-500))"
-                : "hsl(var(--muted))",
+            pct >= 80 ? "hsl(var(--ey-green-500))" : pct >= 40 ? "hsl(var(--ey-orange-500))" : "hsl(var(--muted))",
         }}
       />
       <div className="p-5">
@@ -130,7 +126,7 @@ export function EmployeeCard({ emp }: { emp: EnrichedEmployee }) {
               })}
             </span>
             {hasPartialProgress && (
-              <span className="text-[10px] text-foreground font-medium">
+              <span className="text-[10px] text-[hsl(var(--ey-orange-500))] font-medium">
                 {t("card.inProgressDot")}
               </span>
             )}

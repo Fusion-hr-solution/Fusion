@@ -12,8 +12,8 @@ interface SessionAttendancePanelProps {
 
 const STAT_STYLES: Record<string, string> = {
   present: "text-[hsl(var(--ey-green-500))]",
-  absent: "text-destructive",
-  pending: "text-foreground",
+  absent: "text-[hsl(var(--ey-red-500))]",
+  pending: "text-[hsl(var(--ey-orange-500))]",
   rate: "text-[hsl(var(--ey-blue-500))]",
 };
 

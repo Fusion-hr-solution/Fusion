@@ -13,9 +13,9 @@ const EMPTY_GUID = "00000000-0000-0000-0000-000000000000";
 /** Map an attendance rate (0–100) to an EY-token background + readable text color. */
 function cellStyle(rate: number): string {
   if (rate >= 80) return "bg-[hsl(var(--ey-green-500))] text-white";
-  if (rate >= 60) return "bg-[hsl(var(--ey-green-500))]/50 text-foreground";
-  if (rate >= 40) return "bg-[hsl(var(--ey-orange-500))]/25 text-foreground";
-  if (rate >= 20) return "bg-[hsl(var(--ey-orange-500))]/80 text-foreground";
+  if (rate >= 60) return "bg-[hsl(var(--ey-green-500))]/55 text-foreground";
+  if (rate >= 40) return "bg-[hsl(var(--ey-orange-500))]/70 text-foreground";
+  if (rate >= 20) return "bg-[hsl(var(--ey-orange-500))] text-white";
   return "bg-[hsl(var(--ey-red-500))] text-white";
 }
 
@@ -52,7 +52,6 @@ export function AttendanceHeatmapGrid({ data }: AttendanceHeatmapGridProps) {
 
   return (
     <div className="ey-animate-fade-up overflow-x-auto rounded-xl border border-border/60 bg-card p-5 shadow-sm">
-
       <h3 className="mb-4 text-sm font-semibold text-foreground">
         {t("heatmap.title")}
       </h3>

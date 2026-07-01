@@ -67,8 +67,8 @@ export function AttendanceDonutChart({
             contentStyle={{
               borderRadius: "8px",
               border: "1px solid hsl(var(--border))",
-              backgroundColor: "hsl(var(--card))",
-              color: "hsl(var(--foreground))",
+              background: "hsl(var(--popover))",
+              color: "hsl(var(--popover-foreground))",
               fontSize: "12px",
             }}
             labelStyle={{ color: "hsl(var(--foreground))" }}

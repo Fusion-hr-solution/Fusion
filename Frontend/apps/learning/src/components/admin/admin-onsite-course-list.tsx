@@ -162,7 +162,7 @@ export function AdminOnSiteCourseList({
         <Card key={course.id} className="border-border/60">
           <CardContent className="flex items-center gap-3 py-3">
             <GripVertical className="h-4 w-4 shrink-0 text-muted-foreground/50" />
-            <FileText className="h-5 w-5 shrink-0 text-destructive" />
+            <FileText className="h-5 w-5 shrink-0 text-[hsl(var(--ey-red-500))]" />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">{course.title}</p>
               <p className="text-xs text-muted-foreground truncate">

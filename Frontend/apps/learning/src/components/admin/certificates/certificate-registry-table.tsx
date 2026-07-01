@@ -47,6 +47,7 @@ export function CertificateRegistryTable({
           <TableHead>{t("table.formation")}</TableHead>
           <TableHead>{t("table.issued")}</TableHead>
           <TableHead>{t("table.status")}</TableHead>
+          <TableHead>Revocation reason</TableHead>
           <TableHead className="text-right">{t("table.actions")}</TableHead>
         </TableRow>
       </TableHeader>
@@ -72,14 +73,19 @@ export function CertificateRegistryTable({
                 <Badge variant={revoked ? "destructive" : "secondary"}>
                   {revoked ? t("status.revoked") : t("status.valid")}
                 </Badge>
-                {revoked && c.revokedReason ? (
-                  <p
-                    className="mt-1 max-w-[200px] truncate text-xs text-muted-foreground"
-                    title={c.revokedReason}
-                  >
-                    {c.revokedReason}
-                  </p>
-                ) : null}
+              </TableCell>
+              <TableCell className="max-w-[240px] text-sm text-muted-foreground">
+                {revoked ? (
+                  c.revokedReason ? (
+                    <span className="block truncate" title={c.revokedReason}>
+                      {c.revokedReason}
+                    </span>
+                  ) : (
+                    <span className="italic text-muted-foreground/70">No reason recorded</span>
+                  )
+                ) : (
+                  "—"
+                )}
               </TableCell>
               <TableCell className="text-right">
                 <div className="flex justify-end gap-1">
