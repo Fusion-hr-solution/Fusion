@@ -27,10 +27,10 @@ export function TrainingDetailPage({ training }: TrainingDetailPageProps) {
           <span className="flex items-center gap-1.5 text-sm text-muted-foreground"><span className={`h-2 w-2 rounded-full ${level.dotClass}`} />{tCommon(`level.${training.level}`)}</span>
           <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${badge.className}`}><Award className="h-3 w-3" aria-hidden="true" />{tCommon(`badgeLevel.${training.badgeLevel.toLowerCase()}`)}</span>
           {training.isMandatory && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2.5 py-0.5 text-xs font-semibold text-amber-700"><AlertTriangle className="h-3 w-3" aria-hidden="true" />{t("mandatory")}</span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-[hsl(var(--ey-orange-500))]/10 border border-[hsl(var(--ey-orange-500))]/20 px-2.5 py-0.5 text-xs font-semibold text-[hsl(var(--ey-orange-500))]"><AlertTriangle className="h-3 w-3" aria-hidden="true" />{t("mandatory")}</span>
           )}
           {training.trainingType === "OnSite" && (
-            <span className="inline-flex items-center rounded-full bg-blue-50 border border-blue-200 px-2.5 py-0.5 text-xs font-semibold text-blue-700">{t("onSiteTraining")}</span>
+            <span className="inline-flex items-center rounded-full bg-[hsl(var(--ey-teal-500))]/10 border border-[hsl(var(--ey-teal-500))]/20 px-2.5 py-0.5 text-xs font-semibold text-[hsl(var(--ey-teal-500))]">{t("onSiteTraining")}</span>
           )}
         </div>
       </PageHeader>

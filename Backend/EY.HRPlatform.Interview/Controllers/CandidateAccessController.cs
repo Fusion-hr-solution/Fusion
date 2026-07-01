@@ -47,6 +47,9 @@ public class CandidateAccessController(ICandidateAccessService candidateAccessSe
     [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
     public async Task<IActionResult> Run([FromBody] RunCodeRequestDto request, CancellationToken cancellationToken)
     {
+        request.ClientIpAddress = ResolveClientIpAddress();
+        request.UserAgent = Request.Headers.UserAgent.ToString();
+
         var data = await candidateAccessService.RunCodeAsync(request, cancellationToken);
         return Ok(ApiResponse<RunCodeResultDto>.Success(data));
     }

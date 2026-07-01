@@ -16,6 +16,9 @@ public class Question : AggregateRoot
     public int UsageCount { get; set; }
     public string? Language { get; set; }
     public string? StarterCode { get; set; }
+    /// <summary>For multi-file coding questions: JSON { entry, files: [{ path, content }] }.
+    /// Null/empty means the question is single-file (uses <see cref="StarterCode"/>).</summary>
+    public string? ProjectFiles { get; set; }
     public string? EvaluationCriteria { get; set; }
     public string? TestCases { get; set; }
     //public DateTime CreatedAt { get; protected set; }

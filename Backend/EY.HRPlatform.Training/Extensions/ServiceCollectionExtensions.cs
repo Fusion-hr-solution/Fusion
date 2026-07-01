@@ -1,12 +1,15 @@
 using System.Text;
 using EY.HRPlatform.Training.Features.Admin.Import;
 using EY.HRPlatform.Training.Features.Admin.Reports.Export;
+using EY.HRPlatform.Training.Features.Admin.Budget;
+using EY.HRPlatform.Training.Features.Admin.Budget.Export;
 using EY.HRPlatform.Training.Features.Admin.Sessions.Export;
 using EY.HRPlatform.Training.Features.Admin.Sessions.Services;
 using EY.HRPlatform.Training.Features.Certifications.Export;
 using EY.HRPlatform.Training.Features.Certifications.Services;
 using EY.HRPlatform.Training.Features.Enrollment.Services;
 using EY.HRPlatform.Training.Infrastructure.Persistence;
+using EY.HRPlatform.Training.Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -78,6 +81,24 @@ public static class ServiceCollectionExtensions
 
         // 7. Register on-site completion materialisation (ADR 0005) — scoped, uses the DbContext
         services.AddScoped<IAttendanceCompletionService, AttendanceCompletionService>();
+
+        // 8. Budget alert email sender (own SMTP infra; Smtp when enabled + configured, else NoOp)
+        var budgetAlertSection = configuration.GetSection(BudgetAlertEmailOptions.SectionName);
+        services.Configure<BudgetAlertEmailOptions>(budgetAlertSection);
+
+        var budgetAlertEnabled = string.Equals(budgetAlertSection["Enabled"], "true", StringComparison.OrdinalIgnoreCase);
+        var budgetAlertSmtpHost = budgetAlertSection["SmtpHost"]?.Trim();
+
+        if (!budgetAlertEnabled || string.IsNullOrWhiteSpace(budgetAlertSmtpHost))
+            services.AddSingleton<IBudgetAlertEmailSender, NoBudgetAlertEmailSender>();
+        else
+            services.AddSingleton<IBudgetAlertEmailSender, SmtpBudgetAlertEmailSender>();
+
+        // 9. Budget threshold notifier (scoped — uses the scoped DbContext)
+        services.AddScoped<IBudgetAlertNotifier, BudgetAlertNotifier>();
+
+        // 10. Budget report exporter (Excel + PDF)
+        services.AddSingleton<IBudgetReportExporter, BudgetReportExporter>();
 
         return services;
     }

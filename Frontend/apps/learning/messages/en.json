@@ -143,6 +143,7 @@
       "serviceLines": "Service Lines",
       "employeeProfiles": "Employee Profiles",
       "curriculum": "Curriculum",
+      "trainingBudgets": "Training Budgets",
       "sessions": "Sessions",
       "attendance": "Attendance",
       "certificateRegistry": "Certificate Registry",
@@ -317,7 +318,8 @@
       "inProgress": "In Progress",
       "completed": "Completed",
       "totalHours": "Total Hours",
-      "enrolled": "Enrolled"
+      "enrolled": "Enrolled",
+      "avgProgress": "Avg Progress"
     },
     "searchPlaceholder": "Search trainings...",
     "searchAria": "Search enrolled trainings",
@@ -651,6 +653,7 @@
     "intro": {
       "questions": "Questions",
       "timeLimit": "Time Limit",
+      "suggestedTime": "Suggested time",
       "minutes": "{minutes} min",
       "alreadyPassed": "You have already passed this exam. You can retake it if you wish.",
       "retake": "Retake Exam",
@@ -996,6 +999,10 @@
         "exams": "Exams"
       },
       "courseMaterials": "Course Materials",
+      "tabs": {
+        "sessions": "Sessions",
+        "costs": "Costs"
+      },
       "chaptersHeading": "Chapters",
       "addChapter": "Add Chapter"
     },
@@ -1059,6 +1066,7 @@
         "titleMinLength": "Title must be at least 2 characters.",
         "categoryRequired": "Please select a category.",
         "creditsNegative": "Credits cannot be negative.",
+        "sponsoringServiceLineRequired": "Sponsoring service line is required for external trainings.",
         "scheduledDateFuture": "Scheduled date must be in the future."
       }
     },
@@ -1289,13 +1297,29 @@
   },
   "adminDashboard": {
     "moduleTitle": "Administration",
-    "title": "Programme Matrix & Progress",
-    "description": "Click any cell to see detailed employee stats. Grade x Service Line completion matrix and advancement rates.",
+    "title": "Learning analytics",
+    "description": "Curriculum completion by grade and service line, and in-person attendance across sessions.",
+    "tabs": {
+      "programme": "Programme Matrix",
+      "attendance": "Attendance",
+      "ariaLabel": "Admin dashboards"
+    },
     "kpi": {
       "profiledEmployees": "Profiled Employees",
       "activeCells": "Active Cells",
+      "activeGroups": "Active Groups",
       "avgCompletion": "Avg. Completion",
-      "greenCells": "Cells over 80%"
+      "greenCells": "Cells over 80%",
+      "groupsAbove80": "Groups ≥ 80%"
+    },
+    "section": {
+      "completionByGroup": "Completion by group",
+      "completionByGroupHint": "Each grade × service line group, sorted by lowest completion first. Click a group for per-employee progress."
+    },
+    "attention": {
+      "empty": "No groups with enrolled employees yet.",
+      "tileAria": "{grade}, {sl}: {rate}% complete, {count, plural, one {# person} other {# people}}",
+      "people": "{count, plural, one {# person} other {# people}}"
     },
     "matrix": {
       "heading": "Programme Matrix",

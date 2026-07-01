@@ -22,7 +22,7 @@ export function CursusSummaryCards({
               </p>
               <p className="text-2xl font-bold">{completionPct}%</p>
             </div>
-            <Star className="h-8 w-8 text-[var(--ey-blue-500)] opacity-60" />
+            <Star className="h-8 w-8 text-[hsl(var(--ey-blue-500))] opacity-60" />
           </div>
           <Progress value={completionPct} className="mt-2 h-1.5" />
         </CardContent>
@@ -33,14 +33,14 @@ export function CursusSummaryCards({
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs text-muted-foreground">{t("completed")}</p>
-              <p className="text-2xl font-bold text-[var(--ey-green-500)]">
+              <p className="text-2xl font-bold text-[hsl(var(--ey-green-500))]">
                 {summary.completedCount}
                 <span className="text-sm font-normal text-muted-foreground">
                   /{summary.totalCount}
                 </span>
               </p>
             </div>
-            <CheckCircle2 className="h-8 w-8 text-[var(--ey-green-500)] opacity-60" />
+            <CheckCircle2 className="h-8 w-8 text-[hsl(var(--ey-green-500))] opacity-60" />
           </div>
         </CardContent>
       </Card>
@@ -50,11 +50,11 @@ export function CursusSummaryCards({
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs text-muted-foreground">{t("inProgress")}</p>
-              <p className="text-2xl font-bold text-[var(--ey-blue-500)]">
+              <p className="text-2xl font-bold text-[hsl(var(--ey-blue-500))]">
                 {summary.inProgressCount}
               </p>
             </div>
-            <Clock className="h-8 w-8 text-[var(--ey-blue-500)] opacity-60" />
+            <Clock className="h-8 w-8 text-[hsl(var(--ey-blue-500))] opacity-60" />
           </div>
         </CardContent>
       </Card>
@@ -73,7 +73,7 @@ export function CursusSummaryCards({
                 </span>
               </p>
             </div>
-            <Award className="h-8 w-8 text-[var(--ey-orange-500)] opacity-60" />
+            <Award className="h-8 w-8 text-[hsl(var(--ey-orange-500))] opacity-60" />
           </div>
         </CardContent>
       </Card>

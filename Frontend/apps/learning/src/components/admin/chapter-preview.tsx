@@ -57,7 +57,7 @@ export function ChapterPreview({
       {/* Preview header bar */}
       <div className="flex items-center justify-between border-b border-border bg-muted/30 px-6 py-3">
         <div className="flex items-center gap-2">
-          <span className="rounded-md bg-yellow-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-yellow-700">
+          <span className="rounded-md bg-[hsl(var(--ey-orange-500))]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-foreground">
             {t("preview.badge")}
           </span>
           <span className="text-sm text-muted-foreground">

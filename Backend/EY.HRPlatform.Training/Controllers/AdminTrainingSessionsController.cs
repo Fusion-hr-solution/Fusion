@@ -149,7 +149,8 @@ public class AdminTrainingSessionsController : ControllerBase
         {
             var result = await _sender.Send(new AddSessionCommand(
                 trainingId, partId, request.StartUtc, request.EndUtc, request.Room, request.MaxCapacity,
-                request.Notes, request.TrainerEmployeeId, request.TrainerName, request.TrainerEmail),
+                request.Notes, request.TrainerEmployeeId, request.TrainerName, request.TrainerEmail,
+                request.ExternalTrainerCost, request.VenueCost, request.MaterialsCost, request.OtherCost),
                 cancellationToken);
 
             if (result.IsFailure)
@@ -179,7 +180,8 @@ public class AdminTrainingSessionsController : ControllerBase
         {
             var result = await _sender.Send(new UpdateSessionCommand(
                 sessionId, request.StartUtc, request.EndUtc, request.Room, request.MaxCapacity,
-                request.Notes, request.TrainerEmployeeId, request.TrainerName, request.TrainerEmail),
+                request.Notes, request.TrainerEmployeeId, request.TrainerName, request.TrainerEmail,
+                request.ExternalTrainerCost, request.VenueCost, request.MaterialsCost, request.OtherCost),
                 cancellationToken);
 
             if (result.IsFailure)

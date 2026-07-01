@@ -6,12 +6,17 @@ import {
 import type { SessionStatus } from "@/types/admin";
 
 describe("session-status-config", () => {
-  const expected: SessionStatus[] = ["Planned", "InProgress", "Completed", "Cancelled"];
+  const expected: SessionStatus[] = [
+    "Planned",
+    "InProgress",
+    "Completed",
+    "Cancelled",
+  ];
 
   it("defines an entry for every SessionStatus", () => {
     for (const s of expected) {
       expect(SESSION_STATUS_CONFIG[s]).toBeDefined();
-      expect(SESSION_STATUS_CONFIG[s].label.length).toBeGreaterThan(0);
+      expect(SESSION_STATUS_CONFIG[s].labelKey).toBe(s);
       expect(SESSION_STATUS_CONFIG[s].icon).toBeDefined();
     }
   });

@@ -74,14 +74,14 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
   if (!session) {
     return (
       <div className="flex flex-col items-center justify-center p-12 text-center">
-        <CalendarCheck2 className="h-12 w-12 text-muted-foreground/30" />
+        <CalendarCheck2 className="h-12 w-12 text-muted-foreground/30" aria-hidden="true" />
         <p className="mt-4 text-sm font-medium text-foreground">{t("detail.notFoundTitle")}</p>
         <p className="mt-1 text-xs text-muted-foreground">
           {t("detail.notFoundDescription")}
         </p>
         <Link href="/my-sessions">
           <Button variant="outline" size="sm" className="mt-4">
-            <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
+            <ArrowLeft className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
             {t("backToMySessions")}
           </Button>
         </Link>
@@ -102,7 +102,7 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
         href="/my-sessions"
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
       >
-        <ArrowLeft className="h-4 w-4" />
+        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
         {t("backToMySessions")}
       </Link>
 
@@ -188,9 +188,9 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
 
           {/* Waitlist info */}
           {session.status === "Waitlisted" && session.waitlistPosition > 0 && (
-            <div className="mt-6 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
-              <AlertCircle className="h-4 w-4 text-amber-600" />
-              <p className="text-sm text-amber-800">
+            <div className="mt-6 flex items-center gap-2 rounded-lg border border-[hsl(var(--ey-orange-500))]/20 bg-[hsl(var(--ey-orange-500))]/10 p-3">
+              <AlertCircle className="h-4 w-4 text-[hsl(var(--ey-orange-500))]" aria-hidden="true" />
+              <p className="text-sm text-foreground">
                 {t.rich("detail.waitlistBanner", {
                   position: session.waitlistPosition,
                   b: (chunks) => <span className="font-semibold">{chunks}</span>,
@@ -201,17 +201,17 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
 
           {/* Attended confirmation */}
           {session.status === "Attended" && (
-            <div className="mt-6 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
-              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-              <p className="text-sm text-emerald-800">{t("detail.attendedBanner")}</p>
+            <div className="mt-6 flex items-center gap-2 rounded-lg border border-[hsl(var(--ey-green-500))]/20 bg-[hsl(var(--ey-green-500))]/10 p-3">
+              <CheckCircle2 className="h-4 w-4 text-[hsl(var(--ey-green-500))]" aria-hidden="true" />
+              <p className="text-sm text-foreground">{t("detail.attendedBanner")}</p>
             </div>
           )}
 
           {/* Cancelled confirmation */}
           {cancelled && (
-            <div className="mt-6 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3">
-              <XCircle className="h-4 w-4 text-red-600" />
-              <p className="text-sm text-red-800">{t("detail.cancelledBanner")}</p>
+            <div className="mt-6 flex items-center gap-2 rounded-lg border border-[hsl(var(--ey-red-500))]/20 bg-[hsl(var(--ey-red-500))]/10 p-3">
+              <XCircle className="h-4 w-4 text-[hsl(var(--ey-red-500))]" aria-hidden="true" />
+              <p className="text-sm text-foreground">{t("detail.cancelledBanner")}</p>
             </div>
           )}
 
@@ -226,9 +226,9 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
                 className="gap-1.5"
               >
                 {cancelling ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
                 ) : (
-                  <XCircle className="h-3.5 w-3.5" />
+                  <XCircle className="h-3.5 w-3.5" aria-hidden="true" />
                 )}
                 {t("detail.cancelButton")}
               </Button>
@@ -265,7 +265,10 @@ function DetailItem({
 }) {
   return (
     <div className="flex items-start gap-3">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted/60 text-muted-foreground">
+      <div
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted/60 text-muted-foreground"
+        aria-hidden="true"
+      >
         {icon}
       </div>
       <div>
@@ -286,9 +289,9 @@ function DetailItem({
 }
 
 function getHeaderGradient(status: string, isPast: boolean): string {
-  if (status === "Attended") return "bg-gradient-to-r from-emerald-600 to-emerald-500";
-  if (status === "Waitlisted") return "bg-gradient-to-r from-amber-600 to-amber-500";
-  if (isPast) return "bg-gradient-to-r from-gray-500 to-gray-400";
+  if (status === "Attended") return "bg-gradient-to-r from-[hsl(var(--ey-green-500))] to-[hsl(var(--ey-green-500))]/80";
+  if (status === "Waitlisted") return "bg-gradient-to-r from-[hsl(var(--ey-orange-500))] to-[hsl(var(--ey-orange-500))]/80";
+  if (isPast) return "bg-gradient-to-r from-[hsl(var(--ey-grey-500))] to-[hsl(var(--ey-grey-400))]";
   return "bg-gradient-to-r from-primary to-primary/80";
 }
 

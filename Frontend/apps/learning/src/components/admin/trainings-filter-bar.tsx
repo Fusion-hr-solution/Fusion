@@ -1,3 +1,5 @@
+"use client";
+
 import {
   Button,
   Card,
@@ -10,6 +12,7 @@ import {
   Checkbox,
 } from "@repo/ui";
 import { RotateCcw } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { AdminCategory } from "@/types/admin";
 import { SearchInput } from "../search-input";
 
@@ -25,11 +28,16 @@ interface TrainingsFilterBarProps {
 }
 
 export function TrainingsFilterBar({
-  search, onSearchChange,
-  categoryId, onCategoryChange,
-  includeDeleted, onIncludeDeletedChange,
-  categories, onRefresh,
+  search,
+  onSearchChange,
+  categoryId,
+  onCategoryChange,
+  includeDeleted,
+  onIncludeDeletedChange,
+  categories,
+  onRefresh,
 }: TrainingsFilterBarProps) {
+  const t = useTranslations("adminTrainings");
   return (
     <Card className="border-border/60">
       <CardContent className="flex flex-wrap items-center gap-3 p-4">
@@ -37,31 +45,38 @@ export function TrainingsFilterBar({
           <SearchInput
             value={search}
             onChange={onSearchChange}
-            placeholder="Search trainings..."
-            ariaLabel="Search trainings"
+            placeholder={t("filter.searchPlaceholder")}
+            ariaLabel={t("filter.searchAriaLabel")}
           />
         </div>
-        <Select value={categoryId || "all"} onValueChange={(v) => onCategoryChange(v === "all" ? "" : v)}>
+        <Select
+          value={categoryId || "all"}
+          onValueChange={(v) => onCategoryChange(v === "all" ? "" : v)}
+        >
           <SelectTrigger className="h-9 w-[180px] text-sm">
-            <SelectValue placeholder="All Categories" />
+            <SelectValue placeholder={t("filter.allCategories")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Categories</SelectItem>
+            <SelectItem value="all">{t("filter.allCategories")}</SelectItem>
             {categories.map((c) => (
-              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+              <SelectItem key={c.id} value={c.id}>
+                {c.name}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
         <label className="flex items-center gap-2 text-sm text-muted-foreground">
           <Checkbox
             checked={includeDeleted}
-            onCheckedChange={(checked) => onIncludeDeletedChange(checked === true)}
+            onCheckedChange={(checked) =>
+              onIncludeDeletedChange(checked === true)
+            }
           />
-          Show deleted
+          {t("filter.showDeleted")}
         </label>
         <Button variant="outline" size="sm" onClick={onRefresh}>
           <RotateCcw className="mr-1 h-3.5 w-3.5" />
-          Refresh
+          {t("filter.refresh")}
         </Button>
       </CardContent>
     </Card>

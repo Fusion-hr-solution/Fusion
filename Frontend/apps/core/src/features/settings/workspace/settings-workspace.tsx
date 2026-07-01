@@ -9,7 +9,6 @@ import {
   ClipboardList,
   History,
   KeyRound,
-  LockKeyhole,
   Mail,
   MapPin,
   Phone,
@@ -26,9 +25,12 @@ import {
   type SettingsAuditEventDto,
   type SettingsSectionDto,
 } from "@repo/api";
-import { EmptyState } from "@repo/ui";
 import { toast } from "sonner";
-import { PageHeader } from "@/components/page-header";
+import {
+  PageContainer,
+  PageHeader,
+  PagePermissionNotice,
+} from "@repo/ds/shell";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -296,7 +298,7 @@ function buildSettingsTabHref(
 
 function SettingsPageSkeleton() {
   return (
-    <div className="space-y-6 p-6">
+    <PageContainer width="wide" className="space-y-6">
       <div className="space-y-2">
         <Skeleton className="h-8 w-56" />
         <Skeleton className="h-4 w-136 max-w-full" />
@@ -305,7 +307,7 @@ function SettingsPageSkeleton() {
         <Skeleton className="h-96 rounded-xl" />
         <Skeleton className="h-136 rounded-xl" />
       </div>
-    </div>
+    </PageContainer>
   );
 }
 
@@ -815,25 +817,25 @@ export default function SettingsWorkspace() {
 
   if (sectionsQuery.error && sections.length === 0) {
     return (
-      <div className="space-y-6 p-6">
+      <PageContainer width="wide" className="space-y-6">
         <PageHeader title="Settings" />
         <SectionError
           error={sectionsQuery.error}
           onRetry={() => void sectionsQuery.refetch()}
         />
-      </div>
+      </PageContainer>
     );
   }
 
   if (actionableSections.length === 0) {
     return (
-      <div className="p-6">
-        <EmptyState
-          icon={LockKeyhole}
+      <PageContainer width="wide" className="space-y-6">
+        <PageHeader title="Settings" />
+        <PagePermissionNotice
           title="Settings are restricted"
           description="No tenant administration capabilities are available for this account."
         />
-      </div>
+      </PageContainer>
     );
   }
 
@@ -857,7 +859,7 @@ export default function SettingsWorkspace() {
   );
 
   return (
-    <div className="space-y-6 p-6">
+    <PageContainer width="wide" className="space-y-6">
       <PageHeader
         title="Settings"
         description={
@@ -1350,6 +1352,6 @@ export default function SettingsWorkspace() {
           ) : null}
         </div>
       </div>
-    </div>
+    </PageContainer>
   );
 }

@@ -1,5 +1,4 @@
 import { TrainingCatalog } from "@/components";
-import { MOCK_TRAININGS } from "@/data/trainings";
 import { getTrainings, getCategories } from "@/services/learning-service";
 import { CATEGORY_MAP } from "@/types/backend-dtos";
 import type { TrainingCategory, TrainingType } from "@/types";
@@ -54,16 +53,15 @@ export default async function LearningPage({
       </AdminRedirectGuard>
     );
   } catch (err) {
-    console.warn("[LearningPage] Backend unavailable, using mock data:", err);
-    const start = (page - 1) * PAGE_SIZE;
+    console.error("[LearningPage] Failed to load the training catalog:", err);
     return (
       <AdminRedirectGuard>
-        <TrainingCatalog
-          trainings={MOCK_TRAININGS.slice(start, start + PAGE_SIZE)}
-          totalCount={MOCK_TRAININGS.length}
-          page={page}
-          pageSize={PAGE_SIZE}
-        />
+        <div className="flex min-h-[60vh] flex-col items-center justify-center gap-2 px-8 text-center">
+          <p className="text-sm font-semibold text-foreground">We couldn&apos;t load the catalog</p>
+          <p className="max-w-sm text-sm text-muted-foreground">
+            The training service is unavailable right now. Refresh the page to try again.
+          </p>
+        </div>
       </AdminRedirectGuard>
     );
   }
