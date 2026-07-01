@@ -38,6 +38,15 @@ public class GetSessionDetailQueryHandler : IQueryHandler<GetSessionDetailQuery,
                 TrainerEmployeeId = x.TrainerEmployeeId,
                 TrainerName = x.TrainerName,
                 TrainerEmail = x.TrainerEmail,
+                ExternalTrainerCost = x.ExternalTrainerCost,
+                VenueCost = x.VenueCost,
+                MaterialsCost = x.MaterialsCost,
+                OtherCost = x.OtherCost,
+                TotalCost = (x.ExternalTrainerCost == null && x.VenueCost == null
+                             && x.MaterialsCost == null && x.OtherCost == null)
+                    ? (decimal?)null
+                    : (x.ExternalTrainerCost ?? 0m) + (x.VenueCost ?? 0m)
+                      + (x.MaterialsCost ?? 0m) + (x.OtherCost ?? 0m),
                 Status = x.Status.ToString(),
                 CancelReason = x.CancelReason,
                 CancelledAt = x.CancelledAt,

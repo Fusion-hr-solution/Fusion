@@ -55,6 +55,7 @@ public class GetAllTrainingsQueryHandler : IQueryHandler<GetAllTrainingsQuery, R
                 CategoryName = t.Category.Name,
                 ChapterCount = t.TrainingType == TrainingType.OnSite ? t.OnSiteCourses.Count : t.Chapters.Count,
                 TrainingType = t.TrainingType.ToString(),
+                CostType = t.CostType.ToString(),
                 ScheduledDate = t.ScheduledDate,
                 CreatedAt = t.CreatedAt
             })

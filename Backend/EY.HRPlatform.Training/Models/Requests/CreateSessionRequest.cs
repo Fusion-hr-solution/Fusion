@@ -26,4 +26,17 @@ public class CreateSessionRequest
 
     [MaxLength(320), EmailAddress]
     public string? TrainerEmail { get; set; }
+
+    // External-trainer costs (only meaningful when the session has an external trainer).
+    [Range(0, double.MaxValue)]
+    public decimal? ExternalTrainerCost { get; set; }
+
+    [Range(0, double.MaxValue)]
+    public decimal? VenueCost { get; set; }
+
+    [Range(0, double.MaxValue)]
+    public decimal? MaterialsCost { get; set; }
+
+    [Range(0, double.MaxValue)]
+    public decimal? OtherCost { get; set; }
 }

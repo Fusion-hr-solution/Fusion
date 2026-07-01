@@ -20,6 +20,7 @@
       "serviceLines": "Service Lines",
       "employeeProfiles": "Profils des employés",
       "curriculum": "Curriculum",
+      "trainingBudgets": "Budgets de formation",
       "sessions": "Séances",
       "attendance": "Présences",
       "certificateRegistry": "Registre des certificats",
@@ -727,6 +728,10 @@
         "exams": "Examens"
       },
       "courseMaterials": "Supports de cours",
+      "tabs": {
+        "sessions": "Sessions",
+        "costs": "Coûts"
+      },
       "chaptersHeading": "Chapitres",
       "addChapter": "Ajouter un chapitre"
     },
@@ -790,6 +795,7 @@
         "titleMinLength": "Le titre doit comporter au moins 2 caractères.",
         "categoryRequired": "Veuillez sélectionner une catégorie.",
         "creditsNegative": "Les crédits ne peuvent pas être négatifs.",
+        "sponsoringServiceLineRequired": "La ligne de service sponsor est requise pour les formations externes.",
         "scheduledDateFuture": "La date planifiée doit être dans le futur."
       }
     },

@@ -61,6 +61,15 @@ public class GetPartsForTrainingQueryHandler : IQueryHandler<GetPartsForTraining
                         Status = s.Status.ToString(),
                         CancelReason = s.CancelReason,
                         CancelledAt = s.CancelledAt,
+                        ExternalTrainerCost = s.ExternalTrainerCost,
+                        VenueCost = s.VenueCost,
+                        MaterialsCost = s.MaterialsCost,
+                        OtherCost = s.OtherCost,
+                        TotalCost = (s.ExternalTrainerCost == null && s.VenueCost == null
+                                     && s.MaterialsCost == null && s.OtherCost == null)
+                            ? (decimal?)null
+                            : (s.ExternalTrainerCost ?? 0m) + (s.VenueCost ?? 0m)
+                              + (s.MaterialsCost ?? 0m) + (s.OtherCost ?? 0m),
                         CreatedAt = s.CreatedAt,
                         UpdatedAt = s.UpdatedAt
                     }).ToList()
