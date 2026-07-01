@@ -1,3 +1,6 @@
+"use client";
+
+import { useTranslations, useFormatter } from "next-intl";
 import {
   Badge,
   Table,
@@ -24,25 +27,33 @@ function statusColor(status: string) {
   }
 }
 
-function statusLabel(status: string) {
+function statusKey(
+  status: string
+): "in-progress" | "completed" | "not-started" {
   switch (status) {
-    case "InProgress": return "In Progress";
-    case "Completed": return "Completed";
-    default: return "Not Started";
+    case "InProgress":
+      return "in-progress";
+    case "Completed":
+      return "completed";
+    default:
+      return "not-started";
   }
 }
 
 export function AssignmentsTable({ assignments }: AssignmentsTableProps) {
+  const t = useTranslations("adminAssignments");
+  const tCommon = useTranslations("common");
+  const format = useFormatter();
   return (
     <Table>
       <TableHeader>
         <TableRow className="bg-muted/50">
-          <TableHead>Employee ID</TableHead>
-          <TableHead>Type</TableHead>
-          <TableHead className="text-center">Status</TableHead>
-          <TableHead className="text-center">Progress</TableHead>
-          <TableHead>Assigned</TableHead>
-          <TableHead>Due Date</TableHead>
+          <TableHead>{t("table.employeeId")}</TableHead>
+          <TableHead>{t("table.type")}</TableHead>
+          <TableHead className="text-center">{t("table.status")}</TableHead>
+          <TableHead className="text-center">{t("table.progress")}</TableHead>
+          <TableHead>{t("table.assigned")}</TableHead>
+          <TableHead>{t("table.dueDate")}</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -52,26 +63,46 @@ export function AssignmentsTable({ assignments }: AssignmentsTableProps) {
               {a.employeeId.slice(0, 8)}...
             </TableCell>
             <TableCell>
-              <Badge variant="outline" className="text-xs capitalize">{a.assignmentType}</Badge>
+              <Badge variant="outline" className="text-xs capitalize">
+                {a.assignmentType}
+              </Badge>
             </TableCell>
             <TableCell className="text-center">
-              <Badge variant="outline" className={`text-[10px] ${statusColor(a.status)}`}>
-                {statusLabel(a.status)}
+              <Badge
+                variant="outline"
+                className={`text-[10px] ${statusColor(a.status)}`}
+              >
+                {tCommon(`status.${statusKey(a.status)}`)}
               </Badge>
             </TableCell>
             <TableCell className="text-center">
               <div className="flex items-center justify-center gap-2">
                 <div className="h-1.5 w-16 overflow-hidden rounded-full bg-muted">
-                  <div className="h-full rounded-full bg-[hsl(var(--ey-blue-500))] transition-all" style={{ width: `${a.progressPercentage}%` }} />
+                  <div
+                    className="h-full rounded-full bg-[hsl(var(--ey-blue-500))] transition-all"
+                    style={{ width: `${a.progressPercentage}%` }}
+                  />
                 </div>
-                <span className="text-xs text-muted-foreground">{a.progressPercentage}%</span>
+                <span className="text-xs text-muted-foreground">
+                  {a.progressPercentage}%
+                </span>
               </div>
             </TableCell>
             <TableCell className="text-xs text-muted-foreground">
-              {new Date(a.assignedAt).toLocaleDateString()}
+              {format.dateTime(new Date(a.assignedAt), {
+                day: "2-digit",
+                month: "short",
+                year: "numeric",
+              })}
             </TableCell>
             <TableCell className="text-xs text-muted-foreground">
-              {a.dueDate ? new Date(a.dueDate).toLocaleDateString() : "—"}
+              {a.dueDate
+                ? format.dateTime(new Date(a.dueDate), {
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric",
+                  })
+                : t("noDueDate")}
             </TableCell>
           </TableRow>
         ))}

@@ -27,6 +27,7 @@ function toForm(question: Question): NewQuestionForm {
     options,
     language: question.language || (question.type === "SQL" ? "SQL" : "Python"),
     starterCode: question.starterCode ?? "",
+    projectFiles: question.projectFiles,
     evaluationCriteria: question.evaluationCriteria ?? "",
     testCases: question.testCases ?? [],
   };
@@ -51,32 +52,27 @@ export default function EditQuestionPage() {
       setIsLoading(true);
       setLoadError(null);
 
-      const selectedMatch = selectedQuestions.find((item) => item.id === params.id);
-      if (selectedMatch) {
-        if (isMounted) {
-          setQuestion(selectedMatch);
-          setIsLoading(false);
-        }
-        return;
-      }
-
+      // Prefer the fresh backend copy — it always has every field (project files, test
+      // cases, …). The wizard store is only a fallback for a question that exists locally
+      // and isn't persisted yet; its cached copy can be stale / missing newer fields.
+      let resolved: Question | null = null;
       try {
         const allQuestions = await getQuestions();
-        const found = allQuestions.find((item) => item.id === params.id) ?? null;
-        if (isMounted) {
-          setQuestion(found);
-          if (!found) {
-            setLoadError("Question not found.");
-          }
+        resolved = allQuestions.find((item) => item.id === params.id) ?? null;
+      } catch {
+        // Ignore and fall back to the local store below.
+      }
+
+      if (!resolved) {
+        resolved = selectedQuestions.find((item) => item.id === params.id) ?? null;
+      }
+
+      if (isMounted) {
+        setQuestion(resolved);
+        if (!resolved) {
+          setLoadError("Question not found.");
         }
-      } catch (error) {
-        if (isMounted) {
-          setLoadError(error instanceof Error ? error.message : "Failed to load question.");
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
+        setIsLoading(false);
       }
     }
 

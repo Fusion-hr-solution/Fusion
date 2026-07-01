@@ -65,7 +65,8 @@ public sealed class CreateOrgUnitCommandHandler(
             request.Code,
             request.Name,
             request.Type,
-            request.ParentId);
+            request.ParentId,
+            request.ResponsibleManagerEmployeeId);
 
         dbContext.OrgUnits.Add(orgUnit);
 
@@ -112,7 +113,8 @@ public sealed class CreateOrgUnitCommandHandler(
         orgUnit.IsActive,
         orgUnit.CreatedAt,
         orgUnit.UpdatedAt,
-        orgUnit.Version);
+        orgUnit.Version,
+        orgUnit.ResponsibleManagerEmployeeId);
 
     private static bool IsUniqueConstraintViolation(DbUpdateException ex)
     {

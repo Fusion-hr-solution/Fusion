@@ -91,6 +91,8 @@ export interface TrainerGroupFeedback {
   submittedAt: string;
 }
 
+export type CostType = "Internal" | "External";
+
 export interface OnSiteCourse {
   id: string;
   title: string;
@@ -189,6 +191,7 @@ export interface Training {
   badgeLevel: BadgeLevel;
   credits: number;
   trainingType: TrainingType;
+  costType?: CostType;
   scheduledDate?: string;
   onSiteCourses?: OnSiteCourse[];
 }

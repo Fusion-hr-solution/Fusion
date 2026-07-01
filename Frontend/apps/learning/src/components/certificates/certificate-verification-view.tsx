@@ -16,7 +16,7 @@ export function CertificateVerificationView({ certificateNumber }: { certificate
       <Card className="w-full max-w-md overflow-hidden border-t-4 border-t-[hsl(var(--ey-yellow))]">
         <CardContent className="p-8">
           <header className="mb-6 flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-foreground">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[hsl(var(--ey-black))]">
               <span className="text-sm font-bold text-[hsl(var(--ey-yellow))]">EY</span>
             </div>
             <div>
@@ -62,7 +62,7 @@ function CertificateResult({ data }: { data: CertificateVerification }) {
         {isRevoked ? (
           <ShieldX className="h-6 w-6 text-destructive" aria-hidden="true" />
         ) : (
-          <CheckCircle2 className="h-6 w-6 text-emerald-600" aria-hidden="true" />
+          <CheckCircle2 className="h-6 w-6 text-[hsl(var(--ey-green-500))]" aria-hidden="true" />
         )}
         <Badge variant={isRevoked ? "destructive" : "secondary"}>{isRevoked ? t("revoked") : t("valid")}</Badge>
       </div>

@@ -39,6 +39,8 @@ public class GetTrainingByIdQueryHandler : IQueryHandler<GetTrainingByIdQuery, R
             CategoryId = training.CategoryId,
             CategoryName = training.Category.Name,
             TrainingType = training.TrainingType.ToString(),
+            CostType = training.CostType.ToString(),
+            SponsoringServiceLineId = training.SponsoringServiceLineId,
             ScheduledDate = training.ScheduledDate,
             CreatedAt = training.CreatedAt,
             Chapters = training.Chapters

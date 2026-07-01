@@ -5,15 +5,17 @@ import { ApiError } from "@repo/api";
 import {
   getAdminTrainingDetail,
   getAdminCategories,
+  getServiceLines,
   createTraining,
   updateTraining,
 } from "@/services/admin-service";
 import type {
   AdminCategory,
+  AdminServiceLine,
   CreateTrainingInput,
   UpdateTrainingInput,
 } from "@/types/admin";
-import type { TrainingType } from "@/types";
+import type { CostType, TrainingType } from "@/types";
 
 interface UseTrainingFormOptions {
   trainingId?: string;
@@ -43,6 +45,11 @@ export function useTrainingForm({
   const [isMandatory, setIsMandatory] = useState(false);
   const [trainingType, setTrainingType] = useState<TrainingType>("ELearning");
   const [scheduledDate, setScheduledDate] = useState("");
+  const [costType, setCostType] = useState<CostType>("Internal");
+  const [sponsoringServiceLineId, setSponsoringServiceLineId] = useState("");
+
+  const fetchServiceLines = useCallback(() => getServiceLines(), []);
+  const { data: serviceLines } = useApiQuery<AdminServiceLine[]>(fetchServiceLines, { enabled });
 
   const fetchCategories = useCallback(() => getAdminCategories(), []);
 
@@ -70,6 +77,8 @@ export function useTrainingForm({
     setIsMandatory(false);
     setTrainingType("ELearning");
     setScheduledDate("");
+    setCostType("Internal");
+    setSponsoringServiceLineId("");
     setStep(0);
     setFormError(null);
     setFieldErrors({});
@@ -88,6 +97,8 @@ export function useTrainingForm({
       setCategoryId(existing.categoryId);
       setTrainingType(existing.trainingType as TrainingType);
       setScheduledDate(existing.scheduledDate ?? "");
+      setCostType((existing.costType ?? "Internal") as CostType);
+      setSponsoringServiceLineId(existing.sponsoringServiceLineId ?? "");
       setStep(0);
       setFormError(null);
       setFieldErrors({});
@@ -137,6 +148,10 @@ export function useTrainingForm({
   function validateStep1(): boolean {
     const errors: Record<string, string> = {};
     if (credits < 0) errors.credits = t("form.errors.creditsNegative");
+    if (trainingType === "OnSite" && costType === "External" && !sponsoringServiceLineId)
+      errors.sponsoringServiceLineId = t(
+        "form.errors.sponsoringServiceLineRequired"
+      );
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
   }
@@ -160,6 +175,11 @@ export function useTrainingForm({
       categoryId,
       trainingType,
       scheduledDate: scheduledDate || undefined,
+      costType: trainingType === "OnSite" ? costType : undefined,
+      sponsoringServiceLineId:
+        trainingType === "OnSite" && costType === "External" && sponsoringServiceLineId
+          ? sponsoringServiceLineId
+          : undefined,
     };
     if (isEditing) await doUpdate(payload);
     else await doCreate(payload);
@@ -202,6 +222,13 @@ export function useTrainingForm({
     setTrainingType,
     scheduledDate,
     setScheduledDate,
+    costType,
+    setCostType,
+    sponsoringServiceLineId,
+    setSponsoringServiceLineId,
+    serviceLines: serviceLines ?? [],
+    sponsoringServiceLineName:
+      serviceLines?.find((sl) => sl.id === sponsoringServiceLineId)?.name ?? "—",
     categories: categories ?? [],
     categoryName,
     loadingDetail,

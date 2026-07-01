@@ -17,6 +17,7 @@ import {
   CalendarClock,
   CalendarCheck2,
   ScanLine,
+  Wallet,
   BadgeCheck,
   MessageSquare,
 } from "lucide-react";
@@ -66,6 +67,7 @@ export const ADMIN_NAV: NavSection = {
       icon: UserCog,
     },
     { label: "curriculum", href: "/admin/curriculum", icon: Grid3X3 },
+    { label: "trainingBudgets", href: "/admin/budgets", icon: Wallet },
     { label: "sessions", href: "/admin/sessions", icon: CalendarClock },
     { label: "attendance", href: "/admin/attendance", icon: BarChart2 },
     { label: "feedback", href: "/admin/feedback", icon: MessageSquare },

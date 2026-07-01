@@ -11,9 +11,13 @@ import {
   canManageCoreReporting,
   useAuth,
 } from "@repo/auth";
-import { EmptyState } from "@repo/ui";
-import { CorePageLoadingState } from "@/components/core-page-loading-state";
-import { PageHeader } from "@/components/page-header";
+import {
+  PageContainer,
+  PageHeader,
+  PageEmpty,
+  PageError,
+  PageLoading,
+} from "@repo/ds/shell";
 import { useTenantContext } from "@/shell/tenant-context/core-tenant-context-provider";
 import { useTenantSettings } from "@/features/settings/api/use-tenant-settings";
 import { useEmployeeFieldPolicy } from "@/features/employees/shared/employee-field-visibility";
@@ -56,64 +60,57 @@ export default function MyProfilePage() {
 
   if (authLoading) {
     return (
-      <CorePageLoadingState
-        title="My Profile"
-        description="Loading profile."
-        message="Loading your profile..."
-        variant="summary-list"
-      />
+      <PageContainer className="space-y-6">
+        <PageHeader title="My Profile" description="Loading profile." />
+        <PageLoading rows={6} label="Loading your profile..." />
+      </PageContainer>
     );
   }
 
   if (!employeeId) {
     return (
-      <div className="flex flex-col gap-6 p-6">
-        <PageHeader
-          title="My Profile"
-          description="No linked employee record."
-        />
-        <EmptyState
+      <PageContainer className="space-y-6">
+        <PageHeader title="My Profile" description="No linked employee record." />
+        <PageEmpty
           icon={User}
           title="No linked employee profile"
           description="Contact a tenant HR administrator to link your record."
         />
-      </div>
+      </PageContainer>
     );
   }
 
   if (isLoading && !profile && !error) {
     return (
-      <CorePageLoadingState
-        title="My Profile"
-        description="Loading profile."
-        message="Loading your profile..."
-        variant="summary-list"
-      />
+      <PageContainer className="space-y-6">
+        <PageHeader title="My Profile" description="Loading profile." />
+        <PageLoading rows={6} label="Loading your profile..." />
+      </PageContainer>
     );
   }
 
   if (error) {
     return (
-      <div className="flex flex-col gap-6 p-6">
-        <EmptyState
-          icon={User}
+      <PageContainer className="space-y-6">
+        <PageHeader title="My Profile" />
+        <PageError
           title="Your profile could not be found"
           description="Your linked employee profile is not available right now."
         />
-      </div>
+      </PageContainer>
     );
   }
 
   if (!profile) {
     return (
-      <div className="flex flex-col gap-6 p-6">
+      <PageContainer className="space-y-6">
         <PageHeader title="My Profile" description="Profile unavailable." />
-        <EmptyState
+        <PageEmpty
           icon={User}
           title="Unable to load profile"
           description="Your employee profile is not available right now."
         />
-      </div>
+      </PageContainer>
     );
   }
 

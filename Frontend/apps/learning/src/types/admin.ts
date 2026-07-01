@@ -1,4 +1,9 @@
-import type { ChapterLayout, TrainingType, FeedbackQuestionType } from "./index";
+import type {
+  ChapterLayout,
+  TrainingType,
+  FeedbackQuestionType,
+  CostType,
+} from "./index";
 
 /** Chapter being built in the training creation wizard (client-side only) */
 export interface WizardChapter {
@@ -21,6 +26,8 @@ export interface AdminTraining {
   chapterCount: number;
   enrollmentCount: number;
   trainingType: TrainingType;
+  costType?: CostType;
+  sponsoringServiceLineId?: string;
   scheduledDate?: string;
   isDeleted: boolean;
   createdAt: string;
@@ -200,6 +207,8 @@ export interface CreateTrainingInput {
   categoryId: string;
   trainingType?: string;
   scheduledDate?: string;
+  costType?: CostType;
+  sponsoringServiceLineId?: string;
   chapters?: CreateChapterInput[];
   onSiteCourses?: CreateOnSiteCourseInput[];
 }
@@ -220,6 +229,8 @@ export interface UpdateTrainingInput {
   categoryId: string;
   trainingType?: string;
   scheduledDate?: string;
+  costType?: CostType;
+  sponsoringServiceLineId?: string;
 }
 
 export interface UpdateChapterInput {
@@ -359,6 +370,99 @@ export interface UpdateServiceLineInput {
   isSharedAcrossAllServiceLines?: boolean;
 }
 
+/* ── Training Budget (Feature 7.2) ── */
+
+export type BudgetPeriodType = "Annual" | "Quarterly" | "Custom";
+
+export interface AdminTrainingBudget {
+  id: string;
+  serviceLineId: string;
+  periodType: BudgetPeriodType;
+  periodStart: string;
+  periodEnd: string;
+  allocatedAmount: number;
+  /** Derived server-side from external-session costs. */
+  spend: number;
+  remaining: number;
+  percentage: number;
+}
+
+export interface CreateTrainingBudgetInput {
+  serviceLineId: string;
+  periodType: BudgetPeriodType;
+  periodStart: string;
+  periodEnd: string;
+  allocatedAmount: number;
+}
+
+/** Service line is immutable on update — re-key by deleting and recreating. */
+export interface UpdateTrainingBudgetInput {
+  periodType: BudgetPeriodType;
+  periodStart: string;
+  periodEnd: string;
+  allocatedAmount: number;
+}
+
+/* ── Budget dashboard (US-7.2.2) ── */
+
+export interface BudgetFilters {
+  serviceLineId?: string;
+  from?: string;
+  to?: string;
+}
+
+export interface BudgetByServiceLine {
+  serviceLineId: string;
+  serviceLineName: string;
+  color: string;
+  allocated: number;
+  spent: number;
+  remaining: number;
+  percentConsumed: number;
+}
+
+export interface BudgetServiceLineAlert {
+  serviceLineId: string;
+  serviceLineName: string;
+  percentConsumed: number;
+  thresholdBand: number; // 80 | 90 | 100
+}
+
+export interface BudgetDashboardSummary {
+  totalAllocated: number;
+  totalSpent: number;
+  totalRemaining: number;
+  percentConsumed: number;
+  byServiceLine: BudgetByServiceLine[];
+  alerts: BudgetServiceLineAlert[];
+}
+
+export interface BudgetTrendPoint {
+  year: number;
+  month: number;
+  label: string;
+  spend: number;
+}
+
+export interface BudgetTrend {
+  points: BudgetTrendPoint[];
+}
+
+export interface BudgetSpendDetailRow {
+  sessionId: string;
+  trainingId: string;
+  trainingTitle: string;
+  startUtc: string;
+  amount: number;
+  trainerName?: string | null;
+}
+
+export interface BudgetSpendDetail {
+  serviceLineId: string;
+  serviceLineName: string;
+  rows: BudgetSpendDetailRow[];
+}
+
 export interface AddCurriculumMappingInput {
   gradeId: string;
   serviceLineId: string;
@@ -404,6 +508,11 @@ export interface AdminTrainingSession {
   status: SessionStatus;
   cancelReason?: string | null;
   cancelledAt?: string | null;
+  externalTrainerCost?: number | null;
+  venueCost?: number | null;
+  materialsCost?: number | null;
+  otherCost?: number | null;
+  totalCost?: number | null;
   createdAt: string;
   updatedAt?: string | null;
 }
@@ -485,6 +594,10 @@ export interface CreateSessionInput {
   trainerEmployeeId?: string;
   trainerName?: string;
   trainerEmail?: string;
+  externalTrainerCost?: number;
+  venueCost?: number;
+  materialsCost?: number;
+  otherCost?: number;
 }
 
 export interface UpdateSessionInput extends CreateSessionInput {}

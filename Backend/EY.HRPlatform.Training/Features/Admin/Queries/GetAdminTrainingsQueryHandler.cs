@@ -54,6 +54,8 @@ public class GetAdminTrainingsQueryHandler : IQueryHandler<GetAdminTrainingsQuer
                 ChapterCount = t.TrainingType == TrainingType.OnSite ? t.OnSiteCourses.Count : t.Chapters.Count,
                 EnrollmentCount = t.Assignments.Count,
                 TrainingType = t.TrainingType.ToString(),
+                CostType = t.CostType.ToString(),
+                SponsoringServiceLineId = t.SponsoringServiceLineId,
                 ScheduledDate = t.ScheduledDate,
                 IsDeleted = t.IsDeleted,
                 CreatedAt = t.CreatedAt,

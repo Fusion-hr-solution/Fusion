@@ -128,6 +128,14 @@ export function TrainingForm({ trainingId }: TrainingFormProps) {
           trainingType={form.trainingType}
           scheduledDate={form.scheduledDate}
           onScheduledDateChange={form.setScheduledDate}
+          costType={form.costType}
+          onCostTypeChange={form.setCostType}
+          sponsoringServiceLineId={form.sponsoringServiceLineId}
+          onSponsoringServiceLineIdChange={(v) => {
+            form.setSponsoringServiceLineId(v);
+            form.clearFieldError("sponsoringServiceLineId");
+          }}
+          serviceLines={form.serviceLines}
           fieldErrors={form.fieldErrors}
         />
       )}
@@ -143,6 +151,8 @@ export function TrainingForm({ trainingId }: TrainingFormProps) {
           isMandatory={form.isMandatory}
           trainingType={form.trainingType}
           scheduledDate={form.scheduledDate}
+          costType={form.costType}
+          sponsoringServiceLineName={form.sponsoringServiceLineName}
         />
       )}
 

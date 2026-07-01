@@ -2,6 +2,7 @@
 
 import { CheckCircle2, XCircle, Clock3, Percent } from "lucide-react";
 import { Card, CardContent, Skeleton } from "@repo/ui";
+import { useTranslations } from "next-intl";
 import { useSessionAttendance } from "@/hooks/use-attendance-dashboard";
 import { AttendanceDonutChart } from "./attendance-donut-chart";
 
@@ -10,9 +11,9 @@ interface SessionAttendancePanelProps {
 }
 
 const STAT_STYLES: Record<string, string> = {
-  present: "text-emerald-600",
-  absent: "text-red-600",
-  pending: "text-amber-600",
+  present: "text-[hsl(var(--ey-green-500))]",
+  absent: "text-[hsl(var(--ey-red-500))]",
+  pending: "text-[hsl(var(--ey-orange-500))]",
   rate: "text-[hsl(var(--ey-blue-500))]",
 };
 
@@ -20,7 +21,10 @@ const STAT_STYLES: Record<string, string> = {
  * Per-session attendance summary (AC#1): a recharts donut plus present /
  * absent / pending KPIs. Absence is derived once the session has closed.
  */
-export function SessionAttendancePanel({ sessionId }: SessionAttendancePanelProps) {
+export function SessionAttendancePanel({
+  sessionId,
+}: SessionAttendancePanelProps) {
+  const t = useTranslations("adminAttendance");
   const { data, isLoading } = useSessionAttendance(sessionId);
 
   if (isLoading) {
@@ -31,19 +35,41 @@ export function SessionAttendancePanel({ sessionId }: SessionAttendancePanelProp
   }
 
   const stats = [
-    { key: "present", icon: CheckCircle2, label: "Present", value: data.presentCount },
-    { key: "absent", icon: XCircle, label: "Absent", value: data.absentCount },
-    { key: "pending", icon: Clock3, label: "Pending", value: data.pendingCount },
-    { key: "rate", icon: Percent, label: "Attendance Rate", value: `${data.attendanceRate}%` },
+    {
+      key: "present",
+      icon: CheckCircle2,
+      label: t("panel.present"),
+      value: data.presentCount,
+    },
+    {
+      key: "absent",
+      icon: XCircle,
+      label: t("panel.absent"),
+      value: data.absentCount,
+    },
+    {
+      key: "pending",
+      icon: Clock3,
+      label: t("panel.pending"),
+      value: data.pendingCount,
+    },
+    {
+      key: "rate",
+      icon: Percent,
+      label: t("panel.attendanceRate"),
+      value: `${data.attendanceRate}%`,
+    },
   ];
 
   return (
     <Card className="border-border/50">
       <CardContent className="py-5 space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-foreground">Attendance</h3>
+          <h3 className="text-sm font-semibold text-foreground">
+            {t("panel.heading")}
+          </h3>
           <span className="text-xs text-muted-foreground">
-            {data.isClosed ? "Session closed" : "Session open"}
+            {data.isClosed ? t("panel.sessionClosed") : t("panel.sessionOpen")}
           </span>
         </div>
 
@@ -60,10 +86,17 @@ export function SessionAttendancePanel({ sessionId }: SessionAttendancePanelProp
                 className="rounded-xl border border-border/60 bg-muted/20 px-3 py-3"
               >
                 <div className="flex items-center gap-1.5">
-                  <s.icon className={`h-3.5 w-3.5 ${STAT_STYLES[s.key]}`} aria-hidden="true" />
-                  <span className="text-[11px] text-muted-foreground">{s.label}</span>
+                  <s.icon
+                    className={`h-3.5 w-3.5 ${STAT_STYLES[s.key]}`}
+                    aria-hidden="true"
+                  />
+                  <span className="text-[11px] text-muted-foreground">
+                    {s.label}
+                  </span>
                 </div>
-                <p className={`mt-1 text-lg font-bold tabular-nums ${STAT_STYLES[s.key]}`}>
+                <p
+                  className={`mt-1 text-lg font-bold tabular-nums ${STAT_STYLES[s.key]}`}
+                >
                   {s.value}
                 </p>
               </div>
@@ -73,8 +106,7 @@ export function SessionAttendancePanel({ sessionId }: SessionAttendancePanelProp
 
         {!data.isClosed && (
           <p className="text-[11px] text-muted-foreground">
-            Absences are confirmed once the session ends; pending participants have not
-            been marked yet.
+            {t("panel.openNote")}
           </p>
         )}
       </CardContent>

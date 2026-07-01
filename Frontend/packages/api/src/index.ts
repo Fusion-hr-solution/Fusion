@@ -129,3 +129,28 @@ export type {
   WorkforceAccessRosterSummaryDto,
 } from "./core-workforce";
 export { coreWorkforcePaths, coreWorkforceQueryKeys } from "./core-workforce";
+export type {
+  PerformanceCycleStatus,
+  PerformanceCycleType,
+  CycleDeadlineState,
+  PopulationRuleType,
+  PerformanceCycleSummaryDto,
+  PopulationRuleDto,
+  PerformanceCycleDetailDto,
+  CycleParticipantDto,
+  CyclePopulationMemberDto,
+  CyclePopulationPreviewDto,
+  CycleReadinessDto,
+  CycleAuditEventDto,
+  ObjectiveTemplateDto,
+  PerformanceNotificationDto,
+  PerformancePageDto,
+  CreatePerformanceCycleRequest,
+  UpdatePerformanceCycleRequest,
+  PopulationRuleInput,
+  SetCyclePopulationRequest,
+  AssignPlanningApproverRequest,
+  CreateObjectiveTemplateRequest,
+  UpdateObjectiveTemplateRequest,
+} from "./performance";
+export { performancePaths, performanceQueryKeys } from "./performance";

@@ -14,7 +14,7 @@ import { coreSetupQueryKeys, type TenantSetupStateDto } from "@repo/api";
 import { useApiQueryClient } from "@repo/api/query";
 import { canSeeCoreSetupNavigation, useAuth } from "@repo/auth";
 import { useTenantContext } from "@/shell/tenant-context/core-tenant-context-provider";
-import { CorePageLoadingState } from "@/components/core-page-loading-state";
+import { PageContainer, PageHeader, PageLoading } from "@repo/ds/shell";
 import {
   useActivateSetup,
   usePublishStructure,
@@ -104,12 +104,16 @@ function haveEquivalentSetupSnapshots(
 
 function SetupRedirectFallback({ isChecking }: { isChecking: boolean }) {
   return (
-    <CorePageLoadingState
-      title="Setup"
-      description="Complete organization setup before using the rest of the workspace."
-      message={isChecking ? "Loading setup..." : "Opening setup..."}
-      variant="redirect"
-    />
+    <PageContainer width="wide" className="space-y-6">
+      <PageHeader
+        title="Setup"
+        description="Complete organization setup before using the rest of the workspace."
+      />
+      <PageLoading
+        rows={6}
+        label={isChecking ? "Loading setup..." : "Opening setup..."}
+      />
+    </PageContainer>
   );
 }
 

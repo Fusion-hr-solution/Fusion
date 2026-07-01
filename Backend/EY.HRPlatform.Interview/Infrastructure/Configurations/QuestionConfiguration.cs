@@ -49,6 +49,7 @@ public class QuestionConfiguration : IEntityTypeConfiguration<Question>
 
         builder.Property(q => q.Language).HasMaxLength(80);
         builder.Property(q => q.StarterCode);
+        builder.Property(q => q.ProjectFiles);
         builder.Property(q => q.EvaluationCriteria).HasMaxLength(4000);
         builder.Property(q => q.TestCases);
         builder.Property(q => q.UsageCount).HasDefaultValue(0);

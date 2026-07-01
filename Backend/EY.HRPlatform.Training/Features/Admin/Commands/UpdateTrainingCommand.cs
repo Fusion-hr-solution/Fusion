@@ -13,4 +13,6 @@ public record UpdateTrainingCommand(
     string? Duration,
     Guid CategoryId,
     string? TrainingType,
-    DateTime? ScheduledDate) : ICommand<Result>;
+    DateTime? ScheduledDate,
+    string? CostType = null,
+    Guid? SponsoringServiceLineId = null) : ICommand<Result>;

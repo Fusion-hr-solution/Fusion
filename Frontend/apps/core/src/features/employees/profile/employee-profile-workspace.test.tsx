@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 const {
@@ -386,7 +386,9 @@ beforeEach(() => {
 describe("EmployeeProfileWorkspace", () => {
   it(
     "renders the rewritten HR profile layout with linked reporting and working edit actions",
-    () => {
+    async () => {
+    const user = userEvent.setup();
+
     renderWorkspace({
       profile: {
         ...baseProfile,
@@ -413,24 +415,25 @@ describe("EmployeeProfileWorkspace", () => {
       },
     });
 
-    expect(screen.getByText("Profile details")).toBeTruthy();
-    expect(screen.getByText("Organization & reporting")).toBeTruthy();
-    expect(screen.getByText("Access")).toBeTruthy();
-    expect(screen.getByText("Record completeness")).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "Profile" })).toBeTruthy();
+    expect(
+      screen.getByRole("tab", { name: "Organization & reporting" })
+    ).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "Access" })).toBeTruthy();
+    expect(screen.getByText("Personal details")).toBeTruthy();
+    expect(screen.getByText("Work details")).toBeTruthy();
     expect(screen.queryByText("Recent activity")).toBeNull();
 
-    const profileDetailsHeading = screen.getByText("Profile details");
-    const accessHeading = screen.getByText("Access");
-    const reportingHeading = screen.getByText("Organization & reporting");
+    await user.click(
+      screen.getByRole("tab", { name: "Organization & reporting" })
+    );
 
+    const reportingPanel = screen.getByRole("tabpanel");
     expect(
-      profileDetailsHeading.compareDocumentPosition(accessHeading) &
-        Node.DOCUMENT_POSITION_FOLLOWING
+      within(reportingPanel).getByText("Organization & reporting")
     ).toBeTruthy();
-    expect(
-      accessHeading.compareDocumentPosition(reportingHeading) &
-        Node.DOCUMENT_POSITION_FOLLOWING
-    ).toBeTruthy();
+    expect(within(reportingPanel).getByText("Record completeness")).toBeTruthy();
+    expect(within(reportingPanel).getByText("Open fix")).toBeTruthy();
 
     const managerLinks = screen.getAllByRole("link", { name: /Morgan Hart/i });
     const managerHrefs = managerLinks.map((link) => link.getAttribute("href"));
@@ -455,6 +458,8 @@ describe("EmployeeProfileWorkspace", () => {
   );
 
   it("opens access management for invite-pending account actions", async () => {
+    const user = userEvent.setup();
+
     mockUseWorkforceAccountStatus.mockReturnValue({
       data: {
         ...activeAccount,
@@ -472,7 +477,12 @@ describe("EmployeeProfileWorkspace", () => {
 
     renderWorkspace();
 
-    fireEvent.click(screen.getByRole("button", { name: "Manage access" }));
+    await user.click(screen.getByRole("tab", { name: "Access" }));
+    await user.click(
+      within(screen.getByRole("tabpanel")).getByRole("button", {
+        name: "Manage access",
+      })
+    );
 
     expect(screen.getByRole("button", { name: "Resend invite" })).toBeTruthy();
   });
@@ -507,13 +517,18 @@ describe("EmployeeProfileWorkspace", () => {
     });
 
     expect(screen.getAllByText("No manager").length).toBeGreaterThan(0);
+    await user.click(
+      screen.getByRole("tab", { name: "Organization & reporting" })
+    );
 
     await user.click(screen.getByRole("button", { name: "Open fix" }));
 
     expect(screen.getByTestId("employee-edit-dialog")).toBeTruthy();
   });
 
-  it("shows the full direct reports list on the profile page", () => {
+  it("shows the full direct reports list on the profile page", async () => {
+    const user = userEvent.setup();
+
     renderWorkspace({
       profile: {
         ...baseProfile,
@@ -607,6 +622,10 @@ describe("EmployeeProfileWorkspace", () => {
         downlineCount: 5,
       },
     });
+
+    await user.click(
+      screen.getByRole("tab", { name: "Organization & reporting" })
+    );
 
     expect(screen.queryByText("Showing 4 of 5")).toBeNull();
     expect(screen.queryByText("Preview below")).toBeNull();

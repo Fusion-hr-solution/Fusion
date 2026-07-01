@@ -52,7 +52,7 @@ export function ChapterNavigation({
       {showExamButton ? (
         <Button
           onClick={onStartExam}
-          className="gap-2 ey-bg-accent text-foreground hover:opacity-90"
+          className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
         >
           <GraduationCap className="h-4 w-4" aria-hidden="true" />
           {t("navigation.takeExam")}
