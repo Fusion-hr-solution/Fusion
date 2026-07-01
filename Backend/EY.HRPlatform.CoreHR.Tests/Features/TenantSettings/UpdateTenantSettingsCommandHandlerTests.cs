@@ -549,7 +549,7 @@ public class UpdateTenantSettingsCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_WithApprovedSetupAndDraftStructureSchema_ThrowsInvalidTenantSetupStateException()
+    public async Task Handle_WithApprovedSetupAndDraftStructureSchema_UpdatesSettings()
     {
         // Arrange
         var dbName = Guid.NewGuid().ToString();
@@ -590,10 +590,14 @@ public class UpdateTenantSettingsCommandHandlerTests
             EmployeeFieldConfig: null,
             Branding: null);
 
-        // Act & Assert
-        var ex = await Assert.ThrowsAsync<InvalidTenantSetupStateException>(
-            () => handler.Handle(command, CancellationToken.None));
-        Assert.Contains("reopen", ex.Message, StringComparison.OrdinalIgnoreCase);
+        // Act
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.Equal(["Division"], result.Value.OrgUnitTypes);
+        Assert.Single(result.Value.DraftStructureSchema.OrgUnitKinds);
+        Assert.Equal("Division", result.Value.DraftStructureSchema.OrgUnitKinds[0].DisplayLabel);
     }
 
     #endregion
@@ -1014,6 +1018,68 @@ public class UpdateTenantSettingsCommandHandlerTests
 
         // Assert
         Assert.True(result.IsSuccess);
+    }
+
+    #endregion
+
+    #region Provisioning
+
+    [Fact]
+    public async Task Handle_WithProvisioningSettings_PersistsProvisioningPolicy()
+    {
+        var profileId = Guid.NewGuid();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        await using var context = TestDbContextFactory.Create(tenantContext);
+        var handler = new UpdateTenantSettingsCommandHandler(context, tenantContext);
+
+        var command = new UpdateTenantSettingsCommand(
+            ExpectedVersion: null,
+            OrgUnitTypes: null,
+            EmployeeFieldConfig: null,
+            Branding: null,
+            Provisioning: new ProvisioningSettingsInput(
+                profileId,
+                InviteExpiryDays: 30,
+                ResendCooldownHours: 6,
+                PendingInviteBehavior: "KeepExisting"));
+
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(profileId, result.Value.Provisioning.DefaultAccessProfileId);
+        Assert.Equal(30, result.Value.Provisioning.InviteExpiryDays);
+        Assert.Equal(6, result.Value.Provisioning.ResendCooldownHours);
+        Assert.Equal("KeepExisting", result.Value.Provisioning.PendingInviteBehavior);
+    }
+
+    [Theory]
+    [InlineData(0, 24, "RefreshExisting")]
+    [InlineData(91, 24, "RefreshExisting")]
+    [InlineData(14, -1, "RefreshExisting")]
+    [InlineData(14, 721, "RefreshExisting")]
+    [InlineData(14, 24, "ReplaceExisting")]
+    public async Task Handle_WithInvalidProvisioningSettings_ThrowsArgumentException(
+        int inviteExpiryDays,
+        int resendCooldownHours,
+        string pendingInviteBehavior)
+    {
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        await using var context = TestDbContextFactory.Create(tenantContext);
+        var handler = new UpdateTenantSettingsCommandHandler(context, tenantContext);
+
+        var command = new UpdateTenantSettingsCommand(
+            ExpectedVersion: null,
+            OrgUnitTypes: null,
+            EmployeeFieldConfig: null,
+            Branding: null,
+            Provisioning: new ProvisioningSettingsInput(
+                Guid.NewGuid(),
+                inviteExpiryDays,
+                resendCooldownHours,
+                pendingInviteBehavior));
+
+        await Assert.ThrowsAsync<ArgumentException>(
+            () => handler.Handle(command, CancellationToken.None));
     }
 
     #endregion

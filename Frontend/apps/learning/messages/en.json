@@ -525,6 +525,7 @@
     "intro": {
       "questions": "Questions",
       "timeLimit": "Time Limit",
+      "suggestedTime": "Suggested time",
       "minutes": "{minutes} min",
       "alreadyPassed": "You have already passed this exam. You can retake it if you wish.",
       "retake": "Retake Exam",
@@ -1019,13 +1020,29 @@
   },
   "adminDashboard": {
     "moduleTitle": "Administration",
-    "title": "Programme Matrix & Progress",
-    "description": "Click any cell to see detailed employee stats. Grade x Service Line completion matrix and advancement rates.",
+    "title": "Learning analytics",
+    "description": "Curriculum completion by grade and service line, and in-person attendance across sessions.",
+    "tabs": {
+      "programme": "Programme Matrix",
+      "attendance": "Attendance",
+      "ariaLabel": "Admin dashboards"
+    },
     "kpi": {
       "profiledEmployees": "Profiled Employees",
       "activeCells": "Active Cells",
+      "activeGroups": "Active Groups",
       "avgCompletion": "Avg. Completion",
-      "greenCells": "Cells over 80%"
+      "greenCells": "Cells over 80%",
+      "groupsAbove80": "Groups ≥ 80%"
+    },
+    "section": {
+      "completionByGroup": "Completion by group",
+      "completionByGroupHint": "Each grade × service line group, sorted by lowest completion first. Click a group for per-employee progress."
+    },
+    "attention": {
+      "empty": "No groups with enrolled employees yet.",
+      "tileAria": "{grade}, {sl}: {rate}% complete, {count, plural, one {# person} other {# people}}",
+      "people": "{count, plural, one {# person} other {# people}}"
     },
     "matrix": {
       "heading": "Programme Matrix",

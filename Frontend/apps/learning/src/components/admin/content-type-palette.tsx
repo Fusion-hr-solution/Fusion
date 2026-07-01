@@ -1,13 +1,18 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useDraggable } from "@dnd-kit/core";
-import { CONTENT_TYPES, type ContentTypeConfig } from "@/data/chapter-templates";
+import {
+  CONTENT_TYPES,
+  type ContentTypeConfig,
+} from "@/data/chapter-templates";
 
 interface PaletteItemProps {
   config: ContentTypeConfig;
 }
 
 function PaletteItem({ config }: PaletteItemProps) {
+  const t = useTranslations("adminChapters");
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `palette-${config.type}`,
     data: { source: "palette", contentType: config.type },
@@ -22,22 +27,29 @@ function PaletteItem({ config }: PaletteItemProps) {
         isDragging ? "opacity-40 scale-95" : ""
       }`}
     >
-      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${config.colorClass}`}>
+      <div
+        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${config.colorClass}`}
+      >
         <config.icon className={`h-4 w-4 ${config.iconColorClass}`} />
       </div>
       <div className="min-w-0">
-        <p className="text-xs font-semibold text-foreground">{config.label}</p>
-        <p className="text-[10px] leading-tight text-muted-foreground">{config.description}</p>
+        <p className="text-xs font-semibold text-foreground">
+          {t(`contentTypes.${config.type}.label`)}
+        </p>
+        <p className="text-[10px] leading-tight text-muted-foreground">
+          {t(`contentTypes.${config.type}.description`)}
+        </p>
       </div>
     </div>
   );
 }
 
 export function ContentTypePalette() {
+  const t = useTranslations("adminChapters");
   return (
     <div className="space-y-2">
       <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-        Drag to add
+        {t("palette.dragToAdd")}
       </p>
       <div className="grid grid-cols-2 gap-2">
         {CONTENT_TYPES.map((config) => (

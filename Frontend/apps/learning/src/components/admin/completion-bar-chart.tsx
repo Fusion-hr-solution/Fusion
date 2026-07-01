@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import {
   BarChart,
   Bar,
@@ -24,7 +25,12 @@ function getBarFill(rate: number, defaultColor?: string): string {
   return "hsl(var(--ey-red-500))";
 }
 
-export function CompletionBarChart({ data, title, barColor }: CompletionBarChartProps) {
+export function CompletionBarChart({
+  data,
+  title,
+  barColor,
+}: CompletionBarChartProps) {
+  const t = useTranslations("adminDashboard");
   return (
     <div className="ey-animate-fade-up rounded-xl border border-border/60 bg-card p-5 shadow-sm">
       <h3 className="mb-4 text-sm font-semibold text-foreground">{title}</h3>
@@ -49,7 +55,10 @@ export function CompletionBarChart({ data, title, barColor }: CompletionBarChart
               tickFormatter={(v: number) => `${v}%`}
             />
             <Tooltip
-              formatter={(value: number) => [`${value}%`, "Completion"]}
+              formatter={(value: number) => [
+                `${value}%`,
+                t("charts.completion"),
+              ]}
               contentStyle={{
                 borderRadius: "8px",
                 background: "hsl(var(--popover))",
@@ -57,6 +66,8 @@ export function CompletionBarChart({ data, title, barColor }: CompletionBarChart
                 border: "1px solid hsl(var(--border))",
                 fontSize: "12px",
               }}
+              labelStyle={{ color: "hsl(var(--foreground))" }}
+              itemStyle={{ color: "hsl(var(--foreground))" }}
             />
             <Bar dataKey="rate" radius={[6, 6, 0, 0]} maxBarSize={48}>
               {data.map((entry, i) => (

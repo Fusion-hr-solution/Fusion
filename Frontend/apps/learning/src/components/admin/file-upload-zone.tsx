@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useCallback } from "react";
+import { useTranslations, useFormatter } from "next-intl";
 import { Upload, X, FileText, Film } from "lucide-react";
 import { Button } from "@repo/ui";
 
@@ -23,6 +24,8 @@ export function FileUploadZone({
   disabled,
   error,
 }: FileUploadZoneProps) {
+  const t = useTranslations("adminChapters");
+  const format = useFormatter();
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleDrop = useCallback(
@@ -31,7 +34,7 @@ export function FileUploadZone({
       const dropped = e.dataTransfer.files[0];
       if (dropped) onFileChange(dropped);
     },
-    [onFileChange],
+    [onFileChange]
   );
 
   const isPdf = accept.includes("pdf");
@@ -43,9 +46,22 @@ export function FileUploadZone({
         <Icon className="h-5 w-5 shrink-0 text-muted-foreground" />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium">{file.name}</p>
-          <p className="text-xs text-muted-foreground">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+          <p className="text-xs text-muted-foreground">
+            {t("fileUpload.fileSizeMb", {
+              size: format.number(file.size / 1024 / 1024, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              }),
+            })}
+          </p>
         </div>
-        <Button type="button" variant="ghost" size="sm" onClick={() => onFileChange(null)} disabled={disabled}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => onFileChange(null)}
+          disabled={disabled}
+        >
           <X className="h-4 w-4" />
         </Button>
       </div>
@@ -57,12 +73,26 @@ export function FileUploadZone({
       <div className="space-y-2">
         <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/50 p-3">
           <Icon className="h-5 w-5 shrink-0 text-muted-foreground" />
-          <p className="min-w-0 flex-1 truncate text-sm">{existingUrl.split("/").pop()}</p>
+          <p className="min-w-0 flex-1 truncate text-sm">
+            {existingUrl.split("/").pop()}
+          </p>
         </div>
-        <Button type="button" variant="outline" size="sm" onClick={() => inputRef.current?.click()} disabled={disabled}>
-          <Upload className="mr-1 h-4 w-4" /> Replace file
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => inputRef.current?.click()}
+          disabled={disabled}
+        >
+          <Upload className="mr-1 h-4 w-4" /> {t("fileUpload.replaceFile")}
         </Button>
-        <input ref={inputRef} type="file" accept={accept} className="hidden" onChange={(e) => onFileChange(e.target.files?.[0] ?? null)} />
+        <input
+          ref={inputRef}
+          type="file"
+          accept={accept}
+          className="hidden"
+          onChange={(e) => onFileChange(e.target.files?.[0] ?? null)}
+        />
       </div>
     );
   }
@@ -81,10 +111,18 @@ export function FileUploadZone({
         <Upload className="h-8 w-8 text-muted-foreground" />
         <div>
           <p className="text-sm font-medium">{label}</p>
-          <p className="text-xs text-muted-foreground">Drag & drop or click to browse</p>
+          <p className="text-xs text-muted-foreground">
+            {t("fileUpload.dragDropHint")}
+          </p>
         </div>
       </div>
-      <input ref={inputRef} type="file" accept={accept} className="hidden" onChange={(e) => onFileChange(e.target.files?.[0] ?? null)} />
+      <input
+        ref={inputRef}
+        type="file"
+        accept={accept}
+        className="hidden"
+        onChange={(e) => onFileChange(e.target.files?.[0] ?? null)}
+      />
       {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   );

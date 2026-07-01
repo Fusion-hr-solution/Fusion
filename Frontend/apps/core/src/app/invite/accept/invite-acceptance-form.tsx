@@ -24,10 +24,10 @@ import {
   useAcceptInvite,
   type AcceptInvitePayload,
 } from "./use-invite";
+import { resolveInviteAcceptanceDestination } from "./invite-acceptance-routing";
 import {
   CheckCircle2Icon,
   CircleIcon,
-  ShieldCheckIcon,
   AlertTriangleIcon,
   ClockIcon,
   ArrowRightIcon,
@@ -43,12 +43,13 @@ interface PasswordRule {
 }
 
 const PASSWORD_RULES: PasswordRule[] = [
-  { label: "10+ characters", test: (v) => v.length >= 10 },
+  { label: "8+ characters", test: (v) => v.length >= 8 },
   {
-    label: "Upper & lower case",
+    label: "Upper and lower case",
     test: (v) => /[a-z]/.test(v) && /[A-Z]/.test(v),
   },
-  { label: "Special character", test: (v) => /[^a-zA-Z0-9]/.test(v) },
+  { label: "Number", test: (v) => /\d/.test(v) },
+  { label: "Symbol", test: (v) => /[^a-zA-Z0-9]/.test(v) },
 ];
 
 // ---------------------------------------------------------------------------
@@ -60,6 +61,131 @@ interface AcceptFormValues {
   lastName: string;
   password: string;
   confirmPassword: string;
+}
+
+interface InviteErrorStateConfig {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  action?: React.ReactNode;
+}
+
+function hasErrorMessage(error: ApiError, fragment: string): boolean {
+  return error.errors.some((message) =>
+    message.toLowerCase().includes(fragment.toLowerCase())
+  );
+}
+
+function getInviteValidationErrorState(
+  error: unknown
+): InviteErrorStateConfig | null {
+  if (!error) {
+    return null;
+  }
+
+  if (!(error instanceof ApiError)) {
+    return {
+      icon: <AlertTriangleIcon className="size-10 text-muted-foreground" />,
+      title: "Could not verify invite",
+      description: "Check your connection and try again.",
+    };
+  }
+
+  if (error.status === 404) {
+    return {
+      icon: <AlertTriangleIcon className="size-10 text-muted-foreground" />,
+      title: "Invite not found",
+      description: "Ask your administrator for a new invite link.",
+    };
+  }
+
+  if (error.status === 410 && hasErrorMessage(error, "used")) {
+    return {
+      icon: <CheckCircle2Icon className="size-10 text-green-600" />,
+      title: "Invite already accepted",
+      description: "Sign in with your account to continue.",
+      action: (
+        <a href="/auth/signin">
+          <Button>Sign in</Button>
+        </a>
+      ),
+    };
+  }
+
+  if (error.status === 410 && hasErrorMessage(error, "expired")) {
+    return {
+      icon: <ClockIcon className="size-10 text-muted-foreground" />,
+      title: "Invite expired",
+      description: "Ask your administrator for a new invite link.",
+    };
+  }
+
+  if (error.status === 410 && hasErrorMessage(error, "revoked")) {
+    return {
+      icon: <AlertTriangleIcon className="size-10 text-muted-foreground" />,
+      title: "Invite cancelled",
+      description: "This invite is no longer valid. Ask your administrator for a new invite link.",
+    };
+  }
+
+  if (error.status >= 500) {
+    return {
+      icon: <AlertTriangleIcon className="size-10 text-muted-foreground" />,
+      title: "Could not verify invite",
+      description: "Try again in a moment. If the problem continues, contact your administrator.",
+    };
+  }
+
+  return {
+    icon: <AlertTriangleIcon className="size-10 text-muted-foreground" />,
+    title: "Could not verify invite",
+    description: "Refresh the page or try again in a moment.",
+  };
+}
+
+function getInviteSubmitErrorMessages(
+  error: unknown,
+  step: "accept" | "sign-in"
+): string[] {
+  if (!(error instanceof ApiError)) {
+    return ["We couldn't complete your request. Check your connection and try again."];
+  }
+
+  if (step === "sign-in") {
+    const messages = [
+      error.status === 401 || error.status === 403
+        ? "Your account was created, but automatic sign-in failed. Sign in with your new account to continue."
+        : "Your account was created, but we couldn't finish signing you in. Try signing in to continue.",
+    ];
+
+    return messages;
+  }
+
+  if (error.status === 410 && hasErrorMessage(error, "used")) {
+    return ["This invite has already been accepted. Sign in with your account to continue."];
+  }
+
+  if (error.status === 410 && hasErrorMessage(error, "expired")) {
+    return ["This invite has expired. Ask your administrator for a new invite link."];
+  }
+
+  if (error.status === 410 && hasErrorMessage(error, "revoked")) {
+    return ["This invite was cancelled. Ask your administrator for a new invite link."];
+  }
+
+  if (error.status === 400 && hasErrorMessage(error, "email is already registered")) {
+    return [
+      "This email already has an account. Sign in instead, or ask your administrator for a fresh invite if needed.",
+    ];
+  }
+
+  if (error.errors.length > 0 && error.status < 500) {
+    return error.errors;
+  }
+
+  return [
+    "We couldn't finish setting up your account. Try again in a moment or contact your administrator.",
+  ];
 }
 
 // ---------------------------------------------------------------------------
@@ -119,6 +245,7 @@ export function InviteAcceptanceForm({ token }: { token: string | null }) {
     if (!token || !invite) return;
 
     setServerErrors([]);
+    let submitStep: "accept" | "sign-in" = "accept";
 
     try {
       // 1. Accept the invite (creates user account)
@@ -133,6 +260,7 @@ export function InviteAcceptanceForm({ token }: { token: string | null }) {
 
       // 2. Auto-login with the credentials just created
       setIsAutoLoginning(true);
+      submitStep = "sign-in";
       const authResponse = await apiLogin({
         email: invite.email,
         password: values.password,
@@ -142,7 +270,7 @@ export function InviteAcceptanceForm({ token }: { token: string | null }) {
       const user: AuthUser = {
         userId: authResponse.userId,
         tenantId: authResponse.tenantId,
-        employeeId: authResponse.employeeId,
+        employeeId: authResponse.employeeId ?? null,
         email: authResponse.email,
         fullName: authResponse.fullName,
         roles: authResponse.roles,
@@ -156,24 +284,17 @@ export function InviteAcceptanceForm({ token }: { token: string | null }) {
         user,
       } satisfies StoredAuth);
 
-      // 4. Redirect to the authenticated app
-      router.push("/");
+      // 4. Redirect to the role-scoped app entry.
+      router.push(resolveInviteAcceptanceDestination(user));
     } catch (err) {
       setIsAutoLoginning(false);
-      if (err instanceof ApiError) {
-        setServerErrors(
-          err.errors.length > 0
-            ? err.errors
-            : ["Something went wrong. Please try again."]
-        );
-      } else {
-        setServerErrors(["An unexpected error occurred. Please try again."]);
-      }
+      setServerErrors(getInviteSubmitErrorMessages(err, submitStep));
     }
   };
 
   const isSubmitting = accept.isLoading || isAutoLoginning;
-  const isInviteLoading = !!token && (isValidating || (!invite && !validateError));
+  const isInviteLoading =
+    !!token && (isValidating || (!invite && !validateError));
 
   // ── Missing token ───────────────────────────────────────────────
 
@@ -182,8 +303,8 @@ export function InviteAcceptanceForm({ token }: { token: string | null }) {
       <InviteShell>
         <ErrorState
           icon={<AlertTriangleIcon className="size-10 text-muted-foreground" />}
-          title="Invalid Invite Link"
-          description="This link is missing a valid invitation token. Please check the link from your email and try again."
+          title="Invalid invite link"
+          description="Open the invite link from your email and try again."
         />
       </InviteShell>
     );
@@ -201,19 +322,28 @@ export function InviteAcceptanceForm({ token }: { token: string | null }) {
 
   // ── Validation error ────────────────────────────────────────────
 
-  if (validateError || !invite) {
-    const is404 =
-      validateError instanceof ApiError && validateError.status === 404;
+  const validationErrorState = getInviteValidationErrorState(validateError);
+
+  if (validationErrorState) {
+    return (
+      <InviteShell>
+        <ErrorState
+          icon={validationErrorState.icon}
+          title={validationErrorState.title}
+          description={validationErrorState.description}
+          action={validationErrorState.action}
+        />
+      </InviteShell>
+    );
+  }
+
+  if (!invite) {
     return (
       <InviteShell>
         <ErrorState
           icon={<AlertTriangleIcon className="size-10 text-muted-foreground" />}
-          title={is404 ? "Invitation Not Found" : "Unable to Verify Invitation"}
-          description={
-            is404
-              ? "This invitation link is invalid or has been revoked. Please contact your administrator."
-              : "We couldn't verify this invitation right now. Please try again later."
-          }
+          title="Could not verify invite"
+          description="Refresh the page and try again."
         />
       </InviteShell>
     );
@@ -226,8 +356,8 @@ export function InviteAcceptanceForm({ token }: { token: string | null }) {
       <InviteShell>
         <ErrorState
           icon={<ClockIcon className="size-10 text-muted-foreground" />}
-          title="Invitation Expired"
-          description="This invitation has expired. Please contact your administrator to request a new one."
+          title="Invite expired"
+          description="Ask your administrator for a new invite link."
         />
       </InviteShell>
     );
@@ -240,11 +370,11 @@ export function InviteAcceptanceForm({ token }: { token: string | null }) {
       <InviteShell>
         <ErrorState
           icon={<CheckCircle2Icon className="size-10 text-green-600" />}
-          title="Invitation Already Accepted"
-          description="This invitation has already been used. You can sign in with your existing credentials."
+          title="Invite already accepted"
+          description="Sign in with your account to continue."
           action={
             <a href="/auth/signin">
-              <Button>Go to Sign In</Button>
+              <Button>Sign in</Button>
             </a>
           }
         />
@@ -259,32 +389,25 @@ export function InviteAcceptanceForm({ token }: { token: string | null }) {
       <Card className="w-full max-w-lg">
         <CardHeader>
           <CardTitle>
-            Accept invitation for{" "}
+            Join{" "}
             <span className="bg-yellow-200 px-1 py-0.5">
               {invite.tenantName}
             </span>
           </CardTitle>
-          <CardDescription>
-            Set up your administrator account to manage platform operations and
-            configure organizational parameters.
-          </CardDescription>
+          <CardDescription>Create your account to continue.</CardDescription>
         </CardHeader>
 
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="grid gap-4">
             {/* Work Email (read-only) */}
             <div className="grid gap-2">
-              <Label>Work Email</Label>
+              <Label>Email</Label>
               <Input
                 value={invite.email}
                 readOnly
                 disabled
                 className="bg-muted/50"
               />
-              <div className="flex items-center gap-1.5 text-xs text-green-600">
-                <ShieldCheckIcon className="size-3.5" />
-                Verified professional identity
-              </div>
             </div>
 
             {/* Name fields */}
@@ -347,9 +470,7 @@ export function InviteAcceptanceForm({ token }: { token: string | null }) {
 
             {/* Password requirements checklist */}
             <div className="grid gap-1.5">
-              <p className="text-xs text-muted-foreground">
-                Security requirements
-              </p>
+              <p className="text-xs text-muted-foreground">Password needs:</p>
               <div className="flex flex-wrap gap-x-4 gap-y-1">
                 {ruleResults.map((rule) => (
                   <div
@@ -402,34 +523,16 @@ export function InviteAcceptanceForm({ token }: { token: string | null }) {
                 <>
                   <Spinner className="mr-2" />
                   {isAutoLoginning
-                    ? "Signing you in…"
-                    : "Creating your account…"}
+                    ? "Signing you in..."
+                    : "Creating account..."}
                 </>
               ) : (
                 <>
-                  Accept Invitation &amp; Continue
+                  Accept and continue
                   <ArrowRightIcon className="ml-2 size-4" />
                 </>
               )}
             </Button>
-
-            <p className="text-center text-xs text-muted-foreground">
-              By accepting, you agree to the{" "}
-              <a
-                href="#"
-                className="underline underline-offset-2 hover:text-foreground"
-              >
-                Service Terms
-              </a>{" "}
-              and{" "}
-              <a
-                href="#"
-                className="underline underline-offset-2 hover:text-foreground"
-              >
-                Privacy Protocol
-              </a>
-              .
-            </p>
           </form>
         </CardContent>
       </Card>

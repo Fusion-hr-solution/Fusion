@@ -98,6 +98,7 @@ public class QuestionService(AppDbContext dbContext) : IQuestionService
             UsageCount = 0,
             Language = string.IsNullOrWhiteSpace(request.Language) ? null : request.Language.Trim(),
             StarterCode = string.IsNullOrWhiteSpace(request.StarterCode) ? null : request.StarterCode,
+            ProjectFiles = string.IsNullOrWhiteSpace(request.ProjectFiles) ? null : request.ProjectFiles,
             EvaluationCriteria = string.IsNullOrWhiteSpace(request.EvaluationCriteria) ? null : request.EvaluationCriteria.Trim(),
             TestCases = string.IsNullOrWhiteSpace(request.TestCases) ? null : request.TestCases,
             Options = options.Select(o => new QuestionOption
@@ -136,6 +137,7 @@ public class QuestionService(AppDbContext dbContext) : IQuestionService
         question.Tags = tags.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).Distinct().ToList();
         question.Language = string.IsNullOrWhiteSpace(request.Language) ? null : request.Language.Trim();
         question.StarterCode = string.IsNullOrWhiteSpace(request.StarterCode) ? null : request.StarterCode;
+        question.ProjectFiles = string.IsNullOrWhiteSpace(request.ProjectFiles) ? null : request.ProjectFiles;
         question.EvaluationCriteria = string.IsNullOrWhiteSpace(request.EvaluationCriteria) ? null : request.EvaluationCriteria.Trim();
         question.TestCases = string.IsNullOrWhiteSpace(request.TestCases) ? null : request.TestCases;
 
@@ -198,6 +200,7 @@ public class QuestionService(AppDbContext dbContext) : IQuestionService
             }).ToList(),
             Language = question.Language ?? string.Empty,
             StarterCode = question.StarterCode ?? string.Empty,
+            ProjectFiles = question.ProjectFiles,
             EvaluationCriteria = question.EvaluationCriteria ?? string.Empty,
             TestCases = question.TestCases
         };

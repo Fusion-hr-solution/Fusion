@@ -17,6 +17,7 @@ import {
   DialogTitle,
   Button,
 } from "@repo/ui";
+import { useTranslations } from "next-intl";
 import type { TrainingFormDialogProps } from "@/types/admin-props";
 import { useTrainingForm } from "@/hooks/use-training-form";
 import { StepIndicator } from "./step-indicator";
@@ -24,11 +25,12 @@ import { TrainingFormBasicStep } from "./training-form-basic-step";
 import { TrainingFormDetailsStep } from "./training-form-details-step";
 import { TrainingFormReviewStep } from "./training-form-review-step";
 
-const STEPS = [
-  { label: "Basic Info", icon: <FileText className="h-4 w-4" /> },
-  { label: "Details", icon: <Settings className="h-4 w-4" /> },
-  { label: "Review", icon: <CheckCircle2 className="h-4 w-4" /> },
+const STEP_ICONS = [
+  <FileText key="basic" className="h-4 w-4" />,
+  <Settings key="details" className="h-4 w-4" />,
+  <CheckCircle2 key="review" className="h-4 w-4" />,
 ];
+const STEP_COUNT = 3;
 
 export function TrainingFormDialog({
   trainingId,
@@ -36,23 +38,40 @@ export function TrainingFormDialog({
   onOpenChange,
   onSaved,
 }: TrainingFormDialogProps) {
+  const t = useTranslations("adminTrainings");
+  const tCommon = useTranslations("common");
+
+  const steps = [
+    { label: t("form.steps.basicInfo"), icon: STEP_ICONS[0] },
+    { label: t("form.steps.details"), icon: STEP_ICONS[1] },
+    { label: t("form.steps.review"), icon: STEP_ICONS[2] },
+  ];
+
   const form = useTrainingForm({
     trainingId,
     enabled: open,
-    onCreated: () => { onOpenChange(false); onSaved(); },
-    onUpdated: () => { onOpenChange(false); onSaved(); },
+    onCreated: () => {
+      onOpenChange(false);
+      onSaved();
+    },
+    onUpdated: () => {
+      onOpenChange(false);
+      onSaved();
+    },
   });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{form.isEditing ? "Edit Training" : "Create Training"}</DialogTitle>
+          <DialogTitle>
+            {form.isEditing ? t("form.editTraining") : t("form.createTraining")}
+          </DialogTitle>
         </DialogHeader>
 
         {form.isEditing && form.loadingDetail ? (
           <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
-            Loading training...
+            {t("form.loading")}
           </div>
         ) : (
           <>
@@ -64,55 +83,110 @@ export function TrainingFormDialog({
             )}
 
             <div className="py-2">
-              <StepIndicator steps={STEPS} currentStep={form.step} />
+              <StepIndicator steps={steps} currentStep={form.step} />
             </div>
 
             <div className="mt-2">
               {form.step === 0 && (
                 <TrainingFormBasicStep
-                  title={form.title} onTitleChange={(v) => { form.setTitle(v); form.clearFieldError("title"); }}
-                  description={form.description} onDescriptionChange={form.setDescription}
-                  categoryId={form.categoryId} onCategoryChange={(v) => { form.setCategoryId(v); form.clearFieldError("categoryId"); }}
+                  title={form.title}
+                  onTitleChange={(v) => {
+                    form.setTitle(v);
+                    form.clearFieldError("title");
+                  }}
+                  description={form.description}
+                  onDescriptionChange={form.setDescription}
+                  categoryId={form.categoryId}
+                  onCategoryChange={(v) => {
+                    form.setCategoryId(v);
+                    form.clearFieldError("categoryId");
+                  }}
                   categories={form.categories}
-                  badgeLevel={form.badgeLevel} onBadgeLevelChange={form.setBadgeLevel}
-                  trainingType={form.trainingType} onTrainingTypeChange={form.setTrainingType}
+                  badgeLevel={form.badgeLevel}
+                  onBadgeLevelChange={form.setBadgeLevel}
+                  trainingType={form.trainingType}
+                  onTrainingTypeChange={form.setTrainingType}
                   fieldErrors={form.fieldErrors}
                 />
               )}
 
               {form.step === 1 && (
                 <TrainingFormDetailsStep
-                  credits={form.credits} onCreditsChange={(v) => { form.setCredits(v); form.clearFieldError("credits"); }}
-                  duration={form.duration} onDurationChange={form.setDuration}
-                  isMandatory={form.isMandatory} onMandatoryChange={form.setIsMandatory}
+                  credits={form.credits}
+                  onCreditsChange={(v) => {
+                    form.setCredits(v);
+                    form.clearFieldError("credits");
+                  }}
+                  duration={form.duration}
+                  onDurationChange={form.setDuration}
+                  isMandatory={form.isMandatory}
+                  onMandatoryChange={form.setIsMandatory}
                   trainingType={form.trainingType}
-                  scheduledDate={form.scheduledDate} onScheduledDateChange={form.setScheduledDate}
+                  scheduledDate={form.scheduledDate}
+                  onScheduledDateChange={form.setScheduledDate}
                   fieldErrors={form.fieldErrors}
                 />
               )}
 
               {form.step === 2 && (
                 <TrainingFormReviewStep
-                  title={form.title} description={form.description} categoryName={form.categoryName}
-                  badgeLevel={form.badgeLevel} credits={form.credits} duration={form.duration} isMandatory={form.isMandatory}
-                  trainingType={form.trainingType} scheduledDate={form.scheduledDate}
+                  title={form.title}
+                  description={form.description}
+                  categoryName={form.categoryName}
+                  badgeLevel={form.badgeLevel}
+                  credits={form.credits}
+                  duration={form.duration}
+                  isMandatory={form.isMandatory}
+                  trainingType={form.trainingType}
+                  scheduledDate={form.scheduledDate}
                 />
               )}
             </div>
 
             <div className="mt-4 flex items-center justify-between">
-              <Button type="button" variant="outline" onClick={() => { if (form.step === 0) onOpenChange(false); else form.setStep(form.step - 1); }}>
-                {form.step === 0 ? "Cancel" : <><ArrowLeft className="mr-1 h-4 w-4" /> Previous</>}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  if (form.step === 0) onOpenChange(false);
+                  else form.setStep(form.step - 1);
+                }}
+              >
+                {form.step === 0 ? (
+                  tCommon("actions.cancel")
+                ) : (
+                  <>
+                    <ArrowLeft className="mr-1 h-4 w-4" />{" "}
+                    {tCommon("actions.previous")}
+                  </>
+                )}
               </Button>
 
-              {form.step < STEPS.length - 1 ? (
-                <Button type="button" disabled={!form.canAdvance(form.step)} onClick={form.handleNext} className="ey-bg-dark hover:opacity-90">
-                  Next <ArrowRight className="ml-1 h-4 w-4" />
+              {form.step < STEP_COUNT - 1 ? (
+                <Button
+                  type="button"
+                  disabled={!form.canAdvance(form.step)}
+                  onClick={form.handleNext}
+                  className="ey-bg-dark hover:opacity-90"
+                >
+                  {tCommon("actions.next")}{" "}
+                  <ArrowRight className="ml-1 h-4 w-4" />
                 </Button>
               ) : (
-                <Button type="button" disabled={form.isSaving} onClick={form.handleSubmit} className="ey-bg-dark hover:opacity-90">
-                  {form.isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                  {form.isEditing ? "Update Training" : "Create Training"}
+                <Button
+                  type="button"
+                  disabled={form.isSaving}
+                  onClick={form.handleSubmit}
+                  className="ey-bg-dark hover:opacity-90"
+                >
+                  {form.isSaving ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="mr-2 h-4 w-4" />
+                  )}
+                  {form.isEditing
+                    ? t("form.updateTraining")
+                    : t("form.createTraining")}
                 </Button>
               )}
             </div>

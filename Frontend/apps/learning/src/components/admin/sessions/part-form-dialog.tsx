@@ -12,6 +12,7 @@ import {
   Input,
   Label,
 } from "@repo/ui";
+import { useTranslations } from "next-intl";
 import { useApiMutation } from "@repo/api/react";
 import { addPart, updatePart } from "@/services/admin-sessions-service";
 import type { AdminTrainingPart, CreatePartInput } from "@/types/admin";
@@ -31,6 +32,8 @@ export function PartFormDialog({
   onOpenChange,
   onSaved,
 }: PartFormDialogProps) {
+  const t = useTranslations("adminSessions");
+  const tCommon = useTranslations("common");
   const [step, setStep] = useState(0);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -38,8 +41,12 @@ export function PartFormDialog({
   const [error, setError] = useState<string | null>(null);
 
   const isEditing = !!part;
-  const isPartCompleted = isEditing && part.sessions.length > 0 &&
-    part.sessions.every((s) => s.status === "Completed" || new Date(s.endUtc) < new Date());
+  const isPartCompleted =
+    isEditing &&
+    part.sessions.length > 0 &&
+    part.sessions.every(
+      (s) => s.status === "Completed" || new Date(s.endUtc) < new Date()
+    );
   const isLocked = isEditing && (isPartCompleted || part.isLocked);
   const totalSteps = isEditing ? 1 : 2; // Edit mode skips review
 
@@ -55,18 +62,34 @@ export function PartFormDialog({
 
   const { mutateAsync: doAdd, isLoading: addingPending } = useApiMutation(
     (input: CreatePartInput) => addPart(trainingId, input),
-    { onSuccess: () => { onSaved(); onOpenChange(false); } },
+    {
+      onSuccess: () => {
+        onSaved();
+        onOpenChange(false);
+      },
+    }
   );
 
   const { mutateAsync: doUpdate, isLoading: updatingPending } = useApiMutation(
     (input: CreatePartInput) => updatePart(trainingId, part!.id, input),
-    { onSuccess: () => { onSaved(); onOpenChange(false); } },
+    {
+      onSuccess: () => {
+        onSaved();
+        onOpenChange(false);
+      },
+    }
   );
 
   function validateStep0(): boolean {
-    if (!title.trim()) { setError("Title is required."); return false; }
+    if (!title.trim()) {
+      setError(t("partDialog.titleRequired"));
+      return false;
+    }
     const hours = Number(durationHours);
-    if (!Number.isFinite(hours) || hours < 0) { setError("Duration must be a non-negative number."); return false; }
+    if (!Number.isFinite(hours) || hours < 0) {
+      setError(t("partDialog.durationInvalid"));
+      return false;
+    }
     setError(null);
     return true;
   }
@@ -89,7 +112,7 @@ export function PartFormDialog({
       if (isEditing) await doUpdate(input);
       else await doAdd(input);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to save part.");
+      setError(e instanceof Error ? e.message : t("partDialog.saveFailed"));
     }
   }
 
@@ -99,15 +122,17 @@ export function PartFormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>{isEditing ? "Edit Part" : "Add New Part"}</DialogTitle>
+          <DialogTitle>
+            {isEditing ? t("partDialog.editTitle") : t("partDialog.addTitle")}
+          </DialogTitle>
         </DialogHeader>
 
         {/* Step indicator (for create mode only) */}
         {!isEditing && (
           <div className="flex items-center justify-center gap-0 py-2">
             {[
-              { label: "Details", icon: FileText },
-              { label: "Review", icon: CheckCircle2 },
+              { label: t("partDialog.stepDetails"), icon: FileText },
+              { label: t("partDialog.stepReview"), icon: CheckCircle2 },
             ].map((s, index) => {
               const isCompleted = index < step;
               const isCurrent = index === step;
@@ -130,12 +155,16 @@ export function PartFormDialog({
                         <Icon className="h-4 w-4" />
                       )}
                     </div>
-                    <span className={`text-xs font-medium ${isCompleted || isCurrent ? "text-foreground" : "text-muted-foreground"}`}>
+                    <span
+                      className={`text-xs font-medium ${isCompleted || isCurrent ? "text-foreground" : "text-muted-foreground"}`}
+                    >
                       {s.label}
                     </span>
                   </div>
                   {index < 1 && (
-                    <div className={`mx-4 mb-5 h-0.5 w-16 rounded-full transition-colors duration-300 ${index < step ? "bg-[hsl(var(--ey-green-500))]" : "bg-muted"}`} />
+                    <div
+                      className={`mx-4 mb-5 h-0.5 w-16 rounded-full transition-colors duration-300 ${index < step ? "bg-[hsl(var(--ey-green-500))]" : "bg-muted"}`}
+                    />
                   )}
                 </div>
               );
@@ -152,39 +181,50 @@ export function PartFormDialog({
                 <Lock className="h-4 w-4 text-[hsl(var(--ey-orange-500))] shrink-0" aria-hidden="true" />
                 <p className="text-xs text-[hsl(var(--ey-orange-500))]">
                   {isPartCompleted
-                    ? "This part is completed. All its sessions have ended and it cannot be modified."
-                    : "This part is locked and cannot be modified."}
+                    ? t("partDialog.lockedCompleted")
+                    : t("partDialog.lockedGeneric")}
                 </p>
               </div>
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="partTitle" className="text-sm font-medium">Title *</Label>
+              <Label htmlFor="partTitle" className="text-sm font-medium">
+                {t("partDialog.titleLabel")}
+              </Label>
               <Input
                 id="partTitle"
                 value={title}
-                onChange={(e) => { setTitle(e.target.value); setError(null); }}
+                onChange={(e) => {
+                  setTitle(e.target.value);
+                  setError(null);
+                }}
                 maxLength={300}
-                placeholder="e.g. Foundations, Communication, Workshop"
+                placeholder={t("partDialog.titlePlaceholder")}
                 className="h-10"
                 disabled={isLocked}
               />
-              <p className="text-xs text-muted-foreground">A short name for this segment of the training.</p>
+              <p className="text-xs text-muted-foreground">
+                {t("partDialog.titleHint")}
+              </p>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="partDescription" className="text-sm font-medium">Description</Label>
+              <Label htmlFor="partDescription" className="text-sm font-medium">
+                {t("partDialog.descriptionLabel")}
+              </Label>
               <Input
                 id="partDescription"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 maxLength={2000}
-                placeholder="Optional: what will be covered in this part"
+                placeholder={t("partDialog.descriptionPlaceholder")}
                 className="h-10"
                 disabled={isLocked}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="partDuration" className="text-sm font-medium">Duration (hours)</Label>
+              <Label htmlFor="partDuration" className="text-sm font-medium">
+                {t("partDialog.durationLabel")}
+              </Label>
               <div className="relative">
                 <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -198,7 +238,9 @@ export function PartFormDialog({
                   disabled={isLocked}
                 />
               </div>
-              <p className="text-xs text-muted-foreground">Estimated duration for this part.</p>
+              <p className="text-xs text-muted-foreground">
+                {t("partDialog.durationHint")}
+              </p>
             </div>
           </div>
         )}
@@ -207,50 +249,80 @@ export function PartFormDialog({
         {step === 1 && !isEditing && (
           <div className="space-y-3 pt-2">
             <div className="rounded-lg border border-border/60 bg-muted/20 p-4 space-y-3">
-              <h3 className="text-sm font-semibold text-foreground">Review</h3>
+              <h3 className="text-sm font-semibold text-foreground">
+                {t("partDialog.reviewTitle")}
+              </h3>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
-                  <p className="text-xs text-muted-foreground">Title</p>
-                  <p className="font-medium">{title || "—"}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t("partDialog.reviewTitleField")}
+                  </p>
+                  <p className="font-medium">{title || "-"}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Duration</p>
-                  <p className="font-medium">{durationHours}h</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t("partDialog.reviewDuration")}
+                  </p>
+                  <p className="font-medium">
+                    {t("partDialog.reviewDurationValue", {
+                      hours: durationHours,
+                    })}
+                  </p>
                 </div>
                 {description && (
                   <div className="col-span-2">
-                    <p className="text-xs text-muted-foreground">Description</p>
+                    <p className="text-xs text-muted-foreground">
+                      {t("partDialog.reviewDescription")}
+                    </p>
                     <p className="font-medium">{description}</p>
                   </div>
                 )}
               </div>
             </div>
             <p className="text-xs text-muted-foreground">
-              After creating, you can add sessions (time slots) to this part.
+              {t("partDialog.reviewNote")}
             </p>
           </div>
         )}
 
-        {error && (
-          <p className="text-sm text-destructive mt-2">{error}</p>
-        )}
+        {error && <p className="text-sm text-destructive mt-2">{error}</p>}
 
         <DialogFooter className="gap-2 pt-2">
           {step > 0 && !isEditing && (
-            <Button variant="outline" onClick={() => setStep(step - 1)} disabled={isLoading} className="mr-auto">
-              Back
+            <Button
+              variant="outline"
+              onClick={() => setStep(step - 1)}
+              disabled={isLoading}
+              className="mr-auto"
+            >
+              {tCommon("actions.back")}
             </Button>
           )}
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>
-            Cancel
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={isLoading}
+          >
+            {tCommon("actions.cancel")}
           </Button>
-          {(isEditing || step === totalSteps - 1) ? (
-            <Button onClick={handleSubmit} disabled={isLoading || isLocked} className="ey-bg-dark hover:opacity-90">
-              {isLoading ? "Saving..." : isEditing ? "Update" : "Create Part"}
+          {isEditing || step === totalSteps - 1 ? (
+            <Button
+              onClick={handleSubmit}
+              disabled={isLoading || isLocked}
+              className="ey-bg-dark hover:opacity-90"
+            >
+              {isLoading
+                ? tCommon("actions.saving")
+                : isEditing
+                  ? t("partDialog.update")
+                  : t("partDialog.createPart")}
             </Button>
           ) : (
-            <Button onClick={handleNext} className="ey-bg-dark hover:opacity-90">
-              Next
+            <Button
+              onClick={handleNext}
+              className="ey-bg-dark hover:opacity-90"
+            >
+              {tCommon("actions.next")}
             </Button>
           )}
         </DialogFooter>

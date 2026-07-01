@@ -79,7 +79,9 @@ public sealed partial class UpdateTenantSettingsCommandHandler(
             request.OrgUnitTypes,
             request.EmployeeFieldConfig,
             request.Branding,
-            requestedSchema);
+            requestedSchema,
+            request.SelfService,
+            request.Provisioning);
 
         settings.UpdateOverrides(newOverrides);
 
@@ -108,7 +110,9 @@ public sealed partial class UpdateTenantSettingsCommandHandler(
             request.OrgUnitTypes,
             request.EmployeeFieldConfig,
             request.Branding,
-            requestedSchema);
+            requestedSchema,
+            request.SelfService,
+            request.Provisioning);
 
         var settings = Domain.Entities.TenantSettings.Create(tenantId, overrides);
 
@@ -243,6 +247,24 @@ public sealed partial class UpdateTenantSettingsCommandHandler(
             if (request.Branding.LogoUrl is not null &&
                 !Uri.TryCreate(request.Branding.LogoUrl, UriKind.Absolute, out var uri))
                 throw new ArgumentException("LogoUrl must be a valid absolute URL.");
+        }
+
+        if (request.Provisioning is not null)
+        {
+            if (request.Provisioning.DefaultAccessProfileId == Guid.Empty)
+                throw new ArgumentException("DefaultAccessProfileId must be null or a valid profile id.");
+
+            if (request.Provisioning.InviteExpiryDays is < 1 or > 90)
+                throw new ArgumentException("InviteExpiryDays must be between 1 and 90.");
+
+            if (request.Provisioning.ResendCooldownHours is < 0 or > 720)
+                throw new ArgumentException("ResendCooldownHours must be between 0 and 720.");
+
+            if (request.Provisioning.PendingInviteBehavior is not null
+                && request.Provisioning.PendingInviteBehavior is not "RefreshExisting" and not "KeepExisting")
+            {
+                throw new ArgumentException("PendingInviteBehavior must be RefreshExisting or KeepExisting.");
+            }
         }
     }
 

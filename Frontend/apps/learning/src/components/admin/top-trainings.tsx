@@ -1,8 +1,12 @@
+"use client";
+
+import { useTranslations } from "next-intl";
 import { TrendingUp, Users, CheckCircle2 } from "lucide-react";
 import { Card, CardContent } from "@repo/ui";
 import type { TopTrainingsProps } from "@/types/admin-props";
 
 export function TopTrainings({ items }: TopTrainingsProps) {
+  const t = useTranslations("adminDashboard");
   return (
     <Card className="overflow-hidden border border-border/60 bg-card">
       <CardContent className="p-5">
@@ -14,7 +18,7 @@ export function TopTrainings({ items }: TopTrainingsProps) {
             />
           </div>
           <h3 className="text-sm font-bold text-foreground">
-            Most Enrolled Trainings
+            {t("topTrainings.heading")}
           </h3>
         </div>
 
@@ -34,11 +38,11 @@ export function TopTrainings({ items }: TopTrainingsProps) {
                 <div className="mt-1.5 flex items-center gap-3 text-[10px] text-muted-foreground">
                   <span className="flex items-center gap-1">
                     <Users className="h-3 w-3" aria-hidden="true" />
-                    {item.enrolled} enrolled
+                    {t("topTrainings.enrolled", { count: item.enrolled })}
                   </span>
                   <span className="flex items-center gap-1">
                     <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
-                    {item.completionRate}% done
+                    {t("topTrainings.done", { rate: item.completionRate })}
                   </span>
                 </div>
                 <div className="mt-1.5 h-1 rounded-full bg-muted overflow-hidden">

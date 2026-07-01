@@ -157,12 +157,15 @@ function loadBrowserTenantId(): string | null {
 }
 
 function isCoreBrowserPath(): boolean {
-  if (!isBrowser() || !window.location) {
+  if (!isBrowser()) {
     return false;
   }
 
-  const pathname = window.location?.pathname;
-  return typeof pathname === "string" && (pathname === "/core" || pathname.startsWith("/core/"));
+  const pathname =
+    typeof window.location?.pathname === "string"
+      ? window.location.pathname
+      : "";
+  return pathname === "/core" || pathname.startsWith("/core/");
 }
 
 function getBrowserTenantId(): string | null {

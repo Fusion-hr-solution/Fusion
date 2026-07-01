@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Plus, Pencil, Trash2, Layers } from "lucide-react";
 import {
   Button,
@@ -16,26 +17,28 @@ import { EmptyState } from "../empty-state";
 import { GradeForm } from "./grade-form";
 
 export function GradesManager() {
+  const t = useTranslations("adminGrades");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
 
   const fetchGrades = useCallback(() => getGrades(), []);
-  const { data: grades, isLoading, refetch } = useApiQuery<AdminGrade[]>(
-    fetchGrades,
-    { enabled: true },
-  );
+  const {
+    data: grades,
+    isLoading,
+    refetch,
+  } = useApiQuery<AdminGrade[]>(fetchGrades, { enabled: true });
 
   const { mutateAsync: doDelete } = useApiMutation(
     (id: string) => deleteGrade(id),
-    { onSuccess: () => refetch() },
+    { onSuccess: () => refetch() }
   );
 
   const handleDelete = useCallback(
     async (grade: AdminGrade) => {
-      if (!confirm(`Delete grade "${grade.name}"?`)) return;
+      if (!confirm(t("confirmDelete", { name: grade.name }))) return;
       await doDelete(grade.id);
     },
-    [doDelete],
+    [doDelete, t]
   );
 
   const sorted = grades?.slice().sort((a, b) => a.level - b.level) ?? [];
@@ -44,8 +47,8 @@ export function GradesManager() {
     <>
       <PageHeader
         moduleTitle="Administration"
-        title="Manage Grades"
-        description="Define the grade hierarchy that powers curriculum mapping and progression."
+        title={t("title")}
+        description={t("subtitle")}
       >
         <div className="ey-animate-fade-up mt-6" style={{ animationDelay: "200ms" }}>
           <Button
@@ -53,7 +56,7 @@ export function GradesManager() {
             className="ey-bg-dark text-white shadow-sm hover:bg-[hsl(var(--ey-black))] hover:shadow-md"
           >
             <Plus className="mr-2 h-4 w-4" />
-            New Grade
+            {t("newGrade")}
           </Button>
         </div>
       </PageHeader>
@@ -76,7 +79,7 @@ export function GradesManager() {
           <Card className="border-border/60 py-4">
             <EmptyState
               icon={Layers}
-              title="No grades yet"
+              title={t("empty")}
               subtitle="Create your first grade to start mapping curricula by seniority."
             />
           </Card>
@@ -103,7 +106,7 @@ export function GradesManager() {
                         </div>
                         <div className="min-w-0">
                           <p className="truncate font-semibold text-foreground">{grade.name}</p>
-                          <p className="text-xs text-muted-foreground">Level {grade.level}</p>
+                          <p className="text-xs text-muted-foreground">{t("levelValue", { level: grade.level })}</p>
                         </div>
                       </div>
                       <div className="flex shrink-0 items-center gap-1">
@@ -111,7 +114,7 @@ export function GradesManager() {
                           variant="ghost"
                           size="sm"
                           onClick={() => { setEditingId(grade.id); setShowCreate(false); }}
-                          aria-label={`Edit ${grade.name}`}
+                          aria-label={t("editAria", { name: grade.name })}
                         >
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
@@ -119,7 +122,7 @@ export function GradesManager() {
                           variant="ghost"
                           size="sm"
                           onClick={() => handleDelete(grade)}
-                          aria-label={`Delete ${grade.name}`}
+                          aria-label={t("deleteAria", { name: grade.name })}
                           className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                         >
                           <Trash2 className="h-3.5 w-3.5" />

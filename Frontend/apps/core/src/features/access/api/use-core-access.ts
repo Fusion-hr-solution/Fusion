@@ -6,6 +6,7 @@ import {
   coreAccessQueryKeys,
   coreWorkforceQueryKeys,
   createPlatformApiClient,
+  type AccessAuditEventDto,
   type AccessProfileSummaryDto,
   type BulkSetUserAccessProfilesRequest,
   type CorePermissionCatalogItemDto,
@@ -35,6 +36,42 @@ interface DeleteAccessProfileArgs {
 interface SetUserAccessProfilesArgs {
   userId: string;
   input: SetUserAccessProfilesRequest;
+}
+
+type ApiQueryClient = ReturnType<typeof useApiQueryClient>;
+
+async function invalidateAccessProfileQueries(queryClient: ApiQueryClient) {
+  await Promise.all([
+    queryClient.invalidateQueries({
+      queryKey: coreAccessQueryKeys.profiles(),
+    }),
+    queryClient.invalidateQueries({
+      queryKey: coreAccessQueryKeys.assignments(),
+    }),
+    queryClient.invalidateQueries({
+      queryKey: coreAccessQueryKeys.audit(),
+    }),
+  ]);
+}
+
+async function invalidateAccessAssignmentQueries(queryClient: ApiQueryClient) {
+  await Promise.all([
+    queryClient.invalidateQueries({
+      queryKey: coreAccessQueryKeys.assignments(),
+    }),
+    queryClient.invalidateQueries({
+      queryKey: coreAccessQueryKeys.profiles(),
+    }),
+    queryClient.invalidateQueries({
+      queryKey: coreAccessQueryKeys.audit(),
+    }),
+    queryClient.invalidateQueries({
+      queryKey: coreWorkforceQueryKeys.all(),
+    }),
+    queryClient.invalidateQueries({
+      queryKey: employeeRosterQueryKeys.workforceAccounts(),
+    }),
+  ]);
 }
 
 export function useCorePermissionCatalog(enabled = true) {
@@ -88,6 +125,23 @@ export function useUserAccessAssignments(enabled = true) {
   });
 }
 
+export function useAccessAudit(enabled = true) {
+  const { isAuthenticated } = useAuth();
+  const client = useMemo(() => createPlatformApiClient(), []);
+
+  const queryFn = useCallback(
+    (signal: AbortSignal) =>
+      client.get<AccessAuditEventDto[]>(coreAccessPaths.audit(), {
+        signal,
+      }),
+    [client]
+  );
+
+  return useApiQuery(coreAccessQueryKeys.audit(), queryFn, {
+    enabled: isAuthenticated && enabled,
+  });
+}
+
 export function useCreateAccessProfile(opts?: {
   onSuccess?: (data: AccessProfileSummaryDto) => void;
 }) {
@@ -99,12 +153,7 @@ export function useCreateAccessProfile(opts?: {
       client.post<AccessProfileSummaryDto>(coreAccessPaths.profiles(), input),
     {
       onSuccess: async (data) => {
-        await queryClient.invalidateQueries({
-          queryKey: coreAccessQueryKeys.profiles(),
-        });
-        await queryClient.invalidateQueries({
-          queryKey: coreAccessQueryKeys.assignments(),
-        });
+        await invalidateAccessProfileQueries(queryClient);
         await opts?.onSuccess?.(data);
       },
     }
@@ -128,12 +177,7 @@ export function useUpdateAccessProfile(opts?: {
       ),
     {
       onSuccess: async (data) => {
-        await queryClient.invalidateQueries({
-          queryKey: coreAccessQueryKeys.profiles(),
-        });
-        await queryClient.invalidateQueries({
-          queryKey: coreAccessQueryKeys.assignments(),
-        });
+        await invalidateAccessProfileQueries(queryClient);
         await opts?.onSuccess?.(data);
       },
     }
@@ -148,12 +192,7 @@ export function useDeleteAccessProfile(opts?: { onSuccess?: () => void }) {
     ({ profileId }) => client.delete<void>(coreAccessPaths.profile(profileId)),
     {
       onSuccess: async () => {
-        await queryClient.invalidateQueries({
-          queryKey: coreAccessQueryKeys.profiles(),
-        });
-        await queryClient.invalidateQueries({
-          queryKey: coreAccessQueryKeys.assignments(),
-        });
+        await invalidateAccessProfileQueries(queryClient);
         await opts?.onSuccess?.();
       },
     }
@@ -180,56 +219,30 @@ export function useSetUserAccessProfiles(opts?: {
             current?.map((row) => (row.userId === data.userId ? data : row)) ??
             current
         );
-        await Promise.all([
-          queryClient.invalidateQueries({
-            queryKey: coreAccessQueryKeys.assignments(),
-          }),
-          queryClient.invalidateQueries({
-            queryKey: coreAccessQueryKeys.profiles(),
-          }),
-          queryClient.invalidateQueries({
-            queryKey: coreWorkforceQueryKeys.all(),
-          }),
-          queryClient.invalidateQueries({
-            queryKey: employeeRosterQueryKeys.workforceAccounts(),
-          }),
-        ]);
+        await invalidateAccessAssignmentQueries(queryClient);
         await opts?.onSuccess?.(data);
       },
     }
   );
 }
 
-  export function useBulkSetUserAccessProfiles(opts?: {
-    onSuccess?: (data: UserAccessAssignmentDto[]) => void;
-  }) {
-    const client = useMemo(() => createPlatformApiClient(), []);
-    const queryClient = useApiQueryClient();
+export function useBulkSetUserAccessProfiles(opts?: {
+  onSuccess?: (data: UserAccessAssignmentDto[]) => void;
+}) {
+  const client = useMemo(() => createPlatformApiClient(), []);
+  const queryClient = useApiQueryClient();
 
-    return useApiMutation<
-      UserAccessAssignmentDto[],
-      BulkSetUserAccessProfilesRequest
-    >(
-      (input) =>
-        client.put<UserAccessAssignmentDto[]>(coreAccessPaths.assignments(), input),
-      {
-        onSuccess: async (data) => {
-          await Promise.all([
-            queryClient.invalidateQueries({
-              queryKey: coreAccessQueryKeys.assignments(),
-            }),
-            queryClient.invalidateQueries({
-              queryKey: coreAccessQueryKeys.profiles(),
-            }),
-            queryClient.invalidateQueries({
-              queryKey: coreWorkforceQueryKeys.all(),
-            }),
-            queryClient.invalidateQueries({
-              queryKey: employeeRosterQueryKeys.workforceAccounts(),
-            }),
-          ]);
-          await opts?.onSuccess?.(data);
-        },
-      }
-    );
-  }
+  return useApiMutation<UserAccessAssignmentDto[], BulkSetUserAccessProfilesRequest>(
+    (input) =>
+      client.put<UserAccessAssignmentDto[]>(
+        coreAccessPaths.assignments(),
+        input
+      ),
+    {
+      onSuccess: async (data) => {
+        await invalidateAccessAssignmentQueries(queryClient);
+        await opts?.onSuccess?.(data);
+      },
+    }
+  );
+}

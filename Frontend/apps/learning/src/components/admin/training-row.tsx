@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Pencil, Eye, Trash2, BookOpen, Users, AlertTriangle, Monitor, MapPin } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { buttonVariants, Badge, TableRow, TableCell } from "@repo/ui";
 import type { TrainingRowProps } from "@/types/admin-props";
 
@@ -12,6 +13,8 @@ export function TrainingRow({
 }: TrainingRowProps) {
   const isOnSite = training.trainingType === "OnSite";
   const TypeIcon = isOnSite ? MapPin : Monitor;
+  const t = useTranslations("adminTrainings");
+  const tCommon = useTranslations("common");
 
   return (
     <TableRow
@@ -31,7 +34,7 @@ export function TrainingRow({
                   variant="outline"
                   className="shrink-0 border-[hsl(var(--ey-orange-500))]/30 bg-[hsl(var(--ey-orange-500))]/10 text-[10px] text-[hsl(var(--ey-orange-500))]"
                 >
-                  Mandatory
+                  {t("badge.mandatory")}
                 </Badge>
               )}
             </div>
@@ -47,14 +50,14 @@ export function TrainingRow({
             variant="outline"
             className="border-[hsl(var(--ey-teal-500))]/30 bg-[hsl(var(--ey-teal-500))]/10 text-[10px] text-[hsl(var(--ey-teal-500))]"
           >
-            <MapPin className="mr-1 h-3 w-3" /> On-Site
+            <MapPin className="mr-1 h-3 w-3" /> {tCommon("trainingType.OnSiteShort")}
           </Badge>
         ) : (
           <Badge
             variant="outline"
             className="border-[hsl(var(--ey-blue-400))]/30 bg-[hsl(var(--ey-blue-400))]/10 text-[10px] text-[hsl(var(--ey-blue-600))]"
           >
-            <Monitor className="mr-1 h-3 w-3" /> E-Learning
+            <Monitor className="mr-1 h-3 w-3" /> {tCommon("trainingType.ELearning")}
           </Badge>
         )}
       </TableCell>
@@ -63,7 +66,9 @@ export function TrainingRow({
       <TableCell className="text-center text-sm text-muted-foreground">
         <span className="inline-flex items-center gap-1">
           <BookOpen className="h-3.5 w-3.5" aria-hidden="true" />
-          {isOnSite ? `${training.chapterCount} courses` : `${training.chapterCount} ch.`}
+          {isOnSite
+            ? t("row.coursesCount", { count: training.chapterCount })
+            : t("row.chaptersShort", { count: training.chapterCount })}
         </span>
       </TableCell>
 
@@ -78,7 +83,7 @@ export function TrainingRow({
       {/* Level */}
       <TableCell className="text-center">
         <Badge variant="outline" className="text-xs capitalize">
-          {training.badgeLevel}
+          {tCommon(`badgeLevel.${training.badgeLevel.toLowerCase()}`)}
         </Badge>
       </TableCell>
 
@@ -87,14 +92,14 @@ export function TrainingRow({
         {training.isDeleted ? (
           <Badge variant="destructive" className="text-[10px]">
             <AlertTriangle className="mr-1 h-3 w-3" />
-            Deleted
+            {t("badge.deleted")}
           </Badge>
         ) : (
           <Badge
             variant="outline"
             className="border-[hsl(var(--ey-green-500))]/30 bg-[hsl(var(--ey-green-500))]/10 text-[10px] text-[hsl(var(--ey-green-500))]"
           >
-            Active
+            {t("badge.active")}
           </Badge>
         )}
       </TableCell>

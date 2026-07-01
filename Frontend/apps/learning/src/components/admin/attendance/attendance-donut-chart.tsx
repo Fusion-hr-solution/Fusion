@@ -1,6 +1,14 @@
 "use client";
 
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  Legend,
+} from "recharts";
+import { useTranslations } from "next-intl";
 
 interface AttendanceDonutChartProps {
   present: number;
@@ -15,11 +23,16 @@ const COLORS = {
 };
 
 /** Present / Absent / Pending breakdown for a single session (AC#1). */
-export function AttendanceDonutChart({ present, absent, pending }: AttendanceDonutChartProps) {
+export function AttendanceDonutChart({
+  present,
+  absent,
+  pending,
+}: AttendanceDonutChartProps) {
+  const t = useTranslations("adminAttendance");
   const data = [
-    { name: "Present", value: present, key: "present" as const },
-    { name: "Absent", value: absent, key: "absent" as const },
-    { name: "Pending", value: pending, key: "pending" as const },
+    { name: t("donut.present"), value: present, key: "present" as const },
+    { name: t("donut.absent"), value: absent, key: "absent" as const },
+    { name: t("donut.pending"), value: pending, key: "pending" as const },
   ].filter((d) => d.value > 0);
 
   const total = present + absent + pending;
@@ -27,7 +40,7 @@ export function AttendanceDonutChart({ present, absent, pending }: AttendanceDon
   if (total === 0) {
     return (
       <div className="flex h-[220px] items-center justify-center text-xs text-muted-foreground">
-        No enrolled participants yet.
+        {t("donut.empty")}
       </div>
     );
   }
@@ -58,11 +71,10 @@ export function AttendanceDonutChart({ present, absent, pending }: AttendanceDon
               color: "hsl(var(--popover-foreground))",
               fontSize: "12px",
             }}
+            labelStyle={{ color: "hsl(var(--foreground))" }}
+            itemStyle={{ color: "hsl(var(--foreground))" }}
           />
-          <Legend
-            iconType="circle"
-            wrapperStyle={{ fontSize: "12px" }}
-          />
+          <Legend iconType="circle" wrapperStyle={{ fontSize: "12px" }} />
         </PieChart>
       </ResponsiveContainer>
     </div>

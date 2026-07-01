@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import Link from "next/link";
 import { Plus, BookOpen } from "lucide-react";
+import { useTranslations } from "next-intl";
 import {
   Card,
   Skeleton,
@@ -22,6 +23,7 @@ import { PaginationBar } from "./pagination-bar";
 import { TrainingsFilterBar } from "./trainings-filter-bar";
 
 export function TrainingsList() {
+  const t = useTranslations("adminTrainings");
   const [search, setSearch] = useState("");
   const [categoryId, setCategoryId] = useState<string>("");
   const [includeDeleted, setIncludeDeleted] = useState(false);
@@ -55,10 +57,10 @@ export function TrainingsList() {
 
   const handleDelete = useCallback(
     async (id: string, title: string) => {
-      if (!confirm(`Delete "${title}"? This will soft-delete the training.`)) return;
+      if (!confirm(t("list.confirmDelete", { title }))) return;
       await remove(id);
     },
-    [remove],
+    [remove, t],
   );
 
   const trainings = data?.trainings ?? [];
@@ -69,8 +71,8 @@ export function TrainingsList() {
     <>
       <PageHeader
         moduleTitle="Administration"
-        title="Manage Trainings"
-        description="Create, edit, and publish trainings, chapters, and exams across the catalog."
+        title={t("list.title")}
+        description={t("list.subtitle")}
       >
         <div className="ey-animate-fade-up mt-6" style={{ animationDelay: "200ms" }}>
           <Link
@@ -78,7 +80,7 @@ export function TrainingsList() {
             className="inline-flex items-center gap-2 rounded-lg ey-bg-dark px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[hsl(var(--ey-black))] hover:shadow-md"
           >
             <Plus className="h-4 w-4" aria-hidden="true" />
-            New Training
+            {t("list.newTraining")}
           </Link>
         </div>
       </PageHeader>
@@ -110,7 +112,7 @@ export function TrainingsList() {
           <Card className="border-border/60 py-4">
             <EmptyState
               icon={BookOpen}
-              title="No trainings found"
+              title={t("list.empty")}
               subtitle="Adjust your filters, or create the first training to get started."
             />
           </Card>
@@ -119,13 +121,13 @@ export function TrainingsList() {
             <Table>
               <TableHeader>
                 <TableRow className="border-border/60 bg-muted/50 hover:bg-muted/50">
-                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Training</TableHead>
-                  <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">Type</TableHead>
-                  <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">Content</TableHead>
-                  <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">Enrolled</TableHead>
-                  <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">Level</TableHead>
-                  <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">Status</TableHead>
-                  <TableHead className="text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">Actions</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t("list.columns.title")}</TableHead>
+                  <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t("list.columns.type")}</TableHead>
+                  <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t("list.columns.content")}</TableHead>
+                  <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t("list.columns.enrolled")}</TableHead>
+                  <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t("list.columns.level")}</TableHead>
+                  <TableHead className="text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t("list.columns.status")}</TableHead>
+                  <TableHead className="text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t("list.columns.actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

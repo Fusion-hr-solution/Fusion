@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Award, CheckCircle2, ShieldX } from "lucide-react";
 import {
   Bar,
@@ -29,6 +30,7 @@ function formatMonthKey(key: string): { short: string; full: string } {
 }
 
 export function CertificateStatsCards({ stats }: CertificateStatsCardsProps) {
+  const t = useTranslations("adminCertificates");
   const topTraining = [...stats.byTraining].slice(0, 5);
   const monthData = [...stats.byMonth].slice(-6).map((m) => {
     const { short, full } = formatMonthKey(m.key);
@@ -38,22 +40,37 @@ export function CertificateStatsCards({ stats }: CertificateStatsCardsProps) {
 
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-      <Kpi icon={Award} label="Total issued" value={stats.total} tone="text-foreground" />
-      <Kpi icon={CheckCircle2} label="Valid" value={stats.validCount} tone="text-[hsl(var(--ey-green-500))]" />
-      <Kpi icon={ShieldX} label="Revoked" value={stats.revokedCount} tone="text-destructive" />
+      <Kpi
+        icon={Award}
+        label={t("stats.totalIssued")}
+        value={stats.total}
+        tone="text-foreground"
+      />
+      <Kpi
+        icon={CheckCircle2}
+        label={t("status.valid")}
+        value={stats.validCount}
+        tone="text-[hsl(var(--ey-green-500))]"
+      />
+      <Kpi
+        icon={ShieldX}
+        label={t("status.revoked")}
+        value={stats.revokedCount}
+        tone="text-destructive"
+      />
 
       <Card className="lg:col-span-2">
         <CardContent className="p-5">
           <div className="mb-4 flex items-baseline justify-between gap-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Certificates issued · last 6 months
+              {t("stats.issuedByMonth")}
             </p>
             <span className="text-xs text-muted-foreground">
               {monthTotal} total
             </span>
           </div>
           {monthData.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No data yet.</p>
+            <p className="text-sm text-muted-foreground">{t("stats.noData")}</p>
           ) : (
             <div className="h-[180px]">
               <ResponsiveContainer width="100%" height="100%">
@@ -115,15 +132,22 @@ export function CertificateStatsCards({ stats }: CertificateStatsCardsProps) {
 
       <Card>
         <CardContent className="p-5">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Top formations</p>
+          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {t("stats.topFormations")}
+          </p>
           {topTraining.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No data yet.</p>
+            <p className="text-sm text-muted-foreground">{t("stats.noData")}</p>
           ) : (
             <ul className="space-y-1.5">
               {topTraining.map((t) => (
-                <li key={t.key} className="flex items-center justify-between gap-2 text-sm">
+                <li
+                  key={t.key}
+                  className="flex items-center justify-between gap-2 text-sm"
+                >
                   <span className="truncate text-foreground">{t.key}</span>
-                  <span className="shrink-0 font-semibold text-muted-foreground">{t.count}</span>
+                  <span className="shrink-0 font-semibold text-muted-foreground">
+                    {t.count}
+                  </span>
                 </li>
               ))}
             </ul>

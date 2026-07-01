@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations, useFormatter } from "next-intl";
 import { Ban, Download, Loader2, RotateCcw } from "lucide-react";
 import {
   Badge,
@@ -21,10 +22,6 @@ interface CertificateRegistryTableProps {
   downloadingNumber: string | null;
 }
 
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
-}
-
 export function CertificateRegistryTable({
   items,
   onViewPdf,
@@ -32,18 +29,26 @@ export function CertificateRegistryTable({
   onReinstate,
   downloadingNumber,
 }: CertificateRegistryTableProps) {
+  const t = useTranslations("adminCertificates");
+  const format = useFormatter();
+  const formatDate = (iso: string) =>
+    format.dateTime(new Date(iso), {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
   return (
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>Certificate №</TableHead>
-          <TableHead>Employee</TableHead>
-          <TableHead>Grade</TableHead>
-          <TableHead>Formation</TableHead>
-          <TableHead>Issued</TableHead>
-          <TableHead>Status</TableHead>
+          <TableHead>{t("table.certificateNumber")}</TableHead>
+          <TableHead>{t("table.employee")}</TableHead>
+          <TableHead>{t("table.grade")}</TableHead>
+          <TableHead>{t("table.formation")}</TableHead>
+          <TableHead>{t("table.issued")}</TableHead>
+          <TableHead>{t("table.status")}</TableHead>
           <TableHead>Revocation reason</TableHead>
-          <TableHead className="text-right">Actions</TableHead>
+          <TableHead className="text-right">{t("table.actions")}</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -51,13 +56,23 @@ export function CertificateRegistryTable({
           const revoked = c.status === "Revoked";
           return (
             <TableRow key={c.id}>
-              <TableCell className="font-mono text-xs">{c.certificateNumber}</TableCell>
-              <TableCell className="font-medium">{c.employeeFullName}</TableCell>
-              <TableCell className="text-muted-foreground">{c.gradeName ?? "—"}</TableCell>
+              <TableCell className="font-mono text-xs">
+                {c.certificateNumber}
+              </TableCell>
+              <TableCell className="font-medium">
+                {c.employeeFullName}
+              </TableCell>
+              <TableCell className="text-muted-foreground">
+                {c.gradeName ?? t("table.noGrade")}
+              </TableCell>
               <TableCell>{c.trainingTitle}</TableCell>
-              <TableCell className="text-muted-foreground">{formatDate(c.issuedAt)}</TableCell>
+              <TableCell className="text-muted-foreground">
+                {formatDate(c.issuedAt)}
+              </TableCell>
               <TableCell>
-                <Badge variant={revoked ? "destructive" : "secondary"}>{revoked ? "Revoked" : "Valid"}</Badge>
+                <Badge variant={revoked ? "destructive" : "secondary"}>
+                  {revoked ? t("status.revoked") : t("status.valid")}
+                </Badge>
               </TableCell>
               <TableCell className="max-w-[240px] text-sm text-muted-foreground">
                 {revoked ? (
@@ -79,10 +94,15 @@ export function CertificateRegistryTable({
                     size="sm"
                     onClick={() => onViewPdf(c)}
                     disabled={downloadingNumber === c.certificateNumber}
-                    aria-label={`Download PDF for ${c.certificateNumber}`}
+                    aria-label={t("table.downloadAria", {
+                      number: c.certificateNumber,
+                    })}
                   >
                     {downloadingNumber === c.certificateNumber ? (
-                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                      <Loader2
+                        className="h-4 w-4 animate-spin"
+                        aria-hidden="true"
+                      />
                     ) : (
                       <Download className="h-4 w-4" aria-hidden="true" />
                     )}
@@ -92,8 +112,10 @@ export function CertificateRegistryTable({
                       variant="ghost"
                       size="sm"
                       onClick={() => onReinstate(c)}
-                      aria-label={`Reinstate ${c.certificateNumber}`}
-                      title="Reinstate (undo revocation)"
+                      aria-label={t("table.reinstateAria", {
+                        number: c.certificateNumber,
+                      })}
+                      title={t("table.reinstateTitle")}
                     >
                       <RotateCcw className="h-4 w-4" aria-hidden="true" />
                     </Button>
@@ -103,7 +125,9 @@ export function CertificateRegistryTable({
                       size="sm"
                       onClick={() => onRevoke(c)}
                       className="text-destructive"
-                      aria-label={`Revoke ${c.certificateNumber}`}
+                      aria-label={t("table.revokeAria", {
+                        number: c.certificateNumber,
+                      })}
                     >
                       <Ban className="h-4 w-4" aria-hidden="true" />
                     </Button>

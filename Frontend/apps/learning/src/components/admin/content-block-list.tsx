@@ -1,8 +1,13 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { useDroppable } from "@dnd-kit/core";
-import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Pencil, Trash2, Clock } from "lucide-react";
 import { Button } from "@repo/ui";
@@ -36,7 +41,15 @@ function SortableBlockItem({
   onEdit: () => void;
   onDelete: () => void;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+  const t = useTranslations("adminChapters");
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
     id: block.id,
     data: { source: "block", block },
   });
@@ -54,7 +67,9 @@ function SortableBlockItem({
       ref={setNodeRef}
       style={style}
       className={`flex items-center gap-2 rounded-lg border bg-background px-3 py-2 transition-colors ${
-        isDragging ? "border-foreground/30 shadow-md" : "border-border/30 hover:bg-muted/30"
+        isDragging
+          ? "border-foreground/30 shadow-md"
+          : "border-border/30 hover:bg-muted/30"
       }`}
     >
       <button
@@ -63,15 +78,19 @@ function SortableBlockItem({
         {...attributes}
         {...listeners}
         disabled={isDeleted}
-        aria-label="Drag to reorder block"
+        aria-label={t("blockList.dragToReorderBlock")}
       >
         <GripVertical className="h-3.5 w-3.5" />
       </button>
       <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-[10px] font-bold text-muted-foreground bg-muted">
         {index + 1}
       </span>
-      <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${typeConfig?.colorClass ?? "bg-muted"}`}>
-        {typeConfig && <typeConfig.icon className={`h-3 w-3 ${typeConfig.iconColorClass}`} />}
+      <div
+        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${typeConfig?.colorClass ?? "bg-muted"}`}
+      >
+        {typeConfig && (
+          <typeConfig.icon className={`h-3 w-3 ${typeConfig.iconColorClass}`} />
+        )}
       </div>
       <div className="min-w-0 flex-1">
         <p className="truncate text-xs font-medium text-foreground">
@@ -79,12 +98,19 @@ function SortableBlockItem({
         </p>
         {block.estimatedDurationMinutes && (
           <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
-            <Clock className="h-2.5 w-2.5" /> {block.estimatedDurationMinutes} min
+            <Clock className="h-2.5 w-2.5" />{" "}
+            {t("blockList.minutes", { count: block.estimatedDurationMinutes })}
           </span>
         )}
       </div>
       <div className="flex shrink-0 items-center gap-0.5">
-        <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={onEdit} disabled={isDeleted}>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 w-6 p-0"
+          onClick={onEdit}
+          disabled={isDeleted}
+        >
           <Pencil className="h-3 w-3" />
         </Button>
         <Button
@@ -111,8 +137,11 @@ export function ContentBlockList({
   onRefetch,
   isDropTarget = false,
 }: ContentBlockListProps) {
+  const t = useTranslations("adminChapters");
   const [editorOpen, setEditorOpen] = useState(false);
-  const [editingBlock, setEditingBlock] = useState<AdminContentBlock | null>(null);
+  const [editingBlock, setEditingBlock] = useState<AdminContentBlock | null>(
+    null
+  );
 
   const { setNodeRef, isOver } = useDroppable({
     id: `drop-zone-${chapterId}`,
@@ -121,15 +150,20 @@ export function ContentBlockList({
 
   const { mutateAsync: doDelete } = useApiMutation(
     (blockId: string) => deleteContentBlock(trainingId, chapterId, blockId),
-    { onSuccess: onRefetch },
+    { onSuccess: onRefetch }
   );
 
   const handleDelete = useCallback(
     async (block: AdminContentBlock) => {
-      if (!confirm(`Delete "${block.title || block.type}"?`)) return;
+      if (
+        !confirm(
+          t("blockList.confirmDelete", { name: block.title || block.type })
+        )
+      )
+        return;
       await doDelete(block.id);
     },
-    [doDelete],
+    [doDelete, t]
   );
 
   const sorted = [...blocks].sort((a, b) => a.orderIndex - b.orderIndex);
@@ -147,13 +181,18 @@ export function ContentBlockList({
         }`}
       >
         {sorted.length === 0 ? (
-          <p className={`py-6 text-center text-xs transition-colors ${
-            isOver ? "text-foreground font-medium" : "text-muted-foreground"
-          }`}>
-            {isOver ? "Drop here to add" : "Drag content from the palette"}
+          <p
+            className={`py-6 text-center text-xs transition-colors ${
+              isOver ? "text-foreground font-medium" : "text-muted-foreground"
+            }`}
+          >
+            {isOver ? t("blockList.dropToAdd") : t("blockList.dragFromPalette")}
           </p>
         ) : (
-          <SortableContext items={sorted.map((b) => b.id)} strategy={verticalListSortingStrategy}>
+          <SortableContext
+            items={sorted.map((b) => b.id)}
+            strategy={verticalListSortingStrategy}
+          >
             <div className="space-y-1.5">
               {sorted.map((block, i) => (
                 <SortableBlockItem
@@ -161,7 +200,10 @@ export function ContentBlockList({
                   block={block}
                   index={i}
                   isDeleted={isDeleted}
-                  onEdit={() => { setEditingBlock(block); setEditorOpen(true); }}
+                  onEdit={() => {
+                    setEditingBlock(block);
+                    setEditorOpen(true);
+                  }}
                   onDelete={() => handleDelete(block)}
                 />
               ))}
@@ -175,7 +217,10 @@ export function ContentBlockList({
         chapterId={chapterId}
         block={editingBlock}
         open={editorOpen}
-        onOpenChange={(o) => { setEditorOpen(o); if (!o) setEditingBlock(null); }}
+        onOpenChange={(o) => {
+          setEditorOpen(o);
+          if (!o) setEditingBlock(null);
+        }}
         onSaved={onRefetch}
       />
     </div>

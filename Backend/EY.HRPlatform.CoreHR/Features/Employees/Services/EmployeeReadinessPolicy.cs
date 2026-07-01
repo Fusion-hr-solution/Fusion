@@ -39,7 +39,22 @@ internal static class EmployeeReadinessPolicy
             "jobTitle",
             "Job title is required",
             EmployeeReadinessFixTargetKinds.ProfileEmployment,
-            employee => !string.IsNullOrWhiteSpace(employee.JobTitle))
+            employee => !string.IsNullOrWhiteSpace(employee.JobTitle)),
+        new(
+            "phone",
+            "Phone is required",
+            EmployeeReadinessFixTargetKinds.ProfileIdentity,
+            employee => !string.IsNullOrWhiteSpace(employee.Phone)),
+        new(
+            "workLocation",
+            "Work location is required",
+            EmployeeReadinessFixTargetKinds.ProfileEmployment,
+            employee => !string.IsNullOrWhiteSpace(employee.WorkLocation)),
+        new(
+            "employmentType",
+            "Employment type is required",
+            EmployeeReadinessFixTargetKinds.ProfileEmployment,
+            employee => !string.IsNullOrWhiteSpace(employee.EmploymentType))
     ];
 
     public static EmployeeReadinessSummaryDto BuildSummary(
@@ -77,7 +92,7 @@ internal static class EmployeeReadinessPolicy
                 field.Label,
                 EmployeeReadinessIssueSeverities.Attention,
                 field.Key,
-                new EmployeeReadinessFixTargetDto(field.FixTargetKind, employee.Id, FieldKey: field.Key)));
+                new EmployeeReadinessFixTargetDto(field.FixTargetKind, employee.Id, EmployeeKey: employee.StableEmployeeKey, FieldKey: field.Key)));
         }
 
         if (!employee.OrgUnitId.HasValue)
@@ -90,6 +105,7 @@ internal static class EmployeeReadinessPolicy
                 new EmployeeReadinessFixTargetDto(
                     EmployeeReadinessFixTargetKinds.ProfileOrganization,
                     employee.Id,
+                    EmployeeKey: employee.StableEmployeeKey,
                     FieldKey: "orgUnitId")));
         }
 
@@ -98,12 +114,13 @@ internal static class EmployeeReadinessPolicy
             case EmployeeHierarchyStatuses.NoManagerAssigned:
                 issues.Add(new EmployeeReadinessIssueDto(
                     EmployeeReadinessIssueCodes.NoManagerAssigned,
-                    "No manager is assigned",
+                    "Manager is missing",
                     EmployeeReadinessIssueSeverities.Attention,
                     "managerId",
                     new EmployeeReadinessFixTargetDto(
                         EmployeeReadinessFixTargetKinds.ReportingRelationships,
                         employee.Id,
+                        EmployeeKey: employee.StableEmployeeKey,
                         FieldKey: "managerId")));
                 break;
             case EmployeeHierarchyStatuses.ManagerInactive:
@@ -115,6 +132,7 @@ internal static class EmployeeReadinessPolicy
                     new EmployeeReadinessFixTargetDto(
                         EmployeeReadinessFixTargetKinds.ReportingRelationships,
                         employee.Id,
+                        EmployeeKey: employee.StableEmployeeKey,
                         FieldKey: "managerId")));
                 break;
             case EmployeeHierarchyStatuses.ManagerMissing:
@@ -126,6 +144,7 @@ internal static class EmployeeReadinessPolicy
                     new EmployeeReadinessFixTargetDto(
                         EmployeeReadinessFixTargetKinds.ReportingRelationships,
                         employee.Id,
+                        EmployeeKey: employee.StableEmployeeKey,
                         FieldKey: "managerId")));
                 break;
         }
@@ -149,7 +168,7 @@ internal static class EmployeeReadinessPolicy
                     : $"Employee cannot be deactivated while {directReportCount} active direct reports remain",
                 EmployeeReadinessIssueSeverities.Blocker,
                 null,
-                new EmployeeReadinessFixTargetDto(EmployeeReadinessFixTargetKinds.ProfileStatus, employee.Id))
+                new EmployeeReadinessFixTargetDto(EmployeeReadinessFixTargetKinds.ProfileStatus, employee.Id, EmployeeKey: employee.StableEmployeeKey))
         ];
     }
 
