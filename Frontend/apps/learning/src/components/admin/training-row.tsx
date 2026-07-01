@@ -42,6 +42,11 @@ export function TrainingRow({
             {COST_TYPE_CONFIG[training.costType].label}
           </Badge>
         )}
+        {training.trainingType === "OnSite" && training.costType && (
+          <Badge variant="outline" className={`ml-1 text-[10px] ${COST_TYPE_CONFIG[training.costType].badgeClass}`}>
+            {COST_TYPE_CONFIG[training.costType].label}
+          </Badge>
+        )}
       </TableCell>
       <TableCell className="text-center">
         <span className="inline-flex items-center gap-1">

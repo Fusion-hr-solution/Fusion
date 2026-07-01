@@ -22,7 +22,7 @@ public class SessionCommandHandlerTests
     public async Task AddSession_Succeeds_WhenValid()
     {
         var (ctx, trainingId, partId) = await SeedAsync();
-        var handler = new AddSessionCommandHandler(ctx);
+        var handler = new AddSessionCommandHandler(ctx, new NoOpBudgetAlertNotifier());
         var start = DateTime.UtcNow.Date.AddDays(7).AddHours(9);
 
         var result = await handler.Handle(new AddSessionCommand(
@@ -38,7 +38,7 @@ public class SessionCommandHandlerTests
     public async Task AddSession_Fails_WhenEndBeforeStart()
     {
         var (ctx, trainingId, partId) = await SeedAsync();
-        var handler = new AddSessionCommandHandler(ctx);
+        var handler = new AddSessionCommandHandler(ctx, new NoOpBudgetAlertNotifier());
         var start = DateTime.UtcNow.AddDays(7);
 
         var result = await handler.Handle(new AddSessionCommand(
@@ -53,7 +53,7 @@ public class SessionCommandHandlerTests
     public async Task AddSession_Fails_WhenCapacityZero()
     {
         var (ctx, trainingId, partId) = await SeedAsync();
-        var handler = new AddSessionCommandHandler(ctx);
+        var handler = new AddSessionCommandHandler(ctx, new NoOpBudgetAlertNotifier());
         var start = DateTime.UtcNow.AddDays(7);
 
         var result = await handler.Handle(new AddSessionCommand(
@@ -68,7 +68,7 @@ public class SessionCommandHandlerTests
     public async Task AddSession_DetectsRoomConflict_WhenOverlappingSameRoom()
     {
         var (ctx, trainingId, partId) = await SeedAsync();
-        var handler = new AddSessionCommandHandler(ctx);
+        var handler = new AddSessionCommandHandler(ctx, new NoOpBudgetAlertNotifier());
         var start = DateTime.UtcNow.Date.AddDays(7).AddHours(9);
 
         await handler.Handle(new AddSessionCommand(
@@ -88,7 +88,7 @@ public class SessionCommandHandlerTests
     {
         var (ctx, trainingId, partId) = await SeedAsync();
         var start = DateTime.UtcNow.AddDays(7);
-        var add = await new AddSessionCommandHandler(ctx).Handle(new AddSessionCommand(
+        var add = await new AddSessionCommandHandler(ctx, new NoOpBudgetAlertNotifier()).Handle(new AddSessionCommand(
             trainingId, partId, start, start.AddHours(2), "Room B", 10, null, null, null, null), CancellationToken.None);
 
         var result = await new CancelSessionCommandHandler(ctx).Handle(
@@ -105,7 +105,7 @@ public class SessionCommandHandlerTests
     {
         var (ctx, trainingId, partId) = await SeedAsync();
         var start = DateTime.UtcNow.AddDays(7);
-        var add = await new AddSessionCommandHandler(ctx).Handle(new AddSessionCommand(
+        var add = await new AddSessionCommandHandler(ctx, new NoOpBudgetAlertNotifier()).Handle(new AddSessionCommand(
             trainingId, partId, start, start.AddHours(2), "Room B", 10, null, null, null, null), CancellationToken.None);
 
         var result = await new CancelSessionCommandHandler(ctx).Handle(
@@ -120,7 +120,7 @@ public class SessionCommandHandlerTests
     {
         var (ctx, trainingId, partId) = await SeedAsync();
         var start = DateTime.UtcNow.Date.AddDays(7).AddHours(9);
-        var add = await new AddSessionCommandHandler(ctx).Handle(new AddSessionCommand(
+        var add = await new AddSessionCommandHandler(ctx, new NoOpBudgetAlertNotifier()).Handle(new AddSessionCommand(
             trainingId, partId, start, start.AddHours(3), "Room C", 20, null, null, null, null), CancellationToken.None);
 
         var dup = await new DuplicateSessionCommandHandler(ctx).Handle(new DuplicateSessionCommand(
@@ -135,7 +135,7 @@ public class SessionCommandHandlerTests
     {
         var (ctx, trainingId, partId) = await SeedAsync();
         var start = DateTime.UtcNow.AddDays(7);
-        await new AddSessionCommandHandler(ctx).Handle(new AddSessionCommand(
+        await new AddSessionCommandHandler(ctx, new NoOpBudgetAlertNotifier()).Handle(new AddSessionCommand(
             trainingId, partId, start, start.AddHours(2), "Room D", 10, null, null, null, null), CancellationToken.None);
 
         var result = await new GetSessionsQueryHandler(ctx).Handle(

@@ -1,6 +1,7 @@
 using EY.HRPlatform.SharedKernel.CQRS;
 using EY.HRPlatform.SharedKernel.Results;
 using EY.HRPlatform.Training.Domain.Enums;
+using EY.HRPlatform.Training.Features.Admin.Budget;
 using EY.HRPlatform.Training.Infrastructure.Persistence;
 using EY.HRPlatform.Training.Models.Responses;
 using Microsoft.EntityFrameworkCore;
@@ -38,16 +39,8 @@ public class GetTrainingBudgetsQueryHandler : IQueryHandler<GetTrainingBudgetsQu
             // Spend = committed external-session costs charged to this service line, filed by session
             // StartUtc into [PeriodStart, PeriodEnd), excluding cancelled sessions. IgnoreQueryFilters
             // so committed spend still counts even if the course was later soft-deleted.
-            var spend = await _db.TrainingSessions
-                .AsNoTracking()
-                .IgnoreQueryFilters()
-                .Where(s => s.Status != SessionStatus.Cancelled
-                    && s.StartUtc >= budget.PeriodStart && s.StartUtc < budget.PeriodEnd
-                    && s.Part.Training.CostType == CostType.External
-                    && s.Part.Training.SponsoringServiceLineId == budget.ServiceLineId)
-                .Select(s => (s.ExternalTrainerCost ?? 0m) + (s.VenueCost ?? 0m)
-                           + (s.MaterialsCost ?? 0m) + (s.OtherCost ?? 0m))
-                .SumAsync(cancellationToken);
+            var spend = await BudgetSpendCalculator.ComputeSpendAsync(
+                _db, budget.ServiceLineId, budget.PeriodStart, budget.PeriodEnd, cancellationToken);
 
             result.Add(new TrainingBudgetDto
             {
