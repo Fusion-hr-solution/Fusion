@@ -142,7 +142,7 @@ export function SessionEnrollmentPanel({ trainingId }: SessionEnrollmentPanelPro
           {t("sessions.panel.partsSelected")}
         </p>
         {allPartsSelected && (
-          <span className="text-xs font-medium text-emerald-600">{t("sessions.panel.readyToEnroll")}</span>
+          <span className="text-xs font-medium text-[hsl(var(--ey-green-500))]">{t("sessions.panel.readyToEnroll")}</span>
         )}
       </div>
 

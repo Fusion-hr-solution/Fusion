@@ -192,7 +192,8 @@
       "inProgress": "En cours",
       "completed": "Terminées",
       "totalHours": "Heures totales",
-      "enrolled": "Inscriptions"
+      "enrolled": "Inscriptions",
+      "avgProgress": "Progression moy."
     },
     "searchPlaceholder": "Rechercher des formations...",
     "searchAria": "Rechercher dans vos formations",

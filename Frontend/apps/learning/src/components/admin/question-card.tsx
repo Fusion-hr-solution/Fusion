@@ -49,16 +49,18 @@ export function QuestionCard({
                   size="sm"
                   className="h-7 w-7 p-0"
                   onClick={onEdit}
+                  aria-label={`Edit question ${index + 1}`}
                 >
-                  <Pencil className="h-3.5 w-3.5" />
+                  <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
                   className="h-7 w-7 p-0 text-destructive hover:text-destructive"
                   onClick={onDelete}
+                  aria-label={`Delete question ${index + 1}`}
                 >
-                  <Trash2 className="h-3.5 w-3.5" />
+                  <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                 </Button>
               </div>
             </div>

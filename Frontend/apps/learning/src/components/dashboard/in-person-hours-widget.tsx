@@ -208,7 +208,8 @@ export function InPersonHoursWidget() {
                       contentStyle={{
                         borderRadius: 8,
                         border: "1px solid hsl(var(--border))",
-                        background: "hsl(var(--card))",
+                        background: "hsl(var(--popover))",
+                        color: "hsl(var(--popover-foreground))",
                         fontSize: 12,
                       }}
                       formatter={(v: number) => [`${v.toFixed(1)}h`, ""]}

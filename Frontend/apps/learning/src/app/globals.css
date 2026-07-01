@@ -97,6 +97,30 @@
   100% { transform: scale(1); }
 }
 
+/* ── Reduced-motion fallback (WCAG 2.3.3) ──────────────────────────────
+   Honour prefers-reduced-motion across the whole app: entrance, stagger,
+   count-pop and shimmer collapse to their final state instantly, looping
+   animations stop, and transitions become immediate. The negative delay +
+   sub-frame duration guarantees animated elements render at their END state
+   on first paint, so nothing stays stuck at opacity:0. Unlayered + !important
+   so it wins over the layered .ey-animate-* utilities below. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: -0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+  .ey-shimmer {
+    animation: none !important;
+    background: hsl(var(--ey-grey-200)) !important;
+  }
+}
+
 /* ── EY brand utility classes ── */
 @layer components {
   /* Category badges — neutral */

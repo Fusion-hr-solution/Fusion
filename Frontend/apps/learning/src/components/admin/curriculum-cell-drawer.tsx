@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { X, Trash2, Plus, Loader2, Check } from "lucide-react";
 import { Button, Badge, Checkbox, Card, CardContent, Label } from "@repo/ui";
@@ -39,6 +39,17 @@ export function CurriculumCellDrawer({
   const [showAdd, setShowAdd] = useState(false);
   const [selectedTrainingId, setSelectedTrainingId] = useState("");
   const [selectedRequired, setSelectedRequired] = useState(false);
+  const closeRef = useRef<HTMLButtonElement>(null);
+
+  // Dialog a11y: focus the panel on open and close on Escape.
+  useEffect(() => {
+    closeRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
 
   const fetchCell = useCallback(
     () => getCurriculumCell(gradeId, serviceLineId),
@@ -124,20 +135,20 @@ export function CurriculumCellDrawer({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label={`${gradeName} × ${serviceLineName} curriculum`}
+        aria-labelledby="curriculum-drawer-title"
         className="relative z-10 flex w-full max-w-md flex-col bg-background shadow-xl"
       >
         {/* Header */}
         <div className="flex items-center justify-between border-b px-4 py-3">
           <div>
-            <h2 className="text-sm font-semibold">
+            <h2 id="curriculum-drawer-title" className="text-sm font-semibold">
               {gradeName} × {serviceLineName}
             </h2>
             <p className="text-xs text-muted-foreground">
               {t("formationsCount", { count: sorted.length })}
             </p>
           </div>
-          <Button variant="ghost" size="sm" onClick={onClose}>
+          <Button ref={closeRef} variant="ghost" size="sm" onClick={onClose} aria-label="Close">
             <X className="h-4 w-4" />
           </Button>
         </div>

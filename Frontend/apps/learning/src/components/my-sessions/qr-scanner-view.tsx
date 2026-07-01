@@ -75,7 +75,7 @@ export function QrScannerView() {
         href="/my-sessions"
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
       >
-        <ArrowLeft className="h-4 w-4" />
+        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
         {t("backToMySessions")}
       </Link>
 
@@ -94,7 +94,7 @@ export function QrScannerView() {
             <div className="relative aspect-square w-full bg-black">
               {cameraError ? (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center text-white">
-                  <CameraOff className="h-10 w-10 text-white/60" />
+                  <CameraOff className="h-10 w-10 text-white/60" aria-hidden="true" />
                   <p className="text-sm">{cameraError}</p>
                   <p className="text-xs text-white/60">{t("scanner.cameraHelp")}</p>
                 </div>
@@ -112,14 +112,14 @@ export function QrScannerView() {
               {state.kind === "submitting" && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/60">
                   <div className="flex flex-col items-center gap-2 text-white">
-                    <Loader2 className="h-8 w-8 animate-spin" />
+                    <Loader2 className="h-8 w-8 animate-spin" aria-hidden="true" />
                     <p className="text-sm">{t("scanner.confirming")}</p>
                   </div>
                 </div>
               )}
             </div>
             <div className="flex items-center justify-center gap-2 py-4 text-xs text-muted-foreground">
-              <ScanLine className="h-3.5 w-3.5" />
+              <ScanLine className="h-3.5 w-3.5" aria-hidden="true" />
               {t("scanner.holdSteady")}
             </div>
           </CardContent>
@@ -141,15 +141,15 @@ function ScanSuccessCard({
   const t = useTranslations("mySessions");
   const format = useFormatter();
   return (
-    <Card className="border-emerald-200/60 bg-emerald-50/40">
+    <Card className="border-[hsl(var(--ey-green-500))]/20 bg-[hsl(var(--ey-green-500))]/10">
       <CardContent className="py-6 space-y-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-            <CheckCircle2 className="h-6 w-6" />
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[hsl(var(--ey-green-500))]/10 text-[hsl(var(--ey-green-500))]">
+            <CheckCircle2 className="h-6 w-6" aria-hidden="true" />
           </div>
           <div>
-            <p className="text-sm font-medium text-emerald-900">{t("scanner.success.recorded")}</p>
-            <p className="text-xs text-emerald-800/80">
+            <p className="text-sm font-medium text-[hsl(var(--ey-green-500))]">{t("scanner.success.recorded")}</p>
+            <p className="text-xs text-[hsl(var(--ey-green-500))]">
               {format.dateTime(new Date(result.attendedAt), {
                 dateStyle: "medium",
                 timeStyle: "short",
@@ -157,7 +157,7 @@ function ScanSuccessCard({
             </p>
           </div>
         </div>
-        <div className="rounded-lg border border-emerald-200/60 bg-card p-3 space-y-1">
+        <div className="rounded-lg border border-[hsl(var(--ey-green-500))]/20 bg-card p-3 space-y-1">
           <p className="text-xs uppercase tracking-wider text-muted-foreground">
             {t("scanner.success.trainingLabel")}
           </p>
@@ -173,7 +173,7 @@ function ScanSuccessCard({
           </p>
         </div>
         <Button size="sm" variant="outline" onClick={onScanAgain} className="w-full">
-          <QrCode className="mr-1.5 h-3.5 w-3.5" />
+          <QrCode className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
           {t("scanner.success.scanAgain")}
         </Button>
       </CardContent>
@@ -195,7 +195,7 @@ function ScanErrorCard({
       <CardContent className="py-6 space-y-4">
         <div className="flex items-center gap-3">
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
-            <XCircle className="h-6 w-6" />
+            <XCircle className="h-6 w-6" aria-hidden="true" />
           </div>
           <div>
             <p className="text-sm font-medium text-destructive">{t("scanner.errorTitle")}</p>
@@ -230,9 +230,9 @@ function ManualEntry({
         <textarea
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          aria-label="Attendance code"
           placeholder="v1.xxxx.xxx.xxxxx"
           rows={3}
+          aria-label={t("scanner.manual.summary")}
           className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring"
         />
         <Button
