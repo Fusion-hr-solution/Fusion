@@ -44,12 +44,20 @@ public class OrgUnit : AggregateRoot, ITenantEntity
     /// </summary>
     public bool IsActive { get; private set; }
 
+    /// <summary>
+    /// The EmployeeId of the employee responsible for managing / owning this org unit.
+    /// Stored as an id-only reference (no FK constraint) to match the id-only reference posture.
+    /// Null when no responsible manager has been designated.
+    /// </summary>
+    public Guid? ResponsibleManagerEmployeeId { get; private set; }
+
     public static OrgUnit Create(
         Guid tenantId,
         string code,
         string name,
         string type,
-        Guid? parentId)
+        Guid? parentId,
+        Guid? responsibleManagerEmployeeId = null)
     {
         if (tenantId == Guid.Empty)
             throw new ArgumentException("TenantId cannot be empty.", nameof(tenantId));
@@ -79,11 +87,12 @@ public class OrgUnit : AggregateRoot, ITenantEntity
             Name = name.Trim(),
             Type = type.Trim(),
             ParentId = parentId,
-            IsActive = true
+            IsActive = true,
+            ResponsibleManagerEmployeeId = responsibleManagerEmployeeId == Guid.Empty ? null : responsibleManagerEmployeeId,
         };
     }
 
-    public void Update(string name, string type, Guid? parentId)
+    public void Update(string name, string type, Guid? parentId, Guid? responsibleManagerEmployeeId = null)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Name cannot be empty.", nameof(name));
@@ -103,6 +112,7 @@ public class OrgUnit : AggregateRoot, ITenantEntity
         Name = name.Trim();
         Type = type.Trim();
         ParentId = parentId;
+        ResponsibleManagerEmployeeId = responsibleManagerEmployeeId == Guid.Empty ? null : responsibleManagerEmployeeId;
         UpdatedAt = DateTime.UtcNow;
     }
 

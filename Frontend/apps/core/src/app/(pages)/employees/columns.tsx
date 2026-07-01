@@ -25,11 +25,11 @@ function SortHeader({
     <Button
       variant="ghost"
       size="sm"
-      className="gap-1 font-medium"
+      className="-ml-2 h-7 gap-1 px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground"
       onClick={() => column.toggleSorting(sorted === "asc")}
     >
       {label}
-      <ArrowUpDown className="size-3 text-muted-foreground" />
+      <ArrowUpDown className="size-3 opacity-70" />
     </Button>
   );
 }

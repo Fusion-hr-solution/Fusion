@@ -13,4 +13,5 @@ public sealed record UpdateOrgUnitCommand(
     string Name,
     string Type,
     Guid? ParentId,
-    uint ExpectedVersion) : ICommand<Result<OrgUnitDto>>;
+    uint ExpectedVersion,
+    Guid? ResponsibleManagerEmployeeId = null) : ICommand<Result<OrgUnitDto>>;

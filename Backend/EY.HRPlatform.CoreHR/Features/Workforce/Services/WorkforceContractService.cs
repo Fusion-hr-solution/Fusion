@@ -19,6 +19,7 @@ public interface IWorkforceContractService
     Task<WorkforceEmployeeSummaryDto?> GetEmployeeAsync(Guid employeeId, ClaimsPrincipal user, CancellationToken cancellationToken);
     Task<IReadOnlyList<WorkforceEmployeeSummaryDto>> ResolveEmployeesAsync(IReadOnlyCollection<Guid> employeeIds, ClaimsPrincipal user, CancellationToken cancellationToken);
     Task<PagedResponse<WorkforceEmployeeSummaryDto>> SearchEmployeesAsync(string? search, int page, int pageSize, ClaimsPrincipal user, CancellationToken cancellationToken);
+    Task<IReadOnlyList<WorkforceEmployeeSummaryDto>> GetEmployeesByScopeAsync(IReadOnlyCollection<Guid> orgUnitIds, bool includeDescendants, bool includeInactive, ClaimsPrincipal user, CancellationToken cancellationToken);
     Task<PagedResponse<WorkforceAccessSubjectSummaryDto>> SearchAccessSubjectsAsync(
         string? search,
         string? access,
@@ -39,10 +40,22 @@ public interface IWorkforceContractService
         CancellationToken cancellationToken);
     Task<WorkforceAccessRosterSummaryDto> GetAccessRosterSummaryAsync(CancellationToken cancellationToken);
     Task<IReadOnlyList<WorkforceEmployeeSummaryDto>> GetTeamAsync(Guid employeeId, ClaimsPrincipal user, CancellationToken cancellationToken);
+    Task<IReadOnlyList<WorkforceEmployeeSummaryDto>> GetDownlineAsync(Guid employeeId, int maxDepth, ClaimsPrincipal user, CancellationToken cancellationToken);
     Task<IReadOnlyList<WorkforceEmployeeSummaryDto>> GetManagerChainAsync(Guid employeeId, ClaimsPrincipal user, CancellationToken cancellationToken);
     Task<IReadOnlyList<WorkforceOrgUnitSummaryDto>> GetPublishedOrgUnitsAsync(bool includeInactive, CancellationToken cancellationToken);
     Task<WorkforceOrgUnitTreeDto> GetPublishedOrgUnitTreeAsync(Guid? rootId, int maxDepth, bool includeInactive, CancellationToken cancellationToken);
     Task<WorkforceBulkInviteResponseDto> BulkInviteAsync(WorkforceBulkInviteRequest request, ClaimsPrincipal user, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Returns the org-unit detail including ResponsibleManagerEmployeeId, scope-filtered. Null when not found or not visible.
+    /// </summary>
+    Task<WorkforceOrgUnitDetailDto?> GetOrgUnitDetailAsync(Guid orgUnitId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Returns effective-today members of the org unit (via EmployeeOrgMembership), optionally including descendants,
+    /// scope-filtered as with other workforce reads.
+    /// </summary>
+    Task<IReadOnlyList<WorkforceEmployeeSummaryDto>> GetOrgUnitMembersAsync(Guid orgUnitId, bool includeDescendants, ClaimsPrincipal user, CancellationToken cancellationToken);
 }
 
 public sealed class WorkforceContractService(
@@ -192,6 +205,79 @@ public sealed class WorkforceContractService(
             Page = currentPage,
             PageSize = currentPageSize
         };
+    }
+
+    public async Task<IReadOnlyList<WorkforceEmployeeSummaryDto>> GetEmployeesByScopeAsync(
+        IReadOnlyCollection<Guid> orgUnitIds,
+        bool includeDescendants,
+        bool includeInactive,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken)
+    {
+        if (orgUnitIds.Count == 0)
+        {
+            return [];
+        }
+
+        var access = BuildAccessContext(user);
+        var targetOrgUnitIds = await ResolveOrgUnitScopeAsync(orgUnitIds, includeDescendants, cancellationToken);
+        if (targetOrgUnitIds.Count == 0)
+        {
+            return [];
+        }
+
+        var query = ApplyVisibilityScope(
+                dbContext.Employees
+                    .AsNoTracking()
+                    .Include(current => current.Manager)
+                    .Include(current => current.OrgUnit),
+                access)
+            .Where(current => current.OrgUnitId.HasValue && targetOrgUnitIds.Contains(current.OrgUnitId.Value));
+
+        if (!includeInactive)
+        {
+            query = query.Where(current => current.Status == EmployeeStatus.Active);
+        }
+
+        var employees = await query
+            .OrderBy(current => current.LastName)
+            .ThenBy(current => current.FirstName)
+            .ToListAsync(cancellationToken);
+
+        return await BuildSummariesAsync(employees, access.Audience, cancellationToken);
+    }
+
+    private async Task<HashSet<Guid>> ResolveOrgUnitScopeAsync(
+        IReadOnlyCollection<Guid> orgUnitIds,
+        bool includeDescendants,
+        CancellationToken cancellationToken)
+    {
+        var result = new HashSet<Guid>(orgUnitIds);
+        if (!includeDescendants)
+        {
+            return result;
+        }
+
+        var units = await dbContext.OrgUnits
+            .AsNoTracking()
+            .Select(unit => new { unit.Id, unit.ParentId })
+            .ToListAsync(cancellationToken);
+        var childrenByParentId = units.ToLookup(unit => unit.ParentId, unit => unit.Id);
+
+        var queue = new Queue<Guid>(orgUnitIds);
+        while (queue.Count > 0)
+        {
+            var current = queue.Dequeue();
+            foreach (var childId in childrenByParentId[current])
+            {
+                if (result.Add(childId))
+                {
+                    queue.Enqueue(childId);
+                }
+            }
+        }
+
+        return result;
     }
 
     public async Task<PagedResponse<WorkforceAccessSubjectSummaryDto>> SearchAccessSubjectsAsync(
@@ -467,6 +553,74 @@ public sealed class WorkforceContractService(
             skippedEmployees.Count);
     }
 
+    public async Task<WorkforceOrgUnitDetailDto?> GetOrgUnitDetailAsync(
+        Guid orgUnitId,
+        CancellationToken cancellationToken)
+    {
+        var orgUnit = await dbContext.OrgUnits
+            .AsNoTracking()
+            .FirstOrDefaultAsync(unit => unit.Id == orgUnitId, cancellationToken);
+
+        if (orgUnit is null || !orgUnit.IsActive)
+        {
+            return null;
+        }
+
+        return new WorkforceOrgUnitDetailDto(
+            orgUnit.Id,
+            orgUnit.Code,
+            orgUnit.Code,
+            orgUnit.Name,
+            orgUnit.Type,
+            orgUnit.ParentId,
+            orgUnit.ResponsibleManagerEmployeeId,
+            orgUnit.IsActive);
+    }
+
+    public async Task<IReadOnlyList<WorkforceEmployeeSummaryDto>> GetOrgUnitMembersAsync(
+        Guid orgUnitId,
+        bool includeDescendants,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken)
+    {
+        var now = DateTime.UtcNow;
+        var targetOrgUnitIds = await ResolveOrgUnitScopeAsync([orgUnitId], includeDescendants, cancellationToken);
+        if (targetOrgUnitIds.Count == 0)
+        {
+            return [];
+        }
+
+        // Resolve effective-today member employee ids via EmployeeOrgMembership
+        var memberEmployeeIds = await dbContext.EmployeeOrgMemberships
+            .AsNoTracking()
+            .Where(membership =>
+                targetOrgUnitIds.Contains(membership.OrgUnitId)
+                && membership.EffectiveFrom <= now
+                && (!membership.EffectiveTo.HasValue || membership.EffectiveTo.Value > now))
+            .Select(membership => membership.EmployeeId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        if (memberEmployeeIds.Count == 0)
+        {
+            return [];
+        }
+
+        var access = BuildAccessContext(user);
+        var employees = await ApplyVisibilityScope(
+                dbContext.Employees
+                    .AsNoTracking()
+                    .Include(current => current.Manager)
+                    .Include(current => current.OrgUnit),
+                access)
+            .Where(employee => memberEmployeeIds.Contains(employee.Id))
+            .OrderBy(employee => employee.LastName)
+            .ThenBy(employee => employee.FirstName)
+            .ToListAsync(cancellationToken);
+
+        return await BuildSummariesAsync(employees, access.Audience, cancellationToken);
+    }
+
     private async Task<Guid> ResolveProvisioningAccessProfileIdAsync(
         Guid requestedAccessProfileId,
         CancellationToken cancellationToken)
@@ -503,6 +657,71 @@ public sealed class WorkforceContractService(
             .Include(current => current.Manager)
             .Include(current => current.OrgUnit)
             .Where(current => current.ManagerId == employeeId)
+            .OrderBy(current => current.LastName)
+            .ThenBy(current => current.FirstName)
+            .ToListAsync(cancellationToken);
+
+        return await BuildSummariesAsync(employees, access.Audience, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<WorkforceEmployeeSummaryDto>> GetDownlineAsync(
+        Guid employeeId,
+        int maxDepth,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken)
+    {
+        var access = BuildAccessContext(user);
+        // A non-admin may only resolve their own subtree; HR/tenant readers may resolve any.
+        if (!access.IsHrAdmin && access.LinkedEmployeeId != employeeId)
+        {
+            return [];
+        }
+
+        var normalizedMaxDepth = Math.Clamp(maxDepth, 1, 25);
+
+        // Load the active manager edges once, then walk the subtree in memory (bounded + cycle-guarded).
+        var managerEdges = await dbContext.Employees
+            .AsNoTracking()
+            .Where(current => current.Status == EmployeeStatus.Active && current.ManagerId.HasValue)
+            .Select(current => new { current.Id, ManagerId = current.ManagerId!.Value })
+            .ToListAsync(cancellationToken);
+        var reportsByManager = managerEdges.ToLookup(edge => edge.ManagerId, edge => edge.Id);
+
+        var subtreeIds = new List<Guid>();
+        var visited = new HashSet<Guid> { employeeId };
+        var frontier = new Queue<(Guid Id, int Depth)>();
+        frontier.Enqueue((employeeId, 0));
+
+        while (frontier.Count > 0)
+        {
+            var (currentId, depth) = frontier.Dequeue();
+            if (depth >= normalizedMaxDepth)
+            {
+                continue;
+            }
+
+            foreach (var reportId in reportsByManager[currentId])
+            {
+                if (!visited.Add(reportId))
+                {
+                    continue;
+                }
+
+                subtreeIds.Add(reportId);
+                frontier.Enqueue((reportId, depth + 1));
+            }
+        }
+
+        if (subtreeIds.Count == 0)
+        {
+            return [];
+        }
+
+        var employees = await dbContext.Employees
+            .AsNoTracking()
+            .Include(current => current.Manager)
+            .Include(current => current.OrgUnit)
+            .Where(current => subtreeIds.Contains(current.Id))
             .OrderBy(current => current.LastName)
             .ThenBy(current => current.FirstName)
             .ToListAsync(cancellationToken);
@@ -588,6 +807,28 @@ public sealed class WorkforceContractService(
         var childrenByParentId = units
             .ToLookup(unit => unit.ParentId, unit => unit);
 
+        // Direct active-member count per unit, plus a full-subtree rollup computed over the entire
+        // hierarchy (independent of the render maxDepth so truncated branches still count).
+        var directMemberCounts = await dbContext.Employees
+            .AsNoTracking()
+            .Where(employee => employee.Status == EmployeeStatus.Active && employee.OrgUnitId.HasValue)
+            .GroupBy(employee => employee.OrgUnitId!.Value)
+            .Select(group => new { OrgUnitId = group.Key, Count = group.Count() })
+            .ToDictionaryAsync(group => group.OrgUnitId, group => group.Count, cancellationToken);
+
+        var totalMemberCounts = new Dictionary<Guid, int>();
+        int ComputeTotal(OrgUnit unit)
+        {
+            var total = directMemberCounts.GetValueOrDefault(unit.Id, 0)
+                + childrenByParentId[unit.Id].Sum(ComputeTotal);
+            totalMemberCounts[unit.Id] = total;
+            return total;
+        }
+        foreach (var topLevel in childrenByParentId[null])
+        {
+            ComputeTotal(topLevel);
+        }
+
         IReadOnlyList<OrgUnit> roots;
         if (rootId.HasValue)
         {
@@ -607,7 +848,7 @@ public sealed class WorkforceContractService(
 
         var normalizedMaxDepth = Math.Clamp(maxDepth, 1, 25);
         var nodes = roots
-            .Select(root => BuildOrgUnitTreeNode(root, childrenByParentId, orgLookup, structureInfo.PublishedStructureVersion, 0, normalizedMaxDepth))
+            .Select(root => BuildOrgUnitTreeNode(root, childrenByParentId, orgLookup, directMemberCounts, totalMemberCounts, structureInfo.PublishedStructureVersion, 0, normalizedMaxDepth))
             .ToList();
 
         return new WorkforceOrgUnitTreeDto(nodes, structureInfo.PublishedStructureVersion);
@@ -763,6 +1004,8 @@ public sealed class WorkforceContractService(
         OrgUnit orgUnit,
         ILookup<Guid?, OrgUnit> childrenByParentId,
         IReadOnlyDictionary<Guid, OrgUnit> orgLookup,
+        IReadOnlyDictionary<Guid, int> directMemberCounts,
+        IReadOnlyDictionary<Guid, int> totalMemberCounts,
         int publishedStructureVersion,
         int depth,
         int maxDepth)
@@ -773,7 +1016,7 @@ public sealed class WorkforceContractService(
         var children = depth + 1 >= maxDepth || childUnits.Count == 0
             ? []
             : childUnits
-                .Select(child => BuildOrgUnitTreeNode(child, childrenByParentId, orgLookup, publishedStructureVersion, depth + 1, maxDepth))
+                .Select(child => BuildOrgUnitTreeNode(child, childrenByParentId, orgLookup, directMemberCounts, totalMemberCounts, publishedStructureVersion, depth + 1, maxDepth))
                 .ToList();
 
         return new WorkforceOrgUnitTreeNodeDto(
@@ -788,6 +1031,8 @@ public sealed class WorkforceContractService(
             GetOrgLevel(orgUnit, orgLookup),
             orgUnit.IsActive,
             publishedStructureVersion,
+            directMemberCounts.GetValueOrDefault(orgUnit.Id, 0),
+            totalMemberCounts.GetValueOrDefault(orgUnit.Id, 0),
             children);
     }
 
