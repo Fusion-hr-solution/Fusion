@@ -22,3 +22,15 @@ export { useChapterTitle } from "./use-chapter-title";
 export { useSessionEnrollment } from "./use-session-enrollment";
 export { useMyCertificates } from "./use-my-certificates";
 export { useVerifyCertificate } from "./use-verify-certificate";
+export { usePendingFeedback } from "./use-pending-feedback";
+export { useSubmitFeedback } from "./use-submit-feedback";
+export {
+  useTrainingFeedback,
+  useTrainerFeedbackList,
+  useTrainerFeedbackDetail,
+  useFeedbackOverview,
+} from "./use-admin-feedback";
+export { useTrainingFeedbackQuestions } from "./use-training-feedback-questions";
+export { useFeedbackConfig } from "./use-feedback-config";
+export { useMyTrainerSessions } from "./use-my-trainer-sessions";
+export { useSessionTrainerFeedback } from "./use-session-trainer-feedback";

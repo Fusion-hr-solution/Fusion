@@ -19,8 +19,31 @@ import type {
   AvailableSession,
   MySessionEnrollments,
   MyPartEnrollment,
+  PendingFeedback,
 } from "./index";
 import type { NavSection } from "@repo/ui";
+
+export interface StarRatingProps {
+  label: string;
+  value: number;
+  onChange: (value: number) => void;
+  max?: number;
+  disabled?: boolean;
+}
+
+export interface RatingFieldProps {
+  label: string;
+  prompt?: string;
+  value: number;
+  onChange: (value: number) => void;
+}
+
+export interface FeedbackFormProps {
+  pending: PendingFeedback;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSubmitted: () => void;
+}
 
 export interface BreadcrumbItem {
   label: string;

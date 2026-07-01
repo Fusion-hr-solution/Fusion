@@ -28,6 +28,10 @@ public class TrainingDbContext : DbContext
     public DbSet<Badge> Badges => Set<Badge>();
     public DbSet<EmployeeBadge> EmployeeBadges => Set<EmployeeBadge>();
     public DbSet<Certification> Certifications => Set<Certification>();
+    public DbSet<TrainingFeedback> TrainingFeedbacks => Set<TrainingFeedback>();
+    public DbSet<FeedbackQuestion> FeedbackQuestions => Set<FeedbackQuestion>();
+    public DbSet<FeedbackAnswer> FeedbackAnswers => Set<FeedbackAnswer>();
+    public DbSet<TrainerGroupFeedback> TrainerGroupFeedbacks => Set<TrainerGroupFeedback>();
     public DbSet<Grade> Grades => Set<Grade>();
     public DbSet<ServiceLine> ServiceLines => Set<ServiceLine>();
     public DbSet<CurriculumMapping> CurriculumMappings => Set<CurriculumMapping>();
@@ -403,6 +407,65 @@ public class TrainingDbContext : DbContext
                 .HasForeignKey(p => p.ServiceLineId)
                 .OnDelete(DeleteBehavior.Restrict);
             e.HasIndex(p => p.EmployeeId).IsUnique();
+        });
+
+        // --- TrainingFeedback (one per employee × training; immutable — ADR 0006) ---
+        modelBuilder.Entity<TrainingFeedback>(e =>
+        {
+            e.HasKey(f => f.Id);
+            e.Property(f => f.Comment).HasMaxLength(2000);
+            e.Property(f => f.Suggestions).HasMaxLength(2000);
+            e.HasOne(f => f.Training)
+                .WithMany()
+                .HasForeignKey(f => f.TrainingId)
+                .OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(f => new { f.EmployeeId, f.TrainingId }).IsUnique();
+            e.HasIndex(f => f.TrainingId);
+            e.HasIndex(f => f.SubmittedAt);
+        });
+
+        // --- FeedbackQuestion (custom form, append-only — ADR 0006) ---
+        // CategoryId is a soft reference (no FK): a question outlives category changes; null = default form.
+        modelBuilder.Entity<FeedbackQuestion>(e =>
+        {
+            e.HasKey(q => q.Id);
+            e.Property(q => q.Type).HasConversion<string>().HasMaxLength(30);
+            e.Property(q => q.Label).HasMaxLength(500).IsRequired();
+            e.Property(q => q.Options).HasMaxLength(2000);
+            e.HasIndex(q => new { q.CategoryId, q.Order });
+        });
+
+        // --- FeedbackAnswer (snapshots question label/type at submit time) ---
+        modelBuilder.Entity<FeedbackAnswer>(e =>
+        {
+            e.HasKey(a => a.Id);
+            e.Property(a => a.QuestionLabelSnapshot).HasMaxLength(500).IsRequired();
+            e.Property(a => a.QuestionTypeSnapshot).HasMaxLength(30).IsRequired();
+            e.Property(a => a.Value).HasMaxLength(2000).IsRequired();
+            e.HasOne(a => a.Feedback)
+                .WithMany(f => f.Answers)
+                .HasForeignKey(a => a.FeedbackId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<FeedbackQuestion>()
+                .WithMany()
+                .HasForeignKey(a => a.QuestionId)
+                .OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(a => a.FeedbackId);
+            e.HasIndex(a => a.QuestionId);
+        });
+
+        // --- TrainerGroupFeedback (one per session × trainer; admin-only) ---
+        modelBuilder.Entity<TrainerGroupFeedback>(e =>
+        {
+            e.HasKey(t => t.Id);
+            e.Property(t => t.Comments).HasMaxLength(2000);
+            e.Property(t => t.PrerequisiteSuggestions).HasMaxLength(2000);
+            e.HasOne(t => t.Session)
+                .WithMany()
+                .HasForeignKey(t => t.SessionId)
+                .OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(t => new { t.SessionId, t.TrainerEmployeeId }).IsUnique();
+            e.HasIndex(t => t.TrainerEmployeeId);
         });
 
         // --- TrainingBudget ---

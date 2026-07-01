@@ -1,4 +1,127 @@
 {
+  "feedback": {
+    "prompt": {
+      "title": "Partagez votre avis",
+      "one": "Vous avez 1 formation terminée en attente de votre avis.",
+      "many": "Vous avez {count} formations terminées en attente de votre avis.",
+      "cta": "Donner mon avis",
+      "latest": "Plus récente : {title}"
+    },
+    "form": {
+      "title": "Avis — {title}",
+      "subtitle": "Votre avis nous aide à améliorer cette formation.",
+      "overall": "Note globale",
+      "content": "Qualité du contenu",
+      "relevance": "Pertinence pour votre poste",
+      "trainer": "Qualité du formateur",
+      "recommend": "Recommanderiez-vous cette formation ?",
+      "recommendYes": "Oui",
+      "recommendNo": "Non",
+      "comment": "Commentaire",
+      "commentPlaceholder": "Qu'avez-vous pensé de cette formation ?",
+      "suggestions": "Suggestions",
+      "suggestionsPlaceholder": "Comment pourrions-nous l'améliorer ?",
+      "anonymous": "Envoyer de façon anonyme",
+      "anonymousHint": "Votre nom ne sera pas affiché aux administrateurs.",
+      "submit": "Envoyer mon avis",
+      "submitting": "Envoi…",
+      "cancel": "Annuler"
+    },
+    "toast": {
+      "successTitle": "Merci pour votre avis !",
+      "successBody": "Votre avis a été enregistré.",
+      "errorTitle": "Impossible d'envoyer l'avis",
+      "errorBody": "Une erreur est survenue. Veuillez réessayer."
+    }
+  },
+  "adminFeedback": {
+    "overview": {
+      "title": "Aperçu des avis",
+      "subtitle": "Avis des apprenants sur toutes les formations.",
+      "kpiAvg": "Note moyenne",
+      "kpiTotal": "Total des avis",
+      "kpiResponseRate": "Taux de réponse",
+      "kpiRecommend": "Taux de recommandation",
+      "distribution": "Répartition des notes",
+      "trend": "Tendance des notes",
+      "topTrainings": "Formations les mieux notées",
+      "bottomTrainings": "Formations les moins bien notées",
+      "byTrainerLink": "Avis par formateur",
+      "configureLink": "Configurer le formulaire",
+      "noData": "Aucun avis pour le moment.",
+      "responses": "réponses"
+    },
+    "filters": {
+      "format": "Format",
+      "allFormats": "Tous les formats",
+      "eLearning": "E-learning",
+      "onSite": "Présentiel",
+      "from": "Du",
+      "to": "Au"
+    },
+    "training": {
+      "noFeedback": "Aucun avis n'a encore été soumis pour cette formation.",
+      "kpiAvg": "Note moyenne",
+      "kpiResponses": "Réponses",
+      "kpiRecommend": "Taux de recommandation",
+      "kpiTrainer": "Note du formateur",
+      "distribution": "Répartition des notes",
+      "dimensions": "Dimensions des notes",
+      "trend": "Tendance des notes",
+      "comments": "Commentaires",
+      "commentsSuppressed": "Les commentaires sont masqués tant que moins de 3 apprenants ont répondu, pour préserver l'anonymat.",
+      "noComments": "Aucun commentaire laissé."
+    },
+    "dimensions": {
+      "overall": "Global",
+      "content": "Contenu",
+      "relevance": "Pertinence",
+      "trainer": "Formateur"
+    },
+    "trainer": {
+      "listTitle": "Avis par formateur",
+      "listSubtitle": "Notes moyennes par formateur, pour les formations à formateur unique.",
+      "colName": "Formateur",
+      "colSessions": "Séances",
+      "colFeedback": "Avis",
+      "colAvg": "Note moyenne",
+      "colRecommend": "Recommandation",
+      "trainings": "Formations",
+      "colTraining": "Formation",
+      "comments": "Commentaires",
+      "noTrainers": "Aucun avis de formateur pour le moment.",
+      "noComments": "Aucun commentaire laissé."
+    },
+    "config": {
+      "title": "Configuration des avis",
+      "subtitle": "Ajoutez des questions personnalisées au formulaire d'avis, par catégorie de formation.",
+      "category": "Catégorie",
+      "defaultForm": "Formulaire par défaut (toutes catégories)"
+    },
+    "builder": {
+      "subtitle": "Ces questions apparaissent après les notes standard.",
+      "addQuestion": "Ajouter une question",
+      "label": "Question",
+      "options": "Options (une par ligne)",
+      "optionsPlaceholder": "Option 1\nOption 2",
+      "editQuestion": "Modifier la question",
+      "newQuestion": "Nouvelle question",
+      "edit": "Modifier",
+      "remove": "Supprimer",
+      "drag": "Glisser pour réordonner",
+      "cancel": "Annuler",
+      "save": "Enregistrer",
+      "empty": "Aucune question personnalisée. Ajoutez-en une pour enrichir le formulaire.",
+      "confirmRemove": "Supprimer la question {label} ?"
+    },
+    "questionType": {
+      "StarRating": "Notation par étoiles (1–5)",
+      "Scale10": "Échelle (1–10)",
+      "YesNo": "Oui / Non",
+      "MultipleChoice": "Choix multiple",
+      "FreeText": "Texte libre"
+    }
+  },
   "nav": {
     "sections": {
       "learning": "Formation",
@@ -24,6 +147,7 @@
       "sessions": "Séances",
       "attendance": "Présences",
       "certificateRegistry": "Registre des certificats",
+      "feedback": "Avis",
       "settings": "Paramètres"
     },
     "comingSoon": "Bientôt disponible",
@@ -557,10 +681,43 @@
       "reviewChapters": "Revoir les chapitres"
     }
   },
+  "trainerFeedback": {
+    "noSessions": "Vous n'avez pas encore de séances à évaluer. Le retour sur le groupe devient disponible une fois qu'une séance que vous animez a eu lieu.",
+    "giveFeedback": "Donner un retour",
+    "submitted": "Retour envoyé",
+    "notYetHeld": "Pas encore tenue",
+    "form": {
+      "title": "Retour sur votre groupe",
+      "engagement": "Engagement du groupe",
+      "knowledge": "Niveau de connaissances",
+      "comments": "Commentaires",
+      "prerequisites": "Suggestions de prérequis",
+      "prerequisitesPlaceholder": "Que devraient savoir les participants avant cette séance ?",
+      "cancel": "Annuler",
+      "submit": "Envoyer le retour",
+      "submitting": "Envoi en cours…"
+    },
+    "toast": {
+      "successTitle": "Retour envoyé",
+      "successBody": "Merci — votre retour sur le groupe a été enregistré.",
+      "errorTitle": "Impossible d'envoyer le retour",
+      "errorBody": "Une erreur s'est produite. Veuillez réessayer."
+    },
+    "adminCard": {
+      "title": "Retour du formateur sur le groupe",
+      "none": "Le formateur n'a pas soumis de retour pour cette séance.",
+      "by": "par {name}"
+    }
+  },
   "mySessions": {
     "title": "Mes Séances",
     "subtitle": "Gérez vos séances de formation en présentiel et votre présence",
     "backToMySessions": "Retour à Mes Séances",
+    "tabs": {
+      "attending": "Participation",
+      "leading": "Animation",
+      "leadingDisabled": "Vous n'êtes encore assigné comme formateur sur aucune séance"
+    },
     "trainingCount": "{count, plural, one {# formation} other {# formations}}",
     "partTitle": "Partie {number} : {title}",
     "stats": {
@@ -706,6 +863,8 @@
     },
     "detail": {
       "loading": "Chargement des détails de la formation...",
+      "tabDetails": "Détails",
+      "tabFeedback": "Avis",
       "manageTrainings": "Gérer les formations",
       "deleted": "Supprimée",
       "mandatory": "Obligatoire",

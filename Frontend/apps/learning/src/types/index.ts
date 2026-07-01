@@ -18,6 +18,79 @@ export type ChapterLayout = "SingleContent" | "SplitLayout" | "MultiSection";
 
 export type TrainingType = "ELearning" | "OnSite";
 
+export interface PendingFeedback {
+  trainingId: string;
+  trainingTitle: string;
+  trainingType: TrainingType;
+  completedAt: string;
+}
+
+export type FeedbackQuestionType =
+  | "StarRating"
+  | "Scale10"
+  | "YesNo"
+  | "MultipleChoice"
+  | "FreeText";
+
+export interface FeedbackQuestion {
+  id: string;
+  categoryId?: string;
+  type: FeedbackQuestionType;
+  label: string;
+  order: number;
+  /** JSON-encoded choice list for MultipleChoice. */
+  options?: string;
+}
+
+export interface FeedbackAnswerInput {
+  questionId: string;
+  value: string;
+}
+
+export interface SubmitFeedbackInput {
+  trainingId: string;
+  overallRating: number;
+  contentRating: number;
+  relevanceRating: number;
+  trainerRating?: number;
+  wouldRecommend: boolean;
+  comment?: string;
+  suggestions?: string;
+  isAnonymous: boolean;
+  answers?: FeedbackAnswerInput[];
+}
+
+export interface TrainerSession {
+  sessionId: string;
+  trainingTitle: string;
+  partTitle: string;
+  startUtc: string;
+  endUtc: string;
+  room: string;
+  /** Planned | InProgress | Completed */
+  status: string;
+  hasGroupFeedback: boolean;
+}
+
+export interface SubmitTrainerGroupFeedbackInput {
+  sessionId: string;
+  groupEngagement: number;
+  knowledgeLevel: number;
+  comments?: string;
+  prerequisiteSuggestions?: string;
+}
+
+export interface TrainerGroupFeedback {
+  sessionId: string;
+  trainerEmployeeId: string;
+  trainerName: string;
+  groupEngagement: number;
+  knowledgeLevel: number;
+  comments?: string;
+  prerequisiteSuggestions?: string;
+  submittedAt: string;
+}
+
 export type CostType = "Internal" | "External";
 
 export interface OnSiteCourse {

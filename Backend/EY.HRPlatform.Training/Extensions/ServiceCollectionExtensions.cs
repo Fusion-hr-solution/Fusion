@@ -5,6 +5,7 @@ using EY.HRPlatform.Training.Features.Admin.Sessions.Export;
 using EY.HRPlatform.Training.Features.Admin.Sessions.Services;
 using EY.HRPlatform.Training.Features.Certifications.Export;
 using EY.HRPlatform.Training.Features.Certifications.Services;
+using EY.HRPlatform.Training.Features.Enrollment.Services;
 using EY.HRPlatform.Training.Infrastructure.Persistence;
 using EY.HRPlatform.Training.Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -70,7 +71,10 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ICertificateRegistryExporter, CertificateRegistryExporter>();
         services.AddScoped<ICertificateIssuanceService, CertificateIssuanceService>();
 
-        // 7. Budget alert email sender (own SMTP infra; Smtp when enabled + configured, else NoOp)
+        // 7. Register on-site completion materialisation (ADR 0005) — scoped, uses the DbContext
+        services.AddScoped<IAttendanceCompletionService, AttendanceCompletionService>();
+
+        // 8. Budget alert email sender (own SMTP infra; Smtp when enabled + configured, else NoOp)
         var budgetAlertSection = configuration.GetSection(BudgetAlertEmailOptions.SectionName);
         services.Configure<BudgetAlertEmailOptions>(budgetAlertSection);
 
@@ -82,10 +86,10 @@ public static class ServiceCollectionExtensions
         else
             services.AddSingleton<IBudgetAlertEmailSender, SmtpBudgetAlertEmailSender>();
 
-        // 8. Budget threshold notifier (scoped — uses the scoped DbContext)
+        // 9. Budget threshold notifier (scoped — uses the scoped DbContext)
         services.AddScoped<IBudgetAlertNotifier, BudgetAlertNotifier>();
 
-        // 9. Budget report exporter (Excel + PDF)
+        // 10. Budget report exporter (Excel + PDF)
         services.AddSingleton<IBudgetReportExporter, BudgetReportExporter>();
 
         return services;

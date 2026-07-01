@@ -51,7 +51,7 @@ public class ScanQrAttendanceCommandHandlerTests
     public async Task Scan_Succeeds_AndMarksAttended()
     {
         var (ctx, sessionId, employeeId, payload) = await SeedEnrolledAsync();
-        var handler = new ScanQrAttendanceCommandHandler(ctx, new QrTokenService());
+        var handler = new ScanQrAttendanceCommandHandler(ctx, new QrTokenService(), new FakeAttendanceCompletionService());
 
         var result = await handler.Handle(
             new ScanQrAttendanceCommand(employeeId, payload), CancellationToken.None);
@@ -71,7 +71,7 @@ public class ScanQrAttendanceCommandHandlerTests
     public async Task Scan_Fails_WhenPayloadEmpty()
     {
         var ctx = TestDbContextFactory.Create();
-        var handler = new ScanQrAttendanceCommandHandler(ctx, new QrTokenService());
+        var handler = new ScanQrAttendanceCommandHandler(ctx, new QrTokenService(), new FakeAttendanceCompletionService());
 
         var result = await handler.Handle(
             new ScanQrAttendanceCommand(Guid.NewGuid(), ""), CancellationToken.None);
@@ -84,7 +84,7 @@ public class ScanQrAttendanceCommandHandlerTests
     public async Task Scan_Fails_WhenPayloadMalformed()
     {
         var ctx = TestDbContextFactory.Create();
-        var handler = new ScanQrAttendanceCommandHandler(ctx, new QrTokenService());
+        var handler = new ScanQrAttendanceCommandHandler(ctx, new QrTokenService(), new FakeAttendanceCompletionService());
 
         var result = await handler.Handle(
             new ScanQrAttendanceCommand(Guid.NewGuid(), "totally-not-a-qr-payload"), CancellationToken.None);
@@ -101,7 +101,7 @@ public class ScanQrAttendanceCommandHandlerTests
         var fakeSessionId = Guid.NewGuid();
         var payload = $"v1.{fakeSessionId:N}.123.AAA";
 
-        var handler = new ScanQrAttendanceCommandHandler(ctx, new QrTokenService());
+        var handler = new ScanQrAttendanceCommandHandler(ctx, new QrTokenService(), new FakeAttendanceCompletionService());
         var result = await handler.Handle(
             new ScanQrAttendanceCommand(Guid.NewGuid(), payload), CancellationToken.None);
 
@@ -116,7 +116,7 @@ public class ScanQrAttendanceCommandHandlerTests
         await new RevokeSessionQrCodeCommandHandler(ctx).Handle(
             new RevokeSessionQrCodeCommand(sessionId), CancellationToken.None);
 
-        var handler = new ScanQrAttendanceCommandHandler(ctx, new QrTokenService());
+        var handler = new ScanQrAttendanceCommandHandler(ctx, new QrTokenService(), new FakeAttendanceCompletionService());
         var result = await handler.Handle(
             new ScanQrAttendanceCommand(employeeId, payload), CancellationToken.None);
 
@@ -135,7 +135,7 @@ public class ScanQrAttendanceCommandHandlerTests
         expiredField.SetValue(token, DateTime.UtcNow.AddMinutes(-1));
         await ctx.SaveChangesAsync();
 
-        var handler = new ScanQrAttendanceCommandHandler(ctx, new QrTokenService());
+        var handler = new ScanQrAttendanceCommandHandler(ctx, new QrTokenService(), new FakeAttendanceCompletionService());
         var result = await handler.Handle(
             new ScanQrAttendanceCommand(employeeId, payload), CancellationToken.None);
 
@@ -151,7 +151,7 @@ public class ScanQrAttendanceCommandHandlerTests
         // Replace last char of signature
         var tampered = payload[..^1] + (payload[^1] == 'A' ? 'B' : 'A');
 
-        var handler = new ScanQrAttendanceCommandHandler(ctx, new QrTokenService());
+        var handler = new ScanQrAttendanceCommandHandler(ctx, new QrTokenService(), new FakeAttendanceCompletionService());
         var result = await handler.Handle(
             new ScanQrAttendanceCommand(employeeId, tampered), CancellationToken.None);
 
@@ -171,7 +171,7 @@ public class ScanQrAttendanceCommandHandlerTests
         var oldNow = DateTime.UtcNow.AddSeconds(-token.RotationSeconds * 10);
         var oldPayload = qr.Build(token, oldNow).Payload;
 
-        var handler = new ScanQrAttendanceCommandHandler(ctx, qr);
+        var handler = new ScanQrAttendanceCommandHandler(ctx, qr, new FakeAttendanceCompletionService());
         var result = await handler.Handle(
             new ScanQrAttendanceCommand(employeeId, oldPayload), CancellationToken.None);
 
@@ -191,7 +191,7 @@ public class ScanQrAttendanceCommandHandlerTests
         var prevWindowNow = DateTime.UtcNow.AddSeconds(-token.RotationSeconds);
         var prevPayload = qr.Build(token, prevWindowNow).Payload;
 
-        var handler = new ScanQrAttendanceCommandHandler(ctx, qr);
+        var handler = new ScanQrAttendanceCommandHandler(ctx, qr, new FakeAttendanceCompletionService());
         var result = await handler.Handle(
             new ScanQrAttendanceCommand(employeeId, prevPayload), CancellationToken.None);
 
@@ -204,7 +204,7 @@ public class ScanQrAttendanceCommandHandlerTests
         var (ctx, _, _, payload) = await SeedEnrolledAsync();
         var unrelatedEmployee = Guid.NewGuid();
 
-        var handler = new ScanQrAttendanceCommandHandler(ctx, new QrTokenService());
+        var handler = new ScanQrAttendanceCommandHandler(ctx, new QrTokenService(), new FakeAttendanceCompletionService());
         var result = await handler.Handle(
             new ScanQrAttendanceCommand(unrelatedEmployee, payload), CancellationToken.None);
 
@@ -217,7 +217,7 @@ public class ScanQrAttendanceCommandHandlerTests
     {
         var (ctx, _, employeeId, payload) = await SeedEnrolledAsync(status: EnrollmentStatus.Cancelled);
 
-        var handler = new ScanQrAttendanceCommandHandler(ctx, new QrTokenService());
+        var handler = new ScanQrAttendanceCommandHandler(ctx, new QrTokenService(), new FakeAttendanceCompletionService());
         var result = await handler.Handle(
             new ScanQrAttendanceCommand(employeeId, payload), CancellationToken.None);
 
@@ -230,7 +230,7 @@ public class ScanQrAttendanceCommandHandlerTests
     {
         var (ctx, _, employeeId, payload) = await SeedEnrolledAsync(status: EnrollmentStatus.Waitlisted);
 
-        var handler = new ScanQrAttendanceCommandHandler(ctx, new QrTokenService());
+        var handler = new ScanQrAttendanceCommandHandler(ctx, new QrTokenService(), new FakeAttendanceCompletionService());
         var result = await handler.Handle(
             new ScanQrAttendanceCommand(employeeId, payload), CancellationToken.None);
 
@@ -242,7 +242,7 @@ public class ScanQrAttendanceCommandHandlerTests
     public async Task Scan_Fails_WhenAlreadyAttended()
     {
         var (ctx, _, employeeId, payload) = await SeedEnrolledAsync();
-        var handler = new ScanQrAttendanceCommandHandler(ctx, new QrTokenService());
+        var handler = new ScanQrAttendanceCommandHandler(ctx, new QrTokenService(), new FakeAttendanceCompletionService());
 
         // First scan succeeds
         var first = await handler.Handle(

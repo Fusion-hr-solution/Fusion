@@ -1,4 +1,9 @@
-import type { ChapterLayout, TrainingType, CostType } from "./index";
+import type {
+  ChapterLayout,
+  TrainingType,
+  FeedbackQuestionType,
+  CostType,
+} from "./index";
 
 /** Chapter being built in the training creation wizard (client-side only) */
 export interface WizardChapter {
@@ -804,4 +809,107 @@ export interface AttendanceFilters {
   trainingId?: string;
   from?: string;
   to?: string;
+}
+
+/* ── Feedback dashboards (US-8.1.2) ── */
+
+export interface FeedbackTrendPoint {
+  year: number;
+  month: number;
+  label: string;
+  avgOverallRating: number;
+  responseCount: number;
+}
+
+export interface FeedbackComment {
+  author: string;
+  comment: string;
+  overallRating: number;
+  submittedAt: string;
+  /** Set only in the per-trainer view. */
+  trainingTitle?: string;
+}
+
+export interface TrainingFeedbackSummary {
+  trainingId: string;
+  trainingTitle: string;
+  totalResponses: number;
+  avgOverallRating: number;
+  avgContentRating: number;
+  avgRelevanceRating: number;
+  avgTrainerRating?: number;
+  recommendationRate: number;
+  /** Overall-rating counts, index 0 = 1★ … 4 = 5★. */
+  ratingDistribution: number[];
+  monthlyTrend: FeedbackTrendPoint[];
+  commentsSuppressed: boolean;
+  comments: FeedbackComment[];
+}
+
+export interface TrainerFeedbackListItem {
+  trainerKey: string;
+  trainerName: string;
+  sessionsCount: number;
+  feedbackCount: number;
+  avgTrainerRating: number;
+  recommendationRate: number;
+}
+
+export interface TrainerTrainingBreakdown {
+  trainingId: string;
+  trainingTitle: string;
+  feedbackCount: number;
+  avgTrainerRating: number;
+}
+
+export interface TrainerFeedbackDetail {
+  trainerKey: string;
+  trainerName: string;
+  sessionsCount: number;
+  feedbackCount: number;
+  avgTrainerRating: number;
+  recommendationRate: number;
+  trainings: TrainerTrainingBreakdown[];
+  commentsSuppressed: boolean;
+  comments: FeedbackComment[];
+}
+
+export interface FeedbackTrainingRating {
+  trainingId: string;
+  trainingTitle: string;
+  avgOverallRating: number;
+  responseCount: number;
+}
+
+export interface FeedbackOverview {
+  totalFeedbacks: number;
+  avgOverallRating: number;
+  recommendationRate: number;
+  responseRate: number;
+  ratingDistribution: number[];
+  monthlyTrend: FeedbackTrendPoint[];
+  topTrainings: FeedbackTrainingRating[];
+  bottomTrainings: FeedbackTrainingRating[];
+}
+
+export interface FeedbackOverviewFilters {
+  categoryId?: string;
+  /** "ELearning" | "OnSite" */
+  format?: string;
+  from?: string;
+  to?: string;
+}
+
+/* ── Custom feedback form builder (US-8.1.3) ── */
+
+export interface CreateFeedbackQuestionInput {
+  categoryId?: string;
+  type: FeedbackQuestionType;
+  label: string;
+  options?: string;
+}
+
+export interface UpdateFeedbackQuestionInput {
+  label: string;
+  options?: string;
 }
