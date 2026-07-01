@@ -95,8 +95,8 @@ export function MySessionsPage() {
           icon={<Clock className="h-4 w-4" />}
           label={t("stats.past")}
           value={totalPast}
-          accent="text-emerald-600"
-          bgAccent="bg-emerald-50"
+          accent="text-[hsl(var(--ey-green-500))]"
+          bgAccent="bg-[hsl(var(--ey-green-500))]/10"
         />
         <StatCard
           icon={<CalendarCheck2 className="h-4 w-4" />}

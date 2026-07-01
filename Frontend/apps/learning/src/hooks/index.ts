@@ -15,6 +15,7 @@ export {
   useCellEmployees,
 } from "./use-programme-dashboard";
 export { useTrainingForm } from "./use-training-form";
+export { useBudgets } from "./use-budgets";
 export { useTrainingWizard } from "./use-training-wizard";
 export { useChapterTitle } from "./use-chapter-title";
 export { useSessionEnrollment } from "./use-session-enrollment";

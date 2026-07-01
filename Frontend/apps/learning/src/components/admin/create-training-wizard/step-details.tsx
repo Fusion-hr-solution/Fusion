@@ -4,6 +4,7 @@ import { Settings2, ArrowLeft, ArrowRight, AlertTriangle } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Input, Label, Checkbox } from "@repo/ui";
 import type { WizardState } from "@/types/admin-props";
+import type { CostType } from "@/types";
 
 interface StepDetailsProps {
   wizard: WizardState;
@@ -126,6 +127,39 @@ export function StepDetails({ wizard }: StepDetailsProps) {
               <p className="text-[11px] text-muted-foreground">
                 {t("details.scheduledDateHint")}
               </p>
+            </div>
+          )}
+
+          {wizard.trainingType === "OnSite" && (
+            <div className="mt-5 space-y-2">
+              <Label className="text-[13px] font-semibold">Cost Type</Label>
+              <select
+                className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                value={wizard.costType}
+                onChange={(e) => wizard.setCostType(e.target.value as CostType)}
+              >
+                <option value="Internal">Internal (free)</option>
+                <option value="External">External (paid)</option>
+              </select>
+              <p className="text-[11px] text-muted-foreground">External trainings draw from a service-line budget.</p>
+            </div>
+          )}
+
+          {wizard.trainingType === "OnSite" && wizard.costType === "External" && (
+            <div className="mt-5 space-y-2">
+              <Label className="text-[13px] font-semibold">Sponsoring Service Line</Label>
+              <select
+                className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                value={wizard.sponsoringServiceLineId}
+                onChange={(e) => wizard.setSponsoringServiceLineId(e.target.value)}
+              >
+                <option value="">Select a service line</option>
+                {wizard.serviceLines.map((sl) => (
+                  <option key={sl.id} value={sl.id}>
+                    {sl.name} ({sl.code})
+                  </option>
+                ))}
+              </select>
             </div>
           )}
         </div>

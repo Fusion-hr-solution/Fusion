@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 import { CellEmployeesPage } from "@/components/admin/cell-employees-page";
 
-export const metadata: Metadata = {
-  title: "Cell Employees — Admin",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("adminMeta");
+  return { title: t("cellEmployees") };
+}
 
 interface PageProps {
   searchParams: Promise<{
@@ -14,7 +16,9 @@ interface PageProps {
   }>;
 }
 
-export default async function CellEmployeesPageRoute({ searchParams }: PageProps) {
+export default async function CellEmployeesPageRoute({
+  searchParams,
+}: PageProps) {
   const params = await searchParams;
   return (
     <CellEmployeesPage

@@ -14,7 +14,9 @@ public record CreateTrainingCommand(
     string TrainingType,
     DateTime? ScheduledDate,
     List<CreateTrainingChapterItem> Chapters,
-    List<CreateOnSiteCourseItem> OnSiteCourses) : ICommand<Result<Guid>>;
+    List<CreateOnSiteCourseItem> OnSiteCourses,
+    string CostType = "Internal",
+    Guid? SponsoringServiceLineId = null) : ICommand<Result<Guid>>;
 
 public record CreateTrainingChapterItem(
     string Title,

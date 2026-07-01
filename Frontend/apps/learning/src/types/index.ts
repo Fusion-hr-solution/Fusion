@@ -18,6 +18,8 @@ export type ChapterLayout = "SingleContent" | "SplitLayout" | "MultiSection";
 
 export type TrainingType = "ELearning" | "OnSite";
 
+export type CostType = "Internal" | "External";
+
 export interface OnSiteCourse {
   id: string;
   title: string;
@@ -116,6 +118,7 @@ export interface Training {
   badgeLevel: BadgeLevel;
   credits: number;
   trainingType: TrainingType;
+  costType?: CostType;
   scheduledDate?: string;
   onSiteCourses?: OnSiteCourse[];
 }

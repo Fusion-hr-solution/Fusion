@@ -14,6 +14,7 @@ import {
   Card,
   CardContent,
 } from "@repo/ui";
+import { useTranslations } from "next-intl";
 import { useApiQuery } from "@repo/api/react";
 import { getSessions } from "@/services/admin-sessions-service";
 import { SESSION_STATUS_OPTIONS } from "@/data/session-status-config";
@@ -23,6 +24,8 @@ import { SessionListTable } from "./session-list-table";
 const ANY = "__any__";
 
 export function SessionsPage() {
+  const t = useTranslations("adminSessions");
+  const tCommon = useTranslations("common");
   const [search, setSearch] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -39,7 +42,10 @@ export function SessionsPage() {
     pageSize: 50,
   };
 
-  const fetcher = useCallback(() => getSessions(filters), [search, from, to, status]);
+  const fetcher = useCallback(
+    () => getSessions(filters),
+    [search, from, to, status]
+  );
   const { data, isLoading } = useApiQuery(fetcher);
 
   function clearFilters() {
@@ -58,10 +64,13 @@ export function SessionsPage() {
             <CalendarClock className="h-5 w-5" />
           </div>
           <div>
-            <h1 className="text-xl font-semibold text-foreground">In-Person Sessions</h1>
+            <h1 className="text-xl font-semibold text-foreground">
+              {t("page.title")}
+            </h1>
             <p className="text-sm text-muted-foreground">
-              All scheduled sessions across trainings
-              {data && ` · ${data.totalCount} total`}
+              {t("page.subtitle")}
+              {data &&
+                ` · ${t("page.totalSuffix", { count: data.totalCount })}`}
             </p>
           </div>
         </div>
@@ -72,7 +81,9 @@ export function SessionsPage() {
         <CardContent className="py-4">
           <div className="flex items-center gap-2 mb-3">
             <Filter className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium text-foreground">Filters</span>
+            <span className="text-sm font-medium text-foreground">
+              {t("filters.heading")}
+            </span>
             {hasFilters && (
               <Button
                 variant="ghost"
@@ -81,26 +92,30 @@ export function SessionsPage() {
                 className="ml-auto h-7 text-xs text-muted-foreground hover:text-foreground"
               >
                 <X className="mr-1 h-3 w-3" />
-                Clear all
+                {t("filters.clearAll")}
               </Button>
             )}
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
             <div className="space-y-1.5">
-              <Label htmlFor="filterSearch" className="text-xs">Search</Label>
+              <Label htmlFor="filterSearch" className="text-xs">
+                {t("filters.search")}
+              </Label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="filterSearch"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Training, room, trainer..."
+                  placeholder={t("filters.searchPlaceholder")}
                   className="h-9 pl-9"
                 />
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="filterFrom" className="text-xs">From</Label>
+              <Label htmlFor="filterFrom" className="text-xs">
+                {t("filters.from")}
+              </Label>
               <Input
                 id="filterFrom"
                 type="date"
@@ -110,7 +125,9 @@ export function SessionsPage() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="filterTo" className="text-xs">To</Label>
+              <Label htmlFor="filterTo" className="text-xs">
+                {t("filters.to")}
+              </Label>
               <Input
                 id="filterTo"
                 type="date"
@@ -120,15 +137,17 @@ export function SessionsPage() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Status</Label>
+              <Label className="text-xs">{t("filters.status")}</Label>
               <Select value={status} onValueChange={setStatus}>
                 <SelectTrigger className="h-9">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={ANY}>Any status</SelectItem>
+                  <SelectItem value={ANY}>{t("filters.anyStatus")}</SelectItem>
                   {SESSION_STATUS_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {tCommon(`sessionStatus.${opt.labelKey}`)}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -141,7 +160,10 @@ export function SessionsPage() {
       {isLoading ? (
         <div className="space-y-3">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-16 animate-pulse rounded-xl border border-border/40 bg-muted/30" />
+            <div
+              key={i}
+              className="h-16 animate-pulse rounded-xl border border-border/40 bg-muted/30"
+            />
           ))}
         </div>
       ) : (
