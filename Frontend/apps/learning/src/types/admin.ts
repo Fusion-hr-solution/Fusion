@@ -811,6 +811,111 @@ export interface AttendanceFilters {
   to?: string;
 }
 
+/* ── Reports (US-8.2.1 / US-8.2.2) ── */
+
+export interface AttendanceByEmployeeRow {
+  employeeId: string;
+  employeeName?: string | null;
+  email?: string | null;
+  gradeName: string;
+  serviceLineName: string;
+  sessionsEnrolled: number;
+  attended: number;
+  missed: number;
+  attendanceRate: number;
+}
+
+export interface TrainingHoursRow {
+  employeeId: string;
+  employeeName?: string | null;
+  gradeName: string;
+  serviceLineName: string;
+  eLearningHours: number;
+  inPersonHours: number;
+  totalHours: number;
+  trainingsCompleted: number;
+}
+
+export interface FormatMetrics {
+  format: string;
+  trainingCount: number;
+  hoursDelivered: number;
+  participants: number;
+  completionRate: number;
+  avgFeedback?: number | null;
+}
+
+export interface FormatComparison {
+  eLearning: FormatMetrics;
+  onSite: FormatMetrics;
+}
+
+/** Display labels for the active filters, passed to export endpoints for the file header. */
+export interface ReportFilterLabels {
+  gradeLabel?: string;
+  serviceLineLabel?: string;
+  trainingLabel?: string;
+}
+
+/** A chart rasterised to PNG (base64, no data: prefix) sent to the PDF export to be embedded. */
+export interface ReportChartImage {
+  key: string;
+  pngBase64: string;
+}
+
+/* ── Training import (US-8.2.3 / US-8.2.4) ── */
+
+export interface TrainingImportIssue {
+  field?: string | null;
+  message: string;
+  /** "error" | "warning". */
+  severity: string;
+}
+
+export interface TrainingImportRow {
+  ref: string;
+  title?: string | null;
+  category?: string | null;
+  format?: string | null;
+  sessionCount: number;
+  chapterCount: number;
+  contentCount: number;
+  /** "ready" | "duplicate" | "error". */
+  status: string;
+  issues: TrainingImportIssue[];
+}
+
+export interface TrainingImportSummary {
+  total: number;
+  ready: number;
+  duplicate: number;
+  error: number;
+}
+
+export interface TrainingImportPreview {
+  sessionId?: string | null;
+  fileName: string;
+  rows: TrainingImportRow[];
+  globalIssues: TrainingImportIssue[];
+  summary: TrainingImportSummary;
+}
+
+export interface TrainingImportError {
+  ref: string;
+  title?: string | null;
+  message: string;
+}
+
+export interface TrainingImportResult {
+  imported: number;
+  updated: number;
+  skipped: number;
+  failed: number;
+  errors: TrainingImportError[];
+}
+
+/** Per-duplicate action: "skip" | "createNew" | "safeUpdate". */
+export type DuplicateAction = "skip" | "createNew" | "safeUpdate";
 /* ── Feedback dashboards (US-8.1.2) ── */
 
 export interface FeedbackTrendPoint {

@@ -1,4 +1,6 @@
 using System.Text;
+using EY.HRPlatform.Training.Features.Admin.Import;
+using EY.HRPlatform.Training.Features.Admin.Reports.Export;
 using EY.HRPlatform.Training.Features.Admin.Budget;
 using EY.HRPlatform.Training.Features.Admin.Budget.Export;
 using EY.HRPlatform.Training.Features.Admin.Sessions.Export;
@@ -59,6 +61,12 @@ public static class ServiceCollectionExtensions
 
         // 4. Register export service (Excel + PDF participant lists)
         services.AddSingleton<ISessionParticipantExporter, SessionParticipantExporter>();
+
+        // 4b. Register report exporter (US-8.2.1/8.2.2 Excel reports)
+        services.AddSingleton<IReportExporter, ReportExporter>();
+
+        // 4c. Register training import template generator (US-8.2.4)
+        services.AddSingleton<ITrainingImportTemplateGenerator, TrainingImportTemplateGenerator>();
 
         // 5. Register QR token service (rotating HMAC payloads for session attendance)
         services.AddSingleton<IQrTokenService, QrTokenService>();

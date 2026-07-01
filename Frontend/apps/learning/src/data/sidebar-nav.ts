@@ -20,6 +20,8 @@ import {
   Wallet,
   BadgeCheck,
   MessageSquare,
+  FileBarChart,
+  Upload,
 } from "lucide-react";
 import type { NavSection } from "@repo/ui";
 
@@ -71,6 +73,8 @@ export const ADMIN_NAV: NavSection = {
     { label: "sessions", href: "/admin/sessions", icon: CalendarClock },
     { label: "attendance", href: "/admin/attendance", icon: BarChart2 },
     { label: "feedback", href: "/admin/feedback", icon: MessageSquare },
+    { label: "reports", href: "/admin/reports", icon: FileBarChart },
+    { label: "importTrainings", href: "/admin/imports/trainings", icon: Upload },
     {
       label: "certificateRegistry",
       href: "/admin/certificates",

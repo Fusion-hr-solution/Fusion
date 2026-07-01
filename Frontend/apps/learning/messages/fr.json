@@ -148,6 +148,8 @@
       "attendance": "Présences",
       "certificateRegistry": "Registre des certificats",
       "feedback": "Avis",
+      "reports": "Rapports",
+      "importTrainings": "Importer des formations",
       "settings": "Paramètres"
     },
     "comingSoon": "Bientôt disponible",
@@ -679,6 +681,115 @@
       "attemptHistory": "Historique des tentatives",
       "backToOverview": "Retour à la vue d'ensemble",
       "reviewChapters": "Revoir les chapitres"
+    }
+  },
+  "imports": {
+    "title": "Importer des formations",
+    "subtitle": "Importez des formations en masse depuis un classeur Excel, avec aperçu et validation",
+    "downloadTemplate": "Télécharger le modèle",
+    "upload": {
+      "choose": "Choisir un fichier",
+      "noFile": "Aucun fichier sélectionné",
+      "button": "Importer & prévisualiser",
+      "uploading": "Import en cours…"
+    },
+    "toast": {
+      "uploaded": "Fichier validé — vérifiez l'aperçu ci-dessous.",
+      "uploadError": "Impossible de traiter le fichier.",
+      "templateError": "Impossible de télécharger le modèle.",
+      "applied": "Import terminé.",
+      "applyError": "Impossible de terminer l'import.",
+      "errorLogError": "Impossible de télécharger le journal d'erreurs."
+    },
+    "summary": {
+      "total": "{count} au total",
+      "ready": "{count} prêtes",
+      "duplicate": "{count} en double",
+      "error": "{count} en erreur"
+    },
+    "globalIssues": "Problèmes du classeur",
+    "noRows": "Aucune formation trouvée dans le classeur.",
+    "previewNote": "Ceci est un aperçu — rien n'a encore été importé. La confirmation de l'import est l'étape suivante.",
+    "cols": {
+      "ref": "Réf",
+      "title": "Titre",
+      "category": "Catégorie",
+      "format": "Format",
+      "structure": "Séances / Chapitres / Contenu",
+      "structureShort": "S / C / Ct",
+      "status": "Statut",
+      "action": "Si doublon"
+    },
+    "status": {
+      "ready": "Prête",
+      "duplicate": "Doublon",
+      "error": "Erreur"
+    },
+    "actions": {
+      "skip": "Ignorer",
+      "createNew": "Créer en double",
+      "safeUpdate": "Mettre à jour"
+    },
+    "confirm": {
+      "button": "Confirmer l'import ({count})",
+      "applying": "Import en cours…"
+    },
+    "result": {
+      "title": "Import terminé",
+      "imported": "{count} importées",
+      "updated": "{count} mises à jour",
+      "skipped": "{count} ignorées",
+      "failed": "{count} en échec",
+      "downloadErrors": "Télécharger le journal d'erreurs"
+    }
+  },
+  "reports": {
+    "title": "Rapports",
+    "subtitle": "Présences, heures de formation et comparaison présentiel vs e-learning",
+    "tabs": {
+      "attendance": "Présences",
+      "hours": "Heures de formation",
+      "format": "Comparaison des formats"
+    },
+    "filters": {
+      "grade": "Grade",
+      "serviceLine": "Service Line",
+      "from": "Du",
+      "to": "Au",
+      "allGrades": "Tous les grades",
+      "allServiceLines": "Toutes les service lines",
+      "reset": "Réinitialiser"
+    },
+    "export": {
+      "excel": "Excel",
+      "pdf": "PDF",
+      "error": "Échec de l'export. Veuillez réessayer."
+    },
+    "empty": "Aucune donnée pour les filtres sélectionnés.",
+    "total": "Total",
+    "hoursEstimatedNote": "Les heures sont estimées : présentiel d'après les horaires des séances suivies, e-learning d'après la durée du contenu.",
+    "completionByFormat": "Taux d'achèvement par format",
+    "attendanceByGrade": "Taux de présence par grade",
+    "format": {
+      "eLearning": "E-learning",
+      "onSite": "Présentiel"
+    },
+    "cols": {
+      "employee": "Employé",
+      "grade": "Grade",
+      "serviceLine": "Service Line",
+      "enrolled": "Inscrit",
+      "attended": "Présent",
+      "missed": "Manqué",
+      "rate": "Taux de présence",
+      "eLearningHours": "Heures e-learning",
+      "inPersonHours": "Heures présentiel",
+      "totalHours": "Heures totales",
+      "completed": "Terminées",
+      "trainings": "Formations",
+      "hoursDelivered": "Heures dispensées",
+      "participants": "Participants",
+      "avgFeedback": "Avis moyen"
     }
   },
   "trainerFeedback": {

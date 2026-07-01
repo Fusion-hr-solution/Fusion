@@ -31,7 +31,43 @@ A calendar bucket (month) derived from `TrainingSession.StartUtc`, used for tren
 heatmap aggregations.
 
 ### In-person Hours
-Sum of `TrainingPart.DurationHours` across the Sessions an employee `Attended`.
+The scheduled duration (start-to-end) of the Sessions an employee `Attended`, summed.
+
+### Training Hours
+An employee's total estimated learning time: **In-person Hours** plus **E-learning Hours**.
+Reported per employee, splittable by format. Always presented as *estimated*.
+
+### E-learning Hours
+Estimated time an employee spent on completed e-learning trainings: the authored content
+duration of each training the employee `Completed`. When a completed training carries no
+authored duration at all, a coarse per-training fallback stands in so a finished training is
+never shown as zero. Always *estimated*.
+
+### Format Comparison
+A side-by-side view of e-learning vs on-site delivery over a scope — counts of trainings,
+hours delivered, participants, completion rate, and average **Learner Feedback** — so an admin
+can judge which format performs better.
+
+### Import Session
+A staged, expiring snapshot of an uploaded import workbook: its parsed rows and the validation
+verdict for each, held between **upload** and **confirm** so the admin can preview before
+anything is created. Distinct from a **Training Session**.
+
+### Import Ref
+An admin-assigned code identifying one training *within an import workbook*. Child rows
+(sessions, chapters, content) cite their parent training by its Ref. It is a spreadsheet-local
+link only — never stored on the created entities.
+
+### Safe-update
+The non-destructive resolution for an imported training that duplicates an existing one: only
+flat course fields are refreshed and any genuinely new children are appended. Existing chapters,
+sessions, enrollments, and learner progress are never deleted or overwritten. The deliberate
+alternative to a destructive replace.
+
+### Quiz Draft
+A transient, per-training working set of quiz questions — AI-generated and/or hand-edited —
+that an admin reviews before publishing. On publish it becomes ordinary **Exam** questions and
+the draft is cleared. It is scratch space, not a published artifact.
 
 ### Training Completed
 A learner has completed a training when its `TrainingProgress.Status` is `Completed`. For

@@ -36,6 +36,8 @@ public class TrainingDbContext : DbContext
     public DbSet<ServiceLine> ServiceLines => Set<ServiceLine>();
     public DbSet<CurriculumMapping> CurriculumMappings => Set<CurriculumMapping>();
     public DbSet<EmployeeProfile> EmployeeProfiles => Set<EmployeeProfile>();
+    public DbSet<TrainingImportSession> TrainingImportSessions => Set<TrainingImportSession>();
+    public DbSet<TrainingImportHistory> TrainingImportHistories => Set<TrainingImportHistory>();
     public DbSet<TrainingBudget> TrainingBudgets => Set<TrainingBudget>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -466,6 +468,23 @@ public class TrainingDbContext : DbContext
                 .OnDelete(DeleteBehavior.Restrict);
             e.HasIndex(t => new { t.SessionId, t.TrainerEmployeeId }).IsUnique();
             e.HasIndex(t => t.TrainerEmployeeId);
+        });
+
+        // --- TrainingImportSession (US-8.2.3 staged import preview, ADR 0008) ---
+        modelBuilder.Entity<TrainingImportSession>(e =>
+        {
+            e.HasKey(s => s.Id);
+            e.Property(s => s.FileName).HasMaxLength(260);
+            e.Property(s => s.PayloadJson).HasColumnType("jsonb");
+            e.HasIndex(s => s.CreatedByEmployeeId);
+        });
+
+        // --- TrainingImportHistory (US-8.2.3 applied-import audit log, ADR 0008) ---
+        modelBuilder.Entity<TrainingImportHistory>(e =>
+        {
+            e.HasKey(h => h.Id);
+            e.Property(h => h.FileName).HasMaxLength(260);
+            e.HasIndex(h => h.CreatedByEmployeeId);
         });
 
         // --- TrainingBudget ---
