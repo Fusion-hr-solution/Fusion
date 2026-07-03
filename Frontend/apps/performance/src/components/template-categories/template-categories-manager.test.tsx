@@ -80,7 +80,7 @@ describe("TemplateCategoriesManager", () => {
 
     await waitFor(() => expect(mockPost).toHaveBeenCalled());
     expect(mockPost.mock.calls[0]?.[0]).toBe(performancePaths.templateCategories());
-    expect(mockPost.mock.calls[0]?.[1]).toEqual({ code: "LEADERSHIP", name: "Leadership" });
+    expect(mockPost.mock.calls[0]?.[1]).toEqual({ code: "LEADERSHIP", name: "Leadership", description: null });
   });
 
   it("archives an active category", async () => {

@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { TemplateEditor } from "./template-editor";
 import { TemplateCategoriesManager } from "@/components/template-categories/template-categories-manager";
+import { ConfirmDialog } from "@/components/controls/confirm-dialog";
 import {
   templateStatusLabel,
   templateStatusTone,
@@ -55,6 +56,7 @@ const PAGE_SIZE = 20;
 export function TemplateLibraryPage() {
   const [view, setView] = useState<View>("list");
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleteCandidate, setDeleteCandidate] = useState<TemplateSummaryDto | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>(ALL);
   const [categoryFilter, setCategoryFilter] = useState<string>(ALL);
@@ -101,7 +103,7 @@ export function TemplateLibraryPage() {
         `${performancePaths.templateCategories()}?includeArchived=true`,
         { signal },
       ),
-    { enabled: canManageCategories },
+    { enabled: canView },
   );
 
   const categoryLookup = useMemo(
@@ -135,6 +137,14 @@ export function TemplateLibraryPage() {
     {
       onSuccess: () => { toast.success("Template restored"); void refetch(); },
       onError: (err) => { toast.error(err.message); },
+    },
+  );
+
+  const deleteDraft = useApiMutation<void, string>(
+    (id) => apiClient.delete<void>(performancePaths.templateLibraryItem(id)),
+    {
+      onSuccess: () => { toast.success("Draft deleted"); setDeleteCandidate(null); void refetch(); },
+      onError: (err) => { setDeleteCandidate(null); toast.error(err.message); },
     },
   );
 
@@ -186,6 +196,15 @@ export function TemplateLibraryPage() {
 
   return (
     <PageContainer>
+      <ConfirmDialog
+        open={!!deleteCandidate}
+        onOpenChange={(open) => { if (!open) setDeleteCandidate(null); }}
+        title="Delete this draft?"
+        description={`"${deleteCandidate?.draftRevision?.title ?? "This draft"}" has never been activated and will be permanently removed.`}
+        confirmLabel="Delete draft"
+        destructive
+        onConfirm={() => { if (deleteCandidate) deleteDraft.mutate(deleteCandidate.id); }}
+      />
       <PageHeader
         title="Objective templates"
         description="Reusable templates for performance plans — browse, search, and manage your template library."
@@ -220,7 +239,7 @@ export function TemplateLibraryPage() {
               <SelectItem value="Archived">Archived</SelectItem>
             </SelectContent>
           </Select>
-          {canManageCategories && categories && categories.length > 0 && (
+          {categories && categories.length > 0 && (
             <Select value={categoryFilter} onValueChange={handleFilterChange(setCategoryFilter)}>
               <SelectTrigger className="w-44">
                 <SelectValue placeholder="Category" />
@@ -294,10 +313,9 @@ export function TemplateLibraryPage() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    disabled={!canManage}
                     onClick={() => { setEditingId(t.id); setView("edit"); }}
                   >
-                    Edit
+                    {canManage ? "Edit" : "View"}
                   </Button>
                   {canManage && (
                     <DropdownMenu>
@@ -328,6 +346,15 @@ export function TemplateLibraryPage() {
                             disabled={restore.isLoading}
                           >
                             Restore
+                          </DropdownMenuItem>
+                        )}
+                        {t.status === "Draft" && !t.activeRevision && (
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={() => setDeleteCandidate(t)}
+                            disabled={deleteDraft.isLoading}
+                          >
+                            Delete draft
                           </DropdownMenuItem>
                         )}
                       </DropdownMenuContent>

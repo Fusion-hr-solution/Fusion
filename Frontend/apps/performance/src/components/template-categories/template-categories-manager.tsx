@@ -59,7 +59,7 @@ export function TemplateCategoriesManager() {
     ({ id, req }) => apiClient.put<CategoryDto>(performancePaths.templateCategory(id), req),
     {
       invalidateQueries: [{ queryKey: performanceQueryKeys.templateCategories(), exact: false }],
-      onSuccess: () => { toast.success("Category renamed"); void refetch(); setEditingId(null); },
+      onSuccess: () => { toast.success("Category updated"); void refetch(); setEditingId(null); },
       onError: (err) => { toast.error(err.message); },
     },
   );
@@ -173,13 +173,19 @@ function CategoryRow({
         {isEditing ? (
           <RenameCategoryForm
             current={cat.name}
+            currentDescription={cat.description ?? ""}
             onSubmit={onRename}
             onCancel={onCancelEdit}
             isLoading={isRenaming}
           />
         ) : (
           <>
-            <span className="flex-1 text-sm">{cat.name}</span>
+            <span className="flex-1 min-w-0 text-sm">
+              {cat.name}
+              {cat.description && (
+                <span className="block text-xs text-muted-foreground truncate">{cat.description}</span>
+              )}
+            </span>
             <div className="flex gap-1">
               <Button variant="ghost" size="sm" onClick={onEdit}>Rename</Button>
               <Button
@@ -207,6 +213,7 @@ function CreateCategoryForm({
   isLoading: boolean;
 }) {
   const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
   const derivedCode = toCode(name);
 
   return (
@@ -227,10 +234,20 @@ function CreateCategoryForm({
             </p>
           )}
         </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="catDesc">Description (optional)</Label>
+          <Input
+            id="catDesc"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="What belongs in this category"
+            maxLength={500}
+          />
+        </div>
         <div className="flex gap-2">
           <Button
             size="sm"
-            onClick={() => onSubmit({ code: derivedCode, name })}
+            onClick={() => onSubmit({ code: derivedCode, name, description: description || null })}
             disabled={isLoading || !name || !derivedCode}
           >
             {isLoading ? "Creating…" : "Create"}
@@ -243,26 +260,38 @@ function CreateCategoryForm({
 }
 
 function RenameCategoryForm({
-  current, onSubmit, onCancel, isLoading,
+  current, currentDescription, onSubmit, onCancel, isLoading,
 }: {
   current: string;
+  currentDescription: string;
   onSubmit: (req: RenameCategoryRequest) => void;
   onCancel: () => void;
   isLoading: boolean;
 }) {
   const [name, setName] = useState(current);
+  const [description, setDescription] = useState(currentDescription);
+  const unchanged = name === current && description === currentDescription;
   return (
-    <div className="flex items-center gap-2 flex-1">
+    <div className="flex items-center gap-2 flex-1 min-w-0">
       <Input
         value={name}
         onChange={(e) => setName(e.target.value)}
         className="h-7 text-sm"
+        aria-label="Category name"
         autoFocus
+      />
+      <Input
+        value={description}
+        onChange={(e) => setDescription(e.target.value)}
+        className="h-7 text-sm flex-1"
+        placeholder="Description (optional)"
+        aria-label="Category description"
+        maxLength={500}
       />
       <Button
         size="sm"
-        onClick={() => onSubmit({ name })}
-        disabled={isLoading || !name || name === current}
+        onClick={() => onSubmit({ name, description: description || null })}
+        disabled={isLoading || !name || unchanged}
       >
         {isLoading ? "Saving…" : "Save"}
       </Button>

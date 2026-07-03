@@ -61,6 +61,15 @@ function paged(items: unknown[], overrides: Record<string, unknown> = {}) {
   };
 }
 
+/** Routes GETs: the categories query gets an array; everything else gets the library page. */
+function routeGets(libraryResponse: unknown) {
+  mockGet.mockImplementation((path: string) =>
+    path.includes("template-categories")
+      ? Promise.resolve([])
+      : Promise.resolve(libraryResponse),
+  );
+}
+
 function template(overrides: Record<string, unknown> = {}) {
   return {
     id: "t1",
@@ -95,19 +104,19 @@ describe("TemplateLibraryPage states", () => {
   });
 
   it("renders templates with their status", async () => {
-    mockGet.mockResolvedValue(paged([template()]));
+    routeGets(paged([template()]));
     renderPage();
     await screen.findByText("Revenue growth");
   });
 
   it("shows an empty-library state when there are no templates and no filters", async () => {
-    mockGet.mockResolvedValue(paged([]));
+    routeGets(paged([]));
     renderPage();
     await screen.findByText("No templates yet");
   });
 
   it("shows a distinct no-results state when filters exclude everything", async () => {
-    mockGet.mockResolvedValue(paged([]));
+    routeGets(paged([]));
     renderPage();
     await screen.findByText("No templates yet");
 
@@ -118,18 +127,20 @@ describe("TemplateLibraryPage states", () => {
     await screen.findByText("No templates match these filters");
   });
 
-  it("hides create and disables edit for view-only users", async () => {
+  it("offers view-only users a read-only open action without create or management controls", async () => {
     access.canManage = false;
-    mockGet.mockResolvedValue(paged([template()]));
+    routeGets(paged([template()]));
     renderPage();
 
     await screen.findByText("Revenue growth");
     expect(screen.queryByRole("button", { name: /New template/ })).toBeNull();
-    expect((screen.getByRole("button", { name: "Edit" }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.queryByRole("button", { name: "Edit" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "More actions" })).toBeNull();
+    expect(screen.getByRole("button", { name: "View" })).not.toBeNull();
   });
 
   it("offers create for managers", async () => {
-    mockGet.mockResolvedValue(paged([template()]));
+    routeGets(paged([template()]));
     renderPage();
     await screen.findByText("Revenue growth");
     expect(screen.getByRole("button", { name: /New template/ })).not.toBeNull();

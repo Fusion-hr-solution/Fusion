@@ -4,11 +4,12 @@ import React, { useMemo, useState, useEffect } from "react";
 import { createPlatformApiClient } from "@repo/api";
 import { useApiQuery, useApiMutation } from "@repo/api/query";
 import { performancePaths, performanceQueryKeys } from "@repo/api";
-import { hasCorePermission, useAuth } from "@repo/auth";
+import { canManageObjectiveLibrary, useAuth } from "@repo/auth";
 import type {
   ApplicabilityOptionsDto,
   CategoryDto,
   TemplateSummaryDto,
+  TemplateRevisionHistoryEntryDto,
   CreateTemplateDraftRequest,
   ActivateTemplateRevisionRequest,
 } from "@repo/api";
@@ -51,7 +52,7 @@ export function TemplateEditor({ mode, templateId, onSaved, onCancel }: Template
   const [discardOpen, setDiscardOpen] = useState(false);
   const [measurementSwitchPending, setMeasurementSwitchPending] = useState<"Quantitative" | "Qualitative" | null>(null);
   const { user } = useAuth();
-  const canManageCategories = hasCorePermission(user, "performance.template.category.manage", "Tenant");
+  const readOnly = !canManageObjectiveLibrary(user);
 
   const { data: template, refetch } = useApiQuery<TemplateSummaryDto>(
     performanceQueryKeys.templateLibraryItem(templateId ?? ""),
@@ -63,7 +64,15 @@ export function TemplateEditor({ mode, templateId, onSaved, onCancel }: Template
     [...performanceQueryKeys.templateCategories(), "with-archived"],
     (signal) =>
       apiClient.get<CategoryDto[]>(`${performancePaths.templateCategories()}?includeArchived=true`, { signal }),
-    { enabled: canManageCategories },
+  );
+  const { data: revisionHistory } = useApiQuery<TemplateRevisionHistoryEntryDto[]>(
+    performanceQueryKeys.templateLibraryHistory(templateId ?? ""),
+    (signal) =>
+      apiClient.get<TemplateRevisionHistoryEntryDto[]>(
+        performancePaths.templateLibraryHistory(templateId!),
+        { signal },
+      ),
+    { enabled: mode === "edit" && !!templateId },
   );
   const { data: applicabilityOptions } = useApiQuery<ApplicabilityOptionsDto>(
     performanceQueryKeys.applicabilityOptions(),
@@ -82,8 +91,10 @@ export function TemplateEditor({ mode, templateId, onSaved, onCancel }: Template
     working?.measurementType ?? "Qualitative",
   );
   const [suggestedWeighting, setSuggestedWeighting] = useState(working?.suggestedWeighting?.toString() ?? "");
+  const [indicator, setIndicator] = useState(working?.indicator ?? "");
   const [targetValue, setTargetValue] = useState(working?.targetValue?.toString() ?? "");
   const [unit, setUnit] = useState(working?.unit ?? "");
+  const [expectedOutcome, setExpectedOutcome] = useState(working?.expectedOutcome ?? "");
   const [successCriteria, setSuccessCriteria] = useState(working?.successCriteria ?? "");
   const [tags, setTags] = useState(working?.tags ?? "");
   const [applicableOrgUnitIds, setApplicableOrgUnitIds] = useState<string[]>(working?.applicableOrgUnitIds ?? []);
@@ -100,8 +111,10 @@ export function TemplateEditor({ mode, templateId, onSaved, onCancel }: Template
       setCategoryId(working.categoryId ?? NO_CATEGORY);
       setMeasurementType(working.measurementType ?? "Qualitative");
       setSuggestedWeighting(working.suggestedWeighting?.toString() ?? "");
+      setIndicator(working.indicator ?? "");
       setTargetValue(working.targetValue?.toString() ?? "");
       setUnit(working.unit ?? "");
+      setExpectedOutcome(working.expectedOutcome ?? "");
       setSuccessCriteria(working.successCriteria ?? "");
       setTags(working.tags ?? "");
       setApplicableOrgUnitIds(working.applicableOrgUnitIds ?? []);
@@ -121,8 +134,10 @@ export function TemplateEditor({ mode, templateId, onSaved, onCancel }: Template
     measurementType,
     suggestedWeighting: suggestedWeighting ? parseFloat(suggestedWeighting) : null,
     tags: tags || null,
+    indicator: indicator || null,
     targetValue: targetValue ? parseFloat(targetValue) : null,
     unit: unit || null,
+    expectedOutcome: expectedOutcome || null,
     successCriteria: successCriteria || null,
     applicableOrgUnitIds: applicableOrgUnitIds.length > 0 ? applicableOrgUnitIds : null,
     applicableJobTitles: applicableJobTitles.length > 0 ? applicableJobTitles : null,
@@ -191,7 +206,7 @@ export function TemplateEditor({ mode, templateId, onSaved, onCancel }: Template
 
   const switchMeasurementType = (to: "Quantitative" | "Qualitative") => {
     if (to === measurementType) return;
-    const hasData = targetValue || unit || successCriteria;
+    const hasData = indicator || targetValue || unit || expectedOutcome || successCriteria;
     if (hasData) {
       setMeasurementSwitchPending(to);
     } else {
@@ -201,8 +216,8 @@ export function TemplateEditor({ mode, templateId, onSaved, onCancel }: Template
 
   const applyMeasurementSwitch = (to: "Quantitative" | "Qualitative") => {
     setMeasurementType(to);
-    if (to === "Quantitative") setSuccessCriteria("");
-    else { setTargetValue(""); setUnit(""); }
+    if (to === "Quantitative") { setExpectedOutcome(""); setSuccessCriteria(""); }
+    else { setIndicator(""); setTargetValue(""); setUnit(""); }
     markDirty();
     setMeasurementSwitchPending(null);
   };
@@ -232,7 +247,11 @@ export function TemplateEditor({ mode, templateId, onSaved, onCancel }: Template
         open={!!measurementSwitchPending}
         onOpenChange={(open) => { if (!open) setMeasurementSwitchPending(null); }}
         title="Switch measurement type?"
-        description="Switching will clear the measurement-specific fields you've entered (target, unit, or success criteria)."
+        description={
+          measurementSwitchPending === "Quantitative"
+            ? "Switching to a numeric target clears the expected outcome and success criteria you've entered."
+            : "Switching to a qualitative outcome clears the indicator, target, and unit you've entered."
+        }
         confirmLabel="Switch and clear"
         onConfirm={() => { if (measurementSwitchPending) applyMeasurementSwitch(measurementSwitchPending); }}
       />
@@ -251,24 +270,29 @@ export function TemplateEditor({ mode, templateId, onSaved, onCancel }: Template
             <span className="text-sm font-semibold">
               {mode === "create" ? "New template" : (working?.title || "Edit template")}
             </span>
+            {template?.code && (
+              <span className="text-xs text-muted-foreground font-mono">{template.code}</span>
+            )}
             {draft && <StatusBadge tone="warning" dot>Draft v{draft.versionNumber}</StatusBadge>}
             {active && !draft && <StatusBadge tone="success" dot>Active v{active.versionNumber}</StatusBadge>}
           </div>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleSaveDraft}
-              disabled={isBusy || !title}
-            >
-              {createDraft.isLoading || saveDraft.isLoading ? "Saving…" : "Save draft"}
-            </Button>
-            {mode === "edit" && draft && (
-              <Button size="sm" onClick={handleActivate} disabled={isBusy || hasUnsaved}>
-                {activateRevision.isLoading ? "Activating…" : "Activate"}
+          {!readOnly && (
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSaveDraft}
+                disabled={isBusy || !title}
+              >
+                {createDraft.isLoading || saveDraft.isLoading ? "Saving…" : "Save draft"}
               </Button>
-            )}
-          </div>
+              {mode === "edit" && draft && (
+                <Button size="sm" onClick={handleActivate} disabled={isBusy || hasUnsaved}>
+                  {activateRevision.isLoading ? "Activating…" : "Activate"}
+                </Button>
+              )}
+            </div>
+          )}
         </div>
 
         {actionError && (
@@ -295,64 +319,71 @@ export function TemplateEditor({ mode, templateId, onSaved, onCancel }: Template
           ))}
         </div>
 
-        {/* Tab panels */}
-        {tab === "basics" && (
-          <BasicsTab
-            title={title} setTitle={(v) => { setTitle(v); markDirty(); }}
-            description={description} setDescription={(v) => { setDescription(v); markDirty(); }}
-            suggestedWeighting={suggestedWeighting} setSuggestedWeighting={(v) => { setSuggestedWeighting(v); markDirty(); }}
-          />
-        )}
-        {tab === "measurement" && (
-          <MeasurementTab
-            measurementType={measurementType}
-            onSwitchType={switchMeasurementType}
-            targetValue={targetValue} setTargetValue={(v) => { setTargetValue(v); markDirty(); }}
-            unit={unit} setUnit={(v) => { setUnit(v); markDirty(); }}
-            successCriteria={successCriteria} setSuccessCriteria={(v) => { setSuccessCriteria(v); markDirty(); }}
-          />
-        )}
-        {tab === "classification" && (
-          <ClassificationTab
-            categories={categories ?? []}
-            canManageCategories={canManageCategories}
-            categoryId={categoryId}
-            setCategoryId={(v) => { setCategoryId(v); markDirty(); }}
-            tags={tags}
-            setTags={(v) => { setTags(v); markDirty(); }}
-          />
-        )}
-        {tab === "applicability" && (
-          <ApplicabilityTab
-            options={applicabilityOptions ?? null}
-            validationState={working?.applicabilityValidationState ?? "NotValidated"}
-            selectedOrgUnitIds={applicableOrgUnitIds}
-            setSelectedOrgUnitIds={(v) => { setApplicableOrgUnitIds(v); markDirty(); }}
-            selectedJobTitles={applicableJobTitles}
-            setSelectedJobTitles={(v) => { setApplicableJobTitles(v); markDirty(); }}
-            selectedWorkLocations={applicableWorkLocations}
-            setSelectedWorkLocations={(v) => { setApplicableWorkLocations(v); markDirty(); }}
-            selectedEmploymentTypes={applicableEmploymentTypes}
-            setSelectedEmploymentTypes={(v) => { setApplicableEmploymentTypes(v); markDirty(); }}
-          />
-        )}
-        {tab === "review" && (
-          <ReviewTab
-            title={title}
-            description={description}
-            categoryName={
-              categoryId !== NO_CATEGORY
-                ? `${categoryLookup.get(categoryId)?.name ?? ""}${categoryLookup.get(categoryId)?.status === "Archived" ? " (archived)" : ""}`
-                : ""
-            }
-            measurementType={measurementType}
-            suggestedWeighting={suggestedWeighting}
-            targetValue={targetValue}
-            unit={unit}
-            successCriteria={successCriteria}
-            tags={tags}
-          />
-        )}
+        {/* Tab panels — a single disabled fieldset makes view-only truly read-only */}
+        <fieldset disabled={readOnly} className="min-w-0">
+          {tab === "basics" && (
+            <BasicsTab
+              title={title} setTitle={(v) => { setTitle(v); markDirty(); }}
+              description={description} setDescription={(v) => { setDescription(v); markDirty(); }}
+              suggestedWeighting={suggestedWeighting} setSuggestedWeighting={(v) => { setSuggestedWeighting(v); markDirty(); }}
+            />
+          )}
+          {tab === "measurement" && (
+            <MeasurementTab
+              measurementType={measurementType}
+              onSwitchType={switchMeasurementType}
+              indicator={indicator} setIndicator={(v) => { setIndicator(v); markDirty(); }}
+              targetValue={targetValue} setTargetValue={(v) => { setTargetValue(v); markDirty(); }}
+              unit={unit} setUnit={(v) => { setUnit(v); markDirty(); }}
+              expectedOutcome={expectedOutcome} setExpectedOutcome={(v) => { setExpectedOutcome(v); markDirty(); }}
+              successCriteria={successCriteria} setSuccessCriteria={(v) => { setSuccessCriteria(v); markDirty(); }}
+            />
+          )}
+          {tab === "classification" && (
+            <ClassificationTab
+              categories={categories ?? []}
+              categoryId={categoryId}
+              setCategoryId={(v) => { setCategoryId(v); markDirty(); }}
+              tags={tags}
+              setTags={(v) => { setTags(v); markDirty(); }}
+            />
+          )}
+          {tab === "applicability" && (
+            <ApplicabilityTab
+              options={applicabilityOptions ?? null}
+              validationState={working?.applicabilityValidationState ?? "NotValidated"}
+              selectedOrgUnitIds={applicableOrgUnitIds}
+              setSelectedOrgUnitIds={(v) => { setApplicableOrgUnitIds(v); markDirty(); }}
+              selectedJobTitles={applicableJobTitles}
+              setSelectedJobTitles={(v) => { setApplicableJobTitles(v); markDirty(); }}
+              selectedWorkLocations={applicableWorkLocations}
+              setSelectedWorkLocations={(v) => { setApplicableWorkLocations(v); markDirty(); }}
+              selectedEmploymentTypes={applicableEmploymentTypes}
+              setSelectedEmploymentTypes={(v) => { setApplicableEmploymentTypes(v); markDirty(); }}
+            />
+          )}
+          {tab === "review" && (
+            <ReviewTab
+              title={title}
+              description={description}
+              categoryName={
+                categoryId !== NO_CATEGORY
+                  ? `${categoryLookup.get(categoryId)?.name ?? ""}${categoryLookup.get(categoryId)?.status === "Archived" ? " (archived)" : ""}`
+                  : ""
+              }
+              categorySelected={categoryId !== NO_CATEGORY}
+              measurementType={measurementType}
+              suggestedWeighting={suggestedWeighting}
+              indicator={indicator}
+              targetValue={targetValue}
+              unit={unit}
+              expectedOutcome={expectedOutcome}
+              successCriteria={successCriteria}
+              tags={tags}
+              history={mode === "edit" ? (revisionHistory ?? []) : []}
+            />
+          )}
+        </fieldset>
       </div>
     </>
   );
@@ -415,14 +446,18 @@ function BasicsTab({
 
 function MeasurementTab({
   measurementType, onSwitchType,
+  indicator, setIndicator,
   targetValue, setTargetValue,
   unit, setUnit,
+  expectedOutcome, setExpectedOutcome,
   successCriteria, setSuccessCriteria,
 }: {
   measurementType: "Quantitative" | "Qualitative";
   onSwitchType: (v: "Quantitative" | "Qualitative") => void;
+  indicator: string; setIndicator: (v: string) => void;
   targetValue: string; setTargetValue: (v: string) => void;
   unit: string; setUnit: (v: string) => void;
+  expectedOutcome: string; setExpectedOutcome: (v: string) => void;
   successCriteria: string; setSuccessCriteria: (v: string) => void;
 }) {
   return (
@@ -456,6 +491,16 @@ function MeasurementTab({
       {measurementType === "Quantitative" && (
         <div className="space-y-4">
           <div className="space-y-1.5">
+            <Label htmlFor="indicator">What is measured? <span className="text-destructive">*</span></Label>
+            <Input
+              id="indicator"
+              value={indicator}
+              onChange={(e) => setIndicator(e.target.value)}
+              placeholder="e.g. Customer retention rate, calls handled per day"
+              maxLength={200}
+            />
+          </div>
+          <div className="space-y-1.5">
             <Label htmlFor="target">What result should be reached? <span className="text-destructive">*</span></Label>
             <div className="flex items-center gap-2">
               <Input
@@ -481,15 +526,27 @@ function MeasurementTab({
       )}
 
       {measurementType === "Qualitative" && (
-        <div className="space-y-1.5">
-          <Label htmlFor="criteria">What does success look like? <span className="text-destructive">*</span></Label>
-          <Textarea
-            id="criteria"
-            value={successCriteria}
-            onChange={(e) => setSuccessCriteria(e.target.value)}
-            placeholder="Describe the outcome and how it will be recognised as achieved…"
-            rows={4}
-          />
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="outcome">What outcome is expected? <span className="text-destructive">*</span></Label>
+            <Textarea
+              id="outcome"
+              value={expectedOutcome}
+              onChange={(e) => setExpectedOutcome(e.target.value)}
+              placeholder="Describe the result this objective should produce…"
+              rows={3}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="criteria">How will success be recognised? <span className="text-destructive">*</span></Label>
+            <Textarea
+              id="criteria"
+              value={successCriteria}
+              onChange={(e) => setSuccessCriteria(e.target.value)}
+              placeholder="List the observable conditions that show the outcome was achieved…"
+              rows={3}
+            />
+          </div>
         </div>
       )}
     </div>
@@ -499,34 +556,42 @@ function MeasurementTab({
 // ── Classification ───────────────────────────────────────────────────────────
 
 function ClassificationTab({
-  categories, canManageCategories, categoryId, setCategoryId, tags, setTags,
+  categories, categoryId, setCategoryId, tags, setTags,
 }: {
   categories: CategoryDto[];
-  canManageCategories: boolean;
   categoryId: string;
   setCategoryId: (v: string) => void;
   tags: string;
   setTags: (v: string) => void;
 }) {
+  // Archived categories cannot be selected for new activation; keep the current
+  // selection visible even when archived so existing templates stay truthful.
+  const selectable = categories.filter(
+    (cat) => cat.status !== "Archived" || cat.id === categoryId,
+  );
+  const selectedArchived = categories.find((cat) => cat.id === categoryId)?.status === "Archived";
+
   return (
     <div className="space-y-5">
       <div className="space-y-1.5">
-        <Label htmlFor="category">Category</Label>
+        <Label htmlFor="category">Category <span className="text-destructive">*</span></Label>
         <Select value={categoryId} onValueChange={setCategoryId}>
-          <SelectTrigger id="category" disabled={!canManageCategories} className="max-w-xs">
+          <SelectTrigger id="category" className="max-w-xs">
             <SelectValue placeholder="Select a category" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={NO_CATEGORY}>No category</SelectItem>
-            {categories.map((cat) => (
+            <SelectItem value={NO_CATEGORY}>Not set</SelectItem>
+            {selectable.map((cat) => (
               <SelectItem key={cat.id} value={cat.id}>
                 {cat.name}{cat.status === "Archived" ? " (archived)" : ""}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
-        {!canManageCategories && (
-          <p className="text-xs text-muted-foreground">Contact an administrator to assign a category.</p>
+        {selectedArchived && (
+          <p className="text-xs text-amber-600">
+            This category is archived. Choose an active category before activating.
+          </p>
         )}
       </div>
       <div className="space-y-1.5">
@@ -676,31 +741,47 @@ function CheckItem({
 // ── Review ───────────────────────────────────────────────────────────────────
 
 function ReviewTab({
-  title, description, categoryName, measurementType,
-  suggestedWeighting, targetValue, unit, successCriteria, tags,
+  title, description, categoryName, categorySelected, measurementType,
+  suggestedWeighting, indicator, targetValue, unit, expectedOutcome, successCriteria, tags,
+  history,
 }: {
-  title: string; description: string; categoryName: string;
+  title: string; description: string; categoryName: string; categorySelected: boolean;
   measurementType: string; suggestedWeighting: string;
-  targetValue: string; unit: string; successCriteria: string; tags: string;
+  indicator: string; targetValue: string; unit: string;
+  expectedOutcome: string; successCriteria: string; tags: string;
+  history: TemplateRevisionHistoryEntryDto[];
 }) {
   const missing: string[] = [];
   if (!title) missing.push("Title");
-  if (measurementType === "Quantitative" && (!targetValue || !unit)) missing.push("Target and unit");
-  if (measurementType === "Qualitative" && !successCriteria) missing.push("Success criteria");
+  if (!categorySelected) missing.push("Category");
+  if (measurementType === "Quantitative") {
+    if (!indicator) missing.push("Indicator");
+    if (!targetValue || !unit) missing.push("Target and unit");
+  }
+  if (measurementType === "Qualitative") {
+    if (!expectedOutcome) missing.push("Expected outcome");
+    if (!successCriteria) missing.push("Success criteria");
+  }
 
   const rows: [string, string | null][] = [
     ["Title", title || "—"],
     ["Description", description || null],
-    ["Category", categoryName || null],
+    ["Category", categoryName || "—"],
     ["Measurement", measurementType === "Quantitative" ? "Numeric target" : "Qualitative outcome"],
     ["Suggested weight", suggestedWeighting ? `${suggestedWeighting}%` : null],
     ...(measurementType === "Quantitative"
       ? [
+          ["Indicator", indicator || "—"] as [string, string],
           ["Target", targetValue ? `${targetValue} ${unit}`.trim() : "—"] as [string, string],
         ]
-      : [["Success criteria", successCriteria || "—"] as [string, string]]),
+      : [
+          ["Expected outcome", expectedOutcome || "—"] as [string, string],
+          ["Success criteria", successCriteria || "—"] as [string, string],
+        ]),
     ["Tags", tags || null],
   ];
+
+  const priorRevisions = history.filter((entry) => entry.status !== "Draft");
 
   return (
     <div className="space-y-4">
@@ -719,6 +800,30 @@ function ReviewTab({
           ) : null,
         )}
       </dl>
+
+      {priorRevisions.length > 0 && (
+        <div className="pt-2 space-y-2">
+          <p className="text-sm font-medium">Version history</p>
+          <ul className="space-y-1.5">
+            {priorRevisions.map((entry) => (
+              <li key={entry.id} className="flex items-baseline gap-3 text-sm">
+                <span className="w-10 shrink-0 text-xs text-muted-foreground">v{entry.versionNumber}</span>
+                <span className="flex-1 min-w-0 truncate">
+                  {entry.title}
+                  {entry.changeSummary ? ` — ${entry.changeSummary}` : ""}
+                </span>
+                <span className="shrink-0 text-xs text-muted-foreground">
+                  {entry.status === "Active" ? "Current" : "Superseded"}
+                  {entry.activatedAt
+                    ? ` · ${new Date(entry.activatedAt).toLocaleDateString()}`
+                    : ""}
+                  {entry.activatedByName ? ` · ${entry.activatedByName}` : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

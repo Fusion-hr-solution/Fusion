@@ -302,16 +302,19 @@ export interface CategoryDto {
   id: string;
   code: string;
   name: string;
+  description: string | null;
   status: CategoryStatus;
 }
 
 export interface CreateCategoryRequest {
   code: string;
   name: string;
+  description?: string | null;
 }
 
 export interface RenameCategoryRequest {
   name: string;
+  description?: string | null;
 }
 
 // ── Tenant objective policy (P1) ────────────────────────────────────
@@ -372,8 +375,10 @@ export interface TemplateRevisionDto {
   measurementType: "Quantitative" | "Qualitative";
   suggestedWeighting: number | null;
   tags: string | null;
+  indicator: string | null;
   targetValue: number | null;
   unit: string | null;
+  expectedOutcome: string | null;
   successCriteria: string | null;
   version: number;
   sourceRevisionId: string | null;
@@ -396,6 +401,7 @@ export interface TemplateRevisionDto {
 export interface TemplateSummaryDto {
   id: string;
   tenantId: string;
+  code: string;
   status: TemplateContainerStatus;
   activeRevision: TemplateRevisionDto | null;
   draftRevision: TemplateRevisionDto | null;
@@ -410,8 +416,10 @@ export interface CreateTemplateDraftRequest {
   measurementType: "Quantitative" | "Qualitative";
   suggestedWeighting?: number | null;
   tags?: string | null;
+  indicator?: string | null;
   targetValue?: number | null;
   unit?: string | null;
+  expectedOutcome?: string | null;
   successCriteria?: string | null;
   sourceRevisionId?: string | null;
   applicableOrgUnitIds?: string[] | null;
@@ -427,6 +435,18 @@ export interface UpdateTemplateDraftRequest extends CreateTemplateDraftRequest {
 export interface ActivateTemplateRevisionRequest {
   changeSummary?: string | null;
   expectedVersion: number;
+}
+
+/** Concise entry in the simple revision history (P1.1 §15.2). */
+export interface TemplateRevisionHistoryEntryDto {
+  id: string;
+  versionNumber: number;
+  status: TemplateRevisionStatus;
+  title: string;
+  activatedAt: string | null;
+  activatedByName: string | null;
+  supersededAt: string | null;
+  changeSummary: string | null;
 }
 
 export interface ApplicabilityOrgUnitDto {
@@ -491,6 +511,7 @@ export const performancePaths = {
   templateLibraryArchive: (id: string) => `/performance/template-library/${id}/archive`,
   templateLibraryRestore: (id: string) => `/performance/template-library/${id}/restore`,
   templateLibraryDuplicate: (id: string) => `/performance/template-library/${id}/duplicate`,
+  templateLibraryHistory: (id: string) => `/performance/template-library/${id}/history`,
   templateLibraryApplicabilityOptions: () => "/performance/template-library/applicability-options",
   notifications: () => "/performance/notifications",
   notificationsUnreadCount: () => "/performance/notifications/unread-count",
@@ -562,6 +583,8 @@ export const performanceQueryKeys = {
   templateLibrary: (params?: { search?: string | null; status?: string | null; categoryId?: string | null; measurementType?: string | null; page?: number; pageSize?: number }) =>
     [...performanceQueryKeys.all(), "template-library", params ?? {}] as const,
   templateLibraryItem: (id: string) => [...performanceQueryKeys.all(), "template-library", id] as const,
+  templateLibraryHistory: (id: string) =>
+    [...performanceQueryKeys.all(), "template-library", id, "history"] as const,
   applicabilityOptions: () => [...performanceQueryKeys.all(), "applicability-options"] as const,
   // Tenant policy query keys
   policy: () => [...performanceQueryKeys.all(), "policy"] as const,

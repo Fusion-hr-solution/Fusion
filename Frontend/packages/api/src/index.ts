@@ -178,6 +178,7 @@ export type {
   CreateTemplateDraftRequest,
   UpdateTemplateDraftRequest,
   ActivateTemplateRevisionRequest,
+  TemplateRevisionHistoryEntryDto,
   ApplicabilityOrgUnitDto,
   ApplicabilityOptionsDto,
   PagedResponse,

@@ -21,7 +21,7 @@ vi.mock("@repo/api", async () => {
 });
 vi.mock("@repo/auth", () => ({
   useAuth: () => ({ user: { userId: "u1", roles: ["HRAdmin"] }, isLoading: false }),
-  hasCorePermission: () => false,
+  canManageObjectiveLibrary: () => true,
 }));
 vi.mock("sonner", () => ({ toast }));
 
@@ -55,8 +55,18 @@ function createWrapper() {
 
 const applicabilityEmpty = { orgUnits: [], jobTitles: [], workLocations: [], employmentTypes: [] };
 
+/** Routes the shared GET mock by endpoint so each query gets a shape-correct response. */
+function routeGets(templateResponse?: unknown) {
+  mockGet.mockImplementation((path: string) => {
+    if (path.includes("applicability")) return Promise.resolve(applicabilityEmpty);
+    if (path.includes("template-categories")) return Promise.resolve([]);
+    if (path.includes("/history")) return Promise.resolve([]);
+    return Promise.resolve(templateResponse);
+  });
+}
+
 function renderCreate() {
-  mockGet.mockResolvedValue(applicabilityEmpty);
+  routeGets();
   const onSaved = vi.fn();
   const onCancel = vi.fn();
   render(createElement(TemplateEditor, { mode: "create", onSaved, onCancel }), {
@@ -95,8 +105,8 @@ describe("TemplateEditor (create)", () => {
     renderCreate();
 
     fireEvent.click(screen.getByRole("button", { name: "Measurement" }));
-    // Default is Qualitative — enter success criteria, then switch to Numeric.
-    fireEvent.change(screen.getByPlaceholderText(/Describe the outcome/), {
+    // Default is Qualitative — enter an expected outcome, then switch to Numeric.
+    fireEvent.change(screen.getByPlaceholderText(/Describe the result this objective/), {
       target: { value: "Programme delivered" },
     });
     fireEvent.click(screen.getByRole("button", { name: /Numeric target/ }));
@@ -122,26 +132,25 @@ describe("TemplateEditor (create)", () => {
 
 describe("TemplateEditor (edit)", () => {
   it("shows the activation requirements for an incomplete quantitative draft", async () => {
-    mockGet.mockImplementation((path: string) =>
-      path.includes("applicability")
-        ? Promise.resolve(applicabilityEmpty)
-        : Promise.resolve({
-            id: "t1",
-            status: "Draft",
-            activeRevision: null,
-            draftRevision: {
-              version: 1,
-              versionNumber: 1,
-              title: "Sales target",
-              measurementType: "Quantitative",
-              targetValue: null,
-              unit: null,
-              successCriteria: null,
-              categoryId: null,
-              applicabilityValidationState: "NotValidated",
-            },
-          }),
-    );
+    routeGets({
+      id: "t1",
+      code: "TPL-1A2B3C4D",
+      status: "Draft",
+      activeRevision: null,
+      draftRevision: {
+        version: 1,
+        versionNumber: 1,
+        title: "Sales target",
+        measurementType: "Quantitative",
+        indicator: null,
+        targetValue: null,
+        unit: null,
+        expectedOutcome: null,
+        successCriteria: null,
+        categoryId: null,
+        applicabilityValidationState: "NotValidated",
+      },
+    });
 
     render(
       createElement(TemplateEditor, {
@@ -156,6 +165,6 @@ describe("TemplateEditor (edit)", () => {
     await screen.findByRole("button", { name: "Review" });
     fireEvent.click(screen.getByRole("button", { name: "Review" }));
 
-    await screen.findByText(/Required before activation: Target and unit/);
+    await screen.findByText(/Required before activation: Title, Category, Indicator, Target and unit|Required before activation: Category, Indicator, Target and unit/);
   });
 });
