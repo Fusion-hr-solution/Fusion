@@ -392,6 +392,8 @@ export interface TemplateRevisionDto {
   createdAt: string;
   updatedAt: string | null;
   applicableOrgUnitIds: string[];
+  /** Selected units whose scope explicitly includes descendants (P1.1 §14.2). */
+  applicableOrgUnitAndDescendantIds: string[];
   applicableJobTitles: string[];
   applicableWorkLocations: string[];
   applicableEmploymentTypes: string[];
@@ -423,6 +425,7 @@ export interface CreateTemplateDraftRequest {
   successCriteria?: string | null;
   sourceRevisionId?: string | null;
   applicableOrgUnitIds?: string[] | null;
+  applicableOrgUnitAndDescendantIds?: string[] | null;
   applicableJobTitles?: string[] | null;
   applicableWorkLocations?: string[] | null;
   applicableEmploymentTypes?: string[] | null;

@@ -68,7 +68,8 @@ public class ObjectiveTemplate : AggregateRoot, ITenantEntity
         IReadOnlyList<string>? applicableWorkLocations = null,
         IReadOnlyList<string>? applicableEmploymentTypes = null,
         string? indicator = null,
-        string? expectedOutcome = null)
+        string? expectedOutcome = null,
+        IReadOnlyList<Guid>? applicableOrgUnitAndDescendantIds = null)
     {
         if (DraftRevision is not null)
             throw new DomainRuleViolationException("A draft revision already exists for this template.");
@@ -83,7 +84,8 @@ public class ObjectiveTemplate : AggregateRoot, ITenantEntity
             createdByUserId, createdByName, sourceRevisionId,
             applicableOrgUnitIds, applicableJobTitles,
             applicableWorkLocations, applicableEmploymentTypes,
-            indicator, expectedOutcome);
+            indicator, expectedOutcome,
+            applicableOrgUnitAndDescendantIds);
 
         _revisions.Add(revision);
         UpdatedAt = DateTime.UtcNow;

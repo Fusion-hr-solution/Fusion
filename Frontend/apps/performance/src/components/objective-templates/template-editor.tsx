@@ -98,6 +98,9 @@ export function TemplateEditor({ mode, templateId, onSaved, onCancel }: Template
   const [successCriteria, setSuccessCriteria] = useState(working?.successCriteria ?? "");
   const [tags, setTags] = useState(working?.tags ?? "");
   const [applicableOrgUnitIds, setApplicableOrgUnitIds] = useState<string[]>(working?.applicableOrgUnitIds ?? []);
+  const [applicableOrgUnitAndDescendantIds, setApplicableOrgUnitAndDescendantIds] = useState<string[]>(
+    working?.applicableOrgUnitAndDescendantIds ?? [],
+  );
   const [applicableJobTitles, setApplicableJobTitles] = useState<string[]>(working?.applicableJobTitles ?? []);
   const [applicableWorkLocations, setApplicableWorkLocations] = useState<string[]>(working?.applicableWorkLocations ?? []);
   const [applicableEmploymentTypes, setApplicableEmploymentTypes] = useState<string[]>(working?.applicableEmploymentTypes ?? []);
@@ -118,6 +121,7 @@ export function TemplateEditor({ mode, templateId, onSaved, onCancel }: Template
       setSuccessCriteria(working.successCriteria ?? "");
       setTags(working.tags ?? "");
       setApplicableOrgUnitIds(working.applicableOrgUnitIds ?? []);
+      setApplicableOrgUnitAndDescendantIds(working.applicableOrgUnitAndDescendantIds ?? []);
       setApplicableJobTitles(working.applicableJobTitles ?? []);
       setApplicableWorkLocations(working.applicableWorkLocations ?? []);
       setApplicableEmploymentTypes(working.applicableEmploymentTypes ?? []);
@@ -140,6 +144,8 @@ export function TemplateEditor({ mode, templateId, onSaved, onCancel }: Template
     expectedOutcome: expectedOutcome || null,
     successCriteria: successCriteria || null,
     applicableOrgUnitIds: applicableOrgUnitIds.length > 0 ? applicableOrgUnitIds : null,
+    applicableOrgUnitAndDescendantIds:
+      applicableOrgUnitAndDescendantIds.length > 0 ? applicableOrgUnitAndDescendantIds : null,
     applicableJobTitles: applicableJobTitles.length > 0 ? applicableJobTitles : null,
     applicableWorkLocations: applicableWorkLocations.length > 0 ? applicableWorkLocations : null,
     applicableEmploymentTypes: applicableEmploymentTypes.length > 0 ? applicableEmploymentTypes : null,
@@ -354,6 +360,8 @@ export function TemplateEditor({ mode, templateId, onSaved, onCancel }: Template
               validationState={working?.applicabilityValidationState ?? "NotValidated"}
               selectedOrgUnitIds={applicableOrgUnitIds}
               setSelectedOrgUnitIds={(v) => { setApplicableOrgUnitIds(v); markDirty(); }}
+              descendantOrgUnitIds={applicableOrgUnitAndDescendantIds}
+              setDescendantOrgUnitIds={(v) => { setApplicableOrgUnitAndDescendantIds(v); markDirty(); }}
               selectedJobTitles={applicableJobTitles}
               setSelectedJobTitles={(v) => { setApplicableJobTitles(v); markDirty(); }}
               selectedWorkLocations={applicableWorkLocations}
@@ -611,6 +619,7 @@ function ClassificationTab({
 function ApplicabilityTab({
   options, validationState,
   selectedOrgUnitIds, setSelectedOrgUnitIds,
+  descendantOrgUnitIds, setDescendantOrgUnitIds,
   selectedJobTitles, setSelectedJobTitles,
   selectedWorkLocations, setSelectedWorkLocations,
   selectedEmploymentTypes, setSelectedEmploymentTypes,
@@ -618,12 +627,36 @@ function ApplicabilityTab({
   options: ApplicabilityOptionsDto | null;
   validationState: "NotValidated" | "Valid" | "HasUnresolved";
   selectedOrgUnitIds: string[]; setSelectedOrgUnitIds: (v: string[]) => void;
+  descendantOrgUnitIds: string[]; setDescendantOrgUnitIds: (v: string[]) => void;
   selectedJobTitles: string[]; setSelectedJobTitles: (v: string[]) => void;
   selectedWorkLocations: string[]; setSelectedWorkLocations: (v: string[]) => void;
   selectedEmploymentTypes: string[]; setSelectedEmploymentTypes: (v: string[]) => void;
 }) {
   const toggleItem = <T,>(items: T[], setItems: (v: T[]) => void, item: T) => {
     setItems(items.includes(item) ? items.filter((i) => i !== item) : [...items, item]);
+  };
+
+  // An org unit is selected when it appears in either scope list.
+  const isUnitSelected = (id: string) =>
+    selectedOrgUnitIds.includes(id) || descendantOrgUnitIds.includes(id);
+
+  const toggleUnit = (id: string) => {
+    if (isUnitSelected(id)) {
+      setSelectedOrgUnitIds(selectedOrgUnitIds.filter((i) => i !== id));
+      setDescendantOrgUnitIds(descendantOrgUnitIds.filter((i) => i !== id));
+    } else {
+      setSelectedOrgUnitIds([...selectedOrgUnitIds, id]);
+    }
+  };
+
+  const toggleDescendants = (id: string) => {
+    if (descendantOrgUnitIds.includes(id)) {
+      setDescendantOrgUnitIds(descendantOrgUnitIds.filter((i) => i !== id));
+      setSelectedOrgUnitIds([...selectedOrgUnitIds, id]);
+    } else {
+      setSelectedOrgUnitIds(selectedOrgUnitIds.filter((i) => i !== id));
+      setDescendantOrgUnitIds([...descendantOrgUnitIds, id]);
+    }
   };
 
   const validationLabel = applicabilityValidationLabel(validationState);
@@ -658,8 +691,24 @@ function ApplicabilityTab({
             id={`ou-${ou.id}`}
             label={ou.name}
             sublabel={ou.code}
-            checked={selectedOrgUnitIds.includes(ou.id)}
-            onCheckedChange={() => toggleItem(selectedOrgUnitIds, setSelectedOrgUnitIds, ou.id)}
+            checked={isUnitSelected(ou.id)}
+            onCheckedChange={() => toggleUnit(ou.id)}
+            trailing={
+              isUnitSelected(ou.id) ? (
+                <button
+                  type="button"
+                  aria-pressed={descendantOrgUnitIds.includes(ou.id)}
+                  onClick={(e) => { e.preventDefault(); toggleDescendants(ou.id); }}
+                  className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] leading-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                    descendantOrgUnitIds.includes(ou.id)
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {descendantOrgUnitIds.includes(ou.id) ? "Includes sub-units" : "This unit only"}
+                </button>
+              ) : undefined
+            }
           />
         ))}
       </AudienceSection>
@@ -720,9 +769,10 @@ function AudienceSection({
 }
 
 function CheckItem({
-  id, label, sublabel, checked, onCheckedChange,
+  id, label, sublabel, checked, onCheckedChange, trailing,
 }: {
   id: string; label: string; sublabel?: string; checked: boolean; onCheckedChange: () => void;
+  trailing?: React.ReactNode;
 }) {
   return (
     <label
@@ -730,10 +780,11 @@ function CheckItem({
       className="flex items-start gap-2 cursor-pointer rounded px-1 py-0.5 hover:bg-muted/50"
     >
       <Checkbox id={id} checked={checked} onCheckedChange={onCheckedChange} className="mt-0.5" />
-      <span className="text-sm leading-snug">
+      <span className="flex-1 min-w-0 text-sm leading-snug">
         {label}
         {sublabel && <span className="block text-xs text-muted-foreground">{sublabel}</span>}
       </span>
+      {trailing}
     </label>
   );
 }

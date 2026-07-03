@@ -55,6 +55,13 @@ public class ObjectiveTemplateRevisionConfiguration : IEntityTypeConfiguration<O
             .HasColumnType("text")
             .HasDefaultValueSql("'[]'");
 
+        builder.Property(r => r.ApplicableOrgUnitAndDescendantIds)
+            .HasConversion(
+                v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
+                v => (IReadOnlyList<Guid>)(JsonSerializer.Deserialize<List<Guid>>(v, (JsonSerializerOptions?)null) ?? new List<Guid>()))
+            .HasColumnType("text")
+            .HasDefaultValueSql("'[]'");
+
         builder.Property(r => r.ApplicableJobTitles)
             .HasConversion(
                 v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),

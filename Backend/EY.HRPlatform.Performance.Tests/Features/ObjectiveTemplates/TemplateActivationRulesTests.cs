@@ -33,8 +33,10 @@ public class TemplateActivationRulesTests
         return category;
     }
 
-    private static ActivateTemplateRevisionCommandHandler ActivationHandler(PerformanceDbContext db, ITenantContext tenantContext)
-        => new(db, tenantContext, new ConfigurationAuditWriter(db), new TemplateRevisionValidator(db));
+    private static ActivateTemplateRevisionCommandHandler ActivationHandler(
+        PerformanceDbContext db, ITenantContext tenantContext, FakeCoreWorkforceClient? core = null)
+        => new(db, tenantContext, new ConfigurationAuditWriter(db), new TemplateRevisionValidator(db),
+            core ?? new FakeCoreWorkforceClient());
 
     private static Task<EY.HRPlatform.SharedKernel.Results.Result<TemplateDto>> ActivateAsync(
         PerformanceDbContext db, ITenantContext tenantContext, ObjectiveTemplate template)
@@ -258,6 +260,56 @@ public class TemplateActivationRulesTests
 
         Assert.True(result.IsFailure);
         Assert.Contains("no longer complies", result.Error.Message);
+    }
+
+    [Fact]
+    public async Task Activation_Reresolves_Org_References_And_Blocks_Unresolved_Units()
+    {
+        var tenantId = Guid.NewGuid();
+        await using var db = PerformanceTestContext.Create(tenantId, out var tenantContext);
+        SeedActivePolicy(db, tenantId);
+        var category = SeedCategory(db, tenantId);
+
+        var vanishedOrgUnitId = Guid.NewGuid();
+        var template = ObjectiveTemplate.Create(tenantId);
+        template.CreateDraftRevision(
+            "Scoped", null, category.Id, "Qualitative", null, null, null, null, "Criteria",
+            Guid.NewGuid().ToString(), "Author", expectedOutcome: "Outcome",
+            applicableOrgUnitIds: [vanishedOrgUnitId]);
+        db.ObjectiveTemplateContainers.Add(template);
+        await db.SaveChangesAsync();
+
+        // Core no longer knows the unit at activation time (empty options).
+        var core = new FakeCoreWorkforceClient();
+        var handler = ActivationHandler(db, tenantContext, core);
+
+        var result = await handler.Handle(
+            new ActivateTemplateRevisionCommand(
+                template.Id, Actor(),
+                new ActivateTemplateRevisionRequest(null, template.DraftRevision!.Version)),
+            CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Contains("applicability", result.Error.Message);
+    }
+
+    [Fact]
+    public void Descendant_Scope_Is_Stored_Explicitly_And_Kept_Disjoint()
+    {
+        var tenantId = Guid.NewGuid();
+        var unitOnly = Guid.NewGuid();
+        var withDescendants = Guid.NewGuid();
+
+        var template = ObjectiveTemplate.Create(tenantId);
+        var draft = template.CreateDraftRevision(
+            "Scoped", null, null, "Qualitative", null, null, null, null, "Criteria",
+            Guid.NewGuid().ToString(), "Author", expectedOutcome: "Outcome",
+            applicableOrgUnitIds: [unitOnly, withDescendants],
+            applicableOrgUnitAndDescendantIds: [withDescendants]);
+
+        // The broader descendants scope wins; the two stored lists stay disjoint.
+        Assert.Equal([unitOnly], draft.ApplicableOrgUnitIds);
+        Assert.Equal([withDescendants], draft.ApplicableOrgUnitAndDescendantIds);
     }
 
     [Fact]

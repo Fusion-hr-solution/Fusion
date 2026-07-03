@@ -30,6 +30,7 @@ public sealed record TemplateRevisionDto(
     DateTime CreatedAt,
     DateTime? UpdatedAt,
     IReadOnlyList<Guid> ApplicableOrgUnitIds,
+    IReadOnlyList<Guid> ApplicableOrgUnitAndDescendantIds,
     IReadOnlyList<string> ApplicableJobTitles,
     IReadOnlyList<string> ApplicableWorkLocations,
     IReadOnlyList<string> ApplicableEmploymentTypes,
@@ -76,7 +77,8 @@ public sealed record CreateTemplateDraftRequest(
     IReadOnlyList<string>? ApplicableWorkLocations = null,
     IReadOnlyList<string>? ApplicableEmploymentTypes = null,
     string? Indicator = null,
-    string? ExpectedOutcome = null);
+    string? ExpectedOutcome = null,
+    IReadOnlyList<Guid>? ApplicableOrgUnitAndDescendantIds = null);
 
 public sealed record UpdateTemplateDraftRequest(
     string Title,
@@ -94,7 +96,8 @@ public sealed record UpdateTemplateDraftRequest(
     IReadOnlyList<string>? ApplicableWorkLocations = null,
     IReadOnlyList<string>? ApplicableEmploymentTypes = null,
     string? Indicator = null,
-    string? ExpectedOutcome = null);
+    string? ExpectedOutcome = null,
+    IReadOnlyList<Guid>? ApplicableOrgUnitAndDescendantIds = null);
 
 public sealed record ActivateTemplateRevisionRequest(
     string? ChangeSummary,

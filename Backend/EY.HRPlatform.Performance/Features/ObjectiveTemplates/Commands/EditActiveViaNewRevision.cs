@@ -71,13 +71,15 @@ public sealed class EditActiveViaNewRevisionCommandHandler(
             req.ApplicableWorkLocations,
             req.ApplicableEmploymentTypes,
             req.Indicator,
-            req.ExpectedOutcome);
+            req.ExpectedOutcome,
+            req.ApplicableOrgUnitAndDescendantIds);
 
-        if (req.ApplicableOrgUnitIds is { Count: > 0 })
+        var allOrgUnitIds = revision.ApplicableOrgUnitIds.Concat(revision.ApplicableOrgUnitAndDescendantIds).ToList();
+        if (allOrgUnitIds.Count > 0)
         {
             var options = await coreWorkforceClient.GetApplicabilityOptionsAsync(cancellationToken);
             var available = options.OrgUnits.Select(o => o.Id).ToHashSet();
-            var state = req.ApplicableOrgUnitIds.All(id => available.Contains(id)) ? "Valid" : "HasUnresolved";
+            var state = allOrgUnitIds.All(id => available.Contains(id)) ? "Valid" : "HasUnresolved";
             revision.SetApplicabilityValidationState(state);
         }
 

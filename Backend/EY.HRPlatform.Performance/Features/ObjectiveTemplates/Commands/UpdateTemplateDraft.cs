@@ -64,13 +64,15 @@ public sealed class UpdateTemplateDraftCommandHandler(
             req.ApplicableWorkLocations,
             req.ApplicableEmploymentTypes,
             req.Indicator,
-            req.ExpectedOutcome);
+            req.ExpectedOutcome,
+            req.ApplicableOrgUnitAndDescendantIds);
 
-        if (req.ApplicableOrgUnitIds is { Count: > 0 })
+        var allOrgUnitIds = draft.ApplicableOrgUnitIds.Concat(draft.ApplicableOrgUnitAndDescendantIds).ToList();
+        if (allOrgUnitIds.Count > 0)
         {
             var options = await coreWorkforceClient.GetApplicabilityOptionsAsync(cancellationToken);
             var available = options.OrgUnits.Select(o => o.Id).ToHashSet();
-            var state = req.ApplicableOrgUnitIds.All(id => available.Contains(id)) ? "Valid" : "HasUnresolved";
+            var state = allOrgUnitIds.All(id => available.Contains(id)) ? "Valid" : "HasUnresolved";
             draft.SetApplicabilityValidationState(state);
         }
 

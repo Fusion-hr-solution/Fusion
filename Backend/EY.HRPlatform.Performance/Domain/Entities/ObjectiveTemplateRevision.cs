@@ -22,8 +22,12 @@ public class ObjectiveTemplateRevision : BaseEntity, ITenantEntity
     public decimal? SuggestedWeighting { get; private set; }
     public string? Tags { get; private set; }
 
-    // Applicability
+    // Applicability (P1.1 §14.2): selected org units combine with OR semantics; each selected
+    // unit carries an explicit stored scope — "this unit only" or "this unit and descendants".
     public IReadOnlyList<Guid> ApplicableOrgUnitIds { get; private set; } = [];
+
+    /// <summary>Selected units whose scope explicitly includes descendants (P1.1 §14.4).</summary>
+    public IReadOnlyList<Guid> ApplicableOrgUnitAndDescendantIds { get; private set; } = [];
     public IReadOnlyList<string> ApplicableJobTitles { get; private set; } = [];
     public IReadOnlyList<string> ApplicableWorkLocations { get; private set; } = [];
     public IReadOnlyList<string> ApplicableEmploymentTypes { get; private set; } = [];
@@ -75,10 +79,12 @@ public class ObjectiveTemplateRevision : BaseEntity, ITenantEntity
         IReadOnlyList<string>? applicableWorkLocations = null,
         IReadOnlyList<string>? applicableEmploymentTypes = null,
         string? indicator = null,
-        string? expectedOutcome = null)
+        string? expectedOutcome = null,
+        IReadOnlyList<Guid>? applicableOrgUnitAndDescendantIds = null)
     {
         ValidateTitle(title);
         ValidateMeasurementType(measurementType);
+        var (unitOnly, withDescendants) = NormalizeOrgUnitScopes(applicableOrgUnitIds, applicableOrgUnitAndDescendantIds);
 
         return new ObjectiveTemplateRevision
         {
@@ -101,7 +107,8 @@ public class ObjectiveTemplateRevision : BaseEntity, ITenantEntity
             CreatedByUserId = createdByUserId,
             CreatedByName = createdByName,
             SourceRevisionId = sourceRevisionId,
-            ApplicableOrgUnitIds = applicableOrgUnitIds ?? [],
+            ApplicableOrgUnitIds = unitOnly,
+            ApplicableOrgUnitAndDescendantIds = withDescendants,
             ApplicableJobTitles = applicableJobTitles ?? [],
             ApplicableWorkLocations = applicableWorkLocations ?? [],
             ApplicableEmploymentTypes = applicableEmploymentTypes ?? [],
@@ -124,13 +131,15 @@ public class ObjectiveTemplateRevision : BaseEntity, ITenantEntity
         IReadOnlyList<string>? applicableWorkLocations = null,
         IReadOnlyList<string>? applicableEmploymentTypes = null,
         string? indicator = null,
-        string? expectedOutcome = null)
+        string? expectedOutcome = null,
+        IReadOnlyList<Guid>? applicableOrgUnitAndDescendantIds = null)
     {
         if (Status != ObjectiveTemplateRevisionStatus.Draft)
             throw new DomainRuleViolationException("Only draft revisions can be updated.");
 
         ValidateTitle(title);
         ValidateMeasurementType(measurementType);
+        var (unitOnly, withDescendants) = NormalizeOrgUnitScopes(applicableOrgUnitIds, applicableOrgUnitAndDescendantIds);
 
         Title = title.Trim();
         Description = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
@@ -143,7 +152,8 @@ public class ObjectiveTemplateRevision : BaseEntity, ITenantEntity
         Unit = string.IsNullOrWhiteSpace(unit) ? null : unit.Trim();
         ExpectedOutcome = string.IsNullOrWhiteSpace(expectedOutcome) ? null : expectedOutcome.Trim();
         SuccessCriteria = string.IsNullOrWhiteSpace(successCriteria) ? null : successCriteria.Trim();
-        ApplicableOrgUnitIds = applicableOrgUnitIds ?? [];
+        ApplicableOrgUnitIds = unitOnly;
+        ApplicableOrgUnitAndDescendantIds = withDescendants;
         ApplicableJobTitles = applicableJobTitles ?? [];
         ApplicableWorkLocations = applicableWorkLocations ?? [];
         ApplicableEmploymentTypes = applicableEmploymentTypes ?? [];
@@ -178,6 +188,19 @@ public class ObjectiveTemplateRevision : BaseEntity, ITenantEntity
         Status = ObjectiveTemplateRevisionStatus.Superseded;
         SupersededAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Keeps the two stored scope lists disjoint: when a unit is selected with descendants,
+    /// the broader scope wins and the unit is removed from the unit-only list.
+    /// </summary>
+    private static (IReadOnlyList<Guid> UnitOnly, IReadOnlyList<Guid> WithDescendants) NormalizeOrgUnitScopes(
+        IReadOnlyList<Guid>? unitOnly,
+        IReadOnlyList<Guid>? withDescendants)
+    {
+        var descendants = (withDescendants ?? []).Distinct().ToList();
+        var only = (unitOnly ?? []).Distinct().Where(id => !descendants.Contains(id)).ToList();
+        return (only, descendants);
     }
 
     private static void ValidateTitle(string title)

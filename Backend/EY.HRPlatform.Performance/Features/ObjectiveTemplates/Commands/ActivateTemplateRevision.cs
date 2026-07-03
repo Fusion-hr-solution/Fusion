@@ -2,6 +2,7 @@ using EY.HRPlatform.Performance.Exceptions;
 using EY.HRPlatform.Performance.Features.ConfigurationAudit;
 using EY.HRPlatform.Performance.Features.ObjectiveTemplates.Dtos;
 using EY.HRPlatform.Performance.Infrastructure.Persistence;
+using EY.HRPlatform.Performance.Infrastructure.Workforce;
 using EY.HRPlatform.SharedKernel.Auth;
 using EY.HRPlatform.SharedKernel.CQRS;
 using EY.HRPlatform.SharedKernel.Multitenancy;
@@ -20,7 +21,8 @@ public sealed class ActivateTemplateRevisionCommandHandler(
     PerformanceDbContext db,
     ITenantContext tenantContext,
     IConfigurationAuditWriter audit,
-    TemplateRevisionValidator validator)
+    TemplateRevisionValidator validator,
+    ICoreWorkforceClient coreWorkforceClient)
     : ICommandHandler<ActivateTemplateRevisionCommand, Result<TemplateDto>>
 {
     public async Task<Result<TemplateDto>> Handle(
@@ -46,6 +48,17 @@ public sealed class ActivateTemplateRevisionCommandHandler(
             return Result.Failure<TemplateDto>(
                 Error.Conflict("ObjectiveTemplate.Conflict",
                     "The revision has been modified by another user. Reload and try again."));
+
+        // Re-resolve organizational references at activation time (P1.1 §14.3): a foreign,
+        // unknown, or since-removed unit blocks activation without disclosing foreign data.
+        var orgUnitIds = draft.ApplicableOrgUnitIds.Concat(draft.ApplicableOrgUnitAndDescendantIds).ToList();
+        if (orgUnitIds.Count > 0)
+        {
+            var options = await coreWorkforceClient.GetApplicabilityOptionsAsync(cancellationToken);
+            var available = options.OrgUnits.Select(o => o.Id).ToHashSet();
+            draft.SetApplicabilityValidationState(
+                orgUnitIds.All(id => available.Contains(id)) ? "Valid" : "HasUnresolved");
+        }
 
         var validation = await validator.ValidateForActivationAsync(draft, cancellationToken);
         if (!validation.IsValid)

@@ -49,11 +49,13 @@ public sealed class CreateTemplateDraftCommandHandler(
             req.ApplicableWorkLocations,
             req.ApplicableEmploymentTypes,
             req.Indicator,
-            req.ExpectedOutcome);
+            req.ExpectedOutcome,
+            req.ApplicableOrgUnitAndDescendantIds);
 
-        if (req.ApplicableOrgUnitIds is { Count: > 0 })
+        var allOrgUnitIds = draft.ApplicableOrgUnitIds.Concat(draft.ApplicableOrgUnitAndDescendantIds).ToList();
+        if (allOrgUnitIds.Count > 0)
         {
-            var state = await ResolveApplicabilityStateAsync(req.ApplicableOrgUnitIds, cancellationToken);
+            var state = await ResolveApplicabilityStateAsync(allOrgUnitIds, cancellationToken);
             draft.SetApplicabilityValidationState(state);
         }
 

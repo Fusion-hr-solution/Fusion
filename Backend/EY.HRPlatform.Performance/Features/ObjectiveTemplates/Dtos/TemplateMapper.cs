@@ -16,7 +16,8 @@ public static class TemplateMapper
             r.ActivatedAt, r.ActivatedByUserId, r.ActivatedByName,
             r.ChangeSummary, r.SupersededAt,
             r.CreatedAt, r.UpdatedAt,
-            r.ApplicableOrgUnitIds, r.ApplicableJobTitles,
+            r.ApplicableOrgUnitIds, r.ApplicableOrgUnitAndDescendantIds,
+            r.ApplicableJobTitles,
             r.ApplicableWorkLocations, r.ApplicableEmploymentTypes,
             r.ApplicabilityValidationState);
 
