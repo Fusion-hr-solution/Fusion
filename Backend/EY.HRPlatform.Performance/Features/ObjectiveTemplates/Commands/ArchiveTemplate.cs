@@ -54,7 +54,8 @@ public sealed class ArchiveTemplateCommandHandler(
 public sealed class RestoreTemplateCommandHandler(
     PerformanceDbContext db,
     ITenantContext tenantContext,
-    IConfigurationAuditWriter audit)
+    IConfigurationAuditWriter audit,
+    TemplateRevisionValidator validator)
     : ICommandHandler<RestoreTemplateCommand, Result<TemplateDto>>
 {
     public async Task<Result<TemplateDto>> Handle(
@@ -70,6 +71,18 @@ public sealed class RestoreTemplateCommandHandler(
 
         if (template is null)
             return Result.Failure<TemplateDto>(Error.NotFound("ObjectiveTemplate", command.TemplateId));
+
+        // A template returns to use only if its current revision is still valid under the
+        // current tenant policy (P1.1 §13.10); otherwise it needs corrections first.
+        if (template.ActiveRevision is { } activeRevision)
+        {
+            var validation = await validator.ValidateForActivationAsync(activeRevision, cancellationToken, forNewActivation: false);
+            if (!validation.IsValid)
+                return Result.Failure<TemplateDto>(
+                    Error.Validation("ObjectiveTemplate.RestoreBlocked",
+                        "This template no longer complies with the current objective policy and needs corrections before it can return to use. "
+                        + string.Join(" ", validation.Errors)));
+        }
 
         template.Restore();
 

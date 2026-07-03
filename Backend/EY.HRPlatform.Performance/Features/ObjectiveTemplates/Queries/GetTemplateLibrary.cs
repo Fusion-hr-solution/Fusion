@@ -41,7 +41,8 @@ public sealed class GetTemplateLibraryQueryHandler(PerformanceDbContext db)
             .ThenByDescending(t => t.UpdatedAt ?? t.CreatedAt)
             .ToListAsync(cancellationToken);
 
-        // Search: title, description, tags on the active or draft revision
+        // Search: title, description, tags on the active or draft revision; stable code is
+        // searchable as a secondary concept (P1.1 §12.3).
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
             var term = query.Search.Trim().ToLowerInvariant();
@@ -51,7 +52,8 @@ public sealed class GetTemplateLibraryQueryHandler(PerformanceDbContext db)
                 if (rev is null) return false;
                 return (rev.Title.ToLowerInvariant().Contains(term))
                     || (rev.Description?.ToLowerInvariant().Contains(term) == true)
-                    || (rev.Tags?.ToLowerInvariant().Contains(term) == true);
+                    || (rev.Tags?.ToLowerInvariant().Contains(term) == true)
+                    || t.Code.ToLowerInvariant().Contains(term);
             }).ToList();
         }
 

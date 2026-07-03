@@ -24,9 +24,11 @@ public class ObjectiveTemplateCategory : BaseEntity, ITenantEntity
     /// <summary>Lowercase, trimmed version of Name used for uniqueness checks.</summary>
     public string NormalizedName { get; private set; } = string.Empty;
 
+    public string? Description { get; private set; }
+
     public CategoryStatus Status { get; private set; }
 
-    public static ObjectiveTemplateCategory Create(Guid tenantId, string code, string name)
+    public static ObjectiveTemplateCategory Create(Guid tenantId, string code, string name, string? description = null)
     {
         if (tenantId == Guid.Empty)
             throw new ArgumentException("TenantId cannot be empty.", nameof(tenantId));
@@ -43,6 +45,10 @@ public class ObjectiveTemplateCategory : BaseEntity, ITenantEntity
         if (trimmedName.Length > 100)
             throw new ArgumentException("Name cannot exceed 100 characters.", nameof(name));
 
+        var trimmedDescription = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
+        if (trimmedDescription?.Length > 500)
+            throw new ArgumentException("Description cannot exceed 500 characters.", nameof(description));
+
         return new ObjectiveTemplateCategory
         {
             Id = Guid.NewGuid(),
@@ -50,11 +56,12 @@ public class ObjectiveTemplateCategory : BaseEntity, ITenantEntity
             Code = normalizedCode,
             Name = trimmedName,
             NormalizedName = trimmedName.ToLowerInvariant(),
+            Description = trimmedDescription,
             Status = CategoryStatus.Active,
         };
     }
 
-    public void Rename(string newName)
+    public void Rename(string newName, string? description = null)
     {
         if (Status == CategoryStatus.Archived)
             throw new DomainRuleViolationException("Cannot rename an archived category.");
@@ -65,8 +72,13 @@ public class ObjectiveTemplateCategory : BaseEntity, ITenantEntity
         if (trimmed.Length > 100)
             throw new ArgumentException("Name cannot exceed 100 characters.", nameof(newName));
 
+        var trimmedDescription = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
+        if (trimmedDescription?.Length > 500)
+            throw new ArgumentException("Description cannot exceed 500 characters.", nameof(description));
+
         Name = trimmed;
         NormalizedName = trimmed.ToLowerInvariant();
+        Description = trimmedDescription;
         UpdatedAt = DateTime.UtcNow;
     }
 

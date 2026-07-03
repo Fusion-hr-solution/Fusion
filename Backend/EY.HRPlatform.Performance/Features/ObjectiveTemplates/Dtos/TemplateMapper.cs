@@ -9,7 +9,8 @@ public static class TemplateMapper
             r.Id, r.TemplateId, r.VersionNumber, r.Status.ToString(),
             r.Title, r.Description, r.CategoryId,
             r.MeasurementType, r.SuggestedWeighting, r.Tags,
-            r.TargetValue, r.Unit, r.SuccessCriteria,
+            r.Indicator, r.TargetValue, r.Unit,
+            r.ExpectedOutcome, r.SuccessCriteria,
             r.Version, r.SourceRevisionId,
             r.CreatedByUserId, r.CreatedByName,
             r.ActivatedAt, r.ActivatedByUserId, r.ActivatedByName,
@@ -21,7 +22,7 @@ public static class TemplateMapper
 
     public static TemplateDto ToTemplateDto(ObjectiveTemplate t)
         => new(
-            t.Id, t.TenantId, t.Status.ToString(),
+            t.Id, t.TenantId, t.Code, t.Status.ToString(),
             t.ActiveRevision is { } a ? ToRevisionDto(a) : null,
             t.DraftRevision is { } d ? ToRevisionDto(d) : null,
             t.CreatedAt, t.UpdatedAt);

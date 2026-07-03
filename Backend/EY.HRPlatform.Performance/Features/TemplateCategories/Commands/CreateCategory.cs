@@ -38,7 +38,7 @@ public sealed class CreateCategoryCommandHandler(
                 Error.Conflict("TemplateCategory.DuplicateCodeOrName",
                     "A category with this code or name already exists."));
 
-        var category = ObjectiveTemplateCategory.Create(tenantContext.TenantId, req.Code, req.Name);
+        var category = ObjectiveTemplateCategory.Create(tenantContext.TenantId, req.Code, req.Name, req.Description);
         db.ObjectiveTemplateCategories.Add(category);
 
         await audit.AppendTenantAsync(
@@ -52,6 +52,6 @@ public sealed class CreateCategoryCommandHandler(
 
         await db.SaveChangesAsync(cancellationToken);
 
-        return new CategoryDto(category.Id, category.Code, category.Name, category.Status.ToString());
+        return new CategoryDto(category.Id, category.Code, category.Name, category.Description, category.Status.ToString());
     }
 }

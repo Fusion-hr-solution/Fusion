@@ -40,7 +40,7 @@ public sealed class RenameCategoryCommandHandler(
                     "A category with this name already exists."));
 
         var previousValue = category.Name;
-        category.Rename(command.Request.Name);
+        category.Rename(command.Request.Name, command.Request.Description);
 
         await audit.AppendTenantAsync(
             category.TenantId,
@@ -55,6 +55,6 @@ public sealed class RenameCategoryCommandHandler(
 
         await db.SaveChangesAsync(cancellationToken);
 
-        return new CategoryDto(category.Id, category.Code, category.Name, category.Status.ToString());
+        return new CategoryDto(category.Id, category.Code, category.Name, category.Description, category.Status.ToString());
     }
 }

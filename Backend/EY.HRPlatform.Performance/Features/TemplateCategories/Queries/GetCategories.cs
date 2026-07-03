@@ -22,7 +22,7 @@ public sealed class GetCategoriesQueryHandler(PerformanceDbContext db)
 
         var categories = await query
             .OrderBy(c => c.Name)
-            .Select(c => new CategoryDto(c.Id, c.Code, c.Name, c.Status.ToString()))
+            .Select(c => new CategoryDto(c.Id, c.Code, c.Name, c.Description, c.Status.ToString()))
             .ToListAsync(cancellationToken);
 
         return Result.Success<IReadOnlyList<CategoryDto>>(categories);

@@ -14,6 +14,7 @@ public class ObjectiveTemplateLibraryConfiguration : IEntityTypeConfiguration<Ob
         builder.HasKey(t => t.Id);
 
         builder.Property(t => t.TenantId).IsRequired();
+        builder.Property(t => t.Code).HasMaxLength(20).IsRequired();
         builder.Property(t => t.Status)
             .HasConversion<string>()
             .HasMaxLength(20)
@@ -36,6 +37,10 @@ public class ObjectiveTemplateLibraryConfiguration : IEntityTypeConfiguration<Ob
 
         builder.HasIndex(t => new { t.TenantId, t.Status })
             .HasDatabaseName("IX_ObjectiveTemplateContainers_TenantId_Status");
+
+        builder.HasIndex(t => new { t.TenantId, t.Code })
+            .IsUnique()
+            .HasDatabaseName("IX_ObjectiveTemplateContainers_TenantId_Code");
 
         builder.Ignore(t => t.DomainEvents);
         builder.Ignore(t => t.ActiveRevision);

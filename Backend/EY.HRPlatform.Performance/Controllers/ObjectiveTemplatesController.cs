@@ -178,6 +178,19 @@ public class ObjectiveTemplatesController(
         return Ok(ApiResponse<TemplateDto>.Success(result.Value));
     }
 
+    [HttpDelete("api/performance/template-library/{id:guid}")]
+    public async Task<IActionResult> DeleteTemplateDraft(Guid id, CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanManageObjectiveLibrary(User))
+            return Forbid();
+
+        var result = await sender.Send(new DeleteTemplateDraftCommand(id, User), cancellationToken);
+        if (result.IsFailure)
+            return MapFailure(result.Error);
+
+        return NoContent();
+    }
+
     [HttpPost("api/performance/template-library/{id:guid}/archive")]
     public async Task<IActionResult> Archive(Guid id, CancellationToken cancellationToken)
     {

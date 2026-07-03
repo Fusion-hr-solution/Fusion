@@ -43,7 +43,7 @@ public sealed class ArchiveCategoryCommandHandler(
 
         await db.SaveChangesAsync(cancellationToken);
 
-        return new CategoryDto(category.Id, category.Code, category.Name, category.Status.ToString());
+        return new CategoryDto(category.Id, category.Code, category.Name, category.Description, category.Status.ToString());
     }
 }
 
@@ -78,6 +78,6 @@ public sealed class ReactivateCategoryCommandHandler(
 
         await db.SaveChangesAsync(cancellationToken);
 
-        return new CategoryDto(category.Id, category.Code, category.Name, category.Status.ToString());
+        return new CategoryDto(category.Id, category.Code, category.Name, category.Description, category.Status.ToString());
     }
 }

@@ -15,6 +15,7 @@ public class ObjectiveTemplateCategoryConfiguration : IEntityTypeConfiguration<O
         builder.Property(c => c.Code).HasMaxLength(50).IsRequired();
         builder.Property(c => c.Name).HasMaxLength(100).IsRequired();
         builder.Property(c => c.NormalizedName).HasMaxLength(100).IsRequired();
+        builder.Property(c => c.Description).HasMaxLength(500);
         builder.Property(c => c.Status)
             .HasConversion<string>()
             .HasMaxLength(20)

@@ -30,11 +30,13 @@ public class ObjectiveTemplateRevision : BaseEntity, ITenantEntity
     // "NotValidated" | "Valid" | "HasUnresolved"
     public string ApplicabilityValidationState { get; private set; } = "NotValidated";
 
-    // Quantitative
+    // Quantitative (P1.1 §13.4: indicator, target definition, unit)
+    public string? Indicator { get; private set; }
     public decimal? TargetValue { get; private set; }
     public string? Unit { get; private set; }
 
-    // Qualitative
+    // Qualitative (P1.1 §13.5: two distinct concepts, never collapsed into one field)
+    public string? ExpectedOutcome { get; private set; }
     public string? SuccessCriteria { get; private set; }
 
     public uint Version { get; private set; }
@@ -71,7 +73,9 @@ public class ObjectiveTemplateRevision : BaseEntity, ITenantEntity
         IReadOnlyList<Guid>? applicableOrgUnitIds = null,
         IReadOnlyList<string>? applicableJobTitles = null,
         IReadOnlyList<string>? applicableWorkLocations = null,
-        IReadOnlyList<string>? applicableEmploymentTypes = null)
+        IReadOnlyList<string>? applicableEmploymentTypes = null,
+        string? indicator = null,
+        string? expectedOutcome = null)
     {
         ValidateTitle(title);
         ValidateMeasurementType(measurementType);
@@ -89,8 +93,10 @@ public class ObjectiveTemplateRevision : BaseEntity, ITenantEntity
             MeasurementType = measurementType,
             SuggestedWeighting = suggestedWeighting,
             Tags = string.IsNullOrWhiteSpace(tags) ? null : tags.Trim(),
+            Indicator = string.IsNullOrWhiteSpace(indicator) ? null : indicator.Trim(),
             TargetValue = targetValue,
             Unit = string.IsNullOrWhiteSpace(unit) ? null : unit.Trim(),
+            ExpectedOutcome = string.IsNullOrWhiteSpace(expectedOutcome) ? null : expectedOutcome.Trim(),
             SuccessCriteria = string.IsNullOrWhiteSpace(successCriteria) ? null : successCriteria.Trim(),
             CreatedByUserId = createdByUserId,
             CreatedByName = createdByName,
@@ -116,7 +122,9 @@ public class ObjectiveTemplateRevision : BaseEntity, ITenantEntity
         IReadOnlyList<Guid>? applicableOrgUnitIds = null,
         IReadOnlyList<string>? applicableJobTitles = null,
         IReadOnlyList<string>? applicableWorkLocations = null,
-        IReadOnlyList<string>? applicableEmploymentTypes = null)
+        IReadOnlyList<string>? applicableEmploymentTypes = null,
+        string? indicator = null,
+        string? expectedOutcome = null)
     {
         if (Status != ObjectiveTemplateRevisionStatus.Draft)
             throw new DomainRuleViolationException("Only draft revisions can be updated.");
@@ -130,8 +138,10 @@ public class ObjectiveTemplateRevision : BaseEntity, ITenantEntity
         MeasurementType = measurementType;
         SuggestedWeighting = suggestedWeighting;
         Tags = string.IsNullOrWhiteSpace(tags) ? null : tags.Trim();
+        Indicator = string.IsNullOrWhiteSpace(indicator) ? null : indicator.Trim();
         TargetValue = targetValue;
         Unit = string.IsNullOrWhiteSpace(unit) ? null : unit.Trim();
+        ExpectedOutcome = string.IsNullOrWhiteSpace(expectedOutcome) ? null : expectedOutcome.Trim();
         SuccessCriteria = string.IsNullOrWhiteSpace(successCriteria) ? null : successCriteria.Trim();
         ApplicableOrgUnitIds = applicableOrgUnitIds ?? [];
         ApplicableJobTitles = applicableJobTitles ?? [];

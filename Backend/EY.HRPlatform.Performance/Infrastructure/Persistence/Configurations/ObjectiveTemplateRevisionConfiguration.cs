@@ -33,8 +33,10 @@ public class ObjectiveTemplateRevisionConfiguration : IEntityTypeConfiguration<O
         builder.Property(r => r.SuggestedWeighting).HasPrecision(5, 2);
         builder.Property(r => r.Tags).HasMaxLength(500);
 
+        builder.Property(r => r.Indicator).HasMaxLength(200);
         builder.Property(r => r.TargetValue).HasPrecision(18, 4);
         builder.Property(r => r.Unit).HasMaxLength(50);
+        builder.Property(r => r.ExpectedOutcome).HasMaxLength(1000);
         builder.Property(r => r.SuccessCriteria).HasMaxLength(1000);
 
         builder.Property(r => r.SourceRevisionId);

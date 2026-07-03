@@ -58,7 +58,9 @@ public sealed class DuplicateTemplateCommandHandler(
             applicableOrgUnitIds: sourceRevision.ApplicableOrgUnitIds,
             applicableJobTitles: sourceRevision.ApplicableJobTitles,
             applicableWorkLocations: sourceRevision.ApplicableWorkLocations,
-            applicableEmploymentTypes: sourceRevision.ApplicableEmploymentTypes);
+            applicableEmploymentTypes: sourceRevision.ApplicableEmploymentTypes,
+            indicator: sourceRevision.Indicator,
+            expectedOutcome: sourceRevision.ExpectedOutcome);
 
         // Carry over the applicability validation state from the source
         var draft = newTemplate.DraftRevision!;

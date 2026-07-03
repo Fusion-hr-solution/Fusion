@@ -15,6 +15,10 @@ public class ObjectiveTemplate : AggregateRoot, ITenantEntity
     private ObjectiveTemplate() { }
 
     public Guid TenantId { get; private set; }
+
+    /// <summary>System-generated stable code (P1.1 §13.2). Users never invent it.</summary>
+    public string Code { get; private set; } = string.Empty;
+
     public ObjectiveTemplateStatus Status { get; private set; }
 
     public IReadOnlyList<ObjectiveTemplateRevision> Revisions => _revisions.AsReadOnly();
@@ -23,18 +27,28 @@ public class ObjectiveTemplate : AggregateRoot, ITenantEntity
     public ObjectiveTemplateRevision? DraftRevision
         => _revisions.SingleOrDefault(r => r.Status == ObjectiveTemplateRevisionStatus.Draft);
 
+    /// <summary>A template may be hard-deleted only while it is an unused, never-activated Draft.</summary>
+    public bool IsEligibleForHardDelete
+        => Status == ObjectiveTemplateStatus.Draft
+            && _revisions.All(r => r.Status == ObjectiveTemplateRevisionStatus.Draft && r.ActivatedAt is null);
+
     public static ObjectiveTemplate Create(Guid tenantId)
     {
         if (tenantId == Guid.Empty)
             throw new ArgumentException("TenantId cannot be empty.", nameof(tenantId));
 
+        var id = Guid.NewGuid();
         return new ObjectiveTemplate
         {
-            Id = Guid.NewGuid(),
+            Id = id,
             TenantId = tenantId,
+            Code = GenerateCode(id),
             Status = ObjectiveTemplateStatus.Draft,
         };
     }
+
+    private static string GenerateCode(Guid id)
+        => $"TPL-{Convert.ToHexString(id.ToByteArray(), 0, 4)}";
 
     public ObjectiveTemplateRevision CreateDraftRevision(
         string title,
@@ -52,7 +66,9 @@ public class ObjectiveTemplate : AggregateRoot, ITenantEntity
         IReadOnlyList<Guid>? applicableOrgUnitIds = null,
         IReadOnlyList<string>? applicableJobTitles = null,
         IReadOnlyList<string>? applicableWorkLocations = null,
-        IReadOnlyList<string>? applicableEmploymentTypes = null)
+        IReadOnlyList<string>? applicableEmploymentTypes = null,
+        string? indicator = null,
+        string? expectedOutcome = null)
     {
         if (DraftRevision is not null)
             throw new DomainRuleViolationException("A draft revision already exists for this template.");
@@ -66,7 +82,8 @@ public class ObjectiveTemplate : AggregateRoot, ITenantEntity
             targetValue, unit, successCriteria,
             createdByUserId, createdByName, sourceRevisionId,
             applicableOrgUnitIds, applicableJobTitles,
-            applicableWorkLocations, applicableEmploymentTypes);
+            applicableWorkLocations, applicableEmploymentTypes,
+            indicator, expectedOutcome);
 
         _revisions.Add(revision);
         UpdatedAt = DateTime.UtcNow;

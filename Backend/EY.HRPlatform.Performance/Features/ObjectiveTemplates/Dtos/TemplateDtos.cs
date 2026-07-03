@@ -13,8 +13,10 @@ public sealed record TemplateRevisionDto(
     string MeasurementType,
     decimal? SuggestedWeighting,
     string? Tags,
+    string? Indicator,
     decimal? TargetValue,
     string? Unit,
+    string? ExpectedOutcome,
     string? SuccessCriteria,
     uint Version,
     Guid? SourceRevisionId,
@@ -49,6 +51,7 @@ public sealed record TemplateRevisionHistoryEntryDto(
 public sealed record TemplateDto(
     Guid Id,
     Guid TenantId,
+    string Code,
     string Status,
     TemplateRevisionDto? ActiveRevision,
     TemplateRevisionDto? DraftRevision,
@@ -71,7 +74,9 @@ public sealed record CreateTemplateDraftRequest(
     IReadOnlyList<Guid>? ApplicableOrgUnitIds = null,
     IReadOnlyList<string>? ApplicableJobTitles = null,
     IReadOnlyList<string>? ApplicableWorkLocations = null,
-    IReadOnlyList<string>? ApplicableEmploymentTypes = null);
+    IReadOnlyList<string>? ApplicableEmploymentTypes = null,
+    string? Indicator = null,
+    string? ExpectedOutcome = null);
 
 public sealed record UpdateTemplateDraftRequest(
     string Title,
@@ -87,7 +92,9 @@ public sealed record UpdateTemplateDraftRequest(
     IReadOnlyList<Guid>? ApplicableOrgUnitIds = null,
     IReadOnlyList<string>? ApplicableJobTitles = null,
     IReadOnlyList<string>? ApplicableWorkLocations = null,
-    IReadOnlyList<string>? ApplicableEmploymentTypes = null);
+    IReadOnlyList<string>? ApplicableEmploymentTypes = null,
+    string? Indicator = null,
+    string? ExpectedOutcome = null);
 
 public sealed record ActivateTemplateRevisionRequest(
     string? ChangeSummary,

@@ -14,9 +14,17 @@ public sealed class TemplateRevisionValidator(PerformanceDbContext db)
     /// Validates an ObjectiveTemplateRevision for activation.
     /// Checks: content completeness (Quantitative/Qualitative) and policy binding.
     /// </summary>
+    /// <param name="revision">The revision to validate.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <param name="forNewActivation">
+    /// True for activating a Draft (category must exist and be Active per P1.1 §11.3/§13.3);
+    /// false when re-checking an already-activated revision (e.g. restore), where existing
+    /// templates retain archived categories and only policy compatibility matters.
+    /// </param>
     public async Task<TemplateValidationResult> ValidateForActivationAsync(
         ObjectiveTemplateRevision revision,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool forNewActivation = true)
     {
         var errors = new List<string>();
 
@@ -24,9 +32,32 @@ public sealed class TemplateRevisionValidator(PerformanceDbContext db)
         if (revision.ApplicabilityValidationState == "HasUnresolved")
             errors.Add("One or more applicability references are invalid.");
 
-        // Content validation
+        // Primary category is required before activation (P1.1 §13.3); archived
+        // categories cannot be selected for new activation (P1.1 §11.3).
+        if (forNewActivation)
+        {
+            if (revision.CategoryId is null)
+            {
+                errors.Add("A primary category is required before activation.");
+            }
+            else
+            {
+                var category = await db.ObjectiveTemplateCategories
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(c => c.Id == revision.CategoryId.Value, cancellationToken);
+
+                if (category is null)
+                    errors.Add("The selected category no longer exists. Choose another category.");
+                else if (category.Status == CategoryStatus.Archived)
+                    errors.Add("The selected category is archived and cannot be used for new activation. Choose an active category.");
+            }
+        }
+
+        // Content validation by measurement method (P1.1 §13.4 / §13.5)
         if (revision.MeasurementType == "Quantitative")
         {
+            if (string.IsNullOrWhiteSpace(revision.Indicator))
+                errors.Add("Quantitative templates must define the indicator to measure.");
             if (revision.TargetValue is null)
                 errors.Add("Quantitative templates must have a target value.");
             if (string.IsNullOrWhiteSpace(revision.Unit))
@@ -34,6 +65,8 @@ public sealed class TemplateRevisionValidator(PerformanceDbContext db)
         }
         else if (revision.MeasurementType == "Qualitative")
         {
+            if (string.IsNullOrWhiteSpace(revision.ExpectedOutcome))
+                errors.Add("Qualitative templates must describe the expected outcome.");
             if (string.IsNullOrWhiteSpace(revision.SuccessCriteria))
                 errors.Add("Qualitative templates must have success criteria.");
         }

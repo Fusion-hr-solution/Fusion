@@ -69,7 +69,9 @@ public sealed class EditActiveViaNewRevisionCommandHandler(
             req.ApplicableOrgUnitIds,
             req.ApplicableJobTitles,
             req.ApplicableWorkLocations,
-            req.ApplicableEmploymentTypes);
+            req.ApplicableEmploymentTypes,
+            req.Indicator,
+            req.ExpectedOutcome);
 
         if (req.ApplicableOrgUnitIds is { Count: > 0 })
         {
