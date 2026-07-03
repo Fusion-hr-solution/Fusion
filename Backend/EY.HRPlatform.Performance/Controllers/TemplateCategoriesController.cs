@@ -20,7 +20,9 @@ public class TemplateCategoriesController(
     [HttpGet]
     public async Task<IActionResult> GetCategories([FromQuery] bool includeArchived = false, CancellationToken cancellationToken = default)
     {
-        if (!accessPolicy.CanManageTemplateCategories(User))
+        // Reading categories is a library concern: template authors browse and classify by
+        // category without holding category-management permission.
+        if (!accessPolicy.CanViewObjectiveLibrary(User) && !accessPolicy.CanManageTemplateCategories(User))
             return Forbid();
 
         var result = await sender.Send(new GetCategoriesQuery(includeArchived), cancellationToken);

@@ -162,7 +162,9 @@ public sealed class CoreWorkforceClient(
             return [];
         }
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, "internal/corehr/workforce/snapshots/by-scope")
+        // All internal paths are root-relative (leading slash): the request is signed before the
+        // HttpClient resolves BaseAddress, and the CoreHR authorizer verifies the absolute path.
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/internal/corehr/workforce/snapshots/by-scope")
         {
             Content = JsonContent.Create(new
             {
@@ -188,7 +190,7 @@ public sealed class CoreWorkforceClient(
             return [];
         }
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, "internal/corehr/workforce/snapshots/resolve")
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/internal/corehr/workforce/snapshots/resolve")
         {
             Content = JsonContent.Create(new
             {
@@ -207,7 +209,7 @@ public sealed class CoreWorkforceClient(
         IReadOnlyCollection<Guid> employeeIds,
         CancellationToken cancellationToken)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Post, "internal/corehr/campaign-workforce/context")
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/internal/corehr/campaign-workforce/context")
         {
             Content = JsonContent.Create(new
             {
@@ -230,7 +232,7 @@ public sealed class CoreWorkforceClient(
 
     public async Task<CoreApplicabilityOptions> GetApplicabilityOptionsAsync(CancellationToken cancellationToken)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Get, "internal/corehr/applicability-options");
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/internal/corehr/applicability-options");
         await internalServiceRequestSigner.SignAsync(request, cancellationToken);
         using var response = await httpClient.SendAsync(request, cancellationToken);
 
