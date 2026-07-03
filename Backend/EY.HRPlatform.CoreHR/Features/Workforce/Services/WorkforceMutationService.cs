@@ -115,9 +115,11 @@ public interface IWorkforceMutationService
 public sealed class WorkforceMutationService(
     CoreHRDbContext dbContext,
     ITenantContext tenantContext,
-    IWorkforceCanonicalResolver resolver) : IWorkforceMutationService
+    IWorkforceCanonicalResolver resolver,
+    WorkforceResolutionScope? resolutionScope = null) : IWorkforceMutationService
 {
     private const int ManagerChainGuardDepth = 100;
+    private readonly WorkforceResolutionScope _resolutionScope = resolutionScope ?? new WorkforceResolutionScope();
 
     public async Task<Result<Employee>> UpdateEmployeeProfileAsync(
         Guid employeeId, UpdateEmployeeProfileInput input, string? actor, CancellationToken cancellationToken)
@@ -130,8 +132,12 @@ public sealed class WorkforceMutationService(
         if (string.IsNullOrWhiteSpace(normalizedEmail))
             return Result.Failure<Employee>(Error.Validation("Employee.EmailRequired", "Email is required."));
 
-        var emailTaken = await dbContext.Employees
-            .AnyAsync(e => e.Id != employeeId && e.Email == normalizedEmail, cancellationToken);
+        // In a preloaded bulk run the tracker holds every relevant employee, and any DB-only
+        // collision is pre-checked in one batched query by the caller — so avoid the per-row query.
+        var emailTaken = _resolutionScope.TrackedGraphOnly
+            ? dbContext.Employees.Local.Any(e => e.Id != employeeId && e.Email == normalizedEmail)
+            : await dbContext.Employees
+                .AnyAsync(e => e.Id != employeeId && e.Email == normalizedEmail, cancellationToken);
         if (emailTaken)
             return Result.Failure<Employee>(
                 Error.Conflict("Employee.DuplicateEmail", $"Email '{normalizedEmail}' is already in use."));
@@ -423,21 +429,31 @@ public sealed class WorkforceMutationService(
 
     private async Task<Employee?> FindEmployeeAsync(Guid employeeId, CancellationToken cancellationToken)
     {
-        var local = dbContext.Employees.Local.FirstOrDefault(e => e.Id == employeeId);
-        return local ?? await dbContext.Employees.FirstOrDefaultAsync(e => e.Id == employeeId, cancellationToken);
+        var local = _resolutionScope.TrackedGraphOnly
+            ? _resolutionScope.FindEmployee(employeeId)
+            : dbContext.Employees.Local.FirstOrDefault(e => e.Id == employeeId);
+        if (local is not null || _resolutionScope.TrackedGraphOnly)
+            return local;
+        return await dbContext.Employees.FirstOrDefaultAsync(e => e.Id == employeeId, cancellationToken);
     }
 
     private async Task<OrgUnit?> FindOrgUnitAsync(Guid orgUnitId, CancellationToken cancellationToken)
     {
-        var local = dbContext.OrgUnits.Local.FirstOrDefault(o => o.Id == orgUnitId);
-        return local ?? await dbContext.OrgUnits.FirstOrDefaultAsync(o => o.Id == orgUnitId, cancellationToken);
+        var local = _resolutionScope.TrackedGraphOnly
+            ? _resolutionScope.FindOrgUnit(orgUnitId)
+            : dbContext.OrgUnits.Local.FirstOrDefault(o => o.Id == orgUnitId);
+        if (local is not null || _resolutionScope.TrackedGraphOnly)
+            return local;
+        return await dbContext.OrgUnits.FirstOrDefaultAsync(o => o.Id == orgUnitId, cancellationToken);
     }
 
     private async Task<Employment?> ResolveActiveEmploymentAsync(Guid employeeId, DateTime asOf, CancellationToken cancellationToken)
     {
-        var local = dbContext.Employments.Local.FirstOrDefault(
-            e => e.EmployeeId == employeeId && e.Status == EmploymentStatus.Active && e.IsActiveOn(asOf));
-        if (local is not null)
+        var local = _resolutionScope.TrackedGraphOnly
+            ? _resolutionScope.ResolveActiveEmployment(employeeId, asOf)
+            : dbContext.Employments.Local.FirstOrDefault(
+                e => e.EmployeeId == employeeId && e.Status == EmploymentStatus.Active && e.IsActiveOn(asOf));
+        if (local is not null || _resolutionScope.TrackedGraphOnly)
             return local;
 
         return await dbContext.Employments.FirstOrDefaultAsync(
@@ -450,9 +466,11 @@ public sealed class WorkforceMutationService(
 
     private async Task<WorkAssignment?> ResolveActivePrimaryAssignmentAsync(Guid employeeId, DateTime asOf, CancellationToken cancellationToken)
     {
-        var local = dbContext.WorkAssignments.Local.FirstOrDefault(
-            w => w.EmployeeId == employeeId && w.IsPrimary && w.IsActiveOn(asOf));
-        if (local is not null)
+        var local = _resolutionScope.TrackedGraphOnly
+            ? _resolutionScope.ResolveActivePrimaryAssignment(employeeId, asOf)
+            : dbContext.WorkAssignments.Local.FirstOrDefault(
+                w => w.EmployeeId == employeeId && w.IsPrimary && w.IsActiveOn(asOf));
+        if (local is not null || _resolutionScope.TrackedGraphOnly)
             return local;
 
         return await dbContext.WorkAssignments.FirstOrDefaultAsync(
@@ -465,11 +483,13 @@ public sealed class WorkforceMutationService(
 
     private async Task<ManagerRelationship?> ResolveActivePrimaryManagerRelationshipAsync(Guid employeeId, DateTime asOf, CancellationToken cancellationToken)
     {
-        var local = dbContext.ManagerRelationships.Local.FirstOrDefault(
-            m => m.SubjectEmployeeId == employeeId
-                && m.Type == ReportingRelationshipType.PrimaryManager
-                && m.IsActiveOn(asOf));
-        if (local is not null)
+        var local = _resolutionScope.TrackedGraphOnly
+            ? _resolutionScope.ResolveActivePrimaryManagerRelationship(employeeId, asOf)
+            : dbContext.ManagerRelationships.Local.FirstOrDefault(
+                m => m.SubjectEmployeeId == employeeId
+                    && m.Type == ReportingRelationshipType.PrimaryManager
+                    && m.IsActiveOn(asOf));
+        if (local is not null || _resolutionScope.TrackedGraphOnly)
             return local;
 
         return await dbContext.ManagerRelationships.FirstOrDefaultAsync(

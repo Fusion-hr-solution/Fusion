@@ -45,9 +45,12 @@ public interface IWorkforceCanonicalResolver
     Task<IReadOnlyList<Guid>> GetEmployeeIdsInOrgUnitAsync(Guid orgUnitId, DateTime? asOf, CancellationToken cancellationToken);
 }
 
-public sealed class WorkforceCanonicalResolver(CoreHRDbContext dbContext) : IWorkforceCanonicalResolver
+public sealed class WorkforceCanonicalResolver(
+    CoreHRDbContext dbContext,
+    WorkforceResolutionScope? resolutionScope = null) : IWorkforceCanonicalResolver
 {
     private const int DefaultMaxChainDepth = 50;
+    private readonly WorkforceResolutionScope _resolutionScope = resolutionScope ?? new WorkforceResolutionScope();
 
     public async Task<Employment?> GetCurrentEmploymentAsync(Guid employeeId, DateTime? asOf, CancellationToken cancellationToken)
     {
@@ -93,6 +96,14 @@ public sealed class WorkforceCanonicalResolver(CoreHRDbContext dbContext) : IWor
 
     public async Task<IReadOnlyList<Guid>> GetManagerChainAsync(Guid employeeId, DateTime? asOf, int maxDepth, CancellationToken cancellationToken)
     {
+        // In a preloaded bulk run the tracked graph is authoritative and also holds relationships
+        // staged earlier in the same run, so walk it in memory instead of one DB query per level.
+        if (_resolutionScope.TrackedGraphOnly)
+            return _resolutionScope.GetManagerChain(
+                employeeId,
+                Normalize(asOf),
+                maxDepth > 0 ? maxDepth : DefaultMaxChainDepth);
+
         var depthLimit = maxDepth > 0 ? maxDepth : DefaultMaxChainDepth;
         var chain = new List<Guid>();
         var visited = new HashSet<Guid> { employeeId };
@@ -114,7 +125,6 @@ public sealed class WorkforceCanonicalResolver(CoreHRDbContext dbContext) : IWor
 
         return chain;
     }
-
     public async Task<IReadOnlyList<Guid>> GetEmployeeIdsInOrgUnitAsync(Guid orgUnitId, DateTime? asOf, CancellationToken cancellationToken)
     {
         var at = Normalize(asOf);

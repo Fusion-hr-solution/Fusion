@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.Net.Mail;
 using System.Text;
@@ -68,19 +69,18 @@ public interface IEmployeeImportWorkflowService
         CancellationToken cancellationToken);
 }
 
-public sealed class EmployeeImportWorkflowService(
-    CoreHRDbContext dbContext,
-    ITenantContext tenantContext,
-    ITenantSettingsReadService? tenantSettingsReadService = null,
-    IWorkforceCanonicalResolver? canonicalResolver = null,
-    IWorkforceMutationService? mutationService = null) : IEmployeeImportWorkflowService
+public sealed class EmployeeImportWorkflowService : IEmployeeImportWorkflowService
 {
-    private readonly ITenantSettingsReadService tenantSettingsReader =
-        tenantSettingsReadService ?? new TenantSettingsReadService(dbContext);
-    private readonly IWorkforceCanonicalResolver canonicalResolver =
-        canonicalResolver ?? new WorkforceCanonicalResolver(dbContext);
-    private readonly IWorkforceMutationService mutationService =
-        mutationService ?? new WorkforceMutationService(dbContext, tenantContext, canonicalResolver ?? new WorkforceCanonicalResolver(dbContext));
+    // Cadence for the out-of-transaction progress writes (see ReportProgressAsync in the apply loop).
+    private static readonly TimeSpan ProgressReportInterval = TimeSpan.FromMilliseconds(250);
+    private readonly CoreHRDbContext dbContext;
+    private readonly ITenantContext tenantContext;
+    private readonly WorkforceResolutionScope resolutionScope;
+    private readonly ITenantSettingsReadService tenantSettingsReader;
+    private readonly IWorkforceCanonicalResolver canonicalResolver;
+    private readonly IWorkforceMutationService mutationService;
+    private readonly IServiceScopeFactory? scopeFactory;
+    private readonly ILogger<EmployeeImportWorkflowService>? logger;
 
     private const int MaxSourceFileNameLength = 260;
     private const int MaxApplyFailureReasonLength = 2000;
@@ -171,6 +171,30 @@ public sealed class EmployeeImportWorkflowService(
 
     private static readonly HashSet<string> CanonicalFieldKeys =
         CanonicalFields.Select(field => field.Key).ToHashSet(StringComparer.Ordinal);
+
+    public EmployeeImportWorkflowService(
+        CoreHRDbContext dbContext,
+        ITenantContext tenantContext,
+        ITenantSettingsReadService? tenantSettingsReadService = null,
+        IWorkforceCanonicalResolver? canonicalResolver = null,
+        IWorkforceMutationService? mutationService = null,
+        WorkforceResolutionScope? resolutionScope = null,
+        IServiceScopeFactory? scopeFactory = null,
+        ILogger<EmployeeImportWorkflowService>? logger = null)
+    {
+        this.dbContext = dbContext;
+        this.tenantContext = tenantContext;
+        this.resolutionScope = resolutionScope ?? new WorkforceResolutionScope();
+        tenantSettingsReader = tenantSettingsReadService ?? new TenantSettingsReadService(dbContext);
+        this.canonicalResolver = canonicalResolver ?? new WorkforceCanonicalResolver(dbContext, this.resolutionScope);
+        this.mutationService = mutationService ?? new WorkforceMutationService(
+            dbContext,
+            tenantContext,
+            this.canonicalResolver,
+            this.resolutionScope);
+        this.scopeFactory = scopeFactory;
+        this.logger = logger;
+    }
 
     public async Task<EmployeeImportSchemaDto> GetSchemaAsync(CancellationToken cancellationToken)
     {
@@ -449,6 +473,9 @@ public sealed class EmployeeImportWorkflowService(
         try
         {
             var result = await ApplyValidatedSessionAsync(session, operation, cancellationToken);
+            // Progress was written out-of-band during apply, bumping the row's concurrency token —
+            // refresh before the terminal transition so this save doesn't hit a stale-version conflict.
+            await dbContext.Entry(operation).ReloadAsync(cancellationToken);
             operation.MarkSucceeded(
                 result.HistoryId,
                 result.SourceRowCount,
@@ -461,6 +488,7 @@ public sealed class EmployeeImportWorkflowService(
         catch (Exception ex)
         {
             session.RestoreValidated();
+            await dbContext.Entry(operation).ReloadAsync(cancellationToken);
             operation.MarkFailed(TrimFailureReason(ex.Message), DateTime.UtcNow);
             await dbContext.SaveChangesAsync(cancellationToken);
         }
@@ -503,18 +531,6 @@ public sealed class EmployeeImportWorkflowService(
             or EmployeeImportRowClassification.Conflicting)).ToList();
         var processedRowCount = 0;
 
-        async Task PersistProgressAsync(bool force = false)
-        {
-            if (processedRowCount <= operation.ProcessedRowCount)
-                return;
-
-            if (!force && processedRowCount % 25 != 0)
-                return;
-
-            operation.RecordProgress(processedRowCount);
-            await dbContext.SaveChangesAsync(cancellationToken);
-        }
-
         if (createRows.Count > 0)
         {
             var createEmails = createRows
@@ -533,7 +549,19 @@ public sealed class EmployeeImportWorkflowService(
 
         CheckSameFileManagerCycles(createRows, nameof(session));
 
+        // One batched query stands in for the per-row email-uniqueness check inside
+        // UpdateEmployeeProfileAsync: catch any changed-row email already owned by a *different*
+        // employee that isn't part of the preloaded working set. Same shape as the create check.
+        await CheckChangedEmailConflictsAsync(changeRows, cancellationToken);
+
+        var stopwatch = Stopwatch.StartNew();
         await PreloadApplyStateAsync(normalizedRows, cancellationToken);
+        RebuildTrackedGraphIndexes();
+        var preloadMs = stopwatch.ElapsedMilliseconds;
+
+        // The preload above loaded the entire working set into the change tracker, so from here the
+        // tracked graph is authoritative — let the resolvers skip their per-row DB fallbacks.
+        resolutionScope.TrackedGraphOnly = true;
 
         var originalAutoDetect = dbContext.ChangeTracker.AutoDetectChangesEnabled;
         dbContext.ChangeTracker.AutoDetectChangesEnabled = false;
@@ -544,6 +572,40 @@ public sealed class EmployeeImportWorkflowService(
         await using var transaction = useTransaction
             ? await dbContext.Database.BeginTransactionAsync(cancellationToken)
             : null;
+
+        // Progress is written on a SEPARATE, short-lived connection (not the apply transaction) so a
+        // poller sees ProcessedRowCount advance live — the old in-transaction write was invisible
+        // until the final commit. Throttled by time; falls back to the tracked entity when there is
+        // no scope factory or the provider can't ExecuteUpdate (in-memory tests).
+        var canReportExternally = scopeFactory is not null && useTransaction;
+        var lastProgressReportUtc = DateTime.MinValue;
+
+        async Task ReportProgressAsync(bool force = false)
+        {
+            if (processedRowCount <= 0)
+                return;
+
+            var now = DateTime.UtcNow;
+            if (!force && now - lastProgressReportUtc < ProgressReportInterval)
+                return;
+            lastProgressReportUtc = now;
+
+            if (canReportExternally)
+            {
+                await using var progressScope = scopeFactory!.CreateAsyncScope();
+                var progressContext = progressScope.ServiceProvider.GetRequiredService<CoreHRDbContext>();
+                await progressContext.EmployeeImportApplyOperations
+                    .IgnoreQueryFilters()
+                    .Where(current => current.Id == operation.Id)
+                    .ExecuteUpdateAsync(
+                        setters => setters.SetProperty(current => current.ProcessedRowCount, processedRowCount),
+                        cancellationToken);
+            }
+            else
+            {
+                operation.RecordProgress(processedRowCount);
+            }
+        }
 
         try
         {
@@ -566,6 +628,7 @@ public sealed class EmployeeImportWorkflowService(
                     row.EmploymentType);
 
                 dbContext.Employees.Add(employee);
+                resolutionScope.Register(employee);
                 createdEmployeesByEmail[row.Email] = employee;
 
                 var empResult = await mutationService.StartEmploymentAsync(
@@ -576,6 +639,7 @@ public sealed class EmployeeImportWorkflowService(
                 if (empResult.IsFailure)
                     throw new ArgumentException(
                         $"Row {row.RowNumber}: Could not start employment: {empResult.Error.Message} Validate the file again before applying.");
+                resolutionScope.Register(empResult.Value);
 
                 if (row.OrgUnitId.HasValue)
                 {
@@ -595,10 +659,11 @@ public sealed class EmployeeImportWorkflowService(
                     if (waResult.IsFailure)
                         throw new ArgumentException(
                             $"Row {row.RowNumber}: Could not create work assignment: {waResult.Error.Message} Validate the file again before applying.");
+                    resolutionScope.Register(waResult.Value);
                 }
 
                 processedRowCount++;
-                await PersistProgressAsync();
+                await ReportProgressAsync();
             }
 
             foreach (var row in createRows.Where(r => !string.IsNullOrWhiteSpace(r.ManagerEmail)))
@@ -629,6 +694,7 @@ public sealed class EmployeeImportWorkflowService(
                     if (managerResult.IsFailure)
                         throw new ArgumentException(
                             $"Row {row.RowNumber}: Could not assign manager: {managerResult.Error.Message} Validate the file again before applying.");
+                    resolutionScope.Register(managerResult.Value);
                 }
             }
 
@@ -704,6 +770,7 @@ public sealed class EmployeeImportWorkflowService(
                         if (waResult.IsFailure)
                             throw new ArgumentException(
                                 $"Row {row.RowNumber}: Work assignment correction failed: {waResult.Error.Message} Validate the file again before applying.");
+                        resolutionScope.Register(waResult.Value);
                     }
                     else
                     {
@@ -722,6 +789,7 @@ public sealed class EmployeeImportWorkflowService(
                         if (waResult.IsFailure)
                             throw new ArgumentException(
                                 $"Row {row.RowNumber}: Work assignment change failed: {waResult.Error.Message} Validate the file again before applying.");
+                        resolutionScope.Register(waResult.Value);
                     }
                 }
 
@@ -752,13 +820,15 @@ public sealed class EmployeeImportWorkflowService(
                     if (managerResult.IsFailure)
                         throw new ArgumentException(
                             $"Row {row.RowNumber}: Manager change failed: {managerResult.Error.Message} Validate the file again before applying.");
+                    resolutionScope.Register(managerResult.Value);
                 }
 
                 processedRowCount++;
-                await PersistProgressAsync();
+                await ReportProgressAsync();
             }
 
-            await PersistProgressAsync(force: true);
+            await ReportProgressAsync(force: true);
+            var loopMs = stopwatch.ElapsedMilliseconds;
 
             dbContext.ChangeTracker.DetectChanges();
 
@@ -790,6 +860,19 @@ public sealed class EmployeeImportWorkflowService(
             if (transaction is not null)
                 await transaction.CommitAsync(cancellationToken);
 
+            logger?.LogInformation(
+                "Employee import apply {SessionId}: {Rows} rows (create={Create}, change={Change}), "
+                + "trackedGraphOnly={Flag}, preload={PreloadMs}ms, loop={LoopMs}ms, commit={CommitMs}ms, total={TotalMs}ms.",
+                session.Id,
+                normalizedRows.Count,
+                createRows.Count,
+                changeRows.Count,
+                resolutionScope.TrackedGraphOnly,
+                preloadMs,
+                loopMs - preloadMs,
+                stopwatch.ElapsedMilliseconds - loopMs,
+                stopwatch.ElapsedMilliseconds);
+
             return new EmployeeImportApplyResultDto(
                 session.Id,
                 history.Id,
@@ -809,7 +892,39 @@ public sealed class EmployeeImportWorkflowService(
         }
         finally
         {
+            resolutionScope.TrackedGraphOnly = false;
+            resolutionScope.ClearIndexes();
             dbContext.ChangeTracker.AutoDetectChangesEnabled = originalAutoDetect;
+        }
+    }
+
+    private async Task CheckChangedEmailConflictsAsync(
+        IReadOnlyList<StoredNormalizedRow> changeRows,
+        CancellationToken cancellationToken)
+    {
+        var emailToMatchedId = new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
+        foreach (var row in changeRows)
+        {
+            if (!row.ProfileChanged || string.IsNullOrWhiteSpace(row.Email) || !row.MatchedEmployeeId.HasValue)
+                continue;
+            emailToMatchedId[row.Email!] = row.MatchedEmployeeId.Value;
+        }
+
+        if (emailToMatchedId.Count == 0)
+            return;
+
+        var emails = emailToMatchedId.Keys.ToList();
+        var existing = await dbContext.Employees
+            .AsNoTracking()
+            .Where(e => emails.Contains(e.Email))
+            .Select(e => new { e.Id, e.Email })
+            .ToListAsync(cancellationToken);
+
+        foreach (var employee in existing)
+        {
+            if (emailToMatchedId.TryGetValue(employee.Email, out var matchedId) && employee.Id != matchedId)
+                throw new ArgumentException(
+                    "One or more employee emails already exist in this tenant. Validate the file again before applying.");
         }
     }
 
@@ -860,10 +975,34 @@ public sealed class EmployeeImportWorkflowService(
         }
     }
 
+    private void RebuildTrackedGraphIndexes()
+    {
+        resolutionScope.ClearIndexes();
+
+        foreach (var employee in dbContext.Employees.Local)
+            resolutionScope.Register(employee);
+
+        foreach (var orgUnit in dbContext.OrgUnits.Local)
+            resolutionScope.Register(orgUnit);
+
+        foreach (var employment in dbContext.Employments.Local)
+            resolutionScope.Register(employment);
+
+        foreach (var assignment in dbContext.WorkAssignments.Local)
+            resolutionScope.Register(assignment);
+
+        foreach (var relationship in dbContext.ManagerRelationships.Local)
+            resolutionScope.Register(relationship);
+    }
+
     private async Task<Employee?> FindTrackedEmployeeAsync(Guid employeeId, CancellationToken cancellationToken)
     {
-        var local = dbContext.Employees.Local.FirstOrDefault(employee => employee.Id == employeeId);
-        return local ?? await dbContext.Employees.FirstOrDefaultAsync(employee => employee.Id == employeeId, cancellationToken);
+        var local = resolutionScope.TrackedGraphOnly
+            ? resolutionScope.FindEmployee(employeeId)
+            : dbContext.Employees.Local.FirstOrDefault(employee => employee.Id == employeeId);
+        if (local is not null || resolutionScope.TrackedGraphOnly)
+            return local;
+        return await dbContext.Employees.FirstOrDefaultAsync(employee => employee.Id == employeeId, cancellationToken);
     }
 
     private async Task<PrimaryWorkAssignmentSnapshot?> ResolveTrackedPrimaryWorkAssignmentAsync(
@@ -871,14 +1010,16 @@ public sealed class EmployeeImportWorkflowService(
         DateTime asOf,
         CancellationToken cancellationToken)
     {
-        var local = dbContext.WorkAssignments.Local
-            .Where(assignment =>
-                assignment.EmployeeId == employeeId
-                && assignment.IsPrimary
-                && assignment.EffectiveFrom <= asOf
-                && (assignment.EffectiveTo == null || asOf < assignment.EffectiveTo))
-            .OrderByDescending(assignment => assignment.EffectiveFrom)
-            .FirstOrDefault();
+        var local = resolutionScope.TrackedGraphOnly
+            ? resolutionScope.ResolveActivePrimaryAssignment(employeeId, asOf)
+            : dbContext.WorkAssignments.Local
+                .Where(assignment =>
+                    assignment.EmployeeId == employeeId
+                    && assignment.IsPrimary
+                    && assignment.EffectiveFrom <= asOf
+                    && (assignment.EffectiveTo == null || asOf < assignment.EffectiveTo))
+                .OrderByDescending(assignment => assignment.EffectiveFrom)
+                .FirstOrDefault();
 
         if (local is not null)
         {
@@ -891,6 +1032,9 @@ public sealed class EmployeeImportWorkflowService(
                 local.EffectiveFrom,
                 local.EffectiveTo);
         }
+
+        if (resolutionScope.TrackedGraphOnly)
+            return null;
 
         return await canonicalResolver.GetPrimaryWorkAssignmentAsync(employeeId, asOf, cancellationToken);
     }
