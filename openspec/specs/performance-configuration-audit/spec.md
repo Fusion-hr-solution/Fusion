@@ -1,4 +1,11 @@
-## ADDED Requirements
+# performance-configuration-audit Specification
+
+## Purpose
+
+Defines the append-only lifecycle record requirements and the minimal history surfaces that P1.1
+needs now, while deferring a generic audit browser to later shared audit work.
+
+## Requirements
 
 ### Requirement: Append-only lifecycle records preserve configuration integrity
 

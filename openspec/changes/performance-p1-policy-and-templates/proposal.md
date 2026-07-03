@@ -1,78 +1,53 @@
+# Performance P1.1 - Policy and Objective Templates Rebaseline
+
 ## Why
 
-Performance has no objective-policy or governed template foundation: tenants cannot configure how
-objectives are measured, weighted, approved, or cascaded, and the only template support is a flat,
-single-revision `ObjectiveTemplate` with no measurement type, applicability, or lifecycle. Later P1
-partitions (campaigns, employee planning) depend on a versioned, auditable policy + template
-foundation that does not yet exist. This partition builds exactly that foundation — and nothing
-downstream of it.
+The authoritative product target for P1.1 now lives in
+`.local-docs/Performance/P1/P1.1/performance-p1.1-policy-and-objective-templates-specification.md`.
+The active OpenSpec change, the main capability specs, and parts of the implementation drifted away
+from that target. That drift is now the problem to solve.
+
+This change keeps `performance-p1-policy-and-templates` as the single active P1.1 change and
+re-baselines it around the local authority spec so OpenSpec can be trusted again for incremental
+delivery, verification, and remaining work tracking.
 
 ## What Changes
 
-- Add a **platform configuration layer**: hard Performance guardrails, a versioned baseline objective
-  policy (Draft → Published → Superseded), and an optional platform starter-template pack. Platform
-  data is non-tenant-scoped and gated by `PlatformRole.PlatformAdmin`.
-- Add a **tenant objective policy**: per-tenant versioned policy (Draft → Active → Superseded) with
-  objective count, allowed weighting values, manager-validation SLA, cascade mode, measurement types,
-  and attachments. Server-side validation including deterministic weight-feasibility (a valid 100%
-  combination must exist) and active-template compatibility.
-- Add **objective-template categories** (tenant-scoped, Active/Archived, code + name uniqueness).
-- **BREAKING (internal):** **Replace** the flat `ObjectiveTemplate` aggregate with a
-  **stable-identity + immutable-revision** model (template Draft/Active/Archived; revision
-  Draft/Active/Superseded), Quantitative/Qualitative content, suggested weighting bound to the active
-  policy, applicability criteria, tags, search/filter/pagination, and duplication. Existing rows are
-  migrated; the old aggregate, `Level` enum, and flat table are removed after migration.
-- Add **applicability** referencing Core workforce dimensions by stable identifier (org units +
-  subtrees) and normalized value (job titles, locations, employment types); tenant-owned tags remain
-  Performance-owned. Performance does not duplicate or own these workforce dimensions.
-- Add **append-only configuration audit** spanning platform and tenant scope.
-- Add **explicit, idempotent new-tenant provisioning**: on tenant creation, copy the Published
-  baseline (+ selected starter templates) into a tenant-owned Active policy. No lazy/GET
-  initialization; existing tenants are never silently mutated.
-- Add **Platform Admin** (Performance defaults) and **Tenant Configuration** (Objective policy +
-  Template library) UI in `apps/performance`, using the existing `@repo/ds` design system.
-
-Non-goals (excluded, per spec §3.2): campaigns, campaign policy snapshots, workforce population,
-participant activation, strategic/team objectives, employee objective plans, manager approval,
-notifications, planning exceptions, progress, P1 planning lock, real OKR Key Results, AI generation,
-template import/export, cross-tenant template sharing, nested categories, generic config engines,
-and automatic bulk propagation of platform changes to existing tenants.
+- Rebaseline the active P1.1 OpenSpec change so it explicitly follows the local P1.1 authority spec.
+- Preserve locked decisions instead of reopening them:
+  - Platform Defaults is a quiet settings surface with one decisive Apply and no surfaced Draft flow.
+  - Platform Defaults affects future tenant provisioning only.
+  - Platform Admin does not own tenant template content.
+  - New-tenant provisioning copies policy only; no platform starter-template pack exists in P1.1.
+  - Generic cross-product audit browsing is deferred; append-only lifecycle records remain required.
+- Reopen drift where OpenSpec or implementation no longer matches the authority spec:
+  - tenant objective policy must read as current policy -> edit locally -> review and apply, not a
+    resumable Draft workflow;
+  - user-facing history must stay minimal and purpose-specific;
+  - template applicability and discovery must match the MVP contract, with optional extensions
+    treated as extensions rather than completion requirements.
+- Keep this change active after sync so remaining rework and verification continue to be tracked in
+  one place.
 
 ## Capabilities
 
-### New Capabilities
-- `performance-platform-defaults`: Platform Performance guardrails, versioned baseline policy
-  lifecycle, starter-template pack, and guardrail impact analysis against active tenant policies.
-- `performance-objective-policy`: Tenant objective-policy lifecycle, fields, server-side validation,
-  weight feasibility, template compatibility, and policy history.
-- `performance-objective-templates`: Template categories, stable template + revision lifecycle,
-  Quantitative/Qualitative content, applicability, search/filter/pagination, and duplication.
-- `performance-configuration-audit`: Append-only platform and tenant configuration audit with the
-  required audit fields and the audit-view capability.
-- `performance-tenant-provisioning`: Explicit, idempotent new-tenant baseline + starter-template
-  provisioning and the existing-tenant non-mutation guarantee.
-
 ### Modified Capabilities
-<!-- None. No existing OpenSpec capability changes its requirements. The flat ObjectiveTemplate
-     replacement is internal implementation that has no prior OpenSpec spec. CoreHR and Identity
-     additions below are referenced contracts owned by those modules, not requirement changes to
-     existing Performance specs. -->
+
+- `performance-platform-defaults`: reaffirm the locked no-Draft Apply model, truthful load states,
+  impact-before-mutation, and deferred platform history browser.
+- `performance-objective-policy`: realign policy behavior to current policy, local edits, review,
+  and Apply; retain immutable applied versions and minimal version history.
+- `performance-objective-templates`: keep the tenant-owned template and revision model, but tighten
+  applicability and discovery to the authoritative MVP contract.
+- `performance-configuration-audit`: reduce P1.1 to append-only lifecycle records plus the minimal,
+  scope-separated history surfaces required now; defer a generic audit browser.
+- `performance-tenant-provisioning`: preserve policy-only provisioning from the current platform
+  standard setup, explicit failure states, and idempotent retry behavior.
 
 ## Impact
 
-- **Backend `EY.HRPlatform.Performance`**: new `Domain/Entities` (Platform/*, TenantObjectivePolicy,
-  ObjectiveTemplateCategory, ObjectiveTemplate + ObjectiveTemplateRevision,
-  PerformanceConfigurationAuditEntry); new `Features` slices; new EF configurations + migrations;
-  replacement of the flat `ObjectiveTemplate`; data migration.
-- **SharedKernel `CorePermissionCatalog`**: new `PerformancePermissions` entries + catalog
-  definitions (tenant policy / category / configuration-audit); reuse `ObjectiveLibrary{View,Manage}`
-  for template view/manage; platform defaults gated by `PlatformRole.PlatformAdmin`.
-- **CoreHR (referenced contract, Core-owned)**: small tenant-scoped applicability-options read added
-  to `internal/corehr/*` and `ICoreWorkforceClient` (org-unit ids + distinct
-  job-title/location/employment-type values). CoreHR remains the owner.
-- **Identity (referenced contract, Identity-owned)**: `TenantService.CreateAsync` calls a new typed
-  `IPerformanceProvisioningClient` after tenant commit. Identity keeps tenant ownership.
-- **Frontend `apps/performance`**: greenfield Configuration pages + `PlatformRole`-gated
-  `(platform-admin)` route group; reshaped `@repo/api` performance client.
-- **Tenancy/ownership**: introduces platform-scoped (non-tenant) data; preserves Core as workforce
-  source of truth and Identity as permission authority.
+- OpenSpec artifacts become trustworthy again without archiving the active change.
+- Locked work that still matches the authority spec stays closed.
+- Drifted work becomes explicit rework instead of silently redefining the target.
+- Remaining P1.1 execution can continue slice by slice from `tasks.md` with the local authority spec
+  as the governing product source.

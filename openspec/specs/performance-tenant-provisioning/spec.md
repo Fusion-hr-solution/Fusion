@@ -1,4 +1,11 @@
-## ADDED Requirements
+# performance-tenant-provisioning Specification
+
+## Purpose
+
+Defines explicit, idempotent tenant provisioning from the current platform standard setup into
+tenant-owned Performance policy state.
+
+## Requirements
 
 ### Requirement: Explicit new-tenant provisioning from the current standard setup
 

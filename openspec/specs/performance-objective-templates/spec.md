@@ -1,4 +1,12 @@
-## ADDED Requirements
+# performance-objective-templates Specification
+
+## Purpose
+
+Defines the tenant-owned template library for P1.1: categories, template identity and revisions,
+measurement-specific content, MVP applicability, basic discovery, duplication, archive behavior, and
+safe authoring workflows.
+
+## Requirements
 
 Objective templates and categories are tenant-owned business content managed by authorized tenant HR
 or Performance administrators. Platform Admin does not manage starter templates in P1.1.

@@ -1,4 +1,12 @@
-## ADDED Requirements
+# performance-objective-policy Specification
+
+## Purpose
+
+Defines the tenant-owned objective policy behavior for P1.1: current policy, local edits, review and
+Apply, immutable applied versions, server-side validation, compatibility checks, and minimal version
+history.
+
+## Requirements
 
 ### Requirement: Tenant objective policy uses a current-policy and Apply workflow
 

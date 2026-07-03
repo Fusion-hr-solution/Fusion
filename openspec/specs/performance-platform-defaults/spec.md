@@ -1,4 +1,11 @@
-## ADDED Requirements
+# performance-platform-defaults Specification
+
+## Purpose
+
+Defines the platform-owned Performance defaults surface: hard guardrails, the current standard setup
+for new tenants, fail-closed impact handling, truthful load states, and Platform Admin-only access.
+
+## Requirements
 
 ### Requirement: Platform guardrails define hard system limits
 
