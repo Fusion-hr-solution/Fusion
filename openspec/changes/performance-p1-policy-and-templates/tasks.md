@@ -35,25 +35,25 @@
 
 ## 5. Slice D — Template Library and Categories
 
-- [ ] 5.1 Backend: compare category and library behavior against sections 11 and 12 of the authority spec and confirm categories remain flat, lightweight, tenant-owned, and safe to archive/reactivate.
-- [ ] 5.2 Backend: keep or realign category uniqueness, archive rules, referenced-category delete constraints, and Active-template retention behavior to the authority spec.
-- [ ] 5.3 Backend: tighten library discovery to the MVP contract only: keyword search, category filter, status filter, measurement-method filter, server-side pagination, and one predictable default sort prioritizing Active templates.
-- [ ] 5.4 API/contracts: ensure library endpoints and DTOs expose only the required discovery/filter/sort behavior for P1.1 and do not elevate optional or deferred discovery features into completion requirements.
-- [ ] 5.5 Frontend: realign library states to the authority spec, including empty library, no-results, read-only access, permission denied, predictable default Active prioritization, and lightweight category management in library context.
-- [ ] 5.6 Frontend: confirm duplication, archive, restore, and constrained delete behavior is presented in product language and does not drift into generic CRUD.
-- [ ] 5.7 Tests: add or update coverage for AC-P1.1-15 through AC-P1.1-18 plus empty/no-results/read-only states and safe category archive behavior.
-- [ ] 5.8 Checkpoint: verify categories and the basic template library are usable and match the authority-spec MVP before treating this slice as aligned.
+- [x] 5.1 Backend: compare category and library behavior against sections 11 and 12 of the authority spec and confirm categories remain flat, lightweight, tenant-owned, and safe to archive/reactivate.
+- [x] 5.2 Backend: keep or realign category uniqueness, archive rules, referenced-category delete constraints, and Active-template retention behavior to the authority spec.
+- [x] 5.3 Backend: tighten library discovery to the MVP contract only: keyword search, category filter, status filter, measurement-method filter, server-side pagination, and one predictable default sort prioritizing Active templates.
+- [x] 5.4 API/contracts: ensure library endpoints and DTOs expose only the required discovery/filter/sort behavior for P1.1 and do not elevate optional or deferred discovery features into completion requirements.
+- [x] 5.5 Frontend: realign library states to the authority spec, including empty library, no-results, read-only access, permission denied, predictable default Active prioritization, and lightweight category management in library context.
+- [x] 5.6 Frontend: confirm duplication, archive, restore, and constrained delete behavior is presented in product language and does not drift into generic CRUD.
+- [x] 5.7 Tests: add or update coverage for AC-P1.1-15 through AC-P1.1-18 plus empty/no-results/read-only states and safe category archive behavior.
+- [x] 5.8 Checkpoint: verify categories and the basic template library are usable and match the authority-spec MVP before treating this slice as aligned.
 
 ## 6. Slice E — Template Authoring and Lifecycle
 
-- [ ] 6.1 Backend: compare template authoring and lifecycle behavior against section 13 of the authority spec, including Draft/Active/Archived template states and immutable Active revisions.
-- [ ] 6.2 Backend: keep Quantitative and Qualitative authoring rules aligned, including required content, suggested weighting constraints, measurement-method switching rules, duplication, archive/restore, and constrained hard deletion.
-- [ ] 6.3 Backend: ensure editing an Active template creates unpublished changes rather than mutating the Active revision in place, and activation supersedes rather than deletes the prior Active revision.
-- [ ] 6.4 API/contracts: align authoring DTOs, validation errors, lifecycle operations, and status language with the authority spec's product terms such as Active template, unpublished changes, expected outcome, and success criteria.
-- [ ] 6.5 Frontend: realign the editor flow around Basics / Measurement / Classification / Applicability / Review behavior that preserves work, warns before destructive measurement-type changes, and treats incomplete Drafts as saveable but not activatable.
-- [ ] 6.6 Frontend: ensure authoring, duplication, archive, restore, and constrained deletion are explained through the product workflow rather than raw persistence terminology.
-- [ ] 6.7 Tests: add or update coverage for AC-P1.1-19 through AC-P1.1-23 plus measurement-switch warnings, incomplete Draft saveability, retryable failure preservation, and immutable Active revision behavior.
-- [ ] 6.8 Checkpoint: verify Quantitative and Qualitative templates can be authored and activated safely end to end under the current tenant policy.
+- [x] 6.1 Backend: compare template authoring and lifecycle behavior against section 13 of the authority spec, including Draft/Active/Archived template states and immutable Active revisions.
+- [x] 6.2 Backend: keep Quantitative and Qualitative authoring rules aligned, including required content, suggested weighting constraints, measurement-method switching rules, duplication, archive/restore, and constrained hard deletion.
+- [x] 6.3 Backend: ensure editing an Active template creates unpublished changes rather than mutating the Active revision in place, and activation supersedes rather than deletes the prior Active revision.
+- [x] 6.4 API/contracts: align authoring DTOs, validation errors, lifecycle operations, and status language with the authority spec's product terms such as Active template, unpublished changes, expected outcome, and success criteria.
+- [x] 6.5 Frontend: realign the editor flow around Basics / Measurement / Classification / Applicability / Review behavior that preserves work, warns before destructive measurement-type changes, and treats incomplete Drafts as saveable but not activatable.
+- [x] 6.6 Frontend: ensure authoring, duplication, archive, restore, and constrained deletion are explained through the product workflow rather than raw persistence terminology.
+- [x] 6.7 Tests: add or update coverage for AC-P1.1-19 through AC-P1.1-23 plus measurement-switch warnings, incomplete Draft saveability, retryable failure preservation, and immutable Active revision behavior.
+- [x] 6.8 Checkpoint: verify Quantitative and Qualitative templates can be authored and activated safely end to end under the current tenant policy.
 
 ## 7. Slice F — Applicability, migration, and final hardening
 
