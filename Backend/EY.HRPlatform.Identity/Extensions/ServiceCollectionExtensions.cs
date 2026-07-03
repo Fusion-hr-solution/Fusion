@@ -4,7 +4,6 @@ using EY.HRPlatform.Identity.Domain.Entities;
 using EY.HRPlatform.Identity.Features.AccessProfiles;
 using EY.HRPlatform.Identity.Features.Eligibility;
 using EY.HRPlatform.Identity.Features.PlatformOrganizations.Services;
-using EY.HRPlatform.Identity.Features.Tenants.Services;
 using EY.HRPlatform.Identity.Features.WorkforceAccounts;
 using EY.HRPlatform.Identity.Infrastructure.Persistence;
 using EY.HRPlatform.Identity.Infrastructure.Services;
@@ -118,7 +117,6 @@ public static class ServiceCollectionExtensions
 
         // 4. Register our custom services
         services.AddScoped<ITokenService, TokenService>();
-        services.AddScoped<ITenantService, TenantService>();
         services.AddScoped<IPlatformOrganizationService, PlatformOrganizationService>();
         services.AddScoped<IAccessProfileService, AccessProfileService>();
         services.AddScoped<IEligibilityDecisionService, EligibilityDecisionService>();
