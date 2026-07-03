@@ -81,7 +81,7 @@ public sealed class GetPlatformDefaultsSummaryQueryHandler(PerformanceDbContext 
     {
         "GuardrailPublished" => "Advanced limits applied",
         "BaselinePublished" => "Standard setup applied",
-        "GuardrailPublishBlocked" => "Advanced limits apply blocked",
+        "GuardrailApplyBlocked" => "Advanced limits apply blocked",
         _ => action,
     };
 }

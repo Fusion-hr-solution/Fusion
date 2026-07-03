@@ -40,9 +40,6 @@ public interface IPerformanceAccessPolicyService
     // Template categories (P1: policy-and-templates)
     bool CanManageTemplateCategories(ClaimsPrincipal user) => false;
 
-    // Configuration audit (P1: policy-and-templates)
-    bool CanViewConfigurationAudit(ClaimsPrincipal user) => false;
-
     // Platform defaults — gated by PlatformRole.PlatformAdmin only (D1)
     bool CanManagePlatformDefaults(ClaimsPrincipal user) => false;
 }
@@ -67,14 +64,13 @@ public sealed class PerformanceAccessPolicyService : IPerformanceAccessPolicySer
         => user.HasCorePermission(PerformancePermissions.CyclePublish, PermissionScopes.Tenant)
             || user.IsInRole(PlatformRole.PlatformAdmin);
 
+    // Tenant template content is tenant-owned (P1.1 §6.1): PlatformAdmin gets no implicit access.
     public bool CanViewObjectiveLibrary(ClaimsPrincipal user)
         => user.HasCorePermission(PerformancePermissions.ObjectiveLibraryView, PermissionScopes.Tenant)
-            || user.HasCorePermission(PerformancePermissions.ObjectiveLibraryManage, PermissionScopes.Tenant)
-            || user.IsInRole(PlatformRole.PlatformAdmin);
+            || user.HasCorePermission(PerformancePermissions.ObjectiveLibraryManage, PermissionScopes.Tenant);
 
     public bool CanManageObjectiveLibrary(ClaimsPrincipal user)
-        => user.HasCorePermission(PerformancePermissions.ObjectiveLibraryManage, PermissionScopes.Tenant)
-            || user.IsInRole(PlatformRole.PlatformAdmin);
+        => user.HasCorePermission(PerformancePermissions.ObjectiveLibraryManage, PermissionScopes.Tenant);
 
     // ─── Strategic objective permissions (D-05) ───────────────────────────────
 
@@ -151,11 +147,6 @@ public sealed class PerformanceAccessPolicyService : IPerformanceAccessPolicySer
 
     public bool CanManageTemplateCategories(ClaimsPrincipal user)
         => user.HasCorePermission(PerformancePermissions.TemplateCategoryManage, PermissionScopes.Tenant);
-
-    // ─── Configuration audit (P1: policy-and-templates) ──────────────────────
-
-    public bool CanViewConfigurationAudit(ClaimsPrincipal user)
-        => user.HasCorePermission(PerformancePermissions.ConfigurationAuditView, PermissionScopes.Tenant);
 
     // ─── Platform defaults (D1: PlatformAdmin only) ───────────────────────────
 

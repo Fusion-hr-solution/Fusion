@@ -70,7 +70,7 @@ public class PerformanceAccessPolicyServiceTests
     }
 
     [Fact]
-    public void PlatformAdmin_IsAllowedEverything()
+    public void PlatformAdmin_IsAllowedCycleOperations_ButNotTenantTemplateLibrary()
     {
         var user = new ClaimsPrincipalBuilder()
             .WithRole(PlatformRole.PlatformAdmin)
@@ -79,11 +79,13 @@ public class PerformanceAccessPolicyServiceTests
         Assert.True(_policy.CanViewCycles(user));
         Assert.True(_policy.CanManageCycles(user));
         Assert.True(_policy.CanOperateCycles(user));
-        Assert.True(_policy.CanViewObjectiveLibrary(user));
-        Assert.True(_policy.CanManageObjectiveLibrary(user));
         Assert.True(_policy.CanActOnOwnedException(user));
         Assert.True(_policy.CanOverrideException(user));
         Assert.True(_policy.CanViewExceptionAudit(user));
+
+        // Tenant template content is tenant-owned (P1.1 §6.1): no implicit platform access.
+        Assert.False(_policy.CanViewObjectiveLibrary(user));
+        Assert.False(_policy.CanManageObjectiveLibrary(user));
     }
 
     [Fact]
@@ -108,7 +110,6 @@ public class PerformanceAccessPolicyServiceTests
         Assert.False(_policy.CanViewObjectivePolicy(user));
         Assert.False(_policy.CanManageObjectivePolicy(user));
         Assert.False(_policy.CanManageTemplateCategories(user));
-        Assert.False(_policy.CanViewConfigurationAudit(user));
         Assert.False(_policy.CanManagePlatformDefaults(user));
     }
 
@@ -146,17 +147,6 @@ public class PerformanceAccessPolicyServiceTests
     }
 
     [Fact]
-    public void ConfigurationAuditViewGrant_AllowsAuditView()
-    {
-        var user = new ClaimsPrincipalBuilder()
-            .WithPermission(PerformancePermissions.ConfigurationAuditView, PermissionScopes.Tenant)
-            .Build();
-
-        Assert.True(_policy.CanViewConfigurationAudit(user));
-        Assert.False(_policy.CanManagePlatformDefaults(user));
-    }
-
-    [Fact]
     public void PlatformAdminRole_AllowsPlatformDefaultsOnly_NotTenantPolicyChecks()
     {
         var user = new ClaimsPrincipalBuilder()
@@ -164,11 +154,10 @@ public class PerformanceAccessPolicyServiceTests
             .Build();
 
         Assert.True(_policy.CanManagePlatformDefaults(user));
-        // PlatformAdmin does not implicitly get tenant-scoped policy/category/audit — deny-by-default
+        // PlatformAdmin does not implicitly get tenant-scoped policy/category — deny-by-default
         Assert.False(_policy.CanViewObjectivePolicy(user));
         Assert.False(_policy.CanManageObjectivePolicy(user));
         Assert.False(_policy.CanManageTemplateCategories(user));
-        Assert.False(_policy.CanViewConfigurationAudit(user));
     }
 
     [Fact]

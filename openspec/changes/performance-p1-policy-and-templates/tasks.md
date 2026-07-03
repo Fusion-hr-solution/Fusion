@@ -24,14 +24,14 @@
 
 ## 4. Slice C — Audit and history boundary cleanup
 
-- [ ] 4.1 Backend: compare current audit/history implementation against sections 15 and 21 of the authority spec and identify any generic-audit behavior that exceeds P1.1.
-- [ ] 4.2 Backend: keep append-only lifecycle records for platform applied states, tenant policy versions, template revisions, category lifecycle, and blocked/failed state transitions where the authority spec requires traceability.
-- [ ] 4.3 Backend: remove or defer any platform-wide or tenant-wide generic audit browser behavior that contradicts the explicit P1.1 deferral.
-- [ ] 4.4 API/contracts: expose only the minimal user-facing history surfaces required now: simple tenant policy history, simple template revision history, and concise Platform Defaults current/last-updated facts.
-- [ ] 4.5 Authorization: verify platform history facts require `PlatformRole.PlatformAdmin` with no tenant context, and tenant history requires authoritative tenant context plus the relevant tenant capability.
-- [ ] 4.6 Frontend: trim history surfaces to the minimal P1.1 contract and remove any UI that implies a broad audit product or cross-product audit browser.
-- [ ] 4.7 Tests: add or update regression coverage for append-only lifecycle records, denied history access, fail-closed scope separation, and the absence of reads that mutate state.
-- [ ] 4.8 Checkpoint: verify that history/audit behavior now matches the authority spec's required-now versus deferred boundary before moving on.
+- [x] 4.1 Backend: compare current audit/history implementation against sections 15 and 21 of the authority spec and identify any generic-audit behavior that exceeds P1.1.
+- [x] 4.2 Backend: keep append-only lifecycle records for platform applied states, tenant policy versions, template revisions, category lifecycle, and blocked/failed state transitions where the authority spec requires traceability.
+- [x] 4.3 Backend: remove or defer any platform-wide or tenant-wide generic audit browser behavior that contradicts the explicit P1.1 deferral.
+- [x] 4.4 API/contracts: expose only the minimal user-facing history surfaces required now: simple tenant policy history, simple template revision history, and concise Platform Defaults current/last-updated facts.
+- [x] 4.5 Authorization: verify platform history facts require `PlatformRole.PlatformAdmin` with no tenant context, and tenant history requires authoritative tenant context plus the relevant tenant capability.
+- [x] 4.6 Frontend: trim history surfaces to the minimal P1.1 contract and remove any UI that implies a broad audit product or cross-product audit browser.
+- [x] 4.7 Tests: add or update regression coverage for append-only lifecycle records, denied history access, fail-closed scope separation, and the absence of reads that mutate state.
+- [x] 4.8 Checkpoint: verify that history/audit behavior now matches the authority spec's required-now versus deferred boundary before moving on.
 
 ## 5. Slice D — Template Library and Categories
 

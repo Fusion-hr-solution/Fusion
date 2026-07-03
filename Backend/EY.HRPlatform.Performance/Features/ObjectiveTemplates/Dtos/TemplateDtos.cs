@@ -33,6 +33,17 @@ public sealed record TemplateRevisionDto(
     IReadOnlyList<string> ApplicableEmploymentTypes,
     string ApplicabilityValidationState);
 
+/// <summary>Concise entry for the simple revision history required by P1.1 §15.2.</summary>
+public sealed record TemplateRevisionHistoryEntryDto(
+    Guid Id,
+    int VersionNumber,
+    string Status,
+    string Title,
+    DateTime? ActivatedAt,
+    string? ActivatedByName,
+    DateTime? SupersededAt,
+    string? ChangeSummary);
+
 // ── Template container DTO ────────────────────────────────────────────
 
 public sealed record TemplateDto(

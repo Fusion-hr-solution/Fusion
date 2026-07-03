@@ -78,6 +78,32 @@ public class PerformanceDbContext : DbContext
     public DbSet<FeedbackResponseVersion> FeedbackResponseVersions => Set<FeedbackResponseVersion>();
     public DbSet<FeedbackIdentityMapping> FeedbackIdentityMappings => Set<FeedbackIdentityMapping>();
 
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        RejectAuditEntryMutations();
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        RejectAuditEntryMutations();
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+    }
+
+    /// <summary>
+    /// Configuration lifecycle records are append-only (P1.1 §15): any tracked update or delete
+    /// of an existing entry is rejected before it reaches the database.
+    /// </summary>
+    private void RejectAuditEntryMutations()
+    {
+        var mutated = ChangeTracker.Entries<PerformanceConfigurationAuditEntry>()
+            .Any(e => e.State is EntityState.Modified or EntityState.Deleted);
+
+        if (mutated)
+            throw new InvalidOperationException(
+                "Configuration audit entries are append-only and cannot be modified or deleted.");
+    }
+
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
         configurationBuilder.Properties<DateTime>()

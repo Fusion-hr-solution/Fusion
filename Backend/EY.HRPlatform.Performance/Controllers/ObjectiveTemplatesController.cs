@@ -56,6 +56,19 @@ public class ObjectiveTemplatesController(
         return Ok(ApiResponse<TemplateDto>.Success(result.Value));
     }
 
+    [HttpGet("api/performance/template-library/{id:guid}/history")]
+    public async Task<IActionResult> GetTemplateRevisionHistory(Guid id, CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanViewObjectiveLibrary(User))
+            return Forbid();
+
+        var result = await sender.Send(new GetTemplateRevisionHistoryQuery(id), cancellationToken);
+        if (result.IsFailure)
+            return MapFailure(result.Error);
+
+        return Ok(ApiResponse<IReadOnlyList<TemplateRevisionHistoryEntryDto>>.Success(result.Value));
+    }
+
     [HttpPost("api/performance/template-library")]
     public async Task<IActionResult> CreateTemplate(
         [FromBody] CreateTemplateDraftRequest request,
