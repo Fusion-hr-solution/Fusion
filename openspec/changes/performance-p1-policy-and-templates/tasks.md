@@ -57,20 +57,27 @@
 
 ## 7. Slice F — Applicability, migration, and final hardening
 
-- [ ] 7.1 Backend: compare applicability behavior against section 14 of the authority spec and keep the required MVP as tenant-wide or selected Core organizational units with explicit descendant inclusion.
-- [ ] 7.2 Backend: ensure organizational-unit references use stable Core identifiers, preserve stored descendant decisions, and reject unresolved or cross-tenant references without disclosure.
-- [ ] 7.3 Backend: treat job title, work location, and employment type applicability only as optional extensions if they already remain cleanly implemented and preserve the authority-spec semantics.
-- [ ] 7.4 Migration: verify legacy-template migration, ambiguous-data handling, existing-tenant policy repair, and platform starter-template cleanup against section 16 of the authority spec.
-- [ ] 7.5 Verification environment: run migration, uniqueness, tenant-filter, optimistic-concurrency, and real-database verification against the supported engine with no pending model drift.
-- [ ] 7.6 Frontend: realign applicability UX to the MVP contract, keeping tenant-wide and selected organizational-unit behavior primary and ensuring optional dimensions do not become completion blockers.
-- [ ] 7.7 Tests: add or update coverage for AC-P1.1-24 through AC-P1.1-30 plus migration-without-silent-loss, cross-tenant rejection, unauthorized operations, retryable failure preservation, and end-to-end tenant foundation readiness.
-- [ ] 7.8 Checkpoint: verify tenant-wide and org-unit applicability, migration, concurrency, authorization, and tenant isolation all match the authority spec before final completion work.
+- [x] 7.1 Backend: compare applicability behavior against section 14 of the authority spec and keep the required MVP as tenant-wide or selected Core organizational units with explicit descendant inclusion.
+- [x] 7.2 Backend: ensure organizational-unit references use stable Core identifiers, preserve stored descendant decisions, and reject unresolved or cross-tenant references without disclosure.
+- [x] 7.3 Backend: treat job title, work location, and employment type applicability only as optional extensions if they already remain cleanly implemented and preserve the authority-spec semantics.
+- [x] 7.4 Migration: verify legacy-template migration, ambiguous-data handling, existing-tenant policy repair, and platform starter-template cleanup against section 16 of the authority spec.
+- [x] 7.5 Verification environment: run migration, uniqueness, tenant-filter, optimistic-concurrency, and real-database verification against the supported engine with no pending model drift.
+- [x] 7.6 Frontend: realign applicability UX to the MVP contract, keeping tenant-wide and selected organizational-unit behavior primary and ensuring optional dimensions do not become completion blockers.
+- [x] 7.7 Tests: add or update coverage for AC-P1.1-24 through AC-P1.1-30 plus migration-without-silent-loss, cross-tenant rejection, unauthorized operations, retryable failure preservation, and end-to-end tenant foundation readiness.
+- [x] 7.8 Checkpoint: verify tenant-wide and org-unit applicability, migration, concurrency, authorization, and tenant isolation all match the authority spec before final completion work.
 
 ## 8. Final verification and completion
 
-- [ ] 8.1 Re-run strict OpenSpec validation after each material slice update and keep both the active change and main specs valid.
-- [ ] 8.2 Run backend build and tests covering the realigned P1.1 slices and confirm green results against the updated contracts.
-- [ ] 8.3 Run frontend test, type-check, and lint verification for the Performance app and confirm green results against the updated UX states.
-- [ ] 8.4 Perform real UI checkpoints for the authority-spec acceptance flows, not just compile/test verification.
-- [ ] 8.5 Record every remaining mismatch between the local spec, OpenSpec, and implementation as explicit rework, a defect, or an approved deferral.
-- [ ] 8.6 Mark P1.1 complete only when sections 19 and 22 of the authority spec are satisfied and the local spec, OpenSpec, implementation, tests, and acceptance evidence all agree.
+- [x] 8.1 Re-run strict OpenSpec validation after each material slice update and keep both the active change and main specs valid.
+- [x] 8.2 Run backend build and tests covering the realigned P1.1 slices and confirm green results against the updated contracts.
+- [x] 8.3 Run frontend test, type-check, and lint verification for the Performance app and confirm green results against the updated UX states.
+- [x] 8.4 Perform real UI checkpoints for the authority-spec acceptance flows, not just compile/test verification.
+- [x] 8.5 Record every remaining mismatch between the local spec, OpenSpec, and implementation as explicit rework, a defect, or an approved deferral.
+- [x] 8.6 Mark P1.1 complete only when sections 19 and 22 of the authority spec are satisfied and the local spec, OpenSpec, implementation, tests, and acceptance evidence all agree.
+
+## Recorded deferrals and notes (8.5)
+
+- Authority-spec §21 deferrals stand unchanged (generic audit browser, rich diff UI, tag governance, approval workflow, content packs, bulk library operations, provisioning dashboard, and the rest of the §21 list). None were introduced.
+- Existing-tenant policy repair (§16.3) is satisfied through the explicit, observable, retryable provisioning path (not-provisioned state plus internal provisioning endpoint) rather than a one-time repair migration; runtime reads stay side-effect free. Approved deferral of a bulk repair migration until a tenant with pre-P1.1 performance data actually exists.
+- Optional applicability dimensions (job title, work location, employment type) remain as verified extensions per §14.5; they resolve against Core options and are not completion criteria.
+- The simple template revision history (§15.2) is exposed in the editor Review tab and via `GET /template-library/{id}/history`; any richer tenant-wide change-history surface stays deferred to the unified Performance+Core audit integration.
