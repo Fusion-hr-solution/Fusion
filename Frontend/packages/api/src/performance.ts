@@ -200,7 +200,6 @@ export type UpdateObjectiveTemplateRequest = CreateObjectiveTemplateRequest;
 export interface GuardrailsDto {
   id: string;
   version: number;
-  isDraft: boolean;
   minObjectivesPerPlan: number;
   maxObjectivesPerPlan: number;
   minManagerValidationSlaDays: number;
@@ -211,10 +210,9 @@ export interface GuardrailsDto {
   maxTemplateTitleLength: number;
   maxTemplateDescriptionLength: number;
   maxTemplateTags: number;
-  objectiveLibraryEnabled: boolean;
 }
 
-export type BaselineVersionStatus = "Draft" | "Published" | "Superseded";
+export type BaselineVersionStatus = "Published" | "Superseded";
 
 export interface BaselineVersionDto {
   id: string;
@@ -230,7 +228,7 @@ export interface BaselineVersionDto {
   supersededAt: string | null;
 }
 
-export interface CreateGuardrailsDraftRequest {
+export interface ApplyGuardrailsRequest {
   minObjectivesPerPlan: number;
   maxObjectivesPerPlan: number;
   minManagerValidationSlaDays: number;
@@ -241,16 +239,59 @@ export interface CreateGuardrailsDraftRequest {
   maxTemplateTitleLength: number;
   maxTemplateDescriptionLength: number;
   maxTemplateTags: number;
-  objectiveLibraryEnabled: boolean;
 }
 
-export interface CreateBaselineDraftRequest {
+export interface ApplyBaselineRequest {
   maxObjectivesPerPlan: number;
   allowedWeightValues: string;
   managerValidationSlaDays: number;
   cascadeMode: string;
   measurementTypes: string;
   attachmentsEnabled: boolean;
+}
+
+export interface PlatformDefaultsStatusDto {
+  tone: "success" | "warning" | "neutral";
+  label: string;
+  message: string;
+}
+
+export interface PlatformDefaultsActivityDto {
+  action: string;
+  actorName: string | null;
+  occurredAt: string;
+}
+
+export interface PlatformDefaultsSummaryDto {
+  status: PlatformDefaultsStatusDto;
+  appliedGuardrails: GuardrailsDto | null;
+  appliedBaseline: BaselineVersionDto | null;
+  lastUpdated: PlatformDefaultsActivityDto | null;
+}
+
+export interface GuardrailImpactReasonDto {
+  reason: string;
+  affectedCount: number;
+}
+
+export interface GuardrailImpactPreviewDto {
+  hasConflicts: boolean;
+  affectedTenantPolicyCount: number;
+  tenantPolicyConflicts: GuardrailImpactReasonDto[];
+  standardSetupConflicts: string[];
+}
+
+// Atomic apply results (no Draft lifecycle).
+export interface GuardrailsApplyResultDto {
+  applied: boolean;
+  guardrails: GuardrailsDto | null;
+  impact: GuardrailImpactPreviewDto | null;
+}
+
+export interface BaselineApplyResultDto {
+  applied: boolean;
+  baseline: BaselineVersionDto | null;
+  errors: string[];
 }
 
 // ── Template categories (P1) ─────────────────────────────────────────
@@ -275,7 +316,7 @@ export interface RenameCategoryRequest {
 
 // ── Tenant objective policy (P1) ────────────────────────────────────
 
-export type PolicyVersionStatus = "Draft" | "Active" | "Superseded";
+export type PolicyVersionStatus = "Active" | "Superseded";
 
 export interface PolicyVersionDto {
   id: string;
@@ -302,25 +343,16 @@ export interface PolicyVersionDto {
 
 export interface PolicySummaryDto {
   policyId: string;
-  activeVersion: PolicyVersionDto | null;
-  draftVersion: PolicyVersionDto | null;
+  currentPolicy: PolicyVersionDto | null;
 }
 
-export interface CreatePolicyDraftRequest {
+export interface ApplyPolicyRequest {
   maxObjectivesPerPlan: number;
   allowedWeightValues: string;
   managerValidationSlaDays: number;
   cascadeMode: string;
   measurementTypes: string;
   attachmentsEnabled: boolean;
-}
-
-export interface UpdatePolicyDraftRequest extends CreatePolicyDraftRequest {
-  expectedVersion: number;
-}
-
-export interface PublishPolicyRequest {
-  expectedVersion: number;
   changeSummary?: string | null;
 }
 
@@ -427,14 +459,12 @@ export const performancePaths = {
   cycleReadiness: (id: string) => `/performance/cycles/${id}/readiness`,
   cyclePlanningApprover: (cycleId: string, participantId: string) =>
     `/performance/cycles/${cycleId}/participants/${participantId}/planning-approver`,
-  // Platform defaults
+  // Platform defaults — atomic apply, no Draft lifecycle
+  platformDefaultsSummary: () => "/performance/platform/defaults/summary",
   platformGuardrails: () => "/performance/platform/defaults/guardrails",
-  platformGuardrailsDraft: () => "/performance/platform/defaults/guardrails/draft",
-  platformGuardrailsPublish: () => "/performance/platform/defaults/guardrails/publish",
+  platformGuardrailsApply: () => "/performance/platform/defaults/guardrails/apply",
   platformBaseline: () => "/performance/platform/defaults/baseline",
-  platformBaselineDraft: () => "/performance/platform/defaults/baseline/draft",
-  platformBaselinePublish: () => "/performance/platform/defaults/baseline/publish",
-
+  platformBaselineApply: () => "/performance/platform/defaults/baseline/apply",
   // Template categories
   templateCategories: () => "/performance/template-categories",
   templateCategory: (id: string) => `/performance/template-categories/${id}`,
@@ -444,8 +474,7 @@ export const performancePaths = {
   // Tenant objective policy
   policy: () => "/performance/policy",
   policyHistory: () => "/performance/policy/history",
-  policyDraft: () => "/performance/policy/draft",
-  policyDraftPublish: () => "/performance/policy/draft/publish",
+  policyApply: () => "/performance/policy/apply",
 
   objectiveTemplates: () => "/performance/objective-templates",
   objectiveTemplate: (id: string) => `/performance/objective-templates/${id}`,
@@ -539,9 +568,9 @@ export const performanceQueryKeys = {
   policyHistory: () => [...performanceQueryKeys.policy(), "history"] as const,
   // Platform defaults query keys
   platformDefaults: () => [...performanceQueryKeys.all(), "platform-defaults"] as const,
+  platformDefaultsSummary: () => [...performanceQueryKeys.platformDefaults(), "summary"] as const,
   platformGuardrails: () => [...performanceQueryKeys.platformDefaults(), "guardrails"] as const,
   platformBaseline: () => [...performanceQueryKeys.platformDefaults(), "baseline"] as const,
-
   notifications: () => [...performanceQueryKeys.all(), "notifications"] as const,
   notificationList: (params: { unreadOnly: boolean; page: number; pageSize: number }) =>
     [...performanceQueryKeys.notifications(), "list", params] as const,

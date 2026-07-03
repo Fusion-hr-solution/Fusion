@@ -4,7 +4,7 @@ import { useMemo, useState, useCallback } from "react";
 import { createPlatformApiClient } from "@repo/api";
 import { useApiMutation } from "@repo/api/query";
 import { performancePaths } from "@repo/api";
-import type { PolicyVersionDto, UpdatePolicyDraftRequest, PublishPolicyRequest } from "@repo/api";
+import type { ApplyPolicyRequest, PolicyVersionDto } from "@repo/api";
 import { checkWeightFeasibility } from "@/lib/weight-feasibility";
 import {
   parseWeightValues,
@@ -20,15 +20,12 @@ import { Separator } from "@/components/ui/separator";
 import { WeightPresetEditor } from "@/components/controls/weight-preset-editor";
 import { MeasurementTypePicker } from "@/components/controls/measurement-type-picker";
 import { StrategicAlignmentSelect } from "@/components/controls/strategic-alignment-select";
-import { ConfirmDialog } from "@/components/controls/confirm-dialog";
 import { toast } from "sonner";
 
-interface PolicyDraftEditorProps {
-  draft: PolicyVersionDto;
-  activeVersion: PolicyVersionDto | null;
-  onSaved: () => void;
-  onDiscard: () => void;
-  isDiscarding: boolean;
+interface PolicyApplyEditorProps {
+  currentPolicy: PolicyVersionDto;
+  onApplied: () => void;
+  onCancel: () => void;
 }
 
 interface FormState {
@@ -41,31 +38,26 @@ interface FormState {
   changeSummary: string;
 }
 
-export function PolicyDraftEditor({
-  draft,
-  activeVersion,
-  onSaved,
-  onDiscard,
-  isDiscarding,
-}: PolicyDraftEditorProps) {
+export function PolicyApplyEditor({
+  currentPolicy,
+  onApplied,
+  onCancel,
+}: PolicyApplyEditorProps) {
   const apiClient = useMemo(() => createPlatformApiClient(), []);
-  const [isDirty, setIsDirty] = useState(false);
-  const [discardOpen, setDiscardOpen] = useState(false);
-  const [publishError, setPublishError] = useState<string | null>(null);
+  const [applyError, setApplyError] = useState<string | null>(null);
 
   const [form, setForm] = useState<FormState>({
-    maxObjectivesPerPlan: draft.maxObjectivesPerPlan,
-    allowedWeightValues: draft.allowedWeightValues,
-    managerValidationSlaDays: draft.managerValidationSlaDays,
-    cascadeMode: draft.cascadeMode,
-    measurementTypes: draft.measurementTypes,
-    attachmentsEnabled: draft.attachmentsEnabled,
+    maxObjectivesPerPlan: currentPolicy.maxObjectivesPerPlan,
+    allowedWeightValues: currentPolicy.allowedWeightValues,
+    managerValidationSlaDays: currentPolicy.managerValidationSlaDays,
+    cascadeMode: currentPolicy.cascadeMode,
+    measurementTypes: currentPolicy.measurementTypes,
+    attachmentsEnabled: currentPolicy.attachmentsEnabled,
     changeSummary: "",
   });
 
   const update = useCallback(<K extends keyof FormState>(key: K, val: FormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: val }));
-    setIsDirty(true);
   }, []);
 
   const weightFeasibility = useMemo(
@@ -73,84 +65,49 @@ export function PolicyDraftEditor({
     [form.allowedWeightValues, form.maxObjectivesPerPlan],
   );
 
-  const updateDraft = useApiMutation<PolicyVersionDto, UpdatePolicyDraftRequest>(
+  const applyPolicy = useApiMutation<PolicyVersionDto, ApplyPolicyRequest>(
     (data) =>
-      apiClient.put<PolicyVersionDto>(performancePaths.policyDraft(), data, {
-        headers: { "If-Match": `"${draft.version}"` },
+      apiClient.post<PolicyVersionDto>(performancePaths.policyApply(), data, {
+        headers: { "If-Match": `"${currentPolicy.version}"` },
       }),
     {
       onSuccess: () => {
-        toast.success("Draft saved");
-        setIsDirty(false);
-        setPublishError(null);
-        onSaved();
-      },
-      onError: (err) => { toast.error(err.message); },
-    },
-  );
-
-  const publishDraft = useApiMutation<PolicyVersionDto, PublishPolicyRequest>(
-    (data) =>
-      apiClient.post<PolicyVersionDto>(performancePaths.policyDraftPublish(), data, {
-        headers: { "If-Match": `"${draft.version}"` },
-      }),
-    {
-      onSuccess: () => {
-        toast.success("Policy published — this is now the current policy for this tenant");
-        setPublishError(null);
-        onSaved();
+        toast.success("Policy applied");
+        setApplyError(null);
+        onApplied();
       },
       onError: (err) => {
-        setPublishError(err.message);
+        setApplyError(err.message);
         toast.error(err.message);
       },
     },
   );
 
-  const handleSave = () => {
-    setPublishError(null);
-    updateDraft.mutate({
+  const handleApply = () => {
+    if (!weightFeasibility.feasible) {
+      toast.error("Fix weight issues before applying.");
+      return;
+    }
+    applyPolicy.mutate({
       maxObjectivesPerPlan: form.maxObjectivesPerPlan,
       allowedWeightValues: form.allowedWeightValues,
       managerValidationSlaDays: form.managerValidationSlaDays,
       cascadeMode: form.cascadeMode,
       measurementTypes: form.measurementTypes,
       attachmentsEnabled: form.attachmentsEnabled,
-      expectedVersion: draft.version,
-    });
-  };
-
-  const handlePublish = () => {
-    if (!weightFeasibility.feasible) {
-      toast.error("Fix weight issues before publishing.");
-      return;
-    }
-    publishDraft.mutate({
-      expectedVersion: draft.version,
       changeSummary: form.changeSummary || null,
     });
   };
 
-  // Build change summary for the "before publishing" panel
-  const changes = activeVersion ? computeChanges(activeVersion, form) : null;
+  const changes = computeChanges(currentPolicy, form);
 
   return (
     <>
-      <ConfirmDialog
-        open={discardOpen}
-        onOpenChange={setDiscardOpen}
-        title="Discard unpublished changes?"
-        description="This will permanently remove the draft. The current policy will remain unchanged."
-        confirmLabel="Discard draft"
-        destructive
-        onConfirm={() => { setDiscardOpen(false); onDiscard(); }}
-      />
-
       <div className="space-y-6 max-w-2xl">
-        {publishError && (
+        {applyError && (
           <div className="rounded-md border border-destructive/30 bg-destructive/8 px-4 py-3 text-sm text-destructive space-y-1">
-            <p className="font-medium">The policy could not be published.</p>
-            <p>{publishError}</p>
+            <p className="font-medium">The policy could not be applied.</p>
+            <p>{applyError}</p>
           </div>
         )}
 
@@ -249,11 +206,11 @@ export function PolicyDraftEditor({
 
         <Separator />
 
-        {/* Before publishing */}
-        {changes && changes.length > 0 && (
+        {/* Review before Apply */}
+        {changes.length > 0 && (
           <Card className="bg-muted/40">
             <CardContent className="pt-4 pb-3 text-sm space-y-2">
-              <p className="font-medium text-foreground">Before publishing</p>
+              <p className="font-medium text-foreground">Review before Apply</p>
               <p className="text-muted-foreground text-xs">This will become the current policy for this tenant. Future campaigns will use these settings. Already-published campaigns are not affected.</p>
               <ul className="space-y-1 mt-2">
                 {changes.map((c, i) => (
@@ -282,27 +239,19 @@ export function PolicyDraftEditor({
           <div className="flex flex-wrap gap-2">
             <Button
               size="sm"
-              variant="outline"
-              onClick={handleSave}
-              disabled={updateDraft.isLoading || !isDirty}
+              onClick={handleApply}
+              disabled={applyPolicy.isLoading || !weightFeasibility.feasible}
             >
-              {updateDraft.isLoading ? "Saving…" : "Save draft"}
-            </Button>
-            <Button
-              size="sm"
-              onClick={handlePublish}
-              disabled={publishDraft.isLoading || !weightFeasibility.feasible}
-            >
-              {publishDraft.isLoading ? "Publishing…" : "Publish policy"}
+              {applyPolicy.isLoading ? "Applying…" : "Apply policy"}
             </Button>
             <Button
               size="sm"
               variant="ghost"
-              onClick={() => isDirty ? setDiscardOpen(true) : onDiscard()}
-              disabled={isDiscarding}
-              className="text-destructive hover:text-destructive ml-auto"
+              onClick={onCancel}
+              disabled={applyPolicy.isLoading}
+              className="ml-auto"
             >
-              {isDiscarding ? "Discarding…" : "Discard draft"}
+              Cancel
             </Button>
           </div>
         </div>

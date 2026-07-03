@@ -1,17 +1,13 @@
 "use client";
 
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { cn } from "@/lib/utils";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 const OPTIONS = [
-  { value: "Disabled", label: "Not used", description: "Objectives are standalone" },
-  { value: "Optional", label: "Optional", description: "Employees may align to company priorities" },
-  { value: "Required", label: "Required", description: "Employees must align each objective" },
+  { value: "Disabled", label: "Not used" },
+  { value: "Optional", label: "Optional" },
+  { value: "Required", label: "Required" },
 ] as const;
 
 interface StrategicAlignmentSelectProps {
@@ -26,18 +22,28 @@ export function StrategicAlignmentSelect({
   disabled,
 }: StrategicAlignmentSelectProps) {
   return (
-    <Select value={value} onValueChange={onChange} disabled={disabled}>
-      <SelectTrigger className="w-full max-w-xs">
-        <SelectValue placeholder="Select alignment mode" />
-      </SelectTrigger>
-      <SelectContent>
-        {OPTIONS.map((opt) => (
-          <SelectItem key={opt.value} value={opt.value}>
-            <span className="font-medium">{opt.label}</span>
-            <span className="ml-2 text-xs text-muted-foreground">&mdash; {opt.description}</span>
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <RadioGroup
+      value={value}
+      onValueChange={onChange}
+      disabled={disabled}
+      className="grid gap-2 sm:grid-cols-3"
+      aria-label="Strategic alignment"
+    >
+      {OPTIONS.map((option) => (
+        <Label
+          key={option.value}
+          htmlFor={`strategic-alignment-${option.value}`}
+          className={cn(
+            "flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border px-3 py-2 text-sm font-medium transition-colors",
+            value === option.value
+              ? "border-primary bg-primary/12 text-foreground shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.15)]"
+              : "border-border bg-background hover:bg-muted/60",
+          )}
+        >
+          <RadioGroupItem id={`strategic-alignment-${option.value}`} value={option.value} />
+          <span>{option.label}</span>
+        </Label>
+      ))}
+    </RadioGroup>
   );
 }

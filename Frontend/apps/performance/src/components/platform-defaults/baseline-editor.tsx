@@ -1,266 +1,372 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { StatusBadge } from "@repo/ds/shell";
-import { createPlatformApiClient } from "@repo/api";
+import { useEffect, useMemo, useState } from "react";
+import { TriangleAlert } from "lucide-react";
+import { ApiError, createPlatformApiClient, performancePaths } from "@repo/api";
 import { useApiMutation } from "@repo/api/query";
-import { performancePaths } from "@repo/api";
-import type { BaselineVersionDto, CreateBaselineDraftRequest } from "@repo/api";
-import { WeightPresetEditor } from "@/components/controls/weight-preset-editor";
+import type {
+  BaselineApplyResultDto,
+  BaselineVersionDto,
+  ApplyBaselineRequest,
+  GuardrailsDto,
+} from "@repo/api";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Field,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
+import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { StatusBadge } from "@repo/ds/shell";
 import { MeasurementTypePicker } from "@/components/controls/measurement-type-picker";
 import { StrategicAlignmentSelect } from "@/components/controls/strategic-alignment-select";
+import { WeightPresetEditor } from "@/components/controls/weight-preset-editor";
 import {
+  parseMeasurementTypes,
   parseWeightValues,
-  labelMeasurementTypes,
-  labelCascadeMode,
-  formatDate,
 } from "@/lib/labels";
+import { checkWeightFeasibility } from "@/lib/weight-feasibility";
 import { toast } from "sonner";
 
+const DEFAULT_POLICY: ApplyBaselineRequest = {
+  maxObjectivesPerPlan: 7,
+  allowedWeightValues: "5,10,15,20,25,30,40,50",
+  managerValidationSlaDays: 10,
+  cascadeMode: "Optional",
+  measurementTypes: "Quantitative,Qualitative",
+  attachmentsEnabled: true,
+};
+
+const REVIEW_DAY_OPTIONS = ["3", "5", "7", "10", "15", "20", "30"] as const;
+
 interface BaselineEditorProps {
-  versions: BaselineVersionDto[];
+  appliedPolicy: BaselineVersionDto | null;
+  guardrails: GuardrailsDto | null;
   onSaved: () => void;
 }
 
-export function BaselineEditor({ versions, onSaved }: BaselineEditorProps) {
+export function BaselineEditor({
+  appliedPolicy,
+  guardrails,
+  onSaved,
+}: BaselineEditorProps) {
   const apiClient = useMemo(() => createPlatformApiClient(), []);
-  const [creating, setCreating] = useState(false);
-  const [publishError, setPublishError] = useState<string | null>(null);
+  const source = useMemo(() => toBaselineRequest(appliedPolicy), [appliedPolicy]);
+  const sourceKey = JSON.stringify(source);
+  const [form, setForm] = useState<ApplyBaselineRequest>(source);
+  const [applyErrors, setApplyErrors] = useState<string[] | null>(null);
 
-  const published = versions.find((v) => v.status === "Published");
-  const draft = versions.find((v) => v.status === "Draft");
+  useEffect(() => {
+    setForm(source);
+    setApplyErrors(null);
+  }, [source, sourceKey]);
 
-  const createDraft = useApiMutation<BaselineVersionDto, CreateBaselineDraftRequest>(
-    (data) => apiClient.post<BaselineVersionDto>(performancePaths.platformBaselineDraft(), data),
+  const dirty = JSON.stringify(form) !== sourceKey;
+  const issues = useMemo(
+    () => validateBaseline(form, guardrails),
+    [form, guardrails],
+  );
+  const canApply = (dirty || !appliedPolicy) && issues.length === 0;
+
+  // One atomic step: validate server-side and apply. No Draft is created or surfaced.
+  const applyChanges = useApiMutation<BaselineApplyResultDto, ApplyBaselineRequest>(
+    (request) =>
+      apiClient.post<BaselineApplyResultDto>(performancePaths.platformBaselineApply(), request),
     {
-      onSuccess: () => { toast.success("Baseline draft created"); setPublishError(null); onSaved(); setCreating(false); },
-      onError: (err) => { toast.error(err.message); },
+      onSuccess: (result) => {
+        if (result.applied) {
+          toast.success("Standard setup updated");
+          setApplyErrors(null);
+          onSaved();
+        } else {
+          setApplyErrors(
+            result.errors.length ? result.errors : ["Could not apply the standard setup."],
+          );
+        }
+      },
+      onError: (error) => {
+        const reasons =
+          error instanceof ApiError && error.errors.length > 0 ? error.errors : [error.message];
+        setApplyErrors(reasons);
+        toast.error(reasons[0] ?? error.message);
+      },
     },
   );
 
-  const updateDraft = useApiMutation<BaselineVersionDto, CreateBaselineDraftRequest>(
-    (data) => apiClient.put<BaselineVersionDto>(performancePaths.platformBaselineDraft(), data),
-    {
-      onSuccess: () => { toast.success("Baseline draft updated"); setPublishError(null); onSaved(); setCreating(false); },
-      onError: (err) => { toast.error(err.message); },
-    },
-  );
+  const setField =
+    <K extends keyof ApplyBaselineRequest>(key: K) =>
+    (value: ApplyBaselineRequest[K]) => {
+      setApplyErrors(null);
+      setForm((current) => ({ ...current, [key]: value }));
+    };
 
-  const publishDraft = useApiMutation<BaselineVersionDto, void>(
-    () => apiClient.post<BaselineVersionDto>(performancePaths.platformBaselinePublish(), undefined),
-    {
-      onSuccess: () => { toast.success("Baseline published"); setPublishError(null); onSaved(); },
-      onError: (err) => { setPublishError(err.message); toast.error(err.message); },
-    },
-  );
+  return (
+    <Card>
+      <CardHeader density="compact">
+        <CardTitle>Standard setup</CardTitle>
+        <CardAction>
+          <StatusBadge tone={dirty ? "warning" : appliedPolicy ? "success" : "neutral"} dot>
+            {dirty ? "Editing" : appliedPolicy ? "Live" : "Empty"}
+          </StatusBadge>
+        </CardAction>
+      </CardHeader>
 
-  if (versions.length === 0 && !creating) {
-    return (
-      <Card>
-        <CardContent className="pt-6 space-y-4">
-          <p className="text-sm text-muted-foreground">
-            No default policy configured. Create a draft to define what newly provisioned tenants start with.
-          </p>
-          <Button variant="outline" size="sm" onClick={() => setCreating(true)}>
-            Create draft
+      <CardContent className="space-y-5">
+        <FieldGroup>
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
+            <div className="space-y-5">
+              <SliderField
+                label="Objectives per plan"
+                value={form.maxObjectivesPerPlan}
+                min={guardrails?.minObjectivesPerPlan ?? 1}
+                max={guardrails?.maxObjectivesPerPlan ?? 12}
+                onChange={setField("maxObjectivesPerPlan")}
+              />
+
+              <Field>
+                <FieldLabel>Allowed weights</FieldLabel>
+                <WeightPresetEditor
+                  value={form.allowedWeightValues}
+                  maxObjectives={form.maxObjectivesPerPlan}
+                  onChange={setField("allowedWeightValues")}
+                  compact
+                />
+              </Field>
+
+              <Field>
+                <FieldLabel>Measurement</FieldLabel>
+                <MeasurementTypePicker
+                  value={form.measurementTypes}
+                  onChange={setField("measurementTypes")}
+                />
+              </Field>
+            </div>
+
+            <div className="space-y-5">
+              <ChoiceField
+                label="Manager review days"
+                value={String(form.managerValidationSlaDays)}
+                options={REVIEW_DAY_OPTIONS}
+                onChange={(value) => setField("managerValidationSlaDays")(Number(value))}
+              />
+
+              <Field>
+                <FieldLabel>Alignment</FieldLabel>
+                <StrategicAlignmentSelect value={form.cascadeMode} onChange={setField("cascadeMode")} />
+              </Field>
+
+              <Field>
+                <FieldLabel>Supporting files</FieldLabel>
+                <label className="flex min-h-11 items-center justify-between gap-3 rounded-lg border border-border bg-background px-3 py-2 text-sm">
+                  <span>Allow attachments</span>
+                  <Switch
+                    checked={form.attachmentsEnabled}
+                    onCheckedChange={setField("attachmentsEnabled")}
+                  />
+                </label>
+              </Field>
+            </div>
+          </div>
+        </FieldGroup>
+
+        {issues.length > 0 ? <IssueList issues={issues} /> : null}
+
+        {applyErrors?.length ? (
+          <Alert variant="destructive">
+            <TriangleAlert />
+            <AlertTitle>Standard setup not applied</AlertTitle>
+            <AlertDescription>
+              <ul className="list-disc space-y-1 pl-5">
+                {applyErrors.map((error, index) => (
+                  <li key={`${error}-${index}`}>{error}</li>
+                ))}
+              </ul>
+            </AlertDescription>
+          </Alert>
+        ) : null}
+      </CardContent>
+
+      <CardFooter className="justify-between gap-3">
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            disabled={applyChanges.isLoading || (!dirty && Boolean(appliedPolicy))}
+            onClick={() => {
+              setForm(source);
+              setApplyErrors(null);
+            }}
+          >
+            Discard
           </Button>
-        </CardContent>
-      </Card>
-    );
+          <Button
+            type="button"
+            disabled={!canApply || applyChanges.isLoading}
+            onClick={() => applyChanges.mutate(form)}
+          >
+            {applyChanges.isLoading ? "Applying..." : "Apply"}
+          </Button>
+        </div>
+      </CardFooter>
+    </Card>
+  );
+}
+
+function SliderField({
+  label,
+  value,
+  min,
+  max = 100,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max?: number;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <Field>
+      <div className="flex items-center justify-between gap-3">
+        <FieldLabel>{label}</FieldLabel>
+        <span className="rounded-md border border-border/70 px-2 py-1 text-sm font-medium text-foreground">
+          {value}
+        </span>
+      </div>
+      <Slider
+        min={min}
+        max={max}
+        step={1}
+        value={[value]}
+        onValueChange={([next]) => onChange(next ?? min)}
+      />
+      <div className="flex items-center justify-between text-xs text-muted-foreground">
+        <span>{min}</span>
+        <span>{max}</span>
+      </div>
+    </Field>
+  );
+}
+
+function ChoiceField({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: readonly string[];
+  onChange: (value: string) => void;
+}) {
+  return (
+    <Field>
+      <FieldLabel>{label}</FieldLabel>
+      <ToggleGroup
+        type="single"
+        variant="outline"
+        spacing={2}
+        value={value}
+        onValueChange={(next) => {
+          if (next) onChange(next);
+        }}
+        className="flex w-full flex-wrap"
+      >
+        {options.map((option) => (
+          <ToggleGroupItem key={option} value={option} className="min-h-9 rounded-full px-3">
+            {option}
+          </ToggleGroupItem>
+        ))}
+      </ToggleGroup>
+    </Field>
+  );
+}
+
+function IssueList({ issues }: { issues: string[] }) {
+  return (
+    <Alert variant="destructive">
+      <TriangleAlert />
+      <AlertTitle>Fix before applying</AlertTitle>
+      <AlertDescription>
+        <ul className="list-disc space-y-1 pl-5">
+          {issues.map((issue) => (
+            <li key={issue}>{issue}</li>
+          ))}
+        </ul>
+      </AlertDescription>
+    </Alert>
+  );
+}
+
+function toBaselineRequest(
+  version: BaselineVersionDto | null | undefined,
+): ApplyBaselineRequest {
+  if (!version) {
+    return { ...DEFAULT_POLICY };
   }
 
-  return (
-    <div className="space-y-4">
-      {draft && (
-        <Card className="border-dashed border-primary/40">
-          <CardContent className="pt-5">
-            <div className="flex items-center gap-2 mb-4">
-              <span className="text-sm font-medium">Unpublished changes</span>
-              <StatusBadge tone="warning" dot>Draft v{draft.versionNumber}</StatusBadge>
-            </div>
-            <BaselineVersionDetail version={draft} />
-          </CardContent>
-          <CardFooter className="gap-2 flex-col items-start">
-            {publishError && (
-              <div className="rounded-md border border-destructive/30 bg-destructive/8 px-3 py-2 text-sm text-destructive w-full space-y-1">
-                <p className="font-medium">Could not publish baseline.</p>
-                <p>{publishError}</p>
-              </div>
-            )}
-            <div className="flex gap-2">
-              <Button size="sm" variant="outline" onClick={() => setCreating((v) => !v)}>
-                {creating ? "Close editor" : "Edit draft"}
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => publishDraft.mutate()}
-                disabled={publishDraft.isLoading}
-              >
-                {publishDraft.isLoading ? "Publishing…" : "Publish baseline"}
-              </Button>
-            </div>
-          </CardFooter>
-        </Card>
-      )}
-
-      {creating && (
-        <Card>
-          <CardContent className="pt-5">
-            <BaselineDraftForm
-              initial={draft ?? published ?? null}
-              onSubmit={(req) => (draft ? updateDraft.mutate(req) : createDraft.mutate(req))}
-              onCancel={() => setCreating(false)}
-              isLoading={createDraft.isLoading || updateDraft.isLoading}
-            />
-          </CardContent>
-        </Card>
-      )}
-
-      {published && (
-        <Card>
-          <CardContent className="pt-5">
-            <div className="flex items-center gap-2 mb-4">
-              <span className="text-sm font-medium">Current baseline</span>
-              <StatusBadge tone="success" dot>Published v{published.versionNumber}</StatusBadge>
-              {published.publishedAt && (
-                <span className="text-xs text-muted-foreground ml-auto">{formatDate(published.publishedAt)}</span>
-              )}
-            </div>
-            <BaselineVersionDetail version={published} />
-          </CardContent>
-        </Card>
-      )}
-
-      {!draft && !creating && (
-        <Button variant="outline" size="sm" onClick={() => setCreating(true)}>
-          Create new draft
-        </Button>
-      )}
-    </div>
-  );
+  return {
+    maxObjectivesPerPlan: version.maxObjectivesPerPlan,
+    allowedWeightValues: version.allowedWeightValues,
+    managerValidationSlaDays: version.managerValidationSlaDays,
+    cascadeMode: version.cascadeMode,
+    measurementTypes: version.measurementTypes,
+    attachmentsEnabled: version.attachmentsEnabled,
+  };
 }
 
-function BaselineVersionDetail({ version }: { version: BaselineVersionDto }) {
-  const weights = parseWeightValues(version.allowedWeightValues);
-  return (
-    <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2.5 text-sm">
-      <dt className="text-muted-foreground">Maximum objectives per plan</dt>
-      <dd>{version.maxObjectivesPerPlan}</dd>
-      <dt className="text-muted-foreground">Allowed objective weights</dt>
-      <dd>
-        <span className="flex flex-wrap gap-1">
-          {weights.map((w) => (
-            <span key={w} className="inline-block rounded bg-muted px-1.5 py-0.5 text-xs font-medium">{w}%</span>
-          ))}
-        </span>
-      </dd>
-      <dt className="text-muted-foreground">Manager review time</dt>
-      <dd>{version.managerValidationSlaDays} days</dd>
-      <dt className="text-muted-foreground">How objectives are measured</dt>
-      <dd>{labelMeasurementTypes(version.measurementTypes)}</dd>
-      <dt className="text-muted-foreground">Strategic alignment</dt>
-      <dd>{labelCascadeMode(version.cascadeMode)}</dd>
-      <dt className="text-muted-foreground">Supporting files</dt>
-      <dd>{version.attachmentsEnabled ? "Allowed" : "Not allowed"}</dd>
-    </dl>
-  );
-}
+function validateBaseline(
+  form: ApplyBaselineRequest,
+  guardrails: GuardrailsDto | null,
+) {
+  const issues: string[] = [];
+  const feasibility = checkWeightFeasibility(form.allowedWeightValues, form.maxObjectivesPerPlan);
+  const weights = parseWeightValues(form.allowedWeightValues);
+  const selectedTypes = parseMeasurementTypes(form.measurementTypes);
+  const supportedTypes = guardrails ? parseMeasurementTypes(guardrails.supportedMeasurementTypes) : null;
 
-interface BaselineDraftFormProps {
-  initial: BaselineVersionDto | null;
-  onSubmit: (req: CreateBaselineDraftRequest) => void;
-  onCancel: () => void;
-  isLoading: boolean;
-}
+  if (!feasibility.feasible) {
+    issues.push("Weights cannot produce a 100% plan.");
+  }
 
-function BaselineDraftForm({ initial, onSubmit, onCancel, isLoading }: BaselineDraftFormProps) {
-  const [form, setForm] = useState<CreateBaselineDraftRequest>({
-    maxObjectivesPerPlan: initial?.maxObjectivesPerPlan ?? 7,
-    allowedWeightValues: initial?.allowedWeightValues ?? "5,10,15,20,25,30,40,50",
-    managerValidationSlaDays: initial?.managerValidationSlaDays ?? 10,
-    cascadeMode: initial?.cascadeMode ?? "Optional",
-    measurementTypes: initial?.measurementTypes ?? "Quantitative,Qualitative",
-    attachmentsEnabled: initial?.attachmentsEnabled ?? true,
-  });
+  if (guardrails) {
+    if (
+      form.maxObjectivesPerPlan < guardrails.minObjectivesPerPlan ||
+      form.maxObjectivesPerPlan > guardrails.maxObjectivesPerPlan
+    ) {
+      issues.push(`Objectives must be ${guardrails.minObjectivesPerPlan}-${guardrails.maxObjectivesPerPlan}.`);
+    }
 
-  const update = <K extends keyof CreateBaselineDraftRequest>(key: K) => (val: CreateBaselineDraftRequest[K]) =>
-    setForm((prev) => ({ ...prev, [key]: val }));
+    if (
+      form.managerValidationSlaDays < guardrails.minManagerValidationSlaDays ||
+      form.managerValidationSlaDays > guardrails.maxManagerValidationSlaDays
+    ) {
+      issues.push(`Review days must be ${guardrails.minManagerValidationSlaDays}-${guardrails.maxManagerValidationSlaDays}.`);
+    }
 
-  return (
-    <form
-      className="space-y-6"
-      onSubmit={(e) => { e.preventDefault(); onSubmit(form); }}
-    >
-      <div className="space-y-1.5">
-        <Label htmlFor="maxObj">Maximum objectives per plan</Label>
-        <Input
-          id="maxObj"
-          type="number"
-          min={1}
-          value={form.maxObjectivesPerPlan}
-          onChange={(e) => update("maxObjectivesPerPlan")(Number(e.target.value))}
-          className="w-28"
-        />
-      </div>
+    if (weights.length > guardrails.maxAllowedWeightingValues) {
+      issues.push(`Use ${guardrails.maxAllowedWeightingValues} weight choices or fewer.`);
+    }
+  }
 
-      <div className="space-y-2">
-        <Label>Allowed objective weights</Label>
-        <WeightPresetEditor
-          value={form.allowedWeightValues}
-          maxObjectives={form.maxObjectivesPerPlan}
-          onChange={update("allowedWeightValues")}
-        />
-      </div>
+  if (
+    supportedTypes &&
+    ((selectedTypes.numeric && !supportedTypes.numeric) ||
+      (selectedTypes.qualitative && !supportedTypes.qualitative))
+  ) {
+    issues.push("Measurement exceeds platform limits.");
+  }
 
-      <div className="space-y-1.5">
-        <Label htmlFor="sla">Manager review time (days)</Label>
-        <div className="flex items-center gap-2">
-          <Input
-            id="sla"
-            type="number"
-            min={0}
-            value={form.managerValidationSlaDays}
-            onChange={(e) => update("managerValidationSlaDays")(Number(e.target.value))}
-            className="w-28"
-          />
-          <span className="text-sm text-muted-foreground">days</span>
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <Label>How objectives are measured</Label>
-        <MeasurementTypePicker
-          value={form.measurementTypes}
-          onChange={update("measurementTypes")}
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label>Strategic alignment</Label>
-        <StrategicAlignmentSelect
-          value={form.cascadeMode}
-          onChange={update("cascadeMode")}
-        />
-      </div>
-
-      <div className="flex items-center gap-3">
-        <Switch
-          id="attachments"
-          checked={form.attachmentsEnabled}
-          onCheckedChange={update("attachmentsEnabled")}
-        />
-        <Label htmlFor="attachments">Allow supporting files</Label>
-      </div>
-
-      <div className="flex gap-2 pt-1">
-        <Button type="submit" size="sm" disabled={isLoading}>{isLoading ? "Saving…" : "Save draft"}</Button>
-        <Button type="button" variant="ghost" size="sm" onClick={onCancel}>Cancel</Button>
-      </div>
-    </form>
-  );
+  return issues;
 }

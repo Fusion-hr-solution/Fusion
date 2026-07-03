@@ -61,14 +61,12 @@ export function labelCascadeMode(mode: string): string {
 /** Policy version statuses */
 export function policyStatusLabel(status: string): string {
   if (status === "Active") return "Current policy";
-  if (status === "Draft") return "Unpublished changes";
   if (status === "Superseded") return "Previous version";
   return status;
 }
 
 export function policyStatusTone(status: string): StatusTone {
   if (status === "Active") return "success";
-  if (status === "Draft") return "warning";
   if (status === "Superseded") return "muted";
   return "neutral";
 }
@@ -92,15 +90,13 @@ export function templateStatusTone(status: string, hasDraft: boolean): StatusTon
 
 /** Baseline/platform statuses */
 export function baselineStatusLabel(status: string): string {
-  if (status === "Published") return "Published";
-  if (status === "Draft") return "Unpublished changes";
+  if (status === "Published") return "Applied";
   if (status === "Superseded") return "Previous version";
   return status;
 }
 
 export function baselineStatusTone(status: string): StatusTone {
   if (status === "Published") return "success";
-  if (status === "Draft") return "warning";
   if (status === "Superseded") return "muted";
   return "neutral";
 }
@@ -124,4 +120,21 @@ export function applicabilityValidationTone(state: string): StatusTone {
 export function formatDate(iso: string | null | undefined): string {
   if (!iso) return "—";
   return new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(iso));
+}
+
+export function formatDateTime(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(iso));
+}
+
+export function normalizePlatformDefaultsCopy(text: string): string {
+  return text
+    .replaceAll("standard setup", "default objective policy")
+    .replaceAll("Standard setup", "Default objective policy")
+    .replaceAll("advanced limits", "platform limits")
+    .replaceAll("Advanced limits", "Platform limits")
+    .replaceAll("Platform standard setup", "Default objective policy");
 }

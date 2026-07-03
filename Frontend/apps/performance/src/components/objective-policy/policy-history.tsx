@@ -37,7 +37,7 @@ export function PolicyHistory({ apiClient, onBack }: PolicyHistoryProps) {
       {isLoading && <PageLoading rows={3} />}
 
       {versions?.length === 0 && (
-        <PageEmpty title="No history yet" description="Policy versions will appear here after the first publish." />
+        <PageEmpty title="No history yet" description="Policy versions will appear here after Apply." />
       )}
 
       {versions?.map((v) => (

@@ -1,17 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { createPlatformApiClient } from "@repo/api";
-import { useApiQuery, useApiMutation } from "@repo/api/query";
+import { ApiError, createPlatformApiClient } from "@repo/api";
+import { useApiQuery } from "@repo/api/query";
 import { performancePaths, performanceQueryKeys } from "@repo/api";
 import { hasCorePermission, useAuth } from "@repo/auth";
-import type {
-  PolicySummaryDto,
-  PolicyVersionDto,
-  CreatePolicyDraftRequest,
-} from "@repo/api";
+import type { PolicySummaryDto } from "@repo/api";
 import {
   PageContainer,
+  PageError,
   PageHeader,
   PageLoading,
   PagePermissionNotice,
@@ -19,22 +16,12 @@ import {
 } from "@repo/ds/shell";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { PolicyDraftEditor } from "./policy-draft-editor";
+import { PolicyApplyEditor } from "./policy-apply-editor";
 import { PolicyVersionDetail } from "./policy-version-detail";
 import { PolicyHistory } from "./policy-history";
 import { toast } from "sonner";
 
 type View = "summary" | "edit" | "history";
-
-// §7.2 baseline defaults
-const POLICY_DEFAULTS: CreatePolicyDraftRequest = {
-  maxObjectivesPerPlan: 7,
-  allowedWeightValues: "5,10,15,20,25,30,40,50",
-  managerValidationSlaDays: 10,
-  cascadeMode: "Optional",
-  measurementTypes: "Quantitative,Qualitative",
-  attachmentsEnabled: true,
-};
 
 export function ObjectivePolicyPage() {
   const apiClient = useMemo(() => createPlatformApiClient(), []);
@@ -53,30 +40,7 @@ export function ObjectivePolicyPage() {
   } = useApiQuery<PolicySummaryDto>(
     performanceQueryKeys.policy(),
     (signal) => apiClient.get<PolicySummaryDto>(performancePaths.policy(), { signal }),
-  );
-
-  const createDraft = useApiMutation<PolicyVersionDto, CreatePolicyDraftRequest>(
-    (data) => apiClient.post<PolicyVersionDto>(performancePaths.policyDraft(), data),
-    {
-      onSuccess: () => {
-        toast.success("Policy draft created");
-        void refetch();
-        setView("edit");
-      },
-      onError: (err) => { toast.error(err.message); },
-    },
-  );
-
-  const discardDraft = useApiMutation<void, void>(
-    () => apiClient.delete<void>(performancePaths.policyDraft()).then(() => undefined),
-    {
-      onSuccess: () => {
-        toast.success("Draft discarded");
-        void refetch();
-        setView("summary");
-      },
-      onError: (err) => { toast.error(err.message); },
-    },
+    { enabled: canView },
   );
 
   if (authLoading) return <PageLoading label="Loading…" />;
@@ -94,7 +58,37 @@ export function ObjectivePolicyPage() {
 
   if (isLoading) return <PageLoading rows={4} />;
 
-  const isEmpty = !policy && !!error;
+  // A genuinely un-provisioned tenant returns 404 (ObjectivePolicy.NotFound). Any
+  // other error is a real load failure and must be recoverable — never presented
+  // as an empty "set up policy" state, which would mask the failure.
+  const isNotProvisioned = error instanceof ApiError && error.status === 404;
+  const isForbidden = error instanceof ApiError && error.status === 403;
+
+  if (isForbidden) {
+    return (
+      <PageContainer>
+        <PagePermissionNotice
+          title="Access restricted"
+          description="You do not have access to objective policy settings for this tenant."
+        />
+      </PageContainer>
+    );
+  }
+
+  if (error && !isNotProvisioned) {
+    return (
+      <PageContainer>
+        <PageHeader title="Objective policy" />
+        <PageError
+          title="Couldn't load the objective policy"
+          description="Something went wrong. Try again."
+          onRetry={() => void refetch()}
+        />
+      </PageContainer>
+    );
+  }
+
+  const isEmpty = isNotProvisioned;
 
   return (
     <PageContainer>
@@ -116,13 +110,11 @@ export function ObjectivePolicyPage() {
 
       {view === "history" ? (
         <PolicyHistory apiClient={apiClient} onBack={() => setView("summary")} />
-      ) : view === "edit" && policy?.draftVersion ? (
-        <PolicyDraftEditor
-          draft={policy.draftVersion}
-          activeVersion={policy.activeVersion ?? null}
-          onSaved={() => { void refetch(); setView("summary"); }}
-          onDiscard={() => discardDraft.mutate()}
-          isDiscarding={discardDraft.isLoading}
+      ) : view === "edit" && policy?.currentPolicy ? (
+        <PolicyApplyEditor
+          currentPolicy={policy.currentPolicy}
+          onApplied={() => { void refetch(); setView("summary"); }}
+          onCancel={() => setView("summary")}
         />
       ) : (
         <SummaryView
@@ -133,24 +125,10 @@ export function ObjectivePolicyPage() {
               toast.error("You do not have permission to edit the objective policy.");
               return;
             }
-            if (policy?.draftVersion) {
+            if (policy?.currentPolicy) {
               setView("edit");
-            } else {
-              createDraft.mutate(
-                policy?.activeVersion
-                  ? {
-                      maxObjectivesPerPlan: policy.activeVersion.maxObjectivesPerPlan,
-                      allowedWeightValues: policy.activeVersion.allowedWeightValues,
-                      managerValidationSlaDays: policy.activeVersion.managerValidationSlaDays,
-                      cascadeMode: policy.activeVersion.cascadeMode,
-                      measurementTypes: policy.activeVersion.measurementTypes,
-                      attachmentsEnabled: policy.activeVersion.attachmentsEnabled,
-                    }
-                  : POLICY_DEFAULTS,
-              );
             }
           }}
-          isCreatingDraft={createDraft.isLoading}
           canManage={canManage}
         />
       )}
@@ -162,29 +140,20 @@ function SummaryView({
   policy,
   isEmpty,
   onEdit,
-  isCreatingDraft,
   canManage,
 }: {
   policy: PolicySummaryDto | undefined;
   isEmpty: boolean;
   onEdit: () => void;
-  isCreatingDraft: boolean;
   canManage: boolean;
 }) {
-  if (isEmpty || (!policy?.activeVersion && !policy?.draftVersion)) {
+  if (isEmpty || !policy?.currentPolicy) {
     return (
       <Card>
         <CardContent className="py-8 text-center space-y-3">
           <p className="text-sm text-muted-foreground">
-            No objective policy has been set up for this tenant yet.
+            No objective policy has been provisioned for this tenant yet.
           </p>
-          <Button
-            size="sm"
-            onClick={onEdit}
-            disabled={isCreatingDraft || !canManage}
-          >
-            {isCreatingDraft ? "Creating…" : "Set up policy"}
-          </Button>
         </CardContent>
       </Card>
     );
@@ -192,46 +161,26 @@ function SummaryView({
 
   return (
     <div className="space-y-4">
-      {policy?.draftVersion && (
-        <Card className="border-dashed border-primary/40">
-          <CardContent className="pt-5">
-            <div className="flex items-center gap-2 mb-4">
-              <span className="text-sm font-medium">Unpublished changes</span>
-              <StatusBadge tone="warning" dot>Draft</StatusBadge>
-              <span className="text-xs text-muted-foreground ml-auto">v{policy.draftVersion.versionNumber}</span>
-            </div>
-            <PolicyVersionDetail version={policy.draftVersion} />
-          </CardContent>
-          <CardFooter>
-            <Button size="sm" onClick={onEdit} disabled={!canManage}>
-              Edit draft
-            </Button>
-          </CardFooter>
-        </Card>
-      )}
-
-      {policy?.activeVersion && (
+      {policy.currentPolicy && (
         <Card>
           <CardContent className="pt-5">
             <div className="flex items-center gap-2 mb-4">
               <span className="text-sm font-medium">Current policy</span>
               <StatusBadge tone="success" dot>Active</StatusBadge>
-              <span className="text-xs text-muted-foreground ml-auto">v{policy.activeVersion.versionNumber}</span>
+              <span className="text-xs text-muted-foreground ml-auto">v{policy.currentPolicy.versionNumber}</span>
             </div>
-            <PolicyVersionDetail version={policy.activeVersion} />
+            <PolicyVersionDetail version={policy.currentPolicy} />
           </CardContent>
-          {!policy.draftVersion && (
-            <CardFooter>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={onEdit}
-                disabled={isCreatingDraft || !canManage}
-              >
-                {isCreatingDraft ? "Creating draft…" : "Edit policy"}
-              </Button>
-            </CardFooter>
-          )}
+          <CardFooter>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onEdit}
+              disabled={!canManage}
+            >
+              Edit policy
+            </Button>
+          </CardFooter>
         </Card>
       )}
     </div>

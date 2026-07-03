@@ -38,9 +38,9 @@ export function PolicyVersionDetail({ version, compact }: PolicyVersionDetailPro
   ];
 
   if (!compact) {
-    if (version.activatedAt) rows.push(["Published", formatDate(version.activatedAt)]);
+    if (version.activatedAt) rows.push(["Applied", formatDate(version.activatedAt)]);
     if (version.activatedByName && version.activatedByName !== "Migration")
-      rows.push(["Published by", version.activatedByName]);
+      rows.push(["Applied by", version.activatedByName]);
     if (version.changeSummary)
       rows.push(["Change note", version.changeSummary]);
   }
@@ -48,10 +48,10 @@ export function PolicyVersionDetail({ version, compact }: PolicyVersionDetailPro
   return (
     <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2.5 text-sm">
       {rows.map(([label, value]) => (
-        <>
-          <dt key={`dt-${label}`} className="text-muted-foreground whitespace-nowrap">{label}</dt>
-          <dd key={`dd-${label}`}>{value}</dd>
-        </>
+        <div key={label} className="contents">
+          <dt className="text-muted-foreground whitespace-nowrap">{label}</dt>
+          <dd>{value}</dd>
+        </div>
       ))}
     </dl>
   );

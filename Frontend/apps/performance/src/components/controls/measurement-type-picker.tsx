@@ -1,18 +1,18 @@
 "use client";
 
-import { cn } from "@/lib/utils";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { parseMeasurementTypes, formatMeasurementTypes, type MeasurementSet } from "@/lib/labels";
 
 interface MeasurementTypePickerProps {
-  value: string; // "Quantitative", "Qualitative", or "Quantitative,Qualitative"
+  value: string;
   onChange: (csv: string) => void;
   disabled?: boolean;
   requireAtLeastOne?: boolean;
 }
 
 const OPTIONS = [
-  { key: "numeric" as keyof MeasurementSet, label: "Numeric targets", hint: "e.g. 95% retention, 120 calls/day" },
-  { key: "qualitative" as keyof MeasurementSet, label: "Qualitative outcomes", hint: "e.g. delivered training programme" },
+  { key: "numeric" as keyof MeasurementSet, label: "Numeric targets" },
+  { key: "qualitative" as keyof MeasurementSet, label: "Qualitative outcomes" },
 ] as const;
 
 export function MeasurementTypePicker({
@@ -22,38 +22,41 @@ export function MeasurementTypePicker({
   requireAtLeastOne = true,
 }: MeasurementTypePickerProps) {
   const set = parseMeasurementTypes(value);
+  const selected = OPTIONS.filter(({ key }) => set[key]).map(({ key }) => String(key));
 
-  const toggle = (key: keyof MeasurementSet) => {
-    const next = { ...set, [key]: !set[key] };
-    if (requireAtLeastOne && !next.numeric && !next.qualitative) return;
-    onChange(formatMeasurementTypes(next));
+  const handleChange = (nextValues: string[]) => {
+    if (requireAtLeastOne && nextValues.length === 0) return;
+
+    onChange(
+      formatMeasurementTypes({
+        numeric: nextValues.includes("numeric"),
+        qualitative: nextValues.includes("qualitative"),
+      }),
+    );
   };
 
   return (
-    <div className="flex flex-col gap-2 sm:flex-row">
-      {OPTIONS.map(({ key, label, hint }) => {
-        const active = set[key];
+    <ToggleGroup
+      type="multiple"
+      variant="outline"
+      spacing={2}
+      value={selected}
+      onValueChange={handleChange}
+      disabled={disabled}
+      className="flex w-full flex-wrap"
+      aria-label="Measurement methods"
+    >
+      {OPTIONS.map(({ key, label }) => {
         return (
-          <button
+          <ToggleGroupItem
             key={key}
-            type="button"
-            disabled={disabled}
-            onClick={() => toggle(key)}
-            aria-pressed={active}
-            className={cn(
-              "flex-1 rounded-md border px-4 py-3 text-left transition-colors",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              active
-                ? "border-primary bg-primary/8 text-foreground"
-                : "border-border bg-background hover:bg-muted text-foreground",
-              disabled && "opacity-50 cursor-not-allowed",
-            )}
+            value={String(key)}
+            className="min-h-9 rounded-full px-3"
           >
-            <span className="block text-sm font-medium">{label}</span>
-            <span className="block text-xs text-muted-foreground mt-0.5">{hint}</span>
-          </button>
+            {label}
+          </ToggleGroupItem>
         );
       })}
-    </div>
+    </ToggleGroup>
   );
 }

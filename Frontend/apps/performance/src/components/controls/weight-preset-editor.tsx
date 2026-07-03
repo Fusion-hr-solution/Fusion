@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { cn } from "@/lib/utils";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { parseWeightValues, formatWeightValues } from "@/lib/labels";
 import { checkWeightFeasibility } from "@/lib/weight-feasibility";
 
@@ -12,6 +12,7 @@ interface WeightPresetEditorProps {
   maxObjectives: number;
   onChange: (csv: string) => void;
   disabled?: boolean;
+  compact?: boolean;
 }
 
 export function WeightPresetEditor({
@@ -19,15 +20,9 @@ export function WeightPresetEditor({
   maxObjectives,
   onChange,
   disabled,
+  compact = false,
 }: WeightPresetEditorProps) {
   const selected = useMemo(() => parseWeightValues(value), [value]);
-
-  const toggle = (w: number) => {
-    const next = selected.includes(w)
-      ? selected.filter((x) => x !== w)
-      : [...selected, w].sort((a, b) => a - b);
-    onChange(formatWeightValues(next));
-  };
 
   const feasibility = useMemo(
     () => checkWeightFeasibility(value, maxObjectives),
@@ -36,51 +31,54 @@ export function WeightPresetEditor({
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap gap-1.5">
-        {PRESET_WEIGHTS.map((w) => {
-          const active = selected.includes(w);
-          return (
-            <button
-              key={w}
-              type="button"
-              disabled={disabled}
-              onClick={() => toggle(w)}
-              aria-pressed={active}
-              className={cn(
-                "h-8 px-3 rounded-md border text-sm font-medium transition-colors",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                active
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "border-border bg-background hover:bg-muted text-foreground",
-                disabled && "opacity-50 cursor-not-allowed",
-              )}
-            >
-              {w}%
-            </button>
-          );
-        })}
-      </div>
+      <ToggleGroup
+        type="multiple"
+        variant="outline"
+        spacing={2}
+        value={selected.map(String)}
+        onValueChange={(next) =>
+          onChange(
+            formatWeightValues(
+              next
+                .map((entry) => Number(entry))
+                .filter((entry) => Number.isFinite(entry))
+                .sort((a, b) => a - b),
+            ),
+          )
+        }
+        disabled={disabled}
+        className="flex w-full flex-wrap"
+        aria-label="Allowed objective weights"
+      >
+        {PRESET_WEIGHTS.map((w) => (
+          <ToggleGroupItem
+            key={w}
+            value={String(w)}
+            aria-label={`${w}%`}
+            className="min-h-9 rounded-full px-3"
+          >
+            {w}%
+          </ToggleGroupItem>
+        ))}
+      </ToggleGroup>
 
-      {selected.length > 0 && (
+      {!compact && selected.length > 0 && (
         <p className="text-xs text-muted-foreground">
           Selected: {selected.map((w) => `${w}%`).join(", ")}
         </p>
       )}
 
-      <div
-        className={cn(
-          "rounded-md px-3 py-2 text-xs",
-          feasibility.feasible
-            ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-            : "bg-destructive/10 text-destructive",
-        )}
-      >
-        {feasibility.feasible ? (
-          <>Employees can reach 100% &mdash; e.g. {feasibility.example}</>
-        ) : (
-          feasibility.reason
-        )}
-      </div>
+      {!compact ? (
+        <p
+          className={
+            feasibility.feasible
+              ? "text-xs text-emerald-700 dark:text-emerald-300"
+              : "text-xs text-destructive"
+          }
+        >
+          {feasibility.feasible ? "100% possible" : feasibility.reason}
+        </p>
+      ) : null}
     </div>
   );
 }

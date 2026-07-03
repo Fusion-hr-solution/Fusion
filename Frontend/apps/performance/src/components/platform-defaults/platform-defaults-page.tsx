@@ -1,12 +1,9 @@
 "use client";
 
 import { useMemo } from "react";
-import { ShieldCheck, Settings2 } from "lucide-react";
-import { Separator } from "@/components/ui/separator";
-import { ApiError, createPlatformApiClient } from "@repo/api";
+import { ApiError, createPlatformApiClient, performancePaths, performanceQueryKeys } from "@repo/api";
 import { useApiQuery } from "@repo/api/query";
-import { performancePaths, performanceQueryKeys } from "@repo/api";
-import type { GuardrailsDto, BaselineVersionDto } from "@repo/api";
+import type { PlatformDefaultsSummaryDto } from "@repo/api";
 import {
   PageContainer,
   PageError,
@@ -14,111 +11,129 @@ import {
   PageLoading,
   StatusBadge,
 } from "@repo/ds/shell";
-import { GuardrailsEditor } from "./guardrails-editor";
+import { Card, CardContent } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BaselineEditor } from "./baseline-editor";
+import { GuardrailsEditor } from "./guardrails-editor";
+import { formatDate } from "@/lib/labels";
 
 export function PlatformDefaultsPage() {
   const apiClient = useMemo(() => createPlatformApiClient(), []);
 
   const {
-    data: guardrails,
-    isLoading: guardrailsLoading,
-    error: guardrailsError,
-    refetch: refetchGuardrails,
-  } = useApiQuery<GuardrailsDto>(
-    performanceQueryKeys.platformGuardrails(),
-    (signal) => apiClient.get<GuardrailsDto>(performancePaths.platformGuardrails(), { signal }),
+    data: summary,
+    isLoading,
+    error,
+    refetch,
+  } = useApiQuery<PlatformDefaultsSummaryDto>(
+    performanceQueryKeys.platformDefaultsSummary(),
+    (signal) =>
+      apiClient.get<PlatformDefaultsSummaryDto>(performancePaths.platformDefaultsSummary(), { signal }),
   );
 
-  const {
-    data: baselineVersions,
-    isLoading: baselineLoading,
-    error: baselineError,
-    refetch: refetchBaseline,
-  } = useApiQuery<BaselineVersionDto[]>(
-    performanceQueryKeys.platformBaseline(),
-    (signal) => apiClient.get<BaselineVersionDto[]>(performancePaths.platformBaseline(), { signal }),
-  );
-
-  const guardrailsNotConfigured = guardrailsError instanceof ApiError && guardrailsError.status === 404;
-  const baselineNotConfigured = baselineError instanceof ApiError && baselineError.status === 404;
-  const resolvedGuardrails = guardrailsNotConfigured ? null : (guardrails ?? null);
-  const resolvedBaselineVersions = baselineNotConfigured ? [] : (baselineVersions ?? []);
-
-  const draftBaseline = resolvedBaselineVersions.find((v) => v.status === "Draft");
-  const publishedBaseline = resolvedBaselineVersions.find((v) => v.status === "Published");
+  const isForbidden = error instanceof ApiError && error.status === 403;
 
   return (
     <PageContainer>
-      <PageHeader
-        title="Platform defaults"
-        description="These settings define the starting configuration for newly provisioned tenants. Existing tenants are not changed automatically."
-      />
+      <PageHeader title="Performance defaults" />
 
-      {/* Guardrails section */}
-      <section aria-labelledby="guardrails-heading" className="space-y-4">
-        <div className="flex items-center gap-2">
-          <ShieldCheck className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-          <h2 id="guardrails-heading" className="text-base font-medium">Performance guardrails</h2>
-          {guardrails && (
-            <StatusBadge tone={guardrails.isDraft ? "warning" : "success"} dot>
-              {guardrails.isDraft ? "Unpublished changes" : "Published"}
-            </StatusBadge>
-          )}
+      {isLoading ? <PageLoading rows={6} /> : null}
+
+      {!isLoading && error ? (
+        <PageError
+          title={isForbidden ? "Platform admin access required" : "Could not load defaults"}
+          description={isForbidden ? undefined : "Try again."}
+          onRetry={isForbidden ? undefined : () => void refetch()}
+        />
+      ) : null}
+
+      {!isLoading && !error && summary ? (
+        <div className="space-y-5">
+          <Card size="sm">
+            <CardContent density="compact" className="grid gap-3 py-3 sm:grid-cols-3">
+              <StatusItem
+                label="Standard setup"
+                value={summary.appliedBaseline ? "Applied" : "Missing"}
+                status={
+                  summary.appliedBaseline ? (
+                    <StatusBadge tone="success" dot>
+                      Live
+                    </StatusBadge>
+                  ) : (
+                    <StatusBadge tone="neutral" dot>
+                      Empty
+                    </StatusBadge>
+                  )
+                }
+              />
+              <StatusItem
+                label="Limits"
+                value={summary.appliedGuardrails ? "Applied" : "Missing"}
+                status={
+                  summary.appliedGuardrails ? (
+                    <StatusBadge tone="success" dot>
+                      Live
+                    </StatusBadge>
+                  ) : (
+                    <StatusBadge tone="neutral" dot>
+                      Empty
+                    </StatusBadge>
+                  )
+                }
+              />
+              <StatusItem
+                label="Last change"
+                value={summary.lastUpdated ? formatDate(summary.lastUpdated.occurredAt) : "None"}
+                status={
+                  <StatusBadge tone={summary.status.tone} dot>
+                    {summary.status.label}
+                  </StatusBadge>
+                }
+              />
+            </CardContent>
+          </Card>
+
+          <Tabs defaultValue="baseline">
+            <TabsList>
+              <TabsTrigger value="baseline">Standard setup</TabsTrigger>
+              <TabsTrigger value="limits">Limits</TabsTrigger>
+            </TabsList>
+            <TabsContent value="baseline">
+              <BaselineEditor
+                appliedPolicy={summary.appliedBaseline}
+                guardrails={summary.appliedGuardrails}
+                onSaved={() => void refetch()}
+              />
+            </TabsContent>
+            <TabsContent value="limits">
+              <GuardrailsEditor
+                appliedGuardrails={summary.appliedGuardrails}
+                onSaved={() => void refetch()}
+              />
+            </TabsContent>
+          </Tabs>
         </div>
-        <p className="text-sm text-muted-foreground">
-          System-wide limits that tenant policies cannot exceed.
-        </p>
-
-        {guardrailsLoading && <PageLoading rows={3} />}
-
-        {guardrailsError && !guardrailsNotConfigured && (
-          <PageError
-            title="Could not load guardrails"
-            description="There was a problem fetching the current guardrails."
-            onRetry={() => void refetchGuardrails()}
-          />
-        )}
-
-        {!guardrailsLoading && (!guardrailsError || guardrailsNotConfigured) && (
-          <GuardrailsEditor guardrails={resolvedGuardrails} onSaved={() => void refetchGuardrails()} />
-        )}
-      </section>
-
-      <Separator />
-
-      {/* Baseline section */}
-      <section aria-labelledby="baseline-heading" className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Settings2 className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-          <h2 id="baseline-heading" className="text-base font-medium">Default policy for new tenants</h2>
-          {draftBaseline && (
-            <StatusBadge tone="warning" dot>Unpublished changes v{draftBaseline.versionNumber}</StatusBadge>
-          )}
-          {publishedBaseline && (
-            <StatusBadge tone="success" dot>Published v{publishedBaseline.versionNumber}</StatusBadge>
-          )}
-        </div>
-        <p className="text-sm text-muted-foreground">
-          When a new tenant is provisioned, the published baseline becomes their initial objective policy.
-          Publishing a new baseline does not affect tenants that are already active.
-        </p>
-
-        {baselineLoading && <PageLoading rows={2} />}
-
-        {baselineError && !baselineNotConfigured && (
-          <PageError
-            title="Could not load baseline"
-            description="There was a problem fetching baseline versions."
-            onRetry={() => void refetchBaseline()}
-            retryLabel="Retry"
-          />
-        )}
-
-        {!baselineLoading && (!baselineError || baselineNotConfigured) && (
-          <BaselineEditor versions={resolvedBaselineVersions} onSaved={() => void refetchBaseline()} />
-        )}
-      </section>
+      ) : null}
     </PageContainer>
+  );
+}
+
+function StatusItem({
+  label,
+  value,
+  status,
+}: {
+  label: string;
+  value: string;
+  status: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-lg border border-border/70 px-3 py-2">
+      <div className="min-w-0">
+        <p className="text-xs text-muted-foreground">{label}</p>
+        <p className="truncate text-sm font-medium text-foreground">{value}</p>
+      </div>
+      {status}
+    </div>
   );
 }
