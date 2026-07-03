@@ -1,4 +1,3 @@
-using EY.HRPlatform.Performance.Exceptions;
 using EY.HRPlatform.SharedKernel.Domain;
 
 namespace EY.HRPlatform.Performance.Domain.Entities.Platform;
@@ -32,12 +31,7 @@ public class PlatformPerformanceGuardrails : BaseEntity
     public int MaxTemplateDescriptionLength { get; private set; }
     public int MaxTemplateTags { get; private set; }
 
-    /// <summary>Whether the objective-library feature is available to tenants.</summary>
-    public bool ObjectiveLibraryEnabled { get; private set; }
-
-    public bool IsDraft { get; private set; }
-
-    public static PlatformPerformanceGuardrails CreateDraft(
+    public static PlatformPerformanceGuardrails CreateApplied(
         int minObjectives,
         int maxObjectives,
         int minSlaDays,
@@ -47,8 +41,7 @@ public class PlatformPerformanceGuardrails : BaseEntity
         string supportedMeasurementTypes,
         int maxTitleLength,
         int maxDescriptionLength,
-        int maxTags,
-        bool objectiveLibraryEnabled)
+        int maxTags)
     {
         ValidateBounds(minObjectives, maxObjectives, minSlaDays, maxSlaDays,
             permittedWeightDecimalPlaces, maxAllowedWeightingValues,
@@ -67,12 +60,13 @@ public class PlatformPerformanceGuardrails : BaseEntity
             MaxTemplateTitleLength = maxTitleLength,
             MaxTemplateDescriptionLength = maxDescriptionLength,
             MaxTemplateTags = maxTags,
-            ObjectiveLibraryEnabled = objectiveLibraryEnabled,
-            IsDraft = true,
         };
     }
 
-    public void UpdateDraft(
+    /// <summary>
+    /// Atomically updates the applied singleton in place.
+    /// </summary>
+    public void Apply(
         int minObjectives,
         int maxObjectives,
         int minSlaDays,
@@ -82,12 +76,8 @@ public class PlatformPerformanceGuardrails : BaseEntity
         string supportedMeasurementTypes,
         int maxTitleLength,
         int maxDescriptionLength,
-        int maxTags,
-        bool objectiveLibraryEnabled)
+        int maxTags)
     {
-        if (!IsDraft)
-            throw new DomainRuleViolationException("Only a Draft guardrail record can be updated.");
-
         ValidateBounds(minObjectives, maxObjectives, minSlaDays, maxSlaDays,
             permittedWeightDecimalPlaces, maxAllowedWeightingValues,
             maxTitleLength, maxDescriptionLength, maxTags);
@@ -102,16 +92,6 @@ public class PlatformPerformanceGuardrails : BaseEntity
         MaxTemplateTitleLength = maxTitleLength;
         MaxTemplateDescriptionLength = maxDescriptionLength;
         MaxTemplateTags = maxTags;
-        ObjectiveLibraryEnabled = objectiveLibraryEnabled;
-        UpdatedAt = DateTime.UtcNow;
-    }
-
-    public void Publish()
-    {
-        if (!IsDraft)
-            throw new DomainRuleViolationException("Only a Draft can be published.");
-
-        IsDraft = false;
         UpdatedAt = DateTime.UtcNow;
     }
 

@@ -16,13 +16,11 @@ public class TemplateLibraryQueryTests
         var tenantId = Guid.NewGuid();
         await using var db = PerformanceTestContext.Create(tenantId, out var tenantContext);
 
-        var guardrails = PlatformPerformanceGuardrails.CreateDraft(1, 10, 0, 30, 0, 10, "Quantitative,Qualitative", 150, 500, 10, true);
-        guardrails.Publish();
+        var guardrails = PlatformPerformanceGuardrails.CreateApplied(1, 10, 0, 30, 0, 10, "Quantitative,Qualitative", 150, 500, 10);
         db.PlatformPerformanceGuardrails.Add(guardrails);
 
         var policy = TenantObjectivePolicy.Create(tenantId);
-        policy.CreateDraft(5, "10,20,25,50,100", 5, "Optional", "Quantitative,Qualitative", true, Guid.NewGuid(), "Tester");
-        policy.PublishDraft(Guid.NewGuid(), "Tester", null);
+        policy.ApplyPolicy(5, "10,20,25,50,100", 5, "Optional", "Quantitative,Qualitative", true, Guid.NewGuid(), "Tester", null);
         db.TenantObjectivePolicies.Add(policy);
 
         var draftOnly = ObjectiveTemplate.Create(tenantId);

@@ -7,35 +7,35 @@ namespace EY.HRPlatform.Performance.Features.ObjectivePolicy;
 public sealed class PolicyValidator
 {
     /// <summary>
-    /// Validates a policy draft against platform guardrails.
+    /// Validates a proposed policy against platform guardrails.
     /// Returns failure with a deterministic error code on the first violated rule.
     /// </summary>
-    public Result Validate(TenantObjectivePolicyVersion draft, PlatformPerformanceGuardrails guardrails)
+    public Result Validate(TenantObjectivePolicyVersion proposedPolicy, PlatformPerformanceGuardrails guardrails)
     {
         // Objective count within guardrail bounds
-        if (draft.MaxObjectivesPerPlan < guardrails.MinObjectivesPerPlan)
+        if (proposedPolicy.MaxObjectivesPerPlan < guardrails.MinObjectivesPerPlan)
             return Result.Failure(Error.Validation(
                 "ObjectivePolicy.MaxObjectivesBelowMinimum",
-                $"MaxObjectivesPerPlan ({draft.MaxObjectivesPerPlan}) is below the platform minimum ({guardrails.MinObjectivesPerPlan})."));
+                $"MaxObjectivesPerPlan ({proposedPolicy.MaxObjectivesPerPlan}) is below the platform minimum ({guardrails.MinObjectivesPerPlan})."));
 
-        if (draft.MaxObjectivesPerPlan > guardrails.MaxObjectivesPerPlan)
+        if (proposedPolicy.MaxObjectivesPerPlan > guardrails.MaxObjectivesPerPlan)
             return Result.Failure(Error.Validation(
                 "ObjectivePolicy.MaxObjectivesAboveMaximum",
-                $"MaxObjectivesPerPlan ({draft.MaxObjectivesPerPlan}) exceeds the platform maximum ({guardrails.MaxObjectivesPerPlan})."));
+                $"MaxObjectivesPerPlan ({proposedPolicy.MaxObjectivesPerPlan}) exceeds the platform maximum ({guardrails.MaxObjectivesPerPlan})."));
 
         // Manager validation SLA within guardrail bounds
-        if (draft.ManagerValidationSlaDays < guardrails.MinManagerValidationSlaDays)
+        if (proposedPolicy.ManagerValidationSlaDays < guardrails.MinManagerValidationSlaDays)
             return Result.Failure(Error.Validation(
                 "ObjectivePolicy.SlaBelowMinimum",
-                $"ManagerValidationSlaDays ({draft.ManagerValidationSlaDays}) is below the platform minimum ({guardrails.MinManagerValidationSlaDays})."));
+                $"ManagerValidationSlaDays ({proposedPolicy.ManagerValidationSlaDays}) is below the platform minimum ({guardrails.MinManagerValidationSlaDays})."));
 
-        if (draft.ManagerValidationSlaDays > guardrails.MaxManagerValidationSlaDays)
+        if (proposedPolicy.ManagerValidationSlaDays > guardrails.MaxManagerValidationSlaDays)
             return Result.Failure(Error.Validation(
                 "ObjectivePolicy.SlaAboveMaximum",
-                $"ManagerValidationSlaDays ({draft.ManagerValidationSlaDays}) exceeds the platform maximum ({guardrails.MaxManagerValidationSlaDays})."));
+                $"ManagerValidationSlaDays ({proposedPolicy.ManagerValidationSlaDays}) exceeds the platform maximum ({guardrails.MaxManagerValidationSlaDays})."));
 
         // Parse and validate allowed weight values
-        var weightStrings = draft.AllowedWeightValues
+        var weightStrings = proposedPolicy.AllowedWeightValues
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
         if (weightStrings.Length == 0)
@@ -77,7 +77,7 @@ public sealed class PolicyValidator
                 "AllowedWeightValues contains duplicate entries."));
 
         // Measurement types: non-empty and within supported set
-        var enabledTypes = draft.MeasurementTypes
+        var enabledTypes = proposedPolicy.MeasurementTypes
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
         if (enabledTypes.Length == 0)
@@ -97,10 +97,10 @@ public sealed class PolicyValidator
 
         // Weight feasibility: at least one combination of allowed weights sums to exactly 100
         // within MaxObjectivesPerPlan items.
-        if (!CanReachOneHundred(weights, draft.MaxObjectivesPerPlan))
+        if (!CanReachOneHundred(weights, proposedPolicy.MaxObjectivesPerPlan))
             return Result.Failure(Error.Validation(
                 "ObjectivePolicy.WeightFeasibilityFailed",
-                $"No combination of allowed weights ({draft.AllowedWeightValues}) sums to exactly 100% within {draft.MaxObjectivesPerPlan} objective(s)."));
+                $"No combination of allowed weights ({proposedPolicy.AllowedWeightValues}) sums to exactly 100% within {proposedPolicy.MaxObjectivesPerPlan} objective(s)."));
 
         return Result.Success();
     }

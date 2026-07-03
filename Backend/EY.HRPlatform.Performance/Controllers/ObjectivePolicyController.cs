@@ -45,26 +45,9 @@ public class ObjectivePolicyController(
             : MapFailure(result.Error);
     }
 
-    [HttpPost("draft")]
-    public async Task<IActionResult> CreateDraft(
-        [FromBody] CreatePolicyDraftRequest request,
-        CancellationToken cancellationToken)
-    {
-        if (!accessPolicy.CanManageObjectivePolicy(User))
-            return Forbid();
-
-        var result = await sender.Send(new CreatePolicyDraftCommand(User, request), cancellationToken);
-
-        if (result.IsFailure)
-            return MapFailure(result.Error);
-
-        SetETag(result.Value.Version);
-        return Ok(ApiResponse<PolicyVersionDto>.Success(result.Value));
-    }
-
-    [HttpPut("draft")]
-    public async Task<IActionResult> UpdateDraft(
-        [FromBody] UpdatePolicyDraftRequest request,
+    [HttpPost("apply")]
+    public async Task<IActionResult> ApplyPolicy(
+        [FromBody] ApplyPolicyRequest request,
         [FromHeader(Name = "If-Match")] string? ifMatch,
         CancellationToken cancellationToken)
     {
@@ -74,47 +57,13 @@ public class ObjectivePolicyController(
         if (!TryParseVersion(ifMatch, out var expectedVersion))
             return PreconditionRequired();
 
-        var req = request with { ExpectedVersion = expectedVersion };
-        var result = await sender.Send(new UpdatePolicyDraftCommand(User, req), cancellationToken);
+        var result = await sender.Send(new ApplyPolicyCommand(User, request, expectedVersion), cancellationToken);
 
         if (result.IsFailure)
             return MapFailure(result.Error);
 
         SetETag(result.Value.Version);
         return Ok(ApiResponse<PolicyVersionDto>.Success(result.Value));
-    }
-
-    [HttpPost("draft/publish")]
-    public async Task<IActionResult> PublishDraft(
-        [FromBody] PublishPolicyRequest? request,
-        [FromHeader(Name = "If-Match")] string? ifMatch,
-        CancellationToken cancellationToken)
-    {
-        if (!accessPolicy.CanManageObjectivePolicy(User))
-            return Forbid();
-
-        if (!TryParseVersion(ifMatch, out var expectedVersion))
-            return PreconditionRequired();
-
-        var req = new PublishPolicyRequest(expectedVersion, request?.ChangeSummary);
-        var result = await sender.Send(new PublishPolicyCommand(User, req), cancellationToken);
-
-        return result.IsSuccess
-            ? Ok(ApiResponse<PolicyVersionDto>.Success(result.Value))
-            : MapFailure(result.Error);
-    }
-
-    [HttpDelete("draft")]
-    public async Task<IActionResult> DiscardDraft(CancellationToken cancellationToken)
-    {
-        if (!accessPolicy.CanManageObjectivePolicy(User))
-            return Forbid();
-
-        var result = await sender.Send(new DiscardPolicyDraftCommand(User), cancellationToken);
-
-        return result.IsSuccess
-            ? NoContent()
-            : MapFailure(result.Error);
     }
 
     // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -126,7 +75,8 @@ public class ObjectivePolicyController(
         if (error.Code.EndsWith("NotFound", StringComparison.OrdinalIgnoreCase))
             return NotFound(ApiResponse.Failure(error.Message));
 
-        if (error.Code.EndsWith("ConcurrencyConflict", StringComparison.OrdinalIgnoreCase) ||
+        if (error.Code.EndsWith("StaleApply", StringComparison.OrdinalIgnoreCase) ||
+            error.Code.EndsWith("ConcurrencyConflict", StringComparison.OrdinalIgnoreCase) ||
             error.Code.EndsWith("CompatibilityConflict", StringComparison.OrdinalIgnoreCase))
             return Conflict(ApiResponse.Failure(error.Message));
 

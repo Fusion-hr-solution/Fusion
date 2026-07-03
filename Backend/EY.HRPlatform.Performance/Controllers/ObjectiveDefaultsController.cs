@@ -2,6 +2,7 @@ using EY.HRPlatform.Performance.Features.PlatformDefaults.Commands;
 using EY.HRPlatform.Performance.Features.PlatformDefaults.Dtos;
 using EY.HRPlatform.Performance.Features.PlatformDefaults.Queries;
 using EY.HRPlatform.Performance.Features.Security;
+using EY.HRPlatform.Performance.Models.Responses;
 using EY.HRPlatform.SharedKernel.Api;
 using EY.HRPlatform.SharedKernel.Results;
 using MediatR;
@@ -23,6 +24,18 @@ public class ObjectiveDefaultsController(
 {
     // ─── Guardrails ───────────────────────────────────────────────────────────
 
+    [HttpGet("summary")]
+    public async Task<IActionResult> GetSummary(CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanManagePlatformDefaults(User))
+            return Forbid();
+
+        var result = await sender.Send(new GetPlatformDefaultsSummaryQuery(), cancellationToken);
+        return result.IsSuccess
+            ? Ok(ApiResponse<PlatformDefaultsSummaryDto>.Success(result.Value))
+            : MapFailure(result.Error);
+    }
+
     [HttpGet("guardrails")]
     public async Task<IActionResult> GetGuardrails(CancellationToken cancellationToken)
     {
@@ -35,62 +48,21 @@ public class ObjectiveDefaultsController(
             : MapFailure(result.Error);
     }
 
-    [HttpPost("guardrails/draft")]
-    public async Task<IActionResult> CreateGuardrailsDraft(
-        [FromBody] CreateGuardrailsDraftRequest request,
+    /// <summary>
+    /// Atomically applies advanced platform limits in one step (no Draft lifecycle). Returns the
+    /// applied limits, or a blocked result carrying the impact when active tenants/standard setup conflict.
+    /// </summary>
+    [HttpPost("guardrails/apply")]
+    public async Task<IActionResult> ApplyGuardrails(
+        [FromBody] ApplyGuardrailsRequest request,
         CancellationToken cancellationToken)
     {
         if (!accessPolicy.CanManagePlatformDefaults(User))
             return Forbid();
 
-        var result = await sender.Send(
-            new CreateGuardrailsDraftCommand(User, request), cancellationToken);
-
-        if (result.IsFailure)
-            return MapFailure(result.Error);
-
-        SetETag(result.Value.Version);
-        return Ok(ApiResponse<GuardrailsDto>.Success(result.Value));
-    }
-
-    [HttpPut("guardrails/draft")]
-    public async Task<IActionResult> UpdateGuardrailsDraft(
-        [FromBody] CreateGuardrailsDraftRequest request,
-        [FromHeader(Name = "If-Match")] string? ifMatch,
-        CancellationToken cancellationToken)
-    {
-        if (!accessPolicy.CanManagePlatformDefaults(User))
-            return Forbid();
-
-        if (!TryParseVersion(ifMatch, out var expectedVersion))
-            return PreconditionRequired();
-
-        var result = await sender.Send(
-            new UpdateGuardrailsDraftCommand(User, request, expectedVersion), cancellationToken);
-
-        if (result.IsFailure)
-            return MapFailure(result.Error);
-
-        SetETag(result.Value.Version);
-        return Ok(ApiResponse<GuardrailsDto>.Success(result.Value));
-    }
-
-    [HttpPost("guardrails/publish")]
-    public async Task<IActionResult> PublishGuardrails(
-        [FromHeader(Name = "If-Match")] string? ifMatch,
-        CancellationToken cancellationToken)
-    {
-        if (!accessPolicy.CanManagePlatformDefaults(User))
-            return Forbid();
-
-        if (!TryParseVersion(ifMatch, out var expectedVersion))
-            return PreconditionRequired();
-
-        var result = await sender.Send(
-            new PublishGuardrailsCommand(User, expectedVersion), cancellationToken);
-
+        var result = await sender.Send(new ApplyGuardrailsCommand(User, request), cancellationToken);
         return result.IsSuccess
-            ? Ok(ApiResponse<GuardrailsDto>.Success(result.Value))
+            ? Ok(ApiResponse<GuardrailsApplyResultDto>.Success(result.Value))
             : MapFailure(result.Error);
     }
 
@@ -108,54 +80,25 @@ public class ObjectiveDefaultsController(
             : MapFailure(result.Error);
     }
 
-    [HttpPost("baseline/draft")]
-    public async Task<IActionResult> CreateBaselineDraft(
-        [FromBody] CreateBaselineDraftRequest request,
+    /// <summary>
+    /// Atomically applies the standard-setup baseline in one step (no Draft lifecycle). Publishes a
+    /// new version (superseding the prior, preserving history) when valid, or returns validation errors.
+    /// </summary>
+    [HttpPost("baseline/apply")]
+    public async Task<IActionResult> ApplyBaseline(
+        [FromBody] ApplyBaselineRequest request,
         CancellationToken cancellationToken)
     {
         if (!accessPolicy.CanManagePlatformDefaults(User))
             return Forbid();
 
-        var result = await sender.Send(
-            new CreateBaselineDraftCommand(User, request), cancellationToken);
-
+        var result = await sender.Send(new ApplyBaselineCommand(User, request), cancellationToken);
         return result.IsSuccess
-            ? Ok(ApiResponse<BaselineVersionDto>.Success(result.Value))
-            : MapFailure(result.Error);
-    }
-
-    [HttpPut("baseline/draft")]
-    public async Task<IActionResult> UpdateBaselineDraft(
-        [FromBody] CreateBaselineDraftRequest request,
-        CancellationToken cancellationToken)
-    {
-        if (!accessPolicy.CanManagePlatformDefaults(User))
-            return Forbid();
-
-        var result = await sender.Send(
-            new UpdateBaselineDraftCommand(User, request), cancellationToken);
-
-        return result.IsSuccess
-            ? Ok(ApiResponse<BaselineVersionDto>.Success(result.Value))
-            : MapFailure(result.Error);
-    }
-
-    [HttpPost("baseline/publish")]
-    public async Task<IActionResult> PublishBaseline(CancellationToken cancellationToken)
-    {
-        if (!accessPolicy.CanManagePlatformDefaults(User))
-            return Forbid();
-
-        var result = await sender.Send(new PublishBaselineCommand(User), cancellationToken);
-
-        return result.IsSuccess
-            ? Ok(ApiResponse<BaselineVersionDto>.Success(result.Value))
+            ? Ok(ApiResponse<BaselineApplyResultDto>.Success(result.Value))
             : MapFailure(result.Error);
     }
 
     // ─── Helpers ──────────────────────────────────────────────────────────────
-
-    private void SetETag(uint version) => Response.Headers.ETag = $"\"{version}\"";
 
     private IActionResult MapFailure(Error error)
     {
@@ -163,24 +106,9 @@ public class ObjectiveDefaultsController(
             return NotFound(ApiResponse.Failure(error.Message));
 
         if (error.Code.EndsWith("ConcurrencyConflict", StringComparison.OrdinalIgnoreCase) ||
-            error.Code.EndsWith("ImpactConflict", StringComparison.OrdinalIgnoreCase) ||
-            error.Code.EndsWith("DraftExists", StringComparison.OrdinalIgnoreCase))
+            error.Code.EndsWith("ImpactConflict", StringComparison.OrdinalIgnoreCase))
             return Conflict(ApiResponse.Failure(error.Message));
 
         return BadRequest(ApiResponse.Failure(error.Message));
-    }
-
-    private IActionResult PreconditionRequired()
-        => StatusCode(StatusCodes.Status428PreconditionRequired,
-            ApiResponse.Failure("If-Match header with the current version is required."));
-
-    private static bool TryParseVersion(string? ifMatch, out uint version)
-    {
-        version = 0;
-        if (string.IsNullOrWhiteSpace(ifMatch)) return false;
-        var trimmed = ifMatch.Trim().Trim('"');
-        if (trimmed.StartsWith("W/", StringComparison.OrdinalIgnoreCase))
-            trimmed = trimmed[2..].Trim('"');
-        return uint.TryParse(trimmed, out version);
     }
 }

@@ -11,14 +11,14 @@ public sealed record TemplateCompatibilityIssue(Guid TemplateId, string Template
 public sealed class TemplateCompatibilityChecker(PerformanceDbContext db)
 {
     /// <summary>
-    /// Checks active templates against the proposed policy draft.
+    /// Checks active templates against the proposed policy.
     /// Returns the list of templates that would become invalid under the new policy.
     /// </summary>
     public async Task<IReadOnlyList<TemplateCompatibilityIssue>> CheckAsync(
-        TenantObjectivePolicyVersion draft,
+        TenantObjectivePolicyVersion proposedPolicy,
         CancellationToken cancellationToken)
     {
-        var allowedWeights = draft.AllowedWeightValues
+        var allowedWeights = proposedPolicy.AllowedWeightValues
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Select(w => decimal.TryParse(w, out var v) ? (decimal?)v : null)
             .Where(v => v is not null)
@@ -27,7 +27,7 @@ public sealed class TemplateCompatibilityChecker(PerformanceDbContext db)
 
         var issues = new List<TemplateCompatibilityIssue>();
 
-        var supportedTypes = draft.MeasurementTypes
+        var supportedTypes = proposedPolicy.MeasurementTypes
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
@@ -53,7 +53,7 @@ public sealed class TemplateCompatibilityChecker(PerformanceDbContext db)
                     revision.TemplateId,
                     revision.Title,
                     "MeasurementType",
-                    $"MeasurementType '{revision.MeasurementType}' is not supported by the policy ({draft.MeasurementTypes})."));
+                    $"MeasurementType '{revision.MeasurementType}' is not supported by the policy ({proposedPolicy.MeasurementTypes})."));
             }
 
             if (revision.SuggestedWeighting is { } weight && !allowedWeights.Contains(weight))
@@ -62,7 +62,7 @@ public sealed class TemplateCompatibilityChecker(PerformanceDbContext db)
                     revision.TemplateId,
                     revision.Title,
                     "SuggestedWeighting",
-                    $"SuggestedWeighting={weight}% is not in the policy's allowed weights ({draft.AllowedWeightValues})."));
+                    $"SuggestedWeighting={weight}% is not in the policy's allowed weights ({proposedPolicy.AllowedWeightValues})."));
             }
         }
 

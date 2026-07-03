@@ -1,21 +1,17 @@
 using EY.HRPlatform.Performance.Domain.Entities.Platform;
 using EY.HRPlatform.Performance.Features.Provisioning;
 using EY.HRPlatform.Performance.Tests.TestSupport;
+using EY.HRPlatform.SharedKernel.Multitenancy;
 using Microsoft.EntityFrameworkCore;
 
 namespace EY.HRPlatform.Performance.Tests.Features.Provisioning;
 
 public class ProvisionTenantTests
 {
-    private static PlatformObjectiveBaseline CreatePublishedBaseline()
+    private static PlatformObjectiveBaseline CreateAppliedBaseline()
     {
-        var guardrails = PlatformPerformanceGuardrails.CreateDraft(
-            1, 10, 0, 30, 0, 10, "Quantitative,Qualitative", 150, 500, 10, true);
-        guardrails.Publish();
-
         var baseline = PlatformObjectiveBaseline.Create();
-        baseline.CreateDraft(4, "25,50", 5, "Optional", "Quantitative,Qualitative", true);
-        baseline.PublishDraft();
+        baseline.Apply(4, "25,50", 5, "Optional", "Quantitative,Qualitative", true);
         return baseline;
     }
 
@@ -25,16 +21,15 @@ public class ProvisionTenantTests
         var tenantId = Guid.NewGuid();
         await using var db = PerformanceTestContext.Create(Guid.NewGuid(), out _);
 
-        var guardrails = PlatformPerformanceGuardrails.CreateDraft(
-            1, 10, 0, 30, 0, 10, "Quantitative,Qualitative", 150, 500, 10, true);
-        guardrails.Publish();
+        var guardrails = PlatformPerformanceGuardrails.CreateApplied(
+            1, 10, 0, 30, 0, 10, "Quantitative,Qualitative", 150, 500, 10);
         db.PlatformPerformanceGuardrails.Add(guardrails);
 
-        var baseline = CreatePublishedBaseline();
+        var baseline = CreateAppliedBaseline();
         db.PlatformObjectiveBaselines.Add(baseline);
         await db.SaveChangesAsync();
 
-        var handler = new ProvisionTenantCommandHandler(db);
+        var handler = new ProvisionTenantCommandHandler(db, new TenantContext());
         var result = await handler.Handle(new ProvisionTenantCommand(tenantId), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -58,16 +53,15 @@ public class ProvisionTenantTests
         var tenantId = Guid.NewGuid();
         await using var db = PerformanceTestContext.Create(Guid.NewGuid(), out _);
 
-        var guardrails = PlatformPerformanceGuardrails.CreateDraft(
-            1, 10, 0, 30, 0, 10, "Quantitative,Qualitative", 150, 500, 10, true);
-        guardrails.Publish();
+        var guardrails = PlatformPerformanceGuardrails.CreateApplied(
+            1, 10, 0, 30, 0, 10, "Quantitative,Qualitative", 150, 500, 10);
         db.PlatformPerformanceGuardrails.Add(guardrails);
 
-        var baseline = CreatePublishedBaseline();
+        var baseline = CreateAppliedBaseline();
         db.PlatformObjectiveBaselines.Add(baseline);
         await db.SaveChangesAsync();
 
-        var handler = new ProvisionTenantCommandHandler(db);
+        var handler = new ProvisionTenantCommandHandler(db, new TenantContext());
 
         // First provision
         var first = await handler.Handle(new ProvisionTenantCommand(tenantId), CancellationToken.None);
@@ -88,53 +82,43 @@ public class ProvisionTenantTests
     }
 
     [Fact]
-    public async Task Provision_Fails_WhenNoPublishedBaselineExists()
+    public async Task Provision_Fails_WhenNoAppliedBaselineExists()
     {
         var tenantId = Guid.NewGuid();
         await using var db = PerformanceTestContext.Create(Guid.NewGuid(), out _);
 
-        var handler = new ProvisionTenantCommandHandler(db);
+        var handler = new ProvisionTenantCommandHandler(db, new TenantContext());
         var result = await handler.Handle(new ProvisionTenantCommand(tenantId), CancellationToken.None);
 
         Assert.True(result.IsFailure);
-        Assert.Equal("Provisioning.NoPublishedBaseline", result.Error.Code);
+        Assert.Equal("Provisioning.NoAppliedBaseline", result.Error.Code);
     }
 
     [Fact]
-    public async Task Provision_CopiesActiveStarterTemplates_AsActiveRevisions()
+    public async Task Provision_Leaves_Template_Library_Empty_For_New_Tenant()
     {
         var tenantId = Guid.NewGuid();
         await using var db = PerformanceTestContext.Create(Guid.NewGuid(), out _);
 
-        var guardrails = PlatformPerformanceGuardrails.CreateDraft(
-            1, 10, 0, 30, 0, 10, "Quantitative,Qualitative", 150, 500, 10, true);
-        guardrails.Publish();
+        var guardrails = PlatformPerformanceGuardrails.CreateApplied(
+            1, 10, 0, 30, 0, 10, "Quantitative,Qualitative", 150, 500, 10);
         db.PlatformPerformanceGuardrails.Add(guardrails);
 
-        var baseline = CreatePublishedBaseline();
+        var baseline = CreateAppliedBaseline();
         db.PlatformObjectiveBaselines.Add(baseline);
-
-        var starter = PlatformStarterTemplate.Create(
-            "Quality Improvement", "Improve quality metrics.", "Quantitative",
-            null, null, 100m, "%", "Achieve 95% quality score", 1);
-        db.PlatformStarterTemplates.Add(starter);
         await db.SaveChangesAsync();
 
-        var handler = new ProvisionTenantCommandHandler(db);
+        var handler = new ProvisionTenantCommandHandler(db, new TenantContext());
         var result = await handler.Handle(new ProvisionTenantCommand(tenantId), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
 
         var templates = await db.ObjectiveTemplateContainers
             .IgnoreQueryFilters()
-            .Include(t => t.Revisions)
             .Where(t => t.TenantId == tenantId)
             .ToListAsync();
 
-        Assert.Single(templates);
-        Assert.Equal("Active", templates[0].Status.ToString());
-        Assert.Single(templates[0].Revisions, r => r.Status.ToString() == "Active");
-        Assert.Equal("Quality Improvement", templates[0].ActiveRevision!.Title);
+        Assert.Empty(templates);
     }
 
     [Fact]
@@ -144,16 +128,15 @@ public class ProvisionTenantTests
         var newTenantId = Guid.NewGuid();
         await using var db = PerformanceTestContext.Create(Guid.NewGuid(), out _);
 
-        var guardrails = PlatformPerformanceGuardrails.CreateDraft(
-            1, 10, 0, 30, 0, 10, "Quantitative,Qualitative", 150, 500, 10, true);
-        guardrails.Publish();
+        var guardrails = PlatformPerformanceGuardrails.CreateApplied(
+            1, 10, 0, 30, 0, 10, "Quantitative,Qualitative", 150, 500, 10);
         db.PlatformPerformanceGuardrails.Add(guardrails);
 
-        var baseline = CreatePublishedBaseline();
+        var baseline = CreateAppliedBaseline();
         db.PlatformObjectiveBaselines.Add(baseline);
         await db.SaveChangesAsync();
 
-        var handler = new ProvisionTenantCommandHandler(db);
+        var handler = new ProvisionTenantCommandHandler(db, new TenantContext());
 
         // Provision existing tenant
         var existing = await handler.Handle(new ProvisionTenantCommand(existingTenantId), CancellationToken.None);

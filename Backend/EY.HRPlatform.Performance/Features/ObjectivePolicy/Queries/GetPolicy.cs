@@ -26,8 +26,7 @@ public sealed class GetPolicyQueryHandler(PerformanceDbContext db)
 
         return new PolicySummaryDto(
             policy.Id,
-            policy.ActiveVersion is not null ? ToDto(policy.ActiveVersion) : null,
-            policy.Draft is not null ? ToDto(policy.Draft) : null);
+            policy.ActiveVersion is not null ? ToDto(policy.ActiveVersion) : null);
     }
 
     internal static PolicyVersionDto ToDto(TenantObjectivePolicyVersion v) => new(

@@ -17,6 +17,7 @@ public sealed class GetBaselineQueryHandler(PerformanceDbContext db)
         CancellationToken cancellationToken)
     {
         var versions = await db.PlatformObjectiveBaselineVersions
+            .AsNoTracking()
             .OrderByDescending(v => v.VersionNumber)
             .ToListAsync(cancellationToken);
 

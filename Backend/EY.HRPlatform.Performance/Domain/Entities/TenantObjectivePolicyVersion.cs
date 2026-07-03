@@ -4,7 +4,7 @@ using EY.HRPlatform.SharedKernel.Multitenancy;
 
 namespace EY.HRPlatform.Performance.Domain.Entities;
 
-public enum PolicyVersionStatus { Draft, Active, Superseded }
+public enum PolicyVersionStatus { Active, Superseded }
 
 public class TenantObjectivePolicyVersion : BaseEntity, ITenantEntity
 {
@@ -44,7 +44,7 @@ public class TenantObjectivePolicyVersion : BaseEntity, ITenantEntity
     public string? ChangeSummary { get; private set; }
     public DateTime? SupersededAt { get; private set; }
 
-    internal static TenantObjectivePolicyVersion Create(
+    internal static TenantObjectivePolicyVersion CreateApplied(
         Guid tenantId,
         Guid policyId,
         int versionNumber,
@@ -54,8 +54,9 @@ public class TenantObjectivePolicyVersion : BaseEntity, ITenantEntity
         string cascadeMode,
         string measurementTypes,
         bool attachmentsEnabled,
-        Guid createdByUserId,
-        string? createdByName,
+        Guid appliedByUserId,
+        string? appliedByName,
+        string? changeSummary,
         Guid? sourceVersionId = null,
         Guid? sourceBaselineVersionId = null)
     {
@@ -76,31 +77,22 @@ public class TenantObjectivePolicyVersion : BaseEntity, ITenantEntity
             TenantId = tenantId,
             PolicyId = policyId,
             VersionNumber = versionNumber,
-            Status = PolicyVersionStatus.Draft,
+            Status = PolicyVersionStatus.Active,
             MaxObjectivesPerPlan = maxObjectivesPerPlan,
             AllowedWeightValues = allowedWeightValues.Trim(),
             ManagerValidationSlaDays = managerValidationSlaDays,
             CascadeMode = cascadeMode.Trim(),
             MeasurementTypes = measurementTypes.Trim(),
             AttachmentsEnabled = attachmentsEnabled,
-            CreatedByUserId = createdByUserId,
-            CreatedByName = createdByName,
+            CreatedByUserId = appliedByUserId,
+            CreatedByName = appliedByName,
+            ActivatedAt = DateTime.UtcNow,
+            ActivatedByUserId = appliedByUserId,
+            ActivatedByName = appliedByName,
+            ChangeSummary = changeSummary,
             SourceVersionId = sourceVersionId,
             SourceBaselineVersionId = sourceBaselineVersionId,
         };
-    }
-
-    internal void Activate(Guid activatedByUserId, string? activatedByName, string? changeSummary)
-    {
-        if (Status != PolicyVersionStatus.Draft)
-            throw new DomainRuleViolationException("Only a Draft version can be activated.");
-
-        Status = PolicyVersionStatus.Active;
-        ActivatedAt = DateTime.UtcNow;
-        ActivatedByUserId = activatedByUserId;
-        ActivatedByName = activatedByName;
-        ChangeSummary = changeSummary;
-        UpdatedAt = DateTime.UtcNow;
     }
 
     internal void Supersede()
@@ -113,23 +105,17 @@ public class TenantObjectivePolicyVersion : BaseEntity, ITenantEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
-    internal void UpdateDraft(
+    internal bool HasSamePolicyValues(
         int maxObjectivesPerPlan,
         string allowedWeightValues,
         int managerValidationSlaDays,
         string cascadeMode,
         string measurementTypes,
         bool attachmentsEnabled)
-    {
-        if (Status != PolicyVersionStatus.Draft)
-            throw new DomainRuleViolationException("Only Draft versions can be updated.");
-
-        MaxObjectivesPerPlan = maxObjectivesPerPlan;
-        AllowedWeightValues = allowedWeightValues.Trim();
-        ManagerValidationSlaDays = managerValidationSlaDays;
-        CascadeMode = cascadeMode.Trim();
-        MeasurementTypes = measurementTypes.Trim();
-        AttachmentsEnabled = attachmentsEnabled;
-        UpdatedAt = DateTime.UtcNow;
-    }
+        => MaxObjectivesPerPlan == maxObjectivesPerPlan
+            && string.Equals(AllowedWeightValues, allowedWeightValues.Trim(), StringComparison.Ordinal)
+            && ManagerValidationSlaDays == managerValidationSlaDays
+            && string.Equals(CascadeMode, cascadeMode.Trim(), StringComparison.Ordinal)
+            && string.Equals(MeasurementTypes, measurementTypes.Trim(), StringComparison.Ordinal)
+            && AttachmentsEnabled == attachmentsEnabled;
 }

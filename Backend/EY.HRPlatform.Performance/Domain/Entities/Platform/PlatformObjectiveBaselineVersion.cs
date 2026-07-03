@@ -3,11 +3,11 @@ using EY.HRPlatform.SharedKernel.Domain;
 
 namespace EY.HRPlatform.Performance.Domain.Entities.Platform;
 
-public enum BaselineVersionStatus { Draft, Published, Superseded }
+public enum BaselineVersionStatus { Published, Superseded }
 
 /// <summary>
 /// Immutable-once-published content version of the platform baseline policy.
-/// Draft → Published → Superseded.
+/// Published → Superseded.
 /// </summary>
 public class PlatformObjectiveBaselineVersion : BaseEntity
 {
@@ -35,7 +35,7 @@ public class PlatformObjectiveBaselineVersion : BaseEntity
     public DateTime? PublishedAt { get; private set; }
     public DateTime? SupersededAt { get; private set; }
 
-    internal static PlatformObjectiveBaselineVersion Create(
+    internal static PlatformObjectiveBaselineVersion CreateApplied(
         Guid baselineId,
         int versionNumber,
         int maxObjectives,
@@ -59,50 +59,15 @@ public class PlatformObjectiveBaselineVersion : BaseEntity
             Id = Guid.NewGuid(),
             BaselineId = baselineId,
             VersionNumber = versionNumber,
-            Status = BaselineVersionStatus.Draft,
+            Status = BaselineVersionStatus.Published,
             MaxObjectivesPerPlan = maxObjectives,
             AllowedWeightValues = allowedWeightValues.Trim(),
             ManagerValidationSlaDays = managerValidationSlaDays,
             CascadeMode = cascadeMode.Trim(),
             MeasurementTypes = measurementTypes.Trim(),
             AttachmentsEnabled = attachmentsEnabled,
+            PublishedAt = DateTime.UtcNow,
         };
-    }
-
-    internal void Publish()
-    {
-        if (Status != BaselineVersionStatus.Draft)
-            throw new DomainRuleViolationException("Only a Draft version can be published.");
-
-        Status = BaselineVersionStatus.Published;
-        PublishedAt = DateTime.UtcNow;
-        UpdatedAt = DateTime.UtcNow;
-    }
-
-    internal void UpdateDraft(
-        int maxObjectives,
-        string allowedWeightValues,
-        int managerValidationSlaDays,
-        string cascadeMode,
-        string measurementTypes,
-        bool attachmentsEnabled)
-    {
-        if (Status != BaselineVersionStatus.Draft)
-            throw new DomainRuleViolationException("Only a Draft version can be updated.");
-        if (maxObjectives < 1)
-            throw new ArgumentException("MaxObjectivesPerPlan must be at least 1.", nameof(maxObjectives));
-        if (string.IsNullOrWhiteSpace(allowedWeightValues))
-            throw new ArgumentException("AllowedWeightValues cannot be empty.", nameof(allowedWeightValues));
-        if (string.IsNullOrWhiteSpace(measurementTypes))
-            throw new ArgumentException("MeasurementTypes cannot be empty.", nameof(measurementTypes));
-
-        MaxObjectivesPerPlan = maxObjectives;
-        AllowedWeightValues = allowedWeightValues.Trim();
-        ManagerValidationSlaDays = managerValidationSlaDays;
-        CascadeMode = cascadeMode.Trim();
-        MeasurementTypes = measurementTypes.Trim();
-        AttachmentsEnabled = attachmentsEnabled;
-        UpdatedAt = DateTime.UtcNow;
     }
 
     internal void Supersede()

@@ -1,8 +1,7 @@
 using EY.HRPlatform.Performance.Domain.Entities;
-using EY.HRPlatform.Performance.Domain.Entities.Platform;
-using EY.HRPlatform.Performance.Domain.Enums;
 using EY.HRPlatform.Performance.Infrastructure.Persistence;
 using EY.HRPlatform.SharedKernel.CQRS;
+using EY.HRPlatform.SharedKernel.Multitenancy;
 using EY.HRPlatform.SharedKernel.Results;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,7 +11,7 @@ public sealed record ProvisionTenantResult(bool WasAlreadyProvisioned, Guid Poli
 
 public sealed record ProvisionTenantCommand(Guid TenantId) : ICommand<Result<ProvisionTenantResult>>;
 
-public sealed class ProvisionTenantCommandHandler(PerformanceDbContext db)
+public sealed class ProvisionTenantCommandHandler(PerformanceDbContext db, TenantContext tenantContext)
     : ICommandHandler<ProvisionTenantCommand, Result<ProvisionTenantResult>>
 {
     public async Task<Result<ProvisionTenantResult>> Handle(
@@ -32,7 +31,7 @@ public sealed class ProvisionTenantCommandHandler(PerformanceDbContext db)
         if (existing is not null)
             return Result.Success(new ProvisionTenantResult(true, existing.Id));
 
-        // Get the published baseline.
+        // Get the applied baseline version used for new tenants.
         var baseline = await db.PlatformObjectiveBaselines
             .AsNoTracking()
             .Include(b => b.Versions)
@@ -40,52 +39,28 @@ public sealed class ProvisionTenantCommandHandler(PerformanceDbContext db)
 
         if (baseline?.PublishedVersion is null)
             return Result.Failure<ProvisionTenantResult>(new Error(
-                "Provisioning.NoPublishedBaseline",
-                "No published performance baseline exists. Publish a baseline before provisioning tenants."));
+                "Provisioning.NoAppliedBaseline",
+                "No applied performance standard setup exists. Apply a standard setup before provisioning tenants."));
 
-        var published = baseline.PublishedVersion;
+        var appliedBaseline = baseline.PublishedVersion;
+
+        // This is a signed service-to-service call with no ambient tenant context. Establish the
+        // target tenant so the fail-closed tenant interceptor accepts the new tenant-owned policy.
+        if (!tenantContext.IsResolved)
+            tenantContext.SetTenant(tenantId);
 
         // Create tenant policy.
         var policy = TenantObjectivePolicy.Create(tenantId);
         policy.ProvisionFromBaseline(
-            published.MaxObjectivesPerPlan,
-            published.AllowedWeightValues,
-            published.ManagerValidationSlaDays,
-            published.CascadeMode,
-            published.MeasurementTypes,
-            published.AttachmentsEnabled,
-            published.Id);
+            appliedBaseline.MaxObjectivesPerPlan,
+            appliedBaseline.AllowedWeightValues,
+            appliedBaseline.ManagerValidationSlaDays,
+            appliedBaseline.CascadeMode,
+            appliedBaseline.MeasurementTypes,
+            appliedBaseline.AttachmentsEnabled,
+            appliedBaseline.Id);
 
         db.TenantObjectivePolicies.Add(policy);
-
-        // Copy active platform starter templates to the tenant.
-        var starterTemplates = await db.PlatformStarterTemplates
-            .AsNoTracking()
-            .Where(t => t.IsActive)
-            .OrderBy(t => t.SortOrder).ThenBy(t => t.Title)
-            .ToListAsync(cancellationToken);
-
-        foreach (var starter in starterTemplates)
-        {
-            var container = ObjectiveTemplate.Create(tenantId);
-            var revision = container.CreateDraftRevision(
-                starter.Title,
-                starter.Description,
-                null,
-                starter.MeasurementType,
-                starter.SuggestedWeighting,
-                starter.Tags,
-                starter.TargetValue,
-                starter.Unit,
-                starter.SuccessCriteria,
-                tenantId.ToString(),
-                "System",
-                null);
-
-            revision.SetApplicabilityValidationState("Valid");
-            container.ActivateRevision(tenantId.ToString(), "System", "Provisioned from platform starter pack");
-            db.ObjectiveTemplateContainers.Add(container);
-        }
 
         await db.SaveChangesAsync(cancellationToken);
         return Result.Success(new ProvisionTenantResult(false, policy.Id));

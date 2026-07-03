@@ -56,7 +56,6 @@ public class PerformanceDbContext : DbContext
     public DbSet<PlatformPerformanceGuardrails> PlatformPerformanceGuardrails => Set<PlatformPerformanceGuardrails>();
     public DbSet<PlatformObjectiveBaseline> PlatformObjectiveBaselines => Set<PlatformObjectiveBaseline>();
     public DbSet<PlatformObjectiveBaselineVersion> PlatformObjectiveBaselineVersions => Set<PlatformObjectiveBaselineVersion>();
-    public DbSet<PlatformStarterTemplate> PlatformStarterTemplates => Set<PlatformStarterTemplate>();
 
 
     // Tenant objective policy

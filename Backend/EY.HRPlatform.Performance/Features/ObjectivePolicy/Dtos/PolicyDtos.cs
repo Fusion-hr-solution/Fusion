@@ -24,26 +24,13 @@ public sealed record PolicyVersionDto(
 
 public sealed record PolicySummaryDto(
     Guid PolicyId,
-    PolicyVersionDto? ActiveVersion,
-    PolicyVersionDto? DraftVersion);
+    PolicyVersionDto? CurrentPolicy);
 
-public sealed record CreatePolicyDraftRequest(
-    int MaxObjectivesPerPlan,
-    string AllowedWeightValues,
-    int ManagerValidationSlaDays,
-    string CascadeMode,
-    string MeasurementTypes,
-    bool AttachmentsEnabled);
-
-public sealed record UpdatePolicyDraftRequest(
+public sealed record ApplyPolicyRequest(
     int MaxObjectivesPerPlan,
     string AllowedWeightValues,
     int ManagerValidationSlaDays,
     string CascadeMode,
     string MeasurementTypes,
     bool AttachmentsEnabled,
-    uint ExpectedVersion);
-
-public sealed record PublishPolicyRequest(
-    uint ExpectedVersion,
     string? ChangeSummary = null);

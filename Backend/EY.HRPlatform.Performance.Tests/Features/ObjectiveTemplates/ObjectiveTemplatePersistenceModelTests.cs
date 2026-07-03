@@ -22,4 +22,16 @@ public class ObjectiveTemplatePersistenceModelTests
         Assert.Single(foreignKeys);
         Assert.Equal("TemplateId", foreignKeys[0].Properties.Single().Name);
     }
+
+    [Fact]
+    public void Legacy_PlatformStarterTemplate_Runtime_Model_Is_Removed()
+    {
+        using var db = PerformanceTestContext.Create(Guid.NewGuid(), out _);
+
+        var legacyEntity = db.Model.FindEntityType(
+            "EY.HRPlatform.Performance.Domain.Entities.Platform.PlatformStarterTemplate");
+
+        Assert.Null(legacyEntity);
+        Assert.Null(typeof(PerformanceDbContext).GetProperty("PlatformStarterTemplates"));
+    }
 }

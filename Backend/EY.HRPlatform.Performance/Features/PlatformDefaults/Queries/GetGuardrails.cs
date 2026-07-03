@@ -16,9 +16,8 @@ public sealed class GetGuardrailsQueryHandler(PerformanceDbContext db)
         GetGuardrailsQuery request,
         CancellationToken cancellationToken)
     {
-        // Return the draft if one exists (admin is editing); otherwise return the published record.
         var guardrails = await db.PlatformPerformanceGuardrails
-            .OrderByDescending(g => g.IsDraft)
+            .AsNoTracking()
             .FirstOrDefaultAsync(cancellationToken);
 
         if (guardrails is null)
@@ -29,11 +28,11 @@ public sealed class GetGuardrailsQueryHandler(PerformanceDbContext db)
     }
 
     internal static GuardrailsDto ToDto(PlatformPerformanceGuardrails g) => new(
-        g.Id, g.Version, g.IsDraft,
+        g.Id, g.Version,
         g.MinObjectivesPerPlan, g.MaxObjectivesPerPlan,
         g.MinManagerValidationSlaDays, g.MaxManagerValidationSlaDays,
         g.PermittedWeightDecimalPlaces, g.MaxAllowedWeightingValues,
         g.SupportedMeasurementTypes,
         g.MaxTemplateTitleLength, g.MaxTemplateDescriptionLength,
-        g.MaxTemplateTags, g.ObjectiveLibraryEnabled);
+        g.MaxTemplateTags);
 }
