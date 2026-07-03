@@ -41,7 +41,6 @@ import {
   type EmployeeImportIssueGroup,
 } from "@/app/(pages)/employees/import/employee-import-validation";
 import {
-  AppliedResultPanel,
   BatchActionPanel,
   EmptyImportState,
   ImportHistoryPanel,
@@ -68,7 +67,10 @@ import {
 } from "@/app/(pages)/employees/import/use-employee-import";
 
 const HISTORY_PAGE_SIZE = 5;
-const APPLY_STATUS_POLL_INTERVAL_MS = 2000;
+// Poll fast while the import is actively running so the progress bar tracks the server in near
+// real time; back off while it's only queued and waiting for the worker to pick it up.
+const APPLY_STATUS_POLL_RUNNING_MS = 500;
+const APPLY_STATUS_POLL_QUEUED_MS = 1000;
 
 function toApplyResult(
   session: {
@@ -246,30 +248,28 @@ export default function EmployeeImportWorkspace() {
     }
   }, [currentApplyOperation, session]);
 
+  const applyOperationStatus = currentApplyOperation?.status;
   useEffect(() => {
-    if (!activeApplySessionId || !currentApplyOperation) {
+    if (!activeApplySessionId) {
       return;
     }
 
-    if (
-      currentApplyOperation.status !== "Queued" &&
-      currentApplyOperation.status !== "Running"
-    ) {
+    if (applyOperationStatus !== "Queued" && applyOperationStatus !== "Running") {
       return;
     }
 
+    // Poll only the lightweight apply-status endpoint. The heavy session payload is refetched once
+    // on the terminal transition by the effect below — no need to re-pull it every tick.
+    const intervalMs =
+      applyOperationStatus === "Running"
+        ? APPLY_STATUS_POLL_RUNNING_MS
+        : APPLY_STATUS_POLL_QUEUED_MS;
     const intervalId = window.setInterval(() => {
       void refetchApplyOperation();
-      void refetchSession();
-    }, APPLY_STATUS_POLL_INTERVAL_MS);
+    }, intervalMs);
 
     return () => window.clearInterval(intervalId);
-  }, [
-    activeApplySessionId,
-    currentApplyOperation,
-    refetchApplyOperation,
-    refetchSession,
-  ]);
+  }, [activeApplySessionId, applyOperationStatus, refetchApplyOperation]);
 
   useEffect(() => {
     if (!session || !currentApplyOperation) {
@@ -713,36 +713,27 @@ export default function EmployeeImportWorkspace() {
 
       {session ? (
         <>
-          {isAppliedSession ? (
-            <AppliedResultPanel
-              session={session}
-              applyResult={lastApplyResult}
-              onUpload={handleBrowse}
-            />
-          ) : (
-            <BatchActionPanel
-              session={session}
-              applyOperation={currentApplyOperation}
-              isValidating={validateImport.isLoading}
-              isUploading={uploadImport.isLoading}
-              isDownloadingTemplate={downloadTemplate.isLoading}
-              isApplying={isApplying}
-              applyError={applyError}
-              onValidate={handleValidateSession}
-              onUpload={handleBrowse}
-              onDownloadTemplate={handleDownloadTemplate}
-              onApply={handleApplySession}
-            />
-          )}
+          <BatchActionPanel
+            session={session}
+            applyOperation={currentApplyOperation}
+            applyResult={lastApplyResult}
+            isValidating={validateImport.isLoading}
+            isUploading={uploadImport.isLoading}
+            isDownloadingTemplate={downloadTemplate.isLoading}
+            isApplying={isApplying}
+            applyError={applyError}
+            onValidate={handleValidateSession}
+            onUpload={handleBrowse}
+            onDownloadTemplate={handleDownloadTemplate}
+            onApply={handleApplySession}
+          />
 
-          {isAppliedSession ? (
-            <ImportHistoryPanel
-              historyPage={historyPage}
-              isHistoryLoading={isHistoryLoading}
-              historyError={historyError}
-              onPageChange={handleHistoryPageChange}
-            />
-          ) : null}
+          <ImportHistoryPanel
+            historyPage={historyPage}
+            isHistoryLoading={isHistoryLoading}
+            historyError={historyError}
+            onPageChange={handleHistoryPageChange}
+          />
 
           <div
             className={
@@ -833,15 +824,6 @@ export default function EmployeeImportWorkspace() {
 
             </Card>
           </div>
-
-          {!isAppliedSession ? (
-            <ImportHistoryPanel
-              historyPage={historyPage}
-              isHistoryLoading={isHistoryLoading}
-              historyError={historyError}
-              onPageChange={handleHistoryPageChange}
-            />
-          ) : null}
 
           <SecondaryDetailsPanel
             key={session ? `${session.id}:${session.stage}` : "empty-session"}

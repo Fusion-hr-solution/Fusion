@@ -129,6 +129,7 @@ describe("ImportHistoryPanel", () => {
     expect(screen.queryByText("user-1")).not.toBeInTheDocument();
   });
 
+  // TODO(deletion): This test is for the removed AppliedResultPanel — delete this test block.
   it("routes the import CTA to plain access without query context", () => {
     const appliedSession = {
       stage: "Applied",
@@ -165,12 +166,15 @@ describe("BatchActionPanel", () => {
     const queuedOperation = {
       id: "apply-1",
       status: "Queued",
+      validatedRowCount: 5,
+      processedRowCount: 0,
     } as EmployeeImportApplyOperationDto;
 
     render(
       <BatchActionPanel
         session={validatedSession}
         applyOperation={queuedOperation}
+        applyResult={null}
         isValidating={false}
         isUploading={false}
         isDownloadingTemplate={false}
@@ -188,8 +192,76 @@ describe("BatchActionPanel", () => {
       "aria-valuenow",
       "0"
     );
+    expect(screen.getByText("Waiting to start")).toBeInTheDocument();
+    expect(screen.getByText("5 rows ready")).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /importing employees/i })
     ).toBeDisabled();
+  });
+
+  it("shows live running progress while rows are being imported", () => {
+    const runningOperation = {
+      id: "apply-2",
+      status: "Running",
+      validatedRowCount: 5,
+      processedRowCount: 3,
+    } as EmployeeImportApplyOperationDto;
+
+    render(
+      <BatchActionPanel
+        session={validatedSession}
+        applyOperation={runningOperation}
+        applyResult={null}
+        isValidating={false}
+        isUploading={false}
+        isDownloadingTemplate={false}
+        isApplying
+        applyError={null}
+        onValidate={vi.fn()}
+        onUpload={vi.fn()}
+        onDownloadTemplate={vi.fn()}
+        onApply={vi.fn(async () => true)}
+      />
+    );
+
+    expect(screen.getAllByText("Importing")).toHaveLength(2);
+    expect(screen.getByText("3 / 5")).toBeInTheDocument();
+    expect(screen.getByRole("progressbar")).toHaveAttribute(
+      "aria-valuenow",
+      "60"
+    );
+  });
+
+  it("shows finalizing once every row has been processed", () => {
+    const finalizingOperation = {
+      id: "apply-3",
+      status: "Running",
+      validatedRowCount: 5,
+      processedRowCount: 5,
+    } as EmployeeImportApplyOperationDto;
+
+    render(
+      <BatchActionPanel
+        session={validatedSession}
+        applyOperation={finalizingOperation}
+        applyResult={null}
+        isValidating={false}
+        isUploading={false}
+        isDownloadingTemplate={false}
+        isApplying
+        applyError={null}
+        onValidate={vi.fn()}
+        onUpload={vi.fn()}
+        onDownloadTemplate={vi.fn()}
+        onApply={vi.fn(async () => true)}
+      />
+    );
+
+    expect(screen.getByText("Finalizing")).toBeInTheDocument();
+    expect(screen.getByText("Committing")).toBeInTheDocument();
+    expect(screen.getByRole("progressbar")).toHaveAttribute(
+      "aria-valuenow",
+      "100"
+    );
   });
 });

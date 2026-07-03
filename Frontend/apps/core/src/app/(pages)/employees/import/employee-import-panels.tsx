@@ -65,7 +65,6 @@ import {
 import type {
   EmployeeImportApplyOperationDto,
   EmployeeImportApplyResultDto,
-  EmployeeImportHistoryDetailDto,
   EmployeeImportHistoryPageDto,
   EmployeeImportSessionDto,
   ImportHistoryEventType,
@@ -137,6 +136,30 @@ function getImportModeLabel(mode: EmployeeImportSessionDto["importMode"]): strin
 }
 
 function getBatchHealthItems(session: EmployeeImportSessionDto): BatchHealthItem[] {
+  if (session.stage === "Applied") {
+    return [
+      {
+        label: "Ready rows",
+        value: session.lastApplyOperation?.processedRowCount ?? session.sourceRowCount,
+        tone: "success",
+      },
+      {
+        label: "Issues",
+        value: 0,
+        tone: "default",
+      },
+      {
+        label: "Warnings",
+        value: 0,
+        tone: "default",
+      },
+      {
+        label: "Mode",
+        value: getImportModeLabel(session.importMode),
+        tone: "default",
+      },
+    ];
+  }
   return [
     {
       label: "Ready rows",
@@ -188,6 +211,28 @@ function getApplyProgressValue(
   );
 }
 
+function getApplyProgressSummary(
+  applyOperation: EmployeeImportApplyOperationDto | null,
+  percent: number
+): string {
+  if (!applyOperation) {
+    return "0%";
+  }
+
+  const total = applyOperation.validatedRowCount ?? 0;
+  if (applyOperation.status === "Queued") {
+    return total > 0 ? `${total} rows ready` : "Waiting";
+  }
+
+  if (applyOperation.status === "Running") {
+    return total > 0
+      ? `${Math.min(applyOperation.processedRowCount, total)} / ${total}`
+      : `${percent}%`;
+  }
+
+  return `${percent}%`;
+}
+
 function getWorkflowStatusLabel({
   session,
   isValidating,
@@ -201,6 +246,13 @@ function getWorkflowStatusLabel({
   variant: "default" | "secondary" | "outline" | "destructive";
   cardClassName: string;
 } {
+  if (session.stage === "Applied") {
+    return {
+      label: "Imported",
+      variant: "secondary",
+      cardClassName: "border-emerald-200/60 bg-card dark:border-emerald-500/25",
+    };
+  }
   if (session.stage === "Expired") {
     return {
       label: "Expired",
@@ -257,6 +309,16 @@ function getWorkflowHeadline({
   isApplying: boolean;
   applyOperation: EmployeeImportApplyOperationDto | null;
 }) {
+  if (session.stage === "Applied") {
+    const createdCount =
+      applyOperation?.createdCount ?? session.validationSummary.validRows;
+    return {
+      title: `${createdCount} employee${
+        createdCount === 1 ? "" : "s"
+      } imported`,
+    };
+  }
+
   if (session.stage === "Expired") {
     return {
       title: "Session expired",
@@ -318,6 +380,10 @@ function getWorkflowSteps({
   isValidating: boolean;
   isApplying: boolean;
 }): ImportWorkflowStep[] {
+  if (session.stage === "Applied") {
+    return getCompletedSteps();
+  }
+
   if (session.stage === "Expired") {
     return [
       {
@@ -467,6 +533,18 @@ function getWorkflowProgressModel({
   isApplying: boolean;
   applyOperation: EmployeeImportApplyOperationDto | null;
 }): WorkflowProgressModel {
+  if (session.stage === "Applied") {
+    return {
+      value: 100,
+      title: "Import complete",
+      valueText: "Done",
+      toneClassName: "text-emerald-700 dark:text-emerald-300",
+      trackClassName: "bg-emerald-100 dark:bg-emerald-500/15",
+      indicatorClassName: "bg-emerald-500 dark:bg-emerald-400",
+      pulse: false,
+    };
+  }
+
   if (session.stage === "Expired") {
     return {
       value: 18,
@@ -483,8 +561,8 @@ function getWorkflowProgressModel({
     const percent = getApplyProgressValue(applyOperation);
     return {
       value: percent,
-      title: "Queued",
-      valueText: `${percent}%`,
+      title: "Waiting to start",
+      valueText: getApplyProgressSummary(applyOperation, percent),
       toneClassName: "text-primary",
       trackClassName: "bg-primary/10 dark:bg-primary/15",
       indicatorClassName: "bg-primary",
@@ -494,10 +572,18 @@ function getWorkflowProgressModel({
 
   if (applyOperation?.status === "Running" || session.stage === "Applying") {
     const percent = getApplyProgressValue(applyOperation);
+    // Once every row has been processed the server is committing the batch — surface that as a
+    // distinct "Finalizing" step instead of parking the bar at 100% while it looks stalled.
+    const isFinalizing =
+      applyOperation?.status === "Running" &&
+      (applyOperation?.validatedRowCount ?? 0) > 0 &&
+      (applyOperation?.processedRowCount ?? 0) >= (applyOperation?.validatedRowCount ?? 0);
     return {
       value: percent,
-      title: "Importing",
-      valueText: `${percent}%`,
+      title: isFinalizing ? "Finalizing" : "Importing",
+      valueText: isFinalizing
+        ? "Committing"
+        : getApplyProgressSummary(applyOperation, percent),
       toneClassName: "text-primary",
       trackClassName: "bg-primary/10 dark:bg-primary/15",
       indicatorClassName: "bg-primary",
@@ -831,9 +917,38 @@ function ActionCluster({
   );
 }
 
+function AppliedCtaCluster() {
+  const { user } = useAuth();
+  const canOpenAccessWorkspace =
+    canAccessCoreAccess(user) || canManageCoreAccessProfiles(user);
+  const canOpenEmployeeDirectory = canAccessEmployeeRoster(user);
+
+  return (
+    <div className="grid grid-cols-2 gap-1.5">
+      {canOpenAccessWorkspace ? (
+        <Button asChild size="sm" className="w-full justify-center">
+          <Link href="/access">
+            <Unlock />
+            Activate access
+          </Link>
+        </Button>
+      ) : null}
+      {canOpenEmployeeDirectory ? (
+        <Button asChild type="button" variant="outline" size="sm" className="w-full justify-center">
+          <Link href="/employees">
+            <Users />
+            See employees
+          </Link>
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
 export function BatchActionPanel({
   session,
   applyOperation,
+  applyResult,
   isValidating,
   isUploading,
   isDownloadingTemplate,
@@ -846,6 +961,7 @@ export function BatchActionPanel({
 }: {
   session: EmployeeImportSessionDto;
   applyOperation: EmployeeImportApplyOperationDto | null;
+  applyResult: EmployeeImportApplyResultDto | null;
   isValidating: boolean;
   isUploading: boolean;
   isDownloadingTemplate: boolean;
@@ -882,7 +998,10 @@ export function BatchActionPanel({
     isApplying,
     applyOperation,
   });
-  const statusIcon = isApplying ? (
+  const isApplied = session.stage === "Applied";
+  const statusIcon = isApplied ? (
+    <CheckCircle2 className="size-4 text-emerald-600 dark:text-emerald-400" />
+  ) : isApplying ? (
     <Spinner className="size-4 text-primary" />
   ) : isValidated && !hasErrors ? (
     <CheckCircle2 className="size-4 text-emerald-600 dark:text-emerald-400" />
@@ -951,21 +1070,25 @@ export function BatchActionPanel({
           <aside className="flex flex-col gap-3 self-start rounded-xl border border-border/50 bg-muted/30 p-3.5 sm:p-4 xl:sticky xl:top-4 dark:bg-muted/20">
             <div className="space-y-2.5">
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Batch controls</p>
-              <ActionCluster
-                session={session}
-                isReadyToImport={isReadyToImport}
-                isExpired={isExpired}
-                hasErrors={hasErrors}
-                isValidating={isValidating}
-                isUploading={isUploading}
-                isApplying={isApplying}
-                onValidate={onValidate}
-                onUpload={onUpload}
-                onApply={onApply}
-                isConfirmOpen={isConfirmOpen}
-                setIsConfirmOpen={setIsConfirmOpen}
-                applyError={applyError}
-              />
+              {isApplied ? (
+                <AppliedCtaCluster />
+              ) : (
+                <ActionCluster
+                  session={session}
+                  isReadyToImport={isReadyToImport}
+                  isExpired={isExpired}
+                  hasErrors={hasErrors}
+                  isValidating={isValidating}
+                  isUploading={isUploading}
+                  isApplying={isApplying}
+                  onValidate={onValidate}
+                  onUpload={onUpload}
+                  onApply={onApply}
+                  isConfirmOpen={isConfirmOpen}
+                  setIsConfirmOpen={setIsConfirmOpen}
+                  applyError={applyError}
+                />
+              )}
 
               <div className="grid gap-1.5 sm:grid-cols-2">
                 {!isExpired && !hasErrors ? (
@@ -1032,6 +1155,8 @@ export function BatchActionPanel({
   );
 }
 
+// TODO(deletion): AppliedResultPanel is dead code — replaced by BatchActionPanel handling the Applied state inline.
+// Remove AppliedResultPanel, formatCreatedEmployeesSummary, and formatNeedsAccessSummary.
 export function AppliedResultPanel({
   session,
   applyResult,
@@ -1184,6 +1309,7 @@ function ImportHistoryListSkeleton() {
   );
 }
 
+// TODO(deletion): These three formatters are dead code — only used by the removed AppliedResultPanel.
 function formatCreatedEmployeesSummary(count: number): string {
   return `${count} employee${count === 1 ? " was" : "s were"} created.`;
 }
