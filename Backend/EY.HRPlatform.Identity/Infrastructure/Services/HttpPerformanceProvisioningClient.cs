@@ -11,9 +11,13 @@ public sealed class HttpPerformanceProvisioningClient(
     {
         try
         {
+            // Root-relative path (leading slash): the request is signed before the HttpClient resolves
+            // BaseAddress, so the signed path must match the absolute path the authorizer verifies
+            // (`/internal/...`). Without the leading slash the signature is computed over the relative
+            // path and fails authorization.
             using var request = new HttpRequestMessage(
                 HttpMethod.Post,
-                $"internal/performance/tenants/{tenantId}/provision");
+                $"/internal/performance/tenants/{tenantId}/provision");
             await signer.SignAsync(request, cancellationToken);
             using var response = await httpClient.SendAsync(request, cancellationToken);
             if (!response.IsSuccessStatusCode)
