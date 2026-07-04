@@ -176,6 +176,7 @@
     "dark": "Dark"
   },
   "common": {
+    "noRatings": "No ratings yet",
     "status": {
       "in-progress": "In Progress",
       "completed": "Completed",

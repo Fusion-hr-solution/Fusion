@@ -7,7 +7,7 @@ export function sortTrainings(trainings: Training[], sort: SortOption): Training
   };
   return [...trainings].sort((a, b) => {
     switch (sort) {
-      case "rating": return b.rating - a.rating;
+      case "rating": return (b.rating ?? 0) - (a.rating ?? 0);
       case "newest": return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
       case "enrolled": return b.enrolledCount - a.enrolledCount;
       case "duration": return parseDuration(a.duration) - parseDuration(b.duration);

@@ -46,7 +46,7 @@ export function getTrainingDetailStats(training: Training): TrainingStatItem[] {
     },
     {
       icon: Star,
-      value: String(training.rating),
+      value: training.rating != null ? training.rating.toFixed(1) : "—",
       labelKey: "rating",
       iconClass: "text-muted-foreground",
       bgClass: "bg-muted",

@@ -101,6 +101,9 @@ export interface BackendTrainingDto {
   costType: string;
   scheduledDate: string | null;
   createdAt: string;
+  /** Average learner rating (1..5, 2 decimals) from post-training feedback; null when unrated. */
+  averageRating: number | null;
+  ratingCount: number;
 }
 
 export interface BackendTrainingDetailDto extends BackendTrainingDto {
@@ -126,6 +129,9 @@ export interface BackendMyTrainingDto {
   completedAt: string | null;
   assignmentType: string;
   dueDate: string | null;
+  /** Average learner rating (1..5, 2 decimals) from post-training feedback; null when unrated. */
+  averageRating: number | null;
+  ratingCount: number;
 }
 
 export interface BackendPagedResponse<T> {
