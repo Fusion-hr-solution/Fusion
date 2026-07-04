@@ -217,6 +217,29 @@
     animation: ey-count-pop 0.3s ease-out;
   }
 
+  /* Chat assistant "thinking" dots */
+  .ey-typing-dot {
+    animation: ey-typing 1.1s ease-in-out infinite;
+  }
+  @keyframes ey-typing {
+    0%, 100% { opacity: 0.25; }
+    50% { opacity: 1; }
+  }
+
+  /* Honor reduced-motion: disable entrance/decorative animations */
+  @media (prefers-reduced-motion: reduce) {
+    .ey-animate-fade-up,
+    .ey-animate-fade-in,
+    .ey-animate-scale-in,
+    .ey-animate-slide-right,
+    .ey-animate-stripe,
+    .ey-animate-count-pop,
+    .ey-typing-dot,
+    .ey-stagger-grid > * {
+      animation: none !important;
+    }
+  }
+
   /* Staggered grid children entrance */
   .ey-stagger-grid > * {
     animation: ey-fade-up 0.45s ease-out both;
