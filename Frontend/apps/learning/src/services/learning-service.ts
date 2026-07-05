@@ -1,5 +1,5 @@
 import { ApiError, createPlatformApiClient } from "@repo/api";
-import type { EnrolledTraining, Training, TrainingCategory, TrainingLevel, BadgeLevel, TrainingLearnData, ContentType, ChapterContent, ChapterLayout, TrainingType, OnSiteCourse, LearnerExam, LearnerQuestionType, ExamSubmissionResult, ExamAttempt, MyCursus, MyInPersonHours } from "@/types";
+import type { EnrolledTraining, Training, TrainingCategory, TrainingLevel, BadgeLevel, TrainingLearnData, ContentType, ChapterContent, ChapterLayout, TrainingType, OnSiteCourse, LearnerExam, LearnerQuestionType, ExamSubmissionResult, ExamAttempt, MyCursus, MyInPersonHours, Recommendation, RecommendationReasonKind } from "@/types";
 import type {
   BackendTrainingCategoryDto,
   BackendTrainingDto,
@@ -12,6 +12,7 @@ import type {
   BackendExamForLearnerDto,
   BackendExamSubmissionResultDto,
   BackendExamAttemptDto,
+  BackendRecommendationsDto,
 } from "@/types/backend-dtos";
 import { CATEGORY_MAP, LEVEL_MAP, BADGE_LEVEL_MAP, CONTENT_TYPE_MAP } from "@/types/backend-dtos";
 
@@ -395,4 +396,41 @@ export async function getExamAttempts(trainingId: string): Promise<ExamAttempt[]
 
 export async function getMyInPersonHours(): Promise<MyInPersonHours> {
   return client.get<MyInPersonHours>("/training/my-trainings/in-person-hours");
+}
+
+// --- AI-L-6 Recommendations ---
+
+const RECOMMENDATION_KINDS: RecommendationReasonKind[] = [
+  "curriculum",
+  "mandatory",
+  "similarity",
+  "rating",
+];
+
+/**
+ * Personalised recommendations from the AI service (AI-L-6). **Fail-soft:** returns [] when
+ * the AI service is unavailable, so the dashboard rail simply hides — recommendations are
+ * never on the critical path of the dashboard (design principle #10).
+ */
+export async function getRecommendations(count = 4): Promise<Recommendation[]> {
+  try {
+    const data = await client.get<BackendRecommendationsDto>("/ai/recommendations", {
+      params: { count },
+    });
+    return data.items.map((it) => ({
+      training: mapBackendToTraining(it.training),
+      tier: it.tier,
+      score: it.score,
+      reason: {
+        kind: RECOMMENDATION_KINDS.includes(it.reason.kind as RecommendationReasonKind)
+          ? (it.reason.kind as RecommendationReasonKind)
+          : "rating",
+        sourceTitle: it.reason.sourceTitle,
+        averageRating: it.reason.averageRating,
+        ratingCount: it.reason.ratingCount,
+      },
+    }));
+  } catch {
+    return [];
+  }
 }

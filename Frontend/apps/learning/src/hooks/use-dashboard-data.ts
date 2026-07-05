@@ -1,7 +1,7 @@
 import { useMemo } from "react";
-import type { TrainingCategory, EnrolledTraining, Training } from "@/types";
+import type { TrainingCategory, EnrolledTraining } from "@/types";
 
-export function useDashboardData(enrolledTrainings: EnrolledTraining[], trainings: Training[]) {
+export function useDashboardData(enrolledTrainings: EnrolledTraining[]) {
   const stats = useMemo(() => {
     const inProgress = enrolledTrainings.filter((t) => t.status === "in-progress");
     const completed = enrolledTrainings.filter((t) => t.status === "completed");
@@ -43,11 +43,7 @@ export function useDashboardData(enrolledTrainings: EnrolledTraining[], training
     .sort((a, b) => b.progress - a.progress)
     .slice(0, 3);
 
-  const enrolledIds = new Set(enrolledTrainings.map((t) => t.id));
-  const recommended = trainings
-    .filter((t) => !enrolledIds.has(t.id))
-    .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))
-    .slice(0, 4);
-
-  return { stats, categoryBreakdown, continueTrainings, recommended };
+  // Recommendations are no longer derived client-side from a catalog pool — they come
+  // from the AI service (AI-L-6), passed into the dashboard as a prop.
+  return { stats, categoryBreakdown, continueTrainings };
 }

@@ -112,6 +112,29 @@ export interface BackendTrainingDetailDto extends BackendTrainingDto {
   onSiteCourses: BackendOnSiteCourseDto[];
 }
 
+/** AI-L-6 recommendations endpoint (GET /ai/recommendations). */
+export interface BackendRecommendationReasonDto {
+  kind: string;
+  sourceTrainingId?: string;
+  sourceTitle?: string;
+  averageRating?: number;
+  ratingCount?: number;
+}
+
+export interface BackendRecommendationItemDto {
+  training: BackendTrainingDto;
+  tier: number;
+  score: number | null;
+  reason: BackendRecommendationReasonDto;
+}
+
+export interface BackendRecommendationsDto {
+  items: BackendRecommendationItemDto[];
+  count: number;
+  profileConfigured: boolean;
+  generatedAt: string;
+}
+
 export interface BackendMyTrainingDto {
   trainingId: string;
   title: string;

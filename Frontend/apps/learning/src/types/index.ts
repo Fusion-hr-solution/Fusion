@@ -198,6 +198,29 @@ export interface Training {
   onSiteCourses?: OnSiteCourse[];
 }
 
+/** Why a training was recommended (AI-L-6). The kind maps to a localized reason line;
+ *  `sourceTitle` accompanies "similarity", the rating fields accompany "rating". */
+export type RecommendationReasonKind =
+  | "curriculum"
+  | "mandatory"
+  | "similarity"
+  | "rating";
+
+export interface RecommendationReason {
+  kind: RecommendationReasonKind;
+  sourceTitle?: string;
+  averageRating?: number;
+  ratingCount?: number;
+}
+
+/** A personalised recommendation: a training plus its tier and explainable reason. */
+export interface Recommendation {
+  training: Training;
+  tier: number;
+  score: number | null;
+  reason: RecommendationReason;
+}
+
 /** @deprecated Use Training instead */
 export interface Course {
   id: string;

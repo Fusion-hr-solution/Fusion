@@ -3,10 +3,10 @@
 import { useCallback } from "react";
 import { Skeleton } from "@repo/ui";
 import { useApiQuery } from "@repo/api/react";
-import { getMyTrainings, getTrainings } from "@/services/learning-service";
+import { getMyTrainings, getRecommendations } from "@/services/learning-service";
 import { Dashboard } from "./dashboard";
 
-const CATALOG_POOL = 50;
+const RECOMMENDATION_COUNT = 4;
 
 function DashboardSkeleton() {
   return (
@@ -26,22 +26,27 @@ function DashboardSkeleton() {
 }
 
 /**
- * Fetches the signed-in learner's real enrolled trainings + a catalog pool and
- * renders the dashboard from live data — no mock fallback. On failure it shows
- * an honest error state rather than fabricated content.
+ * Fetches the signed-in learner's real enrolled trainings and their personalised
+ * recommendations, and renders the dashboard from live data — no mock fallback. On
+ * failure it shows an honest error state rather than fabricated content. Recommendations
+ * are best-effort: they never gate the dashboard, and the rail hides if the AI service
+ * is unavailable (design principle #10 — AI is never on the critical path).
  */
 export function DashboardContainer() {
   const fetchEnrolled = useCallback(() => getMyTrainings(), []);
-  const fetchCatalog = useCallback(() => getTrainings({ page: 1, pageSize: CATALOG_POOL }), []);
+  const fetchRecommendations = useCallback(
+    () => getRecommendations(RECOMMENDATION_COUNT),
+    [],
+  );
 
   const { data: enrolled, isLoading: loadingEnrolled } = useApiQuery(fetchEnrolled);
-  const { data: catalog, isLoading: loadingCatalog } = useApiQuery(fetchCatalog);
+  const { data: recommendations } = useApiQuery(fetchRecommendations);
 
-  if (loadingEnrolled || loadingCatalog) {
+  if (loadingEnrolled) {
     return <DashboardSkeleton />;
   }
 
-  if (!enrolled || !catalog) {
+  if (!enrolled) {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center gap-2 px-8 text-center">
         <p className="text-sm font-semibold text-foreground">We couldn&apos;t load your dashboard</p>
@@ -52,5 +57,10 @@ export function DashboardContainer() {
     );
   }
 
-  return <Dashboard trainings={catalog.trainings} enrolledTrainings={enrolled} />;
+  return (
+    <Dashboard
+      enrolledTrainings={enrolled}
+      recommendations={recommendations ?? []}
+    />
+  );
 }

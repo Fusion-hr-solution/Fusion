@@ -1,14 +1,35 @@
 import Link from "next/link";
-import { Clock, BookOpen, ArrowUpRight } from "lucide-react";
+import { Clock, BookOpen, ArrowUpRight, Sparkles, Target, TrendingUp } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@repo/ui";
 import type { RecommendedCardProps } from "@/types/component-props";
+import type { RecommendationReasonKind } from "@/types";
 import { CATEGORY_CONFIG } from "@/data/categories";
 
-export function RecommendedCard({ training }: RecommendedCardProps) {
+const REASON_ICON: Record<RecommendationReasonKind, LucideIcon> = {
+  curriculum: Target,
+  mandatory: Target,
+  similarity: Sparkles,
+  rating: TrendingUp,
+};
+
+export function RecommendedCard({ training, reason }: RecommendedCardProps) {
   const t = useTranslations("dashboard");
   const tCommon = useTranslations("common");
   const category = CATEGORY_CONFIG[training.category];
+
+  const ReasonIcon = reason ? REASON_ICON[reason.kind] : null;
+  let reasonText: string | null = null;
+  if (reason) {
+    if (reason.kind === "curriculum") reasonText = t("reason.curriculum");
+    else if (reason.kind === "mandatory") reasonText = t("reason.mandatory");
+    else if (reason.kind === "similarity")
+      reasonText = reason.sourceTitle
+        ? t("reason.similarity", { source: reason.sourceTitle })
+        : t("reason.similarityGeneric");
+    else reasonText = t("reason.rating");
+  }
 
   return (
     <Link
@@ -35,6 +56,16 @@ export function RecommendedCard({ training }: RecommendedCardProps) {
           <h3 className="text-sm font-semibold text-foreground line-clamp-2 group-hover:text-[hsl(var(--ey-blue-600))] transition-colors">
             {training.title}
           </h3>
+
+          {reasonText && ReasonIcon && (
+            <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+              <ReasonIcon
+                className="h-3 w-3 shrink-0 text-[hsl(var(--ey-blue-600))]"
+                aria-hidden="true"
+              />
+              <span className="truncate">{reasonText}</span>
+            </div>
+          )}
 
           <p className="text-xs leading-relaxed text-muted-foreground line-clamp-2 flex-1">
             {training.description}

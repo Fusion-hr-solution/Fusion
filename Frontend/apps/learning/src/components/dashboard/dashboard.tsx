@@ -22,10 +22,10 @@ import { AchievementsCard } from "./achievements-card";
 import { InPersonHoursWidget } from "./in-person-hours-widget";
 import { FeedbackPrompt } from "../feedback";
 
-export function Dashboard({ trainings, enrolledTrainings }: DashboardProps) {
+export function Dashboard({ enrolledTrainings, recommendations }: DashboardProps) {
   const t = useTranslations("dashboard");
-  const { stats, categoryBreakdown, continueTrainings, recommended } =
-    useDashboardData(enrolledTrainings, trainings);
+  const { stats, categoryBreakdown, continueTrainings } =
+    useDashboardData(enrolledTrainings);
 
   return (
     <>
@@ -95,7 +95,7 @@ export function Dashboard({ trainings, enrolledTrainings }: DashboardProps) {
               </div>
             )}
 
-            {recommended.length > 0 && (
+            {recommendations.length > 0 && (
               <div
                 className="ey-animate-fade-up"
                 style={{ animationDelay: "120ms" }}
@@ -110,8 +110,12 @@ export function Dashboard({ trainings, enrolledTrainings }: DashboardProps) {
                 />
 
                 <div className="grid gap-3 sm:grid-cols-2 ey-stagger-grid">
-                  {recommended.map((training) => (
-                    <RecommendedCard key={training.id} training={training} />
+                  {recommendations.map((rec) => (
+                    <RecommendedCard
+                      key={rec.training.id}
+                      training={rec.training}
+                      reason={rec.reason}
+                    />
                   ))}
                 </div>
               </div>

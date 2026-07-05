@@ -271,6 +271,13 @@
     "continueAria": "Continue {title}",
     "chapterOf": "Chapter {current} of {total}",
     "chaptersCount": "{count} chapters",
+    "reason": {
+      "curriculum": "In your curriculum",
+      "mandatory": "Required training",
+      "similarity": "Because you took {source}",
+      "similarityGeneric": "Based on your learning",
+      "rating": "Highly rated by colleagues"
+    },
     "progressOverview": {
       "title": "Progress Overview",
       "complete": "Complete",
