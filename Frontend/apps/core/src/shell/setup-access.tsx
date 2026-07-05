@@ -14,7 +14,7 @@ import { coreSetupQueryKeys, type TenantSetupStateDto } from "@repo/api";
 import { useApiQueryClient } from "@repo/api/query";
 import { canSeeCoreSetupNavigation, useAuth } from "@repo/auth";
 import { useTenantContext } from "@/shell/tenant-context/core-tenant-context-provider";
-import { PageContainer, PageHeader, PageLoading } from "@repo/ds/shell";
+import { PageContainer, PageHeader, PageLoading, PageSkeleton } from "@repo/ds/shell";
 import {
   useActivateSetup,
   usePublishStructure,
@@ -23,8 +23,8 @@ import {
   type VersionedSetupMutationArgs,
 } from "@/features/setup/api/use-setup";
 import {
+  isSetupAreaPath,
   resolveSetupEntryRouteAction,
-  SETUP_DRAFT_ENTRY_PATH,
   SETUP_SUMMARY_PATH,
 } from "@/features/setup/setup-entry-routing";
 
@@ -36,7 +36,8 @@ interface CoreSetupAccessContextValue {
   shouldCheckSetupAccess: boolean;
   setupState: TenantSetupStateDto | undefined;
   setupError: Error | null;
-  isShellLoading: boolean;
+  /** Auth is hydrating or the setup-state query is in flight — access decisions are not yet known. */
+  isAccessResolving: boolean;
   isSetupStateLoading: boolean;
   isSetupLocked: boolean;
   isNavigationLocked: boolean;
@@ -56,7 +57,7 @@ const CoreSetupAccessContext = createContext<CoreSetupAccessContextValue>({
   shouldCheckSetupAccess: false,
   setupState: undefined,
   setupError: null,
-  isShellLoading: false,
+  isAccessResolving: false,
   isSetupStateLoading: false,
   isSetupLocked: false,
   isNavigationLocked: false,
@@ -102,17 +103,14 @@ function haveEquivalentSetupSnapshots(
   );
 }
 
-function SetupRedirectFallback({ isChecking }: { isChecking: boolean }) {
+function SetupRedirectFallback() {
   return (
     <PageContainer width="wide" className="space-y-6">
       <PageHeader
         title="Setup"
         description="Complete organization setup before using the rest of the workspace."
       />
-      <PageLoading
-        rows={6}
-        label={isChecking ? "Loading setup..." : "Opening setup..."}
-      />
+      <PageLoading rows={6} label="Opening setup..." />
     </PageContainer>
   );
 }
@@ -224,7 +222,7 @@ export function CoreSetupAccessProvider({ children }: { children: ReactNode }) {
       shouldCheckSetupAccess,
       setupState: effectiveSetupState,
       setupError: effectiveSetupError,
-      isShellLoading: isAuthLoading || isSetupAccessPending,
+      isAccessResolving: isAuthLoading || isSetupAccessPending,
       isSetupStateLoading,
       isSetupLocked,
       isNavigationLocked: shouldCheckSetupAccess && isSetupLocked,
@@ -263,7 +261,7 @@ export function useCoreSetupAccess() {
 export function CoreSetupRouteGuard({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { shouldCheckSetupAccess, isShellLoading, isSetupLocked, setupState } =
+  const { shouldCheckSetupAccess, isAccessResolving, isSetupLocked } =
     useCoreSetupAccess();
   const currentPath = getCorePathname(pathname);
   const routeAction = resolveSetupEntryRouteAction({
@@ -281,8 +279,20 @@ export function CoreSetupRouteGuard({ children }: { children: ReactNode }) {
     router.replace(SETUP_SUMMARY_PATH);
   }, [routeAction, router]);
 
+  // The setup area is always permitted — render immediately, even while
+  // access is still resolving.
+  if (isSetupAreaPath(currentPath)) {
+    return <>{children}</>;
+  }
+
+  // Fail closed: until auth + setup state are known, hold non-setup routes on
+  // a neutral skeleton instead of flashing content that may turn out locked.
+  if (isAccessResolving) {
+    return <PageSkeleton label="Checking workspace access" />;
+  }
+
   if (shouldHoldRoute) {
-    return <SetupRedirectFallback isChecking={isShellLoading} />;
+    return <SetupRedirectFallback />;
   }
 
   return <>{children}</>;
