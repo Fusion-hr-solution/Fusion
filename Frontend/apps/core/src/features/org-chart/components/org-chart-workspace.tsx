@@ -563,13 +563,11 @@ export default function OrgChartWorkspace() {
   if (isInitialPageLoading) {
     return (
       <PageContainer width="wide" className="space-y-6">
-        <div className="flex items-start justify-between gap-4">
-          <div className="space-y-2">
-            <Skeleton className="h-7 w-24" />
-            <Skeleton className="h-4 w-96" />
-          </div>
-          <Skeleton className="h-9 w-32 shrink-0" />
-        </div>
+        <PageHeader
+          title="Org Chart"
+          description="Workforce structure and reporting lines."
+          actions={<Skeleton className="h-9 w-32 shrink-0" />}
+        />
         <div className="flex items-center gap-2 rounded-2xl border bg-card p-3">
           <Skeleton className="h-9 w-56 rounded-lg" />
           <Skeleton className="h-9 w-28 rounded-lg" />

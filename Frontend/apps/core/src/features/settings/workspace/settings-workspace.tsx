@@ -299,10 +299,10 @@ function buildSettingsTabHref(
 function SettingsPageSkeleton() {
   return (
     <PageContainer width="wide" className="space-y-6">
-      <div className="space-y-2">
-        <Skeleton className="h-8 w-56" />
-        <Skeleton className="h-4 w-136 max-w-full" />
-      </div>
+      <PageHeader
+        title="Settings"
+        description={<Skeleton className="h-4 w-80 max-w-full" />}
+      />
       <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
         <Skeleton className="h-96 rounded-xl" />
         <Skeleton className="h-136 rounded-xl" />

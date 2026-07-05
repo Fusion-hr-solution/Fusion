@@ -765,10 +765,15 @@ export function formatAttributeValue(value: unknown): string {
 }
 
 export function DraftStructurePageSkeleton() {
+  // Title stays a skeleton on purpose: the real title is state-dependent
+  // ("Draft structure" / "Live structure" / ...), unknown until setup state
+  // loads. Geometry matches PageHeader/PageSkeleton so the swap is seamless.
   return (
     <PageContainer width="wide" className="space-y-6">
-      <Skeleton className="h-10 w-96" />
-      <Skeleton className="h-6 w-full max-w-2xl" />
+      <div className="space-y-2">
+        <Skeleton className="h-7 w-48" />
+        <Skeleton className="h-4 w-80 max-w-full" />
+      </div>
       <DraftStructureWorkbenchSkeleton />
     </PageContainer>
   );
