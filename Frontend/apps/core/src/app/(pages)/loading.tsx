@@ -1,10 +1,9 @@
-import { PageContainer, PageHeader, PageLoading } from "@repo/ds/shell";
+import { PageSkeleton } from "@repo/ds/shell";
 
+// Route-group loading boundary: renders INSIDE CorePagesShell, so the app
+// frame persists during core→core transitions and only the content area
+// shows the neutral skeleton. Title-less by design — the page's own
+// loading state supplies the real header once it mounts.
 export default function PagesLoading() {
-  return (
-    <PageContainer width="wide" className="space-y-6">
-      <PageHeader title="Overview" description="Loading the next page." />
-      <PageLoading rows={6} label="Loading page..." />
-    </PageContainer>
-  );
+  return <PageSkeleton label="Loading page" />;
 }
