@@ -14,7 +14,7 @@ const REASON_ICON: Record<RecommendationReasonKind, LucideIcon> = {
   rating: TrendingUp,
 };
 
-export function RecommendedCard({ training, reason }: RecommendedCardProps) {
+export function RecommendedCard({ training, reason, prose }: RecommendedCardProps) {
   const t = useTranslations("dashboard");
   const tCommon = useTranslations("common");
   const category = CATEGORY_CONFIG[training.category];
@@ -30,6 +30,9 @@ export function RecommendedCard({ training, reason }: RecommendedCardProps) {
         : t("reason.similarityGeneric");
     else reasonText = t("reason.rating");
   }
+  // R6: the generated 'why this' prose replaces the template reason once it arrives
+  // (progressive swap); the template is the instant/fallback text.
+  if (prose) reasonText = prose;
 
   return (
     <Link
@@ -58,12 +61,12 @@ export function RecommendedCard({ training, reason }: RecommendedCardProps) {
           </h3>
 
           {reasonText && ReasonIcon && (
-            <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+            <div className="flex items-start gap-1.5 text-[11px] font-medium text-muted-foreground">
               <ReasonIcon
-                className="h-3 w-3 shrink-0 text-[hsl(var(--ey-blue-600))]"
+                className="mt-0.5 h-3 w-3 shrink-0 text-[hsl(var(--ey-blue-600))]"
                 aria-hidden="true"
               />
-              <span className="truncate">{reasonText}</span>
+              <span className="line-clamp-2">{reasonText}</span>
             </div>
           )}
 

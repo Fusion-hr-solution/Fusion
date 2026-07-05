@@ -13,6 +13,7 @@ import type {
   BackendExamSubmissionResultDto,
   BackendExamAttemptDto,
   BackendRecommendationsDto,
+  BackendRecommendationsProseDto,
 } from "@/types/backend-dtos";
 import { CATEGORY_MAP, LEVEL_MAP, BADGE_LEVEL_MAP, CONTENT_TYPE_MAP } from "@/types/backend-dtos";
 
@@ -410,12 +411,16 @@ const RECOMMENDATION_KINDS: RecommendationReasonKind[] = [
 /**
  * Personalised recommendations from the AI service (AI-L-6). **Fail-soft:** returns [] when
  * the AI service is unavailable, so the dashboard rail simply hides — recommendations are
- * never on the critical path of the dashboard (design principle #10).
+ * never on the critical path of the dashboard (design principle #10). `locale` selects the
+ * language of the generated 'why this' prose (R6).
  */
-export async function getRecommendations(count = 4): Promise<Recommendation[]> {
+export async function getRecommendations(
+  count = 4,
+  locale = "en",
+): Promise<Recommendation[]> {
   try {
     const data = await client.get<BackendRecommendationsDto>("/ai/recommendations", {
-      params: { count },
+      params: { count, locale },
     });
     return data.items.map((it) => ({
       training: mapBackendToTraining(it.training),
@@ -429,8 +434,31 @@ export async function getRecommendations(count = 4): Promise<Recommendation[]> {
         averageRating: it.reason.averageRating,
         ratingCount: it.reason.ratingCount,
       },
+      provenanceHash: it.provenanceHash,
+      prose: it.prose ?? null,
     }));
   } catch {
     return [];
+  }
+}
+
+/**
+ * Cached 'why this' prose by provenance hash (AI-L-6 R6) — the rail's progressive-swap
+ * poll. Returns only what has been generated so far; fail-soft to {} so the rail keeps its
+ * template reasons if the poll fails.
+ */
+export async function getRecommendationsProse(
+  hashes: string[],
+): Promise<Record<string, string>> {
+  if (hashes.length === 0) return {};
+  try {
+    const data = await client.get<BackendRecommendationsProseDto>(
+      "/ai/recommendations/prose",
+      // Comma-separated (hashes are hex) — no dependency on array param serialization.
+      { params: { h: hashes.join(",") } },
+    );
+    return data.prose ?? {};
+  } catch {
+    return {};
   }
 }

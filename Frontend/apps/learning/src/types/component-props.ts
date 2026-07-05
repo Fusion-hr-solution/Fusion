@@ -160,6 +160,8 @@ export interface ContinueCardProps {
 export interface RecommendedCardProps {
   training: Training;
   reason?: RecommendationReason;
+  /** Generated 'why this' sentence (AI-L-6 R6); replaces the template reason line when present. */
+  prose?: string | null;
 }
 
 export interface ProgressRingProps {

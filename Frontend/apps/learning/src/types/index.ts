@@ -219,6 +219,10 @@ export interface Recommendation {
   tier: number;
   score: number | null;
   reason: RecommendationReason;
+  /** Stable key for the cached 'why this' prose (AI-L-6 R6). */
+  provenanceHash: string;
+  /** Generated 'why this' sentence, or null until ready — the card shows the template reason meanwhile. */
+  prose: string | null;
 }
 
 /** @deprecated Use Training instead */

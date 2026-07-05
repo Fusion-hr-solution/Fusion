@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
+import { useLocale } from "next-intl";
 import { Skeleton } from "@repo/ui";
 import { useApiQuery } from "@repo/api/react";
 import { getMyTrainings, getRecommendations } from "@/services/learning-service";
@@ -33,10 +34,11 @@ function DashboardSkeleton() {
  * is unavailable (design principle #10 — AI is never on the critical path).
  */
 export function DashboardContainer() {
+  const locale = useLocale();
   const fetchEnrolled = useCallback(() => getMyTrainings(), []);
   const fetchRecommendations = useCallback(
-    () => getRecommendations(RECOMMENDATION_COUNT),
-    [],
+    () => getRecommendations(RECOMMENDATION_COUNT, locale),
+    [locale],
   );
 
   const { data: enrolled, isLoading: loadingEnrolled } = useApiQuery(fetchEnrolled);

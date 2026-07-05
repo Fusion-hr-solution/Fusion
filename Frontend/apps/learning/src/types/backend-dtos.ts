@@ -126,6 +126,10 @@ export interface BackendRecommendationItemDto {
   tier: number;
   score: number | null;
   reason: BackendRecommendationReasonDto;
+  /** Stable key for the cached 'why this' prose (AI-L-6 R6); used by the swap poll. */
+  provenanceHash: string;
+  /** Generated 'why this' sentence, or null until it is generated (template used until then). */
+  prose: string | null;
 }
 
 export interface BackendRecommendationsDto {
@@ -133,6 +137,11 @@ export interface BackendRecommendationsDto {
   count: number;
   profileConfigured: boolean;
   generatedAt: string;
+}
+
+/** GET /ai/recommendations/prose — cached prose by provenance hash (the swap poll). */
+export interface BackendRecommendationsProseDto {
+  prose: Record<string, string>;
 }
 
 export interface BackendMyTrainingDto {

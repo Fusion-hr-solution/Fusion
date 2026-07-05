@@ -11,6 +11,7 @@ import {
 import { useTranslations } from "next-intl";
 import type { DashboardProps } from "@/types/component-props";
 import { useDashboardData } from "@/hooks/use-dashboard-data";
+import { useRecommendationProse } from "@/hooks/use-recommendation-prose";
 import { PageHeader } from "../page-header";
 import { KpiCard } from "../kpi-card";
 import { SectionHeader } from "../section-header";
@@ -26,6 +27,8 @@ export function Dashboard({ enrolledTrainings, recommendations }: DashboardProps
   const t = useTranslations("dashboard");
   const { stats, categoryBreakdown, continueTrainings } =
     useDashboardData(enrolledTrainings);
+  // R6: enrich the rail with generated 'why this' prose as it becomes available.
+  const recommendedWithProse = useRecommendationProse(recommendations);
 
   return (
     <>
@@ -95,7 +98,7 @@ export function Dashboard({ enrolledTrainings, recommendations }: DashboardProps
               </div>
             )}
 
-            {recommendations.length > 0 && (
+            {recommendedWithProse.length > 0 && (
               <div
                 className="ey-animate-fade-up"
                 style={{ animationDelay: "120ms" }}
@@ -110,11 +113,12 @@ export function Dashboard({ enrolledTrainings, recommendations }: DashboardProps
                 />
 
                 <div className="grid gap-3 sm:grid-cols-2 ey-stagger-grid">
-                  {recommendations.map((rec) => (
+                  {recommendedWithProse.map((rec) => (
                     <RecommendedCard
                       key={rec.training.id}
                       training={rec.training}
                       reason={rec.reason}
+                      prose={rec.prose}
                     />
                   ))}
                 </div>
