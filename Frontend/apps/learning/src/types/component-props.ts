@@ -77,6 +77,8 @@ export interface TrainingCatalogProps {
   totalCount: number;
   page: number;
   pageSize: number;
+  /** Semantic fallback active (AI-L-5): trainings are a relevance-ranked shortlist, not a browse. */
+  semanticMode?: boolean;
 }
 
 export interface StatRowProps {
@@ -103,6 +105,8 @@ export interface LevelFilterProps {
 export interface SortSelectProps {
   value: SortOption;
   onChange: (sort: SortOption) => void;
+  /** Semantic mode (AI-L-5): sort is suspended — show an inert "Most relevant" label instead. */
+  relevanceMode?: boolean;
 }
 
 export interface ActiveFiltersProps {

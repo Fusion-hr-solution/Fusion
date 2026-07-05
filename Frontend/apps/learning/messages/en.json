@@ -403,11 +403,16 @@
       "allCategories": "All"
     },
     "sort": {
-      "aria": "Sort trainings"
+      "aria": "Sort trainings",
+      "relevance": "Most relevant"
     },
     "results": {
       "onPage": "{count, plural, one {training} other {trainings}} on this page",
-      "ofTotal": "(of {total} total)"
+      "ofTotal": "(of {total} total)",
+      "related": "{count, plural, one {related course} other {related courses}}"
+    },
+    "semantic": {
+      "note": "No exact matches — showing related courses."
     },
     "empty": {
       "title": "No trainings found",
