@@ -3,8 +3,8 @@ using EY.HRPlatform.SharedKernel.Domain;
 namespace EY.HRPlatform.Performance.Domain.Entities.Platform;
 
 /// <summary>
-/// Stable identity for the platform baseline objective policy.
-/// Not tenant-scoped. Versions hold the immutable published content.
+/// Stable identity for the platform starting objective planning configuration.
+/// Not tenant-scoped. Versions hold the immutable applied content.
 /// </summary>
 public class PlatformObjectiveBaseline : BaseEntity
 {
@@ -14,8 +14,8 @@ public class PlatformObjectiveBaseline : BaseEntity
 
     public IReadOnlyList<PlatformObjectiveBaselineVersion> Versions => _versions.AsReadOnly();
 
-    public PlatformObjectiveBaselineVersion? PublishedVersion
-        => _versions.SingleOrDefault(v => v.Status == BaselineVersionStatus.Published);
+    public PlatformObjectiveBaselineVersion? CurrentVersion
+        => _versions.SingleOrDefault(v => v.Status == StartingConfigurationVersionStatus.Current);
 
     public static PlatformObjectiveBaseline Create()
         => new() { Id = Guid.NewGuid() };
@@ -23,19 +23,15 @@ public class PlatformObjectiveBaseline : BaseEntity
     public PlatformObjectiveBaselineVersion Apply(
         int maxObjectives,
         string allowedWeightValues,
-        int managerValidationSlaDays,
-        string cascadeMode,
-        string measurementTypes,
-        bool attachmentsEnabled)
+        string measurementTypes)
     {
-        if (PublishedVersion is { } current)
-            current.Supersede();
+        if (CurrentVersion is { } current)
+            current.Replace();
 
         var nextNumber = _versions.Count == 0 ? 1 : _versions.Max(v => v.VersionNumber) + 1;
 
         var version = PlatformObjectiveBaselineVersion.CreateApplied(
-            Id, nextNumber, maxObjectives, allowedWeightValues,
-            managerValidationSlaDays, cascadeMode, measurementTypes, attachmentsEnabled);
+            Id, nextNumber, maxObjectives, allowedWeightValues, measurementTypes);
 
         _versions.Add(version);
         UpdatedAt = DateTime.UtcNow;

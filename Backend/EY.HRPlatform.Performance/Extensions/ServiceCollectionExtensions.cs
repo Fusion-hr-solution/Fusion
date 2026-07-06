@@ -1,7 +1,5 @@
 using EY.HRPlatform.Performance.Features.ConfigurationAudit;
 using EY.HRPlatform.Performance.Features.ObjectivePolicy;
-using EY.HRPlatform.Performance.Features.ObjectiveTemplates;
-using EY.HRPlatform.Performance.Features.PlatformDefaults;
 using EY.HRPlatform.Performance.Features.Cycles.Services;
 using EY.HRPlatform.Performance.Features.Exceptions.Services;
 using EY.HRPlatform.Performance.Features.Security;
@@ -38,10 +36,7 @@ public static class ServiceCollectionExtensions
 
         services.AddScoped<IPerformanceAccessPolicyService, PerformanceAccessPolicyService>();
         services.AddScoped<IConfigurationAuditWriter, ConfigurationAuditWriter>();
-        services.AddScoped<IGuardrailImpactAnalyzer, GuardrailImpactAnalyzer>();
-        services.AddScoped<PolicyValidator>();
-        services.AddScoped<TemplateCompatibilityChecker>();
-        services.AddScoped<TemplateRevisionValidator>();
+        services.AddScoped<PerformanceConfigurationValidator>();
         services.AddScoped<ICurrentUserContext, CurrentUserContext>();
         services.AddScoped<IPerformancePopulationResolver, PerformancePopulationResolver>();
         services.AddScoped<IExceptionCaseWorkflowService, ExceptionCaseWorkflowService>();

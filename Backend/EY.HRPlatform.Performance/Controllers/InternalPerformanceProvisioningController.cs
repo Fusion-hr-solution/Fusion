@@ -23,6 +23,11 @@ public sealed class InternalPerformanceProvisioningController(
         if (result.IsFailure)
             return BadRequest(new { error = result.Error.Message });
 
-        return Ok(new { wasAlreadyProvisioned = result.Value.WasAlreadyProvisioned, policyId = result.Value.PolicyId });
+        return Ok(new
+        {
+            wasAlreadyProvisioned = result.Value.WasAlreadyProvisioned,
+            policyId = result.Value.PolicyId,
+            configurationVersionId = result.Value.ConfigurationVersionId
+        });
     }
 }

@@ -1,6 +1,6 @@
-using EY.HRPlatform.Performance.Features.PlatformDefaults.Commands;
-using EY.HRPlatform.Performance.Features.PlatformDefaults.Dtos;
-using EY.HRPlatform.Performance.Features.PlatformDefaults.Queries;
+using EY.HRPlatform.Performance.Features.ObjectivePolicy.Commands;
+using EY.HRPlatform.Performance.Features.ObjectivePolicy.Dtos;
+using EY.HRPlatform.Performance.Features.ObjectivePolicy.Queries;
 using EY.HRPlatform.Performance.Features.Security;
 using EY.HRPlatform.SharedKernel.Api;
 using EY.HRPlatform.SharedKernel.Results;
@@ -11,50 +11,54 @@ using Microsoft.AspNetCore.Mvc;
 namespace EY.HRPlatform.Performance.Controllers;
 
 [ApiController]
-[Route("api/performance/platform/configuration")]
+[Route("api/performance/objective-planning/configuration")]
 [Authorize]
-public class ObjectiveDefaultsController(
+public class ObjectivePlanningConfigurationController(
     ISender sender,
     IPerformanceAccessPolicyService accessPolicy) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> Get(CancellationToken cancellationToken)
     {
-        if (!accessPolicy.CanManagePlatformDefaults(User))
+        if (!accessPolicy.CanViewObjectivePlanningConfiguration(User))
             return Forbid();
 
-        var result = await sender.Send(new GetPlatformPerformanceConfigurationQuery(), cancellationToken);
+        var result = await sender.Send(new GetObjectivePlanningConfigurationQuery(), cancellationToken);
         return result.IsSuccess
-            ? Ok(ApiResponse<PlatformPerformanceConfigurationSummaryDto>.Success(result.Value))
+            ? Ok(ApiResponse<ObjectivePlanningConfigurationSummaryDto>.Success(result.Value))
             : MapFailure(result.Error);
     }
 
     [HttpPost("apply")]
     public async Task<IActionResult> Apply(
-        [FromBody] ApplyPlatformPerformanceConfigurationRequest request,
+        [FromBody] ApplyObjectivePlanningConfigurationRequest request,
         [FromHeader(Name = "If-Match")] string? ifMatch,
         CancellationToken cancellationToken)
     {
-        if (!accessPolicy.CanManagePlatformDefaults(User))
+        if (!accessPolicy.CanManageObjectivePlanningConfiguration(User))
             return Forbid();
 
-        var expectedVersion = TryParseVersion(ifMatch, out var version) ? version : (uint?)null;
+        if (!TryParseVersion(ifMatch, out var expectedVersion))
+            return StatusCode(StatusCodes.Status428PreconditionRequired,
+                ApiResponse.Failure("If-Match header with the current version is required."));
+
         var result = await sender.Send(
-            new ApplyPlatformPerformanceConfigurationCommand(User, request, expectedVersion),
+            new ApplyObjectivePlanningConfigurationCommand(User, request, expectedVersion),
             cancellationToken);
 
         if (result.IsFailure)
             return MapFailure(result.Error);
 
-        if (result.Value.Configuration is { } configuration)
+        if (result.Value is { Applied: true, Configuration: { } configuration })
             Response.Headers.ETag = $"\"{configuration.Version}\"";
 
-        return Ok(ApiResponse<PlatformConfigurationApplyResultDto>.Success(result.Value));
+        return Ok(ApiResponse<ObjectivePlanningConfigurationApplyResultDto>.Success(result.Value));
     }
 
     private IActionResult MapFailure(Error error)
     {
-        if (error.Code.EndsWith("NotFound", StringComparison.OrdinalIgnoreCase))
+        if (error.Code.EndsWith("NotConfigured", StringComparison.OrdinalIgnoreCase) ||
+            error.Code.EndsWith("NotFound", StringComparison.OrdinalIgnoreCase))
             return NotFound(ApiResponse.Failure(error.Message));
         if (error.Code.EndsWith("StaleApply", StringComparison.OrdinalIgnoreCase) ||
             error.Code.EndsWith("ConcurrencyConflict", StringComparison.OrdinalIgnoreCase))

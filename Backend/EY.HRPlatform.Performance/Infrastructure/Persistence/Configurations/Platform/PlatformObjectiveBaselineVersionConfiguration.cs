@@ -19,12 +19,11 @@ public class PlatformObjectiveBaselineVersionConfiguration : IEntityTypeConfigur
             .IsRequired();
         builder.Property(v => v.MaxObjectivesPerPlan).IsRequired();
         builder.Property(v => v.AllowedWeightValues).HasMaxLength(500).IsRequired();
-        builder.Property(v => v.ManagerValidationSlaDays).IsRequired();
-        builder.Property(v => v.CascadeMode).HasMaxLength(20).IsRequired();
         builder.Property(v => v.MeasurementTypes).HasMaxLength(50).IsRequired();
-        builder.Property(v => v.AttachmentsEnabled).IsRequired();
-        builder.Property(v => v.PublishedAt);
-        builder.Property(v => v.SupersededAt);
+        builder.Property(v => v.AppliedAt)
+            .HasColumnName("PublishedAt");
+        builder.Property(v => v.ReplacedAt)
+            .HasColumnName("SupersededAt");
         builder.Property(v => v.CreatedBy).HasMaxLength(256);
         builder.Property(v => v.UpdatedBy).HasMaxLength(256);
 

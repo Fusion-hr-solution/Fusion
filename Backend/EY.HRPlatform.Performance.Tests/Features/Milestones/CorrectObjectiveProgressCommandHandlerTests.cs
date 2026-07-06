@@ -20,8 +20,6 @@ public class CorrectObjectiveProgressCommandHandlerTests
         public bool CanViewCycles(ClaimsPrincipal user) => false;
         public bool CanManageCycles(ClaimsPrincipal user) => false;
         public bool CanOperateCycles(ClaimsPrincipal user) => false;
-        public bool CanViewObjectiveLibrary(ClaimsPrincipal user) => false;
-        public bool CanManageObjectiveLibrary(ClaimsPrincipal user) => false;
         public bool CanViewStrategicObjectives(ClaimsPrincipal user) => false;
         public bool CanManageStrategicObjectives(ClaimsPrincipal user) => false;
         public bool CanPublishStrategicObjectives(ClaimsPrincipal user) => false;

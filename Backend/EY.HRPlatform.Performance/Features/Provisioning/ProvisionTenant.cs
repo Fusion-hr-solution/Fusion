@@ -7,7 +7,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace EY.HRPlatform.Performance.Features.Provisioning;
 
-public sealed record ProvisionTenantResult(bool WasAlreadyProvisioned, Guid PolicyId);
+public sealed record ProvisionTenantResult(
+    bool WasAlreadyProvisioned,
+    Guid PolicyId,
+    Guid ConfigurationVersionId);
 
 public sealed record ProvisionTenantCommand(Guid TenantId) : ICommand<Result<ProvisionTenantResult>>;
 
@@ -25,24 +28,31 @@ public sealed class ProvisionTenantCommandHandler(PerformanceDbContext db, Tenan
             .AsNoTracking()
             .IgnoreQueryFilters()
             .Where(p => p.TenantId == tenantId)
-            .Select(p => new { p.Id })
+            .Select(p => new
+            {
+                p.Id,
+                VersionId = p.Versions
+                    .Where(v => v.Status == Domain.Entities.ObjectivePlanningConfigurationVersionStatus.Current)
+                    .Select(v => v.Id)
+                    .FirstOrDefault()
+            })
             .FirstOrDefaultAsync(cancellationToken);
 
         if (existing is not null)
-            return Result.Success(new ProvisionTenantResult(true, existing.Id));
+            return Result.Success(new ProvisionTenantResult(true, existing.Id, existing.VersionId));
 
-        // Get the applied baseline version used for new tenants.
+        // Get the applied platform starting configuration used for new tenants.
         var baseline = await db.PlatformObjectiveBaselines
             .AsNoTracking()
             .Include(b => b.Versions)
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (baseline?.PublishedVersion is null)
+        if (baseline?.CurrentVersion is null)
             return Result.Failure<ProvisionTenantResult>(new Error(
-                "Provisioning.NoAppliedBaseline",
-                "No applied performance standard setup exists. Apply a standard setup before provisioning tenants."));
+                "Provisioning.NoStartingConfiguration",
+                "No platform starting configuration exists. Apply platform performance configuration before provisioning tenants."));
 
-        var appliedBaseline = baseline.PublishedVersion;
+        var startingConfiguration = baseline.CurrentVersion;
 
         // This is a signed service-to-service call with no ambient tenant context. Establish the
         // target tenant so the fail-closed tenant interceptor accepts the new tenant-owned policy.
@@ -51,18 +61,15 @@ public sealed class ProvisionTenantCommandHandler(PerformanceDbContext db, Tenan
 
         // Create tenant policy.
         var policy = TenantObjectivePolicy.Create(tenantId);
-        policy.ProvisionFromBaseline(
-            appliedBaseline.MaxObjectivesPerPlan,
-            appliedBaseline.AllowedWeightValues,
-            appliedBaseline.ManagerValidationSlaDays,
-            appliedBaseline.CascadeMode,
-            appliedBaseline.MeasurementTypes,
-            appliedBaseline.AttachmentsEnabled,
-            appliedBaseline.Id);
+        var version = policy.ProvisionFromStartingConfiguration(
+            startingConfiguration.MaxObjectivesPerPlan,
+            startingConfiguration.AllowedWeightValues,
+            startingConfiguration.MeasurementTypes,
+            startingConfiguration.Id);
 
         db.TenantObjectivePolicies.Add(policy);
 
         await db.SaveChangesAsync(cancellationToken);
-        return Result.Success(new ProvisionTenantResult(false, policy.Id));
+        return Result.Success(new ProvisionTenantResult(false, policy.Id, version.Id));
     }
 }

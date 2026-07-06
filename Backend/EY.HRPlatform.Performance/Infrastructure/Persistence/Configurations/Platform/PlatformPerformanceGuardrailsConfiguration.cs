@@ -12,16 +12,13 @@ public class PlatformPerformanceGuardrailsConfiguration : IEntityTypeConfigurati
         builder.HasKey(g => g.Id);
 
         builder.Property(g => g.Version).IsRowVersion();
-        builder.Property(g => g.MinObjectivesPerPlan).IsRequired();
         builder.Property(g => g.MaxObjectivesPerPlan).IsRequired();
-        builder.Property(g => g.MinManagerValidationSlaDays).IsRequired();
-        builder.Property(g => g.MaxManagerValidationSlaDays).IsRequired();
-        builder.Property(g => g.PermittedWeightDecimalPlaces).IsRequired();
-        builder.Property(g => g.MaxAllowedWeightingValues).IsRequired();
-        builder.Property(g => g.SupportedMeasurementTypes).HasMaxLength(100).IsRequired();
-        builder.Property(g => g.MaxTemplateTitleLength).IsRequired();
-        builder.Property(g => g.MaxTemplateDescriptionLength).IsRequired();
-        builder.Property(g => g.MaxTemplateTags).IsRequired();
+        builder.Property(g => g.SupportedAllowedWeightValues)
+            .HasMaxLength(500)
+            .HasDefaultValue("5,10,15,20,25,30,40,50")
+            .IsRequired();
+        builder.Property(g => g.QuantitativeAvailable).HasDefaultValue(true).IsRequired();
+        builder.Property(g => g.QualitativeAvailable).HasDefaultValue(true).IsRequired();
         builder.Property(g => g.CreatedBy).HasMaxLength(256);
         builder.Property(g => g.UpdatedBy).HasMaxLength(256);
 

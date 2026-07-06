@@ -14,7 +14,7 @@ public class PlatformObjectiveBaselineConfiguration : IEntityTypeConfiguration<P
         builder.Property(b => b.CreatedBy).HasMaxLength(256);
         builder.Property(b => b.UpdatedBy).HasMaxLength(256);
 
-        builder.Ignore(b => b.PublishedVersion);
+        builder.Ignore(b => b.CurrentVersion);
 
         builder.HasMany(b => b.Versions)
             .WithOne()

@@ -3,11 +3,10 @@ using EY.HRPlatform.SharedKernel.Domain;
 
 namespace EY.HRPlatform.Performance.Domain.Entities.Platform;
 
-public enum BaselineVersionStatus { Published, Superseded }
+public enum StartingConfigurationVersionStatus { Current, Replaced }
 
 /// <summary>
-/// Immutable-once-published content version of the platform baseline policy.
-/// Published → Superseded.
+/// Immutable applied version of the platform starting objective planning configuration.
 /// </summary>
 public class PlatformObjectiveBaselineVersion : BaseEntity
 {
@@ -15,35 +14,25 @@ public class PlatformObjectiveBaselineVersion : BaseEntity
 
     public Guid BaselineId { get; private set; }
     public int VersionNumber { get; private set; }
-    public BaselineVersionStatus Status { get; private set; }
+    public StartingConfigurationVersionStatus Status { get; private set; }
 
     public int MaxObjectivesPerPlan { get; private set; }
 
     /// <summary>JSON array of allowed weight percentages, e.g. "[25,50,75,100]".</summary>
     public string AllowedWeightValues { get; private set; } = string.Empty;
 
-    public int ManagerValidationSlaDays { get; private set; }
-
-    /// <summary>Disabled | Optional | Required.</summary>
-    public string CascadeMode { get; private set; } = string.Empty;
-
     /// <summary>Comma-separated: Quantitative, Qualitative, or both.</summary>
     public string MeasurementTypes { get; private set; } = string.Empty;
 
-    public bool AttachmentsEnabled { get; private set; }
-
-    public DateTime? PublishedAt { get; private set; }
-    public DateTime? SupersededAt { get; private set; }
+    public DateTime? AppliedAt { get; private set; }
+    public DateTime? ReplacedAt { get; private set; }
 
     internal static PlatformObjectiveBaselineVersion CreateApplied(
         Guid baselineId,
         int versionNumber,
         int maxObjectives,
         string allowedWeightValues,
-        int managerValidationSlaDays,
-        string cascadeMode,
-        string measurementTypes,
-        bool attachmentsEnabled)
+        string measurementTypes)
     {
         if (baselineId == Guid.Empty)
             throw new ArgumentException("BaselineId cannot be empty.", nameof(baselineId));
@@ -59,24 +48,21 @@ public class PlatformObjectiveBaselineVersion : BaseEntity
             Id = Guid.NewGuid(),
             BaselineId = baselineId,
             VersionNumber = versionNumber,
-            Status = BaselineVersionStatus.Published,
+            Status = StartingConfigurationVersionStatus.Current,
             MaxObjectivesPerPlan = maxObjectives,
             AllowedWeightValues = allowedWeightValues.Trim(),
-            ManagerValidationSlaDays = managerValidationSlaDays,
-            CascadeMode = cascadeMode.Trim(),
             MeasurementTypes = measurementTypes.Trim(),
-            AttachmentsEnabled = attachmentsEnabled,
-            PublishedAt = DateTime.UtcNow,
+            AppliedAt = DateTime.UtcNow,
         };
     }
 
-    internal void Supersede()
+    internal void Replace()
     {
-        if (Status != BaselineVersionStatus.Published)
-            throw new DomainRuleViolationException("Only a Published version can be superseded.");
+        if (Status != StartingConfigurationVersionStatus.Current)
+            throw new DomainRuleViolationException("Only a current starting configuration can be replaced.");
 
-        Status = BaselineVersionStatus.Superseded;
-        SupersededAt = DateTime.UtcNow;
+        Status = StartingConfigurationVersionStatus.Replaced;
+        ReplacedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
     }
 }

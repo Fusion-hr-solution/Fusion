@@ -46,8 +46,6 @@ public class PerformanceDbContext : DbContext
     public DbSet<PerformanceObjectiveMilestone> PerformanceObjectiveMilestones => Set<PerformanceObjectiveMilestone>();
     public DbSet<CampaignWorkItem> CampaignWorkItems => Set<CampaignWorkItem>();
     public DbSet<CampaignAssignmentResponsibility> CampaignAssignmentResponsibilities => Set<CampaignAssignmentResponsibility>();
-    public DbSet<ObjectiveTemplate> ObjectiveTemplateContainers => Set<ObjectiveTemplate>();
-    public DbSet<ObjectiveTemplateRevision> ObjectiveTemplateRevisions => Set<ObjectiveTemplateRevision>();
     public DbSet<PerformanceNotification> PerformanceNotifications => Set<PerformanceNotification>();
     public DbSet<PerformanceCycleAuditEvent> PerformanceCycleAuditEvents => Set<PerformanceCycleAuditEvent>();
     public DbSet<PerformanceConfigurationAuditEntry> PerformanceConfigurationAuditEntries => Set<PerformanceConfigurationAuditEntry>();
@@ -61,9 +59,6 @@ public class PerformanceDbContext : DbContext
     // Tenant objective policy
     public DbSet<TenantObjectivePolicy> TenantObjectivePolicies => Set<TenantObjectivePolicy>();
     public DbSet<TenantObjectivePolicyVersion> TenantObjectivePolicyVersions => Set<TenantObjectivePolicyVersion>();
-
-    // Template categories
-    public DbSet<ObjectiveTemplateCategory> ObjectiveTemplateCategories => Set<ObjectiveTemplateCategory>();
 
     // Strategic objective + phase shared entities (Plan 03-02)
     public DbSet<StrategicPeriod> StrategicPeriods => Set<StrategicPeriod>();
@@ -170,12 +165,6 @@ public class PerformanceDbContext : DbContext
         modelBuilder.Entity<CampaignAssignmentResponsibility>()
             .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
 
-        modelBuilder.Entity<ObjectiveTemplate>()
-            .HasQueryFilter(t => CurrentTenantId != Guid.Empty && t.TenantId == CurrentTenantId);
-
-        modelBuilder.Entity<ObjectiveTemplateRevision>()
-            .HasQueryFilter(r => CurrentTenantId != Guid.Empty && r.TenantId == CurrentTenantId);
-
         modelBuilder.Entity<PerformanceNotification>()
             .HasQueryFilter(n => CurrentTenantId != Guid.Empty && n.TenantId == CurrentTenantId);
 
@@ -187,9 +176,6 @@ public class PerformanceDbContext : DbContext
 
         modelBuilder.Entity<TenantObjectivePolicyVersion>()
             .HasQueryFilter(v => CurrentTenantId != Guid.Empty && v.TenantId == CurrentTenantId);
-
-        modelBuilder.Entity<ObjectiveTemplateCategory>()
-            .HasQueryFilter(c => CurrentTenantId != Guid.Empty && c.TenantId == CurrentTenantId);
 
         // Strategic + phase shared entity tenant filters (Plan 03-02)
         modelBuilder.Entity<StrategicPeriod>()

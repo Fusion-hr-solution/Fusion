@@ -41,8 +41,6 @@ public class ThreeLevelCascadeKeystoneTests
         public bool CanViewCycles(ClaimsPrincipal user) => true;
         public bool CanManageCycles(ClaimsPrincipal user) => true;
         public bool CanOperateCycles(ClaimsPrincipal user) => true;
-        public bool CanViewObjectiveLibrary(ClaimsPrincipal user) => true;
-        public bool CanManageObjectiveLibrary(ClaimsPrincipal user) => true;
         public bool CanViewStrategicObjectives(ClaimsPrincipal user) => true;
         public bool CanManageStrategicObjectives(ClaimsPrincipal user) => true;
         public bool CanPublishStrategicObjectives(ClaimsPrincipal user) => true;
