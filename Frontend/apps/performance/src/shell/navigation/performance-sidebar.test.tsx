@@ -1,0 +1,144 @@
+// @vitest-environment happy-dom
+
+import React from "react";
+import { act } from "react";
+import { createRoot, type Root } from "react-dom/client";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { PerformanceSidebar } from "./performance-sidebar";
+
+type TestUser = {
+  fullName: string;
+  roles: string[];
+  permissions?: Array<{ permissionKey: string; scope: string }>;
+};
+
+const authState = vi.hoisted(() => ({
+  user: {
+    fullName: "Employee",
+    roles: ["Employee"],
+    permissions: [],
+  } as TestUser | null,
+}));
+
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/performance",
+}));
+
+vi.mock("@repo/auth", () => ({
+  PLATFORM_ADMIN_ROLE: "PlatformAdmin",
+  hasAnyRole: (user: TestUser | null, roles: string[]) =>
+    roles.some((role) => user?.roles.includes(role)),
+  canViewObjectivePlanningConfiguration: (user: TestUser | null) =>
+    user?.permissions?.some(
+      (grant) =>
+        grant.scope === "Tenant" &&
+        (grant.permissionKey === "performance.objective.policy.view" ||
+          grant.permissionKey === "performance.objective.policy.manage"),
+    ) ?? false,
+  useAuth: () => ({
+    user: authState.user,
+    logout: vi.fn(),
+  }),
+}));
+
+vi.mock("@repo/ds/shell", () => ({
+  FUSION_MODULES: [],
+  ModuleSidebar: ({ sections }: { sections: Array<{ title?: string; items: Array<{ label: string; href: string }> }> }) => (
+    <nav aria-label="Performance navigation">
+      {sections.map((section, index) => (
+        <section key={section.title ?? index}>
+          {section.title ? <h2>{section.title}</h2> : null}
+          {section.items.map((item) => (
+            <a key={item.href} href={`/performance${item.href === "/" ? "" : item.href}`}>
+              {item.label}
+            </a>
+          ))}
+        </section>
+      ))}
+    </nav>
+  ),
+  ShellUserPanel: () => null,
+}));
+
+let root: Root | null = null;
+let container: HTMLDivElement | null = null;
+
+afterEach(() => {
+  if (root) {
+    act(() => root?.unmount());
+  }
+  root = null;
+  container = null;
+  authState.user = {
+    fullName: "Employee",
+    roles: ["Employee"],
+    permissions: [],
+  };
+});
+
+function renderSidebar(user: TestUser | null = authState.user) {
+  authState.user = user;
+  container = document.createElement("div");
+  document.body.appendChild(container);
+  root = createRoot(container);
+  act(() => root?.render(<PerformanceSidebar />));
+  return container;
+}
+
+describe("PerformanceSidebar", () => {
+  it("shows only overview for a basic Performance user", () => {
+    const sidebar = renderSidebar();
+
+    expect(sidebar.textContent).toContain("Overview");
+    expect(sidebar.textContent).not.toContain("Configuration");
+    expect(sidebar.textContent).not.toContain("Platform administration");
+    expect(sidebar.textContent).not.toContain("Reviews");
+  });
+
+  it("shows tenant planning rules for tenant-scoped configuration permission", () => {
+    const sidebar = renderSidebar({
+      fullName: "Tenant Admin",
+      roles: ["HRAdmin"],
+      permissions: [
+        { permissionKey: "performance.objective.policy.manage", scope: "Tenant" },
+      ],
+    });
+
+    expect(sidebar.textContent).toContain("Configuration");
+    expect(sidebar.textContent).toContain("Objective Planning");
+    expect(sidebar.querySelector('a[href="/performance/configuration/planning"]')).toBeTruthy();
+    expect(sidebar.textContent).not.toContain("Objective planning configuration");
+    expect(sidebar.textContent).not.toContain("Performance setup");
+  });
+
+  it("keeps Platform Admin navigation separate from tenant configuration", () => {
+    const sidebar = renderSidebar({
+      fullName: "Platform Admin",
+      roles: ["PlatformAdmin"],
+      permissions: [],
+    });
+
+    expect(sidebar.textContent).toContain("Platform administration");
+    expect(sidebar.textContent).toContain("Performance configuration");
+    expect(
+      sidebar.querySelector('a[href="/performance/configuration/performance"]'),
+    ).toBeTruthy();
+    expect(sidebar.textContent).not.toContain("Objective Planning");
+    expect(sidebar.textContent).not.toContain("Platform setup");
+  });
+
+  it("shows both tenant and platform sections only when both authorities exist", () => {
+    const sidebar = renderSidebar({
+      fullName: "Combined Admin",
+      roles: ["PlatformAdmin", "HRAdmin"],
+      permissions: [
+        { permissionKey: "performance.objective.policy.view", scope: "Tenant" },
+      ],
+    });
+
+    expect(sidebar.textContent).toContain("Configuration");
+    expect(sidebar.textContent).toContain("Objective Planning");
+    expect(sidebar.textContent).toContain("Platform administration");
+    expect(sidebar.textContent).toContain("Performance configuration");
+  });
+});

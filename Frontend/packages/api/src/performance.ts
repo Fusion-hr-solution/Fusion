@@ -11,7 +11,13 @@ export interface PagedResponse<T> {
   hasPreviousPage: boolean;
 }
 
-export type PerformanceCycleStatus = "Draft" | "Published" | "Active" | "Closed";
+export type PerformanceCycleStatus =
+  | "Draft"
+  | "AssignmentPreparation"
+  | "ReadyToLaunch"
+  | "Active"
+  | "Closed"
+  | "ForceClosed";
 export type PerformanceCycleType = "Annual" | "MidYear" | "Specific";
 export type CycleDeadlineState =
   | "None"
@@ -114,23 +120,6 @@ export interface CycleAuditEventDto {
   details: string | null;
 }
 
-export interface ObjectiveTemplateDto {
-  id: string;
-  name: string;
-  description: string | null;
-  category: string | null;
-  level: "Organization" | "Team" | "Individual";
-  parentTemplateId: string | null;
-  successMeasure: string | null;
-  target: string | null;
-  isReadyForPlanning: boolean;
-  defaultWeight: number | null;
-  status: "Active" | "Archived";
-  createdAt: string;
-  updatedAt: string | null;
-  version: number;
-}
-
 export interface PerformanceNotificationDto {
   id: string;
   type: string;
@@ -182,288 +171,105 @@ export interface AssignPlanningApproverRequest {
   reason: string;
 }
 
-export interface CreateObjectiveTemplateRequest {
-  name: string;
-  description?: string | null;
-  category?: string | null;
-  defaultWeight?: number | null;
-  successMeasure?: string | null;
-  target?: string | null;
-  level?: "Organization" | "Team" | "Individual";
-  parentTemplateId?: string | null;
+// ── Platform performance configuration ──────────────────────────────
+
+export interface StartingObjectivePlanningConfigurationDto {
+  id: string;
+  versionNumber: number;
+  maxObjectiveCount: number;
+  allowedWeights: string;
+  quantitativeEnabled: boolean;
+  qualitativeEnabled: boolean;
+  appliedAt: string | null;
 }
 
-export type UpdateObjectiveTemplateRequest = CreateObjectiveTemplateRequest;
-
-// ── Platform defaults (P1: policy-and-templates) ─────────────────────
-
-export interface GuardrailsDto {
+export interface PlatformPerformanceConfigurationDto {
   id: string;
   version: number;
-  minObjectivesPerPlan: number;
-  maxObjectivesPerPlan: number;
-  minManagerValidationSlaDays: number;
-  maxManagerValidationSlaDays: number;
-  permittedWeightDecimalPlaces: number;
-  maxAllowedWeightingValues: number;
-  supportedMeasurementTypes: string;
-  maxTemplateTitleLength: number;
-  maxTemplateDescriptionLength: number;
-  maxTemplateTags: number;
+  maxObjectiveCountLimit: number;
+  supportedAllowedWeights: string;
+  quantitativeAvailable: boolean;
+  qualitativeAvailable: boolean;
+  startingConfiguration: StartingObjectivePlanningConfigurationDto;
+  appliedAt: string | null;
+  appliedByUserId: string | null;
+  appliedByName: string | null;
 }
 
-export type BaselineVersionStatus = "Published" | "Superseded";
-
-export interface BaselineVersionDto {
-  id: string;
-  versionNumber: number;
-  status: BaselineVersionStatus;
-  maxObjectivesPerPlan: number;
-  allowedWeightValues: string;
-  managerValidationSlaDays: number;
-  cascadeMode: string;
-  measurementTypes: string;
-  attachmentsEnabled: boolean;
-  publishedAt: string | null;
-  supersededAt: string | null;
+export interface PlatformPerformanceConfigurationSummaryDto {
+  isConfigured: boolean;
+  configuration: PlatformPerformanceConfigurationDto | null;
 }
 
-export interface ApplyGuardrailsRequest {
-  minObjectivesPerPlan: number;
-  maxObjectivesPerPlan: number;
-  minManagerValidationSlaDays: number;
-  maxManagerValidationSlaDays: number;
-  permittedWeightDecimalPlaces: number;
-  maxAllowedWeightingValues: number;
-  supportedMeasurementTypes: string;
-  maxTemplateTitleLength: number;
-  maxTemplateDescriptionLength: number;
-  maxTemplateTags: number;
+export interface ApplyPlatformPerformanceConfigurationRequest {
+  maxObjectiveCountLimit: number;
+  supportedAllowedWeights: string;
+  quantitativeAvailable: boolean;
+  qualitativeAvailable: boolean;
+  startingMaxObjectiveCount: number;
+  startingAllowedWeights: string;
+  startingQuantitativeEnabled: boolean;
+  startingQualitativeEnabled: boolean;
 }
 
-export interface ApplyBaselineRequest {
-  maxObjectivesPerPlan: number;
-  allowedWeightValues: string;
-  managerValidationSlaDays: number;
-  cascadeMode: string;
-  measurementTypes: string;
-  attachmentsEnabled: boolean;
+export interface PlatformConfigurationImpactDto {
+  affectedTenantConfigurationCount: number;
+  blockingReasons: string[];
 }
 
-export interface PlatformDefaultsStatusDto {
-  tone: "success" | "warning" | "neutral";
-  label: string;
-  message: string;
-}
-
-export interface PlatformDefaultsActivityDto {
-  action: string;
-  actorName: string | null;
-  occurredAt: string;
-}
-
-export interface PlatformDefaultsSummaryDto {
-  status: PlatformDefaultsStatusDto;
-  appliedGuardrails: GuardrailsDto | null;
-  appliedBaseline: BaselineVersionDto | null;
-  lastUpdated: PlatformDefaultsActivityDto | null;
-}
-
-export interface GuardrailImpactReasonDto {
-  reason: string;
-  affectedCount: number;
-}
-
-export interface GuardrailImpactPreviewDto {
-  hasConflicts: boolean;
-  affectedTenantPolicyCount: number;
-  tenantPolicyConflicts: GuardrailImpactReasonDto[];
-  standardSetupConflicts: string[];
-}
-
-// Atomic apply results (no Draft lifecycle).
-export interface GuardrailsApplyResultDto {
+export interface PlatformConfigurationApplyResultDto {
   applied: boolean;
-  guardrails: GuardrailsDto | null;
-  impact: GuardrailImpactPreviewDto | null;
-}
-
-export interface BaselineApplyResultDto {
-  applied: boolean;
-  baseline: BaselineVersionDto | null;
+  configuration: PlatformPerformanceConfigurationDto | null;
   errors: string[];
+  impact: PlatformConfigurationImpactDto | null;
 }
 
-// ── Template categories (P1) ─────────────────────────────────────────
+// ── Tenant objective planning configuration ─────────────────────────
 
-export type CategoryStatus = "Active" | "Archived";
-
-export interface CategoryDto {
+export interface ObjectivePlanningConfigurationDto {
   id: string;
-  code: string;
-  name: string;
-  description: string | null;
-  status: CategoryStatus;
-}
-
-export interface CreateCategoryRequest {
-  code: string;
-  name: string;
-  description?: string | null;
-}
-
-export interface RenameCategoryRequest {
-  name: string;
-  description?: string | null;
-}
-
-// ── Tenant objective policy (P1) ────────────────────────────────────
-
-export type PolicyVersionStatus = "Active" | "Superseded";
-
-export interface PolicyVersionDto {
-  id: string;
-  policyId: string;
-  versionNumber: number;
-  status: PolicyVersionStatus;
-  maxObjectivesPerPlan: number;
-  allowedWeightValues: string;
-  managerValidationSlaDays: number;
-  cascadeMode: string;
-  measurementTypes: string;
-  attachmentsEnabled: boolean;
+  configurationId: string;
+  isConfigured: boolean;
+  maxObjectiveCount: number;
+  allowedWeights: string;
+  quantitativeEnabled: boolean;
+  qualitativeEnabled: boolean;
   version: number;
   sourceVersionId: string | null;
-  sourceBaselineVersionId: string | null;
+  sourceStartingConfigurationId: string | null;
   createdByUserId: string;
   createdByName: string | null;
-  activatedAt: string | null;
-  activatedByUserId: string | null;
-  activatedByName: string | null;
+  appliedAt: string | null;
   changeSummary: string | null;
-  supersededAt: string | null;
 }
 
-export interface PolicySummaryDto {
-  policyId: string;
-  currentPolicy: PolicyVersionDto | null;
+export interface ObjectivePlanningConfigurationSummaryDto {
+  isConfigured: boolean;
+  configuration: ObjectivePlanningConfigurationDto | null;
+  options: ObjectivePlanningConfigurationOptionsDto | null;
 }
 
-export interface ApplyPolicyRequest {
-  maxObjectivesPerPlan: number;
-  allowedWeightValues: string;
-  managerValidationSlaDays: number;
-  cascadeMode: string;
-  measurementTypes: string;
-  attachmentsEnabled: boolean;
+export interface ObjectivePlanningConfigurationOptionsDto {
+  maxObjectiveCountLimit: number;
+  supportedAllowedWeights: string;
+  quantitativeAvailable: boolean;
+  qualitativeAvailable: boolean;
+}
+
+export interface ApplyObjectivePlanningConfigurationRequest {
+  maxObjectiveCount: number;
+  allowedWeights: string;
+  quantitativeEnabled: boolean;
+  qualitativeEnabled: boolean;
   changeSummary?: string | null;
 }
 
-// ── Template library (stable-identity, P1) ───────────────────────────
-
-export type TemplateRevisionStatus = "Draft" | "Active" | "Superseded";
-export type TemplateContainerStatus = "Draft" | "Active" | "Archived";
-
-export interface TemplateRevisionDto {
-  id: string;
-  templateId: string;
-  versionNumber: number;
-  status: TemplateRevisionStatus;
-  title: string;
-  description: string | null;
-  categoryId: string | null;
-  measurementType: "Quantitative" | "Qualitative";
-  suggestedWeighting: number | null;
-  tags: string | null;
-  indicator: string | null;
-  targetValue: number | null;
-  unit: string | null;
-  expectedOutcome: string | null;
-  successCriteria: string | null;
-  version: number;
-  sourceRevisionId: string | null;
-  createdByUserId: string;
-  createdByName: string | null;
-  activatedAt: string | null;
-  activatedByUserId: string | null;
-  activatedByName: string | null;
-  changeSummary: string | null;
-  supersededAt: string | null;
-  createdAt: string;
-  updatedAt: string | null;
-  applicableOrgUnitIds: string[];
-  /** Selected units whose scope explicitly includes descendants (P1.1 §14.2). */
-  applicableOrgUnitAndDescendantIds: string[];
-  applicableJobTitles: string[];
-  applicableWorkLocations: string[];
-  applicableEmploymentTypes: string[];
-  applicabilityValidationState: "NotValidated" | "Valid" | "HasUnresolved";
-}
-
-export interface TemplateSummaryDto {
-  id: string;
-  tenantId: string;
-  code: string;
-  status: TemplateContainerStatus;
-  activeRevision: TemplateRevisionDto | null;
-  draftRevision: TemplateRevisionDto | null;
-  createdAt: string;
-  updatedAt: string | null;
-}
-
-export interface CreateTemplateDraftRequest {
-  title: string;
-  description?: string | null;
-  categoryId?: string | null;
-  measurementType: "Quantitative" | "Qualitative";
-  suggestedWeighting?: number | null;
-  tags?: string | null;
-  indicator?: string | null;
-  targetValue?: number | null;
-  unit?: string | null;
-  expectedOutcome?: string | null;
-  successCriteria?: string | null;
-  sourceRevisionId?: string | null;
-  applicableOrgUnitIds?: string[] | null;
-  applicableOrgUnitAndDescendantIds?: string[] | null;
-  applicableJobTitles?: string[] | null;
-  applicableWorkLocations?: string[] | null;
-  applicableEmploymentTypes?: string[] | null;
-}
-
-export interface UpdateTemplateDraftRequest extends CreateTemplateDraftRequest {
-  expectedVersion: number;
-}
-
-export interface ActivateTemplateRevisionRequest {
-  changeSummary?: string | null;
-  expectedVersion: number;
-}
-
-/** Concise entry in the simple revision history (P1.1 §15.2). */
-export interface TemplateRevisionHistoryEntryDto {
-  id: string;
-  versionNumber: number;
-  status: TemplateRevisionStatus;
-  title: string;
-  activatedAt: string | null;
-  activatedByName: string | null;
-  supersededAt: string | null;
-  changeSummary: string | null;
-}
-
-export interface ApplicabilityOrgUnitDto {
-  id: string;
-  name: string;
-  code: string;
-  parentId: string | null;
-}
-
-export interface ApplicabilityOptionsDto {
-  orgUnits: ApplicabilityOrgUnitDto[];
-  jobTitles: string[];
-  workLocations: string[];
-  employmentTypes: string[];
+// Outcome of a tenant apply. Mirrors PlatformConfigurationApplyResultDto so both
+// configuration surfaces report a blocked attempt identically (applied=false + errors).
+export interface ObjectivePlanningConfigurationApplyResultDto {
+  applied: boolean;
+  configuration: ObjectivePlanningConfigurationDto | null;
+  errors: string[];
 }
 
 // ── Paths ────────────────────────────────────────────────────────────
@@ -482,40 +288,14 @@ export const performancePaths = {
   cycleReadiness: (id: string) => `/performance/cycles/${id}/readiness`,
   cyclePlanningApprover: (cycleId: string, participantId: string) =>
     `/performance/cycles/${cycleId}/participants/${participantId}/planning-approver`,
-  // Platform defaults — atomic apply, no Draft lifecycle
-  platformDefaultsSummary: () => "/performance/platform/defaults/summary",
-  platformGuardrails: () => "/performance/platform/defaults/guardrails",
-  platformGuardrailsApply: () => "/performance/platform/defaults/guardrails/apply",
-  platformBaseline: () => "/performance/platform/defaults/baseline",
-  platformBaselineApply: () => "/performance/platform/defaults/baseline/apply",
-  // Template categories
-  templateCategories: () => "/performance/template-categories",
-  templateCategory: (id: string) => `/performance/template-categories/${id}`,
-  templateCategoryArchive: (id: string) => `/performance/template-categories/${id}/archive`,
-  templateCategoryReactivate: (id: string) => `/performance/template-categories/${id}/reactivate`,
-
-  // Tenant objective policy
-  policy: () => "/performance/policy",
-  policyHistory: () => "/performance/policy/history",
-  policyApply: () => "/performance/policy/apply",
-
-  objectiveTemplates: () => "/performance/objective-templates",
-  objectiveTemplate: (id: string) => `/performance/objective-templates/${id}`,
-  objectiveTemplateArchive: (id: string) =>
-    `/performance/objective-templates/${id}/archive`,
-  objectiveTemplateRestore: (id: string) =>
-    `/performance/objective-templates/${id}/restore`,
-  // Template library (stable-identity, P1)
-  templateLibrary: () => "/performance/template-library",
-  templateLibraryItem: (id: string) => `/performance/template-library/${id}`,
-  templateLibraryDraft: (id: string) => `/performance/template-library/${id}/draft`,
-  templateLibraryDraftActivate: (id: string) => `/performance/template-library/${id}/draft/activate`,
-  templateLibraryRevise: (id: string) => `/performance/template-library/${id}/revise`,
-  templateLibraryArchive: (id: string) => `/performance/template-library/${id}/archive`,
-  templateLibraryRestore: (id: string) => `/performance/template-library/${id}/restore`,
-  templateLibraryDuplicate: (id: string) => `/performance/template-library/${id}/duplicate`,
-  templateLibraryHistory: (id: string) => `/performance/template-library/${id}/history`,
-  templateLibraryApplicabilityOptions: () => "/performance/template-library/applicability-options",
+  platformPerformanceConfiguration: () =>
+    "/performance/platform/configuration",
+  platformPerformanceConfigurationApply: () =>
+    "/performance/platform/configuration/apply",
+  objectivePlanningConfiguration: () =>
+    "/performance/objective-planning/configuration",
+  objectivePlanningConfigurationApply: () =>
+    "/performance/objective-planning/configuration/apply",
   notifications: () => "/performance/notifications",
   notificationsUnreadCount: () => "/performance/notifications/unread-count",
   notificationRead: (id: string) => `/performance/notifications/${id}/read`,
@@ -560,43 +340,10 @@ export const performanceQueryKeys = {
     ] as const,
   cycleAudit: (id: string) => [...performanceQueryKeys.cycle(id), "audit"] as const,
   cycleReadiness: (id: string) => [...performanceQueryKeys.cycle(id), "readiness"] as const,
-  objectiveTemplates: () =>
-    [...performanceQueryKeys.all(), "objective-templates"] as const,
-  objectiveTemplateList: (params: {
-    search?: string | null;
-    status?: string | null;
-    category?: string | null;
-    page: number;
-    pageSize: number;
-  }) =>
-    [
-      ...performanceQueryKeys.objectiveTemplates(),
-      "list",
-      {
-        search: params.search?.trim() || null,
-        status: params.status ?? null,
-        category: params.category ?? null,
-        page: params.page,
-        pageSize: params.pageSize,
-      },
-    ] as const,
-  // Template categories
-  templateCategories: () => [...performanceQueryKeys.all(), "template-categories"] as const,
-  // Template library (stable-identity, P1)
-  templateLibrary: (params?: { search?: string | null; status?: string | null; categoryId?: string | null; measurementType?: string | null; page?: number; pageSize?: number }) =>
-    [...performanceQueryKeys.all(), "template-library", params ?? {}] as const,
-  templateLibraryItem: (id: string) => [...performanceQueryKeys.all(), "template-library", id] as const,
-  templateLibraryHistory: (id: string) =>
-    [...performanceQueryKeys.all(), "template-library", id, "history"] as const,
-  applicabilityOptions: () => [...performanceQueryKeys.all(), "applicability-options"] as const,
-  // Tenant policy query keys
-  policy: () => [...performanceQueryKeys.all(), "policy"] as const,
-  policyHistory: () => [...performanceQueryKeys.policy(), "history"] as const,
-  // Platform defaults query keys
-  platformDefaults: () => [...performanceQueryKeys.all(), "platform-defaults"] as const,
-  platformDefaultsSummary: () => [...performanceQueryKeys.platformDefaults(), "summary"] as const,
-  platformGuardrails: () => [...performanceQueryKeys.platformDefaults(), "guardrails"] as const,
-  platformBaseline: () => [...performanceQueryKeys.platformDefaults(), "baseline"] as const,
+  objectivePlanningConfiguration: () =>
+    [...performanceQueryKeys.all(), "objective-planning-configuration"] as const,
+  platformPerformanceConfiguration: () =>
+    [...performanceQueryKeys.all(), "platform-performance-configuration"] as const,
   notifications: () => [...performanceQueryKeys.all(), "notifications"] as const,
   notificationList: (params: { unreadOnly: boolean; page: number; pageSize: number }) =>
     [...performanceQueryKeys.notifications(), "list", params] as const,

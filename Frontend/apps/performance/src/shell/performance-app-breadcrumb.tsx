@@ -2,15 +2,33 @@
 
 import { usePathname } from "next/navigation";
 import { AppBreadcrumb } from "@repo/ds/shell";
-import { REVIEWS_NAV, HR_ADMIN_NAV, PLATFORM_ADMIN_NAV } from "@/data/sidebar-nav";
+import {
+  OVERVIEW_NAV,
+  PLATFORM_ADMIN_NAV,
+  TENANT_CONFIGURATION_NAV,
+} from "@/data/sidebar-nav";
 
 const NAV_ITEMS = [
-  ...REVIEWS_NAV.items,
-  ...HR_ADMIN_NAV.items,
+  ...OVERVIEW_NAV.items,
+  ...TENANT_CONFIGURATION_NAV.items,
   ...PLATFORM_ADMIN_NAV.items,
 ];
 
+const BREADCRUMB_LABELS = new Map([
+  ["planning", "Objective Planning"],
+  ["performance", "Performance configuration"],
+]);
+
 export function PerformanceAppBreadcrumb() {
   const pathname = usePathname();
-  return <AppBreadcrumb appName="Performance" pathname={pathname} navItems={NAV_ITEMS} />;
+  const activePath = pathname.replace(/^\/performance/, "") || "/";
+
+  return (
+    <AppBreadcrumb
+      appName="Performance"
+      pathname={activePath}
+      navItems={NAV_ITEMS}
+      overrides={BREADCRUMB_LABELS}
+    />
+  );
 }

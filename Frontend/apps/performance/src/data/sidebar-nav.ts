@@ -1,24 +1,30 @@
-import { ClipboardList, Library, ScrollText, Settings2 } from "lucide-react";
+import { ClipboardList, ScrollText, Settings2 } from "lucide-react";
 import type { ShellNavSection } from "@repo/ds/shell";
 
-export const REVIEWS_NAV: ShellNavSection = {
-  title: "Reviews",
+export const OVERVIEW_NAV: ShellNavSection = {
   items: [
     { label: "Overview", href: "/", icon: ClipboardList },
   ],
 };
 
-export const HR_ADMIN_NAV: ShellNavSection = {
-  title: "Performance setup",
+export const TENANT_CONFIGURATION_NAV: ShellNavSection = {
+  title: "Configuration",
   items: [
-    { label: "Objective policy", href: "/policy", icon: ScrollText },
-    { label: "Objective templates", href: "/templates", icon: Library },
+    {
+      label: "Objective Planning",
+      href: "/configuration/planning",
+      icon: ScrollText,
+    },
   ],
 };
 
 export const PLATFORM_ADMIN_NAV: ShellNavSection = {
-  title: "Platform defaults",
+  title: "Platform administration",
   items: [
-    { label: "Platform defaults", href: "/defaults", icon: Settings2 },
+    {
+      label: "Performance configuration",
+      href: "/configuration/performance",
+      icon: Settings2,
+    },
   ],
 };

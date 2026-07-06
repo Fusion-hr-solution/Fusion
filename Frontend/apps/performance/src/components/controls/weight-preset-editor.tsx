@@ -48,7 +48,7 @@ export function WeightPresetEditor({
         }
         disabled={disabled}
         className="flex w-full flex-wrap"
-        aria-label="Allowed objective weights"
+        aria-label="Allowed weight menu"
       >
         {PRESET_WEIGHTS.map((w) => (
           <ToggleGroupItem

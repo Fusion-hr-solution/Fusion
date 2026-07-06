@@ -4,14 +4,44 @@ import React from "react";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { PlatformDefaultsPage } from "./platform-defaults-page";
+import { ObjectivePlanningConfigurationPage } from "./objective-planning-configuration-page";
 
 const queryState = vi.hoisted(() => ({
   data: {
-    isConfigured: false,
-    configuration: null,
+    isConfigured: true,
+    options: {
+      maxObjectiveCountLimit: 5,
+      supportedAllowedWeights: "5,10,15,20,25,30,40,50",
+      quantitativeAvailable: true,
+      qualitativeAvailable: true,
+    },
+    configuration: {
+      id: "version-1",
+      configurationId: "configuration-1",
+      isConfigured: true,
+      maxObjectiveCount: 4,
+      allowedWeights: "25,50",
+      quantitativeEnabled: true,
+      qualitativeEnabled: true,
+      version: 7,
+      sourceVersionId: null,
+      sourceStartingConfigurationId: "starting-1",
+      createdByUserId: "user-1",
+      createdByName: "Tenant Admin",
+      appliedAt: "2026-07-04T00:00:00Z",
+      changeSummary: null,
+    },
   },
   error: null as Error | null,
+}));
+
+vi.mock("@repo/auth", () => ({
+  useAuth: () => ({
+    user: { fullName: "Tenant Admin" },
+    isLoading: false,
+  }),
+  canViewObjectivePlanningConfiguration: () => true,
+  canManageObjectivePlanningConfiguration: () => true,
 }));
 
 vi.mock("@repo/api", async () => {
@@ -59,23 +89,22 @@ function renderPage() {
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
-  act(() => root?.render(<PlatformDefaultsPage />));
+  act(() => root?.render(<ObjectivePlanningConfigurationPage />));
   return container;
 }
 
-describe("PlatformDefaultsPage", () => {
-  it("uses the lean platform configuration language and bounded weight choices", () => {
+describe("ObjectivePlanningConfigurationPage", () => {
+  it("renders tenant planning configuration with bounded platform choices", () => {
     const page = renderPage();
 
-    expect(page.textContent).toContain("Platform performance configuration");
-    expect(page.textContent).toContain("Not configured");
+    expect(page.textContent).toContain("Objective planning configuration");
+    expect(page.textContent).not.toContain("Objective policy");
     expect(page.textContent).not.toContain("Template");
-    expect(page.textContent).not.toContain("Guardrails");
 
-    expect(page.textContent).toContain("Supported objective weights");
-    expect(page.textContent).toContain("business importance");
+    expect(page.textContent).toContain("Allowed weight menu");
+    expect(page.textContent).toContain("objective importance");
     expect(
-      Array.from(page.querySelectorAll("button")).some((button) => button.textContent === "25%"),
+      Array.from(page.querySelectorAll("button")).some((button) => button.textContent === "50%"),
     ).toBe(true);
     expect(
       Array.from(page.querySelectorAll("button")).some((button) => button.textContent === "100%"),
@@ -84,7 +113,7 @@ describe("PlatformDefaultsPage", () => {
       Array.from(page.querySelectorAll("button")).some((button) => button.textContent === "Edit"),
     ).toBe(false);
     expect(
-      Array.from(page.querySelectorAll("button")).some((button) => button.textContent === "Validate impact"),
+      Array.from(page.querySelectorAll("button")).some((button) => button.textContent === "Validate"),
     ).toBe(false);
     expect(
       Array.from(page.querySelectorAll("button")).some((button) => button.textContent === "Apply changes"),

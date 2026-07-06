@@ -1,12 +1,14 @@
-import type { StatusTone } from "@repo/ds/shell";
-
 // ── Weight helpers ───────────────────────────────────────────────────────────
 
 export function parseWeightValues(csv: string): number[] {
-  return csv
-    .split(",")
-    .map((w) => parseInt(w.trim(), 10))
-    .filter((n) => !isNaN(n) && n > 0);
+  return Array.from(
+    new Set(
+      csv
+        .split(",")
+        .map((w) => Number(w.trim()))
+        .filter((n) => Number.isInteger(n) && n > 0 && n <= 100 && n % 5 === 0),
+    ),
+  ).sort((a, b) => a - b);
 }
 
 export function formatWeightValues(values: number[]): string {
@@ -40,81 +42,6 @@ export function labelMeasurementTypes(csv: string): string {
   return "—";
 }
 
-// Single-template measurement type
-export function labelMeasurementType(type: string): string {
-  if (type === "Quantitative") return "Numeric target";
-  if (type === "Qualitative") return "Qualitative outcome";
-  return type;
-}
-
-// ── Cascade/alignment helpers ────────────────────────────────────────────────
-
-export function labelCascadeMode(mode: string): string {
-  if (mode === "Disabled") return "Not used";
-  if (mode === "Optional") return "Optional";
-  if (mode === "Required") return "Required";
-  return mode;
-}
-
-// ── Status helpers ───────────────────────────────────────────────────────────
-
-/** Policy version statuses */
-export function policyStatusLabel(status: string): string {
-  if (status === "Active") return "Current policy";
-  if (status === "Superseded") return "Previous version";
-  return status;
-}
-
-export function policyStatusTone(status: string): StatusTone {
-  if (status === "Active") return "success";
-  if (status === "Superseded") return "muted";
-  return "neutral";
-}
-
-/** Template statuses */
-export function templateStatusLabel(status: string, hasDraft: boolean): string {
-  if (hasDraft && status === "Active") return "Changes pending";
-  if (status === "Active") return "Active";
-  if (status === "Draft") return "Draft";
-  if (status === "Archived") return "Archived";
-  return status;
-}
-
-export function templateStatusTone(status: string, hasDraft: boolean): StatusTone {
-  if (hasDraft && status === "Active") return "warning";
-  if (status === "Active") return "success";
-  if (status === "Draft") return "warning";
-  if (status === "Archived") return "muted";
-  return "neutral";
-}
-
-/** Baseline/platform statuses */
-export function baselineStatusLabel(status: string): string {
-  if (status === "Published") return "Applied";
-  if (status === "Superseded") return "Previous version";
-  return status;
-}
-
-export function baselineStatusTone(status: string): StatusTone {
-  if (status === "Published") return "success";
-  if (status === "Superseded") return "muted";
-  return "neutral";
-}
-
-// ── Applicability validation state ───────────────────────────────────────────
-
-export function applicabilityValidationLabel(state: string): string {
-  if (state === "Valid") return "Audience looks good";
-  if (state === "HasUnresolved") return "A selected organisation value is no longer available";
-  return "";
-}
-
-export function applicabilityValidationTone(state: string): StatusTone {
-  if (state === "Valid") return "success";
-  if (state === "HasUnresolved") return "warning";
-  return "neutral";
-}
-
 // ── Date formatting ──────────────────────────────────────────────────────────
 
 export function formatDate(iso: string | null | undefined): string {
@@ -128,13 +55,4 @@ export function formatDateTime(iso: string | null | undefined): string {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(iso));
-}
-
-export function normalizePlatformDefaultsCopy(text: string): string {
-  return text
-    .replaceAll("standard setup", "default objective policy")
-    .replaceAll("Standard setup", "Default objective policy")
-    .replaceAll("advanced limits", "platform limits")
-    .replaceAll("Advanced limits", "Platform limits")
-    .replaceAll("Platform standard setup", "Default objective policy");
 }

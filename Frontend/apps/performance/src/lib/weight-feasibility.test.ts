@@ -44,10 +44,10 @@ describe("checkWeightFeasibility", () => {
     expect(result.feasible).toBe(true);
   });
 
-  it("is infeasible when {33} cannot sum to 100 with any count", () => {
-    // 33 × 3 = 99, never exactly 100
+  it("is infeasible when a value is not a 5 percent increment", () => {
     const result = checkWeightFeasibility("33", 10);
     expect(result.feasible).toBe(false);
+    expect(result.reason).toContain("5%");
   });
 
   it("is infeasible when the only value is 60 and max is 1", () => {
@@ -55,15 +55,15 @@ describe("checkWeightFeasibility", () => {
     expect(result.feasible).toBe(false);
   });
 
-  // --- publish gating ---
+  // --- apply gating ---
 
-  it("gating: publish should be blocked when not feasible", () => {
+  it("gating: apply should be blocked when not feasible", () => {
     const result = checkWeightFeasibility("30,40", 2);
-    // The Publish button is disabled when !result.feasible
+    // The Apply action is blocked when the configuration is not feasible.
     expect(result.feasible).toBe(false);
   });
 
-  it("gating: publish should be allowed when feasible", () => {
+  it("gating: apply should be allowed when feasible", () => {
     const result = checkWeightFeasibility("25,50", 4);
     expect(result.feasible).toBe(true);
   });
@@ -94,27 +94,30 @@ describe("checkWeightFeasibility", () => {
     expect(result.reason).toBe("Max objectives must be at least 1.");
   });
 
-  it("ignores invalid (non-numeric) entries in weight string", () => {
-    // "10,abc,90" — only 10 and 90 are valid; 10+90=100 ✓
+  it("rejects invalid non-numeric entries in the weight string", () => {
     const result = checkWeightFeasibility("10,abc,90", 2);
-    expect(result.feasible).toBe(true);
+    expect(result.feasible).toBe(false);
+    expect(result.reason).toContain("5%");
   });
 
-  it("ignores weight values greater than 100", () => {
-    // "200" is stripped, leaving nothing valid
+  it("rejects weight values greater than 100", () => {
     const result = checkWeightFeasibility("200", 1);
     expect(result.feasible).toBe(false);
-    expect(result.reason).toBe("No valid weights specified.");
+    expect(result.reason).toContain("5%");
   });
 
-  it("ignores zero-value weights", () => {
+  it("rejects zero-value weights", () => {
     const result = checkWeightFeasibility("0,100", 1);
-    // 0 is filtered out; only 100 remains → 100 = 100 ✓
-    expect(result.feasible).toBe(true);
+    expect(result.feasible).toBe(false);
+  });
+
+  it("rejects duplicate menu values", () => {
+    const result = checkWeightFeasibility("50,50", 2);
+    expect(result.feasible).toBe(false);
   });
 
   it("handles extra whitespace around values", () => {
-    const result = checkWeightFeasibility(" 50 , 50 ", 2);
+    const result = checkWeightFeasibility(" 25 , 50 ", 4);
     expect(result.feasible).toBe(true);
   });
 
