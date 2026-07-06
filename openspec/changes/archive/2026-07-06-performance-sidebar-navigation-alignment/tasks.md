@@ -7,7 +7,7 @@
 ## 2. Routes and Breadcrumbs
 
 - [x] 2.1 Move Tenant Objective Planning Configuration to `/performance/configuration/planning`.
-- [x] 2.2 Move Platform Performance Configuration to `/performance/platform/configuration/performance`.
+- [x] 2.2 Move Platform Performance Configuration to `/performance/configuration/performance`.
 - [x] 2.3 Keep old `/performance/planning` and `/performance/defaults` as redirects or explicitly verify they are removed from all navigation.
 - [x] 2.4 Update breadcrumbs to use the same navigation source as the sidebar.
 

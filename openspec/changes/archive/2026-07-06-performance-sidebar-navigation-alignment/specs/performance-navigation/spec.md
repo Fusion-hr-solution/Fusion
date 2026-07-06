@@ -26,7 +26,7 @@ The system SHALL render Performance sidebar destinations as stable role-aware wo
 - **WHEN** the Performance sidebar renders
 - **THEN** the sidebar shows `Platform administration`
 - **AND** the section contains `Performance configuration`
-- **AND** `Performance configuration` navigates to `/performance/platform/configuration/performance`.
+- **AND** `Performance configuration` navigates to `/performance/configuration/performance`.
 
 #### Scenario: Platform Admin does not receive tenant configuration by role alone
 
@@ -45,14 +45,14 @@ The system SHALL use scalable canonical routes for Performance configuration pag
 
 #### Scenario: Platform performance route renders platform configuration
 
-- **WHEN** a Platform Admin opens `/performance/platform/configuration/performance`
+- **WHEN** a Platform Admin opens `/performance/configuration/performance`
 - **THEN** the page renders the `Platform performance configuration` product surface.
 
-#### Scenario: Old routes remain compatibility shims
+#### Scenario: Legacy planning route remains a compatibility shim
 
-- **WHEN** a user opens `/performance/planning` or `/performance/defaults`
-- **THEN** the app redirects to the corresponding canonical configuration route
-- **AND** the sidebar does not expose the old route labels.
+- **WHEN** a user opens `/performance/planning`
+- **THEN** the app redirects to `/performance/configuration/planning`
+- **AND** the sidebar does not expose the old route label.
 
 ### Requirement: Navigation terminology stays product-oriented
 

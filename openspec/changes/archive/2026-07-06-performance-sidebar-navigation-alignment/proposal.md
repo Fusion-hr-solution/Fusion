@@ -7,7 +7,7 @@ Performance navigation is currently shaped by implementation partitions and indi
 - Reframe Performance sidebar navigation around role-aware workspaces instead of feature/page names.
 - Replace `Reviews`, `Performance setup`, and `Platform setup` sidebar group language with `Overview`, `Configuration`, and `Platform administration`.
 - Move the Tenant Objective Planning Configuration route to `/performance/configuration/planning` and label the sidebar item `Objective Planning`.
-- Move Platform Performance Configuration to `/performance/platform/configuration/performance` and label the sidebar item `Performance configuration`.
+- Move Platform Performance Configuration to `/performance/configuration/performance` and label the sidebar item `Performance configuration`.
 - Preserve the full product page titles: `Objective planning configuration` and `Platform performance configuration`.
 - Preserve separate Platform Admin and tenant configuration authority: Platform Admin does not automatically receive tenant configuration navigation.
 
