@@ -22,12 +22,12 @@ import {
   PageContainer,
   PageHeader,
   PageError,
-  PageLoading,
   PagePermissionNotice,
 } from "@repo/ds/shell";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { EmployeesPageSkeleton } from "@/shell/route-skeletons";
 import { buildEmployeeColumns } from "@/app/(pages)/employees/columns";
 import { EmployeeCreateDialog } from "@/app/(pages)/employees/employee-create-dialog";
 import { EmployeeRowActions } from "@/app/(pages)/employees/employee-row-actions";
@@ -635,10 +635,9 @@ export default function EmployeeRosterWorkspace() {
 
   if (isInitialPageLoading || shouldRedirectAccessReview) {
     return (
-      <PageContainer width="wide" className="space-y-5">
-        <PageHeader title="Employees" description="Browse and manage workforce records." />
-        <PageLoading rows={8} label={shouldRedirectAccessReview ? "Opening access review" : "Loading employees"} />
-      </PageContainer>
+      <EmployeesPageSkeleton
+        label={shouldRedirectAccessReview ? "Opening access review" : "Loading employees"}
+      />
     );
   }
 

@@ -764,34 +764,9 @@ export function formatAttributeValue(value: unknown): string {
   return String(value);
 }
 
-export function DraftStructurePageSkeleton() {
-  // Title stays a skeleton on purpose: the real title is state-dependent
-  // ("Draft structure" / "Live structure" / ...), unknown until setup state
-  // loads. Geometry matches PageHeader/PageSkeleton so the swap is seamless.
-  return (
-    <PageContainer width="wide" className="space-y-6">
-      <div className="space-y-2">
-        <Skeleton className="h-7 w-48" />
-        <Skeleton className="h-4 w-80 max-w-full" />
-      </div>
-      <DraftStructureWorkbenchSkeleton />
-    </PageContainer>
-  );
-}
-
-export function DraftStructureWorkbenchSkeleton() {
-  return (
-    <div className="space-y-4">
-      <div className="grid gap-4 xl:grid-cols-[1.55fr_0.9fr]">
-        <div className="space-y-3">
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-[36rem] w-full" />
-        </div>
-        <div className="space-y-3">
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-[36rem] w-full" />
-        </div>
-      </div>
-    </div>
-  );
-}
+// Canonical definitions live in the route-skeleton registry so the route
+// loading boundary, guard hold, and workspaces all render the same ones.
+export {
+  DraftStructurePageSkeleton,
+  DraftStructureWorkbenchSkeleton,
+} from "@/shell/route-skeletons";

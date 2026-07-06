@@ -16,8 +16,8 @@ import {
   PageHeader,
   PageEmpty,
   PageError,
-  PageLoading,
 } from "@repo/ds/shell";
+import { MyProfilePageSkeleton } from "@/shell/route-skeletons";
 import { useTenantContext } from "@/shell/tenant-context/core-tenant-context-provider";
 import { useTenantSettings } from "@/features/settings/api/use-tenant-settings";
 import { useEmployeeFieldPolicy } from "@/features/employees/shared/employee-field-visibility";
@@ -59,12 +59,7 @@ export default function MyProfilePage() {
   );
 
   if (authLoading) {
-    return (
-      <PageContainer className="space-y-6">
-        <PageHeader title="My Profile" description="Loading profile." />
-        <PageLoading rows={6} label="Loading your profile..." />
-      </PageContainer>
-    );
+    return <MyProfilePageSkeleton />;
   }
 
   if (!employeeId) {
@@ -81,12 +76,7 @@ export default function MyProfilePage() {
   }
 
   if (isLoading && !details && !error) {
-    return (
-      <PageContainer className="space-y-6">
-        <PageHeader title="My Profile" description="Loading profile." />
-        <PageLoading rows={6} label="Loading your profile..." />
-      </PageContainer>
-    );
+    return <MyProfilePageSkeleton />;
   }
 
   if (error) {

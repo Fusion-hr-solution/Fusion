@@ -14,7 +14,8 @@ import { coreSetupQueryKeys, type TenantSetupStateDto } from "@repo/api";
 import { useApiQueryClient } from "@repo/api/query";
 import { canSeeCoreSetupNavigation, useAuth } from "@repo/auth";
 import { useTenantContext } from "@/shell/tenant-context/core-tenant-context-provider";
-import { PageContainer, PageHeader, PageLoading, PageSkeleton } from "@repo/ds/shell";
+import { PageContainer, PageHeader, PageLoading } from "@repo/ds/shell";
+import { getRoutePageSkeleton } from "@/shell/route-skeletons";
 import {
   useActivateSetup,
   usePublishStructure,
@@ -286,9 +287,10 @@ export function CoreSetupRouteGuard({ children }: { children: ReactNode }) {
   }
 
   // Fail closed: until auth + setup state are known, hold non-setup routes on
-  // a neutral skeleton instead of flashing content that may turn out locked.
+  // the route's own dedicated skeleton — the same one the page renders while
+  // its data loads — so the hold and the page read as ONE loading state.
   if (isAccessResolving) {
-    return <PageSkeleton label="Checking workspace access" />;
+    return <>{getRoutePageSkeleton(currentPath)}</>;
   }
 
   if (shouldHoldRoute) {

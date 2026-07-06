@@ -9,11 +9,11 @@ import { Plus } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { DataTablePagination } from "@/components/data-table-pagination";
+import { OrganizationsPageSkeleton } from "@/shell/route-skeletons";
 import {
   PageContainer,
   PageHeader,
   PageError,
-  PageLoading,
   PagePermissionNotice,
 } from "@repo/ds/shell";
 import { useOrganizationList } from "@/features/organizations/api/use-organizations";
@@ -124,12 +124,7 @@ export default function OrganizationsWorkspace() {
     canManageOrganizations && isLoading && !data && !error;
 
   if (isInitialPageLoading) {
-    return (
-      <PageContainer width="wide" className="space-y-6">
-        <PageHeader title="Organizations" description="Loading organizations." />
-        <PageLoading rows={8} label="Loading organizations..." />
-      </PageContainer>
-    );
+    return <OrganizationsPageSkeleton />;
   }
 
   if (!canManageOrganizations) {

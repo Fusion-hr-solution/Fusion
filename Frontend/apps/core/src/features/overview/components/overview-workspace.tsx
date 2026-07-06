@@ -59,6 +59,7 @@ import {
   canAccessTeamWorkspace,
 } from "@/lib/employee-roster-access";
 import { buildTenantContextHref } from "@/lib/tenant-navigation";
+import { OverviewPageSkeleton } from "@/shell/route-skeletons";
 import { useTenantContext } from "@/shell/tenant-context/core-tenant-context-provider";
 import {
   useEmployeeRoster,
@@ -103,25 +104,9 @@ function getNewHireLabel(hireDate: string) {
   return null;
 }
 
-function LoadingSkeleton() {
-  return (
-    <PageContainer width="wide" className="space-y-6">
-      <PageHeader
-        title="Dashboard"
-        description={<Skeleton className="h-4 w-80 max-w-full" />}
-      />
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <Skeleton key={i} className="h-24 rounded-xl" />
-        ))}
-      </div>
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Skeleton className="h-64 rounded-xl lg:col-span-2" />
-        <Skeleton className="h-64 rounded-xl" />
-      </div>
-    </PageContainer>
-  );
-}
+// Shared with the route loading boundary and guard hold (route-skeletons.tsx)
+// so every loading surface for "/" renders the identical skeleton.
+const LoadingSkeleton = OverviewPageSkeleton;
 
 function QuickLink({ href, icon: Icon, children }: { href: string; icon: typeof Plus; children: ReactNode }) {
   return (

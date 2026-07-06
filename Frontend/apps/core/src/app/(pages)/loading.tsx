@@ -1,9 +1,15 @@
-import { PageSkeleton } from "@repo/ds/shell";
+"use client";
 
-// Route-group loading boundary: renders INSIDE CorePagesShell, so the app
-// frame persists during core→core transitions and only the content area
-// shows the neutral skeleton. Title-less by design — the page's own
-// loading state supplies the real header once it mounts.
+import { usePathname } from "next/navigation";
+import {
+  getCorePathname,
+  getRoutePageSkeleton,
+} from "@/shell/route-skeletons";
+
+// Route-group loading boundary: renders INSIDE CorePagesShell (frame persists)
+// and shows the TARGET route's dedicated skeleton — the same component the
+// page's own loading branch renders — so the transition reads as one skeleton.
 export default function PagesLoading() {
-  return <PageSkeleton label="Loading page" />;
+  const pathname = usePathname();
+  return <>{getRoutePageSkeleton(getCorePathname(pathname))}</>;
 }

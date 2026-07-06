@@ -813,83 +813,9 @@ function SetupProgressCard({
   );
 }
 
-export function SetupPageSkeleton() {
-  return (
-    <PageContainer width="wide" className="space-y-6">
-      <PageHeader
-        title="Organization Setup"
-        description="Loading the review surface..."
-      />
-
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] xl:items-start">
-        <div className="space-y-4">
-          <Card>
-            <CardContent className="space-y-4 p-5">
-              <div className="space-y-3">
-                <Skeleton className="h-4 w-28" />
-                <Skeleton className="h-7 w-64" />
-                <Skeleton className="h-4 w-full max-w-2xl" />
-                <Skeleton className="h-4 w-full max-w-xl" />
-                <div className="flex flex-wrap gap-2">
-                  <Skeleton className="h-10 w-40" />
-                  <Skeleton className="h-10 w-36" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="space-y-4 p-5">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between gap-3">
-                  <Skeleton className="h-5 w-32" />
-                  <Skeleton className="h-5 w-28" />
-                </div>
-                <Skeleton className="h-4 w-full max-w-xl" />
-                <Skeleton className="h-2 w-full rounded-full" />
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-3">
-                {Array.from({ length: 3 }).map((_, index) => (
-                  <div
-                    key={index}
-                    className="flex flex-col items-center gap-4 rounded-xl border p-5"
-                  >
-                    <Skeleton className="size-12 rounded-full" />
-                    <div className="space-y-1 text-center">
-                      <Skeleton className="mx-auto h-3 w-16" />
-                      <Skeleton className="mx-auto h-4 w-28" />
-                    </div>
-                    <Skeleton className="h-5 w-20 rounded-full" />
-                    <Skeleton className="h-3 w-36" />
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-        <div className="rounded-xl border p-5">
-          <Skeleton className="h-5 w-32" />
-          <div className="mt-4 space-y-4">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <Skeleton key={i} className="h-14 w-full" />
-            ))}
-          </div>
-        </div>
-      </div>
-    </PageContainer>
-  );
-}
-
-function ReadinessSkeleton() {
-  return (
-    <div className="space-y-4">
-      <Skeleton className="h-16 rounded-xl" />
-      <Skeleton className="h-36 rounded-xl" />
-      <Skeleton className="h-32 rounded-xl" />
-    </div>
-  );
-}
+// Canonical definition lives in the route-skeleton registry so the route
+// loading boundary, guard hold, and this workspace all render the same one.
+export { SetupPageSkeleton } from "@/shell/route-skeletons";
 
 function cn(...inputs: (string | boolean | undefined | null)[]): string {
   return inputs.filter(Boolean).join(" ");
@@ -1125,7 +1051,6 @@ export function SetupWorkspace({
 
   const showExpandedReadiness =
     !!readinessError ||
-    (setupStarted && isReadinessLoading && !readiness) ||
     hasBlockingIssues ||
     hasWarnings;
 
@@ -1382,8 +1307,6 @@ export function SetupWorkspace({
                   </Button>
                 </AlertDescription>
               </Alert>
-            ) : setupStarted && isReadinessLoading && !readiness ? (
-              <ReadinessSkeleton />
             ) : (
               <>
                 <p className="text-sm text-muted-foreground">

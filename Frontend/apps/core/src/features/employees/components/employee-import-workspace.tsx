@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, RefreshCcw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { EmployeeImportPageSkeleton } from "@/shell/route-skeletons";
 import {
   Select,
   SelectContent,
@@ -19,7 +20,6 @@ import { toast } from "sonner";
 import {
   PageContainer,
   PageHeader,
-  PageLoading,
   PagePermissionNotice,
 } from "@repo/ds/shell";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -588,15 +588,7 @@ export default function EmployeeImportWorkspace() {
   );
 
   if (isInitialPageLoading) {
-    return (
-      <PageContainer width="wide" className="space-y-6">
-        <PageHeader
-          title="Import employees"
-          description="Upload and validate from the CSV template."
-        />
-        <PageLoading rows={6} label="Loading employee import..." />
-      </PageContainer>
-    );
+    return <EmployeeImportPageSkeleton />;
   }
 
   if (!canAccess) {
