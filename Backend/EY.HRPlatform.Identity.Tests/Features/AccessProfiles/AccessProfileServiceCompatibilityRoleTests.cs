@@ -16,6 +16,22 @@ public class AccessProfileServiceCompatibilityRoleTests
     }
 
     [Fact]
+    public void HrAdminTemplate_IncludesObjectivePlanningConfigurationManagement()
+    {
+        Assert.Contains(AccessProfileTemplates.HrAdmin.Grants, grant =>
+            grant.PermissionKey == PerformancePermissions.ObjectivePolicyManage
+            && grant.Scope == PermissionScopes.Tenant);
+    }
+
+    [Fact]
+    public void OrgAdminTemplate_IncludesObjectivePlanningConfigurationManagement()
+    {
+        Assert.Contains(AccessProfileTemplates.OrgAdmin.Grants, grant =>
+            grant.PermissionKey == PerformancePermissions.ObjectivePolicyManage
+            && grant.Scope == PermissionScopes.Tenant);
+    }
+
+    [Fact]
     public void ResolveCompatibilityRole_ManagerPermissions_ReturnsManager()
     {
         var role = _service.ResolveCompatibilityRole(AccessProfileTemplates.Manager.Grants);

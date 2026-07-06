@@ -54,8 +54,8 @@ const PERFORMANCE_PERMISSION = {
   cycleView: "performance.cycle.view",
   cycleManage: "performance.cycle.manage",
   cyclePublish: "performance.cycle.publish",
-  objectiveLibraryView: "performance.objective.library.view",
-  objectiveLibraryManage: "performance.objective.library.manage",
+  objectivePlanningConfigurationView: "performance.objective.policy.view",
+  objectivePlanningConfigurationManage: "performance.objective.policy.manage",
 } as const;
 
 export function hasAnyRole(
@@ -372,21 +372,24 @@ export function canOperatePerformanceCycles(user: AuthUser | null): boolean {
   return hasCorePermission(user, PERFORMANCE_PERMISSION.cyclePublish, "Tenant");
 }
 
-export function canViewObjectiveLibrary(user: AuthUser | null): boolean {
+export function canViewObjectivePlanningConfiguration(user: AuthUser | null): boolean {
   return (
-    hasCorePermission(user, PERFORMANCE_PERMISSION.objectiveLibraryView, "Tenant") ||
-    hasCorePermission(user, PERFORMANCE_PERMISSION.objectiveLibraryManage, "Tenant")
+    hasCorePermission(user, PERFORMANCE_PERMISSION.objectivePlanningConfigurationView, "Tenant") ||
+    hasCorePermission(user, PERFORMANCE_PERMISSION.objectivePlanningConfigurationManage, "Tenant")
   );
 }
 
-export function canManageObjectiveLibrary(user: AuthUser | null): boolean {
+export function canManageObjectivePlanningConfiguration(user: AuthUser | null): boolean {
   return hasCorePermission(
     user,
-    PERFORMANCE_PERMISSION.objectiveLibraryManage,
+    PERFORMANCE_PERMISSION.objectivePlanningConfigurationManage,
     "Tenant"
   );
 }
 
 export function canAccessPerformance(user: AuthUser | null): boolean {
-  return canViewPerformanceCycles(user) || canViewObjectiveLibrary(user);
+  return (
+    canViewPerformanceCycles(user) ||
+    canViewObjectivePlanningConfiguration(user)
+  );
 }

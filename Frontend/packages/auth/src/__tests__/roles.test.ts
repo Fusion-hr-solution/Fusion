@@ -18,6 +18,9 @@ import {
   canSeeOrganizationsNavigation,
   canViewCoreAccessProfiles,
   canManageCoreAccessProfiles,
+  canViewObjectivePlanningConfiguration,
+  canManageObjectivePlanningConfiguration,
+  canAccessPerformance,
 } from "../roles";
 import type { AuthUser } from "../types";
 
@@ -264,4 +267,15 @@ describe("role helpers", () => {
     expect(canSeeCoreAccessNavigation(profileManager)).toBe(true);
     expect(canSeeCoreSettingsNavigation(profileManager)).toBe(true);
   });
+
+  it("uses explicit Performance P1.1 permissions for objective planning configuration", () => {
+    const p11Admin = makeUser([], null, [
+      grant("performance.objective.policy.manage", "Tenant"),
+    ]);
+
+    expect(canViewObjectivePlanningConfiguration(p11Admin)).toBe(true);
+    expect(canManageObjectivePlanningConfiguration(p11Admin)).toBe(true);
+    expect(canAccessPerformance(p11Admin)).toBe(true);
+  });
+
 });

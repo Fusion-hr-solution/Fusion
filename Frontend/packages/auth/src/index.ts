@@ -61,8 +61,8 @@ export {
   canViewPerformanceCycles,
   canManagePerformanceCycles,
   canOperatePerformanceCycles,
-  canViewObjectiveLibrary,
-  canManageObjectiveLibrary,
+  canViewObjectivePlanningConfiguration,
+  canManageObjectivePlanningConfiguration,
   canAccessPerformance,
 } from "./roles";
 
