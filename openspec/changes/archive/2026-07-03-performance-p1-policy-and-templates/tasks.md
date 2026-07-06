@@ -14,7 +14,7 @@
 
 - [x] 3.1 Backend: compare the current tenant-policy aggregate, lifecycle, and service behavior against the authority-spec flow of Current policy -> Edit locally -> Review -> Apply.
 - [x] 3.2 Backend: remove or demote any surfaced/resumable tenant-policy Draft workflow from product behavior while preserving one Active version, immutable superseded versions, and optimistic concurrency.
-- [x] 3.3 Backend: enforce the authority-spec validation set for Apply, including objective-count limits, allowed weights, max weight-choice count, measurement-method requirements, manager-review SLA, exact-100% feasibility, active-template compatibility, idempotency, and stale-update rejection.
+- [x] 3.3 Backend: enforce the authority-spec validation set for Apply, including objective-count limits, curated whole-percent allowed weights, max weight-choice count, measurement-method requirements, manager-review SLA, exact-100% feasibility, active-template compatibility, idempotency, and stale-update rejection.
 - [x] 3.4 API/contracts: realign policy DTOs, endpoints, statuses, and error mappings so product language centers on current policy, local edits, validation/impact review, Apply, not-provisioned, retryable failure, and stale update.
 - [x] 3.5 Frontend: rebuild the tenant policy surface around the authority-spec states and UX: current policy, local unsaved edits, review before Apply, not-provisioned, validation failure, conflict, retryable failure, denied, and success.
 - [x] 3.6 Frontend: preserve entered values on retryable failure, keep edits local until Apply, and ensure reads never create policy state.

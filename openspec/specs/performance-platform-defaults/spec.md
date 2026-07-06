@@ -10,14 +10,15 @@ for new tenants, fail-closed impact handling, truthful load states, and Platform
 ### Requirement: Platform guardrails define hard system limits
 
 The system SHALL maintain platform Performance guardrails that define hard, system-supported bounds
-(minimum/maximum objective count, minimum/maximum manager review SLA, permitted percentage
-precision, maximum allowed weighting values, supported measurement types, maximum template title and
+(minimum/maximum objective count, minimum/maximum manager review SLA, whole-percentage
+objective-weight choices, maximum allowed weighting values, supported measurement types, maximum template title and
 description lengths, maximum tags). Guardrails MUST NOT be tenant defaults; tenant policies and the
 platform standard setup MAY only configure values within guardrails. Guardrail data is platform-owned,
 carries no tenant identifier, and MUST be managed only by an actor holding `PlatformRole.PlatformAdmin`.
 The locked P1.1 supported limits are: 1-10 objectives per plan, 1-30 manager review days, whole
-percentage weights, 10 allowed weight choices, Quantitative and Qualitative measurement support, 150
-title characters, 500 description characters, and 10 tags.
+percentage weights using 5% increments as the professional standard, 10 allowed weight choices,
+Quantitative and Qualitative measurement support, 150 title characters, 500 description characters,
+and 10 tags.
 
 #### Scenario: Guardrails are read independently of tenant context
 
@@ -36,7 +37,10 @@ each successful Apply creates a new immutable current platform state and superse
 preserving it for traceability. This versioning is an internal guarantee rather than a surfaced Draft or
 version-management workflow. The locked recommended values are: 7 objectives per plan, allowed weights
 `5,10,15,20,25,30,40,50`, manager review SLA of 10 business days, strategic alignment Optional,
-Quantitative and Qualitative measurement, and attachments enabled.
+Quantitative and Qualitative measurement, and attachments enabled. The recommended weight menu is
+intentionally curated: it does not default to every 5% value from 5 to 100, avoids arbitrary values such
+as 17%, 23%, or 37%, and avoids default values above 50% so one objective does not normally dominate a
+balanced plan.
 
 #### Scenario: Applying a valid standard setup creates a new immutable current state
 

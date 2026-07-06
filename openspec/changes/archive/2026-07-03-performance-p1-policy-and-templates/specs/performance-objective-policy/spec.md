@@ -34,7 +34,7 @@ closed without it.
 ### Requirement: Policy fields
 
 A tenant objective policy SHALL contain: maximum objectives per employee plan; allowed weighting
-values as percentages; manager review SLA in business days; strategic-alignment mode of `Disabled`,
+values as whole percentages selected from platform-supported choices; manager review SLA in business days; strategic-alignment mode of `Disabled`,
 `Optional`, or `Required`; a non-empty combination of measurement types from {Quantitative,
 Qualitative}; and attachments set to Enabled or Disabled.
 
@@ -47,7 +47,8 @@ Qualitative}; and attachments set to Enabled or Disabled.
 
 Applying a policy MUST be rejected when: the maximum objective count is below the platform minimum or
 above the platform maximum; allowed weight values are empty; any weight is below 1 or above 100; any
-weight exceeds platform precision; allowed weights contain duplicates; enabled measurement types are
+weight is not a whole percentage, is outside platform-supported choices, or violates the configured
+5% business increment standard; allowed weights contain duplicates; enabled measurement types are
 empty; the manager review SLA is outside platform guardrails; the configuration cannot produce a 100%
 plan within the maximum objective count; active-template compatibility checks fail; or optimistic
 concurrency fails. Validation MUST be server-side and return deterministic error codes.
@@ -57,15 +58,17 @@ concurrency fails. Validation MUST be server-side and return deterministic error
 - **WHEN** a Tenant Admin attempts to apply a policy with no enabled measurement types
 - **THEN** the application is rejected with a deterministic error
 
-#### Scenario: Reject duplicate or out-of-range weights
+#### Scenario: Reject duplicate, arbitrary, or out-of-range weights
 
-- **WHEN** allowed weights contain a duplicate or a value below 1 or above 100
+- **WHEN** allowed weights contain a duplicate, a decimal value, an arbitrary non-standard value such as 17%, or a value below 1 or above 100
 - **THEN** the application is rejected with a deterministic error
 
 ### Requirement: Weight feasibility
 
 The policy MUST prove that at least one valid combination of allowed weights can total exactly 100%
-without exceeding the maximum objective count. The check MUST be deterministic and server-side.
+without exceeding the maximum objective count. Future submitted objective plans MUST total exactly
+100%, and each objective weight MUST be selected from the tenant policy's allowed values. The check
+MUST be deterministic and server-side.
 
 #### Scenario: Block an impossible weight policy
 
