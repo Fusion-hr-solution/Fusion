@@ -3,6 +3,7 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { Building2, ListFilter, Search, UserRound, X } from "lucide-react";
 import { SEARCH_DEBOUNCE_MS } from "@repo/ui";
+import { TableFilterToolbar } from "@repo/ds/shell";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -23,7 +24,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { TableFilterToolbar } from "@/components/table-filter-toolbar";
 import { EMPLOYEE_ACCESS_FILTER_OPTIONS } from "@/features/access/shared/employee-access";
 import {
   useEmployeeManagerOptions,
