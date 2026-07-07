@@ -88,7 +88,7 @@ export function RecommendedCard({ training, reason, prose }: RecommendedCardProp
                 ★ {training.rating.toFixed(1)}
               </span>
             ) : (
-              <span className="text-muted-foreground/70">
+              <span className="text-muted-foreground">
                 {tCommon("noRatings")}
               </span>
             )}
