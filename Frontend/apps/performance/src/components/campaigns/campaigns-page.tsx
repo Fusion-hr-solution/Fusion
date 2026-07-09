@@ -34,6 +34,7 @@ import type {
 import { useApiMutation, useApiQuery, useApiQueryClient } from "@repo/api/query";
 import {
   canManagePerformanceCampaigns,
+  canOperatePerformanceCycles,
   canViewPerformanceCampaigns,
   useAuth,
 } from "@repo/auth";
@@ -62,10 +63,16 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { CampaignCreateDialog } from "./campaign-create-dialog";
 import {
+  CampaignLaunchedBaseline,
+  CampaignPopulationSection,
+  CampaignReadinessSection,
+} from "./campaign-launch-sections";
+import {
   campaignDiscard,
   campaignReadiness,
   campaignScheduleSteps,
   campaignStatusLabel,
+  campaignStatusTone,
   campaignTerms,
 } from "./campaign-terminology";
 
@@ -188,7 +195,9 @@ export function CampaignListPage() {
                   {campaign.referenceYear ?? new Date(campaign.periodStart).getUTCFullYear()}
                 </span>
                 <span>
-                  <StatusBadge tone="neutral">{campaignStatusLabel(campaign.status)}</StatusBadge>
+                  <StatusBadge tone={campaignStatusTone(campaign.status)}>
+                    {campaignStatusLabel(campaign.status)}
+                  </StatusBadge>
                 </span>
                 <span className="text-muted-foreground">{formatDate(campaign.createdAt)}</span>
               </Link>
@@ -211,6 +220,7 @@ export function CampaignDraftPage() {
   const { user, isLoading: authLoading } = useAuth();
   const canView = canViewPerformanceCampaigns(user);
   const canManage = canManagePerformanceCampaigns(user);
+  const canOperate = canOperatePerformanceCycles(user);
   const [form, setForm] = useState<DraftForm | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const [objectiveForm, setObjectiveForm] = useState<ObjectiveForm>(() => emptyObjectiveForm());
@@ -364,11 +374,12 @@ export function CampaignDraftPage() {
     );
   }
 
+  const isDraft = campaign.status === "Draft";
   const localErrors = validateDraftForm(form);
   const isDirty = serializeDraftForm(form) !== serializeDraftForm(fromCampaign(campaign));
-  const canSave = canManage && isDirty && localErrors.length === 0 && !update.isLoading;
-  const readOnly = !canManage;
-  const canDiscard = canManage && campaign.status === "Draft";
+  const canSave = canManage && isDraft && isDirty && localErrors.length === 0 && !update.isLoading;
+  const readOnly = !canManage || !isDraft;
+  const canDiscard = canManage && isDraft;
   const objectiveRequest = toObjectiveRequest(objectiveForm);
 
   return (
@@ -377,7 +388,9 @@ export function CampaignDraftPage() {
         title={campaign.name}
         eyebrow={
           <div className="flex items-center gap-2">
-            <StatusBadge tone="neutral">{campaignStatusLabel(campaign.status)}</StatusBadge>
+            <StatusBadge tone={campaignStatusTone(campaign.status)}>
+              {campaignStatusLabel(campaign.status)}
+            </StatusBadge>
             <span className="font-mono text-xs text-muted-foreground">{campaign.slug}</span>
           </div>
         }
@@ -468,9 +481,25 @@ export function CampaignDraftPage() {
         </div>
 
         <aside className="space-y-5 lg:sticky lg:top-4 lg:self-start">
-          <SetupProgress form={form} campaign={campaign} />
+          {isDraft ? <SetupProgress form={form} campaign={campaign} /> : null}
           <RulesSnapshotSection snapshot={campaign.planningRulesSnapshot} />
         </aside>
+      </div>
+
+      <div className="mt-5 space-y-5">
+        {isDraft ? (
+          <>
+            <CampaignPopulationSection campaign={campaign} canManage={canManage} onSaved={refetch} />
+            <CampaignReadinessSection
+              campaign={campaign}
+              canManage={canManage}
+              canOperate={canOperate}
+              onChanged={refetch}
+            />
+          </>
+        ) : (
+          <CampaignLaunchedBaseline campaign={campaign} />
+        )}
       </div>
 
       <ConfirmDialog

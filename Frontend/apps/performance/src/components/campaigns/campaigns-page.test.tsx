@@ -6,6 +6,10 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CampaignDraftPage, CampaignListPage } from "./campaigns-page";
 import { CampaignCreateDialog } from "./campaign-create-dialog";
+import {
+  CampaignPopulationSection,
+  CampaignReadinessSection,
+} from "./campaign-launch-sections";
 
 type TestUser = {
   fullName: string;
@@ -21,6 +25,8 @@ const state = vi.hoisted(() => ({
   } as TestUser | null,
   routeParams: { slug: "fy26-planning-2026" },
   queryData: undefined as unknown,
+  preview: undefined as unknown,
+  readiness: undefined as unknown,
   queryError: null as Error | null,
   mutationMode: "idle" as "idle" | "success" | "conflict",
   mutationCalls: [] as unknown[],
@@ -56,6 +62,10 @@ vi.mock("@repo/auth", () => ({
     user?.effectivePermissions.some(
       (grant) => grant.scope === "Tenant" && grant.permissionKey === "performance.cycle.manage",
     ) ?? false,
+  canOperatePerformanceCycles: (user: TestUser | null) =>
+    user?.effectivePermissions.some(
+      (grant) => grant.scope === "Tenant" && grant.permissionKey === "performance.cycle.publish",
+    ) ?? false,
 }));
 
 vi.mock("@repo/api", async () => {
@@ -75,14 +85,29 @@ vi.mock("@repo/api/query", () => ({
     setQueryData: vi.fn(),
     invalidateQueries: vi.fn(),
   }),
-  useApiQuery: () => ({
-    data: state.queryData,
-    isLoading: false,
-    isFetching: false,
-    error: state.queryError,
-    refetch: vi.fn(),
-    invalidate: vi.fn(),
-  }),
+  useApiQuery: (queryKey: unknown) => {
+    const key = JSON.stringify(queryKey ?? []);
+    if (key.includes("readiness")) {
+      return { data: state.readiness, isLoading: state.readiness === undefined, isFetching: false, error: null, refetch: vi.fn(), invalidate: vi.fn() };
+    }
+    if (key.includes("population-preview")) {
+      return { data: state.preview, isLoading: false, isFetching: false, error: null, refetch: vi.fn(), invalidate: vi.fn() };
+    }
+    if (key.includes("coreWorkforce") && key.includes("org-units")) {
+      return { data: [], isLoading: false, isFetching: false, error: null, refetch: vi.fn(), invalidate: vi.fn() };
+    }
+    if (key.includes("coreWorkforce") && key.includes("search")) {
+      return { data: { items: [] }, isLoading: false, isFetching: false, error: null, refetch: vi.fn(), invalidate: vi.fn() };
+    }
+    return {
+      data: state.queryData,
+      isLoading: false,
+      isFetching: false,
+      error: state.queryError,
+      refetch: vi.fn(),
+      invalidate: vi.fn(),
+    };
+  },
   useApiMutation: (_mutationFn: unknown, options?: {
     onSuccess?: (data: unknown, args: unknown) => void | Promise<void>;
     onError?: (error: Error, args: unknown) => void | Promise<void>;
@@ -125,6 +150,8 @@ afterEach(() => {
     ],
   };
   state.queryData = undefined;
+  state.preview = undefined;
+  state.readiness = undefined;
   state.queryError = null;
   state.mutationMode = "idle";
   state.mutationCalls = [];
@@ -139,7 +166,7 @@ function render(node: React.ReactNode) {
   return container;
 }
 
-function campaignDetail() {
+function campaignDetail(): import("@repo/api").PerformanceCycleDetailDto {
   return {
     id: "campaign-1",
     name: "FY26 Planning",
@@ -161,8 +188,7 @@ function campaignDetail() {
     deadlineState: "None",
     populationIncludeInactive: false,
     participantCount: 0,
-    publishedAt: null,
-    activatedAt: null,
+    launchedAt: null,
     closedAt: null,
     createdAt: "2026-01-01T00:00:00Z",
     updatedAt: null,
@@ -208,8 +234,7 @@ describe("Campaigns workspace", () => {
           objectiveSettingDeadline: null,
           deadlineState: "None",
           participantCount: 0,
-          publishedAt: null,
-          activatedAt: null,
+    launchedAt: null,
           closedAt: null,
           createdAt: "2026-01-01T00:00:00Z",
           version: 1,
@@ -331,6 +356,121 @@ describe("Campaigns workspace", () => {
     expect(page.textContent).toContain("Planning rules");
     expect(page.textContent).toContain("Quantitative");
     expect(page.textContent).toContain("Qualitative");
+  });
+});
+
+const noop = () => Promise.resolve();
+
+function readiness(overrides: Record<string, unknown> = {}) {
+  return {
+    canLaunch: true,
+    isAllActiveBaseline: true,
+    includedCount: 3,
+    participants: [
+      {
+        employeeId: "e1",
+        fullName: "Alice Martin",
+        orgUnitName: "Consulting",
+        jobTitle: "Consultant",
+        approverEmployeeId: "m1",
+        approverName: "Dana Lee",
+        isApproverOverridden: false,
+        approverOverrideReason: null,
+        hasApprover: true,
+      },
+    ],
+    exclusions: [],
+    blockingConditions: [],
+    informationalConditions: [],
+    ...overrides,
+  };
+}
+
+describe("Campaign population, readiness and launch", () => {
+  it("shows the explicit all-active baseline when no org-unit scope is set", () => {
+    const page = render(
+      <CampaignPopulationSection campaign={campaignDetail()} canManage onSaved={noop} />,
+    );
+    expect(page.textContent).toContain("All active employees");
+  });
+
+  it("requires a reason for each exclusion before saving", () => {
+    const campaign = {
+      ...campaignDetail(),
+      populationRules: [
+        { ruleType: "ExcludeEmployee" as const, refId: "e9", includeDescendants: false, reason: "" },
+      ],
+    };
+    const page = render(<CampaignPopulationSection campaign={campaign} canManage onSaved={noop} />);
+    expect(page.textContent).toContain("A reason is required to exclude someone.");
+  });
+
+  it("presents a readiness-clear campaign as ready to launch and enables launch for operators", () => {
+    state.user = {
+      fullName: "HR Ops",
+      effectivePermissions: [
+        { permissionKey: "performance.cycle.manage", scope: "Tenant" },
+        { permissionKey: "performance.cycle.publish", scope: "Tenant" },
+      ],
+    };
+    state.readiness = readiness();
+
+    const page = render(
+      <CampaignReadinessSection campaign={campaignDetail()} canManage canOperate onChanged={noop} />,
+    );
+
+    expect(page.textContent).toContain("Ready to launch");
+    const launch = Array.from(page.querySelectorAll("button")).find((button) =>
+      button.textContent?.includes("Launch campaign"),
+    ) as HTMLButtonElement;
+    expect(launch).toBeTruthy();
+    expect(launch.disabled).toBe(false);
+  });
+
+  it("blocks launch and foregrounds blocking conditions", () => {
+    state.readiness = readiness({
+      canLaunch: false,
+      blockingConditions: [
+        { code: "MissingApprover", severity: "Blocking", message: "Alice Martin has no approver.", employeeId: "e1" },
+      ],
+    });
+
+    const page = render(
+      <CampaignReadinessSection campaign={campaignDetail()} canManage canOperate onChanged={noop} />,
+    );
+
+    expect(page.textContent).toContain("Not ready yet");
+    expect(page.textContent).toContain("Alice Martin has no approver.");
+    const launch = Array.from(page.querySelectorAll("button")).find((button) =>
+      button.textContent?.includes("Launch campaign"),
+    ) as HTMLButtonElement;
+    expect(launch.disabled).toBe(true);
+    expect(page.textContent).toContain("Resolve the items above to launch.");
+  });
+
+  it("launch confirmation states the resolved participant count", () => {
+    state.readiness = readiness({ includedCount: 3 });
+
+    const page = render(
+      <CampaignReadinessSection campaign={campaignDetail()} canManage canOperate onChanged={noop} />,
+    );
+    const launch = Array.from(page.querySelectorAll("button")).find((button) =>
+      button.textContent?.includes("Launch campaign"),
+    ) as HTMLButtonElement;
+    act(() => launch.click());
+
+    expect(document.body.textContent).toContain("Launch this campaign?");
+    expect(document.body.textContent).toContain("3 participants");
+  });
+
+  it("hides the launch action from users without the operate permission", () => {
+    state.readiness = readiness();
+
+    const page = render(
+      <CampaignReadinessSection campaign={campaignDetail()} canManage canOperate={false} onChanged={noop} />,
+    );
+
+    expect(page.textContent).not.toContain("Launch campaign");
   });
 });
 

@@ -13,11 +13,9 @@ export interface PagedResponse<T> {
 
 export type PerformanceCycleStatus =
   | "Draft"
-  | "AssignmentPreparation"
-  | "ReadyToLaunch"
+  | "Launched"
   | "Active"
-  | "Closed"
-  | "ForceClosed";
+  | "Closed";
 export type PerformanceCycleType = "Annual" | "MidYear" | "Specific";
 export type CycleDeadlineState =
   | "None"
@@ -38,8 +36,7 @@ export interface PerformanceCycleSummaryDto {
   objectiveSettingDeadline: string | null;
   deadlineState: CycleDeadlineState;
   participantCount: number;
-  publishedAt: string | null;
-  activatedAt: string | null;
+  launchedAt: string | null;
   closedAt: string | null;
   createdAt: string;
   version: number;
@@ -49,6 +46,7 @@ export interface PopulationRuleDto {
   ruleType: PopulationRuleType;
   refId: string;
   includeDescendants: boolean;
+  reason: string | null;
 }
 
 export interface PerformanceCycleDetailDto {
@@ -72,14 +70,12 @@ export interface PerformanceCycleDetailDto {
   deadlineState: CycleDeadlineState;
   populationIncludeInactive: boolean;
   participantCount: number;
-  publishedAt: string | null;
-  activatedAt: string | null;
+  launchedAt: string | null;
   closedAt: string | null;
   createdAt: string;
   updatedAt: string | null;
   version: number;
   populationRules: PopulationRuleDto[];
-  governance?: unknown;
   planningRulesSnapshot: CampaignPlanningRulesSnapshotDto | null;
   strategicObjectives: CampaignStrategicObjectiveDto[];
   draftCompleteness: CampaignDraftCompletenessDto;
@@ -118,10 +114,10 @@ export interface CycleParticipantDto {
   jobTitle: string | null;
   managerId: string | null;
   managerName: string | null;
-  planningApproverEmployeeId: string | null;
-  planningApproverName: string | null;
-  planningApproverSource: "Unresolved" | "DirectManager" | "EscalatedManager" | "ManualAssignment";
-  planningApproverOverrideReason: string | null;
+  approverEmployeeId: string;
+  approverName: string;
+  isApproverOverridden: boolean;
+  approverOverrideReason: string | null;
   snapshotAt: string;
 }
 
@@ -132,20 +128,61 @@ export interface CyclePopulationMemberDto {
   jobTitle: string | null;
   orgUnitId: string | null;
   orgUnitName: string | null;
+  managerId: string | null;
   managerName: string | null;
   isActive: boolean;
 }
 
+export interface CampaignPopulationExclusionDto {
+  employeeId: string;
+  fullName: string | null;
+  reason: string;
+}
+
 export interface CyclePopulationPreviewDto {
+  isAllActiveBaseline: boolean;
   totalCount: number;
   members: CyclePopulationMemberDto[];
+  exclusions: CampaignPopulationExclusionDto[];
+}
+
+export interface CampaignReadinessParticipantDto {
+  employeeId: string;
+  fullName: string;
+  orgUnitName: string | null;
+  jobTitle: string | null;
+  approverEmployeeId: string | null;
+  approverName: string | null;
+  isApproverOverridden: boolean;
+  approverOverrideReason: string | null;
+  hasApprover: boolean;
+}
+
+export type CampaignReadinessSeverity = "Blocking" | "Informational";
+
+export interface CampaignReadinessConditionDto {
+  code: string;
+  severity: CampaignReadinessSeverity;
+  message: string;
+  employeeId: string | null;
 }
 
 export interface CycleReadinessDto {
-  participantCount: number;
-  resolvedPlanningApproverCount: number;
-  unresolvedPlanningApproverCount: number;
-  unresolvedParticipants: CycleParticipantDto[];
+  canLaunch: boolean;
+  isAllActiveBaseline: boolean;
+  includedCount: number;
+  participants: CampaignReadinessParticipantDto[];
+  exclusions: CampaignPopulationExclusionDto[];
+  blockingConditions: CampaignReadinessConditionDto[];
+  informationalConditions: CampaignReadinessConditionDto[];
+}
+
+export interface CampaignLaunchResultDto {
+  id: string;
+  status: PerformanceCycleStatus;
+  launchedAt: string | null;
+  frozenParticipantCount: number;
+  version: number;
 }
 
 export interface CycleAuditEventDto {
@@ -212,6 +249,7 @@ export interface PopulationRuleInput {
   ruleType: PopulationRuleType;
   refId: string;
   includeDescendants?: boolean;
+  reason?: string | null;
 }
 
 export interface SetCyclePopulationRequest {
@@ -219,7 +257,7 @@ export interface SetCyclePopulationRequest {
   rules: PopulationRuleInput[];
 }
 
-export interface AssignPlanningApproverRequest {
+export interface OverrideParticipantApproverRequest {
   approverEmployeeId: string;
   reason: string;
 }
@@ -334,9 +372,7 @@ export const performancePaths = {
   cyclePopulation: (id: string) => `/performance/cycles/${id}/population`,
   cyclePopulationPreview: (id: string) =>
     `/performance/cycles/${id}/population/preview`,
-  cyclePublish: (id: string) => `/performance/cycles/${id}/publish`,
-  cycleActivate: (id: string) => `/performance/cycles/${id}/activate`,
-  cycleClose: (id: string) => `/performance/cycles/${id}/close`,
+  cycleLaunch: (id: string) => `/performance/cycles/${id}/launch`,
   cycleParticipants: (id: string) => `/performance/cycles/${id}/participants`,
   cycleAudit: (id: string) => `/performance/cycles/${id}/audit`,
   cycleReadiness: (id: string) => `/performance/cycles/${id}/readiness`,
@@ -346,8 +382,8 @@ export const performancePaths = {
     `/performance/cycles/${cycleId}/strategic-objectives/${objectiveId}`,
   campaignStrategicObjectiveActiveState: (cycleId: string, objectiveId: string) =>
     `/performance/cycles/${cycleId}/strategic-objectives/${objectiveId}/active-state`,
-  cyclePlanningApprover: (cycleId: string, participantId: string) =>
-    `/performance/cycles/${cycleId}/participants/${participantId}/planning-approver`,
+  cycleParticipantApprover: (cycleId: string, employeeId: string) =>
+    `/performance/cycles/${cycleId}/participants/${employeeId}/approver`,
   platformPerformanceConfiguration: () =>
     "/performance/platform/configuration",
   platformPerformanceConfigurationApply: () =>

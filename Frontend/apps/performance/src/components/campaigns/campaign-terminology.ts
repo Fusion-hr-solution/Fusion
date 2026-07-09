@@ -81,6 +81,95 @@ export const campaignDiscard = {
   success: "Campaign discarded",
 } as const;
 
+/** Objective-planning population scope surface. */
+export const campaignPopulation = {
+  title: "Participants",
+  description: "Who takes part in this campaign's objective planning.",
+  allActiveTitle: "All active employees",
+  allActiveCaption:
+    "Everyone active in your organization participates. Narrow this by adding an org-unit scope.",
+  scopedCaption: (count: number) =>
+    `${count} ${count === 1 ? "org-unit scope" : "org-unit scopes"} selected.`,
+  addScope: "Add org unit",
+  includeDescendants: "Include sub-units",
+  scopesHeading: "Org-unit scopes",
+  exclusionsHeading: "Excluded people",
+  addExclusion: "Exclude someone",
+  exclusionReasonLabel: "Reason for exclusion",
+  exclusionReasonPlaceholder: "e.g. On extended leave",
+  exclusionReasonRequired: "A reason is required to exclude someone.",
+  resolvedCount: (count: number) =>
+    `${count} ${count === 1 ? "person participates" : "people participate"}`,
+  previewEmpty: "No one is resolved into this campaign yet.",
+  remove: "Remove",
+} as const;
+
+/** Launch readiness review surface. */
+export const campaignReadinessReview = {
+  title: "Launch readiness",
+  ready: "Ready to launch",
+  notReady: "Not ready yet",
+  participantsHeading: "Participants & approvers",
+  approver: "Approver",
+  defaultApprover: "Manager",
+  overriddenApprover: "Overridden",
+  overrideAction: "Change approver",
+  missingApprover: "No approver",
+  excludedHeading: "Excluded",
+  blockingHeading: "Resolve before launch",
+  informationalHeading: "Worth a glance",
+  overrideReasonLabel: "Why change the approver?",
+  overrideReasonPlaceholder: "e.g. Direct manager is on leave",
+  overrideApproverLabel: "New approver",
+  overrideSubmit: "Set approver",
+  overrideSubmitting: "Setting…",
+} as const;
+
+/** The launch commit — the earned climactic moment. */
+export const campaignLaunch = {
+  action: "Launch campaign",
+  blockedHint: "Resolve the items above to launch.",
+  title: "Launch this campaign?",
+  frozenSummary: (count: number) =>
+    `${count} ${count === 1 ? "participant" : "participants"} and their approvers will be frozen as this campaign's baseline.`,
+  irreversible: "Launching is final — the setup and baseline become read-only.",
+  scheduleNote: (date: string) =>
+    `Employees can start entering objectives on ${date}, per the planning schedule. Launching now doesn't open entry early.`,
+  confirm: "Launch now",
+  launching: "Launching…",
+  cancel: "Not yet",
+  success: "Campaign launched",
+  launchedTitle: "Launched",
+  launchedCaption: (count: number, date: string) =>
+    `Baseline frozen with ${count} ${count === 1 ? "participant" : "participants"} on ${date}.`,
+  baselineHeading: "Frozen baseline",
+} as const;
+
+export type CampaignTone = "neutral" | "info" | "success" | "warning";
+
 export function campaignStatusLabel(status: string): string {
-  return status === "Draft" ? "Draft" : status;
+  switch (status) {
+    case "Draft":
+      return "In setup";
+    case "Launched":
+      return "Launched";
+    case "Active":
+      return "Active";
+    case "Closed":
+      return "Closed";
+    default:
+      return status;
+  }
+}
+
+export function campaignStatusTone(status: string): CampaignTone {
+  switch (status) {
+    case "Launched":
+    case "Active":
+      return "success";
+    case "Closed":
+      return "neutral";
+    default:
+      return "info";
+  }
 }
