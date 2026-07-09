@@ -1,4 +1,4 @@
-import { ClipboardList, ScrollText, Settings2 } from "lucide-react";
+import { ClipboardList, Megaphone, ScrollText, Settings2 } from "lucide-react";
 import type { ShellNavSection } from "@repo/ds/shell";
 
 export const OVERVIEW_NAV: ShellNavSection = {
@@ -18,12 +18,22 @@ export const TENANT_CONFIGURATION_NAV: ShellNavSection = {
   ],
 };
 
+export const CAMPAIGNS_NAV: ShellNavSection = {
+  items: [
+    {
+      label: "Campaigns",
+      href: "/campaigns",
+      icon: Megaphone,
+    },
+  ],
+};
+
 export const PLATFORM_ADMIN_NAV: ShellNavSection = {
   title: "Platform administration",
   items: [
     {
       label: "Performance configuration",
-      href: "/configuration/performance",
+      href: "/platform/configuration/performance",
       icon: Settings2,
     },
   ],

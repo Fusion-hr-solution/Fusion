@@ -35,6 +35,13 @@ vi.mock("@repo/auth", () => ({
         (grant.permissionKey === "performance.objective.policy.view" ||
           grant.permissionKey === "performance.objective.policy.manage"),
     ) ?? false,
+  canViewPerformanceCampaigns: (user: TestUser | null) =>
+    user?.permissions?.some(
+      (grant) =>
+        grant.scope === "Tenant" &&
+        (grant.permissionKey === "performance.cycle.view" ||
+          grant.permissionKey === "performance.cycle.manage"),
+    ) ?? false,
   useAuth: () => ({
     user: authState.user,
     logout: vi.fn(),
@@ -93,6 +100,20 @@ describe("PerformanceSidebar", () => {
     expect(sidebar.textContent).not.toContain("Configuration");
     expect(sidebar.textContent).not.toContain("Platform administration");
     expect(sidebar.textContent).not.toContain("Reviews");
+    expect(sidebar.textContent).not.toContain("Campaigns");
+  });
+
+  it("shows campaigns for tenant-scoped campaign permission", () => {
+    const sidebar = renderSidebar({
+      fullName: "HR Admin",
+      roles: ["HRAdmin"],
+      permissions: [
+        { permissionKey: "performance.cycle.view", scope: "Tenant" },
+      ],
+    });
+
+    expect(sidebar.textContent).toContain("Campaigns");
+    expect(sidebar.querySelector('a[href="/performance/campaigns"]')).toBeTruthy();
   });
 
   it("shows tenant planning rules for tenant-scoped configuration permission", () => {
@@ -121,7 +142,7 @@ describe("PerformanceSidebar", () => {
     expect(sidebar.textContent).toContain("Platform administration");
     expect(sidebar.textContent).toContain("Performance configuration");
     expect(
-      sidebar.querySelector('a[href="/performance/configuration/performance"]'),
+      sidebar.querySelector('a[href="/performance/platform/configuration/performance"]'),
     ).toBeTruthy();
     expect(sidebar.textContent).not.toContain("Objective Planning");
     expect(sidebar.textContent).not.toContain("Platform setup");

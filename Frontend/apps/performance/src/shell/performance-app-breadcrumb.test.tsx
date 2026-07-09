@@ -42,13 +42,13 @@ function renderBreadcrumb(pathname: string) {
 }
 
 describe("PerformanceAppBreadcrumb", () => {
-  it("renders a clean crumb for platform configuration without platform terminology", () => {
-    const breadcrumb = renderBreadcrumb("/performance/configuration/performance");
+  it("renders a clean crumb for platform configuration on the platform route", () => {
+    const breadcrumb = renderBreadcrumb("/performance/platform/configuration/performance");
 
     expect(breadcrumb.textContent).toContain("Performance");
+    expect(breadcrumb.textContent).toContain("Platform administration");
     expect(breadcrumb.textContent).toContain("Configuration");
     expect(breadcrumb.textContent).toContain("Performance configuration");
-    expect(breadcrumb.textContent).not.toContain("Platform");
   });
 
   it("keeps tenant configuration breadcrumb plausible", () => {
@@ -58,5 +58,20 @@ describe("PerformanceAppBreadcrumb", () => {
     expect(breadcrumb.textContent).toContain("Configuration");
     expect(breadcrumb.textContent).toContain("Objective Planning");
     expect(breadcrumb.textContent).not.toContain("Platform");
+  });
+
+  it("renders campaign create breadcrumb", () => {
+    const breadcrumb = renderBreadcrumb("/performance/campaigns/new");
+
+    expect(breadcrumb.textContent).toContain("Performance");
+    expect(breadcrumb.textContent).toContain("Campaigns");
+    expect(breadcrumb.textContent).toContain("New campaign");
+  });
+
+  it("renders campaign draft breadcrumb hierarchy", () => {
+    const breadcrumb = renderBreadcrumb("/performance/campaigns/campaign-1");
+
+    expect(breadcrumb.textContent).toContain("Performance");
+    expect(breadcrumb.textContent).toContain("Campaigns");
   });
 });

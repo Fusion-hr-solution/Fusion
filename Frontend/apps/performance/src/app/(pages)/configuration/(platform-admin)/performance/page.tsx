@@ -1,10 +1,5 @@
-import type { Metadata } from "next";
-import { PlatformDefaultsPage } from "@/components/platform-defaults/platform-defaults-page";
-
-export const metadata: Metadata = {
-  title: "Platform Performance Configuration | EY Performance",
-};
+import { redirect } from "next/navigation";
 
 export default function PlatformPerformanceConfigurationPage() {
-  return <PlatformDefaultsPage />;
+  redirect("/platform/configuration/performance");
 }
