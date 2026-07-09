@@ -3,6 +3,7 @@ using System;
 using EY.HRPlatform.Performance.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(PerformanceDbContext))]
-    partial class PerformanceDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260707165611_CampaignDraftFoundation")]
+    partial class CampaignDraftFoundation
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1243,11 +1246,6 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("RetentionPolicyVersionId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("Slug")
-                        .IsRequired()
-                        .HasMaxLength(240)
-                        .HasColumnType("character varying(240)");
-
                     b.Property<string>("Status")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -1287,10 +1285,6 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("TenantId", "ReferenceYear")
                         .HasDatabaseName("IX_PerformanceCycles_TenantId_ReferenceYear");
-
-                    b.HasIndex("TenantId", "Slug")
-                        .IsUnique()
-                        .HasDatabaseName("IX_PerformanceCycles_TenantId_Slug");
 
                     b.HasIndex("TenantId", "Status")
                         .HasDatabaseName("IX_PerformanceCycles_TenantId_Status");

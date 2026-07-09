@@ -21,6 +21,10 @@ public enum PerformanceCycleAuditAction
     Closed,
     WorkforceDeltaApplied,
     WorkforceDeltaRejected,
+    PlanningRulesSnapshotCaptured,
+    StrategicObjectiveAdded,
+    StrategicObjectiveUpdated,
+    StrategicObjectiveToggled,
 
     // Strategic objective actions (Plan 03-02)
     StrategicObjectivePublished,

@@ -13,6 +13,8 @@ public static class CycleMapper
         => new(
             cycle.Id,
             cycle.Name,
+            cycle.Slug,
+            cycle.ReferenceYear,
             cycle.Type.ToString(),
             cycle.Status.ToString(),
             cycle.PeriodStart,
@@ -34,12 +36,21 @@ public static class CycleMapper
         => new(
             cycle.Id,
             cycle.Name,
+            cycle.Slug,
             cycle.Description,
+            cycle.Purpose,
+            cycle.ReferenceYear,
+            cycle.OwnerUserId,
+            cycle.OwnerName,
             cycle.Type.ToString(),
             cycle.Status.ToString(),
             cycle.PeriodStart,
             cycle.PeriodEnd,
             cycle.ObjectiveSettingDeadline,
+            cycle.PlanningOpeningDate,
+            cycle.EmployeeSubmissionDeadline,
+            cycle.ManagerApprovalDeadline,
+            cycle.ExpectedPlanningLockDate,
             CycleDeadline.Evaluate(cycle, utcNow, dueSoonWindowDays),
             cycle.PopulationIncludeInactive,
             participantCount,
@@ -57,10 +68,35 @@ public static class CycleMapper
                 (cycle.FrozenFeedbackVisibility ?? cycle.FeedbackVisibility).ToString(),
                 cycle.ExceptionOwners.OrderBy(x => x.Priority).Select(x => x.EmployeeId).ToList(),
                 cycle.GovernanceFrozenAt is not null,
-                cycle.GovernanceFrozenAt));
+                cycle.GovernanceFrozenAt),
+            cycle.PlanningRulesSnapshot is null
+                ? null
+                : new CampaignPlanningRulesSnapshotDto(
+                    cycle.PlanningRulesSnapshot.MaxObjectiveCount,
+                    cycle.PlanningRulesSnapshot.AllowedWeightMenu,
+                    cycle.PlanningRulesSnapshot.EnabledMeasurementMethods,
+                    cycle.PlanningRulesSnapshot.SourceConfigurationVersionId,
+                    cycle.PlanningRulesSnapshot.CapturedAt),
+            cycle.StrategicObjectives
+                .OrderBy(objective => objective.CreatedAt)
+                .Select(ToStrategicObjectiveDto)
+                .ToList(),
+            ToCompletenessDto(cycle.EvaluateDraftCompleteness()));
 
     public static PopulationRuleDto ToRuleDto(PerformanceCyclePopulationRule rule)
         => new(rule.RuleType.ToString(), rule.RefId, rule.IncludeDescendants);
+
+    public static CampaignStrategicObjectiveDto ToStrategicObjectiveDto(CampaignStrategicObjective objective)
+        => new(
+            objective.Id,
+            objective.Title,
+            objective.Description,
+            objective.ResponsibleFunctionLabel,
+            objective.IsActive,
+            objective.Version);
+
+    private static CampaignDraftCompletenessDto ToCompletenessDto(CampaignDraftCompleteness completeness)
+        => new(completeness.IsComplete, completeness.BlockingReasons);
 
     public static CycleParticipantDto ToParticipantDto(PerformanceCycleParticipant participant)
         => new(

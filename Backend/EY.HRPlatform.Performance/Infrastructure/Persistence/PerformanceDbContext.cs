@@ -35,6 +35,7 @@ public class PerformanceDbContext : DbContext
     public DbSet<PerformanceCycleParticipant> PerformanceCycleParticipants => Set<PerformanceCycleParticipant>();
     public DbSet<CampaignLaunchParticipantSnapshot> CampaignLaunchParticipantSnapshots => Set<CampaignLaunchParticipantSnapshot>();
     public DbSet<CampaignExceptionOwner> CampaignExceptionOwners => Set<CampaignExceptionOwner>();
+    public DbSet<CampaignStrategicObjective> CampaignStrategicObjectives => Set<CampaignStrategicObjective>();
     public DbSet<ExceptionCase> ExceptionCases => Set<ExceptionCase>();
     public DbSet<ExceptionCaseHistoryEntry> ExceptionCaseHistoryEntries => Set<ExceptionCaseHistoryEntry>();
     public DbSet<FormalReviewDefinitionSnapshot> FormalReviewDefinitionSnapshots => Set<FormalReviewDefinitionSnapshot>();
@@ -130,6 +131,9 @@ public class PerformanceDbContext : DbContext
             .HasQueryFilter(p => CurrentTenantId != Guid.Empty && p.TenantId == CurrentTenantId);
 
         modelBuilder.Entity<CampaignExceptionOwner>()
+            .HasQueryFilter(p => CurrentTenantId != Guid.Empty && p.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<CampaignStrategicObjective>()
             .HasQueryFilter(p => CurrentTenantId != Guid.Empty && p.TenantId == CurrentTenantId);
 
         modelBuilder.Entity<ExceptionCase>()

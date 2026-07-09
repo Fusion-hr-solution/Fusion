@@ -5,6 +5,8 @@ using EY.HRPlatform.Performance.Domain.Enums;
 public sealed record PerformanceCycleSummaryDto(
     Guid Id,
     string Name,
+    string Slug,
+    int? ReferenceYear,
     string Type,
     string Status,
     DateTime PeriodStart,
@@ -26,12 +28,21 @@ public sealed record PopulationRuleDto(
 public sealed record PerformanceCycleDetailDto(
     Guid Id,
     string Name,
+    string Slug,
     string? Description,
+    string? Purpose,
+    int? ReferenceYear,
+    Guid? OwnerUserId,
+    string? OwnerName,
     string Type,
     string Status,
     DateTime PeriodStart,
     DateTime PeriodEnd,
     DateTime? ObjectiveSettingDeadline,
+    DateTime? PlanningOpeningDate,
+    DateTime? EmployeeSubmissionDeadline,
+    DateTime? ManagerApprovalDeadline,
+    DateTime? ExpectedPlanningLockDate,
     string DeadlineState,
     bool PopulationIncludeInactive,
     int ParticipantCount,
@@ -42,7 +53,29 @@ public sealed record PerformanceCycleDetailDto(
     DateTime? UpdatedAt,
     uint Version,
     IReadOnlyList<PopulationRuleDto> PopulationRules,
-    CampaignGovernanceDto? Governance);
+    CampaignGovernanceDto? Governance,
+    CampaignPlanningRulesSnapshotDto? PlanningRulesSnapshot,
+    IReadOnlyList<CampaignStrategicObjectiveDto> StrategicObjectives,
+    CampaignDraftCompletenessDto DraftCompleteness);
+
+public sealed record CampaignPlanningRulesSnapshotDto(
+    int MaxObjectiveCount,
+    string AllowedWeightMenu,
+    string EnabledMeasurementMethods,
+    Guid SourceConfigurationVersionId,
+    DateTime CapturedAt);
+
+public sealed record CampaignStrategicObjectiveDto(
+    Guid Id,
+    string Title,
+    string? Description,
+    string? ResponsibleFunctionLabel,
+    bool IsActive,
+    uint Version);
+
+public sealed record CampaignDraftCompletenessDto(
+    bool IsComplete,
+    IReadOnlyList<string> BlockingReasons);
 
 public sealed record CampaignGovernanceDto(
     Guid? RetentionPolicyVersionId,
@@ -177,20 +210,39 @@ public sealed record PopulationRuleInput(
 public sealed record CreatePerformanceCycleRequest(
     string Name,
     string? Description,
-    string Type,
-    DateTime PeriodStart,
-    DateTime PeriodEnd,
+    string? Type,
+    DateTime? PeriodStart,
+    DateTime? PeriodEnd,
     DateTime? ObjectiveSettingDeadline,
+    int? ReferenceYear,
+    string? Purpose,
+    DateTime? PlanningOpeningDate,
+    DateTime? EmployeeSubmissionDeadline,
+    DateTime? ManagerApprovalDeadline,
+    DateTime? ExpectedPlanningLockDate,
     bool PopulationIncludeInactive = false);
 
 public sealed record UpdatePerformanceCycleRequest(
     string Name,
     string? Description,
-    string Type,
-    DateTime PeriodStart,
-    DateTime PeriodEnd,
+    string? Type,
+    DateTime? PeriodStart,
+    DateTime? PeriodEnd,
     DateTime? ObjectiveSettingDeadline,
+    int? ReferenceYear,
+    string? Purpose,
+    DateTime? PlanningOpeningDate,
+    DateTime? EmployeeSubmissionDeadline,
+    DateTime? ManagerApprovalDeadline,
+    DateTime? ExpectedPlanningLockDate,
     bool PopulationIncludeInactive = false);
+
+public sealed record UpsertCampaignStrategicObjectiveRequest(
+    string Title,
+    string? Description,
+    string? ResponsibleFunctionLabel);
+
+public sealed record ToggleCampaignStrategicObjectiveRequest(bool IsActive);
 
 public sealed record SetCyclePopulationRequest(
     bool PopulationIncludeInactive,
