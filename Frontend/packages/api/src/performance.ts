@@ -29,6 +29,8 @@ export type PopulationRuleType = "OrgUnit" | "IncludeEmployee" | "ExcludeEmploye
 export interface PerformanceCycleSummaryDto {
   id: string;
   name: string;
+  slug: string;
+  referenceYear: number | null;
   type: PerformanceCycleType;
   status: PerformanceCycleStatus;
   periodStart: string;
@@ -52,12 +54,21 @@ export interface PopulationRuleDto {
 export interface PerformanceCycleDetailDto {
   id: string;
   name: string;
+  slug: string;
   description: string | null;
+  purpose: string | null;
+  referenceYear: number | null;
+  ownerUserId: string | null;
+  ownerName: string | null;
   type: PerformanceCycleType;
   status: PerformanceCycleStatus;
   periodStart: string;
   periodEnd: string;
   objectiveSettingDeadline: string | null;
+  planningOpeningDate: string | null;
+  employeeSubmissionDeadline: string | null;
+  managerApprovalDeadline: string | null;
+  expectedPlanningLockDate: string | null;
   deadlineState: CycleDeadlineState;
   populationIncludeInactive: boolean;
   participantCount: number;
@@ -68,6 +79,32 @@ export interface PerformanceCycleDetailDto {
   updatedAt: string | null;
   version: number;
   populationRules: PopulationRuleDto[];
+  governance?: unknown;
+  planningRulesSnapshot: CampaignPlanningRulesSnapshotDto | null;
+  strategicObjectives: CampaignStrategicObjectiveDto[];
+  draftCompleteness: CampaignDraftCompletenessDto;
+}
+
+export interface CampaignPlanningRulesSnapshotDto {
+  maxObjectiveCount: number;
+  allowedWeightMenu: string;
+  enabledMeasurementMethods: string;
+  sourceConfigurationVersionId: string;
+  capturedAt: string;
+}
+
+export interface CampaignStrategicObjectiveDto {
+  id: string;
+  title: string;
+  description: string | null;
+  responsibleFunctionLabel: string | null;
+  isActive: boolean;
+  version: number;
+}
+
+export interface CampaignDraftCompletenessDto {
+  isComplete: boolean;
+  blockingReasons: string[];
 }
 
 export interface CycleParticipantDto {
@@ -146,14 +183,30 @@ export interface PerformancePageDto<T> {
 export interface CreatePerformanceCycleRequest {
   name: string;
   description?: string | null;
-  type: PerformanceCycleType;
-  periodStart: string;
-  periodEnd: string;
+  type?: PerformanceCycleType;
+  periodStart?: string;
+  periodEnd?: string;
   objectiveSettingDeadline?: string | null;
+  referenceYear?: number;
+  purpose?: string | null;
+  planningOpeningDate?: string;
+  employeeSubmissionDeadline?: string;
+  managerApprovalDeadline?: string;
+  expectedPlanningLockDate?: string;
   populationIncludeInactive?: boolean;
 }
 
 export type UpdatePerformanceCycleRequest = CreatePerformanceCycleRequest;
+
+export interface UpsertCampaignStrategicObjectiveRequest {
+  title: string;
+  description?: string | null;
+  responsibleFunctionLabel?: string | null;
+}
+
+export interface ToggleCampaignStrategicObjectiveRequest {
+  isActive: boolean;
+}
 
 export interface PopulationRuleInput {
   ruleType: PopulationRuleType;
@@ -277,6 +330,7 @@ export interface ObjectivePlanningConfigurationApplyResultDto {
 export const performancePaths = {
   cycles: () => "/performance/cycles",
   cycle: (id: string) => `/performance/cycles/${id}`,
+  cycleBySlug: (slug: string) => `/performance/cycles/by-slug/${slug}`,
   cyclePopulation: (id: string) => `/performance/cycles/${id}/population`,
   cyclePopulationPreview: (id: string) =>
     `/performance/cycles/${id}/population/preview`,
@@ -286,6 +340,12 @@ export const performancePaths = {
   cycleParticipants: (id: string) => `/performance/cycles/${id}/participants`,
   cycleAudit: (id: string) => `/performance/cycles/${id}/audit`,
   cycleReadiness: (id: string) => `/performance/cycles/${id}/readiness`,
+  campaignStrategicObjectives: (id: string) =>
+    `/performance/cycles/${id}/strategic-objectives`,
+  campaignStrategicObjective: (cycleId: string, objectiveId: string) =>
+    `/performance/cycles/${cycleId}/strategic-objectives/${objectiveId}`,
+  campaignStrategicObjectiveActiveState: (cycleId: string, objectiveId: string) =>
+    `/performance/cycles/${cycleId}/strategic-objectives/${objectiveId}/active-state`,
   cyclePlanningApprover: (cycleId: string, participantId: string) =>
     `/performance/cycles/${cycleId}/participants/${participantId}/planning-approver`,
   platformPerformanceConfiguration: () =>
@@ -326,6 +386,10 @@ export const performanceQueryKeys = {
       },
     ] as const,
   cycle: (id: string) => [...performanceQueryKeys.cycles(), id] as const,
+  cycleBySlug: (slug: string) =>
+    [...performanceQueryKeys.cycles(), "by-slug", slug] as const,
+  campaignStrategicObjectives: (id: string) =>
+    [...performanceQueryKeys.cycle(id), "strategic-objectives"] as const,
   cyclePopulationPreview: (id: string) =>
     [...performanceQueryKeys.cycle(id), "population-preview"] as const,
   cycleParticipants: (id: string, params: { search?: string | null; page: number; pageSize: number }) =>
