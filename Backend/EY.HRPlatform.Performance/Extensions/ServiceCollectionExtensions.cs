@@ -39,6 +39,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<PerformanceConfigurationValidator>();
         services.AddScoped<ICurrentUserContext, CurrentUserContext>();
         services.AddScoped<IPerformancePopulationResolver, PerformancePopulationResolver>();
+        services.AddScoped<ICampaignReadinessResolver, CampaignReadinessResolver>();
         services.AddScoped<IExceptionCaseWorkflowService, ExceptionCaseWorkflowService>();
 
         services.AddTransient<BearerTokenForwardingHandler>();

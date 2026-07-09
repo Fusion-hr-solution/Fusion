@@ -33,8 +33,7 @@ public class PerformanceDbContext : DbContext
     public DbSet<PerformanceCycle> PerformanceCycles => Set<PerformanceCycle>();
     public DbSet<PerformanceCyclePopulationRule> PerformanceCyclePopulationRules => Set<PerformanceCyclePopulationRule>();
     public DbSet<PerformanceCycleParticipant> PerformanceCycleParticipants => Set<PerformanceCycleParticipant>();
-    public DbSet<CampaignLaunchParticipantSnapshot> CampaignLaunchParticipantSnapshots => Set<CampaignLaunchParticipantSnapshot>();
-    public DbSet<CampaignExceptionOwner> CampaignExceptionOwners => Set<CampaignExceptionOwner>();
+    public DbSet<PerformanceCycleApproverOverride> PerformanceCycleApproverOverrides => Set<PerformanceCycleApproverOverride>();
     public DbSet<CampaignStrategicObjective> CampaignStrategicObjectives => Set<CampaignStrategicObjective>();
     public DbSet<ExceptionCase> ExceptionCases => Set<ExceptionCase>();
     public DbSet<ExceptionCaseHistoryEntry> ExceptionCaseHistoryEntries => Set<ExceptionCaseHistoryEntry>();
@@ -46,7 +45,6 @@ public class PerformanceDbContext : DbContext
     public DbSet<PerformanceObjective> PerformanceObjectives => Set<PerformanceObjective>();
     public DbSet<PerformanceObjectiveMilestone> PerformanceObjectiveMilestones => Set<PerformanceObjectiveMilestone>();
     public DbSet<CampaignWorkItem> CampaignWorkItems => Set<CampaignWorkItem>();
-    public DbSet<CampaignAssignmentResponsibility> CampaignAssignmentResponsibilities => Set<CampaignAssignmentResponsibility>();
     public DbSet<PerformanceNotification> PerformanceNotifications => Set<PerformanceNotification>();
     public DbSet<PerformanceCycleAuditEvent> PerformanceCycleAuditEvents => Set<PerformanceCycleAuditEvent>();
     public DbSet<PerformanceConfigurationAuditEntry> PerformanceConfigurationAuditEntries => Set<PerformanceConfigurationAuditEntry>();
@@ -127,11 +125,8 @@ public class PerformanceDbContext : DbContext
         modelBuilder.Entity<PerformanceCycleParticipant>()
             .HasQueryFilter(p => CurrentTenantId != Guid.Empty && p.TenantId == CurrentTenantId);
 
-        modelBuilder.Entity<CampaignLaunchParticipantSnapshot>()
-            .HasQueryFilter(p => CurrentTenantId != Guid.Empty && p.TenantId == CurrentTenantId);
-
-        modelBuilder.Entity<CampaignExceptionOwner>()
-            .HasQueryFilter(p => CurrentTenantId != Guid.Empty && p.TenantId == CurrentTenantId);
+        modelBuilder.Entity<PerformanceCycleApproverOverride>()
+            .HasQueryFilter(o => CurrentTenantId != Guid.Empty && o.TenantId == CurrentTenantId);
 
         modelBuilder.Entity<CampaignStrategicObjective>()
             .HasQueryFilter(p => CurrentTenantId != Guid.Empty && p.TenantId == CurrentTenantId);
@@ -164,9 +159,6 @@ public class PerformanceDbContext : DbContext
             .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
 
         modelBuilder.Entity<CampaignWorkItem>()
-            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
-
-        modelBuilder.Entity<CampaignAssignmentResponsibility>()
             .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
 
         modelBuilder.Entity<PerformanceNotification>()

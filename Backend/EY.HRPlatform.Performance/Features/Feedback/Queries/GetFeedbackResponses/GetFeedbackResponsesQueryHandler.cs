@@ -29,9 +29,9 @@ public sealed class GetFeedbackResponsesQueryHandler(
             return Result.Failure<FeedbackResponseListDto>(
                 Error.NotFound("PerformanceCycle", request.CycleId));
 
-        // 2. Read FrozenMinimumAnonymousFeedbackResponses from governance
-        var frozenMinimum = cycle.FrozenMinimumAnonymousFeedbackResponses
-                            ?? cycle.MinimumAnonymousFeedbackResponses;
+        // 2. Feedback governance was part of the removed governed launch path; the anonymity
+        // threshold falls back to the default minimum.
+        const int frozenMinimum = 3;
 
         // 3. Count valid submitted responses per cohort
         //    D-06: queries ONLY FeedbackResponseContents — never touches FeedbackIdentityMappings

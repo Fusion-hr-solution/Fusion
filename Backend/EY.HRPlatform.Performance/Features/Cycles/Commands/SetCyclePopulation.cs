@@ -43,7 +43,6 @@ public sealed class SetCyclePopulationCommandHandler(
         var ruleKeys = new HashSet<(PopulationRuleType RuleType, Guid RefId)>();
         var includedEmployeeIds = new HashSet<Guid>();
         var excludedEmployeeIds = new HashSet<Guid>();
-        var hasPopulationInclusion = false;
         foreach (var input in request.Rules)
         {
             if (!Enum.TryParse<PopulationRuleType>(input.RuleType, ignoreCase: true, out var ruleType))
@@ -64,7 +63,12 @@ public sealed class SetCyclePopulationCommandHandler(
                     Error.Validation("Cycle.DuplicatePopulationRule", "Each population rule can only be configured once."));
             }
 
-            hasPopulationInclusion |= ruleType is PopulationRuleType.OrgUnit or PopulationRuleType.IncludeEmployee;
+            if (ruleType == PopulationRuleType.ExcludeEmployee && string.IsNullOrWhiteSpace(input.Reason))
+            {
+                return Result.Failure<PerformanceCycleDetailDto>(
+                    Error.Validation("Cycle.ExclusionReasonRequired", "Each excluded employee requires a reason."));
+            }
+
             if (ruleType == PopulationRuleType.IncludeEmployee)
             {
                 includedEmployeeIds.Add(input.RefId);
@@ -74,15 +78,10 @@ public sealed class SetCyclePopulationCommandHandler(
                 excludedEmployeeIds.Add(input.RefId);
             }
 
-            rules.Add(PerformanceCyclePopulationRule.Create(tenantId, ruleType, input.RefId, input.IncludeDescendants));
+            rules.Add(PerformanceCyclePopulationRule.Create(tenantId, ruleType, input.RefId, input.IncludeDescendants, input.Reason));
         }
 
-        if (!hasPopulationInclusion)
-        {
-            return Result.Failure<PerformanceCycleDetailDto>(
-                Error.Validation("Cycle.EmptyPopulationRuleSet", "Configure at least one org unit or explicitly included employee."));
-        }
-
+        // An empty scope set is the implicit all-active baseline; exclusions may still apply.
         if (includedEmployeeIds.Overlaps(excludedEmployeeIds))
         {
             return Result.Failure<PerformanceCycleDetailDto>(

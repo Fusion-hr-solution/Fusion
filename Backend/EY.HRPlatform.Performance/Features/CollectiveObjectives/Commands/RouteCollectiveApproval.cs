@@ -42,8 +42,9 @@ public sealed class RouteCollectiveApprovalCommandHandler(
 
         var tenantId = cycle.TenantId;
 
-        // 2. Read frozen superior-approval rule (D-10: NEVER the live editable value)
-        var requireApproval = cycle.FrozenRequireTeamObjectiveSuperiorApproval == true;
+        // 2. Governance freeze was part of the removed governed launch path; team-objective
+        // superior approval is no longer configured, so it defaults to required (route to superior).
+        const bool requireApproval = true;
 
         if (!requireApproval)
         {
@@ -115,43 +116,10 @@ public sealed class RouteCollectiveApprovalCommandHandler(
 
         if (!approverId.HasValue)
         {
-            if (!await dbContext.CampaignExceptionOwners.AnyAsync(
-                    eo => eo.TenantId == tenantId && eo.CycleId == cycle.Id,
-                    cancellationToken))
-            {
-                return Result.Failure(Error.Conflict("CollectiveObjective.NoExceptionOwner",
-                    "No eligible superior and no exception owner configured for this campaign."));
-            }
-
-            await exceptionCaseWorkflowService.OpenOrReuseAsync(
-                new OpenExceptionCaseRequest(
-                    cycle.Id,
-                    objective.Id,
-                    CampaignWorkItemType.TeamObjectiveApproval,
-                    objective.Id,
-                    "No eligible primary-chain superior or active delegate was available for collective objective approval routing.",
-                    "collective-approval-routing-failed",
-                    new
-                    {
-                        ObjectiveId = objective.Id,
-                        ObjectiveOwnerEmployeeId = objective.OwnerEmployeeId,
-                        ResolutionPath = "exception-owner"
-                    },
-                    cycle.ObjectiveSettingDeadline ?? cycle.PeriodEnd),
-                cancellationToken);
-
-            dbContext.PerformanceCycleAuditEvents.Add(PerformanceCycleAuditEvent.Create(
-                tenantId,
-                cycle.Id,
-                PerformanceCycleAuditAction.CollectiveObjectiveApprovalRouted,
-                currentUser.UserId,
-                currentUser.FullName,
-                $"Failed to route collective objective {objective.Id} through the primary chain and opened exception management.",
-                outcome: "Escalated",
-                correlationId: currentUser.CorrelationId));
-
-            await dbContext.SaveChangesAsync(cancellationToken);
-            return Result.Success();
+            // Exception-owner escalation was part of the removed governed launch path; with no
+            // eligible superior or active delegate, approval routing simply fails.
+            return Result.Failure(Error.Conflict("CollectiveObjective.NoApprover",
+                "No eligible superior was available for collective objective approval routing."));
         }
 
         // 5. Materialize CampaignWorkItem (reuse existing pattern)

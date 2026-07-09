@@ -29,7 +29,6 @@ public sealed class ResolveExceptionCaseCommandHandler(
             return Result.Failure<ExceptionCaseDto>(Error.Forbidden("Exception.EmployeeContextRequired", "An employee context is required."));
 
         var cycle = await dbContext.PerformanceCycles
-            .Include(item => item.ExceptionOwners)
             .FirstOrDefaultAsync(item => item.Id == request.CycleId, cancellationToken);
         if (cycle is null)
             return Result.Failure<ExceptionCaseDto>(Error.NotFound("PerformanceCycle", request.CycleId));
@@ -98,7 +97,7 @@ public sealed class ResolveExceptionCaseCommandHandler(
             currentUser.FullName,
             $"Resolved exception case {exceptionCase.Id} via {action}."));
 
-        var recipients = cycle.ExceptionOwners.Select(item => item.EmployeeId).Append(exceptionCase.CurrentOwnerEmployeeId);
+        var recipients = new[] { exceptionCase.CurrentOwnerEmployeeId };
         dbContext.PerformanceNotifications.AddRange(
             CycleNotificationFactory.ForExceptionCase(
                 cycle,

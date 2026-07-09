@@ -22,8 +22,7 @@ public static class CycleMapper
             cycle.ObjectiveSettingDeadline,
             CycleDeadline.Evaluate(cycle, utcNow, dueSoonWindowDays),
             participantCount,
-            cycle.PublishedAt,
-            cycle.ActivatedAt,
+            cycle.LaunchedAt,
             cycle.ClosedAt,
             cycle.CreatedAt,
             cycle.Version);
@@ -54,21 +53,12 @@ public static class CycleMapper
             CycleDeadline.Evaluate(cycle, utcNow, dueSoonWindowDays),
             cycle.PopulationIncludeInactive,
             participantCount,
-            cycle.PublishedAt,
-            cycle.ActivatedAt,
+            cycle.LaunchedAt,
             cycle.ClosedAt,
             cycle.CreatedAt,
             cycle.UpdatedAt,
             cycle.Version,
             cycle.PopulationRules.Select(ToRuleDto).ToList(),
-            new CampaignGovernanceDto(
-                cycle.FrozenRetentionPolicyVersionId ?? cycle.RetentionPolicyVersionId,
-                cycle.FrozenRequireTeamObjectiveSuperiorApproval ?? cycle.RequireTeamObjectiveSuperiorApproval,
-                cycle.FrozenMinimumAnonymousFeedbackResponses ?? cycle.MinimumAnonymousFeedbackResponses,
-                (cycle.FrozenFeedbackVisibility ?? cycle.FeedbackVisibility).ToString(),
-                cycle.ExceptionOwners.OrderBy(x => x.Priority).Select(x => x.EmployeeId).ToList(),
-                cycle.GovernanceFrozenAt is not null,
-                cycle.GovernanceFrozenAt),
             cycle.PlanningRulesSnapshot is null
                 ? null
                 : new CampaignPlanningRulesSnapshotDto(
@@ -84,7 +74,7 @@ public static class CycleMapper
             ToCompletenessDto(cycle.EvaluateDraftCompleteness()));
 
     public static PopulationRuleDto ToRuleDto(PerformanceCyclePopulationRule rule)
-        => new(rule.RuleType.ToString(), rule.RefId, rule.IncludeDescendants);
+        => new(rule.RuleType.ToString(), rule.RefId, rule.IncludeDescendants, rule.Reason);
 
     public static CampaignStrategicObjectiveDto ToStrategicObjectiveDto(CampaignStrategicObjective objective)
         => new(
@@ -110,6 +100,10 @@ public static class CycleMapper
             participant.JobTitle,
             participant.ManagerId,
             participant.ManagerName,
+            participant.ApproverEmployeeId,
+            participant.ApproverName,
+            participant.IsApproverOverridden,
+            participant.ApproverOverrideReason,
             participant.SnapshotAt);
 
     public static CycleAuditEventDto ToAuditDto(PerformanceCycleAuditEvent auditEvent)

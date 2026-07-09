@@ -59,14 +59,6 @@ public class PerformanceCycleConfiguration : IEntityTypeConfiguration<Performanc
             .IsRequired()
             .HasDefaultValue(PerformanceCycleStatus.Draft);
 
-        builder.Property(c => c.FeedbackVisibility)
-            .HasConversion<string>()
-            .HasMaxLength(40)
-            .IsRequired();
-        builder.Property(c => c.FrozenFeedbackVisibility)
-            .HasConversion<string>()
-            .HasMaxLength(40);
-
         builder.Property(c => c.CreatedBy).HasMaxLength(256);
         builder.Property(c => c.UpdatedBy).HasMaxLength(256);
 
@@ -80,7 +72,7 @@ public class PerformanceCycleConfiguration : IEntityTypeConfiguration<Performanc
             .HasForeignKey(p => p.CycleId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        builder.HasMany(c => c.ExceptionOwners)
+        builder.HasMany(c => c.ApproverOverrides)
             .WithOne()
             .HasForeignKey(x => x.CycleId)
             .OnDelete(DeleteBehavior.Cascade);
@@ -94,7 +86,7 @@ public class PerformanceCycleConfiguration : IEntityTypeConfiguration<Performanc
             .SetPropertyAccessMode(PropertyAccessMode.Field);
         builder.Metadata.FindNavigation(nameof(PerformanceCycle.Participants))!
             .SetPropertyAccessMode(PropertyAccessMode.Field);
-        builder.Metadata.FindNavigation(nameof(PerformanceCycle.ExceptionOwners))!
+        builder.Metadata.FindNavigation(nameof(PerformanceCycle.ApproverOverrides))!
             .SetPropertyAccessMode(PropertyAccessMode.Field);
         builder.Metadata.FindNavigation(nameof(PerformanceCycle.StrategicObjectives))!
             .SetPropertyAccessMode(PropertyAccessMode.Field);

@@ -57,6 +57,15 @@ public sealed class PerformancePopulationResolver(ICoreWorkforceClient workforce
             }
         }
 
+        var hasOrgUnitScope = orgUnitWithDescendants.Count > 0 || orgUnitDirectOnly.Count > 0;
+
+        // All-active baseline: with no org-unit scope, the population is every active employee
+        // (asOf snapshots fall back to the live roster; no historical all-active seam exists yet).
+        if (!hasOrgUnitScope)
+        {
+            Merge(await workforceClient.GetAllActiveEmployeesAsync(cycle.PopulationIncludeInactive, cancellationToken));
+        }
+
         if (orgUnitWithDescendants.Count > 0)
         {
             Merge(asOf.HasValue

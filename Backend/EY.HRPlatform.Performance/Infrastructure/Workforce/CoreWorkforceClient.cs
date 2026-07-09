@@ -16,6 +16,14 @@ public interface ICoreWorkforceClient
         IReadOnlyCollection<Guid> employeeIds,
         CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Lists every active employee visible to the caller (the all-active population baseline).
+    /// Pages through the Core workforce search contract; scope-filtered by Core.
+    /// </summary>
+    Task<IReadOnlyList<CoreEmployeeSummary>> GetAllActiveEmployeesAsync(
+        bool includeInactive,
+        CancellationToken cancellationToken);
+
     /// <summary>Lists employees within the given org units (optionally descendants), scope-filtered by Core.</summary>
     Task<IReadOnlyList<CoreEmployeeSummary>> GetEmployeesByScopeAsync(
         IReadOnlyCollection<Guid> orgUnitIds,
@@ -85,6 +93,50 @@ public sealed class CoreWorkforceClient(
             cancellationToken);
 
         return await ReadEmployeesAsync(response, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<CoreEmployeeSummary>> GetAllActiveEmployeesAsync(
+        bool includeInactive,
+        CancellationToken cancellationToken)
+    {
+        const int pageSize = 100;
+        var accumulated = new List<CoreEmployeeSummary>();
+        var page = 1;
+
+        while (true)
+        {
+            var response = await httpClient.GetAsync(
+                $"api/corehr/workforce/employees/search?page={page}&pageSize={pageSize}",
+                cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new InvalidOperationException(
+                    $"Core workforce request failed with status {(int)response.StatusCode}.");
+            }
+
+            var payload = await response.Content
+                .ReadFromJsonAsync<ApiResponse<PagedEmployeeResponse>>(cancellationToken);
+            var pageResult = payload?.Data;
+            var items = pageResult?.Items ?? [];
+            accumulated.AddRange(items);
+
+            if (items.Count < pageSize || (pageResult is not null && page >= pageResult.TotalPages))
+            {
+                break;
+            }
+
+            page++;
+        }
+
+        var filtered = includeInactive
+            ? accumulated
+            : accumulated.Where(employee => employee.IsActive).ToList();
+
+        return filtered
+            .GroupBy(employee => employee.EmployeeId)
+            .Select(group => group.First())
+            .ToList();
     }
 
     public async Task<IReadOnlyList<CoreEmployeeSummary>> GetEmployeesByScopeAsync(
@@ -244,6 +296,15 @@ public sealed class CoreWorkforceClient(
 
         return await response.Content.ReadFromJsonAsync<CoreApplicabilityOptions>(cancellationToken)
             ?? new CoreApplicabilityOptions([], [], [], []);
+    }
+
+    private sealed class PagedEmployeeResponse
+    {
+        public List<CoreEmployeeSummary> Items { get; set; } = [];
+        public int TotalCount { get; set; }
+        public int Page { get; set; }
+        public int PageSize { get; set; }
+        public int TotalPages { get; set; }
     }
 
     private static async Task<IReadOnlyList<CoreEmployeeSummary>> ReadEmployeesAsync(

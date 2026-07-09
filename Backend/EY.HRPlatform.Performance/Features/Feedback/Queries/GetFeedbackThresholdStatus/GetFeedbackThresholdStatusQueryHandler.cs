@@ -28,9 +28,9 @@ public sealed class GetFeedbackThresholdStatusQueryHandler(
             return Result.Failure<FeedbackThresholdStatusDto>(
                 Error.NotFound("PerformanceCycle", request.CycleId));
 
-        // 2. Read frozen threshold
-        var frozenMinimum = cycle.FrozenMinimumAnonymousFeedbackResponses
-                            ?? cycle.MinimumAnonymousFeedbackResponses;
+        // 2. Feedback governance was part of the removed governed launch path; the anonymity
+        // threshold falls back to the default minimum.
+        const int frozenMinimum = 3;
 
         // 3. Count valid submitted responses per cohort
         var validCount = await dbContext.FeedbackResponseContents

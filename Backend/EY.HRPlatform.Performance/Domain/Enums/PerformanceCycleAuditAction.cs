@@ -8,6 +8,8 @@ public enum PerformanceCycleAuditAction
     Created,
     Updated,
     PopulationUpdated,
+    ApproverOverridden,
+    CampaignLaunched,
     GovernanceConfigured,
     GovernanceFrozen,
     ReviewDefinitionConfigured,
