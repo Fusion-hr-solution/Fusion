@@ -28,6 +28,24 @@ public class PerformanceCycleTests
         => cycle.ConfigureGovernance(Guid.NewGuid(), requireTeamObjectiveSuperiorApproval: false, 3,
             CampaignFeedbackVisibility.AnonymousToSubject, [Guid.NewGuid()]);
 
+    private static CampaignPlanningRulesSnapshot Snapshot()
+        => CampaignPlanningRulesSnapshot.Capture(5, "[25,50,75,100]", "Quantitative,Qualitative", Guid.NewGuid(), Start);
+
+    private static PerformanceCycle NewCampaignDraft()
+        => PerformanceCycle.CreateDraft(
+            TenantId,
+            "FY26 Planning",
+            "fy26-planning",
+            2026,
+            "Set planning objectives",
+            Guid.NewGuid(),
+            "HR Admin",
+            Start,
+            Start.AddDays(14),
+            Start.AddDays(21),
+            Start.AddDays(30),
+            Snapshot());
+
     [Fact]
     public void Create_WithValidData_StartsAsDraft()
     {
@@ -36,6 +54,93 @@ public class PerformanceCycleTests
         Assert.Equal(PerformanceCycleStatus.Draft, cycle.Status);
         Assert.True(cycle.IsEditable);
         Assert.Equal(TenantId, cycle.TenantId);
+    }
+
+    [Fact]
+    public void CreateDraft_WithValidSchedule_CapturesLeanDraftFields()
+    {
+        var cycle = NewCampaignDraft();
+
+        Assert.Equal(PerformanceCycleStatus.Draft, cycle.Status);
+        Assert.Equal(2026, cycle.ReferenceYear);
+        Assert.Equal(Start, cycle.PlanningOpeningDate);
+        Assert.Equal(Start.AddDays(14), cycle.EmployeeSubmissionDeadline);
+        Assert.Equal(Start.AddDays(21), cycle.ManagerApprovalDeadline);
+        Assert.Equal(Start.AddDays(30), cycle.ExpectedPlanningLockDate);
+        Assert.NotNull(cycle.PlanningRulesSnapshot);
+        Assert.NotNull(cycle.OwnerUserId);
+    }
+
+    [Fact]
+    public void CreateDraft_WithOutOfOrderSchedule_Throws()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            PerformanceCycle.CreateDraft(
+                TenantId,
+                "FY26 Planning",
+                "fy26-planning",
+                2026,
+                null,
+                Guid.NewGuid(),
+                "HR Admin",
+                Start,
+                Start.AddDays(14),
+                Start.AddDays(7),
+                Start.AddDays(30),
+                Snapshot()));
+    }
+
+    [Fact]
+    public void PlanningRulesSnapshot_IsCapturedAndReadOnly()
+    {
+        var snapshot = Snapshot();
+        var cycle = PerformanceCycle.CreateDraft(
+            TenantId,
+            "FY26 Planning",
+            "fy26-planning",
+            2026,
+            null,
+            Guid.NewGuid(),
+            "HR Admin",
+            Start,
+            Start.AddDays(14),
+            Start.AddDays(21),
+            Start.AddDays(30),
+            snapshot);
+
+        cycle.UpdateDraftDetails(
+            "FY26 Planning Updated",
+            2026,
+            "Updated",
+            Start,
+            Start.AddDays(10),
+            Start.AddDays(20),
+            Start.AddDays(30));
+
+        Assert.Same(snapshot, cycle.PlanningRulesSnapshot);
+        Assert.Equal("[25,50,75,100]", cycle.PlanningRulesSnapshot!.AllowedWeightMenu);
+    }
+
+    [Fact]
+    public void StrategicObjectiveLifecycle_UpdatesActiveStateAndCompleteness()
+    {
+        var cycle = NewCampaignDraft();
+
+        var initial = cycle.EvaluateDraftCompleteness();
+        Assert.False(initial.IsComplete);
+        Assert.Contains(initial.BlockingReasons, reason => reason.Contains("active strategic objective"));
+
+        var objective = cycle.AddStrategicObjective("Improve client delivery", "Raise delivery quality", "Consulting");
+        Assert.True(cycle.EvaluateDraftCompleteness().IsComplete);
+
+        cycle.EditStrategicObjective(objective.Id, "Improve delivery quality", null, "Consulting");
+        Assert.Equal("Improve delivery quality", objective.Title);
+        Assert.Null(objective.Description);
+
+        cycle.SetStrategicObjectiveActive(objective.Id, false);
+        var afterToggle = cycle.EvaluateDraftCompleteness();
+        Assert.False(afterToggle.IsComplete);
+        Assert.Contains(afterToggle.BlockingReasons, reason => reason.Contains("active strategic objective"));
     }
 
     [Fact]
