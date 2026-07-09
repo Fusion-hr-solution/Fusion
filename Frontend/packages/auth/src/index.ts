@@ -60,6 +60,8 @@ export {
   canAccessTenantSurfaces,
   canViewPerformanceCycles,
   canManagePerformanceCycles,
+  canViewPerformanceCampaigns,
+  canManagePerformanceCampaigns,
   canOperatePerformanceCycles,
   canViewObjectivePlanningConfiguration,
   canManageObjectivePlanningConfiguration,

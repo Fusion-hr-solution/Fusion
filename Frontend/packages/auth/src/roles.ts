@@ -368,6 +368,9 @@ export function canManagePerformanceCycles(user: AuthUser | null): boolean {
   return hasCorePermission(user, PERFORMANCE_PERMISSION.cycleManage, "Tenant");
 }
 
+export const canViewPerformanceCampaigns = canViewPerformanceCycles;
+export const canManagePerformanceCampaigns = canManagePerformanceCycles;
+
 export function canOperatePerformanceCycles(user: AuthUser | null): boolean {
   return hasCorePermission(user, PERFORMANCE_PERMISSION.cyclePublish, "Tenant");
 }
