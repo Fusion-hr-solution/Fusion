@@ -55,7 +55,7 @@ public sealed class CollectiveObjectiveVisibilityTests
         // Tenant A has a collective objective
         var dbName = $"test-{Guid.NewGuid()}";
         using var seedDb = CreateContext(dbName, _tenantId);
-        var cycle = PerformanceCycle.Create(_tenantId, "Test", PerformanceCycleType.Annual,
+        var cycle = TestCycles.Create(_tenantId, "Test", PerformanceCycleType.Annual,
             DateTime.UtcNow.AddDays(-30), DateTime.UtcNow.AddDays(30));
         seedDb.PerformanceCycles.Add(cycle);
 
@@ -102,7 +102,7 @@ public sealed class CollectiveObjectiveVisibilityTests
         strategic.Publish(DateTime.UtcNow);
         db.StrategicObjectives.Add(strategic);
 
-        var cycle = PerformanceCycle.Create(_tenantId, "Test", PerformanceCycleType.Annual,
+        var cycle = TestCycles.Create(_tenantId, "Test", PerformanceCycleType.Annual,
             DateTime.UtcNow.AddDays(-30), DateTime.UtcNow.AddDays(30));
         db.PerformanceCycles.Add(cycle);
 
@@ -140,7 +140,7 @@ public sealed class CollectiveObjectiveVisibilityTests
         strategic.Publish(DateTime.UtcNow);
         db.StrategicObjectives.Add(strategic);
 
-        var cycle = PerformanceCycle.Create(_tenantId, "Test", PerformanceCycleType.Annual,
+        var cycle = TestCycles.Create(_tenantId, "Test", PerformanceCycleType.Annual,
             DateTime.UtcNow.AddDays(-30), DateTime.UtcNow.AddDays(30));
         db.PerformanceCycles.Add(cycle);
 

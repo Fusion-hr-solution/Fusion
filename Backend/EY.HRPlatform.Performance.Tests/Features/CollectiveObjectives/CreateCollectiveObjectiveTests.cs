@@ -34,7 +34,7 @@ public sealed class CreateCollectiveObjectiveTests
 
     private PerformanceCycle CreateActiveCycle(Guid tenantId, bool requireApproval = false)
     {
-        var cycle = PerformanceCycle.Create(
+        var cycle = TestCycles.Create(
             tenantId, "Test Cycle", PerformanceCycleType.Annual,
             DateTime.UtcNow.AddDays(-30), DateTime.UtcNow.AddDays(30));
         cycle.ConfigureGovernance(
@@ -85,7 +85,7 @@ public sealed class CreateCollectiveObjectiveTests
     public async Task Handle_CycleNotActive_ReturnsConflict()
     {
         var db = CreateContext($"test-{Guid.NewGuid()}");
-        var cycle = PerformanceCycle.Create(_tenantId, "Test", PerformanceCycleType.Annual,
+        var cycle = TestCycles.Create(_tenantId, "Test", PerformanceCycleType.Annual,
             DateTime.UtcNow.AddDays(-30), DateTime.UtcNow.AddDays(30));
         db.PerformanceCycles.Add(cycle);
         await db.SaveChangesAsync();

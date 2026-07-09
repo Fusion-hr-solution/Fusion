@@ -23,7 +23,7 @@ public class CycleDeadlineTests
 
     [Fact]
     public void DeadlineWithinWindow_IsDueSoon()
-        => Assert.Equal(CycleDeadline.DueSoon, CycleDeadline.Evaluate(Now.AddDays(2), PerformanceCycleStatus.AssignmentPreparation, Now, 3));
+        => Assert.Equal(CycleDeadline.DueSoon, CycleDeadline.Evaluate(Now.AddDays(2), PerformanceCycleStatus.Launched, Now, 3));
 
     [Fact]
     public void DeadlineBeyondWindow_IsUpcoming()

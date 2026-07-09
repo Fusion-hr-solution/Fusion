@@ -1,6 +1,8 @@
 using EY.HRPlatform.Performance.Domain.Entities;
 using EY.HRPlatform.Performance.Domain.Enums;
+using EY.HRPlatform.Performance.Features.Cycles.Dtos;
 using EY.HRPlatform.Performance.Features.Cycles.Queries;
+using EY.HRPlatform.Performance.Features.Cycles.Services;
 using EY.HRPlatform.Performance.Infrastructure.Workforce;
 using EY.HRPlatform.Performance.Tests.TestSupport;
 
@@ -8,57 +10,110 @@ namespace EY.HRPlatform.Performance.Tests.Features.Cycles;
 
 public class GetCycleReadinessQueryTests
 {
-    [Fact]
-    public async Task Handle_UsesFinalResponsibilitiesRatherThanLegacyParticipantFields()
+    private static readonly Guid TenantId = Guid.NewGuid();
+    private static readonly DateTime Start = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+    private static readonly DateTime End = new(2026, 12, 31, 0, 0, 0, DateTimeKind.Utc);
+
+    private static CoreEmployeeSummary Member(Guid id, string name, Guid? managerId, bool managerActive = true)
+        => new(id, $"E-{id.ToString("N")[..6]}", name, name, $"{name}@test.local", "Engineer", true, null,
+            managerId is { } m ? new CoreManagerSummary(m, $"{name}'s Manager", managerActive) : null);
+
+    private static async Task<CycleReadinessDto> RunAsync(FakeCoreWorkforceClient client, bool withStrategicObjective = true, Action<PerformanceCycle>? configure = null)
     {
-        var tenantId = Guid.NewGuid();
-        var now = DateTime.UtcNow;
-        await using var db = PerformanceTestContext.Create(tenantId, out _);
-        var cycle = PerformanceCycle.Create(tenantId, "FY26", PerformanceCycleType.Annual, now.AddDays(-1), now.AddDays(10));
-        cycle.ConfigureForAssignmentPreparation();
-        cycle.BeginAssignmentPreparation(1, now);
-        var subjectId = Guid.NewGuid();
-        var assigneeId = Guid.NewGuid();
-        db.PerformanceCycles.Add(cycle);
-        db.PerformanceCycleParticipants.Add(PerformanceCycleParticipant.Create(tenantId, cycle.Id, subjectId, "Employee"));
-        db.CampaignAssignmentResponsibilities.Add(CampaignAssignmentResponsibility.Confirm(
-            tenantId, cycle.Id, subjectId, assigneeId, "Manager", CampaignResponsibilityDuty.ObjectiveApproval,
-            CampaignAssignmentSource.Curated, "PrimaryManager"));
-        await db.SaveChangesAsync();
-
-        var workforce = new FakeCoreWorkforceClient
+        var dbName = $"readiness-{Guid.NewGuid()}";
+        Guid cycleId;
+        await using (var seed = PerformanceTestContext.Create(TenantId, out _, dbName))
         {
-            CampaignWorkforceContext = new(
-                now,
-                "baseline",
-                [
-                    CampaignMember(subjectId, true, assigneeId),
-                    CampaignMember(assigneeId, true)
-                ])
-        };
-        var handler = new GetCycleReadinessQueryHandler(db, workforce);
-        var result = await handler.Handle(new GetCycleReadinessQuery(cycle.Id), CancellationToken.None);
+            var cycle = TestCycles.Create(TenantId, "FY26 Readiness", PerformanceCycleType.Annual, Start, End);
+            if (withStrategicObjective)
+                cycle.AddStrategicObjective("Deliver", null, null);
+            configure?.Invoke(cycle);
+            seed.PerformanceCycles.Add(cycle);
+            await seed.SaveChangesAsync();
+            cycleId = cycle.Id;
+        }
 
+        await using var db = PerformanceTestContext.Create(TenantId, out _, dbName);
+        var resolver = new CampaignReadinessResolver(new PerformancePopulationResolver(client), client);
+        var handler = new GetCycleReadinessQueryHandler(db, resolver);
+        var result = await handler.Handle(new GetCycleReadinessQuery(cycleId), CancellationToken.None);
         Assert.True(result.IsSuccess);
-        Assert.Equal(1, result.Value.ConfirmedObjectiveResponsibilityCount);
-        Assert.Equal(0, result.Value.MissingObjectiveResponsibilityCount);
-        Assert.False(result.Value.WorkforceDelta.BlocksLaunch);
+        return result.Value;
     }
 
-    private static CoreCampaignWorkforceMember CampaignMember(
-        Guid employeeId,
-        bool isActive,
-        Guid? primaryManagerEmployeeId = null)
-        => new(
-            employeeId,
-            isActive,
-            [],
-            primaryManagerEmployeeId,
-            primaryManagerEmployeeId.HasValue ? [primaryManagerEmployeeId.Value] : [],
-            false,
-            1,
-            [],
-            [],
-            true,
-            []);
+    [Fact]
+    public async Task Readiness_AllParticipantsHaveManagers_CanLaunch()
+    {
+        var client = new FakeCoreWorkforceClient
+        {
+            AllActiveResult =
+            [
+                Member(Guid.NewGuid(), "Alice", Guid.NewGuid()),
+                Member(Guid.NewGuid(), "Bob", Guid.NewGuid()),
+            ]
+        };
+
+        var readiness = await RunAsync(client);
+
+        Assert.True(readiness.CanLaunch);
+        Assert.True(readiness.IsAllActiveBaseline);
+        Assert.Equal(2, readiness.IncludedCount);
+        Assert.All(readiness.Participants, p => Assert.True(p.HasApprover));
+        Assert.Empty(readiness.BlockingConditions);
+    }
+
+    [Fact]
+    public async Task Readiness_ParticipantWithoutManager_IsBlocking()
+    {
+        var client = new FakeCoreWorkforceClient
+        {
+            AllActiveResult =
+            [
+                Member(Guid.NewGuid(), "Alice", Guid.NewGuid()),
+                Member(Guid.NewGuid(), "NoManager", managerId: null),
+            ]
+        };
+
+        var readiness = await RunAsync(client);
+
+        Assert.False(readiness.CanLaunch);
+        Assert.Contains(readiness.BlockingConditions, c => c.Code == "MissingApprover");
+    }
+
+    [Fact]
+    public async Task Readiness_EmptyPopulation_IsBlocking()
+    {
+        var readiness = await RunAsync(new FakeCoreWorkforceClient { AllActiveResult = [] });
+
+        Assert.False(readiness.CanLaunch);
+        Assert.Contains(readiness.BlockingConditions, c => c.Code == "NoParticipants");
+    }
+
+    [Fact]
+    public async Task Readiness_NoActiveStrategicObjective_IsBlocking()
+    {
+        var client = new FakeCoreWorkforceClient
+        {
+            AllActiveResult = [Member(Guid.NewGuid(), "Alice", Guid.NewGuid())]
+        };
+
+        var readiness = await RunAsync(client, withStrategicObjective: false);
+
+        Assert.False(readiness.CanLaunch);
+        Assert.Contains(readiness.BlockingConditions, c => c.Code == "NoActiveStrategicObjective");
+    }
+
+    [Fact]
+    public async Task Readiness_InactiveDefaultApprover_IsInformationalNotBlocking()
+    {
+        var client = new FakeCoreWorkforceClient
+        {
+            AllActiveResult = [Member(Guid.NewGuid(), "Alice", Guid.NewGuid(), managerActive: false)]
+        };
+
+        var readiness = await RunAsync(client);
+
+        Assert.True(readiness.CanLaunch);
+        Assert.Contains(readiness.InformationalConditions, c => c.Code == "ApproverInactive");
+    }
 }

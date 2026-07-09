@@ -68,7 +68,7 @@ public sealed class ResolveExceptionCaseCommandHandlerTests
 
     private static PerformanceCycle CreateActiveCycle(Guid tenantId, Guid exceptionOwnerId, DateTime now)
     {
-        var cycle = PerformanceCycle.Create(tenantId, "FY review", PerformanceCycleType.Annual, now.AddDays(-2), now.AddDays(10));
+        var cycle = TestCycles.Create(tenantId, "FY review", PerformanceCycleType.Annual, now.AddDays(-2), now.AddDays(10));
         cycle.ConfigureGovernance(Guid.NewGuid(), true, 3, CampaignFeedbackVisibility.AnonymousToSubject, [exceptionOwnerId]);
         cycle.BeginAssignmentPreparation(1, now.AddDays(-1));
         cycle.MarkReadyToLaunch(1, 0, true, now.AddHours(-12));

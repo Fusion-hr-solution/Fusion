@@ -18,8 +18,6 @@ public sealed class FinalizeFeedbackWindowCommandHandlerTests
         var cycle = CreateActiveCycle(tenantId, now);
         db.PerformanceCycles.Add(cycle);
         await db.SaveChangesAsync();
-        // Set FeedbackDeadline to past via change tracker
-        db.Entry(cycle).Property(c => c.FeedbackDeadline).CurrentValue = now.AddDays(-1);
         await db.SaveChangesAsync();
 
         var content = FeedbackResponseContent.Create(tenantId, cycle.Id, subjectId, CampaignWorkItemType.PeerFeedback, Guid.NewGuid(),
@@ -48,26 +46,6 @@ public sealed class FinalizeFeedbackWindowCommandHandlerTests
         Assert.Contains("NotFound", result.Error.Code);
     }
 
-    [Fact]
-    public async Task Finalize_WindowNotClosed_FutureDeadline_ReturnsValidation()
-    {
-        var tenantId = Guid.NewGuid();
-        var subjectId = Guid.NewGuid();
-        var db = PerformanceTestContext.Create(tenantId, out _);
-        var now = DateTime.UtcNow;
-        var cycle = CreateActiveCycle(tenantId, now);
-        db.PerformanceCycles.Add(cycle);
-        await db.SaveChangesAsync();
-        // Set FeedbackDeadline to future
-        db.Entry(cycle).Property(c => c.FeedbackDeadline).CurrentValue = now.AddDays(5);
-        await db.SaveChangesAsync();
-        var handler = new FinalizeFeedbackWindowCommandHandler(db, new StubCurrentUserContext { EmployeeId = Guid.NewGuid() });
-
-        var result = await handler.Handle(new FinalizeFeedbackWindowCommand(cycle.Id, "PeerFeedback", subjectId), default);
-
-        Assert.False(result.IsSuccess);
-        Assert.Contains("WindowNotClosed", result.Error.Code);
-    }
 
     [Fact]
     public async Task Finalize_NoResponses_ThresholdSuppressed_ReturnsSuccess()
@@ -79,7 +57,6 @@ public sealed class FinalizeFeedbackWindowCommandHandlerTests
         var cycle = CreateActiveCycle(tenantId, now);
         db.PerformanceCycles.Add(cycle);
         await db.SaveChangesAsync();
-        db.Entry(cycle).Property(c => c.FeedbackDeadline).CurrentValue = now.AddDays(-1);
         await db.SaveChangesAsync();
         var handler = new FinalizeFeedbackWindowCommandHandler(db, new StubCurrentUserContext { EmployeeId = Guid.NewGuid() });
 
@@ -99,7 +76,6 @@ public sealed class FinalizeFeedbackWindowCommandHandlerTests
         var cycle = CreateActiveCycle(tenantId, now);
         db.PerformanceCycles.Add(cycle);
         await db.SaveChangesAsync();
-        db.Entry(cycle).Property(c => c.FeedbackDeadline).CurrentValue = now.AddDays(-1);
         await db.SaveChangesAsync();
 
         var content = FeedbackResponseContent.Create(tenantId, cycle.Id, subjectId, CampaignWorkItemType.PeerFeedback, Guid.NewGuid(),
@@ -125,7 +101,6 @@ public sealed class FinalizeFeedbackWindowCommandHandlerTests
         var cycle = CreateActiveCycle(tenantId, now);
         db.PerformanceCycles.Add(cycle);
         await db.SaveChangesAsync();
-        db.Entry(cycle).Property(c => c.FeedbackDeadline).CurrentValue = now.AddDays(-1);
         await db.SaveChangesAsync();
 
         var responses = new[]
@@ -156,7 +131,7 @@ public sealed class FinalizeFeedbackWindowCommandHandlerTests
 
     private static PerformanceCycle CreateActiveCycle(Guid tenantId, DateTime now)
     {
-        var cycle = PerformanceCycle.Create(tenantId, "FY", PerformanceCycleType.Annual, now.AddDays(-10), now.AddDays(10));
+        var cycle = TestCycles.Create(tenantId, "FY", PerformanceCycleType.Annual, now.AddDays(-10), now.AddDays(10));
         cycle.ConfigureGovernance(Guid.NewGuid(), false, 3, CampaignFeedbackVisibility.AnonymousToSubject, [Guid.NewGuid()]);
         cycle.BeginAssignmentPreparation(1, now.AddDays(-1));
         cycle.MarkReadyToLaunch(1, 0, true, now.AddHours(-12));

@@ -36,6 +36,15 @@ public sealed class FakeCoreWorkforceClient : ICoreWorkforceClient
             SnapshotResolvePool.Where(e => employeeIds.Contains(e.EmployeeId)).ToList());
     }
 
+    /// <summary>All active employees returned for the all-active population baseline (no scope set).</summary>
+    public List<CoreEmployeeSummary> AllActiveResult { get; set; } = [];
+
+    public Task<IReadOnlyList<CoreEmployeeSummary>> GetAllActiveEmployeesAsync(
+        bool includeInactive,
+        CancellationToken cancellationToken)
+        => Task.FromResult<IReadOnlyList<CoreEmployeeSummary>>(
+            includeInactive ? AllActiveResult : AllActiveResult.Where(e => e.IsActive).ToList());
+
     public Task<IReadOnlyList<CoreEmployeeSummary>> GetEmployeesByScopeAsync(
         IReadOnlyCollection<Guid> orgUnitIds,
         bool includeDescendants,

@@ -253,7 +253,7 @@ public sealed class FormalReviewVerificationTests
     private static PerformanceCycle NewActiveCycle(Guid tenantId)
     {
         var now = DateTime.UtcNow;
-        var cycle = PerformanceCycle.Create(tenantId, "FY review", PerformanceCycleType.Annual,
+        var cycle = TestCycles.Create(tenantId, "FY review", PerformanceCycleType.Annual,
             now.AddDays(-2), now.AddDays(10));
         cycle.ConfigureGovernance(Guid.NewGuid(), false, 3,
             CampaignFeedbackVisibility.AnonymousToSubject, [Guid.NewGuid()]);

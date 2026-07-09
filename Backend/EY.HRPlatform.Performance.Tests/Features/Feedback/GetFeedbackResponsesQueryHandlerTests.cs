@@ -194,7 +194,7 @@ public sealed class GetFeedbackResponsesQueryHandlerTests
 
     private static PerformanceCycle CreateCycleWithThreshold(Guid tenantId, int minimumResponses)
     {
-        var cycle = PerformanceCycle.Create(tenantId, "FY", PerformanceCycleType.Annual,
+        var cycle = TestCycles.Create(tenantId, "FY", PerformanceCycleType.Annual,
             DateTime.UtcNow.AddDays(-10), DateTime.UtcNow.AddDays(10));
         cycle.ConfigureGovernance(Guid.NewGuid(), false, minimumResponses,
             CampaignFeedbackVisibility.AnonymousToSubject, [Guid.NewGuid()]);

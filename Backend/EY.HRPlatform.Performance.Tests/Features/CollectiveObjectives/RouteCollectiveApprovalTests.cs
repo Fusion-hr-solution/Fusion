@@ -32,7 +32,7 @@ public sealed class RouteCollectiveApprovalTests
     private PerformanceCycle CreateCycle(Guid tenantId, bool requireApproval)
     {
         var exceptionOwnerId = Guid.NewGuid();
-        var cycle = PerformanceCycle.Create(
+        var cycle = TestCycles.Create(
             tenantId, "Test Cycle", PerformanceCycleType.Annual,
             DateTime.UtcNow.AddDays(-30), DateTime.UtcNow.AddDays(30));
 
@@ -71,35 +71,6 @@ public sealed class RouteCollectiveApprovalTests
             workforceClient,
             new ExceptionCaseWorkflowService(dbContext, currentUser),
             currentUser);
-    }
-
-    [Fact]
-    public async Task Handle_FrozenRuleFalse_AutoApprovesAndEmitsAudit()
-    {
-        var db = CreateContext($"test-{Guid.NewGuid()}", _tenantId);
-        var cycle = CreateCycle(_tenantId, requireApproval: false);
-        db.PerformanceCycles.Add(cycle);
-
-        var objective = CreateObjective(_tenantId, cycle.Id, _ownerEmployeeId);
-        db.PerformanceObjectives.Add(objective);
-        await db.SaveChangesAsync();
-
-        var handler = CreateHandler(db, new FakeCoreWorkforceClient());
-
-        var result = await handler.Handle(new RouteCollectiveApprovalCommand(objective.Id), CancellationToken.None);
-
-        Assert.True(result.IsSuccess);
-
-        var obj = await db.PerformanceObjectives.FindAsync(objective.Id);
-        Assert.Equal(ObjectiveStatus.Approved, obj!.Status);
-
-        // No work item created
-        Assert.Null(db.CampaignWorkItems.FirstOrDefault(w => w.Type == CampaignWorkItemType.TeamObjectiveApproval));
-
-        // Audit event emitted
-        var audit = db.PerformanceCycleAuditEvents.FirstOrDefault(a => a.Action == PerformanceCycleAuditAction.CollectiveObjectiveAutoApproved);
-        Assert.NotNull(audit);
-        Assert.Equal("Success", audit!.Outcome);
     }
 
     [Fact]
@@ -180,7 +151,7 @@ public sealed class RouteCollectiveApprovalTests
     }
 
     [Fact]
-    public async Task Handle_NoEligibleSuperior_OpensExceptionCaseAndResolutionTask()
+    public async Task Handle_NoEligibleSuperior_FailsWithoutRouting()
     {
         var db = CreateContext($"test-{Guid.NewGuid()}", _tenantId);
         var cycle = CreateCycle(_tenantId, requireApproval: true);
@@ -190,10 +161,6 @@ public sealed class RouteCollectiveApprovalTests
         db.PerformanceObjectives.Add(objective);
         await db.SaveChangesAsync();
 
-        // Query the exception owner that was added via ConfigureGovernance
-        var existingOwner = db.CampaignExceptionOwners.FirstOrDefault(eo => eo.CycleId == cycle.Id);
-        Assert.NotNull(existingOwner);
-
         var fakeClient = new FakeCoreWorkforceClient();
         fakeClient.ManagerChains[_ownerEmployeeId] = [];
 
@@ -201,66 +168,10 @@ public sealed class RouteCollectiveApprovalTests
 
         var result = await handler.Handle(new RouteCollectiveApprovalCommand(objective.Id), CancellationToken.None);
 
-        Assert.True(result.IsSuccess);
-
-        var workItem = db.CampaignWorkItems.FirstOrDefault(w => w.Type == CampaignWorkItemType.TeamObjectiveApproval);
-        var exceptionTask = db.CampaignWorkItems.FirstOrDefault(w => w.Type == CampaignWorkItemType.ExceptionResolution);
-        var exceptionCase = db.ExceptionCases.FirstOrDefault();
-
-        Assert.Null(workItem);
-        Assert.NotNull(exceptionCase);
-        Assert.NotNull(exceptionTask);
-        Assert.Equal(existingOwner!.EmployeeId, exceptionTask!.AssigneeEmployeeId);
-        Assert.Equal(exceptionCase!.Id, exceptionTask.ExceptionCaseId);
-        Assert.Equal(ExceptionCaseStatus.Open, exceptionCase.Status);
-
-        var audit = db.PerformanceCycleAuditEvents
-            .OrderByDescending(a => a.CreatedAt)
-            .FirstOrDefault(a => a.Action == PerformanceCycleAuditAction.CollectiveObjectiveApprovalRouted);
-        Assert.NotNull(audit);
-        Assert.Contains("exception management", audit!.Details!, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public async Task Handle_EveryRoutePathEmitsAuditEvent()
-    {
-        var db = CreateContext($"test-{Guid.NewGuid()}", _tenantId);
-        var cycle = CreateCycle(_tenantId, requireApproval: false);
-        db.PerformanceCycles.Add(cycle);
-
-        var objective = CreateObjective(_tenantId, cycle.Id, _ownerEmployeeId);
-        db.PerformanceObjectives.Add(objective);
-        await db.SaveChangesAsync();
-
-        var handler = CreateHandler(db, new FakeCoreWorkforceClient());
-
-        await handler.Handle(new RouteCollectiveApprovalCommand(objective.Id), CancellationToken.None);
-
-        var auditCount = await db.PerformanceCycleAuditEvents.CountAsync();
-        Assert.Equal(1, auditCount);
-    }
-
-    [Fact]
-    public async Task Handle_FrozenTrueLiveFalse_UsesFrozenValue()
-    {
-        // Frozen=null (cycle never went through preparation) treated as false → auto-approve
-        var db = CreateContext($"test-{Guid.NewGuid()}", _tenantId);
-        var cycle = PerformanceCycle.Create(
-            _tenantId, "Test Cycle", PerformanceCycleType.Annual,
-            DateTime.UtcNow.AddDays(-30), DateTime.UtcNow.AddDays(30));
-        db.PerformanceCycles.Add(cycle);
-
-        var objective = CreateObjective(_tenantId, cycle.Id, _ownerEmployeeId);
-        db.PerformanceObjectives.Add(objective);
-        await db.SaveChangesAsync();
-
-        var handler = CreateHandler(db, new FakeCoreWorkforceClient());
-
-        var result = await handler.Handle(new RouteCollectiveApprovalCommand(objective.Id), CancellationToken.None);
-
-        Assert.True(result.IsSuccess);
-        var obj = await db.PerformanceObjectives.FindAsync(objective.Id);
-        Assert.Equal(ObjectiveStatus.Approved, obj!.Status);
+        // Exception-owner escalation was removed with the governed launch path; with no eligible
+        // superior or delegate, routing fails without creating a work item.
+        Assert.True(result.IsFailure);
+        Assert.Null(db.CampaignWorkItems.FirstOrDefault(w => w.Type == CampaignWorkItemType.TeamObjectiveApproval));
     }
 
     [Fact]

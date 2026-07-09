@@ -57,7 +57,7 @@ public sealed class DecideCollectiveObjectiveApprovalTests
 
         var db = CreateContext($"test-{Guid.NewGuid()}");
 
-        var cycle = PerformanceCycle.Create(_tenantId, "Test", PerformanceCycleType.Annual,
+        var cycle = TestCycles.Create(_tenantId, "Test", PerformanceCycleType.Annual,
             DateTime.UtcNow.AddDays(-30), DateTime.UtcNow.AddDays(30));
         db.PerformanceCycles.Add(cycle);
 
@@ -93,7 +93,7 @@ public sealed class DecideCollectiveObjectiveApprovalTests
 
         var db = CreateContext($"test-{Guid.NewGuid()}");
 
-        var cycle = PerformanceCycle.Create(_tenantId, "Test", PerformanceCycleType.Annual,
+        var cycle = TestCycles.Create(_tenantId, "Test", PerformanceCycleType.Annual,
             DateTime.UtcNow.AddDays(-30), DateTime.UtcNow.AddDays(30));
         db.PerformanceCycles.Add(cycle);
 
@@ -127,7 +127,7 @@ public sealed class DecideCollectiveObjectiveApprovalTests
 
         var db = CreateContext($"test-{Guid.NewGuid()}");
 
-        var cycle = PerformanceCycle.Create(_tenantId, "Test", PerformanceCycleType.Annual,
+        var cycle = TestCycles.Create(_tenantId, "Test", PerformanceCycleType.Annual,
             DateTime.UtcNow.AddDays(-30), DateTime.UtcNow.AddDays(30));
         db.PerformanceCycles.Add(cycle);
 
@@ -161,7 +161,7 @@ public sealed class DecideCollectiveObjectiveApprovalTests
 
         var db = CreateContext($"test-{Guid.NewGuid()}");
 
-        var cycle = PerformanceCycle.Create(_tenantId, "Test", PerformanceCycleType.Annual,
+        var cycle = TestCycles.Create(_tenantId, "Test", PerformanceCycleType.Annual,
             DateTime.UtcNow.AddDays(-30), DateTime.UtcNow.AddDays(30));
         db.PerformanceCycles.Add(cycle);
 

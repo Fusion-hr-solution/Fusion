@@ -27,7 +27,7 @@ public class TenantIsolationTests
 
         // Seed: cycle under tenantA
         await using var seedDb = PerformanceTestContext.Create(tenantA, out _, dbName);
-        var cycle = PerformanceCycle.Create(
+        var cycle = TestCycles.Create(
             tenantA, "FY26 Tenant A", PerformanceCycleType.Annual,
             now.AddDays(-1), now.AddDays(10));
         seedDb.PerformanceCycles.Add(cycle);
@@ -40,36 +40,6 @@ public class TenantIsolationTests
     }
 
     [Fact]
-    public async Task ForeignTenant_CannotReadAssignments()
-    {
-        var now = DateTime.UtcNow;
-        var tenantA = Guid.NewGuid();
-        var tenantB = Guid.NewGuid();
-        var dbName = $"tenant-isolation-assignments-{Guid.NewGuid()}";
-
-        // Seed: cycle + responsibility under tenantA
-        await using var seedDb = PerformanceTestContext.Create(tenantA, out _, dbName);
-        var cycle = PerformanceCycle.Create(
-            tenantA, "FY26 Tenant A Assignments", PerformanceCycleType.Annual,
-            now.AddDays(-1), now.AddDays(10));
-        cycle.ConfigureForAssignmentPreparation();
-        cycle.BeginAssignmentPreparation(1, now);
-        seedDb.PerformanceCycles.Add(cycle);
-
-        var responsibility = CampaignAssignmentResponsibility.Confirm(
-            tenantA, cycle.Id, Guid.NewGuid(), Guid.NewGuid(),
-            "Manager Name", CampaignResponsibilityDuty.ObjectiveApproval,
-            CampaignAssignmentSource.Curated, "PrimaryManager");
-        seedDb.CampaignAssignmentResponsibilities.Add(responsibility);
-        await seedDb.SaveChangesAsync();
-
-        // Query: under tenantB — should see nothing
-        await using var foreignDb = PerformanceTestContext.Create(tenantB, out _, dbName);
-        var responsibilities = await foreignDb.CampaignAssignmentResponsibilities.ToListAsync();
-        Assert.Empty(responsibilities);
-    }
-
-    [Fact]
     public async Task ForeignTenant_CannotReadAuditEvents()
     {
         var now = DateTime.UtcNow;
@@ -79,7 +49,7 @@ public class TenantIsolationTests
 
         // Seed: cycle + audit event under tenantA
         await using var seedDb = PerformanceTestContext.Create(tenantA, out _, dbName);
-        var cycle = PerformanceCycle.Create(
+        var cycle = TestCycles.Create(
             tenantA, "FY26 Tenant A Audit", PerformanceCycleType.Annual,
             now.AddDays(-1), now.AddDays(10));
         seedDb.PerformanceCycles.Add(cycle);

@@ -151,17 +151,14 @@ public sealed class IndividualApprovalRoutingTests
             FakeCoreWorkforceClient.Employee(directManagerId, "Direct Manager")
         ];
 
-        var cycle = PerformanceCycle.Create(tenantId, "FY26", PerformanceCycleType.Annual, now.AddDays(-1), now.AddDays(30));
+        var cycle = TestCycles.Create(tenantId, "FY26", PerformanceCycleType.Annual, now.AddDays(-1), now.AddDays(30));
         cycle.ConfigureForAssignmentPreparation();
         cycle.BeginAssignmentPreparation(1, now);
         cycle.MarkReadyToLaunch(1, 0, true, now);
         cycle.Activate(now);
         db.PerformanceCycles.Add(cycle);
 
-        // Create a responsibility that routes ObjectiveApproval to the direct manager
-        db.CampaignAssignmentResponsibilities.Add(CampaignAssignmentResponsibility.Confirm(
-            tenantId, cycle.Id, ownerEmployeeId, directManagerId, "Manager",
-            CampaignResponsibilityDuty.ObjectiveApproval, CampaignAssignmentSource.Curated, "PrimaryManager"));
+        // Route ObjectiveApproval to the direct manager via a work item
         db.CampaignWorkItems.Add(CampaignWorkItem.Create(tenantId, cycle.Id, ownerEmployeeId, directManagerId,
             CampaignWorkItemType.ObjectiveApproval, now.AddDays(2)));
         await db.SaveChangesAsync();
