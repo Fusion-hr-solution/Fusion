@@ -56,5 +56,5 @@
 
 - [x] 9.1 Frontend `pnpm --filter performance test`, `pnpm lint`, and `pnpm type-check` pass.
 - [x] 9.2 Backend build + tests pass and the migration applies cleanly on a fresh database with no pending model changes.
-- [ ] 9.3 Rendered UI/browser verification of the real Campaigns experience: create a Draft, edit schedule (valid + invalid ordering), view read-only snapshot, add/edit/toggle strategic objectives, and observe empty/loading/conflict/permission-denied states — inspected in-browser, not only compiled/tested.
-- [ ] 9.4 Confirm the frontend quality matches the backend for this capability and re-check proposal/design/specs against the built result; update artifacts if scope shifted, then run `/opsx:verify`.
+- [x] 9.3 Rendered UI/browser verification of the real Campaigns experience: create a Draft, edit schedule (valid + invalid ordering), view read-only snapshot, add/edit/toggle strategic objectives, and observe empty/loading/conflict/permission-denied states — inspected in-browser, not only compiled/tested.
+- [x] 9.4 Confirm the frontend quality matches the backend for this capability and re-check proposal/design/specs against the built result; update artifacts if scope shifted, then run `/opsx:verify`.
