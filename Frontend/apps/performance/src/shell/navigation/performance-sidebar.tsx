@@ -8,8 +8,10 @@ import {
   ShellUserPanel,
 } from "@repo/ds/shell";
 import {
+  canManageTeamObjectives,
   canViewObjectivePlanningConfiguration,
   canViewPerformanceCampaigns,
+  canViewPerformanceStrategy,
   hasAnyRole,
   PLATFORM_ADMIN_ROLE,
   useAuth,
@@ -18,6 +20,8 @@ import {
   OVERVIEW_NAV,
   CAMPAIGNS_NAV,
   PLATFORM_ADMIN_NAV,
+  STRATEGY_NAV,
+  TEAM_OBJECTIVES_NAV,
   TENANT_CONFIGURATION_NAV,
 } from "@/data/sidebar-nav";
 
@@ -28,6 +32,8 @@ export function PerformanceSidebar() {
   const isPlatformAdmin = hasAnyRole(user, [PLATFORM_ADMIN_ROLE]);
   const canViewPlanningConfiguration = canViewObjectivePlanningConfiguration(user);
   const canViewCampaigns = canViewPerformanceCampaigns(user);
+  const canManageTeam = canManageTeamObjectives(user);
+  const canViewStrategy = canViewPerformanceStrategy(user);
 
   return (
     <ModuleSidebar
@@ -37,6 +43,8 @@ export function PerformanceSidebar() {
       activePath={activePath}
       sections={[
         OVERVIEW_NAV,
+        ...(canManageTeam ? [TEAM_OBJECTIVES_NAV] : []),
+        ...(canViewStrategy ? [STRATEGY_NAV] : []),
         ...(canViewCampaigns ? [CAMPAIGNS_NAV] : []),
         ...(canViewPlanningConfiguration ? [TENANT_CONFIGURATION_NAV] : []),
         ...(isPlatformAdmin ? [PLATFORM_ADMIN_NAV] : []),

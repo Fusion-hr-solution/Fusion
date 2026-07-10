@@ -170,5 +170,16 @@ export type {
   ApplyObjectivePlanningConfigurationRequest,
   ObjectivePlanningConfigurationApplyResultDto,
   PagedResponse,
+  TeamObjectiveDto,
+  MyTeamObjectiveCampaignDto,
+  TeamObjectiveScopeParticipantDto,
+  TeamObjectiveScopeDto,
+  TeamObjectiveStrategicObjectiveDto,
+  TeamObjectiveWorkspaceDto,
+  UpsertTeamObjectiveRequest,
+  CascadeCoverageCampaignDto,
+  CoverageStrategicObjectiveDto,
+  CoverageManagerDto,
+  CascadeCoverageDto,
 } from "./performance";
 export { performancePaths, performanceQueryKeys } from "./performance";

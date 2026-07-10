@@ -59,6 +59,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ConfirmDialog } from "@/components/controls/confirm-dialog";
+import { CascadeCoverageSection } from "@/components/cascade-coverage/cascade-coverage-section";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { CampaignCreateDialog } from "./campaign-create-dialog";
@@ -505,7 +506,10 @@ export function CampaignDraftPage() {
             />
           </>
         ) : (
-          <CampaignLaunchedBaseline campaign={campaign} />
+          <>
+            <CascadeCoverageSection slug={campaign.slug} />
+            <CampaignLaunchedBaseline campaign={campaign} />
+          </>
         )}
       </div>
 

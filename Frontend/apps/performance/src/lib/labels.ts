@@ -42,6 +42,18 @@ export function labelMeasurementTypes(csv: string): string {
   return "—";
 }
 
+/** Product label for a single frozen measurement-method token (team objectives). */
+export function measurementMethodLabel(token: string): string {
+  switch (token) {
+    case "Quantitative":
+      return "Numeric target";
+    case "Qualitative":
+      return "Qualitative outcome";
+    default:
+      return token;
+  }
+}
+
 // ── Date formatting ──────────────────────────────────────────────────────────
 
 export function formatDate(iso: string | null | undefined): string {

@@ -363,6 +363,124 @@ export interface ObjectivePlanningConfigurationApplyResultDto {
   errors: string[];
 }
 
+// ── Team objectives (P1.3) ───────────────────────────────────────────
+
+export interface TeamObjectiveDto {
+  id: string;
+  cycleId: string;
+  strategicObjectiveId: string;
+  strategicObjectiveTitle: string;
+  ownerManagerEmployeeId: string;
+  ownerManagerName: string;
+  title: string;
+  successCriteria: string;
+  measurementMethod: string;
+  description: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+  version: number;
+}
+
+export interface MyTeamObjectiveCampaignDto {
+  id: string;
+  slug: string;
+  name: string;
+  referenceYear: number | null;
+  planningOpeningDate: string | null;
+  employeeSubmissionDeadline: string | null;
+  managerApprovalDeadline: string | null;
+  launchedAt: string | null;
+  scopeParticipantCount: number;
+  myTeamObjectiveCount: number;
+}
+
+export interface TeamObjectiveScopeParticipantDto {
+  employeeId: string;
+  fullName: string;
+  jobTitle: string | null;
+  orgUnitName: string | null;
+}
+
+export interface TeamObjectiveScopeDto {
+  participantCount: number;
+  orgUnitNames: string[];
+  participants: TeamObjectiveScopeParticipantDto[];
+}
+
+export interface TeamObjectiveStrategicObjectiveDto {
+  id: string;
+  title: string;
+  description: string | null;
+  responsibleFunctionLabel: string | null;
+}
+
+export interface TeamObjectiveWorkspaceDto {
+  cycleId: string;
+  slug: string;
+  name: string;
+  referenceYear: number | null;
+  planningOpeningDate: string | null;
+  employeeSubmissionDeadline: string | null;
+  managerApprovalDeadline: string | null;
+  launchedAt: string | null;
+  enabledMeasurementMethods: string[];
+  strategicObjectives: TeamObjectiveStrategicObjectiveDto[];
+  myScope: TeamObjectiveScopeDto;
+  myTeamObjectives: TeamObjectiveDto[];
+}
+
+export interface UpsertTeamObjectiveRequest {
+  strategicObjectiveId: string;
+  title: string;
+  successCriteria: string;
+  measurementMethod: string;
+  description: string | null;
+}
+
+// ── Cascade coverage (P1.3) ──────────────────────────────────────────
+
+export interface CascadeCoverageCampaignDto {
+  id: string;
+  slug: string;
+  name: string;
+  referenceYear: number | null;
+  planningOpeningDate: string | null;
+  launchedAt: string | null;
+}
+
+export interface CoverageStrategicObjectiveDto {
+  id: string;
+  title: string;
+  description: string | null;
+  responsibleFunctionLabel: string | null;
+  teamObjectiveCount: number;
+}
+
+export interface CoverageManagerDto {
+  employeeId: string;
+  name: string;
+  scopeSize: number;
+  teamObjectiveCount: number;
+}
+
+export interface CascadeCoverageDto {
+  cycleId: string;
+  slug: string;
+  name: string;
+  referenceYear: number | null;
+  planningOpeningDate: string | null;
+  employeeSubmissionDeadline: string | null;
+  launchedAt: string | null;
+  activeStrategicObjectiveCount: number;
+  coveredStrategicObjectiveCount: number;
+  managerCount: number;
+  managersWithTeamObjectivesCount: number;
+  teamObjectiveCount: number;
+  strategicObjectives: CoverageStrategicObjectiveDto[];
+  managers: CoverageManagerDto[];
+  teamObjectives: TeamObjectiveDto[];
+}
+
 // ── Paths ────────────────────────────────────────────────────────────
 
 export const performancePaths = {
@@ -396,6 +514,16 @@ export const performancePaths = {
   notificationsUnreadCount: () => "/performance/notifications/unread-count",
   notificationRead: (id: string) => `/performance/notifications/${id}/read`,
   notificationsReadAll: () => "/performance/notifications/read-all",
+  myTeamObjectiveCampaigns: () => "/performance/team-objectives/my-campaigns",
+  teamObjectiveWorkspace: (slug: string) =>
+    `/performance/team-objectives/campaigns/${slug}`,
+  teamObjectives: (cycleId: string) =>
+    `/performance/team-objectives/campaigns/${cycleId}/objectives`,
+  teamObjective: (cycleId: string, objectiveId: string) =>
+    `/performance/team-objectives/campaigns/${cycleId}/objectives/${objectiveId}`,
+  cascadeCoverageCampaigns: () => "/performance/cascade-coverage/campaigns",
+  cascadeCoverage: (slug: string) =>
+    `/performance/cascade-coverage/campaigns/${slug}`,
 } as const;
 
 // ── Query keys ───────────────────────────────────────────────────────
@@ -449,4 +577,15 @@ export const performanceQueryKeys = {
     [...performanceQueryKeys.notifications(), "list", params] as const,
   notificationUnreadCount: () =>
     [...performanceQueryKeys.notifications(), "unread-count"] as const,
+  teamObjectives: () => [...performanceQueryKeys.all(), "team-objectives"] as const,
+  myTeamObjectiveCampaigns: () =>
+    [...performanceQueryKeys.teamObjectives(), "my-campaigns"] as const,
+  teamObjectiveWorkspace: (slug: string) =>
+    [...performanceQueryKeys.teamObjectives(), "workspace", slug] as const,
+  cascadeCoverageAll: () =>
+    [...performanceQueryKeys.all(), "cascade-coverage"] as const,
+  cascadeCoverageCampaigns: () =>
+    [...performanceQueryKeys.cascadeCoverageAll(), "campaigns"] as const,
+  cascadeCoverage: (slug: string) =>
+    [...performanceQueryKeys.cascadeCoverageAll(), slug] as const,
 } as const;

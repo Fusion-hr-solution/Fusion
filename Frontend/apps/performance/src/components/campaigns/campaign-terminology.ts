@@ -145,6 +145,94 @@ export const campaignLaunch = {
   baselineHeading: "Frozen baseline",
 } as const;
 
+/**
+ * Manager team-objective workspace (P1.3). Saved is the only state a team objective has —
+ * never use draft/published/approved wording here.
+ */
+export const teamObjectiveTerms = {
+  navLabel: "Team objectives",
+  listTitle: "Team objectives",
+  listDescription: "Translate campaign strategy into objectives for your team.",
+  workspaceEyebrow: "Team objectives",
+  scopeTitle: "Your campaign scope",
+  scopeCaption: (count: number) =>
+    `You are responsible for ${count} ${count === 1 ? "participant" : "participants"} in this campaign.`,
+  strategyHeading: "Campaign strategy",
+  strategySubheading: "Translate each pillar into what your team will deliver.",
+  translateAction: "Add team objective",
+  notTranslatedYet: "Not translated yet",
+  emptyList: {
+    title: "No campaigns waiting for you",
+    description:
+      "No launched campaign currently names you as responsible for participants. Campaigns appear here once a launch freezes you in as an approver.",
+  },
+  noLinkedEmployee:
+    "Your account is not linked to an employee record, so no campaign can name you as responsible.",
+  availabilityNote: (date: string) =>
+    `Saved objectives become available to your team when planning opens on ${date}.`,
+  availabilityNoteOpen: "Planning is open — your saved objectives are available to your team.",
+  scopeParticipants: (count: number) =>
+    `Responsible for ${count} ${count === 1 ? "person" : "people"}`,
+  objectiveCount: (count: number) =>
+    `${count} team ${count === 1 ? "objective" : "objectives"}`,
+} as const;
+
+/** The single create/edit business action for a team objective. */
+export const teamObjectiveEditor = {
+  createTitle: "Add a team objective",
+  editTitle: "Edit team objective",
+  createDescription: "Turn a strategy pillar into a concrete objective for your team.",
+  strategicLabel: "Strategy pillar",
+  titleLabel: "Team objective",
+  titlePlaceholder: "e.g. Raise client delivery NPS in our accounts",
+  successCriteriaLabel: "Success looks like",
+  successCriteriaPlaceholder: "e.g. NPS above 60 across our accounts by Q4",
+  measurementLabel: "Measured",
+  descriptionLabel: "Context for your team (optional)",
+  descriptionPlaceholder: "Anything your team should know about this objective.",
+  submitCreate: "Save team objective",
+  submitEdit: "Save changes",
+  submitting: "Saving…",
+  cancel: "Cancel",
+  created: "Team objective saved",
+  updated: "Team objective updated",
+  conflict:
+    "This objective changed in another session. Review the latest version and try again — your entries are preserved.",
+  deleteAction: "Delete",
+  deleteTitle: "Delete this team objective?",
+  deleteDescription:
+    "It will be removed from the campaign cascade. This can't be undone.",
+  deleteConfirm: "Delete objective",
+  deleteCancel: "Keep objective",
+  deleted: "Team objective deleted",
+} as const;
+
+/** Direction strategy door + the shared cascade coverage surface (informational, never blocking). */
+export const strategyTerms = {
+  navLabel: "Strategy",
+  listTitle: "Strategy",
+  listDescription: "How each launched campaign's strategy is cascading into team objectives.",
+  emptyList: {
+    title: "No launched campaigns",
+    description: "Campaign strategy appears here once a campaign is launched.",
+  },
+  coverageTitle: "Cascade coverage",
+  coverageCaption: "How the campaign strategy is being translated by managers. Updates live.",
+  pillarsCovered: (covered: number, total: number) =>
+    `${covered} of ${total} strategy ${total === 1 ? "pillar" : "pillars"} translated`,
+  managersContributing: (contributing: number, total: number) =>
+    `${contributing} of ${total} ${total === 1 ? "manager" : "managers"} contributing`,
+  teamObjectivesTotal: (count: number) =>
+    `${count} team ${count === 1 ? "objective" : "objectives"} saved`,
+  pillarsHeading: "Strategy pillars",
+  managersHeading: "Managers",
+  managerScope: (count: number) =>
+    `${count} ${count === 1 ? "participant" : "participants"}`,
+  noObjectivesYet: "No team objectives yet",
+  allObjectivesHeading: "Team objectives",
+  followUpHint: "Coverage gaps are follow-up context — they never block the campaign.",
+} as const;
+
 export type CampaignTone = "neutral" | "info" | "success" | "warning";
 
 export function campaignStatusLabel(status: string): string {

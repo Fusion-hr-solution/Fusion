@@ -1,4 +1,4 @@
-import { ClipboardList, Megaphone, ScrollText, Settings2 } from "lucide-react";
+import { ClipboardList, Compass, Megaphone, ScrollText, Settings2, Target } from "lucide-react";
 import type { ShellNavSection } from "@repo/ds/shell";
 
 export const OVERVIEW_NAV: ShellNavSection = {
@@ -24,6 +24,28 @@ export const CAMPAIGNS_NAV: ShellNavSection = {
       label: "Campaigns",
       href: "/campaigns",
       icon: Megaphone,
+    },
+  ],
+};
+
+/** Manager door: team objectives inside launched campaigns (frozen responsibility). */
+export const TEAM_OBJECTIVES_NAV: ShellNavSection = {
+  items: [
+    {
+      label: "Team objectives",
+      href: "/team-objectives",
+      icon: Target,
+    },
+  ],
+};
+
+/** Direction door: campaign strategy and cascade coverage, no HR permissions needed. */
+export const STRATEGY_NAV: ShellNavSection = {
+  items: [
+    {
+      label: "Strategy",
+      href: "/strategy",
+      icon: Compass,
     },
   ],
 };

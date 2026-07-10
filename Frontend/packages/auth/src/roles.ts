@@ -56,6 +56,8 @@ const PERFORMANCE_PERMISSION = {
   cyclePublish: "performance.cycle.publish",
   objectivePlanningConfigurationView: "performance.objective.policy.view",
   objectivePlanningConfigurationManage: "performance.objective.policy.manage",
+  objectiveTeamManage: "performance.objective.team.manage",
+  strategicView: "performance.strategic.view",
 } as const;
 
 export function hasAnyRole(
@@ -390,9 +392,24 @@ export function canManageObjectivePlanningConfiguration(user: AuthUser | null): 
   );
 }
 
+/**
+ * Team-objective authoring door: any catalog scope of the permission qualifies —
+ * the effective scope is the campaign's frozen approver baseline, enforced server-side.
+ */
+export function canManageTeamObjectives(user: AuthUser | null): boolean {
+  return hasCorePermission(user, PERFORMANCE_PERMISSION.objectiveTeamManage);
+}
+
+/** Direction door: strategy and cascade coverage without HR campaign permissions. */
+export function canViewPerformanceStrategy(user: AuthUser | null): boolean {
+  return hasCorePermission(user, PERFORMANCE_PERMISSION.strategicView, "Tenant");
+}
+
 export function canAccessPerformance(user: AuthUser | null): boolean {
   return (
     canViewPerformanceCycles(user) ||
-    canViewObjectivePlanningConfiguration(user)
+    canViewObjectivePlanningConfiguration(user) ||
+    canManageTeamObjectives(user) ||
+    canViewPerformanceStrategy(user)
   );
 }

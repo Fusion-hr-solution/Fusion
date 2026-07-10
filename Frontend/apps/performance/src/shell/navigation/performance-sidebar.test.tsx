@@ -42,6 +42,16 @@ vi.mock("@repo/auth", () => ({
         (grant.permissionKey === "performance.cycle.view" ||
           grant.permissionKey === "performance.cycle.manage"),
     ) ?? false,
+  canManageTeamObjectives: (user: TestUser | null) =>
+    user?.permissions?.some(
+      (grant) => grant.permissionKey === "performance.objective.team.manage",
+    ) ?? false,
+  canViewPerformanceStrategy: (user: TestUser | null) =>
+    user?.permissions?.some(
+      (grant) =>
+        grant.scope === "Tenant" &&
+        grant.permissionKey === "performance.strategic.view",
+    ) ?? false,
   useAuth: () => ({
     user: authState.user,
     logout: vi.fn(),
@@ -101,6 +111,38 @@ describe("PerformanceSidebar", () => {
     expect(sidebar.textContent).not.toContain("Platform administration");
     expect(sidebar.textContent).not.toContain("Reviews");
     expect(sidebar.textContent).not.toContain("Campaigns");
+    expect(sidebar.textContent).not.toContain("Team objectives");
+    expect(sidebar.textContent).not.toContain("Strategy");
+  });
+
+  it("shows the Team objectives door for any team-objective permission scope", () => {
+    const sidebar = renderSidebar({
+      fullName: "Manager",
+      roles: ["Manager"],
+      permissions: [
+        { permissionKey: "performance.objective.team.manage", scope: "DirectReports" },
+      ],
+    });
+
+    expect(sidebar.textContent).toContain("Team objectives");
+    expect(sidebar.querySelector('a[href="/performance/team-objectives"]')).toBeTruthy();
+    expect(sidebar.textContent).not.toContain("Campaigns");
+    expect(sidebar.textContent).not.toContain("Strategy");
+  });
+
+  it("shows the Strategy door for tenant-scoped strategic view without HR permissions", () => {
+    const sidebar = renderSidebar({
+      fullName: "Direction",
+      roles: ["Employee"],
+      permissions: [
+        { permissionKey: "performance.strategic.view", scope: "Tenant" },
+      ],
+    });
+
+    expect(sidebar.textContent).toContain("Strategy");
+    expect(sidebar.querySelector('a[href="/performance/strategy"]')).toBeTruthy();
+    expect(sidebar.textContent).not.toContain("Campaigns");
+    expect(sidebar.textContent).not.toContain("Team objectives");
   });
 
   it("shows campaigns for tenant-scoped campaign permission", () => {
