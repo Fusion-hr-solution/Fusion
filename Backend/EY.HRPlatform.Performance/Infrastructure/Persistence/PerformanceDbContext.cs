@@ -42,8 +42,6 @@ public class PerformanceDbContext : DbContext
     public DbSet<FormalRatingScaleLevelSnapshot> FormalRatingScaleLevelSnapshots => Set<FormalRatingScaleLevelSnapshot>();
     public DbSet<PerformanceReview> PerformanceReviews => Set<PerformanceReview>();
     public DbSet<PerformanceReviewCriterionResponse> PerformanceReviewCriterionResponses => Set<PerformanceReviewCriterionResponse>();
-    public DbSet<PerformanceObjective> PerformanceObjectives => Set<PerformanceObjective>();
-    public DbSet<PerformanceObjectiveMilestone> PerformanceObjectiveMilestones => Set<PerformanceObjectiveMilestone>();
     public DbSet<CampaignWorkItem> CampaignWorkItems => Set<CampaignWorkItem>();
     public DbSet<PerformanceNotification> PerformanceNotifications => Set<PerformanceNotification>();
     public DbSet<PerformanceCycleAuditEvent> PerformanceCycleAuditEvents => Set<PerformanceCycleAuditEvent>();
@@ -62,7 +60,6 @@ public class PerformanceDbContext : DbContext
     // Strategic objective + phase shared entities (Plan 03-02)
     public DbSet<StrategicPeriod> StrategicPeriods => Set<StrategicPeriod>();
     public DbSet<StrategicObjective> StrategicObjectives => Set<StrategicObjective>();
-    public DbSet<ObjectiveProgressEntry> ObjectiveProgressEntries => Set<ObjectiveProgressEntry>();
     public DbSet<ApprovalDelegate> ApprovalDelegates => Set<ApprovalDelegate>();
 
     // Feedback response model entities (Plan 04-01)
@@ -152,12 +149,6 @@ public class PerformanceDbContext : DbContext
         modelBuilder.Entity<PerformanceReviewCriterionResponse>()
             .HasQueryFilter(p => CurrentTenantId != Guid.Empty && p.TenantId == CurrentTenantId);
 
-        modelBuilder.Entity<PerformanceObjective>()
-            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
-
-        modelBuilder.Entity<PerformanceObjectiveMilestone>()
-            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
-
         modelBuilder.Entity<CampaignWorkItem>()
             .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
 
@@ -179,9 +170,6 @@ public class PerformanceDbContext : DbContext
 
         modelBuilder.Entity<StrategicObjective>()
             .HasQueryFilter(o => CurrentTenantId != Guid.Empty && o.TenantId == CurrentTenantId);
-
-        modelBuilder.Entity<ObjectiveProgressEntry>()
-            .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
 
         modelBuilder.Entity<ApprovalDelegate>()
             .HasQueryFilter(d => CurrentTenantId != Guid.Empty && d.TenantId == CurrentTenantId);

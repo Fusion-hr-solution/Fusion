@@ -53,8 +53,6 @@ public sealed class ResolveExceptionCaseCommandHandler(
         if (action == ExceptionResolutionAction.Transfer)
             return Result.Failure<ExceptionCaseDto>(Error.Validation("Exception.InvalidAction", "Transfer must use the ownership-transfer command."));
 
-        await ApplySourceOutcomeAsync(exceptionCase, request, cancellationToken);
-
         if (action == ExceptionResolutionAction.Reassign)
         {
             if (!request.ReassignToEmployeeId.HasValue)
@@ -108,30 +106,6 @@ public sealed class ResolveExceptionCaseCommandHandler(
 
         await dbContext.SaveChangesAsync(cancellationToken);
         return Result.Success(ToDto(exceptionCase));
-    }
-
-    private async Task ApplySourceOutcomeAsync(ExceptionCase exceptionCase, ResolveExceptionCaseCommand request, CancellationToken cancellationToken)
-    {
-        switch (exceptionCase.SourceWorkItemType)
-        {
-            case CampaignWorkItemType.TeamObjectiveApproval:
-            case CampaignWorkItemType.ObjectiveApproval:
-            {
-                var objective = await dbContext.PerformanceObjectives
-                    .FirstOrDefaultAsync(item => item.Id == exceptionCase.SourceObjectId, cancellationToken);
-                if (objective is null)
-                    return;
-
-                if (request.Action == ExceptionResolutionAction.Override)
-                    objective.Approve(DateTime.UtcNow);
-                else if (request.Action == ExceptionResolutionAction.Return)
-                    objective.Return(DateTime.UtcNow);
-                else if (request.Action == ExceptionResolutionAction.Cancel)
-                    objective.Reject(DateTime.UtcNow);
-
-                break;
-            }
-        }
     }
 
     private static ExceptionCaseDto ToDto(ExceptionCase item)

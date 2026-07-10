@@ -121,9 +121,6 @@ public sealed class InvalidateFeedbackResponseCommandHandlerTests
         public bool CanViewStrategicObjectives(System.Security.Claims.ClaimsPrincipal user) => false;
         public bool CanManageStrategicObjectives(System.Security.Claims.ClaimsPrincipal user) => false;
         public bool CanPublishStrategicObjectives(System.Security.Claims.ClaimsPrincipal user) => false;
-        public bool CanViewCollectiveObjectives(System.Security.Claims.ClaimsPrincipal user) => false;
-        public bool CanApproveCollectiveObjectives(System.Security.Claims.ClaimsPrincipal user) => false;
-        public bool CanCorrectObjectiveProgress(System.Security.Claims.ClaimsPrincipal user) => false;
         public bool CanAccessConfidentialFeedbackIdentity(System.Security.Claims.ClaimsPrincipal user) => false;
         public bool CanViewFeedbackThresholdDetails(System.Security.Claims.ClaimsPrincipal user) => false;
     }
