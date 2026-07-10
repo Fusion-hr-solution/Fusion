@@ -145,4 +145,60 @@ public class PerformanceAccessPolicyServiceTests
 
         Assert.False(_policy.CanManagePlatformDefaults(user));
     }
+
+    // ─── P1.3 team objectives + cascade coverage ─────────────────────────────
+
+    [Fact]
+    public void Anonymous_IsDeniedTeamObjectiveAndCoverageChecks()
+    {
+        var user = ClaimsPrincipalBuilder.Anonymous();
+
+        Assert.False(_policy.CanManageTeamObjectives(user));
+        Assert.False(_policy.CanViewCascadeCoverage(user));
+    }
+
+    [Fact]
+    public void TeamObjectiveManageGrant_AnyCatalogScope_AllowsManageOnly()
+    {
+        var user = new ClaimsPrincipalBuilder()
+            .WithPermission(PerformancePermissions.ObjectiveTeamManage, PermissionScopes.DirectReports)
+            .Build();
+
+        Assert.True(_policy.CanManageTeamObjectives(user));
+        Assert.False(_policy.CanViewCascadeCoverage(user));
+        Assert.False(_policy.CanViewCycles(user));
+    }
+
+    [Fact]
+    public void PlatformAdmin_GetsNoTeamObjectiveAuthoringBypass()
+    {
+        var user = new ClaimsPrincipalBuilder()
+            .WithRole(PlatformRole.PlatformAdmin)
+            .Build();
+
+        Assert.False(_policy.CanManageTeamObjectives(user));
+    }
+
+    [Fact]
+    public void StrategicViewGrant_AllowsCoverageWithoutCampaignAdministration()
+    {
+        var user = new ClaimsPrincipalBuilder()
+            .WithPermission(PerformancePermissions.StrategicView, PermissionScopes.Tenant)
+            .Build();
+
+        Assert.True(_policy.CanViewCascadeCoverage(user));
+        Assert.False(_policy.CanManageTeamObjectives(user));
+        Assert.False(_policy.CanViewCycles(user));
+        Assert.False(_policy.CanManageCycles(user));
+    }
+
+    [Fact]
+    public void CycleViewGrant_AllowsCoverage()
+    {
+        var user = new ClaimsPrincipalBuilder()
+            .WithPermission(PerformancePermissions.CycleView, PermissionScopes.Tenant)
+            .Build();
+
+        Assert.True(_policy.CanViewCascadeCoverage(user));
+    }
 }

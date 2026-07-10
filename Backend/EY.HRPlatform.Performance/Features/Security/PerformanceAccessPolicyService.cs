@@ -14,6 +14,13 @@ public interface IPerformanceAccessPolicyService
     bool CanManageStrategicObjectives(ClaimsPrincipal user);
     bool CanPublishStrategicObjectives(ClaimsPrincipal user);
 
+    // Team objectives (P1.3): capability permission only — frozen-baseline responsibility
+    // and ownership are enforced per operation in the handlers.
+    bool CanManageTeamObjectives(ClaimsPrincipal user) => false;
+
+    // Cascade coverage read (P1.3): Direction door (strategic view) or HR door (cycle view/manage).
+    bool CanViewCascadeCoverage(ClaimsPrincipal user) => false;
+
     // Feedback identity access (D-07/D-10: exceptional identity resolution)
     bool CanAccessConfidentialFeedbackIdentity(ClaimsPrincipal user);
 
@@ -67,6 +74,20 @@ public sealed class PerformanceAccessPolicyService : IPerformanceAccessPolicySer
     public bool CanPublishStrategicObjectives(ClaimsPrincipal user)
         => user.HasCorePermission(PerformancePermissions.StrategicPublish, PermissionScopes.Tenant)
             || user.IsInRole(PlatformRole.PlatformAdmin);
+
+    // ─── Team objectives + cascade coverage (P1.3) ────────────────────────────
+
+    /// <summary>
+    /// Any catalog scope of the team-objective permission qualifies: the effective scope is the
+    /// frozen approver baseline, which is stricter than permission scope. No PlatformAdmin bypass —
+    /// team objectives are owned business content, not administration.
+    /// </summary>
+    public bool CanManageTeamObjectives(ClaimsPrincipal user)
+        => user.HasCorePermission(PerformancePermissions.ObjectiveTeamManage);
+
+    public bool CanViewCascadeCoverage(ClaimsPrincipal user)
+        => user.HasCorePermission(PerformancePermissions.StrategicView, PermissionScopes.Tenant)
+            || CanViewCycles(user);
 
     // ─── Feedback identity access (D-07/D-10) ─────────────────────────────────
 

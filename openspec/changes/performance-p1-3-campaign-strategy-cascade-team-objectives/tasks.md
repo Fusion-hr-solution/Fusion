@@ -10,16 +10,16 @@
 
 - [x] 2.1 Add `CampaignTeamObjective` aggregate (per design D1: required title ≤200, active same-campaign strategic-objective link, success criteria ≤500, measurement method validated against the frozen snapshot's enabled methods, optional description ≤2000, immutable owner, no status/weight fields) with domain guards (campaign must be Launched) and unit tests
 - [x] 2.2 Add EF configuration (xmin `Version`, FKs to cycle and strategic objective, indexes on `(TenantId, CycleId)`, `(TenantId, CycleId, OwnerManagerEmployeeId)`, `(TenantId, StrategicObjectiveId)`) and the additive migration; run the CI migration gate locally (`dotnet ef migrations has-pending-model-changes` clean)
-- [ ] 2.3 Add team-objective audit actions to the existing `PerformanceCycleAuditEvent` mechanism (created/updated/deleted with actor, tenant, campaign, objective, changed fields)
+- [x] 2.3 Add team-objective audit actions to the existing `PerformanceCycleAuditEvent` mechanism (created/updated/deleted with actor, tenant, campaign, objective, changed fields)
 
 ## 3. Backend authorization and application layer
 
-- [ ] 3.1 Extend `IPerformanceAccessPolicyService` per design D3: `CanManageTeamObjectives` (permission `performance.objective.team.manage`, any catalog scope), `CanViewCascadeCoverage` (`performance.strategic.view` OR `performance.cycle.view/manage`); no PlatformAdmin authoring bypass; tests for deny-by-default
-- [ ] 3.2 Implement manager-scope resolution from the frozen baseline (`employee_id` claim → participants where `ApproverEmployeeId` matches), used by every authoring check and manager read; no Core reporting-line queries
-- [ ] 3.3 Implement manager queries: my team-objective campaigns (launched + frozen responsibility, with schedule context and own objective counts), campaign workspace read (read-only active strategy, frozen scope summary, own team objectives)
-- [ ] 3.4 Implement authoring commands: create / update (If-Match ETag, stale-write conflict) / delete, with ownership enforcement, launched-campaign + active-link + snapshot-measurement validation, tenant scoping (cross-tenant → not found), and audit writes
-- [ ] 3.5 Implement the cascade coverage query (design D4: strategic objectives ± coverage, distinct frozen approvers ± team objectives with counts and scope sizes; launched campaigns only; read never writes) and the HR read-all-team-objectives view
-- [ ] 3.6 Expose controller endpoints for 3.3–3.5 following existing `PerformanceCyclesController` patterns; integration tests covering success, validation, authorization (permission-without-responsibility, HR read-only, Direction strategic-view-only), tenancy, and concurrency scenarios from the delta specs
+- [x] 3.1 Extend `IPerformanceAccessPolicyService` per design D3: `CanManageTeamObjectives` (permission `performance.objective.team.manage`, any catalog scope), `CanViewCascadeCoverage` (`performance.strategic.view` OR `performance.cycle.view/manage`); no PlatformAdmin authoring bypass; tests for deny-by-default
+- [x] 3.2 Implement manager-scope resolution from the frozen baseline (`employee_id` claim → participants where `ApproverEmployeeId` matches), used by every authoring check and manager read; no Core reporting-line queries
+- [x] 3.3 Implement manager queries: my team-objective campaigns (launched + frozen responsibility, with schedule context and own objective counts), campaign workspace read (read-only active strategy, frozen scope summary, own team objectives)
+- [x] 3.4 Implement authoring commands: create / update (If-Match ETag, stale-write conflict) / delete, with ownership enforcement, launched-campaign + active-link + snapshot-measurement validation, tenant scoping (cross-tenant → not found), and audit writes
+- [x] 3.5 Implement the cascade coverage query (design D4: strategic objectives ± coverage, distinct frozen approvers ± team objectives with counts and scope sizes; launched campaigns only; read never writes) and the HR read-all-team-objectives view
+- [x] 3.6 Expose controller endpoints for 3.3–3.5 following existing `PerformanceCyclesController` patterns; integration tests covering success, validation, authorization (permission-without-responsibility, HR read-only, Direction strategic-view-only), tenancy, and concurrency scenarios from the delta specs
 
 ## 4. Frontend — manager Team objectives workspace
 
