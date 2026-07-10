@@ -4,6 +4,7 @@ import React from "react";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { PerformanceCycleDetailDto } from "@repo/api";
 import { CampaignDraftPage, CampaignListPage } from "./campaigns-page";
 import { CampaignCreateDialog } from "./campaign-create-dialog";
 import {
@@ -166,7 +167,7 @@ function render(node: React.ReactNode) {
   return container;
 }
 
-function campaignDetail(): import("@repo/api").PerformanceCycleDetailDto {
+function campaignDetail(): PerformanceCycleDetailDto {
   return {
     id: "campaign-1",
     name: "FY26 Planning",

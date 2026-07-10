@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Check, ChevronsUpDown, Search } from "lucide-react";
+import { Check, ChevronsUpDown } from "lucide-react";
 import {
   coreWorkforcePaths,
   coreWorkforceQueryKeys,
@@ -19,7 +19,11 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
 export type PersonOption = {
@@ -52,19 +56,26 @@ export function PeopleCombobox({
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
 
-  const { data, isLoading } = useApiQuery<PagedResponse<WorkforceEmployeeSummaryDto>>(
+  const { data, isLoading } = useApiQuery<
+    PagedResponse<WorkforceEmployeeSummaryDto>
+  >(
     coreWorkforceQueryKeys.search({ search, page: 1, pageSize: 10 }),
     (signal) =>
-      apiClient.get<PagedResponse<WorkforceEmployeeSummaryDto>>(coreWorkforcePaths.search(), {
-        signal,
-        params: { search: search || undefined, page: 1, pageSize: 10 },
-      }),
-    { enabled: open },
+      apiClient.get<PagedResponse<WorkforceEmployeeSummaryDto>>(
+        coreWorkforcePaths.search(),
+        {
+          signal,
+          params: { search: search || undefined, page: 1, pageSize: 10 },
+        }
+      ),
+    { enabled: open }
   );
 
   const excluded = useMemo(() => new Set(excludeIds ?? []), [excludeIds]);
   const options = (data?.items ?? [])
-    .filter((employee) => employee.isActive && !excluded.has(employee.employeeId))
+    .filter(
+      (employee) => employee.isActive && !excluded.has(employee.employeeId)
+    )
     .map<PersonOption>((employee) => ({
       employeeId: employee.employeeId,
       displayName: employee.displayName || employee.fullName,
@@ -90,24 +101,31 @@ export function PeopleCombobox({
           <ChevronsUpDown className="size-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent align={align} className="w-[--radix-popover-trigger-width] min-w-64 p-0">
+      <PopoverContent
+        align={align}
+        className="w-[--radix-popover-trigger-width] min-w-64 p-0"
+      >
         <Command shouldFilter={false}>
-          <div className="flex items-center gap-2 border-b px-3">
-            <Search className="size-4 shrink-0 text-muted-foreground" />
-            <CommandInput
-              value={search}
-              onValueChange={setSearch}
-              placeholder="Search by name or email"
-              className="h-10 border-0 focus:ring-0"
-            />
+          <div className="flex items-center gap-2 border-b px-s3">
+            {/* <Search className="size-4 shrink-0 text-muted-foreground" /> */}
+            <div className="pb-2 w-full">
+              <CommandInput
+                value={search}
+                onValueChange={setSearch}
+                placeholder="Search by name or email"
+                className="h-10 border-0 focus:ring-0"
+              />
+            </div>
           </div>
           <CommandList>
             {isLoading ? (
-              <div className="px-3 py-6 text-center text-sm text-muted-foreground">Searching…</div>
+              <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+                Searching…
+              </div>
             ) : (
               <CommandEmpty>No matching people.</CommandEmpty>
             )}
-            <CommandGroup>
+            <CommandGroup className="pt-2">
               {options.map((person) => (
                 <CommandItem
                   key={person.employeeId}
@@ -122,14 +140,18 @@ export function PeopleCombobox({
                   <Check
                     className={cn(
                       "size-4 shrink-0",
-                      value?.employeeId === person.employeeId ? "opacity-100" : "opacity-0",
+                      value?.employeeId === person.employeeId
+                        ? "opacity-100"
+                        : "opacity-0"
                     )}
                   />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate">{person.displayName}</span>
                     {person.jobTitle || person.orgUnitName ? (
                       <span className="block truncate text-xs text-muted-foreground">
-                        {[person.jobTitle, person.orgUnitName].filter(Boolean).join(" · ")}
+                        {[person.jobTitle, person.orgUnitName]
+                          .filter(Boolean)
+                          .join(" · ")}
                       </span>
                     ) : null}
                   </span>

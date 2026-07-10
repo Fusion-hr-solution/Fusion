@@ -34,7 +34,6 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -45,7 +44,11 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -76,8 +79,11 @@ export function CampaignPopulationSection({
   const orgUnits = useApiQuery<WorkforceOrgUnitSummaryDto[]>(
     coreWorkforceQueryKeys.orgUnits(false),
     (signal) =>
-      apiClient.get<WorkforceOrgUnitSummaryDto[]>(coreWorkforcePaths.orgUnits(), { signal }),
-    { enabled: canManage },
+      apiClient.get<WorkforceOrgUnitSummaryDto[]>(
+        coreWorkforcePaths.orgUnits(),
+        { signal }
+      ),
+    { enabled: canManage }
   );
   const orgUnitName = useMemo(() => {
     const map = new Map<string, string>();
@@ -88,13 +94,20 @@ export function CampaignPopulationSection({
   const preview = useApiQuery<CyclePopulationPreviewDto>(
     performanceQueryKeys.cyclePopulationPreview(campaign.id),
     (signal) =>
-      apiClient.get<CyclePopulationPreviewDto>(performancePaths.cyclePopulationPreview(campaign.id), {
-        signal,
-      }),
+      apiClient.get<CyclePopulationPreviewDto>(
+        performancePaths.cyclePopulationPreview(campaign.id),
+        {
+          signal,
+        }
+      )
   );
 
-  const [scopes, setScopes] = useState<OrgScope[]>(() => fromRulesScopes(campaign));
-  const [exclusions, setExclusions] = useState<Exclusion[]>(() => fromRulesExclusions(campaign));
+  const [scopes, setScopes] = useState<OrgScope[]>(() =>
+    fromRulesScopes(campaign)
+  );
+  const [exclusions, setExclusions] = useState<Exclusion[]>(() =>
+    fromRulesExclusions(campaign)
+  );
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -104,6 +117,8 @@ export function CampaignPopulationSection({
   }, [campaign]);
 
   // Enrich excluded display names from the live preview (source of truth stays local state).
+  // Also re-runs when `campaign` changes: a refetch resets exclusions to name-less rules, and
+  // without this the label would fall back to the raw employee id until the preview refetches.
   useEffect(() => {
     if (!preview.data) return;
     setExclusions((current) =>
@@ -113,18 +128,26 @@ export function CampaignPopulationSection({
           : {
               ...exclusion,
               name:
-                preview.data!.exclusions.find((item) => item.employeeId === exclusion.employeeId)
-                  ?.fullName ?? null,
-            },
-      ),
+                preview.data!.exclusions.find(
+                  (item) => item.employeeId === exclusion.employeeId
+                )?.fullName ?? null,
+            }
+      )
     );
-  }, [preview.data]);
+  }, [preview.data, campaign]);
 
-  const save = useApiMutation<PerformanceCycleDetailDto, SetCyclePopulationRequest>(
+  const save = useApiMutation<
+    PerformanceCycleDetailDto,
+    SetCyclePopulationRequest
+  >(
     (request) =>
-      apiClient.put<PerformanceCycleDetailDto>(performancePaths.cyclePopulation(campaign.id), request, {
-        headers: { "If-Match": `"${campaign.version}"` },
-      }),
+      apiClient.put<PerformanceCycleDetailDto>(
+        performancePaths.cyclePopulation(campaign.id),
+        request,
+        {
+          headers: { "If-Match": `"${campaign.version}"` },
+        }
+      ),
     {
       onSuccess: async () => {
         toast.success("Participants updated");
@@ -132,23 +155,33 @@ export function CampaignPopulationSection({
         await preview.refetch();
       },
       onError: (err) => setError(messageFor(err)),
-    },
+    }
   );
 
   const isAllActive = scopes.length === 0;
-  const dirty = serialize(scopes, exclusions) !== serialize(fromRulesScopes(campaign), fromRulesExclusions(campaign));
-  const exclusionMissingReason = exclusions.some((exclusion) => !exclusion.reason.trim());
-  const canSave = canManage && dirty && !exclusionMissingReason && !save.isLoading;
+  const dirty =
+    serialize(scopes, exclusions) !==
+    serialize(fromRulesScopes(campaign), fromRulesExclusions(campaign));
+  const exclusionMissingReason = exclusions.some(
+    (exclusion) => !exclusion.reason.trim()
+  );
+  const canSave =
+    canManage && dirty && !exclusionMissingReason && !save.isLoading;
 
   return (
     <Card size="sm">
-      <CardHeader density="compact" className="flex items-center justify-between gap-2 border-b">
+      <CardHeader
+        density="compact"
+        className="flex items-center justify-between gap-2 border-b"
+      >
         <div className="space-y-0.5">
           <CardTitle className="flex items-center gap-2">
             <Users className="size-4 text-muted-foreground" />
             {campaignPopulation.title}
           </CardTitle>
-          <p className="text-xs text-muted-foreground">{campaignPopulation.description}</p>
+          <p className="text-xs text-muted-foreground">
+            {campaignPopulation.description}
+          </p>
         </div>
         {preview.data ? (
           <StatusBadge tone="info">
@@ -167,13 +200,18 @@ export function CampaignPopulationSection({
         {/* Scope: explicit all-active baseline vs org-unit scopes */}
         <section className="space-y-3">
           <div className="flex items-center justify-between gap-2">
-            <h3 className="text-sm font-medium">{campaignPopulation.scopesHeading}</h3>
+            <h3 className="text-sm font-medium">
+              {campaignPopulation.scopesHeading}
+            </h3>
             {!readOnly ? (
               <OrgScopePicker
                 orgUnits={orgUnits.data ?? []}
                 selected={scopes}
                 onAdd={(orgUnitId) =>
-                  setScopes((current) => [...current, { orgUnitId, includeDescendants: true }])
+                  setScopes((current) => [
+                    ...current,
+                    { orgUnitId, includeDescendants: true },
+                  ])
                 }
               />
             ) : null}
@@ -181,13 +219,20 @@ export function CampaignPopulationSection({
 
           {isAllActive ? (
             <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
-              <p className="text-sm font-medium text-foreground">{campaignPopulation.allActiveTitle}</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">{campaignPopulation.allActiveCaption}</p>
+              <p className="text-sm font-medium text-foreground">
+                {campaignPopulation.allActiveTitle}
+              </p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {campaignPopulation.allActiveCaption}
+              </p>
             </div>
           ) : (
             <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border">
               {scopes.map((scope) => (
-                <li key={scope.orgUnitId} className="flex items-center gap-3 px-3 py-2.5">
+                <li
+                  key={scope.orgUnitId}
+                  className="flex items-center gap-3 px-3 py-2.5"
+                >
                   <span className="min-w-0 flex-1 truncate text-sm font-medium">
                     {orgUnitName.get(scope.orgUnitId) ?? scope.orgUnitId}
                   </span>
@@ -200,8 +245,8 @@ export function CampaignPopulationSection({
                           current.map((item) =>
                             item.orgUnitId === scope.orgUnitId
                               ? { ...item, includeDescendants: checked }
-                              : item,
-                          ),
+                              : item
+                          )
                         )
                       }
                       aria-label={campaignPopulation.includeDescendants}
@@ -214,7 +259,11 @@ export function CampaignPopulationSection({
                       size="icon-sm"
                       variant="ghost"
                       onClick={() =>
-                        setScopes((current) => current.filter((item) => item.orgUnitId !== scope.orgUnitId))
+                        setScopes((current) =>
+                          current.filter(
+                            (item) => item.orgUnitId !== scope.orgUnitId
+                          )
+                        )
                       }
                       aria-label={`${campaignPopulation.remove} ${orgUnitName.get(scope.orgUnitId) ?? scope.orgUnitId}`}
                     >
@@ -230,16 +279,27 @@ export function CampaignPopulationSection({
         {/* Exclusions — each requires a reason */}
         <section className="space-y-3">
           <div className="flex items-center justify-between gap-2">
-            <h3 className="text-sm font-medium">{campaignPopulation.exclusionsHeading}</h3>
+            <h3 className="text-sm font-medium text-nowrap">
+              {campaignPopulation.exclusionsHeading}
+            </h3>
             {!readOnly ? (
               <PeopleCombobox
                 placeholder={campaignPopulation.addExclusion}
                 excludeIds={exclusions.map((exclusion) => exclusion.employeeId)}
                 onSelect={(person: PersonOption) =>
                   setExclusions((current) =>
-                    current.some((item) => item.employeeId === person.employeeId)
+                    current.some(
+                      (item) => item.employeeId === person.employeeId
+                    )
                       ? current
-                      : [...current, { employeeId: person.employeeId, name: person.displayName, reason: "" }],
+                      : [
+                          ...current,
+                          {
+                            employeeId: person.employeeId,
+                            name: person.displayName,
+                            reason: "",
+                          },
+                        ]
                   )
                 }
               />
@@ -266,15 +326,15 @@ export function CampaignPopulationSection({
                     aria-invalid={!exclusion.reason.trim()}
                     className={cn(
                       "h-8 w-full sm:w-64",
-                      !exclusion.reason.trim() && "border-destructive",
+                      !exclusion.reason.trim() && "border-destructive"
                     )}
                     onChange={(event) =>
                       setExclusions((current) =>
                         current.map((item) =>
                           item.employeeId === exclusion.employeeId
                             ? { ...item, reason: event.target.value }
-                            : item,
-                        ),
+                            : item
+                        )
                       )
                     }
                   />
@@ -285,7 +345,9 @@ export function CampaignPopulationSection({
                       variant="ghost"
                       onClick={() =>
                         setExclusions((current) =>
-                          current.filter((item) => item.employeeId !== exclusion.employeeId),
+                          current.filter(
+                            (item) => item.employeeId !== exclusion.employeeId
+                          )
                         )
                       }
                       aria-label={`${campaignPopulation.remove} ${exclusion.name ?? exclusion.employeeId}`}
@@ -360,22 +422,31 @@ function OrgScopePicker({
       <PopoverContent align="end" className="w-72 p-0">
         <div className="max-h-72 overflow-y-auto p-1">
           {available.length === 0 ? (
-            <p className="px-3 py-6 text-center text-sm text-muted-foreground">No more org units.</p>
+            <p className="px-3 py-6 text-center text-sm text-muted-foreground">
+              No more org units.
+            </p>
           ) : (
             available.map((unit) => (
               <button
                 key={unit.id}
                 type="button"
                 className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm hover:bg-muted focus-visible:bg-muted focus-visible:outline-none"
-                style={{ paddingLeft: `${0.5 + Math.min(unit.level, 5) * 0.75}rem` }}
+                style={{
+                  paddingLeft: `${0.5 + Math.min(unit.level, 5) * 0.75}rem`,
+                }}
                 onClick={() => {
                   onAdd(unit.id);
                   setOpen(false);
                 }}
               >
-                <Checkbox checked={false} className="pointer-events-none" aria-hidden />
+                <Plus
+                  className="size-3.5 shrink-0 text-muted-foreground"
+                  aria-hidden
+                />
                 <span className="min-w-0 flex-1 truncate">{unit.name}</span>
-                <span className="shrink-0 text-xs text-muted-foreground">{unit.type}</span>
+                <span className="shrink-0 text-xs text-muted-foreground">
+                  {unit.type}
+                </span>
               </button>
             ))
           )}
@@ -402,7 +473,10 @@ export function CampaignReadinessSection({
   const readiness = useApiQuery<CycleReadinessDto>(
     performanceQueryKeys.cycleReadiness(campaign.id),
     (signal) =>
-      apiClient.get<CycleReadinessDto>(performancePaths.cycleReadiness(campaign.id), { signal }),
+      apiClient.get<CycleReadinessDto>(
+        performancePaths.cycleReadiness(campaign.id),
+        { signal }
+      )
   );
 
   const [launchOpen, setLaunchOpen] = useState(false);
@@ -416,7 +490,7 @@ export function CampaignReadinessSection({
       apiClient.put<PerformanceCycleDetailDto>(
         performancePaths.cycleParticipantApprover(campaign.id, employeeId),
         request,
-        { headers: { "If-Match": `"${campaign.version}"` } },
+        { headers: { "If-Match": `"${campaign.version}"` } }
       ),
     {
       onSuccess: async () => {
@@ -425,19 +499,25 @@ export function CampaignReadinessSection({
         await readiness.refetch();
       },
       onError: (err) => setError(messageFor(err)),
-    },
+    }
   );
 
   const launch = useApiMutation<CampaignLaunchResultDto, void>(
     () =>
-      apiClient.post<CampaignLaunchResultDto>(performancePaths.cycleLaunch(campaign.id), undefined, {
-        headers: { "If-Match": `"${campaign.version}"` },
-      }),
+      apiClient.post<CampaignLaunchResultDto>(
+        performancePaths.cycleLaunch(campaign.id),
+        undefined,
+        {
+          headers: { "If-Match": `"${campaign.version}"` },
+        }
+      ),
     {
       onSuccess: async (result) => {
         setLaunchOpen(false);
         toast.success(campaignLaunch.success, {
-          description: campaignLaunch.frozenSummary(result.frozenParticipantCount),
+          description: campaignLaunch.frozenSummary(
+            result.frozenParticipantCount
+          ),
         });
         await onChanged();
       },
@@ -445,13 +525,16 @@ export function CampaignReadinessSection({
         setError(messageFor(err));
         setLaunchOpen(false);
       },
-    },
+    }
   );
 
   if (readiness.isLoading || !readiness.data) {
     return (
       <Card size="sm">
-        <CardContent density="compact" className="py-10 text-center text-sm text-muted-foreground">
+        <CardContent
+          density="compact"
+          className="py-10 text-center text-sm text-muted-foreground"
+        >
           Checking launch readiness…
         </CardContent>
       </Card>
@@ -463,7 +546,10 @@ export function CampaignReadinessSection({
 
   return (
     <Card size="sm">
-      <CardHeader density="compact" className="flex items-center justify-between gap-2 border-b">
+      <CardHeader
+        density="compact"
+        className="flex items-center justify-between gap-2 border-b"
+      >
         <div className="space-y-0.5">
           <CardTitle className="flex items-center gap-2">
             <ShieldCheck className="size-4 text-muted-foreground" />
@@ -474,7 +560,9 @@ export function CampaignReadinessSection({
           </p>
         </div>
         <StatusBadge tone={canLaunch ? "success" : "warning"}>
-          {canLaunch ? campaignReadinessReview.ready : campaignReadinessReview.notReady}
+          {canLaunch
+            ? campaignReadinessReview.ready
+            : campaignReadinessReview.notReady}
         </StatusBadge>
       </CardHeader>
       <CardContent density="compact" className="space-y-5">
@@ -493,7 +581,11 @@ export function CampaignReadinessSection({
             <AlertDescription>
               <ul className="list-disc space-y-1 pl-4">
                 {data.blockingConditions.map((condition) => (
-                  <li key={`${condition.code}-${condition.employeeId ?? "cycle"}`}>{condition.message}</li>
+                  <li
+                    key={`${condition.code}-${condition.employeeId ?? "cycle"}`}
+                  >
+                    {condition.message}
+                  </li>
                 ))}
               </ul>
             </AlertDescription>
@@ -501,9 +593,13 @@ export function CampaignReadinessSection({
         ) : null}
 
         <section className="space-y-2">
-          <h3 className="text-sm font-medium">{campaignReadinessReview.participantsHeading}</h3>
+          <h3 className="text-sm font-medium">
+            {campaignReadinessReview.participantsHeading}
+          </h3>
           {data.participants.length === 0 ? (
-            <p className="text-xs text-muted-foreground">{campaignPopulation.previewEmpty}</p>
+            <p className="text-xs text-muted-foreground">
+              {campaignPopulation.previewEmpty}
+            </p>
           ) : (
             <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border">
               {data.participants.map((participant) => (
@@ -513,7 +609,10 @@ export function CampaignReadinessSection({
                   canManage={canManage}
                   isBusy={override.isLoading}
                   onOverride={(request) =>
-                    override.mutate({ employeeId: participant.employeeId, request })
+                    override.mutate({
+                      employeeId: participant.employeeId,
+                      request,
+                    })
                   }
                 />
               ))}
@@ -529,7 +628,11 @@ export function CampaignReadinessSection({
             </h3>
             <ul className="space-y-1 text-xs text-muted-foreground">
               {data.informationalConditions.map((condition) => (
-                <li key={`${condition.code}-${condition.employeeId ?? "cycle"}`}>{condition.message}</li>
+                <li
+                  key={`${condition.code}-${condition.employeeId ?? "cycle"}`}
+                >
+                  {condition.message}
+                </li>
               ))}
             </ul>
           </section>
@@ -538,12 +641,14 @@ export function CampaignReadinessSection({
         {data.exclusions.length > 0 ? (
           <section className="space-y-1.5">
             <h3 className="text-xs font-medium text-muted-foreground">
-              {campaignReadinessReview.excludedHeading} ({data.exclusions.length})
+              {campaignReadinessReview.excludedHeading} (
+              {data.exclusions.length})
             </h3>
             <ul className="space-y-1 text-xs text-muted-foreground">
               {data.exclusions.map((exclusion) => (
                 <li key={exclusion.employeeId}>
-                  {exclusion.fullName ?? exclusion.employeeId} — {exclusion.reason}
+                  {exclusion.fullName ?? exclusion.employeeId} —{" "}
+                  {exclusion.reason}
                 </li>
               ))}
             </ul>
@@ -563,7 +668,9 @@ export function CampaignReadinessSection({
               {campaignLaunch.action}
             </Button>
             {!canLaunch ? (
-              <p className="text-xs text-muted-foreground">{campaignLaunch.blockedHint}</p>
+              <p className="text-xs text-muted-foreground">
+                {campaignLaunch.blockedHint}
+              </p>
             ) : null}
           </div>
         ) : null}
@@ -600,24 +707,34 @@ function ParticipantRow({
     <li className="space-y-3 px-3 py-2.5">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-medium">{participant.fullName}</span>
+          <span className="block truncate text-sm font-medium">
+            {participant.fullName}
+          </span>
           {participant.jobTitle || participant.orgUnitName ? (
             <span className="block truncate text-xs text-muted-foreground">
-              {[participant.jobTitle, participant.orgUnitName].filter(Boolean).join(" · ")}
+              {[participant.jobTitle, participant.orgUnitName]
+                .filter(Boolean)
+                .join(" · ")}
             </span>
           ) : null}
         </span>
         <div className="flex items-center gap-2">
           {participant.hasApprover ? (
             <span className="text-right text-xs">
-              <span className="block text-muted-foreground">{campaignReadinessReview.approver}</span>
+              <span className="block text-muted-foreground">
+                {campaignReadinessReview.approver}
+              </span>
               <span className="font-medium">{participant.approverName}</span>
             </span>
           ) : (
-            <StatusBadge tone="warning">{campaignReadinessReview.missingApprover}</StatusBadge>
+            <StatusBadge tone="warning">
+              {campaignReadinessReview.missingApprover}
+            </StatusBadge>
           )}
           {participant.isApproverOverridden ? (
-            <Badge variant="outline">{campaignReadinessReview.overriddenApprover}</Badge>
+            <Badge variant="outline">
+              {campaignReadinessReview.overriddenApprover}
+            </Badge>
           ) : null}
           {canManage ? (
             <Button
@@ -635,7 +752,9 @@ function ParticipantRow({
       {editing && canManage ? (
         <div className="grid gap-2 rounded-lg border border-border bg-muted/20 p-3 sm:grid-cols-[1fr_1fr_auto]">
           <div className="space-y-1">
-            <Label className="text-xs">{campaignReadinessReview.overrideApproverLabel}</Label>
+            <Label className="text-xs">
+              {campaignReadinessReview.overrideApproverLabel}
+            </Label>
             <PeopleCombobox
               value={approver}
               excludeIds={[participant.employeeId]}
@@ -643,7 +762,9 @@ function ParticipantRow({
             />
           </div>
           <div className="space-y-1">
-            <Label className="text-xs">{campaignReadinessReview.overrideReasonLabel}</Label>
+            <Label className="text-xs">
+              {campaignReadinessReview.overrideReasonLabel}
+            </Label>
             <Input
               value={reason}
               placeholder={campaignReadinessReview.overrideReasonPlaceholder}
@@ -658,13 +779,18 @@ function ParticipantRow({
               disabled={!approver || !reason.trim() || isBusy}
               onClick={() => {
                 if (!approver) return;
-                onOverride({ approverEmployeeId: approver.employeeId, reason: reason.trim() });
+                onOverride({
+                  approverEmployeeId: approver.employeeId,
+                  reason: reason.trim(),
+                });
                 setEditing(false);
                 setApprover(null);
                 setReason("");
               }}
             >
-              {isBusy ? campaignReadinessReview.overrideSubmitting : campaignReadinessReview.overrideSubmit}
+              {isBusy
+                ? campaignReadinessReview.overrideSubmitting
+                : campaignReadinessReview.overrideSubmit}
             </Button>
           </div>
         </div>
@@ -695,28 +821,34 @@ function LaunchDialog({
           <div className="mx-auto flex size-11 items-center justify-center rounded-full bg-primary/10">
             <Rocket className="size-5 text-primary" />
           </div>
-          <DialogTitle className="text-center text-lg">{campaignLaunch.title}</DialogTitle>
+          <DialogTitle className="text-center text-lg">
+            {campaignLaunch.title}
+          </DialogTitle>
           <DialogDescription className="text-center">
             {campaignLaunch.frozenSummary(participantCount)}
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3 text-sm">
-          <p className="flex items-center gap-2 font-medium">
-            <Users className="size-4 text-muted-foreground" />
-            {campaignPopulation.resolvedCount(participantCount)}
-          </p>
-          <p className="text-xs text-muted-foreground">{campaignLaunch.irreversible}</p>
+        <div className="space-y-1 text-center text-xs text-muted-foreground">
+          <p>{campaignLaunch.irreversible}</p>
           {planningOpeningDate ? (
-            <p className="text-xs text-muted-foreground">
-              {campaignLaunch.scheduleNote(formatDate(planningOpeningDate))}
-            </p>
+            <p>{campaignLaunch.scheduleNote(formatDate(planningOpeningDate))}</p>
           ) : null}
         </div>
         <DialogFooter className="gap-2 sm:justify-center">
-          <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={isLaunching}>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => onOpenChange(false)}
+            disabled={isLaunching}
+          >
             {campaignLaunch.cancel}
           </Button>
-          <Button type="button" onClick={onConfirm} disabled={isLaunching} className="gap-2">
+          <Button
+            type="button"
+            onClick={onConfirm}
+            disabled={isLaunching}
+            className="gap-2"
+          >
             <Rocket className="size-4" />
             {isLaunching ? campaignLaunch.launching : campaignLaunch.confirm}
           </Button>
@@ -728,19 +860,29 @@ function LaunchDialog({
 
 // ── Launched read-only baseline ──────────────────────────────────────
 
-export function CampaignLaunchedBaseline({ campaign }: { campaign: PerformanceCycleDetailDto }) {
+export function CampaignLaunchedBaseline({
+  campaign,
+}: {
+  campaign: PerformanceCycleDetailDto;
+}) {
   const apiClient = useMemo(() => createPlatformApiClient(), []);
   const readiness = useApiQuery<CycleReadinessDto>(
     performanceQueryKeys.cycleReadiness(campaign.id),
     (signal) =>
-      apiClient.get<CycleReadinessDto>(performancePaths.cycleReadiness(campaign.id), { signal }),
+      apiClient.get<CycleReadinessDto>(
+        performancePaths.cycleReadiness(campaign.id),
+        { signal }
+      )
   );
 
   const participants = readiness.data?.participants ?? [];
 
   return (
     <Card size="sm">
-      <CardHeader density="compact" className="flex items-center justify-between gap-2 border-b">
+      <CardHeader
+        density="compact"
+        className="flex items-center justify-between gap-2 border-b"
+      >
         <CardTitle className="flex items-center gap-2">
           <Users className="size-4 text-muted-foreground" />
           {campaignLaunch.baselineHeading}
@@ -751,7 +893,9 @@ export function CampaignLaunchedBaseline({ campaign }: { campaign: PerformanceCy
       </CardHeader>
       <CardContent density="compact">
         {readiness.isLoading ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">Loading baseline…</p>
+          <p className="py-6 text-center text-sm text-muted-foreground">
+            Loading baseline…
+          </p>
         ) : participants.length === 0 ? (
           <p className="py-6 text-center text-sm text-muted-foreground">
             {campaignPopulation.previewEmpty}
@@ -759,14 +903,25 @@ export function CampaignLaunchedBaseline({ campaign }: { campaign: PerformanceCy
         ) : (
           <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border">
             {participants.map((participant) => (
-              <li key={participant.employeeId} className="flex items-center gap-3 px-3 py-2.5">
-                <span className="min-w-0 flex-1 truncate text-sm font-medium">{participant.fullName}</span>
+              <li
+                key={participant.employeeId}
+                className="flex items-center gap-3 px-3 py-2.5"
+              >
+                <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                  {participant.fullName}
+                </span>
                 <span className="text-right text-xs">
-                  <span className="block text-muted-foreground">{campaignReadinessReview.approver}</span>
-                  <span className="font-medium">{participant.approverName ?? "—"}</span>
+                  <span className="block text-muted-foreground">
+                    {campaignReadinessReview.approver}
+                  </span>
+                  <span className="font-medium">
+                    {participant.approverName ?? "—"}
+                  </span>
                 </span>
                 {participant.isApproverOverridden ? (
-                  <Badge variant="outline">{campaignReadinessReview.overriddenApprover}</Badge>
+                  <Badge variant="outline">
+                    {campaignReadinessReview.overriddenApprover}
+                  </Badge>
                 ) : null}
               </li>
             ))}
@@ -782,16 +937,26 @@ export function CampaignLaunchedBaseline({ campaign }: { campaign: PerformanceCy
 function fromRulesScopes(campaign: PerformanceCycleDetailDto): OrgScope[] {
   return campaign.populationRules
     .filter((rule) => rule.ruleType === "OrgUnit")
-    .map((rule) => ({ orgUnitId: rule.refId, includeDescendants: rule.includeDescendants }));
+    .map((rule) => ({
+      orgUnitId: rule.refId,
+      includeDescendants: rule.includeDescendants,
+    }));
 }
 
 function fromRulesExclusions(campaign: PerformanceCycleDetailDto): Exclusion[] {
   return campaign.populationRules
     .filter((rule) => rule.ruleType === "ExcludeEmployee")
-    .map((rule) => ({ employeeId: rule.refId, name: null, reason: rule.reason ?? "" }));
+    .map((rule) => ({
+      employeeId: rule.refId,
+      name: null,
+      reason: rule.reason ?? "",
+    }));
 }
 
-function toPopulationRequest(scopes: OrgScope[], exclusions: Exclusion[]): SetCyclePopulationRequest {
+function toPopulationRequest(
+  scopes: OrgScope[],
+  exclusions: Exclusion[]
+): SetCyclePopulationRequest {
   const rules: PopulationRuleInput[] = [
     ...scopes.map<PopulationRuleInput>((scope) => ({
       ruleType: "OrgUnit",
@@ -811,7 +976,10 @@ function serialize(scopes: OrgScope[], exclusions: Exclusion[]): string {
   return JSON.stringify({
     scopes: [...scopes].sort((a, b) => a.orgUnitId.localeCompare(b.orgUnitId)),
     exclusions: [...exclusions]
-      .map((exclusion) => ({ employeeId: exclusion.employeeId, reason: exclusion.reason.trim() }))
+      .map((exclusion) => ({
+        employeeId: exclusion.employeeId,
+        reason: exclusion.reason.trim(),
+      }))
       .sort((a, b) => a.employeeId.localeCompare(b.employeeId)),
   });
 }
@@ -830,5 +998,7 @@ function messageFor(error: Error): string {
 }
 
 function formatDate(value: string): string {
-  return new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(value));
+  return new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(
+    new Date(value)
+  );
 }

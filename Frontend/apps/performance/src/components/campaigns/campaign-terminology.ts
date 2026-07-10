@@ -132,9 +132,9 @@ export const campaignLaunch = {
   title: "Launch this campaign?",
   frozenSummary: (count: number) =>
     `${count} ${count === 1 ? "participant" : "participants"} and their approvers will be frozen as this campaign's baseline.`,
-  irreversible: "Launching is final — the setup and baseline become read-only.",
+  irreversible: "This is final — setup becomes read-only.",
   scheduleNote: (date: string) =>
-    `Employees can start entering objectives on ${date}, per the planning schedule. Launching now doesn't open entry early.`,
+    `Entry opens on schedule (${date}), not at launch.`,
   confirm: "Launch now",
   launching: "Launching…",
   cancel: "Not yet",

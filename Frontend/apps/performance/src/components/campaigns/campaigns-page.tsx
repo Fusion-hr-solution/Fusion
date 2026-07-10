@@ -382,6 +382,13 @@ export function CampaignDraftPage() {
   const canDiscard = canManage && isDraft;
   const objectiveRequest = toObjectiveRequest(objectiveForm);
 
+  // Applied population/approver/launch changes must reflect immediately: refetch the campaign
+  // detail and invalidate its live sub-queries (population preview, readiness) without a manual refresh.
+  const handleWorkspaceChange = async () => {
+    await refetch();
+    await queryClient.invalidateQueries({ queryKey: performanceQueryKeys.cycle(campaignId) });
+  };
+
   return (
     <PageContainer>
       <PageHeader
@@ -489,12 +496,12 @@ export function CampaignDraftPage() {
       <div className="mt-5 space-y-5">
         {isDraft ? (
           <>
-            <CampaignPopulationSection campaign={campaign} canManage={canManage} onSaved={refetch} />
+            <CampaignPopulationSection campaign={campaign} canManage={canManage} onSaved={handleWorkspaceChange} />
             <CampaignReadinessSection
               campaign={campaign}
               canManage={canManage}
               canOperate={canOperate}
-              onChanged={refetch}
+              onChanged={handleWorkspaceChange}
             />
           </>
         ) : (
@@ -1079,23 +1086,259 @@ function Field({
   );
 }
 
-function CampaignPageSkeleton() {
+function CampaignPageSkeleton({ width }: { width?: "narrow" } = {}) {
+  if (width === "narrow") {
+    return (
+      <PageContainer width="narrow">
+        <div className="space-y-5" aria-busy aria-label="Loading campaign">
+          <div className="space-y-2">
+            <Skeleton className="h-5 w-48" />
+            <Skeleton className="h-3 w-32" />
+            <Skeleton className="h-8 w-72" />
+          </div>
+
+          <Card size="sm">
+            <CardContent density="compact" className="space-y-6">
+              <section className="space-y-4">
+                <div className="space-y-1">
+                  <Skeleton className="h-4 w-20" />
+                  <Skeleton className="h-3 w-40" />
+                </div>
+                <div className="grid gap-4 sm:grid-cols-[1fr_9rem]">
+                  <Skeleton className="h-10 w-full rounded-md" />
+                  <Skeleton className="h-10 w-full rounded-md" />
+                  <Skeleton className="h-16 w-full rounded-md sm:col-span-2" />
+                </div>
+              </section>
+
+              <Separator />
+
+              <section className="space-y-4">
+                <div className="space-y-1">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-3 w-56" />
+                </div>
+                <ol className="space-y-0">
+                  {["planning", "submission", "approval", "lock"].map((step, i) => (
+                    <li key={step} className="grid grid-cols-[1.25rem_1fr] gap-x-3">
+                      <div className="flex flex-col items-center">
+                        <Skeleton className="mt-1.5 size-3 rounded-full" />
+                        {i < 3 && <span className="w-px flex-1 bg-border" />}
+                      </div>
+                      <div className={cn("min-w-0", i === 3 ? "pb-0" : "pb-5")}>
+                        <div className="flex items-baseline justify-between">
+                          <Skeleton className="h-4 w-40" />
+                          <Skeleton className="h-3 w-12" />
+                        </div>
+                        <Skeleton className="mt-1 h-3 w-52" />
+                        <Skeleton className="mt-2 h-10 w-full rounded-md sm:max-w-[13rem]" />
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              </section>
+            </CardContent>
+          </Card>
+
+          <div className="flex items-center justify-between rounded-xl border border-border px-4 py-3">
+            <Skeleton className="h-4 w-28" />
+            <div className="flex gap-2">
+              <Skeleton className="h-8 w-24 rounded-md" />
+              <Skeleton className="h-8 w-24 rounded-md" />
+            </div>
+          </div>
+        </div>
+      </PageContainer>
+    );
+  }
+
   return (
     <PageContainer>
       <div className="space-y-5" aria-busy aria-label="Loading campaign">
+        {/* Header */}
         <div className="space-y-2">
-          <Skeleton className="h-5 w-24 rounded-full" />
-          <Skeleton className="h-8 w-64" />
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-5 w-16 rounded-full" />
+            <Skeleton className="h-4 w-24 rounded-full" />
+          </div>
+          <Skeleton className="h-8 w-72" />
+          <Skeleton className="h-4 w-36" />
         </div>
+
+        {/* Two-column grid */}
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_19rem]">
+          {/* Left column */}
           <div className="space-y-5">
-            <Skeleton className="h-64 w-full rounded-xl" />
-            <Skeleton className="h-40 w-full rounded-xl" />
+            {/* Identity + Schedule card */}
+            <Card size="sm">
+              <CardContent density="compact" className="space-y-6">
+                <section className="space-y-4">
+                  <Skeleton className="h-4 w-16" />
+                  <div className="grid gap-4 sm:grid-cols-[1fr_9rem]">
+                    <Skeleton className="h-10 w-full rounded-md" />
+                    <Skeleton className="h-10 w-full rounded-md" />
+                    <Skeleton className="h-16 w-full rounded-md sm:col-span-2" />
+                  </div>
+                </section>
+                <Separator />
+                <section className="space-y-4">
+                  <div className="space-y-1">
+                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-3 w-44" />
+                  </div>
+                  <ol className="space-y-0">
+                    {["planning", "submission", "approval", "lock"].map((step, i) => (
+                      <li key={step} className="grid grid-cols-[1.25rem_1fr] gap-x-3">
+                        <div className="flex flex-col items-center">
+                          <Skeleton className="mt-1.5 size-3 rounded-full" />
+                          {i < 3 && <span className="w-px flex-1 bg-border" />}
+                        </div>
+                        <div className={cn("min-w-0", i === 3 ? "pb-0" : "pb-5")}>
+                          <Skeleton className="h-4 w-44" />
+                          <Skeleton className="mt-1 h-3 w-14" />
+                          <Skeleton className="mt-2 h-10 w-full rounded-md sm:max-w-[13rem]" />
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+                </section>
+              </CardContent>
+            </Card>
+
+            {/* Objectives card */}
+            <Card size="sm">
+              <CardHeader density="compact" className="flex items-center justify-between border-b">
+                <div className="space-y-1">
+                  <Skeleton className="h-5 w-40" />
+                  <Skeleton className="h-3 w-32" />
+                </div>
+                <Skeleton className="h-8 w-36 rounded-md" />
+              </CardHeader>
+              <CardContent density="compact" className="space-y-3">
+                <div className="divide-y divide-border overflow-hidden rounded-lg border border-border">
+                  {[1, 2].map((i) => (
+                    <div key={i} className="p-3">
+                      <div className="flex items-start gap-3">
+                        <div className="min-w-0 flex-1 space-y-1.5">
+                          <Skeleton className="h-4 w-48" />
+                          <Skeleton className="h-3 w-64" />
+                        </div>
+                        <div className="flex shrink-0 items-center gap-3">
+                          <Skeleton className="h-4 w-10" />
+                          <Skeleton className="size-7 rounded-md" />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           </div>
-          <div className="space-y-5">
-            <Skeleton className="h-48 w-full rounded-xl" />
-            <Skeleton className="h-40 w-full rounded-xl" />
-          </div>
+
+          {/* Right sidebar */}
+          <aside className="space-y-5 lg:sticky lg:top-4 lg:self-start">
+            {/* Setup progress card */}
+            <Card size="sm">
+              <CardHeader density="compact" className="border-b">
+                <CardTitle className="flex items-center justify-between gap-2">
+                  <Skeleton className="h-4 w-28" />
+                  <Skeleton className="h-5 w-20 rounded-full" />
+                </CardTitle>
+              </CardHeader>
+              <CardContent density="compact">
+                <ul className="space-y-2.5">
+                  {[1, 2, 3, 4].map((i) => (
+                    <li key={i} className="flex items-start gap-2.5">
+                      <Skeleton className="mt-0.5 size-4 shrink-0 rounded-full" />
+                      <Skeleton className="h-4 w-32" />
+                    </li>
+                  ))}
+                </ul>
+                <Skeleton className="mt-4 h-px w-full border-t border-border" />
+                <Skeleton className="mt-3 h-3 w-52" />
+              </CardContent>
+            </Card>
+
+            {/* Rules snapshot card */}
+            <Card size="sm">
+              <CardHeader density="compact" className="border-b">
+                <CardTitle className="flex items-center gap-2">
+                  <Skeleton className="size-3.5 rounded" />
+                  <Skeleton className="h-4 w-32" />
+                </CardTitle>
+              </CardHeader>
+              <CardContent density="compact" className="space-y-4">
+                <div className="space-y-1.5">
+                  <Skeleton className="h-3 w-32" />
+                  <Skeleton className="h-4 w-10" />
+                </div>
+                <div className="space-y-1.5">
+                  <Skeleton className="h-3 w-28" />
+                  <div className="flex gap-1.5">
+                    <Skeleton className="h-5 w-12 rounded-md" />
+                    <Skeleton className="h-5 w-12 rounded-md" />
+                    <Skeleton className="h-5 w-12 rounded-md" />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Skeleton className="h-3 w-36" />
+                  <div className="flex gap-1.5">
+                    <Skeleton className="h-5 w-16 rounded-md" />
+                    <Skeleton className="h-5 w-20 rounded-md" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </aside>
+        </div>
+
+        {/* Full-width sections */}
+        <div className="mt-5 space-y-5">
+          <Card size="sm">
+            <CardHeader density="compact" className="flex items-center justify-between border-b">
+              <CardTitle className="flex items-center gap-2">
+                <Skeleton className="size-4 rounded" />
+                <Skeleton className="h-5 w-44" />
+              </CardTitle>
+              <Skeleton className="h-8 w-28 rounded-md" />
+            </CardHeader>
+            <CardContent density="compact" className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Skeleton className="h-10 w-full rounded-md" />
+                <Skeleton className="h-10 w-full rounded-md" />
+              </div>
+              <Skeleton className="h-px w-full" />
+              <div className="space-y-2">
+                <Skeleton className="h-3 w-48" />
+                <div className="flex gap-1.5">
+                  <Skeleton className="h-5 w-20 rounded-md" />
+                  <Skeleton className="h-5 w-24 rounded-md" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card size="sm">
+            <CardHeader density="compact" className="border-b">
+              <CardTitle className="flex items-center gap-2">
+                <Skeleton className="size-4 rounded" />
+                <Skeleton className="h-5 w-36" />
+              </CardTitle>
+            </CardHeader>
+            <CardContent density="compact" className="space-y-3">
+              <div className="divide-y divide-border overflow-hidden rounded-lg border border-border">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex items-center justify-between p-3">
+                    <div className="flex items-center gap-3">
+                      <Skeleton className="size-4 rounded-full" />
+                      <Skeleton className="h-4 w-36" />
+                    </div>
+                    <Skeleton className="h-4 w-20" />
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </PageContainer>
