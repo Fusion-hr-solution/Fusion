@@ -91,6 +91,10 @@ public sealed class SetCyclePopulationCommandHandler(
         ConcurrencyGuard.Ensure(cycle.Version, request.ExpectedVersion, nameof(PerformanceCycle), cycle.Id);
 
         cycle.SetPopulation(request.PopulationIncludeInactive, rules);
+        // Track new rules explicitly (not only via the aggregate navigation): eager Added tracking
+        // produces correct child-insert/parent-update ordering and avoids a false xmin concurrency
+        // conflict on the versioned parent row.
+        dbContext.PerformanceCyclePopulationRules.AddRange(rules);
 
         dbContext.PerformanceCycleAuditEvents.Add(PerformanceCycleAuditEvent.Create(
             tenantId,

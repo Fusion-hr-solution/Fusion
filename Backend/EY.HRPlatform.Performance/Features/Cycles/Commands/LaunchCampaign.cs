@@ -83,6 +83,10 @@ public sealed class LaunchCampaignCommandHandler(
                 Error.Conflict("Cycle.LaunchRejected", exception.Message));
         }
 
+        // Track the frozen participants explicitly so the child inserts order correctly against the
+        // versioned parent update (avoids a false xmin concurrency conflict on the cycle row).
+        dbContext.PerformanceCycleParticipants.AddRange(cycle.Participants);
+
         dbContext.PerformanceCycleAuditEvents.Add(PerformanceCycleAuditEvent.Create(
             tenantContext.TenantId,
             cycle.Id,

@@ -67,6 +67,7 @@ public sealed class OverrideParticipantApproverCommandHandler(
         ConcurrencyGuard.Ensure(cycle.Version, request.ExpectedVersion, nameof(PerformanceCycle), cycle.Id);
 
         var approverName = string.IsNullOrWhiteSpace(approver.DisplayName) ? approver.FullName : approver.DisplayName;
+        var isNewOverride = cycle.ApproverOverrides.All(o => o.ParticipantEmployeeId != request.ParticipantEmployeeId);
 
         try
         {
@@ -81,6 +82,14 @@ public sealed class OverrideParticipantApproverCommandHandler(
         {
             return Result.Failure<PerformanceCycleDetailDto>(
                 Error.Validation("Cycle.InvalidApproverOverride", exception.Message));
+        }
+
+        if (isNewOverride)
+        {
+            // Track the new override explicitly so its insert orders correctly against the versioned
+            // parent update (avoids a false xmin concurrency conflict on the cycle row).
+            var created = cycle.ApproverOverrides.First(o => o.ParticipantEmployeeId == request.ParticipantEmployeeId);
+            dbContext.PerformanceCycleApproverOverrides.Add(created);
         }
 
         dbContext.PerformanceCycleAuditEvents.Add(PerformanceCycleAuditEvent.Create(
