@@ -13,7 +13,7 @@ import { PageError } from "@repo/ds/shell";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatDate, measurementMethodLabel } from "@/lib/labels";
+import { measurementMethodLabel } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 import { strategyTerms } from "@/components/campaigns/campaign-terminology";
 
