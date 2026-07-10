@@ -8,8 +8,8 @@
 
 ## 2. Backend domain and persistence
 
-- [ ] 2.1 Add `CampaignTeamObjective` aggregate (per design D1: required title ≤200, active same-campaign strategic-objective link, success criteria ≤500, measurement method validated against the frozen snapshot's enabled methods, optional description ≤2000, immutable owner, no status/weight fields) with domain guards (campaign must be Launched) and unit tests
-- [ ] 2.2 Add EF configuration (xmin `Version`, FKs to cycle and strategic objective, indexes on `(TenantId, CycleId)`, `(TenantId, CycleId, OwnerManagerEmployeeId)`, `(TenantId, StrategicObjectiveId)`) and the additive migration; run the CI migration gate locally (`dotnet ef migrations has-pending-model-changes` clean)
+- [x] 2.1 Add `CampaignTeamObjective` aggregate (per design D1: required title ≤200, active same-campaign strategic-objective link, success criteria ≤500, measurement method validated against the frozen snapshot's enabled methods, optional description ≤2000, immutable owner, no status/weight fields) with domain guards (campaign must be Launched) and unit tests
+- [x] 2.2 Add EF configuration (xmin `Version`, FKs to cycle and strategic objective, indexes on `(TenantId, CycleId)`, `(TenantId, CycleId, OwnerManagerEmployeeId)`, `(TenantId, StrategicObjectiveId)`) and the additive migration; run the CI migration gate locally (`dotnet ef migrations has-pending-model-changes` clean)
 - [ ] 2.3 Add team-objective audit actions to the existing `PerformanceCycleAuditEvent` mechanism (created/updated/deleted with actor, tenant, campaign, objective, changed fields)
 
 ## 3. Backend authorization and application layer

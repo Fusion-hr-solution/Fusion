@@ -28,6 +28,11 @@ public enum PerformanceCycleAuditAction
     StrategicObjectiveUpdated,
     StrategicObjectiveToggled,
 
+    // Team objective actions (P1.3)
+    TeamObjectiveCreated,
+    TeamObjectiveUpdated,
+    TeamObjectiveDeleted,
+
     // Strategic objective actions (Plan 03-02)
     StrategicObjectivePublished,
     StrategicObjectiveSuperseded,
