@@ -75,10 +75,7 @@ export function TeamObjectiveCampaignsPage() {
 
   return (
     <PageContainer>
-      <PageHeader
-        title={teamObjectiveTerms.listTitle}
-        description={teamObjectiveTerms.listDescription}
-      />
+      <PageHeader title={teamObjectiveTerms.listTitle} />
 
       {isLoading ? <PageSkeleton /> : null}
       {!isLoading && error ? (
@@ -297,6 +294,11 @@ export function TeamObjectiveWorkspacePage() {
 
   const planningOpen =
     !!workspace.planningOpeningDate && new Date(workspace.planningOpeningDate) <= new Date();
+  const translatedPillarCount = workspace.strategicObjectives.filter((pillar) =>
+    workspace.myTeamObjectives.some(
+      (objective) => objective.strategicObjectiveId === pillar.id,
+    ),
+  ).length;
   const isBusy = create.isLoading || update.isLoading;
 
   const submitEditor = (request: UpsertTeamObjectiveRequest) => {
@@ -310,19 +312,36 @@ export function TeamObjectiveWorkspacePage() {
 
   return (
     <PageContainer>
-      <PageHeader title={workspace.name} description={teamObjectiveTerms.listDescription} />
+      <PageHeader
+        title={workspace.name}
+        description={
+          <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            <span className="flex items-center gap-1.5">
+              <Users className="size-3.5" />
+              {teamObjectiveTerms.scopeParticipants(workspace.myScope.participantCount)}
+            </span>
+            <span className="flex items-center gap-1.5">
+              {planningOpen ? (
+                <span aria-hidden className="size-1.5 rounded-full bg-primary" />
+              ) : (
+                <CalendarClock className="size-3.5" />
+              )}
+              {planningOpen
+                ? teamObjectiveTerms.availabilityNoteOpen
+                : teamObjectiveTerms.availabilityNote(formatDate(workspace.planningOpeningDate))}
+            </span>
+          </span>
+        }
+        actions={
+          <CascadeMeter
+            translated={translatedPillarCount}
+            total={workspace.strategicObjectives.length}
+          />
+        }
+      />
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_19rem]">
         <div className="min-w-0 space-y-4">
-          <div className="space-y-1">
-            <h2 className="text-sm font-semibold text-foreground">
-              {teamObjectiveTerms.strategyHeading}
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              {teamObjectiveTerms.strategySubheading}
-            </p>
-          </div>
-
           {workspace.strategicObjectives.map((pillar) => (
             <StrategyPillarBand
               key={pillar.id}
@@ -340,18 +359,8 @@ export function TeamObjectiveWorkspacePage() {
           ))}
         </div>
 
-        <aside className="space-y-4 lg:sticky lg:top-4 lg:self-start">
+        <aside className="lg:sticky lg:top-4 lg:self-start">
           <ScopeCard workspace={workspace} />
-          <Card size="sm">
-            <CardContent density="compact" className="flex items-start gap-2.5 text-sm text-muted-foreground">
-              <CalendarClock className="mt-0.5 size-4 shrink-0" />
-              <p>
-                {planningOpen
-                  ? teamObjectiveTerms.availabilityNoteOpen
-                  : teamObjectiveTerms.availabilityNote(formatDate(workspace.planningOpeningDate))}
-              </p>
-            </CardContent>
-          </Card>
         </aside>
       </div>
 
@@ -410,7 +419,9 @@ function StrategyPillarBand({
       <div className="bg-muted/40 px-4 py-3">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="min-w-0">
-            <h3 className="text-sm font-semibold text-foreground">{pillar.title}</h3>
+            <h2 className="text-base font-semibold tracking-tight text-foreground">
+              {pillar.title}
+            </h2>
             {pillar.description ? (
               <p className="mt-0.5 text-sm text-muted-foreground">{pillar.description}</p>
             ) : null}
@@ -419,9 +430,18 @@ function StrategyPillarBand({
             {pillar.responsibleFunctionLabel ? (
               <Badge variant="outline">{pillar.responsibleFunctionLabel}</Badge>
             ) : null}
-            <Button type="button" size="sm" variant="outline" disabled={disabled} onClick={onAdd}>
-              <Plus /> {teamObjectiveTerms.translateAction}
-            </Button>
+            {translated ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                aria-label={`Add team objective — ${pillar.title}`}
+                disabled={disabled}
+                onClick={onAdd}
+              >
+                <Plus /> {teamObjectiveTerms.addAction}
+              </Button>
+            ) : null}
           </div>
         </div>
       </div>
@@ -467,11 +487,46 @@ function StrategyPillarBand({
           ))}
         </ul>
       ) : (
-        <div className="border-t border-dashed border-border px-4 py-3">
-          <p className="text-sm text-muted-foreground">{teamObjectiveTerms.notTranslatedYet}</p>
-        </div>
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={onAdd}
+          className="flex w-full items-center justify-center gap-1.5 border-t border-dashed border-border px-4 py-3.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset disabled:pointer-events-none disabled:opacity-50"
+        >
+          <Plus className="size-4" />
+          {teamObjectiveTerms.translateAction}
+        </button>
       )}
     </section>
+  );
+}
+
+function CascadeMeter({ translated, total }: { translated: number; total: number }) {
+  if (total === 0) {
+    return null;
+  }
+
+  return (
+    <div
+      className="flex items-center gap-2.5"
+      role="img"
+      aria-label={`${translated} of ${total} pillars translated`}
+    >
+      <div aria-hidden className="flex items-center gap-1">
+        {Array.from({ length: total }, (_, index) => (
+          <span
+            key={index}
+            className={cn(
+              "h-1.5 w-7 rounded-full transition-colors",
+              index < translated ? "bg-primary" : "bg-border",
+            )}
+          />
+        ))}
+      </div>
+      <span className="text-sm font-semibold tabular-nums text-foreground">
+        {teamObjectiveTerms.cascadeMeter(translated, total)}
+      </span>
+    </div>
   );
 }
 
@@ -482,13 +537,13 @@ function ScopeCard({ workspace }: { workspace: TeamObjectiveWorkspaceDto }) {
   return (
     <Card size="sm">
       <CardContent density="compact" className="space-y-3">
-        <div>
-          <h3 className="text-sm font-semibold text-foreground">
-            {teamObjectiveTerms.scopeTitle}
-          </h3>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            {teamObjectiveTerms.scopeCaption(workspace.myScope.participantCount)}
-          </p>
+        <div className="flex items-baseline justify-between gap-2">
+          <h2 className="text-sm font-semibold text-foreground">
+            {teamObjectiveTerms.teamTitle}
+          </h2>
+          <span className="text-sm font-semibold tabular-nums text-foreground">
+            {workspace.myScope.participantCount}
+          </span>
         </div>
 
         {workspace.myScope.orgUnitNames.length > 0 ? (
@@ -515,7 +570,7 @@ function ScopeCard({ workspace }: { workspace: TeamObjectiveWorkspaceDto }) {
         </ul>
         {overflow > 0 ? (
           <p className="text-xs text-muted-foreground">
-            +{overflow} more in your scope
+            {teamObjectiveTerms.moreInScope(overflow)}
           </p>
         ) : null}
       </CardContent>

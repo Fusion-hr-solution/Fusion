@@ -57,40 +57,23 @@ export function CascadeCoverageSection({ slug }: { slug: string }) {
 
   return (
     <section className="space-y-4">
-      <div>
-        <h2 className="text-sm font-semibold text-foreground">{strategyTerms.coverageTitle}</h2>
-        <p className="mt-0.5 text-sm text-muted-foreground">{strategyTerms.coverageCaption}</p>
-      </div>
+      <h2 className="text-sm font-semibold text-foreground">{strategyTerms.coverageTitle}</h2>
 
       <div className="grid gap-3 sm:grid-cols-3">
         <CoverageIndicator
           icon={<GitBranch className="size-4" />}
           value={`${data.coveredStrategicObjectiveCount}/${data.activeStrategicObjectiveCount}`}
-          label={strategyTerms.pillarsCovered(
-            data.coveredStrategicObjectiveCount,
-            data.activeStrategicObjectiveCount,
-          )}
-          complete={
-            data.activeStrategicObjectiveCount > 0 &&
-            data.coveredStrategicObjectiveCount === data.activeStrategicObjectiveCount
-          }
+          label={strategyTerms.pillarsTranslated}
         />
         <CoverageIndicator
           icon={<Users className="size-4" />}
           value={`${data.managersWithTeamObjectivesCount}/${data.managerCount}`}
-          label={strategyTerms.managersContributing(
-            data.managersWithTeamObjectivesCount,
-            data.managerCount,
-          )}
-          complete={
-            data.managerCount > 0 && data.managersWithTeamObjectivesCount === data.managerCount
-          }
+          label={strategyTerms.managersContributing}
         />
         <CoverageIndicator
           icon={<Target className="size-4" />}
           value={String(data.teamObjectiveCount)}
-          label={strategyTerms.teamObjectivesTotal(data.teamObjectiveCount)}
-          complete={data.teamObjectiveCount > 0}
+          label={strategyTerms.teamObjectivesLabel}
         />
       </div>
 
@@ -120,7 +103,7 @@ export function CascadeCoverageSection({ slug }: { slug: string }) {
                     )}
                   >
                     {pillar.teamObjectiveCount > 0
-                      ? strategyTerms.teamObjectivesTotal(pillar.teamObjectiveCount)
+                      ? strategyTerms.objectiveCount(pillar.teamObjectiveCount)
                       : strategyTerms.noObjectivesYet}
                   </span>
                 </li>
@@ -152,13 +135,12 @@ export function CascadeCoverageSection({ slug }: { slug: string }) {
                     )}
                   >
                     {manager.teamObjectiveCount > 0
-                      ? strategyTerms.teamObjectivesTotal(manager.teamObjectiveCount)
+                      ? strategyTerms.objectiveCount(manager.teamObjectiveCount)
                       : strategyTerms.noObjectivesYet}
                   </span>
                 </li>
               ))}
             </ul>
-            <p className="text-xs text-muted-foreground">{strategyTerms.followUpHint}</p>
           </CardContent>
         </Card>
       </div>
@@ -198,23 +180,18 @@ function CoverageIndicator({
   icon,
   value,
   label,
-  complete,
 }: {
   icon: React.ReactNode;
   value: string;
   label: string;
-  complete: boolean;
 }) {
   return (
     <div className="rounded-xl border border-border bg-card px-4 py-3">
-      <div
-        className={cn(
-          "flex items-center gap-2",
-          complete ? "text-foreground" : "text-muted-foreground",
-        )}
-      >
+      <div className="flex items-center gap-2.5 text-muted-foreground">
         {icon}
-        <span className="text-xl font-semibold tabular-nums text-foreground">{value}</span>
+        <span className="text-2xl font-semibold tabular-nums tracking-tight text-foreground">
+          {value}
+        </span>
       </div>
       <p className="mt-1 text-xs text-muted-foreground">{label}</p>
     </div>

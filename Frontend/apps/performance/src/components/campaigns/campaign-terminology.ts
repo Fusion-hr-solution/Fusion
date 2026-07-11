@@ -152,35 +152,28 @@ export const campaignLaunch = {
 export const teamObjectiveTerms = {
   navLabel: "Team objectives",
   listTitle: "Team objectives",
-  listDescription: "Translate campaign strategy into objectives for your team.",
-  scopeTitle: "Your campaign scope",
-  scopeCaption: (count: number) =>
-    `You are responsible for ${count} ${count === 1 ? "participant" : "participants"} in this campaign.`,
-  strategyHeading: "Campaign strategy",
-  strategySubheading: "Translate each pillar into what your team will deliver.",
-  translateAction: "Add team objective",
-  notTranslatedYet: "Not translated yet",
+  teamTitle: "Your team",
+  addAction: "Add",
+  translateAction: "Translate this pillar",
+  cascadeMeter: (translated: number, total: number) =>
+    `${translated}/${total} ${total === 1 ? "pillar" : "pillars"}`,
   emptyList: {
     title: "No campaigns waiting for you",
-    description:
-      "No launched campaign currently names you as responsible for participants. Campaigns appear here once a launch freezes you in as an approver.",
+    description: "You're not responsible for anyone in a launched campaign yet.",
   },
-  noLinkedEmployee:
-    "Your account is not linked to an employee record, so no campaign can name you as responsible.",
-  availabilityNote: (date: string) =>
-    `Saved objectives become available to your team when planning opens on ${date}.`,
-  availabilityNoteOpen: "Planning is open — your saved objectives are available to your team.",
-  scopeParticipants: (count: number) =>
-    `Responsible for ${count} ${count === 1 ? "person" : "people"}`,
+  noLinkedEmployee: "Your account isn't linked to an employee record.",
+  availabilityNote: (date: string) => `Team sees these ${date}`,
+  availabilityNoteOpen: "Live for your team",
+  scopeParticipants: (count: number) => `${count} ${count === 1 ? "person" : "people"}`,
   objectiveCount: (count: number) =>
-    `${count} team ${count === 1 ? "objective" : "objectives"}`,
+    `${count} ${count === 1 ? "objective" : "objectives"}`,
+  moreInScope: (count: number) => `+${count} more`,
 } as const;
 
 /** The single create/edit business action for a team objective. */
 export const teamObjectiveEditor = {
   createTitle: "Add a team objective",
   editTitle: "Edit team objective",
-  createDescription: "Turn a strategy pillar into a concrete objective for your team.",
   strategicLabel: "Strategy pillar",
   titleLabel: "Team objective",
   titlePlaceholder: "e.g. Raise client delivery NPS in our accounts",
@@ -210,26 +203,22 @@ export const teamObjectiveEditor = {
 export const strategyTerms = {
   navLabel: "Strategy",
   listTitle: "Strategy",
-  listDescription: "How each launched campaign's strategy is cascading into team objectives.",
   emptyList: {
     title: "No launched campaigns",
     description: "Campaign strategy appears here once a campaign is launched.",
   },
   coverageTitle: "Cascade coverage",
-  coverageCaption: "How the campaign strategy is being translated by managers. Updates live.",
-  pillarsCovered: (covered: number, total: number) =>
-    `${covered} of ${total} strategy ${total === 1 ? "pillar" : "pillars"} translated`,
-  managersContributing: (contributing: number, total: number) =>
-    `${contributing} of ${total} ${total === 1 ? "manager" : "managers"} contributing`,
-  teamObjectivesTotal: (count: number) =>
-    `${count} team ${count === 1 ? "objective" : "objectives"} saved`,
+  pillarsTranslated: "Pillars translated",
+  managersContributing: "Managers contributing",
+  teamObjectivesLabel: "Team objectives",
   pillarsHeading: "Strategy pillars",
   managersHeading: "Managers",
   managerScope: (count: number) =>
     `${count} ${count === 1 ? "participant" : "participants"}`,
-  noObjectivesYet: "No team objectives yet",
+  objectiveCount: (count: number) =>
+    `${count} ${count === 1 ? "objective" : "objectives"}`,
+  noObjectivesYet: "None yet",
   allObjectivesHeading: "Team objectives",
-  followUpHint: "Coverage gaps are follow-up context — they never block the campaign.",
 } as const;
 
 export type CampaignTone = "neutral" | "info" | "success" | "warning";

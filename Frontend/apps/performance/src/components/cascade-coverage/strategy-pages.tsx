@@ -57,10 +57,7 @@ export function StrategyCampaignsPage() {
 
   return (
     <PageContainer>
-      <PageHeader
-        title={strategyTerms.listTitle}
-        description={strategyTerms.listDescription}
-      />
+      <PageHeader title={strategyTerms.listTitle} />
 
       {isLoading ? <PageSkeleton /> : null}
       {!isLoading && error ? (

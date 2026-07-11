@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -115,12 +114,11 @@ export function TeamObjectiveEditorDialog({
 
   return (
     <Dialog open onOpenChange={(open) => (!open && !isSaving ? onClose() : undefined)}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>
             {isCreate ? teamObjectiveEditor.createTitle : teamObjectiveEditor.editTitle}
           </DialogTitle>
-          <DialogDescription>{teamObjectiveEditor.createDescription}</DialogDescription>
         </DialogHeader>
 
         <form
