@@ -310,19 +310,7 @@ export function TeamObjectiveWorkspacePage() {
 
   return (
     <PageContainer>
-      <PageHeader
-        eyebrow={
-          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Link href="/team-objectives" className="hover:text-foreground hover:underline">
-              {teamObjectiveTerms.workspaceEyebrow}
-            </Link>
-            <ChevronRight className="size-3" />
-            <span className="font-medium text-foreground">{workspace.name}</span>
-          </span>
-        }
-        title={workspace.name}
-        description={teamObjectiveTerms.listDescription}
-      />
+      <PageHeader title={workspace.name} description={teamObjectiveTerms.listDescription} />
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_19rem]">
         <div className="min-w-0 space-y-4">
@@ -419,7 +407,7 @@ function StrategyPillarBand({
         translated ? "border-border" : "border-dashed border-border",
       )}
     >
-      <div className="border-l-2 border-primary/70 px-4 py-3">
+      <div className="bg-muted/40 px-4 py-3">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="min-w-0">
             <h3 className="text-sm font-semibold text-foreground">{pillar.title}</h3>

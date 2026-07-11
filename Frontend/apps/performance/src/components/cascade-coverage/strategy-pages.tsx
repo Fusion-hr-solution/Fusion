@@ -166,15 +166,6 @@ export function StrategyCoveragePage() {
   return (
     <PageContainer>
       <PageHeader
-        eyebrow={
-          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Link href="/strategy" className="hover:text-foreground hover:underline">
-              {strategyTerms.navLabel}
-            </Link>
-            <ChevronRight className="size-3" />
-            <span className="font-medium text-foreground">{campaign.name}</span>
-          </span>
-        }
         title={campaign.name}
         description={
           campaign.launchedAt ? `Launched ${formatDate(campaign.launchedAt)}` : undefined

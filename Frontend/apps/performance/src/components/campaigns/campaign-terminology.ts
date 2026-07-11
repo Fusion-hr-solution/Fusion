@@ -153,7 +153,6 @@ export const teamObjectiveTerms = {
   navLabel: "Team objectives",
   listTitle: "Team objectives",
   listDescription: "Translate campaign strategy into objectives for your team.",
-  workspaceEyebrow: "Team objectives",
   scopeTitle: "Your campaign scope",
   scopeCaption: (count: number) =>
     `You are responsible for ${count} ${count === 1 ? "participant" : "participants"} in this campaign.`,
