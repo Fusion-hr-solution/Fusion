@@ -20,8 +20,10 @@ import {
   performanceQueryKeys,
   type CampaignLaunchResultDto,
   type CampaignReadinessParticipantDto,
+  type CycleParticipantDto,
   type CyclePopulationPreviewDto,
   type CycleReadinessDto,
+  type PagedResponse,
   type OverrideParticipantApproverRequest,
   type PerformanceCycleDetailDto,
   type PopulationRuleInput,
@@ -866,16 +868,18 @@ export function CampaignLaunchedBaseline({
   campaign: PerformanceCycleDetailDto;
 }) {
   const apiClient = useMemo(() => createPlatformApiClient(), []);
-  const readiness = useApiQuery<CycleReadinessDto>(
-    performanceQueryKeys.cycleReadiness(campaign.id),
+  // The launched baseline is the frozen participant snapshot — never the live
+  // Draft-time resolution, which drifts as Core data changes after launch.
+  const baseline = useApiQuery<PagedResponse<CycleParticipantDto>>(
+    performanceQueryKeys.cycleParticipants(campaign.id, { page: 1, pageSize: 200 }),
     (signal) =>
-      apiClient.get<CycleReadinessDto>(
-        performancePaths.cycleReadiness(campaign.id),
-        { signal }
+      apiClient.get<PagedResponse<CycleParticipantDto>>(
+        performancePaths.cycleParticipants(campaign.id),
+        { signal, params: { page: 1, pageSize: 200 } }
       )
   );
 
-  const participants = readiness.data?.participants ?? [];
+  const participants = baseline.data?.items ?? [];
 
   return (
     <Card size="sm">
@@ -892,7 +896,7 @@ export function CampaignLaunchedBaseline({
         </StatusBadge>
       </CardHeader>
       <CardContent density="compact">
-        {readiness.isLoading ? (
+        {baseline.isLoading ? (
           <p className="py-6 text-center text-sm text-muted-foreground">
             Loading baseline…
           </p>
