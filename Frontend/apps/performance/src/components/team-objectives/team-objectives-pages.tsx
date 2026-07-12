@@ -17,19 +17,19 @@ import type {
   UpsertTeamObjectiveRequest,
 } from "@repo/api";
 import { useApiMutation, useApiQuery } from "@repo/api/query";
-import { canManageTeamObjectives, useAuth } from "@repo/auth";
+import { canAccessTeamObjectives, useAuth } from "@repo/auth";
 import {
   PageContainer,
   PageEmpty,
   PageError,
   PageHeader,
   PagePermissionNotice,
-  PageSkeleton,
+  StatusBadge,
 } from "@repo/ds/shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ConfirmDialog } from "@/components/controls/confirm-dialog";
 import { formatDate, measurementMethodLabel } from "@/lib/labels";
 import { cn } from "@/lib/utils";
@@ -38,6 +38,14 @@ import {
   teamObjectiveEditor,
   teamObjectiveTerms,
 } from "@/components/campaigns/campaign-terminology";
+import {
+  CascadeRow,
+  COVERED_COLOR,
+  Leaf,
+  LeafBody,
+  LaneEmptyBranch,
+  PersonRow,
+} from "@/components/cascade-coverage/cascade-visuals";
 import {
   TeamObjectiveEditorDialog,
   type TeamObjectiveEditorState,
@@ -48,7 +56,7 @@ import {
 export function TeamObjectiveCampaignsPage() {
   const apiClient = useMemo(() => createPlatformApiClient(), []);
   const { user, isLoading: authLoading } = useAuth();
-  const canManage = canManageTeamObjectives(user);
+  const canManage = canAccessTeamObjectives(user);
 
   const { data, error, isLoading, refetch } = useApiQuery<MyTeamObjectiveCampaignDto[]>(
     performanceQueryKeys.myTeamObjectiveCampaigns(),
@@ -61,7 +69,7 @@ export function TeamObjectiveCampaignsPage() {
   );
 
   if (authLoading) {
-    return <PageSkeleton />;
+    return <TeamObjectiveListSkeleton />;
   }
 
   if (!canManage) {
@@ -77,7 +85,7 @@ export function TeamObjectiveCampaignsPage() {
     <PageContainer>
       <PageHeader title={teamObjectiveTerms.listTitle} />
 
-      {isLoading ? <PageSkeleton /> : null}
+      {isLoading ? <TeamObjectiveListSkeleton /> : null}
       {!isLoading && error ? (
         <PageError title="Could not load your campaigns" description="Try again." onRetry={refetch} />
       ) : null}
@@ -86,17 +94,17 @@ export function TeamObjectiveCampaignsPage() {
         data.length === 0 ? (
           <PageEmpty
             title={teamObjectiveTerms.emptyList.title}
-            description={
-              user?.employeeId
-                ? teamObjectiveTerms.emptyList.description
-                : teamObjectiveTerms.noLinkedEmployee
-            }
+            description={teamObjectiveTerms.emptyList.description}
           />
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {data.map((campaign) => (
-              <CampaignDoorCard key={campaign.id} campaign={campaign} />
-            ))}
+          <div className="space-y-3">
+            {data.map((campaign, index) =>
+              index === 0 ? (
+                <TeamObjectiveCampaignHero key={campaign.id} campaign={campaign} />
+              ) : (
+                <TeamObjectiveCampaignRow key={campaign.id} campaign={campaign} />
+              ),
+            )}
           </div>
         )
       ) : null}
@@ -104,52 +112,82 @@ export function TeamObjectiveCampaignsPage() {
   );
 }
 
-function CampaignDoorCard({ campaign }: { campaign: MyTeamObjectiveCampaignDto }) {
+/** The lead campaign as a commanding door: your scope and what you've authored, read at a glance. */
+function TeamObjectiveCampaignHero({ campaign }: { campaign: MyTeamObjectiveCampaignDto }) {
+  const planningOpen =
+    !!campaign.planningOpeningDate && new Date(campaign.planningOpeningDate) <= new Date();
+
   return (
     <Link
       href={`/team-objectives/${campaign.slug}`}
-      className="group rounded-xl border border-border bg-card p-5 transition-colors hover:border-primary/40 hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="group block rounded-2xl border border-border bg-card p-6 transition-colors hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          {campaign.referenceYear ? (
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              {campaign.referenceYear}
-            </p>
-          ) : null}
-          <h3 className="mt-0.5 truncate text-base font-semibold text-foreground">
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-center">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusBadge tone={planningOpen ? "success" : "info"} dot>
+              {planningOpen
+                ? teamObjectiveTerms.liveTag
+                : campaign.planningOpeningDate
+                  ? teamObjectiveTerms.planningOpens(formatDate(campaign.planningOpeningDate))
+                  : "Scheduled"}
+            </StatusBadge>
+            {campaign.referenceYear ? (
+              <span className="text-xs font-medium tabular-nums text-muted-foreground">
+                {campaign.referenceYear}
+              </span>
+            ) : null}
+          </div>
+          <h2 className="mt-2 font-heading text-2xl font-semibold tracking-tight text-foreground">
             {campaign.name}
-          </h3>
+          </h2>
         </div>
-        <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+
+        <div className="flex items-center gap-8 lg:shrink-0">
+          <div>
+            <p className="font-heading text-3xl font-semibold leading-none tabular-nums tracking-tight text-foreground">
+              {campaign.scopeParticipantCount}
+            </p>
+            <p className="mt-1.5 text-xs text-muted-foreground">{teamObjectiveTerms.scopeLabel}</p>
+          </div>
+          <div>
+            <p
+              className={cn(
+                "font-heading text-3xl font-semibold leading-none tabular-nums tracking-tight",
+                campaign.myTeamObjectiveCount > 0 ? "text-foreground" : "text-muted-foreground/60",
+              )}
+            >
+              {campaign.myTeamObjectiveCount}
+            </p>
+            <p className="mt-1.5 text-xs text-muted-foreground">
+              {teamObjectiveTerms.objectivesAuthored}
+            </p>
+          </div>
+          <ChevronRight className="size-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+        </div>
       </div>
+    </Link>
+  );
+}
 
-      <p className="mt-3 flex items-center gap-1.5 text-sm text-muted-foreground">
-        <CalendarClock className="size-3.5" />
-        {campaign.planningOpeningDate
-          ? `Planning opens ${formatDate(campaign.planningOpeningDate)}`
-          : "Schedule to be announced"}
-      </p>
-
-      <Separator className="my-4" />
-
-      <div className="flex items-center justify-between text-sm">
-        <span className="flex items-center gap-1.5 text-muted-foreground">
+/** Secondary campaigns — compact row. */
+function TeamObjectiveCampaignRow({ campaign }: { campaign: MyTeamObjectiveCampaignDto }) {
+  return (
+    <Link
+      href={`/team-objectives/${campaign.slug}`}
+      className="group flex items-center gap-4 rounded-xl border border-border bg-card px-5 py-4 transition-colors hover:border-primary/40 hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <div className="min-w-0 flex-1">
+        <h3 className="truncate text-base font-semibold text-foreground">{campaign.name}</h3>
+        <p className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
           <Users className="size-3.5" />
           {teamObjectiveTerms.scopeParticipants(campaign.scopeParticipantCount)}
-        </span>
-        <span
-          className={cn(
-            "flex items-center gap-1.5",
-            campaign.myTeamObjectiveCount > 0
-              ? "font-medium text-foreground"
-              : "text-muted-foreground",
-          )}
-        >
+          <span aria-hidden>·</span>
           <Target className="size-3.5" />
           {teamObjectiveTerms.objectiveCount(campaign.myTeamObjectiveCount)}
-        </span>
+        </p>
       </div>
+      <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
     </Link>
   );
 }
@@ -161,7 +199,7 @@ export function TeamObjectiveWorkspacePage() {
   const slug = params.slug ?? "";
   const apiClient = useMemo(() => createPlatformApiClient(), []);
   const { user, isLoading: authLoading } = useAuth();
-  const canManage = canManageTeamObjectives(user);
+  const canManage = canAccessTeamObjectives(user);
 
   const [editor, setEditor] = useState<TeamObjectiveEditorState | null>(null);
   const [editorErrors, setEditorErrors] = useState<string[]>([]);
@@ -249,7 +287,7 @@ export function TeamObjectiveWorkspacePage() {
   );
 
   if (authLoading) {
-    return <PageSkeleton />;
+    return <TeamObjectiveWorkspaceSkeleton />;
   }
 
   if (!canManage) {
@@ -262,7 +300,7 @@ export function TeamObjectiveWorkspacePage() {
   }
 
   if (isLoading) {
-    return <PageSkeleton />;
+    return <TeamObjectiveWorkspaceSkeleton />;
   }
 
   if (error || !workspace) {
@@ -294,9 +332,9 @@ export function TeamObjectiveWorkspacePage() {
 
   const planningOpen =
     !!workspace.planningOpeningDate && new Date(workspace.planningOpeningDate) <= new Date();
-  const translatedPillarCount = workspace.strategicObjectives.filter((pillar) =>
+  const coveredObjectiveCount = workspace.strategicObjectives.filter((strategicObjective) =>
     workspace.myTeamObjectives.some(
-      (objective) => objective.strategicObjectiveId === pillar.id,
+      (objective) => objective.strategicObjectiveId === strategicObjective.id,
     ),
   ).length;
   const isBusy = create.isLoading || update.isLoading;
@@ -334,24 +372,24 @@ export function TeamObjectiveWorkspacePage() {
         }
         actions={
           <CascadeMeter
-            translated={translatedPillarCount}
+            covered={coveredObjectiveCount}
             total={workspace.strategicObjectives.length}
           />
         }
       />
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_19rem]">
-        <div className="min-w-0 space-y-4">
-          {workspace.strategicObjectives.map((pillar) => (
-            <StrategyPillarBand
-              key={pillar.id}
-              pillar={pillar}
+        <div className="min-w-0 space-y-3">
+          {workspace.strategicObjectives.map((strategicObjective) => (
+            <StrategicObjectiveBand
+              key={strategicObjective.id}
+              strategicObjective={strategicObjective}
               objectives={workspace.myTeamObjectives.filter(
-                (objective) => objective.strategicObjectiveId === pillar.id,
+                (objective) => objective.strategicObjectiveId === strategicObjective.id,
               )}
               disabled={isBusy}
               onAdd={() =>
-                setEditor({ mode: "create", strategicObjectiveId: pillar.id })
+                setEditor({ mode: "create", strategicObjectiveId: strategicObjective.id })
               }
               onEdit={(objective) => setEditor({ mode: "edit", objective })}
               onDelete={(objective) => setDeleting(objective)}
@@ -392,116 +430,109 @@ export function TeamObjectiveWorkspacePage() {
 
 // ── Pieces ───────────────────────────────────────────────────────────────────
 
-function StrategyPillarBand({
-  pillar,
+function StrategicObjectiveBand({
+  strategicObjective,
   objectives,
   disabled,
   onAdd,
   onEdit,
   onDelete,
 }: {
-  pillar: TeamObjectiveWorkspaceDto["strategicObjectives"][number];
+  strategicObjective: TeamObjectiveWorkspaceDto["strategicObjectives"][number];
   objectives: TeamObjectiveDto[];
   disabled: boolean;
   onAdd: () => void;
   onEdit: (objective: TeamObjectiveDto) => void;
   onDelete: (objective: TeamObjectiveDto) => void;
 }) {
-  const translated = objectives.length > 0;
+  const covered = objectives.length > 0;
 
+  // Action-first default: gaps stay open (the add call is right there), done lanes fold away.
   return (
-    <section
-      className={cn(
-        "overflow-hidden rounded-xl border bg-card",
-        translated ? "border-border" : "border-dashed border-border",
-      )}
+    <CascadeRow
+      covered={covered}
+      collapsible
+      defaultOpen={!covered}
+      title={strategicObjective.title}
+      description={strategicObjective.description}
+      functionLabel={strategicObjective.responsibleFunctionLabel}
+      status={
+        <StatusBadge tone={covered ? "success" : "warning"} dot>
+          {covered
+            ? teamObjectiveTerms.objectiveCount(objectives.length)
+            : teamObjectiveTerms.needsObjective}
+        </StatusBadge>
+      }
     >
-      <div className="bg-muted/40 px-4 py-3">
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <div className="min-w-0">
-            <h2 className="text-base font-semibold tracking-tight text-foreground">
-              {pillar.title}
-            </h2>
-            {pillar.description ? (
-              <p className="mt-0.5 text-sm text-muted-foreground">{pillar.description}</p>
-            ) : null}
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            {pillar.responsibleFunctionLabel ? (
-              <Badge variant="outline">{pillar.responsibleFunctionLabel}</Badge>
-            ) : null}
-            {translated ? (
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                aria-label={`Add team objective — ${pillar.title}`}
-                disabled={disabled}
-                onClick={onAdd}
-              >
-                <Plus /> {teamObjectiveTerms.addAction}
-              </Button>
-            ) : null}
-          </div>
-        </div>
-      </div>
-
-      {translated ? (
-        <ul className="divide-y divide-border border-t border-border">
-          {objectives.map((objective) => (
-            <li key={objective.id} className="flex items-start justify-between gap-3 px-4 py-3">
-              <div className="min-w-0">
-                <p className="font-medium text-foreground">{objective.title}</p>
-                <p className="mt-0.5 text-sm text-muted-foreground">{objective.successCriteria}</p>
-                {objective.description ? (
-                  <p className="mt-1 text-sm text-muted-foreground/80">{objective.description}</p>
-                ) : null}
-              </div>
-              <div className="flex shrink-0 items-center gap-1.5">
-                <Badge variant="secondary">
-                  {measurementMethodLabel(objective.measurementMethod)}
-                </Badge>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label={`Edit ${objective.title}`}
-                  disabled={disabled}
-                  onClick={() => onEdit(objective)}
-                >
-                  <Pencil />
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label={`Delete ${objective.title}`}
-                  className="text-muted-foreground hover:text-destructive"
-                  disabled={disabled}
-                  onClick={() => onDelete(objective)}
-                >
-                  <Trash2 />
-                </Button>
-              </div>
-            </li>
-          ))}
-        </ul>
+      {covered ? (
+        <>
+          <ul>
+            {objectives.map((objective) => (
+              <Leaf key={objective.id} last={false}>
+                <LeafBody
+                  title={objective.title}
+                  successLabel={teamObjectiveTerms.successLabel}
+                  successCriteria={objective.successCriteria}
+                  description={objective.description}
+                  measurementLabel={measurementMethodLabel(objective.measurementMethod)}
+                />
+                <div className="flex shrink-0 items-center gap-0.5">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={`Edit ${objective.title}`}
+                    disabled={disabled}
+                    onClick={() => onEdit(objective)}
+                  >
+                    <Pencil />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={`Delete ${objective.title}`}
+                    className="text-muted-foreground hover:text-destructive"
+                    disabled={disabled}
+                    onClick={() => onDelete(objective)}
+                  >
+                    <Trash2 />
+                  </Button>
+                </div>
+              </Leaf>
+            ))}
+          </ul>
+          <LaneEmptyBranch>
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={onAdd}
+              aria-label={`Add team objective — ${strategicObjective.title}`}
+              className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+            >
+              <Plus className="size-4" />
+              {teamObjectiveTerms.addAnotherAction}
+            </button>
+          </LaneEmptyBranch>
+        </>
       ) : (
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={onAdd}
-          className="flex w-full items-center justify-center gap-1.5 border-t border-dashed border-border px-4 py-3.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset disabled:pointer-events-none disabled:opacity-50"
-        >
-          <Plus className="size-4" />
-          {teamObjectiveTerms.translateAction}
-        </button>
+        <LaneEmptyBranch>
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={onAdd}
+            className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-primary/40 bg-primary/[0.04] px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:border-primary/60 hover:bg-primary/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+          >
+            <Plus className="size-4" />
+            {teamObjectiveTerms.addFirstAction}
+          </button>
+        </LaneEmptyBranch>
       )}
-    </section>
+    </CascadeRow>
   );
 }
 
-function CascadeMeter({ translated, total }: { translated: number; total: number }) {
+function CascadeMeter({ covered, total }: { covered: number; total: number }) {
   if (total === 0) {
     return null;
   }
@@ -510,21 +541,28 @@ function CascadeMeter({ translated, total }: { translated: number; total: number
     <div
       className="flex items-center gap-2.5"
       role="img"
-      aria-label={`${translated} of ${total} pillars translated`}
+      aria-label={`${covered} of ${total} strategic objectives covered`}
     >
-      <div aria-hidden className="flex items-center gap-1">
-        {Array.from({ length: total }, (_, index) => (
-          <span
-            key={index}
-            className={cn(
-              "h-1.5 w-7 rounded-full transition-colors",
-              index < translated ? "bg-primary" : "bg-border",
-            )}
+      {total <= 8 ? (
+        <div aria-hidden className="flex items-center gap-1">
+          {Array.from({ length: total }, (_, index) => (
+            <span
+              key={index}
+              className={cn("h-1.5 w-5 rounded-full transition-colors sm:w-6", index >= covered && "bg-border")}
+              style={index < covered ? { background: COVERED_COLOR } : undefined}
+            />
+          ))}
+        </div>
+      ) : (
+        <div aria-hidden className="h-1.5 w-28 overflow-hidden rounded-full bg-border">
+          <div
+            className="h-full rounded-full transition-[width]"
+            style={{ width: `${(covered / total) * 100}%`, background: COVERED_COLOR }}
           />
-        ))}
-      </div>
+        </div>
+      )}
       <span className="text-sm font-semibold tabular-nums text-foreground">
-        {teamObjectiveTerms.cascadeMeter(translated, total)}
+        {teamObjectiveTerms.cascadeMeter(covered, total)}
       </span>
     </div>
   );
@@ -556,25 +594,142 @@ function ScopeCard({ workspace }: { workspace: TeamObjectiveWorkspaceDto }) {
           </div>
         ) : null}
 
-        <ul className="space-y-1.5">
+        <ul className="space-y-2.5">
           {preview.map((participant) => (
-            <li key={participant.employeeId} className="flex items-baseline justify-between gap-2 text-sm">
-              <span className="truncate text-foreground">{participant.fullName}</span>
-              {participant.jobTitle ? (
-                <span className="shrink-0 text-xs text-muted-foreground">
-                  {participant.jobTitle}
-                </span>
-              ) : null}
-            </li>
+            <PersonRow
+              key={participant.employeeId}
+              name={participant.fullName}
+              secondary={participant.jobTitle ?? participant.orgUnitName ?? undefined}
+            />
           ))}
         </ul>
         {overflow > 0 ? (
-          <p className="text-xs text-muted-foreground">
+          <p className="pl-[2.375rem] text-xs text-muted-foreground">
             {teamObjectiveTerms.moreInScope(overflow)}
           </p>
         ) : null}
       </CardContent>
     </Card>
+  );
+}
+
+// ── Skeletons ─────────────────────────────────────────────────────────────────
+
+function TeamObjectiveListSkeleton() {
+  return (
+    <PageContainer>
+      <div className="space-y-5" aria-busy aria-label="Loading team objectives">
+        <Skeleton className="h-8 w-48" />
+        <div className="rounded-2xl border border-border bg-card p-6">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-center">
+            <div className="flex-1 space-y-2">
+              <Skeleton className="h-5 w-24 rounded-full" />
+              <Skeleton className="h-7 w-64" />
+            </div>
+            <div className="flex items-center gap-8">
+              <div className="space-y-2">
+                <Skeleton className="h-8 w-12" />
+                <Skeleton className="h-3 w-20" />
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-8 w-12" />
+                <Skeleton className="h-3 w-24" />
+              </div>
+              <Skeleton className="size-5 shrink-0 rounded" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </PageContainer>
+  );
+}
+
+function TeamObjectiveWorkspaceSkeleton() {
+  return (
+    <PageContainer>
+      <div className="space-y-5" aria-busy aria-label="Loading workspace">
+        {/* Header */}
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-72" />
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            <Skeleton className="h-4 w-36" />
+            <Skeleton className="h-4 w-44" />
+          </div>
+        </div>
+
+        {/* Two-column grid */}
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_19rem]">
+          {/* Left column — strategic objective bands */}
+          <div className="min-w-0 space-y-4">
+            {[1, 2].map((band) => (
+              <section
+                key={band}
+                className="overflow-hidden rounded-xl border border-border bg-card"
+              >
+                <div className="bg-muted/40 px-4 py-3">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="min-w-0 space-y-1">
+                      <Skeleton className="h-5 w-56" />
+                      <Skeleton className="h-3 w-72 max-w-full" />
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <Skeleton className="h-5 w-20 rounded-md" />
+                      <Skeleton className="h-8 w-24 rounded-md" />
+                    </div>
+                  </div>
+                </div>
+
+                <ul>
+                  {[1, 2].map((obj) => (
+                    <li
+                      key={obj}
+                      className="flex items-start justify-between gap-3 py-3 pl-10 pr-4"
+                    >
+                      <div className="min-w-0 space-y-1.5">
+                        <Skeleton className="h-4 w-48" />
+                        <Skeleton className="h-3 w-64 max-w-full" />
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        <Skeleton className="h-5 w-16 rounded-md" />
+                        <Skeleton className="size-7 rounded-md" />
+                        <Skeleton className="size-7 rounded-md" />
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ))}
+          </div>
+
+          {/* Right sidebar — scope card */}
+          <aside className="lg:sticky lg:top-4 lg:self-start">
+            <Card size="sm">
+              <CardContent density="compact" className="space-y-3">
+                <div className="flex items-baseline justify-between gap-2">
+                  <Skeleton className="h-4 w-20" />
+                  <Skeleton className="h-4 w-6" />
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  <Skeleton className="h-5 w-16 rounded-md" />
+                  <Skeleton className="h-5 w-20 rounded-md" />
+                </div>
+                <div className="space-y-3">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="flex items-center gap-2.5">
+                      <Skeleton className="size-6 rounded-full" />
+                      <div className="flex-1 space-y-1">
+                        <Skeleton className="h-3.5 w-28" />
+                        <Skeleton className="h-3 w-20" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </aside>
+        </div>
+      </div>
+    </PageContainer>
   );
 }
 

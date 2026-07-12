@@ -905,31 +905,41 @@ export function CampaignLaunchedBaseline({
             {campaignPopulation.previewEmpty}
           </p>
         ) : (
-          <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border">
-            {participants.map((participant) => (
-              <li
-                key={participant.employeeId}
-                className="flex items-center gap-3 px-3 py-2.5"
-              >
-                <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                  {participant.fullName}
-                </span>
-                <span className="text-right text-xs">
-                  <span className="block text-muted-foreground">
-                    {campaignReadinessReview.approver}
+          <div className="space-y-2">
+            <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border">
+              {participants.map((participant) => (
+                <li
+                  key={participant.employeeId}
+                  className="flex items-center gap-3 px-3 py-2.5"
+                >
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                    {participant.fullName}
                   </span>
-                  <span className="font-medium">
-                    {participant.approverName ?? "—"}
+                  <span className="text-right text-xs">
+                    <span className="block text-muted-foreground">
+                      {campaignReadinessReview.approver}
+                    </span>
+                    <span className="font-medium">
+                      {participant.approverName ?? "—"}
+                    </span>
                   </span>
-                </span>
-                {participant.isApproverOverridden ? (
-                  <Badge variant="outline">
-                    {campaignReadinessReview.overriddenApprover}
-                  </Badge>
-                ) : null}
-              </li>
-            ))}
-          </ul>
+                  {participant.isApproverOverridden ? (
+                    <Badge variant="outline">
+                      {campaignReadinessReview.overriddenApprover}
+                    </Badge>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+            {(baseline.data?.totalCount ?? 0) > participants.length ? (
+              <p className="text-xs text-muted-foreground">
+                {campaignLaunch.baselineTruncated(
+                  participants.length,
+                  baseline.data!.totalCount,
+                )}
+              </p>
+            ) : null}
+          </div>
         )}
       </CardContent>
     </Card>

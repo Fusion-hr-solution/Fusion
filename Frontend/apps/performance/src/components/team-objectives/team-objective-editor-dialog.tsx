@@ -28,7 +28,7 @@ export type TeamObjectiveEditorState = {
   mode: "create" | "edit";
   /** Present when editing. */
   objective?: TeamObjectiveDto;
-  /** Preselected strategy pillar when launched from a pillar band. */
+  /** Preselected strategic objective when launched from its band. */
   strategicObjectiveId?: string;
 };
 
@@ -139,9 +139,9 @@ export function TeamObjectiveEditorDialog({
           ) : null}
 
           <div className="space-y-2">
-            <Label htmlFor="team-objective-pillar">{teamObjectiveEditor.strategicLabel}</Label>
+            <Label htmlFor="team-objective-strategic">{teamObjectiveEditor.strategicLabel}</Label>
             <NativeSelect
-              id="team-objective-pillar"
+              id="team-objective-strategic"
               className="w-full"
               value={form.strategicObjectiveId}
               disabled={isSaving}
@@ -149,9 +149,9 @@ export function TeamObjectiveEditorDialog({
                 setForm({ ...form, strategicObjectiveId: event.target.value })
               }
             >
-              {workspace.strategicObjectives.map((pillar) => (
-                <option key={pillar.id} value={pillar.id}>
-                  {pillar.title}
+              {workspace.strategicObjectives.map((strategicObjective) => (
+                <option key={strategicObjective.id} value={strategicObjective.id}>
+                  {strategicObjective.title}
                 </option>
               ))}
             </NativeSelect>

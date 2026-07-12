@@ -143,6 +143,8 @@ export const campaignLaunch = {
   launchedCaption: (count: number, date: string) =>
     `Baseline frozen with ${count} ${count === 1 ? "participant" : "participants"} on ${date}.`,
   baselineHeading: "Frozen baseline",
+  baselineTruncated: (shown: number, total: number) =>
+    `Showing the first ${shown} of ${total} participants`,
 } as const;
 
 /**
@@ -154,27 +156,33 @@ export const teamObjectiveTerms = {
   listTitle: "Team objectives",
   teamTitle: "Your team",
   addAction: "Add",
-  translateAction: "Translate this pillar",
-  cascadeMeter: (translated: number, total: number) =>
-    `${translated}/${total} ${total === 1 ? "pillar" : "pillars"}`,
+  addFirstAction: "Add a team objective",
+  addAnotherAction: "Add another",
+  cascadeMeter: (covered: number, total: number) => `${covered}/${total} covered`,
   emptyList: {
     title: "No campaigns waiting for you",
     description: "You're not responsible for anyone in a launched campaign yet.",
   },
-  noLinkedEmployee: "Your account isn't linked to an employee record.",
+  openWorkspace: "Open workspace",
+  liveTag: "Live",
+  planningOpens: (date: string) => `Planning opens ${date}`,
   availabilityNote: (date: string) => `Team sees these ${date}`,
   availabilityNoteOpen: "Live for your team",
   scopeParticipants: (count: number) => `${count} ${count === 1 ? "person" : "people"}`,
+  scopeLabel: "in your scope",
+  objectivesAuthored: "you've authored",
   objectiveCount: (count: number) =>
     `${count} ${count === 1 ? "objective" : "objectives"}`,
   moreInScope: (count: number) => `+${count} more`,
+  successLabel: "Success looks like",
+  needsObjective: "Needs a team objective",
 } as const;
 
 /** The single create/edit business action for a team objective. */
 export const teamObjectiveEditor = {
   createTitle: "Add a team objective",
   editTitle: "Edit team objective",
-  strategicLabel: "Strategy pillar",
+  strategicLabel: "Strategic objective",
   titleLabel: "Team objective",
   titlePlaceholder: "e.g. Raise client delivery NPS in our accounts",
   successCriteriaLabel: "Success looks like",
@@ -189,7 +197,7 @@ export const teamObjectiveEditor = {
   created: "Team objective saved",
   updated: "Team objective updated",
   conflict:
-    "This objective changed in another session. Review the latest version and try again — your entries are preserved.",
+    "Changed in another session since you opened it. Saving again will replace that version with yours.",
   deleteAction: "Delete",
   deleteTitle: "Delete this team objective?",
   deleteDescription:
@@ -208,17 +216,26 @@ export const strategyTerms = {
     description: "Campaign strategy appears here once a campaign is launched.",
   },
   coverageTitle: "Cascade coverage",
-  pillarsTranslated: "Pillars translated",
-  managersContributing: "Managers contributing",
-  teamObjectivesLabel: "Team objectives",
-  pillarsHeading: "Strategy pillars",
+  viewStrategy: "View strategy",
+  launchedOn: (date: string) => `Launched ${date}`,
+  coveredNumeralLabel: "strategic objectives covered",
+  coveredLegend: "covered",
+  gapLegend: "gap",
+  fullyCovered: "Fully covered",
+  gapsToClose: (count: number) => `${count} ${count === 1 ? "gap" : "gaps"} to close`,
+  needsObjective: "Needs a team objective",
+  successLabel: "Success looks like",
+  contributing: (covered: number, total: number) => `${covered} of ${total} contributing`,
+  managersContributing: "managers contributing",
+  teamObjectivesLabel: "team objectives",
   managersHeading: "Managers",
   managerScope: (count: number) =>
     `${count} ${count === 1 ? "participant" : "participants"}`,
   objectiveCount: (count: number) =>
     `${count} ${count === 1 ? "objective" : "objectives"}`,
-  noObjectivesYet: "None yet",
-  allObjectivesHeading: "Team objectives",
+  moreManagers: (count: number) => `+${count} more`,
+  truncatedObjectives: (shown: number, total: number) =>
+    `Showing the first ${shown} of ${total} team objectives`,
 } as const;
 
 export type CampaignTone = "neutral" | "info" | "success" | "warning";
