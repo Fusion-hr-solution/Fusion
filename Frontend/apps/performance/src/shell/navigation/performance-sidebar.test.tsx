@@ -43,6 +43,14 @@ vi.mock("@repo/auth", () => ({
         (grant.permissionKey === "performance.cycle.view" ||
           grant.permissionKey === "performance.cycle.manage"),
     ) ?? false,
+  canAccessMyObjectives: (user: TestUser | null) =>
+    !!user?.employeeId &&
+    (user?.permissions?.some(
+      (grant) =>
+        grant.permissionKey === "performance.objective.self.manage" &&
+        grant.scope === "Self",
+    ) ??
+      false),
   canManageTeamObjectives: (user: TestUser | null) =>
     user?.permissions?.some(
       (grant) => grant.permissionKey === "performance.objective.team.manage",
@@ -119,6 +127,7 @@ describe("PerformanceSidebar", () => {
     expect(sidebar.textContent).not.toContain("Reviews");
     expect(sidebar.textContent).not.toContain("Campaigns");
     expect(sidebar.textContent).not.toContain("Team objectives");
+    expect(sidebar.textContent).not.toContain("My objectives");
     expect(sidebar.textContent).not.toContain("Strategy");
   });
 
@@ -136,6 +145,38 @@ describe("PerformanceSidebar", () => {
     expect(sidebar.querySelector('a[href="/performance/team-objectives"]')).toBeTruthy();
     expect(sidebar.textContent).not.toContain("Campaigns");
     expect(sidebar.textContent).not.toContain("Strategy");
+  });
+
+  it("shows the My objectives door for an employee-linked self-manage user", () => {
+    const sidebar = renderSidebar({
+      fullName: "Employee",
+      roles: ["Employee"],
+      employeeId: "emp-1",
+      permissions: [
+        { permissionKey: "performance.objective.self.manage", scope: "Self" },
+      ],
+    });
+
+    expect(sidebar.textContent).toContain("My objectives");
+    expect(sidebar.querySelector('a[href="/performance/my-objectives"]')).toBeTruthy();
+    expect(sidebar.textContent).not.toContain("Team objectives");
+  });
+
+  it("keeps My objectives and Team objectives as separate doors", () => {
+    const sidebar = renderSidebar({
+      fullName: "Manager",
+      roles: ["Manager"],
+      employeeId: "emp-1",
+      permissions: [
+        { permissionKey: "performance.objective.self.manage", scope: "Self" },
+        { permissionKey: "performance.objective.team.manage", scope: "DirectReports" },
+      ],
+    });
+
+    expect(sidebar.textContent).toContain("My objectives");
+    expect(sidebar.textContent).toContain("Team objectives");
+    expect(sidebar.querySelector('a[href="/performance/my-objectives"]')).toBeTruthy();
+    expect(sidebar.querySelector('a[href="/performance/team-objectives"]')).toBeTruthy();
   });
 
   it("hides the Team objectives door from an admin with the permission but no employee link", () => {

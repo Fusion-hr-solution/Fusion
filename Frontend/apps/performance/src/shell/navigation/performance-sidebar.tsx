@@ -8,6 +8,7 @@ import {
   ShellUserPanel,
 } from "@repo/ds/shell";
 import {
+  canAccessMyObjectives,
   canAccessTeamObjectives,
   canViewObjectivePlanningConfiguration,
   canViewPerformanceCampaigns,
@@ -19,6 +20,7 @@ import {
 import {
   OVERVIEW_NAV,
   CAMPAIGNS_NAV,
+  MY_OBJECTIVES_NAV,
   PLATFORM_ADMIN_NAV,
   STRATEGY_NAV,
   TEAM_OBJECTIVES_NAV,
@@ -32,6 +34,7 @@ export function PerformanceSidebar() {
   const isPlatformAdmin = hasAnyRole(user, [PLATFORM_ADMIN_ROLE]);
   const canViewPlanningConfiguration = canViewObjectivePlanningConfiguration(user);
   const canViewCampaigns = canViewPerformanceCampaigns(user);
+  const canAccessMine = canAccessMyObjectives(user);
   const canAccessTeam = canAccessTeamObjectives(user);
   const canViewStrategy = canViewPerformanceStrategy(user);
 
@@ -43,6 +46,7 @@ export function PerformanceSidebar() {
       activePath={activePath}
       sections={[
         OVERVIEW_NAV,
+        ...(canAccessMine ? [MY_OBJECTIVES_NAV] : []),
         ...(canAccessTeam ? [TEAM_OBJECTIVES_NAV] : []),
         ...(canViewStrategy ? [STRATEGY_NAV] : []),
         ...(canViewCampaigns ? [CAMPAIGNS_NAV] : []),

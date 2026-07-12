@@ -1,6 +1,7 @@
 using EY.HRPlatform.Performance.Features.ConfigurationAudit;
 using EY.HRPlatform.Performance.Features.ObjectivePolicy;
 using EY.HRPlatform.Performance.Features.Cycles.Services;
+using EY.HRPlatform.Performance.Features.EmployeeObjectives;
 using EY.HRPlatform.Performance.Features.Exceptions.Services;
 using EY.HRPlatform.Performance.Features.Security;
 using EY.HRPlatform.Performance.Infrastructure.Notifications;
@@ -35,6 +36,7 @@ public static class ServiceCollectionExtensions
             internalServiceAuthentication));
 
         services.AddScoped<IPerformanceAccessPolicyService, PerformanceAccessPolicyService>();
+        services.AddScoped<EmployeeObjectivePlanAccessGuard>();
         services.AddScoped<IConfigurationAuditWriter, ConfigurationAuditWriter>();
         services.AddScoped<PerformanceConfigurationValidator>();
         services.AddScoped<ICurrentUserContext, CurrentUserContext>();

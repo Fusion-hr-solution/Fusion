@@ -179,6 +179,38 @@ public class PerformanceAccessPolicyServiceTests
         Assert.False(_policy.CanManageTeamObjectives(user));
     }
 
+    // ─── P1.4 employee objective plans ───────────────────────────────────────
+
+    [Fact]
+    public void ObjectiveSelfManageSelfScope_AllowsOwnObjectiveManagement()
+    {
+        var user = new ClaimsPrincipalBuilder()
+            .WithPermission(PerformancePermissions.ObjectiveSelfManage, PermissionScopes.Self)
+            .Build();
+
+        Assert.True(_policy.CanManageOwnObjectives(user));
+    }
+
+    [Fact]
+    public void OtherPerformancePermissions_DoNotAllowOwnObjectiveManagement()
+    {
+        var user = new ClaimsPrincipalBuilder()
+            .WithPermission(PerformancePermissions.ObjectiveTeamManage, PermissionScopes.Tenant)
+            .Build();
+
+        Assert.False(_policy.CanManageOwnObjectives(user));
+    }
+
+    [Fact]
+    public void PlatformAdmin_GetsNoOwnObjectiveManagementBypass()
+    {
+        var user = new ClaimsPrincipalBuilder()
+            .WithRole(PlatformRole.PlatformAdmin)
+            .Build();
+
+        Assert.False(_policy.CanManageOwnObjectives(user));
+    }
+
     [Fact]
     public void StrategicViewGrant_AllowsCoverageWithoutCampaignAdministration()
     {

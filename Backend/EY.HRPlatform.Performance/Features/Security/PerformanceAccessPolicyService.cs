@@ -18,6 +18,9 @@ public interface IPerformanceAccessPolicyService
     // and ownership are enforced per operation in the handlers.
     bool CanManageTeamObjectives(ClaimsPrincipal user) => false;
 
+    // Employee objective plans (P1.4): self-authoring only; ownership is enforced per operation.
+    bool CanManageOwnObjectives(ClaimsPrincipal user) => false;
+
     // Cascade coverage read (P1.3): Direction door (strategic view) or HR door (cycle view/manage).
     bool CanViewCascadeCoverage(ClaimsPrincipal user) => false;
 
@@ -84,6 +87,13 @@ public sealed class PerformanceAccessPolicyService : IPerformanceAccessPolicySer
     /// </summary>
     public bool CanManageTeamObjectives(ClaimsPrincipal user)
         => user.HasCorePermission(PerformancePermissions.ObjectiveTeamManage);
+
+    /// <summary>
+    /// Employee objective authoring is strictly self-scoped. No Tenant/PlatformAdmin bypass:
+    /// resource ownership still comes from the frozen participant baseline in handlers.
+    /// </summary>
+    public bool CanManageOwnObjectives(ClaimsPrincipal user)
+        => user.HasCorePermission(PerformancePermissions.ObjectiveSelfManage, PermissionScopes.Self);
 
     public bool CanViewCascadeCoverage(ClaimsPrincipal user)
         => user.HasCorePermission(PerformancePermissions.StrategicView, PermissionScopes.Tenant)

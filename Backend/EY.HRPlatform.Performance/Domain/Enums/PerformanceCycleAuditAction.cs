@@ -33,6 +33,13 @@ public enum PerformanceCycleAuditAction
     TeamObjectiveUpdated,
     TeamObjectiveDeleted,
 
+    // Employee objective plan actions (P1.4)
+    EmployeeObjectivePlanCreated,
+    EmployeeObjectiveCreated,
+    EmployeeObjectiveUpdated,
+    EmployeeObjectiveDeleted,
+    EmployeeObjectivePlanSubmitted,
+
     // Strategic objective actions (Plan 03-02)
     StrategicObjectivePublished,
     StrategicObjectiveSuperseded,

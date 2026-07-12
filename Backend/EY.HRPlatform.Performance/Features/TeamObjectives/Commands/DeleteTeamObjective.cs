@@ -42,6 +42,19 @@ public sealed class DeleteTeamObjectiveCommandHandler(
                 "TeamObjective.NotOwnerForbidden",
                 "Only the owning manager can change this team objective."));
 
+        var hasEmployeeAlignments = await dbContext.EmployeeObjectivePlans
+            .AsNoTracking()
+            .AnyAsync(plan => plan.CycleId == request.CycleId
+                              && plan.Objectives.Any(employeeObjective =>
+                                  employeeObjective.AlignmentType == ObjectiveAlignmentType.TeamObjective
+                                  && employeeObjective.AlignmentTargetId == objective.Id),
+                cancellationToken);
+
+        if (hasEmployeeAlignments)
+            return Result.Failure(Error.Conflict(
+                "TeamObjective.HasEmployeeAlignmentsConflict",
+                "This team objective is already used by employee objectives, so it cannot be deleted."));
+
         ConcurrencyGuard.Ensure(objective.Version, request.ExpectedVersion, nameof(CampaignTeamObjective), objective.Id);
 
         dbContext.CampaignTeamObjectives.Remove(objective);

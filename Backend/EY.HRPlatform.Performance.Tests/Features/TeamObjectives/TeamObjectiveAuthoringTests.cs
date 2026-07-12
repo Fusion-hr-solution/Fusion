@@ -18,6 +18,7 @@ public class TeamObjectiveAuthoringTests
         string DbName,
         Guid CycleId,
         Guid ActiveStrategicId,
+        Guid ParticipantEmployeeId,
         Guid ManagerEmployeeId,
         Guid OtherManagerEmployeeId);
 
@@ -32,12 +33,13 @@ public class TeamObjectiveAuthoringTests
         await using var seed = PerformanceTestContext.Create(tenantId, out _, dbName);
         var cycle = TestCycles.Create(tenantId, "FY26 Cascade", PerformanceCycleType.Annual, Start, End);
         var strategic = cycle.AddStrategicObjective("Improve client delivery", "Raise quality", "Consulting");
+        var participantEmployeeId = Guid.NewGuid();
 
         if (launch)
         {
             cycle.Launch(
                 [
-                    new ResolvedLaunchParticipant(Guid.NewGuid(), "Alice", managerId, "Mia Manager", false, null,
+                    new ResolvedLaunchParticipant(participantEmployeeId, "Alice", managerId, "Mia Manager", false, null,
                         OrgUnitName: "Consulting"),
                     new ResolvedLaunchParticipant(Guid.NewGuid(), "Bob", otherManagerId, "Omar Lead", false, null,
                         OrgUnitName: "Audit")
@@ -47,7 +49,7 @@ public class TeamObjectiveAuthoringTests
 
         seed.PerformanceCycles.Add(cycle);
         await seed.SaveChangesAsync();
-        return new Seeded(tenantId, dbName, cycle.Id, strategic.Id, managerId, otherManagerId);
+        return new Seeded(tenantId, dbName, cycle.Id, strategic.Id, participantEmployeeId, managerId, otherManagerId);
     }
 
     private static CreateTeamObjectiveCommand ValidCreate(Seeded seeded, string title = "Raise delivery NPS")
@@ -255,6 +257,52 @@ public class TeamObjectiveAuthoringTests
         Assert.False(await db.CampaignTeamObjectives.AnyAsync(o => o.Id == objectiveId));
         Assert.True(await db.PerformanceCycleAuditEvents.AnyAsync(
             e => e.Action == PerformanceCycleAuditAction.TeamObjectiveDeleted));
+    }
+
+    [Fact]
+    public async Task Delete_WhenEmployeeObjectivesAlignToTeamObjective_IsBlocked()
+    {
+        var seeded = await SeedLaunchedAsync();
+        var objectiveId = await CreateObjectiveAsync(seeded, seeded.ManagerEmployeeId);
+
+        await using (var seed = PerformanceTestContext.Create(seeded.TenantId, out _, seeded.DbName))
+        {
+            var cycle = await seed.PerformanceCycles
+                .Include(c => c.Participants)
+                .SingleAsync(c => c.Id == seeded.CycleId);
+            var participant = cycle.Participants.Single(p => p.EmployeeId == seeded.ParticipantEmployeeId);
+            var teamObjective = await seed.CampaignTeamObjectives.SingleAsync(o => o.Id == objectiveId);
+            var plan = EmployeeObjectivePlan.CreateDraft(cycle, participant, Start.AddDays(2));
+            plan.AddObjective(
+                cycle,
+                "Improve delivery quality",
+                ObjectiveAlignmentType.TeamObjective,
+                teamObjective.Id,
+                teamObjective.Title,
+                30,
+                Start.AddDays(10),
+                "Quantitative",
+                "NPS",
+                "60",
+                "%",
+                Start.AddDays(2));
+            seed.EmployeeObjectivePlans.Add(plan);
+            await seed.SaveChangesAsync();
+        }
+
+        await using var db = PerformanceTestContext.Create(seeded.TenantId, out _, seeded.DbName);
+        var current = await db.CampaignTeamObjectives.AsNoTracking().SingleAsync(o => o.Id == objectiveId);
+        var handler = new DeleteTeamObjectiveCommandHandler(
+            db, new StubCurrentUserContext { EmployeeId = seeded.ManagerEmployeeId });
+
+        var result = await handler.Handle(
+            new DeleteTeamObjectiveCommand(seeded.CycleId, objectiveId, current.Version), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("TeamObjective.HasEmployeeAlignmentsConflict", result.Error.Code);
+        Assert.True(await db.CampaignTeamObjectives.AnyAsync(o => o.Id == objectiveId));
+        Assert.True(await db.EmployeeObjectivePlans.AnyAsync(p =>
+            p.Objectives.Any(o => o.AlignmentType == ObjectiveAlignmentType.TeamObjective && o.AlignmentTargetId == objectiveId)));
     }
 
     [Fact]

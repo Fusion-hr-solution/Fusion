@@ -2,9 +2,7 @@
 
 ## Purpose
 TBD - created by syncing change performance-p1-3-campaign-strategy-cascade-team-objectives. Update Purpose after archive.
-
 ## Requirements
-
 ### Requirement: Manager campaign scope derives from the frozen approver baseline
 
 The system SHALL define a manager's campaign scope as the launched campaign's frozen participants whose resolved approver is the signed-in user's linked employee. Scope resolution SHALL use only the frozen P1.2 participant baseline and SHALL NOT re-resolve responsibility from live Core reporting lines. A signed-in user with no linked employee identity SHALL have no manager scope in any campaign.
@@ -76,7 +74,7 @@ The system SHALL let a manager with team-objective management permission create 
 
 ### Requirement: Manager edits and deletes their own team objectives
 
-The system SHALL let the owning manager edit their team objective's title, linked strategic objective (to another active strategic objective of the same campaign), success criteria, measurement method, and description, and delete their team objective, while no employee objectives depend on it. A manager SHALL NOT edit or delete another manager's team objectives. Concurrent edits SHALL be protected by optimistic concurrency.
+The system SHALL let the owning manager edit their team objective's title, linked strategic objective (to another active strategic objective of the same campaign), success criteria, measurement method, and description, and delete their team objective, only while no employee objective aligns to it. A manager SHALL NOT edit or delete another manager's team objectives. When one or more employee objectives align to a team objective, deletion SHALL be blocked with a truthful reason rather than orphaning the aligned objectives; editing the team objective's content SHALL remain permitted. Concurrent edits SHALL be protected by optimistic concurrency.
 
 #### Scenario: Owner edits succeed
 
@@ -84,11 +82,18 @@ The system SHALL let the owning manager edit their team objective's title, linke
 - **THEN** the system stores the changes
 - **AND** the updated objective is reflected immediately in the workspace
 
-#### Scenario: Owner deletes their team objective
+#### Scenario: Owner deletes an unreferenced team objective
 
-- **WHEN** the owning manager deletes their team objective (no employee objectives exist in P1.3)
+- **WHEN** the owning manager deletes their team objective and no employee objective aligns to it
 - **THEN** the system removes it from the campaign cascade
 - **AND** records the deletion in the audit trail
+
+#### Scenario: Deletion is blocked when employee objectives align to it
+
+- **GIVEN** a team objective that one or more employee objectives align to
+- **WHEN** the owning manager attempts to delete it
+- **THEN** the system blocks the deletion with a truthful reason
+- **AND** the team objective and the aligned employee objectives are unchanged
 
 #### Scenario: Non-owner cannot mutate
 

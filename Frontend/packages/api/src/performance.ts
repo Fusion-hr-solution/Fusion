@@ -437,6 +437,114 @@ export interface UpsertTeamObjectiveRequest {
   description: string | null;
 }
 
+// ── Employee objectives (P1.4) ──────────────────────────────────────
+
+export type EmployeeObjectivePlanStatus = "Draft" | "Submitted";
+export type ObjectiveAlignmentType = "TeamObjective" | "StrategicObjective";
+
+export interface MyObjectivePlanCampaignDto {
+  id: string;
+  slug: string;
+  name: string;
+  referenceYear: number | null;
+  planningOpeningDate: string | null;
+  employeeSubmissionDeadline: string | null;
+  managerApprovalDeadline: string | null;
+  launchedAt: string | null;
+  planStatus: EmployeeObjectivePlanStatus | null;
+  objectiveCount: number;
+  totalWeight: number;
+}
+
+export interface EmployeeObjectiveDto {
+  id: string;
+  title: string;
+  description: string | null;
+  alignmentType: ObjectiveAlignmentType | null;
+  alignmentTargetId: string | null;
+  alignmentTitle: string | null;
+  weight: number | null;
+  deadline: string | null;
+  measurementMethod: string | null;
+  measurementIndicator: string | null;
+  targetValue: string | null;
+  targetUnit: string | null;
+  successCriteria: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+}
+
+export interface EmployeeObjectivePlanDto {
+  id: string;
+  cycleId: string;
+  employeeId: string;
+  status: EmployeeObjectivePlanStatus;
+  submittedAt: string | null;
+  approverEmployeeId: string | null;
+  approverName: string | null;
+  objectiveCount: number;
+  totalWeight: number;
+  version: number;
+  objectives: EmployeeObjectiveDto[];
+}
+
+export interface EmployeeObjectiveAlignmentOptionDto {
+  type: ObjectiveAlignmentType;
+  targetId: string;
+  title: string;
+  strategicObjectiveId: string | null;
+  strategicObjectiveTitle: string | null;
+}
+
+export type EmployeeObjectiveWorkspaceState =
+  | "entry-not-open"
+  | "draft"
+  | "submitted"
+  | "empty";
+
+export interface EmployeeObjectivePlanWorkspaceDto {
+  state: EmployeeObjectiveWorkspaceState;
+  cycleId: string;
+  slug: string;
+  name: string;
+  referenceYear: number | null;
+  planningOpeningDate: string | null;
+  employeeSubmissionDeadline: string | null;
+  managerApprovalDeadline: string | null;
+  launchedAt: string | null;
+  maxObjectiveCount: number;
+  allowedWeights: number[];
+  enabledMeasurementMethods: string[];
+  plan: EmployeeObjectivePlanDto | null;
+  alignmentOptions: EmployeeObjectiveAlignmentOptionDto[];
+}
+
+export interface SaveEmployeeObjectiveRequest {
+  title: string;
+  description: string | null;
+  alignmentType: ObjectiveAlignmentType | null;
+  alignmentTargetId: string | null;
+  weight: number | null;
+  deadline: string | null;
+  measurementMethod: string | null;
+  measurementIndicator: string | null;
+  targetValue: string | null;
+  targetUnit: string | null;
+  successCriteria: string | null;
+}
+
+export interface ObjectivePlanBlockingReasonDto {
+  code: string;
+  message: string;
+  objectiveId: string | null;
+}
+
+export interface SubmitObjectivePlanResponseDto {
+  submitted: boolean;
+  plan: EmployeeObjectivePlanDto;
+  blockingReasons: ObjectivePlanBlockingReasonDto[];
+}
+
 // ── Cascade coverage (P1.3) ──────────────────────────────────────────
 
 export interface CascadeCoverageCampaignDto {
@@ -521,6 +629,15 @@ export const performancePaths = {
     `/performance/team-objectives/campaigns/${cycleId}/objectives`,
   teamObjective: (cycleId: string, objectiveId: string) =>
     `/performance/team-objectives/campaigns/${cycleId}/objectives/${objectiveId}`,
+  myObjectivePlanCampaigns: () => "/performance/employee-objectives/my-campaigns",
+  employeeObjectiveWorkspace: (slug: string) =>
+    `/performance/employee-objectives/campaigns/${slug}`,
+  employeeObjectives: (cycleId: string) =>
+    `/performance/employee-objectives/campaigns/${cycleId}/objectives`,
+  employeeObjective: (cycleId: string, objectiveId: string) =>
+    `/performance/employee-objectives/campaigns/${cycleId}/objectives/${objectiveId}`,
+  employeeObjectivePlanSubmit: (cycleId: string) =>
+    `/performance/employee-objectives/campaigns/${cycleId}/submit`,
   cascadeCoverageCampaigns: () => "/performance/cascade-coverage/campaigns",
   cascadeCoverage: (slug: string) =>
     `/performance/cascade-coverage/campaigns/${slug}`,
@@ -582,6 +699,11 @@ export const performanceQueryKeys = {
     [...performanceQueryKeys.teamObjectives(), "my-campaigns"] as const,
   teamObjectiveWorkspace: (slug: string) =>
     [...performanceQueryKeys.teamObjectives(), "workspace", slug] as const,
+  myObjectives: () => [...performanceQueryKeys.all(), "my-objectives"] as const,
+  myObjectivePlanCampaigns: () =>
+    [...performanceQueryKeys.myObjectives(), "campaigns"] as const,
+  employeeObjectiveWorkspace: (slug: string) =>
+    [...performanceQueryKeys.myObjectives(), "workspace", slug] as const,
   cascadeCoverageAll: () =>
     [...performanceQueryKeys.all(), "cascade-coverage"] as const,
   cascadeCoverageCampaigns: () =>

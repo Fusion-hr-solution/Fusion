@@ -3,6 +3,7 @@ using System;
 using EY.HRPlatform.Performance.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(PerformanceDbContext))]
-    partial class PerformanceDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260712160452_P14EmployeeObjectivePlans")]
+    partial class P14EmployeeObjectivePlans
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

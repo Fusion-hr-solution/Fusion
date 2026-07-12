@@ -1,4 +1,4 @@
-import { ClipboardList, Compass, Megaphone, ScrollText, Settings2, Target } from "lucide-react";
+import { ClipboardList, Compass, Megaphone, ScrollText, Settings2, Target, UserRoundCheck } from "lucide-react";
 import type { ShellNavSection } from "@repo/ds/shell";
 
 export const OVERVIEW_NAV: ShellNavSection = {
@@ -24,6 +24,17 @@ export const CAMPAIGNS_NAV: ShellNavSection = {
       label: "Campaigns",
       href: "/campaigns",
       icon: Megaphone,
+    },
+  ],
+};
+
+/** Employee door: personal objective plans inside launched campaigns. */
+export const MY_OBJECTIVES_NAV: ShellNavSection = {
+  items: [
+    {
+      label: "My objectives",
+      href: "/my-objectives",
+      icon: UserRoundCheck,
     },
   ],
 };
