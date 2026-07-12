@@ -48,6 +48,12 @@ public sealed record GetCascadeCoverageQuery(string Slug) : IQuery<Result<Cascad
 public sealed class GetCascadeCoverageQueryHandler(
     PerformanceDbContext dbContext) : IQueryHandler<GetCascadeCoverageQuery, Result<CascadeCoverageDto>>
 {
+    /// <summary>
+    /// Bounds the team-objective list in the response. Counts stay exact — clients detect
+    /// truncation by comparing the list length against <c>TeamObjectiveCount</c>.
+    /// </summary>
+    internal const int MaxTeamObjectivesInResponse = 500;
+
     public async Task<Result<CascadeCoverageDto>> Handle(
         GetCascadeCoverageQuery request,
         CancellationToken cancellationToken)
@@ -67,10 +73,15 @@ public sealed class GetCascadeCoverageQueryHandler(
                 "CascadeCoverage.NotLaunchedInvalid",
                 "This campaign is not launched for objective planning yet."));
 
-        var teamObjectives = await dbContext.CampaignTeamObjectives
+        var objectivesQuery = dbContext.CampaignTeamObjectives
             .AsNoTracking()
-            .Where(objective => objective.CycleId == cycle.Id)
+            .Where(objective => objective.CycleId == cycle.Id);
+
+        var totalTeamObjectiveCount = await objectivesQuery.CountAsync(cancellationToken);
+
+        var teamObjectives = await objectivesQuery
             .OrderBy(objective => objective.CreatedAt)
+            .Take(MaxTeamObjectivesInResponse)
             .ToListAsync(cancellationToken);
 
         var approverScopes = await dbContext.PerformanceCycleParticipants
@@ -85,13 +96,16 @@ public sealed class GetCascadeCoverageQueryHandler(
             })
             .ToListAsync(cancellationToken);
 
-        var objectiveCountsByStrategic = teamObjectives
+        // Counts group the FULL set in SQL so they stay exact even when the list is capped.
+        var objectiveCountsByStrategic = await objectivesQuery
             .GroupBy(objective => objective.StrategicObjectiveId)
-            .ToDictionary(group => group.Key, group => group.Count());
+            .Select(group => new { group.Key, Count = group.Count() })
+            .ToDictionaryAsync(group => group.Key, group => group.Count, cancellationToken);
 
-        var objectiveCountsByOwner = teamObjectives
+        var objectiveCountsByOwner = await objectivesQuery
             .GroupBy(objective => objective.OwnerManagerEmployeeId)
-            .ToDictionary(group => group.Key, group => group.Count());
+            .Select(group => new { group.Key, Count = group.Count() })
+            .ToDictionaryAsync(group => group.Key, group => group.Count, cancellationToken);
 
         var activeStrategicObjectives = cycle.StrategicObjectives
             .Where(objective => objective.IsActive)
@@ -127,7 +141,7 @@ public sealed class GetCascadeCoverageQueryHandler(
             activeStrategicObjectives.Count(objective => objective.TeamObjectiveCount > 0),
             managers.Count,
             managers.Count(manager => manager.TeamObjectiveCount > 0),
-            teamObjectives.Count,
+            totalTeamObjectiveCount,
             activeStrategicObjectives,
             managers,
             teamObjectives.Select(objective => TeamObjectiveMapper.ToDto(objective, strategicTitles)).ToList());
