@@ -400,6 +400,20 @@ export function canManageTeamObjectives(user: AuthUser | null): boolean {
   return hasCorePermission(user, PERFORMANCE_PERMISSION.objectiveTeamManage);
 }
 
+/**
+ * Manager door: authoring team objectives is keyed to the frozen approver, so it is only
+ * reachable by an account linked to an employee record. HR/Org admins hold the permission at
+ * Tenant scope but are never named as a frozen approver, so the door stays hidden for them —
+ * fail closed rather than surface an action the account can never complete.
+ */
+export function canAccessTeamObjectives(user: AuthUser | null): boolean {
+  if (!user?.employeeId) {
+    return false;
+  }
+
+  return canManageTeamObjectives(user);
+}
+
 /** Direction door: strategy and cascade coverage without HR campaign permissions. */
 export function canViewPerformanceStrategy(user: AuthUser | null): boolean {
   return hasCorePermission(user, PERFORMANCE_PERMISSION.strategicView, "Tenant");

@@ -9,6 +9,7 @@ import { PerformanceSidebar } from "./performance-sidebar";
 type TestUser = {
   fullName: string;
   roles: string[];
+  employeeId?: string | null;
   permissions?: Array<{ permissionKey: string; scope: string }>;
 };
 
@@ -46,6 +47,12 @@ vi.mock("@repo/auth", () => ({
     user?.permissions?.some(
       (grant) => grant.permissionKey === "performance.objective.team.manage",
     ) ?? false,
+  canAccessTeamObjectives: (user: TestUser | null) =>
+    !!user?.employeeId &&
+    (user?.permissions?.some(
+      (grant) => grant.permissionKey === "performance.objective.team.manage",
+    ) ??
+      false),
   canViewPerformanceStrategy: (user: TestUser | null) =>
     user?.permissions?.some(
       (grant) =>
@@ -115,10 +122,11 @@ describe("PerformanceSidebar", () => {
     expect(sidebar.textContent).not.toContain("Strategy");
   });
 
-  it("shows the Team objectives door for any team-objective permission scope", () => {
+  it("shows the Team objectives door for an employee-linked manager", () => {
     const sidebar = renderSidebar({
       fullName: "Manager",
       roles: ["Manager"],
+      employeeId: "emp-1",
       permissions: [
         { permissionKey: "performance.objective.team.manage", scope: "DirectReports" },
       ],
@@ -128,6 +136,21 @@ describe("PerformanceSidebar", () => {
     expect(sidebar.querySelector('a[href="/performance/team-objectives"]')).toBeTruthy();
     expect(sidebar.textContent).not.toContain("Campaigns");
     expect(sidebar.textContent).not.toContain("Strategy");
+  });
+
+  it("hides the Team objectives door from an admin with the permission but no employee link", () => {
+    // HR/Org admins hold performance.objective.team.manage at Tenant scope but are never a
+    // frozen approver, so the manager cockpit must stay hidden rather than dead-end them.
+    const sidebar = renderSidebar({
+      fullName: "HR Admin",
+      roles: ["HRAdmin"],
+      employeeId: null,
+      permissions: [
+        { permissionKey: "performance.objective.team.manage", scope: "Tenant" },
+      ],
+    });
+
+    expect(sidebar.textContent).not.toContain("Team objectives");
   });
 
   it("shows the Strategy door for tenant-scoped strategic view without HR permissions", () => {

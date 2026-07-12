@@ -66,6 +66,7 @@ export {
   canViewObjectivePlanningConfiguration,
   canManageObjectivePlanningConfiguration,
   canManageTeamObjectives,
+  canAccessTeamObjectives,
   canViewPerformanceStrategy,
   canAccessPerformance,
 } from "./roles";
