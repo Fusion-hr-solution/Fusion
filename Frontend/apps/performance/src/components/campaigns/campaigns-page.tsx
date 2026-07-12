@@ -119,12 +119,14 @@ export function CampaignListPage() {
   const canManage = canManagePerformanceCampaigns(user);
   const [createOpen, setCreateOpen] = useState(false);
 
+  // Show the tenant's campaigns across their whole lifecycle — draft setup and launched alike.
+  // Filtering to Draft only made a launched campaign vanish into a false "No campaigns yet" state.
   const { data, error, isLoading, refetch } = useApiQuery<PagedResponse<PerformanceCycleSummaryDto>>(
-    performanceQueryKeys.cycleList({ status: "Draft", page: 1, pageSize: 50 }),
+    performanceQueryKeys.cycleList({ page: 1, pageSize: 50 }),
     (signal) =>
       apiClient.get<PagedResponse<PerformanceCycleSummaryDto>>(performancePaths.cycles(), {
         signal,
-        params: { status: "Draft", page: 1, pageSize: 50 },
+        params: { page: 1, pageSize: 50 },
       }),
     { enabled: canView },
   );
@@ -146,7 +148,7 @@ export function CampaignListPage() {
     <PageContainer>
       <PageHeader
         title={campaignTerms.listTitle}
-        description="Create and set up your performance planning campaigns."
+        description="Create, launch, and track your performance planning campaigns."
         actions={
           canManage ? (
             <Button size="sm" onClick={() => setCreateOpen(true)}>
