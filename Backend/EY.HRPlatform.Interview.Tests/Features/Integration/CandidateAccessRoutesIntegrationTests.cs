@@ -41,7 +41,7 @@ public class CandidateAccessRoutesIntegrationTests
             await db.SaveChangesAsync();
         }
 
-        var invitation = await CreateInvitationAsync(client, testId, "grace-route@example.com");
+        var invitation = await CreateInvitationAsync(factory, testId, "grace-route@example.com");
         var invitationId = Guid.Parse(invitation.Id);
         var token = ExtractToken(invitation.InviteLink);
 
@@ -137,7 +137,7 @@ public class CandidateAccessRoutesIntegrationTests
             await db.SaveChangesAsync();
         }
 
-        var invitation = await CreateInvitationAsync(client, testId, "single-use-reopen@example.com");
+        var invitation = await CreateInvitationAsync(factory, testId, "single-use-reopen@example.com");
         var token = ExtractToken(invitation.InviteLink);
 
         var firstStartResponse = await client.PostAsJsonAsync(
@@ -206,7 +206,7 @@ public class CandidateAccessRoutesIntegrationTests
             await db.SaveChangesAsync();
         }
 
-        var invitation = await CreateInvitationAsync(client, testId, "fingerprint-route@example.com");
+        var invitation = await CreateInvitationAsync(factory, testId, "fingerprint-route@example.com");
         var token = ExtractToken(invitation.InviteLink);
 
         var firstStartResponse = await client.PostAsJsonAsync(
@@ -272,7 +272,7 @@ public class CandidateAccessRoutesIntegrationTests
             await db.SaveChangesAsync();
         }
 
-        var invitation = await CreateInvitationAsync(client, testId, "fingerprint-missing@example.com");
+        var invitation = await CreateInvitationAsync(factory, testId, "fingerprint-missing@example.com");
         var token = ExtractToken(invitation.InviteLink);
 
         using var request = new HttpRequestMessage(HttpMethod.Post, "/api/interview/candidate-access/start")
@@ -304,7 +304,7 @@ public class CandidateAccessRoutesIntegrationTests
             BaseAddress = new Uri("https://localhost")
         });
 
-        var invitation = await CreateInvitationAsync(client, testId, "single-use@example.com");
+        var invitation = await CreateInvitationAsync(factory, testId, "single-use@example.com");
         var token = ExtractToken(invitation.InviteLink);
 
         var startResponse = await client.PostAsJsonAsync(
@@ -373,7 +373,7 @@ public class CandidateAccessRoutesIntegrationTests
             await db.SaveChangesAsync();
         }
 
-        var invitation = await CreateInvitationAsync(client, testId, "reuse-disabled@example.com");
+        var invitation = await CreateInvitationAsync(factory, testId, "reuse-disabled@example.com");
         var invitationId = Guid.Parse(invitation.Id);
         var token = ExtractToken(invitation.InviteLink);
 
@@ -467,7 +467,7 @@ public class CandidateAccessRoutesIntegrationTests
             await db.SaveChangesAsync();
         }
 
-        var invitation = await CreateInvitationAsync(client, testId, "reuse-limited@example.com");
+        var invitation = await CreateInvitationAsync(factory, testId, "reuse-limited@example.com");
         var token = ExtractToken(invitation.InviteLink);
 
         var startResponse = await client.PostAsJsonAsync(
@@ -522,7 +522,7 @@ public class CandidateAccessRoutesIntegrationTests
             BaseAddress = new Uri("https://localhost")
         });
 
-        var invitation = await CreateInvitationAsync(client, testId, "expired-route@example.com");
+        var invitation = await CreateInvitationAsync(factory, testId, "expired-route@example.com");
         var invitationId = Guid.Parse(invitation.Id);
 
         using (var scope = factory.Services.CreateScope())
@@ -547,8 +547,16 @@ public class CandidateAccessRoutesIntegrationTests
         Assert.Equal(HttpStatusCode.Gone, response.StatusCode);
     }
 
-    private static async Task<CandidateInvitationEnvelope> CreateInvitationAsync(HttpClient client, Guid testId, string email)
+    /// <summary>Seeds an invitation the way it really happens: an authenticated ADMIN creates it.
+    /// The candidate then uses the returned link anonymously — which is what these tests exercise.
+    /// (Creating invitations is a protected route; the candidate client has no token.)</summary>
+    private static async Task<CandidateInvitationEnvelope> CreateInvitationAsync(InterviewApiFactory factory, Guid testId, string email)
     {
+        using var client = factory.CreateAuthenticatedClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost")
+        });
+
         var response = await client.PostAsJsonAsync(
             "/api/interview/candidates/invitations",
             new
