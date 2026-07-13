@@ -18,6 +18,8 @@ export interface CandidateAccessQuestion {
   starterCode?: string;
   /** Multi-file coding question starter: JSON { entry, files: [{ path, content }] }. */
   projectFiles?: string;
+  /** Frontend Project questions: framework ("react" | "angular" | "next"). */
+  framework?: string;
   evaluationCriteria?: string;
   options: CandidateAccessQuestionOption[];
 }
@@ -35,6 +37,8 @@ export interface CandidateAccessValidation {
   allowBacktracking: boolean;
   showProgressBar: boolean;
   randomizeOrder: boolean;
+  /** If the test has a Frontend Project question, its framework ("react" | "angular" | "next"). */
+  frontendFramework?: string;
   status: "Invalid" | "Invited" | "InProgress" | "Submitted" | "Expired";
   message: string;
   invitationId?: string;

@@ -99,6 +99,8 @@ public class QuestionService(AppDbContext dbContext) : IQuestionService
             Language = string.IsNullOrWhiteSpace(request.Language) ? null : request.Language.Trim(),
             StarterCode = string.IsNullOrWhiteSpace(request.StarterCode) ? null : request.StarterCode,
             ProjectFiles = string.IsNullOrWhiteSpace(request.ProjectFiles) ? null : request.ProjectFiles,
+            Framework = string.IsNullOrWhiteSpace(request.Framework) ? null : request.Framework.Trim(),
+            FrontendTestFiles = string.IsNullOrWhiteSpace(request.FrontendTestFiles) ? null : request.FrontendTestFiles,
             EvaluationCriteria = string.IsNullOrWhiteSpace(request.EvaluationCriteria) ? null : request.EvaluationCriteria.Trim(),
             TestCases = string.IsNullOrWhiteSpace(request.TestCases) ? null : request.TestCases,
             Options = options.Select(o => new QuestionOption
@@ -138,6 +140,8 @@ public class QuestionService(AppDbContext dbContext) : IQuestionService
         question.Language = string.IsNullOrWhiteSpace(request.Language) ? null : request.Language.Trim();
         question.StarterCode = string.IsNullOrWhiteSpace(request.StarterCode) ? null : request.StarterCode;
         question.ProjectFiles = string.IsNullOrWhiteSpace(request.ProjectFiles) ? null : request.ProjectFiles;
+        question.Framework = string.IsNullOrWhiteSpace(request.Framework) ? null : request.Framework.Trim();
+        question.FrontendTestFiles = string.IsNullOrWhiteSpace(request.FrontendTestFiles) ? null : request.FrontendTestFiles;
         question.EvaluationCriteria = string.IsNullOrWhiteSpace(request.EvaluationCriteria) ? null : request.EvaluationCriteria.Trim();
         question.TestCases = string.IsNullOrWhiteSpace(request.TestCases) ? null : request.TestCases;
 
@@ -201,6 +205,8 @@ public class QuestionService(AppDbContext dbContext) : IQuestionService
             Language = question.Language ?? string.Empty,
             StarterCode = question.StarterCode ?? string.Empty,
             ProjectFiles = question.ProjectFiles,
+            Framework = question.Framework,
+            FrontendTestFiles = question.FrontendTestFiles,
             EvaluationCriteria = question.EvaluationCriteria ?? string.Empty,
             TestCases = question.TestCases
         };
@@ -239,6 +245,9 @@ public class QuestionService(AppDbContext dbContext) : IQuestionService
         if ((type is QuestionType.Coding or QuestionType.Sql) && string.IsNullOrWhiteSpace(request.Language))
             errors.Add("Coding and SQL questions require language.");
 
+        if (type is QuestionType.FrontendProject && string.IsNullOrWhiteSpace(request.Framework))
+            errors.Add("Frontend Project questions require a framework (react, angular, or next).");
+
         if (options.Any(o => string.IsNullOrWhiteSpace(o.Text)))
             errors.Add("option text is required.");
 
@@ -261,6 +270,7 @@ public class QuestionService(AppDbContext dbContext) : IQuestionService
             "Excel" => QuestionType.Excel,
             "True/False" => QuestionType.TrueFalse,
             "Design" => QuestionType.Design,
+            "Frontend Project" => QuestionType.FrontendProject,
             _ => throw new ApiException($"Invalid QuestionType value '{value}'.", StatusCodes.Status400BadRequest)
         };
     }
@@ -302,6 +312,7 @@ public class QuestionService(AppDbContext dbContext) : IQuestionService
             QuestionType.MultipleChoice => "Multiple Choice",
             QuestionType.CaseStudy => "Case Study",
             QuestionType.TrueFalse => "True/False",
+            QuestionType.FrontendProject => "Frontend Project",
             _ => type.ToString()
         };
     }

@@ -1,5 +1,6 @@
 using EY.HRPlatform.Interview.Features.Candidates;
 using EY.HRPlatform.Interview.Features.Grading;
+using EY.HRPlatform.Interview.Features.Grading.FrontendRunner;
 using EY.HRPlatform.Interview.Features.Grading.Graders;
 using EY.HRPlatform.Interview.Features.Grading.Groq;
 using EY.HRPlatform.Interview.Features.Grading.HumanReview;
@@ -108,6 +109,16 @@ public static class ServiceCollectionExtensions
                 if (!string.IsNullOrWhiteSpace(token))
                     c.DefaultRequestHeaders.Add("X-Auth-Token", token);
             });
+        }
+
+        // Frontend Project auto-grading runs the candidate's app against the author's hidden tests in
+        // a sandboxed runner. Registered only when explicitly enabled + images are configured;
+        // otherwise Frontend Project questions fall through to human review.
+        if (configuration.GetValue($"{FrontendRunnerOptions.SectionName}:Enabled", false))
+        {
+            services.Configure<FrontendRunnerOptions>(configuration.GetSection(FrontendRunnerOptions.SectionName));
+            services.AddScoped<IFrontendProjectRunner, DockerFrontendProjectRunner>();
+            services.AddScoped<IGrader, FrontendProjectGrader>();
         }
 
         var redisConnectionString = configuration["Redis:ConnectionString"];

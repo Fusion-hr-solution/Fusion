@@ -78,7 +78,15 @@ public class CandidateAccessService(
             await dbContext.SaveChangesAsync(cancellationToken);
         }
 
-        return MapValidationDto(invitation, state, nowUtc, settings, attemptLimitReached);
+        // Surface the (at most one) Frontend Project question's framework so the candidate UI can
+        // pre-warm the WebContainer before starting the attempt. Targeted projection — no graph load.
+        var frontendFramework = await dbContext.TestQuestions
+            .AsNoTracking()
+            .Where(tq => tq.TestId == invitation.TestId && tq.Question.Type == QuestionType.FrontendProject)
+            .Select(tq => tq.Question.Framework)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return MapValidationDto(invitation, state, nowUtc, settings, attemptLimitReached, frontendFramework);
     }
 
     public async Task<CandidateAccessSessionDto> StartOrResumeAsync(
@@ -869,7 +877,8 @@ public class CandidateAccessService(
         InvitationAccessState state,
         DateTime nowUtc,
         LinkSecurityRuntimeSettings settings,
-        bool attemptLimitReached)
+        bool attemptLimitReached,
+        string? frontendFramework = null)
     {
         var reusableSubmittedState =
             !settings.SingleUseLinkEnabled &&
@@ -919,6 +928,7 @@ public class CandidateAccessService(
             AllowBacktracking = invitation.Test?.AllowBacktracking ?? true,
             ShowProgressBar = invitation.Test?.ShowProgressBar ?? true,
             RandomizeOrder = invitation.Test?.RandomizeOrder ?? false,
+            FrontendFramework = frontendFramework,
         };
 
         if (attemptLimitReached)
@@ -981,6 +991,8 @@ public class CandidateAccessService(
             Language = question.Language,
             StarterCode = question.StarterCode,
             ProjectFiles = question.ProjectFiles,
+            Framework = question.Framework,
+            // NB: question.FrontendTestFiles is intentionally NOT mapped — grading tests stay hidden.
             EvaluationCriteria = question.EvaluationCriteria,
             Options = question.Options
                 .Select(option => new CandidateAccessQuestionOptionDto

@@ -64,6 +64,8 @@ interface BackendQuestionDto {
   language?: string;
   starterCode?: string;
   projectFiles?: string;
+  framework?: string;
+  frontendTestFiles?: string;
   evaluationCriteria?: string;
   testCases?: string;
 }
@@ -81,6 +83,8 @@ interface CreateQuestionRequest {
   language: string;
   starterCode: string;
   projectFiles?: string;
+  framework?: string;
+  frontendTestFiles?: string;
   evaluationCriteria: string;
   testCases?: string;
 }
@@ -175,6 +179,8 @@ function mapQuestion(dto: BackendQuestionDto): Question {
     language: dto.language,
     starterCode: dto.starterCode,
     projectFiles: dto.projectFiles,
+    framework: dto.framework,
+    frontendTestFiles: dto.frontendTestFiles,
     evaluationCriteria: dto.evaluationCriteria,
     testCases: dto.testCases ? tryParseJson(dto.testCases) : undefined,
   };
@@ -224,6 +230,9 @@ function toCreateQuestionRequest(form: NewQuestionForm): CreateQuestionRequest {
     language: form.language,
     starterCode: form.starterCode,
     projectFiles: form.projectFiles && form.projectFiles.trim().length > 0 ? form.projectFiles : undefined,
+    framework: form.framework && form.framework.trim().length > 0 ? form.framework : undefined,
+    frontendTestFiles:
+      form.frontendTestFiles && form.frontendTestFiles.trim().length > 0 ? form.frontendTestFiles : undefined,
     evaluationCriteria: form.evaluationCriteria,
     testCases: form.testCases.length > 0 ? JSON.stringify(form.testCases) : undefined,
   };
