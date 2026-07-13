@@ -36,14 +36,25 @@ RUN npm install --no-audit --no-fund --loglevel=error && npm cache clean --force
 
 RUN mkdir -p /opt/runner/config
 RUN cat > /opt/runner/config/jest.config.cjs <<'CJS'
+// All paths use <rootDir> (= /work). The entrypoint copies this file in AFTER the submission, so it
+// stays tamper-proof; an absolute /opt/... path would sit outside rootDir and break the transform.
 module.exports = {
   preset: "jest-preset-angular",
-  // <rootDir> (= /work) — the entrypoint copies this file in AFTER the submission, so it stays
-  // tamper-proof. An absolute /opt/... path would sit outside rootDir and break ts-jest transform.
+  // Required by jest-preset-angular to bootstrap the Angular compiler before the suites run.
+  globalSetup: "jest-preset-angular/global-setup",
   setupFilesAfterEnv: ["<rootDir>/setup-jest.ts"],
   testMatch: ["**/*.spec.ts"],
   cacheDirectory: "/tmp/jest",
-  testEnvironment: "jsdom",
+  // Pin the transform explicitly so it uses OUR tsconfig, not whatever the candidate ships.
+  transform: {
+    "^.+\\.(ts|js|mjs|html|svg)$": [
+      "jest-preset-angular",
+      {
+        tsconfig: "<rootDir>/tsconfig.json",
+        stringifyContentPathRegex: "\\.(html|svg)$",
+      },
+    ],
+  },
 };
 CJS
 RUN cat > /opt/runner/config/setup-jest.ts <<'TS'
@@ -54,11 +65,14 @@ RUN cat > /opt/runner/config/tsconfig.json <<'JSON'
   "compilerOptions": {
     "target": "ES2022",
     "module": "ES2022",
-    "moduleResolution": "bundler",
+    "moduleResolution": "node",
+    "lib": ["ES2022", "dom"],
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "esModuleInterop": true,
-    "strict": true,
+    "allowSyntheticDefaultImports": true,
+    "skipLibCheck": true,
+    "strict": false,
     "types": ["jest", "node"]
   }
 }
