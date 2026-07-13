@@ -14,7 +14,11 @@ RUN cat > package.json <<'JSON'
   "name": "react-runner-template",
   "private": true,
   "type": "module",
-  "dependencies": { "react": "^18.3.1", "react-dom": "^18.3.1" },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.28.0"
+  },
   "devDependencies": {
     "vitest": "^2.1.8",
     "jsdom": "^25.0.1",

@@ -126,8 +126,16 @@ const REACT_TEMPLATE: Project = {
           private: true,
           type: "module",
           scripts: { dev: "vite --host", build: "vite build", test: "vitest run" },
-          dependencies: { react: "^18.3.1", "react-dom": "^18.3.1" },
-          devDependencies: { "@vitejs/plugin-react": "^4.3.1", vite: "^5.4.8" },
+          // MUST stay in lockstep with the grading image's baked deps
+          // (docker/frontend-runner/react/Dockerfile). A dependency that exists here but not there
+          // (or at a different version) means "works in my preview, fails at grading" — the
+          // candidate cannot install anything: the IDE has no terminal and the grader has no network.
+          dependencies: {
+            react: "^18.3.1",
+            "react-dom": "^18.3.1",
+            "react-router-dom": "^6.28.0",
+          },
+          devDependencies: { "@vitejs/plugin-react": "^4.3.4", vite: "^5.4.8" },
         },
         null,
         2,
@@ -142,8 +150,12 @@ const REACT_TEMPLATE: Project = {
       content: `<!doctype html>\n<html>\n  <head><meta charset="utf-8" /><title>React Challenge</title></head>\n  <body>\n    <div id="root"></div>\n    <script type="module" src="/src/main.jsx"></script>\n  </body>\n</html>\n`,
     },
     {
+      // The Router lives HERE, not in App.jsx. That's deliberate: it lets a grading test render
+      // <App /> inside its own <MemoryRouter initialEntries={["/somewhere"]}> to drive a route.
+      // If App owned a <BrowserRouter>, the test's router would nest inside it and throw.
+      // Harmless for non-routing questions — it's just an inert wrapper.
       path: "src/main.jsx",
-      content: `import { StrictMode } from "react";\nimport { createRoot } from "react-dom/client";\nimport App from "./App.jsx";\n\ncreateRoot(document.getElementById("root")).render(\n  <StrictMode>\n    <App />\n  </StrictMode>\n);\n`,
+      content: `import { StrictMode } from "react";\nimport { createRoot } from "react-dom/client";\nimport { BrowserRouter } from "react-router-dom";\nimport App from "./App.jsx";\n\ncreateRoot(document.getElementById("root")).render(\n  <StrictMode>\n    <BrowserRouter>\n      <App />\n    </BrowserRouter>\n  </StrictMode>\n);\n`,
     },
     {
       path: "src/App.jsx",
